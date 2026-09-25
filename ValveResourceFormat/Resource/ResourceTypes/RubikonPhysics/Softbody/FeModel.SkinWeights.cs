@@ -20,32 +20,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return recovered;
             }
 
-            var fitMatrices = Data.GetArray("m_FitMatrices");
-            var fitWeights = Data.GetArray("m_FitWeights") ?? [];
-
-            var fitPerVertex = new Dictionary<int, Dictionary<int, float>>();
-            var minIncludedWeight = float.MaxValue;
-            var begin = 0;
-            foreach (var fm in fitMatrices ?? [])
-            {
-                var end = fm.GetInt32Property("nEnd");
-                var bone = fm.GetInt32Property("nNode");
-                for (var i = begin; i < end && i < fitWeights.Count; i++)
-                {
-                    var node = fitWeights[i].GetInt32Property("nNode");
-                    var weight = fitWeights[i].GetFloatProperty("flWeight");
-                    if (!fitPerVertex.TryGetValue(node, out var boneWeights))
-                    {
-                        boneWeights = [];
-                        fitPerVertex[node] = boneWeights;
-                    }
-
-                    boneWeights[bone] = weight;
-                    minIncludedWeight = MathF.Min(minIncludedWeight, weight);
-                }
-
-                begin = end;
-            }
+            var (fitPerVertex, minIncludedWeight) = ReadFitWeightsPerVertex();
 
             var rigidParents = new Dictionary<int, int>();
             foreach (var offset in CtrlOffsets)
@@ -53,123 +28,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 rigidParents[offset.CtrlChild] = offset.CtrlParent;
             }
 
-            var softPerVertex = new Dictionary<int, List<(int Parent, float Alpha)>>();
-            if (Data.GetArray("m_CtrlSoftOffsets") is { } softOffsets)
-            {
-                foreach (var e in softOffsets)
-                {
-                    var child = e.GetInt32Property("nCtrlChild");
-                    if (!softPerVertex.TryGetValue(child, out var list))
-                    {
-                        list = [];
-                        softPerVertex[child] = list;
-                    }
-
-                    list.Add((e.GetInt32Property("nCtrlParent"), e.GetFloatProperty("flAlpha")));
-                }
-            }
-
-            List<(int Bone, float Weight)> ExpandSoftOffsets(int node, int primary)
-            {
-                var weights = new List<(int Bone, float Weight)> { (primary, 1f) };
-                if (!softPerVertex.TryGetValue(node, out var softs))
-                {
-                    return weights;
-                }
-
-                foreach (var (parent, alpha) in softs)
-                {
-                    for (var i = 0; i < weights.Count; i++)
-                    {
-                        weights[i] = (weights[i].Bone, weights[i].Weight * alpha);
-                    }
-
-                    var existing = weights.FindIndex(w => w.Bone == parent);
-                    if (existing >= 0)
-                    {
-                        weights[existing] = (parent, weights[existing].Weight + (1f - alpha));
-                    }
-                    else
-                    {
-                        weights.Add((parent, 1f - alpha));
-                    }
-                }
-
-                return weights;
-            }
-
-            var backSolvedMeshes = new HashSet<int>();
-            var fitBoneMeshes = new Dictionary<int, HashSet<int>>();
-            foreach (var (bone, targets) in FitMatrixTargets)
-            {
-                foreach (var target in targets)
-                {
-                    var targetMesh = target >= 0 && target < CtrlNames.Length
-                        ? ParseProxyMeshIndex(CtrlNames[target]) : -1;
-                    if (targetMesh < 0)
-                    {
-                        continue;
-                    }
-
-                    backSolvedMeshes.Add(targetMesh);
-                    if (!fitBoneMeshes.TryGetValue(bone, out var boneMeshes))
-                    {
-                        boneMeshes = [];
-                        fitBoneMeshes[bone] = boneMeshes;
-                    }
-
-                    boneMeshes.Add(targetMesh);
-                }
-            }
-
-            if (backSolvedMeshes.Count > 0)
-            {
-                var drivenByMesh = new Dictionary<int, HashSet<int>>();
-                foreach (var (node, primary) in rigidParents)
-                {
-                    var mesh = node >= 0 && node < CtrlNames.Length ? ParseProxyMeshIndex(CtrlNames[node]) : -1;
-                    if (mesh < 0 || backSolvedMeshes.Contains(mesh) || IsStatic(node)
-                        || primary < 0 || primary >= CtrlNames.Length)
-                    {
-                        continue;
-                    }
-
-                    foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
-                    {
-                        if (weight < DefaultBackSolveInfluenceThreshold || bone < 0 || bone >= CtrlNames.Length
-                            || !IsPositionDriven(bone) || IsProxyNodeName(CtrlNames[bone]))
-                        {
-                            continue;
-                        }
-
-                        if (!drivenByMesh.TryGetValue(mesh, out var bones))
-                        {
-                            bones = [];
-                            drivenByMesh[mesh] = bones;
-                        }
-
-                        bones.Add(bone);
-                    }
-                }
-
-                foreach (var (mesh, bones) in drivenByMesh)
-                {
-                    var fitElsewhere = bones.Count > 0;
-                    foreach (var bone in bones)
-                    {
-                        if (!fitBoneMeshes.ContainsKey(bone))
-                        {
-                            fitElsewhere = false;
-                            break;
-                        }
-                    }
-
-                    if (fitElsewhere)
-                    {
-                        unbackSolvedMeshes.Add(mesh);
-                    }
-                }
-            }
+            var softPerVertex = ReadSoftOffsetsPerVertex();
+            unbackSolvedMeshes = FindUnbackSolvedMeshes(rigidParents, softPerVertex);
 
             var maxOmittedWeight = 0f;
             var fitlessSoft = new List<(int Node, int Primary)>();
@@ -188,7 +48,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
 
                     var painted = new List<(string Bone, float Weight)>();
-                    foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
+                    foreach (var (bone, weight) in ExpandSoftOffsets(softPerVertex, node, primary))
                     {
                         if (weight > 0f && bone < CtrlNames.Length)
                         {
@@ -212,7 +72,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var pinned = new List<(string Bone, float Weight)>();
                     var anchorWeight = 0f;
                     var rival = 0f;
-                    foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
+                    foreach (var (bone, weight) in ExpandSoftOffsets(softPerVertex, node, primary))
                     {
                         if (weight <= 0f || bone >= CtrlNames.Length)
                         {
@@ -259,7 +119,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                var dynamicWeights = ExpandSoftOffsets(node, primary);
+                var dynamicWeights = ExpandSoftOffsets(softPerVertex, node, primary);
 
                 var scale = 1f;
                 var bestNormalized = 0f;
@@ -315,6 +175,156 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 ? (maxOmittedWeight + minIncludedWeight) * 0.5f
                 : null;
 
+            RecoverFitlessSoftWeights(fitlessSoft, rigidParents, softPerVertex, unbackSolvedMeshes, threshold, recovered, deferred);
+            return recovered;
+        }
+
+        /// <summary>Gets each vertex's <c>m_FitWeights</c> weight per fit bone, and the lightest weight any fit keeps.</summary>
+        private (Dictionary<int, Dictionary<int, float>> FitPerVertex, float MinIncludedWeight) ReadFitWeightsPerVertex()
+        {
+            var fitMatrices = Data.GetArray("m_FitMatrices");
+            var fitWeights = Data.GetArray("m_FitWeights") ?? [];
+
+            var fitPerVertex = new Dictionary<int, Dictionary<int, float>>();
+            var minIncludedWeight = float.MaxValue;
+            var begin = 0;
+            foreach (var fm in fitMatrices ?? [])
+            {
+                var end = fm.GetInt32Property("nEnd");
+                var bone = fm.GetInt32Property("nNode");
+                for (var i = begin; i < end && i < fitWeights.Count; i++)
+                {
+                    var node = fitWeights[i].GetInt32Property("nNode");
+                    var weight = fitWeights[i].GetFloatProperty("flWeight");
+                    if (!fitPerVertex.TryGetValue(node, out var boneWeights))
+                    {
+                        boneWeights = [];
+                        fitPerVertex[node] = boneWeights;
+                    }
+
+                    boneWeights[bone] = weight;
+                    minIncludedWeight = MathF.Min(minIncludedWeight, weight);
+                }
+
+                begin = end;
+            }
+
+            return (fitPerVertex, minIncludedWeight);
+        }
+
+        /// <summary>Gets each vertex's <c>m_CtrlSoftOffsets</c> records as (parent, alpha), in array order.</summary>
+        private Dictionary<int, List<(int Parent, float Alpha)>> ReadSoftOffsetsPerVertex()
+        {
+            var softPerVertex = new Dictionary<int, List<(int Parent, float Alpha)>>();
+            if (Data.GetArray("m_CtrlSoftOffsets") is { } softOffsets)
+            {
+                foreach (var e in softOffsets)
+                {
+                    var child = e.GetInt32Property("nCtrlChild");
+                    if (!softPerVertex.TryGetValue(child, out var list))
+                    {
+                        list = [];
+                        softPerVertex[child] = list;
+                    }
+
+                    list.Add((e.GetInt32Property("nCtrlParent"), e.GetFloatProperty("flAlpha")));
+                }
+            }
+
+            return softPerVertex;
+        }
+
+        /// <summary>
+        /// Gets the proxy mesh indices no fit covers whose simulated vertices bind only to bones fit over other meshes.
+        /// </summary>
+        private HashSet<int> FindUnbackSolvedMeshes(Dictionary<int, int> rigidParents,
+            Dictionary<int, List<(int Parent, float Alpha)>> softPerVertex)
+        {
+            var unbackSolvedMeshes = new HashSet<int>();
+            var backSolvedMeshes = new HashSet<int>();
+            var fitBoneMeshes = new Dictionary<int, HashSet<int>>();
+            foreach (var (bone, targets) in FitMatrixTargets)
+            {
+                foreach (var target in targets)
+                {
+                    var targetMesh = target >= 0 && target < CtrlNames.Length
+                        ? ParseProxyMeshIndex(CtrlNames[target]) : -1;
+                    if (targetMesh < 0)
+                    {
+                        continue;
+                    }
+
+                    backSolvedMeshes.Add(targetMesh);
+                    if (!fitBoneMeshes.TryGetValue(bone, out var boneMeshes))
+                    {
+                        boneMeshes = [];
+                        fitBoneMeshes[bone] = boneMeshes;
+                    }
+
+                    boneMeshes.Add(targetMesh);
+                }
+            }
+
+            if (backSolvedMeshes.Count > 0)
+            {
+                var drivenByMesh = new Dictionary<int, HashSet<int>>();
+                foreach (var (node, primary) in rigidParents)
+                {
+                    var mesh = node >= 0 && node < CtrlNames.Length ? ParseProxyMeshIndex(CtrlNames[node]) : -1;
+                    if (mesh < 0 || backSolvedMeshes.Contains(mesh) || IsStatic(node)
+                        || primary < 0 || primary >= CtrlNames.Length)
+                    {
+                        continue;
+                    }
+
+                    foreach (var (bone, weight) in ExpandSoftOffsets(softPerVertex, node, primary))
+                    {
+                        if (weight < DefaultBackSolveInfluenceThreshold || bone < 0 || bone >= CtrlNames.Length
+                            || !IsPositionDriven(bone) || IsProxyNodeName(CtrlNames[bone]))
+                        {
+                            continue;
+                        }
+
+                        if (!drivenByMesh.TryGetValue(mesh, out var bones))
+                        {
+                            bones = [];
+                            drivenByMesh[mesh] = bones;
+                        }
+
+                        bones.Add(bone);
+                    }
+                }
+
+                foreach (var (mesh, bones) in drivenByMesh)
+                {
+                    var fitElsewhere = bones.Count > 0;
+                    foreach (var bone in bones)
+                    {
+                        if (!fitBoneMeshes.ContainsKey(bone))
+                        {
+                            fitElsewhere = false;
+                            break;
+                        }
+                    }
+
+                    if (fitElsewhere)
+                    {
+                        unbackSolvedMeshes.Add(mesh);
+                    }
+                }
+            }
+
+            return unbackSolvedMeshes;
+        }
+
+        /// <summary>
+        /// Recovers the soft-offset weights of the dynamic vertices no fit covers, into <paramref name="recovered"/> where a
+        /// recompile prunes them the same way and into <paramref name="deferred"/> otherwise.
+        /// </summary>
+        private void RecoverFitlessSoftWeights(List<(int Node, int Primary)> fitlessSoft, Dictionary<int, int> rigidParents,
+            Dictionary<int, List<(int Parent, float Alpha)>> softPerVertex, HashSet<int> unbackSolvedMeshes, float? threshold,
+            Dictionary<int, (string Bone, float Weight)[]> recovered, Dictionary<int, (string Bone, float Weight)[]> deferred)
+        {
             var fitlessNodes = new HashSet<int>(fitlessSoft.Count);
             foreach (var (node, _) in fitlessSoft)
             {
@@ -339,7 +349,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 var mesh = node >= 0 && node < CtrlNames.Length ? ParseProxyMeshIndex(CtrlNames[node]) : -1;
                 var sheetBackSolves = mesh < 0 || !unbackSolvedMeshes.Contains(mesh);
-                foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
+                foreach (var (bone, weight) in ExpandSoftOffsets(softPerVertex, node, primary))
                 {
                     if (weight <= 0f || bone >= CtrlNames.Length)
                     {
@@ -376,8 +386,39 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     deferred[node] = [.. painted];
                 }
             }
+        }
 
-            return recovered;
+        /// <summary>
+        /// Expands a vertex's primary bone and soft offsets into bone weights by applying each nested lerp in array order.
+        /// </summary>
+        private static List<(int Bone, float Weight)> ExpandSoftOffsets(
+            Dictionary<int, List<(int Parent, float Alpha)>> softPerVertex, int node, int primary)
+        {
+            var weights = new List<(int Bone, float Weight)> { (primary, 1f) };
+            if (!softPerVertex.TryGetValue(node, out var softs))
+            {
+                return weights;
+            }
+
+            foreach (var (parent, alpha) in softs)
+            {
+                for (var i = 0; i < weights.Count; i++)
+                {
+                    weights[i] = (weights[i].Bone, weights[i].Weight * alpha);
+                }
+
+                var existing = weights.FindIndex(w => w.Bone == parent);
+                if (existing >= 0)
+                {
+                    weights[existing] = (parent, weights[existing].Weight + (1f - alpha));
+                }
+                else
+                {
+                    weights.Add((parent, 1f - alpha));
+                }
+            }
+
+            return weights;
         }
 
         /// <summary>

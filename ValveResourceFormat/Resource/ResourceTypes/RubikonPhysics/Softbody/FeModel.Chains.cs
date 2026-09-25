@@ -762,11 +762,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var chains = new List<BoneChain>();
             var mergedChains = new List<BoneChain>();
 
-            Vector3 ExtrudeOrigin(int node)
-                => ChainExtrudeOrigins is { } origins && node < CtrlNames.Length
-                    && origins.TryGetValue(CtrlNames[node], out var origin)
-                    ? origin
-                    : InitPosePositions[node];
             var chainFirstSimulated = new Dictionary<BoneChain, int>();
             var n = CtrlNames.Length;
             if (n == 0)
@@ -784,6 +779,72 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 rodContractionsByPair) = BuildRodGraph();
             var (proxyChildrenOf, ringOwnerOf) = BuildProxyRings();
 
+            var ropeParents = HasCompiledSkelParents ? RopeRunParents : new Dictionary<int, int>();
+            var (realParent, children, roots) = ResolveChainParents(isReal, rodPairs, proxyChildrenOf, ringOwnerOf, ropeParents);
+            var chainSpecs = BuildChainSpecs(roots, children, realParent, proxyChildrenOf, ringOwnerOf, rodPairs, ringlessKids);
+
+            foreach (var spec in chainSpecs)
+            {
+                var (chain, firstSimulated) = ReadChainSpec(spec, children, realParent, proxyChildrenOf, rodPairs,
+                    rodRelaxationsByPair, rigidRodRelaxationsByPair, repeatRodRelaxationsByPair, rodContractionsByPair, ropeParents);
+                chainFirstSimulated[chain] = firstSimulated;
+                chains.Add(chain);
+                if (spec.ChildrenOf is null && spec.RingOf is null && !spec.RinglessRoot)
+                {
+                    mergedChains.Add(chain);
+                }
+            }
+
+            if (ringlessKids is null && chainVersion is not null
+                && VersionSplitRoots(mergedChains, chainVersion, chains.Count > 1) is { Count: > 0 } splits)
+            {
+                return BuildBoneChains(chainVersion, splits);
+            }
+
+            MergeSiblingHubs(chains);
+            MarkSecondDeclarations(chains);
+
+            return [.. chains.OrderBy(ChainFirstNode)];
+
+            int ChainFirstNode(BoneChain chain)
+            {
+                if (chainFirstSimulated.TryGetValue(chain, out var firstSimulated)
+                    && firstSimulated < int.MaxValue)
+                {
+                    return firstSimulated;
+                }
+
+                var first = int.MaxValue;
+                foreach (var joint in chain.Joints)
+                {
+                    foreach (var node in (int[])[joint.Node, joint.ProxyNode])
+                    {
+                        if (node >= 0)
+                        {
+                            first = Math.Min(first, node);
+                        }
+                    }
+                }
+
+                return first;
+            }
+        }
+
+        private Vector3 ExtrudeOrigin(int node)
+            => ChainExtrudeOrigins is { } origins && node < CtrlNames.Length
+                && origins.TryGetValue(CtrlNames[node], out var origin)
+                ? origin
+                : InitPosePositions[node];
+
+        /// <summary>
+        /// Resolves each real node's parent among real nodes from the skeleton, rod, ring, bend, rope and twist evidence, and
+        /// the chain roots and children that result.
+        /// </summary>
+        private (int[] RealParent, List<int>?[] Children, List<int> Roots) ResolveChainParents(bool[] isReal,
+            HashSet<(int, int)> rodPairs, Dictionary<int, List<int>> proxyChildrenOf, Dictionary<int, int> ringOwnerOf,
+            IReadOnlyDictionary<int, int> ropeParents)
+        {
+            var n = CtrlNames.Length;
             HashSet<string>? surfaceElements = null;
             bool RinglessLinkUnrecorded(int parent, int child)
             {
@@ -870,7 +931,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return false;
             }
 
-            var ropeParents = HasCompiledSkelParents ? RopeRunParents : new Dictionary<int, int>();
             bool EndsItsChain(int node) => Array.IndexOf(CtrlNames, "$cc" + CtrlNames[node] + "_Ctr") >= 0;
 
             var realParent = new int[n];
@@ -1166,6 +1226,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
+            return (realParent, children, roots);
+        }
+
+        /// <summary>
+        /// Groups each root's children into the chain declarations they were authored as, one spec per declaration.
+        /// </summary>
+        private List<ChainSpec> BuildChainSpecs(List<int> roots, List<int>?[] children, int[] realParent,
+            Dictionary<int, List<int>> proxyChildrenOf, Dictionary<int, int> ringOwnerOf, HashSet<(int, int)> rodPairs,
+            Dictionary<int, HashSet<int>>? ringlessKids)
+        {
             bool AnyRod(IEnumerable<int> a, IEnumerable<int> b)
             {
                 foreach (var x in a)
@@ -1303,1161 +1373,1163 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             SplitRingDeclarations(chainSpecs, children, realParent, proxyChildrenOf, rodPairs);
 
-            foreach (var spec in chainSpecs)
+            return chainSpecs;
+        }
+
+        /// <summary>
+        /// Walks one chain declaration into its joints and reads each joint's extrusion and springs, returning the chain
+        /// and the lowest simulated node it occupies.
+        /// </summary>
+        private (BoneChain Chain, int FirstSimulated) ReadChainSpec(ChainSpec spec, List<int>?[] children, int[] realParent,
+            Dictionary<int, List<int>> proxyChildrenOf, HashSet<(int, int)> rodPairs,
+            Dictionary<(int, int), List<float>> rodRelaxationsByPair, Dictionary<(int, int), List<float>> rigidRodRelaxationsByPair,
+            Dictionary<(int, int), List<float>> repeatRodRelaxationsByPair, Dictionary<(int, int), List<float>> rodContractionsByPair,
+            IReadOnlyDictionary<int, int> ropeParents)
+        {
+            var rootNode = spec.Root;
+            var ringlessRoot = spec.RinglessRoot;
+            var chain = new BoneChain { RootBone = CtrlNames[rootNode], DeclarationSuffix = spec.Suffix };
+
+            List<int>? DeclaredRing(int node) => DeclaredRingOf(spec, proxyChildrenOf, node);
+
+            WalkChainJoints(chain, spec, children, realParent, proxyChildrenOf);
+            var (jointRingOf, endEffectorRingOf) = ReadChainExtrusion(chain, spec, proxyChildrenOf);
+
+            var jointByNode = chain.Joints.ToDictionary(static j => j.Node);
+
+            List<int> Side(int end)
             {
-                var rootNode = spec.Root;
-                var ringlessRoot = spec.RinglessRoot;
-                var chain = new BoneChain { RootBone = CtrlNames[rootNode], DeclarationSuffix = spec.Suffix };
-
-                List<int>? DeclaredRing(int node)
-                    => spec.RingOf is not null && spec.RingOf.TryGetValue(node, out var ring)
-                        ? ring
-                        : proxyChildrenOf.GetValueOrDefault(node);
-
-                var subtreeFirstNode = new Dictionary<int, int>();
-
-                List<int> DeclaredChildren(int node)
+                if (ringlessRoot && end == rootNode)
                 {
-                    if (children[node] is not { } all)
-                    {
-                        return [];
-                    }
-
-                    var kids = spec.ChildrenOf is not null && spec.ChildrenOf.TryGetValue(node, out var kept)
-                        ? all.FindAll(kept.Contains)
-                        : [.. all];
-
-                    kids.Sort((a, b) =>
-                    {
-                        var order = SubtreeFirstNode(a).CompareTo(SubtreeFirstNode(b));
-                        return order != 0 ? order : a.CompareTo(b);
-                    });
-
-                    return kids;
+                    return [end];
                 }
 
-                int SubtreeFirstNode(int start)
+                if (jointRingOf.TryGetValue(end, out var jointRing) && jointRing.Count > 0)
                 {
-                    if (subtreeFirstNode.TryGetValue(start, out var cached))
-                    {
-                        return cached;
-                    }
-
-                    var first = int.MaxValue;
-                    var firstSimulated = int.MaxValue;
-                    var stack = new Stack<int>();
-                    stack.Push(start);
-                    for (var guard = 0; stack.Count > 0 && guard < 4096; guard++)
-                    {
-                        var node = stack.Pop();
-                        foreach (var member in (int[])[node, .. DeclaredRing(node) ?? []])
-                        {
-                            if (member < 0)
-                            {
-                                continue;
-                            }
-
-                            first = Math.Min(first, member);
-                            if (member >= StaticNodeCount && member < FirstPositionDrivenNode)
-                            {
-                                firstSimulated = Math.Min(firstSimulated, member);
-                            }
-                        }
-
-                        if (children[node] is not { } all)
-                        {
-                            continue;
-                        }
-
-                        foreach (var kid in all)
-                        {
-                            if (spec.ChildrenOf is null || !spec.ChildrenOf.TryGetValue(node, out var kept)
-                                || kept.Contains(kid))
-                            {
-                                stack.Push(kid);
-                            }
-                        }
-                    }
-
-                    return subtreeFirstNode[start] = firstSimulated < int.MaxValue ? firstSimulated : first;
+                    return jointRing;
                 }
 
-                void Visit(int node)
+                if (endEffectorRingOf.ContainsKey(end))
                 {
-                    var parent = node == rootNode ? -1 : realParent[node];
-                    chain.Joints.Add(new BoneChainJoint
-                    {
-                        Node = node,
-                        Name = CtrlNames[node],
-                        ParentNode = parent,
-                        ParentName = parent >= 0 ? CtrlNames[parent] : null,
-                        InvMass = node < NodeInvMasses.Length ? NodeInvMasses[node] : 0f,
-                    });
-
-                    foreach (var child in DeclaredChildren(node))
-                    {
-                        Visit(child);
-                    }
+                    return [end];
                 }
 
-                Visit(rootNode);
+                return DeclaredRing(end) is { Count: > 0 } ring ? ring : [end];
+            }
 
-                var sideFrequency = new Dictionary<int, int>();
-                var radii = new List<float>();
-                var twists = new List<float>();
-                var jointRingOf = new Dictionary<int, List<int>>();
-                var endEffectorRingOf = new Dictionary<int, List<int>>();
-                foreach (var joint in chain.Joints)
+            var chainNodes = new HashSet<int>();
+            foreach (var chainJoint in chain.Joints)
+            {
+                chainNodes.Add(chainJoint.Node);
+                foreach (var ringNode in Side(chainJoint.Node))
                 {
-                    if (ringlessRoot && joint.Node == rootNode)
+                    chainNodes.Add(ringNode);
+                }
+            }
+
+            var crossesRoot = new HashSet<(int, int)>();
+            foreach (var chainJoint in chain.Joints)
+            {
+                if (chainJoint.Node == rootNode)
+                {
+                    continue;
+                }
+
+                foreach (var a in (int[])[chainJoint.Node, .. Side(chainJoint.Node)])
+                {
+                    foreach (var b in (int[])[rootNode, .. Side(rootNode)])
+                    {
+                        crossesRoot.Add(UnorderedPair(a, b));
+                    }
+                }
+            }
+
+            float? NaturalRf(bool? crossingRoot)
+            {
+                float? natural = null;
+                foreach (var kv in rodRelaxationsByPair)
+                {
+                    if (kv.Value.Count != 1
+                        || !chainNodes.Contains(kv.Key.Item1) || !chainNodes.Contains(kv.Key.Item2)
+                        || (crossingRoot is { } want && crossesRoot.Contains(kv.Key) != want))
                     {
                         continue;
                     }
 
-                    if (DeclaredRing(joint.Node) is not { Count: > 0 } proxies)
-                    {
-                        continue;
-                    }
-
-                    joint.RingNodes = [.. proxies.Order()];
-
-                    if (spec.RingOf is not null && spec.RingOf.ContainsKey(joint.Node))
-                    {
-                        joint.ValueNode = proxies[0];
-                        joint.InvMass = proxies[0] < NodeInvMasses.Length ? NodeInvMasses[proxies[0]] : joint.InvMass;
-                    }
-
-                    var ring = proxies;
-                    List<int>? endEffectorRing = null;
-                    if (proxies.TrueForAll(p => CtrlNames[p].EndsWith("_Ctr", StringComparison.Ordinal))
-                        && joint.Node < InitPoseRotations.Length && joint.Node < InitPosePositions.Length
-                        && proxies[0] < InitPosePositions.Length)
-                    {
-                        var centreOffset = Vector3.Transform(
-                            InitPosePositions[proxies[0]] - ExtrudeOrigin(joint.Node),
-                            Quaternion.Conjugate(InitPoseRotations[joint.Node]));
-                        if (MathF.Abs(centreOffset.X) >= EndEffectorRingTolerance)
-                        {
-                            joint.EndEffector = centreOffset.X;
-                            joint.ExtrudeSides = 0;
-                            joint.ProxyNode = proxies[0];
-                            endEffectorRingOf[joint.Node] = proxies;
-                            continue;
-                        }
-                    }
-
-                    if (joint.Node < InitPoseRotations.Length && joint.Node < InitPosePositions.Length)
-                    {
-                        var forwardOf = new Dictionary<int, float>(proxies.Count);
-                        foreach (var proxy in proxies)
-                        {
-                            if (proxy < InitPosePositions.Length)
-                            {
-                                forwardOf[proxy] = Vector3.Transform(
-                                    InitPosePositions[proxy] - ExtrudeOrigin(joint.Node),
-                                    Quaternion.Conjugate(InitPoseRotations[joint.Node])).X;
-                            }
-                        }
-
-                        if (forwardOf.Count == proxies.Count)
-                        {
-                            var minAbs = forwardOf.Values.Min(MathF.Abs);
-                            var maxAbs = forwardOf.Values.Max(MathF.Abs);
-                            if (maxAbs - minAbs > EndEffectorRingTolerance)
-                            {
-                                var nearRing = proxies.Where(p => MathF.Abs(forwardOf[p]) - minAbs <= EndEffectorRingTolerance).ToList();
-                                if (nearRing.Count > 0 && nearRing.Count < proxies.Count)
-                                {
-                                    var farRing = proxies.Except(nearRing).ToList();
-                                    var nearValue = forwardOf[nearRing.MinBy(p => MathF.Abs(forwardOf[p]))];
-                                    var farValue = forwardOf[farRing.MaxBy(p => MathF.Abs(forwardOf[p]))];
-                                    joint.EndEffector = farValue - nearValue;
-                                    ring = nearRing;
-                                    endEffectorRing = farRing;
-                                    endEffectorRingOf[joint.Node] = farRing;
-                                }
-                            }
-                        }
-                    }
-
-                    joint.ExtrudeSides = Math.Min(ring.Count, 4);
-                    joint.ProxyNode = ring[0];
-                    jointRingOf[joint.Node] = ring;
-                    sideFrequency[ring.Count] = sideFrequency.GetValueOrDefault(ring.Count) + 1;
-                    proxies = ring;
-                    if (joint.Node < InitPosePositions.Length)
-                    {
-                        if (joint.Node < InitPoseRotations.Length)
-                        {
-                            joint.ForwardAxis = DetectExtrudeForwardAxis(
-                                ExtrudeOrigin(joint.Node), InitPoseRotations[joint.Node], proxies, InitPosePositions);
-                        }
-
-                        var measured = endEffectorRing is { Count: > 0 } && IsHingedJoint(joint.Node)
-                            ? endEffectorRing
-                            : proxies;
-
-                        if (joint.Node < InitPoseRotations.Length && measured[0] < InitPosePositions.Length)
-                        {
-                            var ringFrame = InitPoseRotations[joint.Node] * ExtrudeAxisSelectQuaternion(joint.ForwardAxis);
-                            var offset = Vector3.Transform(
-                                InitPosePositions[measured[0]] - ExtrudeOrigin(joint.Node),
-                                Quaternion.Conjugate(ringFrame));
-                            if (new Vector2(offset.Y, offset.Z).LengthSquared() > 1e-6f)
-                            {
-                                var twist = float.RadiansToDegrees(MathF.Atan2(offset.Y, offset.Z));
-                                joint.ExtrudeTwist = twist;
-                                twists.Add(twist);
-                            }
-
-                            joint.ExtrudeRadius = measured == proxies
-                                ? Vector3.Distance(ExtrudeOrigin(joint.Node), InitPosePositions[measured[0]])
-                                : new Vector2(offset.Y, offset.Z).Length();
-                        }
-
-                        foreach (var proxy in proxies)
-                        {
-                            if (proxy < InitPosePositions.Length)
-                            {
-                                radii.Add(Vector3.Distance(ExtrudeOrigin(joint.Node), InitPosePositions[proxy]));
-                            }
-                        }
-                    }
-                }
-
-                var bodySides = sideFrequency
-                    .OrderByDescending(static kv => kv.Value)
-                    .ThenBy(static kv => kv.Key)
-                    .Select(static kv => kv.Key)
-                    .FirstOrDefault();
-
-                if (bodySides >= 1)
-                {
-                    chain.ExtrudeSides = Math.Min(bodySides, 4);
-                    chain.ExtrudeRadius = radii.Count > 0 ? radii.Average() : 0f;
-                    chain.ExtrudeTwist = twists.Count > 0 ? twists.Average() : 0f;
-                }
-
-                var jointByNode = chain.Joints.ToDictionary(static j => j.Node);
-
-                List<int> Side(int end)
-                {
-                    if (ringlessRoot && end == rootNode)
-                    {
-                        return [end];
-                    }
-
-                    if (jointRingOf.TryGetValue(end, out var jointRing) && jointRing.Count > 0)
-                    {
-                        return jointRing;
-                    }
-
-                    if (endEffectorRingOf.ContainsKey(end))
-                    {
-                        return [end];
-                    }
-
-                    return DeclaredRing(end) is { Count: > 0 } ring ? ring : [end];
-                }
-
-                var chainNodes = new HashSet<int>();
-                foreach (var chainJoint in chain.Joints)
-                {
-                    chainNodes.Add(chainJoint.Node);
-                    foreach (var ringNode in Side(chainJoint.Node))
-                    {
-                        chainNodes.Add(ringNode);
-                    }
-                }
-
-                var crossesRoot = new HashSet<(int, int)>();
-                foreach (var chainJoint in chain.Joints)
-                {
-                    if (chainJoint.Node == rootNode)
-                    {
-                        continue;
-                    }
-
-                    foreach (var a in (int[])[chainJoint.Node, .. Side(chainJoint.Node)])
-                    {
-                        foreach (var b in (int[])[rootNode, .. Side(rootNode)])
-                        {
-                            crossesRoot.Add(UnorderedPair(a, b));
-                        }
-                    }
-                }
-
-                float? NaturalRf(bool? crossingRoot)
-                {
-                    float? natural = null;
-                    foreach (var kv in rodRelaxationsByPair)
-                    {
-                        if (kv.Value.Count != 1
-                            || !chainNodes.Contains(kv.Key.Item1) || !chainNodes.Contains(kv.Key.Item2)
-                            || (crossingRoot is { } want && crossesRoot.Contains(kv.Key) != want))
-                        {
-                            continue;
-                        }
-
-                        if (natural is { } already && MathF.Abs(already - kv.Value[0]) > 1e-4f)
-                        {
-                            return null;
-                        }
-
-                        natural = kv.Value[0];
-                    }
-
-                    return natural;
-                }
-
-                var chainNaturalRf = NaturalRf(null);
-                if (chainNaturalRf is null && NaturalRf(true) is { } acrossRoot
-                    && NaturalRf(false) is { } withoutRoot
-                    && MathF.Abs(acrossRoot - withoutRoot) > 1e-4f)
-                {
-                    chainNaturalRf = withoutRoot;
-                }
-
-                float? RelaxationAcross(List<int> lhs, int other)
-                {
-                    if (other < 0 || lhs.Count == 0)
+                    if (natural is { } already && MathF.Abs(already - kv.Value[0]) > 1e-4f)
                     {
                         return null;
                     }
 
-                    return Across(rodRelaxationsByPair) ?? Across(rigidRodRelaxationsByPair);
-
-                    float? Across(Dictionary<(int, int), List<float>> byPair)
-                    {
-                        float? value = null;
-                        foreach (var a in lhs)
-                        {
-                            foreach (var b in Side(other))
-                            {
-                                if (!byPair.TryGetValue(UnorderedPair(a, b), out var relaxations))
-                                {
-                                    return null;
-                                }
-
-                                foreach (var relaxation in relaxations)
-                                {
-                                    if (value is { } already && MathF.Abs(already - relaxation) > 1e-4f)
-                                    {
-                                        return null;
-                                    }
-
-                                    value = relaxation;
-                                }
-                            }
-                        }
-
-                        return value;
-                    }
+                    natural = kv.Value[0];
                 }
 
-                float? RingInternalRelaxation(int node)
+                return natural;
+            }
+
+            var chainNaturalRf = NaturalRf(null);
+            if (chainNaturalRf is null && NaturalRf(true) is { } acrossRoot
+                && NaturalRf(false) is { } withoutRoot
+                && MathF.Abs(acrossRoot - withoutRoot) > 1e-4f)
+            {
+                chainNaturalRf = withoutRoot;
+            }
+
+            float? RelaxationAcross(List<int> lhs, int other)
+            {
+                if (other < 0 || lhs.Count == 0)
                 {
-                    if (DeclaredRing(node) is not { Count: > 0 } ring)
-                    {
-                        return null;
-                    }
-
-                    var extrusion = new List<int>(ring) { node };
-                    extrusion.Sort();
-                    return Inside(rodRelaxationsByPair) ?? Inside(rigidRodRelaxationsByPair);
-
-                    float? Inside(Dictionary<(int, int), List<float>> byPair)
-                    {
-                        float? value = null;
-                        for (var i = 0; i < extrusion.Count; i++)
-                        {
-                            for (var j = i + 1; j < extrusion.Count; j++)
-                            {
-                                if (!byPair.TryGetValue((extrusion[i], extrusion[j]), out var relaxations))
-                                {
-                                    continue;
-                                }
-
-                                foreach (var relaxation in relaxations)
-                                {
-                                    if (value is { } already && MathF.Abs(already - relaxation) > 1e-4f)
-                                    {
-                                        return null;
-                                    }
-
-                                    value = relaxation;
-                                }
-                            }
-                        }
-
-                        return value;
-                    }
+                    return null;
                 }
 
-                float? SpanRelaxation(int node, int other) => RelaxationAcross(Side(node), other);
+                return Across(rodRelaxationsByPair) ?? Across(rigidRodRelaxationsByPair);
 
-                bool Declared((int, int) pair) => rodPairs.Contains(pair) && !SurfaceFoldOnlyPairs.Contains(pair);
-
-                bool SpannedByDeclaredRod(int node, int other)
-                    => other >= 0 && (Declared(UnorderedPair(node, other)) || AllDeclared(Side(node), other));
-
-                bool AllDeclared(List<int> lhs, int other)
-                    => other >= 0 && lhs.Count > 0 && lhs.All(a => Side(other).All(b => Declared(UnorderedPair(a, b))));
-
-                bool AllSpanned(List<int> lhs, int other)
+                float? Across(Dictionary<(int, int), List<float>> byPair)
                 {
-                    if (other < 0 || lhs.Count == 0)
-                    {
-                        return false;
-                    }
-
+                    float? value = null;
                     foreach (var a in lhs)
                     {
                         foreach (var b in Side(other))
                         {
-                            if (!rodPairs.Contains(UnorderedPair(a, b)))
+                            if (!byPair.TryGetValue(UnorderedPair(a, b), out var relaxations))
+                            {
+                                return null;
+                            }
+
+                            foreach (var relaxation in relaxations)
+                            {
+                                if (value is { } already && MathF.Abs(already - relaxation) > 1e-4f)
+                                {
+                                    return null;
+                                }
+
+                                value = relaxation;
+                            }
+                        }
+                    }
+
+                    return value;
+                }
+            }
+
+            float? RingInternalRelaxation(int node)
+            {
+                if (DeclaredRing(node) is not { Count: > 0 } ring)
+                {
+                    return null;
+                }
+
+                var extrusion = new List<int>(ring) { node };
+                extrusion.Sort();
+                return Inside(rodRelaxationsByPair) ?? Inside(rigidRodRelaxationsByPair);
+
+                float? Inside(Dictionary<(int, int), List<float>> byPair)
+                {
+                    float? value = null;
+                    for (var i = 0; i < extrusion.Count; i++)
+                    {
+                        for (var j = i + 1; j < extrusion.Count; j++)
+                        {
+                            if (!byPair.TryGetValue((extrusion[i], extrusion[j]), out var relaxations))
+                            {
+                                continue;
+                            }
+
+                            foreach (var relaxation in relaxations)
+                            {
+                                if (value is { } already && MathF.Abs(already - relaxation) > 1e-4f)
+                                {
+                                    return null;
+                                }
+
+                                value = relaxation;
+                            }
+                        }
+                    }
+
+                    return value;
+                }
+            }
+
+            float? SpanRelaxation(int node, int other) => RelaxationAcross(Side(node), other);
+
+            bool Declared((int, int) pair) => rodPairs.Contains(pair) && !SurfaceFoldOnlyPairs.Contains(pair);
+
+            bool SpannedByDeclaredRod(int node, int other)
+                => other >= 0 && (Declared(UnorderedPair(node, other)) || AllDeclared(Side(node), other));
+
+            bool AllDeclared(List<int> lhs, int other)
+                => other >= 0 && lhs.Count > 0 && lhs.All(a => Side(other).All(b => Declared(UnorderedPair(a, b))));
+
+            bool AllSpanned(List<int> lhs, int other)
+            {
+                if (other < 0 || lhs.Count == 0)
+                {
+                    return false;
+                }
+
+                foreach (var a in lhs)
+                {
+                    foreach (var b in Side(other))
+                    {
+                        if (!rodPairs.Contains(UnorderedPair(a, b)))
+                        {
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            bool SpannedByRod(int node, int other)
+            {
+                if (other < 0)
+                {
+                    return false;
+                }
+
+                if (rodPairs.Contains(UnorderedPair(node, other)))
+                {
+                    return true;
+                }
+
+                return AllSpanned(Side(node), other);
+            }
+
+            List<int> EndEffectorRing(int node)
+                => endEffectorRingOf.TryGetValue(node, out var far) ? far : [];
+
+            int SpanCopies(BoneChainJoint joint, int other)
+            {
+                if (other < 0)
+                {
+                    return -1;
+                }
+
+                var copies = 0;
+                foreach (var a in Side(joint.Node))
+                {
+                    foreach (var b in Side(other))
+                    {
+                        var count = repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b), out var repeat)
+                            ? repeat.Count
+                            : 0;
+                        if (count == 0 || (copies != 0 && count != copies))
+                        {
+                            return 0;
+                        }
+
+                        copies = count;
+                    }
+                }
+
+                return copies;
+            }
+
+            float JointContraction(BoneChainJoint joint, int parent, int grand, int greatGrand)
+            {
+                float? found = null;
+                foreach (var other in (int[])[parent, joint.BendSpring ? grand : -1,
+                    joint.TorsionSpring ? greatGrand : -1])
+                {
+                    if (other < 0)
+                    {
+                        continue;
+                    }
+
+                    foreach (var a in Side(joint.Node))
+                    {
+                        foreach (var b in Side(other))
+                        {
+                            if (!rodContractionsByPair.TryGetValue(UnorderedPair(a, b),
+                                out var contractions))
+                            {
+                                continue;
+                            }
+
+                            foreach (var contraction in contractions)
+                            {
+                                if (found is { } already && MathF.Abs(already - contraction) > 1e-4f)
+                                {
+                                    return 1f;
+                                }
+
+                                found = contraction;
+                            }
+                        }
+                    }
+                }
+
+                return found is { } reading ? Math.Clamp(reading, 0f, 1f) : 1f;
+            }
+
+            int JointCopies(BoneChainJoint joint, bool floor = false)
+            {
+                var copies = 0;
+
+                bool Repeats(int other)
+                {
+                    if (other < 0)
+                    {
+                        return true;
+                    }
+
+                    foreach (var a in Side(joint.Node))
+                    {
+                        foreach (var b in Side(other))
+                        {
+                            var count = repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b),
+                                out var repeat)
+                                ? repeat.Count
+                                : 0;
+                            if (count == 0 || (!floor && copies != 0 && count != copies))
                             {
                                 return false;
                             }
+
+                            copies = floor && copies != 0 ? Math.Min(copies, count) : count;
                         }
                     }
 
                     return true;
                 }
 
-                bool SpannedByRod(int node, int other)
+                var parentNode = joint.ParentNode;
+                var grand = parentNode >= 0 && jointByNode.TryGetValue(parentNode, out var g1) ? g1.ParentNode : -1;
+                var greatGrand = grand >= 0 && jointByNode.TryGetValue(grand, out var g2) ? g2.ParentNode : -1;
+
+                if (!Repeats(parentNode)
+                    || (joint.BendSpring && !Repeats(grand))
+                    || (joint.TorsionSpring && !Repeats(greatGrand)))
                 {
-                    if (other < 0)
+                    if (copies != 0 || ChildSiblingValue(joint) == 0f)
                     {
-                        return false;
+                        return 1;
                     }
 
-                    if (rodPairs.Contains(UnorderedPair(node, other)))
-                    {
-                        return true;
-                    }
-
-                    return AllSpanned(Side(node), other);
+                    return Math.Max(SiblingCopies(joint), 1);
                 }
 
-                List<int> EndEffectorRing(int node)
-                    => endEffectorRingOf.TryGetValue(node, out var far) ? far : [];
-
-                int SpanCopies(BoneChainJoint joint, int other)
+                if (copies == 0)
                 {
-                    if (other < 0)
+                    var onlyChild = -1;
+                    foreach (var other in chain.Joints)
                     {
-                        return -1;
-                    }
-
-                    var copies = 0;
-                    foreach (var a in Side(joint.Node))
-                    {
-                        foreach (var b in Side(other))
-                        {
-                            var count = repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b), out var repeat)
-                                ? repeat.Count
-                                : 0;
-                            if (count == 0 || (copies != 0 && count != copies))
-                            {
-                                return 0;
-                            }
-
-                            copies = count;
-                        }
-                    }
-
-                    return copies;
-                }
-
-                float JointContraction(BoneChainJoint joint, int parent, int grand, int greatGrand)
-                {
-                    float? found = null;
-                    foreach (var other in (int[])[parent, joint.BendSpring ? grand : -1,
-                        joint.TorsionSpring ? greatGrand : -1])
-                    {
-                        if (other < 0)
+                        if (other.ParentNode != joint.Node)
                         {
                             continue;
                         }
 
-                        foreach (var a in Side(joint.Node))
+                        if (onlyChild >= 0)
                         {
-                            foreach (var b in Side(other))
+                            onlyChild = -1;
+                            break;
+                        }
+
+                        onlyChild = other.Node;
+                    }
+
+                    if (onlyChild >= 0 && !Repeats(onlyChild))
+                    {
+                        copies = 0;
+                    }
+                }
+
+                if (copies == 0 && ChildSiblingValue(joint) != 0f)
+                {
+                    copies = SiblingCopies(joint);
+                }
+
+                return Math.Max(copies, 1);
+            }
+
+            int SiblingCopies(BoneChainJoint joint)
+            {
+                var kids = chain.Joints.FindAll(kid => kid.ParentNode == joint.Node);
+                var common = 0;
+                for (var i = 0; i < kids.Count; i++)
+                {
+                    for (var j = 0; j < i; j++)
+                    {
+                        foreach (var a in Side(kids[j].Node))
+                        {
+                            foreach (var b in Side(kids[i].Node))
                             {
-                                if (!rodContractionsByPair.TryGetValue(UnorderedPair(a, b),
-                                    out var contractions))
+                                if (!repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b),
+                                    out var repeat))
                                 {
                                     continue;
                                 }
 
-                                foreach (var contraction in contractions)
-                                {
-                                    if (found is { } already && MathF.Abs(already - contraction) > 1e-4f)
-                                    {
-                                        return 1f;
-                                    }
-
-                                    found = contraction;
-                                }
+                                common = common == 0 ? repeat.Count : Math.Min(common, repeat.Count);
                             }
                         }
-                    }
-
-                    return found is { } reading ? Math.Clamp(reading, 0f, 1f) : 1f;
-                }
-
-                int JointCopies(BoneChainJoint joint, bool floor = false)
-                {
-                    var copies = 0;
-
-                    bool Repeats(int other)
-                    {
-                        if (other < 0)
-                        {
-                            return true;
-                        }
-
-                        foreach (var a in Side(joint.Node))
-                        {
-                            foreach (var b in Side(other))
-                            {
-                                var count = repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b),
-                                    out var repeat)
-                                    ? repeat.Count
-                                    : 0;
-                                if (count == 0 || (!floor && copies != 0 && count != copies))
-                                {
-                                    return false;
-                                }
-
-                                copies = floor && copies != 0 ? Math.Min(copies, count) : count;
-                            }
-                        }
-
-                        return true;
-                    }
-
-                    var parentNode = joint.ParentNode;
-                    var grand = parentNode >= 0 && jointByNode.TryGetValue(parentNode, out var g1) ? g1.ParentNode : -1;
-                    var greatGrand = grand >= 0 && jointByNode.TryGetValue(grand, out var g2) ? g2.ParentNode : -1;
-
-                    if (!Repeats(parentNode)
-                        || (joint.BendSpring && !Repeats(grand))
-                        || (joint.TorsionSpring && !Repeats(greatGrand)))
-                    {
-                        if (copies != 0 || ChildSiblingValue(joint) == 0f)
-                        {
-                            return 1;
-                        }
-
-                        return Math.Max(SiblingCopies(joint), 1);
-                    }
-
-                    if (copies == 0)
-                    {
-                        var onlyChild = -1;
-                        foreach (var other in chain.Joints)
-                        {
-                            if (other.ParentNode != joint.Node)
-                            {
-                                continue;
-                            }
-
-                            if (onlyChild >= 0)
-                            {
-                                onlyChild = -1;
-                                break;
-                            }
-
-                            onlyChild = other.Node;
-                        }
-
-                        if (onlyChild >= 0 && !Repeats(onlyChild))
-                        {
-                            copies = 0;
-                        }
-                    }
-
-                    if (copies == 0 && ChildSiblingValue(joint) != 0f)
-                    {
-                        copies = SiblingCopies(joint);
-                    }
-
-                    return Math.Max(copies, 1);
-                }
-
-                int SiblingCopies(BoneChainJoint joint)
-                {
-                    var kids = chain.Joints.FindAll(kid => kid.ParentNode == joint.Node);
-                    var common = 0;
-                    for (var i = 0; i < kids.Count; i++)
-                    {
-                        for (var j = 0; j < i; j++)
-                        {
-                            foreach (var a in Side(kids[j].Node))
-                            {
-                                foreach (var b in Side(kids[i].Node))
-                                {
-                                    if (!repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b),
-                                        out var repeat))
-                                    {
-                                        continue;
-                                    }
-
-                                    common = common == 0 ? repeat.Count : Math.Min(common, repeat.Count);
-                                }
-                            }
-                        }
-                    }
-
-                    return common;
-                }
-
-                float? SplitEvenly(List<float> relaxations, float naturalRf, int baseCopies)
-                {
-                    var baseCount = 0;
-                    float? candidate = null;
-                    var candidateCount = 0;
-                    foreach (var rf in relaxations)
-                    {
-                        if (MathF.Abs(rf - naturalRf) < 1e-4f)
-                        {
-                            baseCount++;
-                        }
-                        else if (candidate is null || MathF.Abs(rf - candidate.Value) < 1e-4f)
-                        {
-                            candidate = rf;
-                            candidateCount++;
-                        }
-                        else
-                        {
-                            return null;
-                        }
-                    }
-
-                    if (baseCount != baseCopies || candidateCount != baseCopies || candidate is not { } value
-                        || (MathF.Abs(value - 1.0f) < 1e-4f && MathF.Abs(naturalRf - 1.0f) >= 1e-4f))
-                    {
-                        return null;
-                    }
-
-                    return value;
-                }
-
-                bool RootIsUpwardTarget(BoneChainJoint joint, int parentNode, int grand, int greatGrand)
-                    => rootNode == parentNode
-                        || (joint.BendSpring && rootNode == grand)
-                        || (joint.TorsionSpring && rootNode == greatGrand);
-
-                float? RootSuspenderValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand)
-                {
-                    if (joint.Node == rootNode)
-                    {
-                        return null;
-                    }
-
-                    if (RootIsUpwardTarget(joint, parentNode, grand, greatGrand))
-                    {
-                        var naturalRf = chainNaturalRf ?? 1f;
-                        var totalCopies = JointCopies(joint);
-                        if (totalCopies <= 1 || totalCopies % 2 != 0)
-                        {
-                            return null;
-                        }
-
-                        var baseCopies = totalCopies / 2;
-                        var ringCopies = jointRingOf.TryGetValue(joint.Node, out var ownRing) && ownRing.Count > 0
-                            && rodRelaxationsByPair.TryGetValue(UnorderedPair(joint.Node, ownRing[0]), out var ringRods)
-                            ? ringRods.Count
-                            : 0;
-                        float? suspender = null;
-                        foreach (var a in Side(joint.Node))
-                        {
-                            foreach (var b in Side(rootNode))
-                            {
-                                var pair = UnorderedPair(a, b);
-                                if (!rodRelaxationsByPair.TryGetValue(pair, out var relaxations)
-                                    || relaxations.Count != baseCopies * 2
-                                    || (SplitEvenly(relaxations, naturalRf, baseCopies)
-                                        ?? (ringCopies == baseCopies && relaxations.TrueForAll(rf => MathF.Abs(rf - naturalRf) < 1e-4f)
-                                            ? naturalRf
-                                            : null)) is not { } value
-                                    || (suspender is { } already && MathF.Abs(already - value) > 1e-4f))
-                                {
-                                    return null;
-                                }
-
-                                suspender = value;
-                            }
-                        }
-
-                        return suspender;
-                    }
-
-                    {
-                        float? suspender = null;
-                        foreach (var a in Side(joint.Node))
-                        {
-                            foreach (var b in Side(rootNode))
-                            {
-                                var pair = UnorderedPair(a, b);
-                                if (Array.IndexOf(SourceSprings, pair) >= 0
-                                    || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
-                                    || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations)
-                                    || relaxations.Count < 1
-                                    || relaxations.Exists(rf => MathF.Abs(rf - relaxations[0]) > 1e-4f)
-                                    || (suspender is { } already && MathF.Abs(already - relaxations[0]) > 1e-4f))
-                                {
-                                    return null;
-                                }
-
-                                suspender = relaxations[0];
-                            }
-                        }
-
-                        return suspender;
                     }
                 }
 
-                float? RootCompanionValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand, out float? spanRelaxation)
+                return common;
+            }
+
+            float? SplitEvenly(List<float> relaxations, float naturalRf, int baseCopies)
+            {
+                var baseCount = 0;
+                float? candidate = null;
+                var candidateCount = 0;
+                foreach (var rf in relaxations)
                 {
-                    spanRelaxation = null;
-                    if (joint.Node == rootNode || rootNode == parentNode)
+                    if (MathF.Abs(rf - naturalRf) < 1e-4f)
+                    {
+                        baseCount++;
+                    }
+                    else if (candidate is null || MathF.Abs(rf - candidate.Value) < 1e-4f)
+                    {
+                        candidate = rf;
+                        candidateCount++;
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+
+                if (baseCount != baseCopies || candidateCount != baseCopies || candidate is not { } value
+                    || (MathF.Abs(value - 1.0f) < 1e-4f && MathF.Abs(naturalRf - 1.0f) >= 1e-4f))
+                {
+                    return null;
+                }
+
+                return value;
+            }
+
+            bool RootIsUpwardTarget(BoneChainJoint joint, int parentNode, int grand, int greatGrand)
+                => rootNode == parentNode
+                    || (joint.BendSpring && rootNode == grand)
+                    || (joint.TorsionSpring && rootNode == greatGrand);
+
+            float? RootSuspenderValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand)
+            {
+                if (joint.Node == rootNode)
+                {
+                    return null;
+                }
+
+                if (RootIsUpwardTarget(joint, parentNode, grand, greatGrand))
+                {
+                    var naturalRf = chainNaturalRf ?? 1f;
+                    var totalCopies = JointCopies(joint);
+                    if (totalCopies <= 1 || totalCopies % 2 != 0)
                     {
                         return null;
                     }
 
-                    var rootTarget = joint.BendSpring && rootNode == grand ? grand
-                        : joint.TorsionSpring && rootNode == greatGrand ? greatGrand
-                        : -1;
-                    var baseCopies = SpanCopies(joint, parentNode);
-                    if (rootTarget < 0 || baseCopies <= 0 || SpanCopies(joint, rootTarget) != baseCopies + 1)
-                    {
-                        return null;
-                    }
-
-                    if (joint.BendSpring && grand >= 0 && grand != rootTarget
-                        && SpanCopies(joint, grand) != baseCopies)
-                    {
-                        return null;
-                    }
-
-                    if (joint.TorsionSpring && greatGrand >= 0 && greatGrand != rootTarget
-                        && SpanCopies(joint, greatGrand) != baseCopies)
-                    {
-                        return null;
-                    }
-
-                    var baseRf = (rootTarget == grand ? joint.BendStiffness : joint.TorsionStiffness) * MathF.Exp(-DefaultSurfaceStretch);
-                    float? companion = null;
-                    var pairsAgree = true;
-                    (float Low, float High)? split = null;
-                    var splitsAgree = baseCopies == 1;
+                    var baseCopies = totalCopies / 2;
+                    var ringCopies = jointRingOf.TryGetValue(joint.Node, out var ownRing) && ownRing.Count > 0
+                        && rodRelaxationsByPair.TryGetValue(UnorderedPair(joint.Node, ownRing[0]), out var ringRods)
+                        ? ringRods.Count
+                        : 0;
+                    float? suspender = null;
                     foreach (var a in Side(joint.Node))
                     {
-                        foreach (var b in Side(rootTarget))
+                        foreach (var b in Side(rootNode))
                         {
                             var pair = UnorderedPair(a, b);
-                            if (Array.IndexOf(SourceSprings, pair) >= 0
-                                || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
-                                || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations))
+                            if (!rodRelaxationsByPair.TryGetValue(pair, out var relaxations)
+                                || relaxations.Count != baseCopies * 2
+                                || (SplitEvenly(relaxations, naturalRf, baseCopies)
+                                    ?? (ringCopies == baseCopies && relaxations.TrueForAll(rf => MathF.Abs(rf - naturalRf) < 1e-4f)
+                                        ? naturalRf
+                                        : null)) is not { } value
+                                || (suspender is { } already && MathF.Abs(already - value) > 1e-4f))
                             {
                                 return null;
                             }
 
-                            if (pairsAgree && Surplus(relaxations, baseCopies, baseRf) is { } value
-                                && (companion is not { } already || MathF.Abs(already - value) <= 1e-4f))
-                            {
-                                companion = value;
-                            }
-                            else
-                            {
-                                pairsAgree = false;
-                            }
-
-                            if (splitsAgree && TwoSingleRods(relaxations) is { } two
-                                && (split is not { } seen
-                                    || (MathF.Abs(seen.Low - two.Low) <= 1e-4f && MathF.Abs(seen.High - two.High) <= 1e-4f)))
-                            {
-                                split = two;
-                            }
-                            else
-                            {
-                                splitsAgree = false;
-                            }
+                            suspender = value;
                         }
                     }
 
-                    if (pairsAgree)
-                    {
-                        return companion;
-                    }
-
-                    if (!splitsAgree || split is not { } values)
-                    {
-                        return null;
-                    }
-
-                    spanRelaxation = values.High;
-                    return values.Low;
+                    return suspender;
                 }
 
-                static (float Low, float High)? TwoSingleRods(List<float> relaxations)
-                    => relaxations.Count == 2 && MathF.Abs(relaxations[0] - relaxations[1]) > 1e-4f
-                        ? (MathF.Min(relaxations[0], relaxations[1]), MathF.Max(relaxations[0], relaxations[1]))
-                        : null;
-
-                static float? Surplus(List<float> relaxations, int baseCopies, float baseRf)
                 {
-                    var groups = new List<(float Value, int Count)>();
-                    foreach (var rf in relaxations)
+                    float? suspender = null;
+                    foreach (var a in Side(joint.Node))
                     {
-                        var at = groups.FindIndex(g => MathF.Abs(g.Value - rf) < 1e-4f);
-                        if (at < 0)
+                        foreach (var b in Side(rootNode))
                         {
-                            groups.Add((rf, 1));
+                            var pair = UnorderedPair(a, b);
+                            if (Array.IndexOf(SourceSprings, pair) >= 0
+                                || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
+                                || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations)
+                                || relaxations.Count < 1
+                                || relaxations.Exists(rf => MathF.Abs(rf - relaxations[0]) > 1e-4f)
+                                || (suspender is { } already && MathF.Abs(already - relaxations[0]) > 1e-4f))
+                            {
+                                return null;
+                            }
+
+                            suspender = relaxations[0];
+                        }
+                    }
+
+                    return suspender;
+                }
+            }
+
+            float? RootCompanionValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand, out float? spanRelaxation)
+            {
+                spanRelaxation = null;
+                if (joint.Node == rootNode || rootNode == parentNode)
+                {
+                    return null;
+                }
+
+                var rootTarget = joint.BendSpring && rootNode == grand ? grand
+                    : joint.TorsionSpring && rootNode == greatGrand ? greatGrand
+                    : -1;
+                var baseCopies = SpanCopies(joint, parentNode);
+                if (rootTarget < 0 || baseCopies <= 0 || SpanCopies(joint, rootTarget) != baseCopies + 1)
+                {
+                    return null;
+                }
+
+                if (joint.BendSpring && grand >= 0 && grand != rootTarget
+                    && SpanCopies(joint, grand) != baseCopies)
+                {
+                    return null;
+                }
+
+                if (joint.TorsionSpring && greatGrand >= 0 && greatGrand != rootTarget
+                    && SpanCopies(joint, greatGrand) != baseCopies)
+                {
+                    return null;
+                }
+
+                var baseRf = (rootTarget == grand ? joint.BendStiffness : joint.TorsionStiffness) * MathF.Exp(-DefaultSurfaceStretch);
+                float? companion = null;
+                var pairsAgree = true;
+                (float Low, float High)? split = null;
+                var splitsAgree = baseCopies == 1;
+                foreach (var a in Side(joint.Node))
+                {
+                    foreach (var b in Side(rootTarget))
+                    {
+                        var pair = UnorderedPair(a, b);
+                        if (Array.IndexOf(SourceSprings, pair) >= 0
+                            || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
+                            || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations))
+                        {
+                            return null;
+                        }
+
+                        if (pairsAgree && Surplus(relaxations, baseCopies, baseRf) is { } value
+                            && (companion is not { } already || MathF.Abs(already - value) <= 1e-4f))
+                        {
+                            companion = value;
                         }
                         else
                         {
-                            groups[at] = (groups[at].Value, groups[at].Count + 1);
+                            pairsAgree = false;
+                        }
+
+                        if (splitsAgree && TwoSingleRods(relaxations) is { } two
+                            && (split is not { } seen
+                                || (MathF.Abs(seen.Low - two.Low) <= 1e-4f && MathF.Abs(seen.High - two.High) <= 1e-4f)))
+                        {
+                            split = two;
+                        }
+                        else
+                        {
+                            splitsAgree = false;
                         }
                     }
-
-                    if (groups.Count == 1)
-                    {
-                        return groups[0].Count == baseCopies + 1 ? groups[0].Value : null;
-                    }
-
-                    if (groups.Count != 2)
-                    {
-                        return null;
-                    }
-
-                    if (groups[0].Count == 1 && groups[1].Count == 1)
-                    {
-                        return groups.FindIndex(g => MathF.Abs(g.Value - baseRf) < 1e-4f) is var atBase and >= 0
-                            ? groups[1 - atBase].Value
-                            : null;
-                    }
-
-                    var odd = groups.FindIndex(static g => g.Count == 1);
-                    return odd >= 0 && groups[1 - odd].Count == baseCopies ? groups[odd].Value : null;
                 }
 
-                var sliderScale = MathF.Exp(-DefaultSurfaceStretch);
-                float Slider(float relaxation) => Math.Min(1f, relaxation / sliderScale);
-
-                var clusterPairs = SelfCollisionClusterPairs;
-                var chainDeclaresNoStretch = chain.Joints.Count > 1
-                    && chain.Joints.Exists(joint => !joint.IsRoot
-                        && clusterPairs.Contains(UnorderedPair(joint.Node, joint.ParentNode)))
-                    && chain.Joints.TrueForAll(joint => joint.IsRoot
-                        || clusterPairs.Contains(UnorderedPair(joint.Node, joint.ParentNode))
-                        || (!SpannedByRod(joint.Node, joint.ParentNode)
-                            && RingInternalRelaxation(joint.Node) is null));
-
-                int SpanRodCopies(int a, int b)
-                    => repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b), out var repeats) ? repeats.Count : 0;
-
-                int RingRodCopies(int node)
+                if (pairsAgree)
                 {
-                    var most = 0;
-                    if (jointRingOf.TryGetValue(node, out var ring))
-                    {
-                        foreach (var member in ring)
-                        {
-                            most = Math.Max(most, SpanRodCopies(node, member));
-                        }
-                    }
-
-                    return most;
+                    return companion;
                 }
 
-                bool DeclaresNoStretch(BoneChainJoint joint)
+                if (!splitsAgree || split is not { } values)
                 {
-                    if (joint.IsRoot || joint.ParentNode < 0 || !Simulates(joint.Node) || IsPositionDriven(joint.Node)
-                        || !jointRingOf.TryGetValue(joint.Node, out var ring) || ring.Count == 0)
-                    {
-                        return false;
-                    }
-
-                    var own = Extrusion(joint.Node);
-                    return !Array.Exists(Quads, quad => Array.Exists(quad, own.Contains))
-                        && !AnyRodBetween(own, [joint.ParentNode, .. Side(joint.ParentNode)])
-                        && !AnyRodBetween(own, own);
+                    return null;
                 }
 
-                List<int> Extrusion(int node)
-                    => jointRingOf.TryGetValue(node, out var ring) ? [node, .. ring] : [node];
+                spanRelaxation = values.High;
+                return values.Low;
+            }
 
-                bool AnyRodBetween(List<int> lhs, List<int> rhs)
+            static (float Low, float High)? TwoSingleRods(List<float> relaxations)
+                => relaxations.Count == 2 && MathF.Abs(relaxations[0] - relaxations[1]) > 1e-4f
+                    ? (MathF.Min(relaxations[0], relaxations[1]), MathF.Max(relaxations[0], relaxations[1]))
+                    : null;
+
+            static float? Surplus(List<float> relaxations, int baseCopies, float baseRf)
+            {
+                var groups = new List<(float Value, int Count)>();
+                foreach (var rf in relaxations)
                 {
-                    foreach (var a in lhs)
+                    var at = groups.FindIndex(g => MathF.Abs(g.Value - rf) < 1e-4f);
+                    if (at < 0)
                     {
-                        foreach (var b in rhs)
-                        {
-                            if (a != b && rodPairs.Contains(UnorderedPair(a, b)))
-                            {
-                                return true;
-                            }
-                        }
-                    }
-
-                    return false;
-                }
-
-                foreach (var joint in chain.Joints)
-                {
-                    var parent = joint.ParentNode;
-                    var grandParent = parent >= 0 && jointByNode.TryGetValue(parent, out var p1) ? p1.ParentNode : -1;
-                    var greatGrandParent = grandParent >= 0 && jointByNode.TryGetValue(grandParent, out var p2) ? p2.ParentNode : -1;
-
-                    var endRing = EndEffectorRing(joint.Node);
-                    joint.BendSpring = SpannedByDeclaredRod(joint.Node, grandParent) || AllDeclared(endRing, parent);
-                    joint.TorsionSpring = SpannedByDeclaredRod(joint.Node, greatGrandParent) || AllDeclared(endRing, grandParent);
-
-                    float SpringStiffness(int other, int endEffectorOther)
-                    {
-                        var stiffness = SpanRelaxation(joint.Node, other)
-                            ?? RelaxationAcross(endRing, endEffectorOther)
-                            ?? chainNaturalRf ?? 1f;
-                        return stiffness > 0f ? Slider(stiffness) : 1f;
-                    }
-
-                    var stretch = SpanRelaxation(joint.Node, parent) ?? RingInternalRelaxation(joint.Node)
-                        ?? chainNaturalRf ?? 1f;
-
-                    var roped = !joint.IsRoot && ropeParents.GetValueOrDefault(joint.Node, -1) == parent;
-                    joint.StretchStiffness = (chainDeclaresNoStretch && !joint.IsRoot) || DeclaresNoStretch(joint)
-                        || (roped && !SpannedByRod(joint.Node, parent) && RingInternalRelaxation(joint.Node) is null)
-                        ? 0f
-                        : stretch > 0f ? Slider(stretch) : 1f;
-
-                    var ropeHinted = NodeBases.Count == 0
-                        ? RopeRunParents
-                        : (IReadOnlyDictionary<int, int>)new Dictionary<int, int>();
-                    bool AuthoredSpring(int other) => other >= 0
-                        && !ropeHinted.ContainsKey(joint.Node) && !ropeHinted.ContainsKey(other)
-                        && (Array.IndexOf(SourceSprings, (joint.Node, other)) >= 0
-                            || Array.IndexOf(SourceSprings, (other, joint.Node)) >= 0);
-
-                    var ringCopies = RingRodCopies(joint.Node);
-                    if (AuthoredSpring(parent)
-                        && !(ringCopies > 0 && SpanRodCopies(joint.Node, parent) > ringCopies))
-                    {
-                        joint.StretchStiffness = 0f;
-                    }
-
-                    if (AuthoredSpring(grandParent))
-                    {
-                        joint.BendSpring = false;
-                        joint.BendStiffness = 0f;
-                    }
-
-                    if (AuthoredSpring(greatGrandParent))
-                    {
-                        joint.TorsionSpring = false;
-                        joint.TorsionStiffness = 0f;
-                    }
-                    joint.BendStiffness = joint.BendSpring ? SpringStiffness(grandParent, parent) : 0f;
-                    joint.TorsionStiffness = joint.TorsionSpring ? SpringStiffness(greatGrandParent, grandParent) : 0f;
-                    joint.Antishrink = JointContraction(joint, parent, grandParent, greatGrandParent);
-
-                    if (RootSuspenderValue(joint, parent, grandParent, greatGrandParent) is { } suspender)
-                    {
-                        joint.Suspender = suspender;
-                        joint.ExtraIterations = RootIsUpwardTarget(joint, parent, grandParent, greatGrandParent) ? JointCopies(joint) / 2 - 1 : JointCopies(joint) - 1;
-                    }
-                    else if (RootCompanionValue(joint, parent, grandParent, greatGrandParent, out var spanReading) is { } companion)
-                    {
-                        joint.Suspender = companion;
-                        joint.ExtraIterations = SpanCopies(joint, parent) - 1;
-                        if (spanReading is { } span && joint.BendSpring && rootNode == grandParent)
-                        {
-                            joint.BendStiffness = Slider(span);
-                        }
-                        else if (spanReading is { } torsionSpan)
-                        {
-                            joint.TorsionStiffness = Slider(torsionSpan);
-                        }
+                        groups.Add((rf, 1));
                     }
                     else
                     {
-                        joint.Suspender = 0f;
-                        joint.ExtraIterations = JointCopies(joint, floor: true) - 1;
+                        groups[at] = (groups[at].Value, groups[at].Count + 1);
                     }
                 }
 
-                foreach (var joint in chain.Joints)
+                if (groups.Count == 1)
                 {
-                    if (!DeclaresNoStretch(joint))
+                    return groups[0].Count == baseCopies + 1 ? groups[0].Value : null;
+                }
+
+                if (groups.Count != 2)
+                {
+                    return null;
+                }
+
+                if (groups[0].Count == 1 && groups[1].Count == 1)
+                {
+                    return groups.FindIndex(g => MathF.Abs(g.Value - baseRf) < 1e-4f) is var atBase and >= 0
+                        ? groups[1 - atBase].Value
+                        : null;
+                }
+
+                var odd = groups.FindIndex(static g => g.Count == 1);
+                return odd >= 0 && groups[1 - odd].Count == baseCopies ? groups[odd].Value : null;
+            }
+
+            var sliderScale = MathF.Exp(-DefaultSurfaceStretch);
+            float Slider(float relaxation) => Math.Min(1f, relaxation / sliderScale);
+
+            var clusterPairs = SelfCollisionClusterPairs;
+            var chainDeclaresNoStretch = chain.Joints.Count > 1
+                && chain.Joints.Exists(joint => !joint.IsRoot
+                    && clusterPairs.Contains(UnorderedPair(joint.Node, joint.ParentNode)))
+                && chain.Joints.TrueForAll(joint => joint.IsRoot
+                    || clusterPairs.Contains(UnorderedPair(joint.Node, joint.ParentNode))
+                    || (!SpannedByRod(joint.Node, joint.ParentNode)
+                        && RingInternalRelaxation(joint.Node) is null));
+
+            int SpanRodCopies(int a, int b)
+                => repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b), out var repeats) ? repeats.Count : 0;
+
+            int RingRodCopies(int node)
+            {
+                var most = 0;
+                if (jointRingOf.TryGetValue(node, out var ring))
+                {
+                    foreach (var member in ring)
                     {
-                        continue;
-                    }
-
-                    var own = Extrusion(joint.Node);
-                    var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
-
-                    var animated = AnimRodPairs.Count > 0
-                        && own.Exists(node => AnimRodPairs.Any(pair => pair.Item1 == node || pair.Item2 == node));
-
-                    joint.AnimatedLength = animated && (kids.Count == 0
-                        ? NodeBases.ContainsKey(joint.Node)
-                        : kids.TrueForAll(kid => jointRingOf.ContainsKey(kid.Node) && !AnyRodBetween(Extrusion(kid.Node), own))
-                            && ((NodeBases.ContainsKey(joint.Node) && !SelfCollisionClusters.Any(cluster => cluster.Nodes.Contains(joint.Node)))
-                                || kids.TrueForAll(kid => AnyRodBetween(Extrusion(kid.Node), Extrusion(kid.Node)))));
-
-                    if (joint.AnimatedLength)
-                    {
-                        joint.StretchStiffness = 1f;
+                        most = Math.Max(most, SpanRodCopies(node, member));
                     }
                 }
 
-                bool Simulates(int node) => node < NodeInvMasses.Length && NodeInvMasses[node] != 0f;
+                return most;
+            }
 
-                float ChildSiblingValue(BoneChainJoint joint)
+            bool DeclaresNoStretch(BoneChainJoint joint)
+            {
+                if (joint.IsRoot || joint.ParentNode < 0 || !Simulates(joint.Node) || IsPositionDriven(joint.Node)
+                    || !jointRingOf.TryGetValue(joint.Node, out var ring) || ring.Count == 0)
                 {
-                    var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
-                    if (kids.Count < 2)
-                    {
-                        return 0f;
-                    }
+                    return false;
+                }
 
-                    List<float>? common = null;
-                    for (var i = 0; i < kids.Count; i++)
+                var own = Extrusion(joint.Node);
+                return !Array.Exists(Quads, quad => Array.Exists(quad, own.Contains))
+                    && !AnyRodBetween(own, [joint.ParentNode, .. Side(joint.ParentNode)])
+                    && !AnyRodBetween(own, own);
+            }
+
+            List<int> Extrusion(int node)
+                => jointRingOf.TryGetValue(node, out var ring) ? [node, .. ring] : [node];
+
+            bool AnyRodBetween(List<int> lhs, List<int> rhs)
+            {
+                foreach (var a in lhs)
+                {
+                    foreach (var b in rhs)
                     {
-                        for (var j = i + 1; j < kids.Count; j++)
+                        if (a != b && rodPairs.Contains(UnorderedPair(a, b)))
                         {
-                            foreach (var a in Side(kids[i].Node))
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            foreach (var joint in chain.Joints)
+            {
+                var parent = joint.ParentNode;
+                var grandParent = parent >= 0 && jointByNode.TryGetValue(parent, out var p1) ? p1.ParentNode : -1;
+                var greatGrandParent = grandParent >= 0 && jointByNode.TryGetValue(grandParent, out var p2) ? p2.ParentNode : -1;
+
+                var endRing = EndEffectorRing(joint.Node);
+                joint.BendSpring = SpannedByDeclaredRod(joint.Node, grandParent) || AllDeclared(endRing, parent);
+                joint.TorsionSpring = SpannedByDeclaredRod(joint.Node, greatGrandParent) || AllDeclared(endRing, grandParent);
+
+                float SpringStiffness(int other, int endEffectorOther)
+                {
+                    var stiffness = SpanRelaxation(joint.Node, other)
+                        ?? RelaxationAcross(endRing, endEffectorOther)
+                        ?? chainNaturalRf ?? 1f;
+                    return stiffness > 0f ? Slider(stiffness) : 1f;
+                }
+
+                var stretch = SpanRelaxation(joint.Node, parent) ?? RingInternalRelaxation(joint.Node)
+                    ?? chainNaturalRf ?? 1f;
+
+                var roped = !joint.IsRoot && ropeParents.GetValueOrDefault(joint.Node, -1) == parent;
+                joint.StretchStiffness = (chainDeclaresNoStretch && !joint.IsRoot) || DeclaresNoStretch(joint)
+                    || (roped && !SpannedByRod(joint.Node, parent) && RingInternalRelaxation(joint.Node) is null)
+                    ? 0f
+                    : stretch > 0f ? Slider(stretch) : 1f;
+
+                var ropeHinted = NodeBases.Count == 0
+                    ? RopeRunParents
+                    : (IReadOnlyDictionary<int, int>)new Dictionary<int, int>();
+                bool AuthoredSpring(int other) => other >= 0
+                    && !ropeHinted.ContainsKey(joint.Node) && !ropeHinted.ContainsKey(other)
+                    && (Array.IndexOf(SourceSprings, (joint.Node, other)) >= 0
+                        || Array.IndexOf(SourceSprings, (other, joint.Node)) >= 0);
+
+                var ringCopies = RingRodCopies(joint.Node);
+                if (AuthoredSpring(parent)
+                    && !(ringCopies > 0 && SpanRodCopies(joint.Node, parent) > ringCopies))
+                {
+                    joint.StretchStiffness = 0f;
+                }
+
+                if (AuthoredSpring(grandParent))
+                {
+                    joint.BendSpring = false;
+                    joint.BendStiffness = 0f;
+                }
+
+                if (AuthoredSpring(greatGrandParent))
+                {
+                    joint.TorsionSpring = false;
+                    joint.TorsionStiffness = 0f;
+                }
+                joint.BendStiffness = joint.BendSpring ? SpringStiffness(grandParent, parent) : 0f;
+                joint.TorsionStiffness = joint.TorsionSpring ? SpringStiffness(greatGrandParent, grandParent) : 0f;
+                joint.Antishrink = JointContraction(joint, parent, grandParent, greatGrandParent);
+
+                if (RootSuspenderValue(joint, parent, grandParent, greatGrandParent) is { } suspender)
+                {
+                    joint.Suspender = suspender;
+                    joint.ExtraIterations = RootIsUpwardTarget(joint, parent, grandParent, greatGrandParent) ? JointCopies(joint) / 2 - 1 : JointCopies(joint) - 1;
+                }
+                else if (RootCompanionValue(joint, parent, grandParent, greatGrandParent, out var spanReading) is { } companion)
+                {
+                    joint.Suspender = companion;
+                    joint.ExtraIterations = SpanCopies(joint, parent) - 1;
+                    if (spanReading is { } span && joint.BendSpring && rootNode == grandParent)
+                    {
+                        joint.BendStiffness = Slider(span);
+                    }
+                    else if (spanReading is { } torsionSpan)
+                    {
+                        joint.TorsionStiffness = Slider(torsionSpan);
+                    }
+                }
+                else
+                {
+                    joint.Suspender = 0f;
+                    joint.ExtraIterations = JointCopies(joint, floor: true) - 1;
+                }
+            }
+
+            foreach (var joint in chain.Joints)
+            {
+                if (!DeclaresNoStretch(joint))
+                {
+                    continue;
+                }
+
+                var own = Extrusion(joint.Node);
+                var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
+
+                var animated = AnimRodPairs.Count > 0
+                    && own.Exists(node => AnimRodPairs.Any(pair => pair.Item1 == node || pair.Item2 == node));
+
+                joint.AnimatedLength = animated && (kids.Count == 0
+                    ? NodeBases.ContainsKey(joint.Node)
+                    : kids.TrueForAll(kid => jointRingOf.ContainsKey(kid.Node) && !AnyRodBetween(Extrusion(kid.Node), own))
+                        && ((NodeBases.ContainsKey(joint.Node) && !SelfCollisionClusters.Any(cluster => cluster.Nodes.Contains(joint.Node)))
+                            || kids.TrueForAll(kid => AnyRodBetween(Extrusion(kid.Node), Extrusion(kid.Node)))));
+
+                if (joint.AnimatedLength)
+                {
+                    joint.StretchStiffness = 1f;
+                }
+            }
+
+            bool Simulates(int node) => node < NodeInvMasses.Length && NodeInvMasses[node] != 0f;
+
+            float ChildSiblingValue(BoneChainJoint joint)
+            {
+                var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
+                if (kids.Count < 2)
+                {
+                    return 0f;
+                }
+
+                List<float>? common = null;
+                for (var i = 0; i < kids.Count; i++)
+                {
+                    for (var j = i + 1; j < kids.Count; j++)
+                    {
+                        foreach (var a in Side(kids[i].Node))
+                        {
+                            foreach (var b in Side(kids[j].Node))
                             {
-                                foreach (var b in Side(kids[j].Node))
+                                if (!Simulates(a) && !Simulates(b))
                                 {
-                                    if (!Simulates(a) && !Simulates(b))
-                                    {
-                                        continue;
-                                    }
+                                    continue;
+                                }
 
-                                    var pair = UnorderedPair(a, b);
-                                    if (Array.IndexOf(SourceSprings, pair) >= 0
-                                        || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
-                                        || !rodRelaxationsByPair.TryGetValue(pair, out var relaxations))
-                                    {
-                                        return 0f;
-                                    }
+                                var pair = UnorderedPair(a, b);
+                                if (Array.IndexOf(SourceSprings, pair) >= 0
+                                    || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
+                                    || !rodRelaxationsByPair.TryGetValue(pair, out var relaxations))
+                                {
+                                    return 0f;
+                                }
 
-                                    if (common is null)
+                                if (common is null)
+                                {
+                                    common = [];
+                                    foreach (var relaxation in relaxations)
                                     {
-                                        common = [];
-                                        foreach (var relaxation in relaxations)
+                                        if (!common.Exists(seen => MathF.Abs(seen - relaxation) <= 1e-4f))
                                         {
-                                            if (!common.Exists(seen => MathF.Abs(seen - relaxation) <= 1e-4f))
-                                            {
-                                                common.Add(relaxation);
-                                            }
+                                            common.Add(relaxation);
                                         }
                                     }
-                                    else
-                                    {
-                                        common.RemoveAll(seen =>
-                                            !relaxations.Exists(relaxation => MathF.Abs(seen - relaxation) <= 1e-4f));
-                                    }
+                                }
+                                else
+                                {
+                                    common.RemoveAll(seen =>
+                                        !relaxations.Exists(relaxation => MathF.Abs(seen - relaxation) <= 1e-4f));
+                                }
 
-                                    if (common.Count == 0)
-                                    {
-                                        return 0f;
-                                    }
+                                if (common.Count == 0)
+                                {
+                                    return 0f;
                                 }
                             }
                         }
                     }
-
-                    return common is [var reading] && reading > 0f ? Slider(reading) : 0f;
                 }
 
-                foreach (var joint in chain.Joints)
+                return common is [var reading] && reading > 0f ? Slider(reading) : 0f;
+            }
+
+            foreach (var joint in chain.Joints)
+            {
+                joint.ChildSiblingSpring = ChildSiblingValue(joint);
+            }
+
+            foreach (var joint in chain.Joints)
+            {
+                if (joint.IsRoot || joint.ProxyNode < 0 || joint.ExtrudeSides < 2 || !IsPositionDriven(joint.Node)
+                    || !rodPairs.Contains(UnorderedPair(joint.Node, joint.ParentNode)))
                 {
-                    joint.ChildSiblingSpring = ChildSiblingValue(joint);
+                    continue;
                 }
 
-                foreach (var joint in chain.Joints)
+                joint.Restated = true;
+                if (jointByNode.TryGetValue(joint.ParentNode, out var restatedParent))
                 {
-                    if (joint.IsRoot || joint.ProxyNode < 0 || joint.ExtrudeSides < 2 || !IsPositionDriven(joint.Node)
-                        || !rodPairs.Contains(UnorderedPair(joint.Node, joint.ParentNode)))
+                    restatedParent.Restated = true;
+                }
+            }
+
+            SteerNodeBaseTies(chain);
+
+            var firstSimulated = int.MaxValue;
+            foreach (var joint in chain.Joints)
+            {
+                if (joint.Node >= StaticNodeCount)
+                {
+                    firstSimulated = Math.Min(firstSimulated, joint.Node);
+                }
+
+                if (DeclaredRing(joint.Node) is { } declaredRing)
+                {
+                    foreach (var proxy in declaredRing)
+                    {
+                        if (proxy >= StaticNodeCount)
+                        {
+                            firstSimulated = Math.Min(firstSimulated, proxy);
+                        }
+                    }
+                }
+            }
+
+            return (chain, firstSimulated);
+        }
+
+        /// <summary>Gets the ring <paramref name="node"/> extruded in the declaration <paramref name="spec"/>.</summary>
+        private static List<int>? DeclaredRingOf(ChainSpec spec, Dictionary<int, List<int>> proxyChildrenOf, int node)
+            => spec.RingOf is not null && spec.RingOf.TryGetValue(node, out var ring)
+                ? ring
+                : proxyChildrenOf.GetValueOrDefault(node);
+
+        /// <summary>
+        /// Adds the declaration's joints to <paramref name="chain"/> in pre-order, each node's children ordered by the lowest
+        /// simulated node their subtree occupies.
+        /// </summary>
+        private void WalkChainJoints(BoneChain chain, ChainSpec spec, List<int>?[] children, int[] realParent,
+            Dictionary<int, List<int>> proxyChildrenOf)
+        {
+            var rootNode = spec.Root;
+            List<int>? DeclaredRing(int node) => DeclaredRingOf(spec, proxyChildrenOf, node);
+
+            var subtreeFirstNode = new Dictionary<int, int>();
+
+            List<int> DeclaredChildren(int node)
+            {
+                if (children[node] is not { } all)
+                {
+                    return [];
+                }
+
+                var kids = spec.ChildrenOf is not null && spec.ChildrenOf.TryGetValue(node, out var kept)
+                    ? all.FindAll(kept.Contains)
+                    : [.. all];
+
+                kids.Sort((a, b) =>
+                {
+                    var order = SubtreeFirstNode(a).CompareTo(SubtreeFirstNode(b));
+                    return order != 0 ? order : a.CompareTo(b);
+                });
+
+                return kids;
+            }
+
+            int SubtreeFirstNode(int start)
+            {
+                if (subtreeFirstNode.TryGetValue(start, out var cached))
+                {
+                    return cached;
+                }
+
+                var first = int.MaxValue;
+                var firstSimulated = int.MaxValue;
+                var stack = new Stack<int>();
+                stack.Push(start);
+                for (var guard = 0; stack.Count > 0 && guard < 4096; guard++)
+                {
+                    var node = stack.Pop();
+                    foreach (var member in (int[])[node, .. DeclaredRing(node) ?? []])
+                    {
+                        if (member < 0)
+                        {
+                            continue;
+                        }
+
+                        first = Math.Min(first, member);
+                        if (member >= StaticNodeCount && member < FirstPositionDrivenNode)
+                        {
+                            firstSimulated = Math.Min(firstSimulated, member);
+                        }
+                    }
+
+                    if (children[node] is not { } all)
                     {
                         continue;
                     }
 
-                    joint.Restated = true;
-                    if (jointByNode.TryGetValue(joint.ParentNode, out var restatedParent))
+                    foreach (var kid in all)
                     {
-                        restatedParent.Restated = true;
+                        if (spec.ChildrenOf is null || !spec.ChildrenOf.TryGetValue(node, out var kept)
+                            || kept.Contains(kid))
+                        {
+                            stack.Push(kid);
+                        }
                     }
                 }
 
-                SteerNodeBaseTies(chain);
+                return subtreeFirstNode[start] = firstSimulated < int.MaxValue ? firstSimulated : first;
+            }
 
-                var firstSimulated = int.MaxValue;
-                foreach (var joint in chain.Joints)
+            void Visit(int node)
+            {
+                var parent = node == rootNode ? -1 : realParent[node];
+                chain.Joints.Add(new BoneChainJoint
                 {
-                    if (joint.Node >= StaticNodeCount)
+                    Node = node,
+                    Name = CtrlNames[node],
+                    ParentNode = parent,
+                    ParentName = parent >= 0 ? CtrlNames[parent] : null,
+                    InvMass = node < NodeInvMasses.Length ? NodeInvMasses[node] : 0f,
+                });
+
+                foreach (var child in DeclaredChildren(node))
+                {
+                    Visit(child);
+                }
+            }
+
+            Visit(rootNode);
+        }
+
+        /// <summary>
+        /// Reads each joint's extrude ring, end effector, forward axis, twist and radius, and the chain's common extrusion.
+        /// Returns each joint's own ring and end-effector ring.
+        /// </summary>
+        private (Dictionary<int, List<int>> JointRingOf, Dictionary<int, List<int>> EndEffectorRingOf) ReadChainExtrusion(
+            BoneChain chain, ChainSpec spec, Dictionary<int, List<int>> proxyChildrenOf)
+        {
+            var rootNode = spec.Root;
+            var ringlessRoot = spec.RinglessRoot;
+            List<int>? DeclaredRing(int node) => DeclaredRingOf(spec, proxyChildrenOf, node);
+
+            var sideFrequency = new Dictionary<int, int>();
+            var radii = new List<float>();
+            var twists = new List<float>();
+            var jointRingOf = new Dictionary<int, List<int>>();
+            var endEffectorRingOf = new Dictionary<int, List<int>>();
+            foreach (var joint in chain.Joints)
+            {
+                if (ringlessRoot && joint.Node == rootNode)
+                {
+                    continue;
+                }
+
+                if (DeclaredRing(joint.Node) is not { Count: > 0 } proxies)
+                {
+                    continue;
+                }
+
+                joint.RingNodes = [.. proxies.Order()];
+
+                if (spec.RingOf is not null && spec.RingOf.ContainsKey(joint.Node))
+                {
+                    joint.ValueNode = proxies[0];
+                    joint.InvMass = proxies[0] < NodeInvMasses.Length ? NodeInvMasses[proxies[0]] : joint.InvMass;
+                }
+
+                var ring = proxies;
+                List<int>? endEffectorRing = null;
+                if (proxies.TrueForAll(p => CtrlNames[p].EndsWith("_Ctr", StringComparison.Ordinal))
+                    && joint.Node < InitPoseRotations.Length && joint.Node < InitPosePositions.Length
+                    && proxies[0] < InitPosePositions.Length)
+                {
+                    var centreOffset = Vector3.Transform(
+                        InitPosePositions[proxies[0]] - ExtrudeOrigin(joint.Node),
+                        Quaternion.Conjugate(InitPoseRotations[joint.Node]));
+                    if (MathF.Abs(centreOffset.X) >= EndEffectorRingTolerance)
                     {
-                        firstSimulated = Math.Min(firstSimulated, joint.Node);
+                        joint.EndEffector = centreOffset.X;
+                        joint.ExtrudeSides = 0;
+                        joint.ProxyNode = proxies[0];
+                        endEffectorRingOf[joint.Node] = proxies;
+                        continue;
+                    }
+                }
+
+                if (joint.Node < InitPoseRotations.Length && joint.Node < InitPosePositions.Length)
+                {
+                    var forwardOf = new Dictionary<int, float>(proxies.Count);
+                    foreach (var proxy in proxies)
+                    {
+                        if (proxy < InitPosePositions.Length)
+                        {
+                            forwardOf[proxy] = Vector3.Transform(
+                                InitPosePositions[proxy] - ExtrudeOrigin(joint.Node),
+                                Quaternion.Conjugate(InitPoseRotations[joint.Node])).X;
+                        }
                     }
 
-                    if (DeclaredRing(joint.Node) is { } declaredRing)
+                    if (forwardOf.Count == proxies.Count)
                     {
-                        foreach (var proxy in declaredRing)
+                        var minAbs = forwardOf.Values.Min(MathF.Abs);
+                        var maxAbs = forwardOf.Values.Max(MathF.Abs);
+                        if (maxAbs - minAbs > EndEffectorRingTolerance)
                         {
-                            if (proxy >= StaticNodeCount)
+                            var nearRing = proxies.Where(p => MathF.Abs(forwardOf[p]) - minAbs <= EndEffectorRingTolerance).ToList();
+                            if (nearRing.Count > 0 && nearRing.Count < proxies.Count)
                             {
-                                firstSimulated = Math.Min(firstSimulated, proxy);
+                                var farRing = proxies.Except(nearRing).ToList();
+                                var nearValue = forwardOf[nearRing.MinBy(p => MathF.Abs(forwardOf[p]))];
+                                var farValue = forwardOf[farRing.MaxBy(p => MathF.Abs(forwardOf[p]))];
+                                joint.EndEffector = farValue - nearValue;
+                                ring = nearRing;
+                                endEffectorRing = farRing;
+                                endEffectorRingOf[joint.Node] = farRing;
                             }
                         }
                     }
                 }
 
-                chainFirstSimulated[chain] = firstSimulated;
-                chains.Add(chain);
-                if (spec.ChildrenOf is null && spec.RingOf is null && !ringlessRoot)
+                joint.ExtrudeSides = Math.Min(ring.Count, 4);
+                joint.ProxyNode = ring[0];
+                jointRingOf[joint.Node] = ring;
+                sideFrequency[ring.Count] = sideFrequency.GetValueOrDefault(ring.Count) + 1;
+                proxies = ring;
+                if (joint.Node < InitPosePositions.Length)
                 {
-                    mergedChains.Add(chain);
-                }
-            }
-
-            if (ringlessKids is null && chainVersion is not null
-                && VersionSplitRoots(mergedChains, chainVersion, chains.Count > 1) is { Count: > 0 } splits)
-            {
-                return BuildBoneChains(chainVersion, splits);
-            }
-
-            MergeSiblingHubs(chains);
-            MarkSecondDeclarations(chains);
-
-            return [.. chains.OrderBy(ChainFirstNode)];
-
-            int ChainFirstNode(BoneChain chain)
-            {
-                if (chainFirstSimulated.TryGetValue(chain, out var firstSimulated)
-                    && firstSimulated < int.MaxValue)
-                {
-                    return firstSimulated;
-                }
-
-                var first = int.MaxValue;
-                foreach (var joint in chain.Joints)
-                {
-                    foreach (var node in (int[])[joint.Node, joint.ProxyNode])
+                    if (joint.Node < InitPoseRotations.Length)
                     {
-                        if (node >= 0)
+                        joint.ForwardAxis = DetectExtrudeForwardAxis(
+                            ExtrudeOrigin(joint.Node), InitPoseRotations[joint.Node], proxies, InitPosePositions);
+                    }
+
+                    var measured = endEffectorRing is { Count: > 0 } && IsHingedJoint(joint.Node)
+                        ? endEffectorRing
+                        : proxies;
+
+                    if (joint.Node < InitPoseRotations.Length && measured[0] < InitPosePositions.Length)
+                    {
+                        var ringFrame = InitPoseRotations[joint.Node] * ExtrudeAxisSelectQuaternion(joint.ForwardAxis);
+                        var offset = Vector3.Transform(
+                            InitPosePositions[measured[0]] - ExtrudeOrigin(joint.Node),
+                            Quaternion.Conjugate(ringFrame));
+                        if (new Vector2(offset.Y, offset.Z).LengthSquared() > 1e-6f)
                         {
-                            first = Math.Min(first, node);
+                            var twist = float.RadiansToDegrees(MathF.Atan2(offset.Y, offset.Z));
+                            joint.ExtrudeTwist = twist;
+                            twists.Add(twist);
+                        }
+
+                        joint.ExtrudeRadius = measured == proxies
+                            ? Vector3.Distance(ExtrudeOrigin(joint.Node), InitPosePositions[measured[0]])
+                            : new Vector2(offset.Y, offset.Z).Length();
+                    }
+
+                    foreach (var proxy in proxies)
+                    {
+                        if (proxy < InitPosePositions.Length)
+                        {
+                            radii.Add(Vector3.Distance(ExtrudeOrigin(joint.Node), InitPosePositions[proxy]));
                         }
                     }
                 }
-
-                return first;
             }
+
+            var bodySides = sideFrequency
+                .OrderByDescending(static kv => kv.Value)
+                .ThenBy(static kv => kv.Key)
+                .Select(static kv => kv.Key)
+                .FirstOrDefault();
+
+            if (bodySides >= 1)
+            {
+                chain.ExtrudeSides = Math.Min(bodySides, 4);
+                chain.ExtrudeRadius = radii.Count > 0 ? radii.Average() : 0f;
+                chain.ExtrudeTwist = twists.Count > 0 ? twists.Average() : 0f;
+            }
+
+            return (jointRingOf, endEffectorRingOf);
         }
 
         private bool DrivesProxySheetVertex(int node)

@@ -721,46 +721,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>Gets the raw, uninterpreted <c>m_CollisionSpheres</c> entries.</summary>
         public IReadOnlyList<KVObject> CollisionSpheres { get; }
-
-        private static T[] ReadArray<T>(KVObject data, string key, Func<KVObject, T> map)
+        /// <summary>Reads <c>m_KelagerBends</c>, skipping records with fewer than three nodes or weights.</summary>
+        private static List<KelagerBend> ReadKelagerBends(KVObject data)
         {
-            var arr = data.GetArray(key);
-            return arr is null ? [] : arr.Select(map).ToArray();
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="FeModel"/> class from a parsed <c>m_pFeModel</c> sub-object.
-        /// </summary>
-        public FeModel(KVObject data)
-        {
-            Data = data;
-            CtrlNames = data.GetArray<string>("m_CtrlName") ?? [];
-            SkelParents = (data.GetIntegerArray("m_SkelParents")).Select(static v => (int)v).ToArray();
-            HasCompiledSkelParents = SkelParents.Length > 0;
-            if (SkelParents.Length == 0)
-            {
-                SkelParents = BuildRopeParents(data, RopeRuns);
-            }
-            NodeInvMasses = data.GetFloatArray("m_NodeInvMasses");
-            NodeCount = data.GetInt32Property("m_nNodeCount");
-            StaticNodeCount = data.GetInt32Property("m_nStaticNodes");
-            HasCompiledFirstPositionDrivenNode = data.ContainsKey("m_nFirstPositionDrivenNode");
-            FirstPositionDrivenNode = HasCompiledFirstPositionDrivenNode
-                ? data.GetInt32Property("m_nFirstPositionDrivenNode")
-                : DeriveFirstPositionDrivenNode(data, CtrlNames, NodeCount, StaticNodeCount);
-
-            var initPose = data.GetArray("m_InitPose");
-            InitPosePositions = initPose is null
-                ? []
-                : initPose.Select(static p => p.ToTransform().Position).ToArray();
-            InitPoseRotations = initPose is null
-                ? []
-                : initPose.Select(static p => p.ToTransform().Rotation).ToArray();
-
-            Quads = ReadNodeIndexArray(data, "m_Quads", 4);
-            Tris = ReadNodeIndexArray(data, "m_Tris", 3);
-            (SourceFaces, SourceSprings) = ReadSourceElems(data);
-
             var kelagerBends = new List<KelagerBend>();
             foreach (var bend in data.GetArray("m_KelagerBends") ?? [])
             {
@@ -773,8 +736,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            KelagerBends = kelagerBends;
+            return kelagerBends;
+        }
 
+        /// <summary>Reads <c>m_VertexMaps</c> with their weights from <c>m_VertexMapValues</c>.</summary>
+        private static List<VertexMap> ReadVertexMaps(KVObject data)
+        {
             var mapValues = data.GetIntegerArray("m_VertexMapValues");
             var vertexMaps = new List<VertexMap>();
             foreach (var map in data.GetArray("m_VertexMaps") ?? [])
@@ -798,13 +765,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     map.GetInt32Property("nScaleSourceNode")));
             }
 
-            VertexMaps = vertexMaps;
-            ZeroVertexSelectionNames = [.. vertexMaps
-                .Where(static map => map.VertexCount == 0 && map.Name.Length > 0)
-                .Select(static map => map.Name)];
+            return vertexMaps;
+        }
 
+        /// <summary>Reads <c>m_Rods</c>, dropping rods with a missing end or both ends on one node.</summary>
+        private static Rod[] ReadRods(KVObject data)
+        {
             var rods = data.GetArray("m_Rods");
-            Rods = rods is null
+            return rods is null
                 ? []
                 : rods.Select(static o =>
                 {
@@ -817,29 +785,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         o.GetFloatProperty("flWeight0"),
                         o.GetFloatProperty("flRelaxationFactor"));
                 }).Where(static r => r.NodeA >= 0 && r.NodeB >= 0 && r.NodeA != r.NodeB).ToArray();
+        }
 
-            var integrators = data.GetArray("m_NodeIntegrator");
-            NodeIntegrators = integrators is null
-                ? []
-                : integrators.Select(static o => new NodeIntegrator(
-                    o.GetFloatProperty("flPointDamping"),
-                    o.GetFloatProperty("flAnimationForceAttraction"),
-                    o.GetFloatProperty("flAnimationVertexAttraction"),
-                    o.GetFloatProperty("flGravity"))).ToArray();
-
-            NodeCollisionRadii = data.GetFloatArray("m_NodeCollisionRadii");
-
+        /// <summary>Reads the per-dynamic-node collision masks and the world-colliding nodes with their friction.</summary>
+        private static (int[] Masks, HashSet<int> Nodes, Dictionary<int, (float World, float Ground)> Friction) ReadWorldCollision(
+            KVObject data, int dynamicNodeCount)
+        {
             var treeMasks = data.ContainsKey("m_TreeCollisionMasks")
                 ? data.GetIntegerArray("m_TreeCollisionMasks")
                 : [];
-            var dynamicNodeCount = NodeCount - StaticNodeCount;
-            NodeCollisionMasks = dynamicNodeCount > 0 && treeMasks.Length == (2 * dynamicNodeCount) - 1
+            int[] nodeCollisionMasks = dynamicNodeCount > 0 && treeMasks.Length == (2 * dynamicNodeCount) - 1
                 ? [.. treeMasks.Take(dynamicNodeCount).Select(static v => (int)v)]
                 : [];
             var worldCollisionOrder = data.ContainsKey("m_WorldCollisionNodes")
                 ? data.GetIntegerArray("m_WorldCollisionNodes").Select(static v => (int)v).ToArray()
                 : [];
-            WorldCollisionNodes = worldCollisionOrder.ToHashSet();
 
             var worldFriction = new Dictionary<int, (float World, float Ground)>();
             foreach (var entry in data.GetArray("m_WorldCollisionParams") ?? [])
@@ -853,10 +813,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            WorldCollisionFriction = worldFriction;
+            return (nodeCollisionMasks, worldCollisionOrder.ToHashSet(), worldFriction);
+        }
 
-            DynNodeFriction = data.GetFloatArray("m_DynNodeFriction");
-
+        /// <summary>Reads the single-node records of <c>m_AnimStrayRadii</c>, keyed by node.</summary>
+        private static Dictionary<int, (float MaxDistance, float RelaxationFactor)> ReadAnimStrayRadii(KVObject data)
+        {
             var strayRadii = new Dictionary<int, (float, float)>();
             if (data.GetArray("m_AnimStrayRadii") is { } strayArray)
             {
@@ -872,10 +834,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            AnimStrayRadii = strayRadii;
+            return strayRadii;
+        }
 
+        /// <summary>Reads the fit-matrix bones, those fit over a proxy-sheet vertex, and the nodes each fit is taken over.</summary>
+        private static (HashSet<int> Nodes, HashSet<int> ProxyNodes, Dictionary<int, int[]> Targets) ReadFitMatrices(
+            KVObject data, string[] ctrlNames)
+        {
             var fitMatrices = data.GetArray("m_FitMatrices");
-            FitMatrixNodes = fitMatrices is not null
+            var fitMatrixNodes = fitMatrices is not null
                 ? fitMatrices.Select(static o => o.GetInt32Property("nNode")).ToHashSet()
                 : new HashSet<int>();
 
@@ -894,7 +861,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     {
                         var target = fitRangeWeights[i].GetInt32Property("nNode");
                         targets.Add(target);
-                        if (target >= 0 && target < CtrlNames.Length && ParseProxyMeshIndex(CtrlNames[target]) >= 0)
+                        if (target >= 0 && target < ctrlNames.Length && ParseProxyMeshIndex(ctrlNames[target]) >= 0)
                         {
                             proxyFitNodes.Add(bone);
                         }
@@ -905,9 +872,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            ProxyFitMatrixNodes = proxyFitNodes;
-            FitMatrixTargets = fitTargets;
+            return (fitMatrixNodes, proxyFitNodes, fitTargets);
+        }
 
+        /// <summary>Reads <c>m_Twists</c> and fills the relaxless twist sets and the orient fallback.</summary>
+        private (HashSet<int> Nodes, List<TwistRecord> Records, HashSet<(int, int)> Links, Dictionary<(int, int), float> RelaxByLink,
+            Dictionary<(int, int), IReadOnlyList<float>> RelaxCopies) ReadTwists(KVObject data)
+        {
             var twistNodes = new HashSet<int>();
             var twistRecords = new List<TwistRecord>();
             var twistLinks = new HashSet<(int, int)>();
@@ -955,12 +926,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            TwistNodes = twistNodes;
-            TwistRecords = twistRecords;
-            TwistLinks = twistLinks;
-            TwistRelaxByLink = twistRelaxByLink;
-            TwistRelaxCopies = twistRelaxCopies;
+            return (twistNodes, twistRecords, twistLinks, twistRelaxByLink, twistRelaxCopies);
+        }
 
+        /// <summary>Reads every <c>m_NodeBases</c> record, and the last one of each node.</summary>
+        private static (Dictionary<int, NodeBasis> Bases, List<(int Node, NodeBasis Basis)> Records) ReadNodeBases(KVObject data)
+        {
             var nodeBases = new Dictionary<int, NodeBasis>();
             var nodeBaseRecords = new List<(int Node, NodeBasis Basis)>();
             if (data.GetArray("m_NodeBases") is { } nodeBasesArray)
@@ -978,8 +949,81 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            NodeBases = nodeBases;
-            NodeBaseRecords = nodeBaseRecords;
+            return (nodeBases, nodeBaseRecords);
+        }
+
+        private static T[] ReadArray<T>(KVObject data, string key, Func<KVObject, T> map)
+        {
+            var arr = data.GetArray(key);
+            return arr is null ? [] : arr.Select(map).ToArray();
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FeModel"/> class from a parsed <c>m_pFeModel</c> sub-object.
+        /// </summary>
+        public FeModel(KVObject data)
+        {
+            Data = data;
+            CtrlNames = data.GetArray<string>("m_CtrlName") ?? [];
+            SkelParents = data.GetIntegerArray("m_SkelParents").Select(static v => (int)v).ToArray();
+            HasCompiledSkelParents = SkelParents.Length > 0;
+            if (SkelParents.Length == 0)
+            {
+                SkelParents = BuildRopeParents(data, RopeRuns);
+            }
+
+            NodeInvMasses = data.GetFloatArray("m_NodeInvMasses");
+            NodeCount = data.GetInt32Property("m_nNodeCount");
+            StaticNodeCount = data.GetInt32Property("m_nStaticNodes");
+            HasCompiledFirstPositionDrivenNode = data.ContainsKey("m_nFirstPositionDrivenNode");
+            FirstPositionDrivenNode = HasCompiledFirstPositionDrivenNode
+                ? data.GetInt32Property("m_nFirstPositionDrivenNode")
+                : DeriveFirstPositionDrivenNode(data, CtrlNames, NodeCount, StaticNodeCount);
+
+            var initPose = data.GetArray("m_InitPose");
+            InitPosePositions = initPose is null
+                ? []
+                : initPose.Select(static p => p.ToTransform().Position).ToArray();
+            InitPoseRotations = initPose is null
+                ? []
+                : initPose.Select(static p => p.ToTransform().Rotation).ToArray();
+
+            Quads = ReadNodeIndexArray(data, "m_Quads", 4);
+            Tris = ReadNodeIndexArray(data, "m_Tris", 3);
+            (SourceFaces, SourceSprings) = ReadSourceElems(data);
+
+            KelagerBends = ReadKelagerBends(data);
+
+            var vertexMaps = ReadVertexMaps(data);
+            VertexMaps = vertexMaps;
+            ZeroVertexSelectionNames = [.. vertexMaps
+                .Where(static map => map.VertexCount == 0 && map.Name.Length > 0)
+                .Select(static map => map.Name)];
+
+            Rods = ReadRods(data);
+
+            var integrators = data.GetArray("m_NodeIntegrator");
+            NodeIntegrators = integrators is null
+                ? []
+                : integrators.Select(static o => new NodeIntegrator(
+                    o.GetFloatProperty("flPointDamping"),
+                    o.GetFloatProperty("flAnimationForceAttraction"),
+                    o.GetFloatProperty("flAnimationVertexAttraction"),
+                    o.GetFloatProperty("flGravity"))).ToArray();
+
+            NodeCollisionRadii = data.GetFloatArray("m_NodeCollisionRadii");
+
+            (NodeCollisionMasks, WorldCollisionNodes, WorldCollisionFriction) = ReadWorldCollision(data, NodeCount - StaticNodeCount);
+
+            DynNodeFriction = data.GetFloatArray("m_DynNodeFriction");
+
+            AnimStrayRadii = ReadAnimStrayRadii(data);
+
+            (FitMatrixNodes, ProxyFitMatrixNodes, FitMatrixTargets) = ReadFitMatrices(data, CtrlNames);
+
+            (TwistNodes, TwistRecords, TwistLinks, TwistRelaxByLink, TwistRelaxCopies) = ReadTwists(data);
+
+            (NodeBases, NodeBaseRecords) = ReadNodeBases(data);
 
             AntiTunnelProbes = ReadArray(data, "m_AntiTunnelProbes", static o => new AntiTunnelProbe(
                 o.GetFloatProperty("flWeight"), o.GetUInt32Property("nFlags"), o.GetInt32Property("nProbeNode"),

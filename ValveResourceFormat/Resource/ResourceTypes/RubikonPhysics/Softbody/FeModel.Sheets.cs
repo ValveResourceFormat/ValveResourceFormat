@@ -548,6 +548,67 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return null;
             }
 
+            var referenced = SurfaceFaceNodes();
+            if (referenced.Count == 0)
+            {
+                return null;
+            }
+
+            var surfaceNodes = new HashSet<int>(referenced);
+            var surfaceMeshes = surfaceNodes.Select(node => ParseProxyMeshIndex(CtrlNames[node]))
+                .Where(static mesh => mesh >= 0).ToHashSet();
+            var rodsFaces = AddRodRegionFaces(referenced, surfaceNodes, surfaceMeshes);
+            List<int> strays = rodsFaces.Count > 0 ? AddUncoveredSheetVertices(referenced, surfaceMeshes) : [];
+
+            var nodeIndices = referenced.ToArray();
+            SortByAuthoredVertexOrder(nodeIndices);
+            var remap = new Dictionary<int, int>(nodeIndices.Length);
+            for (var i = 0; i < nodeIndices.Length; i++)
+            {
+                remap[nodeIndices[i]] = i;
+            }
+
+            var vertices = ComputeProxyVertexArrays(nodeIndices);
+            var positions = vertices.Positions;
+
+            var faces = SurfaceFacesInLaneOrder(remap);
+            RestoreStaticQuadCornerOrder(faces, rodsFaces.Select(face => face.Select(corner => remap[corner]).ToArray()).ToList(), nodeIndices);
+
+            var rodsDriven = new float[nodeIndices.Length];
+            var surfaceFaceCount = faces.Count;
+            rodsFaces.Reverse();
+            foreach (var face in rodsFaces)
+            {
+                faces.Add([.. face.Select(corner => remap[corner])]);
+            }
+
+            var meshOf = Array.ConvertAll(nodeIndices, node => ParseProxyMeshIndex(CtrlNames[node]));
+            foreach (var stray in strays)
+            {
+                AttachStrayToTriangle(remap[stray], positions, faces, meshOf);
+            }
+
+            var declared = RotateQuadsToShippedMasses(
+                ChooseFaceDeclarationOrder(faces, surfaceFaceCount, nodeIndices),
+                surfaceFaceCount, nodeIndices, InitPosePositions, NodeInvMasses);
+            faces.Clear();
+            faces.AddRange(declared);
+
+            for (var i = 0; i < nodeIndices.Length; i++)
+            {
+                rodsDriven[i] = surfaceNodes.Contains(nodeIndices[i]) ? 0f : 1f;
+            }
+
+            return AssembleProxyMesh(vertices, nodeIndices, faces, rodsFaces.Count > 0 ? rodsDriven : [],
+                usesAuthoredFaces: rodsFaces.Count > 0, isDropRisk: false, isFreeFloating: false);
+        }
+
+        /// <summary>
+        /// Gets the nodes of the compiled solve elements that belong to a proxy sheet: every face except hinge fans,
+        /// authored element faces and faces over independent chain joints.
+        /// </summary>
+        private SortedSet<int> SurfaceFaceNodes()
+        {
             var chainJoints = IndependentChainJointNodes();
             var referenced = new SortedSet<int>();
             void Collect(int[][] faces)
@@ -572,15 +633,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             Collect(Quads);
             Collect(Tris);
+            return referenced;
+        }
 
-            if (referenced.Count == 0)
-            {
-                return null;
-            }
-
-            var surfaceNodes = new HashSet<int>(referenced);
-            var surfaceMeshes = surfaceNodes.Select(node => ParseProxyMeshIndex(CtrlNames[node]))
-                .Where(static mesh => mesh >= 0).ToHashSet();
+        /// <summary>
+        /// Gets the source faces of the covered sheets that reach a node outside the solve elements, the sheets' rod
+        /// region, and adds their corners to <paramref name="referenced"/>.
+        /// </summary>
+        private List<int[]> AddRodRegionFaces(SortedSet<int> referenced, HashSet<int> surfaceNodes, HashSet<int> surfaceMeshes)
+        {
             var rodsFaces = new List<int[]>();
             foreach (var face in SourceFaces)
             {
@@ -610,38 +671,41 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
+            return rodsFaces;
+        }
+
+        /// <summary>
+        /// Gets the vertices of the covered sheets that no face and no rod reaches, and adds them to <paramref name="referenced"/>.
+        /// </summary>
+        private List<int> AddUncoveredSheetVertices(SortedSet<int> referenced, HashSet<int> surfaceMeshes)
+        {
             var strays = new List<int>();
-            if (rodsFaces.Count > 0)
+            var covered = new HashSet<int>(referenced);
+            foreach (var rod in Rods)
             {
-                var covered = new HashSet<int>(referenced);
-                foreach (var rod in Rods)
-                {
-                    covered.Add(rod.NodeA);
-                    covered.Add(rod.NodeB);
-                }
+                covered.Add(rod.NodeA);
+                covered.Add(rod.NodeB);
+            }
 
-                for (var node = 0; node < CtrlNames.Length && node < InitPosePositions.Length; node++)
+            for (var node = 0; node < CtrlNames.Length && node < InitPosePositions.Length; node++)
+            {
+                if (!covered.Contains(node) && !IsHingeRegeneratedProxy(node)
+                    && surfaceMeshes.Contains(ParseProxyMeshIndex(CtrlNames[node])))
                 {
-                    if (!covered.Contains(node) && !IsHingeRegeneratedProxy(node)
-                        && surfaceMeshes.Contains(ParseProxyMeshIndex(CtrlNames[node])))
-                    {
-                        strays.Add(node);
-                        referenced.Add(node);
-                    }
+                    strays.Add(node);
+                    referenced.Add(node);
                 }
             }
 
-            var nodeIndices = referenced.ToArray();
-            SortByAuthoredVertexOrder(nodeIndices);
-            var remap = new Dictionary<int, int>(nodeIndices.Length);
-            for (var i = 0; i < nodeIndices.Length; i++)
-            {
-                remap[nodeIndices[i]] = i;
-            }
+            return strays;
+        }
 
-            var vertices = ComputeProxyVertexArrays(nodeIndices);
-            var positions = vertices.Positions;
-
+        /// <summary>
+        /// Gets the solve elements over the remapped nodes in SIMD lane order, quads first, with each split quad merged back
+        /// in place of its first half.
+        /// </summary>
+        private List<int[]> SurfaceFacesInLaneOrder(Dictionary<int, int> remap)
+        {
             var faces = new List<int[]>(Quads.Length + Tris.Length);
             bool Kept(int[] face) => Array.TrueForAll(face, corner => remap.ContainsKey(corner));
 
@@ -677,35 +741,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 faces.Add([remap[t[0]], remap[t[1]], remap[t[2]]]);
             }
 
-            RestoreStaticQuadCornerOrder(faces, rodsFaces.Select(face => face.Select(corner => remap[corner]).ToArray()).ToList(), nodeIndices);
-
-            var rodsDriven = new float[nodeIndices.Length];
-            var surfaceFaceCount = faces.Count;
-            rodsFaces.Reverse();
-            foreach (var face in rodsFaces)
-            {
-                faces.Add([.. face.Select(corner => remap[corner])]);
-            }
-
-            var meshOf = Array.ConvertAll(nodeIndices, node => ParseProxyMeshIndex(CtrlNames[node]));
-            foreach (var stray in strays)
-            {
-                AttachStrayToTriangle(remap[stray], positions, faces, meshOf);
-            }
-
-            var declared = RotateQuadsToShippedMasses(
-                ChooseFaceDeclarationOrder(faces, surfaceFaceCount, nodeIndices),
-                surfaceFaceCount, nodeIndices, InitPosePositions, NodeInvMasses);
-            faces.Clear();
-            faces.AddRange(declared);
-
-            for (var i = 0; i < nodeIndices.Length; i++)
-            {
-                rodsDriven[i] = surfaceNodes.Contains(nodeIndices[i]) ? 0f : 1f;
-            }
-
-            return AssembleProxyMesh(vertices, nodeIndices, faces, rodsFaces.Count > 0 ? rodsDriven : [],
-                usesAuthoredFaces: rodsFaces.Count > 0, isDropRisk: false, isFreeFloating: false);
+            return faces;
         }
 
         /// <summary>
