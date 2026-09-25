@@ -154,7 +154,7 @@ namespace Tests.Resources
             var file = TestFixtures.Path("beep.vsnd_c");
             using var fs = File.OpenRead(file);
             using var resource = new Resource();
-            resource.Read(fs, verifyFileSize: false);
+            resource.Read(fs);
 
             using (Assert.Multiple())
             {
