@@ -20,34 +20,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             public required float Radius1 { get; init; }
             /// <summary>Gets the 4-bit collision-layer mask.</summary>
             public int CollisionMask { get; init; }
-            /// <summary>
-            /// Gets the vertex map scoping which cloth vertices this capsule collides with, or null when it
-            /// collides with everything. A scoped capsule compiles with an all-ones
-            /// <c>nCollisionMask</c> in place of its authored layer bits.
-            /// </summary>
+            /// <summary>Gets the vertex map scoping which cloth vertices the shape collides with, or null for all of them.</summary>
             public string? VertexMap { get; init; }
-            /// <summary>
-            /// Gets whether the shape keeps the cloth INSIDE it rather than out of it.
-            /// </summary>
+            /// <summary>Gets whether the shape keeps the cloth inside it rather than out of it.</summary>
             public bool Inverted { get; init; }
-            /// <summary>
-            /// Gets whether the capsule collides as a per-node plane rather than as a volume. Such a capsule
-            /// leaves no rigid of its own behind, only <c>m_CollisionPlanes</c>.
-            /// </summary>
+            /// <summary>Gets whether the shape collides as per-node planes (<c>m_CollisionPlanes</c>) rather than as a volume.</summary>
             public bool Planarize { get; init; }
 
             /// <summary>
-            /// Gets how many <c>m_CollisionPlanes</c> entries the original gives the FIT this planarized
-            /// capsule came from, which is what orders the declarations (see
-            /// <see cref="BuildPlanarizeCapsules"/>). Both copies of a fit split across two selections carry
-            /// the whole fit's count, since they share one capsule's geometry and reach the same nodes.
+            /// Gets how many <c>m_CollisionPlanes</c> entries the fit this planarized shape came from owns.
             /// </summary>
             internal int PlanarizePlanes { get; init; }
 
-            /// <summary>
-            /// Gets how many of <see cref="PlanarizePlanes"/> fall in THIS copy's own selection, which
-            /// separates the copies of one split fit.
-            /// </summary>
+            /// <summary>Gets how many of <see cref="PlanarizePlanes"/> fall in this copy's own selection.</summary>
             internal int PlanarizeOwnPlanes { get; init; }
             /// <summary>Gets the authored collision priority, recovered by <see cref="ColliderPriority"/>.</summary>
             public int Priority { get; init; }
@@ -66,31 +51,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             public required Vector3 Size { get; init; }
             /// <summary>Gets the 4-bit collision-layer mask.</summary>
             public int CollisionMask { get; init; }
-            /// <summary>
-            /// Gets the vertex map scoping which cloth vertices this box collides with, or null when it
-            /// collides with everything. A scoped box compiles with an all-ones <c>nCollisionMask</c> in
-            /// place of its authored layer bits.
-            /// </summary>
+            /// <summary>Gets the vertex map scoping which cloth vertices the shape collides with, or null for all of them.</summary>
             public string? VertexMap { get; init; }
-            /// <summary>
-            /// Gets whether the shape keeps the cloth INSIDE it rather than out of it.
-            /// </summary>
+            /// <summary>Gets whether the shape keeps the cloth inside it rather than out of it.</summary>
             public bool Inverted { get; init; }
-            /// <summary>
-            /// Gets how many <c>m_CollisionPlanes</c> entries the original gives this planarized box,
-            /// which is what orders the declarations (see <see cref="BuildPlanarizeCapsules"/>).
-            /// </summary>
+            /// <summary>Gets how many <c>m_CollisionPlanes</c> entries this planarized box owns.</summary>
             internal int PlanarizePlanes { get; init; }
 
-            /// <summary>
-            /// Gets how many of <see cref="PlanarizePlanes"/> fall in this box's own selection. A box is
-            /// never split, so it is the same count.
-            /// </summary>
+            /// <summary>Gets how many of <see cref="PlanarizePlanes"/> fall in this box's own selection.</summary>
             internal int PlanarizeOwnPlanes { get; init; }
-            /// <summary>
-            /// Gets whether the box collides as a per-node plane rather than as a volume. Such a box leaves no
-            /// rigid of its own behind, only <c>m_CollisionPlanes</c>.
-            /// </summary>
+            /// <summary>Gets whether the shape collides as per-node planes (<c>m_CollisionPlanes</c>) rather than as a volume.</summary>
             public bool Planarize { get; init; }
             /// <summary>Gets the authored collision priority, recovered by <see cref="ColliderPriority"/>.</summary>
             public int Priority { get; init; }
@@ -107,15 +77,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             public required float Radius { get; init; }
             /// <summary>Gets the 4-bit collision-layer mask.</summary>
             public int CollisionMask { get; init; }
-            /// <summary>
-            /// Gets the vertex map scoping which cloth vertices this sphere collides with, or null when it
-            /// collides with everything. A scoped sphere compiles with an all-ones <c>nCollisionMask</c> in
-            /// place of its authored layer bits.
-            /// </summary>
+            /// <summary>Gets the vertex map scoping which cloth vertices the shape collides with, or null for all of them.</summary>
             public string? VertexMap { get; init; }
-            /// <summary>
-            /// Gets whether the shape keeps the cloth INSIDE it rather than out of it.
-            /// </summary>
+            /// <summary>Gets whether the shape keeps the cloth inside it rather than out of it.</summary>
             public bool Inverted { get; init; }
             /// <summary>Gets the authored collision priority, recovered by <see cref="ColliderPriority"/>.</summary>
             public int Priority { get; init; }
@@ -131,14 +95,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Gets the collision priority of the collider at <paramref name="index"/> in its own compiled array.
-        /// <para>
-        /// The compiler sorts each collider array by the authored priority and emits
-        /// <c>m_RigidColliderPriorities</c> row <c>g</c> as the first index of group <c>g</c>, so a collider
-        /// belongs to the last group whose start index it reaches. Groups are ranked, not the authored
-        /// integers: one group per distinct authored value, ascending, and no array at all when a model uses
-        /// a single value. Re-authoring the rank therefore reproduces the compiled array exactly.
-        /// </para>
+        /// Gets the rank of the <c>m_RigidColliderPriorities</c> group the collider at <paramref name="index"/> of its own
+        /// array falls in.
         /// </summary>
         int ColliderPriority(RigidColliderKind kind, int index)
         {
@@ -166,8 +124,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return priority;
         }
 
-        // Resolves a rigid's nNode to its bone name. Collision rigids are anchored to a real bone; if the
-        // node happens to be an auto-generated proxy node, walk up to the first real bone.
+        /// <summary>Gets the bone a rigid's node resolves to, following a proxy node up to its skin bone.</summary>
         string? ResolveRigidBone(int node)
         {
             if (node < 0 || node >= CtrlNames.Length)
@@ -178,23 +135,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return IsProxyNodeName(CtrlNames[node]) ? ResolveSkinBone(node) : CtrlNames[node];
         }
 
-        // A rigid's nVertexMapIndex resolved to the selection it scopes the collider to. An unscoped rigid
-        // writes an out-of-range index, and the oldest compiles write no index at all.
         string? RigidVertexMap(int index)
             => index >= 0 && index < VertexMaps.Count ? VertexMaps[index].Name : null;
 
-        // Bit 0 of a rigid's nFlags is its inverted_collision switch.
         const uint RigidFlagInverted = 1;
 
-        /// <summary>
-        /// Reconstructs the cloth collision capsules (<c>m_TaperedCapsuleRigids</c>). Each rigid has two
-        /// spheres (the tapered end-caps); <c>vSphere[i]</c> is xyz = centre, w = radius. Returns an empty
-        /// list when the model has no capsule rigids.
-        /// <para>
-        /// Older compiles hold the end-caps as a <c>vCenter</c> pair plus an <c>flRadius</c> pair instead
-        /// of <c>vSphere</c>; the oldest of them carry no vertex-map index at all.
-        /// </para>
-        /// </summary>
+        /// <summary>Reconstructs the cloth collision capsules (<c>m_TaperedCapsuleRigids</c>).</summary>
         public List<CollisionCapsule> BuildCollisionCapsules()
         {
             var result = new List<CollisionCapsule>();
@@ -254,8 +200,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The plane a planarized capsule imposes on one node: the capsule surface at that node, in the
-        /// parent bone's local space.
+        /// Gets the plane a planarized capsule imposes on a node: the capsule surface at that node, in the parent bone's
+        /// local space.
         /// </summary>
         static (Vector3 Normal, float Offset) PlanarizedSurfaceAt(Vector3 x, Vector3 c0, float r0, Vector3 c1,
             float r1)
@@ -276,7 +222,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var rad = perp.Length();
             var s = Math.Clamp((along * length) + (rad * dr), 0f, length * length) / (length * length);
 
-            // A node sitting on the axis has no radial direction to build a cone normal from.
             if (rad < 1e-6f)
             {
                 s = along <= 0f ? 0f : 1f;
@@ -300,9 +245,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Fits the sphere the tangent points of <paramref name="samples"/> lie on, given each sample's
-        /// outward normal: every cap sample satisfies <c>tangent = centre + radius * normal</c> exactly, so
-        /// the fit is linear and closed-form.
+        /// Fits the sphere the tangent points lie on, each satisfying <c>tangent = centre + radius * normal</c>.
         /// </summary>
         static bool FitCapSphere(List<(Vector3 Tangent, Vector3 Normal)> samples, out Vector3 centre,
             out float radius)
@@ -337,14 +280,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Reconstructs the collision capsules authored with <c>planarize</c> on. The compiler replaces
-        /// such a capsule with one <c>m_CollisionPlanes</c> entry per node of its vertex map and writes NO
-        /// <c>m_TaperedCapsuleRigids</c> record for it, so the plane set is the only trace it leaves. Each
-        /// plane is the capsule surface at its node, which makes the two end-cap spheres recoverable.
-        /// <para>
-        /// A group is returned only when the recovered capsule reproduces every plane it owns, so a plane
-        /// set this model does not explain is dropped rather than turned into a wrong collider.
-        /// </para>
+        /// Reconstructs the collision capsules authored with <c>planarize</c> from their <c>m_CollisionPlanes</c>,
+        /// keeping only a group of planes the recovered capsules reproduce in full.
         /// </summary>
         public List<CollisionCapsule> BuildPlanarizeCapsules()
         {
@@ -397,17 +334,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         continue;
                     }
 
-                    // No single selection covers every node the shape owns: its planes span two proxy
-                    // islands. Its members are split by the smallest selection covering each one on its
-                    // own, and the same fitted geometry is emitted once per selection.
                     if (SplitByVertexMap(samples, members) is not { } split)
                     {
                         recovered.Clear();
                         break;
                     }
 
-                    // Both copies carry the WHOLE fit's plane count: they share one capsule's geometry, so
-                    // each reaches everything it reaches, whatever its own selection holds.
                     foreach (var (splitMap, splitMembers) in split)
                     {
                         recovered.Add(new CollisionCapsule
@@ -434,16 +366,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Reconstructs the collision boxes authored with <c>planarize</c> on. Such a box writes no
-        /// <c>m_BoxRigids</c> record either, only one <c>m_CollisionPlanes</c> entry per node of its vertex map:
-        /// in the parent control node's frame the plane passes through the node's nearest point on the box,
-        /// its normal points from that point to the node, and its offset is pushed out by the node's collision
-        /// radius, unless that radius reaches the box, which puts the plane through the node itself. Each plane
-        /// that stands clear of its node gives its contact point back, and the box is the one whose faces hold
-        /// every such contact, with a side no clear contact reaches mirrored about the parent. Only a group the planarized
-        /// capsule fit leaves unexplained is read, since planes on a box's face centres are also a sphere's,
-        /// and a group is returned only when the box reproduces every plane it owns. The box may be turned in the
-        /// parent's frame, so its axes are searched for among the plane normals (<see cref="PlanarizedBoxFrames"/>).
+        /// Reconstructs the collision boxes authored with <c>planarize</c> from the plane groups no planarized capsule
+        /// explains, keeping only a box that reproduces every plane it owns.
         /// </summary>
         public List<CollisionBox> BuildPlanarizeBoxes()
         {
@@ -487,7 +411,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return result;
         }
 
-        // The collision planes one control parent owns, each with its node in the parent's rest frame.
         List<PlanarizeSample> PlanarizeSamples(int parent, IEnumerable<int> planeIndices)
         {
             var toLocal = Quaternion.Conjugate(InitPoseRotations[parent]);
@@ -513,12 +436,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The parent-frame box whose planes are <paramref name="samples"/>, or null when no such box exists.
-        /// A plane's normal component along an axis says the node's contact point was clamped to that axis's
-        /// lower or upper face, which pins the face; a face no contact pins is mirrored about the parent, and
-        /// widened to hold the contacts that lie inside the box on that axis. Only a plane standing clear of its
-        /// node gives a contact; a plane through its node is checked against the box like every other. An extent
-        /// that collapses is a sphere or capsule, never a box.
+        /// Gets the axis-aligned box whose planes are <paramref name="samples"/>, or null when none exists.
         /// </summary>
         static (Vector3 Min, Vector3 Max)? FitPlanarizedBox(List<PlanarizeSample> samples)
         {
@@ -600,9 +518,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The plane a planarized box writes for one node, in the box's frame: through the node's nearest point on the box,
-        /// facing the node and pushed out by the node's collision radius, or through the node itself where that radius
-        /// reaches the box. A node inside the box faces out of its nearest face, through the node.
+        /// Gets the plane a planarized box writes for one node, in the box's frame.
         /// </summary>
         static (Vector3 Normal, float Offset) PlanarizedBoxPlaneAt(PlanarizeSample sample, Vector3 min, Vector3 max)
         {
@@ -629,9 +545,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The box whose planes are <paramref name="samples"/>, in the parent's own axes when those fit and otherwise
-        /// in the first frame from <see cref="PlanarizedBoxFrames"/> that reproduces every plane. A frame only
-        /// re-expresses each node and normal about the parent, so the compiled offsets carry over unchanged.
+        /// Gets the box whose planes are <paramref name="samples"/>, in the parent's axes or the first frame from
+        /// <see cref="PlanarizedBoxFrames"/> that reproduces every plane.
         /// </summary>
         static (Quaternion Rotation, Vector3 Min, Vector3 Max)? FitOrientedPlanarizedBox(List<PlanarizeSample> samples)
         {
@@ -664,11 +579,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Candidate frames for a planarized box, as rotations from the box's axes into the parent's. A contact on a
-        /// face has that face's axis for its normal and a contact on an edge has a normal perpendicular to the
-        /// edge's axis, so a first axis is each distinct normal and each cross product of two normals. The second
-        /// is each normal's part off the first, the two diagonals around their mean (the frame whose quadrant
-        /// holds every normal of a single touched edge), and one perpendicular for a group on a single face.
+        /// Gets candidate frames for a planarized box, built from the plane normals, as rotations from the box's axes
+        /// into the parent's.
         /// </summary>
         static IEnumerable<Quaternion> PlanarizedBoxFrames(List<PlanarizeSample> samples)
         {
@@ -730,7 +642,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // Unit axes with any direction already listed, or its opposite, removed.
         static List<Vector3> DistinctAxes(IEnumerable<Vector3> axes)
         {
             var distinct = new List<Vector3>();
@@ -746,9 +657,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The two end-cap positions a recovered shape is emitted with. A fit whose caps coincide is a
-        /// single end cap, and it is given a short axis pointing away from the nodes it owns, which keeps
-        /// the recovered centre the nearest point on that axis and so leaves every plane unchanged.
+        /// Gets the two end-cap positions of a recovered shape; coinciding caps get a short axis pointing away from the
+        /// nodes they own.
         /// </summary>
         static (Vector3 Point0, Vector3 Point1) PlanarizedAxis(CapsuleFit fit,
             List<PlanarizeSample> samples, List<int> members)
@@ -774,9 +684,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// One compiled collision plane, prepared for the planarized-shape fit. <c>Gap</c> is how far the
-        /// node stands in front of its own plane: a plane the compiler wrote through its node rather than
-        /// through the shape surface has a gap of zero and carries no geometry.
+        /// One collision plane prepared for the planarized-shape fit. <c>Gap</c> is how far the node stands in front of
+        /// its plane.
         /// </summary>
         readonly record struct PlanarizeSample(int Node, Vector3 Local, Vector3 Normal, float Offset,
             float Gap, float Radius);
@@ -795,16 +704,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         const float PlanarizeFrameMinimumPart = 1e-2f;
         const float PlanarizeFrameAxisSlack = 1e-5f;
 
-        // The smallest plane count a recovered shape is accepted on, and the most shapes one control
-        // parent's planes may be covered by.
         const int PlanarizeMinShapePlanes = 3;
         const int PlanarizeMaxShapes = 4;
 
         /// <summary>
-        /// Splits a control parent's collision planes into the planarized shapes that produced them, one
-        /// entry per shape with the planes it owns. Returns null unless the shapes account for every plane
-        /// in the group, so a plane set this model cannot explain is dropped rather than turned into a
-        /// wrong collider.
+        /// Splits a control parent's collision planes into the shapes that produced them, or null unless the shapes
+        /// account for every plane.
         /// </summary>
         static List<(CapsuleFit Fit, List<int> Members)>? FitPlanarizedShapes(List<PlanarizeSample> samples)
         {
@@ -832,11 +737,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return exhaustive.Count > widened.Count ? CoverGroup(samples, exhaustive) : null;
         }
 
-        /// <summary>
-        /// Band capsules and cap spheres on every distinct consensus of the plane normals, not only the largest one. The planes
-        /// of two neighbouring sheet columns can lie on a steep cone about their mean normal that holds more inliers than the
-        /// capsule's own axis does, and every candidate the earlier stages build then sits on that cone.
-        /// </summary>
+        /// <summary>Gets band capsules and cap spheres on every distinct consensus of the plane normals.</summary>
         static List<CapsuleFit> EveryConsensusAxisCandidates(List<PlanarizeSample> samples)
         {
             var candidates = new CandidateSet();
@@ -873,13 +774,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return candidates.Fits;
         }
 
-        /// <summary>
-        /// Capsules whose axis is the common perpendicular of two plane normals. A node resting against a
-        /// capsule's SIDE takes a normal square to the axis, so two such normals cross to the axis itself -
-        /// which the seeds above cannot find, since they span the normals' own TIPS and a set of square
-        /// normals spans only noise. Two side planes raise the candidate; the cover still has to reproduce
-        /// three, so a cap plane neither of them explains is checked against the capsule like any other.
-        /// </summary>
+        /// <summary>Gets capsules whose axis is the common perpendicular of two plane normals.</summary>
         static List<CapsuleFit> SideNormalAxisCandidates(List<PlanarizeSample> samples)
         {
             var candidates = new CandidateSet();
@@ -913,11 +808,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return candidates.Fits;
         }
 
-        // Below this the two normals are parallel enough that their cross states no axis.
         const float PlanarizeSideAxisSpan = 1e-2f;
 
-        // A greedy set cover of the group's planes by the candidates that reproduce them, one entry per
-        // shape. Null unless the shapes account for every plane in the group.
         static List<(CapsuleFit Fit, List<int> Members)>? CoverGroup(List<PlanarizeSample> samples,
             List<CapsuleFit> fits)
         {
@@ -969,7 +861,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return chosen;
         }
 
-        // Which planes of the group a candidate shape reproduces exactly, both normal and offset.
         static List<int> ReproducedPlanes(List<PlanarizeSample> samples, CapsuleFit fit)
         {
             var members = new List<int>();
@@ -997,7 +888,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return members;
         }
 
-        // The smallest selection covering every node one recovered shape owns.
         string? SmallestVertexMapCovering(List<PlanarizeSample> samples, List<int> members)
         {
             var owned = members.Select(i => samples[i].Node).ToHashSet();
@@ -1023,10 +913,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Splits a shape's owned planes into selection-covered groups when no single selection covers
-        /// every node the shape owns. Each plane's node is assigned the smallest selection that covers it
-        /// on its own; null when any node has no covering selection at all, so a group this cannot fully
-        /// explain is still dropped rather than silently losing a plane.
+        /// Groups a shape's planes by the smallest selection covering each plane's node, or null when a node has none.
         /// </summary>
         List<(string Map, List<int> Members)>? SplitByVertexMap(List<PlanarizeSample> samples, List<int> members)
         {
@@ -1094,9 +981,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     AddAnchoredCandidates(candidates, samples, centre, radius, axis, TaperFromCosine(cosine));
                 }
 
-                // ConeAxisCandidates needs 3 band planes to seed its triple-based linear fit; one or two
-                // leftover planes still over-determine the axis/length/radius once the cap sphere is
-                // already known, just not linearly - fall back to the dense nonlinear solve.
                 if (axisFits.Count == 0 && band.Count is > 0 and < 3
                     && NonlinearAnchoredFit(samples, band, centre, radius) is { } nonlinearFit)
                 {
@@ -1118,32 +1002,20 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return candidates.Fits;
         }
 
-        // A cone-band normal makes a constant angle with the axis: cos = -taper / sqrt(1 + taper^2).
         static float TaperFromCosine(float cosine)
             => -cosine / MathF.Sqrt(1f - (cosine * cosine));
 
-        // How far outside the planes it owns a recovered cap is placed, and how many cap positions read
-        // off a leftover plane are tried alongside those.
         static readonly float[] PlanarizeCapMargins = [0.25f, 1f, 4f];
         static readonly float[] PlanarizeRadiusMargins = [0.05f, 0.5f, 2f];
 
-        // A recovered shape whose end caps coincide compiles as a sphere, and a planarized sphere loses
-        // every node a planarized capsule also covers, so such a cap is given a short axis instead.
         const float PlanarizeCapAxisMinimum = 1e-4f;
         const float PlanarizeCapAxisLength = 0.01f;
         const int PlanarizeCapPicks = 4;
         const int PlanarizeSubsetRounds = 3;
 
         /// <summary>
-        /// Every shape the group's planes could come from when read through their NORMALS rather than
-        /// their offsets. A plane the compiler clamped to its own node keeps an exact normal, and a
-        /// normal alone fixes the axis line, the taper and an end-cap centre, so a group whose planes are
-        /// mostly or entirely clamped is still reconstructible: what the clamp leaves free is a radius
-        /// and where the caps sit, and every choice of those reproduces the same compiled planes.
-        /// <para>
-        /// The search runs on the whole group, then on the planes the first axis did not claim, so a
-        /// control parent carrying two shapes separates instead of being fitted as one.
-        /// </para>
+        /// Gets the shapes the planes could come from when read through their normals, searching the whole group and then
+        /// the planes the first axis did not claim.
         /// </summary>
         static List<CapsuleFit> NormalCandidates(List<PlanarizeSample> samples)
         {
@@ -1256,8 +1128,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return results;
         }
 
-        // The axis is the least-variance direction of the inlier normals, taken from the closed-form
-        // smallest eigenvector of their covariance.
         static bool RefitAxisExact(List<PlanarizeSample> samples, List<int> inliers, out Vector3 axis,
             out float cosine)
         {
@@ -1365,7 +1235,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return true;
         }
 
-        // The unit direction from the axis out to a node, read back off its plane normal.
         static bool RadialDirection(Vector3 normal, Vector3 unit, float taper, out Vector3 radial)
         {
             radial = (normal * MathF.Sqrt(1f + (taper * taper))) + (taper * unit);
@@ -1381,10 +1250,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Where the capsule axis crosses the plane through the origin perpendicular to it. Each node
-        /// sits at <c>perp(x) = centre + radius * radial</c>, so the centre lies on the line through
-        /// <c>perp(x)</c> along that radial direction, which is one linear equation per plane and needs
-        /// no gap - a clamped plane counts for this fit exactly as much as an unclamped one.
+        /// Gets where the capsule axis crosses the plane through the origin perpendicular to it, from the plane normals.
         /// </summary>
         static bool AxisLineFromNormals(List<PlanarizeSample> samples, List<int> subset, Vector3 unit,
             float taper, out Vector3 centre)
@@ -1434,11 +1300,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Capsules whose cone band carries every plane of <paramref name="subset"/>. The axis line and
-        /// the taper come from the normals; the radius from the unclamped gaps, or, when the subset has
-        /// none, from the smallest radius that keeps every one of its planes clamped; the caps are placed
-        /// outside the planes they own, and at the position any leftover plane implies when read as a cap
-        /// tangency.
+        /// Adds capsules whose cone band carries every plane of <paramref name="subset"/>.
         /// </summary>
         static void AddBandCapsules(CandidateSet candidates, List<PlanarizeSample> samples,
             List<int> subset, Vector3 unit, float taper)
@@ -1559,8 +1421,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // Where along the axis an end cap must sit for one plane to be its tangent: the cap centre lies
-        // both on the axis and on the ray running back along the plane normal from the node.
         static bool CapPositionOnAxis(PlanarizeSample sample, Vector3 line, Vector3 unit,
             out float position)
         {
@@ -1586,10 +1446,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The end cap every plane normal of <paramref name="subset"/> radiates from, as a planarized
-        /// sphere. A cap plane's normal points straight out of the cap centre, so the centre is the point
-        /// closest to all the rays those normals run back along - again with no gap needed, which is what
-        /// makes an entirely clamped cap recoverable.
+        /// Adds the sphere at the point closest to every ray the normals of <paramref name="subset"/> run back along.
         /// </summary>
         static void AddCapSpheres(CandidateSet candidates, List<PlanarizeSample> samples, List<int> subset)
         {
@@ -1672,7 +1529,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // The end-cap spheres the far planes' tangent points lie on, one per consensus round.
         static List<(Vector3 Centre, float Radius)> CapSphereCandidates(List<PlanarizeSample> samples,
             List<int> far)
         {
@@ -1709,12 +1565,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return spheres;
         }
 
-        // Damped Gauss-Newton iteration cap and convergence floor for NonlinearAnchoredFit.
         const int NonlinearMaxIterations = 60;
         const double NonlinearConvergedCost = 1e-8;
 
-        // The cone-band formula alone, without PlanarizedSurfaceAt's end-cap branches or its clamp on s,
-        // so it stays smooth and differentiable for every s.
         static bool BandSurfaceAt(Vector3 x, Vector3 c0, float r0, Vector3 c1, float r1, out Vector3 normal,
             out float offset)
         {
@@ -1746,10 +1599,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Fits the far cap's parent capsule (near centre, near radius) from one already-known end-cap
-        /// sphere and too few band planes for <see cref="ConeAxisCandidates"/>'s own triple-based linear
-        /// fit (one or two of them). A damped Gauss-Newton search over the near centre and radius,
-        /// minimising the <see cref="BandSurfaceAt"/> residual against every unexplained plane directly.
+        /// Fits a capsule to one known end-cap sphere and one or two band planes by damped Gauss-Newton on the
+        /// <see cref="BandSurfaceAt"/> residual.
         /// </summary>
         static CapsuleFit? NonlinearAnchoredFit(List<PlanarizeSample> samples, List<int> unexplained,
             Vector3 capCentre, float capRadius)
@@ -1759,10 +1610,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return null;
             }
 
-            // A band sample's normal is dominated by the radial direction off the axis, so the axis seeds
-            // are taken from the first unexplained sample's normal: two directions per sign, one from that
-            // normal and one perpendicular to it and to local Z, over a spread of length scales. Each seed
-            // is run to convergence and the lowest-cost result wins.
             var normal0 = samples[unexplained[0]].Normal;
             var perpendicular = Vector3.Cross(normal0, Vector3.UnitZ);
             if (perpendicular.LengthSquared() < 1e-6f)
@@ -1794,9 +1641,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // Two samples pin the axis only up to a mirror ambiguity: a capsule on the far side of the far
-            // cap, growing the opposite way, reproduces the same two planes. A candidate is kept only when
-            // the unexplained samples it was fitted to land in (0,1) on its own axis.
             bool EveryUnexplainedIsOnTheBand(Vector3 c0, float r0)
             {
                 var axis = capCentre - c0;
@@ -1931,10 +1775,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Extends one recovered cap sphere into capsules along <paramref name="axis"/>. The length is not
-        /// determined by the cone band, so the candidates are the shortest capsule that keeps every plane
-        /// off the far cap, a few multiples of it, and the length each plane implies when read as a far-cap
-        /// tangency.
+        /// Adds capsules extending one recovered cap sphere along <paramref name="axis"/> at several lengths.
         /// </summary>
         static void AddAnchoredCandidates(CandidateSet candidates, List<PlanarizeSample> samples,
             Vector3 centre, float radius, Vector3 axis, float taper)
@@ -1967,9 +1808,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Builds capsules from the cone band alone, for a group where no end cap is witnessed. The band
-        /// fixes the axis, the taper and the axis's perpendicular position; the two remaining degrees of
-        /// freedom, where the caps sit along the axis, are taken just outside the planes they own.
+        /// Adds capsules built from the cone band alone, with the caps just outside the planes they own.
         /// </summary>
         static void AddBandCandidates(CandidateSet candidates, List<PlanarizeSample> samples,
             List<int> far, Vector3 axis, float taper, List<int> inliers)
@@ -2015,7 +1854,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // The capsule length implied by reading one plane as a tangency on the far cap.
         static void AddLengthCandidates(List<float> lengths, List<PlanarizeSample> samples, Vector3 centre,
             float radius, Vector3 axis, float taper)
         {
@@ -2039,11 +1877,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The axis the cone-band planes of <paramref name="subset"/> share, with its normal cosine. Every
-        /// plane tangent to the band satisfies <c>dot(normal, axis) = -taper / sqrt(1 + taper^2)</c>, so the
-        /// band normals lie on one plane in normal space. The search seeds on normal triples and refits on
-        /// the inliers, which separates the band from the end-cap planes mixed in with it. Both axis
-        /// directions are returned because the sign decides which end is the first cap.
+        /// Gets the axis the cone-band planes of <paramref name="subset"/> share, with its normal cosine, in both
+        /// directions.
         /// </summary>
         static List<(Vector3 Axis, float Cosine, List<int> Inliers)> ConeAxisCandidates(
             List<PlanarizeSample> samples, List<int> subset)
@@ -2110,7 +1945,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return results;
         }
 
-        // Deterministic seeds: every triple of up to 16 evenly spread planes, plus every adjacent triple.
         static IEnumerable<(int A, int B, int C)> AxisSeedTriples(List<int> subset)
         {
             var picks = new List<int>();
@@ -2163,8 +1997,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return inliers;
         }
 
-        // The axis is the least-variance direction of the inlier normals. A power iteration on the
-        // covariance shifted by its own trace converges to it without a full eigen decomposition.
         static bool RefitAxis(List<PlanarizeSample> samples, List<int> inliers, out Vector3 axis,
             out float cosine)
         {
@@ -2224,10 +2056,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Where the capsule axis passes through the plane perpendicular to it, plus the first cap radius
-        /// measured from that plane. With the axis and the taper known, a band plane's own node satisfies
-        /// <c>|perp(x) - perp(c0)| * scale = gap + taper * dot(x, axis) + beta</c>, which squares into a
-        /// linear system in the perpendicular centre, <c>beta</c> and one slack term.
+        /// Gets where the capsule axis passes through the plane perpendicular to it, and the first cap radius.
         /// </summary>
         static bool PerpendicularCentre(List<PlanarizeSample> samples, List<int> band, Vector3 axis,
             float taper, out Vector3 centre, out float beta)
@@ -2282,7 +2111,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return IsFinite(centre) && float.IsFinite(beta);
         }
 
-        // Gaussian elimination with partial pivoting on a 4x5 augmented matrix.
         static bool SolveInPlace(double[,] matrix, out double[] solution)
         {
             solution = new double[4];
@@ -2337,8 +2165,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         static bool IsFinite(Vector3 value)
             => float.IsFinite(value.X) && float.IsFinite(value.Y) && float.IsFinite(value.Z);
 
-        // Candidate shapes, kept distinct on a fixed grid so the same capsule reached from several planes is
-        // scored once.
         sealed class CandidateSet
         {
             readonly HashSet<(int, int, int, int, int, int, int, int)> seen = [];
@@ -2368,8 +2194,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             HashSet<int> which)
             => [.. which.Order().Select(i => samples[i])];
 
-        // Four unknowns need only a handful of seed pairs, so the pairwise search is capped while every
-        // remaining sample is still scored against each candidate.
         const int CapConsensusSeeds = 48;
 
         static HashSet<int>? FindCapConsensus(List<(Vector3 Tangent, Vector3 Normal)> samples,
@@ -2425,14 +2249,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return best;
         }
 
-        /// <summary>
-        /// Reconstructs the cloth collision boxes (<c>m_BoxRigids</c>). Returns an empty list when the
-        /// model has no box rigids.
-        /// <para>
-        /// Older compiles hold the frame as <c>tmFrame</c>, a 3x4 matrix with the bone-local origin in its
-        /// last column, rather than the position-quaternion <c>tmFrame2</c>.
-        /// </para>
-        /// </summary>
+        /// <summary>Reconstructs the cloth collision boxes (<c>m_BoxRigids</c>).</summary>
         public List<CollisionBox> BuildCollisionBoxes()
         {
             var result = new List<CollisionBox>();
@@ -2481,10 +2298,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return result;
         }
 
-        /// <summary>
-        /// Reconstructs the cloth collision spheres (<c>m_SphereRigids</c>). Returns an empty list when the
-        /// model has no sphere rigids.
-        /// </summary>
+        /// <summary>Reconstructs the cloth collision spheres (<c>m_SphereRigids</c>).</summary>
         public List<CollisionSphere> BuildCollisionSpheres()
         {
             var result = new List<CollisionSphere>();
@@ -2498,9 +2312,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 var rigid = rigids[i];
 
-                // m_SphereRigids entries store a single sphere as a flat vSphere [x,y,z,r] array
-                // (unlike m_TaperedCapsuleRigids' vSphere, which nests TWO such arrays for its end-caps),
-                // as m_vCenter+m_flRadius, or - in older compiles - as vCenter+flRadius.
                 Vector4 sphere;
                 if (rigid.GetArray<float>("vSphere") is { Length: 4 } s)
                 {

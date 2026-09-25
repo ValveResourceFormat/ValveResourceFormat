@@ -6,9 +6,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 {
     public sealed partial class FeModel
     {
-        // Recovers the authored per-vertex skin weights from the compiled back-solve bookkeeping - see
-        // the RecoveredSkinWeights property remarks for the data model. BuildChainSkinInfluences'
-        // inverse-square-distance synthesis is the fallback for a vertex with no m_CtrlOffsets entry.
+        /// <summary>
+        /// Recovers the authored skin weights of the proxy-sheet vertices, the vertices left to the offset network, and the
+        /// proxy meshes compiled without back-solving.
+        /// </summary>
         Dictionary<int, (string Bone, float Weight)[]> RecoverAuthoredSkinWeights(KVObject data,
             out Dictionary<int, (string Bone, float Weight)[]> deferred, out HashSet<int> unbackSolvedMeshes)
         {
@@ -24,7 +25,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var fitWeights = data.GetArray("m_FitWeights") ?? [];
 
-            // flWeight per (vertex, fit bone), from each fit matrix's [begin, nEnd) range of m_FitWeights.
             var fitPerVertex = new Dictionary<int, Dictionary<int, float>>();
             var minIncludedWeight = float.MaxValue;
             var begin = 0;
@@ -49,15 +49,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 begin = end;
             }
 
-            // The primary (rigid-anchor) bone per vertex.
             var rigidParents = new Dictionary<int, int>();
             foreach (var e in ctrlOffsets)
             {
                 rigidParents[e.GetInt32Property("nCtrlChild")] = e.GetInt32Property("nCtrlParent");
             }
 
-            // Soft-offset alphas per vertex, kept in ARRAY ORDER: the nested-lerp expansion below only
-            // reproduces the fit weights when applied in the order the compiler serialized them.
             var softPerVertex = new Dictionary<int, List<(int Parent, float Alpha)>>();
             if (data.GetArray("m_CtrlSoftOffsets") is { } softOffsets)
             {
@@ -74,8 +71,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // Expands the nested lerps: start at weight 1 on the primary; each soft offset scales
-            // everything accumulated so far by flAlpha and gives (1 - flAlpha) to its own parent.
             List<(int Bone, float Weight)> ExpandSoftOffsets(int node, int primary)
             {
                 var weights = new List<(int Bone, float Weight)> { (primary, 1f) };
@@ -105,9 +100,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return weights;
             }
 
-            // The proxy sheets the original compiled without back-solving, by mesh index: no m_FitWeights range names
-            // one of the mesh's own vertices, another mesh's vertices ARE named, and every position-driven bone the
-            // mesh's simulated vertices are bound to is fit over another mesh's vertices.
             var backSolvedMeshes = new HashSet<int>();
             var fitBoneMeshes = new Dictionary<int, HashSet<int>>();
             foreach (var (bone, targets) in FitMatrixTargets)
@@ -190,28 +182,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                // The offset network alone recovers the weights whenever nothing else consumed the
-                // vertex's authored weight outside it: every vertex of a model with no fit matrix, and
-                // every vertex no fit covers on a model whose fits are taken over CHAIN rings rather
-                // than over the sheet. The compiler drops each authored influence below its keep
-                // threshold and renormalizes the rest, so the network's own expansion is the authored
-                // set as the compiler sees it. Where the SHEET back-solves bones its weights are also
-                // inputs to the compiler's own fit solve, so a vertex the fits leave out keeps the
-                // rigid fallback.
                 if (ProxyFitMatrixNodes.Count == 0)
                 {
-                    // Only a node the original itself compiled as a sheet vertex carries an authored
-                    // proxy skin paint. On a model with no sheet the same offset network describes free
-                    // ClothNode anchors, and reading it as skin weights re-binds the synthesised
-                    // stand-in sheet to bones the author never painted.
                     if (!IsProxyMeshNode(node))
                     {
                         continue;
                     }
 
-                    // Left in the compiled array's own order (primary, then each soft offset as
-                    // serialized) rather than sorted by weight: that order is the authored influence
-                    // slot order, which the importer keeps for influences of equal weight.
                     var painted = new List<(string Bone, float Weight)>();
                     foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
                     {
@@ -226,15 +203,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                // A pinned vertex's soft-offset expansion is its complete authored influence list,
-                // exactly as on a model with no fit matrices, whether the bones it names are static or
-                // simulated. It is emitted where the primary is at least the heaviest of them, a tie
-                // included: an author who paints two bones the same weight leaves the anchor tied, and
-                // EnsureAnchorMostBound restores the strict maximum the importer needs to pick the same
-                // most-bound joint back out. A pin whose primary is genuinely lighter keeps its single
-                // rigid anchor. A pin an m_FitWeights range already covers is an INPUT to the sheet's own
-                // back-solve rather than a bystander of it, so re-painting it re-solves the fits it
-                // belongs to and re-classifies the bones they drive: those keep the single anchor.
                 if (IsStatic(node))
                 {
                     if (fitPerVertex.ContainsKey(node))
@@ -279,11 +247,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                // A simulated vertex needs at least one fit entry to anchor the ABSOLUTE weight scale
-                // (soft-offset alphas alone are renormalized over the dynamic bones). Without any fit
-                // entry: no soft offsets either means the compiled data itself says the vertex is
-                // anchored 100% to its primary bone; with soft offsets the fit solve this sheet feeds
-                // is what decides the rest, so those are left to the fallback.
                 if (!fitPerVertex.TryGetValue(node, out var fits))
                 {
                     if (!softPerVertex.ContainsKey(node))
@@ -300,7 +263,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 var dynamicWeights = ExpandSoftOffsets(node, primary);
 
-                // Absolute scale from the largest fit-covered component (numerically safest anchor).
                 var scale = 1f;
                 var bestNormalized = 0f;
                 foreach (var (bone, normalized) in dynamicWeights)
@@ -330,13 +292,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                // The rest of the authored weight went to a static bone (below the original's back-solve
-                // threshold or simply not back-solvable) - the primary's nearest static real ancestor the
-                // vertex does not already name.
-                // Only where the compiled network CAN be hiding one: the offset network records every
-                // bone a vertex is bound to until its eight soft slots are full, so a shortfall on a
-                // vertex with a slot to spare is authored weight that reached no control node at all,
-                // and giving it to a bone invents an influence the original does not carry.
                 var remainder = 1f - total;
                 if (remainder > 1e-4f && softPerVertex.TryGetValue(node, out var slots)
                     && slots.Count >= ClothProxySoftOffsetSlots)
@@ -362,17 +317,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 ? (maxOmittedWeight + minIncludedWeight) * 0.5f
                 : null;
 
-            // A vertex with soft offsets but no fit row: every authored weight it put on a fit-solved
-            // bone sat under the back-solve threshold, so the expansion is the complete paint. Taken
-            // over only where the recompile prunes the same weights again (each fit-bone influence
-            // under the threshold the recompile runs at, which is the authored default wherever the
-            // original's own arrays do not pin it lower); anything else keeps the fallback.
-            // Restricted to dynamic influence bones that some vertex outside this fitless set is still
-            // rigid-anchored to, so un-smearing the fallback cannot leave a back-solved bone fitted over
-            // essentially one vertex, which is a degenerate most-bound-joint solve. A bone the original's
-            // own compile back-solved off this sheet escapes that restriction: the compiler records it as
-            // an m_ReverseOffsets entry, so the solve it takes part in is one the original had. So does a
-            // bone the original fits with its own m_FitMatrices entry.
             var fitlessNodes = new HashSet<int>(fitlessSoft.Count);
             foreach (var (node, _) in fitlessSoft)
             {
@@ -401,8 +345,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var painted = new List<(string Bone, float Weight)>();
                 var prunable = true;
 
-                // A vertex of a sheet the original did not back-solve reaches no fit range at all, so the weight it
-                // paints on a fit bone is not an input to that bone's solve.
                 var mesh = node >= 0 && node < CtrlNames.Length ? ParseProxyMeshIndex(CtrlNames[node]) : -1;
                 var sheetBackSolves = mesh < 0 || !unbackSolvedMeshes.Contains(mesh);
                 foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
@@ -447,25 +389,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Gets the proxy-mesh indices (the <c>&lt;i&gt;</c> of a <c>$cloth_m&lt;i&gt;p&lt;j&gt;</c> control-node
-        /// name) whose sheet the original compiled WITHOUT back-solving: no <c>m_FitWeights</c> range names one of
-        /// that mesh's own vertices, another mesh's vertices are named, and every position-driven bone the mesh's
-        /// simulated vertices are bound to is fit over another mesh's vertices.
-        /// <para>
-        /// <c>AddFitWeights</c> is called under a sheet's own <c>back_solve_joints</c> /
-        /// <c>back_solve_joints_drive_meshes</c>, while the most-bound-joint parenting that fills
-        /// <c>m_CtrlOffsets</c> and <c>m_CtrlSoftOffsets</c> is called unconditionally, so such a mesh carries its
-        /// authored skin paint in the offset network with no fit entry anywhere. A model whose compile names no
-        /// mesh at all states nothing about the split and yields an empty set.
-        /// </para>
+        /// Gets the proxy mesh indices compiled without back-solving: no <c>m_FitWeights</c> range names their vertices, and
+        /// every position-driven bone their simulated vertices bind to is fit over another mesh.
         /// </summary>
         public IReadOnlySet<int> UnbackSolvedProxyMeshes { get; }
 
         /// <summary>
-        /// Returns whether every proxy-sheet vertex of <paramref name="proxy"/> belongs to a mesh in
-        /// <see cref="UnbackSolvedProxyMeshes"/>, i.e. whether the original compiled this sheet without
-        /// back-solving it. False for a reconstruction covering no proxy-sheet vertex, and for one spanning a mesh
-        /// the original did back-solve.
+        /// Gets whether <paramref name="proxy"/> has sheet vertices and all of them belong to <see cref="UnbackSolvedProxyMeshes"/>.
         /// </summary>
         public bool IsUnbackSolvedProxyMesh(ProxyMesh proxy)
         {
@@ -490,15 +420,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Returns whether the original shape-fits a bone over <paramref name="proxy"/>'s own vertices
-        /// while leaving that bone OUT of the position-driven suffix.
-        /// <para>
-        /// <c>back_solve_joints</c> and <c>back_solve_joints_drive_meshes</c> are two gates on the same
-        /// back-solve, and only the first promotes: <c>AddFitWeights</c> registers every bone it claims
-        /// as position-driven, so a fit taken over a sheet's vertices for a bone the compile left
-        /// undriven was asked for by the second flag alone. False for a compile that states no
-        /// position-driven boundary of its own, which cannot tell the two apart.
-        /// </para>
+        /// Gets whether a bone outside the position-driven suffix is fit over <paramref name="proxy"/>'s vertices. False when
+        /// the compile states no position-driven boundary.
         /// </summary>
         public bool ProxyFitsUndrivenBone(ProxyMesh proxy)
         {
@@ -525,44 +448,23 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public const float DefaultBackSolveInfluenceThreshold = 0.05f;
 
         /// <summary>
-        /// The number of surviving influence vertices at which the compiler shape-fits a bone with an
-        /// <c>m_FitMatrices</c> least-squares solve. A bone left with fewer takes an <c>m_NodeBases</c>
-        /// rigid frame built from its most-influential node's neighbours instead, and a bone left with
-        /// none stops being position-driven at all.
+        /// The number of surviving influence vertices from which the compiler fits a bone with an <c>m_FitMatrices</c> solve.
         /// </summary>
         public const int FitMatrixMinInfluences = 8;
 
         /// <summary>
-        /// The smallest per-vertex skin influence budget a cloth proxy DMX is written with, matching the
-        /// importer's own <c>m_nMaxBonesPerVertex</c> default. A sheet whose recovered weights need more
-        /// is written wider; influences past the last slot are not exported and never reach the compiler.
+        /// The smallest per-vertex skin influence count a cloth proxy DMX is written with.
         /// </summary>
         public const int ClothProxyInfluenceSlots = 4;
 
         /// <summary>
-        /// The number of <c>m_CtrlSoftOffsets</c> records the compiler writes for one proxy vertex at
-        /// most: the eight secondary slots of its multi-bind list, the primary anchor being the
-        /// <c>m_CtrlOffsets</c> entry. A vertex short of this count has every bone it is bound to
-        /// recorded in the network.
+        /// The most <c>m_CtrlSoftOffsets</c> records the compiler writes for one proxy vertex.
         /// </summary>
         public const int ClothProxySoftOffsetSlots = 8;
 
         /// <summary>
-        /// Gets the <c>back_solve_influence_threshold</c> to author for <paramref name="proxy"/>: the
-        /// minimum skin weight at which a vertex contributes to a bone's back-solved fit. The compiler
-        /// drops every lighter influence before it partitions the bones the sheet drives by the
-        /// <see cref="FitMatrixMinInfluences"/> count.
-        /// <para>
-        /// <see cref="DefaultBackSolveInfluenceThreshold"/>, unless this proxy's own compiled data proves
-        /// the original ran lower - a weight it demonstrably KEPT that the default would prune. Three
-        /// things are proven kept: a weight inside an <c>m_FitWeights</c> range, the
-        /// <see cref="FitMatrixMinInfluences"/>th heaviest weight on a bone that ships a fit matrix, and
-        /// the heaviest weight on a position-driven bone whose frame is a node base. The result is then
-        /// the midpoint between that weight and the heaviest weight the original demonstrably DROPPED
-        /// (one painted on a fit bone at a vertex its <c>m_FitWeights</c> range omits); where the two
-        /// disagree the keep bound wins, since it is read straight out of the original's own arrays
-        /// while the drop bound is only as good as the recovered paint.
-        /// </para>
+        /// Gets the <c>back_solve_influence_threshold</c> for <paramref name="proxy"/>: the default, unless the proxy's fit
+        /// data keeps a lighter weight, then between that weight and the heaviest weight a fit drops.
         /// </summary>
         public float GetBackSolveInfluenceThreshold(ProxyMesh proxy)
         {
@@ -583,8 +485,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // Only the influences the proxy DMX has slots for reach the compiler at all, and the DMX
-            // is written wide enough to hold every recovered influence.
             const int slots = int.MaxValue;
             var painted = new Dictionary<int, List<(int Node, float Weight)>>();
             for (var v = 0; v < proxy.NodeIndices.Length && v < proxy.SkinInfluences.Length; v++)
@@ -664,8 +564,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return dropped < kept ? (dropped + kept) * 0.5f : kept * 0.5f;
         }
 
-        // Walks the skeleton-parent chain from `node` (exclusive) up to the first STATIC real-bone
-        // control node - the bone the author's remaining (non-back-solved) skin weight is assigned to.
         int FindStaticRealAncestor(int node)
         {
             var p = node >= 0 && node < SkelParents.Length ? SkelParents[node] : -1;
@@ -683,19 +581,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return -1;
         }
 
-        /// <summary>
-        /// Relative gap under which two recovered influence weights are one authored value. The
-        /// nested-lerp alphas the soft-offset network stores are inverted through one multiply per
-        /// slot, so two weights the compiled data records as equal come back a few parts per million
-        /// apart, and the widest such disagreement measured over the corpus is under 1e-5.
-        /// </summary>
+        /// <summary>Relative gap under which two recovered influence weights are one authored value.</summary>
         const float TiedWeightEpsilon = 1e-4f;
 
         /// <summary>
-        /// Orders a vertex's influences by descending weight, keeping the compiled array order for
-        /// weights that agree to within <see cref="TiedWeightEpsilon"/>. That order is the order the
-        /// compiler itself sorted them into, so preserving it is what keeps a tie from promoting the
-        /// wrong bone to the vertex's rigid anchor or exchanging two soft-offset slots.
+        /// Orders influences by descending weight, keeping the existing order for weights within <see cref="TiedWeightEpsilon"/>.
         /// </summary>
         static void OrderByWeightKeepingTies(List<(string Bone, float Weight)> influences)
         {
@@ -721,10 +611,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // The mesh pipeline canonicalizes a vertex's influences and anchors the compiled node on the
-        // strictly heaviest joint, so an anchor that only ties at the top is re-anchored by joint index
-        // instead. Raising it one ulp above the heaviest rival makes it the strict maximum again. A
-        // genuinely lighter anchor is left alone.
+        /// <summary>
+        /// Moves the anchor bone first, one float step above its heaviest rival, where it trails that rival by at most a
+        /// relative 1e-5.
+        /// </summary>
         static void EnsureAnchorMostBound(List<(string Bone, float Weight)> influences, string anchor)
         {
             var primaryIndex = influences.FindIndex(i => i.Bone == anchor);
@@ -750,10 +640,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // Restores a vertex's authored 1/255 weight quantum where the expansion lands on a whole-byte
-        // partition of 255 and only the float32 alpha chain moved it off, which leaves influences the
-        // author painted equal no longer equal and reorders them under the importer's weight sort. A
-        // set that resolves to no such partition is left exactly as recovered.
+        /// <summary>
+        /// Snaps the weights onto whole 1/255 steps where each lies within 0.01 of one and the steps sum to 255.
+        /// </summary>
         static void SnapToBytePartition(List<(string Bone, float Weight)> influences)
         {
             var bytes = new int[influences.Count];
@@ -782,7 +671,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // Reads an array of cloth faces (m_Quads/m_Tris), returning each face's nNode index list.
         static int[][] ReadNodeIndexArray(KVObject data, string key, int expectedLength)
         {
             var arr = data.GetArray(key);
@@ -804,12 +692,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return [.. faces];
         }
 
-        // m_SourceElems is the authored proxy mesh's own element list: four counts lead, one per element
-        // arity, and the elements themselves follow grouped by arity - first the single corners, then the
-        // pairs, the triangles and the quads, each a run of control-node indices in cyclic winding order.
-        // Only arity three and up describe a face. Unlike m_Quads/m_Tris it survives even when the compiler
-        // collapses the whole surface into rods, which is the only record of the authored topology for such
-        // models.
         static (int[][] Faces, (int, int)[] Springs) ReadSourceElems(KVObject data)
         {
             if (!data.ContainsKey("m_SourceElems") || !data.IsNotBlobType("m_SourceElems"))
@@ -835,7 +717,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 counted += arity * (int)count;
             }
 
-            // The counts have to account for the array exactly, or this is not the layout being read.
             if (counted != elems.Length)
             {
                 return ([], []);
@@ -893,8 +774,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public int[][] SourceFaces { get; } = [];
 
-        // Whether a bone anchors any proxy-sheet vertex, which is what registers it as a control node
-        // independently of any cloth chain that also names it.
         bool DrivesProxySheetVertex(int node)
         {
             foreach (var offset in CtrlOffsets)
@@ -909,8 +788,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
-        // A source element identified by its corner set alone. A chain surface is recorded once per
-        // winding with its corners rotated freely, so membership is the only stable part of it.
         static string SurfaceElementKey(IEnumerable<int> corners)
         {
             var sorted = corners.ToArray();
@@ -919,16 +796,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Gets the authored two-corner elements of <c>m_SourceElems</c>: the edges the source declared as
-        /// explicit springs rather than as part of a face. Each is one authored <c>ClothSpring</c>, and each
-        /// contributes its own rod on top of whatever the surface and the chains generate.
+        /// Gets the two-corner elements of <c>m_SourceElems</c>, one per authored <c>ClothSpring</c>.
         /// </summary>
         public (int, int)[] SourceSprings { get; } = [];
 
         /// <summary>
-        /// Gets whether the compiler anchored this cloth to a static root node of its own making, which is
-        /// what it does for a proxy mesh that arrives with no skinning. Its absence means every sheet was
-        /// skinned, so exporting one unskinned would add a node the original never had.
+        /// Gets whether the compiler created its own <c>$cloth_root</c> node, which it does for an unskinned proxy mesh.
         /// </summary>
         public bool HasGeneratedClothRoot => Array.Exists(CtrlNames, static n => n == ClothRootNodeName);
 
@@ -957,17 +830,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Gets the authored <c>additional_shear_stretch</c>. A SHEET rod's <c>flRelaxationFactor</c> is
-        /// <c>exp(-stretch)</c>, where a face edge uses the surface stretch and a face diagonal uses the
-        /// surface stretch plus this value, so the slackest sheet rod recovers it. A chain rod carries its
-        /// joint's own spring stiffness on the same field and belongs to a different population, so only
-        /// rods between two proxy-sheet vertices are read. The compiler clamps the authored value at zero,
-        /// which is why a negative original is indistinguishable from zero.
-        /// <para>
-        /// Where the sheet's diagonals do NOT agree the scalar cannot state all of them, and the shear
-        /// paint carries the difference (see <see cref="RecoverShearResistancePaint"/>): the value is then
-        /// read from the diagonal the paint leaves at 1, the stiffest one, rather than from the slackest.
-        /// </para>
+        /// Gets the authored <c>additional_shear_stretch</c> from the slackest rod between two sheet vertices, or from the
+        /// <see cref="ShearResistance"/> base relaxation where the diagonals disagree.
         /// </summary>
         public float AdditionalShearStretch
         {
@@ -1022,47 +886,30 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public static bool IsProxyNodeName(string? name)
             => string.IsNullOrEmpty(name) || name.StartsWith('$');
 
-        /// <summary>
-        /// The prefix the compiler gives a control node it created for an authored free-standing
-        /// <c>ClothNode</c> element (the element name follows). Distinct from the sheet-vertex
-        /// (<c>$cloth_m&lt;N&gt;p&lt;M&gt;</c>) and chain-extrude (<c>$cc&lt;joint&gt;_&lt;n&gt;</c>) families.
-        /// </summary>
+        /// <summary>The prefix of a control node created for an authored free-standing <c>ClothNode</c>.</summary>
         public const string FreeClothNodePrefix = "$cloth_node_";
 
         /// <summary>
-        /// Gets or sets the names of the skeleton's real bones. Cloth extrusion does not always mark what it
-        /// generates with the <c>$</c> prefix - a two-column strip names its second column after the bone it
-        /// widens - so without the skeleton to compare against, a generated node is indistinguishable from a
-        /// real one and gets authored as a chain joint the compiler then cannot resolve.
+        /// Gets or sets the names of the skeleton's real bones, used to tell generated nodes without a <c>$</c> prefix apart.
         /// </summary>
         public IReadOnlySet<string>? SkeletonBoneNames { get; set; }
 
         /// <summary>
-        /// Gets or sets the control nodes of <see cref="GetCulledBoneCtrls"/> - bone ctrls the compiled
-        /// skeleton culled - captured before their re-declared names are folded into
-        /// <see cref="SkeletonBoneNames"/>.
+        /// Gets or sets the <see cref="GetCulledBoneCtrls"/> nodes, captured before their names join <see cref="SkeletonBoneNames"/>.
         /// </summary>
         public IReadOnlySet<int>? CulledBoneCtrlNodes { get; set; }
 
-        /// <summary>
-        /// Gets or sets each skeleton bone's parent bone name. Used to orient chain links recovered from
-        /// the rod mesh on compiles that ship no <c>m_SkelParents</c>: the rod evidence alone cannot tell
-        /// parent from child on a strap anchored at both ends.
-        /// </summary>
+        /// <summary>Gets or sets each skeleton bone's parent bone name.</summary>
         public IReadOnlyDictionary<string, string?>? SkeletonBoneParents { get; set; }
 
         /// <summary>
-        /// Gets or sets the world bind position of each bone whose control node a scaled proxy skeleton
-        /// moved. A chain extrudes its rings from the bone itself, so a joint listed here measures its
-        /// ring against this position instead of its own rest pose.
+        /// Gets or sets the bind position a chain joint's ring is measured from, for bones a scaled proxy skeleton moved.
         /// </summary>
         public IReadOnlyDictionary<string, Vector3>? ChainExtrudeOrigins { get; set; }
 
         /// <summary>
-        /// Rebuilds <see cref="SkelParents"/> from the model's own bone hierarchy, for cloth that ships
-        /// neither <c>m_SkelParents</c> nor the <c>m_Ropes</c>/<c>m_FollowNodes</c> trail
-        /// <see cref="BuildRopeParents"/> reads. A control node takes the nearest ancestor bone that is
-        /// itself a control node. Does nothing once either of those two sources has produced a hierarchy.
+        /// Rebuilds <see cref="SkelParents"/> from the bone hierarchy when the compile carries none: each node takes its
+        /// nearest ancestor bone that is a control node.
         /// </summary>
         public void SetSkeletonParents(IReadOnlyDictionary<string, string?> boneParents)
         {
@@ -1071,9 +918,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return;
             }
 
-            // Only for cloth built purely out of real bones. Once the compiler has generated nodes of its
-            // own, they carry the hierarchy the skeleton cannot express, and imposing the bone tree on top
-            // re-parents the surrounding network instead of completing it.
             foreach (var name in CtrlNames)
             {
                 if (IsProxyNodeName(name))
@@ -1123,11 +967,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 || (SkeletonBoneNames is not null && !SkeletonBoneNames.Contains(name!));
 
         /// <summary>
-        /// Gets the control nodes that were authored as skeleton bones but culled from the compiled
-        /// skeleton (unskinned cloth-only bones). A cloth construct can only reference a bone the
-        /// document skeleton contains, so the export has to re-declare these as Bone nodes. Generated ring/strip members are excluded: they are the
-        /// compiler's own extrude output (a CtrlOffsets child) or a strip's paired second column (a
-        /// CtrlOsOffsets child), and re-declaring one collides with its regeneration.
+        /// Gets the control nodes named after bones the compiled skeleton does not contain, excluding generated ring and
+        /// strip members.
         /// </summary>
         public List<(int Node, string Name)> GetCulledBoneCtrls()
         {
@@ -1164,12 +1005,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Whether the cloth drives any REAL (non auto-generated proxy) skeleton bone: at least one
-        /// position-driven control node (index &gt;= <see cref="FirstPositionDrivenNode"/>) carries a real
-        /// bone name. Those bones are back-solved from the simulated proxy nodes, whether the mechanism is
-        /// <c>m_FitMatrices</c> or <c>m_CtrlOffsets</c> alone with no fit matrices at all. It is the signal
-        /// that a reconstructed proxy mesh emits <c>back_solve_joints = true</c>, and it is a superset of
-        /// <see cref="FitMatrixNodes"/> being non-empty.
+        /// Gets whether a position-driven control node carries a real bone name.
         /// </summary>
         public bool DrivesRealBones
         {
@@ -1194,9 +1030,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             => node >= 0 && node < NodeInvMasses.Length && NodeInvMasses[node] == 0f;
 
         /// <summary>
-        /// Walks the skeleton-parent chain from <paramref name="node"/> up to the first real (non
-        /// auto-generated cloth proxy) control-node name. This is the skeleton bone that an auto-generated
-        /// proxy node is anchored/skinned to.
+        /// Gets the first ancestor of <paramref name="node"/> with a real bone name.
         /// </summary>
         public string? ResolveSkinBone(int node)
         {
@@ -1204,7 +1038,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return index >= 0 ? CtrlNames[index] : null;
         }
 
-        // Same walk as ResolveSkinBone, returning the control-node index of the bone instead of its name.
         int ResolveSkinBoneNode(int node)
         {
             var p = node >= 0 && node < SkelParents.Length ? SkelParents[node] : -1;
@@ -1222,10 +1055,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return -1;
         }
 
-        // Builds the smooth skin influences of a SIMULATED proxy vertex: inverse-distance weights over the
-        // nearest joints of the anchor's bone chain (up to 4, thresholded - see below). A bone the
-        // compiler back-solves a fit matrix for needs several weighted vertices; one that carries hard
-        // single-bone weights is driven as a point rope instead.
+        /// <summary>
+        /// Gets inverse-square distance weights over the four nearest joints of the anchor's chain, dropping those below
+        /// 0.16 of the heaviest.
+        /// </summary>
         (string Bone, float Weight)[] BuildChainSkinInfluences(int node)
         {
             var anchor = ResolveSkinBoneNode(node);
@@ -1239,10 +1072,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return [(CtrlNames[anchor], 1f)];
             }
 
-            // Inverse-square distance weights over the (up to) four nearest chain joints. A fit matrix
-            // needs several well-separated weighted points per bone, or the compiler falls back to a point
-            // rope for that joint. The original per-vertex weights are hand-painted art data rather than a
-            // function of bone-to-vertex distance, so no distance formula reproduces them exactly.
             var weighted = new List<(int Node, float Distance)>();
             foreach (var candidate in GetChainComponent(anchor))
             {
@@ -1263,10 +1092,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return [(CtrlNames[weighted[0].Node], 1f)];
             }
 
-            // Keep only influences within 16% of the strongest weight (of the 4 nearest). The compiler
-            // back-solves a fit matrix from whichever vertices reference a bone, so a flat Take(4) covers
-            // each bone with long-tail influences the original has no entry for. Thresholding lets
-            // tightly-clustered vertices keep 2-3 influences and sparse ones keep 4.
             var top = new List<(int Node, float Weight)>(4);
             foreach (var (candidate, distance) in weighted.Take(4))
             {
@@ -1290,16 +1115,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return [.. influences.Select(i => (i.Bone, i.Weight / total))];
         }
 
-        // The real-bone control nodes on the SAME physical chain as `bone`: its real-bone ancestors up to
-        // (but not through) the nearest BRANCH POINT - a real ancestor with more than one real-bone child -
-        // plus every real descendant below that point. Two sibling chains sharing only a common real
-        // ancestor stay separate pools, so a vertex's nearest-joint search cannot draw candidates from
-        // both sides of the branch at once.
         List<int> GetChainComponent(int bone)
         {
             var n = CtrlNames.Length;
 
-            // realParent[i]: parent among real bones, or -1.
             var realParent = new int[n];
             for (var i = 0; i < n; i++)
             {
@@ -1316,8 +1135,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // childCount[p]: number of real-bone nodes whose real parent is p - used to detect a branch
-            // point (a shared ancestor of two or more distinct chains) that the upward walk must stop at.
             var childCount = new int[n];
             for (var i = 0; i < n; i++)
             {
@@ -1327,8 +1144,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // A vertex whose own nearest real ancestor already IS a branch point stays pinned to that hub
-            // bone alone rather than being distributed across the sibling chains hanging off it.
             if (childCount[bone] > 1)
             {
                 return [bone];

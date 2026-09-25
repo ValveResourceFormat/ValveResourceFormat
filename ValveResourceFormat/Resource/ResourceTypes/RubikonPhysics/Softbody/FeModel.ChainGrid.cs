@@ -6,10 +6,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
     public sealed partial class FeModel
     {
         /// <summary>
-        /// A cloth sheet generated over a group of neighbouring bone chains (rows = positions along the
-        /// chains, columns = chains plus interpolated columns between them). Mirrors the proxy grids item
-        /// authors hand-build for skirts/capes: the sheet simulates the surface between the chains and
-        /// drives the render mesh directly.
+        /// A cloth sheet generated over a group of neighbouring bone chains: rows run along the chains, columns across them,
+        /// with interpolated columns between neighbours.
         /// </summary>
         public sealed class ChainGrid
         {
@@ -35,16 +33,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             public required List<int[]> Faces { get; init; }
         }
 
-        // How close chain root joints must rest to be considered part of one sheet, in inches.
+        /// <summary>How close chain roots must rest, in inches, to share one grid.</summary>
         const float ChainGridRootDistance = 30f;
-        // Interpolated columns inserted between adjacent chains.
+        /// <summary>The number of interpolated columns between adjacent chains.</summary>
         const int ChainGridSubdivisions = 3;
 
         /// <summary>
-        /// Generates cloth sheet grids over groups of neighbouring bone chains. Branched chains are
-        /// decomposed into root-to-leaf PATHS (a shared coattail base becomes two columns); paths with
-        /// 3+ joints whose roots rest within <see cref="ChainGridRootDistance"/> form one sheet. Returns
-        /// an empty list when no group of 2+ paths exists - e.g. cloth made of one isolated strand.
+        /// Generates grids over the root-to-leaf paths of three or more joints whose roots rest within
+        /// <see cref="ChainGridRootDistance"/>; empty when no two such paths group.
         /// </summary>
         public List<ChainGrid> BuildChainGrids()
         {
@@ -83,7 +79,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return grids;
             }
 
-            // Union-find style grouping by root rest distance.
             var groupOf = Enumerable.Range(0, paths.Count).ToArray();
             int Find(int x) { while (groupOf[x] != x) { x = groupOf[x] = groupOf[groupOf[x]]; } return x; }
             for (var a = 0; a < paths.Count; a++)
@@ -115,7 +110,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         ChainGrid BuildGridForChains(List<List<BoneChainJoint>> members)
         {
-            // Order the paths around the centroid of their roots (skirts wrap around the hips).
             var centroid = Vector3.Zero;
             foreach (var path in members)
             {
@@ -134,8 +128,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var nodeFriction = Data.GetFloatArray("m_DynNodeFriction");
             float FrictionAt(int node) => Math.Clamp(DynamicNodeValue(nodeFriction, node), 0f, 1f);
 
-            // Sample each chain at uniform arc-length fractions; remember the bracketing joints so the
-            // vertex can be skinned/painted by interpolating them.
             var columnSamples = new List<(Vector3 Position, (string Bone, float Weight)[] Influences, float Enable, float Strength, float Radius, float Damping, float Friction, float Drag)[]>();
             foreach (var joints in members)
             {
@@ -178,7 +170,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 columnSamples.Add(samples);
             }
 
-            // Expand to full columns: each chain column plus interpolated columns between neighbours.
             var columns = new List<(Vector3, (string, float)[], float, float, float, float, float, float)[]>();
             for (var c = 0; c < columnSamples.Count; c++)
             {

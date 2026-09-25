@@ -62,7 +62,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Gets the embedded finite-element (soft body / cloth) model (<c>m_pFeModel</c>), or null when the
-        /// aggregate has no cloth. Reusable for both bone-chain and proxy-mesh cloth reconstruction.
+        /// aggregate has no cloth.
         /// </summary>
         public FeModel? FeModel
         {

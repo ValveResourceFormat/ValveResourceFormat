@@ -21,136 +21,76 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// <summary>Gets the inverse mass for this node (0 = static anchor).</summary>
             public float InvMass { get; set; }
             /// <summary>
-            /// Gets the node whose compiled per-node values describe THIS declaration of the joint, or
-            /// -1 to read them from the joint's own node. A bone two chains declare re-registers its own
-            /// node once, so only the ring each declaration extruded still carries that declaration's
-            /// goal, damping, collision radius, stray radius and simulate flag.
+            /// Gets the node whose compiled per-node values describe this declaration of the joint, or -1 for the joint's
+            /// own node.
             /// </summary>
             public int ValueNode { get; set; } = -1;
-            /// <summary>
-            /// Gets the number of auto-generated <c>$cc</c> proxy nodes the compiler placed on THIS joint
-            /// (its local ribbon width). Usually equal to the chain's <see cref="BoneChain.ExtrudeSides"/>,
-            /// but an end-cap joint can fan wider. Used to override the chain-level extrude per joint so an
-            /// end-cap fan is not lost to the uniform chain width.
-            /// </summary>
+            /// <summary>Gets the number of <c>$cc</c> proxy nodes on this joint's own ring.</summary>
             public int ExtrudeSides { get; set; }
-            /// <summary>
-            /// Gets the <c>$cc</c> proxy nodes THIS declaration extruded on the joint, in node order. A
-            /// bone two chains declare carries one ring per declaration under the same name, so which
-            /// nodes a declaration created cannot be read back from the node names alone.
-            /// </summary>
+            /// <summary>Gets the <c>$cc</c> proxy nodes this declaration extruded on the joint, in node order.</summary>
             public IReadOnlyList<int> RingNodes { get; set; } = [];
-            /// <summary>
-            /// Gets one of the <c>$cc</c> proxy nodes generated from this joint, or -1 when it has none.
-            /// A joint's own node is position-driven and compiles with no gravity, so the authored
-            /// <c>gravity_z</c> survives only on its proxies.
-            /// </summary>
+            /// <summary>Gets one of the <c>$cc</c> proxy nodes generated from this joint, or -1 when it has none.</summary>
             public int ProxyNode { get; set; } = -1;
-            /// <summary>
-            /// Gets the authored <c>extra_iterations</c> of this joint, recovered from how many copies of
-            /// its parent span the compiler emitted (one per iteration, so copies minus one).
-            /// </summary>
+            /// <summary>Gets the authored <c>extra_iterations</c>: the copies of the joint's parent span, less one.</summary>
             public int ExtraIterations { get; set; }
             /// <summary>
-            /// Gets the authored <c>antishrink</c> of this joint: the compiler copies it verbatim into the
-            /// contraction factor of every rod the joint's own spans generate, so each of them comes back
-            /// as <c>flMinDist / flMaxDist</c>. One when the spans disagree or carry no rod, which is the
-            /// value a joint with no key of its own compiles at.
+            /// Gets the authored <c>antishrink</c>, the <c>flMinDist / flMaxDist</c> the joint's spans share, or 1 when they
+            /// disagree or carry no rod.
             /// </summary>
             public float Antishrink { get; set; } = 1f;
             /// <summary>
-            /// Gets the authored <c>suspender</c> of this joint: a single companion rod between this
-            /// joint's own ring and its CHAIN ROOT's ring that the compiler adds, carrying this value as
-            /// its own <c>flRelaxationFactor</c>. Zero when the joint carries none. Told apart from
-            /// <see cref="ExtraIterations"/> by <c>RootSuspenderValue</c> in <c>BuildBoneChains</c>.
+            /// Gets the authored <c>suspender</c>, the relaxation of the companion rod between this joint's ring and the chain
+            /// root's ring, or 0 when it carries none.
             /// </summary>
             public float Suspender { get; set; }
             /// <summary>
-            /// Gets the authored <c>child_sibling_spring</c> of this joint: the compiler ties this joint's
-            /// own CHILDREN to each other with one rod per unordered pair of them, taken across the whole
-            /// ring-to-ring set and carrying this value as its relaxation. Zero where that rod set is
-            /// incomplete or its rods disagree, which is the value a joint with no key of its own
-            /// compiles at.
+            /// Gets the authored <c>child_sibling_spring</c>, the relaxation every rod between this joint's children shares,
+            /// or 0 where that rod set is incomplete or disagrees.
             /// </summary>
             public float ChildSiblingSpring { get; set; }
-            /// <summary>
-            /// Gets whether a rod spans this joint and its grandparent, i.e. whether the source authored a
-            /// non-zero <c>bend_spring</c> here.
-            /// </summary>
+            /// <summary>Gets whether the joint was authored with a non-zero <c>bend_spring</c>.</summary>
             public bool BendSpring { get; set; }
-            /// <summary>
-            /// Gets whether a rod spans this joint and its great-grandparent, i.e. whether the source
-            /// authored a non-zero <c>torsion_spring</c> here.
-            /// </summary>
+            /// <summary>Gets whether the joint was authored with a non-zero <c>torsion_spring</c>.</summary>
             public bool TorsionSpring { get; set; }
-            /// <summary>
-            /// Gets the authored <c>stretch_spring</c> of this joint: the <c>flRelaxationFactor</c> the
-            /// compiler wrote on the span between this joint and its chain parent.
-            /// </summary>
+            /// <summary>Gets the authored <c>stretch_spring</c>, read off the span to the chain parent.</summary>
             public float StretchStiffness { get; set; } = 1f;
-            /// <summary>
-            /// Gets whether the source authored <c>animated_length</c> on this joint. The compiler then
-            /// builds no rod on the joint's span to its parent, within its own extrusion or on its
-            /// children's spans to it, and the joint keeps the node base a zero <c>stretch_spring</c> drops
-            /// from a childless joint and, under chain version 1, from every joint.
-            /// </summary>
+            /// <summary>Gets whether the joint was authored with <c>animated_length</c>.</summary>
             public bool AnimatedLength { get; set; }
-            /// <summary>
-            /// Gets the authored <c>bend_spring</c> of this joint: the <c>flRelaxationFactor</c> on the
-            /// span to its grandparent. Zero when <see cref="BendSpring"/> is false, which is what keeps
-            /// the compiler from generating that rod at all.
-            /// </summary>
+            /// <summary>Gets the authored <c>bend_spring</c>, read off the span to the grandparent; 0 without <see cref="BendSpring"/>.</summary>
             public float BendStiffness { get; set; }
             /// <summary>
-            /// Gets the authored <c>torsion_spring</c> of this joint: the <c>flRelaxationFactor</c> on the
-            /// span to its great-grandparent. Zero when <see cref="TorsionSpring"/> is false.
+            /// Gets the authored <c>torsion_spring</c>, read off the span to the great-grandparent; 0 without
+            /// <see cref="TorsionSpring"/>.
             /// </summary>
             public float TorsionStiffness { get; set; }
             /// <summary>Gets the distance from this joint to its own proxy ring.</summary>
             public float ExtrudeRadius { get; set; }
             /// <summary>
-            /// Gets the roll (degrees) added on top of <see cref="ExtrudeTwist"/> to settle the node-base
-            /// axis scan of a joint whose scan is a numerical tie. Zero for every other joint.
+            /// Gets the roll in degrees added to <see cref="ExtrudeTwist"/> to settle a node-base scan tie, 0 otherwise.
             /// </summary>
             public float ExtrudeTwistTieNudge { get; set; }
             /// <summary>
-            /// Gets the roll (degrees) of this joint's proxy ring about the forward axis, measured in the
-            /// joint's rest frame. The ring's unrolled direction is the frame's +Y, so the value authored
-            /// as <c>extrude_twist</c> is this angle's complement.
+            /// Gets the roll in degrees of the joint's proxy ring about the forward axis, from the rest frame's +Y.
             /// </summary>
             public float ExtrudeTwist { get; set; }
             /// <summary>
-            /// Gets the forward distance to a second proxy ring around this joint, which is what the
-            /// authored <c>end_effector</c> produces (a tip that fans into two rows rather than one wider
-            /// ring). Zero when the joint carries a single ring.
+            /// Gets the forward distance to the joint's second proxy ring (<c>end_effector</c>), or 0 for a single ring.
             /// </summary>
             public float EndEffector { get; set; }
             /// <summary>
-            /// Gets the forward axis the compiler used to orient this joint's proxy ring (<c>'x'</c>,
-            /// <c>'y'</c> or <c>'z'</c>), detected from the ring's own plane normal expressed in the
-            /// joint's rest frame. <c>'x'</c> is the default and needs no explicit
-            /// <c>extrude_forward_axis</c> authoring.
+            /// Gets the <c>extrude_forward_axis</c> of the joint's proxy ring (<c>'x'</c>, <c>'y'</c> or <c>'z'</c>).
             /// </summary>
             public char ForwardAxis { get; set; } = 'x';
             /// <summary>
-            /// Gets whether the source declared this joint a second time, in a plain chain after the
-            /// extruding one. The plain declaration re-registers the joint node with its own values
-            /// and ties it to its parent with a rod of its own, so the node and the ring extruded
-            /// from it carry two different sets of values.
+            /// Gets whether the joint is declared a second time in a plain chain after the extruding one.
             /// </summary>
             public bool Restated { get; set; }
             /// <summary>
-            /// Gets whether this joint is one of a hub's sprung siblings: a static joint the original
-            /// locks to its goal, whose chain the hub's <c>child_sibling_spring</c> gathers. Such a joint
-            /// is authored SIMULATING and pinned into the static block by <c>lock_translation</c>, which
-            /// is what lets the compiler stage its fit influences.
+            /// Gets whether the joint is a static, goal-locked sibling that a hub's <c>child_sibling_spring</c> gathers.
             /// </summary>
             public bool SpringsWithSiblings { get; set; }
             /// <summary>
-            /// Gets the bone rooting the second <c>ClothChain</c> that re-declares this joint, or null
-            /// where only one declaration covers it. The first declaration states the joint
-            /// <c>simulate = false</c> and the second one wins the node, which is how a joint that
-            /// simulates comes to carry a twist entry the compiler relaxed by zero.
+            /// Gets the root bone of the second <c>ClothChain</c> that re-declares this joint, or null when only one declares it.
             /// </summary>
             public string? SecondDeclarationRoot { get; set; }
             /// <summary>Gets a value indicating whether this joint is simulated (invMass &gt; 0).</summary>
@@ -167,30 +107,20 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// <summary>Gets the anchor (root) bone name.</summary>
             public required string RootBone { get; set; }
             /// <summary>
-            /// Gets the suffix that tells this chain apart from another declaration over the same root
-            /// bone, empty for a bone only one chain declares.
+            /// Gets the suffix telling this chain apart from other declarations over the same root bone, or empty.
             /// </summary>
             public string DeclarationSuffix { get; set; } = string.Empty;
             /// <summary>Gets the joints, root first, in pre-order (a parent always precedes its children).</summary>
             public List<BoneChainJoint> Joints { get; } = [];
-            /// <summary>
-            /// Gets the ribbon width the compiler baked as auto-generated <c>$cc</c> proxy nodes per joint:
-            /// 0/1 = a plain 1-wide rope (no extrude), 2+ = an extruded strip or tube. Drives the
-            /// ClothChain's <c>extrude_sides</c> so the recompile regenerates the same proxy count.
-            /// </summary>
+            /// <summary>Gets the chain's <c>extrude_sides</c>: the <c>$cc</c> proxy count most joints share.</summary>
             public int ExtrudeSides { get; set; }
             /// <summary>Gets the mean distance from a joint bone to its <c>$cc</c> proxy nodes (the extrude half-width).</summary>
             public float ExtrudeRadius { get; set; }
-            /// <summary>
-            /// Gets the roll (degrees) applied to the extruded proxy ring about the chain's forward axis.
-            /// Recovered from where the compiler actually placed the <c>$cc</c> proxies in the joint's rest
-            /// frame; a chain whose ring is not rolled recovers 0.
-            /// </summary>
+            /// <summary>Gets the mean roll in degrees of the chain's proxy rings.</summary>
             public float ExtrudeTwist { get; set; }
         }
 
-        // One reconstructed ClothChain before its joints are walked: which bone roots it, which children
-        // of a given node it keeps, and which of that node's rings belongs to it.
+        /// <summary>One chain declaration before its joints are walked.</summary>
         sealed class ChainSpec
         {
             public int Root { get; init; }
@@ -202,12 +132,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             public string Suffix { get; set; } = string.Empty;
         }
 
-        // How far apart two proxies must sit along a joint's forward axis to count as separate rings. The
-        // compiler ignores an end_effector below 0.05, so anything closer than that is one ring.
+        /// <summary>How far apart along a joint's forward axis two proxies must be to lie on separate rings.</summary>
         const float EndEffectorRingTolerance = 0.05f;
 
-        // The trailing "_<n>" the compiler appends to a generated ring node's name, or -1 for a name that
-        // carries none (the "_Ctr" centre node of an end_effector below two sides).
+        /// <summary>Gets the trailing <c>_&lt;n&gt;</c> index of a ring node's name, or -1 when it has none.</summary>
         static int RingSuffixIndex(string name)
         {
             var underscore = name.LastIndexOf('_');
@@ -221,14 +149,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Splits one bone's generated ring nodes into the declarations that built them, or null when a
         /// single ClothChain declared the bone.
         /// </summary>
-        /// <remarks>
-        /// The compiler numbers every ring ONE declaration extrudes continuously - an <c>end_effector</c>
-        /// second row carries on the count rather than restarting.
-        /// A second declaration over an already-extruded bone builds a NEW ring and numbers it from 0
-        /// again, so an index at or below one already seen starts another declaration. The groups are in
-        /// control-node order, which is the compiler's static-then-dynamic layout rather than declaration
-        /// order, so nothing downstream may read group 0 as "the first ClothChain".
-        /// </remarks>
         static List<List<int>>? SplitRingDeclarations(List<int> proxies, string[] names)
         {
             var groups = new List<List<int>>();
@@ -259,13 +179,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Splits every chain spec whose bones were declared by more than one ClothChain into one spec per
         /// declaration, each carrying that declaration's own ring and the children hanging off it.
         /// </summary>
-        /// <remarks>
-        /// A second declaration over an already-extruded joint does not reuse the ring the first built; it
-        /// builds its own, and each ring keeps the values ITS declaration authored. Which children belong
-        /// to which declaration is read off the rods: a child's parent span lands on the ring its own
-        /// declaration extruded, and on the bare joint node for a declaration that extrudes none. A child
-        /// two pinned nodes leave no rod between at all is placed by what its descendants reach instead.
-        /// </remarks>
         void SplitRingDeclarations(List<ChainSpec> specs, List<int>?[] children, int[] realParent,
             Dictionary<int, List<int>> proxyChildrenOf, HashSet<(int, int)> rodPairs)
         {
@@ -303,7 +216,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return hits;
             }
 
-            // Which of a bone's ring declarations the given nodes are rodded to, or -1 for none of them.
             int BestGroup(List<List<int>> groups, List<int> side)
             {
                 var best = -1;
@@ -321,7 +233,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return best;
             }
 
-            // Every node under `from` in this spec, plus the rings they extruded.
             List<int> Reach(ChainSpec spec, int from)
             {
                 var result = new List<int>();
@@ -365,7 +276,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return kept;
             }
 
-            // The first bone of this spec whose declarations are still unresolved.
             int NextSplit(ChainSpec spec, HashSet<int> done)
             {
                 var stack = new Stack<int>();
@@ -409,8 +319,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 spec.RingOf ??= [];
                 spec.ChildrenOf ??= [];
 
-                // Where the bone's own ring is already fixed - its parent's split chose it - only the
-                // children still need placing, and no further declaration of this bone is spawned.
                 var resolved = spec.RingOf.ContainsKey(bone);
                 var keep = resolved
                     ? groups.FindIndex(group => ReferenceEquals(group, spec.RingOf[bone]))
@@ -454,11 +362,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         }
                     }
 
-                    // A declaration whose span joins two PINNED nodes leaves no rod at all - the
-                    // compiler drops one that constrains nothing - so a child both declarations pin
-                    // has evidence for one of them only. Every ring the child carries was built by
-                    // SOME declaration of its parent, so where the two carry the same number of them
-                    // the leftovers pair off.
                     if (byGroup.Count < groups.Count && kidGroups.Count == groups.Count)
                     {
                         var free = kidGroups.FindAll(ring => !byGroup.ContainsValue(ring));
@@ -523,8 +426,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         specs.Add(extra);
                     }
 
-                    // A declaration that extrudes nothing leaves only the bare joint node behind, so it is
-                    // recoverable at all only where a child hangs off that node.
                     var bare = KidsOf(-1);
                     if (keep >= 0 && bare.Count > 0)
                     {
@@ -551,10 +452,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // extrude_forward_axis selector quaternions: a +90-degree rotation about local Z for 'y' (maps +X
-        // to +Y), a -90-degree rotation about local Y for 'z' (maps +X to +Z). 'x' uses
-        // Quaternion.Identity. Composed with a joint's own rest rotation (ringFrame = jointRot *
-        // axisSelect), this re-labels which local axis is "forward".
         static readonly Quaternion ExtrudeAxisSelectY = new(0f, 0f, 0.70710677f, 0.70710677f);
         static readonly Quaternion ExtrudeAxisSelectZ = new(0f, -0.70710677f, 0f, 0.70710677f);
 
@@ -565,16 +462,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             _ => Quaternion.Identity,
         };
 
-        // Detects which forward axis the compiler used to orient a joint's proxy ring. Every ring point
-        // lies in the plane perpendicular to the selected forward axis, so - expressed in the joint's own
-        // rest frame - that axis' component is ~0 for every point while the other two carry the actual
-        // ring geometry. 'x' is preferred whenever it qualifies: a ring reproducible through the default
-        // axis needs no explicit authoring, and a ring whose twist falls on a multiple of 90 degrees ties
-        // two axes at exactly 0 while remaining reproducible through 'x' with an adjusted twist. Only a
-        // ring that does not lie in the default axis' plane at all needs 'y' or 'z'. The tolerance is
-        // relative to the ring's own scale, so it does not depend on model units.
         const float ExtrudeForwardAxisTolerance = 0.02f;
 
+        /// <summary>
+        /// Detects the forward axis a joint's ring was laid out around: the local axis its points have no extent along,
+        /// preferring <c>'x'</c>.
+        /// </summary>
         static char DetectExtrudeForwardAxis(Vector3 jointPos, Quaternion jointRot, List<int> ring, Vector3[] positions)
         {
             float sumX = 0f, sumY = 0f, sumZ = 0f;
@@ -611,9 +504,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return sumZ <= threshold ? 'z' : 'x';
         }
 
-        // The control nodes a compiled cloth SHEET vertex hangs off: its m_CtrlOffsets primary plus every
-        // m_CtrlSoftOffsets bone behind it. A chain's own extrude ring carries the same two arrays, so the
-        // child is required to be a sheet vertex rather than any generated node.
+        /// <summary>Gets the control nodes a proxy-sheet vertex hangs off through its ctrl offsets or soft offsets.</summary>
         HashSet<int> SheetSkinnedNodes()
         {
             var result = new HashSet<int>();
@@ -640,34 +531,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The rod graph as the chain reconstruction reads it: which node pairs carry a rod, every one of
-        /// their relaxation factors, the same for the rigid rods alone, and the rods an
-        /// <c>extra_iterations</c> repeat could have written.
-        /// </summary>
-        /// <remarks>
-        /// A suspender companion rod can span the same pair as an ordinary one but carries a DIFFERENT
-        /// relaxation factor (see RootSuspenderValue), which a rod count alone cannot distinguish from an
-        /// extra_iterations repeat.
-        /// <para>
-        /// The repeat table is the rigid one plus, for a pair carrying NO rigid rod at all, all of its rods
-        /// when they are identical records. A chain whose joints hold an <c>antishrink</c> below one
-        /// compiles slack spans, so the rigid table misses its repeats entirely; identity is what still
-        /// tells a repeat apart there, since the importer copies one authored rod verbatim while a
-        /// companion or a second producer on the same pair differs in its factor or its length.
-        /// </para>
-        /// </remarks>
-        /// <summary>
-        /// A recovered <c>ClothSelfCollisionCluster</c>: the member nodes, the length band every one of their
-        /// pairwise rods carries, and each member's own stiffness, whose product over a pair is that pair's
-        /// relaxation. The per-member radii the band sums are not preserved by the compile, so the caller
-        /// splits it evenly.
+        /// A recovered <c>ClothSelfCollisionCluster</c>: its member nodes, the length band of its pairwise rods, and each
+        /// member's stiffness, whose product over a pair is that pair's relaxation.
         /// </summary>
         public readonly record struct SelfCollisionCluster(int[] Nodes, float MinDist, float MaxDist, float[]? Stiffness = null);
 
         /// <summary>
-        /// The smallest member count a rod clique is read as a cluster at on its signature alone. A cluster of
-        /// N members compiles to C(N,2) rods, so three members is one triangle, which a surface can also
-        /// produce; a triangle is read as a cluster only when <see cref="IsRadiusBandTriangle"/> holds.
+        /// The smallest rod clique read as a cluster without <see cref="IsRadiusBandTriangle"/>.
         /// </summary>
         internal const int SelfCollisionClusterMinMembers = 4;
 
@@ -704,20 +574,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Gets the self-collision clusters the compiled rods record. A <c>ClothSelfCollisionCluster</c>
-        /// puts exactly one rod on every pair of its members, all sharing one length band and the builder's
-        /// weight of 0.5, each carrying the product of its two members' stiffness as its relaxation, and none
-        /// of them registering a source element.
-        /// A clique of rods with that signature is therefore a cluster and nothing else can produce it.
+        /// Gets the self-collision clusters: cliques whose rods share one length band, weight 0.5 and pairwise-product
+        /// relaxations, and register no source element.
         /// </summary>
         public IReadOnlyList<SelfCollisionCluster> SelfCollisionClusters
             => selfCollisionClusters ??= BuildSelfCollisionClusters();
 
-        /// <summary>
-        /// Gets the index into <see cref="Rods"/> of every rod <see cref="SelfCollisionClusters"/> accounts
-        /// for. The chain reconstruction reads its spans off the remaining rods and the export re-declares
-        /// these through the cluster instead of one spring per pair.
-        /// </summary>
+        /// <summary>Gets the index into <see cref="Rods"/> of every rod a <see cref="SelfCollisionClusters"/> entry accounts for.</summary>
         public IReadOnlySet<int> SelfCollisionClusterRods
             => selfCollisionClusterRods ??= BuildSelfCollisionClusterRods();
 
@@ -850,9 +713,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Whether a three-node rod triangle is a <c>ClothSelfCollisionCluster</c> rather than a stretched
-        /// surface: every member is an authored node, and the shared band's maximum is none of the pairs' rest
-        /// distances, a cluster's band being its members' summed radii rather than a length on the surface.
+        /// Gets whether a three-node rod triangle is a self-collision cluster: every member is authored and the band's
+        /// maximum is none of the pairs' rest distances.
         /// </summary>
         bool IsRadiusBandTriangle(List<int> members, float bandMax)
         {
@@ -918,6 +780,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return claimed;
         }
 
+        /// <summary>
+        /// Gets the rod graph without cluster rods: the rodded pairs, every rod's relaxation per pair, the same for rigid
+        /// rods alone, the relaxations a repeat could have written, and each rod's <c>flMinDist / flMaxDist</c>.
+        /// </summary>
         (HashSet<(int, int)> Pairs, Dictionary<(int, int), List<float>> RelaxationsByPair,
             Dictionary<(int, int), List<float>> RigidRelaxationsByPair,
             Dictionary<(int, int), List<float>> RepeatRelaxationsByPair,
@@ -937,8 +803,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var clusterRods = SelfCollisionClusterRods;
             for (var index = 0; index < Rods.Length; index++)
             {
-                // A cluster's pairwise rods are its own; reading a chain's spans off them turns every
-                // member pair into a span the chain never declared.
                 if (clusterRods.Contains(index))
                 {
                     continue;
@@ -1002,20 +866,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Each real bone mapped to the auto-generated <c>$cc&lt;bone&gt;</c> proxy nodes parented straight
-        /// to it (its ribbon width), and the inverse map from ring vertex to owning bone.
+        /// Gets each real bone's <c>$cc</c> proxy nodes, and the inverse map from ring node to owning bone.
         /// </summary>
-        /// <remarks>
-        /// Restricted to the <c>$cc</c> prefix (the ClothChain extrude proxies), NOT every <c>$</c>-node:
-        /// a <c>$cloth_m</c> SHEET must not be mistaken for a chain's own width. Used to keep a ribbon's
-        /// position-driven TIP joint in the chain, and to recover each chain's extrude width.
-        /// </remarks>
         (Dictionary<int, List<int>> ChildrenOf, Dictionary<int, int> OwnerOf) BuildProxyRings()
         {
             var childrenOf = new Dictionary<int, List<int>>();
 
-            // Old-era compiles ship m_SkelParents empty; there the ring's anchor bone still survives in
-            // m_CtrlOffsets (each generated ring vertex carries its bone-local anchor offset).
             Dictionary<int, int>? ctrlOffsetParents = null;
             if (!HasCompiledSkelParents && CtrlOffsets.Length > 0)
             {
@@ -1028,8 +884,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             for (var node = 0; node < CtrlNames.Length; node++)
             {
-                // A strip's second column is generated too, but named after the bone it widens instead of
-                // carrying the "$cc" prefix, so it counts as ribbon width the same way.
                 if ((!CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal)
                     && !(!IsProxyNodeName(CtrlNames[node]) && IsGeneratedNodeName(CtrlNames[node])))
                     || ImportedStripNodes.Contains(node))
@@ -1065,24 +919,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return (childrenOf, ownerOf);
         }
 
-        // How far apart two ring rods' readings may sit, as a fraction of the reading itself, and still
-        // count as the same authored value.
         internal const float ChainRingCurvatureAgreement = 0.01f;
 
         /// <summary>
-        /// Gets the authored <c>add_curvature</c>, read back out of the bend rods the compiler builds
-        /// across a chain joint's own extrude ring. Such a rod joins the far corners of the two ring faces
-        /// that meet along one strip edge, and where the ring around that edge is symmetric - both corners
-        /// the same distance from it, neither sliding along it - the general minimum collapses to
-        /// <c>flMaxDist * sin(add_curvature * pi / 2)</c>, capped at the rod's own rest span as everywhere
-        /// else. That is what makes the value readable without the strip faces themselves.
-        /// <para>
-        /// The symmetry is not assumed, it is required: a tapering or unevenly rolled ring puts the two
-        /// corners at different distances from the hinge and every rod then reads a different value, so
-        /// the reading is taken only when they all agree, and a disagreeing ring recovers 0 rather than a
-        /// number none of its rods support. A ring the value never bends also recovers 0, as does a chain
-        /// with no extrude ring at all.
-        /// </para>
+        /// Gets the authored <c>add_curvature</c> from the bend rods across each chain ring, whose minimum is
+        /// <c>flMaxDist * sin(add_curvature * pi / 2)</c>; 0 when the rods disagree or there are none.
         /// </summary>
         public float ChainRingCurvature
         {
@@ -1094,9 +935,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return 0f;
                 }
 
-                // Only the "$cc" extrude proxies, not every generated node BuildProxyRings groups: a
-                // strip's second column is named after the bone it widens and is no ring, so its rods sit
-                // on no hinge this reading knows the geometry of.
                 var lowest = float.MaxValue;
                 var highest = 0f;
                 foreach (var rod in Rods)
@@ -1131,9 +969,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // Whether `to` is reachable from `from` by following the parent links - assigning
-        // from -> ... -> to plus to -> from would close a parent cycle, which the compiler's
-        // topological sort recurses into until the stack runs out.
         static bool ReachesByParents(int[] realParent, int from, int to)
         {
             var guard = 0;
@@ -1149,11 +984,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Reconstructs bone chains from the control-node topology, ignoring auto-generated cloth proxy nodes.
-        /// Each chain is rooted at a real bone with no real-bone parent and contains all of its real descendants.
-        /// Chains are returned ordered by the lowest SIMULATED control-node index any of their joints or
-        /// extruded rings occupies, which is the order the compiler lays their simulated nodes out in.
-        /// A chain with no simulated node is ordered by its lowest static node instead.
+        /// Reconstructs the bone chains from the control-node topology, ordered by the lowest simulated node each one
+        /// occupies (or its lowest static node when it has none).
         /// </summary>
         public List<BoneChain> BuildBoneChains() => BuildBoneChains(null, null);
 
@@ -1186,33 +1018,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return chains;
             }
 
-            // Mark real skeleton bones (everything that is not an auto-generated cloth node).
             var isReal = new bool[n];
             for (var i = 0; i < n; i++)
             {
                 isReal[i] = !IsGeneratedNodeName(CtrlNames[i]) && !ImportedStripNodes.Contains(i);
             }
 
-            // For each real node, resolve its parent among real nodes. The direct skeleton parent is used when
-            // it is itself a real bone; otherwise the node is treated as a chain root. (Proxy-mesh parenting is
-            // intentionally not followed here - that topology belongs to the later proxy-mesh phase.)
-            //
-            // m_SkelParents is indexed in CONTROL-NODE space, so it collapses through any intermediate real
-            // skeleton bone that never became a control node itself: bones wired to each other only by
-            // explicit ClothSpring resolve their "real parent" to a distant shared ancestor and read as one
-            // chain. A link therefore needs an m_Rods entry between the node and its candidate real parent.
-            // A chain compiles to a fully-connected local rod mesh among its own joints (see
-            // AddClothProxySprings), which always includes the direct parent-child pair.
             var (rodPairs, rodRelaxationsByPair, rigidRodRelaxationsByPair, repeatRodRelaxationsByPair,
                 rodContractionsByPair) = BuildRodGraph();
             var (proxyChildrenOf, ringOwnerOf) = BuildProxyRings();
 
-            // Every chain link the compiler surfaces leaves one source element behind, and a joint with no
-            // extrude ring of its own contributes its bare node to it: a ringless parent joined to a ringed
-            // child is recorded as that parent plus the child's whole ring. Where a model records its other
-            // chain surfaces but not this one, the parent is not part of the chain and the skeleton link is
-            // the artist's bone hierarchy alone. The parent also has to drive proxy-sheet vertices through
-            // the offset network, which is what keeps its own node in the model independently of the chain.
             HashSet<string>? surfaceElements = null;
             bool RinglessLinkUnrecorded(int parent, int child)
             {
@@ -1251,7 +1066,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             bool? chainSurfacesRecorded = null;
             var unlinkedRingChildren = new HashSet<int>();
 
-            // An old-era link read off the skeleton or the rods between two extrusion rings that no recorded source element joins.
             bool RingLinkUnrecorded(int parent, int child)
             {
                 if (HasCompiledSkelParents || SourceFaces.Length == 0
@@ -1300,10 +1114,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return false;
             }
 
-            // A compile that records m_SkelParents ropes chain joints only, so each link of its m_Ropes runs is a
-            // chain link, rod or not: a chain declared with no stretch spring leaves no rod between its joints. The
-            // rope pass walks m_SkelParents to the root without stopping at a chain, though, so a run carries on past a
-            // joint that owns an end-effector centre, which only a declaration's last joint can.
             var ropeParents = HasCompiledSkelParents ? RopeRunParents : new Dictionary<int, int>();
             bool EndsItsChain(int node) => Array.IndexOf(CtrlNames, "$cc" + CtrlNames[node] + "_Ctr") >= 0;
 
@@ -1328,29 +1138,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 var rodLinked = rodPairs.Contains(p < i ? (p, i) : (i, p));
 
-                // A $cc-proxied chain carries its rods among the auto-generated $cc PROXY nodes, never
-                // between the real chain bones, so the rod test alone never links it. Two consecutive
-                // position-driven SIMULATED real bones are linked directly instead. The collapsed-ancestor
-                // false chain the rod test guards against cannot satisfy this: both ends are static.
                 var bothDrivenSim = i >= FirstPositionDrivenNode && p >= FirstPositionDrivenNode
                     && i < NodeInvMasses.Length && NodeInvMasses[i] != 0f
                     && p < NodeInvMasses.Length && NodeInvMasses[p] != 0f;
 
-                // A node that carries its own $cc proxies is a ribbon joint, so it links to its real parent
-                // cloth node whatever that parent's role: a simulated body bone, another $cc-proxied ribbon
-                // bone, or a pinned anchor with no proxies of its own. Requiring i to be $cc-proxied is
-                // itself the guard against the collapsed-ancestor false chain, whose nodes carry none.
                 var proxyRibbon = proxyChildrenOf.ContainsKey(i);
 
-                // A bone the compiler built a hinge anchor for is a hinged chain's root by construction,
-                // so its real children belong to that chain however few traces they leave of their own. The
-                // hinge puts the whole ribbon's proxies on the ROOT, which is what makes the three tests
-                // above miss these chains.
                 var hingedRoot = Array.IndexOf(CtrlNames, HingeAnchorPrefix + CtrlNames[p]) >= 0
                     || RigidHingeJoints.ContainsKey(p);
 
-                // A joint whose parent carries a stiff hinge is joined to it by the bend rather than by a
-                // rod, so the rod test alone drops it and the chain ends one joint short.
                 var bendLinked = false;
                 foreach (var bend in KelagerBends)
                 {
@@ -1361,16 +1157,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                // A joint can reach its chain by the BEND rod to its grandparent rather than by one to its
-                // own parent, which leaves the direct pair the rod test looks for absent and ends the chain
-                // a joint short. A grandparent needs a real parent of its own, so the static-root false
-                // chain the rod test guards against cannot reach this: its resolved parent is a root.
                 var grandParent = p < SkelParents.Length ? SkelParents[p] : -1;
                 var bendRodLinked = grandParent >= 0 && grandParent < n && isReal[grandParent]
                     && rodPairs.Contains(grandParent < i ? (grandParent, i) : (i, grandParent));
 
-                // Where the parent extrudes, the joint's rod lands on the parent's ring instead of on the
-                // parent itself.
                 var ringLinked = false;
                 if (proxyChildrenOf.TryGetValue(p, out var parentRing))
                 {
@@ -1386,8 +1176,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 var ropeLinked = ropeParents.TryGetValue(i, out var ropeParent) && ropeParent == p && !EndsItsChain(p);
 
-                // Only a chain's twist builder writes a twist between two bones, and only across a joint's
-                // link to its parent.
                 var twistLinked = TwistLinks.Contains(p < i ? (p, i) : (i, p));
 
                 if ((rodLinked || bothDrivenSim || proxyRibbon || hingedRoot || bendLinked
@@ -1397,10 +1185,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // A chain declared with no stretch spring carries no rod between consecutive joints, and its
-            // top link survives only in the BEND rod that spans the joint: that rod runs from the joint's
-            // own skeleton parent to a joint the chain already claims as its child. `bendRodLinked` above
-            // reads the same span from the child end, which no joint one below a chain root can do.
             for (var linked = true; linked;)
             {
                 linked = false;
@@ -1429,13 +1213,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // A rod between two pinned nodes constrains nothing and the compiler leaves it out, so a chain
-            // whose top two joints are both static loses the one link every rule above reads and roots a
-            // joint too low. The parent joint keeps only its own compiled m_SkelParents entry, which is
-            // taken here, but only where it names the node's DIRECT skeleton parent: the control-space
-            // collapse invents distant ancestors, which is what the rod test guards against. A bone the
-            // SHEET skins to is excluded on both ends, its compiled parent coming from the skin hierarchy
-            // rather than from a chain.
             if (SkeletonBoneParents is not null)
             {
                 var sheetSkinned = SheetSkinnedNodes();
@@ -1448,8 +1225,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                // Only a link one end of which the rules above already placed in a chain, so a pair of
-                // pinned bones no chain reaches stays the pair of ClothNodes it reconstructs as today.
                 bool InChain(int node) => realParent[node] >= 0 || linkedChildren[node] > 0
                     || proxyChildrenOf.ContainsKey(node);
 
@@ -1487,11 +1262,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // With m_SkelParents empty the link rules above never fire, so the chain's own compiled rod
-            // mesh is the remaining parent evidence: consecutive joints are joined by rods between the
-            // joints and their rings, and joints are emitted root-first, so the lower-indexed side of the
-            // rod evidence is the parent. Restricted to ring-bearing bones - a rod network among bare real
-            // bones is ClothNode/ClothSpring authoring, not a chain.
             if (!HasCompiledSkelParents && Rods.Length > 0)
             {
                 var ringOwner = new Dictionary<int, int>();
@@ -1531,8 +1301,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     linkCounts[key] = linkCounts.GetValueOrDefault(key) + 1;
                 }
 
-                // The skeleton orients a link where it can: rod evidence alone cannot tell parent from
-                // child on a strap anchored at both ends. Only a rod-evidenced pair is linked.
                 var nodeByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                 for (var i = 0; i < n; i++)
                 {
@@ -1551,11 +1319,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             continue;
                         }
 
-                        // The link goes to the nearest ANCESTOR the rods evidence, not merely the
-                        // nearest control-node ancestor: a strip whose rods skip a joint's own
-                        // skeleton parent and land on the shared bone above it otherwise stays
-                        // unoriented, and the lower-index fallback below then inverts the pair into
-                        // a parent cycle.
                         var ancestor = SkeletonBoneParents.GetValueOrDefault(CtrlNames[i]);
                         var guard = 0;
                         while (ancestor is not null && guard++ < 256)
@@ -1579,8 +1342,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                // Remaining unoriented pairs: joints are emitted root-first, so the lower-indexed side is
-                // the parent.
                 var bestParent = new Dictionary<int, (int Parent, int Count)>();
                 foreach (var ((low, high), count) in linkCounts)
                 {
@@ -1654,10 +1415,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // A joint the compiler extruded carries its children's rods on its RING; one authored with
-            // extrude_sides 0 carries them on the BONE. A reconstructed root that shows BOTH patterns
-            // across its own children was authored as SEPARATE chains sharing that root, only one of
-            // which extruded it.
             bool AnyRod(IEnumerable<int> a, IEnumerable<int> b)
             {
                 foreach (var x in a)
@@ -1674,11 +1431,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return false;
             }
 
-            // The compiler fits an orientation-locked joint over its own chain neighbourhood: its parent
-            // plus the rings of the parent's children WITHIN THE SAME ClothChain. A fit that names the
-            // parent therefore enumerates that joint's real siblings, and a sibling this chain has but the
-            // fit does not was authored elsewhere. A fit that does NOT name the parent is taken over some
-            // other neighbourhood and says nothing about siblings, so it never splits.
             void SplitGroupsByFitSet(int rootNode, List<(List<int> Kids, bool RinglessRoot)> groups)
             {
                 for (var g = 0; g < groups.Count; g++)
@@ -1715,8 +1467,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var chainSpecs = new List<ChainSpec>();
             foreach (var rootNode in roots)
             {
-                // A real bone with no real descendants is not a cloth chain, unless it carries its own
-                // extrude ring - a lone ring-bearing bone is a single-joint chain.
                 if (children[rootNode] is not { } rootKids)
                 {
                     if (!proxyChildrenOf.ContainsKey(rootNode))
@@ -1728,8 +1478,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                // A static childless kid with a ring of its own that no rod ties to the root or its ring was declared
-                // as a one-joint chain of its own.
                 var looseKids = rootKids.Count > 1 && proxyChildrenOf.TryGetValue(rootNode, out var ownRing) && ownRing.Count > 0
                     ? rootKids.FindAll(kid => IsStatic(kid) && children[kid] is null
                         && proxyChildrenOf.TryGetValue(kid, out var kidRing) && kidRing.Count > 0
@@ -1759,8 +1507,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         }
                         else
                         {
-                            // No rod either way says nothing about which chain the child was in, so the
-                            // split has no evidence for it and the whole root stays merged.
                             ringAnchored.Clear();
                             boneAnchored.Clear();
                             break;
@@ -1812,10 +1558,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var ringlessRoot = spec.RinglessRoot;
                 var chain = new BoneChain { RootBone = CtrlNames[rootNode], DeclarationSuffix = spec.Suffix };
 
-                // The ring a joint extruded in THIS declaration. A bone two chains declare carries one
-                // ring per declaration under the same name, so reading them all as one ring merges two
-                // rings into a single wider one and every value the second declaration left on its own
-                // ring is lost with it.
                 List<int>? DeclaredRing(int node)
                     => spec.RingOf is not null && spec.RingOf.TryGetValue(node, out var ring)
                         ? ring
@@ -1823,7 +1565,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 var subtreeFirstNode = new Dictionary<int, int>();
 
-                // The children this declaration keeps under one joint, in the order they were declared.
                 List<int> DeclaredChildren(int node)
                 {
                     if (children[node] is not { } all)
@@ -1844,10 +1585,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return kids;
                 }
 
-                // The lowest node of the chain's own simulated block a joint's subtree occupies: its own
-                // node, the ring it extruded and everything declared under it. The compiler lays that
-                // block out in declaration order, and a position-driven joint sits past the whole of it
-                // whatever its place in the declaration.
                 int SubtreeFirstNode(int start)
                 {
                     if (subtreeFirstNode.TryGetValue(start, out var cached))
@@ -1914,13 +1651,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 Visit(rootNode);
 
-                // The ribbon width the compiler baked into $cc proxy nodes: how many it placed per joint
-                // (extrude_sides) and their mean offset (extrude_radius).
-                //
-                // extrude_sides forces EVERY joint to the same width, so it reproduces a uniform strip
-                // exactly but cannot reproduce a ribbon whose END-CAP joint fans wider than its body. The
-                // width is the MODE, the one most joints share, so the body is reproduced exactly and only
-                // the tip fan is dropped. 0/1 stays a plain rope with no extrude.
                 var sideFrequency = new Dictionary<int, int>();
                 var radii = new List<float>();
                 var twists = new List<float>();
@@ -1940,20 +1670,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                     joint.RingNodes = [.. proxies.Order()];
 
-                    // A bone this declaration shares with another leaves its own goal, damping, radius,
-                    // stray radius and simulate flag on the ring it extruded; the joint node itself keeps
-                    // only one declaration's.
                     if (spec.RingOf is not null && spec.RingOf.ContainsKey(joint.Node))
                     {
                         joint.ValueNode = proxies[0];
                         joint.InvMass = proxies[0] < NodeInvMasses.Length ? NodeInvMasses[proxies[0]] : joint.InvMass;
                     }
 
-                    // A "$cc<bone>_Ctr" proxy is the single centre node the compiler emits for an
-                    // end_effector with extrude_sides < 2 - it is not a ring member at all. A joint whose
-                    // proxies are ALL centre nodes has no side ring: end_effector is the centre's forward
-                    // displacement and the ring is left empty. Such a joint takes no part in the
-                    // body-width vote below.
                     var ring = proxies;
                     List<int>? endEffectorRing = null;
                     if (proxies.TrueForAll(p => CtrlNames[p].EndsWith("_Ctr", StringComparison.Ordinal))
@@ -1973,10 +1695,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         }
                     }
 
-                    // A joint whose proxies sit at two different distances along its forward axis carries a
-                    // second ring, which is what end_effector produces. Its ring width is half the proxy
-                    // count, not the whole of it - taking the whole count instead lays them out as one
-                    // wider ring and every proxy lands somewhere the original never put it.
                     if (joint.Node < InitPoseRotations.Length && joint.Node < InitPosePositions.Length)
                     {
                         var forwardOf = new Dictionary<int, float>(proxies.Count);
@@ -1992,10 +1710,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                         if (forwardOf.Count == proxies.Count)
                         {
-                            // The joint's OWN ring sits at forward ~= 0, centred on the joint; an
-                            // end_effector ring is displaced from that by a signed amount that can go
-                            // either way, so the near ring is whichever cluster sits closest to 0 rather
-                            // than whichever has the smaller signed value.
                             var minAbs = forwardOf.Values.Min(MathF.Abs);
                             var maxAbs = forwardOf.Values.Max(MathF.Abs);
                             if (maxAbs - minAbs > EndEffectorRingTolerance)
@@ -2003,9 +1717,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                                 var nearRing = proxies.Where(p => MathF.Abs(forwardOf[p]) - minAbs <= EndEffectorRingTolerance).ToList();
                                 if (nearRing.Count > 0 && nearRing.Count < proxies.Count)
                                 {
-                                    // One reference value per ring rather than an average across the
-                                    // cluster: the near ring's smallest-magnitude member and the far
-                                    // ring's largest-magnitude one.
                                     var farRing = proxies.Except(nearRing).ToList();
                                     var nearValue = forwardOf[nearRing.MinBy(p => MathF.Abs(forwardOf[p]))];
                                     var farValue = forwardOf[farRing.MaxBy(p => MathF.Abs(forwardOf[p]))];
@@ -2031,14 +1742,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                                 ExtrudeOrigin(joint.Node), InitPoseRotations[joint.Node], proxies, InitPosePositions);
                         }
 
-                        // The ring is laid out around the joint's forward axis, so the roll the compiler
-                        // used shows up as the angle of the first proxy in the RING's own frame - the
-                        // joint's rest rotation composed with the forward-axis selector, not the joint's
-                        // rest rotation alone (the two coincide only when the axis is the default 'x').
-                        // A hinge re-lays the joint's own ring along its hinge vector, overriding the
-                        // authored width and roll on that ring alone. The end-effector ring the same joint
-                        // extrudes is left where the authored extrude put it, so it is the only place the
-                        // authored values still survive on a hinged joint.
                         var measured = endEffectorRing is { Count: > 0 } && IsHingedJoint(joint.Node)
                             ? endEffectorRing
                             : proxies;
@@ -2071,37 +1774,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                // Body width = most common per-joint count; tie-break toward the SMALLER (an end cap only
-                // ever ADDS proxies, so the smaller of two equally-common widths is the body, not the cap).
                 var bodySides = sideFrequency
                     .OrderByDescending(static kv => kv.Value)
                     .ThenBy(static kv => kv.Key)
                     .Select(static kv => kv.Key)
                     .FirstOrDefault();
 
-                // Extrude whenever the body carries proxies at all, not only 2-wide strips: a 1-wide body
-                // with one $cc proxy per joint is not the same as a genuine 0-proxy rope. A 0-width body
-                // (empty sideFrequency, so bodySides 0) gets no extrude.
                 if (bodySides >= 1)
                 {
-                    // extrude_sides' authored range is [0,4]; a wider strip is clamped (best-effort width).
                     chain.ExtrudeSides = Math.Min(bodySides, 4);
                     chain.ExtrudeRadius = radii.Count > 0 ? radii.Average() : 0f;
                     chain.ExtrudeTwist = twists.Count > 0 ? twists.Average() : 0f;
                 }
 
-                // A joint's bend/torsion springs are what make the compiler span a rod to its grandparent
-                // and great-grandparent, so the presence of those rods is what the source authored. On an
-                // extruding chain that span lands between the two joints' extruded RINGS and never between
-                // the joint nodes, so both have to be looked at or the spring reads as off on every joint
-                // of every such chain.
                 var jointByNode = chain.Joints.ToDictionary(static j => j.Node);
 
-                // A joint that extrudes carries a span on its ring instead of on itself, so the ring stands
-                // in for the joint wherever it has one. A joint that also extrudes an end_effector owns TWO
-                // rings; only its own - the near one - carries its spans, so the crossing tests read that
-                // one. The end-effector ring sits a joint further down and carries the spans of that
-                // position instead.
                 List<int> Side(int end)
                 {
                     if (ringlessRoot && end == rootNode)
@@ -2114,8 +1801,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         return jointRing;
                     }
 
-                    // A centre-only end_effector's centre sits on the joint's second node list, so the
-                    // joint's own spans run from its own node.
                     if (endEffectorRingOf.ContainsKey(end))
                     {
                         return [end];
@@ -2124,11 +1809,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return DeclaredRing(end) is { Count: > 0 } ring ? ring : [end];
                 }
 
-                // THIS chain's own natural, non-suspendered relaxation factor: what every UNDOUBLED rod
-                // (a pair with exactly one recorded copy) among the chain's own nodes carries. A
-                // chain-level modifier such as a non-default stretch_spring moves it off the compiler's
-                // 1.0 default uniformly. Null when the chain's undoubled rods disagree or it has none, in
-                // which case RootSuspenderValue reads extra_iterations alone.
                 var chainNodes = new HashSet<int>();
                 foreach (var chainJoint in chain.Joints)
                 {
@@ -2187,16 +1867,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     chainNaturalRf = withoutRoot;
                 }
 
-                // The compiler writes a chain rod's flRelaxationFactor straight from the slider that
-                // generated it: the span to the parent carries the joint's stretch_spring, the span to the
-                // grandparent its bend_spring and the span to the great-grandparent its torsion_spring. An
-                // extruding joint carries the span on its ring, so the factor is read across the whole
-                // ring-to-ring crossing and returned only where every rod there agrees. A crossing a
-                // suspender or an extra_iterations repeat has doubled carries two different factors and
-                // reads as null, leaving the chain's own natural factor as the value. A crossing that also
-                // carries a LENGTH-BANDED rod is read again over its rigid rods alone: every slider-driven
-                // chain rod pins min to max, so a banded companion is some other construct and its factor
-                // is not the slider's.
                 float? RelaxationAcross(List<int> lhs, int other)
                 {
                     if (other < 0 || lhs.Count == 0)
@@ -2234,15 +1904,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                // The rods WITHIN one joint's own extrusion - ring to ring, and the joint to its ring -
-                // carry that joint's stretch_spring too, which is the only place a chain ROOT records it:
-                // a root has no parent span for SpanRelaxation to read.
-                //
-                // The chain's own ring rod spans the two nodes at their rest distance and contracts by the
-                // joint's antishrink, so on a joint that does not shrink it is RIGID; a surface rod built
-                // across the same two ring vertices measures a fan instead and is not. Where a ring pair
-                // carries both, the two disagree and the whole reading is lost, so the rigid set stands in
-                // exactly as it does for a span in RelaxationAcross.
                 float? RingInternalRelaxation(int node)
                 {
                     if (DeclaredRing(node) is not { Count: > 0 } ring)
@@ -2284,9 +1945,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 float? SpanRelaxation(int node, int other) => RelaxationAcross(Side(node), other);
 
-                // A bend or torsion span is read off the rods a declaration put there. A pair whose every rod the
-                // compiler folded across a shared face edge on its own carries no spring, and stating one declares a
-                // second rod beside the fold.
                 bool Declared((int, int) pair) => rodPairs.Contains(pair) && !SurfaceFoldOnlyPairs.Contains(pair);
 
                 bool SpannedByDeclaredRod(int node, int other)
@@ -2295,9 +1953,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 bool AllDeclared(List<int> lhs, int other)
                     => other >= 0 && lhs.Count > 0 && lhs.All(a => Side(other).All(b => Declared(a < b ? (a, b) : (b, a))));
 
-                // The spring spans the two sides in FULL: anything short of that is some other construct
-                // passing between them - a surface the sheet rebuilds, say - and turning the spring on to
-                // claim it would add every pair it does not have.
                 bool AllSpanned(List<int> lhs, int other)
                 {
                     if (other < 0 || lhs.Count == 0)
@@ -2334,29 +1989,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return AllSpanned(Side(node), other);
                 }
 
-                // An end_effector ring stands one joint deeper than the joint that extrudes it: its own
-                // span reaches that joint's ring, its bend span the joint's PARENT and its torsion span
-                // the joint's GRANDPARENT. Both are switched by the extruding joint's own bend_spring
-                // and torsion_spring, so that crossing is evidence for those two flags as well.
                 List<int> EndEffectorRing(int node)
                     => endEffectorRingOf.TryGetValue(node, out var far) ? far : [];
 
-                // An extra solver iteration repeats the rods a joint generates upward - the span to its
-                // parent plus its bend and torsion spans - and repeats them ALL, uniformly. Each span is
-                // read across both ends in full (an extruding joint carries it on its ring), and the whole
-                // ring-to-ring set has to be present: an end cap that fans wider than its parent reaches
-                // only part of the tip ring, so its crossing pairs are doubled by geometry while the set
-                // stays incomplete. Disagreement or a gap means no iteration.
-                //
-                // Three things are not evidence. A joint's own ring edge tracks the ring's shape rather
-                // than the iteration count. A span running DOWN to a deeper joint belongs to that joint's
-                // count. And a pair mixing a rigid rod with a slack one counts only its rigid rods, since
-                // add_curvature lands one slack rod on the index-aligned ring pairs of the bend span
-                // alone, which would otherwise read one higher on those pairs than on the rest of the set
-                // (see BuildRodGraph for the pairs that carry no rigid rod at all).
-                // The repeatable rods on one joint's span to <paramref name="other"/>, counted across the
-                // whole ring-to-ring set and 0 unless every pair of it agrees. -1 marks a span the joint
-                // does not reach at all.
                 int SpanCopies(BoneChainJoint joint, int other)
                 {
                     if (other < 0)
@@ -2384,12 +2019,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return copies;
                 }
 
-                // The compiler copies a joint's own antishrink into the contraction factor of every rod
-                // its spans generate, so each of them carries it back as flMinDist / flMaxDist. The
-                // reading is taken across the whole ring-to-ring set of every span the joint owns and
-                // only where all of them agree: a span whose rods disagree is one another producer also
-                // reaches, and one with no rod left (both endpoints static, so the rod was removed)
-                // carries no evidence at all and neither does it need any.
                 float JointContraction(BoneChainJoint joint, int parent, int grand, int greatGrand)
                 {
                     float? found = null;
@@ -2427,12 +2056,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return found is { } reading ? Math.Clamp(reading, 0f, 1f) : 1f;
                 }
 
-                // How many times the joint's own upward spans are repeated. With `floor`, a pair carrying
-                // MORE than the rest no longer throws the reading away: a second construct declaring one
-                // of the same pairs adds to that pair alone, so the count every pair reaches is the
-                // repeat and the surplus is somebody else's rod. Without it the count has to be uniform,
-                // which is what the suspender readings below are built on. A pair with NO rod is fatal
-                // either way - the joint does not generate that span, so nothing about it is repeated.
                 int JointCopies(BoneChainJoint joint, bool floor = false)
                 {
                     var copies = 0;
@@ -2472,12 +2095,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         || (joint.BendSpring && !Repeats(grand))
                         || (joint.TorsionSpring && !Repeats(greatGrand)))
                     {
-                        // A span carrying NO rod is one the joint does not generate, so it says nothing
-                        // about the sibling rods the joint builds from its OWN call site with its OWN
-                        // multiplier - the reading below takes nothing from the span. Only a joint NO
-                        // upward pair gave a count for falls through: a pair whose count DISAGREES needs
-                        // an earlier count to disagree with, so that case keeps returning 1, and it is
-                        // the suspender companion and floor surplus W38-R1 refuted reading.
                         if (copies != 0 || ChildSiblingValue(joint) == 0f)
                         {
                             return 1;
@@ -2486,9 +2103,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         return Math.Max(SiblingCopies(joint), 1);
                     }
 
-                    // A chain ROOT has no span of its own to count, so the reading comes from the only
-                    // other rods that cross it: its child's span down to it, which is the same rod set
-                    // read from the far end. Only an unambiguous single child can stand in.
                     if (copies == 0)
                     {
                         var onlyChild = -1;
@@ -2514,16 +2128,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         }
                     }
 
-                    // A root SEVERAL children hang off has no unambiguous span either way - each child's
-                    // span down to it is built by that CHILD's declaration and carries the child's own
-                    // multiplier. Its `child_sibling_spring` rods do not: the compiler builds one per
-                    // unordered pair of the joint's children from the JOINT's own call site, with the
-                    // joint's own `extra_iterations` (02_IMPORT 5.1g), so a sibling pair's copy count is
-                    // this joint's multiplier and nothing else's. The count every pair of them shares is
-                    // the reading, since a second construct declaring one of the pairs adds to that pair
-                    // alone - the same floor the `floor` parameter above applies to the spans.
-                    // `joint.ChildSiblingSpring` is not assigned until after this pass, so the spring is
-                    // read here rather than off the field.
                     if (copies == 0 && ChildSiblingValue(joint) != 0f)
                     {
                         copies = SiblingCopies(joint);
@@ -2532,10 +2136,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return Math.Max(copies, 1);
                 }
 
-                // The copy count every CHILD-SIBLING pair of the joint carries, or 0 where fewer than two
-                // of its children are joined at all. Read as the minimum rather than a uniform count,
-                // because one pair the children are ALSO joined by for some other reason carries that
-                // rod beside the spring's copies.
                 int SiblingCopies(BoneChainJoint joint)
                 {
                     var kids = chain.Joints.FindAll(kid => kid.ParentNode == joint.Node);
@@ -2563,15 +2163,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return common;
                 }
 
-                // Every upward pair this joint generates must carry EXACTLY baseCopies rods at
-                // <paramref name="naturalRf"/> plus baseCopies more at ONE other shared value, or this
-                // returns null.
-                //
-                // A candidate of 1.0 is accepted only when naturalRf is ALSO 1.0. The compiler emits a
-                // flat 1.0 on every copy an extra_iterations repeat adds, whatever the chain's own natural
-                // factor, so on a chain whose natural factor is something else a lone 1.0 copy is that
-                // repeat rather than a suspender. Only a candidate at a third value, matching neither the
-                // natural factor nor 1.0, is unambiguous.
                 float? SplitEvenly(List<float> relaxations, float naturalRf, int baseCopies)
                 {
                     var baseCount = 0;
@@ -2603,11 +2194,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return value;
                 }
 
-                // A suspender adds exactly ONE companion rod between a joint's own ring and its CHAIN
-                // ROOT's ring - never its immediate parent, unless the root happens to BE that parent.
-                // extra_iterations is unrelated: it repeats a joint's own parent, grandparent (if
-                // bend_spring) and great-grandparent (if torsion_spring) spans (JointCopies, untouched by
-                // this method), which overlaps the root pair only when the root is one of those targets.
                 float? RootSuspenderValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand)
                 {
                     if (joint.Node == rootNode)
@@ -2621,9 +2207,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                     if (rootIsUpwardTarget)
                     {
-                        // The root coincides with a target JointCopies already gathers evidence from, so
-                        // ITS total already counts any extra_iterations repeats AND a suspender companion
-                        // together - split it the same way, against the chain's own natural factor.
                         var naturalRf = chainNaturalRf ?? 1f;
                         var totalCopies = JointCopies(joint);
                         if (totalCopies <= 1 || totalCopies % 2 != 0)
@@ -2660,13 +2243,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         return suspender;
                     }
 
-                    // The root is not one of extra_iterations' own targets, so a chain with no suspender
-                    // has no rod between this joint and the root AT ALL: nothing but a suspender reaches a
-                    // joint further from the root than its own great-grandparent span. Every copy of that
-                    // rod carries the suspender's own value, so a pair whose rigid rods all agree names it
-                    // however many iterations repeated it. Skips a pair SourceSprings already accounts for
-                    // as an explicit authored ClothSpring (a rigger's own cross-chain tie - see
-                    // GetAuthoredSourceSprings) so the two mechanisms never double-claim the same rod.
                     {
                         float? suspender = null;
                         foreach (var a in Side(joint.Node))
@@ -2692,14 +2268,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                // The suspender companion on a chain that has NO extra iterations, which
-                // <see cref="RootSuspenderValue"/>'s own route cannot see: there the root pair's total is
-                // split evenly between repeats and the companion, so it needs an even count and a second
-                // relaxation to split on. A chain that merely carries a suspender has every span of the
-                // joint at the same count and the span landing on the chain ROOT one higher, and the
-                // surplus rod may sit at the chain's own factor, which no split can separate. The count
-                // alone identifies it. The root pair is also what breaks JointCopies' uniformity test, so
-                // this reads the iteration count off the parent span instead.
                 float? RootCompanionValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand, out float? spanRelaxation)
                 {
                     spanRelaxation = null;
@@ -2783,16 +2351,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return values.Low;
                 }
 
-                // A pair of exactly two rods at two different relaxations, lower first.
                 static (float Low, float High)? TwoSingleRods(List<float> relaxations)
                     => relaxations.Count == 2 && MathF.Abs(relaxations[0] - relaxations[1]) > 1e-4f
                         ? (MathF.Min(relaxations[0], relaxations[1]), MathF.Max(relaxations[0], relaxations[1]))
                         : null;
 
-                // The one relaxation left on a root pair once the joint's own baseCopies repeats are taken
-                // out of it: the pair's single odd value, or its shared value when every rod agrees. A pair of
-                // one span rod and one companion has no odd count, and the compiler's rod sort puts either
-                // first, so the companion is the rod away from the joint's own span reading baseRf.
                 static float? Surplus(List<float> relaxations, int baseCopies, float baseRf)
                 {
                     var groups = new List<(float Value, int Count)>();
@@ -2830,15 +2393,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return odd >= 0 && groups[1 - odd].Count == baseCopies ? groups[odd].Value : null;
                 }
 
-                // A chain rod compiles with flRelaxationFactor = slider * exp(-default_stretch), so the
-                // slider is the compiled factor with the model's own default_stretch scale taken back out.
                 var sliderScale = MathF.Exp(-DefaultSurfaceStretch);
                 float Slider(float relaxation) => Math.Min(1f, relaxation / sliderScale);
 
-                // The compiler builds a joint's parent rod only for a non-zero stretch slider. A chain whose
-                // spans a self-collision cluster owns, with nothing else on any of them, declared none: the
-                // rods on those pairs are the cluster's. Elsewhere an unread span is carrying its rod
-                // somewhere this reconstruction does not see, and keeps the neutral default.
                 var clusterPairs = SelfCollisionClusterPairs;
                 var chainDeclaresNoStretch = chain.Joints.Count > 1
                     && chain.Joints.Exists(joint => !joint.IsRoot
@@ -2850,13 +2407,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 static (int, int) SpanPair(int a, int b) => a < b ? (a, b) : (b, a);
 
-                // How many rods the compile left on a pair, which is how many constructs declared it.
                 int SpanRodCopies(int a, int b)
                     => repeatRodRelaxationsByPair.TryGetValue(SpanPair(a, b), out var repeats) ? repeats.Count : 0;
 
-                // The multiplicity of the joint's OWN ring-circumference rod, which nothing but the chain
-                // declares, so it is how many copies of every span this joint generates. Zero where the
-                // joint extrudes nothing, and then the chain's own count has no independent witness.
                 int RingRodCopies(int node)
                 {
                     var most = 0;
@@ -2914,9 +2467,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     joint.BendSpring = SpannedByDeclaredRod(joint.Node, grandParent) || AllDeclared(endRing, parent);
                     joint.TorsionSpring = SpannedByDeclaredRod(joint.Node, greatGrandParent) || AllDeclared(endRing, grandParent);
 
-                    // A zero stiffness is the compiler's signal to leave the span out entirely, so a span
-                    // that exists but reads back at zero keeps the neutral 1.0 rather than switching its
-                    // own rod off.
                     float SpringStiffness(int other, int endEffectorOther)
                     {
                         var stiffness = SpanRelaxation(joint.Node, other)
@@ -2934,16 +2484,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         ? 0f
                         : stretch > 0f ? Slider(stretch) : 1f;
 
-                    // A span the compile records as its own two-corner source element was authored as a
-                    // ClothSpring rather than as this joint's stretch slider, and the spring is re-declared
-                    // with the rod's own fields. The chain must not build the same span a second time: the
-                    // two are created in different passes and never merge, so a zero slider is what removes
-                    // the chain's copy.
-                    // A compile that wrote NO node base at all had every dynamic node's basis hint pair
-                    // filled by its ropes, and a roped node keeps its chain rods for that reason: a chain
-                    // left generating nothing loses the rope, the hint pairs go empty and the compiler
-                    // then writes a basis per node the original does not carry. The explicit spring is
-                    // worth a source element, not that.
                     var ropeHinted = NodeBases.Count == 0
                         ? RopeRunParents
                         : (IReadOnlyDictionary<int, int>)new Dictionary<int, int>();
@@ -2952,14 +2492,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         && (Array.IndexOf(SourceSprings, (joint.Node, other)) >= 0
                             || Array.IndexOf(SourceSprings, (other, joint.Node)) >= 0);
 
-                    // A spring on the pair does not REPLACE the chain's own span. The two are built in
-                    // different passes and neither merges nor dedups, so a pair carrying MORE rods than
-                    // the chain's own copy count was declared by both, and zeroing the slider there takes
-                    // the joint's whole stretch family with it - its own ring-circumference rod and its
-                    // cross-span rods, none of which the spring replaces.
-                    // The copy count is read off the joint's own ring rod, which nothing but the chain
-                    // declares. A joint that extrudes nothing leaves no such witness, and there the whole
-                    // multiplicity is the spring's as it has always been read.
                     var ringCopies = RingRodCopies(joint.Node);
                     if (AuthoredSpring(parent)
                         && !(ringCopies > 0 && SpanRodCopies(joint.Node, parent) > ringCopies))
@@ -3005,9 +2537,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                     else
                     {
-                        // No suspender to split the count with, so the repeats are read off the floor:
-                        // neither reading above is being fed, and a joint one shared pair keeps from
-                        // agreeing would otherwise lose its iteration count on every pair it has.
                         joint.Suspender = 0f;
                         joint.ExtraIterations = JointCopies(joint, floor: true) - 1;
                     }
@@ -3023,9 +2552,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var own = Extrusion(joint.Node);
                     var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
 
-                    // The bit routes the joint's rods to the animated array and does nothing else, so a
-                    // joint whose extrusion carries no entry there had no rod built for it at all - which
-                    // is a zero stretch slider, not an animated length the rods would have recorded.
                     var animated = AnimRodPairs.Count > 0
                         && own.Exists(node => AnimRodPairs.Any(pair => pair.Item1 == node || pair.Item2 == node));
 
@@ -3043,14 +2569,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 bool Simulates(int node) => node < NodeInvMasses.Length && NodeInvMasses[node] != 0f;
 
-                // The compiler springs a joint's own CHILDREN against each other, one rod per unordered
-                // pair of them across the whole ring-to-ring set, each carrying the joint's
-                // child_sibling_spring as its relaxation. The reading is taken only where every one of
-                // those rods is present and they all agree: a pair the two children are joined by for
-                // some other reason leaves the joint at zero rather than declaring the whole set. A pair
-                // the rod maker itself would skip - neither endpoint simulates - carries no evidence and
-                // needs none, and a pair the compile records as its own authored spring is
-                // AddClothSourceSprings' to declare, not this joint's.
                 float ChildSiblingValue(BoneChainJoint joint)
                 {
                     var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
@@ -3081,11 +2599,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                                         return 0f;
                                     }
 
-                                    // The compiler writes ONE rod per pair, at the spring's own relaxation.
-                                    // A pair the two children are ALSO joined by for some other reason
-                                    // carries that rod beside it and does not refute the set, so the
-                                    // reading is the value every pair has in common rather than the value
-                                    // every rod agrees on. It survives only while exactly one value does.
                                     if (common is null)
                                     {
                                         common = [];
@@ -3120,10 +2633,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     joint.ChildSiblingSpring = ChildSiblingValue(joint);
                 }
 
-                // A chain extruding a ring of two or more sides ties a position-driven joint through its
-                // ring only; a rod straight between that joint node and its parent node comes from a
-                // second, plain declaration of the two, which also re-registers both joint nodes. A
-                // one-sided ring leaves the chain's own parent rod, whatever else drives the joint.
                 foreach (var joint in chain.Joints)
                 {
                     if (joint.IsRoot || joint.ProxyNode < 0 || joint.ExtrudeSides < 2 || !IsPositionDriven(joint.Node)
@@ -3143,8 +2652,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 SteerNodeBaseTies(chain);
 
-                // A joint's ring can straddle the static boundary, and the joint itself records only its
-                // first proxy, so the chain's first simulated node is read off the whole declared ring.
                 var firstSimulated = int.MaxValue;
                 foreach (var joint in chain.Joints)
                 {
@@ -3211,24 +2718,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Marks the joints a SECOND <c>ClothChain</c> re-declares, and the bone that chain is rooted at.
         /// </summary>
-        /// <remarks>
-        /// The compiler runs its twist builder once per chain and appends each entry with no duplicate
-        /// check, so a joint's own entries say which declaration wrote them. A simulating joint states its
-        /// <c>twist_relax</c> scaled by <see cref="TwistRelaxToParentFactor"/> toward its parent and by
-        /// <see cref="TwistRelaxToChildFactor"/> toward each child, and the child-ward one is zeroed only
-        /// where the joint did NOT simulate at that pass. A relaxed parent-ward entry beside a zeroed
-        /// child-ward one on a joint that simulates therefore cannot come from a single declaration: the
-        /// first stated <c>simulate = false</c> and a later one won the node.
-        /// The second declaration is rooted at the nearest STATIC ancestor, which is the joint the run
-        /// hangs from and the only endpoint that can carry the run's own parent rod.
-        /// </remarks>
         /// <param name="chains">The reconstructed chains, edited in place.</param>
         void MarkSecondDeclarations(List<BoneChain> chains)
         {
             foreach (var chain in chains)
             {
-                // Re-declaring a RINGED joint extrudes a second ring and invents control nodes, so only a
-                // ringless chain can carry a second declaration without changing the node set.
                 if (chain.ExtrudeSides >= 1)
                 {
                     continue;
@@ -3254,10 +2748,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var roots = new List<BoneChainJoint>();
                 foreach (var joint in chain.Joints)
                 {
-                    // ONE copy each way: the run was twisted by a single pass, so the declaration that
-                    // wrote nothing states twist_relax 0 and built no constraint of its own. Where the
-                    // second pass also wrote entries it ran its whole builder, and re-declaring the run
-                    // then doubles the rods and bends the first declaration already makes.
                     if (!joint.Simulated || joint.ParentNode < 0
                         || !TwistRelaxCopies.TryGetValue((joint.Node, joint.ParentNode), out var toParent)
                         || toParent.Count != 1 || toParent[0] <= 0f
@@ -3303,20 +2793,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Marks the runs whose second declaration stated a <c>twist_relax</c> of its own, which the
-        /// silent predicate above cannot see: its pairs carry TWO copies rather than one.
+        /// Marks the runs whose second declaration stated its own <c>twist_relax</c>, whose pairs carry two twist copies.
         /// </summary>
-        /// <remarks>
-        /// The compiler appends one twist entry per chain declaration with no duplicate check, so the
-        /// bones a DOUBLED pair names at either end are exactly the re-declared run, and the member no
-        /// other member parents is the bone the second declaration is rooted at. Reading membership from
-        /// the doubled pairs rather than from the nearest static ancestor is what keeps a run carrying
-        /// STATIC INTERMEDIATES in one declaration: rooting each of those separately drops the bend rod
-        /// every fragment's first member states toward a grandparent outside it.
-        /// The first declaration is recognised by its own child-ward copy being 0, which says it did not
-        /// simulate the joint; a run BOTH declarations simulate is a different construct and is left
-        /// alone, because re-declaring it under <c>firstOfTwo</c> would halve the rods it builds.
-        /// </remarks>
         void MarkVoicedSecondDeclarations(BoneChain chain, Dictionary<int, BoneChainJoint> byNode)
         {
             var doubled = new HashSet<int>();
@@ -3340,8 +2818,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             foreach (var root in members)
             {
-                // The run's own root: no other member parents it, it is static so it carries the run's
-                // parent rod, and at least one member below it simulates or there is nothing to restate.
                 if (memberNodes.Contains(root.ParentNode) || root.Simulated)
                 {
                     continue;
@@ -3376,8 +2852,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Whether the FIRST of a doubled run's two declarations left its members unsimulated, which is
-        /// what a child-ward copy of 0 at rank 0 records.
+        /// Gets whether the first of a doubled run's declarations left it unsimulated: a child-ward copy of 0 at rank 0.
         /// </summary>
         bool FirstDeclarationIsStatic(List<BoneChainJoint> run, Dictionary<int, BoneChainJoint> byNode)
         {
@@ -3414,14 +2889,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gathers the chains of a ringless sibling group under the bone that parents them, and marks the
         /// hub as springing its children together.
         /// </summary>
-        /// <remarks>
-        /// A joint's <c>child_sibling_spring</c> rods its own children to each other, and those rods are
-        /// what stage each child's fit influences and lock it to its goal. Where every one of the children
-        /// is static the rods themselves are dropped, so the group's only compiled trace is the locks and
-        /// the fits - which is why the rod-read <c>ChildSiblingSpring</c> cannot see it and why each such
-        /// child otherwise reads as a chain root of its own. The spring's magnitude leaves no trace at all
-        /// there, so any value above zero states it.
-        /// </remarks>
         /// <param name="chains">The reconstructed chains, edited in place.</param>
         void MergeSiblingHubs(List<BoneChain> chains)
         {

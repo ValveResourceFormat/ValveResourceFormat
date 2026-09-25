@@ -5,55 +5,36 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 {
     public sealed partial class FeModel
     {
-        // The gap two candidate pairs must score apart before the round trip's own rest-position drift can
-        // still swap which one the scan keeps, and the roll ladder that opens such a gap. The ladder runs
-        // widest first: how far a roll of a given size moves a recompiled ring is only approximated here,
-        // so the roll that survives the round trip is the widest one the cost budget still allows, not the
-        // narrowest one that clears the margin in this model of it.
+        /// <summary>The margin a node-base scan decision has to clear to count as settled.</summary>
         const float NodeBaseTieMargin = 1e-4f;
+
+        /// <summary>The ring rolls in degrees tried to settle a node-base tie, widest first.</summary>
         static readonly float[] NodeBaseNudgeLadder =
         [
             0.016f, -0.016f, 0.012f, -0.012f, 0.008f, -0.008f, 0.004f, -0.004f,
             0.002f, -0.002f, 0.001f, -0.001f, 0.0005f, -0.0005f,
         ];
 
-        // Half the 1e-3 absolute floor the comparator holds two floats equal within, so a roll can never
-        // push a component the round trip already carries drift on across it.
+        /// <summary>The furthest a roll may move a node or change a rod's rest length.</summary>
         const float NodeBaseCostBudget = 5e-4f;
 
-        // One joint's shipped node base together with the candidate list the compiler scanned for it and
-        // the two joints whose scan vectors that list is drawn from.
+        /// <summary>
+        /// A joint's compiled node base with the candidate list scanned for it and the two joints the list is drawn from.
+        /// </summary>
         readonly record struct NodeBaseTarget(int Node, List<int> Candidates, NodeBasis Want,
             BoneChainJoint First, BoneChainJoint Second);
 
         /// <summary>
-        /// Whether any vertex of <paramref name="proxy"/> that the original compiled as a synthetic
-        /// sheet vertex carries an <c>m_NodeBases</c> entry of its own. Such a vertex is a virtual node,
-        /// and a virtual node is given an orientation basis only when its sheet is imported with
-        /// <c>ClothProxyMeshFile.add_bones_to_render_mesh</c>, so an entry on one is a positive statement
-        /// that the sheet was imported with that key on. The absence of one states nothing: a vertex
-        /// reached by fewer than three source-element corners carries no basis either way, and a sheet
-        /// reconstructed over real bones has no synthetic vertex to speak for it at all.
+        /// Gets whether a proxy-sheet vertex of <paramref name="proxy"/> carries an <c>m_NodeBases</c> entry, which only a
+        /// sheet imported with <c>add_bones_to_render_mesh</c> gives it.
         /// </summary>
         public bool ProxyOwnsNodeBases(ProxyMesh proxy)
             => Array.Exists(proxy.NodeIndices, node => IsProxyMeshNode(node) && NodeBases.ContainsKey(node));
 
         /// <summary>
-        /// Whether the original compiled <paramref name="chain"/> without the per-joint preset bases a
-        /// <c>ClothChain</c> of version 2 or above carries: true when its joints' <c>m_NodeBases</c> entries
-        /// are the bulk grade over each joint's neighbour set, false when they are the preset grade over the
-        /// joint's own vector and its child's, null when nothing in the chain tells the two apart.
+        /// Gets whether the chain's <c>m_NodeBases</c> entries are the bulk grade over each joint's neighbours (true) or the
+        /// version-2 preset grade (false), or null when nothing tells them apart.
         /// </summary>
-        /// <remarks>
-        /// At version 2 the chain importer grades a basis for every joint that has a child from that joint's
-        /// own extrusion vector and the child's, and the bulk pass then skips the node; below version 2 only a
-        /// hinged joint is graded that way and every other joint takes the bulk grade over its neighbour set,
-        /// which on a rope one node wide reaches the parent's ring as well. The two grades usually name
-        /// different references there, so a joint's entry states which pass wrote it. An entry naming a node
-        /// outside the preset's own candidates can only be the bulk grade, whether or not its scan is predicted
-        /// exactly. Only a joint whose ring is narrower than two nodes is read: a wider ring's fit-matrix arm can
-        /// write an entry of its own.
-        /// </remarks>
         public bool? ChainBasesAreBulkGraded(BoneChain chain)
         {
             var bulk = 0;
@@ -111,11 +92,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// both a preset basis and a reverse offset, which puts the joint in both of the fit pass's skip sets and discards its
         /// group, so the chain compiled below version 2.
         /// </summary>
-        /// <remarks>
-        /// The version-2 preset writes the basis graded over the joint's own extrusion vector and its child's whenever it is
-        /// not degenerate, and records the joint's reverse offset against its Y1 node when the joint simulates and is not one
-        /// of its own four references. A hinged joint is preset at every version and is not read.
-        /// </remarks>
         public bool ChainFitsAPresetJoint(BoneChain chain)
         {
             var unmoved = new Dictionary<int, Vector3>();
@@ -149,14 +125,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// or above records against its joints' preset bases: true when every read joint names the Y1 node of the preset
         /// basis graded over its own extrusion vector and its child's, false when one names none, null when no joint is read.
         /// </summary>
-        /// <remarks>
-        /// At version 2 the chain importer grades that preset basis for every joint with a child and records a simulated
-        /// joint's reverse offset against its Y1 node as well; below version 2 a joint's reverse offset comes from its fit
-        /// group alone. Only a simulated, unhinged joint with a child in the chain and a reverse offset is read, over the
-        /// chain's own rings where skeleton parents name none (<see cref="ChainJointRing"/>). A joint naming the preset's Y0
-        /// node agrees where the original's own basis is the preset with its Y pair swapped inside the handedness tie
-        /// (<see cref="NodeBaseYPairTies"/>).
-        /// </remarks>
         public bool? ChainReverseOffsetsArePreset(BoneChain chain)
         {
             var targets = new Dictionary<int, HashSet<int>>();
@@ -218,22 +186,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             => basis == want || NodeBaseFoldReaches(basis, want);
 
         /// <summary>
-        /// Whether a dynamic joint of <paramref name="chain"/> carries a basis hint (<c>m_DynNodeWindBases</c>)
-        /// that the compiler's twist or rope source wrote and nothing graded afterwards: the X pair is the pair
-        /// that source writes for the joint (the joint and its own twist end, or its neighbours along its
-        /// <c>m_Ropes</c> run) and the Y pair was never touched. The hint pass grades every dynamic node whose
-        /// pair is still incomplete over its fit-influence set when the neighbour set is too small, so an
-        /// ungraded hint says the joint had NO fit influences, which a ClothChain stages only from version 1
-        /// on; such a chain was authored at version 0. A chain that also owns a fit matrix, or whose other
-        /// joints were graded over an influence set (a graded hint with fewer than three neighbours), did
-        /// stage influences and says nothing.
-        /// <para>
-        /// Only a joint WITH A CHAIN CHILD states it. A leaf stages influences from its own ring alone, so
-        /// it carries none at any version and its hint is ungraded whatever the chain was authored at:
-        /// MEASURED 2026-09-20 against the authored sources (`w40chainver.py`) - bookworm's Breast chains
-        /// are authored version 2 with every interior joint graded and only the leaf ungraded, while
-        /// haze's, authored with no version key at all, leave the interior joint ungraded too.
-        /// </para>
+        /// Gets whether a chain joint with a chain child carries an ungraded <c>m_DynNodeWindBases</c> hint whose X pair its
+        /// twist or rope wrote, which marks a chain of version 0.
         /// </summary>
         public bool ChainHintsAreTwistWritten(BoneChain chain)
         {
@@ -265,8 +219,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 if (ungraded && ((x0 == joint.Node && x1 != joint.Node && TwistRelaxByLink.ContainsKey((joint.Node, x1)))
                     || (ropePairs.TryGetValue(joint.Node, out var ropePair) && ropePair == (x0, x1))))
                 {
-                    // A LEAF carries no influences of its own at any version, so its ungraded hint states
-                    // nothing either way - it neither says version 0 nor rules it out.
                     if (chain.Joints.Exists(child => child.ParentNode == joint.Node))
                     {
                         twistWritten = true;
@@ -282,10 +234,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The X pair the hint pass's rope source writes for each node of an <c>m_Ropes</c> run, before any
-        /// grading: the head its own node and the next, an interior node its two neighbours along the run, the
-        /// tail its own node and the previous. A node on two runs keeps the first run's pair, as the source only
-        /// writes a slot it has not written yet.
+        /// Gets the hint X pair the rope source writes for each <c>m_Ropes</c> node; a node on two runs keeps the first.
         /// </summary>
         Dictionary<int, (int X0, int X1)> RopeSourceHintPairs()
         {
@@ -327,20 +276,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Whether <paramref name="chain"/> has a simulated non-root joint whose fit-influence adjacency table
-        /// holds one or two entries and that owns no fit group, while no joint of the chain shows a version-1
-        /// staging. See <see cref="ThinJointStagingOf"/>. Version 2 leaves a thin joint without a group too, so a
-        /// true result separates version 0 from version 1 only.
+        /// Gets whether the chain's non-root joints read as <see cref="ThinJointStaging.Unstaged"/>, which separates version 0
+        /// from version 1.
         /// </summary>
         public bool ChainHasUnstagedThinJoint(BoneChain chain)
             => ThinJointStagingOf(chain.Joints.Skip(1)) == ThinJointStaging.Unstaged;
 
         /// <summary>
-        /// Whether <paramref name="chain"/> extrudes two sides and has a simulated leaf joint that carries no node base and
-        /// none of the version-1 staging marks: a reverse offset, a lock or a fit matrix. Such a leaf sits in none of its
-        /// rings' elements, so the bulk grade never reaches it, and from version 1 on the chain bases and stages it itself.
-        /// A leaf whose zero <c>stretch_spring</c> drops its base at every version, or one with neighbours enough to be
-        /// graded, says nothing.
+        /// Gets whether a two-sided chain has a simulated leaf with no node base, reverse offset, lock or fit matrix that
+        /// too few neighbours reach to be graded.
         /// </summary>
         public bool ChainHasUnbasedLeaf(BoneChain chain)
         {
@@ -367,12 +311,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Reads the thin joints among <paramref name="joints"/>, which hold no chain root. The compiler drops
-        /// every influence whose matrix node's table holds fewer than three entries, and only a chain of version 1
-        /// or above first tops such a table up from the joint's parent, so the joint then always owns a reverse
-        /// offset, a lock or a fit matrix. A joint lists itself and its ring when the ring is narrower than two
-        /// nodes and the ring alone otherwise, and its table is its own list plus its children's rings, so a
-        /// simulated leaf one or two nodes wide is thin. A hinged joint is preset at every version and is not read.
+        /// Reads the non-root joints whose fit-influence table holds one or two entries: staged when one owns a reverse
+        /// offset, lock or fit matrix, unstaged when none does.
         /// </summary>
         internal ThinJointStaging ThinJointStagingOf(IEnumerable<BoneChainJoint> joints)
         {
@@ -420,15 +360,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The root bones of <paramref name="merged"/> whose one reconstructed declaration was compiled as two,
         /// each mapped to the children the second, ringless declaration keeps.
         /// </summary>
-        /// <remarks>
-        /// Where the sub-chains under one root read as staged at version 0 and at version 1 or above, and the
-        /// declaration they were merged into reads as version 1, they were declared apart: once extruding the root
-        /// and once restating it ringless. A span between two static joints leaves no rod, so which sub-chains went
-        /// with the extruding declaration is read off the static node order, which is creation order: the root's
-        /// ring is created as its declaration starts, so the first sub-chain ring created after it in the same
-        /// block belongs to that declaration. A rotation-locked root's ring sorts into another block than every
-        /// sub-chain ring, where its place says nothing, and the declaration whose rings come first extrudes it.
-        /// </remarks>
         Dictionary<int, HashSet<int>> VersionSplitRoots(List<BoneChain> merged, Func<BoneChain, bool, int> chainVersion,
             bool hasOtherChains)
         {
@@ -517,19 +448,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// onto the axis pair the original kept, recording the roll in
         /// <see cref="BoneChainJoint.ExtrudeTwistTieNudge"/>.
         /// </summary>
-        /// <remarks>
-        /// The compiler picks a joint's two axes by scanning the joint's own extrude ring together with the
-        /// next joint's, first for the longest pair and then for the pair most perpendicular to it, and
-        /// flips the second onto the handedness of the joint's own bind Z. Both diagonals of a ring two
-        /// nodes wide are the same length to within a float, so on those joints the winner is settled in
-        /// the last bits of a float32 - below the precision the rest positions round-trip with - and
-        /// rebuilding the same ring lands on the other diagonal about half the time. A roll of a few
-        /// thousandths of a degree separates the two candidates by more than that drift. Only a joint whose
-        /// scan <see cref="PredictNodeBase"/> resolves by less than <see cref="NodeBaseTieMargin"/> is
-        /// rolled - which side that scan currently lands on carries no information there, since the drift
-        /// alone re-decides it - and then to the widest roll that both decides the scan the original's way
-        /// and leaves every geometry-derived array inside <see cref="NodeBaseCostBudget"/>.
-        /// </remarks>
         void SteerNodeBaseTies(BoneChain chain)
         {
             if (NodeBases.Count == 0)
@@ -546,8 +464,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                // A joint's scan vectors are its own ring and its first child's; a joint with no child of
-                // its own is scanned over the last link it belongs to, which is its parent's.
                 var child = i + 1 < chain.Joints.Count && chain.Joints[i + 1].ParentNode == joint.Node
                     ? chain.Joints[i + 1]
                     : null;
@@ -559,18 +475,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 var second = child ?? joint;
 
-                // The compiler grades over the node's own neighbour set wherever that set has three or
-                // more members; the chain's extrusion vectors below are the fallback for a node the
-                // source elements do not reach.
                 var neighbours = NodeNeighbours(joint.Node);
                 var candidates = neighbours.Count >= 3 && NodeBaseContains(neighbours, want)
                     ? neighbours
                     : NodeBaseCandidates(first, second);
 
-                // A stretch of chain one node wide reaches one link further back: where the two vectors
-                // above cannot even hold the references the original wrote, the parent's own vector is
-                // taken in as well. Widening only where the narrow list is refuted by the original itself
-                // keeps a joint whose narrow list does explain it on the narrow one.
                 if (candidates is null || !NodeBaseContains(candidates, want))
                 {
                     var parent = chain.Joints.Find(other => other.Node == first.ParentNode);
@@ -589,9 +498,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 var scan = PredictNodeBase(target.Candidates, target.Node, moved, target.Want);
 
-                // A joint is left alone when its scan already lands on the original with every decision
-                // firm, when a decision stands against the original by more than the drift could have
-                // turned over, and when the original's X pair is stored in ascending node order.
                 if ((scan.Basis == target.Want && scan.Decided == NodeBaseScan.Decisions) || scan.DecidedAgainst
                     || target.Want.NodeX1 > target.Want.NodeX0)
                 {
@@ -608,8 +514,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         bool TryNudgeNodeBase(BoneChainJoint joint, NodeBaseTarget target, List<NodeBaseTarget> targets,
             Dictionary<int, Vector3> moved, NodeBaseScan before)
         {
-            // A hinged joint's own ring is laid along its hinge vector rather than by the authored roll, so
-            // the roll no longer moves the ring the scan reads.
             var ring = ProxyRingOf(joint.Node);
             if (ring.Count == 0 || IsHingedJoint(joint.Node) || joint.Node >= InitPoseRotations.Length
                 || ring.Exists(node => node >= InitPosePositions.Length)
@@ -638,10 +542,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     probe[node] = pivot + Vector3.Transform(InitPosePositions[node] - pivot, rotation);
                 }
 
-                // The roll has to settle a decision that was open and may not unsettle one that was not.
-                // A scan a roll cannot move at all - a ring square to its own segment leaves both diagonals
-                // exactly equal whatever the roll - stays open either way, and holding the other decisions
-                // hostage to it only gives up their steer as well.
                 var after = PredictNodeBase(target.Candidates, target.Node, probe, target.Want);
                 if (after.Basis != target.Want || !after.NoWorseThan(before) || after.Decided <= before.Decided
                     || !NodeBaseRollAffordable(probe) || NodeBaseRollRegresses(targets, moved, probe))
@@ -661,10 +561,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
-        // Every array the rolled nodes feed, held to half the tolerance it is compared at: a displacement
-        // under the absolute floor covers each node's own m_InitPose position and its m_CtrlOffsets /
-        // m_CtrlSoftOffsets vOffset in any parent's frame at once, since no component of a vector can
-        // exceed its length; the rods spanning them are measured directly.
         bool NodeBaseRollAffordable(Dictionary<int, Vector3> probe)
         {
             foreach (var (node, position) in probe)
@@ -698,9 +594,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return true;
         }
 
-        // Whether the original scanned this ring for a node base this steer does not model - a 1-wide
-        // stretch of chain reaches further along itself than the two vectors modelled here, and a ring an
-        // unmodelled entry reads is one whose roll cannot be checked for a regression, so it is left alone.
         bool NodeBaseRingIsReadElsewhere(List<int> ring, List<NodeBaseTarget> targets)
         {
             foreach (var (node, basis) in NodeBases)
@@ -720,8 +613,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
-        // A roll moves the rings two of the chain's node bases are scanned over, so it is only taken when
-        // every OTHER entry keeps both the answer it lands on and the firmness it lands on it with.
         bool NodeBaseRollRegresses(List<NodeBaseTarget> targets,
             Dictionary<int, Vector3> moved, Dictionary<int, Vector3> probe)
         {
@@ -743,8 +634,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             => candidates.Contains(want.NodeX0) && candidates.Contains(want.NodeX1)
             && candidates.Contains(want.NodeY0) && candidates.Contains(want.NodeY1);
 
-        // The two node vectors the extrusion fills for a joint, in the order it pushes them: a joint two or
-        // more nodes wide contributes its ring alone, a narrower one contributes its own control node.
+        /// <summary>
+        /// Gets the node vector the extrusion pushes for a joint: its ring when two or more wide, else its node and ring.
+        /// </summary>
         List<int>? NodeBaseVector(BoneChainJoint joint)
         {
             var ring = ProxyRingOf(joint.Node);
@@ -759,10 +651,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The neighbour set the compiler grades a node's basis against: one sorted vector per node,
-        /// seeded with the node itself, into which every source element the node belongs to inserts all of
-        /// its own corners. A two-corner element contributes a genuine neighbour pair, which is why an
-        /// authored spring moves a basis and the surface clique alone does not describe the set.
+        /// Gets the sorted neighbour set a node's basis is graded against: the node and every corner of each source
+        /// element it belongs to.
         /// </summary>
         List<int> NodeNeighbours(int node)
         {
@@ -891,12 +781,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             => moved.TryGetValue(node, out var position) ? position : InitPosePositions[node];
 
         /// <summary>
-        /// The basis the compiler's scans would write for one joint, and how firmly each of the four
-        /// decisions behind it stands. The two scan margins are how far the original's own pair beats the
-        /// best pair that would take the scan from it, signed towards the original. The handedness is the
-        /// unsigned distance of the scalar triple product from zero. The fold is the distance of the
-        /// residual rotation from the threshold below which the compiler records it as a pair swap, signed
-        /// towards the original's ordering and zero where no fold could produce that ordering.
+        /// The basis the compiler's scans write for one joint, with the signed margin of each of the four decisions behind
+        /// it (X pair, Y pair, handedness, fold), positive towards the compiled basis.
         /// </summary>
         readonly record struct NodeBaseScan(NodeBasis Basis, float XMargin, float YMargin, float Handedness, float Fold)
         {
@@ -910,8 +796,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             static int State(float margin) => margin >= NodeBaseTieMargin ? 1 : margin <= -NodeBaseTieMargin ? -1 : 0;
         }
 
-        // Below this the compiler throws its Gram-Schmidt X axis away and rebuilds one from the node's own
-        // up vector, and below this residual rotation it records a near-half-turn as a pair swap instead.
         const float NodeBaseDegenerateAxis = 0.05f;
         const float NodeBaseFoldResidual = 1e-4f;
 
@@ -935,10 +819,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 ? new NodeBasis(xInner, xOuter, yOuter, yInner)
                 : new NodeBasis(xInner, xOuter, yInner, yOuter);
 
-            // The handedness only says how far the flip sits from its own zero; whether the ordering it
-            // produced is the original's is carried by the fold term, which is the one a roll can move -
-            // but only where a fold could produce the original's ordering at all. Where the original names
-            // different NODES the scans are what disagree, and the fold has nothing to say about it.
             var (folded, residual) = FoldNodeBase(basis, xAxis, yAxis, scalar < 0f, node);
             var handedness = MathF.Abs(scalar) / MathF.Max(xAxis.Length(), 1e-12f);
             var fold = NodeBaseFoldReaches(basis, want)
@@ -948,10 +828,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Applies the compiler's basis tail to a scanned pair ordering: Gram-Schmidt with the degenerate
-        /// fallback, then the four half-turn folds that replace a residual rotation with a pair swap and an
-        /// identity <c>qAdjust</c>. Returns the ordering it writes and the smallest residual it tested,
-        /// which is what a roll has to push clear of <see cref="NodeBaseFoldResidual"/>.
+        /// Applies Gram-Schmidt and the half-turn folds to a scanned basis. Returns the basis written and the smallest
+        /// residual tested.
         /// </summary>
         (NodeBasis Basis, float Residual) FoldNodeBase(NodeBasis basis, Vector3 xAxis, Vector3 yAxis,
             bool swapped, int node)
@@ -1018,19 +896,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         static float NodeBaseResidual(Quaternion q)
             => MathF.Sqrt((q.X * q.X) + (q.Y * q.Y) + (q.Z * q.Z));
 
-        // The four orderings the folds can write from one scanned pair of pairs.
         static bool NodeBaseFoldReaches(NodeBasis basis, NodeBasis want)
             => want == basis
             || want == new NodeBasis(basis.NodeX1, basis.NodeX0, basis.NodeY1, basis.NodeY0)
             || want == new NodeBasis(basis.NodeX1, basis.NodeX0, basis.NodeY0, basis.NodeY1)
             || want == new NodeBasis(basis.NodeX0, basis.NodeX1, basis.NodeY1, basis.NodeY0);
 
-        // The scan takes i outer and j = i+1 inner, both in list order, and keeps the LAST maximum, so a pair
-        // that only ties the running best still replaces it. A pair scanned BEFORE the original's own pair
-        // and scoring exactly equal to it therefore loses to it and is left out of the margin. On a chain
-        // that case is the rule rather than the exception: two candidate pairs that differ only by which
-        // end of one ring they use score the same to the last bit however the rings are rolled, so counting
-        // them as competition pins the margin at zero and no roll can ever be seen to settle anything.
+        /// <summary>
+        /// Scans every pair in list order keeping the last maximum, and returns it with the margin by which the wanted pair
+        /// beats the pairs that could take the scan from it.
+        /// </summary>
         (int Outer, int Inner, float Margin) ScanNodeBasePair(List<int> candidates, Dictionary<int, Vector3> moved,
             Func<Vector3, Vector3, float> score, int wantOuter, int wantInner)
         {
@@ -1072,14 +947,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return (outer, inner, wanted - other);
         }
 
-        // The three scores below are summed in the compiler's own order; regrouping them moves the result
-        // by the last bit, which is the whole quantity these scans are decided on.
+        /// <summary>Gets the distance between two nodes, summed in the compiler's term order.</summary>
         static float NodeBaseSpan(Vector3 a, Vector3 b)
         {
             var d = a - b;
             return MathF.Sqrt((d.X * d.X) + (d.Y * d.Y) + (d.Z * d.Z));
         }
 
+        /// <summary>Gets the length of <c>axis x d</c>, summed in the compiler's term order.</summary>
         static float NodeBasePerpendicular(Vector3 axis, Vector3 d)
         {
             var y = (axis.X * d.Z) - (axis.Z * d.X);
@@ -1088,6 +963,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return MathF.Sqrt((y * y) + (z * z) + (x * x));
         }
 
+        /// <summary>Gets the scalar triple product of X, unit Y and the node's up axis, summed in the compiler's term order.</summary>
         float NodeBaseHandedness(Vector3 xAxis, Vector3 yAxis, int node)
         {
             var length = MathF.Sqrt((yAxis.Y * yAxis.Y) + (yAxis.Z * yAxis.Z) + (yAxis.X * yAxis.X));

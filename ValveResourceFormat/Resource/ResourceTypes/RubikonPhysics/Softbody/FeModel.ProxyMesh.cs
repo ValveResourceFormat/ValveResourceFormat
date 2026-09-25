@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
@@ -6,10 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
     public sealed partial class FeModel
     {
         /// <summary>
-        /// The auto-generated cloth proxy mesh (the cloth "sheet"), reconstructed from the FeModel surface
-        /// topology. Vertices are the control nodes referenced by <see cref="Quads"/>/<see cref="Tris"/>
-        /// (i.e. the <c>$cloth_*</c> proxy nodes); the real bone-chain nodes are intentionally excluded so a
-        /// proxy-mesh recompile and a <c>ClothChain</c> recompile do not drive the same nodes twice.
+        /// A cloth proxy mesh (sheet) reconstructed from the FeModel surface, with its per-vertex paint.
         /// </summary>
         public sealed class ProxyMesh
         {
@@ -19,30 +16,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             public required Vector3[] Positions { get; init; }
             /// <summary>Gets the per-vertex <c>cloth_enable</c> flag (1 = simulated, 0 = pinned anchor).</summary>
             public required float[] ClothEnable { get; init; }
-            /// <summary>
-            /// Gets the per-vertex goal/force attraction toward the animated pose (recovered from the node
-            /// integrator's <c>flAnimationForceAttraction</c>, clamped to the 0..1 paint range). Higher = the
-            /// cloth hugs the body more tightly. Emitted as the modern <c>cloth_goal_strength_v2$0</c> paint.
-            /// </summary>
+            /// <summary>Gets the per-vertex <c>cloth_goal_strength_v2</c> paint.</summary>
             public required float[] GoalStrength { get; init; }
-            /// <summary>
-            /// Gets the per-vertex goal damping paint, recovered by inverting the vertex-attraction
-            /// response (<see cref="GoalDampingFromAttraction"/>). Legacy models with out-of-range
-            /// attraction clamp to the strongest reproducible damping.
-            /// </summary>
+            /// <summary>Gets the per-vertex <c>cloth_goal_damping</c> paint.</summary>
             public required float[] GoalDamping { get; init; }
             /// <summary>
-            /// Gets the per-vertex <c>cloth_animation_force_attract</c> paint: the node integrator's
-            /// <c>flAnimationForceAttraction</c> at 1/30 scale, for the vertices
-            /// <see cref="RawGoalPaintNodes"/> keeps on the raw integrator, and 0 for the rest. Empty when
-            /// no vertex of the sheet needs it.
+            /// Gets the per-vertex <c>cloth_animation_force_attract</c> paint for the <see cref="RawGoalPaintNodes"/>, or empty.
             /// </summary>
             public float[] AnimationForceAttract { get; init; } = [];
-            /// <summary>
-            /// Gets the per-vertex <c>cloth_animation_attract</c> paint: the node integrator's
-            /// <c>flAnimationVertexAttraction</c> at 1/30 scale, on the same vertices as
-            /// <see cref="AnimationForceAttract"/>.
-            /// </summary>
+            /// <summary>Gets the per-vertex <c>cloth_animation_attract</c> paint, alongside <see cref="AnimationForceAttract"/>.</summary>
             public float[] AnimationAttract { get; init; } = [];
             /// <summary>Gets the per-vertex self-collision radius (recovered from <c>m_NodeCollisionRadii</c>).</summary>
             public required float[] CollisionRadius { get; init; }
@@ -54,46 +36,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             public required float[] GroundCollision { get; init; }
             /// <summary>Gets the per-vertex ground friction of a world-colliding node (recovered from <c>m_WorldCollisionParams</c>), 0..1 paint range.</summary>
             public required float[] GroundFriction { get; init; }
-            /// <summary>
-            /// Gets the per-vertex gravity (the integrator's <c>flGravity</c>, verbatim - the
-            /// <c>cloth_gravity$0</c> paint compiles into <c>flGravity</c> with no scaling, unlike the
-            /// /360 <c>gravity_z</c> KV field on ClothNode/ClothChain joints). Without the stream the
-            /// compiler defaults every vertex to 360, silently discarding authored per-vertex variation.
-            /// </summary>
+            /// <summary>Gets the per-vertex <c>cloth_gravity</c> paint (the integrator's <c>flGravity</c>).</summary>
             public required float[] Gravity { get; init; }
-            /// <summary>
-            /// Gets the RAW compiled <c>flAnimationVertexAttraction</c> per vertex. The
-            /// goal_strength/goal_damping pair caps it at 1.0; legacy-era compiles above that value are
-            /// re-authored through <see cref="AnimationAttract"/> instead.
-            /// </summary>
+            /// <summary>Gets the compiled <c>flAnimationVertexAttraction</c> of each vertex.</summary>
             public required float[] VertexAttraction { get; init; }
-            /// <summary>
-            /// Gets the skeleton bone influences of each proxy vertex. Pinned anchors carry a single
-            /// weight-1 influence on their anchor bone. Simulated vertices are SMOOTHLY weighted across the
-            /// nearest joints of the anchor's chain: the compiler back-solves a bone with a proper fit
-            /// matrix only when enough weighted vertices reference it - hard single-bone skinning degrades
-            /// every chain joint to a point-driven rope with a much denser rod network.
-            /// </summary>
+            /// <summary>Gets the skeleton bone influences of each vertex.</summary>
             public required (string Bone, float Weight)[][] SkinInfluences { get; init; }
-            /// <summary>
-            /// Gets the faces (proxy-vertex index quads and triangles) covering the sheet, preserving the
-            /// original quad/tri split. Triangulating the quads instead makes the compiler re-derive a much
-            /// denser quad/rod network and the recompiled cloth turns rigid.
-            /// </summary>
+            /// <summary>Gets the faces as proxy-vertex index quads and triangles.</summary>
             public required List<int[]> Faces { get; init; }
-            /// <summary>
-            /// Gets the named vertex selections covering this sheet, as a per-vertex membership weight
-            /// each. Painted back onto the sheet as one <c>cloth_vertex_set_&lt;name&gt;</c> stream per
-            /// selection, which is how a proxy vertex joins one.
-            /// </summary>
+            /// <summary>Gets the named vertex selections covering this sheet, as a membership weight per vertex.</summary>
             public (string Name, float[] Weights)[] VertexMaps { get; init; } = [];
             /// <summary>
-            /// Gets, per vertex, whether the compiled sheet drives it through distance constraints alone -
-            /// the importer turned every authored element it belongs to into rods (<c>m_SourceElems</c>)
-            /// instead of keeping it as a solve element (<c>m_Quads</c>/<c>m_Tris</c>). Empty on a sheet
-            /// with no such region. Painted back as <c>cloth_make_rods</c>, which makes the compiler split
-            /// the same sheet the same way; the sheet's own gradient paint is not recoverable and does not
-            /// need to be.
+            /// Gets the per-vertex <c>cloth_make_rods</c> paint: 1 where every element of the vertex was built into rods.
+            /// Empty when the sheet has no such region.
             /// </summary>
             public float[] RodsDriven { get; init; } = [];
             /// <summary>Gets the number of simulated (cloth_enable == 1) vertices.</summary>
@@ -101,39 +56,20 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// <summary>Gets the number of pinned (cloth_enable == 0) vertices.</summary>
             public int PinnedCount { get; init; }
             /// <summary>
-            /// Gets whether the cloth importer is expected to silently PRUNE one or more of this synthesised
-            /// island's vertices, which would make any explicit <c>ClothSpring</c> (m_Rods) referencing a
-            /// pruned vertex a hard "Cannot find node $cloth_mXpY" compile failure. Two importer behaviours
-            /// cause this (see <see cref="ComputeDropRisk"/>): (1) a pinned vertex whose face-neighbours are
-            /// ALL pinned (a fully-static mesh region the solver discards), and (2) a near-coincident vertex
-            /// pair the importer welds. When true, <c>AddClothProxySprings</c> skips this island's explicit
-            /// rods and lets the compiler auto-derive them from the surface instead (guaranteed to compile,
-            /// at the cost of exact rod topology for this one island). False for cleanly-triangulated
-            /// islands, which keep their exact reconstructed rods.
+            /// Gets whether the importer is expected to drop a vertex of this synthesised island (see <see cref="ComputeDropRisk"/>).
             /// </summary>
             public bool IsDropRisk { get; init; }
-            /// <summary>
-            /// Gets whether <see cref="Faces"/> came from the authored <c>m_SourceElems</c> topology rather
-            /// than a synthesised triangulation. The compiler rebuilds the shipped rods from such a sheet on
-            /// its own, so it is exported without rod-suppressing paints and without explicit springs.
-            /// </summary>
+            /// <summary>Gets whether <see cref="Faces"/> came from the authored <c>m_SourceElems</c> rather than a triangulation.</summary>
             public bool UsesAuthoredFaces { get; init; }
             /// <summary>
-            /// Gets whether no vertex of this sheet is driven by a real skeleton bone. Hand-authored
-            /// proxies of this kind ship unskinned, and the compiler answers by generating its own static
-            /// root node plus one <c>m_CtrlOffsets</c> entry per vertex. Skinning such a sheet to the
-            /// synthetic per-vertex bones instead binds each node directly and loses both.
+            /// Gets whether no vertex of this sheet is driven by a real skeleton bone.
             /// </summary>
             public bool IsFreeFloating { get; init; }
         }
 
         /// <summary>
-        /// Restores a proxy's original vertex NUMBERING when it has gaps. The compiler names control nodes
-        /// "$cloth_m{N}p{SLOT}" by DMX vertex slot BEFORE dropping unfaced vertices, so an original whose
-        /// source mesh had culled vertices ships non-contiguous p numbers. Re-exporting only the survivors
-        /// contiguously shifts every name after each gap, and the whole node set mis-pairs against the
-        /// original. A pinned, unfaced dummy copy of the nearest real vertex fills each gap slot: the
-        /// compiler drops it again (unfaced), and every real vertex keeps its original number.
+        /// Fills the gaps in a proxy's <c>$cloth_m{N}p{SLOT}</c> numbering with pinned, unfaced copies of the nearest
+        /// preceding vertex, so every vertex sits at its original slot.
         /// </summary>
         ProxyMesh PadToAuthoredSlots(ProxyMesh mesh)
         {
@@ -170,8 +106,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return mesh;
             }
 
-            // Padded slot -> source vertex; a gap copies the nearest real vertex at or before it (a gap
-            // below the first real slot copies the first).
             var srcOf = new int[total];
             var dummy = new bool[total];
             var src = 0;
@@ -209,9 +143,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // A dummy carries its copied neighbour's control-node index: every consumer that walks
-            // NodeIndices stays valid, and the name map only covers faced vertices so the duplicate
-            // never claims the real vertex's name.
             return new ProxyMesh
             {
                 NodeIndices = Pad(mesh.NodeIndices),
@@ -241,11 +172,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Reconstructs the cloth proxy sheets from the FeModel surface arrays, one per connected island.
-        /// Original models ship each cloth piece as its OWN proxy mesh (the compiled node names encode it:
-        /// <c>$cloth_m0p3</c> = mesh 0, point 3), so a merged single sheet changes how the compiler numbers
-        /// and groups the nodes. Returns an empty list when the FeModel has no surface - e.g. pure
-        /// bone-chain cloth that only needs ClothChain.
+        /// Reconstructs the cloth proxy sheets, one per connected island and <c>$cloth_m&lt;N&gt;</c> index, ordered by that
+        /// index. Empty when the FeModel has no sheet.
         /// </summary>
         public List<ProxyMesh> BuildProxyMeshes()
         {
@@ -253,16 +181,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var coveredNodes = new HashSet<int>();
             var merged = BuildProxyMesh();
 
-            // Built here unpadded and combined with any same-index rods-only remainder (below) before a
-            // single PadToAuthoredSlots pass at the end - padding each half separately would gap-detect
-            // against the wrong, incomplete slot range.
             var pending = new List<ProxyMesh>();
 
             if (merged is not null)
             {
                 coveredNodes.UnionWith(merged.NodeIndices);
 
-                // Union-find over the merged sheet's local vertex indices by face membership.
                 var count = merged.NodeIndices.Length;
                 var groupOf = Enumerable.Range(0, count).ToArray();
                 int Find(int x) { while (groupOf[x] != x) { x = groupOf[x] = groupOf[groupOf[x]]; } return x; }
@@ -274,11 +198,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                // Also union vertices the compiler already assigned to the same "$cloth_m<N>" mesh: a
-                // single authored ClothProxyMeshFile keeps every one of its vertices under ONE index
-                // regardless of internal face connectivity, even when they span multiple
-                // face-disconnected regions - splitting it by connectivity alone invents a second mesh
-                // index the original never had, renumbering every $cloth_m reference on that side.
                 var meshIndexRep = new Dictionary<int, int>();
                 for (var v = 0; v < count; v++)
                 {
@@ -308,9 +227,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 {
                     foreach (var island in islands)
                     {
-                        // Ascending MERGED index preserves the authored per-island vertex order the
-                        // merged mesh was already sorted into (SortByAuthoredVertexOrder) - re-sorting
-                        // by global node index here would undo it.
                         var vertices = island.OrderBy(v => v).ToArray();
                         var remap = new Dictionary<int, int>(vertices.Length);
                         for (var i = 0; i < vertices.Length; i++)
@@ -348,31 +264,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // A $cc proxy node whose SKELETON PARENT is a reconstructed bone-chain joint is the compiler's
-            // own auto-generated proxy of that ClothChain, carrying 1-2 "$cc<bone>_<n>" proxy nodes parented
-            // straight to each real chain bone. That chain is emitted as a ClothChain (see BuildBoneChains)
-            // and the compiler regenerates these proxies FROM it, so rebuilding them here as a rod-only
-            // proxy mesh would both double-drive the bones and - for a curved 2-wide ribbon - collapse in
-            // the compiler's 2D cloth-mesh import (later rungs weld onto earlier ones, verts get pruned,
-            // every explicit ClothSpring to a pruned vert becomes a fatal "Cannot find node $cloth_mXpY"
-            // orphan). Mark them covered so the rod-only pass leaves them to the ClothChain. A $cc panel
-            // with no real chain bones has no such parent link and is untouched.
-            // A "$cloth_m<N>p<S>" vertex hanging off a chain that ALREADY carries "$cc" nodes of its own is
-            // not part of that ring: the ClothChain regenerates the $cc nodes, and the sheet the vertex
-            // belongs to is separate authored geometry that merely skins onto the same joints. Suppressing
-            // it deletes the panel. A "$cloth_m<N>p<S>" vertex is never suppressed: the name records an
-            // authored DMX sheet slot, and an emitted ClothChain regenerates only "$cc" rings, so a
-            // suppressed sheet vertex is simply lost from the recompile.
-            // Only chains emitted as an INDEPENDENT ClothChain get their proxies suppressed. A chain any of
-            // whose joints is back-solved by a fit matrix is NOT emitted as a ClothChain - it is driven
-            // THROUGH its proxy mesh - so suppressing that proxy would delete the cloth entirely. Same
-            // fit-matrix exclusion ModelExtract uses to pick independentChains.
             var independentChains = IndependentBoneChains();
             var chainBoneNodes = independentChains.SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
             if (chainBoneNodes.Count > 0)
             {
-                // Old-era compiles ship m_SkelParents empty; a ring vertex's anchor bone then comes from
-                // its m_CtrlOffsets entry instead (the same fallback BuildBoneChains uses).
                 Dictionary<int, int>? offsetParents = null;
                 if (!HasCompiledSkelParents && CtrlOffsets.Length > 0)
                 {
@@ -406,14 +301,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // "$cloth_*" control nodes that carry no m_Quads/m_Tris of their own: a plain
-            // ClothProxyMeshFile import compiles down to a bare distance-constraint (m_Rods) network,
-            // discarding the authored surface, so these nodes would otherwise be silently dropped instead
-            // of round-tripping as a sheet.
-            // A rods-only group that shares its ORIGINAL "$cloth_m<N>" mesh index with one of the
-            // face-covered proxies above is that proxy's own remainder, not a separate authored piece -
-            // merge it in instead of exporting a second proxy file, which would otherwise hand the
-            // compiler two mesh indices for what the original numbers as one.
             foreach (var rodsOnly in BuildProxyMeshesFromRodsOnly(coveredNodes))
             {
                 var meshIndex = ProxyMeshOriginalIndex(rodsOnly);
@@ -428,11 +315,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // Final order: by the ORIGINAL "$cloth_m<N>" mesh index the compiler already assigned
-            // (smallest control-node index as a fallback tiebreak, or for a proxy with no such name), so
-            // the order proxy nodes are emitted in - see EnqueueClothProxyMeshes in ModelExtract.Mesh.cs
-            // - reproduces it: the compiler numbers $cloth_m<N> by ordinal name sort of the proxy nodes,
-            // and those names sort in this list's order.
             result.AddRange(pending
                 .OrderBy(p => { var m = ProxyMeshOriginalIndex(p); return m >= 0 ? m : int.MaxValue; })
                 .ThenBy(p => p.NodeIndices.Length == 0 ? int.MaxValue : p.NodeIndices.Min())
@@ -441,20 +323,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return result;
         }
 
-        // The original "$cloth_m<N>" mesh index the compiler already assigned to a proxy vertex set (the
-        // smallest parsed index among its nodes - every node of one physical proxy carries the same
-        // index by construction, so this is exact, not a heuristic), or -1 if none of its nodes carry
-        // that name (a rods-only "$cc" panel).
+        /// <summary>Gets the smallest <c>$cloth_m&lt;N&gt;</c> index among the mesh's nodes, or -1.</summary>
         int ProxyMeshOriginalIndex(ProxyMesh mesh) => mesh.NodeIndices
             .Select(node => ParseProxyMeshIndex(CtrlNames[node]))
             .Where(m => m >= 0)
             .DefaultIfEmpty(-1)
             .Min();
 
-        // Merges a face-covered proxy with a rods-only remainder the compiler numbers under the SAME
-        // "$cloth_m<N>" mesh index into one, re-sorted into their shared original DMX vertex-slot order
-        // so PadToAuthoredSlots's gap detection still applies to the combined set. Exporting them as two
-        // separate proxy files would give the compiler two mesh indices where the original only had one.
+        /// <summary>Merges two meshes of one <c>$cloth_m&lt;N&gt;</c> index into one, in authored vertex order.</summary>
         ProxyMesh MergeSameIndexProxyMeshes(ProxyMesh a, ProxyMesh b)
         {
             var an = a.NodeIndices.Length;
@@ -530,10 +406,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Gets the bone chains that compile to a standalone <c>ClothChain</c> rather than being driven
-        /// through a proxy mesh - the ones whose joints already get their own <c>stray_radius</c> (and the
-        /// rest of <c>MakeClothJoint</c>'s KVs) from the model extractor, so no other recovery path should
-        /// also claim their nodes.
+        /// Gets the bone chains exported as a standalone <c>ClothChain</c>: no joint is back-solved by a proxy sheet and the
+        /// chain is not sheet-driven.
         /// </summary>
         List<BoneChain> IndependentBoneChains()
             => [.. BuildBoneChains()
@@ -541,20 +415,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     && !IsSheetDrivenChain(chain))];
 
         /// <summary>
-        /// Whether the original drives this chain's bones THROUGH a proxy sheet instead of simulating
-        /// them: every dynamic-band joint sits in the position-driven band (the compiler puts back-solved
-        /// bones there, fit-matrix and CtrlOffsets-driven alike) and at least one "$cloth_m" sheet vertex
-        /// hangs off one of the joints. Emitting a ClothChain for such a chain simulates bones the
-        /// original back-solves, and alongside the re-created sheet the double drive access-violates the
-        /// compiler; the sheet with <c>back_solve_joints</c> reproduces the original band exactly.
+        /// Gets whether a proxy sheet drives this chain's bones: every dynamic joint is position-driven, a <c>$cloth_m</c>
+        /// vertex hangs off one of them, and no <c>$cc</c> ring does.
         /// </summary>
         public bool IsSheetDrivenChain(BoneChain chain)
         {
             var anyPositionDriven = false;
             foreach (var joint in chain.Joints)
             {
-                // A joint bone the compiled skeleton culled cannot be skinned to from the proxy DMX
-                // (its jointList is the compiled skeleton), so the sheet cannot back-solve it.
                 if (CulledBoneCtrlNodes?.Contains(joint.Node) == true)
                 {
                     return false;
@@ -605,8 +473,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                // The chain carries generated "$cc" proxies of its own, and only an emitted ClothChain
-                // recreates those, so dropping the chain for the sheet would delete them.
                 if (generatedRing)
                 {
                     return false;
@@ -625,22 +491,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             => [.. IndependentBoneChains().SelectMany(static chain => chain.Joints)
                 .Select(static joint => joint.Node)];
 
-        /// <summary>
-        /// Whether every corner of a compiled surface face is a joint of a chain the export emits as a
-        /// standalone <c>ClothChain</c>. Such a face names no sheet vertex of the original's own, so a
-        /// proxy mesh rebuilt from it registers one new <c>$cloth_m&lt;N&gt;p&lt;M&gt;</c> control node
-        /// per corner on top of the bones the chain already drives.
-        /// </summary>
+        /// <summary>Gets whether every corner of a face is a joint of an independent chain.</summary>
         static bool IsChainJointFace(int[] face, HashSet<int> chainJoints)
             => face.Length >= 3 && chainJoints.Count > 0
             && Array.TrueForAll(face, chainJoints.Contains);
 
         /// <summary>
-        /// Whether a compiled surface face comes from a <c>ClothTri</c> / <c>ClothQuad</c> declaration
-        /// rather than from a proxy sheet: every corner is a control node an authored element names
-        /// directly, and either one corner is a free <c>$cloth_node_</c> element or the model carries no
-        /// proxy sheet node at all. A bone chain creates ring and joint nodes but no face, so a face over
-        /// declared nodes in a model without a sheet can only be an authored element.
+        /// Gets whether a face comes from a <c>ClothTri</c> or <c>ClothQuad</c> declaration rather than a proxy sheet.
         /// </summary>
         bool IsAuthoredElementFace(int[] face)
         {
@@ -710,8 +567,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return null;
             }
 
-            // Collect the control nodes actually used by the surface, in ascending order. These are the
-            // proxy-mesh ("sheet") nodes; a chain hinge's fan is chain geometry the ClothChain rebuilds.
             var chainJoints = IndependentChainJointNodes();
             var referenced = new SortedSet<int>();
             void Collect(int[][] faces)
@@ -742,12 +597,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return null;
             }
 
-            // The same sheet's ROD region. m_SourceElems keeps the authored elements the importer turned
-            // into distance constraints; m_Quads/m_Tris keep the ones that stayed solve elements. A sheet
-            // painted "cloth_make_rods" over part of itself compiles to both at once, and the rod region's
-            // vertices then belong to no face of their own. Taking those elements back into this mesh is
-            // what lets the export hand the compiler one sheet with the same split instead of a
-            // face-covered island plus a separately triangulated remainder.
             var surfaceNodes = new HashSet<int>(referenced);
             var surfaceMeshes = surfaceNodes.Select(node => ParseProxyMeshIndex(CtrlNames[node]))
                 .Where(static mesh => mesh >= 0).ToHashSet();
@@ -763,8 +612,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var sheet = true;
                 foreach (var corner in face)
                 {
-                    // Only a "$cloth_m<N>" vertex of a mesh this surface already covers: a chain's own "$cc"
-                    // ring elements, and a mesh with no surface at all, are the rod-only path's to rebuild.
                     if (corner < 0 || corner >= InitPosePositions.Length || IsHingeRegeneratedProxy(corner)
                         || !surfaceMeshes.Contains(ParseProxyMeshIndex(CtrlNames[corner])))
                     {
@@ -782,11 +629,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // A sheet vertex the compile registers that neither kind of element covers and no rod reaches:
-            // its authored face was trimmed to the corners that stayed a surface - a quad with a single rod
-            // corner compiles to the triangle of the other three and leaves no m_SourceElems entry behind.
-            // Putting it back as that triangle's fourth corner (below) is the only way an export gets the
-            // compiler to register it. One a rod does reach is a rod-only island's, whatever else covers it.
             var strays = new List<int>();
             if (rodsFaces.Count > 0)
             {
@@ -857,15 +699,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 vertexAttraction[i] = vertex.VertexAttraction;
             }
 
-            // Faces are fed in the ORIGINAL compile's SIMD lane order (with each face's node order taken
-            // from its lane) instead of the compiled m_Quads/m_Tris arrays' own order: those arrays are
-            // node-sorted on output, but the SIMD constraint packer consumes the authored DMX face order -
-            // feeding the sorted arrays back packs DIFFERENT groups whose leftover lanes get padded with
-            // LIVE full-weight replicas of real constraints, solving some elements multiple times per
-            // iteration for measurably stiffer cloth. The lane-major expansion is the closest recoverable
-            // stand-in for the authored face order.
-            // A face reaching into a corner the sheet gave up (one a hinged chain rebuilds itself) is not
-            // this sheet's to draw.
             var faces = new List<int[]>(Quads.Length + Tris.Length);
             bool Kept(int[] face) => Array.TrueForAll(face, corner => remap.ContainsKey(corner));
 
@@ -957,12 +790,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Gets the <c>quad_bend_tolerance</c> (ModelDoc <c>ClothParams</c>) the compiler measured its quad split
-        /// against, which <c>MakeClothParams</c> re-emits. The compiled cloth keeps no field for it, so it is read off
-        /// the split: the ModelDoc default of 0.05, unless a quad the compiler split (a <see cref="Tris"/> pair whose
-        /// discarded diagonal ships as a rigid rod) bends by no more than that. Such a cloth was authored below the
-        /// default, and the tolerance is then the largest bend among the fully dynamic quads it kept whole, or zero,
-        /// as long as that still lies below every split.
+        /// Gets the <c>quad_bend_tolerance</c> the compiler split quads against: 0.05, unless a split quad bends by less,
+        /// then the largest bend among the dynamic quads kept whole, or 0.
         /// </summary>
         public float QuadBendTolerance => quadBendTolerance ??= ComputeQuadBendTolerance();
 
@@ -1041,23 +870,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Pairs compiled <see cref="Tris"/> back into the authored quads the compiler split them from,
-        /// keyed by <see cref="SortedTriKey"/>: the first returned map gives, for the half that stayed in
-        /// place, the quad to export instead of it; the second names the half to drop.
-        /// <para>
-        /// Before building its surface arrays the compiler splits an authored quad whose two halves are not
-        /// coplanar enough - the sine of the dihedral angle across the SHORTER diagonal above
-        /// <see cref="QuadBendTolerance"/> - into the triangle <c>(n0,n1,n2)</c> in place plus
-        /// <c>(n0,n2,n3)</c> appended at the end of the element array, and only when no corner of the quad
-        /// is static. Re-exporting those two triangles instead of the quad they came from measures mass and
-        /// element rest shape over five corner pairs where the original had six, so every node around such a
-        /// quad compiles heavier and the discarded diagonal's bend rod is lost with it.
-        /// </para>
-        /// <para>
-        /// The merge is accepted only where the compiler is predicted to re-split the recovered quad into
-        /// exactly the pair at hand - same diagonal, same corner order, and the appended half later in the
-        /// array.
-        /// </para>
+        /// Pairs the <see cref="Tris"/> the compiler split from bent quads back into those quads, keyed by
+        /// <see cref="SortedTriKey"/>: the quad to export instead of the half that stayed in place, and the appended half to
+        /// drop.
         /// </summary>
         (Dictionary<(int, int, int), int[]> Quads, HashSet<(int, int, int)> Halves) MergeSplitQuads()
         {
@@ -1117,9 +932,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 {
                     for (var y = x + 1; y < sharing.Count; y++)
                     {
-                        // The in-place half is emitted as (n0,n1,n2) and the appended one as (n0,n2,n3),
-                        // so the shared edge sits at the first corner and the last of the earlier of the
-                        // two, and at the first two corners of the later.
                         var (inPlace, appended) = (sharing[x], sharing[y]);
                         var first = Tris[inPlace];
                         var second = Tris[appended];
@@ -1176,11 +988,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The rods the compiler builds out of <paramref name="faces"/> by splitting them: the quad-split
-        /// pass runs over the SOLVE elements - the faces the make-rods paint keeps out of the rod path -
-        /// and gives every fully dynamic quad it splits a fixed-length rod across the diagonal it discards,
-        /// hinged about the one it keeps. A sheet exported that way therefore comes back with those rods
-        /// whether or not anything declares them.
+        /// Gets the rods the compiler builds across the discarded diagonal of every fully dynamic quad it splits.
         /// </summary>
         internal static HashSet<(int, int)> BentQuadRodsFromFaces(IEnumerable<int[]> faces,
             Vector3[] positions, Func<int, bool> isStatic, float tolerance)
@@ -1249,8 +1057,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return bend.Normals > 0f ? bend.Cross / bend.Normals : 0f;
         }
 
-        // Repairs an authored corner order that does not describe a simple quadrilateral, by taking the
-        // pairing whose two diagonals span the largest cross product.
         static int[] MaximalQuadPairing(Vector3[] corners)
         {
             int[][] pairings = [[0, 1, 2, 3], [0, 2, 3, 1], [0, 3, 1, 2]];
@@ -1270,17 +1076,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Rotates the corner order of every quad with one or two adjacent static corners into the form the
-        /// model's bend rods say it was authored in.
-        /// <para>
-        /// The compiler builds a bend rod across each edge two elements share, joining the far corners at the
-        /// same end of that edge, and reads the elements in the corner order the DMX declares - after moving
-        /// the static corners of a quad to the front when its declared order does not already lead with them.
-        /// A quad declared with its static corners in the middle of the order is thereby turned into a bow
-        /// tie: two of its edges become diagonals and the far corners across the other two pair crosswise. The
-        /// compiled quad shows only the convex order the compiler restores afterwards, so the export declares
-        /// that order unless the rods the model ships are the ones the bow tie produces.
-        /// </para>
+        /// Rotates each quad with one or two adjacent static corners into the declared corner order whose predicted bend
+        /// rods best match the model's rods.
         /// </summary>
         void RestoreStaticQuadCornerOrder(List<int[]> faces, List<int[]> rodFaces, int[] nodeIndices)
         {
@@ -1382,9 +1179,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // The corner orders a quad with one or two adjacent static corners can be declared in: the order at
-        // hand (the convex one the compiled quad carries, static corners first), then the ones that put the
-        // static corners in the middle of the declaration. Any other face has only the order it has.
+        /// <summary>
+        /// Gets the corner orders a quad with one or two adjacent static corners can be declared in: its own, then the
+        /// ones with its static corners in the middle.
+        /// </summary>
         static int[][] StaticQuadCornerOrders(int[] face, Func<int, bool> isStatic)
         {
             if (face.Length != 4)
@@ -1422,18 +1220,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Chooses the order the surface faces are declared in so the importer creates the sheet's nodes in the order the
         /// shipped node array numbers them, and returns that order with its corners rotated.
         /// </summary>
-        /// <remarks>
-        /// The importer creates a sheet's simulated vertices by first appearance over the declared faces and its pins in
-        /// the order the faces with a simulated corner introduce them. The node sort ranks the simulated nodes by their
-        /// distance from the static ones and breaks ties by that creation order, and keeps the pins in creation order
-        /// within each rotation-lock group. The distance is taken over the faces alone: the rods a sheet compiles to beyond
-        /// its faces (the quad split, the stiffness and bend networks) are built after the sort. The SIMD lane order the
-        /// faces are read back in does not always keep the authored order, so three candidates are tried: the lane order,
-        /// the faces sorted by their shipped node indices, and the lane order with only the pin-carrying faces sorted by
-        /// their lowest pin. The first whose creation reproduces the shipped order for the pins and the simulated nodes is
-        /// taken; failing that, the first of the lane order, the lowest-pin order and the node-sorted order that reproduces
-        /// the pins; failing that, the lane order. Only the first <paramref name="surfaceFaceCount"/> faces move.
-        /// </remarks>
         internal static List<int[]> ChooseFaceDeclarationOrder(List<int[]> faces, int surfaceFaceCount,
             IReadOnlyList<int> nodeIndices, Func<int, bool> isStaticNode, int rotationLockedCount,
             Action<List<int[]>> rotateCorners)
@@ -1595,16 +1381,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Rotates fully dynamic surface quads one corner back where that makes the compiler's mass pass reproduce the
         /// shipped inverse masses bit for bit, and returns the faces with those rotations.
         /// </summary>
-        /// <remarks>
-        /// The mass pass credits both ends of each of an element's six corner pairs with 4 per unit of length, element by
-        /// element and pair by pair from the declared corners, so a node's float sum depends on the corner each of its
-        /// faces is declared from, and the rod sort compares the weights those masses give exactly. The quad split rotates
-        /// a fully dynamic quad by one corner onto its shorter diagonal, so the compiled cycle and the cycle one corner
-        /// back compile to the same quad and differ only in those sums. Faces are tried in declaration order, and a flip is
-        /// kept when it strictly lowers the number of simulated nodes whose replayed inverse mass misses the shipped one
-        /// and leaves the simulated nodes' creation order as it was. The flips are returned only when every simulated node
-        /// then matches, and a sheet with faces past <paramref name="surfaceFaceCount"/> is returned unchanged.
-        /// </remarks>
         internal static List<int[]> RotateQuadsToShippedMasses(List<int[]> faces, int surfaceFaceCount,
             IReadOnlyList<int> nodeIndices, IReadOnlyList<Vector3> positions, IReadOnlyList<float> invMasses)
         {
@@ -1723,16 +1499,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Rotates each surface face's declared corner order so the sheet hands the compiler its static
         /// vertices in the order the shipped node array numbers them.
         /// </summary>
-        /// <remarks>
-        /// The cloth importer creates a control node for every simulated vertex first, walking the mesh's
-        /// corner index array, and then walks the faces again and creates one for each remaining corner of
-        /// a face that carries a simulated corner. The builder orders the static block by that creation
-        /// order, so which of a face's static corners is numbered first follows from the corner the face is
-        /// declared from - a choice the compiled elements do not record. Only rotations that leave
-        /// <see cref="CompilerCornerCycle"/> unchanged are taken, so the elements and the bend rods derived
-        /// from them are the same either way. Only the first <paramref name="rotatableFaceCount"/> faces are
-        /// rotated; the rod-region tail a mixed sheet appends keeps the corner order it was read in.
-        /// </remarks>
         void DeclareFacesInStaticNodeOrder(List<int[]> faces, int rotatableFaceCount, IReadOnlyList<int> nodeIndices)
         {
             bool IsStatic(int local) => local >= 0 && local < nodeIndices.Count
@@ -1741,7 +1507,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var created = new HashSet<int>();
             for (var i = 0; i < faces.Count; i++)
             {
-                // The importer keeps a face's first four corners and skips a face with no simulated corner.
                 var face = faces[i];
                 var corners = face.Length > 4 ? face[..4] : face;
                 if (Array.TrueForAll(corners, IsStatic))
@@ -1768,10 +1533,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // The rotation of a face that introduces its as-yet unnumbered static corners in ascending node
-        // index, or null when the declaration at hand already does or no rotation the corner cycle survives
-        // can. Statics on opposite sides of the rotation-lock boundary are left alone: the builder groups
-        // those before it orders them by creation.
+        /// <summary>
+        /// Gets the rotation of a face that introduces its new static corners in ascending node order without changing its
+        /// <see cref="CompilerCornerCycle"/>, or null when there is none or none is needed.
+        /// </summary>
         int[]? RotateToStaticNodeOrder(int[] face, HashSet<int> created, IReadOnlyList<int> nodeIndices, Func<int, bool> isStatic)
         {
             var introduced = new List<int>(2);
@@ -1827,13 +1592,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The corner order a declared face reaches the compiler's own element array in: the import
         /// canonicalisation and the mass pass's static-first partition.
         /// </summary>
-        /// <remarks>
-        /// At import a quad whose two simulated corners are DIAGONAL takes a single transposition, and every
-        /// other face is rotated so the trailing static run leads. Inside the mass pass a face that still has
-        /// a static corner past its leading run is stable-partitioned, non-simulated first. This is the model
-        /// a SEARCH over candidate declarations scores against; the order the compiler finally pairs bend
-        /// rods in is <see cref="CompiledElementOrder"/>, one pass further on.
-        /// </remarks>
         static int[] CompilerCornerCycle(int[] face, Func<int, bool> isStatic)
         {
             var n = face.Length;
@@ -1893,12 +1651,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <see cref="CompilerCornerCycle"/> models, and then the convexity swap it applies to a quad whose
         /// two leading corners are static.
         /// </summary>
-        /// <remarks>
-        /// The swap runs between the mass pass and the edge-descriptor walk, so only a prediction of what an
-        /// already-chosen declaration compiles to may model it. A search that picks a declaration must not:
-        /// scoring candidates through the swap makes it choose one that anticipates the swap, which the
-        /// compiler then applies on top.
-        /// </remarks>
         static int[] CompiledElementOrder(int[] face, Func<int, bool> isStatic, Func<int, Vector3> positionOf)
         {
             var cycle = CompilerCornerCycle(face, isStatic);
@@ -1919,11 +1671,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The bend rods <c>add_stiffness_rods</c> makes the compiler derive from a surface, in whatever
-        /// node indices the faces are given in: the pairs read off the edges the faces share, in the corner
-        /// order they are declared in. A face with more than four corners is one the compiler keeps only
-        /// the first four of (see <see cref="AppendTruncatedCorners"/>), and the rest have no bearing on
-        /// the network.
+        /// Gets the bend rods <c>add_stiffness_rods</c> derives from faces in their declared corner order, over their first
+        /// four corners.
         /// </summary>
         internal static HashSet<(int, int)> BendRodsFromSurface(IEnumerable<int[]> faces, Func<int, bool> isStatic)
             => PredictBendRods([.. faces.Select(static face => face.Length > 4 ? face[..4] : face)], isStatic);
@@ -1935,8 +1684,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         internal static HashSet<(int, int)> BendRodsFromDeclaredFaces(IEnumerable<int[]> faces, Func<int, bool> isStatic)
             => PredictBendRods([.. faces.Select(face => CompilerCornerCycle(face.Length > 4 ? face[..4] : face, isStatic))], isStatic);
 
-        // The bend rods the compiler derives from the given elements, one pair of far corners per edge two of
-        // them share. A rod between two static corners is never built.
         static HashSet<(int, int)> PredictBendRods(List<int[]> elements, Func<int, bool> isStatic)
         {
             var rods = new HashSet<(int, int)>();
@@ -1952,11 +1699,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Every bend rod the compiler derives from a surface, as the hinge edge it folds that rod about and
-        /// the two far corners the rod joins. Elements are walked in order and an edge is paired with the
-        /// earliest unpaired element that lists it, in the same direction first; the far corners then pair by
-        /// position when the two directions agree and crosswise when they oppose. An edge a third element
-        /// lists opens again rather than pairing with either of the first two, so it generates nothing there.
+        /// Gets every bend rod the compiler derives from a surface as its hinge edge and far corners. An edge pairs with the
+        /// earliest open element listing it, same direction first; a third element listing it opens it again.
         /// </summary>
         internal static IEnumerable<((int, int) Hinge, int NodeA, int NodeB)> BendRodGenerators(IEnumerable<int[]> elements)
         {
@@ -1989,11 +1733,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // Puts an uncovered sheet vertex back as the fourth corner of the triangle its authored quad was
-        // trimmed to: the nearest one, with the corner it sits farthest from taken as the quad's diagonal,
-        // which is the only arrangement a convex quad admits. The triangle is replaced rather than added to,
-        // so the compiler still emits exactly one face there - it re-trims the quad to the same triangle
-        // once the vertex is painted into the rod region.
+        /// <summary>
+        /// Makes an uncovered sheet vertex the fourth corner of the nearest same-mesh triangle, diagonal to the corner it
+        /// is farthest from.
+        /// </summary>
         static void AttachStrayToTriangle(int stray, Vector3[] positions, List<int[]> faces, int[] meshOf)
         {
             var best = -1;
@@ -2028,21 +1771,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // Rotated so the diagonal corner sits between the two the stray shares an edge with, keeping the
-            // triangle's own winding.
             var start = (diagonal + 2) % 3;
             faces[best] = [triangle[start], triangle[(start + 1) % 3], triangle[(start + 2) % 3], stray];
         }
 
         /// <summary>
-        /// The weight a selection is painted at on a node the original records as a member of its vertex set while the
-        /// selection's own compiled weight there is 0. It clears the floor a paint has to clear to win the node's set
-        /// and stays under half of the 1/255 step the compiler rounds a selection's weight to, so the node rejoins the
-        /// set and its compiled weight is still 0.
+        /// The weight a selection is painted at on a node <c>m_DynNodeVertexSet</c> puts in its set while its compiled
+        /// weight there is 0; it rounds back to 0.
         /// </summary>
         internal const float SubQuantumMembershipWeight = 0.001f;
 
-        // The vertex selections that reach any of the given nodes, as a membership weight per node.
         (string Name, float[] Weights)[] BuildVertexMapWeights(IReadOnlyList<int> nodeIndices)
         {
             var maps = new List<(string, float[])>();
@@ -2084,11 +1822,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Decides which nodes the export re-authors through the raw goal paint - see
-        /// <see cref="RawGoalPaintNodes"/>. A node whose original compiled on the raw integrator keeps it
-        /// only where the sheet carries that node, so the answer is dropped whole when re-authoring the
-        /// remaining raw nodes as goal-damped ones would flip whether the dynamic band holds both kinds:
-        /// that is what decides whether the compiler writes <c>m_GoalDampedSpringIntegrators</c> at all.
+        /// Gets the nodes compiled on the raw integrator, or empty when re-authoring the rest as goal-damped would change
+        /// whether the dynamic nodes hold both integrator kinds.
         /// </summary>
         bool[] BuildRawGoalPaintNodes()
         {
@@ -2134,9 +1869,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return (staysGoal && staysRaw) == (wasGoal && wasRaw) ? raw : [];
         }
 
-        // Per-node cloth paint values recovered from the FeModel solver data (goal attraction, damping,
-        // collision/friction/drag, gravity, and skin influences), shared by every proxy-mesh
-        // reconstruction path - quad/tri-driven (BuildProxyMesh) and rod-only (BuildProxyMeshFromNodeSet).
+        /// <summary>The per-node paint values of one proxy vertex.</summary>
         readonly record struct ProxyVertexData(
             bool IsSim,
             float GoalStrength,
@@ -2156,12 +1889,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         {
             var isSim = node < NodeInvMasses.Length && NodeInvMasses[node] != 0f;
 
-            // The authored weights recovered verbatim from the compiled back-solve data take priority -
-            // they reproduce the original fit matrices exactly (see RecoveredSkinWeights remarks).
-            // Otherwise: pinned anchors follow their animated anchor bone with full weight, and simulated
-            // vertices get smooth inverse-distance weights across the anchor's chain joints (see
-            // BuildChainSkinInfluences docs) so the compiler back-solves every chain joint with a
-            // proper fit.
             if (!RecoveredSkinWeights.TryGetValue(node, out var skinInfluences))
             {
                 if (isSim)
@@ -2181,24 +1908,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // Recover the per-node paint values. These are 0..1 paint sliders in the cloth editor, so
-            // the recovered quantities are clamped into that range - the editor shows a blank/0 slider
-            // for any out-of-range value.
             var integrator = GetIntegrator(node);
 
-            // The compiler CUBES the painted goal strength: flAnimationForceAttraction =
-            // (cloth_goal_strength_v2)^3. Paint the cube ROOT of the recovered force attraction so the
-            // compiler's cubing reproduces the ORIGINAL attraction instead of one that is too weak by a
-            // cube. cbrt of a 0..1 value stays in 0..1.
-            //
-            // goal_damping drives flAnimationVertexAttraction (va) through an exponential-saturation curve
-            // that asymptotes to 1.0, so this pair cannot express the va > 1 some legacy models ship -
-            // GoalDampingFromAttraction returns its 1.0 maximum there, saturating va short of the original.
-            //
-            // A node the original compiled on the RAW integrator is painted through the raw channels
-            // instead: they carry flAnimationForceAttraction/flAnimationVertexAttraction verbatim at 1/30
-            // scale, reaching the values above 1.0 the goal pair cannot, and a vertex the raw paint reaches
-            // keeps the raw integrator while the rest of the sheet stays goal-damped.
             var rawGoal = node < RawGoalPaintNodes.Length && RawGoalPaintNodes[node];
             var goalStrength = rawGoal ? 0f : GoalStrengthPaint(integrator.ForceAttraction);
             var goalDamping = rawGoal ? 0f : GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction);
@@ -2207,34 +1918,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var collisionRadius = GetCollisionRadius(node);
 
-            // m_DynNodeFriction is indexed by dynamic node, like m_NodeCollisionRadii.
             var friction = Math.Clamp(DynamicNodeValue(nodeFriction, node), 0f, 1f);
 
-            // The cloth_drag paint compiles to flPointDamping = paint * 30 with no upper bound, so the
-            // paint is recovered as pd/30 and a sheet damped harder than 30 keeps its own value. This
-            // velocity damping is what keeps the original cloth calm - a 0 paint leaves the sheet
-            // swinging undamped.
             var drag = Math.Max(integrator.PointDamping / ClothDragPointDampingScale, 0f);
 
-            // Per-vertex gravity: the cloth_gravity$0 paint compiles into flGravity VERBATIM, with no
-            // 360 scale, unlike the gravity_z KV field on ClothNode/ClothChain joints. Without the
-            // stream the compiler defaults every vertex to 360, silently discarding authored per-vertex
-            // variation.
             var gravity = integrator.Gravity;
 
             var vertexAttraction = integrator.VertexAttraction;
 
-            // Per-vertex ground collision: ctrl+54 world_collision, the same node flag ClothChain joints
-            // already emit via IsWorldCollisionNode (ModelExtract.ValveModel.cs MakeClothJoint). A proxy-mesh
-            // vertex reads it through cloth_ground_collision$0 instead of a joint KV. The paint is not a
-            // membership bit: any strictly positive value enrolls a dynamic vertex, and the compiler reads
-            // the value itself as that node's world friction, 1 - paint, sorted into runs spanning at most
-            // 0.1 whose minimum is the flWorldFriction m_WorldCollisionParams stores.
-            //
-            // Only a node the original compiled as a sheet vertex can be painted: the compiler names the
-            // vertex's node itself, so on a stand-in sheet rebuilt over bone or free-ClothNode controls the
-            // paint enrolls a fabricated "$cloth_m*" node the original has no counterpart for, on top of
-            // the construct that recreates the control node and carries its own world_collision KV.
             var (worldFriction, groundFriction) = GetWorldFriction(node);
             var groundCollision = IsWorldCollisionNode(node) && IsProxyMeshNode(node)
                 ? Math.Max(1f - worldFriction, 1e-6f)
@@ -2244,8 +1935,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 collisionRadius, friction, drag, gravity, vertexAttraction, groundCollision, groundFriction, skinInfluences);
         }
 
-        // Extracts the mesh index the compiler already encodes in an auto-generated proxy control-node
-        // name ("$cloth_m3p12" -> 3), or -1 if the name does not follow that convention.
+        /// <summary>Gets the mesh index of a <c>$cloth_m&lt;N&gt;p&lt;S&gt;</c> name, or -1.</summary>
         static int ParseProxyMeshIndex(string name)
         {
             const string Prefix = "$cloth_m";
@@ -2263,19 +1953,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return int.TryParse(name.AsSpan(Prefix.Length, pIndex - Prefix.Length), out var index) ? index : -1;
         }
 
-        /// <summary>
-        /// Whether the original compiled <paramref name="node"/> as a vertex of an authored cloth SHEET.
-        /// Anything a reconstructed proxy mesh covers that this rejects is a stand-in the export builds
-        /// over bone or free-<c>ClothNode</c> controls, so per-vertex sheet data recovered for it belongs
-        /// to a different construct.
-        /// </summary>
+        /// <summary>Gets whether <paramref name="node"/> is a proxy-sheet vertex (<c>$cloth_m&lt;N&gt;p&lt;S&gt;</c>).</summary>
         public bool IsProxyMeshNode(int node)
             => node >= 0 && node < CtrlNames.Length && ParseProxyMeshIndex(CtrlNames[node]) >= 0;
 
-        // Extracts the AUTHORED local vertex index from an auto-generated proxy control-node name
-        // ("$cloth_m3p12" -> 12) - the compiler assigns p{N} as the vertex's position in the authored
-        // DMX's own position array, so the original author's vertex ORDER survives compilation inside the
-        // node names. int.MaxValue for non-proxy names.
+        /// <summary>Gets the vertex slot of a <c>$cloth_m&lt;N&gt;p&lt;S&gt;</c> name, or <see cref="int.MaxValue"/>.</summary>
         static int ParseProxyVertexIndex(string name)
         {
             const string Prefix = "$cloth_m";
@@ -2293,11 +1975,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return int.TryParse(name.AsSpan(pIndex + 1), out var index) ? index : int.MaxValue;
         }
 
-        // Returns the given faces reordered to the original compile's SIMD lane-major order (first
-        // occurrence of each face wins; padding replicas dedup away), with each face's own node order
-        // taken from its first SIMD lane. Faces without a SIMD lane (shouldn't happen - the SIMD arrays
-        // pack every logical face) keep their original array order at the end. See the call site in
-        // BuildProxyMesh for why the order matters.
+        /// <summary>
+        /// Reorders faces to their SIMD lane order, each in its lane's node order; faces without a lane follow in array order.
+        /// </summary>
         int[][] OrderFacesBySimdLanes(int[][] faces, string simdKey)
         {
             var simd = Data.GetArray(simdKey);
@@ -2325,8 +2005,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var ordered = new List<int[]>(faces.Length);
             foreach (var entry in simd)
             {
-                // nNode is rows x 4 lanes; the KV3 form may present it as nested arrays or one
-                // flattened row-major array - handle both.
                 if (!entry.TryGetValue("nNode", out var nNodeValue) || !nNodeValue.IsArray)
                 {
                     return faces;
@@ -2350,7 +2028,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 if (flat.Count < rows * 4)
                 {
-                    return faces; // unexpected shape - keep original order rather than guessing
+                    return faces;
                 }
 
                 for (var lane = 0; lane < 4; lane++)
@@ -2378,13 +2056,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return [.. ordered];
         }
 
-        // Orders proxy vertices by (mesh index, AUTHORED vertex index) recovered from their compiled
-        // "$cloth_m{mesh}p{vertex}" names, instead of ascending global node index. The compiler's SIMD
-        // constraint packing depends on the DMX's local vertex order: re-importing the same faces with a
-        // DIFFERENT vertex order packs different SIMD groups and pads the leftover lanes with LIVE
-        // (full-weight) replicas of real constraints, stiffening the recompiled cloth. Restoring the
-        // authored order reproduces the original packing and makes the recompile reassign identical
-        // "$cloth_mXpY" names.
+        /// <summary>Sorts nodes by mesh index, then vertex slot, then node index.</summary>
         void SortByAuthoredVertexOrder(int[] nodeIndices)
         {
             Array.Sort(nodeIndices, (x, y) =>
@@ -2408,28 +2080,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Reconstructs proxy-mesh islands for "$cloth_*" control nodes that carry no <see cref="Quads"/>/
-        /// <see cref="Tris"/> of their own. A <c>ClothProxyMeshFile</c> import compiles down to a bare
-        /// distance-constraint (<c>m_Rods</c>) network, discarding the authored
-        /// surface entirely, so these nodes are otherwise silently dropped instead of
-        /// round-tripping as a sheet. Grouped by the "$cloth_m&lt;N&gt;p&lt;M&gt;" mesh index the compiler
-        /// already encodes in the node name - one island per otherwise-uncovered index - with faces
-        /// synthesised by 2D triangulation: the compiler re-derives its own rod network from whatever
-        /// surface is imported anyway (same discarding behaviour), so an approximate triangulation is
-        /// enough to recover working physics instead of the exact original faces.
-        ///
-        /// Coverage is checked per NODE, not per mesh index: a single authored proxy DMX can contain both
-        /// a small quad/tri-covered patch AND many more vertices connected only by rods. Skipping by mesh
-        /// index there would drop the rods-only vertices just because some siblings already got a
-        /// face-based island - the two groups end up as separate exported proxy files instead of one, but
-        /// every node's physics data still round-trips instead of being silently lost.
-        ///
-        /// (A ClothNode/ClothSpring reconstruction reproduces m_Rods byte-exact for the constraint data
-        /// itself, but ClothNode always creates an independent new goal-attraction point; it cannot
-        /// back-solve an EXISTING named bone the way ClothProxyMeshFile's back_solve_joints does. Bone-chain
-        /// cloth whose render mesh is skinned to real bones rather than any node ClothNode could create
-        /// needs exactly that back-solve, so the mesh-import path stays the only route there despite the
-        /// topology being approximate.)
+        /// Reconstructs sheets for the uncovered proxy nodes that no solve element covers, grouped by rods, source faces and
+        /// mesh index, with authored faces where they fit and a triangulation otherwise.
         /// </summary>
         List<ProxyMesh> BuildProxyMeshesFromRodsOnly(HashSet<int> coveredNodes)
         {
@@ -2439,12 +2091,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return result;
             }
 
-            // A still-uncovered "$..." control node is a rod-only proxy vertex (real skeleton bones are
-            // handled by BuildBoneChains / the driven-bone path, not here).
-            // A "$cloth_node_" ctrl is the exception: the compiler writes that prefix for an authored
-            // free-standing ClothNode element, not for a sheet vertex, and AddFreeClothNodesAndSprings
-            // re-authors it as one. Sweeping it into a synthesised sheet renames it "$cloth_m<N>p<M>" and
-            // regenerates its rods from that sheet's faces instead of its own ClothSprings.
             var n = CtrlNames.Length;
             var isProxy = new bool[n];
             for (var node = 0; node < n && node < InitPosePositions.Length; node++)
@@ -2454,13 +2100,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     && !coveredNodes.Contains(node) && !IsHingeRegeneratedProxy(node);
             }
 
-            // Group rod-only proxy vertices by ROD CONNECTIVITY, not by name. One authored cloth panel can
-            // span several proxy-node name prefixes, all wired into one sheet by rods - so grouping by name
-            // would split a connected panel across multiple proxy meshes and orphan every rod that crosses
-            // the split ("Cannot find node $cloth_mXpY", a hard compile failure). Union-find over rods
-            // whose BOTH endpoints are uncovered proxy vertices yields exactly the original's per-panel
-            // meshes: unconnected panels with no rods joining them stay separate, while a single-mesh
-            // island is one component.
             var parent = new int[n];
             for (var i = 0; i < n; i++)
             {
@@ -2486,12 +2125,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // The corners of an authored face are one surface by definition. Splitting them across islands
-            // would drop that face from both (a face is only kept where all of its corners are), leaving
-            // its vertices unfaced - and an unfaced vertex is never registered as a control node at all.
-            // Only faces confined to a single compiled mesh count: a face spanning two of them describes
-            // authored geometry the compiler itself chose to split, and merging on it would fuse two
-            // separate sheets into one.
             foreach (var face in SourceFaces)
             {
                 if (SpansProxyMeshes(face))
@@ -2518,11 +2151,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // Also union nodes the compiler already assigned to the same "$cloth_m{N}" mesh: that index is
-            // an authoritative grouping the name encodes, and a single panel can contain a vertex with no
-            // rod to the rest - grouping by rod connectivity alone would strand it in a <3-vertex singleton
-            // and drop it, losing a node.
-            // "$cc" names carry no mesh index (ParseProxyMeshIndex returns -1) and rely on rod connectivity.
             var meshIndexRep = new Dictionary<int, int>();
             for (var node = 0; node < n; node++)
             {
@@ -2565,12 +2193,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             var nodeFriction = Data.GetFloatArray("m_DynNodeFriction");
-            // Smallest member index first; BuildProxyMeshes (the only caller) re-sorts and pads its
-            // combined final list by the original "$cloth_m<N>" mesh index itself, so this order is only
-            // a deterministic default for groups it doesn't merge into another proxy.
             foreach (var (_, nodeIndices) in groups.OrderBy(static kv => kv.Value.Min()))
             {
-                // Need at least a triangle's worth of points to synthesise a surface.
                 if (nodeIndices.Count < 3)
                 {
                     continue;
@@ -2588,8 +2212,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         ProxyMesh? BuildProxyMeshFromNodeSet(List<int> nodeIndices, float[] nodeFriction)
         {
-            // Same authored-vertex-order restoration as BuildProxyMesh - the SIMD constraint packing
-            // (and the recompile's own "$cloth_mXpY" numbering) follows the DMX vertex order.
             var sorted = nodeIndices.ToArray();
             SortByAuthoredVertexOrder(sorted);
             nodeIndices = [.. sorted];
@@ -2648,9 +2270,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 EnsureAllVerticesFaced(positions, faces);
             }
 
-            // A corner the compiler truncated out of its element registers only through the simulated
-            // path, whatever the mass it ended up with: the original painted it enabled and it came back
-            // massless because no element was left to weigh it (see AppendTruncatedCorners).
             foreach (var node in usesAuthoredFaces ? truncatedTail : [])
             {
                 clothEnable[localOf[node]] = 1f;
@@ -2663,8 +2282,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             DeclareFacesInStaticNodeOrder(faces, faces.Count, nodeIndices);
 
-            // Authored faces are the original topology, so the compiler's own rod derivation from them
-            // reproduces the shipped m_Rods - the island needs no drop-risk fallback and no explicit rods.
             var isDropRisk = !usesAuthoredFaces && ComputeDropRisk(positions, clothEnable, faces);
 
             return new ProxyMesh
@@ -2695,13 +2312,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             };
         }
 
-        // The authored faces wholly contained in one island, remapped to that island's local vertex
-        // indices. A face straddling islands belongs to neither.
-        //
-        // The set is kept only when every rod the compiler would derive from it is a rod the model
-        // actually ships. A surface that would invent constraints is rejected outright and the island
-        // falls back to a synthesised triangulation with its rods declared explicitly, which is exact even
-        // though the compiled quad/tri surface then differs (the mixed chain-plus-proxy heroes land here).
         List<int[]> TakeAuthoredFaces(Dictionary<int, int> localOf, List<int> nodeIndices,
             out List<int> truncatedTail)
         {
@@ -2748,8 +2358,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 shipped.Add(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA));
             }
 
-            // The compiler creates no rod whose two endpoints' inverse masses sum to RodMassFloor or less,
-            // and none for a face DIAGONAL whose shear-resistance paint leaves its relaxation at zero.
             foreach (var (a, b) in FaceEdges(faces))
             {
                 if (!shipped.Contains((a, b)) && InverseMassOf(a) + InverseMassOf(b) > RodMassFloor)
@@ -2758,8 +2366,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // Every vertex has to land on a face: an unfaced one is never registered as a control node, so
-            // a partial cover would silently lose nodes that the synthesised triangulation keeps.
             var covered = new HashSet<int>();
             foreach (var face in faces)
             {
@@ -2771,12 +2377,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return [];
             }
 
-            // The compiler records the imported faces back to front, so the authored order is the reverse
-            // of the one m_SourceElems lists them in. Restoring it matters because a rod's endpoints are
-            // kept in the order the face that first claimed them names them (m_Rods carries the two nodes
-            // in that order, with flWeight0 measured from the first), and two faces sharing an edge name
-            // it in opposite directions. Faces of unequal corner counts are grouped by count on the way
-            // out, so their order relative to each other does not survive.
             faces.Reverse();
             MergeFacesInNodeCreationOrder(faces, triangles);
             return [.. faces.Select(face => face.Select(corner => localOf[corner]).ToArray())];
@@ -2814,26 +2414,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// declared them, placing an already-faced node as an extra corner where the sheet's own wider
         /// polygon named it early.
         /// </summary>
-        /// <remarks>
-        /// <c>m_SourceElems</c> groups its elements by corner count, so the recovered list is every
-        /// triangle and then every quad while the authored one interleaves the two; each run is already in
-        /// the authored order, which makes the interleaving a merge rather than a sort. The builder numbers
-        /// a simulated node when a face corner first names it and lays the dynamic block out by
-        /// <c>(rank, creation index)</c>, so the merge takes at each step the run whose head introduces the
-        /// nodes the compiled node array numbers next. A head that introduces nothing settles no question
-        /// and the quad run goes first, as it does when neither head fits.
-        /// <para>
-        /// The corners of one face are checked as a SET per rank: which of them is named first is decided
-        /// afterwards by <see cref="DeclareFacesInStaticNodeOrder"/>, not here.
-        /// </para>
-        /// <para>
-        /// Where no head fits because the node array numbers a node no head names, that node is appended
-        /// past the fourth corner of the last wide face already emitted, which is where a polygon wider
-        /// than a quad would have named it: only the first four corners become an element, so an authored
-        /// n-gon creates a node that leaves no trace in the recovered surface. The extra corners are kept
-        /// only when the merged list then introduces every node in the compiled order.
-        /// </para>
-        /// </remarks>
         void MergeFacesInNodeCreationOrder(List<int[]> faces, int triangleCount)
         {
             var quadCount = faces.Count - triangleCount;
@@ -2858,8 +2438,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             faces.AddRange(merged);
         }
 
-        // The nodes each rank contributes to the surface, in the order the compiled node array numbers
-        // them, which is the creation order restricted to that rank.
         Dictionary<int, List<int>> CompiledRunsByRank(IEnumerable<int[]> faces, int[] rank)
         {
             var runs = new Dictionary<int, List<int>>();
@@ -2886,12 +2464,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// The pinned nodes the surface introduces, in the order the compiled node array numbers them.
         /// </summary>
-        /// <remarks>
-        /// Only the rotation-locked block is created by the face walk, and that walk sees a face truncated
-        /// to four corners and skips one whose corners are all pinned. A pinned node the sheet painted
-        /// simulated was created by the corner walk instead and demoted afterwards, which is what puts it
-        /// past the rotation-locked run.
-        /// </remarks>
         List<int> CompiledPinnedRun(List<int[]> faces)
         {
             var covered = new SortedSet<int>();
@@ -2906,7 +2478,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return [.. covered];
         }
 
-        // The corners of one face the pinned walk creates a node for, in declared order.
         IEnumerable<int> PinnedRunCorners(int[] face)
         {
             var corners = face.Length > 4 ? face[..4] : face;
@@ -3006,8 +2577,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             List<int> IntroducedPinned(int face)
                 => [.. PinnedRunCorners(faces[face]).Where(corner => !createdPinned.Contains(corner)).Distinct()];
 
-            // The pinned walk is a single run, so a head is only ever taken while the nodes it pins are the
-            // ones the compiled array numbers next.
             bool IsNextPinned(int face)
             {
                 var fresh = IntroducedPinned(face);
@@ -3015,12 +2584,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     && pinned.Take(fresh.Count).ToHashSet().SetEquals(fresh));
             }
 
-            // The nodes the compiled array numbers ahead of the ones this head names, in the order it wants
-            // them; empty when the head fits as it stands, null when it cannot be taken at all. A face's
-            // corners are read in declared order, so its fresh nodes have to be the next entries of their
-            // rank's run as a SEQUENCE; where the face names two of one rank the other way round, the one
-            // the run wants first becomes an extra corner of an earlier face and the head then names it
-            // again as an ordinary corner, by which time it is no longer fresh.
             List<int>? Preceding(List<int> fresh)
             {
                 var cursor = new Dictionary<int, int>(2);
@@ -3167,12 +2730,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Each node's BFS layer from the static set over the surface, which is the <c>nRank</c> the builder
         /// lays the dynamic node block out by.
         /// </summary>
-        /// <remarks>
-        /// The walk crosses the solve elements and the source elements, springs included, and NOT
-        /// <c>m_Rods</c>: the compiler builds most of those after it has already assigned the ranks, so a
-        /// rod edge shortens a path it never had. A node the static set cannot reach ranks after every one
-        /// it can.
-        /// </remarks>
         int[] SurfaceNodeRanks => surfaceNodeRanks ??= BuildSurfaceNodeRanks();
         int[]? surfaceNodeRanks;
 
@@ -3248,9 +2805,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return rank;
         }
 
-        // How many of SourceFaces came from m_SourceElems' arity-3 block. That array holds four leading
-        // counts, one per arity, and then the elements grouped by arity, so the block boundary is where the
-        // recovered surface splits into its two runs. An element whose corners repeat is not recovered.
         int SourceTriangleElementCount
         {
             get
@@ -3277,19 +2831,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Puts the island's remaining unfaced vertices back on a face by appending them past a quad's
-        /// fourth corner, returning false when that cannot account for all of them and the authored
-        /// surface has to be given up.
-        /// <para>
-        /// <c>m_SourceElems</c> holds at most four corners per element, so the compiler truncates a
-        /// bigger authored polygon there while still registering every corner as a node - which is the
-        /// only way a proxy vertex reaches the compiled file with no element naming it and no rod of its
-        /// own. A polygon larger than a quad has its recorded element hold the first four corners, and the
-        /// rest are exactly the vertices nothing else mentions. Appending a corner past the fourth leaves
-        /// the recorded element and the rods derived from it untouched, so the vertex costs nothing to
-        /// re-register. A leftover vertex that carries a rod of its own was not truncated away and still
-        /// rejects the surface, as does one with no quad to append to.
-        /// </para>
+        /// Appends each unfaced, unrodded vertex past the fourth corner of the nearest quad, the corners the compiler
+        /// truncates from a larger polygon. Returns false when a vertex cannot be placed that way.
         /// </summary>
         bool AppendTruncatedCorners(List<int[]> faces, List<int> nodeIndices, HashSet<int> covered,
             HashSet<(int, int)> shipped, List<int> truncatedTail)
@@ -3358,9 +2901,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return true;
         }
 
-        // Whether a face's corners come from more than one compiled proxy mesh. Such a face cannot have
-        // been authored in any single proxy DMX, and the rods it would imply are not the ones the model
-        // ships, so it is left out of the surface entirely.
         bool SpansProxyMeshes(int[] face)
         {
             var meshIndex = int.MinValue;
@@ -3385,9 +2925,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
-        // Projects a 3D point set onto its two dominant-extent axes (the same "biggest bounding-box
-        // spread" heuristic ModelExtract.Mesh uses for proxy UVs) - good enough for the near-planar cloth
-        // sheets these control-node islands represent.
         static Vector2[] ProjectToDominantPlane(Vector3[] positions)
         {
             var min = positions.Aggregate(Vector3.Min);
@@ -3406,32 +2943,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return projected;
         }
 
-        // Incremental Bowyer-Watson Delaunay triangulation over the dominant-plane projection.
-        //
-        // A vertex not referenced by ANY face is NOT registered as a valid FeModel control node at all, and
-        // every unfaced vertex then hard-fails to compile ("Cannot find Fx Bone"/"Cannot find node"). A
-        // sparser cover is not an option even where the ORIGINAL's own compiled m_Tris/m_Quads for a proxy
-        // island add up to far fewer elements than its vertex count: the author's source DMX carries a much
-        // denser authored topology than its OWN compiled output, which the importer collapses into m_Rods -
-        // not reconstructable by feeding a sparser face set. A full triangulation (this function) is what
-        // gets every vertex registered, even though the resulting m_Quads/m_Tris don't match the original
-        // (the compiler's own quad-vs-rod-collapse heuristic isn't reverse-engineered here).
-        //
-        // A sparser fan or set-cover instead of the full triangulation either leaves vertices unfaced (they
-        // fail to register: "Cannot find Fx Bone") or needs a per-model minimum-degree that isn't universal.
-        // A high cloth_make_rods paint also makes the compiler match m_Quads/m_Tris exactly, but its
-        // auto-derived rods then STACK with AddClothProxySprings' own exact m_Rods, over-constraining the
-        // sheet. Correct per-edge rod topology matters more for simulated behaviour than the compiled
-        // quad/tri surface count, so the full Delaunay output is kept.
-        //
-        // The compiler only registers a proxy vertex as an FeModel control node if it is referenced by at
-        // least one face (see the TriangulateDominantPlane remarks). A Delaunay triangulation of a curved
-        // or near-collinear rod-only island can still leave boundary vertices - or vertices that overlap
-        // once projected to the dominant plane - out of every face. Those vertices then can't be targeted by
-        // their m_Rods' ClothSprings ("Cannot find node"), so the whole rod-only island's cloth is lost.
-        // Attach each still-unfaced vertex to its two nearest non-collinear neighbours, guaranteeing every
-        // vertex registers and its rods survive. This is purely ADDITIVE: a fully-triangulated island has no
-        // unfaced vertices, so no triangle is added and its compiled output stays byte-exact.
+        /// <summary>Adds a triangle to the two nearest non-collinear vertices for each vertex no face covers.</summary>
         static void EnsureAllVerticesFaced(Vector3[] positions, List<int[]> faces)
         {
             var n = positions.Length;
@@ -3456,8 +2968,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                // Nearest distinct-position vertex first, then the nearest one after it that is not
-                // collinear with i and the first pick, so the synthesized triangle has real area.
                 var ordered = Enumerable.Range(0, n)
                     .Where(j => j != i && positions[j] != positions[i])
                     .OrderBy(j => Vector3.DistanceSquared(positions[i], positions[j]))
@@ -3492,17 +3002,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        // Predicts whether the cloth mesh importer will silently prune any vertex of a synthesised rod-only
-        // island (which would orphan an explicit ClothSpring referencing it - a hard compile failure). Two
-        // importer prune behaviours:
-        //   (1) ISOLATED-PINNED: a pinned (cloth_enable == 0) vertex whose face-neighbours are ALL pinned has
-        //       no simulated neighbour, so it is a fully-static mesh region the solver has no use for and
-        //       discards.
-        //   (2) NEAR-COINCIDENT WELD: two vertices much closer than the island's typical edge length get
-        //       welded into one by the importer, dropping the duplicate.
-        // Either signal marks the whole island as drop-risk; the caller then omits its explicit rods and lets
-        // the compiler auto-derive them (always compiles). Convex, uniformly-spaced islands trip neither and
-        // keep their exact reconstructed rods. Both signals are scale-relative / topological.
+        /// <summary>
+        /// Gets whether a pinned vertex has no simulated neighbour, or two vertices lie closer than a quarter of the
+        /// median edge.
+        /// </summary>
         static bool ComputeDropRisk(Vector3[] positions, float[] clothEnable, List<int[]> faces)
         {
             var n = positions.Length;
@@ -3511,7 +3014,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return false;
             }
 
-            // (1) isolated-pinned: build face adjacency, flag a pinned vertex with no simulated neighbour.
             var adjacency = new HashSet<int>[n];
             for (var i = 0; i < n; i++)
             {
@@ -3555,7 +3057,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // (2) near-coincident weld: any vertex pair closer than a fraction of the island's median edge.
             var edges = new List<float>();
             foreach (var face in faces)
             {
@@ -3585,6 +3086,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
+        /// <summary>Triangulates the positions by Delaunay over their two widest axes.</summary>
         static List<int[]> TriangulateDominantPlane(Vector3[] positions)
         {
             var faces = new List<int[]>();
@@ -3601,7 +3103,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var center = (min + max) * 0.5f;
             var size = MathF.Max(max.X - min.X, max.Y - min.Y) * 10f + 1f;
 
-            // Super-triangle enclosing every point, at indices n, n+1, n+2 (stripped out at the end).
             var allPoints = new Vector2[n + 3];
             Array.Copy(points, allPoints, n);
             allPoints[n] = center + new Vector2(0f, size * 2f);
@@ -3614,7 +3115,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 var bad = triangles.Where(tri => InCircumcircle(allPoints[tri.A], allPoints[tri.B], allPoints[tri.C], allPoints[p])).ToList();
 
-                // The hole's boundary: edges of bad triangles that are not shared with another bad triangle.
                 var polygon = new List<(int A, int B)>();
                 foreach (var tri in bad)
                 {

@@ -8,20 +8,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         Dictionary<int, Vector3>? hingeFanJoints;
 
         /// <summary>
-        /// Gets the chain joints a rigid <c>ClothChainHinge</c> constrains, each with its authored
-        /// <c>hinge_vector</c> in the joint's own bone frame: the compiler lays the joint's two-node ring at
-        /// the joint plus and minus that vector, then joins the pair to every child joint with one surface
-        /// element per child (a quad where the child has a ring, a triangle where it has none). A soft hinge
-        /// or one with limits leaves an <c>$ha_</c> anchor or an <c>m_HingeLimits</c> entry behind instead
-        /// and is not listed here.
+        /// Gets the chain joints a rigid <c>ClothChainHinge</c> constrains, with each <c>hinge_vector</c> in the joint's bone
+        /// frame. Hinges with limits or an <c>$ha_</c> anchor are not listed.
         /// </summary>
         public IReadOnlyDictionary<int, Vector3> RigidHingeJoints => rigidHingeJoints ??= CollectHingeFanJoints(rigidOnly: true);
 
         /// <summary>
-        /// Gets every chain joint whose hinge the compiler fanned out over a surface element, limited and
-        /// anchored hinges included. The fan is emitted from the hinge flag alone and carries no limits, so
-        /// a face test keys on this set while <see cref="RigidHingeJoints"/> keys on the narrower set a
-        /// rigid <c>ClothChainHinge</c> can be re-declared from.
+        /// Gets every chain joint whose hinge the compiler fanned out over surface elements, limited and anchored hinges included.
         /// </summary>
         IReadOnlyDictionary<int, Vector3> HingeFanJoints => hingeFanJoints ??= CollectHingeFanJoints(rigidOnly: false);
 
@@ -49,10 +42,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Gets whether a rigid hinge joint's own children were sprung against each other
-        /// (<c>child_sibling_spring</c>). The compiler then rods every pair of their extruded rings, which
-        /// neither the hinge's fan elements nor the chain's parent-child rods produce, so a rod joining the
-        /// rings of two different children of the joint is the signature.
+        /// Gets whether a rod joins the rings of two different children of a rigid hinge joint (<c>child_sibling_spring</c>).
         /// </summary>
         public bool SpringsHingeChildren(BoneChain chain, int joint)
         {
@@ -94,14 +84,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
-        // A face the sheet cannot own: every corner is in range and none of them is a sheet vertex.
         bool IsChainOnlyFace(int[] face)
             => !Array.Exists(face, corner => corner < 0 || corner >= CtrlNames.Length || IsProxyMeshNode(corner));
 
         static bool SpansRing(int[] face, List<int> ring)
             => Array.IndexOf(face, ring[0]) >= 0 && Array.IndexOf(face, ring[1]) >= 0;
 
-        // The two sets differ by nothing but the two exclusion terms, so the fan set contains the rigid one.
         Dictionary<int, Vector3> CollectHingeFanJoints(bool rigidOnly)
         {
             var joints = new Dictionary<int, Vector3>();
@@ -121,8 +109,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         continue;
                     }
 
-                    // The fan runs from the hinge ring to one child joint per element, so every other
-                    // corner is that child or a node of its ring.
                     var ring = ProxyRingOf(joint);
                     if (ring.Count != 2 || !SpansRing(face, ring)
                         || !Array.TrueForAll(face, other => ring.Contains(other)
@@ -142,7 +128,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return joints;
         }
 
-        // The chain joint a fan corner stands for: a ring node's owner, otherwise the node itself.
         int? ChainJointOf(int node)
         {
             if (!CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal))
@@ -156,8 +141,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         int ParentJointOf(int joint) => joint < SkelParents.Length ? SkelParents[joint] : -1;
 
-        // The second ring node's bone-local offset is the vector as authored; without an offset entry the
-        // half-span between the pair is taken back into the joint's bind frame.
         Vector3? RigidHingeVector(int joint, List<int> ring)
         {
             foreach (var offset in CtrlOffsets)
