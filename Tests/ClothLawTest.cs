@@ -10420,7 +10420,7 @@ namespace Tests
         // generating hinge is clamp((paint[u] + paint[v]) * pi / 2 + add_curvature * pi, 0, pi), the rod takes the smallest
         // span any of them folds it to, and never more than its own rest span.
         private static List<(int, int)> FoldedRodMisses(FeModel sheet, List<int[]> faces, HashSet<(int, int)> network,
-            Dictionary<int, float>? paint, float curvature)
+            Dictionary<int, float>? paint, float curvature, bool tight = false)
         {
             var positions = sheet.InitPosePositions;
             var generators = new Dictionary<(int, int), List<(int, int)>>();
@@ -10457,7 +10457,7 @@ namespace Tests
                     span = MathF.Min(span, folded);
                 }
 
-                if (MathF.Abs(span - rod.MinDist) > 1e-3f * MathF.Max(1f, rod.MinDist))
+                if (MathF.Abs(span - rod.MinDist) > (tight ? MathF.Max(1e-3f, 1e-4f * rod.MinDist) : 1e-3f * MathF.Max(1f, rod.MinDist)))
                 {
                     misses.Add(pair);
                 }
@@ -11826,6 +11826,268 @@ namespace Tests
                 [
                     { nNode = 2 nNodeX0 = 2 nNodeX1 = {{xNode}} nNodeY0 = 3 nNodeY1 = 2 },
                     { nNode = 3 nNodeX0 = 3 nNodeX1 = {{xNode}} nNodeY0 = 4 nNodeY1 = 3 },
+                ]
+            }
+            """);
+
+        /// <summary>
+        /// A settled bend paint is replaced only where it misses rods by more than the replay's own float agreement of 1e-4 of the
+        /// span, not by more than a thousandth of it: a rod a few thousandths off its compiled minimum is still one the compiler
+        /// rebuilds differently. The sheet is dota `mirana_persona_base`'s, copied from the compiled original: 126 network rods, 20
+        /// of them within 0.003 of their minimum under the settled paint. CONTROL: the covering answer on the drow goddess sheet
+        /// still rebuilds every rod at the tight rule.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on `6cf751d5a`: at the loose rule `queenofpain_arcana_sfm` (0.0102 off at a 22.49 span) and both
+        /// mirana_persona rows kept their settled paint and stayed DEFECT on m_Rods; at this rule all three leave DEFECT.
+        /// </remarks>
+        [Test]
+        public async Task ASettledPaintMissingRodsByThousandthsIsReplaced()
+        {
+            List<int[]> faces = [[66, 67, 72, 73], [30, 31, 36, 37], [18, 19, 24, 25], [25, 24, 31, 30], [48, 49, 54, 55], [37, 36, 42, 43], [43, 42, 49, 48], [55, 54, 60, 61], [61, 60, 67, 66], [12, 13, 19, 18], [6, 7, 13, 12], [0, 1, 7, 6], [68, 74, 75, 69], [32, 38, 39, 33], [20, 26, 27, 21], [26, 32, 33, 27], [50, 56, 57, 51], [38, 44, 45, 39], [44, 50, 51, 45], [56, 62, 63, 57], [62, 68, 69, 63], [14, 20, 21, 15], [8, 14, 15, 9], [9, 2, 3, 8], [82, 83, 84, 85], [40, 46, 47, 41], [22, 28, 29, 23], [10, 16, 17, 11], [16, 22, 23, 17], [28, 34, 35, 29], [34, 40, 41, 35], [58, 64, 65, 59], [46, 52, 53, 47], [52, 58, 59, 53], [70, 76, 77, 71], [64, 70, 71, 65], [76, 82, 85, 77], [4, 5, 10, 11], [10, 5, 2, 9], [15, 21, 22, 16], [27, 33, 34, 28], [39, 45, 46, 40], [51, 57, 58, 52], [63, 69, 70, 64], [78, 79, 83, 82], [72, 67, 80, 81], [67, 60, 65, 71], [54, 49, 53, 59], [42, 36, 41, 47], [31, 24, 29, 35], [19, 13, 17, 23], [7, 1, 4, 11], [69, 75, 79, 78], [81, 80, 85, 84]];
+            HashSet<(int, int)> network = [(0, 12), (1, 13), (2, 15), (3, 14), (4, 17), (5, 16), (6, 11), (6, 18), (7, 10), (7, 19), (8, 10), (8, 20), (9, 11), (9, 21), (10, 22), (11, 23), (12, 17), (12, 25), (13, 16), (13, 24), (14, 16), (14, 26), (15, 17), (15, 27), (16, 28), (17, 29), (18, 23), (18, 30), (19, 22), (19, 31), (20, 22), (20, 32), (21, 23), (21, 33), (22, 34), (23, 35), (24, 28), (24, 36), (25, 29), (25, 37), (26, 28), (26, 38), (27, 29), (27, 39), (28, 40), (29, 41), (30, 35), (30, 43), (31, 34), (31, 42), (32, 34), (32, 44), (33, 35), (33, 45), (34, 46), (35, 47), (36, 40), (36, 49), (37, 41), (37, 48), (38, 40), (38, 50), (39, 41), (39, 51), (40, 52), (41, 53), (42, 46), (42, 54), (43, 47), (43, 55), (44, 46), (44, 56), (45, 47), (45, 57), (46, 58), (47, 59), (48, 53), (48, 61), (49, 52), (49, 60), (50, 52), (50, 62), (51, 53), (51, 63), (52, 64), (53, 65), (54, 58), (54, 67), (55, 59), (55, 66), (56, 58), (56, 68), (57, 59), (57, 69), (58, 70), (59, 71), (60, 64), (60, 72), (61, 65), (61, 73), (62, 64), (62, 74), (63, 65), (63, 75), (64, 76), (65, 77), (66, 71), (66, 80), (67, 70), (67, 85), (68, 70), (68, 78), (69, 71), (69, 82), (70, 82), (71, 85), (72, 84), (73, 81), (74, 79), (75, 83), (76, 83), (77, 84), (78, 85), (79, 84), (80, 82), (81, 83)];
+            var sheet = MiranaPersonaSheet;
+            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0.800064f, keepsCurvature: false);
+
+            List<int[]> drowFaces = [[15, 12, 13], [14, 15, 13], [6, 7, 3, 4], [5, 8, 6, 4], [0, 5, 4, 1], [3, 2, 1, 4], [9, 10, 7, 6], [8, 11, 9, 6], [11, 14, 13, 9], [12, 10, 9, 13]];
+            HashSet<(int, int)> drowNetwork = [(0, 8), (1, 6), (2, 7), (3, 5), (3, 10), (4, 9), (5, 11), (6, 13), (7, 8), (7, 12), (8, 14), (9, 15), (10, 11), (10, 15), (11, 15), (12, 14)];
+            var (drowPaint, drowCurvature) = ModelExtract.ClothBendStiffnessOverFold(DrowGoddessHeadSheet, drowFaces, drowNetwork,
+                0.7383068f, keepsCurvature: false);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: the drow sheet's covering answer at the tight rule.
+                await Assert.That(FoldedRodMisses(DrowGoddessHeadSheet, drowFaces, drowNetwork, drowPaint, drowCurvature, tight: true)).IsEmpty();
+
+                // THE LAW.
+                await Assert.That(FoldedRodMisses(sheet, faces, network, paint, curvature, tight: true)).IsEmpty();
+            }
+        }
+
+        // models/heroes/mirana_persona/mirana_persona_base.vmdl_c: 86 nodes, 126 network rods, 54 faces, surface add_curvature 0.800064; the sheet's face nodes renumbered from 0.
+        private static FeModel MiranaPersonaSheet => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11", "$cloth_m0p12", "$cloth_m0p13", "$cloth_m0p14", "$cloth_m0p15", "$cloth_m0p16", "$cloth_m0p17", "$cloth_m0p18", "$cloth_m0p19", "$cloth_m0p20", "$cloth_m0p21", "$cloth_m0p22", "$cloth_m0p23", "$cloth_m0p24", "$cloth_m0p25", "$cloth_m0p26", "$cloth_m0p27", "$cloth_m0p28", "$cloth_m0p29", "$cloth_m0p30", "$cloth_m0p31", "$cloth_m0p32", "$cloth_m0p33", "$cloth_m0p34", "$cloth_m0p35", "$cloth_m0p36", "$cloth_m0p37", "$cloth_m0p38", "$cloth_m0p39", "$cloth_m0p40", "$cloth_m0p41", "$cloth_m0p42", "$cloth_m0p43", "$cloth_m0p44", "$cloth_m0p45", "$cloth_m0p46", "$cloth_m0p47", "$cloth_m0p48", "$cloth_m0p49", "$cloth_m0p50", "$cloth_m0p51", "$cloth_m0p52", "$cloth_m0p53", "$cloth_m0p54", "$cloth_m0p55", "$cloth_m0p56", "$cloth_m0p57", "$cloth_m0p58", "$cloth_m0p59", "$cloth_m0p60", "$cloth_m0p61", "$cloth_m0p62", "$cloth_m0p63", "$cloth_m0p64", "$cloth_m0p65", "$cloth_m0p66", "$cloth_m0p67", "$cloth_m0p68", "$cloth_m0p69", "$cloth_m0p70", "$cloth_m0p71", "$cloth_m0p72", "$cloth_m0p73", "$cloth_m0p74", "$cloth_m0p75", "$cloth_m0p76", "$cloth_m0p77", "$cloth_m0p78", "$cloth_m0p79", "$cloth_m0p80", "$cloth_m0p81", "$cloth_m0p82", "$cloth_m0p83", "$cloth_m0p84", "$cloth_m0p85" ]
+                m_nNodeCount = 86
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(-15.095473f, -19.140547f, 130.98946f)}}
+                    {{SyntheticCloth.Pose(-17.029062f, -12.326554f, 131.71419f)}}
+                    {{SyntheticCloth.Pose(-17.029062f, 12.326554f, 131.71419f)}}
+                    {{SyntheticCloth.Pose(-15.095473f, 19.140547f, 130.98946f)}}
+                    {{SyntheticCloth.Pose(-16.927298f, -5.0f, 134.21313f)}}
+                    {{SyntheticCloth.Pose(-16.927298f, 5.0f, 134.21313f)}}
+                    {{SyntheticCloth.Pose(-15.453802f, -18.726608f, 126.14155f)}}
+                    {{SyntheticCloth.Pose(-17.38739f, -11.912616f, 126.86628f)}}
+                    {{SyntheticCloth.Pose(-15.453802f, 18.726608f, 126.14155f)}}
+                    {{SyntheticCloth.Pose(-17.38739f, 11.912616f, 126.86628f)}}
+                    {{SyntheticCloth.Pose(-17.417427f, 4.288621f, 127.515175f)}}
+                    {{SyntheticCloth.Pose(-17.4238f, -4.352967f, 127.44563f)}}
+                    {{SyntheticCloth.Pose(-15.442624f, -18.550873f, 117.500336f)}}
+                    {{SyntheticCloth.Pose(-17.620644f, -11.585511f, 118.80725f)}}
+                    {{SyntheticCloth.Pose(-15.442624f, 18.550873f, 117.500336f)}}
+                    {{SyntheticCloth.Pose(-17.620644f, 11.585511f, 118.80725f)}}
+                    {{SyntheticCloth.Pose(-18.058758f, 4.3145194f, 120.048f)}}
+                    {{SyntheticCloth.Pose(-18.06181f, -4.330307f, 120.03876f)}}
+                    {{SyntheticCloth.Pose(-16.281216f, -18.380278f, 108.942444f)}}
+                    {{SyntheticCloth.Pose(-19.581396f, -11.001704f, 110.337555f)}}
+                    {{SyntheticCloth.Pose(-16.281216f, 18.380278f, 108.942444f)}}
+                    {{SyntheticCloth.Pose(-19.581396f, 11.001704f, 110.337555f)}}
+                    {{SyntheticCloth.Pose(-19.63091f, 4.0465436f, 111.76572f)}}
+                    {{SyntheticCloth.Pose(-19.641083f, -4.1034117f, 111.743225f)}}
+                    {{SyntheticCloth.Pose(-21.097715f, -11.253855f, 102.12577f)}}
+                    {{SyntheticCloth.Pose(-17.58324f, -18.773373f, 100.43261f)}}
+                    {{SyntheticCloth.Pose(-17.58324f, 18.773373f, 100.43261f)}}
+                    {{SyntheticCloth.Pose(-21.097715f, 11.253855f, 102.12577f)}}
+                    {{SyntheticCloth.Pose(-21.508125f, 4.0544286f, 103.74217f)}}
+                    {{SyntheticCloth.Pose(-21.514303f, -4.125722f, 103.70929f)}}
+                    {{SyntheticCloth.Pose(-18.874908f, -19.943903f, 91.99936f)}}
+                    {{SyntheticCloth.Pose(-22.518084f, -12.08624f, 93.964714f)}}
+                    {{SyntheticCloth.Pose(-18.874908f, 19.943903f, 91.99936f)}}
+                    {{SyntheticCloth.Pose(-22.518509f, 12.07997f, 93.96892f)}}
+                    {{SyntheticCloth.Pose(-23.65737f, 4.197114f, 95.702576f)}}
+                    {{SyntheticCloth.Pose(-23.654007f, -4.2468295f, 95.6693f)}}
+                    {{SyntheticCloth.Pose(-24.871672f, -13.537416f, 86.23957f)}}
+                    {{SyntheticCloth.Pose(-20.354761f, -21.892418f, 83.729774f)}}
+                    {{SyntheticCloth.Pose(-20.354761f, 21.892418f, 83.729774f)}}
+                    {{SyntheticCloth.Pose(-24.875015f, 13.527921f, 86.250404f)}}
+                    {{SyntheticCloth.Pose(-26.215334f, 4.523812f, 88.192955f)}}
+                    {{SyntheticCloth.Pose(-26.202063f, -4.5583467f, 88.1507f)}}
+                    {{SyntheticCloth.Pose(-27.697893f, -14.868223f, 78.120155f)}}
+                    {{SyntheticCloth.Pose(-21.908436f, -24.482763f, 75.63206f)}}
+                    {{SyntheticCloth.Pose(-21.908436f, 24.482763f, 75.63206f)}}
+                    {{SyntheticCloth.Pose(-27.698162f, 14.867822f, 78.12089f)}}
+                    {{SyntheticCloth.Pose(-28.945234f, 4.8091106f, 80.239655f)}}
+                    {{SyntheticCloth.Pose(-28.93305f, -4.827322f, 80.20618f)}}
+                    {{SyntheticCloth.Pose(-23.630163f, -27.454828f, 67.684265f)}}
+                    {{SyntheticCloth.Pose(-30.370392f, -16.224058f, 70.444695f)}}
+                    {{SyntheticCloth.Pose(-23.630163f, 27.454828f, 67.684265f)}}
+                    {{SyntheticCloth.Pose(-30.371344f, 16.222658f, 70.44734f)}}
+                    {{SyntheticCloth.Pose(-32.783222f, 5.254915f, 72.88018f)}}
+                    {{SyntheticCloth.Pose(-32.779633f, -5.2601976f, 72.870125f)}}
+                    {{SyntheticCloth.Pose(-33.26719f, -18.109873f, 63.249275f)}}
+                    {{SyntheticCloth.Pose(-25.921503f, -30.499273f, 59.90693f)}}
+                    {{SyntheticCloth.Pose(-25.921503f, 30.499273f, 59.90693f)}}
+                    {{SyntheticCloth.Pose(-33.270027f, 18.116179f, 63.259033f)}}
+                    {{SyntheticCloth.Pose(-36.39569f, 5.5990515f, 65.964874f)}}
+                    {{SyntheticCloth.Pose(-36.38238f, -5.5659337f, 65.91849f)}}
+                    {{SyntheticCloth.Pose(-36.907703f, -19.78023f, 56.44651f)}}
+                    {{SyntheticCloth.Pose(-29.05777f, -33.431023f, 52.421375f)}}
+                    {{SyntheticCloth.Pose(-29.05777f, 33.431023f, 52.421375f)}}
+                    {{SyntheticCloth.Pose(-36.908386f, 19.781742f, 56.44885f)}}
+                    {{SyntheticCloth.Pose(-40.283592f, 6.2215867f, 59.182056f)}}
+                    {{SyntheticCloth.Pose(-39.54406f, -5.9728603f, 58.647816f)}}
+                    {{SyntheticCloth.Pose(-33.607037f, -36.344795f, 45.724716f)}}
+                    {{SyntheticCloth.Pose(-44.630447f, -22.514893f, 50.455086f)}}
+                    {{SyntheticCloth.Pose(-33.607037f, 36.344795f, 45.724716f)}}
+                    {{SyntheticCloth.Pose(-44.630447f, 22.514893f, 50.455086f)}}
+                    {{SyntheticCloth.Pose(-44.325043f, 6.7631593f, 51.686f)}}
+                    {{SyntheticCloth.Pose(-44.29262f, -6.6636477f, 51.62983f)}}
+                    {{SyntheticCloth.Pose(-50.80507f, -24.826012f, 45.327374f)}}
+                    {{SyntheticCloth.Pose(-39.55794f, -39.334583f, 40.263012f)}}
+                    {{SyntheticCloth.Pose(-39.55794f, 39.334583f, 40.263012f)}}
+                    {{SyntheticCloth.Pose(-50.80507f, 24.826012f, 45.327374f)}}
+                    {{SyntheticCloth.Pose(-48.623943f, 4.972157f, 45.63817f)}}
+                    {{SyntheticCloth.Pose(-48.623943f, -4.9717803f, 45.638012f)}}
+                    {{SyntheticCloth.Pose(-50.9665f, 11.740841f, 44.881863f)}}
+                    {{SyntheticCloth.Pose(-53.694984f, 13.968832f, 41.172085f)}}
+                    {{SyntheticCloth.Pose(-50.9665f, -11.740841f, 44.881863f)}}
+                    {{SyntheticCloth.Pose(-53.694984f, -13.968832f, 41.172085f)}}
+                    {{SyntheticCloth.Pose(-51.661655f, 4.015462f, 39.88339f)}}
+                    {{SyntheticCloth.Pose(-54.638794f, 2.6906853f, 32.051174f)}}
+                    {{SyntheticCloth.Pose(-54.638794f, -2.6906853f, 32.051174f)}}
+                    {{SyntheticCloth.Pose(-51.632256f, -4.109575f, 39.997013f)}}
+                ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.BandedRod(0, 12, 13.506465f, 13.511056f, 1f)}}
+                    {{SyntheticCloth.BandedRod(1, 13, 12.941721f, 12.943155f, 1f)}}
+                    {{SyntheticCloth.BandedRod(2, 15, 12.941721f, 12.943155f, 1f)}}
+                    {{SyntheticCloth.BandedRod(3, 14, 13.506465f, 13.511056f, 1f)}}
+                    {{SyntheticCloth.BandedRod(4, 17, 14.23547f, 14.235754f, 1f)}}
+                    {{SyntheticCloth.BandedRod(5, 16, 14.226778f, 14.22706f, 1f)}}
+                    {{SyntheticCloth.BandedRod(10, 8, 14.6355095f, 14.771625f, 1f)}}
+                    {{SyntheticCloth.BandedRod(11, 6, 14.566506f, 14.701759f, 1f)}}
+                    {{SyntheticCloth.BandedRod(6, 18, 17.222477f, 17.241678f, 1f)}}
+                    {{SyntheticCloth.BandedRod(8, 20, 17.222477f, 17.241678f, 1f)}}
+                    {{SyntheticCloth.BandedRod(7, 19, 16.698568f, 16.766262f, 1f)}}
+                    {{SyntheticCloth.BandedRod(9, 21, 16.698568f, 16.766262f, 1f)}}
+                    {{SyntheticCloth.BandedRod(7, 10, 16.214254f, 16.214476f, 1f)}}
+                    {{SyntheticCloth.BandedRod(9, 11, 16.275938f, 16.27614f, 1f)}}
+                    {{SyntheticCloth.BandedRod(10, 22, 15.906085f, 15.92668f, 1f)}}
+                    {{SyntheticCloth.BandedRod(11, 23, 15.8601465f, 15.880789f, 1f)}}
+                    {{SyntheticCloth.BandedRod(16, 14, 14.6972275f, 14.799914f, 1f)}}
+                    {{SyntheticCloth.BandedRod(17, 12, 14.68088f, 14.783166f, 1f)}}
+                    {{SyntheticCloth.BandedRod(13, 16, 15.954383f, 15.970775f, 1f)}}
+                    {{SyntheticCloth.BandedRod(15, 17, 15.969486f, 15.985617f, 1f)}}
+                    {{SyntheticCloth.BandedRod(15, 27, 17.043186f, 17.043236f, 1f)}}
+                    {{SyntheticCloth.BandedRod(13, 24, 17.043186f, 17.043236f, 1f)}}
+                    {{SyntheticCloth.BandedRod(14, 26, 17.202879f, 17.215567f, 1f)}}
+                    {{SyntheticCloth.BandedRod(12, 25, 17.202879f, 17.215565f, 1f)}}
+                    {{SyntheticCloth.BandedRod(17, 29, 16.691708f, 16.695202f, 1f)}}
+                    {{SyntheticCloth.BandedRod(16, 28, 16.668705f, 16.672426f, 1f)}}
+                    {{SyntheticCloth.BandedRod(22, 20, 14.988238f, 15.2781515f, 1f)}}
+                    {{SyntheticCloth.BandedRod(23, 18, 14.931911f, 15.218898f, 1f)}}
+                    {{SyntheticCloth.BandedRod(21, 33, 16.664474f, 16.66601f, 1f)}}
+                    {{SyntheticCloth.BandedRod(19, 31, 16.668955f, 16.670488f, 1f)}}
+                    {{SyntheticCloth.BandedRod(21, 23, 15.170497f, 15.174184f, 1f)}}
+                    {{SyntheticCloth.BandedRod(20, 32, 17.211632f, 17.215261f, 1f)}}
+                    {{SyntheticCloth.BandedRod(18, 30, 17.211632f, 17.215261f, 1f)}}
+                    {{SyntheticCloth.BandedRod(19, 22, 15.115948f, 15.120086f, 1f)}}
+                    {{SyntheticCloth.BandedRod(22, 34, 16.560783f, 16.562822f, 1f)}}
+                    {{SyntheticCloth.BandedRod(23, 35, 16.5679f, 16.569895f, 1f)}}
+                    {{SyntheticCloth.BandedRod(28, 26, 15.588626f, 15.844732f, 1f)}}
+                    {{SyntheticCloth.BandedRod(29, 25, 15.515913f, 15.769419f, 1f)}}
+                    {{SyntheticCloth.BandedRod(24, 36, 16.48723f, 16.530216f, 1f)}}
+                    {{SyntheticCloth.BandedRod(27, 39, 16.476244f, 16.519558f, 1f)}}
+                    {{SyntheticCloth.BandedRod(26, 38, 17.206646f, 17.225016f, 1f)}}
+                    {{SyntheticCloth.BandedRod(25, 37, 17.206646f, 17.22502f, 1f)}}
+                    {{SyntheticCloth.BandedRod(29, 41, 16.247787f, 16.26424f, 1f)}}
+                    {{SyntheticCloth.BandedRod(28, 40, 16.245552f, 16.262007f, 1f)}}
+                    {{SyntheticCloth.BandedRod(24, 28, 15.398854f, 15.423134f, 1f)}}
+                    {{SyntheticCloth.BandedRod(27, 29, 15.466495f, 15.490952f, 1f)}}
+                    {{SyntheticCloth.BandedRod(34, 32, 16.868525f, 17.034456f, 1f)}}
+                    {{SyntheticCloth.BandedRod(35, 30, 16.813873f, 16.979628f, 1f)}}
+                    {{SyntheticCloth.BandedRod(31, 42, 16.795053f, 16.901127f, 1f)}}
+                    {{SyntheticCloth.BandedRod(33, 45, 16.799227f, 16.90526f, 1f)}}
+                    {{SyntheticCloth.BandedRod(32, 44, 17.161642f, 17.259474f, 1f)}}
+                    {{SyntheticCloth.BandedRod(30, 43, 17.161573f, 17.259474f, 1f)}}
+                    {{SyntheticCloth.BandedRod(35, 47, 16.244411f, 16.349758f, 1f)}}
+                    {{SyntheticCloth.BandedRod(34, 46, 16.248133f, 16.353544f, 1f)}}
+                    {{SyntheticCloth.BandedRod(33, 35, 16.454332f, 16.532751f, 1f)}}
+                    {{SyntheticCloth.BandedRod(31, 34, 16.415413f, 16.491009f, 1f)}}
+                    {{SyntheticCloth.BandedRod(40, 38, 18.866234f, 19.12972f, 1f)}}
+                    {{SyntheticCloth.BandedRod(41, 37, 18.82035f, 19.085712f, 1f)}}
+                    {{SyntheticCloth.BandedRod(36, 49, 16.616133f, 16.939163f, 1f)}}
+                    {{SyntheticCloth.BandedRod(37, 48, 17.00754f, 17.299665f, 1f)}}
+                    {{SyntheticCloth.BandedRod(38, 50, 17.007551f, 17.299664f, 1f)}}
+                    {{SyntheticCloth.BandedRod(39, 51, 16.624199f, 16.947311f, 1f)}}
+                    {{SyntheticCloth.BandedRod(41, 53, 16.365307f, 16.698957f, 1f)}}
+                    {{SyntheticCloth.BandedRod(40, 52, 16.390566f, 16.724844f, 1f)}}
+                    {{SyntheticCloth.BandedRod(36, 40, 18.087948f, 18.31071f, 1f)}}
+                    {{SyntheticCloth.BandedRod(39, 41, 18.11267f, 18.335766f, 1f)}}
+                    {{SyntheticCloth.BandedRod(46, 44, 21.39624f, 21.79924f, 1f)}}
+                    {{SyntheticCloth.BandedRod(47, 43, 21.368298f, 21.774797f, 1f)}}
+                    {{SyntheticCloth.BandedRod(43, 55, 16.790268f, 17.316538f, 1f)}}
+                    {{SyntheticCloth.BandedRod(44, 56, 16.79033f, 17.316536f, 1f)}}
+                    {{SyntheticCloth.BandedRod(42, 54, 15.670904f, 16.219826f, 1f)}}
+                    {{SyntheticCloth.BandedRod(45, 57, 15.665446f, 16.214092f, 1f)}}
+                    {{SyntheticCloth.BandedRod(45, 47, 19.68747f, 19.92954f, 1f)}}
+                    {{SyntheticCloth.BandedRod(42, 46, 19.668507f, 19.910376f, 1f)}}
+                    {{SyntheticCloth.BandedRod(47, 59, 15.551066f, 16.130024f, 1f)}}
+                    {{SyntheticCloth.BandedRod(46, 58, 15.543045f, 16.121496f, 1f)}}
+                    {{SyntheticCloth.BandedRod(53, 48, 23.889105f, 24.80634f, 1f)}}
+                    {{SyntheticCloth.BandedRod(52, 50, 23.896862f, 24.813835f, 1f)}}
+                    {{SyntheticCloth.BandedRod(49, 60, 15.178283f, 15.864326f, 1f)}}
+                    {{SyntheticCloth.BandedRod(51, 63, 15.178635f, 15.864528f, 1f)}}
+                    {{SyntheticCloth.BandedRod(50, 62, 16.593784f, 17.279312f, 1f)}}
+                    {{SyntheticCloth.BandedRod(48, 61, 16.593584f, 17.27933f, 1f)}}
+                    {{SyntheticCloth.BandedRod(52, 64, 14.940874f, 15.6499605f, 1f)}}
+                    {{SyntheticCloth.BandedRod(53, 65, 15.058713f, 15.774211f, 1f)}}
+                    {{SyntheticCloth.BandedRod(49, 52, 21.093855f, 21.977966f, 1f)}}
+                    {{SyntheticCloth.BandedRod(51, 53, 21.099783f, 21.983469f, 1f)}}
+                    {{SyntheticCloth.BandedRod(54, 67, 17.137953f, 17.984236f, 1f)}}
+                    {{SyntheticCloth.BandedRod(57, 69, 17.14258f, 17.989162f, 1f)}}
+                    {{SyntheticCloth.BandedRod(59, 55, 26.91018f, 27.94628f, 1f)}}
+                    {{SyntheticCloth.BandedRod(58, 56, 26.893541f, 27.927618f, 1f)}}
+                    {{SyntheticCloth.BandedRod(54, 58, 23.373707f, 24.349617f, 1f)}}
+                    {{SyntheticCloth.BandedRod(57, 59, 23.356167f, 24.331064f, 1f)}}
+                    {{SyntheticCloth.BandedRod(55, 66, 16.443f, 17.2088f, 1f)}}
+                    {{SyntheticCloth.BandedRod(56, 68, 16.443022f, 17.208788f, 1f)}}
+                    {{SyntheticCloth.BandedRod(58, 70, 15.586753f, 16.375494f, 1f)}}
+                    {{SyntheticCloth.BandedRod(59, 71, 15.648998f, 16.439903f, 1f)}}
+                    {{SyntheticCloth.BandedRod(65, 77, 15.127306f, 15.898323f, 1f)}}
+                    {{SyntheticCloth.BandedRod(64, 76, 15.212775f, 15.985682f, 1f)}}
+                    {{SyntheticCloth.BandedRod(62, 74, 16.346193f, 17.181273f, 1f)}}
+                    {{SyntheticCloth.BandedRod(61, 73, 16.346193f, 17.181273f, 1f)}}
+                    {{SyntheticCloth.BandedRod(60, 72, 17.612371f, 18.500582f, 1f)}}
+                    {{SyntheticCloth.BandedRod(63, 75, 17.61281f, 18.501034f, 1f)}}
+                    {{SyntheticCloth.BandedRod(64, 62, 28.905521f, 30.360897f, 1f)}}
+                    {{SyntheticCloth.BandedRod(65, 61, 28.867134f, 30.316704f, 1f)}}
+                    {{SyntheticCloth.BandedRod(60, 64, 25.186462f, 26.455357f, 1f)}}
+                    {{SyntheticCloth.BandedRod(63, 65, 25.183352f, 26.453959f, 1f)}}
+                    {{SyntheticCloth.BandedRod(67, 85, 21.672626f, 22.71888f, 1f)}}
+                    {{SyntheticCloth.BandedRod(69, 82, 21.809128f, 22.864706f, 1f)}}
+                    {{SyntheticCloth.BandedRod(67, 70, 27.91113f, 29.306902f, 1f)}}
+                    {{SyntheticCloth.BandedRod(69, 71, 27.808922f, 29.20625f, 1f)}}
+                    {{SyntheticCloth.BandedRod(71, 85, 13.36168f, 14.021007f, 1f)}}
+                    {{SyntheticCloth.BandedRod(70, 82, 13.530628f, 14.195804f, 1f)}}
+                    {{SyntheticCloth.BandedRod(66, 80, 30.123344f, 31.626125f, 1f)}}
+                    {{SyntheticCloth.BandedRod(68, 78, 30.123344f, 31.626125f, 1f)}}
+                    {{SyntheticCloth.BandedRod(71, 66, 31.804646f, 33.396805f, 1f)}}
+                    {{SyntheticCloth.BandedRod(70, 68, 31.714428f, 33.30114f, 1f)}}
+                    {{SyntheticCloth.BandedRod(72, 84, 25.148506f, 26.42306f, 1f)}}
+                    {{SyntheticCloth.BandedRod(75, 83, 25.148504f, 26.42306f, 1f)}}
+                    {{SyntheticCloth.BandedRod(79, 74, 29.053463f, 30.99962f, 1f)}}
+                    {{SyntheticCloth.BandedRod(81, 73, 29.053463f, 30.99962f, 1f)}}
+                    {{SyntheticCloth.BandedRod(77, 84, 14.360423f, 15.0623455f, 1f)}}
+                    {{SyntheticCloth.BandedRod(76, 83, 14.349007f, 15.060103f, 1f)}}
+                    {{SyntheticCloth.BandedRod(80, 82, 15.946761f, 16.587448f, 1f)}}
+                    {{SyntheticCloth.BandedRod(78, 85, 15.9900255f, 16.644718f, 1f)}}
+                    {{SyntheticCloth.BandedRod(79, 84, 18.553465f, 19.094738f, 1f)}}
+                    {{SyntheticCloth.BandedRod(81, 83, 18.559027f, 19.094467f, 1f)}}
                 ]
             }
             """);

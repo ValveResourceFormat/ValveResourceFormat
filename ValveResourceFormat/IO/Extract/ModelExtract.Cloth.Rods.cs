@@ -871,7 +871,7 @@ partial class ModelExtract
                 span = MathF.Min(span, folded);
             }
 
-            if (MathF.Abs(span - rod.MinDist) > 1e-3f * MathF.Max(1f, rod.MinDist))
+            if (MathF.Abs(span - rod.MinDist) > MathF.Max(1e-3f, 1e-4f * rod.MinDist))
             {
                 misses++;
             }
