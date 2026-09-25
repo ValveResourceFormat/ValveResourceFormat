@@ -782,8 +782,101 @@ partial class ModelExtract
     /// </summary>
     internal static (Dictionary<int, float>? Paint, float AddCurvature) ClothBendStiffnessOverFold(FeModel feModel,
         List<int[]> faces, HashSet<(int, int)> network, float addCurvature, bool keepsCurvature)
-        => ClothCurvatureMeetsItsCappedRods(feModel, faces, network,
-            ClothBendStiffnessRead(feModel, faces, network, addCurvature, keepsCurvature), keepsCurvature);
+        => ClothPaintCoveringEveryRod(feModel, faces, network, ClothCurvatureMeetsItsCappedRods(feModel, faces, network,
+            ClothBendStiffnessRead(feModel, faces, network, addCurvature, keepsCurvature), keepsCurvature), keepsCurvature);
+
+    /// <summary>
+    /// The covering-hinge solve is exact by construction, so where the paint an earlier solve settled on leaves network rods
+    /// short of or past their compiled minimum, the covering solve's paint is taken instead when it rebuilds strictly more of
+    /// them: first on top of the settled <c>add_curvature</c>, then at zero where neither the sheet's suspenders nor a chain ring
+    /// keep its value. A tie
+    /// keeps the settled answer, and the earlier of the two covering answers wins a tie between them.
+    /// </summary>
+    static (Dictionary<int, float>? Paint, float AddCurvature) ClothPaintCoveringEveryRod(FeModel feModel,
+        List<int[]> faces, HashSet<(int, int)> network, (Dictionary<int, float>? Paint, float AddCurvature) settled,
+        bool keepsCurvature)
+    {
+        var best = settled;
+        var bestMisses = ClothPaintMisses(feModel, faces, network, settled.Paint, settled.AddCurvature);
+        if (bestMisses == 0)
+        {
+            return settled;
+        }
+
+        float[] curvatures = keepsCurvature || feModel.ChainRingCurvature > 0f || settled.AddCurvature == 0f
+            ? [settled.AddCurvature]
+            : [settled.AddCurvature, 0f];
+        foreach (var curvature in curvatures)
+        {
+            if (ClothBendStiffnessCoveringHinges(feModel, faces, network, curvature) is not { } covered)
+            {
+                continue;
+            }
+
+            var misses = ClothPaintMisses(feModel, faces, network, covered, curvature);
+            if (misses < bestMisses)
+            {
+                (best, bestMisses) = ((covered, curvature), misses);
+            }
+        }
+
+        return best;
+    }
+
+    // The network rods whose minimum the compiler would not rebuild from the paint and add_curvature: each generating hinge
+    // folds by clamp((paint[u] + paint[v]) * pi / 2 + add_curvature * pi, 0, pi), and the rod takes the smallest span any of
+    // them folds it to, never more than its own rest span.
+    static int ClothPaintMisses(FeModel feModel, List<int[]> faces, HashSet<(int, int)> network,
+        Dictionary<int, float>? paint, float addCurvature)
+    {
+        var positions = feModel.InitPosePositions;
+        var generators = new Dictionary<(int, int), List<(int, int)>>();
+        foreach (var (hinge, nodeA, nodeB) in FeModel.BendRodGenerators(faces))
+        {
+            var pair = nodeA < nodeB ? (nodeA, nodeB) : (nodeB, nodeA);
+            (generators.TryGetValue(pair, out var known) ? known : generators[pair] = []).Add(hinge);
+        }
+
+        var misses = 0;
+        foreach (var rod in feModel.Rods)
+        {
+            var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            if (!network.Contains(pair) || pair.Item2 >= positions.Length)
+            {
+                continue;
+            }
+
+            var span = Vector3.Distance(positions[rod.NodeA], positions[rod.NodeB]);
+            foreach (var hinge in generators.GetValueOrDefault(pair) ?? [])
+            {
+                var axis = positions[hinge.Item2] - positions[hinge.Item1];
+                if (axis.LengthSquared() < 1e-12f)
+                {
+                    continue;
+                }
+
+                axis = Vector3.Normalize(axis);
+                var toA = positions[rod.NodeA] - positions[hinge.Item1];
+                var toB = positions[rod.NodeB] - positions[hinge.Item1];
+                var alongA = Vector3.Dot(toA, axis);
+                var alongB = Vector3.Dot(toB, axis);
+                var riseA = (toA - (alongA * axis)).Length();
+                var riseB = (toB - (alongB * axis)).Length();
+                var sum = (paint?.GetValueOrDefault(hinge.Item1) ?? 0f) + (paint?.GetValueOrDefault(hinge.Item2) ?? 0f);
+                var fold = Math.Clamp((sum * MathF.PI / 2f) + (addCurvature * MathF.PI), 0f, MathF.PI);
+                var folded = MathF.Sqrt(MathF.Max(0f, ((alongA - alongB) * (alongA - alongB)) + (riseA * riseA) + (riseB * riseB)
+                    - (2f * riseA * riseB * MathF.Cos(fold))));
+                span = MathF.Min(span, folded);
+            }
+
+            if (MathF.Abs(span - rod.MinDist) > 1e-3f * MathF.Max(1f, rod.MinDist))
+            {
+                misses++;
+            }
+        }
+
+        return misses;
+    }
 
     /// <summary>
     /// A bend rod held at its own rest span states a lower bound on the fold at every hinge that generates it, and

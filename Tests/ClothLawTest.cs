@@ -11587,5 +11587,93 @@ namespace Tests
                 await Assert.That(ringless.LocksTranslation(ringlessTip, chainVersion: 2, chain: Chain(ringless, withKid: true, sides: 0))).IsFalse();
             }
         }
+
+        /// <summary>
+        /// Where the paint an earlier solve settled on leaves network rods off their compiled minimum, the covering-hinge solve,
+        /// exact by construction, is taken when it rebuilds strictly more of them. The sheet is dota
+        /// `ti9_cache_drow_goddess_of_woods_head`'s, copied from the compiled original: 16 network rods, one of which the settled
+        /// paint folds to the wrong span. CONTROLS: a sheet whose settled paint already rebuilds every rod keeps it, and a sheet
+        /// no paint can explain keeps its stated fold and no paint.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 at `33a7678bb`: on twelve shipped sheets a paint within 7.3e-06 of every reading exists while the
+        /// exported paint misses one to eighteen rods, because an earlier solve succeeds loosely and the covering solve only ran
+        /// where every earlier one declined.
+        /// </remarks>
+        [Test]
+        public async Task ACoveringPaintReplacesASettledPaintThatMissesRods()
+        {
+            List<int[]> faces = [[15, 12, 13], [14, 15, 13], [6, 7, 3, 4], [5, 8, 6, 4], [0, 5, 4, 1], [3, 2, 1, 4], [9, 10, 7, 6], [8, 11, 9, 6], [11, 14, 13, 9], [12, 10, 9, 13]];
+            HashSet<(int, int)> network = [(0, 8), (1, 6), (2, 7), (3, 5), (3, 10), (4, 9), (5, 11), (6, 13), (7, 8), (7, 12), (8, 14), (9, 15), (10, 11), (10, 15), (11, 15), (12, 14)];
+            var sheet = DrowGoddessHeadSheet;
+            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0.7383068f, keepsCurvature: false);
+
+            List<int[]> gridFaces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
+            HashSet<(int, int)> gridNetwork = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
+            var (painted, paintedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+                LeastFoldedHingeGrid, gridFaces, gridNetwork, 0.375f, keepsCurvature: false);
+            var (bounded, boundedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+                CappedAgainstFlatHingeGrid(20f), gridFaces, gridNetwork, 0f, keepsCurvature: false);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: a settled paint that rebuilds every rod, and a sheet no paint explains.
+                await Assert.That(FoldedRodMisses(LeastFoldedHingeGrid, gridFaces, gridNetwork, painted, paintedCurvature)).IsEmpty();
+                await Assert.That(paintedCurvature).IsEqualTo(0f);
+                await Assert.That(bounded).IsNull();
+                await Assert.That(boundedCurvature).IsEqualTo(1f).Within(0.01f);
+
+                // THE LAW: every network rod folds back to its own minimum.
+                await Assert.That(FoldedRodMisses(sheet, faces, network, paint, curvature)).IsEmpty();
+            }
+        }
+
+        // models/items/drow/ti9_cache_drow_goddess_of_woods_head/ti9_cache_drow_goddess_of_woods_head.vmdl_c: 16 nodes, 16 network rods, 10 faces, surface add_curvature 0.7383068; the sheet's face nodes renumbered from 0.
+        private static FeModel DrowGoddessHeadSheet => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11", "$cloth_m0p12", "$cloth_m0p13", "$cloth_m0p14", "$cloth_m0p15" ]
+                m_nNodeCount = 16
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(-10.815558f, 5.645328f, 132.523f)}}
+                    {{SyntheticCloth.Pose(-11.083033f, 2.5336894E-06f, 132.60832f)}}
+                    {{SyntheticCloth.Pose(-10.815558f, -5.645328f, 132.523f)}}
+                    {{SyntheticCloth.Pose(-16.881643f, -7.930124f, 122.44642f)}}
+                    {{SyntheticCloth.Pose(-20.313026f, 5.300744E-07f, 123.969406f)}}
+                    {{SyntheticCloth.Pose(-16.881643f, 7.930124f, 122.44642f)}}
+                    {{SyntheticCloth.Pose(-27.958843f, 4.2594985E-07f, 117.86752f)}}
+                    {{SyntheticCloth.Pose(-23.512804f, -12.685439f, 113.22655f)}}
+                    {{SyntheticCloth.Pose(-23.512804f, 12.685439f, 113.22655f)}}
+                    {{SyntheticCloth.Pose(-36.28462f, -3.9803567E-07f, 112.21493f)}}
+                    {{SyntheticCloth.Pose(-32.75763f, -13.32593f, 106.65457f)}}
+                    {{SyntheticCloth.Pose(-32.75763f, 13.32593f, 106.65457f)}}
+                    {{SyntheticCloth.Pose(-42.748714f, -7.3693547f, 103.30281f)}}
+                    {{SyntheticCloth.Pose(-44.183052f, -1.4517694E-06f, 106.34426f)}}
+                    {{SyntheticCloth.Pose(-42.748714f, 7.3693547f, 103.30281f)}}
+                    {{SyntheticCloth.Pose(-51.528694f, 3.4769377E-07f, 99.68677f)}}
+                ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.BandedRod(0, 8, 23.581099f, 24.224367f, 1f)}}
+                    {{SyntheticCloth.BandedRod(1, 6, 21.832897f, 22.42169f, 1f)}}
+                    {{SyntheticCloth.BandedRod(2, 7, 23.581099f, 24.224367f, 1f)}}
+                    {{SyntheticCloth.BandedRod(3, 10, 20.917269f, 23.07899f, 1f)}}
+                    {{SyntheticCloth.BandedRod(5, 11, 20.91727f, 23.07899f, 1f)}}
+                    {{SyntheticCloth.BandedRod(4, 9, 17.894537f, 19.84255f, 1f)}}
+                    {{SyntheticCloth.BandedRod(5, 3, 15.860248f, 17.301552f, 1f)}}
+                    {{SyntheticCloth.BandedRod(7, 12, 13.51877f, 22.288712f, 1f)}}
+                    {{SyntheticCloth.BandedRod(8, 14, 13.51877f, 22.288712f, 1f)}}
+                    {{SyntheticCloth.BandedRod(6, 13, 11.3243475f, 19.903667f, 1f)}}
+                    {{SyntheticCloth.BandedRod(8, 7, 21.56542f, 28.417582f, 1f)}}
+                    {{SyntheticCloth.BandedRod(9, 15, 7.7820816f, 19.751091f, 1f)}}
+                    {{SyntheticCloth.BandedRod(10, 15, 15.032627f, 24.094904f, 1f)}}
+                    {{SyntheticCloth.BandedRod(11, 15, 15.032627f, 24.094902f, 1f)}}
+                    {{SyntheticCloth.BandedRod(11, 10, 13.903145f, 29.725107f, 1f)}}
+                    {{SyntheticCloth.BandedRod(14, 12, 6.154204f, 16.146252f, 1f)}}
+                ]
+            }
+            """);
     }
 }
