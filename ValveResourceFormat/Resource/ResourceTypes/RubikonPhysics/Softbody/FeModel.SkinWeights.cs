@@ -371,7 +371,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             // rigid-anchored to, so un-smearing the fallback cannot leave a back-solved bone fitted over
             // essentially one vertex, which is a degenerate most-bound-joint solve. A bone the original's
             // own compile back-solved off this sheet escapes that restriction: the compiler records it as
-            // an m_ReverseOffsets entry, so the solve it takes part in is one the original had.
+            // an m_ReverseOffsets entry, so the solve it takes part in is one the original had. So does a
+            // bone the original fits with its own m_FitMatrices entry.
             var fitlessNodes = new HashSet<int>(fitlessSoft.Count);
             foreach (var (node, _) in fitlessSoft)
             {
@@ -418,7 +419,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
 
                     if (prunable && !IsStatic(bone) && !drivenDynamicBones.Contains(bone)
-                        && !backSolvedBones.Contains(bone))
+                        && !backSolvedBones.Contains(bone) && !FitMatrixNodes.Contains(bone))
                     {
                         prunable = false;
                     }

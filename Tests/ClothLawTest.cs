@@ -11458,5 +11458,67 @@ namespace Tests
                 await Assert.That(Bends(0.666667f)).IsFalse();
             }
         }
+
+        /// <summary>
+        /// A fitless vertex keeps the paint its offset network records when its only simulated influence is a sub-threshold
+        /// weight on a bone the original fits with its own fit matrix: the recompile prunes that weight again and the bone's
+        /// solve is the original's. CONTROL: the same bone with no fit matrix of its own still defers the vertex.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 over every original with fit matrices: 9 vertices on 5 rows, among them dotaout
+        /// <c>fatsnake</c>'s <c>$cloth_m0p1</c> / <c>m0p2</c> (neck_04_JNT 0.042).
+        /// </remarks>
+        [Test]
+        public async Task AFitlessVertexKeepsASubThresholdWeightOnABoneTheOriginalFits()
+        {
+            const int Fitless = 3;
+            var fitted = FitlessOnFitBone(boneOwnsFit: true);
+            var unfitted = FitlessOnFitBone(boneOwnsFit: false);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL.
+                await Assert.That(unfitted.RecoveredSkinWeights.ContainsKey(Fitless)).IsFalse();
+                await Assert.That(unfitted.DeferredOffsetSkinWeights.ContainsKey(Fitless)).IsTrue();
+
+                // THE LAW.
+                await Assert.That(fitted.RecoveredSkinWeights.GetValueOrDefault(Fitless, []).Select(static influence => influence.Bone))
+                    .IsEquivalentTo(["bone_1", "bone_2"]);
+            }
+        }
+
+        // Static bone_0 and bone_1, simulated bone_2 and bone_3. Vertex 2 is anchored on bone_3 with 0.3 on bone_2 and fit on
+        // bone_3 (and on bone_2 where it owns a fit matrix); vertex 3 has no fit row and paints bone_1 0.96 and bone_2 0.04.
+        private static FeModel FitlessOnFitBone(bool boneOwnsFit) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "bone_0", "bone_1", "$cloth_m0p0", "$cloth_m0p1", "bone_2", "bone_3" ]
+                m_SkelParents = [ -1, 0, 5, 1, 1, 4 ]
+                m_nNodeCount = 6
+                m_nStaticNodes = 2
+                m_nFirstPositionDrivenNode = 4
+                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -8f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, -24f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -16f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -24f)}}
+                ]
+                m_CtrlOffsets =
+                [
+                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 5 nCtrlChild = 2 },
+                    { vOffset = [ 1.0, 0.0, -2.0 ] nCtrlParent = 1 nCtrlChild = 3 },
+                ]
+                m_CtrlSoftOffsets =
+                [
+                    { nCtrlParent = 4 nCtrlChild = 2 vOffset = [ 1.0, 0.0, -8.0 ] flAlpha = 0.7 },
+                    { nCtrlParent = 4 nCtrlChild = 3 vOffset = [ 1.0, 0.0, 6.0 ] flAlpha = 0.96 },
+                ]
+                m_FitMatrices = [ { nEnd = 1 nNode = 5 nBeginDynamic = 0 }{{(boneOwnsFit ? ", { nEnd = 2 nNode = 4 nBeginDynamic = 0 }" : string.Empty)}} ]
+                m_FitWeights = [ { flWeight = 0.7 nNode = 2 nDummy = 0 }{{(boneOwnsFit ? ", { flWeight = 0.3 nNode = 2 nDummy = 0 }" : string.Empty)}} ]
+            }
+            """);
     }
 }
