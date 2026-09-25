@@ -146,10 +146,12 @@ partial class ModelExtract
     /// <param name="extrudesNothing">Whether the chain extrudes no ring at all, so the version-2 preset grade raises no candidates and cannot be read.</param>
     /// <param name="fitsPresetJoint">Whether the original fits a joint the version-2 preset would base and offset (<see cref="FeModel.ChainFitsAPresetJoint"/>).</param>
     /// <param name="locksOnlyParentLocked">Whether every joint format 1 would lock is already locked to its parent in the original.</param>
+    /// <param name="locksOnlyToGoal">Whether every joint format 1 would lock has no parent it could lock to, so the lock lands on its goal.</param>
     internal static int ClothChainVersion(int jointCount, bool hasOtherChains, bool? rootAllowsRotation, bool rootHasBase,
         bool lockedJoint, bool rigidCloudClusterLock, bool locksJoints, bool? basesBulkGraded, bool hintsTwistWritten,
         bool hasUnstagedThinJoint, bool? reverseOffsetsPreset = null, bool hasUnbasedLeaf = false,
-        bool siblingHubLock = false, bool extrudesNothing = false, bool fitsPresetJoint = false, bool locksOnlyParentLocked = false)
+        bool siblingHubLock = false, bool extrudesNothing = false, bool fitsPresetJoint = false, bool locksOnlyParentLocked = false,
+        bool locksOnlyToGoal = false)
     {
         // The two chain formats are not interchangeable: format 1 registers a non-simulated joint that has
         // no parent to be offset from into m_LockToGoal, format 2 leaves it out. Both are in live use, so
@@ -160,9 +162,11 @@ partial class ModelExtract
         // The node-base signal reads an ABSENT root entry as format 1, which is equally what an anchor bone
         // several sub-chains were merged under looks like: it roots no chain in the original, so nothing
         // ever gave it a base. Format 1 also locks every non-simulated, rotation-free joint of an extruding
-        // chain to its goal, so an original that locks none of them rules format 1 out directly.
+        // chain to its goal, so an original that locks none of them rules format 1 out directly - unless that lock can only
+        // land on the goal: a goal lock copies the animated goal into a static node that already holds it, so where the
+        // chain's own bases are the bulk grade it does not hold the chain at version 2.
         var lockedInOriginal = lockedJoint && !rigidCloudClusterLock && !siblingHubLock;
-        var guardOpen = lockedInOriginal || !locksJoints || locksOnlyParentLocked;
+        var guardOpen = lockedInOriginal || !locksJoints || locksOnlyParentLocked || (locksOnlyToGoal && basesBulkGraded == true);
         var rootRotationLocked = rootAllowsRotation == false;
 
         // A one-joint chain carries no version of its own: MEASURED 2026-09-20 on dl `haze` (30 chains,
@@ -252,7 +256,26 @@ partial class ModelExtract
             extrudesNothing: chain.ExtrudeSides < 1
                 && !chain.Joints.Exists(static joint => joint.RingNodes.Count > 0),
             fitsPresetJoint: feModel.ChainFitsAPresetJoint(chain),
-            locksOnlyParentLocked: ChainLocksOnlyParentLockedJoints(feModel, chain));
+            locksOnlyParentLocked: ChainLocksOnlyParentLockedJoints(feModel, chain),
+            locksOnlyToGoal: ChainLocksJoints(feModel, chain) && !ChainLocksJointsToParent(feModel, chain));
+    }
+
+    /// <summary>
+    /// Whether format 1 would lock a joint of <paramref name="chain"/> to its PARENT rather than its goal: a joint
+    /// <see cref="ChainLocksJoints"/> counts whose compiled parent is simulated or rotates freely.
+    /// </summary>
+    /// <param name="feModel">The compiled cloth.</param>
+    /// <param name="chain">The reconstructed chain.</param>
+    static bool ChainLocksJointsToParent(FeModel feModel, FeModel.BoneChain chain)
+        => chain.ExtrudeSides >= 1
+            && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node)
+                && (joint.RingNodes.Count > 0 || chain.Joints.Exists(child => child.ParentNode == joint.Node && child.RingNodes.Count > 0))
+                && LocksToParent(feModel, joint.Node));
+
+    static bool LocksToParent(FeModel feModel, int node)
+    {
+        var parent = node < feModel.SkelParents.Length ? feModel.SkelParents[node] : -1;
+        return parent >= 0 && (parent >= feModel.StaticNodeCount || feModel.AllowsRotation(parent));
     }
 
     /// <summary>

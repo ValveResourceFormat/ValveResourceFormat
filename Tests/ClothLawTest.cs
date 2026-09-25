@@ -11739,5 +11739,39 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A chain whose joint bases are the bulk grade was authored below version 2, and the lock format 1 adds on its static,
+        /// rotation-free first joint does not hold it at 2 when that joint's compiled parent is a rotation-locked static node:
+        /// the lock then lands on the goal, which the static joint already holds. A parent that rotates freely would take the
+        /// lock instead, and that parent lock still holds the chain at 2.
+        /// </summary>
+        [Test]
+        public async Task AGoalOnlyLockDoesNotHoldABulkGradedChainAtVersion2()
+        {
+            var goalLocked = StaticFirstJointRope(rootRotationLocked: true);
+            var parentLocked = StaticFirstJointRope(rootRotationLocked: false);
+            var goalChain = goalLocked.BuildBoneChains()[0];
+            var parentChain = parentLocked.BuildBoneChains()[0];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(goalLocked.ChainBasesAreBulkGraded(goalChain)).IsTrue();
+                await Assert.That(ModelExtract.ChainLocksJoints(goalLocked, goalChain)).IsTrue();
+
+                // CONTROL: the lock goes to the free parent, a real key, so the guard holds the chain at version 2.
+                await Assert.That(ModelExtract.ClothChainVersion(parentLocked, parentChain, hasOtherChains: false)).IsEqualTo(2);
+
+                // THE LAW.
+                await Assert.That(ModelExtract.ClothChainVersion(goalLocked, goalChain, hasOtherChains: false)).IsLessThan(2);
+            }
+        }
+
+        // OneWideRope's bulk-graded rope with j1 a static, rotation-free first joint; root rotation-locked or free.
+        private static FeModel StaticFirstJointRope(bool rootRotationLocked) => SyntheticCloth.Parse(
+            OneWideRopeDocument("nNode = 3 nNodeX0 = 5 nNodeX1 = 2 nNodeY0 = 6 nNodeY1 = 1")
+                .Replace("m_nStaticNodes = 1", "m_nStaticNodes = 2" + (rootRotationLocked ? " m_nRotLockStaticNodes = 1" : string.Empty),
+                    StringComparison.Ordinal)
+                .Replace("m_NodeInvMasses = [ 0.0, 1.0,", "m_NodeInvMasses = [ 0.0, 0.0,", StringComparison.Ordinal));
     }
 }
