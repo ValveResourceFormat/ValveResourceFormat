@@ -10916,5 +10916,46 @@ namespace Tests
                     ], CollectionOrdering.Matching);
             }
         }
+
+        /// <summary>
+        /// The cloth proxy's control bones are written at their recorded rest positions at any distance. A lone bone
+        /// whose rest position sits units away from its bind position is the pose the original compiled from, not a
+        /// disagreement to leave out. CONTROLS: a near bone is put on its rest position too, a bone already on it and a
+        /// bone with no recorded rest position keep their compiled offsets.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 over 680 proxy-sheet originals: the 1-unit cap refused 171 bones on 35 rows, every one
+        /// DEFECT with <c>m_InitPose</c> (dota <c>ti9_crocodilian_dire_melee</c>'s lone <c>tail_0</c>, 7.57 units).
+        /// </remarks>
+        [Test]
+        public async Task ALoneProxyControlBoneFarFromItsBindPoseIsWrittenAtItsRestPosition()
+        {
+            var root = new Bone(0, "root", Vector3.Zero, Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            var cape = new Bone(1, "cape", new Vector3(0f, 0f, -10f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            var tip = new Bone(2, "tip", new Vector3(0f, 0f, -10f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            var tail = new Bone(3, "tail", new Vector3(5f, 0f, 0f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            cape.SetParent(root);
+            tip.SetParent(cape);
+            tail.SetParent(root);
+
+            var into = new Dictionary<string, Vector3>(StringComparer.OrdinalIgnoreCase);
+            ModelExtract.ProxyRestPositions([root], new Dictionary<string, Vector3>
+            {
+                ["root"] = Vector3.Zero,
+                ["cape"] = new Vector3(0f, 0f, -10.5f),
+                ["tail"] = new Vector3(5f, 0f, -7.5f),
+            }, new Dictionary<string, Quaternion>(), into);
+
+            using (Assert.Multiple())
+            {
+                // THE LAW: the lone far bone is on its rest position.
+                await Assert.That(into.GetValueOrDefault("tail")).IsEqualTo(new Vector3(5f, 0f, -7.5f));
+
+                // CONTROLS.
+                await Assert.That(into.GetValueOrDefault("cape")).IsEqualTo(new Vector3(0f, 0f, -10.5f));
+                await Assert.That(into.ContainsKey("root")).IsFalse();
+                await Assert.That(into.ContainsKey("tip")).IsFalse();
+            }
+        }
     }
 }

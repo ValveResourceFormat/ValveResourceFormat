@@ -17,10 +17,8 @@ partial class ModelExtract
     // already accumulates to its recorded position exactly keeps its compiled transform.
     const float ClothRestBoneFloor = 0f;
 
-    // How far apart two control bones' corrections may sit and still be read as ONE pose difference.
-    // A proxy mesh authored in a different pose moves as a unit, and it takes at least two bones
-    // agreeing to witness that; one bone on its own is an isolated disagreement, not a pose, and the
-    // exporter does not guess at it.
+    // How far apart two far control bones' positions may sit from one uniform scale of their compiled positions
+    // and still be read as a proxy skeleton scaled as a unit, whose chain rings are measured from the bind bones.
     const float ClothRestBoneRigidSpread = 1e-2f;
 
     // The correction runs per MODEL when any bone disagrees at all. Once enabled, every bone past the
@@ -28,9 +26,8 @@ partial class ModelExtract
     // so a partial correction leaves them mixed.
     const float ClothRestBoneModelGate = 0f;
 
-    // The gate and floor of the proxy dictionary alone, the one the cloth import reads.
+    // The gate of the proxy dictionary alone, the one the cloth import reads.
     const float ClothProxyRestBoneModelGate = 0f;
-    const float ClothProxyRestBoneFloor = 0f;
 
     // Re-derives each bone's parent-space position from the cloth rest pose, root first: a bone the
     // FeModel registers as a control node is put back on its recorded world position, and every bone under
@@ -127,24 +124,64 @@ partial class ModelExtract
 
         var turned = ProxyRestRotations(model.Skeleton.Roots, rotationTargets, ClothProxyRestBoneRotations);
 
-        void Walk(Bone bone, Vector3 parentPosition, Quaternion parentRotation, Vector3 compiledParent,
-            Quaternion compiledParentRotation, Dictionary<string, Vector3> into, float tolerance, float floor,
-            bool proxy)
+        void Walk(Bone bone, Vector3 parentPosition, Vector3 compiledParent, Quaternion parentRotation)
         {
             var world = parentPosition + Vector3.Transform(bone.Position, parentRotation);
-            var compiled = compiledParent + Vector3.Transform(bone.Position, compiledParentRotation);
-            var compiledRotation = compiledParentRotation * bone.Angle;
-            var rotation = proxy && turned.TryGetValue(bone.Name, out var turnedRotation)
-                ? turnedRotation
-                : parentRotation * (proxy && ClothProxyRestBoneRotations.TryGetValue(bone.Name, out var local0) ? local0 : bone.Angle);
+            var compiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
 
             if (targets.TryGetValue(bone.Name, out var target))
             {
                 var apart = Vector3.Distance(compiled, target);
-                if (apart > floor && apart <= tolerance)
+                if (apart > ClothRestBoneFloor && apart <= ClothRestBoneTolerance)
                 {
                     world = target;
                 }
+            }
+
+            var local = Vector3.Transform(world - parentPosition, Quaternion.Conjugate(parentRotation));
+            if (local != bone.Position)
+            {
+                ClothRestBonePositions[bone.Name] = local;
+            }
+
+            foreach (var child in bone.Children)
+            {
+                Walk(child, world, compiled, parentRotation * bone.Angle);
+            }
+        }
+
+        if (maxApart > ClothRestBoneModelGate)
+        {
+            foreach (var root in model.Skeleton.Roots)
+            {
+                Walk(root, Vector3.Zero, Vector3.Zero, Quaternion.Identity);
+            }
+        }
+
+        if (maxApartUncapped > ClothProxyRestBoneModelGate || turned.Count > 0)
+        {
+            ProxyRestPositions(model.Skeleton.Roots, targets, turned, ClothProxyRestBonePositions);
+        }
+    }
+
+    /// <summary>
+    /// The parent-local positions that put every bone with a recorded cloth rest position on it, at any distance, root
+    /// first, while every other bone keeps its compiled offset from its parent composed through the
+    /// <paramref name="turned"/> world rotations. Only positions that change are written to <paramref name="into"/>.
+    /// </summary>
+    internal static void ProxyRestPositions(IEnumerable<Bone> roots, IReadOnlyDictionary<string, Vector3> targets,
+        IReadOnlyDictionary<string, Quaternion> turned, Dictionary<string, Vector3> into)
+    {
+        void Walk(Bone bone, Vector3 parentPosition, Quaternion parentRotation, Vector3 compiledParent,
+            Quaternion compiledParentRotation)
+        {
+            var world = parentPosition + Vector3.Transform(bone.Position, parentRotation);
+            var compiled = compiledParent + Vector3.Transform(bone.Position, compiledParentRotation);
+            var rotation = turned.TryGetValue(bone.Name, out var turnedRotation) ? turnedRotation : parentRotation * bone.Angle;
+
+            if (targets.TryGetValue(bone.Name, out var target) && Vector3.Distance(compiled, target) > 0f)
+            {
+                world = target;
             }
 
             var local = Vector3.Transform(world - parentPosition, Quaternion.Conjugate(parentRotation));
@@ -155,30 +192,13 @@ partial class ModelExtract
 
             foreach (var child in bone.Children)
             {
-                Walk(child, world, rotation, compiled, compiledRotation, into, tolerance, floor, proxy);
+                Walk(child, world, rotation, compiled, compiledParentRotation * bone.Angle);
             }
         }
 
-        if (maxApart > ClothRestBoneModelGate)
+        foreach (var root in roots)
         {
-            foreach (var root in model.Skeleton.Roots)
-            {
-                Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero, Quaternion.Identity,
-                    ClothRestBonePositions, ClothRestBoneTolerance, ClothRestBoneFloor, proxy: false);
-            }
-        }
-
-        var farOffsetsMoveTogether = farOffsetsAreRigid || farOffsetsAreScaled;
-        var proxyTolerance = farOffsetsMoveTogether ? float.MaxValue : ClothRestBoneTolerance;
-        var proxyPositions = maxApart > ClothProxyRestBoneModelGate
-            || (farOffsetsMoveTogether && maxApartUncapped > ClothProxyRestBoneModelGate);
-        if (proxyPositions || turned.Count > 0)
-        {
-            foreach (var root in model.Skeleton.Roots)
-            {
-                Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero, Quaternion.Identity,
-                    ClothProxyRestBonePositions, proxyPositions ? proxyTolerance : -1f, ClothProxyRestBoneFloor, proxy: true);
-            }
+            Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero, Quaternion.Identity);
         }
     }
 
