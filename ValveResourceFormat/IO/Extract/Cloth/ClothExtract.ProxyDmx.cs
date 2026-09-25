@@ -153,7 +153,7 @@ internal sealed partial class ClothExtract
     /// Builds the proxy-sheet DMX: the sheet's rest positions and faces, every cloth paint the compiled nodes state, and
     /// its skinning to the skeleton the DMX joint list carries.
     /// </summary>
-    internal byte[] BuildClothProxyMeshDmx(FeModel.ProxyMesh proxy, string name)
+    private byte[] BuildClothProxyMeshDmx(FeModel.ProxyMesh proxy, string name)
     {
         Debug.Assert(model is not null, "model required for cloth proxy mesh");
 
@@ -438,7 +438,7 @@ internal sealed partial class ClothExtract
     /// <summary>
     /// Builds the DMX of a sheet grid generated over a group of bone chains (see <see cref="FeModel.BuildChainGrids"/>).
     /// </summary>
-    internal byte[] BuildClothChainGridDmx(FeModel.ChainGrid grid, string name)
+    private byte[] BuildClothChainGridDmx(FeModel.ChainGrid grid, string name)
     {
         Debug.Assert(model is not null, "model required for cloth grid");
 

@@ -200,7 +200,7 @@ internal sealed partial class ClothExtract
     /// Whether the single rigid rod on <paramref name="edge"/> between a declared node and a chain joint has no two-corner
     /// source element in the original, so it is declared as a two-member <c>ClothSelfCollisionCluster</c>.
     /// </summary>
-    internal static bool IsUnrecordedJointTie(FeModel feModel, (int A, int B) edge, List<FeModel.Rod> rods,
+    private static bool IsUnrecordedJointTie(FeModel feModel, (int A, int B) edge, List<FeModel.Rod> rods,
         Dictionary<int, string> springName)
     {
         if (springName.ContainsKey(edge.A) && springName.ContainsKey(edge.B))
@@ -256,7 +256,7 @@ internal sealed partial class ClothExtract
     /// Whether a node's stray radius record can only be stated by a <c>ClothNode</c>: a chain joint's stretchiness at or
     /// above <see cref="ChainStrayStretchinessLimit"/> cancels the radius.
     /// </summary>
-    internal static bool StrayRecordOnlyAClothNodeStates(FeModel feModel, int node)
+    private static bool StrayRecordOnlyAClothNodeStates(FeModel feModel, int node)
         => feModel.GetStrayRadius(node) > 0f && feModel.GetStrayStretchiness(node) >= ChainStrayStretchinessLimit;
 
     private const float ChainStrayStretchinessLimit = 0.99999988f;
@@ -291,7 +291,7 @@ internal sealed partial class ClothExtract
     /// The <c>transform_alignment</c> of a <c>ClothNode</c> on an <c>m_Ropes</c> run: 2 for an element node or a based
     /// node, 1 otherwise, and 0 off the ropes.
     /// </summary>
-    internal static int RopeClothNodeAlignment(FeModel feModel, int node, bool isElement, bool hasBasis)
+    private static int RopeClothNodeAlignment(FeModel feModel, int node, bool isElement, bool hasBasis)
     {
         if (!feModel.IsRopeNode(node))
         {

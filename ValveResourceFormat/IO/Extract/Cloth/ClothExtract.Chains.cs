@@ -28,7 +28,7 @@ internal sealed partial class ClothExtract
     /// Declares an algorithm-0 <c>ClothRigidCloudCluster</c> behind every chain lock <see cref="IsRigidCloudClusterLock"/>
     /// attributes to one.
     /// </summary>
-    internal static void AddClothRigidCloudClusterLocks(KVObject softbodyChildren, FeModel feModel,
+    private static void AddClothRigidCloudClusterLocks(KVObject softbodyChildren, FeModel feModel,
         IEnumerable<FeModel.BoneChain> chains)
     {
         foreach (var chain in chains.Where(chain => IsRigidCloudClusterLock(feModel, chain)))

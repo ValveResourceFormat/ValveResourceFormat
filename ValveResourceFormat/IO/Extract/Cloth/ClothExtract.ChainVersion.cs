@@ -117,7 +117,7 @@ internal sealed partial class ClothExtract
     /// Whether every joint <see cref="ChainLocksJoints"/> counts on <paramref name="chain"/> is locked to its parent in the
     /// original.
     /// </summary>
-    internal static bool ChainLocksOnlyParentLockedJoints(FeModel feModel, FeModel.BoneChain chain)
+    private static bool ChainLocksOnlyParentLockedJoints(FeModel feModel, FeModel.BoneChain chain)
         => chain.ExtrudeSides >= 1
             && chain.Joints.TrueForAll(joint => joint.Simulated || !feModel.AllowsRotation(joint.Node)
                 || !StagesFitTable(chain, joint)

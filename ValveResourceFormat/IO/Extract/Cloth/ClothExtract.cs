@@ -67,7 +67,7 @@ internal sealed partial class ClothExtract
     internal Dictionary<string, Vector3> ProxyRestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Gets the parent-space bone rotations written beside <see cref="ProxyRestBonePositions"/>.</summary>
-    internal Dictionary<string, Quaternion> ProxyRestBoneRotations { get; } = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, Quaternion> ProxyRestBoneRotations { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// The sheets declared with flex_cloth_borders, filled while the vmdl is emitted and read when their DMX is built.
