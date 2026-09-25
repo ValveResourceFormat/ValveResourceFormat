@@ -35,10 +35,7 @@ partial class ModelExtract
             ? $"_{bone.Name[1..]}"
             : bone.Name;
 
-    /// <summary>
-    /// Whether the compiler generated this bone from a cloth proxy mesh rather than the author
-    /// declaring it.
-    /// </summary>
+    /// <summary>Whether the compiler generated this bone from a cloth proxy mesh.</summary>
     internal static bool IsGeneratedClothProxyBone(Bone bone)
         => bone.IsProceduralCloth && bone.Name.StartsWith('$');
 
@@ -49,24 +46,14 @@ partial class ModelExtract
         | ModelSkeletonBoneFlags.BoneUsedByVertexLod6 | ModelSkeletonBoneFlags.BoneUsedByVertexLod7;
 
     /// <summary>
-    /// Whether the compiler rebuilds this cloth proxy bone on its own, so the document must not
-    /// declare it.
+    /// Whether the compiler rebuilds this cloth proxy bone on its own, so the document must not declare it: a generated
+    /// bone, or a proxy-named bone no vertex binds.
     /// </summary>
-    /// <remarks>
-    /// The generated family always. The family a round-tripped DMX carries only when no vertex binds
-    /// it: those bones reach a compiled model as joints in the artist's mesh files and keep
-    /// <c>FLAG_ANIMATION</c> alone, and a document that declares them with <c>do_not_discard</c>
-    /// turns them into mesh-used bones instead. Where the family IS skinned it is real authored
-    /// weighting and has to stay.
-    /// </remarks>
     internal static bool IsCompilerOwnedClothBone(Bone bone)
         => IsGeneratedClothProxyBone(bone)
             || (IsClothProxyName(bone.Name) && (bone.Flags & UsedByVertex) == 0);
 
-    /// <summary>
-    /// Whether the name is in a cloth proxy family, under either spelling. A DMX cannot carry the
-    /// '$' the compiler writes, so a model round-tripped through one arrives with the '_' form.
-    /// </summary>
+    /// <summary>Whether the name is a cloth proxy name <c>$cloth_m{N}p{L}</c>, or its DMX spelling with '_' for '$'.</summary>
     internal static bool IsClothProxyName(string name)
     {
         var rest = name.AsSpan();
@@ -101,15 +88,9 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Where each skeleton bone lands in an emitted joint list, once the compiler-generated cloth
-    /// proxy bones are left out of it.
+    /// Where each skeleton bone lands in an emitted joint list without the generated cloth proxy bones: a kept bone at
+    /// its own index, a dropped one at <c>-1 - f</c> with <c>f</c> the index of the nearest kept bone.
     /// </summary>
-    /// <remarks>
-    /// A kept bone maps to its own emitted index. A dropped one maps to <c>-1 - f</c>, where <c>f</c>
-    /// is the emitted index of the nearest bone that survived: an influence on a dropped bone has to
-    /// name something, and the compiler replaces those weights outright when it re-binds the mesh to
-    /// the proxy nodes it regenerates.
-    /// </remarks>
     internal static int[] BuildClothBoneCompaction(Skeleton skeleton)
     {
         var compaction = new int[skeleton.Bones.Length];
