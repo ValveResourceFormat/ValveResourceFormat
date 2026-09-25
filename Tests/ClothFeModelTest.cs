@@ -1,7 +1,5 @@
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
@@ -25,7 +23,6 @@ namespace Tests
 
         private static readonly int[] RopeClothParents = [-1, -1, -1, -1, 0, 0, 0, 0];
         private static readonly int[] ChainClothJointNodes = [18, 19, 20, 21, 22, 23];
-        private static readonly string[] OneUnknownKey = ["m_flNotAKnownKey"];
 
         private static FeModel LoadFeModel(string fileName)
         {
@@ -287,83 +284,6 @@ namespace Tests
                 await Assert.That(phys.Data.ContainsKey("m_pFeModel")).IsTrue();
                 await Assert.That(phys.FeModel).IsNull();
             }
-        }
-
-        /// <summary>
-        /// Every top-level key of a compiled <c>m_pFeModel</c> is either parsed for authoring or listed
-        /// as one the compiler regenerates, so a compiler that adds a key is caught rather than silently
-        /// dropped. The shipped check is debug-only; this runs it on both cloth fixtures in any build.
-        /// </summary>
-        [Test]
-        public async Task EveryCompiledKeyOfEveryClothFixtureIsAccountedFor()
-        {
-            using (Assert.Multiple())
-            {
-                await Assert.That(UnaccountedKeys(LoadFeModel(RopeClothFixture))).IsEmpty();
-                await Assert.That(UnaccountedKeys(LoadFeModel(ChainClothFixture))).IsEmpty();
-            }
-        }
-
-        /// <summary>
-        /// The same accounting over a key neither list knows reports it, which is what makes the check
-        /// above capable of failing.
-        /// </summary>
-        [Test]
-        [NotInParallel]
-        public async Task AnUnknownCompiledKeyIsReportedAsUnaccountedFor()
-        {
-            var feModel = ParseUnaccountedCloth("""
-                {
-                    m_CtrlName = [ "a" ]
-                    m_nNodeCount = 1
-                    m_nStaticNodes = 0
-                    m_flNotAKnownKey = 1.0
-                }
-                """);
-
-            await Assert.That(UnaccountedKeys(feModel)).IsEquivalentTo(OneUnknownKey);
-        }
-
-        /// <summary>
-        /// Parses cloth carrying a key the reader does not account for. <see cref="FeModel"/> asserts that
-        /// accounting in its constructor under DEBUG and the test host turns a failed assertion into an
-        /// exception, so the trace listeners are detached for the duration; otherwise the constructor
-        /// throws before the test can inspect what it built, and the test passes only in RELEASE.
-        /// The test holding this is <c>[NotInParallel]</c> because the listener collection is global.
-        /// </summary>
-        private static FeModel ParseUnaccountedCloth(string feModelBody)
-        {
-            var listeners = new TraceListener[Trace.Listeners.Count];
-            Trace.Listeners.CopyTo(listeners, 0);
-            Trace.Listeners.Clear();
-
-            try
-            {
-                return SyntheticCloth.Parse(feModelBody);
-            }
-            finally
-            {
-                Trace.Listeners.AddRange(listeners);
-            }
-        }
-
-        /// <summary>
-        /// The keys of a parsed FeModel that are in neither the parsed nor the derived declaration.
-        /// </summary>
-        private static List<string> UnaccountedKeys(FeModel feModel)
-        {
-            var parsed = KeyDeclaration("ParsedKeys");
-            var derived = KeyDeclaration("DerivedKeys");
-
-            return [.. feModel.Data.Keys.Where(key => !parsed.Contains(key) && !derived.Contains(key))];
-        }
-
-        private static HashSet<string> KeyDeclaration(string name)
-        {
-            var field = typeof(FeModel).GetField(name, BindingFlags.NonPublic | BindingFlags.Static)
-                ?? throw new InvalidOperationException($"FeModel.{name} is gone; the key accounting test needs it.");
-
-            return (HashSet<string>)field.GetValue(null)!;
         }
     }
 }

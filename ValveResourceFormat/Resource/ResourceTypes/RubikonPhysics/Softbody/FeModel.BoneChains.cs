@@ -603,7 +603,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             foreach (var rod in Rods)
             {
                 var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
-                if (rod.NodeA == rod.NodeB || rod.MaxDist <= rod.MinDist || rod.RelaxationFactor <= 0f
+                if (rod.MaxDist <= rod.MinDist || rod.RelaxationFactor <= 0f
                     || rod.Weight0 != 0.5f || sprung.Contains(pair)
                     || ImportedStripNodes.Contains(rod.NodeA) || ImportedStripNodes.Contains(rod.NodeB))
                 {
@@ -1280,11 +1280,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var linkCounts = new Dictionary<(int, int), int>();
                 foreach (var rod in Rods)
                 {
-                    if (rod.NodeA == rod.NodeB)
-                    {
-                        continue;
-                    }
-
                     var a = OwnerOf(rod.NodeA);
                     var b = OwnerOf(rod.NodeB);
                     if (a < 0 || b < 0 || a == b)

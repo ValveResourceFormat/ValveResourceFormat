@@ -658,8 +658,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 remap[nodeIndices[i]] = i;
             }
 
-            var nodeFriction = Data.GetFloatArray("m_DynNodeFriction");
-
             var positions = new Vector3[nodeIndices.Length];
             var clothEnable = new float[nodeIndices.Length];
             var goalStrength = new float[nodeIndices.Length];
@@ -682,7 +680,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var node = nodeIndices[i];
                 positions[i] = InitPosePositions[node];
 
-                var vertex = ComputeProxyVertexData(node, nodeFriction);
+                var vertex = ComputeProxyVertexData(node);
                 clothEnable[i] = vertex.IsSim ? 1f : 0f;
                 if (vertex.IsSim) { simulated++; } else { pinned++; }
                 skinInfluences[i] = vertex.SkinInfluences;
@@ -751,9 +749,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             var declared = RotateQuadsToShippedMasses(
-                ChooseFaceDeclarationOrder(faces, surfaceFaceCount, nodeIndices,
-                    node => node < NodeInvMasses.Length && NodeInvMasses[node] == 0f, RotationLockedStaticNodeCount,
-                    order => DeclareFacesInStaticNodeOrder(order, surfaceFaceCount, nodeIndices)),
+                ChooseFaceDeclarationOrder(faces, surfaceFaceCount, nodeIndices),
                 surfaceFaceCount, nodeIndices, InitPosePositions, NodeInvMasses);
             faces.Clear();
             faces.AddRange(declared);
@@ -1022,13 +1018,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         static int[]? PredictQuadSplit(Vector3[] corners, int staticCorners, float tolerance)
         {
-            var order = staticCorners < 2 ? MaximalQuadPairing(corners) : [0, 1, 2, 3];
             if (staticCorners != 0)
             {
                 return null;
             }
 
-            var bend = QuadBend(corners, order);
+            var bend = QuadBend(corners, MaximalQuadPairing(corners));
             return bend.Cross > bend.Normals * tolerance ? bend.Order : null;
         }
 
@@ -1220,11 +1215,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Chooses the order the surface faces are declared in so the importer creates the sheet's nodes in the order the
         /// shipped node array numbers them, and returns that order with its corners rotated.
         /// </summary>
-        internal static List<int[]> ChooseFaceDeclarationOrder(List<int[]> faces, int surfaceFaceCount,
-            IReadOnlyList<int> nodeIndices, Func<int, bool> isStaticNode, int rotationLockedCount,
-            Action<List<int[]>> rotateCorners)
+        internal List<int[]> ChooseFaceDeclarationOrder(List<int[]> faces, int surfaceFaceCount, IReadOnlyList<int> nodeIndices)
         {
-            bool IsStatic(int local) => local >= 0 && local < nodeIndices.Count && isStaticNode(nodeIndices[local]);
+            var rotationLockedCount = RotationLockedStaticNodeCount;
+            bool IsStatic(int local) => local >= 0 && local < nodeIndices.Count
+                && nodeIndices[local] < NodeInvMasses.Length && NodeInvMasses[nodeIndices[local]] == 0f;
             static int[] Corners(int[] face) => face.Length > 4 ? face[..4] : face;
 
             bool SimulatedAscend(List<int[]> order)
@@ -1356,7 +1351,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             List<int[]>[] candidates = [new List<int[]>(faces), byShippedNodes, byLowestPin];
             foreach (var order in candidates)
             {
-                rotateCorners(order);
+                DeclareFacesInStaticNodeOrder(order, surfaceFaceCount, nodeIndices);
             }
 
             return Array.Find(candidates, order => PinsAscend(order) && SimulatedAscend(order))
@@ -1640,7 +1635,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             if (trailingStatic)
             {
                 cycle = [.. cycle.Where(isStatic), .. cycle.Where(corner => !isStatic(corner))];
-                leading = cycle.Count(isStatic);
             }
 
             return cycle;
@@ -1885,7 +1879,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             float GroundFriction,
             (string Bone, float Weight)[] SkinInfluences);
 
-        ProxyVertexData ComputeProxyVertexData(int node, float[] nodeFriction)
+        ProxyVertexData ComputeProxyVertexData(int node)
         {
             var isSim = node < NodeInvMasses.Length && NodeInvMasses[node] != 0f;
 
@@ -1918,7 +1912,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var collisionRadius = GetCollisionRadius(node);
 
-            var friction = Math.Clamp(DynamicNodeValue(nodeFriction, node), 0f, 1f);
+            var friction = Math.Clamp(GetNodeFriction(node), 0f, 1f);
 
             var drag = Math.Max(integrator.PointDamping / ClothDragPointDampingScale, 0f);
 
@@ -2118,7 +2112,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             foreach (var rod in Rods)
             {
-                if (rod.NodeA >= 0 && rod.NodeA < n && rod.NodeB >= 0 && rod.NodeB < n
+                if (rod.NodeA < n && rod.NodeB < n
                     && isProxy[rod.NodeA] && isProxy[rod.NodeB])
                 {
                     parent[Find(rod.NodeA)] = Find(rod.NodeB);
@@ -2192,7 +2186,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 nodes.Add(node);
             }
 
-            var nodeFriction = Data.GetFloatArray("m_DynNodeFriction");
             foreach (var (_, nodeIndices) in groups.OrderBy(static kv => kv.Value.Min()))
             {
                 if (nodeIndices.Count < 3)
@@ -2200,7 +2193,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                var mesh = BuildProxyMeshFromNodeSet(nodeIndices, nodeFriction);
+                var mesh = BuildProxyMeshFromNodeSet(nodeIndices);
                 if (mesh is not null)
                 {
                     result.Add(mesh);
@@ -2210,7 +2203,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return result;
         }
 
-        ProxyMesh? BuildProxyMeshFromNodeSet(List<int> nodeIndices, float[] nodeFriction)
+        ProxyMesh? BuildProxyMeshFromNodeSet(List<int> nodeIndices)
         {
             var sorted = nodeIndices.ToArray();
             SortByAuthoredVertexOrder(sorted);
@@ -2239,7 +2232,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var node = nodeIndices[i];
                 positions[i] = InitPosePositions[node];
 
-                var vertex = ComputeProxyVertexData(node, nodeFriction);
+                var vertex = ComputeProxyVertexData(node);
                 clothEnable[i] = vertex.IsSim ? 1f : 0f;
                 if (vertex.IsSim) { simulated++; } else { pinned++; }
                 skinInfluences[i] = vertex.SkinInfluences;

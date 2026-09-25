@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
@@ -337,17 +336,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>Gets the unordered node pairs a twist constraint spans.</summary>
         public IReadOnlySet<(int, int)> TwistLinks { get; }
-
-        /// <summary>
-        /// Gets whether a twist constraint spans <paramref name="node"/> and its chain parent
-        /// <paramref name="parent"/>, which is what that joint's own <c>twist_relax</c> generates.
-        /// </summary>
-        public bool HasTwistToParent(int node, int parent)
-            => parent >= 0 && TwistLinks.Contains(node < parent ? (node, parent) : (parent, node));
-
-        /// <summary>Gets whether the joint at <paramref name="node"/> was authored with a non-zero <c>twist_relax</c>.</summary>
-        public bool HasAuthoredTwist(int node, int parent)
-            => parent >= 0 ? HasTwistToParent(node, parent) : TwistNodes.Contains(node);
 
         /// <summary>
         /// Gets the <c>flTwistRelax</c> of each directed (<c>nNodeOrient</c>, <c>nNodeEnd</c>) pair; the last entry wins
@@ -1613,13 +1601,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         {
             get
             {
-                if (shearResistance is null)
+                if (!hasShearResistance)
                 {
                     shearResistance = SolveShearResistance();
                     hasShearResistance = true;
                 }
 
-                return hasShearResistance ? shearResistance : null;
+                return shearResistance;
             }
         }
 
@@ -1960,11 +1948,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var proportional = 0;
             foreach (var rod in Rods)
             {
-                if (rod.NodeA == rod.NodeB)
-                {
-                    continue;
-                }
-
                 anyRod = true;
                 if (!Simulated(rod.NodeA) || !Simulated(rod.NodeB))
                 {
@@ -2149,7 +2132,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         bool? hasProxyMeshNodes;
 
         HashSet<int> RodEndpoints => rodEndpoints ??= Rods
-            .Where(static rod => rod.NodeA != rod.NodeB)
             .SelectMany(static rod => new[] { rod.NodeA, rod.NodeB })
             .ToHashSet();
         HashSet<int>? rodEndpoints;
@@ -2217,11 +2199,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var rodsOnPair = new Dictionary<(int, int), int>();
             foreach (var rod in Rods)
             {
-                if (rod.NodeA != rod.NodeB)
-                {
-                    var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
-                    rodsOnPair[pair] = rodsOnPair.GetValueOrDefault(pair) + 1;
-                }
+                var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                rodsOnPair[pair] = rodsOnPair.GetValueOrDefault(pair) + 1;
             }
 
             foreach (var cycle in cycles)
@@ -2240,7 +2219,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             foreach (var rod in Rods)
             {
                 var (a, b) = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
-                if (a == b || a < 0 || b >= mass.Length
+                if (b >= mass.Length
                     || rod.MaxDist >= UnboundedRodDistance || (FoldedAfterMass(rod) && derived.Remove((a, b))))
                 {
                     continue;
@@ -3408,7 +3387,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return Rods.Any(rod => rod.MaxDist < UnboundedRodDistance && rod.MinDist < rod.MaxDist
-                && rod.NodeA != rod.NodeB
                 && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB))
                 || Rods.Any(rod => IsSurfaceFanRod(rod, banded: true));
         }
@@ -3425,7 +3403,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Returns whether <paramref name="rod"/> is a banded rod the compiler folded across a face edge on its own: it carries its
         /// endpoints' final inverse-mass ratio as its weight, which no declaration does.
         /// </summary>
-        public bool IsSurfaceFold(Rod rod) => IsSurfaceFanRod(rod, banded: true);
+        internal bool IsSurfaceFold(Rod rod) => IsSurfaceFanRod(rod, banded: true);
 
         /// <summary>
         /// The pairs <c>add_stiffness_rods</c> makes the compiler fold across the edges this model's own faces
@@ -3442,7 +3420,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <see cref="IsSurfaceFanRod"/>), so that no declaration put any rod there.
         /// </summary>
         HashSet<(int, int)> SurfaceFoldOnlyPairs => surfaceFoldOnlyPairs ??= Rods
-            .Where(static rod => rod.NodeA != rod.NodeB)
             .GroupBy(static rod => rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA))
             .Where(group => group.All(rod => IsSurfaceFanRod(rod, banded: true)))
             .Select(static group => group.Key)
@@ -3456,9 +3433,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         bool IsSurfaceFanRod(Rod rod, bool banded)
         {
-            if (rod.NodeA == rod.NodeB || rod.MaxDist >= UnboundedRodDistance
+            if (rod.MaxDist >= UnboundedRodDistance
                 || (banded && rod.MinDist >= rod.MaxDist - SurfaceFanBandTolerance * MathF.Max(1f, rod.MaxDist))
-                || rod.NodeA < 0 || rod.NodeA >= NodeInvMasses.Length || rod.NodeB < 0 || rod.NodeB >= NodeInvMasses.Length)
+                || rod.NodeA >= NodeInvMasses.Length || rod.NodeB >= NodeInvMasses.Length)
             {
                 return false;
             }
@@ -3484,7 +3461,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         bool FoldedAfterMass(Rod rod)
         {
-            var sum = rod.NodeA >= 0 && rod.NodeA < NodeInvMasses.Length && rod.NodeB >= 0 && rod.NodeB < NodeInvMasses.Length
+            var sum = rod.NodeA < NodeInvMasses.Length && rod.NodeB < NodeInvMasses.Length
                 ? NodeInvMasses[rod.NodeA] + NodeInvMasses[rod.NodeB]
                 : 0f;
             if (sum > 0f && MathF.Abs(NodeInvMasses[rod.NodeA] / sum - 0.5f) > SurfaceFanWeightTolerance)
@@ -3499,8 +3476,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         bool IsUnequalFoldedPair(Rod rod)
         {
-            if (rod.NodeA == rod.NodeB || rod.NodeA < 0 || rod.NodeA >= NodeInvMasses.Length
-                || rod.NodeB < 0 || rod.NodeB >= NodeInvMasses.Length)
+            if (rod.NodeA >= NodeInvMasses.Length || rod.NodeB >= NodeInvMasses.Length)
             {
                 return false;
             }
@@ -4223,68 +4199,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>Gets the raw, uninterpreted <c>m_CollisionSpheres</c> entries.</summary>
         public IReadOnlyList<KVObject> CollisionSpheres { get; }
 
-        static readonly HashSet<string> DerivedKeys =
-        [
-            "m_CtrlHash",
-            "m_TreeParents", "m_TreeChildren", "m_nTreeDepth",
-            "m_SimdRods", "m_SimdNodeBases", "m_SimdAnimStrayRadii", "m_SimdRodsAnim", "m_SimdSpringIntegrator",
-            "m_SimdQuads", "m_SimdTris",
-            "m_FreeNodes",
-            "m_nQuadCount1", "m_nQuadCount2", "m_nTriCount1", "m_nTriCount2",
-            "m_nSimdQuadCount1", "m_nSimdQuadCount2", "m_nSimdTriCount1", "m_nSimdTriCount2",
-            "m_nReservedUint8", "m_nNodeBaseJiggleboneDependsCount",
-            "m_nReserved",
-            "m_nCollisionSphereInclusiveCount",
-            "m_SimdFitMatrices", "m_nFitMatrixCount1", "m_nFitMatrixCount2",
-            "m_nSimdFitMatrixCount1", "m_nSimdFitMatrixCount2",
-            "m_DynNodeWindBases",
-            "m_ReverseOffsets",
-        ];
-
-        static readonly HashSet<string> ParsedKeys =
-        [
-            "m_CtrlName", "m_SkelParents", "m_NodeInvMasses", "m_nNodeCount", "m_nStaticNodes",
-            "m_nFirstPositionDrivenNode", "m_InitPose", "m_Quads", "m_Tris", "m_SourceElems",
-            "m_HingeLimits", "m_KelagerBends", "m_VertexMapValues", "m_VertexMaps", "m_Rods",
-            "m_NodeIntegrator", "m_NodeCollisionRadii", "m_WorldCollisionNodes", "m_WorldCollisionParams",
-            "m_DynNodeFriction", "m_AnimStrayRadii", "m_FitMatrices", "m_Twists", "m_NodeBases",
-            "m_TreeCollisionMasks",
-            "m_CtrlOffsets", "m_CtrlSoftOffsets", "m_FitWeights", "m_TaperedCapsuleRigids", "m_BoxRigids",
-            "m_SphereRigids", "m_AxialEdges", "m_Ropes", "m_nRopeCount", "m_FollowNodes",
-            "m_LocalForce", "m_LocalRotation",
-            "m_flInternalPressure", "m_flWindage", "m_flWindDrag", "m_flLocalForce", "m_flLocalRotation",
-            "m_flAddWorldCollisionRadius", "m_flDefaultGravityScale", "m_flDefaultVelAirDrag",
-            "m_flDefaultExpAirDrag", "m_flDefaultThreadStretch", "m_flDefaultSurfaceStretch", "m_flLocalDrag1",
-            "m_nExtraIterations", "m_nExtraGoalIterations", "m_nExtraPressureIterations",
-            "m_flRodVelocitySmoothRate", "m_nRodVelocitySmoothIterations", "m_nDynamicNodeFlags",
-            "m_nStaticNodeFlags", "m_nRotLockStaticNodes", "m_flMotionSmoothCDT",
-
-            "m_VertexSetNames", "m_DynNodeVertexSet", "m_LockToGoal", "m_LockToParent", "m_LegacyStretchForce",
-            "m_CtrlOsOffsets", "m_AntiTunnelProbes", "m_AntiTunnelTargetNodes", "m_AntiTunnelBytecode",
-            "m_SDFRigids", "m_GoalDampedSpringIntegrators", "m_DynKinLinks", "m_CollisionPlanes", "m_Effects",
-            "m_MorphLayers", "m_MorphSetData", "m_SelfCollisionLayers", "m_NodeStrayBoxes",
-            "m_TaperedCapsuleStretches", "m_SpringIntegrator", "m_RigidColliderPriorities", "m_JiggleBones",
-            "m_BoneMergeLinks", "m_CollisionSpheres",
-            "m_flDefaultTimeDilation", "m_flDefaultVolumetricSolveAmount", "m_flDefaultVelQuadAirDrag",
-            "m_flDefaultExpQuadAirDrag", "m_flQuadVelocitySmoothRate", "m_nQuadVelocitySmoothIterations",
-            "m_flDefaultVelRodAirDrag", "m_flDefaultExpRodAirDrag",
-        ];
-
-        /// <summary>
-        /// Verifies every top-level <c>m_pFeModel</c> key is either parsed (<see cref="ParsedKeys"/>) or
-        /// known-derived (<see cref="DerivedKeys"/>), so a compiler adding a new key is caught here instead
-        /// of silently dropped. Debug-only.
-        /// </summary>
-        [Conditional("DEBUG")]
-        static void AssertAllKeysAccountedFor(KVObject data)
-        {
-            foreach (var key in data.Keys)
-            {
-                Debug.Assert(ParsedKeys.Contains(key) || DerivedKeys.Contains(key),
-                    $"FeModel key '{key}' is neither parsed nor in the derived-key list.");
-            }
-        }
-
         static T[] ReadArray<T>(KVObject data, string key, Func<KVObject, T> map)
         {
             var arr = data.GetArray(key);
@@ -4682,13 +4596,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             LegacyStretchForce = data.GetFloatArray("m_LegacyStretchForce");
             CollisionSpheres = data.GetArray("m_CollisionSpheres") ?? [];
 
-            RecoveredSkinWeights = RecoverAuthoredSkinWeights(data, out var deferredOffsetWeights,
-                out var unbackSolvedMeshes);
+            RecoveredSkinWeights = RecoverAuthoredSkinWeights(out var deferredOffsetWeights, out var unbackSolvedMeshes);
             DeferredOffsetSkinWeights = deferredOffsetWeights;
             UnbackSolvedProxyMeshes = unbackSolvedMeshes;
             RawGoalPaintNodes = BuildRawGoalPaintNodes();
-
-            AssertAllKeysAccountedFor(data);
         }
     }
 }

@@ -125,8 +125,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             });
 
             var rows = members.Max(c => c.Count);
-            var nodeFriction = Data.GetFloatArray("m_DynNodeFriction");
-            float FrictionAt(int node) => Math.Clamp(DynamicNodeValue(nodeFriction, node), 0f, 1f);
+            float FrictionAt(int node) => Math.Clamp(GetNodeFriction(node), 0f, 1f);
 
             var columnSamples = new List<(Vector3 Position, (string Bone, float Weight)[] Influences, float Enable, float Strength, float Radius, float Damping, float Friction, float Drag)[]>();
             foreach (var joints in members)

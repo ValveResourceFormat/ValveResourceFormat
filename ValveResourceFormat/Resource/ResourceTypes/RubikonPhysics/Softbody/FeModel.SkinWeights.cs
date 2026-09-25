@@ -10,20 +10,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Recovers the authored skin weights of the proxy-sheet vertices, the vertices left to the offset network, and the
         /// proxy meshes compiled without back-solving.
         /// </summary>
-        Dictionary<int, (string Bone, float Weight)[]> RecoverAuthoredSkinWeights(KVObject data,
+        Dictionary<int, (string Bone, float Weight)[]> RecoverAuthoredSkinWeights(
             out Dictionary<int, (string Bone, float Weight)[]> deferred, out HashSet<int> unbackSolvedMeshes)
         {
             var recovered = new Dictionary<int, (string Bone, float Weight)[]>();
             deferred = [];
             unbackSolvedMeshes = [];
-            var fitMatrices = data.GetArray("m_FitMatrices");
-            var ctrlOffsets = data.GetArray("m_CtrlOffsets");
-            if (ctrlOffsets is null)
+            if (CtrlOffsets.Length == 0)
             {
                 return recovered;
             }
 
-            var fitWeights = data.GetArray("m_FitWeights") ?? [];
+            var fitMatrices = Data.GetArray("m_FitMatrices");
+            var fitWeights = Data.GetArray("m_FitWeights") ?? [];
 
             var fitPerVertex = new Dictionary<int, Dictionary<int, float>>();
             var minIncludedWeight = float.MaxValue;
@@ -50,13 +49,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             var rigidParents = new Dictionary<int, int>();
-            foreach (var e in ctrlOffsets)
+            foreach (var offset in CtrlOffsets)
             {
-                rigidParents[e.GetInt32Property("nCtrlChild")] = e.GetInt32Property("nCtrlParent");
+                rigidParents[offset.CtrlChild] = offset.CtrlParent;
             }
 
             var softPerVertex = new Dictionary<int, List<(int Parent, float Alpha)>>();
-            if (data.GetArray("m_CtrlSoftOffsets") is { } softOffsets)
+            if (Data.GetArray("m_CtrlSoftOffsets") is { } softOffsets)
             {
                 foreach (var e in softOffsets)
                 {
@@ -335,7 +334,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             var backSolvedBones = new HashSet<int>();
-            foreach (var entry in data.GetArray("m_ReverseOffsets") ?? [])
+            foreach (var entry in Data.GetArray("m_ReverseOffsets") ?? [])
             {
                 backSolvedBones.Add(entry.GetInt32Property("nBoneCtrl"));
             }
@@ -485,25 +484,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            const int slots = int.MaxValue;
             var painted = new Dictionary<int, List<(int Node, float Weight)>>();
             for (var v = 0; v < proxy.NodeIndices.Length && v < proxy.SkinInfluences.Length; v++)
             {
                 var node = proxy.NodeIndices[v];
-                var slot = 0;
                 foreach (var (boneName, weight) in proxy.SkinInfluences[v])
                 {
-                    if (slot >= slots)
-                    {
-                        break;
-                    }
-
                     if (!ctrlIndex.TryGetValue(boneName, out var bone))
                     {
                         continue;
                     }
 
-                    slot++;
                     if (weight <= 0f || IsProxyNodeName(CtrlNames[bone]) || IsStatic(bone))
                     {
                         continue;

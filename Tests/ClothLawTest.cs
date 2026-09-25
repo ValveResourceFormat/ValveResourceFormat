@@ -4909,10 +4909,19 @@ namespace Tests
         public async Task FacesAreDeclaredInTheShippedNodeOrder()
         {
             int[] gridNodes = [0, 14, 19, 24, 1, 13, 18, 23, 2, 15, 20, 25, 3, 16, 21, 26, 4, 17, 22, 27];
-            static bool GridStatic(int node) => node < 13;
             static string Order(List<int[]> faces) => string.Join(" | ", faces.Select(static face => string.Join(",", face)));
-            List<int[]> Choose(List<int[]> faces, IReadOnlyList<int> nodes, Func<int, bool> isStatic)
-                => FeModel.ChooseFaceDeclarationOrder(faces, faces.Count, nodes, isStatic, 13, static _ => { });
+            static List<int[]> Choose(List<int[]> faces, IReadOnlyList<int> nodes, FeModel pins)
+                => pins.ChooseFaceDeclarationOrder(faces, faces.Count, nodes);
+            static FeModel Pinned(int nodes, int pinned) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ {{string.Join(", ", Enumerable.Range(0, nodes).Select(static node => $"\"n{node}\""))}} ]
+                    m_nNodeCount = {{nodes}}
+                    m_nStaticNodes = {{pinned}}
+                    m_nRotLockStaticNodes = 13
+                    m_NodeInvMasses = [ {{string.Join(", ", Enumerable.Range(0, nodes).Select(node => node < pinned ? "0.0" : "1.0"))}} ]
+                }
+                """);
+            var gridPins = Pinned(28, 13);
 
             List<int[]> lanes =
             [
@@ -4921,18 +4930,18 @@ namespace Tests
             ];
             const string NodeSorted = "0,4,5,1 | 4,8,9,5 | 8,12,13,9 | 12,16,17,13 | 1,5,6,2 | 5,9,10,6 | 13,14,10,9 | "
                 + "17,18,14,13 | 2,6,7,3 | 6,10,11,7 | 14,15,11,10 | 18,19,15,14";
-            var sorted = Choose(lanes, gridNodes, GridStatic);
-            var again = Choose(sorted, gridNodes, GridStatic);
+            var sorted = Choose(lanes, gridNodes, gridPins);
+            var again = Choose(sorted, gridNodes, gridPins);
 
             int[] smallNodes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-            static bool SmallStatic(int node) => node < 5;
+            var smallPins = Pinned(10, 5);
             List<int[]> unfixable = [[0, 4, 9, 5], [2, 3, 8, 7], [1, 2, 7, 6]];
 
             using (Assert.Multiple())
             {
                 await Assert.That(Order(sorted)).IsEqualTo(NodeSorted);
                 await Assert.That(Order(again)).IsEqualTo(NodeSorted);
-                await Assert.That(Order(Choose(unfixable, smallNodes, SmallStatic))).IsEqualTo(Order(unfixable));
+                await Assert.That(Order(Choose(unfixable, smallNodes, smallPins))).IsEqualTo(Order(unfixable));
             }
         }
 
