@@ -10,15 +10,11 @@ namespace Tests
     public class ClothFeModelTest
     {
         /// <summary>
-        /// An old-era rope cloth: eight control nodes in two columns, four pinned, no surface elements
-        /// and no <c>m_SkelParents</c>.
+        /// A rope cloth: eight control nodes in two columns, four pinned, no surface elements and no <c>m_SkelParents</c>.
         /// </summary>
         private const string RopeClothFixture = "juggernaut.vphys_c";
 
-        /// <summary>
-        /// A modern chain cloth: six joints, each carrying a three-node extrude ring, and no static node
-        /// at all.
-        /// </summary>
+        /// <summary>A chain cloth: six joints, each carrying a three-node extrude ring, and no static node.</summary>
         private const string ChainClothFixture = "sw_donkey_10th_anniversary_kv3_v3_zstd.vmdl_c";
 
         private static readonly int[] RopeClothParents = [-1, -1, -1, -1, 0, 0, 0, 0];
@@ -100,10 +96,7 @@ namespace Tests
             }
         }
 
-        /// <summary>
-        /// A compile that ships no <c>m_SkelParents</c> still records which node follows which in
-        /// <c>m_FollowNodes</c>, and the hierarchy is rebuilt from it.
-        /// </summary>
+        /// <summary>Without <c>m_SkelParents</c> the node hierarchy is rebuilt from <c>m_FollowNodes</c>.</summary>
         [Test]
         public async Task RopeClothBuildsItsParentsFromTheFollowNodes()
         {
@@ -114,8 +107,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The fixture predates <c>m_nFirstPositionDrivenNode</c>. It has no fit matrix, no reverse offset
-        /// and no extrude ring, so nothing is back-solved and the derived boundary is the node count.
+        /// Without <c>m_nFirstPositionDrivenNode</c>, a model with no fit matrix, reverse offset or extrude ring derives
+        /// the node count as the boundary.
         /// </summary>
         [Test]
         public async Task RopeClothDerivesFirstPositionDrivenNodeWhenTheKeyIsAbsent()
@@ -130,10 +123,7 @@ namespace Tests
             }
         }
 
-        /// <summary>
-        /// Static nodes lead the control array and the rotation-locked ones lead them in turn, so both
-        /// boundaries are read off the counts rather than off any per-node flag.
-        /// </summary>
+        /// <summary>The static and rotation-locked boundaries are read off the node counts.</summary>
         [Test]
         public async Task RopeClothStaticBoundaryDrivesRotationAndPinning()
         {
@@ -159,8 +149,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A populated <c>m_CtrlOsOffsets</c> with no ctrl offsets, no surface and no fit matrix is the
-        /// marker of cloth authored as an imported fx node table.
+        /// A populated <c>m_CtrlOsOffsets</c> with no ctrl offsets, no surface and no fit matrix reads as imported cloth.
         /// </summary>
         [Test]
         public async Task RopeClothIsRecognisedAsImportedCloth()
@@ -187,15 +176,12 @@ namespace Tests
                 await Assert.That(feModel.NodeIntegrators.Length).IsEqualTo(24);
                 await Assert.That(feModel.InitPosePositions.Length).IsEqualTo(24);
 
-                // The surface survives only as authored elements; the compiler kept no solve elements.
                 await Assert.That(feModel.Quads.Length).IsEqualTo(0);
                 await Assert.That(feModel.Tris.Length).IsEqualTo(0);
                 await Assert.That(feModel.SourceFaces.Length).IsEqualTo(15);
                 await Assert.That(feModel.SourceFaces[0].Length).IsEqualTo(4);
                 await Assert.That(feModel.SourceSprings.Length).IsEqualTo(0);
 
-                // One vertex set is registered but no dynamic node is assigned to it, so no selection
-                // can be rebuilt from the registration.
                 await Assert.That(feModel.VertexSetNames.Length).IsEqualTo(1);
                 await Assert.That(feModel.DynNodeVertexSet.Length).IsEqualTo(0);
                 await Assert.That(feModel.VertexMaps.Count).IsEqualTo(0);
@@ -209,8 +195,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// The joints sit at the tail of the control array and their extrude rings lead it, which is what
-        /// <c>m_CtrlOffsets</c> records: three ring nodes per joint, all named after the joint's bone.
+        /// <c>m_CtrlOffsets</c> hangs a three-node ring off each of the six joint nodes at the tail of the control array.
         /// </summary>
         [Test]
         public async Task ChainClothRingsHangOffTheSixJointNodes()
@@ -234,17 +219,13 @@ namespace Tests
                 await Assert.That(feModel.CtrlNames[21]).IsEqualTo("head1");
                 await Assert.That(feModel.CtrlNames[0]).IsEqualTo("$ccwizardSpine1_0_0");
 
-                // A rope-parent trail is what a compile without m_SkelParents would leave, and this one
-                // has neither.
                 await Assert.That(feModel.HasCompiledSkelParents).IsFalse();
                 await Assert.That(feModel.SkelParents.Length).IsEqualTo(0);
             }
         }
 
         /// <summary>
-        /// The compiler cubes the authored goal strength into <c>flAnimationForceAttraction</c>, so the
-        /// six joints' 0.343 / 0.343 / 0.216 / 0.125 / 0.064 / 0.008 are 0.7 / 0.7 / 0.6 / 0.5 / 0.4 / 0.2.
-        /// A joint's own node carries no gravity; only the ring it extruded does.
+        /// The joints' goal strengths read back from their force attractions, and only the rings carry gravity.
         /// </summary>
         [Test]
         public async Task ChainClothIntegratorsCarryTheGoalPair()
@@ -268,9 +249,7 @@ namespace Tests
             }
         }
 
-        /// <summary>
-        /// A physics aggregate whose <c>m_pFeModel</c> is null carries no cloth at all.
-        /// </summary>
+        /// <summary>A physics aggregate whose <c>m_pFeModel</c> is null carries no cloth at all.</summary>
         [Test]
         public async Task PhysWithoutClothCarriesNoFeModel()
         {

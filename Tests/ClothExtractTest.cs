@@ -9,10 +9,7 @@ namespace Tests
 {
     public class ClothExtractTest
     {
-        /// <summary>
-        /// A modern chain cloth: one <c>ClothChain</c> of six joints over a three-node extrude ring each,
-        /// plus the chain grid the export writes as authoring convenience.
-        /// </summary>
+        /// <summary>A chain cloth: one <c>ClothChain</c> of six joints, each over a three-node extrude ring.</summary>
         private const string ChainClothFixture = "sw_donkey_10th_anniversary_kv3_v3_zstd.vmdl_c";
 
         private static readonly string[] GeneratedNodePrefixes = ["$cc", "$cloth_m", "$cloth_node_", "$ha_", "$cloth_root"];
@@ -58,9 +55,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The joints come back in pre-order with the parent each one hangs off. The chain is one tube: the
-        /// compiled source elements join <c>head1</c>'s ring to <c>wizardSpine1_2</c>'s, not to the ring of its
-        /// skeleton parent <c>wizardSpine1_1</c>, so <c>head1</c> hangs off <c>wizardSpine1_2</c>.
+        /// The six joints come back in pre-order, five of them with a parent, and <c>head1</c> hangs off the joint its
+        /// ring is joined to rather than its skeleton parent.
         /// </summary>
         [Test]
         public async Task ChainClothCarriesItsSixJointsInParentOrder()
@@ -83,7 +79,6 @@ namespace Tests
 
                 await Assert.That(jointNames.Distinct().Count()).IsEqualTo(6);
 
-                // The root carries no joint_parent, so five of the six rows do.
                 await Assert.That(Occurrences(vmdl, "joint_parent = \"")).IsEqualTo(5);
 
                 var head = vmdl.IndexOf("joint_name = \"head1\"", StringComparison.Ordinal);
@@ -93,9 +88,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The per-joint rows carry the values recovered from the compiled integrators and extrude ring:
-        /// the goal strengths are the cube roots of the shipped force attractions, and every joint keeps
-        /// the three-node ring at radius 5.
+        /// The joint rows carry the goal strengths recovered from the compiled integrators and every joint's three-node
+        /// ring at radius 5.
         /// </summary>
         [Test]
         public async Task ChainClothJointRowsCarryTheRecoveredPerJointValues()
@@ -118,10 +112,7 @@ namespace Tests
             }
         }
 
-        /// <summary>
-        /// The compiler's own generated control nodes have no authored counterpart, so none of their
-        /// names may reach the emitted source.
-        /// </summary>
+        /// <summary>No generated control node name reaches the emitted source.</summary>
         [Test]
         public async Task ChainClothEmitsNoGeneratedNodeNames()
         {
@@ -136,10 +127,7 @@ namespace Tests
             }
         }
 
-        /// <summary>
-        /// A chain-phase model has no proxy sheet at all, and a chain grid is only built across neighbouring
-        /// chain columns: this chain is one tube, so the cloth writes no mesh file of either kind.
-        /// </summary>
+        /// <summary>A model of one chain tube writes no proxy sheet and no chain grid.</summary>
         [Test]
         public async Task ChainClothOfOneTubeEmitsNoProxySheetAndNoChainGrid()
         {
@@ -155,9 +143,7 @@ namespace Tests
             }
         }
 
-        /// <summary>
-        /// The solver scalars on <c>ClothParams</c> come straight off the compiled FeModel.
-        /// </summary>
+        /// <summary>The solver scalars on <c>ClothParams</c> come straight off the compiled FeModel.</summary>
         [Test]
         public async Task ChainClothParamsCarryTheCompiledScalars()
         {
@@ -176,9 +162,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// Two independent extractions of one model produce the same source. Only the emitted vmdl text
-        /// is compared byte for byte: the DMX writer assigns fresh element GUIDs on every run, so the
-        /// sub files are compared by their total length instead.
+        /// Two independent extractions of one model produce the same vmdl text and sub files of the same total length.
         /// </summary>
         [Test]
         public async Task ExtractionOfTheSameModelIsDeterministic()
@@ -204,11 +188,7 @@ namespace Tests
             return (Encoding.UTF8.GetString(content.Data!), length);
         }
 
-        /// <summary>
-        /// The cloth phase mutates the parsed FeModel before the Softbody tree is built, and the parse is
-        /// cached on the resource, so a second extraction from one loaded resource has to land on the
-        /// same source as the first.
-        /// </summary>
+        /// <summary>Repeated extractions from one loaded resource produce the same source.</summary>
         [Test]
         public async Task RepeatedExtractionFromOneLoadedResourceIsStable()
         {
@@ -226,9 +206,7 @@ namespace Tests
             }
         }
 
-        /// <summary>
-        /// A model with no soft body writes no cloth at all.
-        /// </summary>
+        /// <summary>A model with no soft body writes no cloth at all.</summary>
         [Test]
         public async Task ModelWithoutClothEmitsNoSoftbody()
         {
