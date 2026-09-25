@@ -11174,5 +11174,77 @@ namespace Tests
                 await Assert.That(into.ContainsKey("fish")).IsFalse();
             }
         }
+
+        /// <summary>
+        /// A fit-covered vertex whose eight soft slots are full paints the weight its fit scale leaves unrecorded on the
+        /// primary's nearest static ancestor it does not already name. On an ancestor it names, the overflow raises a
+        /// recorded influence and the recompile's soft alphas move. CONTROLS: the fit bone keeps its scaled weight and the
+        /// paint still sums to one.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 over every original with fit matrices: dotaout <c>mars</c> and <c>mars_diretide</c>'s
+        /// <c>$cloth_m3p15</c> are the only vertices whose nearest static ancestor (<c>neck_0</c>) is already an influence.
+        /// </remarks>
+        [Test]
+        public async Task AFullSlotRemainderGoesToAStaticAncestorTheVertexDoesNotName()
+        {
+            const int Vertex = 11;
+            var recovered = FullSlotRemainder().RecoveredSkinWeights.GetValueOrDefault(Vertex, []);
+            float WeightOf(string bone) => recovered.Where(influence => influence.Bone == bone).Sum(influence => influence.Weight);
+
+            using (Assert.Multiple())
+            {
+                // THE LAW.
+                await Assert.That(WeightOf("spine")).IsEqualTo(0.02f).Within(1e-4f);
+                await Assert.That(WeightOf("neck")).IsEqualTo(0.98f * 0.0531441f).Within(1e-4f);
+
+                // CONTROLS.
+                await Assert.That(WeightOf("dyn")).IsEqualTo(0.2343655f).Within(1e-4f);
+                await Assert.That(recovered.Sum(influence => influence.Weight)).IsEqualTo(1f).Within(1e-4f);
+            }
+        }
+
+        // Static root > spine > neck > hair, six more static bones s1..s6 and a simulated fit bone dyn. Vertex 11 is anchored
+        // on hair with eight soft slots (dyn 0.5, neck 0.9, s1..s6 0.9), expanding to hair and dyn 0.2391, neck 0.0531 and
+        // s1..s6; its fit row on dyn is 0.98 of that, leaving 0.02 unrecorded.
+        private static FeModel FullSlotRemainder() => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "spine", "neck", "hair", "s1", "s2", "s3", "s4", "s5", "s6", "dyn", "$cloth_m0p0" ]
+                m_SkelParents = [ -1, 0, 1, 2, 0, 0, 0, 0, 0, 0, 3, -1 ]
+                m_nNodeCount = 12
+                m_nStaticNodes = 10
+                m_nFirstPositionDrivenNode = 10
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 30f)}}
+                    {{SyntheticCloth.Pose(2f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(4f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(6f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(8f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(12f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 35f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, 32f)}}
+                ]
+                m_CtrlOffsets = [ { vOffset = [ 1.0, 0.0, 2.0 ] nCtrlParent = 3 nCtrlChild = 11 } ]
+                m_CtrlSoftOffsets =
+                [
+                    { nCtrlParent = 10 nCtrlChild = 11 vOffset = [ 1.0, 0.0, -3.0 ] flAlpha = 0.5 },
+                    { nCtrlParent = 2 nCtrlChild = 11 vOffset = [ 1.0, 0.0, 12.0 ] flAlpha = 0.9 },
+                    { nCtrlParent = 4 nCtrlChild = 11 vOffset = [ -1.0, 0.0, 32.0 ] flAlpha = 0.9 },
+                    { nCtrlParent = 5 nCtrlChild = 11 vOffset = [ -3.0, 0.0, 32.0 ] flAlpha = 0.9 },
+                    { nCtrlParent = 6 nCtrlChild = 11 vOffset = [ -5.0, 0.0, 32.0 ] flAlpha = 0.9 },
+                    { nCtrlParent = 7 nCtrlChild = 11 vOffset = [ -7.0, 0.0, 32.0 ] flAlpha = 0.9 },
+                    { nCtrlParent = 8 nCtrlChild = 11 vOffset = [ -9.0, 0.0, 32.0 ] flAlpha = 0.9 },
+                    { nCtrlParent = 9 nCtrlChild = 11 vOffset = [ -11.0, 0.0, 32.0 ] flAlpha = 0.9 },
+                ]
+                m_FitMatrices = [ { nEnd = 1 nNode = 10 nBeginDynamic = 0 } ]
+                m_FitWeights = [ { flWeight = 0.2343655 nNode = 11 nDummy = 0 } ]
+            }
+            """);
     }
 }

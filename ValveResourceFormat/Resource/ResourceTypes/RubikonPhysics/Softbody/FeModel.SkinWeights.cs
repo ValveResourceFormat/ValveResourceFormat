@@ -331,7 +331,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 // The rest of the authored weight went to a static bone (below the original's back-solve
-                // threshold or simply not back-solvable) - the primary's nearest static real ancestor.
+                // threshold or simply not back-solvable) - the primary's nearest static real ancestor the
+                // vertex does not already name.
                 // Only where the compiled network CAN be hiding one: the offset network records every
                 // bone a vertex is bound to until its eight soft slots are full, so a shortfall on a
                 // vertex with a slot to spare is authored weight that reached no control node at all,
@@ -341,6 +342,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     && slots.Count >= ClothProxySoftOffsetSlots)
                 {
                     var anchor = FindStaticRealAncestor(primary);
+                    while (anchor >= 0 && influences.Exists(influence => influence.Bone == CtrlNames[anchor]))
+                    {
+                        anchor = FindStaticRealAncestor(anchor);
+                    }
+
                     if (anchor >= 0)
                     {
                         influences.Add((CtrlNames[anchor], remainder));
