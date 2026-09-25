@@ -67,7 +67,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly IVectorProvider headColorScale = new LiteralVectorProvider(Vector3.One);
         private readonly IVectorProvider tailColorScale = new LiteralVectorProvider(Vector3.One);
 
-        public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
+        public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
         {
             this.rendererContext = rendererContext;
 
@@ -75,9 +75,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: OutputIsColor);
 
-            shader = rendererContext.ShaderLoader.LoadShader(ShaderName,
-                ("S_TEXTURE_LAYERS", (byte)(layers.Length - 1)),
-                ("S_PARTICLE_INSTANCED", (byte)2));
+            var shaderArguments = CreateShaderArguments();
+            shaderArguments["S_TEXTURE_LAYERS"] = (byte)(layers.Length - 1);
+            shaderArguments["S_PARTICLE_INSTANCED"] = 2;
+
+            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
 
             instanceLayout = BuildInstanceLayout(layers.Length);
 

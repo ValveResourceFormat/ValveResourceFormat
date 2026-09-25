@@ -281,7 +281,10 @@ namespace ValveResourceFormat.Renderer
                         materialName = replacementName;
                     }
 
-                    var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes);
+                    var shaderArguments = scene.LightingInfo.CreateShaderArguments(
+                        hasLightmapUvs: Mesh.HasBakedLightingFromLightMap(objectDrawCall),
+                        hasVertexLighting: Mesh.HasBakedLightingFromVertexStream(objectDrawCall)
+                    );
 
                     if (Skinning != MeshSkinning.None)
                     {
@@ -313,19 +316,6 @@ namespace ValveResourceFormat.Renderer
                         }
 
                         shaderArguments.Add("D_COMPRESSED_NORMALS_AND_TANGENTS", compressedVersion);
-                    }
-
-                    if (Mesh.HasBakedLightingFromLightMap(objectDrawCall) && scene.LightingInfo.HasValidLightmaps)
-                    {
-                        shaderArguments.Add("D_BAKED_LIGHTING_FROM_LIGHTMAP", 1);
-                    }
-                    else if (Mesh.HasBakedLightingFromVertexStream(objectDrawCall))
-                    {
-                        shaderArguments.Add("D_BAKED_LIGHTING_FROM_VERTEX_STREAM", 1);
-                    }
-                    else if (scene.LightingInfo.HasValidLightProbes)
-                    {
-                        shaderArguments.Add("D_BAKED_LIGHTING_FROM_PROBE", 1);
                     }
 
                     var material = renderContext.MaterialLoader.GetMaterial(materialName, shaderArguments);

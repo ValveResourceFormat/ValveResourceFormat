@@ -15,10 +15,10 @@ public static class ParticleRendererFactory
     /// <returns><see langword="null"/> when the class is not implemented.</returns>
     internal static ParticleFunctionRenderer? Create(string className, ParticleDefinitionParser definition, RendererContext rendererContext, Scene scene) => className switch
     {
-        "C_OP_RenderSprites" => new RenderSprites(definition, rendererContext),
+        "C_OP_RenderSprites" => new RenderSprites(definition, rendererContext, scene),
         "C_OP_RenderCables" => new RenderCables(definition, rendererContext, scene),
-        "C_OP_RenderRopes" => new RenderRopes(definition, rendererContext),
-        "C_OP_RenderTrails" => new RenderTrails(definition, rendererContext),
+        "C_OP_RenderRopes" => new RenderRopes(definition, rendererContext, scene),
+        "C_OP_RenderTrails" => new RenderTrails(definition, rendererContext, scene),
         "C_OP_RenderSound" => new RenderSound(definition),
         "C_OP_RenderStandardLight" => new RenderStandardLight(definition, rendererContext, scene),
         "C_OP_RenderOmni2Light" => new RenderOmni2Light(definition, rendererContext, scene),

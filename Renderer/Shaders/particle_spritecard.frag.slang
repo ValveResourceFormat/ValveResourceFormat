@@ -6,6 +6,8 @@
 #include "common/depth.slang"
 #include "common/spritecard_channels.slang"
 
+#include "common/lighting.particle.slang"
+
 // Render modes -- Switched on/off by code
 #define renderMode_Color 0
 
@@ -33,7 +35,8 @@ uniform sampler2D uTextureLayer4;
 
 uniform float uOverbrightFactor;
 uniform float uAddSelfAmount = 1.0; // 1 + m_flAddSelfAmount
-uniform float uColorFactor = 1.0; // m_flDiffuseAmount + m_flSelfIllumAmount
+uniform float uDiffuseAmount = 1.0; // m_flDiffuseAmount, scales the scene light
+uniform float uSelfIllumAmount = 0.0; // m_flSelfIllumAmount, added unlit
 uniform float uDesaturation = 0.0; // m_flDesaturation
 // m_bSaturateColorPreAlphaBlend, which defaults on. A good deal of shipped content turns it off to let
 // the brightness run past 1 into the blend.
@@ -396,8 +399,16 @@ void main(void) {
     }
     else
     {
-        // spritecard shading: brightness from diffuse+selfillum, optionally clamped before the alpha blend
-        finalColor = finalColor * (uOverbrightFactor * uColorFactor);
+        vec3 litColor = finalColor * uSelfIllumAmount;
+
+        // TODO: per-vertex m_nLightingMode
+        if (uDiffuseAmount != 0.0)
+        {
+            ParticleLight_t light = CalculateParticleLighting(vFragPosition, -g_vCameraDirWs, 0.0);
+            litColor += finalColor * (light.Ambient + light.Direct) * uDiffuseAmount;
+        }
+
+        finalColor = uOverbrightFactor * litColor;
 
         if (uSaturateColorPreAlphaBlend)
         {

@@ -61,15 +61,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly Vector4 outlineRanges = new(0.5f, 0.7f, 0.6f, 0.8f);
         private int vertexBufferHandle;
 
-        public RenderSprites(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
+        public RenderSprites(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
         {
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
 
             (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: OutputIsColor);
 
-            shader = rendererContext.ShaderLoader.LoadShader(ShaderName,
-                ("S_TEXTURE_LAYERS", (byte)(layers.Length - 1)),
-                ("S_PARTICLE_INSTANCED", (byte)1));
+            var shaderArguments = CreateShaderArguments();
+            shaderArguments["S_TEXTURE_LAYERS"] = (byte)(layers.Length - 1);
+            shaderArguments["S_PARTICLE_INSTANCED"] = 1;
+
+            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
 
             instanceLayout = BuildInstanceLayout(layers.Length);
 

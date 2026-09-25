@@ -105,7 +105,7 @@ internal static class EditorEntityNode
                 LayerName = layerName,
                 Name = filename,
                 EntityData = entity,
-                Flags = flags,
+                Flags = flags | ObjectTypeFlags.NoShadows,
             };
 
             if (SceneLight.IsAccepted(classname).Accepted)

@@ -5,6 +5,7 @@ in vec2 vTEXCOORD;
 
 out vec2 vTexCoordOut;
 out vec4 vTintOut;
+out vec3 vPositionWs;
 
 #include "common/ViewConstants.slang"
 #include "common/utils.slang"
@@ -17,5 +18,6 @@ void main()
     vec4 vTintSrgb = GetObjectTintSrgb();
     vTintOut = vec4(SrgbGammaToLinear(vTintSrgb.rgb), vTintSrgb.a);
 
-    gl_Position = g_matWorldToProjection * vec4(vec4(vPOSITION, 1.0) * CalculateObjectToWorldMatrix(), 1.0);
+    vPositionWs = vec4(vPOSITION, 1.0) * CalculateObjectToWorldMatrix();
+    gl_Position = g_matWorldToProjection * vec4(vPositionWs, 1.0);
 }

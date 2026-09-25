@@ -88,6 +88,29 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         public bool UsesLegacyBarnBrightness { get; set; }
 
+        /// <summary>
+        /// Creates baked lighting combo args for an object, based on object and scene lighting state.
+        /// </summary>
+        public Dictionary<string, byte> CreateShaderArguments(bool hasLightmapUvs = false, bool hasVertexLighting = false)
+        {
+            var arguments = new Dictionary<string, byte>(scene.RenderAttributes);
+
+            if (hasLightmapUvs && HasValidLightmaps)
+            {
+                arguments["D_BAKED_LIGHTING_FROM_LIGHTMAP"] = 1;
+            }
+            else if (hasVertexLighting)
+            {
+                arguments["D_BAKED_LIGHTING_FROM_VERTEX_STREAM"] = 1;
+            }
+            else if (HasValidLightProbes)
+            {
+                arguments["D_BAKED_LIGHTING_FROM_PROBE"] = 1;
+            }
+
+            return arguments;
+        }
+
         /// <summary>Gets a value indicating whether the lightmap contains baked shadow data.</summary>
         public bool HasBakedShadowsFromLightmap => scene.RenderAttributes.GetValueOrDefault("S_LIGHTMAP_VERSION_MINOR") > 0;
         /// <summary>Gets or sets a value indicating whether dynamic shadow rendering is enabled.</summary>

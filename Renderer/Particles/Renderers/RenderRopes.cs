@@ -94,7 +94,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             public Vector4 Color { get; init; }
         }
 
-        public RenderRopes(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
+        public RenderRopes(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
         {
             this.rendererContext = rendererContext;
 
@@ -102,7 +102,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: OutputIsColor);
 
-            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, ("S_TEXTURE_LAYERS", (byte)(layers.Length - 1)));
+            var shaderArguments = CreateShaderArguments();
+            shaderArguments["S_TEXTURE_LAYERS"] = (byte)(layers.Length - 1);
+
+            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
             (vaoHandle, vertexBufferHandle) = SetupQuadBuffer($"{nameof(RenderRopes)}: {System.IO.Path.GetFileName(textureName)}");
 
             orientationType = parse.Enum("m_nOrientationType", orientationType);

@@ -196,6 +196,11 @@ namespace ValveResourceFormat.Renderer
                     {
                         material?.PostRender();
 
+                        if (config.LightProbeType == LightProbeType.IndividualProbes && request.Node.LightProbeBinding is { } lightProbe)
+                        {
+                            request.Node.Scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
+                        }
+
                         // Custom nodes render themselves and may issue several draws internally; count them as one draw call.
                         counters.Count(Counter.DrawCall);
                         request.Node.Render(context);
