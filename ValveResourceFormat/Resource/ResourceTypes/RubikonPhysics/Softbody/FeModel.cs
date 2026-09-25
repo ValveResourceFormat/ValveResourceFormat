@@ -3979,10 +3979,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>
         /// The pairs <c>add_stiffness_rods</c> makes the compiler fold across the edges this model's own faces
-        /// share: the compiled quads and triangles, then the faces that were built into rods instead.
+        /// share, in the order its fold walk meets them: the solve elements (see <see cref="FoldWalkSolveElements"/>),
+        /// then the faces that were built into rods instead (see <see cref="SourceElementWalk"/>).
         /// </summary>
-        HashSet<(int, int)> SurfaceFanPairs => surfaceFanPairs ??= BendRodsFromSurface(
-            [.. Quads, .. Tris, .. SourceFaces.Where(static face => face.Length >= 3)], IsStatic);
+        HashSet<(int, int)> SurfaceFanPairs => surfaceFanPairs ??= PredictBendRods(
+            [.. FoldWalkSolveElements(), .. SourceElementWalk()], IsStatic);
 
         HashSet<(int, int)>? surfaceFanPairs;
 

@@ -12304,5 +12304,83 @@ namespace Tests
                 await Assert.That(flap.GetStringProperty("node_base_y1")).IsEqualTo("c");
             }
         }
+
+        /// <summary>
+        /// A bone cloud's folds are the pairs the compiler's own fold walk names (solve elements, then the source faces with
+        /// each corner-count group backwards), so a fold built after the mass pass is neither weighed in the joint mass nor
+        /// re-declared as a spring. CONTROL: folds that keep a declared even weight were in the network when the masses were
+        /// taken, and weigh.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on dotaout <c>donkey_2022</c>: every cloud joint's compiled mass is its rigid rod term alone,
+        /// multiplier 1. Read in declaration order the faces name one of its three folds, so two came back as springs and
+        /// gave <c>hair_01</c> 0.8806.
+        /// </remarks>
+        [Test]
+        public async Task ABoneCloudFoldIsReadInTheCompilersFoldWalk()
+        {
+            var after = BoneCloud(afterMass: true);
+            var declared = BoneCloud(afterMass: false);
+            var surplusFolds = after.GetUngeneratedRods([], surfaceFansRegenerate: true).Count(rod => rod.MinDist < rod.MaxDist);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL.
+                await Assert.That(declared.RecoverJointMassMultiplier(1) ?? -1f).IsEqualTo(1f).Within(1e-3f);
+                await Assert.That(declared.RecoverJointMassMultiplier(4) ?? -1f).IsEqualTo(1f).Within(1e-3f);
+
+                // THE LAW.
+                await Assert.That(after.RecoverJointMassMultiplier(1) ?? -1f).IsEqualTo(1f).Within(1e-3f);
+                await Assert.That(after.RecoverJointMassMultiplier(2) ?? -1f).IsEqualTo(1f).Within(1e-3f);
+                await Assert.That(after.RecoverJointMassMultiplier(4) ?? -1f).IsEqualTo(1f).Within(1e-3f);
+                await Assert.That(surplusFolds).IsEqualTo(0);
+            }
+        }
+
+        // A static head and four simulated cloud members (hair 1, ear_L 2, ear_R 3, muzzle 4) with a rigid rod on every pair
+        // and three folds among hair, ear_L and muzzle over the six triangles (member, member, head). Built after the mass pass
+        // the folds carry the final inverse-mass ratio and the masses are the rigid term alone; declared, they carry 0.5 and
+        // the masses count them.
+        private static FeModel BoneCloud(bool afterMass)
+        {
+            var inv = afterMass
+                ? new[] { "0.0", "0.00446724811", "0.00380154087", "0.00380154087", "0.00392823592" }
+                : new[] { "0.0", "0.00308050977", "0.00269810419", "0.00380154087", "0.0026542513" };
+            var folds = afterMass ? new[] { "0.540254216", "0.491804741", "0.532101317" } : new[] { "0.5", "0.5", "0.5" };
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "head", "hair_01", "ear_L_01", "ear_R_01", "muzzle_01" ]
+                    m_SkelParents = [ -1, 0, 0, 0, 0 ]
+                    m_nNodeCount = 5
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ {{string.Join(", ", inv)}} ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, 10f)}}
+                        {{SyntheticCloth.Pose(5f, 0f, 8f)}}
+                        {{SyntheticCloth.Pose(-5f, 0f, 8f)}}
+                        {{SyntheticCloth.Pose(0f, 6f, 6f)}}
+                    ]
+                    m_SourceElems = [ 0, 0, 6, 0, 3, 2, 0, 3, 1, 0, 3, 4, 0, 2, 1, 0, 2, 4, 0, 1, 4, 0 ]
+                    m_Rods =
+                    [
+                        { nNode = [ 0, 1 ] flMinDist = 10.0 flMaxDist = 10.0 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                        { nNode = [ 0, 2 ] flMinDist = 9.43398113 flMaxDist = 9.43398113 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                        { nNode = [ 0, 3 ] flMinDist = 9.43398113 flMaxDist = 9.43398113 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                        { nNode = [ 0, 4 ] flMinDist = 8.48528137 flMaxDist = 8.48528137 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                        {{SyntheticCloth.RigidRod(1, 2, 5.38516481f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 3, 5.38516481f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 4, 7.21110255f, 1f)}}
+                        {{SyntheticCloth.RigidRod(2, 3, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(2, 4, 8.06225775f, 1f)}}
+                        {{SyntheticCloth.RigidRod(3, 4, 8.06225775f, 1f)}}
+                        { nNode = [ 1, 2 ] flMinDist = 2.6925824 flMaxDist = 5.38516481 flWeight0 = {{folds[0]}} flRelaxationFactor = 1.0 },
+                        { nNode = [ 2, 4 ] flMinDist = 4.03112887 flMaxDist = 8.06225775 flWeight0 = {{folds[1]}} flRelaxationFactor = 1.0 },
+                        { nNode = [ 1, 4 ] flMinDist = 3.60555128 flMaxDist = 7.21110255 flWeight0 = {{folds[2]}} flRelaxationFactor = 1.0 },
+                    ]
+                }
+                """);
+        }
     }
 }
