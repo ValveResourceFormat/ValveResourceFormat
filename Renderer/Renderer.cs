@@ -1465,7 +1465,7 @@ public class Renderer
             }
             else
             {
-                RendererContext.TextureStreaming.Timeslice(DeltaTime);
+                RendererContext.TextureStreaming.Timeslice(updateContext.FrameTime ?? DeltaTime);
             }
         }
     }

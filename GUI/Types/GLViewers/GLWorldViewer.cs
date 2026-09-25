@@ -24,7 +24,7 @@ namespace GUI.Types.GLViewers
     /// <summary>
     /// GL Render control with world controls (render mode, camera selection).
     /// </summary>
-    class GLWorldViewer : GLSceneViewer
+    partial class GLWorldViewer : GLSceneViewer
     {
         private readonly World? world;
         private readonly WorldNode? worldNode;

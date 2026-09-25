@@ -6,6 +6,7 @@ The project folders are:
 
 - **ValveResourceFormat/**: Core parsing library published to NuGet
 - **GUI/**: WinForms viewer application
+    - `Source2Viewer.exe --mcp` starts a loopback automation server (stateless MCP `2026-07-28` over HTTP) at `http://127.0.0.1:13338/mcp`, letting an agent open files, drive the camera, toggle layers, physics groups and render modes, inspect entities and particle systems, pick, pause and step simulation time, read the log, render stats and memory use, and screenshot the real viewer. Debug builds only; code in `GUI/Automation/`.
 - **CLI/**: Command-line decompiler and file viewer
 - **Renderer/**: OpenGL rendering engine for Source 2 assets.
     - Shaders use the `.slang` extension (`.frag.slang`, `.vert.slang`) with GLSL syntax, and must only contain ASCII characters.

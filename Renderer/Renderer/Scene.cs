@@ -48,6 +48,13 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets the elapsed time in seconds since the last update.</summary>
             public required float Timestep { get; init; }
 
+            /// <summary>
+            /// Gets the wall clock length of the frame in seconds, when it differs from <see cref="Timestep"/>
+            /// because the simulation is paused or stepped. Work budgeted against the frame, such as texture
+            /// streaming, uses it so that it keeps going while the simulation does not.
+            /// </summary>
+            public float? FrameTime { get; init; }
+
             /// <summary> Gets the renderer's total elapsed time in seconds.</summary>
             public float Uptime { get; init; }
         }

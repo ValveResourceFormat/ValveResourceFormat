@@ -14,7 +14,7 @@ using Windows.Win32.Foundation;
 
 namespace GUI.Types.GLViewers;
 
-internal abstract class GLBaseControl : IDisposable, IMessageFilter
+internal abstract partial class GLBaseControl : IDisposable, IMessageFilter
 {
     protected RendererControl? UiControl;
 
@@ -831,6 +831,12 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     protected bool SkipBufferSwap;
 
+    /// <summary>Lets automation render at a size of its own instead of the window's. Not compiled in otherwise.</summary>
+    partial void ApplyViewportOverride(ref int width, ref int height);
+
+    /// <summary>Wipes what an undersized render leaves behind in the window. Not compiled in otherwise.</summary>
+    partial void ClearWindowOutsideViewport();
+
     protected virtual void OnSizeChanged(object? sender, EventArgs e)
     {
         ShouldResize = GLControl is not null && GLControl.Width > 0 && GLControl.Height > 0;
@@ -1115,9 +1121,16 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         if (ShouldResize)
         {
-            OnResize(GLNativeWindow.Size.X, GLNativeWindow.Size.Y);
+            var width = GLNativeWindow.Size.X;
+            var height = GLNativeWindow.Size.Y;
+
+            ApplyViewportOverride(ref width, ref height);
+
+            OnResize(width, height);
             ShouldResize = false;
         }
+
+        ClearWindowOutsideViewport();
 
         var firstDraw = FirstPaint;
 
