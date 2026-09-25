@@ -585,7 +585,7 @@ namespace Tests
         {
             static float? Read(FeModel feModel)
                 => ClothExtract.ClothFaceKeptBendStiffness(feModel, ClothExtract.ClothRodsFromSurface(feModel,
-                    feModel.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList()));
+                    feModel.BuildProxyMeshes().Select(static (proxy, i) => new ClothExtract.ClothProxyFile($"p{i}.dmx", $"p{i}", proxy)).ToList()));
 
             using (Assert.Multiple())
             {

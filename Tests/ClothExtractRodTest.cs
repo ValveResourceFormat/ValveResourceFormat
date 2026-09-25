@@ -299,7 +299,7 @@ namespace Tests
 
             static (bool Switch, HashSet<(int, int)> Derived) Read(FeModel feModel)
             {
-                var proxies = feModel.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList();
+                var proxies = feModel.BuildProxyMeshes().Select(static (proxy, i) => new ClothExtract.ClothProxyFile($"p{i}.dmx", $"p{i}", proxy)).ToList();
                 var rods = ClothExtract.ClothRodsFromSurface(feModel, proxies);
                 return (rods.GeneratesBendRods, rods.Derived);
             }
@@ -325,7 +325,7 @@ namespace Tests
         public async Task AFaceKeptSheetFoldsInTheCornerOrderTheCompilerMeetsItsFacesIn()
         {
             var sheet = FaceKeptSheetCorner;
-            var proxies = sheet.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList();
+            var proxies = sheet.BuildProxyMeshes().Select(static (proxy, i) => new ClothExtract.ClothProxyFile($"p{i}.dmx", $"p{i}", proxy)).ToList();
             var rods = ClothExtract.ClothRodsFromSurface(sheet, proxies);
             var (derived, bend) = (rods.Derived, rods.GeneratesBendRods);
 
@@ -405,14 +405,17 @@ namespace Tests
             var single = Pair(rigid, string.Empty);
             var unparented = Pair(rigid + rigid, string.Empty, string.Empty);
 
+            static bool SpanCopy(FeModel feModel, int rod)
+                => ClothExtract.IsUnrecordedSpanCopy(feModel, feModel.Rods[rod], ClothExtract.RodCountsByPair(feModel).Entries);
+
             using (Assert.Multiple())
             {
-                await Assert.That(ClothExtract.IsUnrecordedSpanCopy(sprung, sprung.Rods[1])).IsFalse();
-                await Assert.That(ClothExtract.IsUnrecordedSpanCopy(banded, banded.Rods[1])).IsFalse();
-                await Assert.That(ClothExtract.IsUnrecordedSpanCopy(single, single.Rods[0])).IsFalse();
-                await Assert.That(ClothExtract.IsUnrecordedSpanCopy(unparented, unparented.Rods[1])).IsFalse();
+                await Assert.That(SpanCopy(sprung, 1)).IsFalse();
+                await Assert.That(SpanCopy(banded, 1)).IsFalse();
+                await Assert.That(SpanCopy(single, 0)).IsFalse();
+                await Assert.That(SpanCopy(unparented, 1)).IsFalse();
 
-                await Assert.That(ClothExtract.IsUnrecordedSpanCopy(doubled, doubled.Rods[1])).IsTrue();
+                await Assert.That(SpanCopy(doubled, 1)).IsTrue();
             }
         }
 

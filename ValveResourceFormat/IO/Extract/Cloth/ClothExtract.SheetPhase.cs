@@ -59,7 +59,7 @@ internal sealed partial class ClothExtract
     /// recompile gives it.
     /// </summary>
     private static Dictionary<int, string> BuildProxyNodeNameMap(
-        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies)
+        List<ClothProxyFile> proxies)
     {
         var proxyNodeNames = new Dictionary<int, string>();
         for (var proxyIndex = 0; proxyIndex < proxies.Count; proxyIndex++)

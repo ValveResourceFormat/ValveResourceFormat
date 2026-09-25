@@ -24,8 +24,11 @@ internal sealed partial class ClothExtract
         this.physAggregateData = physAggregateData;
     }
 
+    /// <summary>A proxy sheet exported as its own DMX: the file name, the proxy name and the sheet.</summary>
+    internal readonly record struct ClothProxyFile(string FileName, string Name, FeModel.ProxyMesh Proxy);
+
     /// <summary>Gets the cloth proxy sheets to extract as DMX files, in declaration order.</summary>
-    internal List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> ProxyMeshes { get; } = [];
+    internal List<ClothProxyFile> ProxyMeshes { get; } = [];
 
     /// <summary>Gets the sheet grids generated over neighbouring bone chains, extracted as disabled DMX files.</summary>
     internal List<(string FileName, string Name, FeModel.ChainGrid Grid)> ChainGrids { get; } = [];
@@ -141,7 +144,7 @@ internal sealed partial class ClothExtract
             var proxyName = proxyIndex > 0
                 ? "cloth_proxy" + proxyIndex.ToString(CultureInfo.InvariantCulture).PadLeft(suffixWidth, '0')
                 : "cloth_proxy";
-            ProxyMeshes.Add((dmxFileName(proxyName), proxyName, proxyMesh));
+            ProxyMeshes.Add(new ClothProxyFile(dmxFileName(proxyName), proxyName, proxyMesh));
             proxyIndex++;
         }
 

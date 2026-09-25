@@ -19,7 +19,7 @@ internal sealed partial class ClothExtract
 
     /// <summary>Reads the rods the compiler rebuilds from the exported <paramref name="proxies"/> on its own.</summary>
     internal static ClothSurfaceRods ClothRodsFromSurface(FeModel feModel,
-        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies)
+        List<ClothProxyFile> proxies)
     {
         var suspenderNodes = new HashSet<int>();
         var bendStiffness = 0f;
@@ -156,7 +156,7 @@ internal sealed partial class ClothExtract
     /// model with no surface of its own, and the discarded diagonal of every bent quad kept out of the rod path.
     /// </summary>
     private static void AddRodsTheSheetsRebuild(HashSet<(int, int)> derived, FeModel feModel,
-        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies)
+        List<ClothProxyFile> proxies)
     {
         if (!feModel.HasSurfaceElements)
         {

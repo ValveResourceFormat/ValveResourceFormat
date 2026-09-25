@@ -74,7 +74,7 @@ internal sealed partial class ClothExtract
     // TODO: some models re-export more rods than the original, from overlap between the springs emitted
     // here, the chains, and the proxy sheet all re-declaring the same span.
     private static void AddClothProxySprings(KVObject softbodyChildren, FeModel feModel,
-        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, HashSet<int> chainJointNodes,
+        List<ClothProxyFile> proxies, HashSet<int> chainJointNodes,
         HashSet<int> authoredClothNodes, Dictionary<int, string> freeClothNodeNames,
         HashSet<(int, int)> derivedRods, Dictionary<int, string> proxyNodeNames)
     {
@@ -159,6 +159,7 @@ internal sealed partial class ClothExtract
         var ringTies = RingClusterTies(feModel, surplus, ringOwner);
         var cliquePairs = AddRingClusterCliques(softbodyChildren, feModel, ringOwner);
         declaredPairs.UnionWith(cliquePairs);
+        var rodCounts = RodCountsByPair(feModel).Entries;
         foreach (var rod in surplus)
         {
             if (rod.NodeA >= controlNames.Length || rod.NodeB >= controlNames.Length)
@@ -196,7 +197,7 @@ internal sealed partial class ClothExtract
             }
 
             // A two-member cluster compiles its rod with the members reversed, so the rod's second node is listed first.
-            if (IsUnrecordedClusterRod(feModel, rod) || IsUnrecordedSpanCopy(feModel, rod))
+            if (IsUnrecordedClusterRod(feModel, rod, rodCounts) || IsUnrecordedSpanCopy(feModel, rod, rodCounts))
             {
                 softbodyChildren.Add(MakeClothSelfCollisionCluster(
                     NodeNameSafe($"cluster_{name1}_{name0}"), [name1, name0],
@@ -276,7 +277,7 @@ internal sealed partial class ClothExtract
     /// Whether a surplus rod is a two-member <c>ClothSelfCollisionCluster</c>'s: the only rod on its pair, at the cluster's
     /// fixed relaxation and weight, with no source element on the pair and a length other than the rest distance.
     /// </summary>
-    internal static bool IsUnrecordedClusterRod(FeModel feModel, FeModel.Rod rod)
+    private static bool IsUnrecordedClusterRod(FeModel feModel, FeModel.Rod rod, Dictionary<(int, int), int> rodCounts)
     {
         if (!HasClusterSignature(rod) || HasSourceSpring(feModel, rod.NodeA, rod.NodeB))
         {
@@ -284,7 +285,7 @@ internal sealed partial class ClothExtract
         }
 
         var poses = feModel.InitPosePositions;
-        if (RodsOnPair(feModel, rod) != 1 || rod.NodeA >= poses.Length || rod.NodeB >= poses.Length)
+        if (rodCounts.GetValueOrDefault(RodPair(rod)) != 1 || rod.NodeA >= poses.Length || rod.NodeB >= poses.Length)
         {
             return false;
         }
@@ -438,7 +439,7 @@ internal sealed partial class ClothExtract
     /// Whether a surplus rod is a second rigid copy of a span at its rest distance, with the cluster's fixed relaxation and
     /// weight and no source element on the pair, on a model that compiled <c>m_SkelParents</c>.
     /// </summary>
-    internal static bool IsUnrecordedSpanCopy(FeModel feModel, FeModel.Rod rod)
+    internal static bool IsUnrecordedSpanCopy(FeModel feModel, FeModel.Rod rod, Dictionary<(int, int), int> rodCounts)
     {
         if (!feModel.HasCompiledSkelParents || !HasClusterSignature(rod) || IsBandedRod(rod)
             || HasSourceSpring(feModel, rod.NodeA, rod.NodeB))
@@ -452,7 +453,7 @@ internal sealed partial class ClothExtract
             return false;
         }
 
-        var onPair = RodsOnPair(feModel, rod);
+        var onPair = rodCounts.GetValueOrDefault(RodPair(rod));
         var rest = Vector3.Distance(poses[rod.NodeA], poses[rod.NodeB]);
         return onPair >= 2 && IsAtRestLength(rod.MaxDist, rest);
     }
@@ -617,23 +618,8 @@ internal sealed partial class ClothExtract
     /// <summary>Whether <paramref name="length"/> is the rest distance <paramref name="rest"/>.</summary>
     private static bool IsAtRestLength(float length, float rest) => MathF.Abs(length - rest) <= MathF.Max(1e-3f, 1e-4f * rest);
 
-    /// <summary>The number of rods on the node pair of <paramref name="rod"/>.</summary>
-    private static int RodsOnPair(FeModel feModel, FeModel.Rod rod)
-    {
-        var onPair = 0;
-        foreach (var other in feModel.Rods)
-        {
-            if ((other.NodeA == rod.NodeA && other.NodeB == rod.NodeB) || (other.NodeA == rod.NodeB && other.NodeB == rod.NodeA))
-            {
-                onPair++;
-            }
-        }
-
-        return onPair;
-    }
-
     /// <summary>The number of rods, and of banded rods, on every node pair.</summary>
-    private static (Dictionary<(int, int), int> Entries, Dictionary<(int, int), int> Banded) RodCountsByPair(FeModel feModel)
+    internal static (Dictionary<(int, int), int> Entries, Dictionary<(int, int), int> Banded) RodCountsByPair(FeModel feModel)
     {
         var entries = new Dictionary<(int, int), int>();
         var banded = new Dictionary<(int, int), int>();
