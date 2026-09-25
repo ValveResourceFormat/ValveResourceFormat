@@ -1522,6 +1522,15 @@ partial class ModelExtract
                 continue;
             }
 
+            // A two-member cluster compiles its rod with the members reversed, so the rod's second node is listed first.
+            if (IsUnrecordedClusterRod(feModel, rod))
+            {
+                softbodyChildren.Add(MakeClothSelfCollisionCluster(
+                    NodeNameSafe($"cluster_{name1}_{name0}"), [name1, name0],
+                    rod.MinDist / 2f, rod.MaxDist / 2f));
+                continue;
+            }
+
             var copy = occurrence.GetValueOrDefault((rod.NodeA, rod.NodeB));
             occurrence[(rod.NodeA, rod.NodeB)] = copy + 1;
             var springLabel = NodeNameSafe(copy == 0
@@ -1616,6 +1625,40 @@ partial class ModelExtract
         => name.Contains('$', StringComparison.Ordinal)
             ? name.Replace("$", string.Empty, StringComparison.Ordinal)
             : name;
+
+    /// <summary>
+    /// Whether a surplus rod is a two-member <c>ClothSelfCollisionCluster</c>'s own rod rather than a spring's: the only
+    /// rod on its pair, at the cluster's fixed relaxation of 1.0 and weight of 0.5, with no two-corner source element
+    /// on the pair in the original, and a length that is not the pair's rest distance (the summed member radii,
+    /// banded or not). A <c>ClothSpring</c> always records that source element, so its absence rules the spring out.
+    /// </summary>
+    internal static bool IsUnrecordedClusterRod(FeModel feModel, FeModel.Rod rod)
+    {
+        if (rod.RelaxationFactor != 1f || rod.Weight0 != 0.5f
+            || Array.IndexOf(feModel.SourceSprings, (rod.NodeA, rod.NodeB)) >= 0
+            || Array.IndexOf(feModel.SourceSprings, (rod.NodeB, rod.NodeA)) >= 0)
+        {
+            return false;
+        }
+
+        var onPair = 0;
+        foreach (var other in feModel.Rods)
+        {
+            if ((other.NodeA == rod.NodeA && other.NodeB == rod.NodeB) || (other.NodeA == rod.NodeB && other.NodeB == rod.NodeA))
+            {
+                onPair++;
+            }
+        }
+
+        var poses = feModel.InitPosePositions;
+        if (onPair != 1 || rod.NodeA >= poses.Length || rod.NodeB >= poses.Length)
+        {
+            return false;
+        }
+
+        var rest = Vector3.Distance(poses[rod.NodeA], poses[rod.NodeB]);
+        return IsBandedRod(rod) || MathF.Abs(rod.MaxDist - rest) > MathF.Max(1e-3f, 1e-4f * rest);
+    }
 
     /// <summary>Whether a rod's length band is open: a cluster's separation constraint rather than a span.</summary>
     static bool IsBandedRod(FeModel.Rod rod)

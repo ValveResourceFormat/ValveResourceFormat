@@ -10064,5 +10064,85 @@ namespace Tests
                 m_ReverseOffsets = [ {{(offsets ? "{ vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 0 nTargetNode = 4 }, { vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 3 nTargetNode = 1 }, " : string.Empty)}} ]
             }
             """);
+
+        /// <summary>
+        /// A surplus rod between two chains' joints that is the only rod on its pair, at relaxation 1.0 and weight 0.5,
+        /// with no two-corner source element on the pair and a length off the pair's rest distance, is a two-member
+        /// <c>ClothSelfCollisionCluster</c>'s rod (its summed radii) and is re-declared as one, not as a
+        /// <c>ClothSpring</c>. CONTROLS: the same rod with its two-corner source element is never a cluster, and a
+        /// rod at the pair's rest distance stays a spring.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on synth `w41hi_probe_cluster_cross_chain`, whose authored cluster (collision radius
+        /// 6, stray radius 24 per member) compiles one rod 12 / 48 and no source element, and PROBED on dota
+        /// `phantom_assassin_emerald_kunoichi_back` and `tinker_cosmic_back`: a cluster in place of our spring
+        /// reproduces the rod set and drops the source element that made 2.18 grade the rope node.
+        /// </remarks>
+        [Test]
+        public async Task AnUnrecordedOffRestSurplusRodIsAClusterNotASpring()
+        {
+            var law = CrossChainTieModel(12f, 48f, string.Empty);
+            var recorded = CrossChainTieModel(12f, 48f, "0, 1, 0, 0, 2, 3");
+            var rest = CrossChainTieModel(20f, 20f, string.Empty);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: a declared spring is never re-declared as a cluster (the source-spring pass owns it).
+                await Assert.That(SurplusClasses(recorded)).DoesNotContain("ClothSelfCollisionCluster");
+
+                // CONTROL: a rod at the pair's rest distance keeps its ClothSpring.
+                await Assert.That(SurplusClasses(rest)).IsEquivalentTo(SpringOnly, CollectionOrdering.Matching);
+
+                // THE LAW, members listed rod-second-node first as the compiler reverses them.
+                await Assert.That(SurplusClasses(law)).IsEquivalentTo(ClusterOnly, CollectionOrdering.Matching);
+                await Assert.That(SurplusClusterMembers(law)).IsEquivalentTo(ReversedTie, CollectionOrdering.Matching);
+            }
+        }
+
+        private static readonly string[] SpringOnly = ["ClothSpring"];
+        private static readonly string[] ClusterOnly = ["ClothSelfCollisionCluster"];
+        private static readonly string[] ReversedTie = ["b1", "a1"];
+
+        private static string[] SurplusClusterMembers(FeModel feModel)
+        {
+            var children = KVObject.Array();
+            ModelExtract.AddClothChainSurplusRods(children, feModel, feModel.BuildBoneChains());
+            return children.Where(static c => c.Value.GetStringProperty("_class") == "ClothSelfCollisionCluster")
+                .SelectMany(static c => c.Value.GetSubCollection("chain").GetArray("joints"))
+                .Select(static j => j.GetStringProperty("joint_name")).ToArray();
+        }
+
+        private static string[] SurplusClasses(FeModel feModel)
+        {
+            var children = KVObject.Array();
+            ModelExtract.AddClothChainSurplusRods(children, feModel, feModel.BuildBoneChains());
+            return children.Select(static c => c.Value.GetStringProperty("_class")).ToArray();
+        }
+
+        // Two one-joint chains 20 apart with a rod between their joints; the source-element array is the four
+        // arity counts followed by the two-corner record, when one is given.
+        private static FeModel CrossChainTieModel(float min, float max, string sourceElems) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "rootA", "rootB", "a1", "b1" ]
+                m_SkelParents = [ -1, -1, 0, 1 ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(20f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(20f, 0f, -10f)}}
+                ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
+                    {{SyntheticCloth.RigidRod(1, 3, 10f, 1f)}}
+                    {{SyntheticCloth.BandedRod(2, 3, min, max, 1f)}}
+                ]
+                m_SourceElems = [ {{sourceElems}} ]
+            }
+            """);
     }
 }
