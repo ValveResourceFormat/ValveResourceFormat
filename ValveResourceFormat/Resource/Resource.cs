@@ -328,7 +328,7 @@ namespace ValveResourceFormat
                 // Some compiled files carry leftover bytes past their declared end, which no block points into
                 if (fullFileSize == FileSize && Reader.BaseStream.Length > fullFileSize)
                 {
-                    Console.Error.WriteLine($"Malformed resource \"{FileName ?? "<unnamed>"}\": {Reader.BaseStream.Length - fullFileSize} bytes past its declared size of {fullFileSize} bytes ({ResourceType}), ignoring them.");
+                    Console.Error.WriteLine($"Ignoring {Reader.BaseStream.Length - fullFileSize} bytes past the declared size of {fullFileSize} bytes in {ResourceType} \"{FileName ?? "<unnamed>"}\"");
                     return;
                 }
 

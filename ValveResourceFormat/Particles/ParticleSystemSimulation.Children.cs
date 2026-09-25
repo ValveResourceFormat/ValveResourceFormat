@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using ValveKeyValue;
-using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -100,17 +99,16 @@ namespace ValveResourceFormat.Particles
                 }
 
                 var childName = childInfo.GetStringProperty("m_ChildRef");
-
-                if (IsSelfOrAncestor(childName))
-                {
-                    logger.LogUniqueWarning("Child {Child} nests inside itself, skipped {File}", childName, Name);
-                    continue;
-                }
-
                 var childResource = fileLoader.LoadFileCompiled(childName);
 
                 if (childResource == null)
                 {
+                    continue;
+                }
+
+                if (IsSelfOrAncestor(childResource.FileName))
+                {
+                    logger.LogUniqueWarning("Skipped child {Child} of particle system {File}, because it is that system or one of its parents", childName, Name);
                     continue;
                 }
 
@@ -129,19 +127,11 @@ namespace ValveResourceFormat.Particles
             }
         }
 
-        private bool IsSelfOrAncestor(string childName)
+        private bool IsSelfOrAncestor(string? fileName)
         {
-            var compiledName = string.Concat(childName, GameFileLoader.CompiledFileSuffix).Replace('\\', '/');
-
             for (var state = systemState; state != null; state = state.ParentSystem)
             {
-                if (state.Data?.Name.Replace('\\', '/') is not { } name)
-                {
-                    continue;
-                }
-
-                if (name.Equals(compiledName, StringComparison.OrdinalIgnoreCase)
-                    || name.EndsWith(string.Concat("/", compiledName), StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(state.Data?.Name, fileName, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
