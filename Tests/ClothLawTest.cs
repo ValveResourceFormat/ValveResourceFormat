@@ -10755,5 +10755,56 @@ namespace Tests
                 await Assert.That(into.ContainsKey("root")).IsFalse();
             }
         }
+
+        /// <summary>
+        /// A wind effect compiles its vortices only at a positive max speed and scales every speed by its time multiplier,
+        /// so vortices compiled at zero speed are authored with a zero time multiplier and a positive vortex speed. The
+        /// CONTROL is the same effect with moving vortices, which keeps a time multiplier of 1.
+        /// </summary>
+        [Test]
+        public async Task VorticesCompiledAtZeroSpeedAreAZeroTimeMultiplier()
+        {
+            var moving = WindVortexEffect("[ 70.400002, 0.0, 0.0 ]", "1.0", "123.200005");
+            var stilled = WindVortexEffect("[ -0.0, -0.0, -0.0 ]", "0.0", "0.0");
+            var maps = new HashSet<string>();
+            var movingNode = ModelExtract.MakeClothEffect(moving, moving.Effects.First(), maps)!;
+            var stilledNode = ModelExtract.MakeClothEffect(stilled, stilled.Effects.First(), maps)!;
+
+            using (Assert.Multiple())
+            {
+                // CONTROL.
+                await Assert.That(movingNode.GetFloatProperty("time_multiplier")).IsEqualTo(1f);
+                await Assert.That(movingNode.GetFloatProperty("vortex_max_speed_mph")).IsEqualTo(7f).Within(1e-4f);
+
+                // THE LAW.
+                await Assert.That(stilledNode.GetFloatProperty("time_multiplier")).IsEqualTo(0f);
+                await Assert.That(stilledNode.GetFloatProperty("vortex_max_speed_mph")).IsGreaterThan(0f);
+                await Assert.That(stilledNode.GetInt32Property("vortex_count")).IsEqualTo(2);
+            }
+        }
+
+        private static FeModel WindVortexEffect(string strength, string choppiness, string maxSpeed) => SyntheticCloth.Parse($$"""
+            {
+                m_nNodeCount = 1
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0 ]
+                m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} ]
+                m_Effects =
+                [
+                    {
+                        sName = "wind0"
+                        nNameHash = 1456486
+                        nType = 1
+                        m_Params =
+                        {
+                            Strength = {{strength}}
+                            AirToCloth = 0.249439
+                            Choppiness = {{choppiness}}
+                            Vortices = [ { MaxSpeed = {{maxSpeed}} MaxCell = 80.0 }, { MaxSpeed = {{maxSpeed}} MaxCell = 80.0 } ]
+                        }
+                    },
+                ]
+            }
+            """);
     }
 }

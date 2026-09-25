@@ -680,8 +680,14 @@ partial class ModelExtract
     static void AddClothWindParams(KVObject node, KVObject parameters, Quaternion frame)
     {
         var strength = ClothEffectStrength(parameters);
+        var vortices = parameters.GetArray("Vortices") ?? [];
+
+        // Time multiplier scales every compiled speed, and vortices are only written for a positive max speed,
+        // so vortices compiled at zero speed were authored with a zero time multiplier.
+        var stilled = vortices.Count > 0 && vortices.All(vortex => vortex.GetFloatProperty("MaxSpeed") == 0f);
+
         node.Add("wind_speed_mph", strength.Length() / ClothWindSpeedToUnits);
-        node.Add("time_multiplier", 1.0f);
+        node.Add("time_multiplier", stilled ? 0f : 1f);
         AddClothEffectAngles(node, strength, frame);
 
         var airToCloth = parameters.GetFloatProperty("AirToCloth");
@@ -703,12 +709,11 @@ partial class ModelExtract
             node.Add("underwater", parameters.GetInt32Property("Algo") == 1);
         }
 
-        var vortices = parameters.GetArray("Vortices") ?? [];
         node.Add("vortex_count", vortices.Count);
 
         if (vortices.Count > 0)
         {
-            node.Add("vortex_max_speed_mph", vortices[0].GetFloatProperty("MaxSpeed") / ClothWindSpeedToUnits);
+            node.Add("vortex_max_speed_mph", stilled ? 1f : vortices[0].GetFloatProperty("MaxSpeed") / ClothWindSpeedToUnits);
             node.Add("vortex_cell_size", vortices[0].GetFloatProperty("MaxCell"));
         }
     }
