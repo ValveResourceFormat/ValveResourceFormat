@@ -288,11 +288,9 @@ internal sealed partial class ClothExtract
 
         var (softbody, softbodyChildren) = MakeListNode("Softbody");
         AddSoftbodyAttributes(softbody, feModel);
-        var surfaceRods = ClothRodsFromSurface(feModel, ProxyMeshes,
-            out var generatesBendRods, out var generatesBendOnlyRods, out var addCurvature, out _, out _,
-            out _);
-        softbodyChildren.Add(MakeClothParams(feModel, generatesBendRods, generatesBendOnlyRods,
-            addCurvature > 0f ? addCurvature : feModel.ChainRingCurvature, feModel.HasExplicitMasses));
+        var surfaceRods = SurfaceRods(feModel);
+        softbodyChildren.Add(MakeClothParams(feModel, surfaceRods.GeneratesBendRods, surfaceRods.GeneratesBendOnlyRods,
+            surfaceRods.AddCurvature > 0f ? surfaceRods.AddCurvature : feModel.ChainRingCurvature, feModel.HasExplicitMasses));
 
         var chainNodes = ChainJointNodes(boneChains);
         var independentChainNodes = ChainJointNodes(independentChains);
@@ -458,7 +456,7 @@ internal sealed partial class ClothExtract
             .Select(static entry => entry.Node)
             .ToHashSet();
         AddClothProxySprings(softbodyChildren, feModel, ProxyMeshes, independentChainNodes,
-            authoredClothNodes, freeClothNodeNames, surfaceRods, proxyNodeNameMap);
+            authoredClothNodes, freeClothNodeNames, surfaceRods.Derived, proxyNodeNameMap);
         AddClothSourceSprings(softbodyChildren, feModel, independentChains);
         AddClothChainSurplusClusters(softbodyChildren, feModel, independentChains);
         AddClothChainVolumetricMaps(softbodyChildren, feModel, independentChains);

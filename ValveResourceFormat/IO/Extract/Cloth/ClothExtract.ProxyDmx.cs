@@ -350,7 +350,7 @@ internal sealed partial class ClothExtract
             vertexData.AddIndexedStream("cloth_make_rods$0",
                 Enumerable.Repeat(ClothSuppressedMakeRods, vertexCount).ToArray(), vertexIndices);
 
-            if (ClothFaceKeptBendStiffness(feModel, ProxyMeshes) is { } faceKeptBend)
+            if (ClothFaceKeptBendStiffness(feModel, SurfaceRods(feModel)) is { } faceKeptBend)
             {
                 vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(faceKeptBend, vertexCount).ToArray(), vertexIndices);
             }

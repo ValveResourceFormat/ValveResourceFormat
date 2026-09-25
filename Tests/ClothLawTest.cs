@@ -10343,8 +10343,8 @@ namespace Tests
             static (bool Switch, HashSet<(int, int)> Derived) Read(FeModel feModel)
             {
                 var proxies = feModel.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList();
-                var derived = ClothExtract.ClothRodsFromSurface(feModel, proxies, out var bend, out _, out _, out _, out _, out _);
-                return (bend, derived);
+                var rods = ClothExtract.ClothRodsFromSurface(feModel, proxies);
+                return (rods.GeneratesBendRods, rods.Derived);
             }
 
             var (declaredSwitch, declaredDerived) = Read(declared);
@@ -11337,7 +11337,8 @@ namespace Tests
         {
             var sheet = FaceKeptSheetCorner;
             var proxies = sheet.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList();
-            var derived = ClothExtract.ClothRodsFromSurface(sheet, proxies, out var bend, out _, out _, out _, out _, out _);
+            var rods = ClothExtract.ClothRodsFromSurface(sheet, proxies);
+            var (derived, bend) = (rods.Derived, rods.GeneratesBendRods);
 
             using (Assert.Multiple())
             {
@@ -11403,8 +11404,8 @@ namespace Tests
         public async Task AFaceKeptSheetWhoseFoldsAreRegeneratedStatesNoBendPaint()
         {
             static float? Read(FeModel feModel)
-                => ClothExtract.ClothFaceKeptBendStiffness(feModel,
-                    feModel.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList());
+                => ClothExtract.ClothFaceKeptBendStiffness(feModel, ClothExtract.ClothRodsFromSurface(feModel,
+                    feModel.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList()));
 
             using (Assert.Multiple())
             {

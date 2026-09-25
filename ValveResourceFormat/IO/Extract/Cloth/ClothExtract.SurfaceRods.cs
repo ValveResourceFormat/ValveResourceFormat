@@ -6,17 +6,24 @@ namespace ValveResourceFormat.IO;
 internal sealed partial class ClothExtract
 {
     /// <summary>
-    /// The rods the compiler rebuilds from the exported sheets on its own, which are not declared as springs, and the bend
-    /// switches, curvature and bend-stiffness paint that rebuild them.
+    /// The rods the compiler rebuilds from the exported sheets on its own, which are not declared as springs, with the bend
+    /// switches, curvature, suspender nodes and bend-stiffness paint that rebuild them.
     /// </summary>
-    internal static HashSet<(int, int)> ClothRodsFromSurface(FeModel feModel,
-        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, out bool generatesBendRods,
-        out bool generatesBendOnlyRods, out float addCurvature, out HashSet<int> suspenderNodes,
-        out float bendStiffness, out Dictionary<int, float>? bendStiffnessByNode)
+    internal sealed record ClothSurfaceRods(HashSet<(int, int)> Derived, bool GeneratesBendRods, bool GeneratesBendOnlyRods,
+        float AddCurvature, HashSet<int> SuspenderNodes, float BendStiffness, Dictionary<int, float>? BendStiffnessByNode);
+
+    private ClothSurfaceRods? surfaceRodsCache;
+
+    /// <summary>The <see cref="ClothRodsFromSurface"/> reading of <see cref="ProxyMeshes"/>, taken once.</summary>
+    private ClothSurfaceRods SurfaceRods(FeModel feModel) => surfaceRodsCache ??= ClothRodsFromSurface(feModel, ProxyMeshes);
+
+    /// <summary>Reads the rods the compiler rebuilds from the exported <paramref name="proxies"/> on its own.</summary>
+    internal static ClothSurfaceRods ClothRodsFromSurface(FeModel feModel,
+        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies)
     {
-        suspenderNodes = [];
-        bendStiffness = 0f;
-        bendStiffnessByNode = null;
+        var suspenderNodes = new HashSet<int>();
+        var bendStiffness = 0f;
+        Dictionary<int, float>? bendStiffnessByNode = null;
         var surfaceNodes = new HashSet<int>();
         var derived = new HashSet<(int, int)>();
         var surfaceFaces = new List<int[]>();
@@ -59,10 +66,10 @@ internal sealed partial class ClothExtract
         var boundedBeyondSurface = HasBoundedRod(feModel, beyondSurface);
 
         // Only the bend-only network leaves the maximum length unbounded.
-        generatesBendOnlyRods = regenerable && !boundedBeyondSurface;
-        generatesBendRods = regenerable && boundedBeyondSurface;
+        var generatesBendOnlyRods = regenerable && !boundedBeyondSurface;
+        var generatesBendRods = regenerable && boundedBeyondSurface;
 
-        addCurvature = regenerable ? ClothCurvatureFromSurface(feModel, surfaceFaces, beyondSurface) : 0f;
+        var addCurvature = regenerable ? ClothCurvatureFromSurface(feModel, surfaceFaces, beyondSurface) : 0f;
 
         // The pairs the compiler is asked to fold itself, whose hinges can carry a bend-stiffness paint.
         var bendNetwork = new HashSet<(int, int)>();
@@ -169,7 +176,8 @@ internal sealed partial class ClothExtract
                 feModel.InitPosePositions, feModel.IsStatic, feModel.QuadBendTolerance));
         }
 
-        return derived;
+        return new ClothSurfaceRods(derived, generatesBendRods, generatesBendOnlyRods, addCurvature, suspenderNodes,
+            bendStiffness, bendStiffnessByNode);
     }
 
     // The cloth_make_rods paint of a sheet kept out of the rod path, under the importer's 0.5 threshold.
@@ -267,16 +275,12 @@ internal sealed partial class ClothExtract
     /// The uniform <c>cloth_bend_stiffness</c> of a face-kept sheet, or null where the compiler folds rods across the
     /// model's sheets without <c>rigid_edge_hinges</c>.
     /// </summary>
-    internal static float? ClothFaceKeptBendStiffness(FeModel feModel,
-        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies)
+    internal static float? ClothFaceKeptBendStiffness(FeModel feModel, ClothSurfaceRods surfaceRods)
     {
-        if (!feModel.HasAxialEdges && !feModel.HasChainRingBends)
+        if (!feModel.HasAxialEdges && !feModel.HasChainRingBends
+            && (surfaceRods.GeneratesBendRods || surfaceRods.GeneratesBendOnlyRods))
         {
-            ClothRodsFromSurface(feModel, proxies, out var bendRods, out var bendOnlyRods, out _, out _, out _, out _);
-            if (bendRods || bendOnlyRods)
-            {
-                return null;
-            }
+            return null;
         }
 
         return ClothFaceKeptBendStiffnessDefault;
@@ -300,8 +304,9 @@ internal sealed partial class ClothExtract
             return feModel.RecoverRigidHingeBendPaint(proxy);
         }
 
-        ClothRodsFromSurface(feModel, ProxyMeshes, out _, out _, out _, out _,
-            out var bendStiffness, out var bendStiffnessByNode);
+        var rods = SurfaceRods(feModel);
+        var bendStiffness = rods.BendStiffness;
+        var bendStiffnessByNode = rods.BendStiffnessByNode;
         if (bendStiffness > 0f)
         {
             var uniform = new float[proxy.NodeIndices.Length];
@@ -433,8 +438,7 @@ internal sealed partial class ClothExtract
             return null;
         }
 
-        ClothRodsFromSurface(feModel, ProxyMeshes, out _, out _, out _, out var suspenderNodes,
-            out _, out _);
+        var suspenderNodes = SurfaceRods(feModel).SuspenderNodes;
         if (suspenderNodes.Count == 0)
         {
             return null;
