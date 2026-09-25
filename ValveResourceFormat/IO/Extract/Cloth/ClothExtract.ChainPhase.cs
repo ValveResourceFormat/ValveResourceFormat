@@ -36,7 +36,7 @@ internal sealed partial class ClothExtract
                 && declarationPlan.Walk.TryGetValue(boneChain, out var found)
                 ? found
                 : null;
-            clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, walk, RelandedJoints));
+            clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, walk));
             if (MakeClothChainRestatement(feModel, boneChain) is { } restated)
             {
                 clothFolderChildren.Add(restated);

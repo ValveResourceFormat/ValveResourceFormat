@@ -43,24 +43,6 @@ internal sealed partial class ClothExtract
     internal Dictionary<string, Vector3> RestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets the Bone <c>origin</c> of each ClothChain joint, re-solved so the compiler's chain rest pose lands it on its
-    /// <c>m_InitPose</c> position exactly. Only the document skeleton reads these.
-    /// </summary>
-    internal Dictionary<string, Vector3> ChainBoneOrigins { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Gets the Bone <c>angles</c> of each ClothChain joint, re-solved so the compiler's chain rest pose gives it its
-    /// <c>m_InitPose</c> rotation exactly. Only the document skeleton reads these.
-    /// </summary>
-    internal Dictionary<string, Vector3> ChainBoneAngles { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Gets the ClothChain joints whose origin or angles were re-solved, which are written without
-    /// <see cref="FeModel.BoneChainJoint.ExtrudeTwistTieNudge"/>.
-    /// </summary>
-    private HashSet<string> RelandedJoints { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
     /// Gets the parent-space bone positions written into the proxy and grid DMX joint lists, which the compiler takes
     /// <c>m_InitPose</c> from. Unlike <see cref="RestBonePositions"/> these are not capped by distance.
     /// </summary>
@@ -155,8 +137,6 @@ internal sealed partial class ClothExtract
             ChainGrids.Add((dmxFileName(name), name, grid));
             gridIndex++;
         }
-
-        BuildClothChainBoneOrigins(feModel);
     }
 
     /// <summary>The collision-shape parent bones, which every phase declares in cloth before adding its own.</summary>

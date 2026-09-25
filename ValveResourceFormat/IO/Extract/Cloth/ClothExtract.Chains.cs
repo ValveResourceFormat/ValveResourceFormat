@@ -133,7 +133,7 @@ internal sealed partial class ClothExtract
     }
 
     private static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain,
-        IReadOnlyList<FeModel.BoneChainJoint>? walk = null, HashSet<string>? relandedJoints = null)
+        IReadOnlyList<FeModel.BoneChainJoint>? walk = null)
     {
         var softHinge = feModel.HasChainRods(chain) && !feModel.HasRigidHingeLink(chain);
 
@@ -145,7 +145,7 @@ internal sealed partial class ClothExtract
         foreach (var joint in walk ?? chain.Joints)
         {
             var jointNode = MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1, softHinge, version,
-                rollTies: relandedJoints?.Contains(joint.Name) != true, chain: chain, chainMass: chainMass);
+                chain: chain, chainMass: chainMass);
 
             var childSibling = joint.ChildSiblingSpring > 0f
                 ? joint.ChildSiblingSpring
@@ -277,7 +277,7 @@ internal sealed partial class ClothExtract
                 if (string.Equals(joint.SecondDeclarationRoot, rootBone, StringComparison.OrdinalIgnoreCase))
                 {
                     joints.Add(MakeClothJoint(feModel, joint, chainExtrudes: false, softHinge: false, version,
-                        rollTies: true, chain, secondDeclaration: true));
+                        chain, secondDeclaration: true));
                 }
             }
 
@@ -295,7 +295,7 @@ internal sealed partial class ClothExtract
     /// span, collision and selection keys.
     /// </summary>
     internal static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false,
-        bool softHinge = false, int chainVersion = 2, bool rollTies = true, FeModel.BoneChain? chain = null,
+        bool softHinge = false, int chainVersion = 2, FeModel.BoneChain? chain = null,
         bool secondDeclaration = false, float chainMass = 1f)
     {
         var kv = KVObject.Collection();
@@ -390,7 +390,7 @@ internal sealed partial class ClothExtract
         }
 
         var hinge = feModel.GetChainHinge(joint.Name, joint.Node);
-        AddJointExtrude(kv, feModel, joint, chainExtrudes, rollTies, hinge);
+        AddJointExtrude(kv, feModel, joint, chainExtrudes, hinge);
         AddJointSpans(kv, feModel, joint, secondDeclaration);
 
         if (hinge is { } chainHinge)
@@ -406,7 +406,7 @@ internal sealed partial class ClothExtract
 
     /// <summary>Adds a joint row's ring keys and its end effector.</summary>
     private static void AddJointExtrude(KVObject kv, FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes,
-        bool rollTies, FeModel.ChainHinge? hinge)
+        FeModel.ChainHinge? hinge)
     {
         if (chainExtrudes)
         {
@@ -415,7 +415,7 @@ internal sealed partial class ClothExtract
             if (joint.ExtrudeSides > 0)
             {
                 kv.Add("extrude_radius", joint.ExtrudeRadius);
-                kv.Add("extrude_twist", ClothExtrudeTwistKey(joint.ExtrudeTwist) + (rollTies ? joint.ExtrudeTwistTieNudge : 0f));
+                kv.Add("extrude_twist", ClothExtrudeTwistKey(joint.ExtrudeTwist) + joint.ExtrudeTwistTieNudge);
 
                 if (joint.ForwardAxis != 'x')
                 {

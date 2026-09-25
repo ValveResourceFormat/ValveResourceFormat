@@ -427,14 +427,14 @@ internal sealed partial class ClothExtract
     /// Declares the independent chains, the classified control nodes and the authored faces in the sheet phase's cloth
     /// folder.
     /// </summary>
-    private void DeclareSheetClothFolder(FeModel feModel, KVObject softbodyChildren, List<FeModel.BoneChain> independentChains,
+    private static void DeclareSheetClothFolder(FeModel feModel, KVObject softbodyChildren, List<FeModel.BoneChain> independentChains,
         SheetControlNodes nodes, Dictionary<int, string> proxyNodeNames)
     {
         var clothFolderChildren = AddClothFolder(softbodyChildren);
 
         foreach (var boneChain in independentChains)
         {
-            clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, relandedJoints: RelandedJoints));
+            clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain));
             if (MakeClothChainRestatement(feModel, boneChain) is { } restated)
             {
                 clothFolderChildren.Add(restated);
