@@ -11374,5 +11374,32 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// Every fold the compiler builds across a sheet opens by the mean <c>cloth_bend_stiffness</c> over its hinge on top of
+        /// <c>add_curvature</c>, so a face-kept sheet whose folds are regenerated states no bend paint of its own: the flat 0.2
+        /// it states otherwise folds every hinge of the sheet by a fifth of a half turn.
+        /// CONTROL: the same sheet with its pairs declared, where nothing folds and the paint has no reader.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on dotaout <c>spectre</c>: the 252 folds its original ships at their fully folded minimum came
+        /// back at the 0.2-paint minimum (<c>$cloth_m2p43</c> to <c>p44</c>: 0.0 shipped, 2.321 rebuilt, 7.510 * sin(0.1 pi)).
+        /// </remarks>
+        [Test]
+        public async Task AFaceKeptSheetWhoseFoldsAreRegeneratedStatesNoBendPaint()
+        {
+            static float? Read(FeModel feModel)
+                => ModelExtract.ClothFaceKeptBendStiffness(feModel,
+                    feModel.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList());
+
+            using (Assert.Multiple())
+            {
+                // CONTROL.
+                await Assert.That(Read(FoldedSheetModel(0.5f))).IsEqualTo(0.2f);
+
+                // THE LAW.
+                await Assert.That(Read(FoldedSheetModel(0.666667f))).IsNull();
+            }
+        }
     }
 }

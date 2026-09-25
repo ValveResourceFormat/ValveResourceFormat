@@ -433,6 +433,30 @@ partial class ModelExtract
     /// per vertex out of the hinges themselves (see <see cref="ClothBendStiffnessFromHinges(FeModel, List{int[]}, HashSet{ValueTuple{int, int}}, float)"/>).
     /// </para>
     /// </summary>
+    /// <summary>
+    /// The uniform <c>cloth_bend_stiffness</c> a face-kept sheet's proxy states, or null where the compiler folds rods across
+    /// the model's sheets (<c>add_stiffness_rods</c> or <c>add_bend_only_rods</c> without <c>rigid_edge_hinges</c>): every
+    /// such fold opens by the paint over its hinge on top of <c>add_curvature</c>, so the sheet's folds carry the model-wide
+    /// angle alone.
+    /// </summary>
+    internal static float? ClothFaceKeptBendStiffness(FeModel feModel,
+        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies)
+    {
+        if (!feModel.HasAxialEdges && !feModel.HasChainRingBends)
+        {
+            ClothRodsFromSurface(feModel, proxies, out var bendRods, out var bendOnlyRods, out _, out _, out _, out _);
+            if (bendRods || bendOnlyRods)
+            {
+                return null;
+            }
+        }
+
+        return ClothFaceKeptBendStiffnessDefault;
+    }
+
+    // The bend paint a face-kept sheet states where nothing folds its fans.
+    const float ClothFaceKeptBendStiffnessDefault = 0.2f;
+
     float[]? ClothBendStiffnessPaint(FeModel.ProxyMesh proxy)
     {
         if (physAggregateData?.FeModel is not { } feModel || !proxy.UsesAuthoredFaces)

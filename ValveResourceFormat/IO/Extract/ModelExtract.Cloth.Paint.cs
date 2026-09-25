@@ -879,7 +879,11 @@ partial class ModelExtract
             vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), vertexIndices);
             vertexData.AddIndexedStream("cloth_make_rods$0",
                 Enumerable.Repeat(ClothSuppressedMakeRods, vertexCount).ToArray(), vertexIndices);
-            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(0.2f, vertexCount).ToArray(), vertexIndices);
+
+            if (ClothFaceKeptBendStiffness(physAggregateData.FeModel, ClothProxyMeshesToExtract) is { } faceKeptBend)
+            {
+                vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(faceKeptBend, vertexCount).ToArray(), vertexIndices);
+            }
         }
 
         // Skin the proxy vertices. Pinned (cloth_enable 0) vertices follow their anchor bone with weight 1;
