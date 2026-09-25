@@ -10852,5 +10852,69 @@ namespace Tests
                 m_Twists = [ {{(twisted ? "{ nNodeOrient = 0 nNodeEnd = 1 flTwistRelax = 0.0 flSwingRelax = 1.0 }, { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = 0.618 flSwingRelax = 0.0 }, { nNodeOrient = 1 nNodeEnd = 2 flTwistRelax = 0.382 flSwingRelax = 0.5 }, { nNodeOrient = 2 nNodeEnd = 1 flTwistRelax = 0.618 flSwingRelax = 1.0 }" : string.Empty)}} ]
             }
             """);
+
+        /// <summary>
+        /// Every <c>m_Twists</c> and <c>m_NodeBases</c> record is kept in array order, including a repeated directed twist
+        /// pair and a node carrying two bases, and a twist record keeps its <c>flSwingRelax</c>.
+        /// CONTROLS: <c>NodeBases</c> still keeps the node's last record and <c>TwistNodes</c> still names every node a twist
+        /// names.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-22 over 35 210 cached originals: 1190 carry a node that orients twist records with differing
+        /// relaxations, and 294, every one old-era, carry a node with two consecutive node base records.
+        /// </remarks>
+        [Test]
+        public async Task EveryTwistAndNodeBaseRecordIsKept()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1", "j2" ]
+                    m_SkelParents = [ -1, 0, 1 ]
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    ]
+                    m_Twists =
+                    [
+                        { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = 0.618 flSwingRelax = 0.0 },
+                        { nNodeOrient = 1 nNodeEnd = 2 flTwistRelax = 0.382 flSwingRelax = 1.0 },
+                        { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = 0.2163 flSwingRelax = 0.5 },
+                    ]
+                    m_NodeBases =
+                    [
+                        { nNode = 1 nNodeX0 = 1 nNodeX1 = 2 nNodeY0 = 0 nNodeY1 = 2 },
+                        { nNode = 1 nNodeX0 = 1 nNodeX1 = 0 nNodeY0 = 2 nNodeY1 = 0 },
+                        { nNode = 2 nNodeX0 = 2 nNodeX1 = 1 nNodeY0 = 0 nNodeY1 = 1 },
+                    ]
+                }
+                """);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: the readers' dictionaries are unchanged.
+                await Assert.That(feModel.NodeBases.Count).IsEqualTo(2);
+                await Assert.That(feModel.NodeBases[1]).IsEqualTo(new FeModel.NodeBasis(1, 0, 2, 0));
+                await Assert.That(feModel.TwistNodes.Order()).IsEquivalentTo([0, 1, 2], CollectionOrdering.Matching);
+
+                // THE LAW.
+                await Assert.That(feModel.TwistRecords).IsEquivalentTo(
+                    [
+                        new FeModel.TwistRecord(1, 0, 0.618f, 0f),
+                        new FeModel.TwistRecord(1, 2, 0.382f, 1f),
+                        new FeModel.TwistRecord(1, 0, 0.2163f, 0.5f),
+                    ], CollectionOrdering.Matching);
+                await Assert.That(feModel.NodeBaseRecords).IsEquivalentTo(
+                    [
+                        (1, new FeModel.NodeBasis(1, 2, 0, 2)),
+                        (1, new FeModel.NodeBasis(1, 0, 2, 0)),
+                        (2, new FeModel.NodeBasis(2, 1, 0, 1)),
+                    ], CollectionOrdering.Matching);
+            }
+        }
     }
 }
