@@ -8,33 +8,23 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // How far a control node's recorded rest position may sit from the same bone's compiled bind pose and
-    // still be read as the same pose at better precision. Past a whole unit the node sits somewhere else
-    // entirely and that bone keeps its compiled transform.
+    // How far a control node's recorded rest position may sit from its bone's compiled bind pose and still correct it.
     private const float ClothRestBoneTolerance = 1.0f;
 
-    // And how far it has to sit before the disagreement is worth acting on: a control node whose bone
-    // already accumulates to its recorded position exactly keeps its compiled transform.
     private const float ClothRestBoneFloor = 0f;
 
-    // How far apart two far control bones' positions may sit from one uniform scale of their compiled positions
-    // and still be read as a proxy skeleton scaled as a unit, whose chain rings are measured from the bind bones.
+    // How far far control bones may sit from one uniform scale of their compiled positions and still read as a scaled skeleton.
     private const float ClothRestBoneRigidSpread = 1e-2f;
 
-    // The correction runs per MODEL when any bone disagrees at all. Once enabled, every bone past the
-    // per-bone floor moves together: derived rest shapes span bones on both sides of any per-bone cut,
-    // so a partial correction leaves them mixed.
     private const float ClothRestBoneModelGate = 0f;
 
-    // The gate of the proxy dictionary alone, the one the cloth import reads.
     private const float ClothProxyRestBoneModelGate = 0f;
 
-    // Re-derives each bone's parent-space position from the cloth rest pose, root first: a bone the
-    // FeModel registers as a control node is put back on its recorded world position, and every bone under
-    // it keeps its compiled offset from that corrected parent, so a correction propagates down the
-    // hierarchy exactly as the authored transform chain would. Whether a bone qualifies is judged on the
-    // COMPILED pose, not the corrected one - the disagreement accumulates down a chain, and measuring
-    // against an already-corrected parent would only ever see one link's worth of it.
+    /// <summary>
+    /// Re-derives each bone's parent-space position from the cloth rest pose, root first: a control node's bone is moved
+    /// onto its recorded position, judged against the compiled pose, and every bone keeps its compiled offset from its
+    /// corrected parent. Also fills the proxy dictionaries and <see cref="FeModel.ChainExtrudeOrigins"/>.
+    /// </summary>
     private void BuildClothRestBonePositions(FeModel feModel)
     {
         Debug.Assert(model is not null, "model required for cloth rest bones");
@@ -165,9 +155,9 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The parent-local positions that put every bone with a recorded cloth rest position on it, at any distance, root
-    /// first, while every other bone keeps its compiled offset from its parent composed through the
-    /// <paramref name="turned"/> world rotations. Only positions that change are written to <paramref name="into"/>.
+    /// The parent-local positions that put every bone with a recorded rest position on it, root first, while every other
+    /// bone keeps its compiled offset composed through the <paramref name="turned"/> world rotations. Only positions that
+    /// change are written to <paramref name="into"/>.
     /// </summary>
     internal static void ProxyRestPositions(IEnumerable<Bone> roots, IReadOnlyDictionary<string, Vector3> targets,
         IReadOnlyDictionary<string, Quaternion> turned, Dictionary<string, Vector3> into)
@@ -203,13 +193,10 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The parent-local rotations that turn every bone with a recorded cloth rest rotation onto it, root first, while
-    /// every other bone keeps its compiled world rotation. Only a turned bone and the children of one are written to
-    /// <paramref name="into"/>; the returned map holds their world rotations.
+    /// The parent-local rotations that turn every bone with a recorded rest rotation onto it, root first, while every other
+    /// bone keeps its compiled world rotation. Only a turned bone and its children are written to <paramref name="into"/>;
+    /// the returned map holds their world rotations.
     /// </summary>
-    /// <remarks>
-    /// The proxy's joint rotations reach the cloth import the same way its positions do.
-    /// </remarks>
     internal static Dictionary<string, Quaternion> ProxyRestRotations(IEnumerable<Bone> roots,
         IReadOnlyDictionary<string, Quaternion> targets, Dictionary<string, Quaternion> into)
     {
@@ -246,8 +233,7 @@ internal sealed partial class ClothExtract
         return turned;
     }
 
-    // cos of half of 0.3 degrees. A cloth original's recorded rest rotation sits within 0.001 degrees of its bind rotation
-    // on nearly every control bone; no bone sits between 0.19 and 0.57 degrees, and a turned bone sits past that gap.
+    // cos of half of 0.3 degrees: a recorded rest rotation further than this from the bind rotation turns the bone.
     private const float ClothProxyRestRotationTurn = 0.99999657f;
 
     /// <summary>Six-decimal grid steps searched on each side of a joint's real-valued origin or angles, per component.</summary>
@@ -256,15 +242,15 @@ internal sealed partial class ClothExtract
     /// <summary>Degrees a landed angle may sit from the printed one; a rotation needing more keeps the printed angles.</summary>
     private const float ClothChainAngleSlack = 1e-3f;
 
-    /// <summary>The compiler's degrees-to-half-angle factor, <c>f32(pi / 360)</c> (0x3C0EFA35).</summary>
+    /// <summary>The compiler's degrees-to-half-angle factor, <c>f32(pi / 360)</c>.</summary>
     private const float CompilerHalfDegreesToRadians = (float)(Math.PI * 2 / 360.0 * 0.5);
 
     /// <summary>A world transform as the compiler's chain rest pose carries it.</summary>
     internal readonly record struct CompilerTransform(Vector3 Position, float Scale, Quaternion Rotation);
 
     /// <summary>
-    /// Re-solves the Bone origin of every ClothChain joint against the compiler's chain rest pose, top-down over the
-    /// hierarchy the document declares (see <see cref="ComposeChainBone"/>).
+    /// Re-solves the Bone origin and angles of every ClothChain joint against the compiler's chain rest pose, top-down (see
+    /// <see cref="ComposeChainBone"/>).
     /// </summary>
     private void BuildClothChainBoneOrigins(FeModel feModel)
     {
@@ -329,13 +315,10 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// One Bone of the compiler's ClothChain rest pose: its printed
-    /// <paramref name="origin"/> and <paramref name="angles"/> read back as float32, composed onto
-    /// <paramref name="parent"/>. For a chain joint, <paramref name="landedAngles"/> is the six-decimal angles within
-    /// <see cref="ClothChainAngleSlack"/> of the printed ones that give it <paramref name="targetRotation"/> exactly, and
-    /// then <paramref name="landedOrigin"/> the six-decimal origin that puts it on <paramref name="targetPosition"/>, where
-    /// that position is within <see cref="ClothRestBoneTolerance"/>. Either stays null where the joint already lands or no
-    /// grid value does, and the returned transform is composed from what was landed.
+    /// One Bone of the compiler's ClothChain rest pose: its printed <paramref name="origin"/> and <paramref name="angles"/>
+    /// composed onto <paramref name="parent"/>. For a chain joint, <paramref name="landedAngles"/> and
+    /// <paramref name="landedOrigin"/> are the six-decimal values that land it on its target rotation and position, null
+    /// where it already lands or no grid value does.
     /// </summary>
     internal static CompilerTransform ComposeChainBone(CompilerTransform? parent, Vector3 origin, Vector3 angles,
         Vector3? targetPosition, Quaternion? targetRotation, out Vector3? landedOrigin, out Vector3? landedAngles)

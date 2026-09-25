@@ -10,12 +10,8 @@ namespace ValveResourceFormat.IO;
 internal sealed partial class ClothExtract
 {
     /// <summary>
-    /// Re-declares the dynamic-to-kinematic links (<see cref="FeModel.DynKinLinks"/>) as
-    /// <c>ClothFollowBone</c> nodes. One node per compiled entry, naming the link's parent node as
-    /// <c>leader_bone</c> and its child node as <c>follower_bone</c>. Both endpoints must be bones this
-    /// export declares in cloth (<paramref name="clothBones"/>) - the compiler rejects the whole compile
-    /// over one naming a bone no cloth construct claims. Emitted in compiled order, which the compiler's
-    /// own parent-before-child sort reproduces wherever the export's node order matches the original's.
+    /// Re-declares <see cref="FeModel.DynKinLinks"/> and <see cref="FeModel.BoneMergeLinks"/> as <c>ClothFollowBone</c>
+    /// nodes in compiled order, skipping a link whose cloth bones are not in <paramref name="clothBones"/>.
     /// </summary>
     internal static void AddClothFollowBones(KVObject softbodyChildren, FeModel feModel, HashSet<string> clothBones)
     {
@@ -66,12 +62,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Declares a <c>ClothJointLock</c> on every locked skeleton joint <paramref name="needsLock"/> accepts,
-    /// which is a joint no chain or cloth node of the export declares. The importer takes the feeder by its
-    /// registered node name and sets the parent-link byte a joint's <c>lock_translation</c> sets, so the joint
-    /// compiles into <c>m_LockToParent</c>, or into <c>m_LockToGoal</c> where it has no parent; a joint in
-    /// <c>m_LockToGoal</c> that keeps a parent was locked by something else. Whether the lock is hard is not
-    /// compiled.
+    /// Declares a hard <c>ClothJointLock</c> on every joint locked to its parent, or to its goal without a parent, that
+    /// <paramref name="needsLock"/> accepts.
     /// </summary>
     internal static void AddClothJointLocks(KVObject softbodyChildren, FeModel feModel, Func<int, string, bool> needsLock)
     {
@@ -90,13 +82,12 @@ internal sealed partial class ClothExtract
         }
     }
 
-    // The collision layers a node's mask carries its own bit for; the rest of the mask is not per layer.
     private const int ClothCollisionLayers = 4;
 
-    // The only leader_type that compiles to an m_DynKinLinks entry; 2 and 3 are rejected outright.
+    // The only leader_type that compiles to an m_DynKinLinks entry.
     private const int ClothFollowBoneLeaderTypeBone = 0;
 
-    // Compiles to an m_BoneMergeLinks entry naming the leader by the hash of its bone name.
+    // Compiles to an m_BoneMergeLinks entry naming the leader by its bone name hash.
     private const int ClothFollowBoneLeaderTypeBoneMerge = 1;
 
     // Wind speeds are authored in mph and compiled to units per second.
@@ -111,16 +102,9 @@ internal sealed partial class ClothExtract
     private const int ClothEffectTypeDampenVelocity = 6;
 
     /// <summary>
-    /// Declares every effect the export can recreate. An effect whose parameters record a <c>Node</c> was authored
-    /// under a static <c>ClothNode</c> rooted on that control bone, and is declared under the static node the export
-    /// emits for that bone. Where it emits none, because a chain joint or another construct already claims the bone,
-    /// a bare static <c>ClothNode</c> is declared for it: the compiler lands it on the node the bone already
-    /// registers, without changing that node, and records it as the effect's parent.
-    /// <para>
-    /// Among the static nodes on that bone, one declared under a name of its own is preferred: a generated
-    /// <c>$cloth_node_</c> element is where the effect was authored. The compiler rotates Strength by its parent
-    /// node's own angles, so the effect's angles are expressed in that node's frame.
-    /// </para>
+    /// Declares every effect the export can recreate. An effect whose parameters name a control bone <c>Node</c> is
+    /// declared under a static <c>ClothNode</c> on that bone, preferring one with a name of its own, and its angles are
+    /// expressed in that node's frame.
     /// </summary>
     internal static void AddClothEffects(KVObject softbodyChildren, FeModel feModel, IReadOnlySet<string> availableMaps)
     {
@@ -168,22 +152,15 @@ internal sealed partial class ClothExtract
         }
     }
 
-    /// <summary>The <c>goal_strength</c> a <c>ClothNode</c> declared without one compiles.</summary>
     private const float ClothNodeDefaultGoalStrength = 0.6f;
 
-    /// <summary>The <c>goal_damping</c> a <c>ClothNode</c> declared without one compiles.</summary>
     private const float ClothNodeDefaultGoalDamping = 0.3f;
 
-    /// <summary>How far a recovered goal attribute or gravity may sit from a <c>ClothNode</c> default and still read as it.</summary>
     private const float ClothNodeDefaultTolerance = 1e-3f;
 
     /// <summary>
-    /// Declares a bare static <c>ClothNode</c> on every collision-shape parent bone whose compiled goal pair and gravity are
-    /// the defaults such a node compiles, where nothing the document already declares carries them: no static
-    /// <c>ClothNode</c> and no <c>ClothChain</c> joint names the bone. A shape registers its parent bone with no goal
-    /// attraction, and so does a sheet anchor, so those defaults on a shape parent come from a declaration of its own. One
-    /// declared after the bone is registered compiles the same integrator and leaves every other key, node order included,
-    /// as it was. It runs after <see cref="AddClothEffects"/>, whose own static nodes it leaves alone.
+    /// Declares a bare static <c>ClothNode</c> on every collision-shape parent bone that compiles the <c>ClothNode</c>
+    /// default goal pair and gravity and that no static <c>ClothNode</c> or <c>ClothChain</c> joint already names.
     /// </summary>
     internal static void AddShapeParentDefaultClothNodes(KVObject softbodyChildren, FeModel feModel)
     {
@@ -247,8 +224,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Adds every selection the document already declares: a <c>ClothVertexMap</c> container by its name, and each
-    /// <c>ClothChain</c> joint's <c>vertex_map</c> entries by their bare names.
+    /// Adds every selection the document declares: each <c>ClothVertexMap</c> by name and each chain joint's
+    /// <c>vertex_map</c> entries by their bare names.
     /// </summary>
     private static void CollectDeclaredVertexMaps(KVObject children, HashSet<string> maps)
     {
@@ -306,12 +283,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The named vertex selections the export actually recreates: those painted into a proxy mesh, plus
-    /// those named by a chain joint. An effect that references any other selection fails the whole compile.
-    /// <para>
-    /// A joint's <c>vertex_map</c> spells a partial membership <c>name=weight</c>, so each entry is
-    /// reduced to its bare name - what an effect names the same selection by.
-    /// </para>
+    /// The named vertex selections the export recreates: those painted into a proxy mesh plus those a chain joint names,
+    /// reduced to bare names.
     /// </summary>
     private HashSet<string> AvailableVertexMaps(FeModel feModel, List<FeModel.BoneChain> chains)
     {
@@ -340,8 +313,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Declares one compiled effect, its direction expressed in <paramref name="frame"/>, the rotation of the node
-    /// it is declared under (identity at the top level).
+    /// Declares one compiled effect, its direction expressed in <paramref name="frame"/>, the rotation of the node it is
+    /// declared under.
     /// </summary>
     internal static KVObject? MakeClothEffect(FeModel feModel, FeModel.Effect effect, IReadOnlySet<string> availableMaps,
         Quaternion? frame = null)
@@ -404,8 +377,6 @@ internal sealed partial class ClothExtract
         return node;
     }
 
-    // Strength is the authored magnitude along the forward direction of the effect's angles, turned by its parent
-    // node's own angles.
     private static Vector3 ClothEffectStrength(KVObject parameters)
         => parameters.GetSubCollection("Strength") is { } s ? s.ToVector3() : default;
 
@@ -430,8 +401,7 @@ internal sealed partial class ClothExtract
         var strength = ClothEffectStrength(parameters);
         var vortices = parameters.GetArray("Vortices") ?? [];
 
-        // Time multiplier scales every compiled speed, and vortices are only written for a positive max speed,
-        // so vortices compiled at zero speed were authored with a zero time multiplier.
+        // Vortices compiled at zero speed were authored with a zero time multiplier.
         var stilled = vortices.Count > 0 && vortices.All(vortex => vortex.GetFloatProperty("MaxSpeed") == 0f);
 
         node.Add("wind_speed_mph", strength.Length() / ClothWindSpeedToUnits);

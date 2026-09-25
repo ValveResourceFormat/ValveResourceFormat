@@ -7,9 +7,8 @@ namespace ValveResourceFormat.IO;
 internal sealed partial class ClothExtract
 {
     /// <summary>
-    /// The declaration order that reproduces a chain-phase model's compiled control-node order: the
-    /// chain joints declared as their own <c>ClothNode</c> ahead of the chains, and the order the chains
-    /// and their joints are walked in afterwards.
+    /// The chain joints declared as their own <c>ClothNode</c> ahead of the chains, and the order the chains and their
+    /// joints are walked in.
     /// </summary>
     private sealed class ClothChainDeclarationPlan
     {
@@ -19,10 +18,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Groups the control nodes into the bands the compiler's node sort leaves contiguous: the static /
-    /// rotation-locked / position-driven blocks, subdivided by the constraint-graph rank. Returns null
-    /// when the recomputed key is not ordered the way the compiled node list is, which means the shipped
-    /// arrays no longer describe the graph the sort ranked over.
+    /// The band of every control node: the runs the compiler's node sort keeps contiguous, by block and constraint-graph
+    /// rank. Null where the compiled node order does not follow that key.
     /// </summary>
     private static int[]? ClothNodeBands(FeModel feModel)
     {
@@ -35,8 +32,7 @@ internal sealed partial class ClothExtract
         var neighbours = new HashSet<int>[count];
         var named = new bool[count];
 
-        // An element or rod every one of whose members is static is dropped before the walk, so it
-        // makes no neighbours - but its members are still placed, at the rank the walk ended on.
+        // An all-static element or rod makes no neighbours, but still places its members at the final rank.
         void Connect(IReadOnlyList<int> group)
         {
             var simulated = false;
@@ -122,9 +118,7 @@ internal sealed partial class ClothExtract
             frontier = next;
         }
 
-        // The two passes after the walk place what it did not reach: a node any element or rod names
-        // takes the rank the walk ended on, and only a node nothing names at all keeps its seeded
-        // int.MaxValue - which is one real band of its own, ordered by creation index like any other.
+        // An unreached node any element or rod names takes the final rank; one nothing names keeps int.MaxValue.
         for (var i = 0; i < count; i++)
         {
             if (rank[i] == int.MaxValue && named[i])
@@ -153,9 +147,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Reproduces the compiled control-node order by choosing which chain joints are declared ahead of
-    /// the chains and in what order the chains are then walked. Returns null when today's declaration
-    /// order already reproduces it, when the bands cannot be read, or when no declaration order does.
+    /// The declaration plan that reproduces the compiled control-node order, or null when the natural order already does,
+    /// the bands cannot be read, or no plan does.
     /// </summary>
     private static ClothChainDeclarationPlan? TryPlanClothChainDeclarations(FeModel feModel,
         List<FeModel.BoneChain> chains, Func<string, bool> reparents)
@@ -165,15 +158,13 @@ internal sealed partial class ClothExtract
             return null;
         }
 
-        // One entry per joint DECLARATION, not per joint node: several chains can declare the same bone,
-        // and each of them extrudes a ring of its own that the shared node is created only once for.
+        // One entry per joint declaration: several chains can declare the same bone.
         var joints = new List<(int Chain, FeModel.BoneChainJoint Joint, List<int> Rings)>();
         var occurrences = new Dictionary<int, List<int>>();
         var jointNodes = new HashSet<int>();
         var ringNodes = new HashSet<int>();
 
-        // A joint two rings wide or wider creates its node in the compiler's second pass, after every
-        // chain's rings; anything narrower creates it before its own ring.
+        // A joint two rings wide or wider creates its node after every chain's rings; a narrower one before its own ring.
         var deferred = new HashSet<int>();
         for (var c = 0; c < chains.Count; c++)
         {
@@ -235,9 +226,7 @@ internal sealed partial class ClothExtract
             lanes[bands[node]].Add(node);
         }
 
-        // Nodes some other declaration creates hold the positions they are in, so the chains can only be
-        // reordered where their own nodes fill an unbroken run of a band: a run is permuted within itself
-        // and nothing crosses it. A band a foreign node breaks carries an interleaving this cannot see.
+        // The chains' nodes can only be reordered within a band they fill without a foreign node.
         var runStart = new Dictionary<int, int>();
         var runEnd = new Dictionary<int, int>();
         var runCount = new Dictionary<int, int>();
@@ -269,10 +258,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // A joint narrower than two rings creates its node immediately before its own rings, so within a
-        // band the order of two such joints and the order of their rings have to agree. Where they
-        // disagree the joint nodes came from somewhere else - a back-solved proxy sheet promotes the same
-        // bones and numbers them its own way - and none of the creation order modelled here describes it.
+        // Within a band, narrow joints and their rings must be created in the same order.
         for (var i = 0; i < joints.Count; i++)
         {
             for (var j = i + 1; j < joints.Count; j++)
@@ -299,9 +285,9 @@ internal sealed partial class ClothExtract
         return solver.Solve(feModel, chains, reparents);
     }
 
-    // Walks the creation order the compiler would build from a candidate declaration order, one node at
-    // a time, and only ever places the next unplaced node of a band - which is what keeps every band in
-    // the order the compiled file has it, so a completed walk reproduces the compiled node order.
+    /// <summary>
+    /// Searches the declaration orders whose compiler creation walk takes every band's nodes in their compiled order.
+    /// </summary>
     private sealed class ClothChainOrderSolver
     {
         const int ExpansionBudget = 50000;
@@ -376,10 +362,7 @@ internal sealed partial class ClothExtract
         public ClothChainDeclarationPlan? Solve(FeModel feModel, List<FeModel.BoneChain> chains,
             Func<string, bool> reparents)
         {
-            // A chain never writes a parent onto its joint node, but a ClothNode over a bone whose own
-            // PARENT bone is a control node is parented to it, so a joint the original records as a
-            // hierarchy ROOT cannot be declared ahead of its chain without inventing an m_SkelParents
-            // entry. The search works around those rather than giving up on the model.
+            // A joint the original records as a hierarchy root whose parent bone is a control node stays in its chain.
             for (var i = 0; i < joints.Count; i++)
             {
                 var node = joints[i].Joint.Node;
@@ -409,8 +392,7 @@ internal sealed partial class ClothExtract
                 var chain = chains[joints[index].Chain];
                 if (!plan.Walk.TryGetValue(chain, out var walk))
                 {
-                    // A chain declares its root first: every other joint names a joint_parent that has to
-                    // resolve to a joint already declared above it.
+                    // A chain declares its root first.
                     if (chain.Joints.Count == 0 || joints[index].Joint.Node != chain.Joints[0].Node)
                     {
                         return null;
@@ -427,8 +409,7 @@ internal sealed partial class ClothExtract
             return plan.Chains.Count == chains.Count ? plan : null;
         }
 
-        // The order the exporter emits today: no joint declared ahead of its chain, chains and joints in
-        // the order the chain reconstruction built them, which is the order this list was built in.
+        // Whether the reconstructed order, with nothing declared ahead, already reproduces the node order.
         bool WalksNaturally(List<FeModel.BoneChain> chains)
         {
             Reset();
@@ -487,9 +468,8 @@ internal sealed partial class ClothExtract
             remaining++;
         }
 
-        // The compiler's first pass over the chains: a joint narrower than two rings creates its own node
-        // and then its ring, a joint two rings wide or wider creates only its ring, and a bone another
-        // declaration already created the node for creates only the ring it extruded itself.
+        // The compiler's first pass: a narrow joint creates its node and then its ring, a wide one only its ring, and a
+        // bone already created only its ring.
         bool StartJoint(int index)
         {
             var (chain, joint, rings) = joints[index];
@@ -561,8 +541,7 @@ internal sealed partial class ClothExtract
             walkOrder.RemoveAt(walkOrder.Count - 1);
         }
 
-        // A joint can only be walked once every declaration of its chain parent in the same chain has
-        // been, which is what makes the emitted joint_parent resolve to a joint already above it.
+        // A joint is walked only after every declaration of its parent in the same chain.
         bool ParentPending(int chain, int parentNode)
         {
             if (!occurrences.TryGetValue(parentNode, out var list))
@@ -581,9 +560,7 @@ internal sealed partial class ClothExtract
             return false;
         }
 
-        // The compiler's second pass: the node of every joint two rings wide or wider, in the order the
-        // walk reached that joint. Nothing branches here - the second pass follows the same walk the
-        // first did - so this is a check on a completed walk, not a step of the search.
+        // The compiler's second pass: the nodes of the wide joints, in walk order.
         bool TakeDeferredNodes(List<int> taken)
         {
             foreach (var index in walkOrder)
@@ -636,9 +613,7 @@ internal sealed partial class ClothExtract
                 return false;
             }
 
-            // Several walks can reproduce one node order, and the one closest to the order the chain
-            // reconstruction built is the one every other emitted value is already keyed to - so the
-            // next joint of that order is tried before anything else is.
+            // The next joint of the reconstructed order is tried first.
             var natural = -1;
             for (var index = 0; index < joints.Count; index++)
             {
@@ -673,8 +648,6 @@ internal sealed partial class ClothExtract
                     continue;
                 }
 
-                // The next node of a band is the first node of whichever declaration creates it, so every
-                // declaration that node belongs to is a candidate for the next step of the walk.
                 var head = lanes[band][lanePos[band]];
                 foreach (var index in owners.GetValueOrDefault(head, []))
                 {
@@ -717,9 +690,7 @@ internal sealed partial class ClothExtract
                 ReturnHead(head);
             }
 
-            // A declaration that creates no node of its own - a joint declared ahead of the chains, or a
-            // bone whose node and ring another declaration already made - is not the head of any band, so
-            // the walk has to be offered it directly.
+            // A declaration that creates no node heads no band, so it is offered directly.
             for (var index = 0; index < joints.Count; index++)
             {
                 if (index == natural || walked[index] || joints[index].Rings.Count > 0
@@ -749,10 +720,7 @@ internal sealed partial class ClothExtract
             return false;
         }
 
-        // A joint whose node the chains create can be declared ahead of them instead, which claims the
-        // creation index for its name. Every declaration of that bone has to allow it, and the band has
-        // to be the chains' own: a foreign node in it is created wherever ITS declaration sits, which a
-        // node moved to the head of the cloth folder would be reordered against.
+        // A node can be declared ahead of the chains when every declaration of its bone allows it and its band is pure.
         bool CanPreDeclare(int node)
         {
             if (nodeTaken[node] || declaredNode[node] || deferred.Contains(node)
@@ -774,10 +742,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Declares a chain joint's bone as its own cloth node ahead of the <c>ClothChain</c>, which claims
-    /// the control-node creation index for that name; the chain then reuses the node and only appends
-    /// the joint's ring nodes. Every value the chain joint itself writes is left at its neutral default
-    /// so that only the creation index changes.
+    /// A chain joint's bone declared as its own <c>ClothNode</c> ahead of the chains, every other value at its neutral
+    /// default, which claims only the node's creation index.
     /// </summary>
     private static KVObject MakeClothChainJointDeclaration(FeModel feModel, string boneName, int node)
     {

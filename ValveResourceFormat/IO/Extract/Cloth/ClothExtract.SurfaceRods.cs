@@ -5,19 +5,9 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // m_Rods is not derivable from the surface: a shipped rod matches neither a Quads/Tris edge nor a quad
-    // diagonal. It is read directly off the FeModel and re-declared as explicit ClothSpring nodes by NAME.
-    //
-    // Every "$cloth_*" endpoint resolves through the export's own global-node-index to
-    // "$cloth_m{proxy}p{local}" map (built from proxy.NodeIndices, the same one proxy.Faces uses) rather
-    // than through the original's literal CtrlNames string: the re-exported proxy DMX re-sorts vertices
-    // (FeModel.BuildProxyMesh sorts referenced nodes ascending), so the original's local index names a
-    // different vertex here. Real bone names are not proxy-mesh-local and need no translation.
     /// <summary>
-    /// The rods the compiler rebuilds from the exported surface on its own, which must therefore not also
-    /// be declared as explicit springs. Every face edge and diagonal is one. When the sheet's compiled rods
-    /// reach further than that, the extra bend network was authored on (see <c>add_stiffness_rods</c> in
-    /// <see cref="MakeClothParams"/>) and regenerates the remaining pairs of that sheet too.
+    /// The rods the compiler rebuilds from the exported sheets on its own, which are not declared as springs, and the bend
+    /// switches, curvature and bend-stiffness paint that rebuild them.
     /// </summary>
     internal static HashSet<(int, int)> ClothRodsFromSurface(FeModel feModel,
         List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, out bool generatesBendRods,
@@ -54,9 +44,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // The bend network spans the pairs two steps apart across the surface. Only when every rod
-        // reaching past the faces has that shape is the switch able to account for all of them - otherwise
-        // enabling it would drop the rods it cannot reproduce, so those keep their explicit springs.
+        // The bend switches regenerate the rods beyond the faces only where every one of them spans two surface steps.
         var neighbours = new Dictionary<int, HashSet<int>>();
         foreach (var (a, b) in derived)
         {
@@ -71,17 +59,13 @@ internal sealed partial class ClothExtract
         var boundedBeyondSurface = feModel.Rods.Any(rod => rod.MaxDist < ClothBendOnlyRodMaxDistance
             && beyondSurface.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)));
 
-        // Both switches span the same pairs; only the bend-only network leaves their maximum length
-        // unbounded, so the lengths are what tells the two apart.
+        // Only the bend-only network leaves the maximum length unbounded.
         generatesBendOnlyRods = regenerable && !boundedBeyondSurface;
         generatesBendRods = regenerable && boundedBeyondSurface;
 
-        // Only a regenerated network carries the curvature: where the rods are re-declared as explicit
-        // springs instead they already ship their own minimum, and the compiler builds nothing to bend.
         addCurvature = regenerable ? ClothCurvatureFromSurface(feModel, surfaceFaces, beyondSurface) : 0f;
 
-        // The pairs the exporter is asking the compiler to fold for itself, which are the ones whose hinges
-        // can carry a bend-stiffness paint. A sheet keeping its explicit springs hands the compiler no fan.
+        // The pairs the compiler is asked to fold itself, whose hinges can carry a bend-stiffness paint.
         var bendNetwork = new HashSet<(int, int)>();
 
         if (regenerable)
@@ -109,14 +93,7 @@ internal sealed partial class ClothExtract
         }
         else
         {
-            // Last resort, for a sheet none of the readings above accounts for: the compiler's own bend
-            // network is one rod per edge two faces share, joining the far corners of the two, and where
-            // every pair it would build is a rod the original carries it can be turned on to cover that
-            // part of the sheet. What it does not name keeps its explicit springs. The subset test is what
-            // keeps it from inventing a constraint, and it is only reached once the whole-surface, mixed
-            // and suspender readings have each declined the sheet. These rods are folded by the model's own
-            // curvature like any other, so the network is read for it - but only where every rod of it
-            // supports one value, since nothing else here cross-checks the answer.
+            // The compiler's own bend network, taken where every rod it builds is one the original carries.
             var bend = FeModel.BendRodsFromSurface(surfaceFaces, feModel.IsStatic);
             bend.ExceptWith(derived);
             if (bend.Count > 0 && bend.IsSubsetOf(beyondSurface))
@@ -159,19 +136,13 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // A uniform reading the solver's own band cannot tell from zero is no reading: it would be
-        // written out as a flat stream that folds nothing while standing in the way of the per-vertex
-        // solve below, which is the only thing that can still account for the sheet.
+        // A uniform reading within half the solver band is no reading.
         if (bendStiffness > 0f && bendStiffness <= ClothBendStiffnessAgreement / 2f)
         {
             bendStiffness = 0f;
         }
 
-        // Whatever single value the arms above settled on, the fold each hinge actually carries is that
-        // value plus its own two vertices' paint. Where one value already accounts for the sheet the
-        // residual solves to nothing and no stream is written; where it cannot, the paint carries the
-        // rest. A rigid-edge sheet is left alone: there the compiler folds nothing and the same per-vertex
-        // number drives the Kelager ring bends instead.
+        // The fold a single value cannot account for is carried by a per-vertex paint, except on a rigid-edge sheet.
         if (bendStiffness <= 0f && bendNetwork.Count > 0 && !feModel.HasAxialEdges
             && (generatesBendRods || generatesBendOnlyRods))
         {
@@ -179,9 +150,7 @@ internal sealed partial class ClothExtract
                 addCurvature, keepsCurvature: suspenderNodes.Count > 0);
         }
 
-        // Cloth that ships no surface of its own exports its synthesised sheets without the rod-suppressing
-        // paint (see BuildClothProxyMeshDmx), so the compiler rebuilds rods from that triangulation as
-        // well - declaring those same edges as explicit springs would ship each of them twice.
+        // A model with no surface of its own lets the compiler rebuild rods from its synthesised sheets.
         if (!feModel.HasSurfaceElements)
         {
             foreach (var (_, _, proxyMesh) in proxies)
@@ -192,10 +161,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // A sheet kept out of the rod path by the cloth_make_rods paint (see BuildClothProxyMeshDmx) still
-        // hands the compiler its faces as solve elements, and the quad-split pass gives every bent one of
-        // them a rod of its own across the diagonal it discards. Re-declaring those pairs as explicit
-        // springs ships each of them twice.
+        // A face kept out of the rod path still gets a rod across the diagonal a bent quad discards.
         foreach (var (_, _, proxyMesh) in proxies)
         {
             var nodeOf = proxyMesh.NodeIndices;
@@ -209,14 +175,12 @@ internal sealed partial class ClothExtract
         return derived;
     }
 
-    // The cloth_make_rods paint BuildClothProxyMeshDmx writes over a sheet it keeps out of the rod path,
-    // which is under the importer's own 0.5 threshold on the mean over a face's corners.
+    // The cloth_make_rods paint of a sheet kept out of the rod path, under the importer's 0.5 threshold.
     private const float ClothSuppressedMakeRods = 0.4f;
 
     /// <summary>
-    /// Whether the compiler turns <paramref name="face"/> into rods rather than into a solve element: the
-    /// mean <c>cloth_make_rods</c> paint over its corners against the importer's threshold of one half,
-    /// over the paint <see cref="BuildClothProxyMeshDmx"/> writes for this sheet.
+    /// Whether the compiler turns <paramref name="face"/> into rods rather than a solve element, by the mean
+    /// <c>cloth_make_rods</c> paint <see cref="BuildClothProxyMeshDmx"/> writes over its corners.
     /// </summary>
     private static bool ClothFaceMakesRods(FeModel feModel, FeModel.ProxyMesh proxy, int[] face)
     {
@@ -238,30 +202,12 @@ internal sealed partial class ClothExtract
         return painted >= 0.5f * face.Length;
     }
 
-    // The maximum length a bend-only rod is given, which is no limit at all.
     private const float ClothBendOnlyRodMaxDistance = FeModel.UnboundedRodDistance;
 
     /// <summary>
-    /// A sheet whose rods beyond its own faces are a MIXTURE of the <c>add_stiffness_rods</c> bend network
-    /// and suspender rods, split into those two classes so each can be emitted through its own route
-    /// rather than every rod of the sheet becoming an explicit <c>ClothSpring</c>.
-    /// <para>
-    /// The bend network is derived from the exported surface the way the compiler derives it
-    /// (<see cref="FeModel.BendRodsFromSurface"/>), and taken only when no rod it would build is one the
-    /// model has not got - a network reaching past the compiled data would add constraints the original
-    /// lacks. The rods it does not account for all have to be suspender rods agreeing on the same
-    /// <c>add_curvature</c> the network was folded by: the two passes share that one value, and a leftover
-    /// is the signal that the surface being exported is not the one the network was built from, so such a
-    /// sheet keeps every spring it has.
-    /// </para>
-    /// <para>
-    /// The two passes do NOT share the whole angle. A bend rod is folded by
-    /// <c>clamp(mean cloth_bend_stiffness over its hinge's own two vertices * pi + add_curvature, 0, pi)</c>
-    /// while a suspender rod takes <c>add_curvature</c> alone, so a sheet whose suspenders lie flat states
-    /// <c>add_curvature = 0</c> and any fold its network still shows is that paint. Such a sheet reports the
-    /// fold as <c>BendStiffness</c> and keeps a curvature of zero, which is the only reading that satisfies
-    /// both passes at once.
-    /// </para>
+    /// Splits a sheet's rods beyond its faces into the <c>add_stiffness_rods</c> bend network and suspender rods sharing
+    /// one <c>add_curvature</c>, or null where they do not split that way. A saturated suspender set leaves the curvature
+    /// at zero and reports the network's fold as <c>BendStiffness</c>.
     /// </summary>
     private static (HashSet<(int, int)> Bend, HashSet<(int, int)> Suspenders, float AddCurvature, float BendStiffness,
         bool Bounded)?
@@ -333,22 +279,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The <c>cloth_bend_stiffness</c> paint of a proxy sheet, or null when the sheet needs none. The
-    /// compiler folds each bend rod by the mean of this paint over its hinge's own two vertices, added to
-    /// the model-wide <c>add_curvature</c>, so a sheet that has to keep a curvature of zero for its
-    /// suspender rods carries the fold here instead. It is emitted only on a sheet exported with its own
-    /// faces, which is the surface the fold was read off.
-    /// <para>
-    /// One value covers a sheet whose hinges all fold alike. Where they do not - part of the sheet at its
-    /// rest cap and part barely folded, which one <c>add_curvature</c> cannot produce - the paint is solved
-    /// per vertex out of the hinges themselves (see <see cref="ClothBendStiffnessFromHinges(FeModel, List{int[]}, HashSet{ValueTuple{int, int}}, float)"/>).
-    /// </para>
-    /// </summary>
-    /// <summary>
-    /// The uniform <c>cloth_bend_stiffness</c> a face-kept sheet's proxy states, or null where the compiler folds rods across
-    /// the model's sheets (<c>add_stiffness_rods</c> or <c>add_bend_only_rods</c> without <c>rigid_edge_hinges</c>): every
-    /// such fold opens by the paint over its hinge on top of <c>add_curvature</c>, so the sheet's folds carry the model-wide
-    /// angle alone.
+    /// The uniform <c>cloth_bend_stiffness</c> of a face-kept sheet, or null where the compiler folds rods across the
+    /// model's sheets without <c>rigid_edge_hinges</c>.
     /// </summary>
     internal static float? ClothFaceKeptBendStiffness(FeModel feModel,
         List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies)
@@ -368,6 +300,9 @@ internal sealed partial class ClothExtract
     // The bend paint a face-kept sheet states where nothing folds its fans.
     private const float ClothFaceKeptBendStiffnessDefault = 0.2f;
 
+    /// <summary>
+    /// The <c>cloth_bend_stiffness</c> paint of a sheet exported with its own faces, or null when it needs none.
+    /// </summary>
     private float[]? ClothBendStiffnessPaint(FeModel.ProxyMesh proxy)
     {
         if (physAggregateData?.FeModel is not { } feModel || !proxy.UsesAuthoredFaces)
@@ -409,28 +344,9 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The SUSPENDER rods among the ones a sheet has beyond its own faces, and the
-    /// <c>add_curvature</c> they were authored with. A suspender rod ties a static sheet vertex to a
-    /// simulated one over their rest span, and the compiler gives it <c>flMaxDist</c> = that span and
-    /// <c>flMinDist</c> = <c>flMaxDist * sin(add_curvature * pi)</c>, so one such rod pins the curvature
-    /// down. The rest of the set keeps its explicit springs: a rod the paint does not rebuild has to,
-    /// or the model comes back short of it.
-    /// <para>
-    /// The paint that builds them has to reach BOTH ends of each rod (see
-    /// <see cref="ClothSuspenderPaint"/>), and the compiler pairs each painted simulated vertex with its
-    /// nearest painted static one. <c>add_curvature</c> is one model-wide value with three readers, so
-    /// the answer is taken only where the readings cannot contradict each other: every suspender rod has
-    /// to agree with every other to
-    /// <see cref="FeModel.ChainRingCurvatureAgreement"/>, a chain ring reading of its own has to agree
-    /// too, and a sheet with axial edges is left alone entirely because <c>rigid_edge_hinges</c> gives
-    /// the same value a second, independent job.
-    /// </para>
-    /// <para>
-    /// A set whose rods all sit at <c>flMinDist</c> zero is reported SATURATED. It is the one shape the
-    /// paint reproduces without the sheet having to carry a curvature at all, so the caller takes it only
-    /// where the bend network reads zero as well and the two cannot contradict each other; a chain ring
-    /// reading of its own has to be zero for the same reason.
-    /// </para>
+    /// The suspender rods among a sheet's rods beyond its faces, and the <c>add_curvature</c> they read: a rigid rod from
+    /// a static to a simulated vertex at its rest span, with <c>flMinDist = flMaxDist * sin(add_curvature * pi)</c>. Taken
+    /// only where every such rod and the chain rings agree; a set at zero minimum is reported saturated.
     /// </summary>
     private static (HashSet<(int, int)> Suspenders, float AddCurvature, bool Saturated) ClothSuspenders(
         FeModel feModel, HashSet<(int, int)> beyondSurface)
@@ -467,13 +383,7 @@ internal sealed partial class ClothExtract
             shaped.Add((edge, MathF.Asin(Math.Clamp(rod.MinDist / rod.MaxDist, 0f, 1f)) / MathF.PI));
         }
 
-        // The answer is the value the largest set of them shares, as everywhere else a curvature is read
-        // back, and a set that reads zero throughout is the saturated one the summary describes.
-        //
-        // The whole set has to agree AND account for every rod reaching past the faces: the compiler's own
-        // pass walks the authored proxy vertices while this recovers only the ones that became nodes, so
-        // where the two differ the pass pairs the sheet up differently and rebuilds only part of what it
-        // shipped. A set with leftovers is exactly that case, and it keeps every spring it has.
+        // The whole set has to agree and account for every rod beyond the faces.
         var curvature = DominantReading(shaped.Select(static s => s.Reading), out var agreeing);
         if (shaped.Count == 0 || agreeing != shaped.Count || shaped.Count != beyondSurface.Count)
         {
@@ -502,8 +412,8 @@ internal sealed partial class ClothExtract
         return (suspenders, curvature, saturated);
     }
 
-    // The value the largest subset of `readings` agrees on to ChainRingCurvatureAgreement, taking the
-    // largest such value on a tie, with the size of that subset. Zero when there are none.
+    // The value the largest subset of readings agrees on to ChainRingCurvatureAgreement, taking the largest such
+    // value on a tie, with the size of that subset. Zero when there are none.
     private static float DominantReading(IEnumerable<float> readings, out int agreeing)
     {
         var sorted = readings.ToArray();
@@ -529,9 +439,7 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The <c>cloth_suspenders</c> paint of a proxy sheet, or null when the sheet has none. The compiler
-    /// builds a suspender rod only when the paint reaches both of its ends, so both the static vertex and
-    /// the simulated one it holds up carry it.
+    /// The <c>cloth_suspenders</c> paint of a proxy sheet, on both ends of every suspender rod, or null where it has none.
     /// </summary>
     private float[]? ClothSuspenderPaint(FeModel.ProxyMesh proxy)
     {
@@ -562,24 +470,14 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The <c>add_curvature</c> the sheet was authored with, read back out of the bend network it
-    /// generates. Such a rod joins the far corners of two faces that share an edge; the compiler gives it
-    /// the span those corners have with the two faces coplanar as <c>flMaxDist</c>, and the span they have
-    /// folded about that shared edge through a dihedral angle of <c>add_curvature * pi</c> as
-    /// <c>flMinDist</c> - capped at the rod's own rest span, which a curved sheet reaches before the fold
-    /// opens all the way. One uncapped rod plus the rest positions therefore pin the value down, and every
-    /// rod of the network agrees on it to the print quantum, so the answer is the value the largest set of
-    /// them shares - which also discards the pairs some other rule shaped. A capped rod only says the
-    /// value is at least enough to have reached its rest span, so a network that is capped throughout
-    /// yields the greatest of those bounds. Values at or above 1.0 all open the fold fully and compile
-    /// identically, which is the one distinction the compiled data cannot make.
+    /// The <c>add_curvature</c> the bend network was folded by: the value most uncapped rods agree on, or the largest
+    /// lower bound the capped rods give where too few agree.
     /// </summary>
     private static float ClothCurvatureFromSurface(FeModel feModel, List<int[]> faces, HashSet<(int, int)> beyondSurface)
     {
         var (opened, capped) = ClothCurvatureReadings(feModel, faces, beyondSurface);
 
-        // The half-angle sine squared is what the minimum length is linear in, so the rods are clustered
-        // in that before the value is read off - the angle itself is arbitrarily sensitive near either end.
+        // Readings are clustered in sin^2 of the half angle, which the minimum length is linear in.
         opened.Sort();
         var agreed = 0;
         var consensus = 0f;
@@ -611,18 +509,12 @@ internal sealed partial class ClothExtract
         return 2f / MathF.PI * MathF.Asin(MathF.Sqrt(consensus));
     }
 
-    // How far two rods' readings may sit apart, in the sin^2(half-angle) the minimum length is linear in,
-    // and still count as the same authored value.
+    // How far two rods' readings may sit apart, in sin^2 of the half angle, and still count as one value.
     private const float ClothCurvatureAgreement = 1e-3f;
 
     /// <summary>
-    /// The <c>add_curvature</c> of the bend network the compiler is being asked to regenerate, taken only
-    /// where the network states ONE value: every rod that still has room to open has to read the same
-    /// fraction, and every rod already pinned at its own rest span - which only says the value is at least
-    /// enough to have reached it - has to sit at or below that. A network with no room left anywhere states
-    /// a lower bound alone, and the greatest of those bounds is the answer. Anything else recovers 0 and
-    /// the sheet keeps the exporter's default, because unlike the whole-surface and suspender readings
-    /// nothing else here can contradict a wrong answer.
+    /// The <c>add_curvature</c> of a regenerated bend network where it states one value: every uncapped rod reads the same
+    /// and no capped rod reads more. Zero otherwise.
     /// </summary>
     private static float ClothCurvatureFromBendNetwork(FeModel feModel, List<int[]> faces, HashSet<(int, int)> bend)
     {
@@ -652,9 +544,8 @@ internal sealed partial class ClothExtract
         return consensus > ClothCurvatureAgreement ? 2f / MathF.PI * MathF.Asin(MathF.Sqrt(consensus)) : 0f;
     }
 
-    // Per rod of `network`, the fraction of its own fold the compiled minimum length sits at, split into the
-    // rods that still had room to open (an exact reading) and the ones pinned at their rest span (a lower
-    // bound). See ClothCurvatureFromSurface for the geometry.
+    // Per rod of the network, the fraction of its fold the compiled minimum sits at, split into exact readings and the
+    // lower bounds of rods capped at their rest span.
     private static (List<float> Opened, List<float> Capped) ClothCurvatureReadings(FeModel feModel, List<int[]> faces,
         HashSet<(int, int)> beyondSurface)
     {

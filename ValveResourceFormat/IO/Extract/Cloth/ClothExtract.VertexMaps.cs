@@ -7,8 +7,7 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // A selection solved as a volume carries its strength and the node it takes its scale from. Both are
-    // authored on the container, and the volumetric strength also decides the covered nodes' masses.
+    // A volume-solved selection states its strength and scale source node on its container.
     private static void AddClothVertexMapAttributes(KVObject mapNode, FeModel feModel, string mapName,
         IReadOnlyDictionary<int, string>? proxyNodeNames)
     {
@@ -27,11 +26,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Declares a <c>ClothVertexMap</c> for every selection solved as a volume over chain joints. The compiler
-    /// reads a container's <c>volumetric_solve</c> and <c>scale_source_node</c> only through the <c>data.nodes</c>
-    /// table naming its members, never through a joint's own <c>vertex_map</c>, so the table lists every covered
-    /// joint at its membership weight. A selection that also covers a sheet vertex, a free cloth node or any
-    /// other named node is left to the containers those phases declare.
+    /// Declares a <c>ClothVertexMap</c> listing its members in <c>data.nodes</c> for every volume-solved selection that
+    /// covers only chain joints, the only route the compiler reads <c>volumetric_solve</c> on.
     /// </summary>
     internal static void AddClothChainVolumetricMaps(KVObject softbodyChildren, FeModel feModel,
         IEnumerable<FeModel.BoneChain> chains)
@@ -97,13 +93,11 @@ internal sealed partial class ClothExtract
         return false;
     }
 
-    // Puts a free cloth node into the ClothVertexMap containers of every selection covering it, and
-    // returns where the node itself goes. Each container lists its members in the data.nodes table the
-    // ClothNodeListEditor keeps, which is membership on its own (with a partial weight where the
-    // selection has one) and the only route on which the compiler reads the container's
-    // volumetric_solve and scale_source_node. A node covered by exactly one selection is also parented
-    // under that container, the grouping the "Add Cloth Vertex Map" wizard builds, unless the caller
-    // keeps it flat; a node in several selections stays flat, a child having one parent.
+    /// <summary>
+    /// Builds the function that lists a free cloth node in the <c>ClothVertexMap</c> of every selection covering it and
+    /// returns the children list the node goes into: that container for a node in one selection when parenting is
+    /// allowed, and the cloth folder otherwise.
+    /// </summary>
     private static Func<int, bool, KVObject> ClothVertexMapFolders(FeModel feModel, KVObject clothFolderChildren)
     {
         var groups = new Dictionary<string, (KVObject Children, KVObject Members)>(StringComparer.Ordinal);

@@ -10,26 +10,18 @@ internal sealed partial class ClothExtract
     // An unrolled proxy ring sits on the joint frame's +Y, so an authored twist counts down from 90 degrees.
     private const float ClothExtrudeTwistBase = 90f;
 
-    /// <summary>
-    /// The <c>extrude_twist</c> a joint row states for a ring measured at <paramref name="measuredTwist"/>
-    /// degrees of roll.
-    /// </summary>
+    /// <summary>The <c>extrude_twist</c> a joint row states for a ring rolled <paramref name="measuredTwist"/> degrees.</summary>
     internal static float ClothExtrudeTwistKey(float measuredTwist) => ClothExtrudeTwistBase - measuredTwist;
 
-    /// <summary>
-    /// The <c>extrude_twist</c> default a chain's <c>attrs</c> table states. It is the key's schema
-    /// default, which every authored chain carries whatever its ring measures, and the compiler reads
-    /// it for a joint row that omits the key.
-    /// </summary>
+    /// <summary>The <c>extrude_twist</c> default of a chain's <c>attrs</c> table, the key's schema default.</summary>
     private const float ClothExtrudeTwistAttrDefault = 0f;
 
-    // A twist a static chain root authored compiles to the same pair of relaxation-free entries at every
-    // value above zero, so the re-declaration names the top of the key's range.
+    // Every twist_relax above zero compiles a static root's twist entries alike, so the top of the range stands for it.
     private const float ClothStaticRootTwistRelax = 1f;
 
     /// <summary>
-    /// Declares the <c>ClothRigidCloudCluster</c> of algorithm 0 behind every chain lock
-    /// <see cref="IsRigidCloudClusterLock"/> attributes to one.
+    /// Declares an algorithm-0 <c>ClothRigidCloudCluster</c> behind every chain lock <see cref="IsRigidCloudClusterLock"/>
+    /// attributes to one.
     /// </summary>
     internal static void AddClothRigidCloudClusterLocks(KVObject softbodyChildren, FeModel feModel,
         IEnumerable<FeModel.BoneChain> chains)
@@ -44,10 +36,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The members declared for the <c>ClothRigidCloudCluster</c> locking <paramref name="joint"/>. Algorithm 0 compiles no
-    /// member into the file and refuses a cluster of fewer than two, while any two members compile to the same lock, so the
-    /// joint's chain descendants are named a generation at a time until there are two, and the joint itself completes a pair
-    /// its subtree cannot.
+    /// The members of the <c>ClothRigidCloudCluster</c> locking <paramref name="joint"/>: its chain descendants a generation
+    /// at a time until there are two, completed by the joint itself where its subtree has fewer.
     /// </summary>
     internal static List<string> RigidCloudClusterMembers(FeModel.BoneChain chain, FeModel.BoneChainJoint joint)
     {
@@ -69,8 +59,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// A <c>ClothRigidCloudCluster</c> of algorithm 0 locking <paramref name="parentNode"/>, with
-    /// <paramref name="members"/> as its joints at the default stiffness.
+    /// An algorithm-0 <c>ClothRigidCloudCluster</c> locking <paramref name="parentNode"/>, with <paramref name="members"/> as
+    /// its joints at the default stiffness.
     /// </summary>
     internal static KVObject MakeClothRigidCloudCluster(string parentNode, IEnumerable<string> members)
     {
@@ -111,14 +101,9 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The static <c>ClothNode</c>s an original declared on its chain joints to base them through a free cloth node. A
-    /// <c>ClothNode</c> at <c>transform_alignment</c> 3 writes a preset basis on its own node from <c>node_base_x1</c> and
-    /// <c>node_base_y1</c>, and one whose root bone is not yet a node creates that node before any chain runs. So where a chain
-    /// joint's basis names a <c>$cloth_node_</c> reference, every chain joint of the model is declared here in the original's
-    /// node order, the based ones carrying their preset, which keeps both the bases and the order the nodes were created in.
+    /// Where a chain joint's basis names a <c>$cloth_node_</c> reference, declares every dynamic chain joint as a static
+    /// <c>ClothNode</c> in node order, the based ones carrying their alignment-3 preset.
     /// </summary>
-    /// <param name="feModel">The compiled cloth.</param>
-    /// <param name="chains">The reconstructed chains.</param>
     internal static IEnumerable<KVObject> ChainJointClothNodes(FeModel feModel, IReadOnlyList<FeModel.BoneChain> chains)
     {
         var joints = chains.SelectMany(static chain => chain.Joints).Select(static joint => joint.Node).ToHashSet();
@@ -161,8 +146,7 @@ internal sealed partial class ClothExtract
     private static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains,
         IReadOnlyList<FeModel.BoneChainJoint>? walk = null, HashSet<string>? relandedJoints = null)
     {
-        // A rigid hinge takes the chain's rod network over, so a hinged chain that still carries rods was
-        // authored with a soft link instead, unless the hinged link itself compiled to a quad.
+        // A hinged chain that still carries rods was authored with a soft hinge link.
         var softHinge = feModel.HasChainRods(chain) && !feModel.HasRigidHingeLink(chain);
 
         var version = ClothChainVersion(feModel, chain, hasOtherChains);
@@ -175,8 +159,6 @@ internal sealed partial class ClothExtract
             var jointNode = MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1, softHinge, version,
                 rollTies: relandedJoints?.Contains(joint.Name) != true, chain: chain, chainMass: chainMass);
 
-            // A rigid hinge is the one shape whose sibling set the chain reconstruction cannot read a
-            // value off, so it keeps the flat 1.0 it has always been given.
             var childSibling = joint.ChildSiblingSpring > 0f
                 ? joint.ChildSiblingSpring
                 : feModel.SpringsHingeChildren(chain, joint.Node) ? 1.0f : 0f;
@@ -201,7 +183,6 @@ internal sealed partial class ClothExtract
             ("root_bone", chain.RootBone),
             ("chain", chainData));
 
-        // A rigid ClothChainHinge is a child node of the chain, constraining one joint by name.
         var hinges = KVObject.Array();
         foreach (var joint in chain.Joints)
         {
@@ -224,11 +205,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The plain second declaration of the joints <c>BuildBoneChains</c> marked restated, or null when
-    /// the chain has none. Emitted right after the extruding chain, so the compiler re-registers those
-    /// joint nodes with these values and adds the plain parent rod, as the source's own second
-    /// declaration did. Every value is read from the joint node itself, which is where the second
-    /// declaration left it.
+    /// The plain second declaration of the joints <c>BuildBoneChains</c> marked restated, read off the joint nodes, or null
+    /// when there are none.
     /// </summary>
     private static KVObject? MakeClothChainRestatement(FeModel feModel, FeModel.BoneChain chain)
     {
@@ -301,12 +279,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The SECOND declaration of the sub-chain <c>BuildBoneChains</c> marked, or null where the chain has
-    /// none. The source states such a run twice - once inside the parent chain at <c>simulate = false</c>
-    /// and once in a chain of its own - and the later declaration wins the node, so this one carries the
-    /// members' whole attribute set. It states neither <c>stiff_hinge</c> nor <c>child_sibling_spring</c>:
-    /// each is written once per DECLARATION, so restating one doubles the bends or the sibling rods the
-    /// first declaration already made.
+    /// The second declaration of every sub-chain <c>BuildBoneChains</c> marked. It carries the members' whole attribute set
+    /// except <c>stiff_hinge</c> and <c>child_sibling_spring</c>, which each declaration writes again.
     /// </summary>
     private static List<KVObject> MakeClothChainSecondDeclarations(FeModel feModel, FeModel.BoneChain chain, int version)
     {
@@ -361,18 +335,8 @@ internal sealed partial class ClothExtract
             kv.Add("joint_parent", joint.ParentName);
         }
 
-        // The compiler CUBES the joint goal_strength into flAnimationForceAttraction, the same way it
-        // treats the painted cloth_goal_strength_v2 on a proxy mesh, so the emitted value is the cube root
-        // of the recovered attraction.
-        //
-        // It is recovered regardless of joint.Simulated: a chain ROOT is routinely authored
-        // `simulate = false` with a nonzero goal_strength, so gating on the flag would zero goal_strength
-        // on every chain root.
-        //
-        // A joint the source declared twice keeps the second declaration's values on its own node;
-        // the first declaration's values survive on the ring it extruded (MakeClothChainRestatement
-        // emits the second declaration from the node). Where the two declarations each extruded a ring
-        // of their own, BoneChainJoint.ValueNode names this declaration's.
+        // A joint declared twice keeps the second declaration's values on its node and the first's on its ring;
+        // ValueNode names the ring this declaration extruded where each extruded one.
         var valueNode = joint.ValueNode >= 0 ? joint.ValueNode
             : joint.Restated && joint.ProxyNode >= 0 ? joint.ProxyNode : joint.Node;
         var integrator = feModel.GetIntegrator(valueNode);
@@ -380,41 +344,28 @@ internal sealed partial class ClothExtract
 
         var twistRelax = feModel.GetAuthoredTwistRelax(joint.Node, joint.ParentNode, joint.ProxyNode);
 
-        // The compiler scales a twist entry by the ORIENT joint's own twist_relax only where that
-        // joint simulates, and writes a flat 0.0 where it merely allows rotation. So a chain root
-        // the original gives a non-zero entry of its own was authored as a SIMULATED joint, and it
-        // is pinned into the static block by lock_translation rather than by simulate = false.
+        // A root with a non-zero twist entry of its own was authored simulated and pinned by lock_translation.
         var pinnedSimulatedRoot = (joint.IsRoot && !joint.Simulated && twistRelax > 0f) || joint.SpringsWithSiblings;
 
-        // A joint two chains declare simulates only in the second declaration; the first states
-        // `simulate = false`, which is what zeroes the twist entry that declaration writes.
+        // Of a joint two chains declare, only the second declaration simulates.
         var firstOfTwo = secondRoot is not null && !secondDeclaration
             && !string.Equals(joint.Name, secondRoot, StringComparison.OrdinalIgnoreCase);
         kv.Add("simulate", !firstOfTwo && (joint.Simulated || pinnedSimulatedRoot));
 
-        // Each declaration of a doubled run states the twist of its OWN rank: rank 0 is the first
-        // declaration's and rank 1 the second's. Where the pair carries a single copy the second
-        // declaration wrote none and states 0, which is the silent case.
+        // Each declaration of a doubled run states the twist of its own rank.
         if (secondRoot is not null)
         {
             twistRelax = feModel.TwistRelaxDeclaredAt(joint.Node, joint.ParentNode,
                 secondDeclaration ? 1 : 0) ?? 0f;
         }
 
-        // A STATIC joint's own entries carry no relaxation at all, so its authored twist_relax survives
-        // only as the twist link it made. The magnitude is gone with it: every value above zero compiles
-        // the same pair of entries, so the largest one stands for the key being set. The evidence is the
-        // joint's own entries and is read per joint, so a static joint reads the same way wherever it
-        // sits: a chain we root one bone higher than the source did leaves such a joint interior, and
-        // dropping its twist there costs it the goal lock the compiler writes for a node whose parent has
-        // neither simulation nor rotation to offset from.
+        // A static joint's twist_relax survives only as the twist link it made.
         if (twistRelax == 0f && !joint.Simulated && !secondDeclaration
             && (feModel.HasRelaxlessTwistLink(joint.Node) || feModel.OrientsRelaxlessTwist(joint.Node)))
         {
             twistRelax = ClothStaticRootTwistRelax;
         }
 
-        // Only a static node carries a rotation lock.
         if (joint.Node < feModel.StaticNodeCount)
         {
             kv.Add("allow_rotation", feModel.AllowsRotation(joint.Node));
@@ -428,7 +379,6 @@ internal sealed partial class ClothExtract
         kv.Add("goal_strength", goalStrength);
         kv.Add("goal_damping", feModel.GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction));
 
-        // The same flPointDamping channel the proxy sheets carry as cloth_drag.
         var drag = Math.Clamp(integrator.PointDamping / ClothDragPointDampingScale, 0f, 1f);
         if (drag != 0f)
         {
@@ -438,19 +388,11 @@ internal sealed partial class ClothExtract
         var gravityNode = joint.ProxyNode >= 0 ? joint.ProxyNode : joint.Node;
         kv.Add("gravity_z", feModel.GetIntegrator(gravityNode).Gravity / ClothSourceBaseGravity);
 
-        // A non-zero twist_relax, stiff_hinge or motion_bias makes the compiler build a Twist or
-        // KelagerBend constraint network in place of the plain ropes a chain otherwise compiles to, so
-        // each is recovered per joint, magnitude included, from the original's own m_Twists participation
-        // (FeModel.GetAuthoredTwistRelax) rather than defaulted.
         kv.Add("twist_relax", twistRelax);
 
-        // World collision membership and radius (m_WorldCollisionNodes / m_NodeCollisionRadii).
         kv.Add("world_collision", feModel.IsWorldCollisionNode(joint.Node));
 
-        // A chain joint's node mask is exactly these four bits, with no all-set special case and no
-        // absent-key escape, so the four attr defaults of MakeClothChainAttrs already spell out 15.
-        // Only a joint whose mask says something else needs its own keys; a mask above the four bits
-        // is not expressible from a chain at all.
+        // The attrs default spells out mask 15; a mask above the four bits cannot be stated on a chain.
         var collisionMask = feModel.GetNodeCollisionMask(joint.Node);
         if (collisionMask is >= 0 and < 0xF)
         {
@@ -465,9 +407,6 @@ internal sealed partial class ClothExtract
         kv.Add("ground_friction", groundFriction);
         kv.Add("collision_radius", feModel.GetCollisionRadius(valueNode));
 
-        // Stray radius (m_AnimStrayRadii): the max distance the node may stray from its animated position.
-        // A joint whose own node is pinned records it on its ring alone, which is also the only place a
-        // shared joint's second declaration keeps its own.
         var strayNode = joint.ValueNode >= 0
             ? joint.ValueNode
             : feModel.StrayRadiusNode(joint.Node, joint.Name);
@@ -480,10 +419,7 @@ internal sealed partial class ClothExtract
             kv.Add("mass", massMultiplier);
         }
 
-        // The named vertex selections this joint belongs to, comma separated. Naming them here is what
-        // puts the joint and the proxies extruded from it back into the selections cloth effects target.
-        // A joint that does not simulate stays out of the selection itself while its proxies join it, so
-        // when the joint's own node belongs to none the proxies it extruded carry the membership.
+        // A joint outside every selection states the selections its proxies are in.
         if ((feModel.GetVertexMapNames(joint.Node)
             ?? (joint.ProxyNode >= 0 ? feModel.GetVertexMapNames(joint.ProxyNode) : null))
             is { } vertexMaps)
@@ -491,28 +427,18 @@ internal sealed partial class ClothExtract
             kv.Add("vertex_map", vertexMaps);
         }
 
-        // The hinge constraint the ClothChainHinge node writes onto the joint it constrains. It both
-        // orients that joint's proxy ring and adds the compiler's own static anchor node, so a joint that
-        // shipped one loses a control node without it - and a joint that did not gains one.
         var hinge = feModel.GetChainHinge(joint.Name, joint.Node);
 
-        // Per-joint extrude width. The chain-level extrude_sides (MakeClothChainAttrs) is one uniform
-        // value, so it cannot reproduce a ribbon whose END-CAP joint fans wider than its body; overriding
-        // it per joint recovers that fan. A chain that extrudes at all emits every joint's own width,
-        // including an explicit 0 for a joint that carries no proxies, which would otherwise inherit the
-        // chain-level default. A chain that does not extrude emits nothing.
+        // An extruding chain states every joint's own ring, including an explicit 0 width.
         if (chainExtrudes)
         {
             kv.Add("extrude_sides", joint.ExtrudeSides);
 
-            // Ring geometry varies along a chain, so the chain-level defaults only fit one joint. Emit each
-            // joint's own measured ring instead.
             if (joint.ExtrudeSides > 0)
             {
                 kv.Add("extrude_radius", joint.ExtrudeRadius);
                 kv.Add("extrude_twist", ClothExtrudeTwistKey(joint.ExtrudeTwist) + (rollTies ? joint.ExtrudeTwistTieNudge : 0f));
 
-                // 'x' is the compiler's own default and needs no explicit key.
                 if (joint.ForwardAxis != 'x')
                 {
                     kv.Add("extrude_forward_axis", joint.ForwardAxis.ToString());
@@ -520,21 +446,12 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // A tip that fans into two rows is a second ring this far along the joint's forward axis, not
-        // one ring of twice the width - the wider ring puts every proxy somewhere else entirely. A
-        // hinged joint that carries only the hinge's own two proxies has no second ring to recover:
-        // that pair straddles the hinge axis, which reads as two rings a ring apart. Emitted outside the
-        // extrude block: a joint whose only generated node is the "$cc<bone>_Ctr" centre has an
-        // end_effector but no ring at all, so its chain never extrudes.
+        // A hinged joint with only the hinge's two proxies has no second ring to recover.
         if (joint.EndEffector != 0f && (hinge is null || feModel.ProxyCountOf(joint.Node) > 2))
         {
             kv.Add("end_effector", joint.EndEffector);
         }
 
-        // Each of the three sliders lands verbatim on the flRelaxationFactor of the rod it generates, so
-        // they carry the recovered per-joint stiffness rather than a 1.0/0.0 on-off (see
-        // FeModel.BuildBoneChains). Zero still means "no rod at all" on the bend and torsion spans.
-        // 1.0 is stretch_spring's own attr default and needs no explicit key.
         if (joint.StretchStiffness != 1.0f)
         {
             kv.Add("stretch_spring", joint.StretchStiffness);
@@ -550,18 +467,12 @@ internal sealed partial class ClothExtract
         kv.Add("extra_iterations", joint.ExtraIterations);
         kv.Add("suspender", joint.Suspender);
 
-        // How far the rods this joint's spans generate may contract: the compiler copies the value
-        // straight into each one's flMinDist/flMaxDist (see FeModel.BuildBoneChains). 1.0 is the attr
-        // default and needs no explicit key, which is also what a joint whose spans disagree keeps.
         if (joint.Antishrink != 1.0f)
         {
             kv.Add("antishrink", joint.Antishrink);
         }
 
-        // A stiff hinge compiles to a three-node bend rather than a rod, so it is recovered from the bend
-        // centred on this joint (see FeModel.GetStiffHinge). The record is written once per DECLARATION,
-        // so a declaration states the bend of its own rank and states nothing where the original carries
-        // no bend for that rank.
+        // The bend is written once per declaration, so each declaration states the bend of its own rank.
         if (feModel.GetStiffHinge(joint.Node) is { } stiffHinge)
         {
             if (feModel.GetStiffHinge(joint.Node, secondDeclaration ? 1 : 0) is { } declared)
@@ -578,8 +489,6 @@ internal sealed partial class ClothExtract
         }
         else if (feModel.GetMotionBias(joint) is { } motionBias)
         {
-            // Without a stiff hinge the bias leaves its only trace in the weights of the joint's own
-            // span rods, which is where FeModel.GetMotionBias reads it back from.
             kv.Add("motion_bias", motionBias);
         }
 
@@ -594,9 +503,7 @@ internal sealed partial class ClothExtract
         return kv;
     }
 
-    // The cloth-chain joint datatable schema: per-column UI metadata and defaults, matching the editable
-    // ModelDoc source the tools produce. The compiler takes the "default" value of any joint field the
-    // joint rows above do not write.
+    /// <summary>The <c>attrs</c> table of a <c>ClothChain</c>: the column schema and the default of every joint key.</summary>
     internal static KVObject MakeClothChainAttrs(int extrudeSides = 0, float extrudeRadius = 0f,
         float extrudeTwist = 0f, float mass = 1f)
     {
@@ -644,14 +551,10 @@ internal sealed partial class ClothExtract
             return attr;
         }
 
-        // The complete version-2 attr set. An incomplete v1-era key list makes the v2 joint grid ignore
-        // the table and fall back to default columns. Attrs with values recovered from the compiled
-        // FeModel are shown; the rest keep stock visibility.
         StringAttr("joint_name", "Joint Name", true, 1).Add("lock", true);
         StringAttr("joint_parent", "Parent Joint", false, 2);
         BoolAttr("simulate", "Simulate", true, 3, true);
         BoolAttr("allow_rotation", "Allow Rotation", false, 4, true);
-        // The display names match the ClothChainAttrEditor schema and are ModelDoc UI labels only.
         FloatAttr("stretch_spring", "Stretch Stiffness", false, 5, 1.0f, 0.0f, 1.0f);
         FloatAttr("child_sibling_spring", "Spring Between Children", false, 6, 0.0f, 0.0f, 1.0f);
         FloatAttr("bend_spring", "Bend Stiffness", false, 7, 1.0f, 0.0f, 1.0f);
@@ -662,9 +565,6 @@ internal sealed partial class ClothExtract
         FloatAttr("goal_strength", "Goal Strength", true, 12, 0.0f, 0.0f, 1.0f);
         FloatAttr("goal_damping", "Goal Damping", true, 13, 0.0f, 0.0f, 1.0f);
         FloatAttr("drag", "Extra Drag", false, 14, 0.0f, 0.0f, 1.0f);
-        // The compiler takes this default for every joint row that omits the key, and 02_IMPORT 3.3 zeroes
-        // flMassMultiplier on a node that does not simulate, so it is read on exactly the chain's
-        // simulating joints. It states the multiplier most of them carry; the rest state their own.
         FloatAttr("mass", "Mass", false, 15, mass, 0.0f);
         FloatAttr("gravity_z", "Gravity", true, 16, 1.0f);
         FloatAttr("collision_radius", "Collision Radius", true, 17, 0.0f, 0.0f);
@@ -681,9 +581,6 @@ internal sealed partial class ClothExtract
         FloatAttr("motion_bias", "Motion Bias", true, 28, 0.0f, -1.0f, 1.0f).Add("lock_root", true);
         IntAttr("extra_iterations", "Extra Iterations", true, 29, 0, 0, 1000);
         FloatAttr("twist_relax", "Twist Relax", true, 30, 0.0f, 0.0f, 1.0f);
-        // Recovered per chain from the compiled $cc proxy width (see FeModel.BuildBoneChains): a 2-wide
-        // strip or N-sided tube regenerates its proxies only when the ClothChain re-declares the extrude.
-        // extrudeSides 0 keeps the stock default, a plain rope.
         IntAttr("extrude_sides", "Extrude Sides", false, 31, extrudeSides, 0, 4);
         FloatAttr("extrude_radius", "Extrude Radius", false, 32, extrudeSides >= 1 ? extrudeRadius : 5.0f, 0.0f);
         FloatAttr("extrude_twist", "Extrude Twist", false, 33, ClothExtrudeTwistAttrDefault);

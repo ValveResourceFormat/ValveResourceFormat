@@ -24,39 +24,19 @@ internal sealed partial class ClothExtract
         this.physAggregateData = physAggregateData;
     }
 
-    /// <summary>
-    /// Gets the list of cloth proxy meshes (cloth "sheets") to be extracted as sub-DMX files. Built from
-    /// the soft-body <see cref="FeModel"/> surface so a recompile regenerates the <c>$cloth_*</c> nodes.
-    /// </summary>
+    /// <summary>Gets the cloth proxy sheets to extract as DMX files, in declaration order.</summary>
     internal List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> ProxyMeshes { get; } = [];
 
-    /// <summary>
-    /// Gets the list of cloth sheet grids generated over neighbouring bone chains (skirts/capes whose
-    /// original cloth is chain-only), extracted as sub-DMX files. The sheet simulates the surface between
-    /// the chains and drives the render mesh directly, like hand-authored item proxies.
-    /// </summary>
+    /// <summary>Gets the sheet grids generated over neighbouring bone chains, extracted as disabled DMX files.</summary>
     internal List<(string FileName, string Name, FeModel.ChainGrid Grid)> ChainGrids { get; } = [];
 
-    /// <summary>
-    /// Gets the cloth control nodes that were authored as skeleton bones but culled from the compiled
-    /// skeleton; re-declared as Bone nodes so cloth constructs can reference them.
-    /// </summary>
+    /// <summary>Gets the cloth control nodes whose bones the compiled skeleton culled, which the vmdl re-declares.</summary>
     internal List<(int Node, string Name)> CulledBones { get; } = [];
 
     /// <summary>
-    /// Gets the parent-space bone positions that put every cloth control node back on the rest position
-    /// the FeModel records for it, keyed by bone name. Empty where the model has no cloth or the two
-    /// already agree.
+    /// Gets the parent-space bone positions that put every cloth control node back on its <c>m_InitPose</c> position,
+    /// keyed by bone name. Empty where the model has no cloth or the two already agree.
     /// </summary>
-    /// <remarks>
-    /// <c>m_modelSkeleton</c> is a lossy re-expression of the authored bone transforms - re-composing it
-    /// walks away from the authored world pose as the hierarchy deepens (prof_dynamo's coat chain ends
-    /// 4.8e-3 units out, archer's fingers 1.3e-2, and the error grows strictly with depth) - while
-    /// <c>m_InitPose</c> keeps the authored world position of every control node to float32.
-    /// Emitting the skeleton straight from the compiled bone data therefore hands the compiler a rest
-    /// pose the original was never built from, and every ctrl offset measured against those bones, plus
-    /// every chain ring extruded off them, inherits the error.
-    /// </remarks>
     internal Dictionary<string, Vector3> RestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -83,13 +63,12 @@ internal sealed partial class ClothExtract
         }
     }
 
-    // Sheets EmitProxySheetClothPhase re-emits with flex_cloth_borders on; their pinned vertices
-    // get freed by the flag, every other sheet's freed pins ride the per-vertex
-    // cloth_anchor_free_rotate paint instead (see BuildClothProxyMeshDmx).
     private readonly HashSet<FeModel.ProxyMesh> flexedProxies = [];
 
-    // Queues a cloth proxy-mesh DMX when the model carries a soft-body FeModel with a surface (quads/tris),
-    // or generated sheet grids over the bone chains when the original cloth is chain-only.
+    /// <summary>
+    /// Registers the model's skeleton with its <see cref="FeModel"/>, recovers the rest poses and queues the proxy
+    /// sheets and chain grids to extract.
+    /// </summary>
     internal void EnqueueClothProxyMesh(string fileName, Func<string, string> dmxFileName)
     {
         if (model is null || physAggregateData?.FeModel is not { } feModel)
@@ -102,8 +81,6 @@ internal sealed partial class ClothExtract
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         feModel.SkeletonBoneNames = skeletonBoneNames;
 
-        // Culled cloth-only bones get re-declared in the exported skeleton, so the cloth pipeline
-        // treats their names as real from here on.
         CulledBones.AddRange(feModel.GetCulledBoneCtrls());
         feModel.CulledBoneCtrlNodes = CulledBones.Select(static c => c.Node).ToHashSet();
         foreach (var (_, culledName) in CulledBones)
@@ -121,24 +98,17 @@ internal sealed partial class ClothExtract
 
         BuildClothRestBonePositions(feModel);
 
-        // An imported PhysAuthFx cloth ships its own node/rod tables and is emitted as a single
-        // ImportedCloth element, so neither a synthesised proxy sheet nor a chain grid has anything to
-        // attach to and their DMX files would be written for nothing.
         if (feModel.IsImportedCloth)
         {
             return;
         }
 
-        // The compiler assigns the $cloth_m<N> mesh index by ORDINAL STRING SORT of the proxy names rather
-        // than by declaration order, so "cloth_proxy10" sorts before "cloth_proxy2". Zero-padding the
-        // suffix to the model's own digit count keeps declaration order and sort order identical; a model
-        // with up to 10 proxies keeps single-digit names.
+        // The compiler numbers $cloth_m<N> by ordinal sort of the proxy names, so the suffix is zero-padded.
         var proxyMeshes = feModel.BuildProxyMeshes().ToList();
         var suffixWidth = Math.Max(1, (proxyMeshes.Count - 1).ToString(CultureInfo.InvariantCulture).Length);
         var proxyIndex = 0;
         foreach (var proxyMesh in proxyMeshes)
         {
-            // One proxy per island, like the originals (node names $cloth_mXpY encode the mesh index).
             var proxyName = proxyIndex > 0
                 ? "cloth_proxy" + proxyIndex.ToString(CultureInfo.InvariantCulture).PadLeft(suffixWidth, '0')
                 : "cloth_proxy";
@@ -146,9 +116,6 @@ internal sealed partial class ClothExtract
             proxyIndex++;
         }
 
-        // Regular sheet grids over the bone chains are generated in BOTH cases: as the only sheet for
-        // chain-only cloth, and as an alternative clean editable grid next to a recovered surface.
-        // They always ship disabled (see the vmdl emission) - purely a ready-made authoring asset.
         var gridIndex = 0;
         foreach (var grid in feModel.BuildChainGrids())
         {
@@ -160,10 +127,7 @@ internal sealed partial class ClothExtract
         BuildClothChainBoneOrigins(feModel);
     }
 
-    /// <summary>
-    /// The bones an export declares in cloth, seeded with the collision-shape parents the compiler
-    /// registers on its own. Each phase adds the bones its own constructs name.
-    /// </summary>
+    /// <summary>The collision-shape parent bones, which every phase declares in cloth before adding its own.</summary>
     private static HashSet<string> ClothBoneNames(FeModel feModel)
     {
         var bones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -178,10 +142,10 @@ internal sealed partial class ClothExtract
         return bones;
     }
 
-    // Soft-body / cloth physics (m_pFeModel): reconstruct editable ModelDoc cloth source so the model
-    // recompiles into a working FeModel PHYS block AND opens in ModelDoc (no binary transplant).
-    // Phase 1 recovers bone-chain cloth as ClothChain nodes. Phase 2 recovers the cloth SHEET as a
-    // ClothProxyMeshFile + proxy DMX.
+    /// <summary>
+    /// Adds the cloth source of <paramref name="feModel"/> to <paramref name="rootChildren"/>, and returns whether any
+    /// was emitted.
+    /// </summary>
     internal bool EmitCloth(FeModel feModel, KVObject rootChildren)
     {
         var boneChains = feModel.BuildBoneChains((chain, hasOtherChains) => ClothChainVersion(feModel, chain, hasOtherChains));
@@ -204,11 +168,11 @@ internal sealed partial class ClothExtract
         return feModel.HasData && EmitFreeNodeClothPhase(feModel, boneChains, rootChildren);
     }
 
+    /// <summary>
+    /// Re-declares the <see cref="CulledBones"/> without <c>do_not_discard</c>, so the compiler culls them again.
+    /// </summary>
     internal void AddCulledClothBones(KVObject skeletonChildren)
     {
-        // Bones the compiled skeleton culled (unskinned cloth-only joints) but the cloth still
-        // references. Re-declared WITHOUT do_not_discard so the compiler culls them again; the cloth
-        // build resolves against the document skeleton, which is all these need to exist in.
         var culledSource = physAggregateData?.FeModel;
         if (culledSource is null)
         {
@@ -261,12 +225,7 @@ internal sealed partial class ClothExtract
         }
     }
 
-    /// <summary>
-    /// The pose of a cloth control node's bone relative to its parent's bone, both read off the control nodes' rest poses.
-    /// </summary>
-    /// <param name="feModel">The compiled cloth.</param>
-    /// <param name="node">The bone's control node.</param>
-    /// <param name="parent">The parent bone's control node.</param>
+    /// <summary>The rest pose of control node <paramref name="node"/> relative to control node <paramref name="parent"/>.</summary>
     internal static (Vector3 Origin, Quaternion Rotation) ClothBoneLocalPose(FeModel feModel, int node, int parent)
     {
         var parentRotation = parent < feModel.InitPoseRotations.Length ? feModel.InitPoseRotations[parent] : Quaternion.Identity;
@@ -277,38 +236,29 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Gets the Bone <c>origin</c> of each ClothChain joint re-solved so that the compiler's own chain rest pose puts
-    /// the joint on its recorded <c>m_InitPose</c> position bit for bit. Only the document skeleton reads these; mesh
-    /// joints keep <see cref="RestBonePositions"/>.
+    /// Gets the Bone <c>origin</c> of each ClothChain joint, re-solved so the compiler's chain rest pose lands it on its
+    /// <c>m_InitPose</c> position exactly. Only the document skeleton reads these.
     /// </summary>
     internal Dictionary<string, Vector3> ChainBoneOrigins { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets the Bone <c>angles</c> of each ClothChain joint re-solved so that the compiler's chain rest pose gives the joint
-    /// its recorded <c>m_InitPose</c> rotation bit for bit. Only the document skeleton reads these.
+    /// Gets the Bone <c>angles</c> of each ClothChain joint, re-solved so the compiler's chain rest pose gives it its
+    /// <c>m_InitPose</c> rotation exactly. Only the document skeleton reads these.
     /// </summary>
     internal Dictionary<string, Vector3> ChainBoneAngles { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets the ClothChain joints whose Bone origin or angles were re-solved onto the compiler's chain rest pose. Their rings
-    /// are rebuilt from the recorded transform instead of a drifted one, so they are written without the node-base tie roll
-    /// (<see cref="FeModel.BoneChainJoint.ExtrudeTwistTieNudge"/>) that was chosen against the drift.
+    /// Gets the ClothChain joints whose origin or angles were re-solved, which are written without
+    /// <see cref="FeModel.BoneChainJoint.ExtrudeTwistTieNudge"/>.
     /// </summary>
     private HashSet<string> RelandedJoints { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets the rest-pose bone positions written into the cloth PROXY mesh only. The cloth import
-    /// takes the transforms it records in <c>m_InitPose</c> from the proxy mesh file's own joint
-    /// list, so a model authored with a proxy posed differently from the render mesh is reproduced
-    /// by correcting that joint list alone. Unlike <see cref="RestBonePositions"/> this one is
-    /// not capped at <see cref="ClothRestBoneTolerance"/>, because nothing the render mesh is
-    /// skinned to moves with it.
+    /// Gets the parent-space bone positions written into the proxy and grid DMX joint lists, which the compiler takes
+    /// <c>m_InitPose</c> from. Unlike <see cref="RestBonePositions"/> these are not capped by distance.
     /// </summary>
     internal Dictionary<string, Vector3> ProxyRestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Gets the rest-pose bone rotations, parent-local, written into the cloth PROXY mesh only, beside
-    /// <see cref="ProxyRestBonePositions"/>.
-    /// </summary>
+    /// <summary>Gets the parent-space bone rotations written beside <see cref="ProxyRestBonePositions"/>.</summary>
     internal Dictionary<string, Quaternion> ProxyRestBoneRotations { get; } = new(StringComparer.OrdinalIgnoreCase);
 }

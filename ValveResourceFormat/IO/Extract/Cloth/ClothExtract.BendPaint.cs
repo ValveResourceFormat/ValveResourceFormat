@@ -7,26 +7,8 @@ internal sealed partial class ClothExtract
 {
     /// <summary>
     /// The per-vertex <c>cloth_bend_stiffness</c> of a regenerated bend network, keyed by control node, and the
-    /// <c>add_curvature</c> that goes with it. The paint is solved first as the residual on top of the model-wide
-    /// value. That value is read off the hinges most of the sheet folds by, so where some hinges fold less their
-    /// residual goes negative and the solve recovers nothing; the paint then carries every fold with the model-wide
-    /// value at zero.
-    /// <para>
-    /// That answer is taken only where the model-wide value demonstrably folds some hinge further than its rods
-    /// allow, where the hinges do not all fold alike, where the paint reproduces every rod of the network, and where it
-    /// reproduces them more closely than the model-wide value does by more than the agreement (see
-    /// <c>ClothBendStiffnessFromHinges</c>); a sheet whose suspenders or chain rings read the value keeps it.
-    /// </para>
-    /// <para>
-    /// A sheet that reads no model-wide value has none to keep, so where its first solve recovers nothing the paint is
-    /// solved over every hinge that generates each rod, and taken wherever that reproduces every rod of the network.
-    /// </para>
-    /// <para>
-    /// A sheet whose model-wide value no hinge over-folds keeps it, and where that value alone leaves rods short of their
-    /// minimum by more than the agreement the residual is solved over every generating hinge on top of it instead. Each
-    /// of these solves holds every hinge to its largest reading first and, only where that recovers nothing, holds the
-    /// hinges no rod needs as its sole setter to that reading from below.
-    /// </para>
+    /// <c>add_curvature</c> that goes with it. Each hinge folds by
+    /// <c>clamp((paint[u] + paint[v]) * pi / 2 + add_curvature * pi, 0, pi)</c>.
     /// </summary>
     internal static (Dictionary<int, float>? Paint, float AddCurvature) ClothBendStiffnessOverFold(FeModel feModel,
         List<int[]> faces, HashSet<(int, int)> network, float addCurvature, bool keepsCurvature)
@@ -34,11 +16,8 @@ internal sealed partial class ClothExtract
             ClothBendStiffnessRead(feModel, faces, network, addCurvature, keepsCurvature), keepsCurvature), keepsCurvature);
 
     /// <summary>
-    /// The covering-hinge solve is exact by construction, so where the paint an earlier solve settled on leaves network rods
-    /// short of or past their compiled minimum, the covering solve's paint is taken instead when it rebuilds strictly more of
-    /// them: first on top of the settled <c>add_curvature</c>, then at zero where neither the sheet's suspenders nor a chain ring
-    /// keep its value. A tie
-    /// keeps the settled answer, and the earlier of the two covering answers wins a tie between them.
+    /// Replaces the <paramref name="settled"/> answer with a covering-hinge solve, on top of its <c>add_curvature</c> and
+    /// then at zero, where that rebuilds strictly more network rods.
     /// </summary>
     private static (Dictionary<int, float>? Paint, float AddCurvature) ClothPaintCoveringEveryRod(FeModel feModel,
         List<int[]> faces, HashSet<(int, int)> network, (Dictionary<int, float>? Paint, float AddCurvature) settled,
@@ -71,9 +50,8 @@ internal sealed partial class ClothExtract
         return best;
     }
 
-    // The network rods whose minimum the compiler would not rebuild from the paint and add_curvature: each generating hinge
-    // folds by clamp((paint[u] + paint[v]) * pi / 2 + add_curvature * pi, 0, pi), and the rod takes the smallest span any of
-    // them folds it to, never more than its own rest span.
+    // The network rods whose compiled minimum the paint and add_curvature would not rebuild: each rod takes the shortest
+    // span any of its generating hinges folds it to, capped at its rest span.
     private static int ClothPaintMisses(FeModel feModel, List<int[]> faces, HashSet<(int, int)> network,
         Dictionary<int, float>? paint, float addCurvature)
     {
@@ -127,12 +105,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// A bend rod held at its own rest span states a lower bound on the fold at every hinge that generates it, and
-    /// that fold is the model-wide <c>add_curvature</c> plus the hinge's own paint. Where a paint is recovered it
-    /// carries the bound itself, and where a suspender or chain-ring reading pins the model-wide value the sheet
-    /// does not own it - but where every paint solve declines and nothing else states the value, the model-wide
-    /// value is all there is to meet the bound with, and a sheet that states less than its own capped rods allow
-    /// asks the compiler to fold them past their compiled minimum.
+    /// Raises a model-wide <c>add_curvature</c> that no paint, suspender or chain ring states to the lower bound its capped
+    /// rods give.
     /// </summary>
     private static (Dictionary<int, float>? Paint, float AddCurvature) ClothCurvatureMeetsItsCappedRods(FeModel feModel,
         List<int[]> faces, HashSet<(int, int)> network,
@@ -149,8 +123,6 @@ internal sealed partial class ClothExtract
             return read;
         }
 
-        // Both sides in the sin^2(half angle) the minimum length is linear in, which is the unit the readings
-        // are taken in and the only one the agreement is calibrated for.
         var stated = MathF.Sin(MathF.PI * read.AddCurvature / 2f);
         var bound = capped.Max();
         return bound > (stated * stated) + ClothCurvatureAgreement
@@ -219,9 +191,7 @@ internal sealed partial class ClothExtract
         return (paint, addCurvature);
     }
 
-    // The same readings keyed by the HINGE each rod was folded about, which is what the per-vertex paint is
-    // solved over: the compiler's angle is per hinge, not per rod, so two rods across one hinge state one
-    // value and rods across different hinges state different ones.
+    // The curvature readings keyed by the hinge each rod was folded about, with every generating hinge's own reading.
     private static List<((int, int) Hinge, float Fraction, bool Capped, float Error, ((int, int) Hinge, float Fraction)[] Candidates)> ClothHingeReadings(
         FeModel feModel, List<int[]> faces, HashSet<(int, int)> beyondSurface)
     {
@@ -301,8 +271,6 @@ internal sealed partial class ClothExtract
             var reach = (flat * flat) - (folded * folded);
             var span = rod.MinDist >= rest - (2e-4f * MathF.Max(1f, rest)) ? rest : rod.MinDist;
             var fraction = Math.Clamp(((span * span) - (folded * folded)) / reach, 0f, 1f);
-            // The compiler builds the rod once per hinge its own element pairing generates it from, and each of
-            // those reads the rod's one minimum through its own geometry.
             var candidates = fits
                 .Select(fit => (fit.Hinge, Math.Clamp(((span * span) - (fit.Shut * fit.Shut))
                     / ((fit.Open * fit.Open) - (fit.Shut * fit.Shut)), 0f, 1f)))
@@ -314,43 +282,18 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The per-vertex <c>cloth_bend_stiffness</c> paint the sheet's own bend rods state, keyed by control
-    /// node, or null where they state none. The compiler folds the rod across a hinge by
-    /// <c>clamp((paint[u] + paint[v]) * pi/2 + add_curvature * pi, 0, pi)</c>, so each hinge is one
-    /// equation in its two vertices, and the paint recovered here is the RESIDUAL on top of the
-    /// <c>add_curvature</c> the sheet already emits: a sheet the model-wide value alone explains recovers
-    /// nothing and keeps its output unchanged.
-    /// <para>
-    /// A hinge whose rod still has room to open states its sum exactly; one already pinned at its own rest
-    /// span states only a lower bound. A sum of zero pins both of its vertices to zero, and a bound of two
-    /// pins both to one, the paint being a 0..1 channel and every reader of it clamping its own angle at
-    /// pi - so no compiled rod can distinguish a sum above two from two. Those pins propagate through the
-    /// exact equations, an alternating chain per connected component; a component no pin reaches keeps the
-    /// smallest assignment its own bounds allow, which is the compiler's own default of zero wherever the
-    /// interval admits it, and the even split where the two directions tie. A vertex no hinge reaches
-    /// keeps zero, which is also what leaving the stream out would give it.
-    /// </para>
-    /// <para>
-    /// Two rods across one hinge that disagree, two pins that contradict, or an assignment that fails to
-    /// reproduce a hinge it was solved from all recover nothing: the sheet being exported is then not the
-    /// one the compiler folded, and it keeps the default.
-    /// </para>
+    /// The per-vertex paint the sheet's bend rods state on top of <paramref name="addCurvature"/>, keyed by control node,
+    /// or null where they state none or contradict each other.
     /// </summary>
     private static Dictionary<int, float>? ClothBendStiffnessFromHinges(FeModel feModel, List<int[]> faces,
         HashSet<(int, int)> network, float addCurvature)
         => ClothBendStiffnessFromHinges(feModel, faces, network, addCurvature, generatorBound: false, out _, out _, out _);
 
     /// <summary>
-    /// <see cref="ClothBendStiffnessFromHinges(FeModel, List{int[]}, HashSet{ValueTuple{int, int}}, float)"/>, with
-    /// <paramref name="statedSums"/> set to the pair sum each hinge states on top of <paramref name="addCurvature"/>.
-    /// With <paramref name="generatorBound"/> every hinge that generates a rod is read through its own geometry and bounded
-    /// from below by every rod it generates, the compiler keeping each rod's shortest minimum, and solved at that bound; with
-    /// <paramref name="relaxSetters"/> only a hinge some rod has as its sole candidate is solved exactly and every other hinge
-    /// only has to reach its bound. The answer is kept only where it reproduces every rod: across each rod's hinges
-    /// the smallest assigned sum above the one that hinge states is zero, so no hinge folds further than the rod allows
-    /// and one of them folds as far, and a rod already at its rest span has no hinge assigned less than the sum it states
-    /// there. <paramref name="unpaintedSlack"/> and <paramref name="solvedSlack"/> are the largest amount any
-    /// rod misses that by, with no paint and with the answer; both are zero without <paramref name="generatorBound"/>.
+    /// <see cref="ClothBendStiffnessFromHinges(FeModel, List{int[]}, HashSet{ValueTuple{int, int}}, float)"/>, returning the
+    /// sum each hinge states. With <paramref name="generatorBound"/> every generating hinge is bounded by every rod it
+    /// generates, and <paramref name="unpaintedSlack"/> and <paramref name="solvedSlack"/> are the largest miss without and
+    /// with the paint; with <paramref name="relaxSetters"/> only a rod's sole setter is solved exactly.
     /// </summary>
     private static Dictionary<int, float>? ClothBendStiffnessFromHinges(FeModel feModel, List<int[]> faces,
         HashSet<(int, int)> network, float addCurvature, bool generatorBound,
@@ -380,9 +323,7 @@ internal sealed partial class ClothExtract
             return worst;
         }
 
-        // Two rods across one hinge were folded through one angle, so where they read differently the
-        // hinge one of them was matched to is not the hinge the compiler folded it about. The better fit
-        // is the reading whose flat span reproduces its rod's own maximum length more closely.
+        // Where two rods across one hinge read differently, the one whose flat span fits its maximum better wins.
         var best = new Dictionary<(int, int), (float Fraction, bool Capped, float Error)>();
         foreach (var (hinge, fraction, capped, error, _) in readings)
         {
@@ -400,10 +341,7 @@ internal sealed partial class ClothExtract
             (reading.Capped ? bounds : exact)[hinge] = StatedSum(reading.Fraction);
         }
 
-        // The compiler keeps one record per rod and gives it the SHORTEST minimum any hinge generating it builds,
-        // so every such hinge is bounded from below by the rod and the one that set it states its fold. Each hinge
-        // therefore takes the largest bound its rods give it. Only a hinge some rod has no other candidate for has
-        // to sit exactly there; with relaxSetters the others only have to reach it.
+        // A rod's minimum is the shortest any generating hinge builds, so each hinge takes the largest bound its rods give.
         if (generatorBound)
         {
             exact.Clear();
@@ -453,8 +391,6 @@ internal sealed partial class ClothExtract
             unpaintedSlack = RodSlack(static _ => 0f);
         }
 
-        // A rod already at its own rest span states a bound through every hinge that generates it, and each
-        // hinge has to satisfy the greatest of them or that rod comes back short of its cap.
         foreach (var (_, _, capped, _, candidates) in readings)
         {
             if (!capped)
@@ -546,8 +482,7 @@ internal sealed partial class ClothExtract
             return null;
         }
 
-        // A vertex the equations already decided keeps that value; only a vertex no equation and no pin
-        // reaches is free to be raised by a hinge that states a bound alone.
+        // Only a vertex no equation or pin decides may be raised by a bound.
         var determined = new HashSet<int>(solved.Keys);
         foreach (var (u, v, _) in checks)
         {
@@ -624,9 +559,7 @@ internal sealed partial class ClothExtract
         return solved.Values.Any(static value => value > ClothBendStiffnessAgreement) ? solved : null;
     }
 
-    // The equation half of ClothBendStiffnessFromHinges: every hinge stating an exact sum joins its two
-    // vertices into a chain on which the values alternate, b(x) = sign * p + offset, so one pin decides the
-    // whole chain and a chain that closes on itself either checks out or decides p by itself.
+    // Solves the exact hinge sums: each connected chain alternates as sign * p + offset, fixed by a pin or a closed cycle.
     private static Dictionary<int, float>? ClothBendStiffnessComponents(Dictionary<int, float> pinned,
         List<(int U, int V, float Sum)> equations, List<(int U, int V, float Least)> checks)
     {
@@ -766,19 +699,10 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The per-vertex <c>cloth_bend_stiffness</c> that folds a bend network on top of <paramref name="addCurvature"/>, where
-    /// the rods do not say which of their hinges built them. Each rod reaches its minimum through ONE hinge and sits at or
-    /// above it through the rest, so each hinge's sum is at least the largest any of its rods states, and every rod needs
-    /// one hinge held exactly there. The rods only one hinge can set hold it; the rest are covered by the fewest further
-    /// hinges, the one covering most first and the lowest pair on a tie. A reading pinned at the fully shut span, where
-    /// another hinge of the same rod reads it open, is the rod sitting below that hinge's reach: that hinge cannot have
-    /// built it and bounds nothing.
+    /// The per-vertex paint that folds a bend network on top of <paramref name="addCurvature"/> where the rods do not say
+    /// which hinge built them: each rod's sole setter is held exact, the rest covered greedily, and the system is solved
+    /// as pairwise bounds from the tightest tolerance up.
     /// </summary>
-    /// <remarks>
-    /// Every constraint is a sum or difference of at most two paints, so the system is solved exactly as a shortest-path
-    /// problem over each paint and its negation, from the tightest tolerance up; null where no tolerance up to the
-    /// agreement admits one.
-    /// </remarks>
     private static Dictionary<int, float>? ClothBendStiffnessCoveringHinges(FeModel feModel, List<int[]> faces,
         HashSet<(int, int)> network, float addCurvature)
     {
@@ -877,10 +801,8 @@ internal sealed partial class ClothExtract
     private static readonly float[] ClothBendStiffnessCoverTolerances = [1e-5f, 1e-4f, 1e-3f, ClothBendStiffnessAgreement];
 
     /// <summary>
-    /// Values in [0, 1] for every node the constraints name, each constraint <c>SignU * x[U] + SignV * x[V] &lt;= Most</c>
-    /// with unit signs, or null where none exist. Every node stands as itself and as its negation, a constraint becomes two
-    /// shortest-path edges between them, and the values are half the distance between the two; a negative cycle means the
-    /// system has no solution.
+    /// Values in [0, 1] for every node the constraints name, each constraint <c>SignU * x[U] + SignV * x[V] &lt;= Most</c>,
+    /// solved as shortest paths over each value and its negation; null on a negative cycle.
     /// </summary>
     private static Dictionary<int, float>? SolvePairwiseBounds(List<(int U, float SignU, int V, float SignV, float Most)> constraints)
     {
@@ -942,11 +864,9 @@ internal sealed partial class ClothExtract
         return null;
     }
 
-    // How far two hinges' stated sums may sit apart and still count as the same paint, in the
-    // paint's own units: a hundredth of the half turn a full sum of two folds a hinge through.
+    // How far two hinges' stated sums may sit apart and still count as the same paint.
     private const float ClothBendStiffnessAgreement = 0.02f;
 
-    // How many times a hinge stating only a lower bound may raise its own two vertices before the
-    // solve gives up. Each pass satisfies every bound it can, so a chain of them settles in a few.
+    // How many times the bound repair may raise vertices before the solve gives up.
     private const int ClothBendStiffnessRepairPasses = 8;
 }

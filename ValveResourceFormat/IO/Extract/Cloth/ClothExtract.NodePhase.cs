@@ -7,9 +7,8 @@ namespace ValveResourceFormat.IO;
 internal sealed partial class ClothExtract
 {
     /// <summary>
-    /// Whether a model with jiggle bones was authored with a <c>Softbody</c> holding a <c>ClothParams</c> even though it
-    /// has no cloth node of its own. The jiggle bones compile the same either way, and the ClothParams leaves only its
-    /// iteration counts behind: a model compiled without one ships them as zero.
+    /// Whether a model with jiggle bones and no cloth node was authored with a <c>ClothParams</c>, which leaves non-zero
+    /// iteration counts behind.
     /// </summary>
     internal static bool HasJiggleBoneClothParams(FeModel feModel)
         => feModel.JiggleBones.Length > 0
@@ -17,10 +16,6 @@ internal sealed partial class ClothExtract
 
     private bool EmitFreeNodeClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {
-        // No sheet and no chains: cloth built purely from free-standing ClothNodes (and the
-        // ClothSprings wiring them), e.g. the "$cloth_node_*" minimal rigs and lone goal-driven
-        // bones. A FeModel that yields no authorable node here (jiggle-bone users, weapon-offset
-        // rigs) emits nothing and falls through to the PHYS transplant placeholder below.
         var (softbody, softbodyChildren) = MakeListNode("Softbody");
         AddSoftbodyAttributes(softbody, feModel);
         softbodyChildren.Add(MakeClothParams(feModel, explicitMasses: feModel.HasExplicitMasses));
@@ -45,8 +40,7 @@ internal sealed partial class ClothExtract
         AddClothFaces(clothFolderChildren, feModel);
         AddClothStiffHinges(softbodyChildren, feModel);
 
-        // Every ctrl of a collision-shape-only model is a shape parent bone, which the loop above
-        // skips, so gating on the node count alone drops the shapes with the rest of the Softbody.
+        // A model of collision shapes alone declares no node, but its shapes still need the Softbody.
         if (freeNodes > 0 || strip.Count > 0 || CollisionShapeParentBones(feModel).Count > 0 || HasJiggleBoneClothParams(feModel))
         {
             AddClothFollowBones(softbodyChildren, feModel, clothBones);

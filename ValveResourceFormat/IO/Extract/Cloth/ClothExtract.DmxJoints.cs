@@ -5,15 +5,10 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // A compiled model can carry two spellings of one bone: m_modelSkeleton's m_boneName and, for cloth
-    // control nodes, the FeModel's m_CtrlName. Both are authored, and the compiler records each verbatim
-    // because every bone lookup it does is case-insensitive. This export has one name per bone, so a bone
-    // the compiler registers as a control node through a blend INDEX rather than a KV name string comes
-    // back under the skeleton's spelling instead of the cloth data's.
-    //
-    // Re-spelling the joints of THIS sheet alone leaves everything else in place: the compiler still binds
-    // each joint to the same bone case-insensitively, the model skeleton and every other DMX keep the
-    // spelling they were compiled with, and the control node lands under the cloth data's name.
+    /// <summary>
+    /// Renames the joints of a cloth DMX to the control-node spelling of their bone, which the compiler registers the
+    /// control node under.
+    /// </summary>
     private static void RespellJointsAsClothControlNodes(DmeModel dmeModel, FeModel? feModel)
     {
         if (feModel is null || feModel.CtrlNames.Length == 0)
@@ -39,15 +34,9 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Adds the culled cloth bones the vmdl re-declares (<see cref="AddCulledClothBones"/>) to a cloth
-    /// DMX's joint list at their control node's rest transform, and registers them in
-    /// <paramref name="boneIndexByName"/> so the sheet's skin weights can reference them.
+    /// Adds the <see cref="CulledBones"/> to a cloth DMX's joint list at their rest transforms and registers them in
+    /// <paramref name="boneIndexByName"/>, then nests the joints under their compiled parents.
     /// </summary>
-    /// <remarks>
-    /// The compiler parents a proxy joint's node to the nearest DAG ancestor joint of the same file that
-    /// has a node, so a culled bone whose compiled parent is a joint of this DMX is nested under that
-    /// joint; the rest stay root joints.
-    /// </remarks>
     private void AppendCulledClothBoneJoints(DmeModel dmeModel, Dictionary<string, int> boneIndexByName)
     {
         if (physAggregateData?.FeModel is { } feModel)
@@ -58,14 +47,9 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Moves every joint of a cloth DMX whose control node has a compiled parent that is another joint of the same
-    /// DMX, but not one of its DAG ancestors, under that parent's joint at the local transform that keeps its
-    /// model-space transform. A joint whose compiled parent sits in its own subtree is left where it is.
+    /// Moves every joint of a cloth DMX whose compiled parent is another joint of the same DMX, but neither an ancestor nor
+    /// a descendant, under that parent, keeping its model-space transform.
     /// </summary>
-    /// <remarks>
-    /// The compiler parents a proxy joint's node to the nearest DAG ancestor joint of the same file that has a node,
-    /// so a joint the skeleton hangs elsewhere compiles with the wrong parent or none.
-    /// </remarks>
     internal static void NestProxyJointsUnderCompiledParents(DmeModel dmeModel, FeModel feModel)
     {
         if (!feModel.HasCompiledSkelParents)
@@ -164,7 +148,10 @@ internal sealed partial class ClothExtract
         }
     }
 
-    /// <inheritdoc cref="AppendCulledClothBoneJoints(DmeModel, Dictionary{string, int})"/>
+    /// <summary>
+    /// Appends <paramref name="culledClothBones"/> as joints, nested under a joint of their compiled parent where the DMX
+    /// has one, and registers them in <paramref name="boneIndexByName"/>.
+    /// </summary>
     internal static void AppendCulledClothBoneJoints(DmeModel dmeModel, Dictionary<string, int> boneIndexByName,
         FeModel feModel, IEnumerable<(int Node, string Name)> culledClothBones)
     {
@@ -225,10 +212,7 @@ internal sealed partial class ClothExtract
         }
     }
 
-    /// <summary>
-    /// The model-space transform of every joint reachable from <paramref name="dmeModel"/>'s DAG roots,
-    /// composed from the joints' local transforms.
-    /// </summary>
+    /// <summary>The model-space transform of every joint reachable from the DAG roots of <paramref name="dmeModel"/>.</summary>
     private static Dictionary<DmeJoint, (Vector3 Position, Quaternion Rotation)> DmeJointWorldTransforms(DmeModel dmeModel)
     {
         var world = new Dictionary<DmeJoint, (Vector3 Position, Quaternion Rotation)>();

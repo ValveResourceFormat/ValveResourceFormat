@@ -7,24 +7,11 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // ModelDoc's ImportedCloth node ("Imported PhysAuthFx Cloth", CModelDocImportedCloth, wizard
-    // wizard_import_legacy_cloth) carries a whole cloth in three raw KV members the compiler copies
-    // verbatim out of the element: `fx` - a table holding the m_Nodes and m_Rods row arrays - plus
-    // `bone_attrs`/`rod_attrs`, per-column tables whose "default" entry is merged into any row field the
-    // row itself omits. Writing every field explicitly on each row leaves both attr tables empty.
-    //
-    // A node row is the compiler's own fx-bone struct. m_Name is looked up against the nodes already built
-    // (case-insensitively) and appended when absent, so the compiled control-node order is the row order.
-    // m_Transform is 7 floats, [px py pz qx qy qz qw] - a compiled m_InitPose entry with its w dropped.
-    // A rod row addresses nodes by INDEX into m_Nodes, and its compiled flMaxDist is the rest distance
-    // between the two rows' transforms with flMinDist that times m_flContractionFactor (default 0.05), so
-    // both fall out of the transforms unless the original's own values disagree.
-    //
-    // Per-node mass reaches the compiled m_NodeInvMasses only under ClothParams explicit_masses; without it
-    // the compiler derives inverse masses from rod geometry instead.
-    //
-    // A table of only some of the model's nodes addresses them by their row among those nodes, and drops a
-    // parent, follow parent or rod reaching outside it.
+    /// <summary>
+    /// The <c>ImportedCloth</c> node that carries a PhysAuthFx cloth's node and rod tables verbatim, every field written
+    /// on its row. With <paramref name="tableNodes"/> only those nodes are rows, and a parent, follow parent or rod
+    /// reaching outside them is dropped.
+    /// </summary>
     private static KVObject MakeImportedCloth(FeModel feModel, IReadOnlySet<int>? tableNodes = null)
     {
         var ropeParents = feModel.RopeRunParents;
@@ -80,11 +67,7 @@ internal sealed partial class ClothExtract
                 row.Add("m_flMass", 1f / invMass);
             }
 
-            // A row flagged m_bVirtual compiles to an offset of its m_nParent rather than to an
-            // independent particle: it is excluded from the rope runs and from the extra node bases, and
-            // it takes an m_CtrlOffsets entry holding its rest position in the parent's frame. Adding
-            // m_bOsOffset moves that entry to m_CtrlOsOffsets, where the offset is the difference of the
-            // two rows' m_Transform positions in object space instead.
+            // m_bOsOffset moves the node's offset from m_CtrlOffsets to m_CtrlOsOffsets.
             var isOsOffsetChild = osOffsetParents.TryGetValue(node, out var osOffsetParent);
             if (isOsOffsetChild)
             {
@@ -92,10 +75,6 @@ internal sealed partial class ClothExtract
                 row.Add("m_bOsOffset", true);
             }
 
-            // m_SkelParents is the compiled image of this exact field, so a model whose original still
-            // carries one hands the authored parenting back directly. Older compiles ship none and leave
-            // only the m_Ropes runs, which record the same chain a rope's worth at a time. Neither covers
-            // an os-offset child: a virtual node sits in no rope run, and its own pair names the parent.
             if (isOsOffsetChild)
             {
                 if (rowOf.TryGetValue(osOffsetParent, out var osOffsetParentRow))
@@ -224,10 +203,6 @@ internal sealed partial class ClothExtract
 
     private bool EmitImportedClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {
-        // Phase 3: the cloth was imported from a Source 1 PhysAuthFx definition, whose node and rod
-        // tables the .vmdl carries verbatim (see MakeImportedCloth). Recovering it as ClothChains
-        // instead is always wrong: the strip's paired second column is not a chain ribbon, and the
-        // extrude that recovery emits replaces one paired node with a three-node $cc ring.
         var (softbody, softbodyChildren) = MakeListNode("Softbody");
         AddSoftbodyAttributes(softbody, feModel);
         softbodyChildren.Add(MakeClothParams(feModel, explicitMasses: true));
@@ -237,7 +212,6 @@ internal sealed partial class ClothExtract
         softbodyChildren.Add(clothFolder);
         clothFolderChildren.Add(MakeImportedCloth(feModel));
 
-        // Every real control node ships as a node row of the imported table, so all of them are cloth.
         var clothBones = ClothBoneNames(feModel);
         foreach (var name in feModel.CtrlNames)
         {

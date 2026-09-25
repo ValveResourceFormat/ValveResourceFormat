@@ -96,8 +96,7 @@ internal sealed partial class ClothExtract
             ("point1", ToKVArray(jiggleBone.Point1))
         );
 
-        // A colliding bone compiles its four cloth_collision_layer booleans into m_nCollisionMask, and a
-        // bone that leaves the layers unwritten collides with all four.
+        // A colliding bone with no layer keys collides with all four.
         if ((flags & FeJiggleBoneFlags.Collision) != 0 && jiggleBone.CollisionMask is >= 0 and < 0xF)
         {
             var (layer0, layer1, layer2, layer3) = ClothNodeCollisionLayers(jiggleBone.CollisionMask);

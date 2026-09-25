@@ -9,9 +9,7 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // Every bone a cloth collision shape hangs off. The compiler walks such a bone's ancestor chain and
-    // registers them itself, so an explicit ClothNode on one is redundant, and it also parents the node
-    // onto its nearest control-node ancestor, which the shape's own registration does not do.
+    /// <summary>Every bone a cloth collision shape hangs off, which the shape registers as a control node itself.</summary>
     private static HashSet<string?> CollisionShapeParentBones(FeModel feModel)
         => feModel.BuildCollisionCapsules().Select(static c => c.ParentBone)
             .Concat(feModel.BuildPlanarizeCapsules().Select(static c => c.ParentBone))
@@ -21,17 +19,12 @@ internal sealed partial class ClothExtract
             .Where(static n => n is not null)
             .ToHashSet();
 
-    /// <summary>
-    /// Declares the cloth collision shapes and returns the names it gave them, in declaration order.
-    /// </summary>
+    /// <summary>Declares the cloth collision shapes and returns the names it gave them, in declaration order.</summary>
     internal static List<string> AddClothCollisionShapes(KVObject softbodyChildren, FeModel feModel)
     {
         var names = new List<string>();
-        // A shape declaration creates its parent bone as a control node where nothing has created it yet,
-        // so the three rigid kinds are interleaved to introduce their parent bones in the order the
-        // compiled model numbers them. Each kind keeps the relative order its own rigid array carries.
-        // The compiler sorts each rigid array into its priority groups, keeping declaration order inside a
-        // group, so a group is one stream in its array's order and the streams are interleaved like kinds.
+        // Each shape kind is split into its priority groups, and the groups are interleaved by parent bone node so the
+        // parent bones are created in the compiled node order.
         var kinds = new[]
         {
             feModel.BuildCollisionCapsules()
@@ -68,8 +61,7 @@ internal sealed partial class ClothExtract
             softbodyChildren.Add(shape);
         }
 
-        // Last: a planarized shape is excluded from m_TaperedCapsuleRigids, but declaring it ahead of the
-        // real ones still rotates their order in that array.
+        // Planarized shapes go last: declaring one earlier rotates the order of m_TaperedCapsuleRigids.
         foreach (var shape in PlanarizedShapesInClaimOrder(feModel))
         {
             names.Add(shape.GetStringProperty("name"));
@@ -80,17 +72,9 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The model's planarized collision shapes in the order that leaves each one the
-    /// <c>m_CollisionPlanes</c> entries the original gives it.
-    /// <para>
-    /// Two planarized shapes over one vertex map can both reach a node, and only one plane per node
-    /// survives. MEASURED over every ordering of one model's four contesting shapes: the FIRST shape
-    /// declared claims every node it reaches, and among the rest the LAST shape reaching a node owns it.
-    /// So the smallest shape leads - it is the one every other shape can swallow, and leading protects it -
-    /// and the rest follow largest first, which leaves each of them later than the shapes that would take
-    /// its nodes. Two copies of one split fit share its geometry and tie on that count, and the copy
-    /// holding FEWER of the fit's own planes leads.
-    /// </para>
+    /// The model's planarized collision shapes in the order that leaves each one its original <c>m_CollisionPlanes</c>
+    /// entries: the first shape claims every node it reaches and later shapes win the rest, so the smallest shape leads
+    /// and the others follow largest first.
     /// </summary>
     internal static List<KVObject> PlanarizedShapesInClaimOrder(FeModel feModel)
     {
@@ -114,10 +98,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Declares the anti-tunnel collider group the compiler turns into <c>m_AntiTunnelBytecode</c>: a node
-    /// list naming both the cloth swept for tunnelling and the shapes it is swept against. The two kinds
-    /// are each necessary - a group naming only colliders or only cloth compiles to no bytecode at all -
-    /// and members are named, not parented, so the cloth keeps the declaration site that builds it.
+    /// Declares the anti-tunnel collider group that compiles to <c>m_AntiTunnelBytecode</c>, naming both the shapes and
+    /// the cloth; a group missing either compiles to nothing.
     /// </summary>
     internal static void AddClothAntiTunnelGroup(KVObject softbodyChildren, FeModel feModel,
         List<string> shapeNames, List<string> clothNames)
@@ -146,24 +128,17 @@ internal sealed partial class ClothExtract
             ("data", data)));
     }
 
-    // Where a collision shape's parent bone sits in the compiled control-node array, or last when the
-    // compiled model does not carry it as a control node at all.
+    // A shape parent bone's control node, or int.MaxValue where it is not one.
     private static int ParentBoneNode(FeModel feModel, string? parentBone)
     {
         var node = parentBone is null ? -1 : Array.IndexOf(feModel.CtrlNames, parentBone);
         return node < 0 ? int.MaxValue : node;
     }
 
-    // ClothAntiTunnelProbe is a top-level sibling of Softbody, not a child: its class registers "Softbody"
-    // as its only allowed parent and declares no allowed children of its own. The target list is not a
-    // "children" array either - CModelDocClothNodeList's custom save/load stores it as a raw KV3 table at
-    // data.nodes, keyed BY TARGET NAME (values unused). Target order must match
-    // feModel.AntiTunnelTargetNodes exactly: the compiler round-trips a KV3 table's member order verbatim,
-    // and the shipped originals do not always list targets in ascending node order.
-    // The probes themselves are declared in Begin order, which is the order their target slices are
-    // concatenated in. m_AntiTunnelProbes ships in a different order: after the concatenation the compiler
-    // moves a probe ahead of every earlier probe whose own node it targets and whose flag bit 0 is clear,
-    // carrying Begin and Count along and leaving m_AntiTunnelTargetNodes untouched.
+    /// <summary>
+    /// Declares every anti-tunnel probe as a top-level <c>ClothAntiTunnelProbe</c>, in <c>Begin</c> order, with its targets
+    /// in compiled order.
+    /// </summary>
     internal static void AddClothAntiTunnelProbes(KVObject rootChildren, FeModel feModel, IReadOnlyDictionary<int, string>? proxyNodeNames)
     {
         foreach (var i in Enumerable.Range(0, feModel.AntiTunnelProbes.Length)
@@ -195,9 +170,6 @@ internal sealed partial class ClothExtract
         }
     }
 
-    // flCurvatureRadius/flBias are 0.0 on every known compiled model (see FeModel.AntiTunnelProbes), so
-    // use_curvature_drop/curvature/curvature_drop_distance/curvature_drop_amount always re-author to their
-    // compiler defaults; there is no compiled signal to recover a nonzero curvature-drop setup from.
     private static KVObject MakeClothAntiTunnelProbe(string name, string sourceNode, bool animSource, float weight,
         float activationDistance, IReadOnlyList<string> targetNames)
     {
@@ -235,8 +207,7 @@ internal sealed partial class ClothExtract
         node.Add("inverted_collision", box.Inverted);
         node.Add("planarize", box.Planarize);
         node.Add("bounciness", 0.0f);
-        // The shape otherwise snaps to its parent bone, discarding the authored offset, and dimensions are
-        // the full box size while the compiled vSize keeps half-extents.
+        // Keeps the authored offset; dimensions are the full size where the compiled vSize holds half-extents.
         node.Add("recenter_on_parent_bone", false);
         node.Add("origin", ToKVArray(box.Origin));
         node.Add("angles", ToKVArray(EntityTransformHelper.ToEulerAngles(box.Rotation)));
@@ -278,8 +249,7 @@ internal sealed partial class ClothExtract
         return node;
     }
 
-    // The 4-bit collision mask maps to four boolean layer flags. An all-zero mask (no mask recorded) is
-    // treated as "all layers" to match the tools' default fully-colliding capsule.
+    // A mask of zero means all layers.
     private static void AddClothCollisionLayers(KVObject node, int collisionMask)
     {
         var mask = collisionMask == 0 ? 0xF : collisionMask;

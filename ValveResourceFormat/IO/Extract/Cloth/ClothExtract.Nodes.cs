@@ -9,10 +9,10 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // A ClothAntiTunnelProbe's source_node/target names resolve through the same control-node namespace
-    // as a ClothSpring endpoint: a proxy vertex needs OUR re-numbered "$cloth_m{N}p{L}" name, a free
-    // ClothNode is referenced by its element name (the ctrl name with "$cloth_node_" stripped), and every
-    // other ctrl (a real bone or ClothChain joint) is referenced by its plain ctrl name.
+    /// <summary>
+    /// The name the document references a control node by: the exported <c>$cloth_m{N}p{L}</c> name for a proxy vertex,
+    /// the element name for a free <c>ClothNode</c>, and the control name for anything else.
+    /// </summary>
     private static string? ResolveAntiTunnelNodeName(FeModel feModel, int node, IReadOnlyDictionary<int, string>? proxyNodeNames)
     {
         if (node < 0 || node >= feModel.CtrlNames.Length)
@@ -20,9 +20,6 @@ internal sealed partial class ClothExtract
             return null;
         }
 
-        // IsProxyNodeName is too broad here (true for every generated "$..." name, not just proxy
-        // vertices) - the proxy convention itself is "$cloth_m{N}p{L}", the same check MakeClothNode's
-        // own BasisName uses to tell a proxy vertex apart from any other generated ctrl name.
         var name = feModel.CtrlNames[node];
         if (name.StartsWith("$cloth_m", StringComparison.Ordinal))
         {
@@ -33,15 +30,11 @@ internal sealed partial class ClothExtract
         return name.StartsWith(ClothNodePrefix, StringComparison.Ordinal) ? name[ClothNodePrefix.Length..] : name;
     }
 
-    // A "$cloth_node_<name>" control node is an authored free-standing ClothNode: the compiler names the
-    // ctrl "$cloth_node_" + the element name, anchors it to cloth_node_root_bone via an m_CtrlOffsets
-    // entry holding the authored bone-local origin, and registers the root bone as a second ctrl of its
-    // own. A ClothNode whose name equals its root bone merges into ONE ctrl carrying the plain bone name
-    // (static when is_static_node), which is how a plain cloth bone that no chain, proxy or shape claims
-    // was authored. The rods among these nodes come from explicit ClothSprings, whose endpoints resolve
-    // by ClothNode element name (or plain bone name for a merged/root ClothNode); a bone with no cloth
-    // declaration of its own is not a valid endpoint ("Cannot find Fx Bone"). A rod from a node declared here to a
-    // joint of chainJoints is such a spring as well: no chain and no chain-ring source spring re-declares it.
+    /// <summary>
+    /// Declares every control node no other construct covers as a <c>ClothNode</c> or a one-joint <c>ClothChain</c>, then
+    /// the rods between declared nodes (and from them to <paramref name="chainJoints"/>) as springs. Returns the number of
+    /// nodes declared.
+    /// </summary>
     internal static int AddFreeClothNodesAndSprings(KVObject clothChildren, KVObject softbodyChildren,
         FeModel feModel, HashSet<int> coveredNodes, Func<string, bool> emitBareStatic,
         HashSet<string> clothBones, Func<int, bool, KVObject>? folderFor = null, bool hasOtherChains = false,
@@ -72,13 +65,10 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // node -> the name a ClothSpring endpoint references it by.
         var springName = new Dictionary<int, string>();
         var declared = new HashSet<int>();
         var emitted = 0;
 
-        // A ClothNode carries no vertex_map of its own, so a lone one joins its selections through the
-        // ClothVertexMap containers. A node a ClothSpring names is listed by them but left flat.
         KVObject FolderOf(int node)
             => folderFor is not null ? folderFor(node, !rodTouched.Contains(node)) : clothChildren;
 
@@ -105,7 +95,6 @@ internal sealed partial class ClothExtract
                 clothBones.Add(rootBone);
                 emitted++;
 
-                // The root bone compiles into a registered ctrl of its own, referencable by plain name.
                 if (nodeByName.TryGetValue(rootBone, out var rootNode))
                 {
                     springName.TryAdd(rootNode, rootBone);
@@ -117,9 +106,6 @@ internal sealed partial class ClothExtract
                 var bareStatic = isStatic && !rodTouched.Contains(node);
                 if (!isStatic || !bareStatic || emitBareStatic(name))
                 {
-                    // A static node a rod names is an anchor the spring network already ties in, and a
-                    // static node with no control-node ancestor compiles to a hierarchy root from a
-                    // merged ClothNode already. Only a BARE, re-parented one needs the chain form.
                     var loneNode = LoneNodeIsJointChain(feModel, node, bareStatic, bareStaticReparented?.Invoke(name) ?? false)
                         && !(StrayRecordOnlyAClothNodeStates(feModel, node) && bareStaticReparented?.Invoke(name) == false);
                     (loneNode ? clothChildren : FolderOf(node)).Add(loneNode
@@ -141,12 +127,7 @@ internal sealed partial class ClothExtract
         bool IsEndpoint(int node, int other) => springName.ContainsKey(node)
             || (chainJoints is not null && chainJoints.Contains(node) && declared.Contains(other));
 
-        // One spring per rod OCCURRENCE, not per distinct pair: node mass accumulates per rod, and a model
-        // can ship genuine duplicate rods. Where EVERY occurrence of a pair is an identical copy, one
-        // ClothSpring's own extra_iterations reproduces them: the compiler duplicates a spring's rod once
-        // per iteration, so N identical copies come from one authored spring declaration and leave one
-        // m_SourceElems entry, where N separate springs would leave N. A pair whose copies are not all
-        // identical keeps the per-occurrence numbering.
+        // A pair whose rods are identical copies is one spring with extra_iterations; any other pair keeps a spring per rod.
         var rodsByEdge = new Dictionary<(int, int), List<FeModel.Rod>>();
         foreach (var rod in feModel.Rods)
         {
@@ -166,8 +147,6 @@ internal sealed partial class ClothExtract
 
         foreach (var (edge, rods) in rodsByEdge)
         {
-            // A pair an explicit source spring already re-declared is spent: emitting it here as well
-            // ships the same constraint twice and records a second source element for it.
             if (alreadyEmitted is not null && alreadyEmitted.Contains(edge))
             {
                 continue;
@@ -176,8 +155,7 @@ internal sealed partial class ClothExtract
             var name0 = springName.GetValueOrDefault(edge.Item1) ?? names[edge.Item1];
             var name1 = springName.GetValueOrDefault(edge.Item2) ?? names[edge.Item2];
 
-            // The source element keeps the two corners in the order the spring named them, which for a
-            // spring reaching a chain joint is not the rod's own node order.
+            // A spring keeps its source element's corner order, which a spring reaching a chain joint may reverse.
             if ((!declared.Contains(edge.Item1) || !declared.Contains(edge.Item2))
                 && Array.IndexOf(feModel.SourceSprings, (edge.Item2, edge.Item1)) >= 0
                 && Array.IndexOf(feModel.SourceSprings, (edge.Item1, edge.Item2)) < 0)
@@ -217,11 +195,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Whether the tie on <paramref name="edge"/> between a declared node and a chain joint is one rigid rod the original
-    /// records no two-corner source element for. A <c>ClothSpring</c> registers that element and the element joins its
-    /// nodes' neighbour sets, which grades a basis hint the original left ungraded; a two-member
-    /// <c>ClothSelfCollisionCluster</c> compiles the same rod, its relaxation the product of the two member stiffnesses,
-    /// and registers nothing.
+    /// Whether the single rigid rod on <paramref name="edge"/> between a declared node and a chain joint has no two-corner
+    /// source element in the original, so it is declared as a two-member <c>ClothSelfCollisionCluster</c>.
     /// </summary>
     internal static bool IsUnrecordedJointTie(FeModel feModel, (int A, int B) edge, List<FeModel.Rod> rods,
         Dictionary<int, string> springName)
@@ -241,17 +216,7 @@ internal sealed partial class ClothExtract
         return MathF.Abs(rod.MinDist - rod.MaxDist) <= 1e-4f * MathF.Max(1f, MathF.Abs(rod.MaxDist));
     }
 
-    /// <summary>
-    /// Whether a lone real bone must be re-authored as a single-joint <c>ClothChain</c> instead of a
-    /// merged <c>ClothNode</c>: the original records it as an <c>m_SkelParents</c> ROOT, which a chain
-    /// root compiles back to while a merged ClothNode is re-parented onto its nearest control-node
-    /// ancestor. The single-joint chain compiles an otherwise identical node.
-    /// </summary>
-    /// <summary>
-    /// Builds the test for whether a bone has an ancestor that is itself a cloth control node. That
-    /// ancestor is what the compiler re-parents a merged <c>ClothNode</c> declaration onto, so a bone
-    /// with none already compiles to an <c>m_SkelParents</c> root without a chain declaration.
-    /// </summary>
+    /// <summary>Builds the test for whether a bone has an ancestor that is a cloth control node.</summary>
     private Func<string, bool> ClothControlAncestorTest(FeModel feModel)
     {
         var controlNames = new HashSet<string>(feModel.CtrlNames, StringComparer.Ordinal);
@@ -276,10 +241,7 @@ internal sealed partial class ClothExtract
         };
     }
 
-    /// <summary>
-    /// Whether a bone's own PARENT bone is a cloth control node. A declared cloth node is claimed by
-    /// its immediate parent alone, not by any control node further up the skeleton.
-    /// </summary>
+    /// <summary>Builds the test for whether a bone's parent bone is a cloth control node.</summary>
     private Func<string, bool> ClothControlParentTest(FeModel feModel)
     {
         var controlNames = new HashSet<string>(feModel.CtrlNames, StringComparer.Ordinal);
@@ -290,9 +252,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Gets whether a node's stray radius record is one only a <c>ClothNode</c> can state. A chain joint writes its relaxation as
-    /// <c>1 - stray_radius_stretchiness</c> and a stretchiness at or above <see cref="ChainStrayStretchinessLimit"/> cancels the
-    /// radius, so a record relaxed to zero vanishes from a one-joint chain while a <c>ClothNode</c> carries the factor verbatim.
+    /// Whether a node's stray radius record can only be stated by a <c>ClothNode</c>: a chain joint's stretchiness at or
+    /// above <see cref="ChainStrayStretchinessLimit"/> cancels the radius.
     /// </summary>
     internal static bool StrayRecordOnlyAClothNodeStates(FeModel feModel, int node)
         => feModel.GetStrayRadius(node) > 0f && feModel.GetStrayStretchiness(node) >= ChainStrayStretchinessLimit;
@@ -304,17 +265,10 @@ internal sealed partial class ClothExtract
             && node < feModel.SkelParents.Length && feModel.SkelParents[node] < 0;
 
     /// <summary>
-    /// Whether a lone real cloth node is re-declared as a single-joint <c>ClothChain</c> rather than a merged
-    /// <c>ClothNode</c>. The original must record it as an <c>m_SkelParents</c> root, and it must be dynamic, a bare static
-    /// node a merged ClothNode would re-parent, or a static node the original locks to its goal: only a chain joint compiles
-    /// into <c>m_LockToGoal</c>, a static ClothNode never does. A stray record only a ClothNode can state
-    /// (<see cref="StrayRecordOnlyAClothNodeStates"/>) overrides all three at the call site, because a chain cannot state that
-    /// record at all.
+    /// Whether a lone real cloth node is re-declared as a one-joint <c>ClothChain</c> rather than a <c>ClothNode</c>: an
+    /// <c>m_SkelParents</c> root that is dynamic, a bare static node a <c>ClothNode</c> would re-parent, or locked to its
+    /// goal.
     /// </summary>
-    /// <param name="feModel">The compiled cloth.</param>
-    /// <param name="node">The lone node.</param>
-    /// <param name="bareStatic">Whether the node is static and no rod names it.</param>
-    /// <param name="bareStaticReparented">Whether a merged ClothNode on this bone would be re-parented onto a control-node ancestor.</param>
     internal static bool LoneNodeIsJointChain(FeModel feModel, int node, bool bareStatic, bool bareStaticReparented)
         => LoneClothNodeIsOriginalRoot(feModel, node)
             && (!feModel.IsStatic(node) || (bareStatic && bareStaticReparented) || feModel.IsLockedToGoal(node));
@@ -332,20 +286,9 @@ internal sealed partial class ClothExtract
         return MakeClothChainNode(feModel, chain, hasOtherChains);
     }
 
-    // Emits a standalone ClothNode for a simulated real bone that is NOT part of any multi-joint
-    // BoneChain and NOT back-solved by a proxy mesh: individual tie points connected only by explicit
-    // ClothSpring, since a real bone with no real-bone descendants of its own never forms a BoneChain
-    // (see BuildBoneChains). Mirrors MakeClothJoint's integrator recovery, which is what keeps the bone's
-    // per-node cloth paint off the compiler defaults; its rods round-trip through AddClothProxySprings
-    // either way, a plain skeleton bone name being a valid ClothSpring endpoint on its own.
-    //
-    // node_base_x0/x1/y0/y1 are read straight out of feModel.NodeBases and re-declared by NAME. A node
-    // left without them registers as position-driven and is driven through a synthesized m_Ropes fallback
-    // rather than simulated.
     /// <summary>
-    /// The <c>transform_alignment</c> a <c>ClothNode</c> on an <c>m_Ropes</c> run compiled from. Alignment 0 gives the node
-    /// class byte 1, which the rope pass excludes; 1 gives 2 and 2 gives 3, and only 3 lets a virtual element node start a
-    /// run. A bone node takes 1 unless the original bases it, since class 2 is what keeps the bulk node-base pass off it.
+    /// The <c>transform_alignment</c> of a <c>ClothNode</c> on an <c>m_Ropes</c> run: 2 for an element node or a based
+    /// node, 1 otherwise, and 0 off the ropes.
     /// </summary>
     internal static int RopeClothNodeAlignment(FeModel feModel, int node, bool isElement, bool hasBasis)
     {
@@ -357,10 +300,7 @@ internal sealed partial class ClothExtract
         return isElement || hasBasis ? 2 : 1;
     }
 
-    /// <summary>
-    /// The number of distinct nodes <paramref name="node"/> shares an <c>m_Rods</c> record with. The bulk node-base pass grades
-    /// only a node with at least two, so a basis on a node with fewer comes from somewhere the document has to state.
-    /// </summary>
+    /// <summary>The number of distinct nodes <paramref name="node"/> shares an <c>m_Rods</c> record with.</summary>
     internal static int RodNeighbourCount(FeModel feModel, int node)
     {
         var neighbours = new HashSet<int>();
@@ -388,10 +328,6 @@ internal sealed partial class ClothExtract
         var goalDamping = feModel.GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction);
         var strayRadius = feModel.GetStrayRadius(node);
 
-        // A basis reference names a node in the AUTHORED namespace, which is not the ctrl namespace: a
-        // proxy vertex takes the name our own proxy split gives it and a free cloth node is declared under
-        // its element name with the "$cloth_node_" prefix stripped, so echoing the ctrl name leaves a
-        // reference that resolves to nothing and the compiler recomputes the basis instead.
         var hasBasis = feModel.NodeBases.TryGetValue(node, out var basis);
         string BasisName(int basisNode)
         {
@@ -403,9 +339,7 @@ internal sealed partial class ClothExtract
             return ResolveAntiTunnelNodeName(feModel, basisNode, proxyNodeNames) ?? string.Empty;
         }
 
-        // The default alignment leaves a free cloth node, and a rotation-locked static node, with no basis at
-        // all: the neighbour scan grades neither. On a node the scan can already serve an alignment changes the
-        // frame instead, so one is written only where the original has a basis the default drops.
+        // A basis preset is written only where the default alignment would drop the original's basis.
         var preset = elementName is not null || (isStaticNode && !feModel.AllowsRotation(node)) || RodNeighbourCount(feModel, node) < 2
             ? feModel.ClothNodeBasisPreset(node)
             : null;
@@ -444,10 +378,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The four <c>cloth_collision_layer</c> booleans a <c>ClothNode</c> declares to compile to
-    /// <paramref name="mask"/>. All four set is special-cased by the compiler to the all-layers default
-    /// rather than to 15, so it is what a node with the default mask declares, and a mask the four bits
-    /// cannot spell out - 15 itself, or anything above them - falls back to the same default.
+    /// The four <c>cloth_collision_layer</c> booleans a <c>ClothNode</c> declares for <paramref name="mask"/>. All four
+    /// set compiles to the all-layers default, which is also what a mask outside 0..14 falls back to.
     /// </summary>
     private static (bool Layer0, bool Layer1, bool Layer2, bool Layer3) ClothNodeCollisionLayers(int mask)
     {
@@ -456,9 +388,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The name a <c>ClothTri</c> / <c>ClothQuad</c> corner references a control node by: the element
-    /// name for a free <c>ClothNode</c> (the compiler prefixes <c>$cloth_node_</c> to it itself) and the
-    /// plain bone name for everything else.
+    /// The name a <c>ClothTri</c> or <c>ClothQuad</c> corner references a control node by: the element name for a free
+    /// <c>ClothNode</c> and the control name otherwise.
     /// </summary>
     private static string ClothFaceCornerName(FeModel feModel, int node)
     {
@@ -469,10 +400,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Declares a <c>ClothStiffHinge</c> for every compiled bend whose three nodes are free cloth nodes. The class names
-    /// its hinge and its two base nodes by element name, and the compiler measures both bases from the hinge:
-    /// <c>9 * flHeight0^2 = |b1|^2 + |b2|^2 - 2 |b1| |b2| cos(max_angle)</c>. A bend over chain joints comes back as the
-    /// joint's <c>stiff_hinge</c>, and a sheet hub's as the sheet's curvature.
+    /// Declares a <c>ClothStiffHinge</c> for every compiled bend whose three nodes are free cloth nodes, recovering
+    /// <c>max_angle</c> from <c>9 * height^2 = |b1|^2 + |b2|^2 - 2 |b1| |b2| cos(max_angle)</c>.
     /// </summary>
     internal static void AddClothStiffHinges(KVObject softbodyChildren, FeModel feModel)
     {
@@ -504,10 +433,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Declares one compiled surface face whose corners are all already-declared cloth nodes as the
-    /// <c>ClothTri</c> or <c>ClothQuad</c> element the original was built from, instead of inventing a
-    /// proxy sheet to carry it. Repeated corners collapse, so a triangle stored in a quad slot emits as
-    /// a ClothTri.
+    /// The <c>ClothTri</c> or <c>ClothQuad</c> element over one compiled face, with repeated corners collapsed, or null
+    /// when fewer than three remain.
     /// </summary>
     private static KVObject? MakeClothFace(FeModel feModel, int[] face)
     {
@@ -535,10 +462,7 @@ internal sealed partial class ClothExtract
         return node;
     }
 
-    /// <summary>
-    /// Emits every face the original built from a ClothTri / ClothQuad over declared cloth nodes, and
-    /// returns the control nodes those faces name so the caller can keep them declared.
-    /// </summary>
+    /// <summary>Declares every face the original built from <c>ClothTri</c> and <c>ClothQuad</c> elements.</summary>
     private static HashSet<int> AddClothFaces(KVObject clothChildren, FeModel feModel)
     {
         var cornered = new HashSet<int>();
@@ -567,10 +491,10 @@ internal sealed partial class ClothExtract
         return anchorOf;
     }
 
-    // The bone a "$cloth_node_<name>" ctrl hangs off, plus the bone-local origin and angles to re-author it at: the
-    // m_CtrlOffsets entry the compiler wrote for it, or the skeleton parent when the model carries no such
-    // entry, and the node's rest rotation relative to that bone, which the compiler composes as the bone's
-    // rotation times the ClothNode's own. A node anchored to another generated node has no authorable root bone.
+    /// <summary>
+    /// Resolves the root bone, bone-local origin and angles a free <c>$cloth_node_</c> control node is re-authored at,
+    /// from its <c>m_CtrlOffsets</c> entry or else its skeleton parent. False where the root is a generated node.
+    /// </summary>
     internal static bool TryResolveClothNodeAnchor(FeModel feModel, Dictionary<int, FeModel.CtrlOffset> anchorOf,
         int node, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? rootBone, out Vector3 origin,
         out Vector3 angles)
@@ -613,10 +537,7 @@ internal sealed partial class ClothExtract
 
         if (rootBone is not null && angles == Vector3.Zero && origin.Length() < ClothNodeMergeRadius)
         {
-            // The compiler folds a free ClothNode into its root bone's own ctrl when the authored origin
-            // is within ClothNodeMergeRadius of the bone and it carries no rotation of its own, which loses
-            // the node the original still carries its "$cloth_node_" ctrl for. Push it just outside,
-            // keeping its direction where it has one.
+            // Push a node the compiler would merge into its root bone just outside the merge radius.
             var direction = origin == Vector3.Zero ? Vector3.One : origin;
             origin = Vector3.Normalize(direction) * (ClothNodeMergeRadius * 1.25f);
         }
@@ -624,10 +545,9 @@ internal sealed partial class ClothExtract
         return rootBone is not null && !FeModel.IsProxyNodeName(rootBone);
     }
 
-    // Bone-local euclidean distance under which the compiler merges a free ClothNode into its root bone's
-    // control node instead of giving it one of its own. A node at exactly this distance keeps its own.
+    // Bone-local distance under which the compiler merges a free ClothNode into its root bone's control node.
     private const float ClothNodeMergeRadius = 1e-3f;
 
-    // Radians of rest rotation relative to the root bone under which a free ClothNode counts as unrotated.
+    // Radians of rest rotation under which a free ClothNode counts as unrotated.
     private const float ClothNodeRotationTolerance = 1e-4f;
 }

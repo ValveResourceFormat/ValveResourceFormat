@@ -8,14 +8,10 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // Explicitly declares a two-node distance constraint (a "rod") by NODE NAME: the ClothSpring node, the
-    // analogue of ClothQuad for edges instead of faces. is_length_explicit=false, the default, pins
-    // min_length = max_length = the rest distance, a fully rigid edge. Both is_length_explicit and
-    // enable_advanced_parameters are needed together for min_length/max_length to take effect.
-    //
-    // weight0 and relaxation_factor are not ClothSpring inputs: it registers no attribute for either, so
-    // an authored weight0 compiles to the builder's default of 0.5 while min_length/max_length stay exact
-    // (see FeModel.Rod.Weight0). "stiffness" is the attribute a rod's flRelaxationFactor comes back on.
+    /// <summary>
+    /// A <c>ClothSpring</c> between two named nodes with explicit lengths; its stiffness compiles to the rod's relaxation
+    /// factor, and its weight is always the builder's default.
+    /// </summary>
     private static KVObject MakeClothSpring(string name, string n0, string n1, float minLength, float maxLength,
         float stiffness, int extraIterations = 0)
     {
@@ -37,12 +33,10 @@ internal sealed partial class ClothExtract
         return kv;
     }
 
-    // A ClothSelfCollisionCluster's member pair compiles to exactly one m_Rods entry (flMinDist/flMaxDist
-    // the summed member radii, flWeight0 the builder's own default) and leaves no other trace:
-    // m_SelfCollisionLayers, m_NodeCollisionRadii and m_AnimStrayRadii are all unaffected. Unlike a
-    // ClothSpring it registers no m_SourceElems entry, so it is the node to re-emit for a rod between two
-    // chain joints that a chain does not itself regenerate. The per-member radius split the compiled rod
-    // does not preserve (only the sum reaches m_Rods) is recovered as an even split.
+    /// <summary>
+    /// A <c>ClothSelfCollisionCluster</c>, which compiles one rod per member pair from the summed member radii and adds no
+    /// source element. Without per-member radii the pair's length is split evenly.
+    /// </summary>
     internal static KVObject MakeClothSelfCollisionCluster(string name, List<string> members, float radius,
         float strayRadius, float[]? stiffness = null, float[]? radii = null, float[]? strayRadii = null)
     {
@@ -64,9 +58,7 @@ internal sealed partial class ClothExtract
                 strayRadii is not null && i < strayRadii.Length ? strayRadii[i] : strayRadius));
         }
 
-        // The member table's own schema, which the compiler falls back to for any member row that omits
-        // a key, exactly as a ClothChain's attrs table does. Its four defaults are the dense-KV3
-        // schema's own (CAuthClothDataTable::ctor_dtor_1).
+        // The member table's schema defaults, read for any member row that omits a key.
         var attrs = KVObject.Collection();
 
         KVObject Attr(string key, string display, int uiOrder)
@@ -103,11 +95,7 @@ internal sealed partial class ClothExtract
         HashSet<int> authoredClothNodes, Dictionary<int, string> freeClothNodeNames,
         HashSet<(int, int)> derivedRods, Dictionary<int, string> proxyNodeNames)
     {
-        // Islands the cloth importer is expected to prune vertices from (see FeModel.ComputeDropRisk):
-        // emitting explicit rods into them would orphan a ClothSpring on a vertex the compiler never creates
-        // ("Cannot find node $cloth_mXpY", a hard failure). Skip their explicit rods entirely and let the
-        // importer auto-derive the network from the surface instead - guaranteed to compile, at the cost of
-        // exact rod topology for that one island. Clean islands keep their exact reconstructed rods.
+        // A drop-risk island keeps no explicit rods and lets the importer derive its network from the surface.
         var riskyNodes = new HashSet<int>();
 
         foreach (var (_, _, proxyMesh) in proxies)
@@ -121,10 +109,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // A real bone anchors a spring only when this export also declares it as a ClothNode. A bone the
-        // compile knows solely through a chain's joint list or a proxy back-solve is not a valid endpoint,
-        // and naming one fails the whole compile with "Cannot find Fx Bone"/"Cannot find node". A
-        // "$cloth_node_" ctrl re-authored as a free ClothNode is named by its element name instead.
+        // A spring endpoint is an exported proxy vertex, a free ClothNode's element name, or a declared ClothNode.
         string? ResolveName(int node)
             => FeModel.IsProxyNodeName(feModel.CtrlNames[node])
                 ? proxyNodeNames.GetValueOrDefault(node) ?? freeClothNodeNames.GetValueOrDefault(node)
@@ -139,8 +124,6 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            // A rod inside a drop-risk island is skipped (the whole island falls back to compiler-derived
-            // rods) - see the riskyNodes remarks above.
             if (riskyNodes.Contains(edge.Item1) || riskyNodes.Contains(edge.Item2))
             {
                 continue;
@@ -151,11 +134,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            // A ClothChain's own joint hierarchy compiles to a fully-connected local rod mesh among ITS
-            // OWN joints, not just parent-child pairs, so re-declaring one of these as an explicit
-            // ClothSpring is redundant. It is also rejected: a bone that is only a ClothChain joint_name,
-            // with no fit-matrix back-solve or ClothNode registration of its own, is not a valid
-            // ClothSpring endpoint.
+            // A chain joint's rods are the chain's own.
             if (chainJointNodes.Contains(edge.Item1) || chainJointNodes.Contains(edge.Item2))
             {
                 continue;
@@ -165,9 +144,6 @@ internal sealed partial class ClothExtract
             var name1 = ResolveName(rod.NodeB);
             if (name0 is null || name1 is null)
             {
-                // A rod-only proxy node dropped by BuildProxyMeshesFromRodsOnly's 3-member minimum (see
-                // its own remarks) has no corresponding exported vertex to reference at all - skip rather
-                // than author a dangling reference the compiler would reject outright.
                 continue;
             }
 
@@ -176,27 +152,22 @@ internal sealed partial class ClothExtract
         }
     }
 
-    // Rods the chains do not rebuild themselves (extra copies of a parent span) are re-declared here, and a
-    // cluster's tie beside a chain span as its two-member cluster.
+    /// <summary>
+    /// Re-declares the rods the chains do not rebuild, as springs or as two-member clusters, and returns the pairs it
+    /// declared.
+    /// </summary>
     internal static HashSet<(int, int)> AddClothChainSurplusRods(KVObject softbodyChildren, FeModel feModel,
         List<FeModel.BoneChain> chains)
     {
-        // The pairs declared here, so the free-node pass does not re-declare one of them and ship the
-        // same constraint twice. A pair reaches both only where one endpoint is a chain joint the other
-        // passes still declare a bare node for, which is what a sibling hub is.
         var declaredPairs = new HashSet<(int, int)>();
         var controlNames = feModel.CtrlNames;
 
-        // Only a bone some emitted chain actually claims as a joint is registered as a cloth node, and so
-        // only such a bone can anchor a spring. A cloth-flagged bone that no chain covers (a chain's own
-        // parent one hop above its root, say) resolves to nothing and fails the whole compile with
-        // "Cannot find Fx Bone".
+        // Only a bone some chain claims as a joint can anchor a spring.
         var chainJoints = chains.SelectMany(static chain => chain.Joints)
             .Select(static joint => joint.Node)
             .ToHashSet();
 
-        // Ring nodes the emitted chain regenerates, and which joint extruded each: a cluster tie may name
-        // one, a spring may not, and a tie spans the rings of two DIFFERENT joints.
+        // A cluster tie may name a ring node, a spring may not.
         var chainRingNodes = chains.SelectMany(static chain => chain.Joints)
             .SelectMany(static joint => joint.RingNodes)
             .ToHashSet();
@@ -213,7 +184,6 @@ internal sealed partial class ClothExtract
         bool Nameable(int node, bool tie)
             => chainJoints.Contains(node) || (tie && chainRingNodes.Contains(node));
 
-        // One spring per surplus rod OCCURRENCE, numbered like AddFreeClothNodesAndSprings' copies.
         var occurrence = new Dictionary<(int, int), int>();
         var surplus = feModel.GetUngeneratedRods(chains, feModel.HasChainStiffnessRods(chains));
         var clusterTies = ClusterTiesBesideChainSpans(feModel, surplus);
@@ -277,17 +247,10 @@ internal sealed partial class ClothExtract
         return declaredPairs;
     }
 
-    // The proxy-sheet phase's own AddClothProxySprings skips every rod touching an independent chain
-    // joint (that pairing is a chain's job), but a chain's own generated spans (see
-    // FeModel.ChainGeneratedSpans) only ever cover ITS OWN joints - a rod between two joints of two
-    // DIFFERENT chains is never regenerated by anything in that phase and was dropped outright before
-    // this. Unlike AddClothChainSurplusRods' plain ClothSpring, this emits a ClothSelfCollisionCluster
-    // (see MakeClothSelfCollisionCluster), which adds no m_SourceElems entry.
-    //
-    // A cluster's compiled rod always carries the builder's own fixed relax and weight of 1.0 and 0.5,
-    // neither an authorable cluster input (same as ClothSpring's, see MakeClothSpring). A rod without that
-    // signature is left unemitted rather than re-declared as a ClothSpring, which would compile the
-    // m_SourceElems entry a cluster-derived rod never has.
+    /// <summary>
+    /// Declares the rods between joints of different independent chains as two-member clusters. A rod without the
+    /// cluster's fixed relaxation and weight is left out.
+    /// </summary>
     private static void AddClothChainSurplusClusters(KVObject softbodyChildren, FeModel feModel,
         List<FeModel.BoneChain> chains)
     {
@@ -296,7 +259,7 @@ internal sealed partial class ClothExtract
             .Select(static joint => joint.Node)
             .ToHashSet();
 
-        // A pair with more than one raw entry is skipped unless it is a cluster tie beside a chain span.
+        // A pair with more than one rod is skipped unless it is a cluster tie beside a chain span.
         var rodCounts = new Dictionary<(int, int), int>();
         foreach (var rod in feModel.Rods)
         {
@@ -353,29 +316,15 @@ internal sealed partial class ClothExtract
         }
     }
 
-    /// <summary>
-    /// A composed ModelDoc node name the compiler will keep. A softbody child whose <c>name</c> carries a
-    /// <c>$</c> ANYWHERE is discarded silently - no error, and the compile still reports success - so a name
-    /// built out of control names, every generated one of which carries one, has to drop it. The members a
-    /// cluster or spring NAMES are unaffected: <c>joint_name</c> resolves a <c>$cc</c> ring node fine.
-    /// <para>
-    /// Measured on VRF's own emitted document for synth row <c>w37wt_probe_ring2_cluster_span</c>: five arms
-    /// differing in this field alone, compiled into one namespace. The two with no <c>$</c> compiled the
-    /// cluster's rod (16 rods, the banded 12/48 on the ring pair); the three with one, leading, middle or
-    /// trailing, compiled 15 and dropped it. A 43-character name with no <c>$</c> compiled, so it is the
-    /// character and not the length.
-    /// </para>
-    /// </summary>
+    /// <summary>A composed node name with every <c>$</c> dropped: the compiler silently discards a node whose name has one.</summary>
     private static string NodeNameSafe(string name)
         => name.Contains('$', StringComparison.Ordinal)
             ? name.Replace("$", string.Empty, StringComparison.Ordinal)
             : name;
 
     /// <summary>
-    /// Whether a surplus rod is a two-member <c>ClothSelfCollisionCluster</c>'s own rod rather than a spring's: the only
-    /// rod on its pair, at the cluster's fixed relaxation of 1.0 and weight of 0.5, with no two-corner source element
-    /// on the pair in the original, and a length that is not the pair's rest distance (the summed member radii,
-    /// banded or not). A <c>ClothSpring</c> always records that source element, so its absence rules the spring out.
+    /// Whether a surplus rod is a two-member <c>ClothSelfCollisionCluster</c>'s: the only rod on its pair, at the cluster's
+    /// fixed relaxation and weight, with no source element on the pair and a length other than the rest distance.
     /// </summary>
     internal static bool IsUnrecordedClusterRod(FeModel feModel, FeModel.Rod rod)
     {
@@ -406,12 +355,9 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Emits one <c>ClothSelfCollisionCluster</c> per clique of three or more extruded ring nodes, owned by at least two
-    /// different chain joints, whose every pair carries exactly one banded rod at relaxation 1 and weight 0.5 off its rest
-    /// length, where those bands solve as per-member radii: a cluster compiles a rod on every member pair, its minimum the
-    /// two members' collision radii summed and its maximum their stray radii summed. No chain span is banded off its rest
-    /// length, so the clique is read off every shipped rod; a fold the compiler built across the pair beside the cluster's
-    /// band is not counted against it. Returns the pairs the clusters cover.
+    /// Declares a <c>ClothSelfCollisionCluster</c> for every clique of three or more ring nodes of at least two joints whose
+    /// every pair carries one banded cluster-signature rod off its rest length, where the bands solve as per-member radii.
+    /// Returns the pairs the clusters cover.
     /// </summary>
     internal static HashSet<(int, int)> AddRingClusterCliques(KVObject softbodyChildren, FeModel feModel, Dictionary<int, int> ringOwner)
     {
@@ -544,10 +490,8 @@ internal sealed partial class ClothExtract
     private const float ClusterRadiusTolerance = 1e-4f;
 
     /// <summary>
-    /// Whether a surplus rod is a second rigid copy of a span at the pair's rest distance, at the cluster's fixed relaxation of
-    /// 1.0 and weight of 0.5, with no two-corner source element on the pair in the original: a copy no <c>ClothSpring</c> made,
-    /// which a two-member cluster at half the length per member reproduces without the element. Only a model that compiled
-    /// <c>m_SkelParents</c> is read this way.
+    /// Whether a surplus rod is a second rigid copy of a span at its rest distance, with the cluster's fixed relaxation and
+    /// weight and no source element on the pair, on a model that compiled <c>m_SkelParents</c>.
     /// </summary>
     internal static bool IsUnrecordedSpanCopy(FeModel feModel, FeModel.Rod rod)
     {
@@ -582,23 +526,8 @@ internal sealed partial class ClothExtract
         => MathF.Abs(rod.MinDist - rod.MaxDist) > 1e-4f * MathF.Max(1f, MathF.Abs(rod.MaxDist));
 
     /// <summary>
-    /// Returns the node pairs whose one banded rod is a two-member <c>ClothSelfCollisionCluster</c> over the
-    /// extruded ring nodes of two DIFFERENT chain joints, beside the chain's rigid span on the same pair.
-    /// <para>
-    /// <see cref="ClusterTiesBesideChainSpans"/> cannot see these: it requires the pair to hold exactly ONE
-    /// surplus rod, which assumes <see cref="FeModel.GetUngeneratedRods"/> gave the chain the rigid entry,
-    /// and a chain whose spans that model does not predict leaves BOTH on the pair. Ring-ring spans are the
-    /// population where that happens, so two other conditions have to do the work instead.
-    /// </para>
-    /// <para>
-    /// FIRST, the rings belong to different joints. A banded rod between two rings of ONE joint is that
-    /// joint's own ring rod under an <c>antishrink</c> below one, which the emitted chain regenerates:
-    /// declaring a cluster there duplicates it. Measured on the 30 dota documents a band test alone reached,
-    /// 21 of which were EXACT or EQUIVALENT and every one of which gained <c>m_Rods</c> without this
-    /// condition. SECOND, the band's maximum is not the pair's rest length, which is
-    /// <see cref="FeModel.IsRadiusBandTriangle"/>'s test applied to a pair: a cluster's maximum is its
-    /// members' summed stray radii and has nothing to do with how far apart they sit.
-    /// </para>
+    /// The pairs whose single banded rod is a two-member cluster between ring nodes of two different chain joints, beside
+    /// the chain's rigid span, with a maximum off the pair's rest length.
     /// </summary>
     private static HashSet<(int, int)> RingClusterTies(FeModel feModel, List<FeModel.Rod> surplus,
         Dictionary<int, int> ringOwner)
@@ -647,11 +576,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Returns the node pairs whose one surplus rod is a two-member self-collision cluster's tie beside the
-    /// chain span on the same pair: the pair carries several entries, every one but that rod is rigid, and
-    /// that rod is banded with the cluster's fixed relaxation of 1.0 and weight of 0.5.
-    /// <see cref="FeModel.GetUngeneratedRods"/> gives the chain the rigid entry, so the banded one left over
-    /// is the cluster's own and never the chain's.
+    /// The pairs whose one surplus rod is a banded cluster tie beside a chain span on the same pair: several rods, only
+    /// that one banded, with the cluster's fixed relaxation and weight.
     /// </summary>
     private static HashSet<(int, int)> ClusterTiesBesideChainSpans(FeModel feModel, List<FeModel.Rod> surplus)
     {
@@ -693,13 +619,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Re-declares each recovered <see cref="FeModel.SelfCollisionCluster"/> as one
-    /// <c>ClothSelfCollisionCluster</c> listing every member. The compiler rebuilds the whole pairwise rod
-    /// set from it and records no source element for any of them, which one spring per pair would.
-    /// <para>
-    /// Returns the member nodes, which the caller must keep out of the lone-node and lone-chain emitters:
-    /// the cluster registers them on its own.
-    /// </para>
+    /// Re-declares each <see cref="FeModel.SelfCollisionCluster"/> as a <c>ClothSelfCollisionCluster</c> and returns the
+    /// member nodes, which the cluster registers on its own.
     /// </summary>
     private static HashSet<int> AddClothSelfCollisionClusters(KVObject softbodyChildren, FeModel feModel,
         HashSet<string> clothBones)
@@ -738,11 +659,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Re-declares the authored two-corner source elements (<see cref="FeModel.SourceSprings"/>) as
-    /// explicit springs. Neither the surface nor a chain regenerates these, and the compiler records one
-    /// source element per spring, so a model exported without them comes back short both a rod and a
-    /// source element per pair. Endpoints are named verbatim, <c>$cc</c> proxies included - those are
-    /// valid ClothSpring endpoints even though they are not chain joints.
+    /// Re-declares the authored two-corner source elements (<see cref="FeModel.SourceSprings"/>) as springs named by
+    /// control name, and returns their pairs.
     /// </summary>
     private static HashSet<(int, int)> AddClothSourceSprings(KVObject softbodyChildren, FeModel feModel,
         List<FeModel.BoneChain> chains)
@@ -767,8 +685,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            // The source element keeps the two corners in the order the spring named them, which the rod's
-            // own endpoint order does not.
+            // A spring keeps its source element's corner order.
             softbodyChildren.Add(MakeClothSpring($"spring_{a}_{b}", names[a], names[b], rod.MinDist,
                 rod.MaxDist, rod.RelaxationFactor, copies - 1));
             emitted.Add(a < b ? (a, b) : (b, a));

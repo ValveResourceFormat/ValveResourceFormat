@@ -7,8 +7,7 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // Bits of m_nDynamicNodeFlags that carry a ClothParams boolean. The remaining ClothParams switches
-    // leave no bit behind and fall back to the modern Source 2 defaults.
+    // Bits of m_nDynamicNodeFlags that carry a ClothParams boolean.
     private const uint ClothFlagUninertialRods = 0x10;
 
     private const uint ClothFlagFollowTheLead = 0x20;
@@ -26,8 +25,7 @@ internal sealed partial class ClothExtract
 
     private const uint ClothFlagKeychainMotion = 0x1000000;
 
-    // The Softbody node's own attributes, as opposed to the ClothParams child below. The two
-    // switches are omitted unless their bit is present.
+    /// <summary>Adds the Softbody node's own attributes; each flag key is written only when its bit is set.</summary>
     private void AddSoftbodyAttributes(KVObject softbody, FeModel fe)
     {
         softbody.Add("motion_smooth_cdt", fe.MotionSmoothCdt);
@@ -46,9 +44,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Restores the two Softbody keys the compiler writes into the model's key values instead of the
-    /// FeModel: <c>stiffness_on_ragdoll</c> as <c>cloth_stiffness_on_ragdoll</c> (only when above zero) and
-    /// <c>cloth_sleep_enabled</c> (only when set).
+    /// Restores the Softbody keys the compiler stores in the model's key values: <c>stiffness_on_ragdoll</c> and
+    /// <c>cloth_sleep_enabled</c>.
     /// </summary>
     internal static void AddSoftbodyModelKeyValues(KVObject softbody, KVObject? keyValues)
     {
@@ -68,8 +65,7 @@ internal sealed partial class ClothExtract
         }
     }
 
-    // Global cloth solver parameters, populated from the FeModel scalars. Field names match the compiled
-    // ClothParams source node; the compiler re-derives everything not emitted here.
+    /// <summary>The <c>ClothParams</c> node, read off the FeModel's scalars and dynamic node flags.</summary>
     private static KVObject MakeClothParams(FeModel fe, bool generatesBendRods = false, bool generatesBendOnlyRods = false,
         float addCurvature = 0f, bool explicitMasses = false)
     {
@@ -78,15 +74,11 @@ internal sealed partial class ClothExtract
 
         return MakeNode("ClothParams",
             ("default_stretch", fe.DefaultSurfaceStretch),
-            // Recovered from the rod relaxation factors, NOT from m_flDefaultThreadStretch, which tracks
-            // m_flDefaultSurfaceStretch whatever the shear is.
+            // Read off the rod relaxation factors; m_flDefaultThreadStretch only tracks the surface stretch.
             ("additional_shear_stretch", fe.AdditionalShearStretch),
             ("extra_iterations", fe.ExtraIterations),
             ("extra_goal_iterations", fe.ExtraGoalIterations),
             ("extra_pressure_iterations", fe.ExtraPressureIterations),
-            // The compiler adds this to every node's goal strength before cubing it into the force
-            // attraction while the vertex attraction keeps the unbiased cube, so a model that ships the
-            // two a constant cube root apart was authored with it (see FeModel.GoalStrengthBias).
             ("goal_strength_bias", fe.GoalStrengthBias),
             ("default_gravity_scale", fe.DefaultGravityScale),
             ("default_vel_air_drag", fe.DefaultVelAirDrag),
@@ -101,10 +93,6 @@ internal sealed partial class ClothExtract
             ("add_world_collision_radius", fe.AddWorldCollisionRadius),
             ("local_force", fe.LocalForce),
             ("local_rotation", fe.LocalRotation),
-            // A model with rigid edge hinges states its curvature only through the ring bends that switch
-            // turns on: its rods are all built rigid, so the readings taken off them saturate whatever it
-            // was authored with (see FeModel.RigidHingeCurvature). Where its hubs fold apart, the per-hub
-            // paint carries every fold and the model-wide value stays zero (see FeModel.RigidHingeBendPaint).
             ("add_curvature", fe.HasAxialEdges || fe.HasChainRingBends
                 ? (fe.RigidHingeBendPaint is null ? fe.RigidHingeCurvature : 0f)
                 : addCurvature),
@@ -120,10 +108,6 @@ internal sealed partial class ClothExtract
             ("can_collide_with_world_hulls", Flag(ClothFlagCollideWorldHulls)),
             ("can_collide_with_world_meshes", Flag(ClothFlagCollideWorldMeshes)),
             ("can_collide_with_world_capsule_and_spheres", Flag(ClothFlagCollideWorldCapsulesAndSpheres)),
-            // A sheet whose compiled rods reach beyond its own face edges and diagonals was authored with
-            // the extra bend network switched on. Recovering it lets the compiler regenerate those rods
-            // from the surface, where declaring them as explicit springs would instead add a source
-            // element per pair and leave the sheet heavier than the original.
             ("add_stiffness_rods", generatesBendRods),
             ("rigid_edge_hinges", fe.HasAxialEdges || fe.HasChainRingBends),
             ("add_bend_only_rods", generatesBendOnlyRods),
