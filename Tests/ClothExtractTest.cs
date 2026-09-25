@@ -149,8 +149,8 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(extract.ClothProxyMeshesToExtract.Count).IsEqualTo(0);
-                await Assert.That(extract.ClothChainGridsToExtract.Count).IsEqualTo(0);
+                await Assert.That(extract.Cloth.ProxyMeshes.Count).IsEqualTo(0);
+                await Assert.That(extract.Cloth.ChainGrids.Count).IsEqualTo(0);
                 await Assert.That(Occurrences(vmdl, "_class = \"ClothProxyMeshFile\"")).IsEqualTo(0);
             }
         }

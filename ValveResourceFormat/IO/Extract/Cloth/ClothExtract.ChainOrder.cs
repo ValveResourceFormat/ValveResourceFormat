@@ -4,14 +4,14 @@ using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;
 
-partial class ModelExtract
+internal sealed partial class ClothExtract
 {
     /// <summary>
     /// The declaration order that reproduces a chain-phase model's compiled control-node order: the
     /// chain joints declared as their own <c>ClothNode</c> ahead of the chains, and the order the chains
     /// and their joints are walked in afterwards.
     /// </summary>
-    sealed class ClothChainDeclarationPlan
+    private sealed class ClothChainDeclarationPlan
     {
         public List<(string Name, int Node)> PreDeclared { get; } = [];
         public List<FeModel.BoneChain> Chains { get; } = [];
@@ -24,7 +24,7 @@ partial class ModelExtract
     /// when the recomputed key is not ordered the way the compiled node list is, which means the shipped
     /// arrays no longer describe the graph the sort ranked over.
     /// </summary>
-    static int[]? ClothNodeBands(FeModel feModel)
+    private static int[]? ClothNodeBands(FeModel feModel)
     {
         var count = feModel.NodeCount;
         if (count <= 0 || feModel.CtrlNames.Length != count || feModel.StaticNodeCount <= 0)
@@ -157,7 +157,7 @@ partial class ModelExtract
     /// the chains and in what order the chains are then walked. Returns null when today's declaration
     /// order already reproduces it, when the bands cannot be read, or when no declaration order does.
     /// </summary>
-    static ClothChainDeclarationPlan? TryPlanClothChainDeclarations(FeModel feModel,
+    private static ClothChainDeclarationPlan? TryPlanClothChainDeclarations(FeModel feModel,
         List<FeModel.BoneChain> chains, Func<string, bool> reparents)
     {
         if (chains.Count == 0 || ClothNodeBands(feModel) is not { } bands)
@@ -302,7 +302,7 @@ partial class ModelExtract
     // Walks the creation order the compiler would build from a candidate declaration order, one node at
     // a time, and only ever places the next unplaced node of a band - which is what keeps every band in
     // the order the compiled file has it, so a completed walk reproduces the compiled node order.
-    sealed class ClothChainOrderSolver
+    private sealed class ClothChainOrderSolver
     {
         const int ExpansionBudget = 50000;
 
@@ -779,7 +779,7 @@ partial class ModelExtract
     /// the joint's ring nodes. Every value the chain joint itself writes is left at its neutral default
     /// so that only the creation index changes.
     /// </summary>
-    static KVObject MakeClothChainJointDeclaration(FeModel feModel, string boneName, int node)
+    private static KVObject MakeClothChainJointDeclaration(FeModel feModel, string boneName, int node)
     {
         var layers = ClothNodeCollisionLayers(feModel.GetNodeCollisionMask(node));
 

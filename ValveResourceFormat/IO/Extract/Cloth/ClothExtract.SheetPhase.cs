@@ -5,7 +5,7 @@ using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;
 
-partial class ModelExtract
+internal sealed partial class ClothExtract
 {
     // A ClothProxyMeshFile referencing the cloth-sheet DMX. With backSolveJoints=true the compiler
     // back-solves the skinned bone-chain joints from the simulated sheet, regenerating the bone-chain
@@ -23,7 +23,7 @@ partial class ModelExtract
     // back-solved fit. The value is derived per proxy from the original's own compiled fit data (see
     // FeModel.GetBackSolveInfluenceThreshold); the parameter default is the compiler's own, for the
     // generated grids that carry no proxy to derive from.
-    static KVObject MakeClothProxyMeshFile(string name, string fileName, bool backSolveJoints, bool driveMeshes, bool addBonesToRenderMesh = false,
+    private static KVObject MakeClothProxyMeshFile(string name, string fileName, bool backSolveJoints, bool driveMeshes, bool addBonesToRenderMesh = false,
         float backSolveInfluenceThreshold = FeModel.DefaultBackSolveInfluenceThreshold, bool flexClothBorders = false)
     {
         var node = MakeNode("ClothProxyMeshFile",
@@ -75,7 +75,7 @@ partial class ModelExtract
     // compiler's own name-sorted numbering by the padded proxy names, see EnqueueClothProxyMesh). Only
     // faced vertices are mapped: an unfaced vertex is silently dropped by the importer, so a reference to
     // it is a hard compile failure ("Cannot find node") - see TriangulateDominantPlane remarks.
-    static Dictionary<int, string> BuildProxyNodeNameMap(
+    private static Dictionary<int, string> BuildProxyNodeNameMap(
         List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies)
     {
         var proxyNodeNames = new Dictionary<int, string>();
@@ -110,7 +110,7 @@ partial class ModelExtract
     // an unfaced vertex is dropped outright (the same rule BuildProxyNodeNameMap maps around), and a
     // pinned vertex whose face-neighbours are all pinned belongs to a fully-static region the solver
     // discards (the first of the two conditions behind FeModel.ProxyMesh.IsDropRisk).
-    static HashSet<int> SurvivingProxyVertices(FeModel.ProxyMesh proxy)
+    private static HashSet<int> SurvivingProxyVertices(FeModel.ProxyMesh proxy)
     {
         var hasSimulatedNeighbour = new bool[proxy.Positions.Length];
         var surviving = new HashSet<int>();
@@ -134,210 +134,7 @@ partial class ModelExtract
         return surviving;
     }
 
-    /// <summary>
-    /// Whether every pin <c>flex_cloth_borders</c> would free on <paramref name="proxy"/> (a static corner of a face
-    /// joined to two or more simulated corners) carries an <c>m_NodeBases</c> entry in the original. On a sheet that
-    /// adds bones to the render mesh the flag gives each such pin a node base, while the per-vertex
-    /// <c>cloth_anchor_free_rotate</c> paint frees it without one.
-    /// </summary>
-    internal static bool FlexedPinsCarryNodeBases(FeModel feModel, FeModel.ProxyMesh proxy)
-    {
-        foreach (var face in proxy.Faces)
-        {
-            if (face.Distinct().Count(corner => proxy.ClothEnable[corner] != 0f) < 2)
-            {
-                continue;
-            }
-
-            foreach (var corner in face)
-            {
-                var node = proxy.NodeIndices[corner];
-                if (proxy.ClothEnable[corner] == 0f && node < feModel.StaticNodeCount && !feModel.NodeBases.ContainsKey(node))
-                {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Whether the original's own node bases state <c>flex_cloth_borders</c> on <paramref name="proxy"/>. A proxy
-    /// vertex is a virtual node, so the compiler admits a PINNED one to <c>m_NodeBases</c> only through the border
-    /// pass, which writes the basis flag on a freed pin only when <c>add_bones_to_render_mesh</c> is set as well.
-    /// The per-vertex <c>cloth_anchor_free_rotate</c> paint frees the same pin without a basis, so an entry on one
-    /// of the pins the flag would reach is a witness no other authoring produces.
-    /// </summary>
-    internal static bool FlexedPinsStateClothBorders(FeModel feModel, FeModel.ProxyMesh proxy)
-    {
-        var stated = false;
-        foreach (var face in proxy.Faces)
-        {
-            if (face.Distinct().Count(corner => proxy.ClothEnable[corner] != 0f) < 2)
-            {
-                continue;
-            }
-
-            foreach (var corner in face)
-            {
-                var node = proxy.NodeIndices[corner];
-                if (proxy.ClothEnable[corner] != 0f || node >= feModel.StaticNodeCount)
-                {
-                    continue;
-                }
-
-                if (!feModel.NodeBases.ContainsKey(node))
-                {
-                    return false;
-                }
-
-                stated = true;
-            }
-        }
-
-        return stated;
-    }
-
-    /// <summary>
-    /// Whether <paramref name="proxy"/> states <c>flex_cloth_borders</c>. A pinned border vertex keeps its rotation
-    /// locked unless the sheet was imported with the flag on, so it is re-emitted wherever that reproduces the
-    /// original. On a non-back-solving sheet the flag reaches exactly the pins a face joins to two or more simulated
-    /// corners: those it frees and gives a node base, which no per-vertex paint does, while a pin every face leaves
-    /// with fewer simulated corners stays rotation-locked either way and carries no evidence. The flag is taken when
-    /// every reached pin is recorded rotation-free and every unreached one rotation-locked, so the paint the flag
-    /// replaces has nothing left to say. On a sheet that adds bones to the render mesh it also needs every reached
-    /// pin to carry a node base, since the flag gives it one and the paint frees it without. A back-solving sheet
-    /// instead frees exactly the pins with a skin influence on a registered control and its fit machinery pulls
-    /// anchor parent chains in, so each pin's influence registration has to match its rot-lock class, no gap slot's
-    /// influences may register it (a new node the original does not have), and every freed pin's static anchor needs
-    /// its skeleton parent already position-driven - except where the pins' own node bases state the flag outright,
-    /// which no other authoring produces and which the anchor chain therefore has nothing to add to.
-    /// </summary>
-    internal static bool ProxyFlexesClothBorders(FeModel feModel, FeModel.ProxyMesh proxy, bool proxyBackSolves,
-        bool addsBonesToRenderMesh)
-    {
-        if (!proxyBackSolves && addsBonesToRenderMesh && !FlexedPinsCarryNodeBases(feModel, proxy))
-        {
-            return false;
-        }
-
-        var ctrlIndexByName = new Dictionary<string, int>(feModel.CtrlNames.Length, StringComparer.OrdinalIgnoreCase);
-        for (var i = 0; i < feModel.CtrlNames.Length; i++)
-        {
-            ctrlIndexByName.TryAdd(feModel.CtrlNames[i], i);
-        }
-
-        var statedByPinNodeBases = FlexedPinsStateClothBorders(feModel, proxy);
-
-        var faced = new HashSet<int>();
-        var flexReaches = new HashSet<int>();
-        foreach (var face in proxy.Faces)
-        {
-            faced.UnionWith(face);
-            if (face.Distinct().Count(corner => proxy.ClothEnable[corner] != 0f) >= 2)
-            {
-                flexReaches.UnionWith(face.Where(corner => proxy.ClothEnable[corner] == 0f));
-            }
-        }
-
-        var freesAny = false;
-        for (var v = 0; v < proxy.ClothEnable.Length; v++)
-        {
-            if (proxy.ClothEnable[v] != 0f)
-            {
-                continue;
-            }
-
-            var node = proxy.NodeIndices[v];
-
-            // A non-back-solving sheet never registers a padded gap slot, so only the
-            // recorded rot-lock classes have to agree with the flag's reach.
-            if (!proxyBackSolves)
-            {
-                if (!faced.Contains(v) || node >= feModel.StaticNodeCount)
-                {
-                    continue;
-                }
-
-                if (flexReaches.Contains(v) != feModel.AllowsRotation(node))
-                {
-                    return false;
-                }
-
-                freesAny |= flexReaches.Contains(v);
-                continue;
-            }
-
-            (string Bone, float Weight)[] influences = feModel.RecoveredSkinWeights.TryGetValue(node, out var recovered) && recovered.Length > 0
-                ? [.. recovered]
-                : feModel.ResolveSkinBone(node) is { } skinBone ? [(skinBone, 1f)] : [];
-
-            var registeredAnchors = influences
-                .Where(i => i.Weight > 0f && ctrlIndexByName.ContainsKey(i.Bone))
-                .Select(i => ctrlIndexByName[i.Bone])
-                .ToArray();
-
-            if (!faced.Contains(v))
-            {
-                if (registeredAnchors.Length > 0)
-                {
-                    return false;
-                }
-
-                continue;
-            }
-
-            if (node >= feModel.StaticNodeCount)
-            {
-                continue;
-            }
-
-            if ((registeredAnchors.Length > 0) != feModel.AllowsRotation(node))
-            {
-                return false;
-            }
-
-            if (!feModel.AllowsRotation(node))
-            {
-                continue;
-            }
-
-            freesAny = true;
-
-            if (statedByPinNodeBases)
-            {
-                continue;
-            }
-
-            foreach (var anchorNode in registeredAnchors)
-            {
-                if (!feModel.IsStatic(anchorNode))
-                {
-                    continue;
-                }
-
-                if (feModel.SkeletonBoneParents?.GetValueOrDefault(feModel.CtrlNames[anchorNode]) is { } parent
-                    && (!ctrlIndexByName.TryGetValue(parent, out var parentNode)
-                        || !feModel.IsPositionDriven(parentNode)))
-                {
-                    return false;
-                }
-            }
-        }
-
-        return freesAny;
-    }
-
-    /// <summary>
-    /// Gets whether a control node is a jiggle bone's, which its <c>JiggleBone</c> declares on its own. That node
-    /// compiles into the vertex set with no name, and declaring it as a cloth node too moves it into the model's
-    /// default set.
-    /// </summary>
-    internal static bool IsDeclaredByItsJiggleBone(FeModel feModel, int node)
-        => Array.Exists(feModel.JiggleBones, jiggle => jiggle.Node == node);
-
-    bool EmitProxySheetClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
+    private bool EmitProxySheetClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {
         // Phase 2 (preferred): the cloth sheet ships as a proxy mesh. With back_solve_joints the
         // compiler regenerates the $cloth_* sheet nodes and back-solves the bone-chain follower
@@ -449,9 +246,9 @@ partial class ModelExtract
                     && proxyRenderBones.Contains(feModel.CtrlNames[node])));
 
         var (clothProxyList, clothProxyChildren) = MakeListNode("ClothProxyMeshList");
-        var proxyGroup = ClothProxyMeshesToExtract.ConvertAll(static entry => entry.Proxy);
+        var proxyGroup = ProxyMeshes.ConvertAll(static entry => entry.Proxy);
         var vertexMapContainers = new Dictionary<string, KVObject>(StringComparer.Ordinal);
-        foreach (var proxyFile in ClothProxyMeshesToExtract)
+        foreach (var proxyFile in ProxyMeshes)
         {
             // The threshold is derived from the ORIGINAL's own compiled fit data (see
             // FeModel.GetBackSolveInfluenceThreshold): the sub-threshold weights the original's
@@ -472,7 +269,7 @@ partial class ModelExtract
                 ProxyAddsBonesToRenderMesh(proxyFile.Proxy));
             if (proxyFlexes)
             {
-                clothProxiesFlexed.Add(proxyFile.Proxy);
+                flexedProxies.Add(proxyFile.Proxy);
             }
 
             var proxyNode = MakeClothProxyMeshFile(proxyFile.Name, proxyFile.FileName, proxyBackSolve,
@@ -496,7 +293,7 @@ partial class ModelExtract
                     }
 
                     AddClothVertexMapAttributes(mapNode, feModel, proxyVertexMap,
-                        BuildProxyNodeNameMap(ClothProxyMeshesToExtract));
+                        BuildProxyNodeNameMap(ProxyMeshes));
                     if (feModel.UniformVertexMapWeight(proxyVertexMap) is { } mapWeight)
                     {
                         mapNode.Add("weight", mapWeight);
@@ -518,7 +315,7 @@ partial class ModelExtract
         // cloth_vertex_set stream it reads. It is declared as its own container instead, listing the
         // vertices it covers by name at their weights, which compiles to the same m_VertexMaps entry and
         // registers nothing.
-        var sheetNodeNames = BuildProxyNodeNameMap(ClothProxyMeshesToExtract);
+        var sheetNodeNames = BuildProxyNodeNameMap(ProxyMeshes);
         foreach (var map in feModel.VertexMaps)
         {
             if (feModel.RegistersVertexSet(map.NameHash) || vertexMapContainers.ContainsKey(map.Name))
@@ -566,7 +363,7 @@ partial class ModelExtract
 
         // Clean regular grids generated over the bone chains, shipped DISABLED next to the
         // recovered surface: a ready-made editable sheet for re-authoring the cloth.
-        foreach (var clothGrid in ClothChainGridsToExtract)
+        foreach (var clothGrid in ChainGrids)
         {
             var gridNode = MakeClothProxyMeshFile(clothGrid.Name, clothGrid.FileName, backSolveJoints: false, driveMeshes: true);
             gridNode.Add("disabled", true);
@@ -579,7 +376,7 @@ partial class ModelExtract
         // Independent (non-back-solved) chains, if any, are emitted alongside it - see above.
         var (softbody, softbodyChildren) = MakeListNode("Softbody");
         AddSoftbodyAttributes(softbody, feModel);
-        var surfaceRods = ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract,
+        var surfaceRods = ClothRodsFromSurface(feModel, ProxyMeshes,
             out var generatesBendRods, out var generatesBendOnlyRods, out var addCurvature, out _, out _,
             out _);
         softbodyChildren.Add(MakeClothParams(feModel, generatesBendRods, generatesBendOnlyRods,
@@ -624,7 +421,7 @@ partial class ModelExtract
         var proxyRegisteredNodes = new HashSet<int>();
         var proxySkinnedBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var recoveredSkinnedBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (_, _, proxy) in ClothProxyMeshesToExtract)
+        foreach (var (_, _, proxy) in ProxyMeshes)
         {
             foreach (var vertex in SurvivingProxyVertices(proxy))
             {
@@ -707,7 +504,7 @@ partial class ModelExtract
             }
         }
 
-        var proxyNodeNameMap = BuildProxyNodeNameMap(ClothProxyMeshesToExtract);
+        var proxyNodeNameMap = BuildProxyNodeNameMap(ProxyMeshes);
 
         var authoredFaces = feModel.GetAuthoredElementFaces();
         if (independentChains.Count > 0 || loneClothNodes.Count > 0 || leftoverStaticNodes.Count > 0
@@ -723,7 +520,7 @@ partial class ModelExtract
             foreach (var boneChain in independentChains)
             {
                 clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, hasOtherChains,
-                    relandedJoints: ClothChainRelandedJoints));
+                    relandedJoints: RelandedJoints));
                 if (MakeClothChainRestatement(feModel, boneChain) is { } restated)
                 {
                     clothFolderChildren.Add(restated);
@@ -784,7 +581,7 @@ partial class ModelExtract
         var authoredClothNodes = loneClothNodes.Concat(leftoverStaticNodes).Concat(unregisteredNodes)
             .Select(static entry => entry.Node)
             .ToHashSet();
-        AddClothProxySprings(softbodyChildren, feModel, ClothProxyMeshesToExtract, independentChainNodes,
+        AddClothProxySprings(softbodyChildren, feModel, ProxyMeshes, independentChainNodes,
             authoredClothNodes, freeClothNodeNames, surfaceRods, proxyNodeNameMap);
         AddClothSourceSprings(softbodyChildren, feModel, independentChains);
         AddClothChainSurplusClusters(softbodyChildren, feModel, independentChains);
@@ -805,7 +602,7 @@ partial class ModelExtract
             && !authoredClothNodes.Contains(node) && (feModel.FitMatrixNodes.Contains(node) || proxySkinnedBones.Contains(name)));
         var shapeNames = AddClothCollisionShapes(softbodyChildren, feModel);
         AddClothAntiTunnelGroup(softbodyChildren, feModel, shapeNames,
-            [.. ClothProxyMeshesToExtract.Select(static proxy => proxy.Name)]);
+            [.. ProxyMeshes.Select(static proxy => proxy.Name)]);
         AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, independentChains));
         AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
 

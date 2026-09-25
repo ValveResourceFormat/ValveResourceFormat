@@ -90,20 +90,20 @@ partial class ModelExtract
                 AddBonesRecursive(model.Skeleton.Roots, lists.Skeleton);
             }
 
-            if (CulledClothBones.Count > 0)
+            if (Cloth.CulledBones.Count > 0)
             {
-                AddCulledClothBones(lists.Skeleton);
+                Cloth.AddCulledClothBones(lists.Skeleton);
             }
         }
 
         AddPhysicsBodyNodes(lists);
 
-        if (physAggregateData is not null && ExtractJiggleBones(physAggregateData.FeModel) is { } jiggleBoneList)
+        if (physAggregateData is not null && ClothExtract.ExtractJiggleBones(physAggregateData.FeModel) is { } jiggleBoneList)
         {
             root.Children.Add(jiggleBoneList);
         }
 
-        var clothEmitted = physAggregateData?.FeModel is { } feModel && EmitCloth(feModel, root.Children);
+        var clothEmitted = physAggregateData?.FeModel is { } feModel && Cloth.EmitCloth(feModel, root.Children);
 
         // A soft-body FeModel that yields no authorable cloth gets a minimal placeholder PhysicsShapeList,
         // which is what makes the compiler allocate a PHYS block and the CTRL embedded_physics reference.

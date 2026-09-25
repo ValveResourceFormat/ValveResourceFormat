@@ -1,14 +1,12 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using ValveKeyValue;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;
 
-partial class ModelExtract
+internal sealed partial class ClothExtract
 {
     /// <summary>
     /// Separates equal blend weights on one proxy vertex by the smallest amount that survives the
@@ -19,7 +17,7 @@ partial class ModelExtract
     /// exactly tied pair can promote the wrong bone. The nudge is several orders of magnitude below
     /// the weight resolution the compiled data carries.
     /// </summary>
-    static (string Bone, float Weight)[] SeparateTiedInfluenceWeights((string Bone, float Weight)[] influences)
+    private static (string Bone, float Weight)[] SeparateTiedInfluenceWeights((string Bone, float Weight)[] influences)
     {
         static bool IsTied(float a, float b)
             => MathF.Abs(a - b) <= TiedInfluenceSeparation * MathF.Max(MathF.Abs(a), MathF.Abs(b));
@@ -53,424 +51,7 @@ partial class ModelExtract
     /// three orders below the 1/255 quantum a painted weight is authored at and survives the
     /// per-vertex renormalization the importer applies before it sorts.
     /// </summary>
-    const float TiedInfluenceSeparation = 1e-6f;
-
-    // A selection solved as a volume carries its strength and the node it takes its scale from. Both are
-    // authored on the container, and the volumetric strength also decides the covered nodes' masses.
-    static void AddClothVertexMapAttributes(KVObject mapNode, FeModel feModel, string mapName,
-        IReadOnlyDictionary<int, string>? proxyNodeNames)
-    {
-        var map = feModel.VertexMaps.FirstOrDefault(m => m.Name == mapName);
-        if (map.Name != mapName || map.VolumetricSolveStrength <= 0f)
-        {
-            return;
-        }
-
-        mapNode.Add("volumetric_solve", map.VolumetricSolveStrength);
-
-        if (ResolveAntiTunnelNodeName(feModel, map.ScaleSourceNode, proxyNodeNames) is { } scaleSource)
-        {
-            mapNode.Add("scale_source_node", scaleSource);
-        }
-    }
-
-    /// <summary>
-    /// Declares a <c>ClothVertexMap</c> for every selection solved as a volume over chain joints. The compiler
-    /// reads a container's <c>volumetric_solve</c> and <c>scale_source_node</c> only through the <c>data.nodes</c>
-    /// table naming its members, never through a joint's own <c>vertex_map</c>, so the table lists every covered
-    /// joint at its membership weight. A selection that also covers a sheet vertex, a free cloth node or any
-    /// other named node is left to the containers those phases declare.
-    /// </summary>
-    internal static void AddClothChainVolumetricMaps(KVObject softbodyChildren, FeModel feModel,
-        IEnumerable<FeModel.BoneChain> chains)
-    {
-        var joints = chains.SelectMany(static chain => chain.Joints).ToList();
-        var jointNames = joints.Select(static joint => joint.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var map in feModel.VertexMaps)
-        {
-            if (map.VolumetricSolveStrength <= 0f || CoversNodeOutsideChains(feModel, map, jointNames))
-            {
-                continue;
-            }
-
-            var members = KVObject.Collection();
-            var listed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var joint in joints)
-            {
-                var weight = map.WeightOf(joint.Node);
-                if (weight <= 0f || !listed.Add(joint.Name))
-                {
-                    continue;
-                }
-
-                if (weight >= 1f)
-                {
-                    members.Add(joint.Name, true);
-                }
-                else
-                {
-                    var member = KVObject.Collection();
-                    member.Add("weight", weight);
-                    members.Add(joint.Name, member);
-                }
-            }
-
-            if (listed.Count == 0)
-            {
-                continue;
-            }
-
-            var (mapNode, _) = MakeListNode("ClothVertexMap");
-            mapNode.Add("name", map.Name);
-            AddClothVertexMapAttributes(mapNode, feModel, map.Name, proxyNodeNames: null);
-            var data = KVObject.Collection();
-            data.Add("nodes", members);
-            mapNode.Add("data", data);
-            softbodyChildren.Add(mapNode);
-        }
-    }
-
-    static bool CoversNodeOutsideChains(FeModel feModel, FeModel.VertexMap map, HashSet<string> jointNames)
-    {
-        for (var node = map.VertexBase; node < map.VertexBase + map.VertexCount && node < feModel.CtrlNames.Length; node++)
-        {
-            var name = feModel.CtrlNames[node];
-            if (map.WeightOf(node) > 0f && (name.StartsWith("$cloth_", StringComparison.Ordinal)
-                || (!name.StartsWith('$') && !jointNames.Contains(name))))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // Puts a free cloth node into the ClothVertexMap containers of every selection covering it, and
-    // returns where the node itself goes. Each container lists its members in the data.nodes table the
-    // ClothNodeListEditor keeps, which is membership on its own (with a partial weight where the
-    // selection has one) and the only route on which the compiler reads the container's
-    // volumetric_solve and scale_source_node. A node covered by exactly one selection is also parented
-    // under that container, the grouping the "Add Cloth Vertex Map" wizard builds, unless the caller
-    // keeps it flat; a node in several selections stays flat, a child having one parent.
-    static Func<int, bool, KVObject> ClothVertexMapFolders(FeModel feModel, KVObject clothFolderChildren)
-    {
-        var groups = new Dictionary<string, (KVObject Children, KVObject Members)>(StringComparer.Ordinal);
-
-        (KVObject Children, KVObject Members) GroupFor(string mapName)
-        {
-            if (!groups.TryGetValue(mapName, out var group))
-            {
-                var (mapNode, mapChildren) = MakeListNode("ClothVertexMap");
-                mapNode.Add("name", mapName);
-                AddClothVertexMapAttributes(mapNode, feModel, mapName, proxyNodeNames: null);
-                var members = KVObject.Collection();
-                var data = KVObject.Collection();
-                data.Add("nodes", members);
-                mapNode.Add("data", data);
-                clothFolderChildren.Add(mapNode);
-                groups[mapName] = group = (mapChildren, members);
-            }
-
-            return group;
-        }
-
-        return (node, parentUnderMap) =>
-        {
-            var maps = feModel.GetVertexMapNames(node);
-            if (maps is null)
-            {
-                return clothFolderChildren;
-            }
-
-            var memberName = ResolveAntiTunnelNodeName(feModel, node, proxyNodeNames: null);
-            if (memberName is null || memberName.StartsWith('$'))
-            {
-                return parentUnderMap && !maps.Contains(',', StringComparison.Ordinal)
-                    ? GroupFor(FeModel.VertexMapName(maps)).Children
-                    : clothFolderChildren;
-            }
-
-            KVObject? home = null;
-            foreach (var entry in maps.Split(','))
-            {
-                var mapName = FeModel.VertexMapName(entry);
-                var group = GroupFor(mapName);
-                var weight = feModel.VertexMapWeight(mapName, node);
-                if (weight >= 1f)
-                {
-                    group.Members.Add(memberName, true);
-                }
-                else
-                {
-                    var member = KVObject.Collection();
-                    member.Add("weight", weight);
-                    group.Members.Add(memberName, member);
-                }
-
-                home = home is null ? group.Children : clothFolderChildren;
-            }
-
-            return parentUnderMap && home is not null ? home : clothFolderChildren;
-        };
-    }
-
-    // A compiled model can carry two spellings of one bone: m_modelSkeleton's m_boneName and, for cloth
-    // control nodes, the FeModel's m_CtrlName. Both are authored, and the compiler records each verbatim
-    // because every bone lookup it does is case-insensitive. This export has one name per bone, so a bone
-    // the compiler registers as a control node through a blend INDEX rather than a KV name string comes
-    // back under the skeleton's spelling instead of the cloth data's.
-    //
-    // Re-spelling the joints of THIS sheet alone leaves everything else in place: the compiler still binds
-    // each joint to the same bone case-insensitively, the model skeleton and every other DMX keep the
-    // spelling they were compiled with, and the control node lands under the cloth data's name.
-    static void RespellJointsAsClothControlNodes(DmeModel dmeModel, FeModel? feModel)
-    {
-        if (feModel is null || feModel.CtrlNames.Length == 0)
-        {
-            return;
-        }
-
-        var clothSpelling = new Dictionary<string, string>(feModel.CtrlNames.Length, StringComparer.OrdinalIgnoreCase);
-        foreach (var ctrlName in feModel.CtrlNames)
-        {
-            clothSpelling.TryAdd(ctrlName, ctrlName);
-        }
-
-        foreach (var element in dmeModel.JointList)
-        {
-            if (element is DmeJoint joint
-                && clothSpelling.TryGetValue(joint.Name, out var spelling) && spelling != joint.Name)
-            {
-                joint.Name = spelling;
-                joint.Transform.Name = spelling;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Adds the culled cloth bones the vmdl re-declares (<see cref="AddCulledClothBones"/>) to a cloth
-    /// DMX's joint list at their control node's rest transform, and registers them in
-    /// <paramref name="boneIndexByName"/> so the sheet's skin weights can reference them.
-    /// </summary>
-    /// <remarks>
-    /// The compiler parents a proxy joint's node to the nearest DAG ancestor joint of the same file that
-    /// has a node, so a culled bone whose compiled parent is a joint of this DMX is nested under that
-    /// joint; the rest stay root joints.
-    /// </remarks>
-    void AppendCulledClothBoneJoints(DmeModel dmeModel, Dictionary<string, int> boneIndexByName)
-    {
-        if (physAggregateData?.FeModel is { } feModel)
-        {
-            AppendCulledClothBoneJoints(dmeModel, boneIndexByName, feModel, CulledClothBones);
-            NestProxyJointsUnderCompiledParents(dmeModel, feModel);
-        }
-    }
-
-    /// <summary>
-    /// Moves every joint of a cloth DMX whose control node has a compiled parent that is another joint of the same
-    /// DMX, but not one of its DAG ancestors, under that parent's joint at the local transform that keeps its
-    /// model-space transform. A joint whose compiled parent sits in its own subtree is left where it is.
-    /// </summary>
-    /// <remarks>
-    /// The compiler parents a proxy joint's node to the nearest DAG ancestor joint of the same file that has a node,
-    /// so a joint the skeleton hangs elsewhere compiles with the wrong parent or none.
-    /// </remarks>
-    internal static void NestProxyJointsUnderCompiledParents(DmeModel dmeModel, FeModel feModel)
-    {
-        if (!feModel.HasCompiledSkelParents)
-        {
-            return;
-        }
-
-        var nodeByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        for (var node = 0; node < feModel.CtrlNames.Length; node++)
-        {
-            nodeByName.TryAdd(feModel.CtrlNames[node], node);
-        }
-
-        var jointByName = new Dictionary<string, DmeJoint>(StringComparer.OrdinalIgnoreCase);
-        foreach (var element in dmeModel.JointList)
-        {
-            if (element is DmeJoint joint)
-            {
-                jointByName.TryAdd(joint.Name, joint);
-            }
-        }
-
-        var parentOf = new Dictionary<DmeJoint, object>();
-        var pending = new Stack<object>();
-        pending.Push(dmeModel);
-        while (pending.Count > 0)
-        {
-            var dag = pending.Pop();
-            var children = dag is DmeModel model ? model.Children : ((DmeDag)dag).Children;
-            foreach (var child in children)
-            {
-                if (child is DmeJoint childJoint && parentOf.TryAdd(childJoint, dag))
-                {
-                    pending.Push(childJoint);
-                }
-            }
-        }
-
-        bool IsAncestor(DmeJoint candidate, DmeJoint joint)
-        {
-            for (var at = parentOf.GetValueOrDefault(joint); at is DmeJoint up; at = parentOf.GetValueOrDefault(up))
-            {
-                if (up == candidate)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        var moves = new List<(DmeJoint Joint, DmeJoint Parent)>();
-        foreach (var (name, joint) in jointByName)
-        {
-            if (!nodeByName.TryGetValue(name, out var node) || node >= feModel.SkelParents.Length)
-            {
-                continue;
-            }
-
-            var parent = feModel.SkelParents[node];
-            if (parent < 0 || parent >= feModel.CtrlNames.Length
-                || !jointByName.TryGetValue(feModel.CtrlNames[parent], out var parentJoint)
-                || parentJoint == joint || !parentOf.ContainsKey(joint) || !parentOf.ContainsKey(parentJoint)
-                || IsAncestor(parentJoint, joint) || IsAncestor(joint, parentJoint))
-            {
-                continue;
-            }
-
-            moves.Add((joint, parentJoint));
-        }
-
-        if (moves.Count == 0)
-        {
-            return;
-        }
-
-        var world = DmeJointWorldTransforms(dmeModel);
-        foreach (var (joint, parentJoint) in moves)
-        {
-            if (IsAncestor(joint, parentJoint))
-            {
-                continue;
-            }
-
-            var oldParent = parentOf[joint];
-            var siblings = oldParent is DmeModel model ? model.Children : ((DmeDag)oldParent).Children;
-            siblings.Remove(joint);
-
-            var (position, rotation) = world[joint];
-            var (parentPosition, parentRotation) = world[parentJoint];
-            var inverse = Quaternion.Conjugate(parentRotation);
-            joint.Transform.Position = Vector3.Transform(position - parentPosition, inverse);
-            joint.Transform.Orientation = Quaternion.Normalize(inverse * rotation);
-            parentJoint.Children.Add(joint);
-            parentOf[joint] = parentJoint;
-        }
-    }
-
-    /// <inheritdoc cref="AppendCulledClothBoneJoints(DmeModel, Dictionary{string, int})"/>
-    internal static void AppendCulledClothBoneJoints(DmeModel dmeModel, Dictionary<string, int> boneIndexByName,
-        FeModel feModel, IEnumerable<(int Node, string Name)> culledClothBones)
-    {
-        var appended = new List<(int Node, DmeJoint Joint)>();
-        foreach (var (node, culledName) in culledClothBones)
-        {
-            if (node >= feModel.InitPosePositions.Length || boneIndexByName.ContainsKey(culledName))
-            {
-                continue;
-            }
-
-            var joint = new DmeJoint { Name = culledName };
-            joint.Transform.Name = culledName;
-            joint.Transform.Position = feModel.InitPosePositions[node];
-            joint.Transform.Orientation = node < feModel.InitPoseRotations.Length
-                ? feModel.InitPoseRotations[node]
-                : Quaternion.Identity;
-            boneIndexByName[culledName] = dmeModel.JointList.Count;
-            dmeModel.JointList.Add(joint);
-            appended.Add((node, joint));
-        }
-
-        if (appended.Count == 0)
-        {
-            return;
-        }
-
-        var world = feModel.HasCompiledSkelParents ? DmeJointWorldTransforms(dmeModel) : [];
-        var jointByName = new Dictionary<string, DmeJoint>(StringComparer.OrdinalIgnoreCase);
-        foreach (var element in dmeModel.JointList)
-        {
-            if (element is DmeJoint joint)
-            {
-                jointByName.TryAdd(joint.Name, joint);
-            }
-        }
-
-        foreach (var (_, joint) in appended)
-        {
-            world[joint] = (joint.Transform.Position, joint.Transform.Orientation);
-        }
-
-        foreach (var (node, joint) in appended)
-        {
-            var parent = feModel.HasCompiledSkelParents && node < feModel.SkelParents.Length ? feModel.SkelParents[node] : -1;
-            if (parent < 0 || parent >= feModel.CtrlNames.Length
-                || !jointByName.TryGetValue(feModel.CtrlNames[parent], out var parentJoint)
-                || parentJoint == joint || !world.TryGetValue(parentJoint, out var parentWorld))
-            {
-                dmeModel.Children.Add(joint);
-                continue;
-            }
-
-            var inverse = Quaternion.Conjugate(parentWorld.Rotation);
-            joint.Transform.Position = Vector3.Transform(world[joint].Position - parentWorld.Position, inverse);
-            joint.Transform.Orientation = Quaternion.Normalize(inverse * world[joint].Rotation);
-            parentJoint.Children.Add(joint);
-        }
-    }
-
-    /// <summary>
-    /// The model-space transform of every joint reachable from <paramref name="dmeModel"/>'s DAG roots,
-    /// composed from the joints' local transforms.
-    /// </summary>
-    static Dictionary<DmeJoint, (Vector3 Position, Quaternion Rotation)> DmeJointWorldTransforms(DmeModel dmeModel)
-    {
-        var world = new Dictionary<DmeJoint, (Vector3 Position, Quaternion Rotation)>();
-        var pending = new Stack<(DmeDag Dag, Vector3 Position, Quaternion Rotation)>();
-        foreach (var child in dmeModel.Children)
-        {
-            if (child is DmeJoint joint)
-            {
-                pending.Push((joint, Vector3.Zero, Quaternion.Identity));
-            }
-        }
-
-        while (pending.Count > 0)
-        {
-            var (dag, parentPosition, parentRotation) = pending.Pop();
-            var position = parentPosition + Vector3.Transform(dag.Transform.Position, parentRotation);
-            var rotation = Quaternion.Normalize(parentRotation * dag.Transform.Orientation);
-            if (dag is not DmeJoint joint || !world.TryAdd(joint, (position, rotation)))
-            {
-                continue;
-            }
-
-            foreach (var child in dag.Children)
-            {
-                if (child is DmeJoint childJoint)
-                {
-                    pending.Push((childJoint, position, rotation));
-                }
-            }
-        }
-
-        return world;
-    }
+    private const float TiedInfluenceSeparation = 1e-6f;
 
     /// <summary>
     /// The sheet's faces, with enough all-pinned filler triangles appended to give every vertex slot a
@@ -616,8 +197,8 @@ partial class ModelExtract
         using var dmx = new Datamodel.Datamodel("model", 22);
 
         // Joint list = the full skeleton, so BLENDINDICES resolve (mirrors ConvertMeshToDatamodelMesh).
-        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothProxyRestBonePositions,
-            boneRotations: ClothProxyRestBoneRotations);
+        var dmeModel = ModelExtract.BuildDmeDagSkeleton(skeleton, out _, bonePositions: ProxyRestBonePositions,
+            boneRotations: ProxyRestBoneRotations);
         dmeModel.Name = name;
         RespellJointsAsClothControlNodes(dmeModel, physAggregateData?.FeModel);
 
@@ -721,7 +302,7 @@ partial class ModelExtract
         // it, so each pin the original records as rotation-free is painted 1.0 on sheets the
         // flag is not re-emitted for.
         if (physAggregateData?.FeModel is { } feRotate
-            && ClothAnchorFreeRotatePaint(feRotate, proxy, clothProxiesFlexed.Contains(proxy)) is { } freeRotate)
+            && ClothAnchorFreeRotatePaint(feRotate, proxy, flexedProxies.Contains(proxy)) is { } freeRotate)
         {
             vertexData.AddIndexedStream("cloth_anchor_free_rotate$0", freeRotate, vertexIndices);
         }
@@ -743,7 +324,7 @@ partial class ModelExtract
         // selection keeps its paint - an effect naming one the compile cannot find is a hard failure
         // ("refers to non-existent vertex map/set"). The container's aliases are its selections too.
         IReadOnlyList<string> containerMaps = physAggregateData?.FeModel is { } proxyFeModel
-            && proxyFeModel.GetProxyVertexMapName(proxy, ClothProxyMeshesToExtract.ConvertAll(static entry => entry.Proxy))
+            && proxyFeModel.GetProxyVertexMapName(proxy, ProxyMeshes.ConvertAll(static entry => entry.Proxy))
                 is { } containerMap
             ? proxyFeModel.VertexMapAliases(containerMap)
             : [];
@@ -784,7 +365,7 @@ partial class ModelExtract
         // selection only the vertices whose weight clears its epsilon floor, so an all-zero stream reproduces the
         // record. It goes on the first exported sheet alone: one stream is what registers the name.
         if (physAggregateData?.FeModel is { } ghostFeModel
-            && ClothProxyMeshesToExtract.Count > 0 && ClothProxyMeshesToExtract[0].Proxy == proxy)
+            && ProxyMeshes.Count > 0 && ProxyMeshes[0].Proxy == proxy)
         {
             var painted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var (mapName, _weights) in proxy.VertexMaps)
@@ -880,7 +461,7 @@ partial class ModelExtract
             vertexData.AddIndexedStream("cloth_make_rods$0",
                 Enumerable.Repeat(ClothSuppressedMakeRods, vertexCount).ToArray(), vertexIndices);
 
-            if (ClothFaceKeptBendStiffness(physAggregateData.FeModel, ClothProxyMeshesToExtract) is { } faceKeptBend)
+            if (ClothFaceKeptBendStiffness(physAggregateData.FeModel, ProxyMeshes) is { } faceKeptBend)
             {
                 vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(faceKeptBend, vertexCount).ToArray(), vertexIndices);
             }
@@ -894,18 +475,18 @@ partial class ModelExtract
         // compiled FeModel m_CtrlName array does not always agree in case with its skeleton, and an
         // Ordinal lookup drops every influence on a bone whose two spellings differ, leaving the affected
         // simulated vertices with all-zero blend weights.
-        var clothCompaction = BuildClothBoneCompaction(skeleton);
+        var clothCompaction = ModelExtract.BuildClothBoneCompaction(skeleton);
         var boneIndexByName = new Dictionary<string, int>(skeleton.Bones.Length * 2, StringComparer.OrdinalIgnoreCase);
         foreach (var bone in skeleton.Bones)
         {
-            if (IsGeneratedClothProxyBone(bone))
+            if (ModelExtract.IsGeneratedClothProxyBone(bone))
             {
                 continue;
             }
 
             var emitted = clothCompaction[bone.Index];
             boneIndexByName.TryAdd(bone.Name, emitted);
-            boneIndexByName.TryAdd(GetExportBoneName(bone), emitted);
+            boneIndexByName.TryAdd(ModelExtract.GetExportBoneName(bone), emitted);
         }
 
         AppendCulledClothBoneJoints(dmeModel, boneIndexByName);
@@ -989,7 +570,7 @@ partial class ModelExtract
     /// vertex like any flex. The compiler reads them off the proxy mesh itself - no vmdl node carries
     /// the deltas, so a sheet exported without them loses the layer entirely.
     /// </summary>
-    static void AddClothProxyMorphLayers(DmeMesh dmeMesh, FeModel.ProxyMesh proxy, FeModel? feModel)
+    private static void AddClothProxyMorphLayers(DmeMesh dmeMesh, FeModel.ProxyMesh proxy, FeModel? feModel)
     {
         if (feModel is null || feModel.MorphLayers.Length == 0)
         {
@@ -1041,8 +622,8 @@ partial class ModelExtract
 
         using var dmx = new Datamodel.Datamodel("model", 22);
 
-        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothProxyRestBonePositions,
-            boneRotations: ClothProxyRestBoneRotations);
+        var dmeModel = ModelExtract.BuildDmeDagSkeleton(skeleton, out _, bonePositions: ProxyRestBonePositions,
+            boneRotations: ProxyRestBoneRotations);
         dmeModel.Name = name;
 
         var (dag, vertexData) = DmxScaffolding.CreateDagVertexData(dmeModel, name);
@@ -1079,18 +660,18 @@ partial class ModelExtract
 
         // Case-insensitive bone-name resolution - see BuildClothProxyMeshDmx for why (compiled cloth control
         // node names do not always agree in case with the skeleton; an Ordinal miss silently drops the skin).
-        var clothCompaction = BuildClothBoneCompaction(skeleton);
+        var clothCompaction = ModelExtract.BuildClothBoneCompaction(skeleton);
         var boneIndexByName = new Dictionary<string, int>(skeleton.Bones.Length * 2, StringComparer.OrdinalIgnoreCase);
         foreach (var bone in skeleton.Bones)
         {
-            if (IsGeneratedClothProxyBone(bone))
+            if (ModelExtract.IsGeneratedClothProxyBone(bone))
             {
                 continue;
             }
 
             var emitted = clothCompaction[bone.Index];
             boneIndexByName.TryAdd(bone.Name, emitted);
-            boneIndexByName.TryAdd(GetExportBoneName(bone), emitted);
+            boneIndexByName.TryAdd(ModelExtract.GetExportBoneName(bone), emitted);
         }
 
         AppendCulledClothBoneJoints(dmeModel, boneIndexByName);

@@ -472,10 +472,10 @@ partial class ModelExtract
             var boneDefinitionNode = MakeNode(
                 "Bone",
                 ("name", GetExportBoneName(bone)),
-                ("origin", ToKVArray(ClothChainBoneOrigins.TryGetValue(bone.Name, out var landedOrigin)
+                ("origin", ToKVArray(Cloth.ChainBoneOrigins.TryGetValue(bone.Name, out var landedOrigin)
                     ? landedOrigin
-                    : BonePosition(bone, ClothRestBonePositions))),
-                ("angles", ToKVArray(ClothChainBoneAngles.TryGetValue(bone.Name, out var landedAngles)
+                    : BonePosition(bone, Cloth.RestBonePositions))),
+                ("angles", ToKVArray(Cloth.ChainBoneAngles.TryGetValue(bone.Name, out var landedAngles)
                     ? landedAngles
                     : EntityTransformHelper.ToEulerAngles(bone.Angle))),
                 ("do_not_discard", true)

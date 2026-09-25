@@ -7,12 +7,12 @@ using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;
 
-partial class ModelExtract
+internal sealed partial class ClothExtract
 {
     // Every bone a cloth collision shape hangs off. The compiler walks such a bone's ancestor chain and
     // registers them itself, so an explicit ClothNode on one is redundant, and it also parents the node
     // onto its nearest control-node ancestor, which the shape's own registration does not do.
-    static HashSet<string?> CollisionShapeParentBones(FeModel feModel)
+    private static HashSet<string?> CollisionShapeParentBones(FeModel feModel)
         => feModel.BuildCollisionCapsules().Select(static c => c.ParentBone)
             .Concat(feModel.BuildPlanarizeCapsules().Select(static c => c.ParentBone))
             .Concat(feModel.BuildPlanarizeBoxes().Select(static b => b.ParentBone))
@@ -148,7 +148,7 @@ partial class ModelExtract
 
     // Where a collision shape's parent bone sits in the compiled control-node array, or last when the
     // compiled model does not carry it as a control node at all.
-    static int ParentBoneNode(FeModel feModel, string? parentBone)
+    private static int ParentBoneNode(FeModel feModel, string? parentBone)
     {
         var node = parentBone is null ? -1 : Array.IndexOf(feModel.CtrlNames, parentBone);
         return node < 0 ? int.MaxValue : node;
@@ -198,7 +198,7 @@ partial class ModelExtract
     // flCurvatureRadius/flBias are 0.0 on every known compiled model (see FeModel.AntiTunnelProbes), so
     // use_curvature_drop/curvature/curvature_drop_distance/curvature_drop_amount always re-author to their
     // compiler defaults; there is no compiled signal to recover a nonzero curvature-drop setup from.
-    static KVObject MakeClothAntiTunnelProbe(string name, string sourceNode, bool animSource, float weight,
+    private static KVObject MakeClothAntiTunnelProbe(string name, string sourceNode, bool animSource, float weight,
         float activationDistance, IReadOnlyList<string> targetNames)
     {
         var nodes = KVObject.Collection();
@@ -224,7 +224,7 @@ partial class ModelExtract
             ("data", data));
     }
 
-    static KVObject MakeClothShapeBox(FeModel.CollisionBox box)
+    private static KVObject MakeClothShapeBox(FeModel.CollisionBox box)
     {
         var node = MakeNode("ClothShapeBox",
             ("name", (box.ParentBone ?? "cloth") + (box.Planarize ? "_clothPlanarizedBox" : "_clothBox")),
@@ -244,7 +244,7 @@ partial class ModelExtract
         return node;
     }
 
-    static KVObject MakeClothShapeCapsule(FeModel.CollisionCapsule capsule)
+    private static KVObject MakeClothShapeCapsule(FeModel.CollisionCapsule capsule)
     {
         var node = MakeNode("ClothShapeCapsule",
             ("name", (capsule.ParentBone ?? "cloth") + (capsule.Planarize ? "_clothPlanarizedCapsule" : "_clothCapsule")),
@@ -262,7 +262,7 @@ partial class ModelExtract
         return node;
     }
 
-    static KVObject MakeClothShapeSphere(FeModel.CollisionSphere sphere)
+    private static KVObject MakeClothShapeSphere(FeModel.CollisionSphere sphere)
     {
         var node = MakeNode("ClothShapeSphere",
             ("name", (sphere.ParentBone ?? "cloth") + "_clothSphere"),
@@ -280,7 +280,7 @@ partial class ModelExtract
 
     // The 4-bit collision mask maps to four boolean layer flags. An all-zero mask (no mask recorded) is
     // treated as "all layers" to match the tools' default fully-colliding capsule.
-    static void AddClothCollisionLayers(KVObject node, int collisionMask)
+    private static void AddClothCollisionLayers(KVObject node, int collisionMask)
     {
         var mask = collisionMask == 0 ? 0xF : collisionMask;
         node.Add("cloth_collision_layer0", (mask & 1) != 0);

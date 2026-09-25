@@ -1,13 +1,38 @@
 using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;
 
-partial class ModelExtract
+internal sealed partial class ClothExtract
 {
+    // A ClothAntiTunnelProbe's source_node/target names resolve through the same control-node namespace
+    // as a ClothSpring endpoint: a proxy vertex needs OUR re-numbered "$cloth_m{N}p{L}" name, a free
+    // ClothNode is referenced by its element name (the ctrl name with "$cloth_node_" stripped), and every
+    // other ctrl (a real bone or ClothChain joint) is referenced by its plain ctrl name.
+    private static string? ResolveAntiTunnelNodeName(FeModel feModel, int node, IReadOnlyDictionary<int, string>? proxyNodeNames)
+    {
+        if (node < 0 || node >= feModel.CtrlNames.Length)
+        {
+            return null;
+        }
+
+        // IsProxyNodeName is too broad here (true for every generated "$..." name, not just proxy
+        // vertices) - the proxy convention itself is "$cloth_m{N}p{L}", the same check MakeClothNode's
+        // own BasisName uses to tell a proxy vertex apart from any other generated ctrl name.
+        var name = feModel.CtrlNames[node];
+        if (name.StartsWith("$cloth_m", StringComparison.Ordinal))
+        {
+            return proxyNodeNames?.GetValueOrDefault(node);
+        }
+
+        const string ClothNodePrefix = "$cloth_node_";
+        return name.StartsWith(ClothNodePrefix, StringComparison.Ordinal) ? name[ClothNodePrefix.Length..] : name;
+    }
+
     // A "$cloth_node_<name>" control node is an authored free-standing ClothNode: the compiler names the
     // ctrl "$cloth_node_" + the element name, anchors it to cloth_node_root_bone via an m_CtrlOffsets
     // entry holding the authored bone-local origin, and registers the root bone as a second ctrl of its
@@ -227,7 +252,7 @@ partial class ModelExtract
     /// ancestor is what the compiler re-parents a merged <c>ClothNode</c> declaration onto, so a bone
     /// with none already compiles to an <c>m_SkelParents</c> root without a chain declaration.
     /// </summary>
-    Func<string, bool> ClothControlAncestorTest(FeModel feModel)
+    private Func<string, bool> ClothControlAncestorTest(FeModel feModel)
     {
         var controlNames = new HashSet<string>(feModel.CtrlNames, StringComparer.Ordinal);
         var boneByName = model?.Skeleton.Bones.ToDictionary(static b => b.Name, StringComparer.Ordinal);
@@ -255,7 +280,7 @@ partial class ModelExtract
     /// Whether a bone's own PARENT bone is a cloth control node. A declared cloth node is claimed by
     /// its immediate parent alone, not by any control node further up the skeleton.
     /// </summary>
-    Func<string, bool> ClothControlParentTest(FeModel feModel)
+    private Func<string, bool> ClothControlParentTest(FeModel feModel)
     {
         var controlNames = new HashSet<string>(feModel.CtrlNames, StringComparer.Ordinal);
         var boneByName = model?.Skeleton.Bones.ToDictionary(static b => b.Name, StringComparer.Ordinal);
@@ -272,9 +297,9 @@ partial class ModelExtract
     internal static bool StrayRecordOnlyAClothNodeStates(FeModel feModel, int node)
         => feModel.GetStrayRadius(node) > 0f && feModel.GetStrayStretchiness(node) >= ChainStrayStretchinessLimit;
 
-    const float ChainStrayStretchinessLimit = 0.99999988f;
+    private const float ChainStrayStretchinessLimit = 0.99999988f;
 
-    static bool LoneClothNodeIsOriginalRoot(FeModel feModel, int node)
+    private static bool LoneClothNodeIsOriginalRoot(FeModel feModel, int node)
         => feModel.HasCompiledSkelParents
             && node < feModel.SkelParents.Length && feModel.SkelParents[node] < 0;
 
@@ -294,7 +319,7 @@ partial class ModelExtract
         => LoneClothNodeIsOriginalRoot(feModel, node)
             && (!feModel.IsStatic(node) || (bareStatic && bareStaticReparented) || feModel.IsLockedToGoal(node));
 
-    static KVObject MakeLoneJointChain(FeModel feModel, string name, int node, bool hasOtherChains)
+    private static KVObject MakeLoneJointChain(FeModel feModel, string name, int node, bool hasOtherChains)
     {
         var chain = new FeModel.BoneChain { RootBone = name };
         chain.Joints.Add(new FeModel.BoneChainJoint
@@ -424,7 +449,7 @@ partial class ModelExtract
     /// rather than to 15, so it is what a node with the default mask declares, and a mask the four bits
     /// cannot spell out - 15 itself, or anything above them - falls back to the same default.
     /// </summary>
-    static (bool Layer0, bool Layer1, bool Layer2, bool Layer3) ClothNodeCollisionLayers(int mask)
+    private static (bool Layer0, bool Layer1, bool Layer2, bool Layer3) ClothNodeCollisionLayers(int mask)
     {
         var bits = mask is >= 0 and <= 14 ? mask : 0xF;
         return ((bits & 1) != 0, (bits & 2) != 0, (bits & 4) != 0, (bits & 8) != 0);
@@ -435,7 +460,7 @@ partial class ModelExtract
     /// name for a free <c>ClothNode</c> (the compiler prefixes <c>$cloth_node_</c> to it itself) and the
     /// plain bone name for everything else.
     /// </summary>
-    static string ClothFaceCornerName(FeModel feModel, int node)
+    private static string ClothFaceCornerName(FeModel feModel, int node)
     {
         var name = feModel.CtrlNames[node];
         return name.StartsWith(FeModel.FreeClothNodePrefix, StringComparison.Ordinal)
@@ -484,7 +509,7 @@ partial class ModelExtract
     /// proxy sheet to carry it. Repeated corners collapse, so a triangle stored in a quad slot emits as
     /// a ClothTri.
     /// </summary>
-    static KVObject? MakeClothFace(FeModel feModel, int[] face)
+    private static KVObject? MakeClothFace(FeModel feModel, int[] face)
     {
         var corners = new List<int>(4);
         foreach (var corner in face)
@@ -514,7 +539,7 @@ partial class ModelExtract
     /// Emits every face the original built from a ClothTri / ClothQuad over declared cloth nodes, and
     /// returns the control nodes those faces name so the caller can keep them declared.
     /// </summary>
-    static HashSet<int> AddClothFaces(KVObject clothChildren, FeModel feModel)
+    private static HashSet<int> AddClothFaces(KVObject clothChildren, FeModel feModel)
     {
         var cornered = new HashSet<int>();
         foreach (var face in feModel.GetAuthoredElementFaces())
@@ -531,58 +556,78 @@ partial class ModelExtract
         return cornered;
     }
 
-    /// <summary>
-    /// Whether a model with jiggle bones was authored with a <c>Softbody</c> holding a <c>ClothParams</c> even though it
-    /// has no cloth node of its own. The jiggle bones compile the same either way, and the ClothParams leaves only its
-    /// iteration counts behind: a model compiled without one ships them as zero.
-    /// </summary>
-    internal static bool HasJiggleBoneClothParams(FeModel feModel)
-        => feModel.JiggleBones.Length > 0
-            && (feModel.ExtraIterations != 0 || feModel.ExtraGoalIterations != 0 || feModel.ExtraPressureIterations != 0);
-
-    bool EmitFreeNodeClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
+    private static Dictionary<int, FeModel.CtrlOffset> BuildCtrlAnchorMap(FeModel feModel)
     {
-        // No sheet and no chains: cloth built purely from free-standing ClothNodes (and the
-        // ClothSprings wiring them), e.g. the "$cloth_node_*" minimal rigs and lone goal-driven
-        // bones. A FeModel that yields no authorable node here (jiggle-bone users, weapon-offset
-        // rigs) emits nothing and falls through to the PHYS transplant placeholder below.
-        var (softbody, softbodyChildren) = MakeListNode("Softbody");
-        AddSoftbodyAttributes(softbody, feModel);
-        softbodyChildren.Add(MakeClothParams(feModel, explicitMasses: feModel.HasExplicitMasses));
-        var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
-        clothFolder.Add("name", "cloth");
-        softbodyChildren.Add(clothFolder);
-
-        var strip = feModel.ImportedStripNodes;
-        if (strip.Count > 0)
+        var anchorOf = new Dictionary<int, FeModel.CtrlOffset>();
+        foreach (var offset in feModel.CtrlOffsets)
         {
-            clothFolderChildren.Add(MakeImportedCloth(feModel, strip));
+            anchorOf[offset.CtrlChild] = offset;
         }
 
-        var clothBones = ClothBoneNames(feModel);
-        clothBones.UnionWith(ImportedStripBoneNames(feModel, strip));
-        var clustered = AddClothSelfCollisionClusters(softbodyChildren, feModel, clothBones);
-        clustered.UnionWith(strip);
-        var freeNodes = AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel,
-            clustered, static _ => true, clothBones,
-            ClothVertexMapFolders(feModel, clothFolderChildren),
-            bareStaticReparented: ClothControlAncestorTest(feModel));
-        AddClothFaces(clothFolderChildren, feModel);
-        AddClothStiffHinges(softbodyChildren, feModel);
-
-        // Every ctrl of a collision-shape-only model is a shape parent bone, which the loop above
-        // skips, so gating on the node count alone drops the shapes with the rest of the Softbody.
-        if (freeNodes > 0 || strip.Count > 0 || CollisionShapeParentBones(feModel).Count > 0 || HasJiggleBoneClothParams(feModel))
-        {
-            AddClothFollowBones(softbodyChildren, feModel, clothBones);
-            AddClothCollisionShapes(softbodyChildren, feModel);
-            AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, boneChains));
-            AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
-            rootChildren.Add(softbody);
-            AddClothAntiTunnelProbes(rootChildren, feModel, proxyNodeNames: null);
-            return true;
-        }
-
-        return false;
+        return anchorOf;
     }
+
+    // The bone a "$cloth_node_<name>" ctrl hangs off, plus the bone-local origin and angles to re-author it at: the
+    // m_CtrlOffsets entry the compiler wrote for it, or the skeleton parent when the model carries no such
+    // entry, and the node's rest rotation relative to that bone, which the compiler composes as the bone's
+    // rotation times the ClothNode's own. A node anchored to another generated node has no authorable root bone.
+    internal static bool TryResolveClothNodeAnchor(FeModel feModel, Dictionary<int, FeModel.CtrlOffset> anchorOf,
+        int node, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? rootBone, out Vector3 origin,
+        out Vector3 angles)
+    {
+        var names = feModel.CtrlNames;
+        rootBone = null;
+        origin = default;
+        angles = default;
+        var parent = -1;
+
+        if (anchorOf.TryGetValue(node, out var anchor)
+            && anchor.CtrlParent >= 0 && anchor.CtrlParent < names.Length)
+        {
+            parent = anchor.CtrlParent;
+            rootBone = names[parent];
+            origin = anchor.Offset;
+        }
+        else if (node < feModel.SkelParents.Length
+            && feModel.SkelParents[node] >= 0 && feModel.SkelParents[node] < names.Length)
+        {
+            parent = feModel.SkelParents[node];
+            rootBone = names[parent];
+            if (node < feModel.InitPosePositions.Length && parent < feModel.InitPosePositions.Length
+                && parent < feModel.InitPoseRotations.Length)
+            {
+                origin = Vector3.Transform(
+                    feModel.InitPosePositions[node] - feModel.InitPosePositions[parent],
+                    Quaternion.Conjugate(feModel.InitPoseRotations[parent]));
+            }
+        }
+
+        if (parent >= 0 && node < feModel.InitPoseRotations.Length && parent < feModel.InitPoseRotations.Length)
+        {
+            var local = Quaternion.Conjugate(feModel.InitPoseRotations[parent]) * feModel.InitPoseRotations[node];
+            if (2f * MathF.Atan2(new Vector3(local.X, local.Y, local.Z).Length(), MathF.Abs(local.W)) > ClothNodeRotationTolerance)
+            {
+                angles = EntityTransformHelper.ToEulerAngles(local);
+            }
+        }
+
+        if (rootBone is not null && angles == Vector3.Zero && origin.Length() < ClothNodeMergeRadius)
+        {
+            // The compiler folds a free ClothNode into its root bone's own ctrl when the authored origin
+            // is within ClothNodeMergeRadius of the bone and it carries no rotation of its own, which loses
+            // the node the original still carries its "$cloth_node_" ctrl for. Push it just outside,
+            // keeping its direction where it has one.
+            var direction = origin == Vector3.Zero ? Vector3.One : origin;
+            origin = Vector3.Normalize(direction) * (ClothNodeMergeRadius * 1.25f);
+        }
+
+        return rootBone is not null && !FeModel.IsProxyNodeName(rootBone);
+    }
+
+    // Bone-local euclidean distance under which the compiler merges a free ClothNode into its root bone's
+    // control node instead of giving it one of its own. A node at exactly this distance keeps its own.
+    private const float ClothNodeMergeRadius = 1e-3f;
+
+    // Radians of rest rotation relative to the root bone under which a free ClothNode counts as unrotated.
+    private const float ClothNodeRotationTolerance = 1e-4f;
 }

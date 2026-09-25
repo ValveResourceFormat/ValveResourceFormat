@@ -165,7 +165,7 @@ partial class ModelExtract
         return mapped < 0 ? -1 - mapped : mapped;
     }
 
-    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms,
+    internal static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms,
         bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1,
         IReadOnlyDictionary<string, Vector3>? bonePositions = null,
         IReadOnlyDictionary<string, Quaternion>? boneRotations = null)

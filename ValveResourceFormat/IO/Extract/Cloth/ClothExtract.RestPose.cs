@@ -6,28 +6,28 @@ using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 
 namespace ValveResourceFormat.IO;
 
-partial class ModelExtract
+internal sealed partial class ClothExtract
 {
     // How far a control node's recorded rest position may sit from the same bone's compiled bind pose and
     // still be read as the same pose at better precision. Past a whole unit the node sits somewhere else
     // entirely and that bone keeps its compiled transform.
-    const float ClothRestBoneTolerance = 1.0f;
+    private const float ClothRestBoneTolerance = 1.0f;
 
     // And how far it has to sit before the disagreement is worth acting on: a control node whose bone
     // already accumulates to its recorded position exactly keeps its compiled transform.
-    const float ClothRestBoneFloor = 0f;
+    private const float ClothRestBoneFloor = 0f;
 
     // How far apart two far control bones' positions may sit from one uniform scale of their compiled positions
     // and still be read as a proxy skeleton scaled as a unit, whose chain rings are measured from the bind bones.
-    const float ClothRestBoneRigidSpread = 1e-2f;
+    private const float ClothRestBoneRigidSpread = 1e-2f;
 
     // The correction runs per MODEL when any bone disagrees at all. Once enabled, every bone past the
     // per-bone floor moves together: derived rest shapes span bones on both sides of any per-bone cut,
     // so a partial correction leaves them mixed.
-    const float ClothRestBoneModelGate = 0f;
+    private const float ClothRestBoneModelGate = 0f;
 
     // The gate of the proxy dictionary alone, the one the cloth import reads.
-    const float ClothProxyRestBoneModelGate = 0f;
+    private const float ClothProxyRestBoneModelGate = 0f;
 
     // Re-derives each bone's parent-space position from the cloth rest pose, root first: a bone the
     // FeModel registers as a control node is put back on its recorded world position, and every bone under
@@ -122,7 +122,7 @@ partial class ModelExtract
             }
         }
 
-        var turned = ProxyRestRotations(model.Skeleton.Roots, rotationTargets, ClothProxyRestBoneRotations);
+        var turned = ProxyRestRotations(model.Skeleton.Roots, rotationTargets, ProxyRestBoneRotations);
 
         void Walk(Bone bone, Vector3 parentPosition, Vector3 compiledParent, Quaternion parentRotation)
         {
@@ -141,7 +141,7 @@ partial class ModelExtract
             var local = Vector3.Transform(world - parentPosition, Quaternion.Conjugate(parentRotation));
             if (local != bone.Position)
             {
-                ClothRestBonePositions[bone.Name] = local;
+                RestBonePositions[bone.Name] = local;
             }
 
             foreach (var child in bone.Children)
@@ -160,7 +160,7 @@ partial class ModelExtract
 
         if (maxApartUncapped > ClothProxyRestBoneModelGate || turned.Count > 0)
         {
-            ProxyRestPositions(model.Skeleton.Roots, targets, turned, ClothProxyRestBonePositions);
+            ProxyRestPositions(model.Skeleton.Roots, targets, turned, ProxyRestBonePositions);
         }
     }
 
@@ -248,36 +248,16 @@ partial class ModelExtract
 
     // cos of half of 0.3 degrees. A cloth original's recorded rest rotation sits within 0.001 degrees of its bind rotation
     // on nearly every control bone; no bone sits between 0.19 and 0.57 degrees, and a turned bone sits past that gap.
-    const float ClothProxyRestRotationTurn = 0.99999657f;
-
-    /// <summary>
-    /// Gets the Bone <c>origin</c> of each ClothChain joint re-solved so that the compiler's own chain rest pose puts
-    /// the joint on its recorded <c>m_InitPose</c> position bit for bit. Only the document skeleton reads these; mesh
-    /// joints keep <see cref="ClothRestBonePositions"/>.
-    /// </summary>
-    public Dictionary<string, Vector3> ClothChainBoneOrigins { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Gets the Bone <c>angles</c> of each ClothChain joint re-solved so that the compiler's chain rest pose gives the joint
-    /// its recorded <c>m_InitPose</c> rotation bit for bit. Only the document skeleton reads these.
-    /// </summary>
-    public Dictionary<string, Vector3> ClothChainBoneAngles { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Gets the ClothChain joints whose Bone origin or angles were re-solved onto the compiler's chain rest pose. Their rings
-    /// are rebuilt from the recorded transform instead of a drifted one, so they are written without the node-base tie roll
-    /// (<see cref="FeModel.BoneChainJoint.ExtrudeTwistTieNudge"/>) that was chosen against the drift.
-    /// </summary>
-    HashSet<string> ClothChainRelandedJoints { get; } = new(StringComparer.OrdinalIgnoreCase);
+    private const float ClothProxyRestRotationTurn = 0.99999657f;
 
     /// <summary>Six-decimal grid steps searched on each side of a joint's real-valued origin or angles, per component.</summary>
-    const int ClothChainOriginSearchSteps = 12;
+    private const int ClothChainOriginSearchSteps = 12;
 
     /// <summary>Degrees a landed angle may sit from the printed one; a rotation needing more keeps the printed angles.</summary>
-    const float ClothChainAngleSlack = 1e-3f;
+    private const float ClothChainAngleSlack = 1e-3f;
 
     /// <summary>The compiler's degrees-to-half-angle factor, <c>f32(pi / 360)</c> (0x3C0EFA35).</summary>
-    const float CompilerHalfDegreesToRadians = (float)(Math.PI * 2 / 360.0 * 0.5);
+    private const float CompilerHalfDegreesToRadians = (float)(Math.PI * 2 / 360.0 * 0.5);
 
     /// <summary>A world transform as the compiler's chain rest pose carries it.</summary>
     internal readonly record struct CompilerTransform(Vector3 Position, float Scale, Quaternion Rotation);
@@ -310,7 +290,7 @@ partial class ModelExtract
 
         void Walk(Bone bone, CompilerTransform? parent)
         {
-            if (IsCompilerOwnedClothBone(bone))
+            if (ModelExtract.IsCompilerOwnedClothBone(bone))
             {
                 foreach (var child in bone.Children)
                 {
@@ -321,19 +301,19 @@ partial class ModelExtract
             }
 
             var isJoint = targets.TryGetValue(bone.Name, out var target);
-            var world = ComposeChainBone(parent, BonePosition(bone, ClothRestBonePositions),
+            var world = ComposeChainBone(parent, ModelExtract.BonePosition(bone, RestBonePositions),
                 EntityTransformHelper.ToEulerAngles(bone.Angle), isJoint ? target.Position : null,
                 isJoint ? target.Rotation : null, out var landed, out var landedAngles);
             if (landed is { } origin)
             {
-                ClothChainBoneOrigins[bone.Name] = origin;
-                ClothChainRelandedJoints.Add(bone.Name);
+                ChainBoneOrigins[bone.Name] = origin;
+                RelandedJoints.Add(bone.Name);
             }
 
             if (landedAngles is { } angles)
             {
-                ClothChainBoneAngles[bone.Name] = angles;
-                ClothChainRelandedJoints.Add(bone.Name);
+                ChainBoneAngles[bone.Name] = angles;
+                RelandedJoints.Add(bone.Name);
             }
 
             foreach (var child in bone.Children)
@@ -389,7 +369,7 @@ partial class ModelExtract
         return world;
     }
 
-    static bool SameRotationBits(Quaternion a, Quaternion b)
+    private static bool SameRotationBits(Quaternion a, Quaternion b)
         => BitConverter.SingleToUInt32Bits(a.X) == BitConverter.SingleToUInt32Bits(b.X)
             && BitConverter.SingleToUInt32Bits(a.Y) == BitConverter.SingleToUInt32Bits(b.Y)
             && BitConverter.SingleToUInt32Bits(a.Z) == BitConverter.SingleToUInt32Bits(b.Z)
@@ -521,7 +501,7 @@ partial class ModelExtract
         return new CompilerTransform(CompilerComposePosition(p, origin), p.Scale, CompilerComposeRotation(p, rotation));
     }
 
-    static Quaternion CompilerComposeRotation(CompilerTransform parent, Quaternion rotation)
+    private static Quaternion CompilerComposeRotation(CompilerTransform parent, Quaternion rotation)
     {
         var q = parent.Rotation;
         var l = rotation;
@@ -547,7 +527,7 @@ partial class ModelExtract
         return norm == 0f ? Quaternion.Identity : new Quaternion(x / norm, y / norm, z / norm, w / norm);
     }
 
-    static Vector3 CompilerComposePosition(CompilerTransform parent, Vector3 origin)
+    private static Vector3 CompilerComposePosition(CompilerTransform parent, Vector3 origin)
     {
         var q = parent.Rotation;
         var v0 = origin.Z * q.Y - origin.Y * q.Z;
@@ -614,95 +594,4 @@ partial class ModelExtract
             return values;
         }
     }
-
-    /// <summary>
-    /// Gets the rest-pose bone positions written into the cloth PROXY mesh only. The cloth import
-    /// takes the transforms it records in <c>m_InitPose</c> from the proxy mesh file's own joint
-    /// list, so a model authored with a proxy posed differently from the render mesh is reproduced
-    /// by correcting that joint list alone. Unlike <see cref="ClothRestBonePositions"/> this one is
-    /// not capped at <see cref="ClothRestBoneTolerance"/>, because nothing the render mesh is
-    /// skinned to moves with it.
-    /// </summary>
-    public Dictionary<string, Vector3> ClothProxyRestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Gets the rest-pose bone rotations, parent-local, written into the cloth PROXY mesh only, beside
-    /// <see cref="ClothProxyRestBonePositions"/>.
-    /// </summary>
-    public Dictionary<string, Quaternion> ClothProxyRestBoneRotations { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    static Dictionary<int, FeModel.CtrlOffset> BuildCtrlAnchorMap(FeModel feModel)
-    {
-        var anchorOf = new Dictionary<int, FeModel.CtrlOffset>();
-        foreach (var offset in feModel.CtrlOffsets)
-        {
-            anchorOf[offset.CtrlChild] = offset;
-        }
-
-        return anchorOf;
-    }
-
-    // The bone a "$cloth_node_<name>" ctrl hangs off, plus the bone-local origin and angles to re-author it at: the
-    // m_CtrlOffsets entry the compiler wrote for it, or the skeleton parent when the model carries no such
-    // entry, and the node's rest rotation relative to that bone, which the compiler composes as the bone's
-    // rotation times the ClothNode's own. A node anchored to another generated node has no authorable root bone.
-    internal static bool TryResolveClothNodeAnchor(FeModel feModel, Dictionary<int, FeModel.CtrlOffset> anchorOf,
-        int node, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? rootBone, out Vector3 origin,
-        out Vector3 angles)
-    {
-        var names = feModel.CtrlNames;
-        rootBone = null;
-        origin = default;
-        angles = default;
-        var parent = -1;
-
-        if (anchorOf.TryGetValue(node, out var anchor)
-            && anchor.CtrlParent >= 0 && anchor.CtrlParent < names.Length)
-        {
-            parent = anchor.CtrlParent;
-            rootBone = names[parent];
-            origin = anchor.Offset;
-        }
-        else if (node < feModel.SkelParents.Length
-            && feModel.SkelParents[node] >= 0 && feModel.SkelParents[node] < names.Length)
-        {
-            parent = feModel.SkelParents[node];
-            rootBone = names[parent];
-            if (node < feModel.InitPosePositions.Length && parent < feModel.InitPosePositions.Length
-                && parent < feModel.InitPoseRotations.Length)
-            {
-                origin = Vector3.Transform(
-                    feModel.InitPosePositions[node] - feModel.InitPosePositions[parent],
-                    Quaternion.Conjugate(feModel.InitPoseRotations[parent]));
-            }
-        }
-
-        if (parent >= 0 && node < feModel.InitPoseRotations.Length && parent < feModel.InitPoseRotations.Length)
-        {
-            var local = Quaternion.Conjugate(feModel.InitPoseRotations[parent]) * feModel.InitPoseRotations[node];
-            if (2f * MathF.Atan2(new Vector3(local.X, local.Y, local.Z).Length(), MathF.Abs(local.W)) > ClothNodeRotationTolerance)
-            {
-                angles = EntityTransformHelper.ToEulerAngles(local);
-            }
-        }
-
-        if (rootBone is not null && angles == Vector3.Zero && origin.Length() < ClothNodeMergeRadius)
-        {
-            // The compiler folds a free ClothNode into its root bone's own ctrl when the authored origin
-            // is within ClothNodeMergeRadius of the bone and it carries no rotation of its own, which loses
-            // the node the original still carries its "$cloth_node_" ctrl for. Push it just outside,
-            // keeping its direction where it has one.
-            var direction = origin == Vector3.Zero ? Vector3.One : origin;
-            origin = Vector3.Normalize(direction) * (ClothNodeMergeRadius * 1.25f);
-        }
-
-        return rootBone is not null && !FeModel.IsProxyNodeName(rootBone);
-    }
-
-    // Bone-local euclidean distance under which the compiler merges a free ClothNode into its root bone's
-    // control node instead of giving it one of its own. A node at exactly this distance keeps its own.
-    const float ClothNodeMergeRadius = 1e-3f;
-
-    // Radians of rest rotation relative to the root bone under which a free ClothNode counts as unrotated.
-    const float ClothNodeRotationTolerance = 1e-4f;
 }

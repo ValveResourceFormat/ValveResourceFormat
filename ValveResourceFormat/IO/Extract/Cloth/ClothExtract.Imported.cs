@@ -5,7 +5,7 @@ using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;
 
-partial class ModelExtract
+internal sealed partial class ClothExtract
 {
     // ModelDoc's ImportedCloth node ("Imported PhysAuthFx Cloth", CModelDocImportedCloth, wizard
     // wizard_import_legacy_cloth) carries a whole cloth in three raw KV members the compiler copies
@@ -25,7 +25,7 @@ partial class ModelExtract
     //
     // A table of only some of the model's nodes addresses them by their row among those nodes, and drops a
     // parent, follow parent or rod reaching outside it.
-    static KVObject MakeImportedCloth(FeModel feModel, IReadOnlySet<int>? tableNodes = null)
+    private static KVObject MakeImportedCloth(FeModel feModel, IReadOnlySet<int>? tableNodes = null)
     {
         var ropeParents = feModel.RopeRunParents;
         var followLinks = feModel.FollowNodeLinks;
@@ -217,12 +217,12 @@ partial class ModelExtract
             ("rod_attrs", KVObject.Collection()));
     }
 
-    const float ImportedClothDefaultContraction = 0.05f;
+    private const float ImportedClothDefaultContraction = 0.05f;
 
-    static IEnumerable<string> ImportedStripBoneNames(FeModel feModel, IReadOnlySet<int> strip)
+    private static IEnumerable<string> ImportedStripBoneNames(FeModel feModel, IReadOnlySet<int> strip)
         => strip.Select(node => feModel.CtrlNames[node]).Where(name => !feModel.IsGeneratedNodeName(name));
 
-    bool EmitImportedClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
+    private bool EmitImportedClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {
         // Phase 3: the cloth was imported from a Source 1 PhysAuthFx definition, whose node and rod
         // tables the .vmdl carries verbatim (see MakeImportedCloth). Recovering it as ClothChains

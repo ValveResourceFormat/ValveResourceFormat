@@ -4,10 +4,7 @@ using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;
 
-/// <summary>
-/// Rebuilds the model doc nodes for the jiggle bones a compiled FeModel carries.
-/// </summary>
-partial class ModelExtract
+internal sealed partial class ClothExtract
 {
     [Flags]
     private enum FeJiggleBoneFlags
@@ -113,7 +110,7 @@ partial class ModelExtract
         return node;
     }
 
-    static KVObject? ExtractJiggleBones(FeModel? feModel)
+    internal static KVObject? ExtractJiggleBones(FeModel? feModel)
     {
         if (feModel is null || feModel.JiggleBones.Length == 0)
         {

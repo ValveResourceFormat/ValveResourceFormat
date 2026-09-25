@@ -1435,7 +1435,7 @@ namespace Tests
         public async Task AntiTunnelProbesAreDeclaredInTheOrderTheirTargetsAreConcatenated()
         {
             var children = KVObject.Array();
-            ModelExtract.AddClothAntiTunnelProbes(children, SwappedAntiTunnelProbes(), null);
+            ClothExtract.AddClothAntiTunnelProbes(children, SwappedAntiTunnelProbes(), null);
 
             using (Assert.Multiple())
             {
@@ -1455,7 +1455,7 @@ namespace Tests
         public async Task AnAntiTunnelProbeKeepsTheSliceOrderOfItsTargets()
         {
             var children = KVObject.Array();
-            ModelExtract.AddClothAntiTunnelProbes(children, ShuffledAntiTunnelTargets(), null);
+            ClothExtract.AddClothAntiTunnelProbes(children, ShuffledAntiTunnelTargets(), null);
 
             await Assert.That(AntiTunnelTargets(children, 0))
                 .IsEquivalentTo(ShuffledProbeTargets, CollectionOrdering.Matching);
@@ -3050,8 +3050,8 @@ namespace Tests
             var versioned = ClothWindEffect("Version = 2");
             var unversioned = ClothWindEffect(string.Empty);
             var maps = new HashSet<string>();
-            var node = ModelExtract.MakeClothEffect(versioned, versioned.Effects.First(), maps);
-            var plain = ModelExtract.MakeClothEffect(unversioned, unversioned.Effects.First(), maps);
+            var node = ClothExtract.MakeClothEffect(versioned, versioned.Effects.First(), maps);
+            var plain = ClothExtract.MakeClothEffect(unversioned, unversioned.Effects.First(), maps);
 
             using (Assert.Multiple())
             {
@@ -3117,7 +3117,7 @@ namespace Tests
             feModel.SkeletonBoneNames = new HashSet<string>(["pelvis", "spine_2", "coattail_0_L", "coattail_1_L", "coattail_2_L"],
                 StringComparer.OrdinalIgnoreCase);
             var children = KVObject.Array();
-            ModelExtract.AddClothFollowBones(children, feModel,
+            ClothExtract.AddClothFollowBones(children, feModel,
                 new HashSet<string>(["coattail_1_L", "coattail_2_L"], StringComparer.OrdinalIgnoreCase));
 
             await Assert.That(children.Count).IsEqualTo(1);
@@ -3256,7 +3256,7 @@ namespace Tests
                 + " ]\nm_VertexMapValues = [ 255, 255, 255, 255, 128, 128, 255, 255, 255, 255, 255, 255, 255, 255 ]\nm_Rods =",
                 StringComparison.Ordinal));
             var children = KVObject.Array();
-            ModelExtract.AddClothChainVolumetricMaps(children, feModel, feModel.BuildBoneChains());
+            ClothExtract.AddClothChainVolumetricMaps(children, feModel, feModel.BuildBoneChains());
 
             await Assert.That(children.Count).IsEqualTo(1);
             var map = children.ElementAt(0).Value;
@@ -3283,8 +3283,8 @@ namespace Tests
             var overlaid = ClothStiffenEffect("BoneOverlay = 0.5");
             var plain = ClothStiffenEffect(string.Empty);
             var maps = new HashSet<string>();
-            var node = ModelExtract.MakeClothEffect(overlaid, overlaid.Effects.First(), maps);
-            var bare = ModelExtract.MakeClothEffect(plain, plain.Effects.First(), maps);
+            var node = ClothExtract.MakeClothEffect(overlaid, overlaid.Effects.First(), maps);
+            var bare = ClothExtract.MakeClothEffect(plain, plain.Effects.First(), maps);
 
             using (Assert.Multiple())
             {
@@ -3328,9 +3328,9 @@ namespace Tests
             keyValues.Add("cloth_stiffness_on_ragdoll", 0.5f);
             keyValues.Add("cloth_sleep_enabled", true);
             var softbody = KVObject.Collection();
-            ModelExtract.AddSoftbodyModelKeyValues(softbody, keyValues);
+            ClothExtract.AddSoftbodyModelKeyValues(softbody, keyValues);
             var bare = KVObject.Collection();
-            ModelExtract.AddSoftbodyModelKeyValues(bare, KVObject.Collection());
+            ClothExtract.AddSoftbodyModelKeyValues(bare, KVObject.Collection());
 
             using (Assert.Multiple())
             {
@@ -3369,7 +3369,7 @@ namespace Tests
                 }
                 """);
             var children = KVObject.Array();
-            ModelExtract.AddClothJointLocks(children, feModel, static (_, name) => name != "declared");
+            ClothExtract.AddClothJointLocks(children, feModel, static (_, name) => name != "declared");
 
             await Assert.That(children.Select(static c => c.Value.GetStringProperty("feeder_bone")).ToArray())
                 .IsEquivalentTo(LockedJoints, CollectionOrdering.Matching);
@@ -3390,8 +3390,8 @@ namespace Tests
                 + "{ m_nTaperedCapsuleRigidIndex = 0 m_nSphereRigidIndex = 0 m_nBoxRigidIndex = 0 m_nSDFRigidIndex = 0 m_nCollisionPlaneIndex = 0 }, "
                 + "{ m_nTaperedCapsuleRigidIndex = 1 m_nSphereRigidIndex = 0 m_nBoxRigidIndex = 0 m_nSDFRigidIndex = 0 m_nCollisionPlaneIndex = 0 }, "
                 + "{ m_nTaperedCapsuleRigidIndex = 2 m_nSphereRigidIndex = 0 m_nBoxRigidIndex = 0 m_nSDFRigidIndex = 0 m_nCollisionPlaneIndex = 0 } ]";
-            var grouped = ModelExtract.AddClothCollisionShapes(KVObject.Array(), PriorityCapsules(Groups));
-            var ungrouped = ModelExtract.AddClothCollisionShapes(KVObject.Array(), PriorityCapsules("m_RigidColliderPriorities = [ ]"));
+            var grouped = ClothExtract.AddClothCollisionShapes(KVObject.Array(), PriorityCapsules(Groups));
+            var ungrouped = ClothExtract.AddClothCollisionShapes(KVObject.Array(), PriorityCapsules("m_RigidColliderPriorities = [ ]"));
 
             using (Assert.Multiple())
             {
@@ -3457,8 +3457,8 @@ namespace Tests
         [Test]
         public async Task AStaticRootRedeclaresTheTwistItsLinkRecords()
         {
-            var root = ModelExtract.MakeClothJoint(TwistPair("0.0", "0.0"), StaticRootJoint());
-            var control = ModelExtract.MakeClothJoint(TwistPair("0.0", "0.309"), StaticRootJoint());
+            var root = ClothExtract.MakeClothJoint(TwistPair("0.0", "0.0"), StaticRootJoint());
+            var control = ClothExtract.MakeClothJoint(TwistPair("0.0", "0.309"), StaticRootJoint());
 
             using (Assert.Multiple())
             {
@@ -3592,8 +3592,8 @@ namespace Tests
             using (Assert.Multiple())
             {
                 await Assert.That(((Model)resource.DataBlock!).Skeleton.Bones.Length).IsEqualTo(56);
-                await Assert.That(extract.ClothRestBonePositions.Count).IsEqualTo(0);
-                await Assert.That(extract.ClothProxyRestBonePositions.Count).IsEqualTo(0);
+                await Assert.That(extract.Cloth.RestBonePositions.Count).IsEqualTo(0);
+                await Assert.That(extract.Cloth.ProxyRestBonePositions.Count).IsEqualTo(0);
             }
         }
 
@@ -3625,7 +3625,7 @@ namespace Tests
             void Walk(Bone bone, Vector3 correctedParent, Vector3 compiledParent, Quaternion parentRotation)
             {
                 var here = correctedParent
-                    + Vector3.Transform(ModelExtract.BonePosition(bone, extract.ClothRestBonePositions), parentRotation);
+                    + Vector3.Transform(ModelExtract.BonePosition(bone, extract.Cloth.RestBonePositions), parentRotation);
                 var asCompiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
                 var rotation = parentRotation * bone.Angle;
 
@@ -3684,10 +3684,10 @@ namespace Tests
         {
             var tiedModel = ClusterTieChain(1);
             var tied = KVObject.Array();
-            ModelExtract.AddClothChainSurplusRods(tied, tiedModel, tiedModel.BuildBoneChains());
+            ClothExtract.AddClothChainSurplusRods(tied, tiedModel, tiedModel.BuildBoneChains());
             var doubledModel = ClusterTieChain(2);
             var doubled = KVObject.Array();
-            ModelExtract.AddClothChainSurplusRods(doubled, doubledModel, doubledModel.BuildBoneChains());
+            ClothExtract.AddClothChainSurplusRods(doubled, doubledModel, doubledModel.BuildBoneChains());
 
             await Assert.That(tied.Count).IsEqualTo(1);
             var cluster = tied.ElementAt(0).Value;
@@ -3921,9 +3921,9 @@ namespace Tests
                 }
                 """);
 
-            var spine = ModelExtract.MakeClothNode(feModel, "spine", 0, isStaticNode: true);
-            var hip = ModelExtract.MakeClothNode(feModel, "hip", 1, isStaticNode: true);
-            var pin = ModelExtract.MakeClothNode(feModel, "pin", 2, isStaticNode: true);
+            var spine = ClothExtract.MakeClothNode(feModel, "spine", 0, isStaticNode: true);
+            var hip = ClothExtract.MakeClothNode(feModel, "hip", 1, isStaticNode: true);
+            var pin = ClothExtract.MakeClothNode(feModel, "pin", 2, isStaticNode: true);
             var crossed = feModel.ClothNodeBasisPreset(3);
 
             using (Assert.Multiple())
@@ -3974,7 +3974,7 @@ namespace Tests
             var softbodyChildren = KVObject.Array();
             softbodyChildren.Add(folder);
 
-            ModelExtract.AddClothEffects(softbodyChildren, feModel, new HashSet<string>());
+            ClothExtract.AddClothEffects(softbodyChildren, feModel, new HashSet<string>());
 
             var nested = folderChildren.ElementAt(0).Value.GetArray("children");
             var top = softbodyChildren.Select(static child => child.Value).Skip(1).ToArray();
@@ -4104,7 +4104,7 @@ namespace Tests
             softbodyChildren.Add(EffectParentNode("spine_2", isStatic: true));
             softbodyChildren.Add(EffectParentNode("coattail_1_L", isStatic: false));
 
-            ModelExtract.AddClothEffects(softbodyChildren, feModel, new HashSet<string>());
+            ClothExtract.AddClothEffects(softbodyChildren, feModel, new HashSet<string>());
 
             var top = softbodyChildren.Select(static child => child.Value).ToArray();
             static string[] Names(IEnumerable<KVObject> nodes) => [.. nodes.Select(static node => node.GetStringProperty("name"))];
@@ -4167,10 +4167,10 @@ namespace Tests
                 }
                 """);
             var anchors = feModel.CtrlOffsets.ToDictionary(static offset => offset.CtrlChild);
-            var rotatedFound = ModelExtract.TryResolveClothNodeAnchor(feModel, anchors, 1, out var rotatedRoot, out var rotatedOrigin,
+            var rotatedFound = ClothExtract.TryResolveClothNodeAnchor(feModel, anchors, 1, out var rotatedRoot, out var rotatedOrigin,
                 out var rotatedAngles);
-            var flatFound = ModelExtract.TryResolveClothNodeAnchor(feModel, anchors, 2, out _, out var flatOrigin, out var flatAngles);
-            var element = ModelExtract.MakeClothNode(feModel, rotatedRoot!, 1, isStaticNode: true, elementName: "node_spine",
+            var flatFound = ClothExtract.TryResolveClothNodeAnchor(feModel, anchors, 2, out _, out var flatOrigin, out var flatAngles);
+            var element = ClothExtract.MakeClothNode(feModel, rotatedRoot!, 1, isStaticNode: true, elementName: "node_spine",
                 origin: rotatedOrigin, angles: rotatedAngles);
 
             using (Assert.Multiple())
@@ -4194,7 +4194,7 @@ namespace Tests
             softbodyChildren.Add(StaticNode("node_spine", "spine_2", 90f));
             softbodyChildren.Add(StaticNode("pelvis", "pelvis", 0f));
 
-            ModelExtract.AddClothEffects(softbodyChildren, feModel, new HashSet<string>());
+            ClothExtract.AddClothEffects(softbodyChildren, feModel, new HashSet<string>());
 
             var nodes = softbodyChildren.Select(static child => child.Value).ToArray();
 
@@ -4241,7 +4241,7 @@ namespace Tests
         [Test]
         public async Task AJiggleBoneDeclaresTheCollisionLayersItsMaskLeavesOut()
         {
-            static KVObject? Declare(uint flags, int mask) => ModelExtract.ProcessJiggleBone(
+            static KVObject? Declare(uint flags, int mask) => ClothExtract.ProcessJiggleBone(
                 new FeModel.IndexedJiggleBone(0, -1, default(FeModel.JiggleBone) with { Flags = flags, Length = 5f, CollisionMask = mask }),
                 ["tophat"]);
 
@@ -4339,10 +4339,10 @@ namespace Tests
                 """);
 
             var withBytecode = KVObject.Array();
-            ModelExtract.AddClothAntiTunnelGroup(withBytecode, Model("131072, 805306368, 2, 131073, 196609"), ["spine_2_clothCapsule"],
+            ClothExtract.AddClothAntiTunnelGroup(withBytecode, Model("131072, 805306368, 2, 131073, 196609"), ["spine_2_clothCapsule"],
                 ["coattail_0_L", "coattail_0_L"]);
             var withoutBytecode = KVObject.Array();
-            ModelExtract.AddClothAntiTunnelGroup(withoutBytecode, Model(string.Empty), ["spine_2_clothCapsule"], ["coattail_0_L"]);
+            ClothExtract.AddClothAntiTunnelGroup(withoutBytecode, Model(string.Empty), ["spine_2_clothCapsule"], ["coattail_0_L"]);
 
             var groups = withBytecode.Select(static child => child.Value).ToArray();
 
@@ -4392,7 +4392,7 @@ namespace Tests
                 """);
 
             var softbodyChildren = KVObject.Array();
-            ModelExtract.AddClothStiffHinges(softbodyChildren, feModel);
+            ClothExtract.AddClothStiffHinges(softbodyChildren, feModel);
             var hinges = softbodyChildren.Select(static child => child.Value).ToArray();
 
             using (Assert.Multiple())
@@ -4436,9 +4436,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(ModelExtract.HasJiggleBoneClothParams(Model(1, Jiggle))).IsTrue();
-                await Assert.That(ModelExtract.HasJiggleBoneClothParams(Model(0, Jiggle))).IsFalse();
-                await Assert.That(ModelExtract.HasJiggleBoneClothParams(Model(1, string.Empty))).IsFalse();
+                await Assert.That(ClothExtract.HasJiggleBoneClothParams(Model(1, Jiggle))).IsTrue();
+                await Assert.That(ClothExtract.HasJiggleBoneClothParams(Model(0, Jiggle))).IsFalse();
+                await Assert.That(ClothExtract.HasJiggleBoneClothParams(Model(1, string.Empty))).IsFalse();
             }
         }
 
@@ -4516,8 +4516,8 @@ namespace Tests
             chain.Joints.Add(new FeModel.BoneChainJoint { Node = 2, Name = "coattail_1_R", ParentNode = 0, ParentName = "coattail_0_L", InvMass = 1f });
 
             var locked = Model("0");
-            var lockedJoints = ModelExtract.LockedJointsWithChildren(locked, chain).ToArray();
-            var cluster = ModelExtract.MakeClothRigidCloudCluster(lockedJoints[0].Joint.Name,
+            var lockedJoints = ClothExtract.LockedJointsWithChildren(locked, chain).ToArray();
+            var cluster = ClothExtract.MakeClothRigidCloudCluster(lockedJoints[0].Joint.Name,
                 lockedJoints[0].Children.Select(static child => child.Name));
             string[] members = [.. cluster.GetSubCollection("chain").GetArray("joints").Select(static joint => joint.GetStringProperty("joint_name"))];
 
@@ -4528,18 +4528,18 @@ namespace Tests
                 await Assert.That(cluster.GetInt32Property("algorithm")).IsEqualTo(0);
                 await Assert.That(cluster.GetStringProperty("parent_node")).IsEqualTo("coattail_0_L");
                 await Assert.That(members).IsEquivalentTo(["coattail_1_L", "coattail_1_R"], CollectionOrdering.Matching);
-                await Assert.That(ModelExtract.IsRigidCloudClusterLock(locked, chain)).IsFalse();
-                await Assert.That(ModelExtract.LockedJointsWithChildren(Model(string.Empty), chain).Any()).IsFalse();
+                await Assert.That(ClothExtract.IsRigidCloudClusterLock(locked, chain)).IsFalse();
+                await Assert.That(ClothExtract.LockedJointsWithChildren(Model(string.Empty), chain).Any()).IsFalse();
 
                 // chainver reads chain_version_1 as a lock beside a root base and bulk-graded bases, and the
                 // cluster row as the same lock beside preset-graded ones.
-                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 4, hasOtherChains: false, rootAllowsRotation: true,
+                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 4, hasOtherChains: false, rootAllowsRotation: true,
                     rootHasBase: true, lockedJoint: true, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: true,
                     hintsTwistWritten: false, hasUnstagedThinJoint: false)).IsEqualTo(1);
-                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 5, hasOtherChains: false, rootAllowsRotation: true,
+                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 5, hasOtherChains: false, rootAllowsRotation: true,
                     rootHasBase: true, lockedJoint: true, rigidCloudClusterLock: true, locksJoints: false, basesBulkGraded: false,
                     hintsTwistWritten: false, hasUnstagedThinJoint: false)).IsEqualTo(2);
-                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 5, hasOtherChains: false, rootAllowsRotation: true,
+                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 5, hasOtherChains: false, rootAllowsRotation: true,
                     rootHasBase: true, lockedJoint: true, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: false,
                     hintsTwistWritten: false, hasUnstagedThinJoint: false)).IsEqualTo(1);
             }
@@ -4694,7 +4694,7 @@ namespace Tests
             var mergedChains = merged.BuildBoneChains(VersionOf(merged));
 
             static Func<FeModel.BoneChain, bool, int> VersionOf(FeModel feModel)
-                => (chain, hasOtherChains) => ModelExtract.ClothChainVersion(feModel, chain, hasOtherChains);
+                => (chain, hasOtherChains) => ClothExtract.ClothChainVersion(feModel, chain, hasOtherChains);
 
             static FeModel.BoneChain Owning(List<FeModel.BoneChain> chains, string joint)
                 => chains.First(chain => chain.Joints.Exists(j => j.Name == joint));
@@ -4708,8 +4708,8 @@ namespace Tests
                     .IsEquivalentTo(WideSubChain, CollectionOrdering.Matching);
                 await Assert.That(Owning(splitChains, "a1").Joints[0].RingNodes.Count).IsEqualTo(1);
                 await Assert.That(Owning(splitChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(0);
-                await Assert.That(ModelExtract.ClothChainVersion(split, Owning(splitChains, "a1"), hasOtherChains: true)).IsEqualTo(0);
-                await Assert.That(ModelExtract.ClothChainVersion(split, Owning(splitChains, "b1"), hasOtherChains: true)).IsEqualTo(1);
+                await Assert.That(ClothExtract.ClothChainVersion(split, Owning(splitChains, "a1"), hasOtherChains: true)).IsEqualTo(0);
+                await Assert.That(ClothExtract.ClothChainVersion(split, Owning(splitChains, "b1"), hasOtherChains: true)).IsEqualTo(1);
                 await Assert.That(movedChains.Count).IsEqualTo(2);
                 await Assert.That(Owning(movedChains, "a1").Joints[0].RingNodes.Count).IsEqualTo(0);
                 await Assert.That(Owning(movedChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(1);
@@ -4717,12 +4717,12 @@ namespace Tests
                 await Assert.That(Owning(lockedChains, "a1").Joints[0].RingNodes.Count).IsEqualTo(1);
                 await Assert.That(Owning(lockedChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(0);
                 await Assert.That(flippedChains.Count).IsEqualTo(2);
-                await Assert.That(ModelExtract.ClothChainVersion(flipped, Owning(flippedChains, "a1"), hasOtherChains: true)).IsEqualTo(1);
-                await Assert.That(ModelExtract.ClothChainVersion(flipped, Owning(flippedChains, "b1"), hasOtherChains: true)).IsEqualTo(0);
+                await Assert.That(ClothExtract.ClothChainVersion(flipped, Owning(flippedChains, "a1"), hasOtherChains: true)).IsEqualTo(1);
+                await Assert.That(ClothExtract.ClothChainVersion(flipped, Owning(flippedChains, "b1"), hasOtherChains: true)).IsEqualTo(0);
                 await Assert.That(Owning(flippedChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(0);
                 await Assert.That(mergedChains.Count).IsEqualTo(1);
                 await Assert.That(mergedChains[0].Joints.Count).IsEqualTo(5);
-                await Assert.That(ModelExtract.ClothChainVersion(merged, mergedChains[0], hasOtherChains: false)).IsEqualTo(0);
+                await Assert.That(ClothExtract.ClothChainVersion(merged, mergedChains[0], hasOtherChains: false)).IsEqualTo(0);
             }
         }
 
@@ -4845,9 +4845,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(ModelExtract.FlexedPinsCarryNodeBases(painted, quad)).IsFalse();
-                await Assert.That(ModelExtract.FlexedPinsCarryNodeBases(flexed, quad)).IsTrue();
-                await Assert.That(ModelExtract.FlexedPinsCarryNodeBases(painted, Sheet([[0, 1, 2]]))).IsTrue();
+                await Assert.That(ClothExtract.FlexedPinsCarryNodeBases(painted, quad)).IsFalse();
+                await Assert.That(ClothExtract.FlexedPinsCarryNodeBases(flexed, quad)).IsTrue();
+                await Assert.That(ClothExtract.FlexedPinsCarryNodeBases(painted, Sheet([[0, 1, 2]]))).IsTrue();
             }
         }
 
@@ -4968,9 +4968,9 @@ namespace Tests
                 await Assert.That(preset.ChainReverseOffsetsArePreset(presetChain)).IsTrue();
                 await Assert.That(fitted.ChainReverseOffsetsArePreset(fittedChain)).IsFalse();
                 await Assert.That(bare.ChainReverseOffsetsArePreset(bareChain)).IsNull();
-                await Assert.That(ModelExtract.ClothChainVersion(preset, presetChain, hasOtherChains: false)).IsEqualTo(2);
-                await Assert.That(ModelExtract.ClothChainVersion(fitted, fittedChain, hasOtherChains: false)).IsEqualTo(1);
-                await Assert.That(ModelExtract.ClothChainVersion(bare, bareChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(preset, presetChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(fitted, fittedChain, hasOtherChains: false)).IsEqualTo(1);
+                await Assert.That(ClothExtract.ClothChainVersion(bare, bareChain, hasOtherChains: false)).IsEqualTo(2);
             }
         }
 
@@ -5127,11 +5127,11 @@ namespace Tests
         {
             List<int[]> faces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6]];
             HashSet<(int, int)> network = [(0, 2), (4, 6), (1, 3), (5, 7)];
-            var (apart, apartCurvature) = ModelExtract.ClothBendStiffnessOverFold(FoldStrip(0f, 14.142136f), faces,
+            var (apart, apartCurvature) = ClothExtract.ClothBendStiffnessOverFold(FoldStrip(0f, 14.142136f), faces,
                 network, 0.5f, keepsCurvature: false);
-            var (alike, alikeCurvature) = ModelExtract.ClothBendStiffnessOverFold(FoldStrip(14.142136f, 14.142136f),
+            var (alike, alikeCurvature) = ClothExtract.ClothBendStiffnessOverFold(FoldStrip(14.142136f, 14.142136f),
                 faces, network, 0.5f, keepsCurvature: false);
-            var (kept, keptCurvature) = ModelExtract.ClothBendStiffnessOverFold(FoldStrip(0f, 14.142136f), faces,
+            var (kept, keptCurvature) = ClothExtract.ClothBendStiffnessOverFold(FoldStrip(0f, 14.142136f), faces,
                 network, 0.5f, keepsCurvature: true);
 
             using (Assert.Multiple())
@@ -5186,7 +5186,7 @@ namespace Tests
         {
             List<int[]> faces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
             HashSet<(int, int)> network = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
-            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(LeastFoldedHingeGrid, faces, network, 0.375f,
+            var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(LeastFoldedHingeGrid, faces, network, 0.375f,
                 keepsCurvature: false);
 
             using (Assert.Multiple())
@@ -5402,12 +5402,12 @@ namespace Tests
             var rotations = new Dictionary<string, Quaternion>();
             var landed = new Dictionary<string, Vector3>();
             var landedAngles = new Dictionary<string, Vector3>();
-            ModelExtract.CompilerTransform? parent = null;
+            ClothExtract.CompilerTransform? parent = null;
             foreach (var (name, origin, angles) in chain)
             {
                 Vector3? position = positionTargets is not null && positionTargets.TryGetValue(name, out var p) ? p : null;
                 Quaternion? rotation = rotationTargets is not null && rotationTargets.TryGetValue(name, out var r) ? r : null;
-                var world = ModelExtract.ComposeChainBone(parent, origin, angles, position, rotation, out var landedOrigin,
+                var world = ClothExtract.ComposeChainBone(parent, origin, angles, position, rotation, out var landedOrigin,
                     out var turned);
                 positions[name] = world.Position;
                 rotations[name] = world.Rotation;
@@ -5515,7 +5515,7 @@ namespace Tests
                 {
                     var printed = RebuiltCoattailChain.First(bone => bone.Name == name);
                     await Assert.That(SameBits(landing.Positions[name], expected)).IsTrue();
-                    await Assert.That(SameBits(ModelExtract.CompilerTextFloat(landing.Landed[name]), landing.Landed[name])).IsTrue();
+                    await Assert.That(SameBits(ClothExtract.CompilerTextFloat(landing.Landed[name]), landing.Landed[name])).IsTrue();
                     await Assert.That(Vector3.Distance(landing.Landed[name], printed.Origin)).IsLessThan(1e-4f);
                 }
 
@@ -5528,7 +5528,7 @@ namespace Tests
                 foreach (var name in turned)
                 {
                     await Assert.That(SameRotationBits(landing.Rotations[name], AuthoredCoattailRestRotations[name])).IsTrue();
-                    await Assert.That(SameBits(ModelExtract.CompilerTextFloat(landing.LandedAngles[name]),
+                    await Assert.That(SameBits(ClothExtract.CompilerTextFloat(landing.LandedAngles[name]),
                         landing.LandedAngles[name])).IsTrue();
                 }
 
@@ -5564,8 +5564,8 @@ namespace Tests
                     ExtrudeTwistTieNudge = -0.012008f,
                 };
 
-            var relanded = ModelExtract.MakeClothJoint(feModel, RolledJoint(), chainExtrudes: true, rollTies: false);
-            var control = ModelExtract.MakeClothJoint(feModel, RolledJoint(), chainExtrudes: true);
+            var relanded = ClothExtract.MakeClothJoint(feModel, RolledJoint(), chainExtrudes: true, rollTies: false);
+            var control = ClothExtract.MakeClothJoint(feModel, RolledJoint(), chainExtrudes: true);
 
             using (Assert.Multiple())
             {
@@ -5597,10 +5597,10 @@ namespace Tests
                 await Assert.That(graded.ChainHintsAreTwistWritten(TwistedRopeChain())).IsFalse();
                 await Assert.That(foreign.ChainHintsAreTwistWritten(TwistedRopeChain())).IsFalse();
 
-                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 5, hasOtherChains: true, rootAllowsRotation: true,
+                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 5, hasOtherChains: true, rootAllowsRotation: true,
                     rootHasBase: true, lockedJoint: false, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: null,
                     hintsTwistWritten: true, hasUnstagedThinJoint: false)).IsEqualTo(0);
-                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 5, hasOtherChains: true, rootAllowsRotation: true,
+                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 5, hasOtherChains: true, rootAllowsRotation: true,
                     rootHasBase: true, lockedJoint: false, rigidCloudClusterLock: false, locksJoints: true, basesBulkGraded: null,
                     hintsTwistWritten: true, hasUnstagedThinJoint: false)).IsEqualTo(2);
             }
@@ -5654,10 +5654,10 @@ namespace Tests
                 await Assert.That(staged.ChainHasUnbasedLeaf(TwoSidedStripChain())).IsFalse();
                 await Assert.That(unbased.ChainHasUnbasedLeaf(slack)).IsFalse();
 
-                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 3, hasOtherChains: false, rootAllowsRotation: true,
+                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 3, hasOtherChains: false, rootAllowsRotation: true,
                     rootHasBase: false, lockedJoint: false, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: null,
                     hintsTwistWritten: false, hasUnstagedThinJoint: false, hasUnbasedLeaf: true)).IsEqualTo(0);
-                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 3, hasOtherChains: false, rootAllowsRotation: true,
+                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 3, hasOtherChains: false, rootAllowsRotation: true,
                     rootHasBase: false, lockedJoint: false, rigidCloudClusterLock: false, locksJoints: true, basesBulkGraded: null,
                     hintsTwistWritten: false, hasUnstagedThinJoint: false, hasUnbasedLeaf: true)).IsEqualTo(2);
             }
@@ -5870,9 +5870,9 @@ namespace Tests
                 await Assert.That(tied.ChainReverseOffsetsArePreset(tiedChain)).IsTrue();
                 await Assert.That(unbased.ChainReverseOffsetsArePreset(unbasedChain)).IsFalse();
                 await Assert.That(decided.ChainReverseOffsetsArePreset(decidedChain)).IsFalse();
-                await Assert.That(ModelExtract.ClothChainVersion(tied, tiedChain, hasOtherChains: false)).IsEqualTo(2);
-                await Assert.That(ModelExtract.ClothChainVersion(unbased, unbasedChain, hasOtherChains: false)).IsEqualTo(1);
-                await Assert.That(ModelExtract.ClothChainVersion(decided, decidedChain, hasOtherChains: false)).IsEqualTo(1);
+                await Assert.That(ClothExtract.ClothChainVersion(tied, tiedChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(unbased, unbasedChain, hasOtherChains: false)).IsEqualTo(1);
+                await Assert.That(ClothExtract.ClothChainVersion(decided, decidedChain, hasOtherChains: false)).IsEqualTo(1);
             }
         }
 
@@ -5935,9 +5935,9 @@ namespace Tests
                 [9, 13, 14, 10], [10, 14, 15, 11], [12, 16, 17, 13], [13, 17, 18, 14], [14, 18, 19, 15]];
             HashSet<(int, int)> network = [(0, 2), (1, 3), (1, 9), (2, 10), (3, 11), (4, 6), (5, 7), (5, 13), (6, 14), (7, 15), (8, 10),
                 (9, 11), (9, 17), (10, 18), (11, 19), (12, 14), (13, 15), (16, 18), (17, 19)];
-            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(BentSheet(BentSheetPaintedRods), faces, network, 0.25f,
+            var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(BentSheet(BentSheetPaintedRods), faces, network, 0.25f,
                 keepsCurvature: false);
-            var (plain, plainCurvature) = ModelExtract.ClothBendStiffnessOverFold(BentSheet(BentSheetPlainRods), faces, network, 0.25f,
+            var (plain, plainCurvature) = ClothExtract.ClothBendStiffnessOverFold(BentSheet(BentSheetPlainRods), faces, network, 0.25f,
                 keepsCurvature: false);
 
             using (Assert.Multiple())
@@ -6149,8 +6149,8 @@ namespace Tests
             var local = WindInLocalSpace("0.469");
             var world = WindInLocalSpace("0.0");
             var maps = new HashSet<string>();
-            var node = ModelExtract.MakeClothEffect(local, local.Effects.First(), maps);
-            var plain = ModelExtract.MakeClothEffect(world, world.Effects.First(), maps);
+            var node = ClothExtract.MakeClothEffect(local, local.Effects.First(), maps);
+            var plain = ClothExtract.MakeClothEffect(world, world.Effects.First(), maps);
 
             using (Assert.Multiple())
             {
@@ -6222,7 +6222,7 @@ namespace Tests
 
             foreach (var document in new[] { container, jointDocument, bare })
             {
-                ModelExtract.AddClothEffects(document, feModel, new HashSet<string>());
+                ClothExtract.AddClothEffects(document, feModel, new HashSet<string>());
             }
 
             static KVObject Effect(KVObject document)
@@ -6284,12 +6284,12 @@ namespace Tests
                 return chain;
             }
 
-            static List<string> Members(FeModel.BoneChain chain) => ModelExtract.RigidCloudClusterMembers(chain, chain.Joints[0]);
+            static List<string> Members(FeModel.BoneChain chain) => ClothExtract.RigidCloudClusterMembers(chain, chain.Joints[0]);
 
             FeModel.BoneChain line = Chain(-1, 0, 1, 2);
             FeModel.BoneChain fork = Chain(-1, 0, 0, 1);
             FeModel.BoneChain pair = Chain(-1, 0);
-            KVObject cluster = ModelExtract.MakeClothRigidCloudCluster("joint_0", Members(line));
+            KVObject cluster = ClothExtract.MakeClothRigidCloudCluster("joint_0", Members(line));
             string[] declared = [.. cluster.GetSubCollection("chain").GetArray("joints").Select(static joint => joint.GetStringProperty("joint_name"))];
 
             using (Assert.Multiple())
@@ -6533,8 +6533,8 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(ModelExtract.IsDeclaredByItsJiggleBone(feModel, 0)).IsTrue();
-                await Assert.That(ModelExtract.IsDeclaredByItsJiggleBone(feModel, 1)).IsFalse();
+                await Assert.That(ClothExtract.IsDeclaredByItsJiggleBone(feModel, 0)).IsTrue();
+                await Assert.That(ClothExtract.IsDeclaredByItsJiggleBone(feModel, 1)).IsFalse();
             }
         }
 
@@ -6575,7 +6575,7 @@ namespace Tests
             {
                 KVObject clothChildren = KVObject.Array();
                 KVObject softbodyChildren = KVObject.Array();
-                ModelExtract.AddFreeClothNodesAndSprings(clothChildren, softbodyChildren, feModel, [1, 2], static _ => true,
+                ClothExtract.AddFreeClothNodesAndSprings(clothChildren, softbodyChildren, feModel, [1, 2], static _ => true,
                     [], chainJoints: chainJoints);
                 return [.. softbodyChildren.Select(static child => child.Value).Select(static child =>
                     child.GetStringProperty("_class") == "ClothSpring"
@@ -6836,7 +6836,7 @@ namespace Tests
             static string[] Classes(FeModel feModel, Func<string, bool> hasControlAncestor)
             {
                 KVObject clothChildren = KVObject.Array();
-                ModelExtract.AddFreeClothNodesAndSprings(clothChildren, KVObject.Array(), feModel, [], static _ => true, [],
+                ClothExtract.AddFreeClothNodesAndSprings(clothChildren, KVObject.Array(), feModel, [], static _ => true, [],
                     bareStaticReparented: hasControlAncestor);
                 return [.. clothChildren.Select(static child => child.Value.GetStringProperty("_class"))];
             }
@@ -7043,8 +7043,8 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(ModelExtract.ChainLocksJoints(model, Chain([]))).IsFalse();
-                await Assert.That(ModelExtract.ChainLocksJoints(model, Chain([3, 4]))).IsTrue();
+                await Assert.That(ClothExtract.ChainLocksJoints(model, Chain([]))).IsFalse();
+                await Assert.That(ClothExtract.ChainLocksJoints(model, Chain([3, 4]))).IsTrue();
             }
         }
 
@@ -7079,9 +7079,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(ModelExtract.LoneNodeIsJointChain(locked, 0, bareStatic: false, bareStaticReparented: false)).IsTrue();
-                await Assert.That(ModelExtract.LoneNodeIsJointChain(free, 0, bareStatic: false, bareStaticReparented: false)).IsFalse();
-                await Assert.That(ModelExtract.LoneNodeIsJointChain(free, 1, bareStatic: false, bareStaticReparented: false)).IsFalse();
+                await Assert.That(ClothExtract.LoneNodeIsJointChain(locked, 0, bareStatic: false, bareStaticReparented: false)).IsTrue();
+                await Assert.That(ClothExtract.LoneNodeIsJointChain(free, 0, bareStatic: false, bareStaticReparented: false)).IsFalse();
+                await Assert.That(ClothExtract.LoneNodeIsJointChain(free, 1, bareStatic: false, bareStaticReparented: false)).IsFalse();
             }
         }
 
@@ -7210,7 +7210,7 @@ namespace Tests
                     ]
                 }
                 """);
-            var (origin, rotation) = ModelExtract.ClothBoneLocalPose(rotated, 1, 0);
+            var (origin, rotation) = ClothExtract.ClothBoneLocalPose(rotated, 1, 0);
 
             using (Assert.Multiple())
             {
@@ -7238,9 +7238,9 @@ namespace Tests
             var joints = feModel.BuildBoneChains().SelectMany(static chain => chain.Joints).Select(static joint => joint.Node).ToHashSet();
 
             var withJoints = KVObject.Array();
-            ModelExtract.AddFreeClothNodesAndSprings(KVObject.Array(), withJoints, feModel, joints, static _ => true, [], chainJoints: joints);
+            ClothExtract.AddFreeClothNodesAndSprings(KVObject.Array(), withJoints, feModel, joints, static _ => true, [], chainJoints: joints);
             var withoutJoints = KVObject.Array();
-            ModelExtract.AddFreeClothNodesAndSprings(KVObject.Array(), withoutJoints, feModel, joints, static _ => true, []);
+            ClothExtract.AddFreeClothNodesAndSprings(KVObject.Array(), withoutJoints, feModel, joints, static _ => true, []);
 
             static (string, string)[] Springs(KVObject children) => children
                 .Select(static child => child.Value)
@@ -7583,7 +7583,7 @@ namespace Tests
             softbodyChildren.Add(folder);
             softbodyChildren.Add(KVHelpers.MakeNode("ClothChain", ("name", "neck_0"), ("root_bone", "neck_0"), ("chain", chain)));
 
-            ModelExtract.AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
+            ClothExtract.AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
 
             var added = softbodyChildren.Select(static child => child.Value).Skip(2).ToArray();
             var bones = added.Select(static node => node.GetStringProperty("cloth_node_root_bone")).ToArray();
@@ -7741,7 +7741,7 @@ namespace Tests
                 [2, 3, 8, 7], [7, 8, 13, 12], [12, 13, 18, 17], [3, 4, 9, 8], [8, 9, 14, 13], [13, 14, 19, 18]];
             HashSet<(int, int)> network = [(0, 11), (1, 10), (2, 12), (3, 13), (4, 14), (5, 8), (5, 15), (6, 7), (6, 16), (7, 9),
                 (7, 17), (8, 18), (9, 19), (10, 13), (11, 12), (12, 14), (15, 18), (16, 17), (17, 19)];
-            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(CorrugatedSheet, faces, network, 0.49999997f, keepsCurvature: false);
+            var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(CorrugatedSheet, faces, network, 0.49999997f, keepsCurvature: false);
 
             using (Assert.Multiple())
             {
@@ -7827,7 +7827,7 @@ namespace Tests
         {
             var tiedModel = SyntheticCloth.Parse(RingClusterTieText);
             var tied = KVObject.Array();
-            ModelExtract.AddClothChainSurplusRods(tied, tiedModel, tiedModel.BuildBoneChains());
+            ClothExtract.AddClothChainSurplusRods(tied, tiedModel, tiedModel.BuildBoneChains());
 
             // CONTROL: the band closed onto the pair's own rest distance, an antishrink span.
             var restBandModel = SyntheticCloth.Parse(RingClusterTieText.Replace(
@@ -7835,7 +7835,7 @@ namespace Tests
                 "{ nNode = [ 2, 4 ] flMaxDist = 8.503419 flMinDist = 8.4",
                 StringComparison.Ordinal));
             var restBand = KVObject.Array();
-            ModelExtract.AddClothChainSurplusRods(restBand, restBandModel, restBandModel.BuildBoneChains());
+            ClothExtract.AddClothChainSurplusRods(restBand, restBandModel, restBandModel.BuildBoneChains());
 
             // CONTROL: the same band between two rings of ONE joint (2 and 3, both from coattail_1_L),
             // which is that joint's own ring rod and the emitted chain regenerates it.
@@ -7844,7 +7844,7 @@ namespace Tests
                 "{ nNode = [ 2, 3 ] flMaxDist = 48.0 flMinDist = 12.0",
                 StringComparison.Ordinal));
             var sameJoint = KVObject.Array();
-            ModelExtract.AddClothChainSurplusRods(sameJoint, sameJointModel, sameJointModel.BuildBoneChains());
+            ClothExtract.AddClothChainSurplusRods(sameJoint, sameJointModel, sameJointModel.BuildBoneChains());
 
             var emitted = tied.Select(static child => child.Value).ToArray();
 
@@ -7938,12 +7938,12 @@ namespace Tests
         {
             List<int[]> faces = [[4, 0, 3], [0, 1, 2, 3], [5, 4, 3, 2]];
             HashSet<(int, int)> network = [(0, 5)];
-            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(PairedHingeSheet(1.0513982f), faces,
+            var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(PairedHingeSheet(1.0513982f), faces,
                 network, 0.64999986f, keepsCurvature: false);
 
             // The same rod held further open than the model-wide curvature alone leaves it: the residual has to be
             // painted on the generating hinge's own vertices, which node 4 is on and node 2 is not.
-            var (folded, foldedCurvature) = ModelExtract.ClothBendStiffnessOverFold(PairedHingeSheet(1.06f),
+            var (folded, foldedCurvature) = ClothExtract.ClothBendStiffnessOverFold(PairedHingeSheet(1.06f),
                 faces, network, 0.64999986f, keepsCurvature: false);
 
             using (Assert.Multiple())
@@ -7989,11 +7989,11 @@ namespace Tests
         [Test]
         public async Task ASheetStatesTheCollisionLayersItsCompiledMasksClear()
         {
-            var cleared = ModelExtract.ClothCollisionLayerPaints(SyntheticCloth.Parse(LayerMaskText("65533")),
+            var cleared = ClothExtract.ClothCollisionLayerPaints(SyntheticCloth.Parse(LayerMaskText("65533")),
                 [1, 2, 3], 3).ToList();
-            var whole = ModelExtract.ClothCollisionLayerPaints(SyntheticCloth.Parse(LayerMaskText("65535")),
+            var whole = ClothExtract.ClothCollisionLayerPaints(SyntheticCloth.Parse(LayerMaskText("65535")),
                 [1, 2, 3], 3).ToList();
-            var lowFour = ModelExtract.ClothCollisionLayerPaints(SyntheticCloth.Parse(LayerMaskText("65520")),
+            var lowFour = ClothExtract.ClothCollisionLayerPaints(SyntheticCloth.Parse(LayerMaskText("65520")),
                 [1, 2, 3], 3).ToList();
 
             using (Assert.Multiple())
@@ -8041,8 +8041,8 @@ namespace Tests
         {
             var oneWay = TwistOneWay("0.0");
             var relaxed = TwistOneWay("0.309");
-            var root = ModelExtract.MakeClothJoint(oneWay, StaticRootJoint());
-            var control = ModelExtract.MakeClothJoint(relaxed, StaticRootJoint());
+            var root = ClothExtract.MakeClothJoint(oneWay, StaticRootJoint());
+            var control = ClothExtract.MakeClothJoint(relaxed, StaticRootJoint());
 
             using (Assert.Multiple())
             {
@@ -8115,7 +8115,7 @@ namespace Tests
         [Test]
         public async Task ThePlanarizedShapeOwningFewestPlanesIsDeclaredFirst()
         {
-            var order = ModelExtract.PlanarizedShapesInClaimOrder(TwoPlanarizedSpheres());
+            var order = ClothExtract.PlanarizedShapesInClaimOrder(TwoPlanarizedSpheres());
 
             using (Assert.Multiple())
             {
@@ -8371,8 +8371,8 @@ namespace Tests
         [Test]
         public async Task AnInteriorStaticJointRedeclaresItsRelaxlessTwistToo()
         {
-            var interior = ModelExtract.MakeClothJoint(InteriorTwist("0.0"), InteriorStaticJoint(0f));
-            var simulated = ModelExtract.MakeClothJoint(InteriorTwist("1.0"), InteriorStaticJoint(1f));
+            var interior = ClothExtract.MakeClothJoint(InteriorTwist("0.0"), InteriorStaticJoint(0f));
+            var simulated = ClothExtract.MakeClothJoint(InteriorTwist("1.0"), InteriorStaticJoint(1f));
 
             using (Assert.Multiple())
             {
@@ -8415,7 +8415,7 @@ namespace Tests
         [Test]
         public async Task AOneJointChainIsNotForcedToVersionZero()
         {
-            static int Version(int joints, bool otherChains) => ModelExtract.ClothChainVersion(
+            static int Version(int joints, bool otherChains) => ClothExtract.ClothChainVersion(
                 joints, otherChains, rootAllowsRotation: true, rootHasBase: false, lockedJoint: false,
                 rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: null,
                 hintsTwistWritten: false, hasUnstagedThinJoint: false);
@@ -8507,7 +8507,7 @@ namespace Tests
                 await Assert.That(chain.ExtrudeSides).IsLessThan(1);
                 await Assert.That(ringless.AllowsRotation(chain.Joints[0].Node)).IsFalse();
                 await Assert.That(ringless.NodeBases.ContainsKey(chain.Joints[0].Node)).IsFalse();
-                await Assert.That(ModelExtract.ClothChainVersion(ringless, chain, hasOtherChains: true))
+                await Assert.That(ClothExtract.ClothChainVersion(ringless, chain, hasOtherChains: true))
                     .IsEqualTo(2);
             }
         }
@@ -8651,7 +8651,7 @@ namespace Tests
             static KVObject FirstDeclaration(FeModel feModel)
             {
                 var chain = feModel.BuildBoneChains()[0];
-                return ModelExtract.MakeClothJoint(feModel, chain.Joints.Find(static joint => joint.Name == "j1")!,
+                return ClothExtract.MakeClothJoint(feModel, chain.Joints.Find(static joint => joint.Name == "j1")!,
                     chain: chain);
             }
 
@@ -8685,8 +8685,8 @@ namespace Tests
         public async Task AChainsAttrsStateTheExtrudeTwistSchemaDefault()
         {
             const float Roll = 70f;
-            var extruding = ModelExtract.MakeClothChainAttrs(2, 1.5f, Roll);
-            var rope = ModelExtract.MakeClothChainAttrs();
+            var extruding = ClothExtract.MakeClothChainAttrs(2, 1.5f, Roll);
+            var rope = ClothExtract.MakeClothChainAttrs();
 
             using (Assert.Multiple())
             {
@@ -8696,7 +8696,7 @@ namespace Tests
                     .IsEqualTo(1.5f);
                 await Assert.That(rope.GetSubCollection("extrude_twist").GetFloatProperty("default"))
                     .IsEqualTo(0f);
-                await Assert.That(ModelExtract.ClothExtrudeTwistKey(Roll)).IsEqualTo(90f - Roll);
+                await Assert.That(ClothExtract.ClothExtrudeTwistKey(Roll)).IsEqualTo(90f - Roll);
                 await Assert.That(extruding.GetSubCollection("extrude_twist").GetFloatProperty("default"))
                     .IsEqualTo(0f);
             }
@@ -8738,20 +8738,20 @@ namespace Tests
                 await Assert.That(feModel.StaticNodeCount).IsEqualTo(1);
 
                 // The law: stated on both sheets, flag or no flag, and vertex 0 is the one it locks.
-                var flexed = ModelExtract.ClothAnchorFreeRotatePaint(feModel, lockedSimulated, sheetFlexes: true);
-                var unflexed = ModelExtract.ClothAnchorFreeRotatePaint(feModel, lockedSimulated, sheetFlexes: false);
+                var flexed = ClothExtract.ClothAnchorFreeRotatePaint(feModel, lockedSimulated, sheetFlexes: true);
+                var unflexed = ClothExtract.ClothAnchorFreeRotatePaint(feModel, lockedSimulated, sheetFlexes: false);
                 await Assert.That(string.Join(",", flexed ?? [])).IsEqualTo("0,1,1,1");
                 await Assert.That(string.Join(",", unflexed ?? [])).IsEqualTo("0,1,1,1");
 
                 // CONTROLS. The same static PINNED is the old reading: it is rotation-locked, so nothing is
                 // freed and no stream goes out, and a flexed sheet states nothing either way.
-                await Assert.That(ModelExtract.ClothAnchorFreeRotatePaint(feModel, pinnedInstead, sheetFlexes: false)).IsNull();
-                await Assert.That(ModelExtract.ClothAnchorFreeRotatePaint(feModel, pinnedInstead, sheetFlexes: true)).IsNull();
+                await Assert.That(ClothExtract.ClothAnchorFreeRotatePaint(feModel, pinnedInstead, sheetFlexes: false)).IsNull();
+                await Assert.That(ClothExtract.ClothAnchorFreeRotatePaint(feModel, pinnedInstead, sheetFlexes: true)).IsNull();
 
                 // A sheet holding no static node at all states nothing on a flexed sheet and nothing on an
                 // unflexed one, since it has no pin to free.
-                await Assert.That(ModelExtract.ClothAnchorFreeRotatePaint(feModel, allSimulated, sheetFlexes: true)).IsNull();
-                await Assert.That(ModelExtract.ClothAnchorFreeRotatePaint(feModel, allSimulated, sheetFlexes: false)).IsNull();
+                await Assert.That(ClothExtract.ClothAnchorFreeRotatePaint(feModel, allSimulated, sheetFlexes: true)).IsNull();
+                await Assert.That(ClothExtract.ClothAnchorFreeRotatePaint(feModel, allSimulated, sheetFlexes: false)).IsNull();
             }
         }
 
@@ -8792,7 +8792,7 @@ namespace Tests
         [Test]
         public async Task AClusterMemberTableStatesItsOwnDefaults()
         {
-            var cluster = ModelExtract.MakeClothSelfCollisionCluster(
+            var cluster = ClothExtract.MakeClothSelfCollisionCluster(
                 "cluster_0", ["j1", "j2"], radius: 6f, strayRadius: 24f);
             var chain = cluster.GetSubCollection("chain");
 
@@ -8904,7 +8904,7 @@ namespace Tests
             var twoPins = CornerSheet([0, 0, 4, 5, 4, 5], [[0, 1, 2, 3]]);
 
             static List<int[]> Padded(FeModel.ProxyMesh sheet)
-                => ModelExtract.PadSheetCornersToSlotCount(sheet, sheet.Positions.Length);
+                => ClothExtract.PadSheetCornersToSlotCount(sheet, sheet.Positions.Length);
 
             static string Shape(List<int[]> faces)
                 => string.Join(" ", faces.Select(f => string.Concat(f)));
@@ -9326,7 +9326,7 @@ namespace Tests
             static float Declared(FeModel feModel, string bone, bool second)
             {
                 var chain = feModel.BuildBoneChains()[0];
-                return ModelExtract.MakeClothJoint(feModel,
+                return ClothExtract.MakeClothJoint(feModel,
                     chain.Joints.Find(joint => joint.Name == bone)!,
                     chain: chain, secondDeclaration: second).GetFloatProperty("twist_relax");
             }
@@ -9524,13 +9524,13 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(ModelExtract.ProxyFlexesClothBorders(flexed, quad, true, true)).IsTrue();
-                await Assert.That(ModelExtract.ProxyFlexesClothBorders(painted, quad, true, true)).IsFalse();
-                await Assert.That(ModelExtract.ProxyFlexesClothBorders(flexed, unreached, true, true)).IsFalse();
-                await Assert.That(ModelExtract.ProxyFlexesClothBorders(flexed, quad, false, true)).IsTrue();
-                await Assert.That(ModelExtract.FlexedPinsStateClothBorders(flexed, quad)).IsTrue();
-                await Assert.That(ModelExtract.FlexedPinsStateClothBorders(painted, quad)).IsFalse();
-                await Assert.That(ModelExtract.FlexedPinsStateClothBorders(flexed, unreached)).IsFalse();
+                await Assert.That(ClothExtract.ProxyFlexesClothBorders(flexed, quad, true, true)).IsTrue();
+                await Assert.That(ClothExtract.ProxyFlexesClothBorders(painted, quad, true, true)).IsFalse();
+                await Assert.That(ClothExtract.ProxyFlexesClothBorders(flexed, unreached, true, true)).IsFalse();
+                await Assert.That(ClothExtract.ProxyFlexesClothBorders(flexed, quad, false, true)).IsTrue();
+                await Assert.That(ClothExtract.FlexedPinsStateClothBorders(flexed, quad)).IsTrue();
+                await Assert.That(ClothExtract.FlexedPinsStateClothBorders(painted, quad)).IsFalse();
+                await Assert.That(ClothExtract.FlexedPinsStateClothBorders(flexed, unreached)).IsFalse();
             }
         }
 
@@ -9844,13 +9844,13 @@ namespace Tests
             List<int[]> faces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
             HashSet<(int, int)> network = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
 
-            var (bounded, boundedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+            var (bounded, boundedCurvature) = ClothExtract.ClothBendStiffnessOverFold(
                 CappedAgainstFlatHingeGrid(20f), faces, network, 0f, keepsCurvature: false);
-            var (loose, looseCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+            var (loose, looseCurvature) = ClothExtract.ClothBendStiffnessOverFold(
                 CappedAgainstFlatHingeGrid(0f), faces, network, 0f, keepsCurvature: false);
-            var (suspended, suspendedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+            var (suspended, suspendedCurvature) = ClothExtract.ClothBendStiffnessOverFold(
                 CappedAgainstFlatHingeGrid(20f), faces, network, 0f, keepsCurvature: true);
-            var (painted, paintedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+            var (painted, paintedCurvature) = ClothExtract.ClothBendStiffnessOverFold(
                 LeastFoldedHingeGrid, faces, network, 0.375f, keepsCurvature: false);
 
             using (Assert.Multiple())
@@ -10051,7 +10051,7 @@ namespace Tests
 
                 // THE LAW.
                 await Assert.That(permuted.ChainReverseOffsetsArePreset(permutedChain)).IsTrue();
-                await Assert.That(ModelExtract.ClothChainVersion(permuted, permutedChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(permuted, permutedChain, hasOtherChains: false)).IsEqualTo(2);
             }
         }
 
@@ -10121,7 +10121,7 @@ namespace Tests
         private static string[] SurplusClusterMembers(FeModel feModel)
         {
             var children = KVObject.Array();
-            ModelExtract.AddClothChainSurplusRods(children, feModel, feModel.BuildBoneChains());
+            ClothExtract.AddClothChainSurplusRods(children, feModel, feModel.BuildBoneChains());
             return children.Where(static c => c.Value.GetStringProperty("_class") == "ClothSelfCollisionCluster")
                 .SelectMany(static c => c.Value.GetSubCollection("chain").GetArray("joints"))
                 .Select(static j => j.GetStringProperty("joint_name")).ToArray();
@@ -10130,7 +10130,7 @@ namespace Tests
         private static string[] SurplusClasses(FeModel feModel)
         {
             var children = KVObject.Array();
-            ModelExtract.AddClothChainSurplusRods(children, feModel, feModel.BuildBoneChains());
+            ClothExtract.AddClothChainSurplusRods(children, feModel, feModel.BuildBoneChains());
             return children.Select(static c => c.Value.GetStringProperty("_class")).ToArray();
         }
 
@@ -10287,11 +10287,11 @@ namespace Tests
             using (Assert.Multiple())
             {
                 // CONTROLS: nothing fitted, and a fit only on the leaf.
-                await Assert.That(ModelExtract.ClothChainVersion(bare, bareChain, hasOtherChains: false)).IsEqualTo(2);
-                await Assert.That(ModelExtract.ClothChainVersion(leaf, leafChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(bare, bareChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(leaf, leafChain, hasOtherChains: false)).IsEqualTo(2);
 
                 // THE LAW.
-                await Assert.That(ModelExtract.ClothChainVersion(fitted, fittedChain, hasOtherChains: false)).IsLessThan(2);
+                await Assert.That(ClothExtract.ClothChainVersion(fitted, fittedChain, hasOtherChains: false)).IsLessThan(2);
             }
         }
 
@@ -10343,7 +10343,7 @@ namespace Tests
             static (bool Switch, HashSet<(int, int)> Derived) Read(FeModel feModel)
             {
                 var proxies = feModel.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList();
-                var derived = ModelExtract.ClothRodsFromSurface(feModel, proxies, out var bend, out _, out _, out _, out _, out _);
+                var derived = ClothExtract.ClothRodsFromSurface(feModel, proxies, out var bend, out _, out _, out _, out _, out _);
                 return (bend, derived);
             }
 
@@ -10408,13 +10408,13 @@ namespace Tests
             List<int[]> faces = [[6, 0, 7], [16, 6, 7, 17], [1, 8, 9], [18, 17, 9, 8], [16, 17, 18], [2, 10, 11], [16, 19, 11, 10], [18, 12, 13, 19], [12, 3, 13], [16, 18, 19], [20, 22, 23, 21], [4, 14, 15, 5], [14, 20, 21, 15], [22, 24, 25, 23], [24, 26, 27, 25], [26, 28, 27]];
             HashSet<(int, int)> network = [(0, 16), (0, 17), (1, 17), (1, 18), (2, 16), (2, 19), (3, 18), (3, 19), (4, 20), (5, 21), (6, 18), (7, 18), (8, 16), (9, 16), (10, 18), (11, 18), (12, 16), (13, 16), (14, 22), (15, 23), (17, 19), (20, 24), (21, 25), (22, 26), (23, 27), (24, 28), (25, 28)];
             var sheet = WintermoonSheet;
-            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0.9939643f, keepsCurvature: false);
+            var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0.9939643f, keepsCurvature: false);
 
             List<int[]> gridFaces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
             HashSet<(int, int)> gridNetwork = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
-            var (painted, paintedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+            var (painted, paintedCurvature) = ClothExtract.ClothBendStiffnessOverFold(
                 LeastFoldedHingeGrid, gridFaces, gridNetwork, 0.375f, keepsCurvature: false);
-            var (bounded, boundedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+            var (bounded, boundedCurvature) = ClothExtract.ClothBendStiffnessOverFold(
                 CappedAgainstFlatHingeGrid(20f), gridFaces, gridNetwork, 0f, keepsCurvature: false);
 
             using (Assert.Multiple())
@@ -10582,9 +10582,9 @@ namespace Tests
 
         private static int[] RopeAlignments(FeModel feModel) =>
         [
-            ModelExtract.MakeClothNode(feModel, "joint1", 0, isStaticNode: true).GetInt32Property("transform_alignment"),
-            ModelExtract.MakeClothNode(feModel, "joint1", 1, elementName: "clothNode_joint2").GetInt32Property("transform_alignment"),
-            ModelExtract.MakeClothNode(feModel, "joint1", 2, elementName: "clothNode_joint3").GetInt32Property("transform_alignment"),
+            ClothExtract.MakeClothNode(feModel, "joint1", 0, isStaticNode: true).GetInt32Property("transform_alignment"),
+            ClothExtract.MakeClothNode(feModel, "joint1", 1, elementName: "clothNode_joint2").GetInt32Property("transform_alignment"),
+            ClothExtract.MakeClothNode(feModel, "joint1", 2, elementName: "clothNode_joint3").GetInt32Property("transform_alignment"),
         ];
 
         // cloth_min_mesh's shape: a static bone and two element nodes under it, the second roped to the bone.
@@ -10622,10 +10622,10 @@ namespace Tests
             using (Assert.Multiple())
             {
                 // CONTROL: nothing in the original locks the static root, so format 1 would add a lock and the guard holds.
-                await Assert.That(ModelExtract.ClothChainVersion(free, freeChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(free, freeChain, hasOtherChains: false)).IsEqualTo(2);
 
                 // THE LAW.
-                await Assert.That(ModelExtract.ClothChainVersion(locked, lockedChain, hasOtherChains: false)).IsLessThan(2);
+                await Assert.That(ClothExtract.ClothChainVersion(locked, lockedChain, hasOtherChains: false)).IsLessThan(2);
             }
         }
 
@@ -10754,7 +10754,7 @@ namespace Tests
             tip.SetParent(cape);
 
             var into = new Dictionary<string, Quaternion>(StringComparer.OrdinalIgnoreCase);
-            var turned = ModelExtract.ProxyRestRotations([root],
+            var turned = ClothExtract.ProxyRestRotations([root],
                 new Dictionary<string, Quaternion> { ["root"] = Quaternion.Identity, ["cape"] = turn }, into);
 
             using (Assert.Multiple())
@@ -10782,8 +10782,8 @@ namespace Tests
             var moving = WindVortexEffect("[ 70.400002, 0.0, 0.0 ]", "1.0", "123.200005");
             var stilled = WindVortexEffect("[ -0.0, -0.0, -0.0 ]", "0.0", "0.0");
             var maps = new HashSet<string>();
-            var movingNode = ModelExtract.MakeClothEffect(moving, moving.Effects.First(), maps)!;
-            var stilledNode = ModelExtract.MakeClothEffect(stilled, stilled.Effects.First(), maps)!;
+            var movingNode = ClothExtract.MakeClothEffect(moving, moving.Effects.First(), maps)!;
+            var stilledNode = ClothExtract.MakeClothEffect(stilled, stilled.Effects.First(), maps)!;
 
             using (Assert.Multiple())
             {
@@ -10954,7 +10954,7 @@ namespace Tests
             tail.SetParent(root);
 
             var into = new Dictionary<string, Vector3>(StringComparer.OrdinalIgnoreCase);
-            ModelExtract.ProxyRestPositions([root], new Dictionary<string, Vector3>
+            ClothExtract.ProxyRestPositions([root], new Dictionary<string, Vector3>
             {
                 ["root"] = Vector3.Zero,
                 ["cape"] = new Vector3(0f, 0f, -10.5f),
@@ -11013,7 +11013,7 @@ namespace Tests
                 dmeModel.JointList.Add(parent);
 
                 var boneIndexByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["root"] = 0, ["collar_0"] = 1 };
-                ModelExtract.AppendCulledClothBoneJoints(dmeModel, boneIndexByName, feModel, [(2, "collar_1")]);
+                ClothExtract.AppendCulledClothBoneJoints(dmeModel, boneIndexByName, feModel, [(2, "collar_1")]);
                 return (dmeModel, parent, dmeModel.JointList.OfType<DmeJoint>().Single(joint => joint.Name == "collar_1"));
             }
 
@@ -11128,7 +11128,7 @@ namespace Tests
                 dmeModel.JointList.Add(upper);
                 dmeModel.JointList.Add(lower);
 
-                ModelExtract.NestProxyJointsUnderCompiledParents(dmeModel, feModel);
+                ClothExtract.NestProxyJointsUnderCompiledParents(dmeModel, feModel);
                 return (dmeModel, pelvis, upper, lower);
             }
 
@@ -11172,7 +11172,7 @@ namespace Tests
             fish.SetParent(root);
 
             var into = new Dictionary<string, Quaternion>(StringComparer.OrdinalIgnoreCase);
-            var turned = ModelExtract.ProxyRestRotations([root], new Dictionary<string, Quaternion>
+            var turned = ClothExtract.ProxyRestRotations([root], new Dictionary<string, Quaternion>
             {
                 ["root"] = Quaternion.Identity,
                 ["neck"] = Quaternion.CreateFromAxisAngle(Vector3.UnitX, float.DegreesToRadians(0.5717f)),
@@ -11337,7 +11337,7 @@ namespace Tests
         {
             var sheet = FaceKeptSheetCorner;
             var proxies = sheet.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList();
-            var derived = ModelExtract.ClothRodsFromSurface(sheet, proxies, out var bend, out _, out _, out _, out _, out _);
+            var derived = ClothExtract.ClothRodsFromSurface(sheet, proxies, out var bend, out _, out _, out _, out _, out _);
 
             using (Assert.Multiple())
             {
@@ -11403,7 +11403,7 @@ namespace Tests
         public async Task AFaceKeptSheetWhoseFoldsAreRegeneratedStatesNoBendPaint()
         {
             static float? Read(FeModel feModel)
-                => ModelExtract.ClothFaceKeptBendStiffness(feModel,
+                => ClothExtract.ClothFaceKeptBendStiffness(feModel,
                     feModel.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList());
 
             using (Assert.Multiple())
@@ -11620,13 +11620,13 @@ namespace Tests
             List<int[]> faces = [[15, 12, 13], [14, 15, 13], [6, 7, 3, 4], [5, 8, 6, 4], [0, 5, 4, 1], [3, 2, 1, 4], [9, 10, 7, 6], [8, 11, 9, 6], [11, 14, 13, 9], [12, 10, 9, 13]];
             HashSet<(int, int)> network = [(0, 8), (1, 6), (2, 7), (3, 5), (3, 10), (4, 9), (5, 11), (6, 13), (7, 8), (7, 12), (8, 14), (9, 15), (10, 11), (10, 15), (11, 15), (12, 14)];
             var sheet = DrowGoddessHeadSheet;
-            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0.7383068f, keepsCurvature: false);
+            var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0.7383068f, keepsCurvature: false);
 
             List<int[]> gridFaces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
             HashSet<(int, int)> gridNetwork = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
-            var (painted, paintedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+            var (painted, paintedCurvature) = ClothExtract.ClothBendStiffnessOverFold(
                 LeastFoldedHingeGrid, gridFaces, gridNetwork, 0.375f, keepsCurvature: false);
-            var (bounded, boundedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+            var (bounded, boundedCurvature) = ClothExtract.ClothBendStiffnessOverFold(
                 CappedAgainstFlatHingeGrid(20f), gridFaces, gridNetwork, 0f, keepsCurvature: false);
 
             using (Assert.Multiple())
@@ -11705,9 +11705,9 @@ namespace Tests
         {
             var model = ClusterCliqueRings;
             var across = KVObject.Array();
-            var covered = ModelExtract.AddRingClusterCliques(across, model, new Dictionary<int, int> { [2] = 0, [3] = 0, [4] = 1, [5] = 1 });
+            var covered = ClothExtract.AddRingClusterCliques(across, model, new Dictionary<int, int> { [2] = 0, [3] = 0, [4] = 1, [5] = 1 });
             var single = KVObject.Array();
-            var none = ModelExtract.AddRingClusterCliques(single, model, new Dictionary<int, int> { [2] = 0, [3] = 0, [4] = 0, [5] = 0 });
+            var none = ClothExtract.AddRingClusterCliques(single, model, new Dictionary<int, int> { [2] = 0, [3] = 0, [4] = 0, [5] = 0 });
 
             using (Assert.Multiple())
             {
@@ -11771,13 +11771,13 @@ namespace Tests
             using (Assert.Multiple())
             {
                 await Assert.That(goalLocked.ChainBasesAreBulkGraded(goalChain)).IsTrue();
-                await Assert.That(ModelExtract.ChainLocksJoints(goalLocked, goalChain)).IsTrue();
+                await Assert.That(ClothExtract.ChainLocksJoints(goalLocked, goalChain)).IsTrue();
 
                 // CONTROL: the lock goes to the free parent, a real key, so the guard holds the chain at version 2.
-                await Assert.That(ModelExtract.ClothChainVersion(parentLocked, parentChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(parentLocked, parentChain, hasOtherChains: false)).IsEqualTo(2);
 
                 // THE LAW.
-                await Assert.That(ModelExtract.ClothChainVersion(goalLocked, goalChain, hasOtherChains: false)).IsLessThan(2);
+                await Assert.That(ClothExtract.ClothChainVersion(goalLocked, goalChain, hasOtherChains: false)).IsLessThan(2);
             }
         }
 
@@ -11801,8 +11801,8 @@ namespace Tests
             chain.Joints.Add(new FeModel.BoneChainJoint { Node = 3, Name = "a1", ParentNode = 2, InvMass = 1f });
             chain.Joints.Add(new FeModel.BoneChainJoint { Node = 4, Name = "a2", ParentNode = 3, InvMass = 1f });
 
-            var viaClothNode = ModelExtract.ChainJointClothNodes(ChainOverFreeClothNode(1), [chain]).ToList();
-            var viaBone = ModelExtract.ChainJointClothNodes(ChainOverFreeClothNode(0), [chain]).ToList();
+            var viaClothNode = ClothExtract.ChainJointClothNodes(ChainOverFreeClothNode(1), [chain]).ToList();
+            var viaBone = ClothExtract.ChainJointClothNodes(ChainOverFreeClothNode(0), [chain]).ToList();
 
             using (Assert.Multiple())
             {
@@ -11861,11 +11861,11 @@ namespace Tests
             List<int[]> faces = [[66, 67, 72, 73], [30, 31, 36, 37], [18, 19, 24, 25], [25, 24, 31, 30], [48, 49, 54, 55], [37, 36, 42, 43], [43, 42, 49, 48], [55, 54, 60, 61], [61, 60, 67, 66], [12, 13, 19, 18], [6, 7, 13, 12], [0, 1, 7, 6], [68, 74, 75, 69], [32, 38, 39, 33], [20, 26, 27, 21], [26, 32, 33, 27], [50, 56, 57, 51], [38, 44, 45, 39], [44, 50, 51, 45], [56, 62, 63, 57], [62, 68, 69, 63], [14, 20, 21, 15], [8, 14, 15, 9], [9, 2, 3, 8], [82, 83, 84, 85], [40, 46, 47, 41], [22, 28, 29, 23], [10, 16, 17, 11], [16, 22, 23, 17], [28, 34, 35, 29], [34, 40, 41, 35], [58, 64, 65, 59], [46, 52, 53, 47], [52, 58, 59, 53], [70, 76, 77, 71], [64, 70, 71, 65], [76, 82, 85, 77], [4, 5, 10, 11], [10, 5, 2, 9], [15, 21, 22, 16], [27, 33, 34, 28], [39, 45, 46, 40], [51, 57, 58, 52], [63, 69, 70, 64], [78, 79, 83, 82], [72, 67, 80, 81], [67, 60, 65, 71], [54, 49, 53, 59], [42, 36, 41, 47], [31, 24, 29, 35], [19, 13, 17, 23], [7, 1, 4, 11], [69, 75, 79, 78], [81, 80, 85, 84]];
             HashSet<(int, int)> network = [(0, 12), (1, 13), (2, 15), (3, 14), (4, 17), (5, 16), (6, 11), (6, 18), (7, 10), (7, 19), (8, 10), (8, 20), (9, 11), (9, 21), (10, 22), (11, 23), (12, 17), (12, 25), (13, 16), (13, 24), (14, 16), (14, 26), (15, 17), (15, 27), (16, 28), (17, 29), (18, 23), (18, 30), (19, 22), (19, 31), (20, 22), (20, 32), (21, 23), (21, 33), (22, 34), (23, 35), (24, 28), (24, 36), (25, 29), (25, 37), (26, 28), (26, 38), (27, 29), (27, 39), (28, 40), (29, 41), (30, 35), (30, 43), (31, 34), (31, 42), (32, 34), (32, 44), (33, 35), (33, 45), (34, 46), (35, 47), (36, 40), (36, 49), (37, 41), (37, 48), (38, 40), (38, 50), (39, 41), (39, 51), (40, 52), (41, 53), (42, 46), (42, 54), (43, 47), (43, 55), (44, 46), (44, 56), (45, 47), (45, 57), (46, 58), (47, 59), (48, 53), (48, 61), (49, 52), (49, 60), (50, 52), (50, 62), (51, 53), (51, 63), (52, 64), (53, 65), (54, 58), (54, 67), (55, 59), (55, 66), (56, 58), (56, 68), (57, 59), (57, 69), (58, 70), (59, 71), (60, 64), (60, 72), (61, 65), (61, 73), (62, 64), (62, 74), (63, 65), (63, 75), (64, 76), (65, 77), (66, 71), (66, 80), (67, 70), (67, 85), (68, 70), (68, 78), (69, 71), (69, 82), (70, 82), (71, 85), (72, 84), (73, 81), (74, 79), (75, 83), (76, 83), (77, 84), (78, 85), (79, 84), (80, 82), (81, 83)];
             var sheet = MiranaPersonaSheet;
-            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0.800064f, keepsCurvature: false);
+            var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0.800064f, keepsCurvature: false);
 
             List<int[]> drowFaces = [[15, 12, 13], [14, 15, 13], [6, 7, 3, 4], [5, 8, 6, 4], [0, 5, 4, 1], [3, 2, 1, 4], [9, 10, 7, 6], [8, 11, 9, 6], [11, 14, 13, 9], [12, 10, 9, 13]];
             HashSet<(int, int)> drowNetwork = [(0, 8), (1, 6), (2, 7), (3, 5), (3, 10), (4, 9), (5, 11), (6, 13), (7, 8), (7, 12), (8, 14), (9, 15), (10, 11), (10, 15), (11, 15), (12, 14)];
-            var (drowPaint, drowCurvature) = ModelExtract.ClothBendStiffnessOverFold(DrowGoddessHeadSheet, drowFaces, drowNetwork,
+            var (drowPaint, drowCurvature) = ClothExtract.ClothBendStiffnessOverFold(DrowGoddessHeadSheet, drowFaces, drowNetwork,
                 0.7383068f, keepsCurvature: false);
 
             using (Assert.Multiple())
@@ -12139,13 +12139,13 @@ namespace Tests
             using (Assert.Multiple())
             {
                 // CONTROL: a spring's element, a banded copy, a lone rod, no compiled skeleton parents.
-                await Assert.That(ModelExtract.IsUnrecordedSpanCopy(sprung, sprung.Rods[1])).IsFalse();
-                await Assert.That(ModelExtract.IsUnrecordedSpanCopy(banded, banded.Rods[1])).IsFalse();
-                await Assert.That(ModelExtract.IsUnrecordedSpanCopy(single, single.Rods[0])).IsFalse();
-                await Assert.That(ModelExtract.IsUnrecordedSpanCopy(unparented, unparented.Rods[1])).IsFalse();
+                await Assert.That(ClothExtract.IsUnrecordedSpanCopy(sprung, sprung.Rods[1])).IsFalse();
+                await Assert.That(ClothExtract.IsUnrecordedSpanCopy(banded, banded.Rods[1])).IsFalse();
+                await Assert.That(ClothExtract.IsUnrecordedSpanCopy(single, single.Rods[0])).IsFalse();
+                await Assert.That(ClothExtract.IsUnrecordedSpanCopy(unparented, unparented.Rods[1])).IsFalse();
 
                 // THE LAW.
-                await Assert.That(ModelExtract.IsUnrecordedSpanCopy(doubled, doubled.Rods[1])).IsTrue();
+                await Assert.That(ClothExtract.IsUnrecordedSpanCopy(doubled, doubled.Rods[1])).IsTrue();
             }
         }
 
@@ -12164,9 +12164,9 @@ namespace Tests
         {
             var ringOwner = new Dictionary<int, int> { [2] = 0, [3] = 0, [4] = 1, [5] = 1 };
             var folded = KVObject.Array();
-            ModelExtract.AddRingClusterCliques(folded, FoldedClusterClique(faces: true), ringOwner);
+            ClothExtract.AddRingClusterCliques(folded, FoldedClusterClique(faces: true), ringOwner);
             var unfolded = KVObject.Array();
-            ModelExtract.AddRingClusterCliques(unfolded, FoldedClusterClique(faces: false), ringOwner);
+            ClothExtract.AddRingClusterCliques(unfolded, FoldedClusterClique(faces: false), ringOwner);
 
             using (Assert.Multiple())
             {
@@ -12296,13 +12296,13 @@ namespace Tests
                 }
                 """);
 
-            var flap = ModelExtract.MakeClothNode(feModel, "flap", 5);
-            var strap = ModelExtract.MakeClothNode(feModel, "strap", 6);
+            var flap = ClothExtract.MakeClothNode(feModel, "flap", 5);
+            var strap = ClothExtract.MakeClothNode(feModel, "strap", 6);
 
             using (Assert.Multiple())
             {
                 // CONTROL: two rods tie the node to the sheet, so the scan grades it.
-                await Assert.That(ModelExtract.RodNeighbourCount(feModel, 6)).IsEqualTo(2);
+                await Assert.That(ClothExtract.RodNeighbourCount(feModel, 6)).IsEqualTo(2);
                 await Assert.That(strap.GetInt32Property("transform_alignment")).IsEqualTo(0);
 
                 // THE LAW.

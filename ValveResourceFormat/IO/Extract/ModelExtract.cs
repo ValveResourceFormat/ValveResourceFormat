@@ -68,6 +68,7 @@ public partial class ModelExtract
         }
 
         fileName = Path.ChangeExtension(modelResource.FileName ?? "model", ".vmdl");
+        Cloth = new ClothExtract(model, physAggregateData);
         EnqueueMeshes();
         EnqueueAnimations();
     }
@@ -85,6 +86,7 @@ public partial class ModelExtract
 
         RenderMeshesToExtract.Add(new(mesh, "unnamed", 0, GetDmxFileName_ForReferenceMesh(meshFileName)));
         fileName = Path.ChangeExtension(meshFileName, ".vmdl");
+        Cloth = new ClothExtract(null, null);
     }
 
     /// <inheritdoc cref="ModelExtract(Resource, IFileLoader)"/>
@@ -95,6 +97,7 @@ public partial class ModelExtract
 
         this.physAggregateData = physAggregateData;
         fileName = physFileName;
+        Cloth = new ClothExtract(null, physAggregateData);
         EnqueueMeshes();
     }
 
@@ -128,7 +131,7 @@ public partial class ModelExtract
                 MaterialInputSignatures = MaterialInputSignatures,
                 BoneRemapTable = renderMesh.BoneRemapTable,
                 Skeleton = renderMesh.Skeleton,
-                BonePositions = ClothRestBonePositions,
+                BonePositions = Cloth.RestBonePositions,
             };
 
             vmdl.AddSubFile(
@@ -153,23 +156,7 @@ public partial class ModelExtract
             );
         }
 
-        foreach (var clothProxy in ClothProxyMeshesToExtract)
-        {
-            var proxyMesh = clothProxy.Proxy;
-            vmdl.AddSubFile(
-                Path.GetFileName(clothProxy.FileName),
-                () => BuildClothProxyMeshDmx(proxyMesh, Path.GetFileNameWithoutExtension(clothProxy.FileName))
-            );
-        }
-
-        foreach (var clothGrid in ClothChainGridsToExtract)
-        {
-            var grid = clothGrid.Grid;
-            vmdl.AddSubFile(
-                Path.GetFileName(clothGrid.FileName),
-                () => BuildClothChainGridDmx(grid, Path.GetFileNameWithoutExtension(clothGrid.FileName))
-            );
-        }
+        Cloth.AddSubFiles(vmdl);
 
         foreach (var anim in AnimationsToExtract)
         {
@@ -197,4 +184,9 @@ public partial class ModelExtract
     /// Gets the model name from either the model resource or the file name.
     /// </summary>
     public string ModelName => model?.Name ?? fileName;
+
+    /// <summary>
+    /// Gets the cloth reconstruction of the model's soft-body physics.
+    /// </summary>
+    internal ClothExtract Cloth { get; }
 }
