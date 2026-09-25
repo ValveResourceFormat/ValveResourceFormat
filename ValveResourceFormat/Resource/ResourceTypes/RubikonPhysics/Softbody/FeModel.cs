@@ -3963,6 +3963,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         HashSet<(int, int)>? surfaceFanPairs;
 
         /// <summary>
+        /// The node pairs whose every rod is one the compiler folded across a face edge on its own (see
+        /// <see cref="IsSurfaceFanRod"/>), so that no declaration put any rod there.
+        /// </summary>
+        HashSet<(int, int)> SurfaceFoldOnlyPairs => surfaceFoldOnlyPairs ??= Rods
+            .Where(static rod => rod.NodeA != rod.NodeB)
+            .GroupBy(static rod => rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA))
+            .Where(group => group.All(rod => IsSurfaceFanRod(rod, banded: true)))
+            .Select(static group => group.Key)
+            .ToHashSet();
+
+        HashSet<(int, int)>? surfaceFoldOnlyPairs;
+
+        /// <summary>
         /// Returns whether <paramref name="rod"/> is one the compiler folded across a face edge on its own rather than
         /// one the document declared. A declared rod carries the weight fixed when it was imported, while a folded one
         /// carries its endpoints' FINAL inverse-mass ratio, so a banded rod on a fan pair whose weight is exactly that

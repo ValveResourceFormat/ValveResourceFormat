@@ -2284,6 +2284,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 float? SpanRelaxation(int node, int other) => RelaxationAcross(Side(node), other);
 
+                // A bend or torsion span is read off the rods a declaration put there. A pair whose every rod the
+                // compiler folded across a shared face edge on its own carries no spring, and stating one declares a
+                // second rod beside the fold.
+                bool Declared((int, int) pair) => rodPairs.Contains(pair) && !SurfaceFoldOnlyPairs.Contains(pair);
+
+                bool SpannedByDeclaredRod(int node, int other)
+                    => other >= 0 && (Declared(node < other ? (node, other) : (other, node)) || AllDeclared(Side(node), other));
+
+                bool AllDeclared(List<int> lhs, int other)
+                    => other >= 0 && lhs.Count > 0 && lhs.All(a => Side(other).All(b => Declared(a < b ? (a, b) : (b, a))));
+
                 // The spring spans the two sides in FULL: anything short of that is some other construct
                 // passing between them - a surface the sheet rebuilds, say - and turning the spring on to
                 // claim it would add every pair it does not have.
@@ -2900,8 +2911,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var greatGrandParent = grandParent >= 0 && jointByNode.TryGetValue(grandParent, out var p2) ? p2.ParentNode : -1;
 
                     var endRing = EndEffectorRing(joint.Node);
-                    joint.BendSpring = SpannedByRod(joint.Node, grandParent) || AllSpanned(endRing, parent);
-                    joint.TorsionSpring = SpannedByRod(joint.Node, greatGrandParent) || AllSpanned(endRing, grandParent);
+                    joint.BendSpring = SpannedByDeclaredRod(joint.Node, grandParent) || AllDeclared(endRing, parent);
+                    joint.TorsionSpring = SpannedByDeclaredRod(joint.Node, greatGrandParent) || AllDeclared(endRing, grandParent);
 
                     // A zero stiffness is the compiler's signal to leave the span out entirely, so a span
                     // that exists but reads back at zero keeps the neutral 1.0 rather than switching its

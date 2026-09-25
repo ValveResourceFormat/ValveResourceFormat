@@ -11401,5 +11401,62 @@ namespace Tests
                 await Assert.That(Read(FoldedSheetModel(0.666667f))).IsNull();
             }
         }
+
+        /// <summary>
+        /// A rod the compiler folded across a face edge on its own carries its endpoints' final inverse-mass ratio, which no
+        /// declaration does, so a joint whose span to its grandparent is only such a fold declares no bend spring: stating one
+        /// builds a rigid rod beside the fold, and that rod weighs in the mass pass.
+        /// CONTROL: the same span at the even split a declaration gets is the joint's bend spring.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on dota <c>cm_screeauk_back</c>: eight skirt joints stated <c>bend_spring 1.0</c> off the folds
+        /// between two chains' quads, and the rebuild shipped eight rigid 30.685 rods the original does not.
+        /// </remarks>
+        [Test]
+        public async Task ABendSpanThatIsOnlyASurfaceFoldIsNoBendSpring()
+        {
+            static bool Bends(float weight) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "L0", "R0", "L1", "R1", "L2", "R2", "L3", "R3" ]
+                    m_SkelParents = [ -1, -1, 0, 1, 2, 3, 4, 5 ]
+                    m_nNodeCount = 8
+                    m_nStaticNodes = 2
+                    m_NodeInvMasses = [ 0.0, 0.0, 0.02, 0.02, 0.015, 0.015, 0.01, 0.01 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(10f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                        {{SyntheticCloth.Pose(10f, 0f, -20f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                        {{SyntheticCloth.Pose(10f, 0f, -30f)}}
+                    ]
+                    m_Quads = [ { nNode = [ 4, 2, 3, 5 ] }, { nNode = [ 4, 6, 7, 5 ] } ]
+                    m_Rods =
+                    [
+                        { nNode = [ 0, 2 ] flMinDist = 10.0 flMaxDist = 10.0 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                        { nNode = [ 1, 3 ] flMinDist = 10.0 flMaxDist = 10.0 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                        {{SyntheticCloth.RigidRod(2, 4, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(3, 5, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(4, 6, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(5, 7, 10f, 1f)}}
+                        { nNode = [ 2, 6 ] flMinDist = 12.0 flMaxDist = 20.0 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
+                        { nNode = [ 3, 7 ] flMinDist = 12.0 flMaxDist = 20.0 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
+                    ]
+                }
+                """).BuildBoneChains().SelectMany(static chain => chain.Joints).Where(static joint => joint.Name == "L3")
+                .Select(static joint => joint.BendSpring).DefaultIfEmpty(false).First();
+
+            using (Assert.Multiple())
+            {
+                // CONTROL.
+                await Assert.That(Bends(0.5f)).IsTrue();
+
+                // THE LAW.
+                await Assert.That(Bends(0.666667f)).IsFalse();
+            }
+        }
     }
 }
