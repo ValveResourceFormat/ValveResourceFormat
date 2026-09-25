@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
@@ -26,8 +27,9 @@ internal sealed partial class ClothExtract
             return proxyNodeNames?.GetValueOrDefault(node);
         }
 
-        const string ClothNodePrefix = "$cloth_node_";
-        return name.StartsWith(ClothNodePrefix, StringComparison.Ordinal) ? name[ClothNodePrefix.Length..] : name;
+        return name.StartsWith(FeModel.FreeClothNodePrefix, StringComparison.Ordinal)
+            ? name[FeModel.FreeClothNodePrefix.Length..]
+            : name;
     }
 
     /// <summary>
@@ -41,7 +43,6 @@ internal sealed partial class ClothExtract
         Func<string, bool>? bareStaticReparented = null, HashSet<(int, int)>? alreadyEmitted = null,
         HashSet<int>? chainJoints = null)
     {
-        const string ClothNodePrefix = "$cloth_node_";
         var names = feModel.CtrlNames;
 
         var anchorOf = BuildCtrlAnchorMap(feModel);
@@ -80,9 +81,9 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            if (name.StartsWith(ClothNodePrefix, StringComparison.Ordinal))
+            if (name.StartsWith(FeModel.FreeClothNodePrefix, StringComparison.Ordinal))
             {
-                var elementName = name[ClothNodePrefix.Length..];
+                var elementName = name[FeModel.FreeClothNodePrefix.Length..];
                 if (!TryResolveClothNodeAnchor(feModel, anchorOf, node, out var rootBone, out var origin, out var angles))
                 {
                     continue;
@@ -172,6 +173,7 @@ internal sealed partial class ClothExtract
                     first.MaxDist / 2f, first.MaxDist / 2f, [memberStiffness, memberStiffness]));
                 continue;
             }
+
             var allIdentical = rods.TrueForAll(rod => rod.MinDist == first.MinDist
                 && rod.MaxDist == first.MaxDist && rod.RelaxationFactor == first.RelaxationFactor);
 
@@ -364,7 +366,7 @@ internal sealed partial class ClothExtract
             ("node_base_y0", BasisName(references.NodeY0)),
             ("node_base_x0", BasisName(references.NodeX0)),
             ("lock_translation", feModel.LocksTranslation(node)),
-            ("gravity_z", integrator.Gravity / ClothSourceBaseGravity),
+            ("gravity_z", integrator.Gravity / FeModel.ClothSourceBaseGravity),
             ("goal_strength", goalStrength),
             ("goal_damping", goalDamping),
             ("mass", feModel.RecoverMassMultiplier(node) ?? 1.0f),
@@ -374,7 +376,7 @@ internal sealed partial class ClothExtract
             ("collision_radius", feModel.GetCollisionRadius(node)),
             ("is_static_node", isStaticNode),
             ("allow_rotation", feModel.AllowsRotation(node)),
-            ("super_damping", Math.Clamp(integrator.PointDamping / ClothDragPointDampingScale, 0f, 1f)));
+            ("super_damping", Math.Clamp(integrator.PointDamping / FeModel.ClothDragPointDampingScale, 0f, 1f)));
     }
 
     /// <summary>
@@ -463,21 +465,15 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>Declares every face the original built from <c>ClothTri</c> and <c>ClothQuad</c> elements.</summary>
-    private static HashSet<int> AddClothFaces(KVObject clothChildren, FeModel feModel)
+    private static void AddClothFaces(KVObject clothChildren, FeModel feModel)
     {
-        var cornered = new HashSet<int>();
         foreach (var face in feModel.GetAuthoredElementFaces())
         {
-            if (MakeClothFace(feModel, face) is not { } element)
+            if (MakeClothFace(feModel, face) is { } element)
             {
-                continue;
+                clothChildren.Add(element);
             }
-
-            clothChildren.Add(element);
-            cornered.UnionWith(face);
         }
-
-        return cornered;
     }
 
     private static Dictionary<int, FeModel.CtrlOffset> BuildCtrlAnchorMap(FeModel feModel)
@@ -496,7 +492,7 @@ internal sealed partial class ClothExtract
     /// from its <c>m_CtrlOffsets</c> entry or else its skeleton parent. False where the root is a generated node.
     /// </summary>
     internal static bool TryResolveClothNodeAnchor(FeModel feModel, Dictionary<int, FeModel.CtrlOffset> anchorOf,
-        int node, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? rootBone, out Vector3 origin,
+        int node, [NotNullWhen(true)] out string? rootBone, out Vector3 origin,
         out Vector3 angles)
     {
         var names = feModel.CtrlNames;

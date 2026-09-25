@@ -36,7 +36,7 @@ internal sealed partial class ClothExtract
         }
 
         var jiggleBone = indexedJiggleBone.Bone;
-        var flags = (FeJiggleBoneFlags)jiggleBone.Flags;
+        FeJiggleBoneFlags flags = (FeJiggleBoneFlags)jiggleBone.Flags;
 
         var type = JiggleBoneType.Neither;
         if (flags.HasFlag(FeJiggleBoneFlags.Rigid))

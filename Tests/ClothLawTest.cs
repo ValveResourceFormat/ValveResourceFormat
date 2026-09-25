@@ -8685,7 +8685,7 @@ namespace Tests
         public async Task AChainsAttrsStateTheExtrudeTwistSchemaDefault()
         {
             const float Roll = 70f;
-            var extruding = ClothExtract.MakeClothChainAttrs(2, 1.5f, Roll);
+            var extruding = ClothExtract.MakeClothChainAttrs(2, 1.5f);
             var rope = ClothExtract.MakeClothChainAttrs();
 
             using (Assert.Multiple())

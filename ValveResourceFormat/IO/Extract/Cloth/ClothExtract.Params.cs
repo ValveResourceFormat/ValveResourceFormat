@@ -113,8 +113,4 @@ internal sealed partial class ClothExtract
             ("add_bend_only_rods", generatesBendOnlyRods),
             ("immovable", Flag(ClothFlagImmovable)));
     }
-
-    private const float ClothSourceBaseGravity = FeModel.ClothSourceBaseGravity;
-
-    private const float ClothDragPointDampingScale = FeModel.ClothDragPointDampingScale;
 }

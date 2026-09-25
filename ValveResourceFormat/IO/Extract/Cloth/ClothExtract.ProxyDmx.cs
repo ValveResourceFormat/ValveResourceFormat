@@ -290,7 +290,7 @@ internal sealed partial class ClothExtract
             && ProxyMeshes.Count > 0 && ProxyMeshes[0].Proxy == proxy)
         {
             var painted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var (mapName, _weights) in proxy.VertexMaps)
+            foreach (var (mapName, _) in proxy.VertexMaps)
             {
                 painted.Add(mapName);
             }
@@ -523,8 +523,8 @@ internal sealed partial class ClothExtract
         if (physAggregateData?.FeModel is { HasSurfaceElements: true })
         {
             vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), identity);
-            vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), identity);
-            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(0.2f, vertexCount).ToArray(), identity);
+            vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(ClothSuppressedMakeRods, vertexCount).ToArray(), identity);
+            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(ClothFaceKeptBendStiffnessDefault, vertexCount).ToArray(), identity);
         }
 
         var clothCompaction = ModelExtract.BuildClothBoneCompaction(skeleton);
@@ -543,7 +543,7 @@ internal sealed partial class ClothExtract
 
         AppendCulledClothBoneJoints(dmeModel, boneIndexByName);
 
-        const int JointCount = 4;
+        const int JointCount = FeModel.ClothProxyInfluenceSlots;
         var blendIndices = new int[vertexCount * JointCount];
         var blendWeights = new float[vertexCount * JointCount];
         for (var v = 0; v < vertexCount; v++)

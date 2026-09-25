@@ -199,15 +199,15 @@ internal sealed partial class ClothExtract
                 && !feModel.IsUnbackSolvedProxyMesh(proxyFile.Proxy);
             // back_solve_joints_drive_meshes is also stated alone, on a sheet fitting a bone it leaves undriven.
             var proxyDrivesMeshes = proxyBackSolve || feModel.ProxyFitsUndrivenBone(proxyFile.Proxy);
-            var proxyFlexes = ProxyFlexesClothBorders(feModel, proxyFile.Proxy, proxyBackSolve,
-                ProxyAddsBonesToRenderMesh(proxyFile.Proxy));
+            var addsBonesToRenderMesh = ProxyAddsBonesToRenderMesh(proxyFile.Proxy);
+            var proxyFlexes = ProxyFlexesClothBorders(feModel, proxyFile.Proxy, proxyBackSolve, addsBonesToRenderMesh);
             if (proxyFlexes)
             {
                 flexedProxies.Add(proxyFile.Proxy);
             }
 
             var proxyNode = MakeClothProxyMeshFile(proxyFile.Name, proxyFile.FileName, proxyBackSolve,
-                driveMeshes: proxyDrivesMeshes, ProxyAddsBonesToRenderMesh(proxyFile.Proxy),
+                driveMeshes: proxyDrivesMeshes, addsBonesToRenderMesh,
                 backSolveInfluenceThreshold: feModel.GetBackSolveInfluenceThreshold(proxyFile.Proxy),
                 flexClothBorders: proxyFlexes);
 
@@ -363,12 +363,11 @@ internal sealed partial class ClothExtract
                     continue;
                 }
 
-                const string ClothNodePrefix = "$cloth_node_";
-                if (name.StartsWith(ClothNodePrefix, StringComparison.Ordinal))
+                if (name.StartsWith(FeModel.FreeClothNodePrefix, StringComparison.Ordinal))
                 {
                     if (TryResolveClothNodeAnchor(feModel, anchorOf, node, out var rootBone, out var origin, out var angles))
                     {
-                        var elementName = name[ClothNodePrefix.Length..];
+                        var elementName = name[FeModel.FreeClothNodePrefix.Length..];
                         unregisteredFreeNodes.Add((rootBone, node, elementName, origin, angles));
                         freeClothNodeNames[node] = elementName;
                     }

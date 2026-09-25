@@ -290,28 +290,28 @@ internal sealed partial class ClothExtract
     /// </summary>
     private sealed class ClothChainOrderSolver
     {
-        const int ExpansionBudget = 50000;
+        private const int ExpansionBudget = 50000;
 
-        readonly List<(int Chain, FeModel.BoneChainJoint Joint, List<int> Rings)> joints;
-        readonly Dictionary<int, List<int>> occurrences;
-        readonly Dictionary<int, List<int>> owners = [];
-        readonly HashSet<int> deferred;
-        readonly HashSet<int> pureBands;
-        readonly List<List<int>> lanes;
-        readonly int[] bands;
-        readonly int[] lanePos;
-        readonly bool[] walked;
-        readonly bool[] tookNode;
-        readonly bool[] nodeTaken;
-        readonly bool[] declaredNode;
-        readonly bool[] keepInChain;
-        readonly int[] chainPending;
-        readonly List<int> preDeclared = [];
-        readonly List<int> walkOrder = [];
-        int remaining;
-        int expansions;
-        bool started;
-        int currentChain = -1;
+        private readonly List<(int Chain, FeModel.BoneChainJoint Joint, List<int> Rings)> joints;
+        private readonly Dictionary<int, List<int>> occurrences;
+        private readonly Dictionary<int, List<int>> owners = [];
+        private readonly HashSet<int> deferred;
+        private readonly HashSet<int> pureBands;
+        private readonly List<List<int>> lanes;
+        private readonly int[] bands;
+        private readonly int[] lanePos;
+        private readonly bool[] walked;
+        private readonly bool[] tookNode;
+        private readonly bool[] nodeTaken;
+        private readonly bool[] declaredNode;
+        private readonly bool[] keepInChain;
+        private readonly int[] chainPending;
+        private readonly List<int> preDeclared = [];
+        private readonly List<int> walkOrder = [];
+        private int remaining;
+        private int expansions;
+        private bool started;
+        private int currentChain = -1;
 
         public ClothChainOrderSolver(List<(int Chain, FeModel.BoneChainJoint Joint, List<int> Rings)> joints,
             Dictionary<int, List<int>> occurrences, HashSet<int> deferred, List<List<int>> lanes,
@@ -340,11 +340,6 @@ internal sealed partial class ClothExtract
                 }
             }
 
-            foreach (var lane in lanes)
-            {
-                remaining += lane.Count;
-            }
-
             void Own(int node, int index)
             {
                 if (!owners.TryGetValue(node, out var list))
@@ -370,7 +365,7 @@ internal sealed partial class ClothExtract
                     && feModel.SkelParents[node] < 0 && reparents(joints[i].Joint.Name);
             }
 
-            if (WalksNaturally(chains))
+            if (WalksNaturally())
             {
                 return null;
             }
@@ -410,7 +405,7 @@ internal sealed partial class ClothExtract
         }
 
         // Whether the reconstructed order, with nothing declared ahead, already reproduces the node order.
-        bool WalksNaturally(List<FeModel.BoneChain> chains)
+        private bool WalksNaturally()
         {
             Reset();
             for (var index = 0; index < joints.Count; index++)
@@ -421,10 +416,10 @@ internal sealed partial class ClothExtract
                 }
             }
 
-            return TakeDeferredNodes([]) && remaining == 0;
+            return TakeDeferredNodes(null) && remaining == 0;
         }
 
-        void Reset()
+        private void Reset()
         {
             Array.Clear(lanePos);
             Array.Clear(walked);
@@ -449,7 +444,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        bool TakeHead(int node)
+        private bool TakeHead(int node)
         {
             var lane = lanes[bands[node]];
             if (lanePos[bands[node]] >= lane.Count || lane[lanePos[bands[node]]] != node)
@@ -462,7 +457,7 @@ internal sealed partial class ClothExtract
             return true;
         }
 
-        void ReturnHead(int node)
+        private void ReturnHead(int node)
         {
             lanePos[bands[node]]--;
             remaining++;
@@ -470,7 +465,7 @@ internal sealed partial class ClothExtract
 
         // The compiler's first pass: a narrow joint creates its node and then its ring, a wide one only its ring, and a
         // bone already created only its ring.
-        bool StartJoint(int index)
+        private bool StartJoint(int index)
         {
             var (chain, joint, rings) = joints[index];
             if (walked[index] || (currentChain >= 0 && chain != currentChain && !ChainFinished(currentChain)))
@@ -521,7 +516,7 @@ internal sealed partial class ClothExtract
             return true;
         }
 
-        void UndoJoint(int index)
+        private void UndoJoint(int index)
         {
             var (_, joint, rings) = joints[index];
             for (var i = rings.Count - 1; i >= 0; i--)
@@ -542,7 +537,7 @@ internal sealed partial class ClothExtract
         }
 
         // A joint is walked only after every declaration of its parent in the same chain.
-        bool ParentPending(int chain, int parentNode)
+        private bool ParentPending(int chain, int parentNode)
         {
             if (!occurrences.TryGetValue(parentNode, out var list))
             {
@@ -561,7 +556,7 @@ internal sealed partial class ClothExtract
         }
 
         // The compiler's second pass: the nodes of the wide joints, in walk order.
-        bool TakeDeferredNodes(List<int> taken)
+        private bool TakeDeferredNodes(List<int>? taken)
         {
             foreach (var index in walkOrder)
             {
@@ -577,13 +572,13 @@ internal sealed partial class ClothExtract
                 }
 
                 nodeTaken[node] = true;
-                taken.Add(node);
+                taken?.Add(node);
             }
 
             return true;
         }
 
-        void ReturnDeferredNodes(List<int> taken)
+        private void ReturnDeferredNodes(List<int> taken)
         {
             for (var i = taken.Count - 1; i >= 0; i--)
             {
@@ -592,9 +587,9 @@ internal sealed partial class ClothExtract
             }
         }
 
-        bool ChainFinished(int chain) => chainPending[chain] == 0;
+        private bool ChainFinished(int chain) => chainPending[chain] == 0;
 
-        bool Search()
+        private bool Search()
         {
             if (walkOrder.Count == joints.Count)
             {
@@ -721,7 +716,7 @@ internal sealed partial class ClothExtract
         }
 
         // A node can be declared ahead of the chains when every declaration of its bone allows it and its band is pure.
-        bool CanPreDeclare(int node)
+        private bool CanPreDeclare(int node)
         {
             if (nodeTaken[node] || declaredNode[node] || deferred.Contains(node)
                 || !occurrences.TryGetValue(node, out var list))

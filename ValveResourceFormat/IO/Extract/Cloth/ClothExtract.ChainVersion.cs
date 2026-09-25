@@ -72,12 +72,13 @@ internal sealed partial class ClothExtract
     internal static int ClothChainVersion(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains)
     {
         var root = chain.Joints.Count > 0 ? chain.Joints[0] : null;
+        var locksJoints = ChainLocksJoints(feModel, chain);
         return ClothChainVersion(chain.Joints.Count, hasOtherChains,
             rootAllowsRotation: root is null ? null : feModel.AllowsRotation(root.Node),
             rootHasBase: root is not null && feModel.NodeBases.ContainsKey(root.Node),
             lockedJoint: chain.Joints.Exists(joint => feModel.IsLockedToGoal(joint.Node)),
             rigidCloudClusterLock: IsRigidCloudClusterLock(feModel, chain),
-            locksJoints: ChainLocksJoints(feModel, chain),
+            locksJoints: locksJoints,
             basesBulkGraded: feModel.ChainBasesAreBulkGraded(chain),
             hintsTwistWritten: feModel.ChainHintsAreTwistWritten(chain),
             hasUnstagedThinJoint: feModel.ChainHasUnstagedThinJoint(chain),
@@ -90,7 +91,7 @@ internal sealed partial class ClothExtract
                 && !chain.Joints.Exists(static joint => joint.RingNodes.Count > 0),
             fitsPresetJoint: feModel.ChainFitsAPresetJoint(chain),
             locksOnlyParentLocked: ChainLocksOnlyParentLockedJoints(feModel, chain),
-            locksOnlyToGoal: ChainLocksJoints(feModel, chain) && !ChainLocksJointsToParent(feModel, chain));
+            locksOnlyToGoal: locksJoints && !ChainLocksJointsToParent(feModel, chain));
     }
 
     /// <summary>

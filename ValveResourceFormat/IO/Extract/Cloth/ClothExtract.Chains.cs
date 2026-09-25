@@ -108,7 +108,7 @@ internal sealed partial class ClothExtract
     {
         var joints = chains.SelectMany(static chain => chain.Joints).Select(static joint => joint.Node).ToHashSet();
         var names = feModel.CtrlNames;
-        bool NamesClothNode(int node) => node >= 0 && node < names.Length && names[node].StartsWith("$cloth_node_", StringComparison.Ordinal);
+        bool NamesClothNode(int node) => node >= 0 && node < names.Length && names[node].StartsWith(FeModel.FreeClothNodePrefix, StringComparison.Ordinal);
 
         var presets = new Dictionary<int, FeModel.NodeBasis>();
         foreach (var node in joints)
@@ -172,8 +172,7 @@ internal sealed partial class ClothExtract
 
         var chainData = KVObject.Collection();
         chainData.Add("joints", joints);
-        chainData.Add("attrs", MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius, chain.ExtrudeTwist,
-            chainMass));
+        chainData.Add("attrs", MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius, chainMass));
         chainData.Add("selection", KVObject.Array());
 
         chainData.Add("version", version);
@@ -239,7 +238,7 @@ internal sealed partial class ClothExtract
             var integrator = feModel.GetIntegrator(joint.Node);
             kv.Add("goal_strength", feModel.GoalStrengthPaint(integrator.ForceAttraction));
             kv.Add("goal_damping", feModel.GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction));
-            kv.Add("gravity_z", integrator.Gravity / ClothSourceBaseGravity);
+            kv.Add("gravity_z", integrator.Gravity / FeModel.ClothSourceBaseGravity);
 
             if (joint.Simulated)
             {
@@ -379,14 +378,14 @@ internal sealed partial class ClothExtract
         kv.Add("goal_strength", goalStrength);
         kv.Add("goal_damping", feModel.GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction));
 
-        var drag = Math.Clamp(integrator.PointDamping / ClothDragPointDampingScale, 0f, 1f);
+        var drag = Math.Clamp(integrator.PointDamping / FeModel.ClothDragPointDampingScale, 0f, 1f);
         if (drag != 0f)
         {
             kv.Add("drag", drag);
         }
 
         var gravityNode = joint.ProxyNode >= 0 ? joint.ProxyNode : joint.Node;
-        kv.Add("gravity_z", feModel.GetIntegrator(gravityNode).Gravity / ClothSourceBaseGravity);
+        kv.Add("gravity_z", feModel.GetIntegrator(gravityNode).Gravity / FeModel.ClothSourceBaseGravity);
 
         kv.Add("twist_relax", twistRelax);
 
@@ -504,8 +503,7 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>The <c>attrs</c> table of a <c>ClothChain</c>: the column schema and the default of every joint key.</summary>
-    internal static KVObject MakeClothChainAttrs(int extrudeSides = 0, float extrudeRadius = 0f,
-        float extrudeTwist = 0f, float mass = 1f)
+    internal static KVObject MakeClothChainAttrs(int extrudeSides = 0, float extrudeRadius = 0f, float mass = 1f)
     {
         var attrs = KVObject.Collection();
 
@@ -523,8 +521,16 @@ internal sealed partial class ClothExtract
         {
             var attr = AddAttr(key, display, show, uiOrder);
             attr.Add("default", def);
-            if (min.HasValue) { attr.Add("min", min.Value); }
-            if (max.HasValue) { attr.Add("max", max.Value); }
+            if (min.HasValue)
+            {
+                attr.Add("min", min.Value);
+            }
+
+            if (max.HasValue)
+            {
+                attr.Add("max", max.Value);
+            }
+
             return attr;
         }
 
@@ -532,8 +538,16 @@ internal sealed partial class ClothExtract
         {
             var attr = AddAttr(key, display, show, uiOrder);
             attr.Add("default", def);
-            if (min.HasValue) { attr.Add("min", min.Value); }
-            if (max.HasValue) { attr.Add("max", max.Value); }
+            if (min.HasValue)
+            {
+                attr.Add("min", min.Value);
+            }
+
+            if (max.HasValue)
+            {
+                attr.Add("max", max.Value);
+            }
+
             return attr;
         }
 
@@ -547,7 +561,7 @@ internal sealed partial class ClothExtract
         KVObject StringAttr(string key, string display, bool show, int uiOrder)
         {
             var attr = AddAttr(key, display, show, uiOrder);
-            attr.Add("default", "");
+            attr.Add("default", string.Empty);
             return attr;
         }
 

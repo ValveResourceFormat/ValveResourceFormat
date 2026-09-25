@@ -171,6 +171,7 @@ internal sealed partial class ClothExtract
         {
             return (coveredResidual, addCurvature);
         }
+
         if (residual is { Count: > 0 } && sharedSlack > residualSlack + ClothBendStiffnessAgreement)
         {
             return (residual, addCurvature);
@@ -223,7 +224,7 @@ internal sealed partial class ClothExtract
 
             // A bend-only rod has no length of its own to identify its hinge by, so its rest span stands in.
             var rest = Vector3.Distance(positions[rod.NodeA], positions[rod.NodeB]);
-            var coplanar = rod.MaxDist < ClothBendOnlyRodMaxDistance ? rod.MaxDist : rest;
+            var coplanar = rod.MaxDist < FeModel.UnboundedRodDistance ? rod.MaxDist : rest;
             var closest = float.MaxValue;
             var flat = 0f;
             var folded = 0f;

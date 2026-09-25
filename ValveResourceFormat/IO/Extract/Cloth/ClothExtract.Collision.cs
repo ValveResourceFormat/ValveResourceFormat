@@ -120,7 +120,7 @@ internal sealed partial class ClothExtract
 
         softbodyChildren.Add(MakeNode("ClothAntiTunnelColliderGroup",
             ("name", "cloth_antitunnel_group0"),
-            ("vertex_map", ""),
+            ("vertex_map", string.Empty),
             ("import_cloth_collision_layer0", false),
             ("import_cloth_collision_layer1", false),
             ("import_cloth_collision_layer2", false),
@@ -203,7 +203,7 @@ internal sealed partial class ClothExtract
             ("parent_bone", box.ParentBone ?? string.Empty));
         AddClothCollisionLayers(node, box.CollisionMask);
         node.Add("cloth_collision_priority", box.Priority);
-        node.Add("vertex_map", box.VertexMap ?? "");
+        node.Add("vertex_map", box.VertexMap ?? string.Empty);
         node.Add("inverted_collision", box.Inverted);
         node.Add("planarize", box.Planarize);
         node.Add("bounciness", 0.0f);
@@ -222,7 +222,7 @@ internal sealed partial class ClothExtract
             ("parent_bone", capsule.ParentBone ?? string.Empty));
         AddClothCollisionLayers(node, capsule.CollisionMask);
         node.Add("cloth_collision_priority", capsule.Priority);
-        node.Add("vertex_map", capsule.VertexMap ?? "");
+        node.Add("vertex_map", capsule.VertexMap ?? string.Empty);
         node.Add("inverted_collision", capsule.Inverted);
         node.Add("planarize", capsule.Planarize);
         node.Add("bounciness", 0.0f);
@@ -240,7 +240,7 @@ internal sealed partial class ClothExtract
             ("parent_bone", sphere.ParentBone ?? string.Empty));
         AddClothCollisionLayers(node, sphere.CollisionMask);
         node.Add("cloth_collision_priority", sphere.Priority);
-        node.Add("vertex_map", sphere.VertexMap ?? "");
+        node.Add("vertex_map", sphere.VertexMap ?? string.Empty);
         node.Add("inverted_collision", sphere.Inverted);
         node.Add("planarize", false);
         node.Add("bounciness", 0.0f);

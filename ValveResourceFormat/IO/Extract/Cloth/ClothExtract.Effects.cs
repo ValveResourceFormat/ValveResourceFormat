@@ -47,7 +47,7 @@ internal sealed partial class ClothExtract
 
             var follower = names[link.ChildNode];
             var leader = (feModel.SkeletonBoneNames ?? Enumerable.Empty<string>()).Concat(names)
-                .FirstOrDefault(name => Utils.StringToken.Get(name) == link.ParentHash);
+                .FirstOrDefault(name => StringToken.Get(name) == link.ParentHash);
             if (leader is null || !clothBones.Contains(follower) || feModel.IsGeneratedNodeName(follower))
             {
                 continue;
@@ -193,7 +193,7 @@ internal sealed partial class ClothExtract
     {
         var integrator = feModel.GetIntegrator(node);
         return integrator.PointDamping == 0f
-            && MathF.Abs(integrator.Gravity - ClothSourceBaseGravity) <= ClothNodeDefaultTolerance
+            && MathF.Abs(integrator.Gravity - FeModel.ClothSourceBaseGravity) <= ClothNodeDefaultTolerance
             && MathF.Abs(feModel.GoalStrengthPaint(integrator.ForceAttraction) - ClothNodeDefaultGoalStrength)
                 <= ClothNodeDefaultTolerance
             && MathF.Abs(feModel.GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction)
@@ -335,7 +335,7 @@ internal sealed partial class ClothExtract
 
         var node = MakeNode(className, ("name", effect.Name));
 
-        var mapHash = unchecked((uint)effect.Params.GetInt32Property("VertexMap"));
+        uint mapHash = unchecked((uint)effect.Params.GetInt32Property("VertexMap"));
         foreach (var map in feModel.VertexMaps)
         {
             if (map.NameHash == mapHash && availableMaps.Contains(map.Name))

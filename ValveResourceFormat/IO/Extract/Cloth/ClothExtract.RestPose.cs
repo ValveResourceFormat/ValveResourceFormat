@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -11,14 +12,8 @@ internal sealed partial class ClothExtract
     // How far a control node's recorded rest position may sit from its bone's compiled bind pose and still correct it.
     private const float ClothRestBoneTolerance = 1.0f;
 
-    private const float ClothRestBoneFloor = 0f;
-
     // How far far control bones may sit from one uniform scale of their compiled positions and still read as a scaled skeleton.
     private const float ClothRestBoneRigidSpread = 1e-2f;
-
-    private const float ClothRestBoneModelGate = 0f;
-
-    private const float ClothProxyRestBoneModelGate = 0f;
 
     /// <summary>
     /// Re-derives each bone's parent-space position from the cloth rest pose, root first: a control node's bone is moved
@@ -122,7 +117,7 @@ internal sealed partial class ClothExtract
             if (targets.TryGetValue(bone.Name, out var target))
             {
                 var apart = Vector3.Distance(compiled, target);
-                if (apart > ClothRestBoneFloor && apart <= ClothRestBoneTolerance)
+                if (apart > 0f && apart <= ClothRestBoneTolerance)
                 {
                     world = target;
                 }
@@ -140,7 +135,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        if (maxApart > ClothRestBoneModelGate)
+        if (maxApart > 0f)
         {
             foreach (var root in model.Skeleton.Roots)
             {
@@ -148,7 +143,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        if (maxApartUncapped > ClothProxyRestBoneModelGate || turned.Count > 0)
+        if (maxApartUncapped > 0f || turned.Count > 0)
         {
             ProxyRestPositions(model.Skeleton.Roots, targets, turned, ProxyRestBonePositions);
         }
@@ -439,8 +434,7 @@ internal sealed partial class ClothExtract
 
     /// <summary>The float32 the compiler parses back from a value the document prints with six decimals.</summary>
     internal static float CompilerTextFloat(float value)
-        => (float)double.Parse(((double)value).ToString("F6", System.Globalization.CultureInfo.InvariantCulture),
-            System.Globalization.CultureInfo.InvariantCulture);
+        => (float)double.Parse(((double)value).ToString("F6", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
 
     /// <inheritdoc cref="CompilerTextFloat(float)"/>
     internal static Vector3 CompilerTextFloat(Vector3 value)

@@ -56,7 +56,7 @@ internal sealed partial class ClothExtract
             neighbours.TryGetValue(edge.Item1, out var near)
             && near.Any(step => neighbours.TryGetValue(step, out var beyond) && beyond.Contains(edge.Item2)));
 
-        var boundedBeyondSurface = feModel.Rods.Any(rod => rod.MaxDist < ClothBendOnlyRodMaxDistance
+        var boundedBeyondSurface = feModel.Rods.Any(rod => rod.MaxDist < FeModel.UnboundedRodDistance
             && beyondSurface.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)));
 
         // Only the bend-only network leaves the maximum length unbounded.
@@ -98,7 +98,7 @@ internal sealed partial class ClothExtract
             bend.ExceptWith(derived);
             if (bend.Count > 0 && bend.IsSubsetOf(beyondSurface))
             {
-                var boundedBend = feModel.Rods.Any(rod => rod.MaxDist < ClothBendOnlyRodMaxDistance
+                var boundedBend = feModel.Rods.Any(rod => rod.MaxDist < FeModel.UnboundedRodDistance
                     && bend.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)));
                 generatesBendRods = boundedBend;
                 generatesBendOnlyRods = !boundedBend;
@@ -127,7 +127,7 @@ internal sealed partial class ClothExtract
             if (folds.Count > 0 && folds.All(fold => shipped.Contains(fold)
                 || feModel.IsStatic(fold.Item1) || feModel.IsStatic(fold.Item2)))
             {
-                var boundedFolds = feModel.Rods.Any(rod => rod.MaxDist < ClothBendOnlyRodMaxDistance
+                var boundedFolds = feModel.Rods.Any(rod => rod.MaxDist < FeModel.UnboundedRodDistance
                     && folds.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)));
                 generatesBendRods = boundedFolds;
                 generatesBendOnlyRods = !boundedFolds;
@@ -202,8 +202,6 @@ internal sealed partial class ClothExtract
         return painted >= 0.5f * face.Length;
     }
 
-    private const float ClothBendOnlyRodMaxDistance = FeModel.UnboundedRodDistance;
-
     /// <summary>
     /// Splits a sheet's rods beyond its faces into the <c>add_stiffness_rods</c> bend network and suspender rods sharing
     /// one <c>add_curvature</c>, or null where they do not split that way. A saturated suspender set leaves the curvature
@@ -218,10 +216,7 @@ internal sealed partial class ClothExtract
             return null;
         }
 
-        var invMasses = feModel.NodeInvMasses;
-        bool IsStatic(int node) => node >= 0 && node < invMasses.Length && invMasses[node] == 0f;
-
-        var network = FeModel.BendRodsFromSurface(surfaceFaces, IsStatic);
+        var network = FeModel.BendRodsFromSurface(surfaceFaces, feModel.IsStatic);
         var shipped = new HashSet<(int, int)>();
         foreach (var rod in feModel.Rods)
         {
@@ -268,7 +263,7 @@ internal sealed partial class ClothExtract
         foreach (var rod in feModel.Rods)
         {
             var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
-            if (bend.Contains(edge) && rod.MaxDist < ClothBendOnlyRodMaxDistance)
+            if (bend.Contains(edge) && rod.MaxDist < FeModel.UnboundedRodDistance)
             {
                 bounded = true;
                 break;
