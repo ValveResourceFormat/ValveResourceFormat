@@ -1866,7 +1866,7 @@ partial class ModelExtract
             }
 
             // A two-member cluster compiles its rod with the members reversed, so the rod's second node is listed first.
-            if (IsUnrecordedClusterRod(feModel, rod))
+            if (IsUnrecordedClusterRod(feModel, rod) || IsUnrecordedSpanCopy(feModel, rod))
             {
                 softbodyChildren.Add(MakeClothSelfCollisionCluster(
                     NodeNameSafe($"cluster_{name1}_{name0}"), [name1, name0],
@@ -2149,6 +2149,40 @@ partial class ModelExtract
 
     // How closely the solved radii have to reproduce every band of the clique, relative to the band.
     const float ClusterRadiusTolerance = 1e-4f;
+
+    /// <summary>
+    /// Whether a surplus rod is a second rigid copy of a span at the pair's rest distance, at the cluster's fixed relaxation of
+    /// 1.0 and weight of 0.5, with no two-corner source element on the pair in the original: a copy no <c>ClothSpring</c> made,
+    /// which a two-member cluster at half the length per member reproduces without the element. Only a model that compiled
+    /// <c>m_SkelParents</c> is read this way.
+    /// </summary>
+    internal static bool IsUnrecordedSpanCopy(FeModel feModel, FeModel.Rod rod)
+    {
+        if (!feModel.HasCompiledSkelParents || rod.RelaxationFactor != 1f || rod.Weight0 != 0.5f || IsBandedRod(rod)
+            || Array.IndexOf(feModel.SourceSprings, (rod.NodeA, rod.NodeB)) >= 0
+            || Array.IndexOf(feModel.SourceSprings, (rod.NodeB, rod.NodeA)) >= 0)
+        {
+            return false;
+        }
+
+        var poses = feModel.InitPosePositions;
+        if (rod.NodeA >= poses.Length || rod.NodeB >= poses.Length)
+        {
+            return false;
+        }
+
+        var onPair = 0;
+        foreach (var other in feModel.Rods)
+        {
+            if ((other.NodeA == rod.NodeA && other.NodeB == rod.NodeB) || (other.NodeA == rod.NodeB && other.NodeB == rod.NodeA))
+            {
+                onPair++;
+            }
+        }
+
+        var rest = Vector3.Distance(poses[rod.NodeA], poses[rod.NodeB]);
+        return onPair >= 2 && MathF.Abs(rod.MaxDist - rest) <= MathF.Max(1e-3f, 1e-4f * rest);
+    }
 
     /// <summary>Whether a rod's length band is open: a cluster's separation constraint rather than a span.</summary>
     static bool IsBandedRod(FeModel.Rod rod)

@@ -12091,5 +12091,48 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A second rigid copy of a span at the pair's rest distance, at relaxation 1.0 and weight 0.5, on a pair the original
+        /// records no two-corner source element for, is a copy no <c>ClothSpring</c> made: the exporter re-declares it as a
+        /// two-member cluster, which compiles the same rod without the element.
+        /// CONTROLS: the same pair with the spring's source element, with a banded copy, with a single rod, and in a model that
+        /// compiled no <c>m_SkelParents</c>.
+        /// </summary>
+        [Test]
+        public async Task ASecondRigidSpanCopyWithNoSourceElementIsAClusterRod()
+        {
+            static FeModel Pair(string rods, string sourceElems, string skelParents = "m_SkelParents = [ -1, 0 ]") => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "a", "b" ]
+                    m_nNodeCount = 2
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0 ]
+                    m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} {{SyntheticCloth.Pose(10f, 0f, 0f)}} ]
+                    m_Rods = [ {{rods}} ]
+                    {{sourceElems}}
+                    {{skelParents}}
+                }
+                """);
+
+            var rigid = SyntheticCloth.RigidRod(0, 1, 10f, 1f);
+            var doubled = Pair(rigid + rigid, string.Empty);
+            var sprung = Pair(rigid + rigid, "m_SourceElems = [ 0, 1, 0, 0, 0, 1 ]");
+            var banded = Pair(rigid + SyntheticCloth.BandedRod(0, 1, 8f, 10f, 1f), string.Empty);
+            var single = Pair(rigid, string.Empty);
+            var unparented = Pair(rigid + rigid, string.Empty, string.Empty);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: a spring's element, a banded copy, a lone rod, no compiled skeleton parents.
+                await Assert.That(ModelExtract.IsUnrecordedSpanCopy(sprung, sprung.Rods[1])).IsFalse();
+                await Assert.That(ModelExtract.IsUnrecordedSpanCopy(banded, banded.Rods[1])).IsFalse();
+                await Assert.That(ModelExtract.IsUnrecordedSpanCopy(single, single.Rods[0])).IsFalse();
+                await Assert.That(ModelExtract.IsUnrecordedSpanCopy(unparented, unparented.Rods[1])).IsFalse();
+
+                // THE LAW.
+                await Assert.That(ModelExtract.IsUnrecordedSpanCopy(doubled, doubled.Rods[1])).IsTrue();
+            }
+        }
     }
 }
