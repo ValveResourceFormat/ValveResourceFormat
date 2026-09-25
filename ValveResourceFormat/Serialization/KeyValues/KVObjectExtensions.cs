@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static int GetInt32Property(this KVObject obj, string name, int defaultValue = 0)
         {
-            if (!obj.TryGetValue(name, out var value))
+            if (!TryGetScalar(obj, name, out var value))
             {
                 return defaultValue;
             }
@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static uint GetUInt32Property(this KVObject obj, string name, uint defaultValue = 0)
         {
-            if (!obj.TryGetValue(name, out var value))
+            if (!TryGetScalar(obj, name, out var value))
             {
                 return defaultValue;
             }
@@ -88,7 +88,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static long GetIntegerProperty(this KVObject obj, string name, long defaultValue = 0)
         {
-            if (!obj.TryGetValue(name, out var value))
+            if (!TryGetScalar(obj, name, out var value))
             {
                 return defaultValue;
             }
@@ -101,7 +101,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static ulong GetUnsignedIntegerProperty(this KVObject obj, string name, ulong defaultValue = 0)
         {
-            if (!obj.TryGetValue(name, out var value))
+            if (!TryGetScalar(obj, name, out var value))
             {
                 return defaultValue;
             }
@@ -120,7 +120,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static double GetDoubleProperty(this KVObject obj, string name, double defaultValue = 0)
         {
-            if (!obj.TryGetValue(name, out var value))
+            if (!TryGetScalar(obj, name, out var value))
             {
                 return defaultValue;
             }
@@ -133,7 +133,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static float GetFloatProperty(this KVObject obj, string name, float defaultValue = 0)
         {
-            if (!obj.TryGetValue(name, out var value))
+            if (!TryGetScalar(obj, name, out var value))
             {
                 return defaultValue;
             }
@@ -146,7 +146,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static byte GetByteProperty(this KVObject obj, string name)
         {
-            if (!obj.TryGetValue(name, out var value))
+            if (!TryGetScalar(obj, name, out var value))
             {
                 return default;
             }
@@ -159,13 +159,16 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static bool GetBooleanProperty(this KVObject obj, string name, bool defaultValue = false)
         {
-            if (!obj.TryGetValue(name, out var value))
+            if (!TryGetScalar(obj, name, out var value))
             {
                 return defaultValue;
             }
 
             return (bool)value;
         }
+
+        private static bool TryGetScalar(KVObject obj, string name, out KVObject value)
+            => obj.TryGetValue(name, out value!) && !(value.ValueType == KVValueType.String && string.IsNullOrWhiteSpace((string)value));
 
         /// <summary>
         /// Gets the values of an array child by name.
