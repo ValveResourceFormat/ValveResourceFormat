@@ -79,9 +79,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         private static (int, int, int) SortedTriKey(int[] tri)
         {
             var (a, b, c) = (tri[0], tri[1], tri[2]);
-            if (a > b) { (a, b) = (b, a); }
-            if (b > c) { (b, c) = (c, b); }
-            if (a > b) { (a, b) = (b, a); }
+            if (a > b)
+            {
+                (a, b) = (b, a);
+            }
+
+            if (b > c)
+            {
+                (b, c) = (c, b);
+            }
+
+            if (a > b)
+            {
+                (a, b) = (b, a);
+            }
+
             return (a, b, c);
         }
 

@@ -407,9 +407,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         private static bool InCircumcircle(Vector2 a, Vector2 b, Vector2 c, Vector2 p)
         {
-            var ax = a.X - p.X; var ay = a.Y - p.Y;
-            var bx = b.X - p.X; var by = b.Y - p.Y;
-            var cx = c.X - p.X; var cy = c.Y - p.Y;
+            var ax = a.X - p.X;
+            var ay = a.Y - p.Y;
+            var bx = b.X - p.X;
+            var by = b.Y - p.Y;
+            var cx = c.X - p.X;
+            var cy = c.Y - p.Y;
 
             var det =
                 (ax * ax + ay * ay) * (bx * cy - cx * by) -

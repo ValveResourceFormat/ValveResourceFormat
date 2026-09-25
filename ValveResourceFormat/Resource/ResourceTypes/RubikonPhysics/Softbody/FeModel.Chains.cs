@@ -154,6 +154,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>How far apart along a joint's forward axis two proxies must be to lie on separate rings.</summary>
         private const float EndEffectorRingTolerance = 0.05f;
 
+        /// <summary>How far two rod readings of one chain may differ and still count as one authored value.</summary>
+        private const float ChainReadingTolerance = 1e-4f;
+
+        /// <summary>The most parent links an ancestor walk follows.</summary>
+        private const int AncestorWalkLimit = 256;
+
+        /// <summary>The most nodes a subtree walk visits.</summary>
+        private const int SubtreeWalkLimit = 4096;
+
         /// <summary>Gets the trailing <c>_&lt;n&gt;</c> index of a ring node's name, or -1 when it has none.</summary>
         private static int RingSuffixIndex(string name)
         {
@@ -257,7 +266,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var result = new List<int>();
                 var stack = new Stack<int>();
                 stack.Push(from);
-                while (stack.Count > 0 && result.Count < 4096)
+                while (stack.Count > 0 && result.Count < SubtreeWalkLimit)
                 {
                     var node = stack.Pop();
                     result.Add(node);
@@ -300,7 +309,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var stack = new Stack<int>();
                 stack.Push(spec.Root);
                 var guard = 0;
-                while (stack.Count > 0 && guard++ < 4096)
+                while (stack.Count > 0 && guard++ < SubtreeWalkLimit)
                 {
                     var node = stack.Pop();
                     if (declarations.ContainsKey(node) && !done.Contains(node))
@@ -685,7 +694,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         {
             get
             {
-                var (_children, ringOwnerOf) = BuildProxyRings();
+                var (_, ringOwnerOf) = BuildProxyRings();
                 if (ringOwnerOf.Count == 0)
                 {
                     return 0f;
@@ -728,7 +737,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         private static bool ReachesByParents(int[] realParent, int from, int to)
         {
             var guard = 0;
-            for (var node = from; node >= 0 && guard++ < 256; node = realParent[node])
+            for (var node = from; node >= 0 && guard++ < AncestorWalkLimit; node = realParent[node])
             {
                 if (node == to)
                 {
@@ -905,7 +914,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             bool SkeletonReaches(int from, int to)
             {
                 var guard = 0;
-                for (var node = from < SkelParents.Length ? SkelParents[from] : -1; node >= 0 && guard++ < 256;
+                for (var node = from < SkelParents.Length ? SkelParents[from] : -1; node >= 0 && guard++ < AncestorWalkLimit;
                     node = node < SkelParents.Length ? SkelParents[node] : -1)
                 {
                     if (node == to)
@@ -919,7 +928,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return false;
                 }
 
-                for (var name = boneParents.GetValueOrDefault(CtrlNames[from]); name is not null && guard++ < 512;
+                for (var name = boneParents.GetValueOrDefault(CtrlNames[from]); name is not null && guard++ < 2 * AncestorWalkLimit;
                     name = boneParents.GetValueOrDefault(name))
                 {
                     if (string.Equals(name, CtrlNames[to], StringComparison.OrdinalIgnoreCase))
@@ -1132,7 +1141,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                         var ancestor = SkeletonBoneParents.GetValueOrDefault(CtrlNames[i]);
                         var guard = 0;
-                        while (ancestor is not null && guard++ < 256)
+                        while (ancestor is not null && guard++ < AncestorWalkLimit)
                         {
                             if (nodeByName.TryGetValue(ancestor, out var p) && p != i)
                             {
@@ -1456,7 +1465,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         continue;
                     }
 
-                    if (natural is { } already && MathF.Abs(already - kv.Value[0]) > 1e-4f)
+                    if (natural is { } already && MathF.Abs(already - kv.Value[0]) > ChainReadingTolerance)
                     {
                         return null;
                     }
@@ -1470,7 +1479,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var chainNaturalRf = NaturalRf(null);
             if (chainNaturalRf is null && NaturalRf(true) is { } acrossRoot
                 && NaturalRf(false) is { } withoutRoot
-                && MathF.Abs(acrossRoot - withoutRoot) > 1e-4f)
+                && MathF.Abs(acrossRoot - withoutRoot) > ChainReadingTolerance)
             {
                 chainNaturalRf = withoutRoot;
             }
@@ -1498,7 +1507,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                             foreach (var relaxation in relaxations)
                             {
-                                if (value is { } already && MathF.Abs(already - relaxation) > 1e-4f)
+                                if (value is { } already && MathF.Abs(already - relaxation) > ChainReadingTolerance)
                                 {
                                     return null;
                                 }
@@ -1537,7 +1546,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                             foreach (var relaxation in relaxations)
                             {
-                                if (value is { } already && MathF.Abs(already - relaxation) > 1e-4f)
+                                if (value is { } already && MathF.Abs(already - relaxation) > ChainReadingTolerance)
                                 {
                                     return null;
                                 }
@@ -1650,7 +1659,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                             foreach (var contraction in contractions)
                             {
-                                if (found is { } already && MathF.Abs(already - contraction) > 1e-4f)
+                                if (found is { } already && MathF.Abs(already - contraction) > ChainReadingTolerance)
                                 {
                                     return 1f;
                                 }
@@ -1778,11 +1787,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var candidateCount = 0;
                 foreach (var rf in relaxations)
                 {
-                    if (MathF.Abs(rf - naturalRf) < 1e-4f)
+                    if (MathF.Abs(rf - naturalRf) < ChainReadingTolerance)
                     {
                         baseCount++;
                     }
-                    else if (candidate is null || MathF.Abs(rf - candidate.Value) < 1e-4f)
+                    else if (candidate is null || MathF.Abs(rf - candidate.Value) < ChainReadingTolerance)
                     {
                         candidate = rf;
                         candidateCount++;
@@ -1794,7 +1803,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 if (baseCount != baseCopies || candidateCount != baseCopies || candidate is not { } value
-                    || (MathF.Abs(value - 1.0f) < 1e-4f && MathF.Abs(naturalRf - 1.0f) >= 1e-4f))
+                    || (MathF.Abs(value - 1.0f) < ChainReadingTolerance && MathF.Abs(naturalRf - 1.0f) >= ChainReadingTolerance))
                 {
                     return null;
                 }
@@ -1837,10 +1846,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             if (!rodRelaxationsByPair.TryGetValue(pair, out var relaxations)
                                 || relaxations.Count != baseCopies * 2
                                 || (SplitEvenly(relaxations, naturalRf, baseCopies)
-                                    ?? (ringCopies == baseCopies && relaxations.TrueForAll(rf => MathF.Abs(rf - naturalRf) < 1e-4f)
+                                    ?? (ringCopies == baseCopies && relaxations.TrueForAll(rf => MathF.Abs(rf - naturalRf) < ChainReadingTolerance)
                                         ? naturalRf
                                         : null)) is not { } value
-                                || (suspender is { } already && MathF.Abs(already - value) > 1e-4f))
+                                || (suspender is { } already && MathF.Abs(already - value) > ChainReadingTolerance))
                             {
                                 return null;
                             }
@@ -1863,8 +1872,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                                 || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
                                 || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations)
                                 || relaxations.Count < 1
-                                || relaxations.Exists(rf => MathF.Abs(rf - relaxations[0]) > 1e-4f)
-                                || (suspender is { } already && MathF.Abs(already - relaxations[0]) > 1e-4f))
+                                || relaxations.Exists(rf => MathF.Abs(rf - relaxations[0]) > ChainReadingTolerance)
+                                || (suspender is { } already && MathF.Abs(already - relaxations[0]) > ChainReadingTolerance))
                             {
                                 return null;
                             }
@@ -1924,7 +1933,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         }
 
                         if (pairsAgree && Surplus(relaxations, baseCopies, baseRf) is { } value
-                            && (companion is not { } already || MathF.Abs(already - value) <= 1e-4f))
+                            && (companion is not { } already || MathF.Abs(already - value) <= ChainReadingTolerance))
                         {
                             companion = value;
                         }
@@ -1935,7 +1944,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                         if (splitsAgree && TwoSingleRods(relaxations) is { } two
                             && (split is not { } seen
-                                || (MathF.Abs(seen.Low - two.Low) <= 1e-4f && MathF.Abs(seen.High - two.High) <= 1e-4f)))
+                                || (MathF.Abs(seen.Low - two.Low) <= ChainReadingTolerance && MathF.Abs(seen.High - two.High) <= ChainReadingTolerance)))
                         {
                             split = two;
                         }
@@ -1961,7 +1970,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             static (float Low, float High)? TwoSingleRods(List<float> relaxations)
-                => relaxations.Count == 2 && MathF.Abs(relaxations[0] - relaxations[1]) > 1e-4f
+                => relaxations.Count == 2 && MathF.Abs(relaxations[0] - relaxations[1]) > ChainReadingTolerance
                     ? (MathF.Min(relaxations[0], relaxations[1]), MathF.Max(relaxations[0], relaxations[1]))
                     : null;
 
@@ -1970,7 +1979,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var groups = new List<(float Value, int Count)>();
                 foreach (var rf in relaxations)
                 {
-                    var at = groups.FindIndex(g => MathF.Abs(g.Value - rf) < 1e-4f);
+                    var at = groups.FindIndex(g => MathF.Abs(g.Value - rf) < ChainReadingTolerance);
                     if (at < 0)
                     {
                         groups.Add((rf, 1));
@@ -1993,7 +2002,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 if (groups[0].Count == 1 && groups[1].Count == 1)
                 {
-                    return groups.FindIndex(g => MathF.Abs(g.Value - baseRf) < 1e-4f) is var atBase and >= 0
+                    return groups.FindIndex(g => MathF.Abs(g.Value - baseRf) < ChainReadingTolerance) is var atBase and >= 0
                         ? groups[1 - atBase].Value
                         : null;
                 }
@@ -2208,7 +2217,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                                     common = [];
                                     foreach (var relaxation in relaxations)
                                     {
-                                        if (!common.Exists(seen => MathF.Abs(seen - relaxation) <= 1e-4f))
+                                        if (!common.Exists(seen => MathF.Abs(seen - relaxation) <= ChainReadingTolerance))
                                         {
                                             common.Add(relaxation);
                                         }
@@ -2217,7 +2226,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                                 else
                                 {
                                     common.RemoveAll(seen =>
-                                        !relaxations.Exists(relaxation => MathF.Abs(seen - relaxation) <= 1e-4f));
+                                        !relaxations.Exists(relaxation => MathF.Abs(seen - relaxation) <= ChainReadingTolerance));
                                 }
 
                                 if (common.Count == 0)
@@ -2326,7 +2335,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var firstSimulated = int.MaxValue;
                 var stack = new Stack<int>();
                 stack.Push(start);
-                for (var guard = 0; stack.Count > 0 && guard < 4096; guard++)
+                for (var guard = 0; stack.Count > 0 && guard < SubtreeWalkLimit; guard++)
                 {
                     var node = stack.Pop();
                     foreach (var member in (int[])[node, .. DeclaredRing(node) ?? []])

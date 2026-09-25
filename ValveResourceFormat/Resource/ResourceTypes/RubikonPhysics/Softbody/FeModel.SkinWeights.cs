@@ -593,7 +593,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         {
             var p = node >= 0 && node < SkelParents.Length ? SkelParents[node] : -1;
             var guard = 0;
-            while (p >= 0 && p < CtrlNames.Length && guard++ < 256)
+            while (p >= 0 && p < CtrlNames.Length && guard++ < AncestorWalkLimit)
             {
                 if (!IsProxyNodeName(CtrlNames[p]) && IsStatic(p))
                 {
@@ -850,7 +850,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         {
             var p = node >= 0 && node < SkelParents.Length ? SkelParents[node] : -1;
             var guard = 0;
-            while (p >= 0 && p < CtrlNames.Length && guard++ < 256)
+            while (p >= 0 && p < CtrlNames.Length && guard++ < AncestorWalkLimit)
             {
                 if (!IsProxyNodeName(CtrlNames[p]))
                 {
@@ -959,7 +959,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var root = bone;
             var guard = 0;
-            while (realParent[root] >= 0 && childCount[realParent[root]] <= 1 && guard++ < 256)
+            while (realParent[root] >= 0 && childCount[realParent[root]] <= 1 && guard++ < AncestorWalkLimit)
             {
                 root = realParent[root];
             }

@@ -327,14 +327,29 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             for (var slot = 0; slot < n; slot++)
             {
                 var (fromB, index) = order[slot];
-                if (fromB) { remapB[index] = slot; } else { remapA[index] = slot; }
+                if (fromB)
+                {
+                    remapB[index] = slot;
+                }
+                else
+                {
+                    remapA[index] = slot;
+                }
             }
 
             T[] Combine<T>(T[] fromA, T[] fromB)
             {
                 var combined = new T[n];
-                for (var i = 0; i < an; i++) { combined[remapA[i]] = fromA[i]; }
-                for (var i = 0; i < bn; i++) { combined[remapB[i]] = fromB[i]; }
+                for (var i = 0; i < an; i++)
+                {
+                    combined[remapA[i]] = fromA[i];
+                }
+
+                for (var i = 0; i < bn; i++)
+                {
+                    combined[remapB[i]] = fromB[i];
+                }
+
                 return combined;
             }
 
@@ -346,8 +361,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var weights = new float[n];
                 var fromA = Array.Find(a.VertexMaps, m => m.Name == name).Weights;
                 var fromB = Array.Find(b.VertexMaps, m => m.Name == name).Weights;
-                for (var j = 0; fromA is not null && j < an; j++) { weights[remapA[j]] = fromA[j]; }
-                for (var j = 0; fromB is not null && j < bn; j++) { weights[remapB[j]] = fromB[j]; }
+                for (var j = 0; fromA is not null && j < an; j++)
+                {
+                    weights[remapA[j]] = fromA[j];
+                }
+
+                for (var j = 0; fromB is not null && j < bn; j++)
+                {
+                    weights[remapB[j]] = fromB[j];
+                }
+
                 vertexMaps[i] = (name, weights);
             }
 

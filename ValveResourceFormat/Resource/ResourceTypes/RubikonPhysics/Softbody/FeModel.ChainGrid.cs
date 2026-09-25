@@ -143,7 +143,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 {
                     var target = total * r / (rows - 1);
                     var j = 1;
-                    while (j < joints.Count - 1 && lengths[j] < target) { j++; }
+                    while (j < joints.Count - 1 && lengths[j] < target)
+                    {
+                        j++;
+                    }
+
                     var t = Math.Clamp((target - lengths[j - 1]) / MathF.Max(lengths[j] - lengths[j - 1], 1e-4f), 0f, 1f);
 
                     var a = joints[j - 1];
