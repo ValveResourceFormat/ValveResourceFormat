@@ -332,6 +332,28 @@ partial class ModelExtract
         return isElement || hasBasis ? 2 : 1;
     }
 
+    /// <summary>
+    /// The number of distinct nodes <paramref name="node"/> shares an <c>m_Rods</c> record with. The bulk node-base pass grades
+    /// only a node with at least two, so a basis on a node with fewer comes from somewhere the document has to state.
+    /// </summary>
+    internal static int RodNeighbourCount(FeModel feModel, int node)
+    {
+        var neighbours = new HashSet<int>();
+        foreach (var rod in feModel.Rods)
+        {
+            if (rod.NodeA == node && rod.NodeB != node)
+            {
+                neighbours.Add(rod.NodeB);
+            }
+            else if (rod.NodeB == node && rod.NodeA != node)
+            {
+                neighbours.Add(rod.NodeA);
+            }
+        }
+
+        return neighbours.Count;
+    }
+
     internal static KVObject MakeClothNode(FeModel feModel, string boneName, int node, bool isStaticNode = false,
         string? elementName = null, Vector3 origin = default, Vector3 angles = default,
         IReadOnlyDictionary<int, string>? proxyNodeNames = null)
@@ -359,7 +381,7 @@ partial class ModelExtract
         // The default alignment leaves a free cloth node, and a rotation-locked static node, with no basis at
         // all: the neighbour scan grades neither. On a node the scan can already serve an alignment changes the
         // frame instead, so one is written only where the original has a basis the default drops.
-        var preset = elementName is not null || (isStaticNode && !feModel.AllowsRotation(node))
+        var preset = elementName is not null || (isStaticNode && !feModel.AllowsRotation(node)) || RodNeighbourCount(feModel, node) < 2
             ? feModel.ClothNodeBasisPreset(node)
             : null;
         var references = preset?.References ?? basis;

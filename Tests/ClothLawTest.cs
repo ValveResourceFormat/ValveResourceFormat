@@ -3896,6 +3896,11 @@ namespace Tests
                     m_nStaticNodes = 3
                     m_nRotLockStaticNodes = 2
                     m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(2, 3, 15.56f, 1f)}}
+                        {{SyntheticCloth.RigidRod(2, 4, 17.94f, 1f)}}
+                    ]
                     m_InitPose =
                     [
                         {{SyntheticCloth.Pose(0f, 0f, 60f)}}
@@ -12237,6 +12242,66 @@ namespace Tests
                 await Assert.That(sprung).Contains("_class = \"ClothSpring\"");
                 await Assert.That(sprung).Contains("cloth_node_0 = \"coattail_1_L\"");
                 await Assert.That(sprung).Contains("cloth_node_1 = \"coattail_1_R\"");
+            }
+        }
+
+        /// <summary>
+        /// A ClothNode on a bone the original bases through four other nodes but that shares no rod with two of them declares the
+        /// preset its basis compiled from: the bulk scan grades only a node with two rod neighbours, so at alignment 0 the stated
+        /// references are ignored and the node compiles with no basis at all. The shape is an old sheet-driven bone, based on four
+        /// proxy vertices, that the export declares instead of back-solving. CONTROL: the same basis on a bone two rods tie to the
+        /// sheet keeps alignment 0, since the scan grades it.
+        /// </summary>
+        [Test]
+        public async Task ADynamicClothNodeNoRodTiesToTwoNodesDeclaresItsBasisPreset()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "a", "b", "c", "d", "flap", "strap" ]
+                    m_nNodeCount = 7
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(1, 2, 8f, 1f)}}
+                        {{SyntheticCloth.RigidRod(3, 4, 8f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 3, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(6, 1, 5f, 1f)}}
+                        {{SyntheticCloth.RigidRod(6, 2, 5f, 1f)}}
+                    ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 60f)}}
+                        {{SyntheticCloth.Pose(-4f, 4f, 55f)}}
+                        {{SyntheticCloth.Pose(-4f, -4f, 55f)}}
+                        {{SyntheticCloth.Pose(-6f, 4f, 45f)}}
+                        {{SyntheticCloth.Pose(-6f, -4f, 45f)}}
+                        {{SyntheticCloth.Pose(-5f, 0f, 50f)}}
+                        {{SyntheticCloth.Pose(-3f, 0f, 58f)}}
+                    ]
+                    m_NodeBases =
+                    [
+                        { nNode = 5 nNodeX0 = 4 nNodeX1 = 1 nNodeY0 = 2 nNodeY1 = 3 },
+                        { nNode = 6 nNodeX0 = 4 nNodeX1 = 1 nNodeY0 = 2 nNodeY1 = 3 },
+                    ]
+                }
+                """);
+
+            var flap = ModelExtract.MakeClothNode(feModel, "flap", 5);
+            var strap = ModelExtract.MakeClothNode(feModel, "strap", 6);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: two rods tie the node to the sheet, so the scan grades it.
+                await Assert.That(ModelExtract.RodNeighbourCount(feModel, 6)).IsEqualTo(2);
+                await Assert.That(strap.GetInt32Property("transform_alignment")).IsEqualTo(0);
+
+                // THE LAW.
+                await Assert.That(flap.GetInt32Property("transform_alignment")).IsEqualTo(4);
+                await Assert.That(flap.GetStringProperty("node_base_x0")).IsEqualTo("d");
+                await Assert.That(flap.GetStringProperty("node_base_x1")).IsEqualTo("a");
+                await Assert.That(flap.GetStringProperty("node_base_y0")).IsEqualTo("b");
+                await Assert.That(flap.GetStringProperty("node_base_y1")).IsEqualTo("c");
             }
         }
     }
