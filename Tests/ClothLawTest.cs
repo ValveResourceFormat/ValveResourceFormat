@@ -10195,5 +10195,63 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A joint whose end_effector extrudes only a centre node keeps its own node on its first node list and
+        /// the centre on its second, so its bend and torsion spans run from the joint's own node to its
+        /// grandparent and great-grandparent, while the centre's run one joint nearer. CONTROL: the stretch
+        /// span reads the same either way.
+        /// </summary>
+        /// <remarks>
+        /// READ: cs2 `sub_181962A60` (2026-09-23 index) pushes a joint below two sides onto its list at +0 and
+        /// its `$cc&lt;joint&gt;_Ctr` onto the list at +64; `sub_181960360` spans list +0 to the parent at
+        /// stretch_spring and to the grandparent at bend_spring, and list +64 to the parent at bend_spring and to
+        /// the grandparent at torsion_spring. The shape is dota `axe_lava_legion_commander_head`'s beard braids:
+        /// bend 0.6 and torsion 0.8 were read back as 0.8 and 1.0.
+        /// </remarks>
+        [Test]
+        public async Task ACentreOnlyEndEffectorsSpansRunFromTheJointsOwnNode()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1", "j2", "tip", "$cctip_Ctr" ]
+                    m_SkelParents = [ -1, 0, 1, 2, 3 ]
+                    m_nNodeCount = 5
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(20f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(30f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(40f, 0f, 0f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 0.6f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 10f, 0.6f)}}
+                        {{SyntheticCloth.RigidRod(2, 3, 10f, 0.6f)}}
+                        {{SyntheticCloth.RigidRod(1, 3, 20f, 0.6f)}}
+                        {{SyntheticCloth.RigidRod(0, 3, 30f, 0.8f)}}
+                        {{SyntheticCloth.RigidRod(3, 4, 10f, 0.6f)}}
+                        {{SyntheticCloth.RigidRod(2, 4, 20f, 0.6f)}}
+                        {{SyntheticCloth.RigidRod(1, 4, 30f, 0.8f)}}
+                    ]
+                }
+                """);
+
+            var tip = feModel.BuildBoneChains().SelectMany(chain => chain.Joints).FirstOrDefault(joint => joint.Name == "tip");
+
+            using (Assert.Multiple())
+            {
+                // THE LAW.
+                await Assert.That(tip?.BendStiffness ?? -1f).IsEqualTo(0.6f).Within(1e-4f);
+                await Assert.That(tip?.TorsionStiffness ?? -1f).IsEqualTo(0.8f).Within(1e-4f);
+
+                // CONTROL.
+                await Assert.That(tip?.StretchStiffness ?? -1f).IsEqualTo(0.6f).Within(1e-4f);
+            }
+        }
     }
 }

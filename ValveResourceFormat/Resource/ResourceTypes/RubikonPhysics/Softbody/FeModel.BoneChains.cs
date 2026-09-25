@@ -1961,6 +1961,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             joint.EndEffector = centreOffset.X;
                             joint.ExtrudeSides = 0;
                             joint.ProxyNode = proxies[0];
+                            endEffectorRingOf[joint.Node] = proxies;
                             continue;
                         }
                     }
@@ -2104,6 +2105,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     if (jointRingOf.TryGetValue(end, out var jointRing) && jointRing.Count > 0)
                     {
                         return jointRing;
+                    }
+
+                    // A centre-only end_effector's centre sits on the joint's second node list, so the
+                    // joint's own spans run from its own node.
+                    if (endEffectorRingOf.ContainsKey(end))
+                    {
+                        return [end];
                     }
 
                     return DeclaredRing(end) is { Count: > 0 } ring ? ring : [end];
