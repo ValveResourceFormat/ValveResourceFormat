@@ -10253,5 +10253,59 @@ namespace Tests
                 await Assert.That(tip?.StretchStiffness ?? -1f).IsEqualTo(0.6f).Within(1e-4f);
             }
         }
+
+        /// <summary>
+        /// A chain the original fits a joint of, where a version-2 preset would have given that joint a basis and a reverse
+        /// offset and so discarded its fit group, was compiled below version 2. The CONTROLS are the same rope with no fit
+        /// matrix and with the fit on its leaf, which no preset reaches, both still read at version 2.
+        /// </summary>
+        [Test]
+        public async Task AFitMatrixOnAJointThePresetWouldOffsetRulesOutVersion2()
+        {
+            var bare = TwoWideRopeFitting(null);
+            var leaf = TwoWideRopeFitting(6);
+            var fitted = TwoWideRopeFitting(3);
+            var bareChain = bare.BuildBoneChains()[0];
+            var leafChain = leaf.BuildBoneChains()[0];
+            var fittedChain = fitted.BuildBoneChains()[0];
+
+            using (Assert.Multiple())
+            {
+                // CONTROLS: nothing fitted, and a fit only on the leaf.
+                await Assert.That(ModelExtract.ClothChainVersion(bare, bareChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ModelExtract.ClothChainVersion(leaf, leafChain, hasOtherChains: false)).IsEqualTo(2);
+
+                // THE LAW.
+                await Assert.That(ModelExtract.ClothChainVersion(fitted, fittedChain, hasOtherChains: false)).IsLessThan(2);
+            }
+        }
+
+        // TwoWideRope with no reverse offsets and, where named, a fit matrix on that node over the rope's eight ring nodes.
+        private static FeModel TwoWideRopeFitting(int? fitNode) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1" ]
+                m_SkelParents = [ -1, 0, 0, 0, 3, 3, 3, 6, 6 ]
+                m_nNodeCount = 9
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 2f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, -2f, 0f)}}
+                    {{SyntheticCloth.Pose(-8.5f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-8.5f, 2f, 0f)}}
+                    {{SyntheticCloth.Pose(-8.5f, -2f, 0f)}}
+                    {{SyntheticCloth.Pose(-17f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-17f, 2f, 0f)}}
+                    {{SyntheticCloth.Pose(-17f, -2f, 0f)}}
+                ]
+                m_SourceElems = [ 1, 2, 5, 4, 4, 5, 8, 7 ]
+                m_ReverseOffsets = [ ]
+                {{(fitNode is { } node
+                    ? "m_FitMatrices = [ { bone = [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] vCenter = [ 0.0, 0.0, 0.0 ] nEnd = 4 nNode = " + node + " nBeginDynamic = 0 } ] m_FitWeights = [ { flWeight = 0.25 nNode = 4 }, { flWeight = 0.25 nNode = 5 }, { flWeight = 0.25 nNode = 7 }, { flWeight = 0.25 nNode = 8 } ]"
+                    : string.Empty)}}
+            }
+            """);
     }
 }

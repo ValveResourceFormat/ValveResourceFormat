@@ -107,6 +107,44 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// Whether the original fits a joint of <paramref name="chain"/> that a <c>ClothChain</c> of version 2 would have given
+        /// both a preset basis and a reverse offset, which puts the joint in both of the fit pass's skip sets and discards its
+        /// group, so the chain compiled below version 2.
+        /// </summary>
+        /// <remarks>
+        /// The version-2 preset writes the basis graded over the joint's own extrusion vector and its child's whenever it is
+        /// not degenerate, and records the joint's reverse offset against its Y1 node when the joint simulates and is not one
+        /// of its own four references. A hinged joint is preset at every version and is not read.
+        /// </remarks>
+        public bool ChainFitsAPresetJoint(BoneChain chain)
+        {
+            var unmoved = new Dictionary<int, Vector3>();
+            foreach (var joint in chain.Joints)
+            {
+                if (!joint.Simulated || !FitMatrixNodes.Contains(joint.Node) || IsHingedJoint(joint.Node))
+                {
+                    continue;
+                }
+
+                var child = chain.Joints.Find(other => other.ParentNode == joint.Node);
+                if (child is null || ChainNodeBaseCandidates(joint, child) is not { Count: >= 3 } candidates)
+                {
+                    continue;
+                }
+
+                var preset = PredictNodeBase(candidates, joint.Node, unmoved, default).Basis;
+                if (preset.NodeX0 != preset.NodeX1 && preset.NodeY0 != preset.NodeY1
+                    && joint.Node != preset.NodeX0 && joint.Node != preset.NodeX1
+                    && joint.Node != preset.NodeY0 && joint.Node != preset.NodeY1)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Whether the original compiled <paramref name="chain"/> with the reverse offsets a <c>ClothChain</c> of version 2
         /// or above records against its joints' preset bases: true when every read joint names the Y1 node of the preset
         /// basis graded over its own extrusion vector and its child's, false when one names none, null when no joint is read.

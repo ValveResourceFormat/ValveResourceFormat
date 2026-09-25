@@ -144,10 +144,11 @@ partial class ModelExtract
     /// <param name="hasUnbasedLeaf">Whether a simulated leaf of a two-sided chain carries no node base (<see cref="FeModel.ChainHasUnbasedLeaf"/>).</param>
     /// <param name="siblingHubLock">Whether the chain's locks are its sibling hub's, which states nothing about the format.</param>
     /// <param name="extrudesNothing">Whether the chain extrudes no ring at all, so the version-2 preset grade raises no candidates and cannot be read.</param>
+    /// <param name="fitsPresetJoint">Whether the original fits a joint the version-2 preset would base and offset (<see cref="FeModel.ChainFitsAPresetJoint"/>).</param>
     internal static int ClothChainVersion(int jointCount, bool hasOtherChains, bool? rootAllowsRotation, bool rootHasBase,
         bool lockedJoint, bool rigidCloudClusterLock, bool locksJoints, bool? basesBulkGraded, bool hintsTwistWritten,
         bool hasUnstagedThinJoint, bool? reverseOffsetsPreset = null, bool hasUnbasedLeaf = false,
-        bool siblingHubLock = false, bool extrudesNothing = false)
+        bool siblingHubLock = false, bool extrudesNothing = false, bool fitsPresetJoint = false)
     {
         // The two chain formats are not interchangeable: format 1 registers a non-simulated joint that has
         // no parent to be offset from into m_LockToGoal, format 2 leaves it out. Both are in live use, so
@@ -190,10 +191,11 @@ partial class ModelExtract
         // neighbour set. The joints' own entries say which grade the original carries, and a chain whose
         // entries are the bulk grade was authored below version 2 wherever format 1 does not also lock a
         // joint the original leaves free or drop the basis of a rotation-locked root. Where the entries do not say,
-        // the reverse offsets do: format 2 records a simulated joint's offset against its preset basis' Y1 node.
+        // the reverse offsets do: format 2 records a simulated joint's offset against its preset basis' Y1 node. A joint
+        // format 2 would both base and offset loses its fit group, so a fit matrix on one rules format 2 out.
         var rootKeepsPreset = rootRotationLocked && rootHasBase;
         if (version == 2 && !rootKeepsPreset && (lockedInOriginal || !locksJoints)
-            && (basesBulkGraded == true || (basesBulkGraded is null && reverseOffsetsPreset == false)))
+            && (basesBulkGraded == true || (basesBulkGraded is null && reverseOffsetsPreset == false) || fitsPresetJoint))
         {
             version = 1;
         }
@@ -246,7 +248,8 @@ partial class ModelExtract
                 && chain.Joints.TrueForAll(joint => !feModel.IsLockedToGoal(joint.Node)
                     || joint.SpringsWithSiblings),
             extrudesNothing: chain.ExtrudeSides < 1
-                && !chain.Joints.Exists(static joint => joint.RingNodes.Count > 0));
+                && !chain.Joints.Exists(static joint => joint.RingNodes.Count > 0),
+            fitsPresetJoint: feModel.ChainFitsAPresetJoint(chain));
     }
 
     /// <summary>
