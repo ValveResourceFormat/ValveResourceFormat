@@ -119,7 +119,6 @@ internal sealed partial class ClothExtract
     private bool EmitProxySheetClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {
         var backSolveJoints = feModel.FitMatrixNodes.Count > 0 || feModel.DrivesRealBones;
-        // A chain fitted over a proxy sheet's vertices is driven by the sheet; one fitted over its own ring is emitted.
         var independentChains = boneChains
             .Where(chain => !chain.Joints.Any(joint => feModel.ProxyFitMatrixNodes.Contains(joint.Node))
                 && !feModel.IsSheetDrivenChain(chain))
@@ -173,7 +172,6 @@ internal sealed partial class ClothExtract
     private KVObject MakeClothProxyMeshList(FeModel feModel, List<FeModel.BoneChain> independentChains, bool backSolveJoints,
         Dictionary<int, string> proxyNodeNames)
     {
-        // A proxy back-solves only where it drives a bone no independent chain covers.
         var chainDrivenBones = new HashSet<string>(
             independentChains.SelectMany(static chain => chain.Joints).Select(joint => feModel.CtrlNames[joint.Node]),
             StringComparer.OrdinalIgnoreCase);
@@ -187,7 +185,6 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // A compile that does not state its position-driven boundary reads every carried bone.
         bool ProxyDrivesUnchainedBone(FeModel.ProxyMesh proxy)
         {
             var threshold = feModel.GetBackSolveInfluenceThreshold(proxy);
@@ -220,8 +217,6 @@ internal sealed partial class ClothExtract
             return false;
         }
 
-        // add_bones_to_render_mesh shows as node bases on the sheet's own vertices, or as procedural cloth bones named by
-        // them.
         var proxyRenderBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var bone in model?.Skeleton.Bones ?? [])
         {
@@ -242,10 +237,8 @@ internal sealed partial class ClothExtract
         var vertexMapContainers = new Dictionary<string, KVObject>(StringComparer.Ordinal);
         foreach (var proxyFile in ProxyMeshes)
         {
-            // A sheet whose driven bones another sheet already fits was compiled with its own back-solve off.
             var proxyBackSolve = backSolveJoints && ProxyDrivesUnchainedBone(proxyFile.Proxy)
                 && !feModel.IsUnbackSolvedProxyMesh(proxyFile.Proxy);
-            // back_solve_joints_drive_meshes is also stated alone, on a sheet fitting a bone it leaves undriven.
             var proxyDrivesMeshes = proxyBackSolve || feModel.ProxyFitsUndrivenBone(proxyFile.Proxy);
             var addsBonesToRenderMesh = ProxyAddsBonesToRenderMesh(proxyFile.Proxy);
             var proxyFlexes = ProxyFlexesClothBorders(feModel, proxyFile.Proxy, proxyBackSolve, addsBonesToRenderMesh);
@@ -259,7 +252,6 @@ internal sealed partial class ClothExtract
                 backSolveInfluenceThreshold: feModel.GetBackSolveInfluenceThreshold(proxyFile.Proxy),
                 flexClothBorders: proxyFlexes);
 
-            // A selection covering exactly the sheet's simulated nodes is a ClothVertexMap around the sheet.
             if (feModel.GetProxyVertexMapName(proxyFile.Proxy, proxyGroup) is { } proxyVertexMap)
             {
                 if (!vertexMapContainers.TryGetValue(proxyVertexMap, out var mapChildren))
@@ -288,8 +280,6 @@ internal sealed partial class ClothExtract
             clothProxyChildren.Add(proxyNode);
         }
 
-        // A selection the original does not register as a vertex set is declared as a container listing its sheet
-        // vertices, since painting it would register it.
         foreach (var map in feModel.VertexMaps)
         {
             if (feModel.RegistersVertexSet(map.NameHash) || vertexMapContainers.ContainsKey(map.Name))
@@ -354,7 +344,6 @@ internal sealed partial class ClothExtract
         var shapeParentBones = CollisionShapeParentBones(feModel);
         var leftoverStaticNodes = new List<(string Name, int Node)>();
 
-        // A generated or fitted node no emitted proxy recreates is declared on its own.
         var anchorOf = BuildCtrlAnchorMap(feModel);
         var jiggleNodes = feModel.JiggleBones.Select(static j => j.Node).ToHashSet();
         var proxyRegisteredNodes = new HashSet<int>();
@@ -383,7 +372,6 @@ internal sealed partial class ClothExtract
                 || independentChainNodes.Contains(node) || jiggleNodes.Contains(node)
                 || shapeParentBones.Contains(name);
 
-        // Emitted flat: a ClothVertexMap around a free ClothNode a spring names does not compile.
         var unregisteredNodes = new List<(string Name, int Node)>();
         var unregisteredFreeNodes = new List<(string RootBone, int Node, string ElementName, Vector3 Origin, Vector3 Angles)>();
         var freeClothNodeNames = new Dictionary<int, string>();
@@ -424,8 +412,6 @@ internal sealed partial class ClothExtract
             {
                 loneClothNodes.Add((name, node));
             }
-            // A bone a surviving proxy vertex is skinned to is registered by the sheet unless the original records it
-            // as a root and the skinning is recovered rather than synthesised.
             else if (!shapeParentBones.Contains(name)
                 && !((recoveredSkinnedBones.Contains(name)
                         || (feModel.FitMatrixNodes.Count == 0 && proxySkinnedBones.Contains(name)))

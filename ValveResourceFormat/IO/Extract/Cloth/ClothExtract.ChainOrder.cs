@@ -31,7 +31,6 @@ internal sealed partial class ClothExtract
         var neighbours = new HashSet<int>[count];
         var named = new bool[count];
 
-        // An all-static element or rod makes no neighbours, but still places its members at the final rank.
         void Connect(IReadOnlyList<int> group)
         {
             var simulated = false;
@@ -220,7 +219,6 @@ internal sealed partial class ClothExtract
             lanes[bands[node]].Add(node);
         }
 
-        // The chains' nodes can only be reordered within a band they fill without a foreign node.
         var runStart = new Dictionary<int, int>();
         var runEnd = new Dictionary<int, int>();
         var runCount = new Dictionary<int, int>();
@@ -252,7 +250,6 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // Within a band, narrow joints and their rings must be created in the same order.
         for (var i = 0; i < joints.Count; i++)
         {
             for (var j = i + 1; j < joints.Count; j++)
@@ -347,7 +344,6 @@ internal sealed partial class ClothExtract
         public ClothChainDeclarationPlan? Solve(FeModel feModel, List<FeModel.BoneChain> chains,
             Func<string, bool> reparents)
         {
-            // A joint the original records as a hierarchy root whose parent bone is a control node stays in its chain.
             for (var i = 0; i < joints.Count; i++)
             {
                 var node = joints[i].Joint.Node;
@@ -377,7 +373,6 @@ internal sealed partial class ClothExtract
                 var chain = chains[joints[index].Chain];
                 if (!plan.Walk.TryGetValue(chain, out var walk))
                 {
-                    // A chain declares its root first.
                     if (chain.Joints.Count == 0 || joints[index].Joint.Node != chain.Joints[0].Node)
                     {
                         return null;
@@ -394,7 +389,9 @@ internal sealed partial class ClothExtract
             return plan.Chains.Count == chains.Count ? plan : null;
         }
 
-        // Whether the reconstructed order, with nothing declared ahead, already reproduces the node order.
+        /// <summary>
+        /// Whether the reconstructed order, with nothing declared ahead, already reproduces the node order.
+        /// </summary>
         private bool WalksNaturally()
         {
             Reset();
@@ -453,8 +450,10 @@ internal sealed partial class ClothExtract
             remaining++;
         }
 
-        // The compiler's first pass: a narrow joint creates its node and then its ring, a wide one only its ring, and a
-        // bone already created only its ring.
+        /// <summary>
+        /// The compiler's first pass: a narrow joint creates its node and then its ring, a wide one only its ring, and
+        /// a bone already created only its ring.
+        /// </summary>
         private bool StartJoint(int index)
         {
             var (chain, joint, rings) = joints[index];
@@ -526,7 +525,7 @@ internal sealed partial class ClothExtract
             walkOrder.RemoveAt(walkOrder.Count - 1);
         }
 
-        // A joint is walked only after every declaration of its parent in the same chain.
+        /// <summary>A joint is walked only after every declaration of its parent in the same chain.</summary>
         private bool ParentPending(int chain, int parentNode)
         {
             if (!occurrences.TryGetValue(parentNode, out var list))
@@ -545,7 +544,7 @@ internal sealed partial class ClothExtract
             return false;
         }
 
-        // The compiler's second pass: the nodes of the wide joints, in walk order.
+        /// <summary>The compiler's second pass: the nodes of the wide joints, in walk order.</summary>
         private bool TakeDeferredNodes(List<int>? taken)
         {
             foreach (var index in walkOrder)
@@ -598,7 +597,6 @@ internal sealed partial class ClothExtract
                 return false;
             }
 
-            // The next joint of the reconstructed order is tried first.
             var natural = -1;
             for (var index = 0; index < joints.Count; index++)
             {
@@ -647,7 +645,6 @@ internal sealed partial class ClothExtract
                 ReturnHead(head);
             }
 
-            // A declaration that creates no node heads no band, so it is offered directly.
             for (var index = 0; index < joints.Count; index++)
             {
                 if (index == natural || walked[index] || joints[index].Rings.Count > 0
@@ -666,7 +663,7 @@ internal sealed partial class ClothExtract
             return false;
         }
 
-        // Walks joint index next and searches on from there, undoing the step where that fails.
+        /// <summary>Walks joint index next and searches on from there, undoing the step where that fails.</summary>
         private bool TryStep(int index)
         {
             var previousChain = currentChain;
@@ -687,7 +684,10 @@ internal sealed partial class ClothExtract
             return false;
         }
 
-        // A node can be declared ahead of the chains when every declaration of its bone allows it and its band is pure.
+        /// <summary>
+        /// A node can be declared ahead of the chains when every declaration
+        /// of its bone allows it and its band is pure.
+        /// </summary>
         private bool CanPreDeclare(int node)
         {
             if (nodeTaken[node] || declaredNode[node] || deferred.Contains(node)

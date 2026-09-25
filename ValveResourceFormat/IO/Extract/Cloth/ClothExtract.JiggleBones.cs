@@ -27,6 +27,7 @@ internal sealed partial class ClothExtract
         Neither = 2,
     }
 
+    /// <summary>The <c>JiggleBone</c> node of one compiled jiggle bone, or null where its node has no control name.</summary>
     internal static KVObject? ProcessJiggleBone(FeModel.IndexedJiggleBone indexedJiggleBone, string[] controlNames)
     {
         var nodeIndex = indexedJiggleBone.Node;
@@ -105,6 +106,7 @@ internal sealed partial class ClothExtract
         return node;
     }
 
+    /// <summary>The <c>JiggleBoneList</c> of <paramref name="feModel"/>, or null where it has no jiggle bones.</summary>
     internal static KVObject? ExtractJiggleBones(FeModel? feModel)
     {
         if (feModel is null || feModel.JiggleBones.Length == 0)

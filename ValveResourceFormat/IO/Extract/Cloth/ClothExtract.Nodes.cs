@@ -141,7 +141,6 @@ internal sealed partial class ClothExtract
         bool IsEndpoint(int node, int other) => springName.ContainsKey(node)
             || (chainJoints is not null && chainJoints.Contains(node) && declared.Contains(other));
 
-        // A pair whose rods are identical copies is one spring with extra_iterations; any other pair keeps a spring per rod.
         var rodsByEdge = new Dictionary<(int, int), List<FeModel.Rod>>();
         foreach (var rod in feModel.Rods)
         {
@@ -163,7 +162,6 @@ internal sealed partial class ClothExtract
             var name0 = springName.GetValueOrDefault(edge.Item1) ?? names[edge.Item1];
             var name1 = springName.GetValueOrDefault(edge.Item2) ?? names[edge.Item2];
 
-            // A spring keeps its source element's corner order, which a spring reaching a chain joint may reverse.
             if ((!declared.Contains(edge.Item1) || !declared.Contains(edge.Item2))
                 && Array.IndexOf(feModel.SourceSprings, (edge.Item2, edge.Item1)) >= 0
                 && Array.IndexOf(feModel.SourceSprings, (edge.Item1, edge.Item2)) < 0)
@@ -349,7 +347,6 @@ internal sealed partial class ClothExtract
             return AuthoredNodeName(feModel, basisNode, proxyNodeNames) ?? string.Empty;
         }
 
-        // A basis preset is written only where the default alignment would drop the original's basis.
         var preset = elementName is not null || (isStaticNode && !feModel.AllowsRotation(node)) || RodNeighbourCount(feModel, node) < 2
             ? feModel.ClothNodeBasisPreset(node)
             : null;
@@ -600,7 +597,6 @@ internal sealed partial class ClothExtract
 
         if (rootBone is not null && angles == Vector3.Zero && origin.Length() < ClothNodeMergeRadius)
         {
-            // Push a node the compiler would merge into its root bone just outside the merge radius.
             var direction = origin == Vector3.Zero ? Vector3.One : origin;
             origin = Vector3.Normalize(direction) * (ClothNodeMergeRadius * 1.25f);
         }
@@ -608,9 +604,11 @@ internal sealed partial class ClothExtract
         return rootBone is not null && !FeModel.IsProxyNodeName(rootBone);
     }
 
-    // Bone-local distance under which the compiler merges a free ClothNode into its root bone's control node.
+    /// <summary>
+    /// Bone-local distance under which the compiler merges a free ClothNode into its root bone's control node.
+    /// </summary>
     private const float ClothNodeMergeRadius = 1e-3f;
 
-    // Radians of rest rotation under which a free ClothNode counts as unrotated.
+    /// <summary>Radians of rest rotation under which a free ClothNode counts as unrotated.</summary>
     private const float ClothNodeRotationTolerance = 1e-4f;
 }

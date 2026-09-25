@@ -50,7 +50,6 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // The bend switches regenerate the rods beyond the faces only where every one of them spans two surface steps.
         var neighbours = new Dictionary<int, HashSet<int>>();
         foreach (var (a, b) in derived)
         {
@@ -64,13 +63,11 @@ internal sealed partial class ClothExtract
 
         var boundedBeyondSurface = HasBoundedRod(feModel, beyondSurface);
 
-        // Only the bend-only network leaves the maximum length unbounded.
         var generatesBendOnlyRods = regenerable && !boundedBeyondSurface;
         var generatesBendRods = regenerable && boundedBeyondSurface;
 
         var addCurvature = regenerable ? ClothCurvatureFromSurface(feModel, surfaceFaces, beyondSurface) : 0f;
 
-        // The pairs the compiler is asked to fold itself, whose hinges can carry a bend-stiffness paint.
         var bendNetwork = new HashSet<(int, int)>();
 
         if (regenerable)
@@ -98,7 +95,6 @@ internal sealed partial class ClothExtract
         }
         else
         {
-            // The compiler's own bend network, taken where every rod it builds is one the original carries.
             var bend = FeModel.BendRodsFromSurface(surfaceFaces, feModel.IsStatic);
             bend.ExceptWith(derived);
             if (bend.Count > 0 && bend.IsSubsetOf(beyondSurface))
@@ -138,13 +134,11 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // A uniform reading within half the solver band is no reading.
         if (bendStiffness > 0f && bendStiffness <= ClothBendStiffnessAgreement / 2f)
         {
             bendStiffness = 0f;
         }
 
-        // The fold a single value cannot account for is carried by a per-vertex paint, except on a rigid-edge sheet.
         if (bendStiffness <= 0f && bendNetwork.Count > 0 && !feModel.HasAxialEdges
             && (generatesBendRods || generatesBendOnlyRods))
         {
@@ -187,7 +181,9 @@ internal sealed partial class ClothExtract
         return faces.Select(face => face.Select(local => nodeOf[local]).ToArray());
     }
 
-    // The cloth_make_rods paint of a sheet kept out of the rod path, under the importer's 0.5 threshold.
+    /// <summary>
+    /// The cloth_make_rods paint of a sheet kept out of the rod path, under the importer's 0.5 threshold.
+    /// </summary>
     private const float ClothSuppressedMakeRods = 0.4f;
 
     /// <summary>
@@ -293,7 +289,7 @@ internal sealed partial class ClothExtract
         return ClothFaceKeptBendStiffnessDefault;
     }
 
-    // The bend paint a face-kept sheet states where nothing folds its fans.
+    /// <summary>The bend paint a face-kept sheet states where nothing folds its fans.</summary>
     private const float ClothFaceKeptBendStiffnessDefault = 0.2f;
 
     /// <summary>
@@ -380,7 +376,6 @@ internal sealed partial class ClothExtract
             shaped.Add((edge, MathF.Asin(Math.Clamp(rod.MinDist / rod.MaxDist, 0f, 1f)) / MathF.PI));
         }
 
-        // The whole set has to agree and account for every rod beyond the faces.
         var curvature = DominantReading(shaped.Select(static s => s.Reading), out var agreeing);
         if (shaped.Count == 0 || agreeing != shaped.Count || shaped.Count != beyondSurface.Count)
         {
@@ -409,8 +404,10 @@ internal sealed partial class ClothExtract
         return (suspenders, curvature, saturated);
     }
 
-    // The value the largest subset of readings agrees on to ChainRingCurvatureAgreement, taking the largest such
-    // value on a tie, with the size of that subset. Zero when there are none.
+    /// <summary>
+    /// The value the largest subset of readings agrees on to ChainRingCurvatureAgreement, taking the largest such value
+    /// on a tie, with the size of that subset. Zero when there are none.
+    /// </summary>
     private static float DominantReading(IEnumerable<float> readings, out int agreeing)
     {
         var sorted = readings.ToArray();
@@ -473,7 +470,6 @@ internal sealed partial class ClothExtract
     {
         var (opened, capped) = ClothCurvatureReadings(feModel, faces, beyondSurface);
 
-        // Readings are clustered in sin^2 of the half angle, which the minimum length is linear in.
         opened.Sort();
         var agreed = 0;
         var consensus = 0f;
@@ -505,7 +501,9 @@ internal sealed partial class ClothExtract
         return 2f / MathF.PI * MathF.Asin(MathF.Sqrt(consensus));
     }
 
-    // How far two rods' readings may sit apart, in sin^2 of the half angle, and still count as one value.
+    /// <summary>
+    /// How far two rods' readings may sit apart, in sin^2 of the half angle, and still count as one value.
+    /// </summary>
     private const float ClothCurvatureAgreement = 1e-3f;
 
     /// <summary>
@@ -540,8 +538,10 @@ internal sealed partial class ClothExtract
         return consensus > ClothCurvatureAgreement ? 2f / MathF.PI * MathF.Asin(MathF.Sqrt(consensus)) : 0f;
     }
 
-    // Per rod of the network, the fraction of its fold the compiled minimum sits at, split into exact readings and the
-    // lower bounds of rods capped at their rest span.
+    /// <summary>
+    /// Per rod of the network, the fraction of its fold the compiled minimum sits at, split into exact readings and the
+    /// lower bounds of rods capped at their rest span.
+    /// </summary>
     private static (List<float> Opened, List<float> Capped) ClothCurvatureReadings(FeModel feModel, List<int[]> faces,
         HashSet<(int, int)> beyondSurface)
     {

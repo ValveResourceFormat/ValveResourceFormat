@@ -31,7 +31,6 @@ internal sealed partial class ClothExtract
         AddClothFaces(clothFolderChildren, feModel);
         AddClothStiffHinges(softbodyChildren, feModel);
 
-        // A model of collision shapes alone declares no node, but its shapes still need the Softbody.
         if (freeNodes == 0 && strip.Count == 0 && CollisionShapeParentBones(feModel).Count == 0 && !HasJiggleBoneClothParams(feModel))
         {
             return false;

@@ -7,7 +7,9 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // An unrolled proxy ring sits on the joint frame's +Y, so an authored twist counts down from 90 degrees.
+    /// <summary>
+    /// An unrolled proxy ring sits on the joint frame's +Y, so an authored twist counts down from 90 degrees.
+    /// </summary>
     private const float ClothExtrudeTwistBase = 90f;
 
     /// <summary>The <c>extrude_twist</c> a joint row states for a ring rolled <paramref name="measuredTwist"/> degrees.</summary>
@@ -16,7 +18,10 @@ internal sealed partial class ClothExtract
     /// <summary>The <c>extrude_twist</c> default of a chain's <c>attrs</c> table, the key's schema default.</summary>
     private const float ClothExtrudeTwistAttrDefault = 0f;
 
-    // Every twist_relax above zero compiles a static root's twist entries alike, so the top of the range stands for it.
+    /// <summary>
+    /// Every twist_relax above zero compiles a static root's twist entries
+    /// alike, so the top of the range stands for it.
+    /// </summary>
     private const float ClothStaticRootTwistRelax = 1f;
 
     /// <summary>
@@ -130,7 +135,6 @@ internal sealed partial class ClothExtract
     private static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains,
         IReadOnlyList<FeModel.BoneChainJoint>? walk = null, HashSet<string>? relandedJoints = null)
     {
-        // A hinged chain that still carries rods was authored with a soft hinge link.
         var softHinge = feModel.HasChainRods(chain) && !feModel.HasRigidHingeLink(chain);
 
         var version = ClothChainVersion(feModel, chain, hasOtherChains);
@@ -286,6 +290,10 @@ internal sealed partial class ClothExtract
         return declarations;
     }
 
+    /// <summary>
+    /// The <c>ClothChain</c> joint row declaring <paramref name="joint"/>: its parent, simulation, twist, goal, extrude,
+    /// span, collision and selection keys.
+    /// </summary>
     internal static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false,
         bool softHinge = false, int chainVersion = 2, bool rollTies = true, FeModel.BoneChain? chain = null,
         bool secondDeclaration = false, float chainMass = 1f)
@@ -300,8 +308,6 @@ internal sealed partial class ClothExtract
             kv.Add("joint_parent", joint.ParentName);
         }
 
-        // A joint declared twice keeps the second declaration's values on its node and the first's on its ring;
-        // ValueNode names the ring this declaration extruded where each extruded one.
         var valueNode = joint.ValueNode >= 0 ? joint.ValueNode
             : joint.Restated && joint.ProxyNode >= 0 ? joint.ProxyNode : joint.Node;
         var integrator = feModel.GetIntegrator(valueNode);
@@ -309,22 +315,18 @@ internal sealed partial class ClothExtract
 
         var twistRelax = feModel.GetAuthoredTwistRelax(joint.Node, joint.ParentNode, joint.ProxyNode);
 
-        // A root with a non-zero twist entry of its own was authored simulated and pinned by lock_translation.
         var pinnedSimulatedRoot = (joint.IsRoot && !joint.Simulated && twistRelax > 0f) || joint.SpringsWithSiblings;
 
-        // Of a joint two chains declare, only the second declaration simulates.
         var firstOfTwo = secondRoot is not null && !secondDeclaration
             && !string.Equals(joint.Name, secondRoot, StringComparison.OrdinalIgnoreCase);
         kv.Add("simulate", !firstOfTwo && (joint.Simulated || pinnedSimulatedRoot));
 
-        // Each declaration of a doubled run states the twist of its own rank.
         if (secondRoot is not null)
         {
             twistRelax = feModel.TwistRelaxDeclaredAt(joint.Node, joint.ParentNode,
                 secondDeclaration ? 1 : 0) ?? 0f;
         }
 
-        // A static joint's twist_relax survives only as the twist link it made.
         if (twistRelax == 0f && !joint.Simulated && !secondDeclaration
             && (feModel.HasRelaxlessTwistLink(joint.Node) || feModel.OrientsRelaxlessTwist(joint.Node)))
         {
@@ -357,7 +359,6 @@ internal sealed partial class ClothExtract
 
         kv.Add("world_collision", feModel.IsWorldCollisionNode(joint.Node));
 
-        // The attrs default spells out mask 15; a mask above the four bits cannot be stated on a chain.
         var collisionMask = feModel.GetNodeCollisionMask(joint.Node);
         if (collisionMask is >= 0 and < 0xF)
         {
@@ -381,7 +382,6 @@ internal sealed partial class ClothExtract
             kv.Add("mass", massMultiplier);
         }
 
-        // A joint outside every selection states the selections its proxies are in.
         if ((feModel.GetVertexMapNames(joint.Node)
             ?? (joint.ProxyNode >= 0 ? feModel.GetVertexMapNames(joint.ProxyNode) : null))
             is { } vertexMaps)
@@ -408,7 +408,6 @@ internal sealed partial class ClothExtract
     private static void AddJointExtrude(KVObject kv, FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes,
         bool rollTies, FeModel.ChainHinge? hinge)
     {
-        // An extruding chain states every joint's own ring, including an explicit 0 width.
         if (chainExtrudes)
         {
             kv.Add("extrude_sides", joint.ExtrudeSides);
@@ -425,7 +424,6 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // A hinged joint with only the hinge's two proxies has no second ring to recover.
         if (joint.EndEffector != 0f && (hinge is null || feModel.ProxyCountOf(joint.Node) > 2))
         {
             kv.Add("end_effector", joint.EndEffector);
@@ -455,7 +453,6 @@ internal sealed partial class ClothExtract
             kv.Add("antishrink", joint.Antishrink);
         }
 
-        // The bend is written once per declaration, so each declaration states the bend of its own rank.
         if (feModel.GetStiffHinge(joint.Node) is { } stiffHinge)
         {
             if (feModel.GetStiffHinge(joint.Node, secondDeclaration ? 1 : 0) is { } declared)

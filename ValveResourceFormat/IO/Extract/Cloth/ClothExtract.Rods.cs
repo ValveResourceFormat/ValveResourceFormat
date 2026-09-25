@@ -59,7 +59,6 @@ internal sealed partial class ClothExtract
                 strayRadii is not null && i < strayRadii.Length ? strayRadii[i] : strayRadius));
         }
 
-        // The member table's schema defaults, read for any member row that omits a key.
         var attrs = KVObject.Collection();
         AddColumn(attrs, "joint_name", "Joint Name", true, 0).Add("default", string.Empty);
         AddColumn(attrs, "stiffness", "Stiffness", true, 4).Add("default", 1f);
@@ -79,7 +78,6 @@ internal sealed partial class ClothExtract
         HashSet<int> authoredClothNodes, Dictionary<int, string> freeClothNodeNames,
         HashSet<(int, int)> derivedRods, Dictionary<int, string> proxyNodeNames)
     {
-        // A drop-risk island keeps no explicit rods and lets the importer derive its network from the surface.
         var riskyNodes = new HashSet<int>();
 
         foreach (var (_, _, proxyMesh) in proxies)
@@ -93,7 +91,6 @@ internal sealed partial class ClothExtract
             }
         }
 
-        // A spring endpoint is an exported proxy vertex, a free ClothNode's element name, or a declared ClothNode.
         string? ResolveName(int node)
             => FeModel.IsProxyNodeName(feModel.CtrlNames[node])
                 ? proxyNodeNames.GetValueOrDefault(node) ?? freeClothNodeNames.GetValueOrDefault(node)
@@ -118,7 +115,6 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            // A chain joint's rods are the chain's own.
             if (chainJointNodes.Contains(edge.Item1) || chainJointNodes.Contains(edge.Item2))
             {
                 continue;
@@ -146,10 +142,8 @@ internal sealed partial class ClothExtract
         var declaredPairs = new HashSet<(int, int)>();
         var controlNames = feModel.CtrlNames;
 
-        // Only a bone some chain claims as a joint can anchor a spring.
         var chainJoints = ChainJointNodes(chains);
 
-        // A cluster tie may name a ring node, a spring may not.
         var chainRingNodes = chains.SelectMany(static chain => chain.Joints)
             .SelectMany(static joint => joint.RingNodes)
             .ToHashSet();
@@ -232,7 +226,6 @@ internal sealed partial class ClothExtract
         var controlNames = feModel.CtrlNames;
         var chainJoints = ChainJointNodes(chains);
 
-        // A pair with more than one rod is skipped unless it is a cluster tie beside a chain span.
         var rodCounts = RodCountsByPair(feModel).Entries;
 
         var surplus = feModel.GetUngeneratedRods(chains);
@@ -365,10 +358,12 @@ internal sealed partial class ClothExtract
         return covered;
     }
 
-    // How far a cluster band's maximum has to sit from the pair's rest length before it is read as summed stray radii.
+    /// <summary>
+    /// How far a cluster band's maximum has to sit from the pair's rest length before it is read as summed stray radii.
+    /// </summary>
     private const float ClusterRestTolerance = 1e-3f;
 
-    // Maximal cliques of an undirected graph, each in ascending node order.
+    /// <summary>Maximal cliques of an undirected graph, each in ascending node order.</summary>
     private static List<List<int>> MaximalCliques(Dictionary<int, HashSet<int>> neighbours)
     {
         var cliques = new List<List<int>>();
@@ -394,8 +389,10 @@ internal sealed partial class ClothExtract
         return cliques;
     }
 
-    // Per-member collision and stray radii that sum to every pair's band, read off one triangle and checked on every
-    // pair; null where no such split exists.
+    /// <summary>
+    /// Per-member collision and stray radii that sum to every pair's band, read off one triangle and checked on every
+    /// pair; null where no such split exists.
+    /// </summary>
     private static (float[] Radii, float[] StrayRadii)? SolveMemberRadii(List<int> members,
         Dictionary<(int, int), (float Min, float Max)> band)
     {
@@ -434,7 +431,9 @@ internal sealed partial class ClothExtract
         return (radii, strayRadii);
     }
 
-    // How closely the solved radii have to reproduce every band of the clique, relative to the band.
+    /// <summary>
+    /// How closely the solved radii have to reproduce every band of the clique, relative to the band.
+    /// </summary>
     private const float ClusterRadiusTolerance = 1e-4f;
 
     /// <summary>
@@ -593,7 +592,6 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            // A spring keeps its source element's corner order.
             softbodyChildren.Add(MakeClothSpring($"spring_{a}_{b}", names[a], names[b], rod.MinDist,
                 rod.MaxDist, rod.RelaxationFactor, copies - 1));
             emitted.Add(Pair(a, b));

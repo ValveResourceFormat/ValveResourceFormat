@@ -9,13 +9,13 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // The only leader_type that compiles to an m_DynKinLinks entry.
+    /// <summary>The only leader_type that compiles to an m_DynKinLinks entry.</summary>
     private const int ClothFollowBoneLeaderTypeBone = 0;
 
-    // Compiles to an m_BoneMergeLinks entry naming the leader by its bone name hash.
+    /// <summary>Compiles to an m_BoneMergeLinks entry naming the leader by its bone name hash.</summary>
     private const int ClothFollowBoneLeaderTypeBoneMerge = 1;
 
-    // Wind speeds are authored in mph and compiled to units per second.
+    /// <summary>Wind speeds are authored in mph and compiled to units per second.</summary>
     private const float ClothWindSpeedToUnits = 17.6f;
 
     private const int ClothEffectTypeWind = 1;
@@ -23,7 +23,10 @@ internal sealed partial class ClothExtract
     private const int ClothEffectTypeAddGravity = 4;
     private const int ClothEffectTypeDampenVelocity = 6;
 
-    // The goal pair a ClothNode declared without one compiles, and how close a recovered value has to sit to read as it.
+    /// <summary>
+    /// The goal pair a ClothNode declared without one compiles, and how
+    /// close a recovered value has to sit to read as it.
+    /// </summary>
     private const float ClothNodeDefaultGoalStrength = 0.6f;
     private const float ClothNodeDefaultGoalDamping = 0.3f;
     private const float ClothNodeDefaultTolerance = 1e-3f;

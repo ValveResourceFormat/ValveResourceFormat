@@ -7,7 +7,7 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // A volume-solved selection states its strength and scale source node on its container.
+    /// <summary>A volume-solved selection states its strength and scale source node on its container.</summary>
     private static void AddClothVertexMapAttributes(KVObject mapNode, FeModel feModel, string mapName,
         IReadOnlyDictionary<int, string>? proxyNodeNames)
     {

@@ -105,8 +105,7 @@ partial class ModelExtract
 
         var clothEmitted = physAggregateData?.FeModel is { } feModel && Cloth.EmitCloth(feModel, root.Children);
 
-        // A soft-body FeModel that yields no authorable cloth gets a minimal placeholder PhysicsShapeList,
-        // which is what makes the compiler allocate a PHYS block and the CTRL embedded_physics reference.
+        // A soft-body FeModel that yields no authorable cloth gets a minimal placeholder PhysicsShapeList.
         if (physAggregateData?.FeModel is not null
             && !clothEmitted
             && !lists.Has("PhysicsShapeList")

@@ -12,6 +12,7 @@ internal sealed partial class ClothExtract
     internal static bool IsRigidCloudClusterLock(FeModel feModel, FeModel.BoneChain chain)
         => LockedJointsWithChildren(feModel, chain).Any() && feModel.ChainBasesAreBulkGraded(chain) == false;
 
+    /// <summary>The goal-locked joints of <paramref name="chain"/> that have chain children, with those children.</summary>
     internal static IEnumerable<(FeModel.BoneChainJoint Joint, List<FeModel.BoneChainJoint> Children)> LockedJointsWithChildren(
         FeModel feModel, FeModel.BoneChain chain)
         => chain.Joints
@@ -19,27 +20,25 @@ internal sealed partial class ClothExtract
             .Select(joint => (joint, chain.Joints.Where(child => child.ParentNode == joint.Node).ToList()))
             .Where(static entry => entry.Item2.Count > 0);
 
-    /// <summary>The <c>ClothChain</c> version a chain was authored at, read off the evidence its compiled data carries.</summary>
+    /// <summary>
+    /// The <c>ClothChain</c> version a chain was authored at, read off the evidence its compiled data carries. Version 2
+    /// keeps a rotation-locked root's node base and grades a preset basis on every joint with a child, version 1
+    /// goal-locks every static rotation-free joint of an extruding chain, and version 0 stages no fit influences.
+    /// </summary>
     internal static int ClothChainVersion(int jointCount, bool hasOtherChains, bool? rootAllowsRotation, bool rootHasBase,
         bool lockedJoint, bool rigidCloudClusterLock, bool locksJoints, bool? basesBulkGraded, bool hintsTwistWritten,
         bool hasUnstagedThinJoint, bool? reverseOffsetsPreset = null, bool hasUnbasedLeaf = false,
         bool siblingHubLock = false, bool extrudesNothing = false, bool fitsPresetJoint = false, bool locksOnlyParentLocked = false,
         bool locksOnlyToGoal = false)
     {
-        // Format 1 goal-locks every non-simulated, rotation-free joint of an extruding chain and format 2 does not, so an
-        // original that locks none of them rules format 1 out unless the lock could only land on the goal.
         var lockedInOriginal = lockedJoint && !rigidCloudClusterLock && !siblingHubLock;
         var guardOpen = lockedInOriginal || !locksJoints || locksOnlyParentLocked || (locksOnlyToGoal && basesBulkGraded == true);
         var rootRotationLocked = rootAllowsRotation == false;
 
-        // A rotation-locked root keeps its m_NodeBases entry only at format 2, but a missing entry is evidence of format 1
-        // only on a chain that extrudes.
         var version = rootRotationLocked && guardOpen
             ? (rootHasBase || extrudesNothing ? 2 : 1)
             : (lockedInOriginal ? 1 : 2);
 
-        // Format 2 grades a preset basis on every joint with a child, so bulk-graded bases, reverse offsets that do not
-        // name the preset Y1 nodes, or a fit matrix on a preset joint mean an earlier format.
         var rootKeepsPreset = rootRotationLocked && rootHasBase;
         if (version == 2 && !rootKeepsPreset && guardOpen
             && (basesBulkGraded == true || (basesBulkGraded is null && reverseOffsetsPreset == false) || fitsPresetJoint))
@@ -47,19 +46,16 @@ internal sealed partial class ClothExtract
             version = 1;
         }
 
-        // A basis hint the twist or rope source wrote and nothing graded was compiled without fit influences: version 0.
         if (version != 0 && !rootKeepsPreset && guardOpen && hintsTwistWritten && basesBulkGraded != false)
         {
             version = 0;
         }
 
-        // A two-sided leaf with no node base is one only the chain itself could have based, which it does from version 1 on.
         if (version != 0 && !rootKeepsPreset && guardOpen && hasUnbasedLeaf && basesBulkGraded != false)
         {
             version = 0;
         }
 
-        // A joint only the version-1 fit top-up gives a group to, carrying none, was staged at version 0.
         if (version == 1 && hasUnstagedThinJoint)
         {
             version = 0;

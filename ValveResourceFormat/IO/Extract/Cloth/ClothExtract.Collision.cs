@@ -23,8 +23,6 @@ internal sealed partial class ClothExtract
     internal static List<string> AddClothCollisionShapes(KVObject softbodyChildren, FeModel feModel)
     {
         var names = new List<string>();
-        // Each shape kind is split into its priority groups, and the groups are interleaved by parent bone node so the
-        // parent bones are created in the compiled node order.
         var kinds = new[]
         {
             feModel.BuildCollisionCapsules()
@@ -61,7 +59,6 @@ internal sealed partial class ClothExtract
             softbodyChildren.Add(shape);
         }
 
-        // Planarized shapes go last: declaring one earlier rotates the order of m_TaperedCapsuleRigids.
         foreach (var shape in PlanarizedShapesInClaimOrder(feModel))
         {
             names.Add(shape.GetStringProperty("name"));
@@ -125,7 +122,7 @@ internal sealed partial class ClothExtract
             ("data", MakeNodeTable(nodes))));
     }
 
-    // A shape parent bone's control node, or int.MaxValue where it is not one.
+    /// <summary>A shape parent bone's control node, or int.MaxValue where it is not one.</summary>
     private static int ParentBoneNode(FeModel feModel, string? parentBone)
     {
         var node = parentBone is null ? -1 : Array.IndexOf(feModel.CtrlNames, parentBone);
@@ -167,6 +164,7 @@ internal sealed partial class ClothExtract
         }
     }
 
+    /// <summary>A <c>ClothAntiTunnelProbe</c> from <paramref name="sourceNode"/> to each distinct target.</summary>
     private static KVObject MakeClothAntiTunnelProbe(string name, string sourceNode, bool animSource, float weight,
         float activationDistance, IReadOnlyList<string> targetNames)
     {
@@ -190,6 +188,7 @@ internal sealed partial class ClothExtract
             ("data", MakeNodeTable(nodes)));
     }
 
+    /// <summary>The <c>ClothShapeBox</c> declaring a compiled collision box.</summary>
     private static KVObject MakeClothShapeBox(FeModel.CollisionBox box)
     {
         var node = MakeNode("ClothShapeBox",
@@ -201,7 +200,6 @@ internal sealed partial class ClothExtract
         node.Add("inverted_collision", box.Inverted);
         node.Add("planarize", box.Planarize);
         node.Add("bounciness", 0.0f);
-        // Keeps the authored offset; dimensions are the full size where the compiled vSize holds half-extents.
         node.Add("recenter_on_parent_bone", false);
         node.Add("origin", ToKVArray(box.Origin));
         node.Add("angles", ToKVArray(EntityTransformHelper.ToEulerAngles(box.Rotation)));
@@ -209,6 +207,7 @@ internal sealed partial class ClothExtract
         return node;
     }
 
+    /// <summary>The <c>ClothShapeCapsule</c> declaring a compiled collision capsule.</summary>
     private static KVObject MakeClothShapeCapsule(FeModel.CollisionCapsule capsule)
     {
         var node = MakeNode("ClothShapeCapsule",
@@ -227,6 +226,7 @@ internal sealed partial class ClothExtract
         return node;
     }
 
+    /// <summary>The <c>ClothShapeSphere</c> declaring a compiled collision sphere.</summary>
     private static KVObject MakeClothShapeSphere(FeModel.CollisionSphere sphere)
     {
         var node = MakeNode("ClothShapeSphere",
@@ -243,7 +243,7 @@ internal sealed partial class ClothExtract
         return node;
     }
 
-    // A mask of zero means all layers.
+    /// <summary>Adds the collision layer keys of a shape mask, where zero means all layers.</summary>
     private static void AddClothCollisionLayers(KVObject node, int collisionMask)
         => AddCollisionLayerFlags(node, "cloth_collision_layer", collisionMask == 0 ? 0xF : collisionMask);
 }

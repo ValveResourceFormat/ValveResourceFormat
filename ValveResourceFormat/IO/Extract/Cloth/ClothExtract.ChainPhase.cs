@@ -19,7 +19,6 @@ internal sealed partial class ClothExtract
 
         var hasOtherChains = boneChains.Count > 1;
 
-        // A joint the compiled node order separates from its ring was created by an earlier declaration of its bone.
         foreach (var jointNode in ChainJointClothNodes(feModel, boneChains))
         {
             clothFolderChildren.Add(jointNode);
@@ -57,7 +56,6 @@ internal sealed partial class ClothExtract
         var sourceSprings = AddClothSourceSprings(softbodyChildren, feModel, boneChains);
         sourceSprings.UnionWith(AddClothChainSurplusRods(softbodyChildren, feModel, boneChains));
 
-        // A sibling hub anchors no chain of its own, so it keeps the bare ClothNode the free-node pass declares.
         var chainCoveredNodes = boneChains.SelectMany(static chain => chain.Joints)
             .Where(joint => !feModel.SiblingSpringHubs.Contains(joint.Name))
             .Select(static joint => joint.Node)
@@ -68,7 +66,6 @@ internal sealed partial class ClothExtract
         chainCoveredNodes.UnionWith(strip);
         clothBones.UnionWith(ImportedStripBoneNames(feModel, strip));
         chainCoveredNodes.UnionWith(AddClothSelfCollisionClusters(softbodyChildren, feModel, clothBones));
-        // A static control node nothing else claims is declared where the skeleton flags its bone as a cloth control node.
         var clothControlBones = model?.Skeleton.Bones
             .Where(static b => b.IsClothControlNode)
             .Select(static b => b.Name)

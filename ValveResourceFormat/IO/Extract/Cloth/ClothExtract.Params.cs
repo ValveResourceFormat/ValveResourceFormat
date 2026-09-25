@@ -7,7 +7,7 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // Bits of m_nDynamicNodeFlags that carry a ClothParams boolean.
+    /// <summary>Bits of m_nDynamicNodeFlags that carry a ClothParams boolean.</summary>
     private const uint ClothFlagUninertialRods = 0x10;
 
     private const uint ClothFlagFollowTheLead = 0x20;
@@ -20,7 +20,7 @@ internal sealed partial class ClothExtract
 
     private const uint ClothFlagCollideWorldMeshes = 0x80000;
 
-    // Bits of m_nDynamicNodeFlags that carry a Softbody node boolean rather than a ClothParams one.
+    /// <summary>Bits of m_nDynamicNodeFlags that carry a Softbody node boolean rather than a ClothParams one.</summary>
     private const uint ClothFlagPerBoneScaleEnabled = 0x8000;
 
     private const uint ClothFlagKeychainMotion = 0x1000000;
@@ -74,7 +74,6 @@ internal sealed partial class ClothExtract
 
         return MakeNode("ClothParams",
             ("default_stretch", fe.DefaultSurfaceStretch),
-            // Read off the rod relaxation factors; m_flDefaultThreadStretch only tracks the surface stretch.
             ("additional_shear_stretch", fe.AdditionalShearStretch),
             ("extra_iterations", fe.ExtraIterations),
             ("extra_goal_iterations", fe.ExtraGoalIterations),

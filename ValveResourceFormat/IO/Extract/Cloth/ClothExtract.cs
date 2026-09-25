@@ -66,7 +66,9 @@ internal sealed partial class ClothExtract
     /// <summary>Gets the parent-space bone rotations written beside <see cref="ProxyRestBonePositions"/>.</summary>
     internal Dictionary<string, Quaternion> ProxyRestBoneRotations { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    // The sheets declared with flex_cloth_borders, filled while the vmdl is emitted and read when their DMX is built.
+    /// <summary>
+    /// The sheets declared with flex_cloth_borders, filled while the vmdl is emitted and read when their DMX is built.
+    /// </summary>
     private readonly HashSet<FeModel.ProxyMesh> flexedProxies = [];
 
     /// <summary>
@@ -131,7 +133,6 @@ internal sealed partial class ClothExtract
             return;
         }
 
-        // The compiler numbers $cloth_m<N> by ordinal sort of the proxy names, so the suffix is zero-padded.
         var proxyMeshes = feModel.BuildProxyMeshes().ToList();
         var suffixWidth = Math.Max(1, (proxyMeshes.Count - 1).ToString(CultureInfo.InvariantCulture).Length);
         var proxyIndex = 0;
@@ -273,7 +274,6 @@ internal sealed partial class ClothExtract
             return;
         }
 
-        // A model with no compiled bones at all keeps its hierarchy only in m_SkelParents.
         var nestByClothParent = model is not null && model.Skeleton.Roots.Length == 0 && culledSource.HasCompiledSkelParents;
         var emitted = CulledBones.Where(bone => bone.Node < culledSource.InitPosePositions.Length)
             .Select(static bone => bone.Node).ToHashSet();

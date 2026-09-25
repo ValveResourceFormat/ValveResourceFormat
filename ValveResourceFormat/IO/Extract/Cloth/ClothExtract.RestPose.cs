@@ -9,10 +9,15 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // How far a control node's recorded rest position may sit from its bone's compiled bind pose and still correct it.
+    /// <summary>
+    /// How far a control node's recorded rest position may sit from its bone's compiled bind pose and still correct it.
+    /// </summary>
     private const float ClothRestBoneTolerance = 1.0f;
 
-    // How far far control bones may sit from one uniform scale of their compiled positions and still read as a scaled skeleton.
+    /// <summary>
+    /// How far far control bones may sit from one uniform scale of their
+    /// compiled positions and still read as a scaled skeleton.
+    /// </summary>
     private const float ClothRestBoneRigidSpread = 1e-2f;
 
     /// <summary>
@@ -228,7 +233,9 @@ internal sealed partial class ClothExtract
         return turned;
     }
 
-    // cos of half of 0.3 degrees: a recorded rest rotation further than this from the bind rotation turns the bone.
+    /// <summary>
+    /// cos of half of 0.3 degrees: a recorded rest rotation further than this from the bind rotation turns the bone.
+    /// </summary>
     private const float ClothProxyRestRotationTurn = 0.99999657f;
 
     /// <summary>Six-decimal grid steps searched on each side of a joint's real-valued origin or angles, per component.</summary>

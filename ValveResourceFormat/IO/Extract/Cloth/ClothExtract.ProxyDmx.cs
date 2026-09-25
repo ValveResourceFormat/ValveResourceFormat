@@ -170,7 +170,6 @@ internal sealed partial class ClothExtract
 
         var vertexCount = proxy.Positions.Length;
 
-        // Streams are indexed per face corner, and per vertex on a sheet without faces.
         var emittedFaces = PadSheetCornersToSlotCount(proxy, vertexCount);
         var cornerVertices = emittedFaces.SelectMany(static face => face).ToArray();
         var identity = Enumerable.Range(0, vertexCount).ToArray();
@@ -189,7 +188,6 @@ internal sealed partial class ClothExtract
 
         vertexData.AddIndexedStream("normal$0", cornerNormals, Enumerable.Range(0, cornerNormals.Length).ToArray());
 
-        // A sheet needs texcoords to import; a bounding-box projection is enough.
         var boundsMin = proxy.Positions.Aggregate(Vector3.Min);
         var boundsMax = proxy.Positions.Aggregate(Vector3.Max);
         var extent = boundsMax - boundsMin;
@@ -210,10 +208,8 @@ internal sealed partial class ClothExtract
 
         var boneIndexByName = ClothBoneIndexByName(skeleton, dmeModel);
 
-        // A sheet no real bone drives ships unskinned.
         if (!proxy.IsFreeFloating)
         {
-            // Widened past the default slot count to hold every recovered influence.
             var jointCount = FeModel.ClothProxyInfluenceSlots;
             if (feModel is not null)
             {
@@ -300,7 +296,6 @@ internal sealed partial class ClothExtract
             vertexData.AddIndexedStream("cloth_mass$0", mass, vertexIndices);
         }
 
-        // The selections this sheet's ClothVertexMap container stands for are not painted.
         IReadOnlyList<string> containerMaps = feModel is not null
             && feModel.GetProxyVertexMapName(proxy, ProxyMeshes.ConvertAll(static entry => entry.Proxy)) is { } containerMap
             ? feModel.VertexMapAliases(containerMap)
@@ -314,7 +309,6 @@ internal sealed partial class ClothExtract
         var selectionOrder = feModel is not null
             ? feModel.VertexSetStreamOrder(proxy)
             : proxy.VertexMaps.Select(static map => map.Name).ToArray();
-        // A selection the original does not register as a vertex set is declared as a container instead.
         foreach (var mapName in selectionOrder)
         {
             if (containerMaps.Contains(mapName) || !selectionWeights.TryGetValue(mapName, out var weights))
@@ -332,7 +326,6 @@ internal sealed partial class ClothExtract
             vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, vertexIndices);
         }
 
-        // A selection registered over no vertex is an all-zero stream on the first sheet.
         if (feModel is not null && ProxyMeshes.Count > 0 && ProxyMeshes[0].Proxy == proxy)
         {
             var painted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -386,8 +379,6 @@ internal sealed partial class ClothExtract
             vertexData.AddIndexedStream("cloth_stretch$0", stretch, vertexIndices);
         }
 
-        // A sheet with a rod region paints the split; a synthesised sheet of a model with surface elements keeps every
-        // face out of the rod path.
         if (proxy.RodsDriven.Length == vertexCount)
         {
             vertexData.AddIndexedStream("cloth_make_rods$0", proxy.RodsDriven, vertexIndices);

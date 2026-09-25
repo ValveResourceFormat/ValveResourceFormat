@@ -50,8 +50,10 @@ internal sealed partial class ClothExtract
         return best;
     }
 
-    // The network rods whose compiled minimum the paint and add_curvature would not rebuild: each rod takes the shortest
-    // span any of its generating hinges folds it to, capped at its rest span.
+    /// <summary>
+    /// The network rods whose compiled minimum the paint and add_curvature would not rebuild: each rod takes the
+    /// shortest span any of its generating hinges folds it to, capped at its rest span.
+    /// </summary>
     private static int ClothPaintMisses(FeModel feModel, List<int[]> faces, HashSet<(int, int)> network,
         Dictionary<int, float>? paint, float addCurvature)
     {
@@ -130,6 +132,10 @@ internal sealed partial class ClothExtract
             : read;
     }
 
+    /// <summary>
+    /// The bend-stiffness paint and <c>add_curvature</c> read off the hinges of <paramref name="faces"/>, before any
+    /// repair of the rods it leaves unbuilt.
+    /// </summary>
     private static (Dictionary<int, float>? Paint, float AddCurvature) ClothBendStiffnessRead(FeModel feModel,
         List<int[]> faces, HashSet<(int, int)> network, float addCurvature, bool keepsCurvature)
     {
@@ -192,7 +198,9 @@ internal sealed partial class ClothExtract
         return (paint, addCurvature);
     }
 
-    // The curvature readings keyed by the hinge each rod was folded about, with every generating hinge's own reading.
+    /// <summary>
+    /// The curvature readings keyed by the hinge each rod was folded about, with every generating hinge's own reading.
+    /// </summary>
     private static List<((int, int) Hinge, float Fraction, bool Capped, float Error, ((int, int) Hinge, float Fraction)[] Candidates)> ClothHingeReadings(
         FeModel feModel, List<int[]> faces, HashSet<(int, int)> beyondSurface)
     {
@@ -222,7 +230,6 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            // A bend-only rod has no length of its own to identify its hinge by, so its rest span stands in.
             var rest = Vector3.Distance(positions[rod.NodeA], positions[rod.NodeB]);
             var coplanar = rod.MaxDist < FeModel.UnboundedRodDistance ? rod.MaxDist : rest;
             var closest = float.MaxValue;
@@ -324,7 +331,6 @@ internal sealed partial class ClothExtract
             return worst;
         }
 
-        // Where two rods across one hinge read differently, the one whose flat span fits its maximum better wins.
         var best = new Dictionary<(int, int), (float Fraction, bool Capped, float Error)>();
         foreach (var (hinge, fraction, capped, error, _) in readings)
         {
@@ -342,7 +348,6 @@ internal sealed partial class ClothExtract
             (reading.Capped ? bounds : exact)[hinge] = StatedSum(reading.Fraction);
         }
 
-        // A rod's minimum is the shortest any generating hinge builds, so each hinge takes the largest bound its rods give.
         if (generatorBound)
         {
             exact.Clear();
@@ -576,7 +581,10 @@ internal sealed partial class ClothExtract
         return solved;
     }
 
-    // Solves the exact hinge sums: each connected chain alternates as sign * p + offset, fixed by a pin or a closed cycle.
+    /// <summary>
+    /// Solves the exact hinge sums: each connected chain alternates as sign *
+    /// p + offset, fixed by a pin or a closed cycle.
+    /// </summary>
     private static Dictionary<int, float>? ClothBendStiffnessComponents(Dictionary<int, float> pinned,
         List<(int U, int V, float Sum)> equations, List<(int U, int V, float Least)> checks)
     {
@@ -881,9 +889,9 @@ internal sealed partial class ClothExtract
         return null;
     }
 
-    // How far two hinges' stated sums may sit apart and still count as the same paint.
+    /// <summary>How far two hinges' stated sums may sit apart and still count as the same paint.</summary>
     private const float ClothBendStiffnessAgreement = 0.02f;
 
-    // How many times the bound repair may raise vertices before the solve gives up.
+    /// <summary>How many times the bound repair may raise vertices before the solve gives up.</summary>
     private const int ClothBendStiffnessRepairPasses = 8;
 }

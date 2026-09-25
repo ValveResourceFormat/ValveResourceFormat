@@ -6,7 +6,7 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    // The collision layers a node's mask carries its own bit for.
+    /// <summary>The collision layers a node's mask carries its own bit for.</summary>
     private const int ClothCollisionLayers = 4;
 
     /// <summary>Adds a column to a datatable's <c>attrs</c> schema and returns it, for its default.</summary>
