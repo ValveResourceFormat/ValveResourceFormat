@@ -35,11 +35,125 @@ partial class ModelExtract
             ? $"_{bone.Name[1..]}"
             : bone.Name;
 
-    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms, bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1)
+    /// <summary>Whether the compiler generated this bone from a cloth proxy mesh.</summary>
+    internal static bool IsGeneratedClothProxyBone(Bone bone)
+        => bone.IsProceduralCloth && bone.Name.StartsWith('$');
+
+    private const ModelSkeletonBoneFlags UsedByVertex =
+        ModelSkeletonBoneFlags.BoneUsedByVertexLod0 | ModelSkeletonBoneFlags.BoneUsedByVertexLod1
+        | ModelSkeletonBoneFlags.BoneUsedByVertexLod2 | ModelSkeletonBoneFlags.BoneUsedByVertexLod3
+        | ModelSkeletonBoneFlags.BoneUsedByVertexLod4 | ModelSkeletonBoneFlags.BoneUsedByVertexLod5
+        | ModelSkeletonBoneFlags.BoneUsedByVertexLod6 | ModelSkeletonBoneFlags.BoneUsedByVertexLod7;
+
+    /// <summary>
+    /// Whether the compiler rebuilds this cloth proxy bone on its own, so the document must not declare it: a generated
+    /// bone, or a proxy-named bone no vertex binds.
+    /// </summary>
+    internal static bool IsCompilerOwnedClothBone(Bone bone)
+        => IsGeneratedClothProxyBone(bone)
+            || (IsClothProxyName(bone.Name) && (bone.Flags & UsedByVertex) == 0);
+
+    /// <summary>Whether the name is a cloth proxy name <c>$cloth_m{N}p{L}</c>, or its DMX spelling with '_' for '$'.</summary>
+    internal static bool IsClothProxyName(string name)
+    {
+        var rest = name.AsSpan();
+
+        if (rest.Length == 0 || (rest[0] != '$' && rest[0] != '_'))
+        {
+            return false;
+        }
+
+        rest = rest[1..];
+
+        if (!rest.StartsWith("cloth_m", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        rest = rest["cloth_m".Length..];
+        var digits = 0;
+
+        while (digits < rest.Length && char.IsAsciiDigit(rest[digits]))
+        {
+            digits++;
+        }
+
+        if (digits == 0 || digits >= rest.Length || rest[digits] != 'p')
+        {
+            return false;
+        }
+
+        rest = rest[(digits + 1)..];
+        return rest.Length > 0 && char.IsAsciiDigit(rest[0]);
+    }
+
+    /// <summary>
+    /// Where each skeleton bone lands in an emitted joint list without the generated cloth proxy bones: a kept bone at
+    /// its own index, a dropped one at <c>-1 - f</c> with <c>f</c> the index of the nearest kept bone.
+    /// </summary>
+    internal static int[] BuildClothBoneCompaction(Skeleton skeleton)
+    {
+        var compaction = new int[skeleton.Bones.Length];
+        var emitted = 0;
+
+        foreach (var bone in skeleton.Bones)
+        {
+            compaction[bone.Index] = IsGeneratedClothProxyBone(bone) ? int.MinValue : emitted++;
+        }
+
+        foreach (var bone in skeleton.Bones)
+        {
+            if (compaction[bone.Index] != int.MinValue)
+            {
+                continue;
+            }
+
+            var here = bone.BindPose.Translation;
+            var nearest = 0;
+            var nearestDistance = float.MaxValue;
+
+            foreach (var candidate in skeleton.Bones)
+            {
+                if (compaction[candidate.Index] < 0 || IsClothProxyName(candidate.Name))
+                {
+                    continue;
+                }
+
+                var distance = (candidate.BindPose.Translation - here).LengthSquared();
+
+                if (distance < nearestDistance)
+                {
+                    nearestDistance = distance;
+                    nearest = compaction[candidate.Index];
+                }
+            }
+
+            compaction[bone.Index] = -1 - nearest;
+        }
+
+        return compaction;
+    }
+
+    /// <summary>Resolves one blend index through <see cref="BuildClothBoneCompaction"/>.</summary>
+    internal static int CompactBoneIndex(int[] compaction, int bone)
+    {
+        if (bone < 0 || bone >= compaction.Length)
+        {
+            return 0;
+        }
+
+        var mapped = compaction[bone];
+        return mapped < 0 ? -1 - mapped : mapped;
+    }
+
+    internal static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms,
+        bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1,
+        IReadOnlyDictionary<string, Vector3>? bonePositions = null,
+        IReadOnlyDictionary<string, Quaternion>? boneRotations = null)
     {
         var dmeSkeleton = new DmeModel();
 
-        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, nmLowLodBoneCount);
+        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, nmLowLodBoneCount, bonePositions, boneRotations);
 
         var rootMotionBone = skeleton["root_motion"];
 
@@ -66,7 +180,9 @@ partial class ModelExtract
     /// joint transforms indexed by bone index. With <paramref name="nmLowLodBoneCount"/> non-negative,
     /// DAG siblings reproduce the compiled NM bone order, otherwise bone index order.
     /// </summary>
-    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton, int nmLowLodBoneCount = -1)
+    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton,
+        int nmLowLodBoneCount = -1, IReadOnlyDictionary<string, Vector3>? bonePositions = null,
+        IReadOnlyDictionary<string, Quaternion>? boneRotations = null)
     {
         int[]? minLow = null;
         int[]? minHigh = null;
@@ -88,26 +204,44 @@ partial class ModelExtract
             };
 
             dag.Transform.Name = boneName;
-            dag.Transform.Position = bone.Position;
-            dag.Transform.Orientation = bone.Angle;
+            dag.Transform.Position = BonePosition(bone, bonePositions);
+            dag.Transform.Orientation = boneRotations is not null && boneRotations.TryGetValue(bone.Name, out var rotation)
+                ? rotation
+                : bone.Angle;
 
-            boneDags[bone.Index] = dag;
             transforms[bone.Index] = dag.Transform;
 
+            if (IsGeneratedClothProxyBone(bone))
+            {
+                continue;
+            }
+
+            boneDags[bone.Index] = dag;
             dmeSkeleton.JointList.Add(dag);
         }
 
         foreach (var bone in skeleton.Bones)
         {
+            if (boneDags[bone.Index] is not { } parentDag)
+            {
+                continue;
+            }
+
             foreach (var child in OrderSiblings(bone.Children, minLow, minHigh))
             {
-                boneDags[bone.Index].Children.Add(boneDags[child.Index]);
+                if (boneDags[child.Index] is { } childDag)
+                {
+                    parentDag.Children.Add(childDag);
+                }
             }
         }
 
         foreach (var root in OrderSiblings(skeleton.Roots, minLow, minHigh))
         {
-            dmeSkeleton.Children.Add(boneDags[root.Index]);
+            if (boneDags[root.Index] is { } rootDag)
+            {
+                dmeSkeleton.Children.Add(rootDag);
+            }
         }
 
         return transforms;
@@ -214,7 +348,7 @@ partial class ModelExtract
             }
         };
 
-        dmx.Save(stream, "keyvalues2", 4);
+        dmx.SaveDeterministic(stream, "keyvalues2", 4);
         return stream.ToArray();
     }
 }

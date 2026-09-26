@@ -1,0 +1,35 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+    m_CtrlName = [ "$cloth_m2p42", "$cloth_m2p45", "$cloth_m2p49", "$cloth_m2p46", "$cloth_m2p47", "$cloth_m2p48", "$cloth_m2p50", "$cloth_m2p51", "$cloth_m2p52" ]
+    m_nNodeCount = 9
+    m_nStaticNodes = 3
+    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.004359, 0.004359, 0.002214, 0.003712, 0.001881, 0.003712 ]
+    m_InitPose =
+    [
+        [ -27.650145, 10.560019, 205.05894, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -27.650145, -10.560019, 205.05894, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -27.33801, 0.0, 195.58267, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -43.832478, 6.48951, 203.6097, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -43.832478, -6.48951, 203.6097, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -43.35944, 0.0, 198.29076, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -35.769325, 8.53872, 204.58925, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -35.299297, 0.0, 197.24841, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -35.769325, -8.53872, 204.58925, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+    ]
+    m_Quads =
+    [
+        { nNode = [ 2, 0, 6, 7 ] },
+        { nNode = [ 1, 2, 7, 8 ] },
+        { nNode = [ 4, 8, 7, 5 ] },
+        { nNode = [ 3, 5, 7, 6 ] },
+    ]
+    m_Rods =
+    [
+        { nNode = [ 0, 3 ] flMinDist = 3.35389 flMaxDist = 16.753178 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+        { nNode = [ 2, 5 ] flMinDist = 2.432684 flMaxDist = 16.255886 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+        { nNode = [ 2, 4 ] flMinDist = 10.834126 flMaxDist = 19.47035 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+        { nNode = [ 1, 5 ] flMinDist = 11.755301 flMaxDist = 20.102926 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+        { nNode = [ 6, 8 ] flMinDist = 0.0 flMaxDist = 22.364 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 3, 4 ] flMinDist = 0.0 flMaxDist = 16.776804 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+    ]
+}

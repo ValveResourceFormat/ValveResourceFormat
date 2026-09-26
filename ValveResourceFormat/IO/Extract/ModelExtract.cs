@@ -68,6 +68,7 @@ public partial class ModelExtract
         }
 
         fileName = Path.ChangeExtension(modelResource.FileName ?? "model", ".vmdl");
+        Cloth = new ClothExtract(model, physAggregateData);
         EnqueueMeshes();
         EnqueueAnimations();
     }
@@ -85,6 +86,7 @@ public partial class ModelExtract
 
         RenderMeshesToExtract.Add(new(mesh, "unnamed", 0, GetDmxFileName_ForReferenceMesh(meshFileName)));
         fileName = Path.ChangeExtension(meshFileName, ".vmdl");
+        Cloth = new ClothExtract(null, null);
     }
 
     /// <inheritdoc cref="ModelExtract(Resource, IFileLoader)"/>
@@ -95,6 +97,7 @@ public partial class ModelExtract
 
         this.physAggregateData = physAggregateData;
         fileName = physFileName;
+        Cloth = new ClothExtract(null, physAggregateData);
         EnqueueMeshes();
     }
 
@@ -116,11 +119,19 @@ public partial class ModelExtract
                 renderMesh.Mesh.LoadExternalMorphData(fileLoader);
             }
 
+            if (renderMesh.Mesh.MorphData is { HasMissingAtlas: true } morphData)
+            {
+                ProgressReporter?.Report(
+                    $"Morph atlas '{morphData.AtlasPath}' was not found, the {morphData.GetMorphCount()} morph target(s) of "
+                    + $"{Path.GetFileName(renderMesh.FileName)} will be written with no deltas.");
+            }
+
             var options = new DatamodelRenderMeshExtractOptions
             {
                 MaterialInputSignatures = MaterialInputSignatures,
                 BoneRemapTable = renderMesh.BoneRemapTable,
                 Skeleton = renderMesh.Skeleton,
+                BonePositions = Cloth.RestBonePositions,
             };
 
             vmdl.AddSubFile(
@@ -144,6 +155,8 @@ public partial class ModelExtract
                 () => ToDmxMesh(physMesh.Mesh, physMesh.BindPose)
             );
         }
+
+        Cloth.AddSubFiles(vmdl);
 
         foreach (var anim in AnimationsToExtract)
         {
@@ -171,4 +184,9 @@ public partial class ModelExtract
     /// Gets the model name from either the model resource or the file name.
     /// </summary>
     public string ModelName => model?.Name ?? fileName;
+
+    /// <summary>
+    /// Gets the cloth reconstruction of the model's soft-body physics.
+    /// </summary>
+    internal ClothExtract Cloth { get; }
 }

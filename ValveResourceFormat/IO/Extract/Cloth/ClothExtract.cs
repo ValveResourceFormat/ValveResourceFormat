@@ -1,0 +1,320 @@
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using ValveKeyValue;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+using static ValveResourceFormat.IO.KVHelpers;
+
+namespace ValveResourceFormat.IO;
+
+/// <summary>
+/// Reconstructs editable ModelDoc cloth source from a compiled soft-body <see cref="FeModel"/>: the
+/// <c>Softbody</c> node tree written into the vmdl, and the proxy-sheet and chain-grid DMX files it
+/// references.
+/// </summary>
+internal sealed partial class ClothExtract
+{
+    private readonly Model? model;
+    private readonly PhysAggregateData? physAggregateData;
+
+    internal ClothExtract(Model? model, PhysAggregateData? physAggregateData)
+    {
+        this.model = model;
+        this.physAggregateData = physAggregateData;
+    }
+
+    /// <summary>A proxy sheet exported as its own DMX: the file name, the proxy name and the sheet.</summary>
+    internal readonly record struct ClothProxyFile(string FileName, string Name, FeModel.ProxyMesh Proxy);
+
+    /// <summary>Gets the cloth proxy sheets to extract as DMX files, in declaration order.</summary>
+    internal List<ClothProxyFile> ProxyMeshes { get; } = [];
+
+    /// <summary>Gets the sheet grids generated over neighbouring bone chains, extracted as disabled DMX files.</summary>
+    internal List<(string FileName, string Name, FeModel.ChainGrid Grid)> ChainGrids { get; } = [];
+
+    /// <summary>Gets the cloth control nodes whose bones the compiled skeleton culled, which the vmdl re-declares.</summary>
+    internal List<(int Node, string Name)> CulledBones { get; } = [];
+
+    /// <summary>
+    /// Gets the parent-space bone positions that put every cloth control node back on its <c>m_InitPose</c> position,
+    /// keyed by bone name. Empty where the model has no cloth or the two already agree.
+    /// </summary>
+    internal Dictionary<string, Vector3> RestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the parent-space bone positions written into the proxy and grid DMX joint lists, which the compiler takes
+    /// <c>m_InitPose</c> from. Unlike <see cref="RestBonePositions"/> these are not capped by distance.
+    /// </summary>
+    internal Dictionary<string, Vector3> ProxyRestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets the parent-space bone rotations written beside <see cref="ProxyRestBonePositions"/>.</summary>
+    private Dictionary<string, Quaternion> ProxyRestBoneRotations { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The sheets declared with flex_cloth_borders, filled while the vmdl is emitted and read when their DMX is built.
+    /// </summary>
+    private readonly HashSet<FeModel.ProxyMesh> flexedProxies = [];
+
+    /// <summary>
+    /// Adds the proxy-sheet and chain-grid DMX files to <paramref name="vmdl"/>, built when they are written.
+    /// </summary>
+    internal void AddSubFiles(ContentFile vmdl)
+    {
+        foreach (var clothProxy in ProxyMeshes)
+        {
+            var proxyMesh = clothProxy.Proxy;
+            vmdl.AddSubFile(
+                Path.GetFileName(clothProxy.FileName),
+                () => BuildClothProxyMeshDmx(proxyMesh, Path.GetFileNameWithoutExtension(clothProxy.FileName))
+            );
+        }
+
+        foreach (var clothGrid in ChainGrids)
+        {
+            var grid = clothGrid.Grid;
+            vmdl.AddSubFile(
+                Path.GetFileName(clothGrid.FileName),
+                () => BuildClothChainGridDmx(grid, Path.GetFileNameWithoutExtension(clothGrid.FileName))
+            );
+        }
+    }
+
+    /// <summary>
+    /// Registers the model's skeleton with its <see cref="FeModel"/>, recovers the rest poses and queues the proxy
+    /// sheets and chain grids to extract.
+    /// </summary>
+    internal void EnqueueClothProxyMesh(string fileName, Func<string, string> dmxFileName)
+    {
+        if (model is null || physAggregateData?.FeModel is not { } feModel)
+        {
+            return;
+        }
+
+        var skeletonBoneNames = model.Skeleton.Bones
+            .Select(static bone => bone.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        feModel.SkeletonBoneNames = skeletonBoneNames;
+
+        CulledBones.AddRange(feModel.GetCulledBoneCtrls());
+        feModel.CulledBoneCtrlNodes = CulledBones.Select(static c => c.Node).ToHashSet();
+        foreach (var (_, culledName) in CulledBones)
+        {
+            skeletonBoneNames.Add(culledName);
+        }
+
+        var boneParents = model.Skeleton.Bones
+            .GroupBy(static bone => bone.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(static g => g.Key, static g => g.First().Parent?.Name, StringComparer.OrdinalIgnoreCase);
+        feModel.SkeletonBoneParents = boneParents;
+        feModel.SetSkeletonParents(boneParents);
+        feModel.DropModelNameVertexSet(Path.GetFileNameWithoutExtension(fileName));
+        feModel.DropUnnamedVertexSet();
+
+        BuildClothRestBonePositions(feModel);
+
+        if (feModel.IsImportedCloth)
+        {
+            return;
+        }
+
+        var proxyMeshes = feModel.BuildProxyMeshes().ToList();
+        var suffixWidth = Math.Max(1, (proxyMeshes.Count - 1).ToString(CultureInfo.InvariantCulture).Length);
+        var proxyIndex = 0;
+        foreach (var proxyMesh in proxyMeshes)
+        {
+            var proxyName = proxyIndex > 0
+                ? "cloth_proxy" + proxyIndex.ToString(CultureInfo.InvariantCulture).PadLeft(suffixWidth, '0')
+                : "cloth_proxy";
+            ProxyMeshes.Add(new ClothProxyFile(dmxFileName(proxyName), proxyName, proxyMesh));
+            proxyIndex++;
+        }
+
+        var gridIndex = 0;
+        foreach (var grid in feModel.BuildChainGrids())
+        {
+            var name = "cloth_grid" + (gridIndex > 0 ? gridIndex.ToString(CultureInfo.InvariantCulture) : string.Empty);
+            ChainGrids.Add((dmxFileName(name), name, grid));
+            gridIndex++;
+        }
+    }
+
+    /// <summary>The collision-shape parent bones, which every phase declares in cloth before adding its own.</summary>
+    private static HashSet<string> ClothBoneNames(FeModel feModel)
+    {
+        var bones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var parentBone in CollisionShapeParentBones(feModel))
+        {
+            if (parentBone is not null)
+            {
+                bones.Add(parentBone);
+            }
+        }
+
+        return bones;
+    }
+
+    /// <summary>
+    /// Adds the cloth source of <paramref name="feModel"/> to <paramref name="rootChildren"/>, and returns whether any
+    /// was emitted.
+    /// </summary>
+    internal bool EmitCloth(FeModel feModel, KVObject rootChildren)
+    {
+        var boneChains = feModel.BuildBoneChains(chain => ClothChainVersion(feModel, chain));
+
+        if (feModel.IsImportedCloth)
+        {
+            return EmitImportedClothPhase(feModel, boneChains, rootChildren);
+        }
+
+        if (ProxyMeshes.Count > 0)
+        {
+            return EmitProxySheetClothPhase(feModel, boneChains, rootChildren);
+        }
+
+        if (boneChains.Count > 0)
+        {
+            return EmitChainClothPhase(feModel, boneChains, rootChildren);
+        }
+
+        return feModel.HasData && EmitFreeNodeClothPhase(feModel, boneChains, rootChildren);
+    }
+
+    /// <summary>A <c>Softbody</c> node carrying its own attributes, and its children list.</summary>
+    private (KVObject Softbody, KVObject Children) MakeSoftbody(FeModel feModel)
+    {
+        var (softbody, softbodyChildren) = MakeListNode("Softbody");
+        AddSoftbodyAttributes(softbody, feModel);
+        return (softbody, softbodyChildren);
+    }
+
+    /// <summary>Adds the <c>cloth</c> folder to a Softbody's children and returns the folder's children.</summary>
+    private static KVObject AddClothFolder(KVObject softbodyChildren)
+    {
+        var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
+        clothFolder.Add("name", "cloth");
+        softbodyChildren.Add(clothFolder);
+        return clothFolderChildren;
+    }
+
+    /// <summary>Declares the model's imported PhysAuthFx strip, if it has one, and returns its nodes.</summary>
+    private static IReadOnlySet<int> AddImportedStrip(KVObject clothFolderChildren, FeModel feModel)
+    {
+        var strip = feModel.ImportedStripNodes;
+        if (strip.Count > 0)
+        {
+            clothFolderChildren.Add(MakeImportedCloth(feModel, strip));
+        }
+
+        return strip;
+    }
+
+    /// <summary>Declares every chain grid as a disabled <c>ClothProxyMeshFile</c>.</summary>
+    private void AddDisabledChainGrids(KVObject children)
+    {
+        foreach (var clothGrid in ChainGrids)
+        {
+            var gridNode = MakeClothProxyMeshFile(clothGrid.Name, clothGrid.FileName, backSolveJoints: false, driveMeshes: true);
+            gridNode.Add("disabled", true);
+            children.Add(gridNode);
+        }
+    }
+
+    /// <summary>
+    /// Ends every phase: follow bones, joint locks where given, collision shapes, the anti-tunnel group where cloth is
+    /// given, effects and shape-parent nodes, then the Softbody itself and the anti-tunnel probes beside it.
+    /// </summary>
+    private void AddClothPhaseTail(FeModel feModel, KVObject rootChildren, KVObject softbody, KVObject softbodyChildren,
+        HashSet<string> clothBones, List<FeModel.BoneChain> effectChains, IEnumerable<string>? antiTunnelCloth = null,
+        Func<int, string, bool>? jointLocks = null, IReadOnlyDictionary<int, string>? proxyNodeNames = null)
+    {
+        AddClothFollowBones(softbodyChildren, feModel, clothBones);
+        if (jointLocks is not null)
+        {
+            AddClothJointLocks(softbodyChildren, feModel, jointLocks);
+        }
+
+        var shapeNames = AddClothCollisionShapes(softbodyChildren, feModel);
+        if (antiTunnelCloth is not null)
+        {
+            AddClothAntiTunnelGroup(softbodyChildren, feModel, shapeNames, [.. antiTunnelCloth]);
+        }
+
+        AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, effectChains));
+        AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
+        rootChildren.Add(softbody);
+        AddClothAntiTunnelProbes(rootChildren, feModel, proxyNodeNames);
+    }
+
+    /// <summary>
+    /// Re-declares the <see cref="CulledBones"/> without <c>do_not_discard</c>, so the compiler culls them again.
+    /// </summary>
+    internal void AddCulledClothBones(KVObject skeletonChildren)
+    {
+        var culledSource = physAggregateData?.FeModel;
+        if (culledSource is null)
+        {
+            return;
+        }
+
+        var nestByClothParent = model is not null && model.Skeleton.Roots.Length == 0 && culledSource.HasCompiledSkelParents;
+        var emitted = CulledBones.Where(bone => bone.Node < culledSource.InitPosePositions.Length)
+            .Select(static bone => bone.Node).ToHashSet();
+
+        var bones = new List<(int Node, int Parent, KVObject Bone)>();
+        foreach (var (node, name) in CulledBones)
+        {
+            if (!emitted.Contains(node))
+            {
+                continue;
+            }
+
+            var parent = nestByClothParent && node < culledSource.SkelParents.Length && emitted.Contains(culledSource.SkelParents[node])
+                ? culledSource.SkelParents[node]
+                : -1;
+            var (origin, rotation) = parent >= 0
+                ? ClothBoneLocalPose(culledSource, node, parent)
+                : (culledSource.InitPosePositions[node],
+                    node < culledSource.InitPoseRotations.Length ? culledSource.InitPoseRotations[node] : Quaternion.Identity);
+            bones.Add((node, parent, MakeNode("Bone",
+                ("name", name),
+                ("origin", ToKVArray(origin)),
+                ("angles", ToKVArray(EntityTransformHelper.ToEulerAngles(rotation))))));
+        }
+
+        var boneByNode = bones.ToDictionary(static bone => bone.Node, static bone => bone.Bone);
+        foreach (var (_, parent, bone) in bones)
+        {
+            if (parent < 0)
+            {
+                skeletonChildren.Add(bone);
+                continue;
+            }
+
+            var parentBone = boneByNode[parent];
+            if (!parentBone.TryGetValue("children", out var childBones))
+            {
+                childBones = KVObject.Array();
+                parentBone.Add("children", childBones);
+            }
+
+            childBones.Add(bone);
+        }
+    }
+
+    /// <summary>The rest pose of control node <paramref name="node"/> relative to control node <paramref name="parent"/>.</summary>
+    internal static (Vector3 Origin, Quaternion Rotation) ClothBoneLocalPose(FeModel feModel, int node, int parent)
+    {
+        var parentRotation = parent < feModel.InitPoseRotations.Length ? feModel.InitPoseRotations[parent] : Quaternion.Identity;
+        var rotation = node < feModel.InitPoseRotations.Length ? feModel.InitPoseRotations[node] : Quaternion.Identity;
+        return RelativePose(feModel.InitPosePositions[node], rotation, feModel.InitPosePositions[parent], parentRotation);
+    }
+
+    /// <summary>A pose relative to its parent's pose.</summary>
+    private static (Vector3 Position, Quaternion Rotation) RelativePose(Vector3 position, Quaternion rotation,
+        Vector3 parentPosition, Quaternion parentRotation)
+    {
+        var inverse = Quaternion.Conjugate(parentRotation);
+        return (Vector3.Transform(position - parentPosition, inverse), Quaternion.Normalize(inverse * rotation));
+    }
+}

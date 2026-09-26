@@ -64,6 +64,12 @@ partial class ModelExtract
         /// When provided, bones are emitted into the DMX <c>jointList</c> so ModelDoc can resolve indices.
         /// </summary>
         public Skeleton? Skeleton { get; init; }
+
+        /// <summary>
+        /// Parent-space bone positions to emit in place of the skeleton's own, keyed by bone name
+        /// (see <see cref="ClothExtract.RestBonePositions"/>).
+        /// </summary>
+        internal IReadOnlyDictionary<string, Vector3>? BonePositions { get; init; }
     }
 
     /// <summary>
@@ -103,7 +109,15 @@ partial class ModelExtract
         }
         EnqueueRenderMeshes();
         EnqueuePhysMeshes();
+        Cloth.EnqueueClothProxyMesh(fileName, name => GetDmxFileName_ForEmbeddedMesh(name));
     }
+
+    /// <summary>
+    /// The parent-space position to emit for a bone: its cloth rest correction where there is one, and
+    /// its compiled transform otherwise.
+    /// </summary>
+    internal static Vector3 BonePosition(Bone bone, IReadOnlyDictionary<string, Vector3>? overrides)
+        => overrides is not null && overrides.TryGetValue(bone.Name, out var position) ? position : bone.Position;
 
     private void EnqueueRenderMeshes()
     {
@@ -180,6 +194,7 @@ partial class ModelExtract
             SplitDrawCallsIntoSeparateSubmeshes = true,
             BoneRemapTable = boneRemapTable,
             Skeleton = skeleton,
+            BonePositions = extract.Cloth.RestBonePositions,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -232,7 +247,7 @@ partial class ModelExtract
     {
         using var dmx = ConvertMeshToDatamodelMesh(mesh, name, options);
         using var stream = new MemoryStream();
-        dmx.Save(stream, "binary", 9);
+        dmx.SaveDeterministic(stream, "binary", 9);
 
         return stream.ToArray();
     }
@@ -246,7 +261,7 @@ partial class ModelExtract
 
         if (options.Skeleton is { Bones.Length: > 0 } skeleton)
         {
-            skeletonRoot = BuildDmeDagSkeleton(skeleton, out _);
+            skeletonRoot = BuildDmeDagSkeleton(skeleton, out _, bonePositions: options.BonePositions);
         }
 
         return DmxMeshBuilder.Build(mesh, name, new DmxMeshBuildOptions
@@ -256,6 +271,7 @@ partial class ModelExtract
             MaterialInputSignatures = options.MaterialInputSignatures,
             BoneRemapTable = options.BoneRemapTable,
             SkeletonRoot = skeletonRoot,
+            Skeleton = options.Skeleton,
         });
     }
 
