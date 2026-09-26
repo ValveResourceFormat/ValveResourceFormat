@@ -529,13 +529,14 @@ public class Rubikon
 
     private static void TraverseBvh<TQuery>(Node[] nodes, ref TQuery query) where TQuery : struct, IBvhQuery
     {
-        Span<(Node Node, int Index)> stack = stackalloc (Node Node, int Index)[STACK_SIZE];
+        Span<int> stack = stackalloc int[STACK_SIZE];
         var stackCount = 0;
-        stack[stackCount++] = (nodes[0], 0);
+        stack[stackCount++] = 0;
 
         while (stackCount > 0)
         {
-            var (node, index) = stack[--stackCount];
+            var index = stack[--stackCount];
+            ref readonly var node = ref nodes[index];
 
             if (!query.IntersectsNode(in node))
             {
@@ -552,8 +553,8 @@ public class Rubikon
                     : (rightChild, leftChild);
 
                 // Push far node first so near node is processed first (stack is LIFO)
-                stack[stackCount++] = (nodes[farId], farId);
-                stack[stackCount++] = (nodes[nearId], nearId);
+                stack[stackCount++] = farId;
+                stack[stackCount++] = nearId;
                 continue;
             }
 
@@ -1124,6 +1125,14 @@ public class Rubikon
 
     private static void AABBTraceTriangle13AxisSat(AABBTraceContext trace, Vector3 v0, Vector3 v1, Vector3 v2, ref TraceResult closestHit)
     {
+        var halfSweep = trace.Direction * (MathF.Min(trace.Length, closestHit.Distance) * 0.5f);
+        var sweptHalfExtents = Vector3.Abs(halfSweep) + trace.HalfExtents + new Vector3(SurfaceEpsilon);
+
+        if (!BoxIntersectsAABB(trace.Origin + halfSweep, sweptHalfExtents, Vector3.Min(Vector3.Min(v0, v1), v2), Vector3.Max(Vector3.Max(v0, v1), v2)))
+        {
+            return;
+        }
+
         //Needs to exist from the start, as it gets updated while running through the axis.
         var hitNormal = Vector3.Zero;
 
