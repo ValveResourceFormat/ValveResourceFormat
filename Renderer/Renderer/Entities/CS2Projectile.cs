@@ -403,7 +403,7 @@ public sealed class CS2Projectile : BaseEntity
             if (moveLength > 0.0001f)
             {
                 var propHit = rigidBodies.World.RaycastClosest(from, to - from,
-                    new QueryFilter(PhysicsSimulation.PlayerCategory, PhysicsSimulation.PropCategory));
+                    new QueryFilter(PhysicsSimulation.PlayerCategory, PhysicsSimulation.PropCategory | PhysicsSimulation.DebrisCategory));
 
                 if (propHit.Hit)
                 {

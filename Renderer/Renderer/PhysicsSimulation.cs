@@ -38,6 +38,14 @@ public sealed class PhysicsSimulation : IDisposable
     public const ulong MoverCategory = 8;
 
     /// <summary>
+    /// Collision category of ragdoll parts. They collide with everything but the player's pushing
+    /// hull: a fast overlap with that kinematic box resolves out its nearest face, which for a
+    /// part lying on the floor is the bottom, pushing it through the one-sided mesh world. The
+    /// player shoves debris with a horizontal velocity instead.
+    /// </summary>
+    public const ulong DebrisCategory = 16;
+
+    /// <summary>
     /// The world steps once per rendered frame, so the sub-step count scales with the frame:
     /// at high framerates the steps are already small and two sub-steps keep stacks stable, but
     /// a vsynced 60 fps frame needs more - measured on ragdolls, a heap stepped in 1/64 slices
@@ -110,7 +118,7 @@ public sealed class PhysicsSimulation : IDisposable
     /// <param name="impulsePerArea">Impulse per unit of exposed shape area.</param>
     public void Explode(Vector3 center, float radius, float falloff, float impulsePerArea)
     {
-        World.Explode(center, radius, impulsePerArea, falloff, PropCategory);
+        World.Explode(center, radius, impulsePerArea, falloff, PropCategory | DebrisCategory);
     }
 
     /// <summary>
@@ -125,7 +133,7 @@ public sealed class PhysicsSimulation : IDisposable
     public bool ApplyImpactImpulse(Vector3 from, Vector3 direction, float distance, float impulse)
     {
         var hit = World.RaycastClosest(from, direction * distance,
-            new QueryFilter(PlayerCategory, StaticCategory | PropCategory | MoverCategory));
+            new QueryFilter(PlayerCategory, StaticCategory | PropCategory | DebrisCategory | MoverCategory));
 
         if (!hit.Hit || !hit.Shape.IsValid)
         {
@@ -166,7 +174,7 @@ public sealed class PhysicsSimulation : IDisposable
     /// The shape properties a surface hash dictates: the table's friction, elasticity and density,
     /// and the hash itself riding along as the material id so a contact can find the surface again.
     /// </summary>
-    private ShapeDefinition MakeShapeDefinition(uint surfaceHash, ulong categories, ulong collidesWith = ulong.MaxValue)
+    private ShapeDefinition MakeShapeDefinition(uint surfaceHash, ulong categories)
     {
         var surface = (surfaces?.Find(surfaceHash)) ?? SurfaceProperties.Fallback;
 
@@ -179,7 +187,7 @@ public sealed class PhysicsSimulation : IDisposable
                 Restitution = ToRestitution(surface.Elasticity),
                 UserMaterialId = surfaceHash,
             },
-            Filter = new CollisionFilter(categories, collidesWith, 0),
+            Filter = new CollisionFilter(categories, ulong.MaxValue, 0),
         };
     }
 
@@ -386,24 +394,17 @@ public sealed class PhysicsSimulation : IDisposable
 
         var shape = part.Shape;
 
-        // Ragdoll parts never meet the player's pushing body in the solver: a fast overlap with
-        // the kinematic box resolves out its nearest face, which for anything lying on the floor
-        // is the bottom - measured ejecting hands and shins straight through the one-sided mesh
-        // world. The player shoves ragdolls with a horizontal velocity instead, which cannot
-        // press anything into the ground; corpses are debris to a Source player anyway.
-        const ulong collidesWith = ulong.MaxValue & ~PlayerCategory;
-
         foreach (var sphere in shape.Spheres)
         {
             body.AddSphere(new Sphere(sphere.Shape.Center, sphere.Shape.Radius),
-                MakeShapeDefinition(GetSurfaceHash(phys, sphere.SurfacePropertyIndex), PropCategory, collidesWith));
+                MakeShapeDefinition(GetSurfaceHash(phys, sphere.SurfacePropertyIndex), DebrisCategory));
         }
 
         foreach (var capsule in shape.Capsules)
         {
             var center = capsule.Shape.Center;
             body.AddCapsule(new Capsule(center[0], center[1], capsule.Shape.Radius),
-                MakeShapeDefinition(GetSurfaceHash(phys, capsule.SurfacePropertyIndex), PropCategory, collidesWith));
+                MakeShapeDefinition(GetSurfaceHash(phys, capsule.SurfacePropertyIndex), DebrisCategory));
         }
 
         foreach (var hullDesc in shape.Hulls)
@@ -413,7 +414,7 @@ public sealed class PhysicsSimulation : IDisposable
                 using (hull)
                 {
                     body.AddHull(hull,
-                        MakeShapeDefinition(GetSurfaceHash(phys, hullDesc.SurfacePropertyIndex), PropCategory, collidesWith));
+                        MakeShapeDefinition(GetSurfaceHash(phys, hullDesc.SurfacePropertyIndex), DebrisCategory));
                 }
             }
         }
@@ -469,7 +470,7 @@ public sealed class PhysicsSimulation : IDisposable
         }
 
         var hit = World.RaycastClosest(previousPosition, delta,
-            new QueryFilter(PropCategory, StaticCategory));
+            new QueryFilter(DebrisCategory, StaticCategory));
 
         if (!hit.Hit || Vector3.Dot(hit.Normal, delta) >= 0f)
         {

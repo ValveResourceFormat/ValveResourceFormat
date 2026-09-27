@@ -70,12 +70,14 @@ public sealed class PlayerEntity : BaseEntity
     private Body presenceBody;
     private bool hasPresenceBody;
 
-    // The debris shove: ragdoll parts never meet the pushing body in the solver (a fast overlap
-    // ejects thin parts through the mesh floor), so walking through them applies a horizontal
-    // velocity instead, which cannot press anything into the ground
+    // The debris shove, see ShoveDebris
     private const float MinShoveSpeed = 20f;
     private const float MaxShoveSpeed = 350f;
     private const float ShoveMargin = 2f;
+
+    // Reused by the debris shove every tick
+    private readonly List<Body> debrisBodies = [];
+    private readonly HashSet<ulong> debrisBodyIds = [];
 
     // How long the carried prop has been stuck far from its hold pose; a flick spikes this for a
     // tick or two, a wedged prop keeps it climbing until the carry gives up
@@ -206,11 +208,10 @@ public sealed class PlayerEntity : BaseEntity
     }
 
     /// <summary>
-    /// Shoves ragdoll parts the player's hull overlaps with a purely horizontal velocity, away
-    /// from the player at the player's own speed. This replaces solver contact for ragdolls: a
-    /// kinematic box overlapping a part lying on the floor resolves out the box's nearest face,
-    /// which at running speed is the bottom, ejecting the part through the one-sided mesh world.
-    /// A horizontal velocity can never press anything into the ground.
+    /// Shoves the debris the player's hull overlaps with a purely horizontal velocity, away from
+    /// the player at the player's own speed. Debris never meets the pushing body in the solver
+    /// (see <see cref="PhysicsSimulation.DebrisCategory"/>), and a horizontal velocity can never
+    /// press anything into the ground.
     /// </summary>
     private void ShoveDebris(PhysicsSimulation physics)
     {
@@ -226,16 +227,18 @@ public sealed class PlayerEntity : BaseEntity
         var halfExtents = Controller.HullHalfExtents + new Vector3(ShoveMargin, ShoveMargin, 0f);
         var center = Origin + new Vector3(0f, 0f, Controller.HullHalfExtents.Z);
 
-        // Collected first, shoved after: the world is locked while a query runs. Queried as a
-        // prop rather than as the player, whose category the ragdoll shapes filter out.
-        var overlapped = new DebrisOverlap { Physics = physics };
+        // Collected first, shoved after: the world is locked while a query runs
+        debrisBodies.Clear();
+        debrisBodyIds.Clear();
+
+        var overlapped = new DebrisOverlap(debrisBodies, debrisBodyIds);
         physics.World.OverlapBox(center, halfExtents, ref overlapped,
-            new QueryFilter(PhysicsSimulation.PropCategory, PhysicsSimulation.PropCategory));
+            new QueryFilter(PhysicsSimulation.PlayerCategory, PhysicsSimulation.DebrisCategory));
 
         var heldBody = Carried?.CarryBody;
         var pushSpeed = MathF.Min(speed, MaxShoveSpeed);
 
-        foreach (var body in overlapped.Bodies)
+        foreach (var body in debrisBodies)
         {
             // The carried body is the carry's to steer, not the hull's to shove
             if (body.UserData == heldBody?.UserData)
@@ -260,23 +263,16 @@ public sealed class PlayerEntity : BaseEntity
         }
     }
 
-    private struct DebrisOverlap : IOverlapCallback
+    // One entry per body however many of its shapes overlap
+    private readonly struct DebrisOverlap(List<Body> bodies, HashSet<ulong> bodyIds) : IOverlapCallback
     {
-        public required PhysicsSimulation Physics;
-        public List<Body> Bodies { get; } = [];
-
-        public DebrisOverlap()
-        {
-        }
-
-        public readonly bool OnOverlap(Shape shape)
+        public bool OnOverlap(Shape shape)
         {
             var body = shape.Body;
 
-            // Only ragdolls: props still collide with the pushing body and need no shove
-            if (Physics.GetOwner(body) is RagdollProp && !Bodies.Contains(body))
+            if (bodyIds.Add(body.UserData))
             {
-                Bodies.Add(body);
+                bodies.Add(body);
             }
 
             return true;
@@ -441,7 +437,8 @@ public sealed class PlayerEntity : BaseEntity
         // finds nothing
         var hit = physics.World.RaycastClosest(eyePosition, forward * PickupReach,
             new QueryFilter(PhysicsSimulation.PlayerCategory,
-                PhysicsSimulation.StaticCategory | PhysicsSimulation.PropCategory | PhysicsSimulation.MoverCategory));
+                PhysicsSimulation.StaticCategory | PhysicsSimulation.PropCategory
+                | PhysicsSimulation.DebrisCategory | PhysicsSimulation.MoverCategory));
 
         if (!hit.Hit)
         {
