@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Forms;
 using GUI.Utils;
 using SkiaSharp;
 using ValveResourceFormat.Renderer.Utils;
@@ -103,9 +104,7 @@ namespace GUI.Types.Viewers
             GuiContext = guiContext;
             Entities = entities;
             SelectEntityFunc = selectAndFocusEntity;
-            EntityInfo.OutputsGrid.CellDoubleClick += EntityInfoGrid_OutputCellDoubleClick;
-            EntityInfo.InputsGrid.CellDoubleClick += EntityInfoGrid_InputCellDoubleClick;
-            EntityInfo.ResourceAddDataGridExternalRef(guiContext);
+            EntityInfo.LinkedResourceActivated += OnLinkedResourceActivated;
             EntityViewerGrid.OwnerDraw = true;
 
             InitializeImageList();
@@ -428,60 +427,38 @@ namespace GUI.Types.Viewers
             EntityPropertiesGroup.Text = groupBoxName;
         }
 
-        private void EntityInfoGrid_OutputCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        private void OnLinkedResourceActivated(object? sender, LinkedResource link)
         {
-            if (e.ColumnIndex == 1)
+            switch (link)
             {
-                var entityName = (string)(EntityInfo.OutputsGrid[e.ColumnIndex, e.RowIndex].Value ?? string.Empty);
+                case LinkedEntity { Entity: var entity }:
+                    ShowLinkedEntity(entity);
+                    break;
 
-                if (string.IsNullOrEmpty(entityName))
-                {
-                    return;
-                }
-
-                foreach (var entity in Entities)
-                {
-                    var targetname = entity.GetStringProperty("targetname", string.Empty);
-                    if (string.IsNullOrEmpty(targetname))
-                    {
-                        continue;
-                    }
-
-                    if (entityName == targetname)
-                    {
-                        ShowEntityProperties(entity);
-                        EntityInfo.ShowPropertiesTab();
-                    }
-                }
+                case LinkedFile { Path: var path }:
+                    Resource.OpenExternalReference(GuiContext, path);
+                    break;
             }
         }
 
-        private void EntityInfoGrid_InputCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        private void ShowLinkedEntity(Entity entity)
         {
-            if (e.ColumnIndex == 0)
-            {
-                var entityName = (string)(EntityInfo.InputsGrid[e.ColumnIndex, e.RowIndex].Value ?? string.Empty);
+            EntityViewerGrid.SelectedItems.Clear();
 
-                if (string.IsNullOrEmpty(entityName))
+            foreach (ListViewItem item in EntityViewerGrid.Items)
+            {
+                if (item.Tag == entity)
                 {
+                    // Selecting it shows its properties through SelectedIndexChanged
+                    item.Selected = true;
+                    item.Focused = true;
+                    item.EnsureVisible();
                     return;
                 }
-
-                foreach (var entity in Entities)
-                {
-                    var targetname = entity.GetStringProperty("targetname", string.Empty);
-                    if (string.IsNullOrEmpty(targetname))
-                    {
-                        continue;
-                    }
-
-                    if (entityName == targetname)
-                    {
-                        ShowEntityProperties(entity);
-                        EntityInfo.ShowPropertiesTab();
-                    }
-                }
             }
+
+            // Filtered out of the list
+            ShowEntityProperties(entity);
         }
 
         private void EntityViewerGrid_Resize(object sender, EventArgs e)

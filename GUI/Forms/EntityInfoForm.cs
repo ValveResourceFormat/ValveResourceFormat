@@ -9,17 +9,17 @@ namespace GUI.Forms
 {
     partial class EntityInfoForm : ThemedForm
     {
-        public EntityInfoControl EntityInfoControl;
+        public EntityInfoControl EntityInfoControl { get; }
         public ThemedButton? ShowInGraphButton { get; private set; }
         private static WINDOWPLACEMENT? SavedWindowPlacement;
 
-        public EntityInfoForm(VrfGuiContext vrfGuiContext)
+        public EntityInfoForm()
         {
             Width = 800;
             Height = 450;
             Text = "EntityInfoForm";
 
-            EntityInfoControl = new(vrfGuiContext)
+            EntityInfoControl = new()
             {
                 Dock = DockStyle.Fill
             };
@@ -74,15 +74,6 @@ namespace GUI.Forms
             }
 
             base.OnFormClosing(e);
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing && (EntityInfoControl != null))
-            {
-                EntityInfoControl.Dispose();
-            }
-            base.Dispose(disposing);
         }
     }
 }
