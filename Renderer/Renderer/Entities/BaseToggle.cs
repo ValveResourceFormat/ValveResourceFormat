@@ -35,11 +35,14 @@ public abstract class BaseToggle : BaseModelEntity
     /// <summary>Gets or sets how much of the brush stays proud of its opening, the <c>lip</c> keyvalue.</summary>
     public float Lip { get; protected set; }
 
-    /// <summary>Gets the direction the brush travels, resolved from its angles or <c>movedir</c>.</summary>
+    /// <summary>Gets the direction the brush travels in the world, resolved from its <c>movedir</c>.</summary>
     protected Vector3 MoveDirection { get; private set; }
 
-    /// <summary>Gets where the brush is currently heading.</summary>
-    protected Vector3 FinalDestination { get; private set; }
+    /// <summary>
+    /// Gets or sets where the brush is heading. A travel under way keeps its velocity when this changes, and
+    /// lands here once its time is up.
+    /// </summary>
+    protected Vector3 FinalDestination { get; set; }
 
     /// <summary>Gets whether a <see cref="LinearMove"/> or <see cref="AngularMove"/> is under way.</summary>
     protected bool IsLinearMoving { get; private set; }
@@ -49,6 +52,9 @@ public abstract class BaseToggle : BaseModelEntity
 
     /// <summary>A travelling brush shoves the player rather than swallowing them.</summary>
     protected internal override bool IsPusher => true;
+
+    /// <inheritdoc/>
+    protected override bool TurnsByAngleComponents => true;
 
     /// <summary>Initializes a moving brush from its keyvalues.</summary>
     protected BaseToggle(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
@@ -65,7 +71,8 @@ public abstract class BaseToggle : BaseModelEntity
 
         if (destination == Origin || Speed <= 0f)
         {
-            // Nowhere to go, so the arrival is now
+            // Nowhere to go, so the arrival is now, and the one a travel under way had scheduled is dropped
+            SetMoveDoneTime(-1f);
             MoveDone();
             return;
         }
@@ -89,6 +96,7 @@ public abstract class BaseToggle : BaseModelEntity
 
         if (destinationAngle == Angles || speed <= 0f)
         {
+            SetMoveDoneTime(-1f);
             MoveDone();
             return;
         }
@@ -148,49 +156,35 @@ public abstract class BaseToggle : BaseModelEntity
     }
 
     /// <summary>
-    /// Reads the direction the brush travels. Source encodes it in <c>angles</c>, with two magic values
-    /// for straight up and down, and zeroes the angles afterwards because they were never an orientation.
-    /// Source 2 authors it as its own <c>movedir</c> keyvalue on some entities, and there the brush's own
-    /// angles mean what they say, so they are left alone.
+    /// Reads the direction a button, door or mover travels, the way CS2 reads it: <c>movedir</c> is an angle
+    /// in the entity's own frame, with none of Source 1's magic values for up and down, and the entity's
+    /// orientation carries it into the world. A door rotated by its instance therefore still opens the way it was authored to.
     /// </summary>
-    /// <param name="consumeAngles">
-    /// Whether the angles are the travel direction and should be cleared once read, which is what
-    /// <c>CBaseButton::Spawn</c> does through <c>SetMovedir</c>. A door does not: its angles are where a
-    /// swinging travel starts from.
-    /// </param>
-    protected void ResolveMoveDirection(bool consumeAngles = true)
+    /// <returns>The direction in the entity's own frame, which is the frame its bounds are measured in.</returns>
+    protected Vector3 ResolveEntitySpaceMoveDirection()
     {
-        var hasMoveDir = KeyValues.ContainsKey("movedir");
-        var directionAngles = hasMoveDir ? KeyValues.GetVector3Property("movedir") : Angles;
+        var localDirection = EntityTransformHelper.EulerAnglesToForwardDirection(KeyValues.GetVector3Property("movedir"));
 
-        MoveDirection = directionAngles switch
-        {
-            { X: 0f, Y: -1f, Z: 0f } => new Vector3(0, 0, 1),   // straight up
-            { X: 0f, Y: -2f, Z: 0f } => new Vector3(0, 0, -1),  // straight down
-            _ => EntityTransformHelper.EulerAnglesToForwardDirection(directionAngles),
-        };
+        MoveDirection = Vector3.TransformNormal(localDirection, EntityTransformHelper.EulerAnglesToRotationMatrix(Angles));
 
-        if (!hasMoveDir && consumeAngles)
-        {
-            Angles = Vector3.Zero;
-        }
+        return localDirection;
     }
 
     /// <summary>
     /// How far the brush slides: its own length along the travel axis, less the lip that keeps it proud.
     /// </summary>
     /// <remarks>
-    /// Source subtracts a further 2 units because the engine hands it a brush bound that is 1 unit larger
-    /// in every direction. The bounds here come from the compiled collision hull and are not padded, so
-    /// the same authored <c>lip</c> lands in the same place without that correction.
+    /// Source 1 subtracts a further 2 units because its engine hands it a brush bound that is 1 unit larger
+    /// in every direction. CS2 measures the unpadded bounds, and so do the compiled collision hulls here.
     /// </remarks>
-    protected float GetTravelDistance()
+    /// <param name="localDirection">The travel direction, in the frame of the brush's own bounds.</param>
+    protected float GetTravelDistance(Vector3 localDirection)
     {
         var size = Collider?.LocalBounds.Size ?? Vector3.Zero;
 
-        return MathF.Abs(MoveDirection.X * size.X)
-            + MathF.Abs(MoveDirection.Y * size.Y)
-            + MathF.Abs(MoveDirection.Z * size.Z)
+        return MathF.Abs(localDirection.X * size.X)
+            + MathF.Abs(localDirection.Y * size.Y)
+            + MathF.Abs(localDirection.Z * size.Z)
             - Lip;
     }
 }

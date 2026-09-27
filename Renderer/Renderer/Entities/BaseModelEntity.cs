@@ -43,6 +43,9 @@ public abstract class BaseModelEntity : BaseEntity
     /// </summary>
     public ModelSceneNode? ModelNode { get; private set; }
 
+    /// <summary>Gets the model this entity loaded, or <see langword="null"/> when it names none or it failed to load.</summary>
+    protected Model? LoadedModel { get; private set; }
+
     /// <summary>
     /// Initializes a model entity from its keyvalues.
     /// </summary>
@@ -86,6 +89,8 @@ public abstract class BaseModelEntity : BaseEntity
 
             return base.CreateRootNode();
         }
+
+        LoadedModel = model;
 
         var modelNode = new ModelSceneNode(Scene, model, Data?.GetStringProperty("skin"))
         {

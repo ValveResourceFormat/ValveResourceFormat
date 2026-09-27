@@ -107,6 +107,7 @@ public sealed class EntitySystem
 
     private readonly List<QueuedInput> inputQueue = [];
     private readonly Dictionary<EntityLump.Connection, int> firedCounts = [];
+    private readonly HashSet<BaseEntity> playerImpacts = [];
     private long sequence;
     private float tickAccumulator;
     private bool hasRemovedEntities;
@@ -333,6 +334,37 @@ public sealed class EntitySystem
     }
 
     /// <summary>
+    /// Records that the player's movement ran into a solid entity, for the next tick to report as a touch.
+    /// </summary>
+    /// <param name="entity">The entity a movement sweep hit.</param>
+    public void NotePlayerImpact(BaseEntity entity) => playerImpacts.Add(entity);
+
+    // On the tick rather than as the player moves, for the same reason as the trigger touches
+    private void DispatchPlayerImpacts()
+    {
+        if (playerImpacts.Count == 0)
+        {
+            return;
+        }
+
+        BaseEntity[] impacted = [.. playerImpacts];
+        playerImpacts.Clear();
+
+        if (Player is not { IsRemoved: false } player)
+        {
+            return;
+        }
+
+        foreach (var entity in impacted)
+        {
+            if (!entity.IsRemoved && entity.Scene == player.Scene)
+            {
+                entity.Impact(player);
+            }
+        }
+    }
+
+    /// <summary>
     /// Drops every entity and resets the clock. The scene nodes themselves are the scene's to clean up,
     /// which <see cref="Renderer.Clear"/> does before calling this.
     /// </summary>
@@ -353,6 +385,7 @@ public sealed class EntitySystem
         activatedCount = 0;
         inputQueue.Clear();
         firedCounts.Clear();
+        playerImpacts.Clear();
         hasRemovedEntities = false;
         tickAccumulator = 0f;
         CurrentTime = 0f;
@@ -436,6 +469,7 @@ public sealed class EntitySystem
         }
 
         UpdateTouchLinks();
+        DispatchPlayerImpacts();
 
         // Last, as the engine services its event queue after everything has moved and touched. A touch
         // handler's outputs therefore land in the tick that saw the touch rather than the one after it,

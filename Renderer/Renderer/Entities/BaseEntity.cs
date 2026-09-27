@@ -201,7 +201,8 @@ public abstract class BaseEntity
 
     /// <summary>
     /// Gets or sets the angular velocity as a QAngle in degrees per second, turning the entity about its
-    /// own axes. Source's <c>SetLocalAngularVelocity</c>.
+    /// own axes, or through its angle components where <see cref="TurnsByAngleComponents"/> says so.
+    /// Source's <c>SetLocalAngularVelocity</c>.
     /// </summary>
     public Vector3 AngularVelocity { get; set; }
 
@@ -486,7 +487,10 @@ public abstract class BaseEntity
     {
     }
 
-    /// <summary>Runs every tick <paramref name="other"/> stays inside this entity's volume. Source's <c>Touch</c>.</summary>
+    /// <summary>
+    /// Runs every tick <paramref name="other"/> stays inside this entity's volume, and on a tick the player
+    /// ran into this solid entity while moving. Source's <c>Touch</c>, which serves both.
+    /// </summary>
     protected virtual void OnTouch(BaseEntity other)
     {
     }
@@ -526,6 +530,9 @@ public abstract class BaseEntity
         // A teleport is not movement, so it must not be interpolated across
         SnapInterpolation();
     }
+
+    /// <summary>Reports that <paramref name="other"/> ran into this solid entity, as a touch.</summary>
+    internal void Impact(BaseEntity other) => OnTouch(other);
 
     /// <summary>
     /// Opens, sustains, or closes the touch link between this volume and <paramref name="other"/>, firing
@@ -652,10 +659,10 @@ public abstract class BaseEntity
     /// turning by <see cref="AngularVelocity"/>.
     /// </summary>
     /// <remarks>
-    /// The turn goes about the entity's own axes, not onto the QAngle components. Source 1 adds the
-    /// components (<c>physics_main.cpp</c>: <c>angles += GetLocalAngularVelocity() * movetime</c>), Source 2
-    /// turns the body, and these are Source 2 maps. The two only differ for an entity the map already
-    /// rotated, such as a brush authored on its side, which would otherwise yaw about the world's up axis.
+    /// Source 2 does it both ways, chosen per class by <see cref="TurnsByAngleComponents"/>. By default the
+    /// turn goes about the entity's own axes, so a brush authored on its side spins about its own up axis
+    /// rather than the world's. The doors and other toggle brushes instead add the rate onto the QAngle
+    /// components, as Source 1 always did. The two only differ for an entity the map already rotated.
     /// </remarks>
     protected virtual void PhysicsSimulate(float tickInterval)
     {
@@ -664,10 +671,21 @@ public abstract class BaseEntity
             return;
         }
 
+        var turn = AngularVelocity * tickInterval;
+
         SetOriginAndAngles(
             Origin + Velocity * tickInterval,
-            AngularVelocity == Vector3.Zero ? Angles : TurnBody(Angles, AngularVelocity * tickInterval));
+            AngularVelocity == Vector3.Zero ? Angles
+                : TurnsByAngleComponents ? Angles + turn
+                : TurnBody(Angles, turn));
     }
+
+    /// <summary>
+    /// Gets whether a turn adds <see cref="AngularVelocity"/> onto the QAngle components rather than turning
+    /// the body about its own axes. The doors and other toggle brushes do, so their travel between two
+    /// authored angles is a straight line through the components and lands where it was aimed.
+    /// </summary>
+    protected virtual bool TurnsByAngleComponents => false;
 
     /// <summary>
     /// Gets whether this entity shoves the player out of its way as it moves, Source's

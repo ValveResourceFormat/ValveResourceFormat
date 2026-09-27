@@ -110,7 +110,7 @@ public sealed class FuncButton : BaseToggle
     /// <inheritdoc/>
     public override void Spawn()
     {
-        ResolveMoveDirection();
+        var localDirection = ResolveEntitySpaceMoveDirection();
 
         Speed = KeyValues.GetFloatProperty("speed", 40f);
 
@@ -141,7 +141,7 @@ public sealed class FuncButton : BaseToggle
         IsSolid = !HasSpawnFlags(SpawnFlag.NonSolid);
 
         positionOut = Origin;
-        positionIn = positionOut + MoveDirection * GetTravelDistance();
+        positionIn = positionOut + MoveDirection * GetTravelDistance(localDirection);
 
         // A button with nowhere to go fires in place
         if (HasSpawnFlags(SpawnFlag.DontMove) || Vector3.Distance(positionIn, positionOut) < 1f)
