@@ -46,6 +46,10 @@ public static class EntityFactory
         Register<PropDynamic>("prop_dynamic", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<PropDynamic>("prop_dynamic_override", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<RagdollProp>("prop_ragdoll", static (system, spawnInfo) => new RagdollProp(system, spawnInfo));
+        Register<PhysBallSocket>("phys_ballsocket", static (system, spawnInfo) => new PhysBallSocket(system, spawnInfo));
+        Register<PhysHinge>("phys_hinge", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: false));
+        Register<PhysHinge>("phys_hinge_local", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: true));
+        Register<PhysFixedConstraint>("phys_constraint", static (system, spawnInfo) => new PhysFixedConstraint(system, spawnInfo));
         Register<PropPhysics>("prop_physics", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
         Register<PropPhysics>("prop_physics_multiplayer", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
         Register<PropPhysics>("prop_physics_override", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));

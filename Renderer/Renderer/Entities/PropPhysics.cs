@@ -48,6 +48,13 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable
     /// <summary>Gets the player carrying this prop, or <see langword="null"/> when nobody is.</summary>
     public PlayerEntity? Carrier { get; private set; }
 
+    /// <inheritdoc/>
+    internal override bool TryGetConstraintBody(Vector3 anchor, out Body constraintBody)
+    {
+        constraintBody = body;
+        return HasBody;
+    }
+
     // The carry steers the whole prop: its one body, orientation and all
     Body ICarryable.CarryBody => body;
 

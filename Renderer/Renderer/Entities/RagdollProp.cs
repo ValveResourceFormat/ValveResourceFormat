@@ -400,6 +400,34 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
     }
 
     /// <summary>
+    /// Holds a ragdoll by the part nearest the constraint, so a corpse hung by a rope anchored at its
+    /// neck hangs by the head rather than by whichever part comes first.
+    /// </summary>
+    internal override bool TryGetConstraintBody(Vector3 anchor, out Body body)
+    {
+        body = default;
+        var nearest = float.PositiveInfinity;
+
+        for (var i = 0; i < bodies.Length; i++)
+        {
+            if (!hasBody[i])
+            {
+                continue;
+            }
+
+            var distance = Vector3.DistanceSquared(bodies[i].CenterOfMass, anchor);
+
+            if (distance < nearest)
+            {
+                nearest = distance;
+                body = bodies[i];
+            }
+        }
+
+        return !float.IsPositiveInfinity(nearest);
+    }
+
+    /// <summary>
     /// Hands every body of the ragdoll the same velocity, for a spawn that arrives moving.
     /// </summary>
     public void SetVelocity(Vector3 velocity)

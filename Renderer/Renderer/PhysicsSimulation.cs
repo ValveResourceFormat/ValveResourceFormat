@@ -58,6 +58,27 @@ public sealed class PhysicsSimulation : IDisposable
     /// <summary>Gets the underlying Box3D world.</summary>
     public PhysicsWorld World { get; }
 
+    /// <summary>
+    /// Gets a static body with no shapes that stands for the world in joints, which always connect two
+    /// bodies: a constraint that names no entity on one side holds on to this.
+    /// </summary>
+    public Body WorldAnchor
+    {
+        get
+        {
+            if (!hasWorldAnchor)
+            {
+                worldAnchor = World.CreateBody(BodyDefinition.Static(Vector3.Zero, Quaternion.Identity));
+                hasWorldAnchor = true;
+            }
+
+            return worldAnchor;
+        }
+    }
+
+    private Body worldAnchor;
+    private bool hasWorldAnchor;
+
     // Hulls handed to the compound builder and meshes attached to bodies are borrowed by the native
     // side rather than copied, so they must stay alive until the world is destroyed
     private readonly List<IDisposable> borrowedGeometry = [];
