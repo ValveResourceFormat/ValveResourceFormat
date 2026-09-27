@@ -93,8 +93,15 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
     // Debris - the pieces of something broken - stays out of the player's way and out of other debris
     private ulong collisionCategory = PhysicsSimulation.PropCategory;
 
-    // Scatter so the pieces of a prop broken at rest part rather than lie in a heap
-    private const float BreakScatterSpeed = 40f;
+    // The pieces of one break share a negative collision group, which never collides with itself:
+    // pieces are cut to fit together, their hulls overlap where they meet, and colliding siblings
+    // would be shoved apart at spawn as if blown up
+    private int collisionGroup;
+    private static int lastBreakGroup;
+
+    // A piece takes no impact damage: shards with a sliver of health and a glass impact table would
+    // shatter the moment they landed, and the whole prop would seem to vanish at the first hit
+    private bool isBreakPiece;
 
     private static readonly PropBreakData Unbreakable = new(0f, 1f, 1f, 1f, false, [], []);
 
@@ -186,6 +193,11 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
     /// </summary>
     internal void TakeImpact(float speed)
     {
+        if (isBreakPiece)
+        {
+            return;
+        }
+
         var damage = breakData.ImpactDamage(speed);
 
         if (damage > 0f)
@@ -302,6 +314,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
     {
         var world = Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
         var skin = owner.Data?.GetStringProperty("skin");
+        var group = --lastBreakGroup;
 
         foreach (var piece in breakData.Pieces)
         {
@@ -339,7 +352,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
 
             if (piece.IsDebris)
             {
-                spawned.MakeDebris();
+                spawned.collisionCategory = PhysicsSimulation.DebrisCategory;
             }
 
             if (piece.FadeTime > 0f)
@@ -347,9 +360,14 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
                 spawned.RemoveAfter(piece.FadeTime);
             }
 
+            spawned.isBreakPiece = true;
+            spawned.collisionGroup = group;
+            spawned.SetCollidesWithPlayer(!piece.IsDebris);
+
+            // No push of its own: a piece goes where its part of the prop was going, and only a
+            // burst the model authors would scatter it
             var pieceBody = spawned.body;
-            var scatter = Vector3.Normalize(pieceBody.CenterOfMass - massCenter + new Vector3(0f, 0f, 1f)) * BreakScatterSpeed;
-            pieceBody.LinearVelocity = linearVelocity + Vector3.Cross(angularVelocity, pieceBody.CenterOfMass - massCenter) + scatter;
+            pieceBody.LinearVelocity = linearVelocity + Vector3.Cross(angularVelocity, pieceBody.CenterOfMass - massCenter);
             pieceBody.AngularVelocity = angularVelocity;
         }
     }
@@ -359,12 +377,6 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
         breakData = breakData with { Health = health };
         Health = health;
         SetHitEvents(true);
-    }
-
-    private void MakeDebris()
-    {
-        collisionCategory = PhysicsSimulation.DebrisCategory;
-        SetCollidesWithPlayer(false);
     }
 
     private void RemoveAfter(float seconds)
@@ -618,7 +630,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
 
         for (var i = 0; i < count; i++)
         {
-            shapes[i].SetFilter(new CollisionFilter(collisionCategory, collidesWith, 0), recomputeContacts: true);
+            shapes[i].SetFilter(new CollisionFilter(collisionCategory, collidesWith, collisionGroup), recomputeContacts: true);
         }
     }
 
