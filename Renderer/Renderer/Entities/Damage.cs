@@ -25,7 +25,8 @@ public enum DamageType
 /// <param name="Amount">Damage before the target's own scaling.</param>
 /// <param name="Type">What kind of damage it is.</param>
 /// <param name="Attacker">Who dealt it, for the outputs it fires.</param>
-public readonly record struct DamageInfo(float Amount, DamageType Type, BaseEntity? Attacker = null);
+/// <param name="Direction">Which way the hit travelled, for the effects a break sprays; zero when unknown.</param>
+public readonly record struct DamageInfo(float Amount, DamageType Type, BaseEntity? Attacker = null, Vector3 Direction = default);
 
 /// <summary>Something that has health and can be hurt.</summary>
 public interface IDamageable

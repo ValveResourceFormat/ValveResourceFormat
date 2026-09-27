@@ -19,11 +19,13 @@ public sealed class SurfaceProperties
     /// <param name="Friction">Contact friction.</param>
     /// <param name="Elasticity">Bounciness, a restitution factor.</param>
     /// <param name="Density">Material density, what the body's mass is computed from.</param>
+    /// <param name="BreakSound">The sound event a prop of this surface plays as it breaks, if any.</param>
     public sealed record Surface(
         string Name,
         float Friction,
         float Elasticity,
-        float Density);
+        float Density,
+        string? BreakSound = null);
 
     /// <summary>
     /// What an unknown surface behaves as, mirroring the table's own <c>default</c> entry, for a
@@ -52,9 +54,10 @@ public sealed class SurfaceProperties
         }
 
         var table = new SurfaceProperties();
+        var baseHashes = new Dictionary<uint, uint>();
 
-        // The compiler flattens each surface's inheritance chain into its entry, so every field is
-        // read off the entry itself
+        // The compiler flattens each surface's physics inheritance into its entry, so those fields
+        // are read off the entry itself; sounds a surface leaves out come from its base below
         foreach (var entry in kv3.Data.Root.GetArray("SurfacePropertiesList"))
         {
             var name = entry.GetStringProperty("surfacePropertyName");
@@ -66,14 +69,52 @@ public sealed class SurfaceProperties
 
             var hash = (uint)entry.GetUnsignedIntegerProperty("m_nameHash");
             var physics = entry.GetSubCollection("physics");
+            var sounds = entry.GetSubCollection("audiosounds");
 
             table.surfacesByHash[hash] = new Surface(
                 name,
                 physics?.GetFloatProperty("friction", Fallback.Friction) ?? Fallback.Friction,
                 physics?.GetFloatProperty("elasticity", Fallback.Elasticity) ?? Fallback.Elasticity,
-                physics?.GetFloatProperty("density", Fallback.Density) ?? Fallback.Density);
+                physics?.GetFloatProperty("density", Fallback.Density) ?? Fallback.Density,
+                NonEmpty(sounds?.GetStringProperty("break")));
+
+            baseHashes[hash] = (uint)entry.GetUnsignedIntegerProperty("m_baseNameHash");
+        }
+
+        var inherited = new List<(uint Hash, string Sound)>();
+
+        foreach (var (hash, surface) in table.surfacesByHash)
+        {
+            if (surface.BreakSound == null && table.FindBaseBreakSound(baseHashes, hash) is { } sound)
+            {
+                inherited.Add((hash, sound));
+            }
+        }
+
+        foreach (var (hash, sound) in inherited)
+        {
+            table.surfacesByHash[hash] = table.surfacesByHash[hash] with { BreakSound = sound };
         }
 
         return table.surfacesByHash.Count > 0 ? table : null;
     }
+
+    private const int MaxBaseDepth = 8;
+
+    private string? FindBaseBreakSound(Dictionary<uint, uint> baseHashes, uint hash)
+    {
+        for (var depth = 0; depth < MaxBaseDepth && baseHashes.TryGetValue(hash, out var baseHash) && baseHash != 0; depth++)
+        {
+            if (surfacesByHash.TryGetValue(baseHash, out var baseSurface) && baseSurface.BreakSound != null)
+            {
+                return baseSurface.BreakSound;
+            }
+
+            hash = baseHash;
+        }
+
+        return null;
+    }
+
+    private static string? NonEmpty(string? value) => string.IsNullOrEmpty(value) ? null : value;
 }

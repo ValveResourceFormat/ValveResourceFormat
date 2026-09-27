@@ -342,11 +342,11 @@ public class ViewmodelSceneNode : ModelSceneNode
     }
 
     // After the push, so a prop the hit breaks passes the push on to its pieces
-    private void DealDamage(BaseEntity? target, float amount, DamageType type)
+    private void DealDamage(BaseEntity? target, float amount, DamageType type, Vector3 direction)
     {
         if (target is IDamageable damageable)
         {
-            damageable.TakeDamage(new DamageInfo(amount, type, entitySystem.Player));
+            damageable.TakeDamage(new DamageInfo(amount, type, entitySystem.Player, direction));
         }
     }
 
@@ -360,13 +360,13 @@ public class ViewmodelSceneNode : ModelSceneNode
             case 1:
                 Sound.Play(RifleAttackSound, volume: AttackSoundVolume);
                 DealDamage(rigidBodies?.ApplyImpactImpulse(input.Camera.Location, input.Camera.Forward, BulletRange, RifleBulletImpulse),
-                    RifleBulletDamage, DamageType.Bullet);
+                    RifleBulletDamage, DamageType.Bullet, input.Camera.Forward);
                 return false;
 
             case 2:
                 Sound.Play(PistolAttackSound, volume: AttackSoundVolume);
                 DealDamage(rigidBodies?.ApplyImpactImpulse(input.Camera.Location, input.Camera.Forward, BulletRange, PistolBulletImpulse),
-                    PistolBulletDamage, DamageType.Bullet);
+                    PistolBulletDamage, DamageType.Bullet, input.Camera.Forward);
                 return false;
 
             case KnifeItemIndex:
@@ -376,7 +376,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 // A swing can connect with a prop the world trace cannot see, and shoving it is a
                 // hit of its own
                 var struck = rigidBodies?.ApplyImpactImpulse(camera.Location, camera.Forward, range, KnifeImpulse);
-                DealDamage(struck, heavyKnifeAttack ? KnifeHeavyDamage : KnifeLightDamage, DamageType.Club);
+                DealDamage(struck, heavyKnifeAttack ? KnifeHeavyDamage : KnifeLightDamage, DamageType.Club, camera.Forward);
                 var hitProp = struck != null;
 
                 if (TraceKnifeSwing(input.PhysicsWorld, camera.Location, camera.Forward, range) is not { } hitPosition)

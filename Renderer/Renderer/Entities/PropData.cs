@@ -17,7 +17,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <param name="ExplosiveScale">Multiplier on blast damage.</param>
 /// <param name="FragileImpacts">Whether impacts use the fragile table, for glass, rather than the default one.</param>
 /// <param name="Pieces">What it breaks into.</param>
-public sealed record PropBreakData(float Health, float BulletScale, float ClubScale, float ExplosiveScale, bool FragileImpacts, IReadOnlyList<BreakPiece> Pieces)
+/// <param name="Particles">The effects it bursts into as it breaks.</param>
+public sealed record PropBreakData(float Health, float BulletScale, float ClubScale, float ExplosiveScale, bool FragileImpacts,
+    IReadOnlyList<BreakPiece> Pieces, IReadOnlyList<BreakParticle> Particles)
 {
     /// <summary>Gets whether the model can be broken at all.</summary>
     public bool IsBreakable => Health > 0f;
@@ -70,6 +72,22 @@ public sealed record PropBreakData(float Health, float BulletScale, float ClubSc
 /// <param name="SpawnChance">Chance from 0 to 1 that it spawns at all.</param>
 /// <param name="IsDebris">Whether it stays out of the player's way and other debris's.</param>
 public sealed record BreakPiece(string Model, Vector3 Offset, Vector3 Angles, float FadeTime, float Health, float SpawnChance, bool IsDebris);
+
+/// <summary>
+/// An effect a broken model bursts into, from a <c>break_create_particle</c> in its
+/// <c>break_command_list</c>. Control point 0 is the model's pose; the others are handed what the
+/// effect needs to know, each at the index the command names, or not at all for -1.
+/// </summary>
+/// <param name="Name">The particle system.</param>
+/// <param name="Snapshot">Particles to start from, laid out on the model - a bottle's shards.</param>
+/// <param name="SkinControlPoint">Receives the model's skin index.</param>
+/// <param name="DamagePositionControlPoint">Receives where the breaking hit landed.</param>
+/// <param name="DamageDirectionControlPoint">Receives the direction the breaking hit travelled.</param>
+/// <param name="VelocityControlPoint">Receives the model's velocity.</param>
+/// <param name="AngularVelocityControlPoint">Receives the model's spin.</param>
+/// <param name="LocalGravityControlPoint">Receives gravity in the model's own frame.</param>
+public sealed record BreakParticle(string Name, string? Snapshot, int SkinControlPoint, int DamagePositionControlPoint,
+    int DamageDirectionControlPoint, int VelocityControlPoint, int AngularVelocityControlPoint, int LocalGravityControlPoint);
 
 /// <summary>
 /// The game's <c>scripts/propdata.txt</c>: named base classes of breakable behaviour that model
@@ -137,7 +155,8 @@ public sealed class PropDataTable
             values.GetValueOrDefault("dmg.club", 1f),
             values.GetValueOrDefault("dmg.explosive", 1f),
             fragile,
-            ReadBreakPieces(keyValues));
+            ReadBreakPieces(keyValues),
+            ReadBreakParticles(keyValues));
     }
 
     private void ApplyBase(string? name, Dictionary<string, float> values, ref bool fragile, int depth)
@@ -209,6 +228,39 @@ public sealed class PropDataTable
         }
 
         return pieces;
+    }
+
+    private static List<BreakParticle> ReadBreakParticles(KVObject keyValues)
+    {
+        var particles = new List<BreakParticle>();
+
+        if (!keyValues.ContainsKey("break_command_list") || keyValues.GetArray("break_command_list") is not { } list)
+        {
+            return particles;
+        }
+
+        foreach (var command in list)
+        {
+            if (command.GetStringProperty("break_command") != "break_create_particle"
+                || command.GetStringProperty("name") is not { Length: > 0 } name)
+            {
+                continue;
+            }
+
+            var snapshot = command.GetStringProperty("cp0_snapshot");
+
+            particles.Add(new BreakParticle(
+                name,
+                string.IsNullOrEmpty(snapshot) ? null : snapshot,
+                command.GetInt32Property("skin_cp", -1),
+                command.GetInt32Property("damage_position_cp", -1),
+                command.GetInt32Property("damage_direction_cp", -1),
+                command.GetInt32Property("velocity_cp", -1),
+                command.GetInt32Property("angular_velocity_cp", -1),
+                command.GetInt32Property("local_gravity_cp", -1)));
+        }
+
+        return particles;
     }
 
     private static Vector3 ReadVector(KVObject entry, string key)

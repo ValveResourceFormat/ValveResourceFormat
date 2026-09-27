@@ -1,3 +1,4 @@
+using System.Linq;
 using Box3D;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.ResourceTypes;
@@ -219,6 +220,38 @@ public sealed class PhysicsSimulation : IDisposable
     /// The surface a shape descriptor names, as the hash the table is keyed by. Old assets carry
     /// no surface list, in which case everything is the fallback.
     /// </summary>
+    /// <summary>
+    /// Finds the sound a model plays as it breaks: the break sound of the first surface its collision
+    /// names that has one - a pot's pottery, a bottle's glass.
+    /// </summary>
+    /// <returns>The sound event, or <see langword="null"/> when none of its surfaces break audibly.</returns>
+    public string? FindBreakSound(PhysAggregateData phys)
+    {
+        if (surfaces == null)
+        {
+            return null;
+        }
+
+        foreach (var part in phys.Parts)
+        {
+            var shape = part.Shape;
+            var indices = shape.Hulls.Select(h => h.SurfacePropertyIndex)
+                .Concat(shape.Spheres.Select(s => s.SurfacePropertyIndex))
+                .Concat(shape.Capsules.Select(c => c.SurfacePropertyIndex))
+                .Concat(shape.Meshes.Select(m => m.SurfacePropertyIndex));
+
+            foreach (var index in indices)
+            {
+                if (surfaces.Find(GetSurfaceHash(phys, index)).BreakSound is { } sound)
+                {
+                    return sound;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private static uint GetSurfaceHash(PhysAggregateData phys, int surfacePropertyIndex)
     {
         var hashes = phys.SurfacePropertyHashes;

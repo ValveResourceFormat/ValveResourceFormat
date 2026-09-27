@@ -105,7 +105,7 @@ public sealed class EntitySystem
     public void DamageRadius(Vector3 center, float radius, float damage, DamageType type, BaseEntity? attacker)
     {
         // Gathered first: breaking spawns pieces and removes the broken, which must not disturb the scan
-        var victims = new List<(IDamageable Target, float Damage)>();
+        var victims = new List<(IDamageable Target, float Damage, Vector3 Direction)>();
 
         foreach (var entity in entities)
         {
@@ -119,21 +119,26 @@ public sealed class EntitySystem
 
             if (distance < radius)
             {
-                victims.Add((damageable, damage * (1f - (distance / radius))));
+                var outward = distance > 1f ? (position - center) / distance : Vector3.UnitZ;
+                victims.Add((damageable, damage * (1f - (distance / radius)), outward));
             }
         }
 
-        foreach (var (target, amount) in victims)
+        foreach (var (target, amount, direction) in victims)
         {
-            target.TakeDamage(new DamageInfo(amount, type, attacker));
+            target.TakeDamage(new DamageInfo(amount, type, attacker, direction));
         }
     }
 
-    /// <summary>
-    /// Turns this step's hard contacts into impact damage for breakable props: a pot dropped from a
-    /// shelf, a bottle thrown at a wall. The player's pushing hull shoves props rather than striking
-    /// them, so its contacts are left out.
-    /// </summary>
+    // Turns this step's hard contacts into impact damage for breakable props: a pot dropped from a
+    // shelf, a bottle thrown at a wall. The player's pushing hull shoves props rather than striking
+    // them, so its contacts are left out.
+    //
+    // Impact sounds are not played here, though they belong on these same events: every surface
+    // names an impacthard and impactsoft sound in its audiosounds, and a hit picks one by comparing
+    // its approach speed against the surface's impactHardThreshold. Only breakable props enable hit
+    // events so far, so they would first have to be switched on for every prop, then limited per
+    // body so a rattling stack does not play dozens at once.
     private void DispatchPhysicsImpacts(PhysicsSimulation simulation)
     {
         impactSpeeds.Clear();

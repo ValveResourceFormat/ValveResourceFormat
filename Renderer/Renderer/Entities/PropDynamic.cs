@@ -131,7 +131,7 @@ public sealed class PropDynamic : BaseModelEntity, IDamageable
 
         if (Health <= 0f)
         {
-            Break(info.Attacker);
+            Break(info.Attacker, info.Direction);
         }
     }
 
@@ -139,7 +139,9 @@ public sealed class PropDynamic : BaseModelEntity, IDamageable
     /// Breaks the prop: <c>OnBreak</c> fires, the pieces its model lists spawn where their parts of it
     /// were, and the prop is removed.
     /// </summary>
-    public void Break(BaseEntity? attacker = null)
+    /// <param name="attacker">Who broke it, for <c>OnBreak</c>.</param>
+    /// <param name="direction">Which way the breaking hit travelled, for the effects; zero when unknown.</param>
+    public void Break(BaseEntity? attacker = null, Vector3 direction = default)
     {
         if (isBroken || breakData == null)
         {
@@ -152,7 +154,7 @@ public sealed class PropDynamic : BaseModelEntity, IDamageable
         EntitySystem.TriggerOutput(this, "OnBreak", attacker);
 
         var rotation = EntityTransformHelper.EulerAnglesToQuaternion(Angles);
-        PropPhysics.SpawnBreakPieces(this, breakData, Origin, rotation, Vector3.Zero, Vector3.Zero, Origin);
+        PropPhysics.BreakApart(this, breakData, Origin, rotation, Vector3.Zero, Vector3.Zero, RootNode?.BoundingBox.Center ?? Origin, direction);
 
         EntitySystem.Remove(this);
     }
