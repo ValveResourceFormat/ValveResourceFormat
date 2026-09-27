@@ -391,13 +391,18 @@ public sealed class PhysicsSimulation : IDisposable
             ? BodyDefinition.Dynamic(origin, rotation) with { StartAwake = !startAsleep }
             : BodyDefinition.Static(origin, rotation);
 
-        // Props author their energy loss per part too, most of them as zero
-        if (motionEnabled && phys.Parts.Length > 0)
+        // Props author their energy loss per part too, most of them as zero. The solver has no air
+        // drag, so a prop authored with none would keep what it has forever: a picture on a
+        // frictionless hinge swung for good. A zero falls back to gentle damping instead.
+        if (motionEnabled)
         {
+            var linearDamping = phys.Parts.Length > 0 ? phys.Parts[0].LinearDamping : 0f;
+            var angularDamping = phys.Parts.Length > 0 ? phys.Parts[0].AngularDamping : 0f;
+
             definition = definition with
             {
-                LinearDamping = phys.Parts[0].LinearDamping,
-                AngularDamping = phys.Parts[0].AngularDamping,
+                LinearDamping = linearDamping > 0f ? linearDamping : FallbackPropLinearDamping,
+                AngularDamping = angularDamping > 0f ? angularDamping : FallbackPropAngularDamping,
             };
         }
 
@@ -499,6 +504,12 @@ public sealed class PhysicsSimulation : IDisposable
         Register(body, owner);
         return body;
     }
+
+    // Damping for a prop authored without any, standing in for drag: a swing or a spin loses most of
+    // itself over a few seconds, while a throw or a fall barely notices. A hinged body swings with its
+    // mass center more than it spins, so the swing needs the linear half too.
+    private const float FallbackPropLinearDamping = 0.1f;
+    private const float FallbackPropAngularDamping = 0.5f;
 
     // Typical authored limb values, for ragdolls authored without any
     private const float FallbackAngularDamping = 2f;

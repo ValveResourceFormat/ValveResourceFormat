@@ -97,9 +97,9 @@ public sealed class PhysHinge : PhysConstraint
             UpperAngle = float.DegreesToRadians(MathF.Max(minRotation, maxRotation) - initialRotation),
 
             // Friction as a motor that wants no motion and gives up past the friction torque
-            MotorEnabled = friction > 0f,
+            MotorEnabled = true,
             MotorSpeed = 0f,
-            MaxMotorTorque = friction * FrictionTorqueScale,
+            MaxMotorTorque = FrictionTorque(friction, connection),
         };
 
         return world.CreateRevoluteJoint(definition).AsJoint;

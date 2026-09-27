@@ -23,9 +23,9 @@ public sealed class PhysBallSocket : PhysConstraint
         var definition = SphericalJointDefinition.Default with
         {
             Base = connection,
-            MotorEnabled = friction > 0f,
+            MotorEnabled = true,
             MotorVelocity = Vector3.Zero,
-            MaxMotorTorque = friction * FrictionTorqueScale,
+            MaxMotorTorque = FrictionTorque(friction, connection),
         };
 
         return world.CreateSphericalJoint(definition).AsJoint;

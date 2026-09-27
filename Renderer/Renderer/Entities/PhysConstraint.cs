@@ -60,9 +60,10 @@ public abstract class PhysConstraint : BaseEntity
     /// <inheritdoc/>
     public override void Activate()
     {
+        // Built as the map spawned its bodies: a picture authored asleep on its hinge stays asleep
         if (!HasSpawnFlags(ConstraintSpawnFlags.StartInactive))
         {
-            TurnOn();
+            TurnOn(wakeBodies: false);
         }
     }
 
@@ -75,6 +76,35 @@ public abstract class PhysConstraint : BaseEntity
     /// <summary>Gets the point in the world the two bodies are joined at: the entity's origin, unless the joint says otherwise.</summary>
     protected virtual Vector3 JointAnchor => Origin;
 
+    // A frictionless joint still loses its swing, the way drag would take it: this is the torque of
+    // the held body's weight on a lever of a quarter unit. A picture on a nail then stops within a few
+    // swings, hanging no more than a degree or two off plumb, rather than swinging for good.
+    private const float FallbackFrictionLever = 0.25f;
+
+    /// <summary>
+    /// The resisting torque for a joint's authored friction, scaled from newton-metres. A joint
+    /// authored without friction gets a small one sized to the lightest moving body it holds.
+    /// </summary>
+    protected static float FrictionTorque(float authoredFriction, in JointDefinition connection)
+    {
+        if (authoredFriction > 0f)
+        {
+            return authoredFriction * FrictionTorqueScale;
+        }
+
+        var mass = float.PositiveInfinity;
+
+        foreach (var body in (ReadOnlySpan<Body>)[connection.BodyA, connection.BodyB])
+        {
+            if (body.Type == BodyType.Dynamic && body.Mass > 0f)
+            {
+                mass = MathF.Min(mass, body.Mass);
+            }
+        }
+
+        return float.IsPositiveInfinity(mass) ? 0f : mass * PhysicsSimulation.GravityValue * FallbackFrictionLever;
+    }
+
     /// <summary>
     /// Builds this constraint's kind of joint from the connection between the two bodies, which carries
     /// both joint frames and the collision setting.
@@ -82,7 +112,7 @@ public abstract class PhysConstraint : BaseEntity
     /// <returns>The joint, or <see langword="null"/> when the authored settings have no equivalent.</returns>
     protected abstract Joint? CreateJoint(PhysicsWorld world, JointDefinition connection);
 
-    private void TurnOn()
+    private void TurnOn(bool wakeBodies)
     {
         if (hasJoint || isBroken || EntitySystem.PhysicsOrNull is not { } physics)
         {
@@ -120,7 +150,11 @@ public abstract class PhysConstraint : BaseEntity
         {
             joint = created;
             hasJoint = true;
-            joint.WakeBodies();
+
+            if (wakeBodies)
+            {
+                joint.WakeBodies();
+            }
         }
     }
 
@@ -239,7 +273,7 @@ public abstract class PhysConstraint : BaseEntity
     private void InputBreak(EntityInputData data) => Break(data.Activator);
 
     [EntityInput("TurnOn")]
-    private void InputTurnOn(EntityInputData data) => TurnOn();
+    private void InputTurnOn(EntityInputData data) => TurnOn(wakeBodies: true);
 
     [EntityInput("TurnOff")]
     private void InputTurnOff(EntityInputData data) => DestroyJoint();
