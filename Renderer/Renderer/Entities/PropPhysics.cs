@@ -340,8 +340,16 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
                 data.Add("skin", skin);
             }
 
-            if (owner.EntitySystem.CreateEntity(data, Matrix4x4.Identity, owner.LayerName, owner.Scene) is not PropPhysics { HasBody: true } spawned)
+            var created = owner.EntitySystem.CreateEntity(data, Matrix4x4.Identity, owner.LayerName, owner.Scene);
+
+            // A placeholder piece - a door's null model - has nothing to simulate or draw
+            if (created is not PropPhysics { HasBody: true } spawned)
             {
+                if (created != null)
+                {
+                    owner.EntitySystem.Remove(created);
+                }
+
                 continue;
             }
 

@@ -9,11 +9,13 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>
 /// <c>prop_door_rotating</c>, Source's <c>CPropDoorRotating</c>: the swinging model door on maps like
 /// de_inferno. It is usable by default, swings away from whoever uses it unless <c>opendir</c> forces a side,
-/// can spawn open or ajar, and opens and closes the other half of a double door with it. Breaking, and the
-/// blocker that keeps NPCs out of the swing, are not simulated. Alyx's <c>prop_door_rotating_physics</c> is
-/// played as the same thing: the hand that swings it in VR is a use press here.
+/// can spawn open or ajar, and opens and closes the other half of a double door with it. A door whose model
+/// names damage stages or break pieces is breakable: damage steps it through the stage models, and at zero
+/// health it breaks into its pieces. The blocker that keeps NPCs out of the swing is not simulated. Alyx's
+/// <c>prop_door_rotating_physics</c> is played as the same thing: the hand that swings it in VR is a use
+/// press here.
 /// </summary>
-public class PropDoorRotating : BaseToggle
+public class PropDoorRotating : BaseToggle, IDamageable
 {
     /// <summary>What a <c>prop_door_rotating</c>'s <c>spawnflags</c> mean.</summary>
     [Flags]
@@ -108,6 +110,27 @@ public class PropDoorRotating : BaseToggle
     public override EntityCapability ObjectCaps
         => HasSpawnFlags(SpawnFlag.IgnorePlayerUse) ? EntityCapability.None : EntityCapability.ImpulseUse;
 
+    /// <summary>Gets the damage left before the door breaks.</summary>
+    public float Health { get; private set; }
+
+    /// <summary>Gets whether the door has been broken apart.</summary>
+    public bool IsBroken { get; private set; }
+
+    /// <summary>Gets how far through its damage stages the door is, from zero for undamaged.</summary>
+    public int DamageStage { get; private set; }
+
+    /// <summary>Gets whether the door can still be damaged and broken.</summary>
+    public bool IsBreakable => breakData != null && maxHealth > 0f && !IsBroken;
+
+    // Set only for a door whose model names damage stages or break pieces; others stay whole, since
+    // every door inherits its health from the same base class
+    private PropBreakData? breakData;
+    private float maxHealth;
+    private string[] damageModels = [];
+
+    // The stage model on show, replacing the door's own model once it is damaged
+    private SceneNodes.ModelSceneNode? stageNode;
+
     private readonly List<PropDoorRotating> slaves = [];
 
     private Vector3 angleClosed;
@@ -170,7 +193,143 @@ public class PropDoorRotating : BaseToggle
         TeleportToSpawnPosition();
         CalculateDoorVolumes(angleClosed);
         CalcDoorSounds();
+
+        if (LoadedModel is { } model)
+        {
+            var data = EntitySystem.PropData.Resolve(model);
+            damageModels = ReadDamageModels(model);
+
+            if (data.IsBreakable && (damageModels.Length > 0 || data.Pieces.Count > 0))
+            {
+                breakData = data;
+                maxHealth = Health = data.Health;
+            }
+        }
     }
+
+    // The damage stage models from the model's door_options, in order: the full paths when listed,
+    // otherwise the damageN names, which leave out the folder and extension
+    private static string[] ReadDamageModels(Model model)
+    {
+        var keyValues = model.KeyValues;
+
+        if (!keyValues.ContainsKey("door_options") || keyValues.GetSubCollection("door_options") is not { } options)
+        {
+            return [];
+        }
+
+        if (options.ContainsKey("model_paths") && options.GetArray<string>("model_paths") is { Length: > 0 } paths)
+        {
+            return paths;
+        }
+
+        if (!options.ContainsKey("defaults") || options.GetSubCollection("defaults") is not { } defaults)
+        {
+            return [];
+        }
+
+        var stages = new List<string>();
+
+        for (var stage = 1; defaults.GetStringProperty($"damage{stage}") is { Length: > 0 } name; stage++)
+        {
+            stages.Add($"models/{name}.vmdl");
+        }
+
+        return [.. stages];
+    }
+
+    /// <inheritdoc/>
+    public void TakeDamage(in DamageInfo info)
+    {
+        if (!IsBreakable)
+        {
+            return;
+        }
+
+        var amount = info.Amount * breakData!.ScaleFor(info.Type);
+
+        if (amount <= 0f)
+        {
+            return;
+        }
+
+        Health -= amount;
+        EntitySystem.TriggerOutput(this, "OnHealthChanged", info.Attacker);
+
+        if (Health <= 0f)
+        {
+            Break(info.Attacker, info.Direction);
+            return;
+        }
+
+        // The stages divide the health evenly, the last one showing before the final break
+        var stage = Math.Clamp((int)((1f - (Health / maxHealth)) * (damageModels.Length + 1)), 0, damageModels.Length);
+
+        if (stage > DamageStage)
+        {
+            ShowDamageStage(stage);
+        }
+    }
+
+    private void ShowDamageStage(int stage)
+    {
+        DamageStage = stage;
+
+        if (EntitySystem.FileLoader.LoadFileCompiled(damageModels[stage - 1])?.DataBlock is not Model model)
+        {
+            return;
+        }
+
+        var node = new SceneNodes.ModelSceneNode(Scene, model, Data?.GetStringProperty("skin"))
+        {
+            Name = damageModels[stage - 1],
+        };
+
+        // Posed the way the door's own model is, which the compiled physics frame assumes: some door
+        // meshes sit a quarter turn off in their working frame until posed
+        var animation = ModelNode?.AnimationController.ActiveAnimation?.Name;
+
+        if (animation == null || !node.SetAnimationForWorldPreview(animation))
+        {
+            node.SetAnimationForWorldPreview("ref");
+        }
+
+        AddNode(node);
+
+        (stageNode ?? ModelNode)?.Visible = false;
+        stageNode = node;
+    }
+
+    /// <summary>
+    /// Breaks the door apart: <c>OnBreak</c> fires, its break sound, effects and pieces spawn where it
+    /// stood, and what is left of the frame's swing is gone - hidden and passable. It stays in the world
+    /// rather than being removed, as the other half of a double door may still lead or follow it.
+    /// </summary>
+    /// <param name="attacker">Who broke it, for <c>OnBreak</c>.</param>
+    /// <param name="direction">Which way the breaking hit travelled, for the effects; zero when unknown.</param>
+    public void Break(BaseEntity? attacker = null, Vector3 direction = default)
+    {
+        if (IsBroken || breakData == null)
+        {
+            return;
+        }
+
+        IsBroken = true;
+        Health = 0f;
+
+        EntitySystem.TriggerOutput(this, "OnBreak", attacker);
+
+        var center = (stageNode ?? ModelNode)?.BoundingBox.Center ?? Origin;
+        PropPhysics.BreakApart(this, breakData, Origin, EntityTransformHelper.EulerAnglesToQuaternion(Angles),
+            Vector3.Zero, Vector3.Zero, center, direction);
+
+        StopMoveSound();
+        IsDrawn = false;
+        IsSolid = false;
+    }
+
+    [EntityInput("Break")]
+    private void InputBreak(EntityInputData data) => Break(data.Activator);
 
     /// <summary>
     /// Links a double door. A named door takes as its slaves the other doors called its <c>slavename</c>, or
@@ -200,6 +359,11 @@ public class PropDoorRotating : BaseToggle
     /// <summary>Runs when something presses the door; the leading door of a double door answers for both.</summary>
     public override void Use(BaseEntity? activator)
     {
+        if (IsBroken)
+        {
+            return;
+        }
+
         if (Master != null)
         {
             Master.Use(activator);
