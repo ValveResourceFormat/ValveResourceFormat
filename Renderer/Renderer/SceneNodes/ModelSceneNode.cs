@@ -222,6 +222,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 if (IsAnimated)
                 {
                     Scene.UpdateSkinningTransforms(this);
+                    UpdateAnimatedBoundingBox();
                 }
 
                 UpdateAttachments(context);

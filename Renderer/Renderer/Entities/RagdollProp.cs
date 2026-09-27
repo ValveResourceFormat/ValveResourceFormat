@@ -43,7 +43,11 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
     // statue BaseModelEntity would build cannot follow a ragdoll
     private SceneNodes.PhysSceneNode?[] partPhysNodes = [];
 
-    private Matrix4x4 inverseSpawnTransform = Matrix4x4.Identity;
+    // The part driving the skeleton's root-most physics bone, usually the pelvis. The entity
+    // stands where that bone is, so its origin, bounds and picking follow the doll.
+    private int rootPart = -1;
+    private Matrix4x4 inverseRootBoneBind = Matrix4x4.Identity;
+
     private bool simulating;
 
     // The carry: which part the player grabbed, who is holding it, and how far out it is held
@@ -103,11 +107,6 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
         }
 
         var spawnTransform = EntityTransformHelper.ToRigidTransformationMatrix(Angles, Origin);
-
-        if (!Matrix4x4.Invert(spawnTransform, out inverseSpawnTransform))
-        {
-            return;
-        }
 
         CreateBodies(phys, spawnTransform);
         CreateJoints(phys);
@@ -173,6 +172,13 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
         if (!simulating)
         {
             return;
+        }
+
+        if (rootPart >= 0)
+        {
+            var root = BoneWorldPose(rootPart);
+            SetOriginAndAngles(root.Translation,
+                EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(root)));
         }
 
         var anyAwake = false;
@@ -320,6 +326,27 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
                 partToBone[i] = bindPose[boneIndex] * inversePartBind;
             }
         }
+
+        // Parents come before their children in the bone list, so the first bone with a part is
+        // the root-most one
+        foreach (var bone in skeleton.Bones)
+        {
+            if (boneToPart[bone.Index] >= 0 && Matrix4x4.Invert(bindPose[bone.Index], out inverseRootBoneBind))
+            {
+                rootPart = boneToPart[bone.Index];
+                break;
+            }
+        }
+    }
+
+    // The world pose of the bone a part drives, from the part's live body
+    private Matrix4x4 BoneWorldPose(int part)
+    {
+        var body = bodies[part];
+
+        return partToBone[part]
+            * Matrix4x4.CreateFromQuaternion(body.Rotation)
+            * Matrix4x4.CreateTranslation(body.Position);
     }
 
     /// <summary>
@@ -390,15 +417,24 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
     protected override bool UpdatesRenderTransformEveryFrame => simulating;
 
     /// <summary>
-    /// Adopts the rigid bodies into the rendered skeleton: a bone with a physics part takes its
-    /// body's live pose, and every other bone rides its bind-local offset under its parent. The
-    /// world steps with the rendered frame, so this is the frame's true pose.
+    /// Adopts the rigid bodies into the rendered skeleton: the entity is drawn at the root bone's
+    /// live pose, a bone with a physics part takes its body's live pose, and every other bone
+    /// rides its bind-local offset under its parent. The world steps with the rendered frame, so
+    /// this is the frame's true pose.
     /// </summary>
     protected override void UpdateRenderTransform(float fraction)
     {
-        base.UpdateRenderTransform(fraction);
+        if (!simulating || rootPart < 0)
+        {
+            base.UpdateRenderTransform(fraction);
+        }
+        else
+        {
+            var root = BoneWorldPose(rootPart);
+            SetRenderTransform(root.Translation, Quaternion.CreateFromRotationMatrix(root));
+        }
 
-        if (!simulating || ModelNode is not { } modelNode)
+        if (!simulating || ModelNode is not { } modelNode || !Matrix4x4.Invert(Transform, out var worldToModel))
         {
             return;
         }
@@ -406,9 +442,15 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
         var pose = modelNode.AnimationController.Pose;
         var skeleton = modelNode.AnimationController.Skeleton;
 
+        // Bones above and beside the physics - the root motion bone, say - keep their bind
+        // relation to the root physics bone, so the whole unsimulated skeleton rides the pelvis
+        var rootsPose = rootPart >= 0
+            ? inverseRootBoneBind * BoneWorldPose(rootPart) * worldToModel
+            : Matrix4x4.Identity;
+
         foreach (var root in skeleton.Roots)
         {
-            WriteBonePose(root, Matrix4x4.Identity, pose);
+            WriteBonePose(root, rootsPose, worldToModel, pose);
         }
 
         for (var i = 0; i < partPhysNodes.Length; i++)
@@ -423,30 +465,19 @@ public sealed class RagdollProp : BaseModelEntity, ICarryable
         }
     }
 
-    private void WriteBonePose(ResourceTypes.ModelAnimation.Bone bone, in Matrix4x4 parentPose, Matrix4x4[] pose)
+    private void WriteBonePose(ResourceTypes.ModelAnimation.Bone bone, in Matrix4x4 parentPose, in Matrix4x4 worldToModel, Matrix4x4[] pose)
     {
         var part = boneToPart.Length > bone.Index ? boneToPart[bone.Index] : -1;
 
-        Matrix4x4 modelPose;
-
-        if (part >= 0)
-        {
-            var body = bodies[part];
-            var world = Matrix4x4.CreateFromQuaternion(body.Rotation)
-                * Matrix4x4.CreateTranslation(body.Position);
-
-            modelPose = partToBone[part] * world * inverseSpawnTransform;
-        }
-        else
-        {
-            modelPose = boneLocalBind[bone.Index] * parentPose;
-        }
+        var modelPose = part >= 0
+            ? BoneWorldPose(part) * worldToModel
+            : boneLocalBind[bone.Index] * parentPose;
 
         pose[bone.Index] = modelPose;
 
         foreach (var child in bone.Children)
         {
-            WriteBonePose(child, modelPose, pose);
+            WriteBonePose(child, modelPose, worldToModel, pose);
         }
     }
 
