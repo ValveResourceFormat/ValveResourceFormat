@@ -1,4 +1,4 @@
-﻿using Box3D;
+using Box3D;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
