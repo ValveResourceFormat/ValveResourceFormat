@@ -594,9 +594,11 @@ public sealed class EntitySystem
     /// <summary>
     /// Fires one of an entity's authored outputs, delivering it to every connection with that name.
     /// Source's <c>FireOutput</c>. The value is what the output reports, for the ones that carry a reading;
-    /// a connection authored with its own parameter overrides it, as in the engine.
+    /// a connection authored with its own parameter overrides it, as in the engine. The caller defaults to
+    /// <paramref name="source"/>; the few outputs that pass on the caller of the input that fired them name it.
     /// </summary>
-    public void TriggerOutput(BaseEntity source, string outputName, BaseEntity? activator = null, string? value = null)
+    public void TriggerOutput(BaseEntity source, string outputName, BaseEntity? activator = null, string? value = null,
+        BaseEntity? caller = null)
     {
         if (source.Data?.Connections == null)
         {
@@ -623,7 +625,7 @@ public sealed class EntitySystem
                 : connection.OverrideParam;
 
             QueueInputByTarget(new EntityIOTarget(connection.TargetName, connection.TargetType),
-                connection.InputName, parameter, activator, source, connection.Delay, connection);
+                connection.InputName, parameter, activator, caller ?? source, connection.Delay, connection);
         }
     }
 
