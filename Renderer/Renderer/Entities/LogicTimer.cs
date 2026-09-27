@@ -4,17 +4,38 @@ namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
 /// <c>logic_timer</c>. Fires <c>OnTimer</c> on a repeating interval, either fixed or drawn from a range.
+/// As an oscillator it alternates <c>OnTimerLow</c> and <c>OnTimerHigh</c> instead.
 /// </summary>
 public sealed class LogicTimer : BaseEntity
 {
-    /// <summary>Gets the interval between firings in seconds, when the timer is not randomised.</summary>
+    /// <summary>What a <c>logic_timer</c>'s <c>spawnflags</c> mean.</summary>
+    [Flags]
+    public enum SpawnFlag : uint
+    {
+        /// <summary>Alternates between <c>OnTimerLow</c> and <c>OnTimerHigh</c> rather than firing <c>OnTimer</c>.</summary>
+        Oscillator = 1,
+    }
+
+    private const float MinimumRefireTime = 0.01f;
+
+    /// <summary>
+    /// Gets the interval between firings in seconds. A randomised timer draws a new one each time it
+    /// restarts and keeps it here.
+    /// </summary>
     public float RefireTime { get; private set; }
 
     /// <summary>Gets whether the timer is running.</summary>
     public bool IsEnabled { get; private set; }
 
+    /// <summary>Gets whether the timer is paused, holding <see cref="RemainingTime"/> until it is unpaused.</summary>
+    public bool IsPaused { get; private set; }
+
+    /// <summary>Gets the seconds left before the timer fires, as of the last time it was scheduled or paused.</summary>
+    public float RemainingTime { get; private set; }
+
     private bool useRandomTime;
     private bool pauseAfterFiring;
+    private bool upDownState;
     private float initialDelay;
     private float lowerBound;
     private float upperBound;
@@ -40,10 +61,34 @@ public sealed class LogicTimer : BaseEntity
     /// <inheritdoc/>
     public override void Activate()
     {
-        if (IsEnabled)
+        IsPaused = false;
+
+        // A negative initial delay may pull the first firing earlier, but never before the timer started
+        if (useRandomTime)
         {
-            ScheduleNext();
+            lowerBound = MathF.Abs(lowerBound);
+            upperBound = MathF.Abs(upperBound);
+
+            if (lowerBound > upperBound)
+            {
+                (lowerBound, upperBound) = (upperBound, lowerBound);
+            }
+
+            initialDelay = MathF.Max(initialDelay, -lowerBound);
         }
+        else
+        {
+            RefireTime = MathF.Max(RefireTime, MinimumRefireTime);
+            initialDelay = MathF.Max(initialDelay, -RefireTime);
+        }
+
+        if (!IsEnabled)
+        {
+            Disable();
+            return;
+        }
+
+        RestartTimer();
     }
 
     /// <summary>Fires the timer and schedules the next one.</summary>
@@ -54,87 +99,165 @@ public sealed class LogicTimer : BaseEntity
             return;
         }
 
-        EntitySystem.TriggerOutput(this, "OnTimer");
+        // The initial delay only ever postpones the first firing
+        initialDelay = 0f;
 
-        // A one-shot: it has done its job and waits to be switched on again rather than coming round
-        if (pauseAfterFiring)
+        if (HasSpawnFlags(SpawnFlag.Oscillator))
         {
-            IsEnabled = false;
-            return;
+            EntitySystem.TriggerOutput(this, upDownState ? "OnTimerHigh" : "OnTimerLow", this);
+            upDownState = !upDownState;
+        }
+        else
+        {
+            EntitySystem.TriggerOutput(this, "OnTimer", this);
         }
 
-        ScheduleNext();
+        RestartTimer();
+
+        if (pauseAfterFiring)
+        {
+            Pause();
+        }
     }
 
     [EntityInput("Enable")]
-    private void InputEnable(EntityInputData data)
-    {
-        if (IsEnabled)
-        {
-            return;
-        }
-
-        IsEnabled = true;
-        ScheduleNext(initialDelay);
-    }
+    private void InputEnable(EntityInputData data) => Enable();
 
     [EntityInput("Disable")]
-    private void InputDisable(EntityInputData data)
-    {
-        IsEnabled = false;
-        SetNextThink(-1f);
-    }
+    private void InputDisable(EntityInputData data) => Disable();
 
     [EntityInput("Toggle")]
     private void InputToggle(EntityInputData data)
     {
         if (IsEnabled)
         {
-            InputDisable(data);
+            Disable();
         }
         else
         {
-            InputEnable(data);
+            Enable();
         }
     }
 
     [EntityInput("RefireTime")]
-    private void InputRefireTime(EntityInputData data) => RefireTime = data.Float(RefireTime);
+    private void InputRefireTime(EntityInputData data)
+    {
+        var refireTime = MathF.Max(MinimumRefireTime, data.Float());
+
+        if (RefireTime != refireTime)
+        {
+            RefireTime = refireTime;
+            RestartTimer();
+        }
+    }
 
     [EntityInput("ResetTimer")]
-    private void InputResetTimer(EntityInputData data)
-    {
-        if (IsEnabled)
-        {
-            ScheduleNext();
-        }
-    }
+    private void InputResetTimer(EntityInputData data) => RestartTimer();
 
     [EntityInput("FireTimer")]
-    private void InputFireTimer(EntityInputData data)
-    {
-        EntitySystem.TriggerOutput(this, "OnTimer", data.Activator);
+    private void InputFireTimer(EntityInputData data) => Think();
 
-        if (IsEnabled)
+    [EntityInput("AddToTimer")]
+    private void InputAddToTimer(EntityInputData data) => ShiftTimer(data.Float());
+
+    [EntityInput("SubtractFromTimer")]
+    private void InputSubtractFromTimer(EntityInputData data) => ShiftTimer(-data.Float());
+
+    [EntityInput("PauseTimer")]
+    private void InputPauseTimer(EntityInputData data)
+    {
+        if (!IsPaused)
         {
-            ScheduleNext();
+            Pause();
         }
     }
 
-    private void ScheduleNext(float extraDelay = 0f)
+    [EntityInput("UnpauseTimer")]
+    private void InputUnpauseTimer(EntityInputData data)
     {
-        var interval = extraDelay + (useRandomTime
-            ? lowerBound + (Random.Shared.NextSingle() * MathF.Max(upperBound - lowerBound, 0f))
-            : RefireTime);
-
-        // A timer with no interval would fire every tick forever, which is never what a map means
-        if (interval <= 0f)
+        if (!IsPaused)
         {
-            IsEnabled = false;
-            SetNextThink(-1f);
             return;
         }
 
-        SetNextThink(EntitySystem.CurrentTime + interval);
+        ScheduleAt(EntitySystem.CurrentTime + RemainingTime);
+        IsPaused = false;
+    }
+
+    [EntityInput("LowerRandomBound")]
+    private void InputLowerRandomBound(EntityInputData data) => lowerBound = data.Float();
+
+    [EntityInput("UpperRandomBound")]
+    private void InputUpperRandomBound(EntityInputData data) => upperBound = data.Float();
+
+    [EntityInput("UseRandomTime")]
+    private void InputUseRandomTime(EntityInputData data) => useRandomTime = data.Bool();
+
+    [EntityInput("PauseAfterFiring")]
+    private void InputPauseAfterFiring(EntityInputData data) => pauseAfterFiring = data.Bool();
+
+    private void Enable()
+    {
+        IsEnabled = true;
+        RestartTimer();
+    }
+
+    private void Disable()
+    {
+        IsEnabled = false;
+        RemainingTime = 0f;
+        SetNextThink(-1f);
+    }
+
+    /// <summary>Starts a full interval from now, drawing a fresh one for a randomised timer.</summary>
+    private void RestartTimer()
+    {
+        if (!IsEnabled)
+        {
+            return;
+        }
+
+        if (useRandomTime)
+        {
+            RefireTime = lowerBound + (Random.Shared.NextSingle() * (upperBound - lowerBound));
+        }
+
+        ScheduleAt(EntitySystem.CurrentTime + RefireTime + initialDelay);
+        IsPaused = false;
+    }
+
+    /// <summary>Stops the countdown, keeping what was left of it for <c>UnpauseTimer</c>.</summary>
+    private void Pause()
+    {
+        RemainingTime = NextThink < 0f ? 0f : MathF.Max(NextThink - EntitySystem.CurrentTime, 0f);
+        SetNextThink(-1f);
+        IsPaused = true;
+    }
+
+    /// <summary>Moves the next firing later, or earlier for a negative amount, but no earlier than now.</summary>
+    private void ShiftTimer(float seconds)
+    {
+        if (!IsEnabled)
+        {
+            return;
+        }
+
+        // A paused timer has no firing scheduled, so the change goes to the time it will resume with
+        if (IsPaused)
+        {
+            RemainingTime = MathF.Max(RemainingTime + seconds, 0f);
+            return;
+        }
+
+        ScheduleAt((NextThink < 0f ? EntitySystem.CurrentTime : NextThink) + seconds);
+    }
+
+    private void ScheduleAt(float time)
+    {
+        // A think due now runs on the next tick, which is also where one scheduled in the past belongs
+        time = MathF.Max(time, EntitySystem.CurrentTime + EntitySystem.TickInterval);
+
+        SetNextThink(time);
+        RemainingTime = time - EntitySystem.CurrentTime;
     }
 }
