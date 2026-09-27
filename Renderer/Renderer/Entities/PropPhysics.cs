@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// collision shape come from <see cref="BaseModelEntity"/>; the movement comes from a dynamic body in
 /// <see cref="PhysicsSimulation"/> whose pose the entity adopts every tick.
 /// </summary>
-public class PropPhysics : BaseModelEntity, ICarryable
+public sealed class PropPhysics : BaseModelEntity, ICarryable
 {
     /// <summary>The <c>spawnflags</c> a physics prop reads, Source's <c>SF_PHYSPROP_*</c>.</summary>
     [Flags]

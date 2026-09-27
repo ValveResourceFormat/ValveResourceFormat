@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <see cref="PhysicsSimulation"/>. The rendered skeleton adopts the body poses every frame - the
 /// physics bones directly, everything else riding along on its bind-local offset.
 /// </summary>
-public class RagdollProp : BaseModelEntity, ICarryable
+public sealed class RagdollProp : BaseModelEntity, ICarryable
 {
     /// <inheritdoc/>
     protected override bool UsesMoverBody => false;
@@ -18,9 +18,11 @@ public class RagdollProp : BaseModelEntity, ICarryable
     /// <inheritdoc/>
     protected override bool CreatesPhysDebugNodes => false;
 
-    // One body per physics part; a part without shapes has none
+    // One body per physics part; a part without shapes has none. The pickup hands back a body,
+    // which the id map turns into its part.
     private Body[] bodies = [];
     private bool[] hasBody = [];
+    private readonly Dictionary<ulong, int> partByBodyId = [];
 
     // Each part's center as of the last tick, for the tunnel catch: a squeezed part can be
     // pushed straight through the one-sided mesh world between two looks
@@ -128,11 +130,8 @@ public class RagdollProp : BaseModelEntity, ICarryable
             }
 
             var node = SceneNodes.PhysSceneNode.CreatePartPhysSceneNode(Scene, phys, i, ModelName, Classname);
-            node.LayerName ??= LayerName;
-            node.EntityInstance = this;
-
             partPhysNodes[i] = node;
-            Scene.Add(node, dynamic: true);
+            AddNode(node, followsEntity: false);
         }
     }
 
@@ -158,6 +157,7 @@ public class RagdollProp : BaseModelEntity, ICarryable
             {
                 bodies[i] = body;
                 hasBody[i] = true;
+                partByBodyId[body.UserData] = i;
                 previousPositions[i] = body.Position;
                 anchorPositions[i] = body.Position;
                 anchorRotations[i] = body.Rotation;
@@ -331,7 +331,8 @@ public class RagdollProp : BaseModelEntity, ICarryable
 
     void ICarryable.BeginCarry(PlayerEntity carrier, float carryDistance, Body grabbedBody)
     {
-        carriedPart = FindPart(grabbedBody);
+        // Only ever handed a body this ragdoll registered, which the pickup found through it
+        carriedPart = partByBodyId[grabbedBody.UserData];
         this.carrier = carrier;
         this.carryDistance = carryDistance;
 
@@ -369,19 +370,6 @@ public class RagdollProp : BaseModelEntity, ICarryable
             - Vector3.Transform(body.LocalCenterOfMass, body.Rotation);
 
         return (position, null);
-    }
-
-    private int FindPart(Body grabbedBody)
-    {
-        for (var i = 0; i < bodies.Length; i++)
-        {
-            if (hasBody[i] && bodies[i].UserData == grabbedBody.UserData)
-            {
-                return i;
-            }
-        }
-
-        return Array.IndexOf(hasBody, true);
     }
 
     /// <summary>
@@ -467,15 +455,7 @@ public class RagdollProp : BaseModelEntity, ICarryable
     {
         base.OnRemove();
 
-        foreach (var node in partPhysNodes)
-        {
-            if (node != null)
-            {
-                Scene.Remove(node, dynamic: true);
-                node.Delete();
-            }
-        }
-
+        // The part nodes are owned, so the entity removes them with its other nodes
         partPhysNodes = [];
 
         foreach (var joint in joints)
@@ -494,6 +474,8 @@ public class RagdollProp : BaseModelEntity, ICarryable
                 hasBody[i] = false;
             }
         }
+
+        partByBodyId.Clear();
 
         simulating = false;
     }
