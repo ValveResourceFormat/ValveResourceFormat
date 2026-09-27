@@ -491,6 +491,8 @@ internal sealed partial class McpTools
             {
                 camera.FieldOfView = fov.Value;
                 camera.CreateProjectionMatrix();
+                viewer.Renderer.Camera.FieldOfView = fov.Value;
+                viewer.Renderer.Camera.CreateProjectionMatrix();
             }
 
             return McpToolResult.Json(DescribeCamera(camera));
