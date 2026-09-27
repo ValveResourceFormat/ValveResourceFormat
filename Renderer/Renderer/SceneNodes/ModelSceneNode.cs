@@ -183,15 +183,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                 if (value)
                 {
-                    // The buffer normally reaches the mesh renderers when an animation
-                    // activates; an externally posed model may never have one - CS2 models keep
-                    // their animations in animgraph clips - so bind it here, or every mesh
-                    // draws rigid and the written pose never shows
-                    SetupBoneMatrixBuffers();
+                    // Skinning normally switches on when an animation activates; an externally
+                    // posed model may never have one - CS2 models keep their animations in
+                    // animgraph clips - so switch it on here, or every mesh draws rigid and the
+                    // written pose never shows
+                    SetupSkinning();
 
                     foreach (var renderer in meshRenderers)
                     {
-                        renderer.SetBoneMatricesBuffer(boneMatricesGpu);
+                        renderer.SetSkinningActive(IsAnimated);
                     }
                 }
             }
@@ -221,7 +221,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 if (IsAnimated)
                 {
-                    UploadBoneMatrices();
+                    Scene.UpdateSkinningTransforms(this);
                 }
 
                 UpdateAttachments(context);

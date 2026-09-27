@@ -1033,7 +1033,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// </summary>
     private void SpawnRagdoll(UserInput input)
     {
-        var entities = Scene.EntitySystem;
+        var entities = entitySystem;
         var camera = input.Camera;
         var origin = camera.Location + camera.Forward with { Z = 0f } * RagdollSpawnDistance - new Vector3(0f, 0f, 40f);
 
