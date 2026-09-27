@@ -1,5 +1,6 @@
 using Box3D;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
@@ -9,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// collision shape come from <see cref="BaseModelEntity"/>; the movement comes from a dynamic body in
 /// <see cref="PhysicsSimulation"/> whose pose the entity adopts every tick.
 /// </summary>
-public sealed class PropPhysics : BaseModelEntity, ICarryable
+public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
 {
     /// <summary>The <c>spawnflags</c> a physics prop reads, Source's <c>SF_PHYSPROP_*</c>.</summary>
     [Flags]
@@ -80,6 +81,23 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable
     // The body's sleep state as of the last tick, for the OnAwakened edge
     private bool wasAwake;
 
+    /// <summary>Gets the damage left before the prop breaks.</summary>
+    public float Health { get; private set; }
+
+    /// <summary>Gets whether the prop can still be broken: its model has health, and it has not broken yet.</summary>
+    public bool IsBreakable => breakData.IsBreakable && !isBroken;
+
+    private PropBreakData breakData = Unbreakable;
+    private bool isBroken;
+
+    // Debris - the pieces of something broken - stays out of the player's way and out of other debris
+    private ulong collisionCategory = PhysicsSimulation.PropCategory;
+
+    // Scatter so the pieces of a prop broken at rest part rather than lie in a heap
+    private const float BreakScatterSpeed = 40f;
+
+    private static readonly PropBreakData Unbreakable = new(0f, 1f, 1f, 1f, false, []);
+
     /// <summary>
     /// Initializes the prop from its keyvalues.
     /// </summary>
@@ -124,6 +142,231 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable
             body = newBody;
             HasBody = true;
             wasAwake = newBody.IsAwake;
+        }
+
+        if (LoadedModel is { } model)
+        {
+            breakData = EntitySystem.PropData.Resolve(model);
+            Health = breakData.Health;
+        }
+
+        // Only a prop that can break needs to hear how hard it was struck
+        if (HasBody && IsBreakable)
+        {
+            SetHitEvents(true);
+        }
+    }
+
+    /// <inheritdoc/>
+    public void TakeDamage(in DamageInfo info)
+    {
+        if (!IsBreakable)
+        {
+            return;
+        }
+
+        var amount = info.Amount * breakData.ScaleFor(info.Type);
+
+        if (amount <= 0f)
+        {
+            return;
+        }
+
+        Health -= amount;
+        EntitySystem.TriggerOutput(this, "OnHealthChanged", info.Attacker);
+
+        if (Health <= 0f)
+        {
+            Break(info.Attacker);
+        }
+    }
+
+    /// <summary>
+    /// Takes the damage of a physics impact at <paramref name="speed"/>, from the prop's impact table.
+    /// </summary>
+    internal void TakeImpact(float speed)
+    {
+        var damage = breakData.ImpactDamage(speed);
+
+        if (damage > 0f)
+        {
+            TakeDamage(new DamageInfo(damage, DamageType.Crush));
+        }
+    }
+
+    /// <summary>
+    /// Breaks the prop: <c>OnBreak</c> fires, the pieces its model lists spawn where their parts of it
+    /// were, moving as the prop moved, and the prop is removed.
+    /// </summary>
+    public void Break(BaseEntity? attacker = null)
+    {
+        if (isBroken)
+        {
+            return;
+        }
+
+        isBroken = true;
+        Health = 0f;
+
+        EntitySystem.TriggerOutput(this, "OnBreak", attacker);
+
+        if (HasBody)
+        {
+            SpawnBreakPieces(this, breakData, body.Position, body.Rotation, body.LinearVelocity, body.AngularVelocity, body.CenterOfMass);
+        }
+        else
+        {
+            SpawnBreakPieces(this, breakData, Origin, EntityTransformHelper.EulerAnglesToQuaternion(Angles), Vector3.Zero, Vector3.Zero, Origin);
+        }
+
+        EntitySystem.Remove(this);
+    }
+
+    /// <summary>
+    /// Spawns the pieces a broken model lists, each where its part of the model was, carrying on with
+    /// the motion that part had, spin included.
+    /// </summary>
+    internal static void SpawnBreakPieces(BaseModelEntity owner, PropBreakData breakData, Vector3 position, Quaternion rotation,
+        Vector3 linearVelocity, Vector3 angularVelocity, Vector3 massCenter)
+    {
+        var world = Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
+        var skin = owner.Data?.GetStringProperty("skin");
+
+        foreach (var piece in breakData.Pieces)
+        {
+            if (piece.SpawnChance < 1f && Random.Shared.NextSingle() >= piece.SpawnChance)
+            {
+                continue;
+            }
+
+            var pose = Matrix4x4.CreateFromQuaternion(EntityTransformHelper.EulerAnglesToQuaternion(piece.Angles))
+                * Matrix4x4.CreateTranslation(piece.Offset)
+                * world;
+            var origin = pose.Translation;
+            var angles = EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(pose));
+
+            var data = new EntityLump.Entity { ParentLump = new EntityLump { Resource = new Resource() } };
+            data.Add("classname", "prop_physics");
+            data.Add("model", piece.Model);
+            data.Add("origin", FormattableString.Invariant($"{origin.X} {origin.Y} {origin.Z}"));
+            data.Add("angles", FormattableString.Invariant($"{angles.X} {angles.Y} {angles.Z}"));
+
+            if (!string.IsNullOrEmpty(skin))
+            {
+                data.Add("skin", skin);
+            }
+
+            if (owner.EntitySystem.CreateEntity(data, Matrix4x4.Identity, owner.LayerName, owner.Scene) is not PropPhysics { HasBody: true } spawned)
+            {
+                continue;
+            }
+
+            if (piece.Health > 0f)
+            {
+                spawned.OverrideHealth(piece.Health);
+            }
+
+            if (piece.IsDebris)
+            {
+                spawned.MakeDebris();
+            }
+
+            if (piece.FadeTime > 0f)
+            {
+                spawned.RemoveAfter(piece.FadeTime);
+            }
+
+            var pieceBody = spawned.body;
+            var scatter = Vector3.Normalize(pieceBody.CenterOfMass - massCenter + new Vector3(0f, 0f, 1f)) * BreakScatterSpeed;
+            pieceBody.LinearVelocity = linearVelocity + Vector3.Cross(angularVelocity, pieceBody.CenterOfMass - massCenter) + scatter;
+            pieceBody.AngularVelocity = angularVelocity;
+        }
+    }
+
+    private void OverrideHealth(float health)
+    {
+        breakData = breakData with { Health = health };
+        Health = health;
+        SetHitEvents(true);
+    }
+
+    private void MakeDebris()
+    {
+        collisionCategory = PhysicsSimulation.DebrisCategory;
+        SetCollidesWithPlayer(false);
+    }
+
+    private void RemoveAfter(float seconds)
+    {
+        removeTime = EntitySystem.CurrentTime + seconds;
+        SetNextThink(removeTime);
+    }
+
+    private float removeTime = -1f;
+
+    /// <inheritdoc/>
+    public override void Think()
+    {
+        if (removeTime >= 0f && EntitySystem.CurrentTime >= removeTime && !IsCarried)
+        {
+            EntitySystem.Remove(this);
+        }
+    }
+
+    private void SetHitEvents(bool enabled)
+    {
+        Span<Shape> shapes = stackalloc Shape[body.ShapeCount];
+        var count = body.GetShapes(shapes);
+
+        for (var i = 0; i < count; i++)
+        {
+            shapes[i].HitEventsEnabled = enabled;
+        }
+    }
+
+    [EntityInput("Break")]
+    private void InputBreak(EntityInputData data) => Break(data.Activator);
+
+    [EntityInput("RemoveHealth")]
+    private void InputRemoveHealth(EntityInputData data) => TakeDamage(new DamageInfo(data.Float(), DamageType.Generic, data.Activator));
+
+    // A body put to sleep stays where it is even when what held it up is gone, so maps wake the
+    // lid of a pot when the pot breaks
+    [EntityInput("Wake")]
+    private void InputWake(EntityInputData data)
+    {
+        if (HasBody)
+        {
+            body.IsAwake = true;
+        }
+    }
+
+    [EntityInput("Sleep")]
+    private void InputSleep(EntityInputData data)
+    {
+        if (HasBody && !IsCarried)
+        {
+            body.IsAwake = false;
+        }
+    }
+
+    [EntityInput("EnableMotion")]
+    private void InputEnableMotion(EntityInputData data)
+    {
+        if (HasBody && body.Type != BodyType.Dynamic)
+        {
+            body.Type = BodyType.Dynamic;
+            body.IsAwake = true;
+            EntitySystem.TriggerOutput(this, "OnMotionEnabled", data.Activator);
+        }
+    }
+
+    [EntityInput("DisableMotion")]
+    private void InputDisableMotion(EntityInputData data)
+    {
+        if (HasBody && !IsCarried)
+        {
+            body.Type = BodyType.Static;
         }
     }
 
@@ -294,16 +537,17 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable
 
     private void SetCollidesWithPlayer(bool collide)
     {
-        var collidesWith = collide
-            ? ulong.MaxValue
-            : ulong.MaxValue & ~PhysicsSimulation.PlayerCategory;
+        // Debris never meets the pushing hull, which collides with props alone, nor other debris
+        var collidesWith = collisionCategory == PhysicsSimulation.DebrisCategory
+            ? ulong.MaxValue & ~PhysicsSimulation.DebrisCategory
+            : collide ? ulong.MaxValue : ulong.MaxValue & ~PhysicsSimulation.PlayerCategory;
 
         Span<Shape> shapes = stackalloc Shape[body.ShapeCount];
         var count = body.GetShapes(shapes);
 
         for (var i = 0; i < count; i++)
         {
-            shapes[i].SetFilter(new CollisionFilter(PhysicsSimulation.PropCategory, collidesWith, 0), recomputeContacts: true);
+            shapes[i].SetFilter(new CollisionFilter(collisionCategory, collidesWith, 0), recomputeContacts: true);
         }
     }
 

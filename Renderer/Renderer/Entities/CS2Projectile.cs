@@ -55,6 +55,10 @@ public sealed class CS2Projectile : BaseEntity
     private const float ExplosionPushFalloff = 250f;
     private const float ExplosionPushImpulse = 20f;
 
+    // The HE grenade's damage at the center, fading to nothing at the radius
+    private const float ExplosionDamage = 99f;
+    private const float ExplosionDamageRadius = 350f;
+
     // What the grenade weighs to a prop it lands on, in the rigid body world's mass units
     private const float GrenadeMass = 0.45f;
 
@@ -302,10 +306,12 @@ public sealed class CS2Projectile : BaseEntity
 
         Sound.Play(detonateSound, Origin);
 
-        // The blast shoves the props around it, Source's radius push
+        // The blast shoves the props around it, Source's radius push, then hurts them - in that
+        // order, so what it breaks passes the push on to its pieces
         if (Kind == GrenadeKind.Explosive)
         {
             EntitySystem.PhysicsOrNull?.Explode(Origin, ExplosionPushRadius, ExplosionPushFalloff, ExplosionPushImpulse);
+            EntitySystem.DamageRadius(Origin, ExplosionDamageRadius, ExplosionDamage, DamageType.Explosive, Owner);
         }
 
         StopFlightEffect();

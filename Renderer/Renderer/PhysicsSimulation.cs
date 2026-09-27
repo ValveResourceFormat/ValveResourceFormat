@@ -150,26 +150,29 @@ public sealed class PhysicsSimulation : IDisposable
     /// <param name="direction">Normalized ray direction.</param>
     /// <param name="distance">How far the ray reaches.</param>
     /// <param name="impulse">Impulse along the ray, applied off-center so the hit also spins the prop.</param>
-    /// <returns><see langword="true"/> when a prop took the hit.</returns>
-    public bool ApplyImpactImpulse(Vector3 from, Vector3 direction, float distance, float impulse)
+    /// <returns>
+    /// The entity the ray struck, to take the hit's damage - a prop, or a brush such as a breakable
+    /// window - or <see langword="null"/> for the world or a miss. Only a simulated body is pushed.
+    /// </returns>
+    public BaseEntity? ApplyImpactImpulse(Vector3 from, Vector3 direction, float distance, float impulse)
     {
         var hit = World.RaycastClosest(from, direction * distance,
             new QueryFilter(PlayerCategory, StaticCategory | PropCategory | DebrisCategory | MoverCategory));
 
         if (!hit.Hit || !hit.Shape.IsValid)
         {
-            return false;
+            return null;
         }
 
         var body = hit.Shape.Body;
 
         if (body.Type != BodyType.Dynamic)
         {
-            return false;
+            return GetOwner(body);
         }
 
         body.ApplyImpulse(direction * impulse, hit.Point, wake: true);
-        return true;
+        return GetOwner(body);
     }
 
     /// <summary>

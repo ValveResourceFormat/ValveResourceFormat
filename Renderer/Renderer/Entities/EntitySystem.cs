@@ -1,3 +1,4 @@
+using Box3D;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -88,6 +89,91 @@ public sealed class EntitySystem
     /// pickup logic has nothing to do in a scene with no simulated physics.
     /// </summary>
     public PhysicsSimulation? PhysicsOrNull => physics;
+
+    /// <summary>Gets the game's breakable prop base classes, loaded on first use.</summary>
+    public PropDataTable PropData => propData ??= PropDataTable.Load(FileLoader);
+
+    private PropDataTable? propData;
+
+    // Reused each frame to gather physics impacts before any of them breaks something
+    private readonly Dictionary<PropPhysics, float> impactSpeeds = [];
+
+    /// <summary>
+    /// Deals damage to everything that can take it within <paramref name="radius"/> of a point, falling
+    /// off linearly to nothing at the edge, as a blast does.
+    /// </summary>
+    public void DamageRadius(Vector3 center, float radius, float damage, DamageType type, BaseEntity? attacker)
+    {
+        // Gathered first: breaking spawns pieces and removes the broken, which must not disturb the scan
+        var victims = new List<(IDamageable Target, float Damage)>();
+
+        foreach (var entity in entities)
+        {
+            if (entity.IsRemoved || entity is not IDamageable damageable)
+            {
+                continue;
+            }
+
+            var position = entity is PropPhysics { HasBody: true } prop ? prop.Body.CenterOfMass : entity.Origin;
+            var distance = Vector3.Distance(position, center);
+
+            if (distance < radius)
+            {
+                victims.Add((damageable, damage * (1f - (distance / radius))));
+            }
+        }
+
+        foreach (var (target, amount) in victims)
+        {
+            target.TakeDamage(new DamageInfo(amount, type, attacker));
+        }
+    }
+
+    /// <summary>
+    /// Turns this step's hard contacts into impact damage for breakable props: a pot dropped from a
+    /// shelf, a bottle thrown at a wall. The player's pushing hull shoves props rather than striking
+    /// them, so its contacts are left out.
+    /// </summary>
+    private void DispatchPhysicsImpacts(PhysicsSimulation simulation)
+    {
+        impactSpeeds.Clear();
+
+        foreach (var hit in simulation.World.Events.ContactHits)
+        {
+            if (!hit.ShapeA.IsValid || !hit.ShapeB.IsValid
+                || ((hit.ShapeA.Filter.Categories | hit.ShapeB.Filter.Categories) & PhysicsSimulation.PlayerCategory) != 0)
+            {
+                continue;
+            }
+
+            NoteImpact(simulation, hit.ShapeA.Body, hit.ShapeB.Body, hit.ApproachSpeed);
+            NoteImpact(simulation, hit.ShapeB.Body, hit.ShapeA.Body, hit.ApproachSpeed);
+        }
+
+        foreach (var (prop, speed) in impactSpeeds)
+        {
+            prop.TakeImpact(speed);
+        }
+    }
+
+    // A light body striking a heavy one hurts it in proportion, so a tossed can does not shatter a
+    // pot and falling debris does not chain-break everything it lands on; anything that does not
+    // move under the hit - the world, a door - strikes with its full weight
+    private void NoteImpact(PhysicsSimulation simulation, Body struck, Body other, float speed)
+    {
+        if (simulation.GetOwner(struck) is not PropPhysics { IsBreakable: true } prop)
+        {
+            return;
+        }
+
+        if (other.Type == BodyType.Dynamic && struck.Mass > 0f)
+        {
+            speed *= MathF.Min(1f, MathF.Sqrt(other.Mass / struck.Mass));
+        }
+
+        // Several contact points of one collision report separately; the hardest one counts
+        impactSpeeds[prop] = MathF.Max(impactSpeeds.GetValueOrDefault(prop), speed);
+    }
 
     /// <summary>Gets the current simulation time in seconds, the engine's <c>curtime</c>.</summary>
     public float CurrentTime { get; private set; }
@@ -475,7 +561,11 @@ public sealed class EntitySystem
                 }
             }
 
-            physics?.Step(MathF.Min(frameTime, MaxPhysicsFrameStep));
+            if (physics != null)
+            {
+                physics.Step(MathF.Min(frameTime, MaxPhysicsFrameStep));
+                DispatchPhysicsImpacts(physics);
+            }
         }
 
         // Entities are not scene nodes, so nothing else would place what they own

@@ -181,6 +181,7 @@ public abstract class BaseModelEntity : BaseEntity
                     moverBody = body;
                     hasMoverBody = true;
                     moverBodyEnabled = true;
+                    EntitySystem.Physics.Register(body, this);
                 }
 
                 UpdateColliderTransform();
@@ -223,6 +224,7 @@ public abstract class BaseModelEntity : BaseEntity
             hasMoverBody = true;
             moverBodyEnabled = true;
             moverBodyIsAnchorOnly = true;
+            EntitySystem.Physics.Register(moverBody, this);
         }
 
         body = moverBody;
@@ -283,6 +285,7 @@ public abstract class BaseModelEntity : BaseEntity
 
         if (hasMoverBody)
         {
+            EntitySystem.PhysicsOrNull?.Forget(moverBody);
             moverBody.Destroy();
             hasMoverBody = false;
         }

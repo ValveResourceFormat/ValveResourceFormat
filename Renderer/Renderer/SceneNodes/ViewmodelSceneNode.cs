@@ -305,6 +305,13 @@ public class ViewmodelSceneNode : ModelSceneNode
     private const float PistolBulletImpulse = 6000f;
     private const float KnifeImpulse = 25000f;
 
+    // What each attack deals to whatever it hits: the rifle and pistol rounds' base damage, and
+    // the knife's first light swing and its heavy stab
+    private const float RifleBulletDamage = 36f;
+    private const float PistolBulletDamage = 35f;
+    private const float KnifeLightDamage = 40f;
+    private const float KnifeHeavyDamage = 65f;
+
     // A missed line trace is retried with swept spheres shrinking from 14 to 2 units, each ending that much
     // short, keeping the smallest that still connects. We are currently missing sphere traces, so cubes stand in.
     private const float KnifeSweepMaxRadius = 14f;
@@ -334,6 +341,15 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
+    // After the push, so a prop the hit breaks passes the push on to its pieces
+    private void DealDamage(BaseEntity? target, float amount, DamageType type)
+    {
+        if (target is IDamageable damageable)
+        {
+            damageable.TakeDamage(new DamageInfo(amount, type, entitySystem.Player));
+        }
+    }
+
     // Returns whether a knife swing connected
     private bool PlayAttackSound(UserInput input, bool heavyKnifeAttack)
     {
@@ -343,12 +359,14 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             case 1:
                 Sound.Play(RifleAttackSound, volume: AttackSoundVolume);
-                rigidBodies?.ApplyImpactImpulse(input.Camera.Location, input.Camera.Forward, BulletRange, RifleBulletImpulse);
+                DealDamage(rigidBodies?.ApplyImpactImpulse(input.Camera.Location, input.Camera.Forward, BulletRange, RifleBulletImpulse),
+                    RifleBulletDamage, DamageType.Bullet);
                 return false;
 
             case 2:
                 Sound.Play(PistolAttackSound, volume: AttackSoundVolume);
-                rigidBodies?.ApplyImpactImpulse(input.Camera.Location, input.Camera.Forward, BulletRange, PistolBulletImpulse);
+                DealDamage(rigidBodies?.ApplyImpactImpulse(input.Camera.Location, input.Camera.Forward, BulletRange, PistolBulletImpulse),
+                    PistolBulletDamage, DamageType.Bullet);
                 return false;
 
             case KnifeItemIndex:
@@ -357,7 +375,9 @@ public class ViewmodelSceneNode : ModelSceneNode
 
                 // A swing can connect with a prop the world trace cannot see, and shoving it is a
                 // hit of its own
-                var hitProp = rigidBodies?.ApplyImpactImpulse(camera.Location, camera.Forward, range, KnifeImpulse) == true;
+                var struck = rigidBodies?.ApplyImpactImpulse(camera.Location, camera.Forward, range, KnifeImpulse);
+                DealDamage(struck, heavyKnifeAttack ? KnifeHeavyDamage : KnifeLightDamage, DamageType.Club);
+                var hitProp = struck != null;
 
                 if (TraceKnifeSwing(input.PhysicsWorld, camera.Location, camera.Forward, range) is not { } hitPosition)
                 {
