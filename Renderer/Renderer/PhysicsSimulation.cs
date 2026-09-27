@@ -374,9 +374,8 @@ public sealed class PhysicsSimulation : IDisposable
 
         // The authored per-part damping is the ragdoll's energy loss. Without it a held ragdoll
         // spins forever about the grip: rigid whole-body rotation moves no joint, so joint
-        // friction never sees it, and only body damping can bleed it. HL:Alyx characters author
-        // zero everywhere - their engine drained ragdolls globally - so a zero falls back to
-        // the value CS2 gives every limb.
+        // friction never sees it. Some characters author zero everywhere, which falls back to
+        // a typical limb value.
         var angularDamping = part.AngularDamping > 0f ? part.AngularDamping : FallbackAngularDamping;
 
         var body = World.CreateBody(BodyDefinition.Dynamic(position, rotation) with
@@ -443,10 +442,8 @@ public sealed class PhysicsSimulation : IDisposable
         return body;
     }
 
-    // What CS2 authors as angular damping on every agent limb, for ragdoll parts authored zero
+    // Typical authored limb values, for ragdolls authored without any
     private const float FallbackAngularDamping = 2f;
-
-    // The middle of the joint friction range CS2 authors, for joints authored without any
     private const float FallbackJointFriction = 0.3f;
 
     // How far in front of the crossed surface a caught body is placed
@@ -498,34 +495,17 @@ public sealed class PhysicsSimulation : IDisposable
     /// <returns>The created joint, or <see langword="null"/> for a joint type nothing maps to.</returns>
     public Joint? CreateRagdollJoint(in ResourceTypes.RubikonPhysics.Joint joint, Body body1, Body body2)
     {
-        // Rubikon frames measure twist and hinge rotation about a different local axis than
-        // Box3D's frame Z. Rotating each frame's basis by this fix keeps the authored limits
-        // meaning what the artist authored - without it the knee's real axis is the one the
-        // solver LOCKS, and limbs pinned against false limits pump energy.
-        // The authored frames and limits pass to the solver as they are: verified by the
-        // constraint harness, which measures the knee's reachable arc at 110 degrees against
-        // the authored 109, at zero rest drift in free fall
+        // The authored frames and limits pass to the solver as they are; both engines measure
+        // hinge and twist about the same frame axis. The solver's own constraint stiffness is
+        // kept: softening it lets limbs stretch under load.
         var baseDefinition = JointDefinition.Connect(body1, body2,
             new JointFrame(joint.Frame1.Position, joint.Frame1.Rotation),
             new JointFrame(joint.Frame2.Position, joint.Frame2.Rotation))
             with
         { CollideConnected = joint.EnableCollision };
 
-        // Only override the solver's own constraint stiffness when the harness asks: zero hertz
-        // is not "rigid" but an unconstrained spring, and stomping the default with it lets the
-        // limbs stretch apart
-        if (RagdollConstraintHertz > 0f)
-        {
-            baseDefinition = baseDefinition with
-            {
-                ConstraintHertz = RagdollConstraintHertz,
-                ConstraintDampingRatio = RagdollConstraintDamping,
-            };
-        }
-
-        // HL:Alyx characters author no joint friction at all - their engine damped ragdolls
-        // globally - and a frictionless doll swings for many seconds; a missing value falls
-        // back to the middle of the range CS2 authors (0.15 to 0.7)
+        // Some characters author no joint friction at all, and a frictionless doll swings for
+        // many seconds
         var frictionAmount = joint.HasFriction && joint.Friction > 0f ? joint.Friction : FallbackJointFriction;
 
         switch (joint.Type)
@@ -573,21 +553,10 @@ public sealed class PhysicsSimulation : IDisposable
         }
     }
 
-    // The authored joint friction is a small unitless number (0.15 to 0.7 on agents); this turns
-    // it into the resisting torque of the zero-velocity motor, sized against limb masses in
-    // kilograms so a ragdoll settles rather than swinging like pendulums. Mutable so the
-    // stability harness can sweep it.
-    /// <summary>Torque per unit of authored ragdoll joint friction. See the comment above.</summary>
-    public static float RagdollFrictionTorque { get; set; } = 100f;
-
-    /// <summary>
-    /// How stiffly ragdoll joints hold, as the solver's constraint softness: zero hertz is the
-    /// rigid path, where limbs never stretch. Mutable so the stability harness can sweep it.
-    /// </summary>
-    public static float RagdollConstraintHertz { get; set; }
-
-    /// <summary>Damping ratio for <see cref="RagdollConstraintHertz"/> when it is soft.</summary>
-    public static float RagdollConstraintDamping { get; set; }
+    // The authored joint friction is a small unitless number (0.15 to 0.7); this turns it into
+    // the resisting torque of the zero-velocity motor, sized against limb masses in kilograms
+    // so a ragdoll settles rather than swinging like pendulums
+    private const float RagdollFrictionTorque = 100f;
 
     /// <summary>
     /// Creates the kinematic body mirroring a solid entity's collision - a door, or one of the

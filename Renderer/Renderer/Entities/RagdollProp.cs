@@ -18,11 +18,9 @@ public class RagdollProp : BaseModelEntity, ICarryable
     /// <inheritdoc/>
     protected override bool CreatesPhysDebugNodes => false;
 
-    // One body per physics part, and which skeleton bone each drives; -1 for a part whose bone
-    // name the render skeleton does not carry
+    // One body per physics part; a part without shapes has none
     private Body[] bodies = [];
     private bool[] hasBody = [];
-    private int[] partBones = [];
 
     // Each part's center as of the last tick, for the tunnel catch: a squeezed part can be
     // pushed straight through the one-sided mesh world between two looks
@@ -51,32 +49,24 @@ public class RagdollProp : BaseModelEntity, ICarryable
     private PlayerEntity? carrier;
     private float carryDistance;
 
-    // The rest-energy drain, the way Rubikon ragdolls shed energy: the solver injects micro
-    // impulses into a jointed assembly with every outer step's contact update, faster than the
-    // authored damping bleeds them - measured 1-3 u/s and a visibly spinning head forever,
-    // since a sphere's point contact has no twist friction. Once every part is below these
-    // speeds the doll cannot be doing anything watchable, so its velocities are drained
-    // outright until the solver's own island sleep closes - the island, not the doll, so a
-    // pile of ragdolls goes down together instead of freezing one doll against a moving
-    // neighbor. Active motion - falls, throws, swings - sits above the thresholds untouched.
-    // Wide enough to cover the worst measured limit-cycle floor (an HL:A grunt's wrist holds
-    // 18 u/s and 12 rad/s against the ground forever), still far below thrown or falling speeds
+    // The rest-energy drain: near rest the solver keeps injecting small impulses into a jointed
+    // assembly faster than the authored damping bleeds them, so a settled doll buzzes forever
+    // and a sphere head, with no twist friction on its point contact, visibly spins. Once every
+    // part is below these speeds the doll cannot be doing anything watchable, so velocities are
+    // drained outright, harder once nothing moves beyond a crawl. Falls, throws and swings sit
+    // above the thresholds untouched.
     private const float DrainLinearSpeed = 25f;
     private const float DrainAngularSpeed = 15f;
     private const float DrainRate = 4f;
-
-    // The extra drain stage once nothing moves beyond a crawl, pushing the chatter floor down
     private const float DeepRestLinearSpeed = 5f;
     private const float DeepRestAngularSpeed = 1.5f;
     private const float DeepDrainRate = 12f;
 
-    // The terminal state is still sleep - the solver's island sleep never fires for a pile,
-    // where one of dozens of bodies always spikes over its threshold inside the shared timer's
-    // window - but it is judged by what the eye can see: displacement, not velocity. A limit
-    // cycle buzzes a wrist at 2.5 u/s inside a half-unit envelope forever, which no velocity
-    // gate ever passes and no eye ever notices. If no part leaves its anchor by this distance
-    // or angle for the whole window, the doll is visually still and is frozen; a doll creeping
-    // anywhere keeps re-anchoring and stays awake.
+    // The drain alone never reaches the solver's island sleep, whose shared timer any one of
+    // dozens of bodies resets, so the doll is put to sleep by what the eye can see: a buzz
+    // inside a sub-unit envelope passes no velocity gate but is invisible. If no part leaves
+    // its anchor by this distance or angle for the whole window the doll is frozen; one
+    // creeping anywhere keeps re-anchoring and stays awake.
     private const float SleepDriftDistance = 0.75f;
     private const float SleepDriftDot = 0.99966f; // cos of half of ~3 degrees
     private const float ForcedSleepAfter = 0.75f;
@@ -300,11 +290,9 @@ public class RagdollProp : BaseModelEntity, ICarryable
         var bindPose = modelNode.AnimationController.BindPose;
         var names = phys.BoneNames;
 
-        partBones = new int[phys.Parts.Length];
         boneToPart = new int[skeleton.Bones.Length];
         boneLocalBind = new Matrix4x4[skeleton.Bones.Length];
         partToBone = new Matrix4x4[phys.Parts.Length];
-        Array.Fill(partBones, -1);
         Array.Fill(boneToPart, -1);
 
         var byName = new Dictionary<string, int>(skeleton.Bones.Length, StringComparer.OrdinalIgnoreCase);
@@ -328,7 +316,6 @@ public class RagdollProp : BaseModelEntity, ICarryable
             if (hasBody[i] && byName.TryGetValue(names[i], out var boneIndex)
                 && Matrix4x4.Invert(physBind.Length > i ? physBind[i] : Matrix4x4.Identity, out var inversePartBind))
             {
-                partBones[i] = boneIndex;
                 boneToPart[boneIndex] = i;
                 partToBone[i] = bindPose[boneIndex] * inversePartBind;
             }
