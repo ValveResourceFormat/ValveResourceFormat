@@ -333,7 +333,7 @@ public sealed class PlayerEntity : BaseEntity
         // hold that weight up. The chain itself is the compliance a wall needs.
         var soft = false;
 
-        if (carried.CarriesOrientation)
+        if (holdRotation is not null)
         {
             var disturbed = (body.LinearVelocity - carryCommandedVelocity).Length() > ContactVelocityTolerance
                 || (body.AngularVelocity - carryCommandedAngularVelocity).Length() > ContactAngularTolerance;
@@ -360,16 +360,31 @@ public sealed class PlayerEntity : BaseEntity
 
         body.LinearVelocity = carryCommandedVelocity;
 
-        if (carried.CarriesOrientation)
+        if (holdRotation is { } rotation)
         {
             carryCommandedAngularVelocity = SteerVelocity(
                 body.AngularVelocity,
-                RotationError(body.Rotation, holdRotation),
+                RotationError(body.Rotation, rotation),
                 deltaTime, MaxCarryAngularSpeed,
                 soft ? MaxCarryAngularAcceleration : float.PositiveInfinity);
 
             body.AngularVelocity = carryCommandedAngularVelocity;
         }
+    }
+
+    /// <summary>
+    /// The view a carried object is held in front of: the camera the frame is drawn with when
+    /// there is one, since view smoothing and punch sit between the input camera and the drawn
+    /// view, and a carry steered by the wrong one trails the picture by exactly that gap.
+    /// </summary>
+    internal (Vector3 EyePosition, Vector3 Forward, Vector3 ViewAngles) GetHoldView()
+    {
+        if (EntitySystem.RenderCamera is { } camera)
+        {
+            return (camera.Location, camera.Forward, camera.GetQAngle());
+        }
+
+        return (Controller.EyePosition, Controller.ViewForward, Controller.ViewAngles);
     }
 
     // One axis of the shadow controller: the velocity that lands the body on the pose within the

@@ -50,12 +50,11 @@ public class PropPhysics : BaseModelEntity, ICarryable
 
     // The carry steers the whole prop: its one body, orientation and all
     Body ICarryable.CarryBody => body;
-    bool ICarryable.CarriesOrientation => true;
 
     void ICarryable.BeginCarry(PlayerEntity carrier, float carryDistance, Body grabbedBody)
         => BeginCarry(carrier, carryDistance);
 
-    (Vector3 Position, Quaternion Rotation) ICarryable.ComputeHoldPose() => ComputeHoldPose();
+    (Vector3 Position, Quaternion? Rotation) ICarryable.ComputeHoldPose() => ComputeHoldPose();
 
     void ICarryable.AdoptCarryRotation(float fraction) => AdoptCarryRotation(fraction);
 
@@ -180,7 +179,7 @@ public class PropPhysics : BaseModelEntity, ICarryable
         Carrier = carrier;
         CarryDistance = carryDistance;
         carryLocalMassCenter = body.LocalCenterOfMass;
-        carryRelativeRotation = Quaternion.Inverse(ViewRotation(carrier.Controller.ViewAngles)) * body.Rotation;
+        carryRelativeRotation = Quaternion.Inverse(ViewRotation(carrier.GetHoldView().ViewAngles)) * body.Rotation;
 
         // Off the pushing body, so the held prop cannot wedge against its carrier
         SetCollidesWithPlayer(false);
@@ -218,7 +217,7 @@ public class PropPhysics : BaseModelEntity, ICarryable
     /// <param name="fraction">How much of the way to the body's orientation the grip moves.</param>
     internal void AdoptCarryRotation(float fraction)
     {
-        var view = ViewRotation(Carrier!.Controller.ViewAngles);
+        var view = ViewRotation(Carrier!.GetHoldView().ViewAngles);
 
         carryRelativeRotation = Quaternion.Slerp(carryRelativeRotation,
             Quaternion.Inverse(view) * body.Rotation, fraction);
@@ -245,20 +244,13 @@ public class PropPhysics : BaseModelEntity, ICarryable
     }
 
     /// <summary>
-    /// Where the carried body belongs, by the camera the frame is drawn with when there is one:
-    /// view smoothing and view punch sit between the input camera and the drawn view, and a
-    /// carry steered by the wrong one trails the picture by exactly that gap.
+    /// Where the carried body belongs, by the carrier's hold view.
     /// </summary>
     internal (Vector3 Position, Quaternion Rotation) ComputeHoldPose()
     {
-        if (EntitySystem.RenderCamera is { } camera)
-        {
-            return ComputeHoldPose(camera.Location, camera.Forward, camera.GetQAngle());
-        }
+        var (eyePosition, forward, viewAngles) = Carrier!.GetHoldView();
 
-        var controller = Carrier!.Controller;
-
-        return ComputeHoldPose(controller.EyePosition, controller.ViewForward, controller.ViewAngles);
+        return ComputeHoldPose(eyePosition, forward, viewAngles);
     }
 
     /// <summary>

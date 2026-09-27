@@ -327,9 +327,6 @@ public class RagdollProp : BaseModelEntity, ICarryable
     /// </summary>
     public bool CanBeCarried => simulating;
 
-    // The carry holds the one grabbed part by position alone; its orientation and the whole rest
-    // of the ragdoll swing free on the joints, which is what makes a carried ragdoll dangle
-    bool ICarryable.CarriesOrientation => false;
     Body ICarryable.CarryBody => bodies[carriedPart];
 
     void ICarryable.BeginCarry(PlayerEntity carrier, float carryDistance, Body grabbedBody)
@@ -361,37 +358,17 @@ public class RagdollProp : BaseModelEntity, ICarryable
         carrier = null;
     }
 
-    (Vector3 Position, Quaternion Rotation) ICarryable.ComputeHoldPose()
+    // The grabbed part is held by position alone; its orientation and the rest of the ragdoll
+    // swing free on the joints, which is what makes a carried ragdoll dangle
+    (Vector3 Position, Quaternion? Rotation) ICarryable.ComputeHoldPose()
     {
         var body = bodies[carriedPart];
-
-        Vector3 eyePosition;
-        Vector3 forward;
-
-        // The camera the frame is drawn with when there is one, exactly as the prop carry does:
-        // view smoothing sits between the input camera and the drawn view
-        if (EntitySystem.RenderCamera is { } camera)
-        {
-            eyePosition = camera.Location;
-            forward = camera.Forward;
-        }
-        else
-        {
-            var controller = carrier!.Controller;
-            eyePosition = controller.EyePosition;
-            forward = controller.ViewForward;
-        }
+        var (eyePosition, forward, _) = carrier!.GetHoldView();
 
         var position = eyePosition + forward * carryDistance
             - Vector3.Transform(body.LocalCenterOfMass, body.Rotation);
 
-        // The body's own rotation as the target leaves no rotation error to steer against
-        return (position, body.Rotation);
-    }
-
-    void ICarryable.AdoptCarryRotation(float fraction)
-    {
-        // Never called: the carry does not steer this ragdoll's orientation
+        return (position, null);
     }
 
     private int FindPart(Body grabbedBody)

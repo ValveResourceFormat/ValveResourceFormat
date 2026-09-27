@@ -15,13 +15,6 @@ public interface ICarryable
     /// <summary>Gets whether the player may pick this up right now.</summary>
     bool CanBeCarried { get; }
 
-    /// <summary>
-    /// Gets whether the carry steers the body's orientation along with its position. A prop rides
-    /// the view rigidly; a ragdoll part is held by position alone and swings free, the rest of the
-    /// ragdoll hanging off it by gravity and its joints.
-    /// </summary>
-    bool CarriesOrientation { get; }
-
     /// <summary>Gets the body the carry steers. Only meaningful while carried.</summary>
     Body CarryBody { get; }
 
@@ -34,13 +27,19 @@ public interface ICarryable
     /// <summary>Ends the carry, restoring whatever the grab suspended.</summary>
     void EndCarry();
 
-    /// <summary>Computes where the carried body belongs this frame.</summary>
-    (Vector3 Position, Quaternion Rotation) ComputeHoldPose();
+    /// <summary>
+    /// Computes where the carried body belongs this frame. A <see langword="null"/> rotation
+    /// leaves the body's orientation unsteered: a ragdoll part is held by position alone and
+    /// swings free, the rest of the ragdoll hanging off it by gravity and its joints.
+    /// </summary>
+    (Vector3 Position, Quaternion? Rotation) ComputeHoldPose();
 
     /// <summary>
     /// Relaxes the grip orientation part way toward the body's current one, for when the world is
-    /// twisting the held body away from the hold rotation. Only called when
-    /// <see cref="CarriesOrientation"/>.
+    /// twisting the held body away from the hold rotation. Only called for a carry that steers
+    /// orientation.
     /// </summary>
-    void AdoptCarryRotation(float fraction);
+    void AdoptCarryRotation(float fraction)
+    {
+    }
 }
