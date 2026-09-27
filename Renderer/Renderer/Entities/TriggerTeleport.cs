@@ -56,7 +56,7 @@ public sealed class TriggerTeleport : BaseTrigger
     {
         base.OnStartTouch(other);
 
-        if (destination is not { } target)
+        if (destination is not { } target || !PassesTriggerFilters(other))
         {
             return;
         }

@@ -488,8 +488,8 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Runs every tick <paramref name="other"/> stays inside this entity's volume, and on a tick the player
-    /// ran into this solid entity while moving. Source's <c>Touch</c>, which serves both.
+    /// Runs every tick <paramref name="other"/> is inside this entity's volume, the tick it entered included,
+    /// and on a tick the player ran into this solid entity while moving. Source's <c>Touch</c>, which serves both.
     /// </summary>
     protected virtual void OnTouch(BaseEntity other)
     {
@@ -547,11 +547,14 @@ public abstract class BaseEntity
 
         if (isOverlapping)
         {
+            // The engine touches on the tick of entry too, straight after the start, so a trigger_multiple
+            // fires as the player walks in rather than a tick later
             if (touching.Add(other))
             {
                 OnStartTouch(other);
             }
-            else
+
+            if (!IsRemoved && !other.IsRemoved)
             {
                 OnTouch(other);
             }

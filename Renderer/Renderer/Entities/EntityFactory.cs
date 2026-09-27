@@ -47,6 +47,8 @@ public static class EntityFactory
         Register<PropDynamic>("prop_dynamic_override", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<FuncBreakable>("func_breakable", static (system, spawnInfo) => new FuncBreakable(system, spawnInfo));
         Register<XenFloraAnimatedMover>("xen_flora_animatedmover", static (system, spawnInfo) => new XenFloraAnimatedMover(system, spawnInfo));
+        Register<TriggerMultiple>("trigger_multiple", static (system, spawnInfo) => new TriggerMultiple(system, spawnInfo));
+        Register<TriggerOnce>("trigger_once", static (system, spawnInfo) => new TriggerOnce(system, spawnInfo));
         Register<TriggerTeleport>("trigger_teleport", static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo));
 
         // lights
