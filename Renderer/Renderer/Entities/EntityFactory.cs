@@ -50,6 +50,7 @@ public static class EntityFactory
         Register<PhysHinge>("phys_hinge", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: false));
         Register<PhysHinge>("phys_hinge_local", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: true));
         Register<PhysFixedConstraint>("phys_constraint", static (system, spawnInfo) => new PhysFixedConstraint(system, spawnInfo));
+        Register<LogicCollisionPair>("logic_collision_pair", static (system, spawnInfo) => new LogicCollisionPair(system, spawnInfo));
         Register<PropPhysics>("prop_physics", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
         Register<PropPhysics>("prop_physics_multiplayer", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
         Register<PropPhysics>("prop_physics_override", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
