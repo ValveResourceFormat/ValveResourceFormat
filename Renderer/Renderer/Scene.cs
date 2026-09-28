@@ -1293,7 +1293,8 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Tests a node against this frame's pvs. A node belongs to every visibility cluster its bounding box
-        /// touches and survives as long as one of them is visible, so a node that belongs to none never does.
+        /// touches and survives as long as one of them is visible. A node that belongs to none is not vis
+        /// culled at all, as in the game.
         /// </summary>
         /// <param name="node">The node to test.</param>
         /// <returns>Whether the node may draw this frame.</returns>
@@ -1315,6 +1316,11 @@ namespace ValveResourceFormat.Renderer
             }
 
             var clusters = node.GetVisClusters(VoxelVisibility);
+
+            if (clusters.IsEmpty)
+            {
+                return true;
+            }
 
             foreach (var cluster in clusters)
             {
