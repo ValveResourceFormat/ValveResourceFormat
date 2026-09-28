@@ -54,7 +54,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Gets the visibility clusters the compiler assigned to one of <see cref="SceneObjects"/>, or
-        /// <see langword="null"/> when its clusters come from its bounds instead.
+        /// <see langword="null"/> when its clusters come from its bounds instead. An object that opts out
+        /// of vis culling ignores its precomputed clusters.
         /// </summary>
         /// <param name="sceneObject">An entry of <see cref="SceneObjects"/>.</param>
         public ushort[]? GetSceneObjectVisClusters(KVObject sceneObject)
@@ -63,7 +64,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var flags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
 
-            if ((flags & ObjectTypeFlags.PrecomputedVismembers) == 0 || !sceneObject.ContainsKey("m_VisClusterMemberBits"))
+            if (!UsesPrecomputedVisClusters(flags) || !sceneObject.ContainsKey("m_VisClusterMemberBits"))
             {
                 return null;
             }
@@ -76,7 +77,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Gets the visibility clusters the compiler assigned to one fragment of an aggregate, or
-        /// <see langword="null"/> when its clusters come from its bounds instead.
+        /// <see langword="null"/> when its clusters come from its bounds instead. The list may be empty,
+        /// which leaves the fragment out of vis culling.
         /// </summary>
         /// <param name="aggregateMesh">An entry of an aggregate's <c>m_aggregateMeshes</c>.</param>
         public ushort[]? GetAggregateMeshVisClusters(KVObject aggregateMesh)
@@ -84,15 +86,18 @@ namespace ValveResourceFormat.ResourceTypes
             ArgumentNullException.ThrowIfNull(aggregateMesh);
 
             var flags = aggregateMesh.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
-            var count = aggregateMesh.GetInt32Property("m_nVisClusterMemberCount");
 
-            if ((flags & ObjectTypeFlags.PrecomputedVismembers) == 0 || count == 0)
+            if (!UsesPrecomputedVisClusters(flags))
             {
                 return null;
             }
 
-            return SliceVisClusterMembership(aggregateMesh.GetInt32Property("m_nVisClusterMemberOffset"), count);
+            return SliceVisClusterMembership(aggregateMesh.GetInt32Property("m_nVisClusterMemberOffset"),
+                aggregateMesh.GetInt32Property("m_nVisClusterMemberCount"));
         }
+
+        private static bool UsesPrecomputedVisClusters(ObjectTypeFlags flags)
+            => (flags & (ObjectTypeFlags.PrecomputedVismembers | ObjectTypeFlags.DisableVisCulling)) == ObjectTypeFlags.PrecomputedVismembers;
 
         private ushort[] SliceVisClusterMembership(int offset, int count)
         {

@@ -249,7 +249,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Gets the precomputed visibility clusters of this node when it has them, otherwise the clusters its
         /// bounding box overlaps, recomputing them when it has moved or grown since the last query. A node
-        /// with no clusters at all is never visible.
+        /// with no clusters at all is not vis culled.
         /// </summary>
         /// <param name="voxelVisibility">The scene's visibility data.</param>
         internal ReadOnlySpan<ushort> GetVisClusters(IWorldVisibility voxelVisibility)

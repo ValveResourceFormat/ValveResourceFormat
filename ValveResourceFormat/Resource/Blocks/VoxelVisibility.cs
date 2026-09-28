@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Blocks
         ReadOnlyMemory<byte> GetVisibilityRowForPoint(Vector3 point);
 
         /// <summary>
-        /// Fills a bitfield with the clusters the given box belongs to. A box that belongs to none is never visible.
+        /// Fills a bitfield with the clusters the given box belongs to, leaving it empty when the box only reaches solid space.
         /// </summary>
         /// <param name="min">Minimum corner of the box.</param>
         /// <param name="max">Maximum corner of the box.</param>
