@@ -400,6 +400,7 @@ namespace ValveResourceFormat.Renderer.World
                 if (phys.Parts.Length > 0 && !isNestedSpawnGroup)
                 {
                     entitySystem.PhysicsWorld = new Rubikon(phys);
+                    entitySystem.Physics.AddStaticGeometry(phys);
                 }
             }
         }

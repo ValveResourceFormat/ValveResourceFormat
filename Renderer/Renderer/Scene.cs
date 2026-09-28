@@ -2411,6 +2411,12 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Gets the physics debug groups currently shown, kept in step with the viewer's checkbox
+        /// list, so a physics node spawned at runtime starts in the right state.
+        /// </summary>
+        public HashSet<string> EnabledPhysicsGroups { get; } = [];
+
+        /// <summary>
         /// Enables or disables scene nodes based on whether their layer name is present in the given set.
         /// </summary>
         /// <param name="layers">The set of layer names that should be visible.</param>

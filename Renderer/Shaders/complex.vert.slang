@@ -326,7 +326,16 @@ void main()
 
     if (g_bFirstpersonLegsDistortion != 0)
     {
-        ApplyFirstpersonLegsDistortion(vPOSITION, vFragPosition, gl_Position, vNormalOut, g_vCameraDirWs.z, gl_Position, vNormalOut);
+        // The flag lives on the material, which every instance of the character model shares -
+        // ragdolls and dropped agents included. Only the instance whose eyes the camera sits at
+        // is the first-person body: the game gates the projection on the viewer being AT this
+        // character's eye point, and everyone else renders undistorted.
+        vec3 eyePositionWs = vec4(0.0, 0.0, 64.0, 1.0) * CalculateObjectToWorldMatrix();
+
+        if (distance(eyePositionWs, g_vCameraPositionWs) < 48.0)
+        {
+            ApplyFirstpersonLegsDistortion(vPOSITION, vFragPosition, gl_Position, vNormalOut, g_vCameraDirWs.z, gl_Position, vNormalOut);
+        }
     }
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)

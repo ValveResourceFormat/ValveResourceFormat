@@ -1,0 +1,541 @@
+using System.Collections.Generic;
+using Box3D;
+using ValveResourceFormat.ResourceTypes;
+
+namespace ValveResourceFormat.Renderer.Entities;
+
+/// <summary>
+/// A ragdoll, Source's <c>prop_ragdoll</c>: one rigid body per authored physics part, connected by
+/// the authored joints with their swing cones, twist ranges and friction, simulated in
+/// <see cref="PhysicsSimulation"/>. The rendered skeleton adopts the body poses every frame - the
+/// physics bones directly, everything else riding along on its bind-local offset.
+/// </summary>
+public sealed class RagdollProp : BaseModelEntity, ICarryable
+{
+    /// <inheritdoc/>
+    protected override bool UsesMoverBody => false;
+
+    /// <inheritdoc/>
+    protected override bool CreatesPhysDebugNodes => false;
+
+    // One body per physics part; a part without shapes has none. The pickup hands back a body,
+    // which the id map turns into its part.
+    private Body[] bodies = [];
+    private bool[] hasBody = [];
+    private readonly Dictionary<ulong, int> partByBodyId = [];
+
+    // Each part's center as of the last tick, for the tunnel catch: a squeezed part can be
+    // pushed straight through the one-sided mesh world between two looks
+    private Vector3[] previousPositions = [];
+    private readonly List<Joint> joints = [];
+
+    // The skeleton bone driven by each part, resolved once, and each bone's bind transform local
+    // to its parent, for the bones between and beyond the physics parts
+    private int[] boneToPart = [];
+    private Matrix4x4[] boneLocalBind = [];
+
+    // The constant frame correction from each physics part to its render bone: the phys bind
+    // pose is the SHAPE's frame, not the bone's, and they disagree wildly (70 units, half a
+    // turn); a body pose pushed into the skinning without this correction shreds the mesh
+    private Matrix4x4[] partToBone = [];
+
+    // One debug node per part, in part-local space, moved with its body every frame; the bind-posed
+    // statue BaseModelEntity would build cannot follow a ragdoll
+    private SceneNodes.PhysSceneNode?[] partPhysNodes = [];
+
+    // The part driving the skeleton's root-most physics bone, usually the pelvis. The entity
+    // stands where that bone is, so its origin, bounds and picking follow the doll.
+    private int rootPart = -1;
+    private Matrix4x4 inverseRootBoneBind = Matrix4x4.Identity;
+
+    private bool simulating;
+
+    // The carry: which part the player grabbed, who is holding it, and how far out it is held
+    private int carriedPart = -1;
+    private PlayerEntity? carrier;
+    private float carryDistance;
+
+    // The rest-energy drain: near rest the solver keeps injecting small impulses into a jointed
+    // assembly faster than the authored damping bleeds them, so a settled doll buzzes forever
+    // and a sphere head, with no twist friction on its point contact, visibly spins. Once every
+    // part is below these speeds the doll cannot be doing anything watchable, so velocities are
+    // drained outright, harder once nothing moves beyond a crawl. Falls, throws and swings sit
+    // above the thresholds untouched.
+    private const float DrainLinearSpeed = 25f;
+    private const float DrainAngularSpeed = 15f;
+    private const float DrainRate = 4f;
+    private const float DeepRestLinearSpeed = 5f;
+    private const float DeepRestAngularSpeed = 1.5f;
+    private const float DeepDrainRate = 12f;
+
+    // The drain alone never reaches the solver's island sleep, whose shared timer any one of
+    // dozens of bodies resets, so the doll is put to sleep by what the eye can see: a buzz
+    // inside a sub-unit envelope passes no velocity gate but is invisible. If no part leaves
+    // its anchor by this distance or angle for the whole window the doll is frozen; one
+    // creeping anywhere keeps re-anchoring and stays awake.
+    private const float SleepDriftDistance = 0.75f;
+    private const float SleepDriftDot = 0.99966f; // cos of half of ~3 degrees
+    private const float ForcedSleepAfter = 0.75f;
+    private Vector3[] anchorPositions = [];
+    private Quaternion[] anchorRotations = [];
+    private float stillTime;
+
+    /// <summary>
+    /// Initializes the ragdoll from its keyvalues.
+    /// </summary>
+    public RagdollProp(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
+    {
+    }
+
+    /// <inheritdoc/>
+    public override void Spawn()
+    {
+        base.Spawn();
+
+        IsSolid = false;
+
+        if (Collider is not { } collider || ModelNode is not { } modelNode)
+        {
+            return;
+        }
+
+        var phys = collider.PhysicsData;
+
+        if (phys.Parts.Length == 0 || phys.Joints.Length == 0)
+        {
+            return;
+        }
+
+        var spawnTransform = EntityTransformHelper.ToRigidTransformationMatrix(Angles, Origin);
+
+        CreateBodies(phys, spawnTransform);
+        CreateJoints(phys);
+        ResolveBones(phys, modelNode);
+        CreatePartPhysNodes(phys);
+
+        simulating = true;
+        modelNode.PoseDrivenExternally = true;
+    }
+
+    private void CreatePartPhysNodes(PhysAggregateData phys)
+    {
+        partPhysNodes = new SceneNodes.PhysSceneNode?[phys.Parts.Length];
+
+        for (var i = 0; i < phys.Parts.Length; i++)
+        {
+            if (!hasBody[i])
+            {
+                continue;
+            }
+
+            var node = SceneNodes.PhysSceneNode.CreatePartPhysSceneNode(Scene, phys, i, ModelName, Classname);
+            partPhysNodes[i] = node;
+            AddNode(node, followsEntity: false);
+        }
+    }
+
+    private void CreateBodies(PhysAggregateData phys, in Matrix4x4 spawnTransform)
+    {
+        var bindPose = phys.BindPose;
+
+        bodies = new Body[phys.Parts.Length];
+        hasBody = new bool[phys.Parts.Length];
+        previousPositions = new Vector3[phys.Parts.Length];
+        anchorPositions = new Vector3[phys.Parts.Length];
+        anchorRotations = new Quaternion[phys.Parts.Length];
+
+        for (var i = 0; i < phys.Parts.Length; i++)
+        {
+            var pose = bindPose.Length > i ? bindPose[i] : Matrix4x4.Identity;
+            var world = pose * spawnTransform;
+
+            var created = EntitySystem.Physics.CreateRagdollBody(phys, i,
+                world.Translation, Quaternion.CreateFromRotationMatrix(world), this);
+
+            if (created is { } body)
+            {
+                bodies[i] = body;
+                hasBody[i] = true;
+                partByBodyId[body.UserData] = i;
+                previousPositions[i] = body.Position;
+                anchorPositions[i] = body.Position;
+                anchorRotations[i] = body.Rotation;
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void PhysicsSimulate(float tickInterval)
+    {
+        base.PhysicsSimulate(tickInterval);
+
+        if (!simulating)
+        {
+            return;
+        }
+
+        if (rootPart >= 0)
+        {
+            var root = BoneWorldPose(rootPart);
+            SetOriginAndAngles(root.Translation,
+                EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(root)));
+        }
+
+        var anyAwake = false;
+        var nearRest = true;
+        var deepRest = true;
+        var visiblyStill = true;
+
+        for (var i = 0; i < bodies.Length; i++)
+        {
+            if (!hasBody[i])
+            {
+                continue;
+            }
+
+            EntitySystem.Physics.CatchTunneledBody(bodies[i], previousPositions[i]);
+            previousPositions[i] = bodies[i].Position;
+
+            if (bodies[i].IsAwake)
+            {
+                anyAwake = true;
+
+                var linearSpeed = bodies[i].LinearVelocity.Length();
+                var angularSpeed = bodies[i].AngularVelocity.Length();
+
+                nearRest &= linearSpeed <= DrainLinearSpeed && angularSpeed <= DrainAngularSpeed;
+                deepRest &= linearSpeed <= DeepRestLinearSpeed && angularSpeed <= DeepRestAngularSpeed;
+
+                visiblyStill &= Vector3.DistanceSquared(bodies[i].Position, anchorPositions[i])
+                        <= SleepDriftDistance * SleepDriftDistance
+                    && MathF.Abs(Quaternion.Dot(bodies[i].Rotation, anchorRotations[i])) >= SleepDriftDot;
+            }
+        }
+
+        // A held doll never rests, and a sleeping one has nothing to drain
+        if (carriedPart >= 0 || !anyAwake)
+        {
+            stillTime = 0f;
+            ReanchorParts();
+            return;
+        }
+
+        if (nearRest)
+        {
+            var drain = MathF.Exp(-(deepRest ? DeepDrainRate : DrainRate) * tickInterval);
+
+            for (var i = 0; i < bodies.Length; i++)
+            {
+                if (hasBody[i])
+                {
+                    var body = bodies[i];
+                    body.LinearVelocity *= drain;
+                    body.AngularVelocity *= drain;
+                }
+            }
+        }
+
+        if (!visiblyStill)
+        {
+            stillTime = 0f;
+            ReanchorParts();
+            return;
+        }
+
+        stillTime += tickInterval;
+
+        if (stillTime >= ForcedSleepAfter)
+        {
+            // Frozen where it visibly already was: the buzz velocities go too, so a later wake
+            // resumes from stillness rather than mid-vibration
+            for (var i = 0; i < bodies.Length; i++)
+            {
+                if (hasBody[i])
+                {
+                    var body = bodies[i];
+                    body.LinearVelocity = Vector3.Zero;
+                    body.AngularVelocity = Vector3.Zero;
+                    body.IsAwake = false;
+                }
+            }
+        }
+    }
+
+    private void ReanchorParts()
+    {
+        for (var i = 0; i < bodies.Length; i++)
+        {
+            if (hasBody[i])
+            {
+                anchorPositions[i] = bodies[i].Position;
+                anchorRotations[i] = bodies[i].Rotation;
+            }
+        }
+    }
+
+    private void CreateJoints(PhysAggregateData phys)
+    {
+        foreach (var joint in phys.Joints)
+        {
+            if (joint.Body1 >= hasBody.Length || joint.Body2 >= hasBody.Length
+                || !hasBody[joint.Body1] || !hasBody[joint.Body2])
+            {
+                continue;
+            }
+
+            if (EntitySystem.Physics.CreateRagdollJoint(joint, bodies[joint.Body1], bodies[joint.Body2]) is { } created)
+            {
+                joints.Add(created);
+            }
+        }
+    }
+
+    private void ResolveBones(PhysAggregateData phys, SceneNodes.ModelSceneNode modelNode)
+    {
+        var skeleton = modelNode.AnimationController.Skeleton;
+        var bindPose = modelNode.AnimationController.BindPose;
+        var names = phys.BoneNames;
+
+        boneToPart = new int[skeleton.Bones.Length];
+        boneLocalBind = new Matrix4x4[skeleton.Bones.Length];
+        partToBone = new Matrix4x4[phys.Parts.Length];
+        Array.Fill(boneToPart, -1);
+
+        var byName = new Dictionary<string, int>(skeleton.Bones.Length, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var bone in skeleton.Bones)
+        {
+            byName[bone.Name] = bone.Index;
+
+            // The bind transform local to the parent, so bones without a physics part keep their
+            // authored offset from whatever the physics drives above them
+            var parentBind = bone.Parent != null ? bindPose[bone.Parent.Index] : Matrix4x4.Identity;
+            boneLocalBind[bone.Index] = Matrix4x4.Invert(parentBind, out var inverse)
+                ? bindPose[bone.Index] * inverse
+                : Matrix4x4.Identity;
+        }
+
+        var physBind = phys.BindPose;
+
+        for (var i = 0; i < phys.Parts.Length && i < names.Length; i++)
+        {
+            if (hasBody[i] && byName.TryGetValue(names[i], out var boneIndex)
+                && Matrix4x4.Invert(physBind.Length > i ? physBind[i] : Matrix4x4.Identity, out var inversePartBind))
+            {
+                boneToPart[boneIndex] = i;
+                partToBone[i] = bindPose[boneIndex] * inversePartBind;
+            }
+        }
+
+        // Parents come before their children in the bone list, so the first bone with a part is
+        // the root-most one
+        foreach (var bone in skeleton.Bones)
+        {
+            if (boneToPart[bone.Index] >= 0 && Matrix4x4.Invert(bindPose[bone.Index], out inverseRootBoneBind))
+            {
+                rootPart = boneToPart[bone.Index];
+                break;
+            }
+        }
+    }
+
+    // The world pose of the bone a part drives, from the part's live body
+    private Matrix4x4 BoneWorldPose(int part)
+    {
+        var body = bodies[part];
+
+        return partToBone[part]
+            * Matrix4x4.CreateFromQuaternion(body.Rotation)
+            * Matrix4x4.CreateTranslation(body.Position);
+    }
+
+    /// <summary>
+    /// Gets whether the player can grab a part of this ragdoll: only once it actually simulates.
+    /// </summary>
+    public bool CanBeCarried => simulating;
+
+    Body ICarryable.CarryBody => bodies[carriedPart];
+
+    void ICarryable.BeginCarry(PlayerEntity carrier, float carryDistance, Body grabbedBody)
+    {
+        // Only ever handed a body this ragdoll registered, which the pickup found through it
+        carriedPart = partByBodyId[grabbedBody.UserData];
+        this.carrier = carrier;
+        this.carryDistance = carryDistance;
+
+        // Gravity off on the grabbed part only: the held part floats where it is steered while
+        // everything hanging off it keeps its full weight. No collision to suspend - ragdoll
+        // parts never collide with the player's pushing body in the first place.
+        var body = bodies[carriedPart];
+        body.GravityScale = 0f;
+        body.CanSleep = false;
+        body.IsAwake = true;
+    }
+
+    void ICarryable.EndCarry()
+    {
+        if (carriedPart >= 0 && hasBody[carriedPart])
+        {
+            var body = bodies[carriedPart];
+            body.GravityScale = 1f;
+            body.CanSleep = true;
+            body.IsAwake = true;
+        }
+
+        carriedPart = -1;
+        carrier = null;
+    }
+
+    // The grabbed part is held by position alone; its orientation and the rest of the ragdoll
+    // swing free on the joints, which is what makes a carried ragdoll dangle
+    (Vector3 Position, Quaternion? Rotation) ICarryable.ComputeHoldPose()
+    {
+        var body = bodies[carriedPart];
+        var (eyePosition, forward, _) = carrier!.GetHoldView();
+
+        var position = eyePosition + forward * carryDistance
+            - Vector3.Transform(body.LocalCenterOfMass, body.Rotation);
+
+        return (position, null);
+    }
+
+    /// <summary>
+    /// Holds a ragdoll by the part nearest the constraint, so a corpse hung by a rope anchored at its
+    /// neck hangs by the head rather than by whichever part comes first.
+    /// </summary>
+    internal override bool TryGetConstraintBody(Vector3 anchor, out Body body)
+    {
+        body = default;
+        var nearest = float.PositiveInfinity;
+
+        for (var i = 0; i < bodies.Length; i++)
+        {
+            if (!hasBody[i])
+            {
+                continue;
+            }
+
+            var distance = Vector3.DistanceSquared(bodies[i].CenterOfMass, anchor);
+
+            if (distance < nearest)
+            {
+                nearest = distance;
+                body = bodies[i];
+            }
+        }
+
+        return !float.IsPositiveInfinity(nearest);
+    }
+
+    /// <summary>
+    /// Hands every body of the ragdoll the same velocity, for a spawn that arrives moving.
+    /// </summary>
+    public void SetVelocity(Vector3 velocity)
+    {
+        for (var i = 0; i < bodies.Length; i++)
+        {
+            if (hasBody[i])
+            {
+                bodies[i].LinearVelocity = velocity;
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override bool UpdatesRenderTransformEveryFrame => simulating;
+
+    /// <summary>
+    /// Adopts the rigid bodies into the rendered skeleton: the entity is drawn at the root bone's
+    /// live pose, a bone with a physics part takes its body's live pose, and every other bone
+    /// rides its bind-local offset under its parent. The world steps with the rendered frame, so
+    /// this is the frame's true pose.
+    /// </summary>
+    protected override void UpdateRenderTransform(float fraction)
+    {
+        if (!simulating || rootPart < 0)
+        {
+            base.UpdateRenderTransform(fraction);
+        }
+        else
+        {
+            var root = BoneWorldPose(rootPart);
+            SetRenderTransform(root.Translation, Quaternion.CreateFromRotationMatrix(root));
+        }
+
+        if (!simulating || ModelNode is not { } modelNode || !Matrix4x4.Invert(Transform, out var worldToModel))
+        {
+            return;
+        }
+
+        var pose = modelNode.AnimationController.Pose;
+        var skeleton = modelNode.AnimationController.Skeleton;
+
+        // Bones above and beside the physics - the root motion bone, say - keep their bind
+        // relation to the root physics bone, so the whole unsimulated skeleton rides the pelvis
+        var rootsPose = rootPart >= 0
+            ? inverseRootBoneBind * BoneWorldPose(rootPart) * worldToModel
+            : Matrix4x4.Identity;
+
+        foreach (var root in skeleton.Roots)
+        {
+            WriteBonePose(root, rootsPose, worldToModel, pose);
+        }
+
+        for (var i = 0; i < partPhysNodes.Length; i++)
+        {
+            if (partPhysNodes[i] is { } node)
+            {
+                var body = bodies[i];
+                node.Transform = Matrix4x4.CreateFromQuaternion(body.Rotation)
+                    * Matrix4x4.CreateTranslation(body.Position);
+                Scene.DynamicOctree.Update(node);
+            }
+        }
+    }
+
+    private void WriteBonePose(ResourceTypes.ModelAnimation.Bone bone, in Matrix4x4 parentPose, in Matrix4x4 worldToModel, Matrix4x4[] pose)
+    {
+        var part = boneToPart.Length > bone.Index ? boneToPart[bone.Index] : -1;
+
+        var modelPose = part >= 0
+            ? BoneWorldPose(part) * worldToModel
+            : boneLocalBind[bone.Index] * parentPose;
+
+        pose[bone.Index] = modelPose;
+
+        foreach (var child in bone.Children)
+        {
+            WriteBonePose(child, modelPose, worldToModel, pose);
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void OnRemove()
+    {
+        base.OnRemove();
+
+        // The part nodes are owned, so the entity removes them with its other nodes
+        partPhysNodes = [];
+
+        foreach (var joint in joints)
+        {
+            joint.Destroy();
+        }
+
+        joints.Clear();
+
+        for (var i = 0; i < bodies.Length; i++)
+        {
+            if (hasBody[i])
+            {
+                EntitySystem.PhysicsOrNull?.Forget(bodies[i]);
+                bodies[i].Destroy();
+                hasBody[i] = false;
+            }
+        }
+
+        partByBodyId.Clear();
+
+        simulating = false;
+    }
+}

@@ -1,4 +1,5 @@
 using System.Linq;
+using Box3D;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -45,6 +46,27 @@ public abstract class BaseModelEntity : BaseEntity
 
     /// <summary>Gets the model this entity loaded, or <see langword="null"/> when it names none or it failed to load.</summary>
     protected Model? LoadedModel { get; private set; }
+
+    /// <summary>
+    /// Whether this entity mirrors its collider into the rigid body world as a kinematic mover, so
+    /// props collide with it and a door swings them aside. A class that runs its own body - a
+    /// physics prop - turns this off.
+    /// </summary>
+    protected virtual bool UsesMoverBody => true;
+
+    /// <summary>
+    /// Whether the collision debug nodes are built with the model, posed at bind under the entity
+    /// transform. An entity that visualizes its physics itself - a ragdoll moving each part's
+    /// hull with its body - opts out and builds its own.
+    /// </summary>
+    protected virtual bool CreatesPhysDebugNodes => true;
+
+    // The kinematic mirror of the collider, and whether it currently collides; a mover the map
+    // makes non-solid takes its body along
+    private Body moverBody;
+    private bool hasMoverBody;
+    private bool moverBodyEnabled;
+    private bool moverBodyIsAnchorOnly;
 
     /// <summary>
     /// Initializes a model entity from its keyvalues.
@@ -149,14 +171,30 @@ public abstract class BaseModelEntity : BaseEntity
             if (Scene.EntitiesCollide && BuildsCollider)
             {
                 Collider = new EntityCollider(physics);
+
+                // The same collision again as a kinematic body, so props collide with this entity and
+                // a moving one - a door - carries them with a real velocity
+                if (UsesMoverBody && !IsTrigger
+                    && EntitySystem.Physics.CreateMoverBody(physics, Origin,
+                        EntityTransformHelper.EulerAnglesToQuaternion(Angles)) is { } body)
+                {
+                    moverBody = body;
+                    hasMoverBody = true;
+                    moverBodyEnabled = true;
+                    EntitySystem.Physics.Register(body, this);
+                }
+
                 UpdateColliderTransform();
             }
 
             // Owned outright rather than hung off the model: a brush compiled for collision alone has no
             // model node to hang them from, and its hulls are then the only thing there is to show.
-            foreach (var physicsNode in PhysSceneNode.CreatePhysSceneNodes(Scene, physics, modelName, Classname))
+            if (CreatesPhysDebugNodes)
             {
-                AddNode(physicsNode);
+                foreach (var physicsNode in PhysSceneNode.CreatePhysSceneNodes(Scene, physics, modelName, Classname))
+                {
+                    AddNode(physicsNode);
+                }
             }
 
             // intentionally skip default scene node if phys exists
@@ -171,6 +209,87 @@ public abstract class BaseModelEntity : BaseEntity
     /// either way. Read while the entity is constructed, so an override must not depend on its own state.
     /// </summary>
     protected virtual bool BuildsCollider => true;
+
+    /// <summary>
+    /// Finds the rigid body a physics constraint anchored at <paramref name="anchor"/> holds this entity
+    /// by: its kinematic mirror, so a constraint can hang things off a moving brush. A brush with no
+    /// mirror - its collision is a triangle mesh, which a moving body cannot carry - gets a shapeless
+    /// one on demand, which only follows the entity for the joint's sake.
+    /// </summary>
+    internal virtual bool TryGetConstraintBody(Vector3 anchor, out Body body)
+    {
+        if (!hasMoverBody && UsesMoverBody && Scene.EntitiesCollide)
+        {
+            moverBody = EntitySystem.Physics.World.CreateKinematicBody(Origin, EntityTransformHelper.EulerAnglesToQuaternion(Angles));
+            hasMoverBody = true;
+            moverBodyEnabled = true;
+            moverBodyIsAnchorOnly = true;
+            EntitySystem.Physics.Register(moverBody, this);
+        }
+
+        body = moverBody;
+        return hasMoverBody;
+    }
+
+    /// <inheritdoc/>
+    protected override void UpdateColliderTransform()
+    {
+        base.UpdateColliderTransform();
+
+        if (!hasMoverBody)
+        {
+            return;
+        }
+
+        // Solidity the map toggles takes the body along, so a door made passable stops pushing. A
+        // shapeless anchor pushes nothing and always follows, since disabling it would drop its joints.
+        var shouldCollide = moverBodyIsAnchorOnly || (IsSolid && !IsTrigger && !IsRemoved);
+
+        if (shouldCollide != moverBodyEnabled)
+        {
+            moverBodyEnabled = shouldCollide;
+
+            if (shouldCollide)
+            {
+                moverBody.Enable();
+            }
+            else
+            {
+                moverBody.Disable();
+            }
+        }
+
+        if (!shouldCollide)
+        {
+            return;
+        }
+
+        var rotation = EntityTransformHelper.EulerAnglesToQuaternion(Angles);
+
+        // Moved with a velocity rather than teleported, so the solver sweeps props aside with the
+        // mover's real speed; a jump across the map is not a sweep, so that snaps instead
+        if (Vector3.DistanceSquared(moverBody.Position, Origin) > 256f * 256f)
+        {
+            moverBody.SetTransform(Origin, rotation);
+        }
+        else
+        {
+            moverBody.MoveTowards(Origin, rotation, EntitySystem.TickInterval, wake: true);
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void OnRemove()
+    {
+        base.OnRemove();
+
+        if (hasMoverBody)
+        {
+            EntitySystem.PhysicsOrNull?.Forget(moverBody);
+            moverBody.Destroy();
+            hasMoverBody = false;
+        }
+    }
 
     /// <summary>Tints the model with <c>"R G B"</c> in 0-255.</summary>
     [EntityInput("Color")]

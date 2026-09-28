@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary><c>func_breakable</c>. A solid brush that can be broken</summary>
-public sealed class FuncBreakable : BaseModelEntity
+public sealed class FuncBreakable : BaseModelEntity, IDamageable
 {
     /// <summary>Gets the remaining strength; breaking happens at zero.</summary>
     public float Health { get; private set; }
@@ -36,6 +36,18 @@ public sealed class FuncBreakable : BaseModelEntity
         IsSolid = false;
 
         EntitySystem.TriggerOutput(this, "OnBreak", activator);
+    }
+
+    /// <inheritdoc/>
+    public void TakeDamage(in DamageInfo info)
+    {
+        // A brush authored with no health only breaks on its Break input
+        if (info.Amount <= 0f || KeyValues.GetFloatProperty("health", 1f) <= 0f)
+        {
+            return;
+        }
+
+        SetHealth(Health - info.Amount, info.Attacker);
     }
 
     [EntityInput("Break")]
