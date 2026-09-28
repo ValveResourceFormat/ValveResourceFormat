@@ -835,6 +835,8 @@ namespace GUI.Types.GLViewers
             {
                 entityInfoForm = new EntityInfoForm();
                 entityInfoForm.EntityInfoControl.LinkedResourceActivated += OnLinkedResourceActivated;
+                entityInfoForm.EntityInfoControl.ConnectionFireRequested += OnConnectionFireRequested;
+                entityInfoForm.EntityInfoControl.CanFireConnections = true;
 
                 if (ShowEntityInGraph != null)
                 {
@@ -891,6 +893,12 @@ namespace GUI.Types.GLViewers
                     }
                     break;
             }
+        }
+
+        private void OnConnectionFireRequested(object? sender, EntityLump.Connection connection)
+        {
+            using var lockedGl = MakeCurrent();
+            Renderer.EntitySystem.QueueConnection(connection, Renderer.EntitySystem.Player);
         }
 
         private void OnShowInGraphButtonClick(object? sender, EventArgs e)

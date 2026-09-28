@@ -652,16 +652,35 @@ public sealed class EntitySystem
                 continue;
             }
 
-            // The authored override wins over whatever the output reports, which is the precedence
-            // CBaseEntityOutput::FireOutput uses: a parameter on the connection replaces the value
-            var parameter = string.IsNullOrEmpty(connection.OverrideParam) || connection.OverrideParam == "(null)"
-                ? value
-                : connection.OverrideParam;
-
             QueueInputByTarget(new EntityIOTarget(connection.TargetName, connection.TargetType),
-                connection.InputName, parameter, activator, caller ?? source, connection.Delay, connection);
+                connection.InputName, ConnectionParameter(connection, value), activator, caller ?? source, connection.Delay, connection);
         }
     }
+
+    /// <summary>
+    /// Fires one authored connection on its own, for triggering map logic by
+    /// hand.
+    /// </summary>
+    /// <param name="connection">The connection to fire.</param>
+    /// <param name="activator">The entity that started the chain, usually the player.</param>
+    public void QueueConnection(EntityLump.Connection connection, BaseEntity? activator = null)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+
+        var source = entities.Find(entity => !entity.IsRemoved && entity.Data == connection.SourceEntity);
+
+        QueueInputByTarget(new EntityIOTarget(connection.TargetName, connection.TargetType),
+            connection.InputName, ConnectionParameter(connection, null), activator, source, 0f, null);
+    }
+
+    /// <summary>
+    /// The authored override wins over whatever the output reports, which is the precedence
+    /// CBaseEntityOutput::FireOutput uses: a parameter on the connection replaces the value.
+    /// </summary>
+    private static string? ConnectionParameter(EntityLump.Connection connection, string? value)
+        => string.IsNullOrEmpty(connection.OverrideParam) || connection.OverrideParam == "(null)"
+            ? value
+            : connection.OverrideParam;
 
     /// <summary>
     /// Finds every entity whose targetname matches.

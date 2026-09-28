@@ -60,6 +60,7 @@ namespace GUI.Forms
             OutputsParameter = new DataGridViewTextBoxColumn();
             OutputsDelay = new DataGridViewTextBoxColumn();
             OutputsTimesToFire = new DataGridViewTextBoxColumn();
+            OutputsFire = new DataGridViewButtonColumn();
             tabPageInputs = new TabPage();
             dataGridInputs = new DataGridView();
             InputsSource = new DataGridViewTextBoxColumn();
@@ -68,6 +69,7 @@ namespace GUI.Forms
             InputsParameter = new DataGridViewTextBoxColumn();
             InputsDelay = new DataGridViewTextBoxColumn();
             InputsTimeToFire = new DataGridViewTextBoxColumn();
+            InputsFire = new DataGridViewButtonColumn();
             tabPageReferences = new ThemedTabPage();
             dataGridReferences = new DataGridView();
             ReferencesSource = new DataGridViewTextBoxColumn();
@@ -210,7 +212,7 @@ namespace GUI.Forms
             dataGridViewCellStyle6.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle6.WrapMode = DataGridViewTriState.True;
             dataGridOutputs.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle6;
-            dataGridOutputs.Columns.AddRange(new DataGridViewColumn[] { OutputsOutput, OutputsTargetEntity, OutputsTargetInput, OutputsParameter, OutputsDelay, OutputsTimesToFire });
+            dataGridOutputs.Columns.AddRange(new DataGridViewColumn[] { OutputsOutput, OutputsTargetEntity, OutputsTargetInput, OutputsParameter, OutputsDelay, OutputsTimesToFire, OutputsFire });
             dataGridViewCellStyle7.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle7.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             dataGridViewCellStyle7.Font = new System.Drawing.Font("Cascadia Mono", 10F);
@@ -275,6 +277,19 @@ namespace GUI.Forms
             OutputsTimesToFire.Name = "OutputsTimesToFire";
             OutputsTimesToFire.ReadOnly = true;
             // 
+            // OutputsFire
+            // 
+            OutputsFire.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            OutputsFire.FlatStyle = FlatStyle.Flat;
+            OutputsFire.HeaderText = "";
+            OutputsFire.Name = "OutputsFire";
+            OutputsFire.ReadOnly = true;
+            OutputsFire.Resizable = DataGridViewTriState.False;
+            OutputsFire.Text = "Fire";
+            OutputsFire.UseColumnTextForButtonValue = true;
+            OutputsFire.Visible = false;
+            OutputsFire.Width = 56;
+            // 
             // tabPageInputs
             // 
             tabPageInputs.Controls.Add(dataGridInputs);
@@ -303,7 +318,7 @@ namespace GUI.Forms
             dataGridViewCellStyle10.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle10.WrapMode = DataGridViewTriState.True;
             dataGridInputs.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle10;
-            dataGridInputs.Columns.AddRange(new DataGridViewColumn[] { InputsSource, InputsOutput, InputsTargetInput, InputsParameter, InputsDelay, InputsTimeToFire });
+            dataGridInputs.Columns.AddRange(new DataGridViewColumn[] { InputsSource, InputsOutput, InputsTargetInput, InputsParameter, InputsDelay, InputsTimeToFire, InputsFire });
             dataGridViewCellStyle11.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle11.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             dataGridViewCellStyle11.Font = new System.Drawing.Font("Cascadia Mono", 10F);
@@ -367,6 +382,19 @@ namespace GUI.Forms
             InputsTimeToFire.HeaderText = "Times To Fire";
             InputsTimeToFire.Name = "InputsTimeToFire";
             InputsTimeToFire.ReadOnly = true;
+            // 
+            // InputsFire
+            // 
+            InputsFire.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            InputsFire.FlatStyle = FlatStyle.Flat;
+            InputsFire.HeaderText = "";
+            InputsFire.Name = "InputsFire";
+            InputsFire.ReadOnly = true;
+            InputsFire.Resizable = DataGridViewTriState.False;
+            InputsFire.Text = "Fire";
+            InputsFire.UseColumnTextForButtonValue = true;
+            InputsFire.Visible = false;
+            InputsFire.Width = 56;
             // 
             // tabPageReferences
             // 
@@ -481,6 +509,7 @@ namespace GUI.Forms
         private DataGridViewTextBoxColumn OutputsParameter;
         private DataGridViewTextBoxColumn OutputsDelay;
         private DataGridViewTextBoxColumn OutputsTimesToFire;
+        private DataGridViewButtonColumn OutputsFire;
         private ThemedTabControl tabControl;
         private TabPage tabPageInputs;
         private ThemedTabPage tabPageProperties;
@@ -492,6 +521,7 @@ namespace GUI.Forms
         private DataGridViewTextBoxColumn InputsParameter;
         private DataGridViewTextBoxColumn InputsDelay;
         private DataGridViewTextBoxColumn InputsTimeToFire;
+        private DataGridViewButtonColumn InputsFire;
         private ThemedTabPage tabPageReferences;
         private DataGridView dataGridReferences;
         private DataGridViewTextBoxColumn ReferencesSource;

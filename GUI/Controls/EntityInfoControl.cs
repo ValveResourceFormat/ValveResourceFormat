@@ -13,6 +13,11 @@ namespace GUI.Forms
         /// </summary>
         public event EventHandler<LinkedResource>? LinkedResourceActivated;
 
+        /// <summary>
+        /// Raised when the fire button of an output or input connection is clicked.
+        /// </summary>
+        public event EventHandler<Connection>? ConnectionFireRequested;
+
         public EntityInfoControl()
         {
             InitializeComponent();
@@ -26,6 +31,21 @@ namespace GUI.Forms
             dataGridOutputs.CellDoubleClick += OnOutputsCellDoubleClick;
             dataGridInputs.CellDoubleClick += OnInputsCellDoubleClick;
             dataGridReferences.CellDoubleClick += OnReferencesCellDoubleClick;
+            dataGridOutputs.CellContentClick += OnOutputsCellContentClick;
+            dataGridInputs.CellContentClick += OnInputsCellContentClick;
+        }
+
+        /// <summary>
+        /// Gets or sets whether connections show a button to fire them, for hosts with a live entity world.
+        /// </summary>
+        public bool CanFireConnections
+        {
+            get => OutputsFire.Visible;
+            set
+            {
+                OutputsFire.Visible = value;
+                InputsFire.Visible = value;
+            }
         }
 
         private TabPage[] TabPageOrder => [tabPageProperties, tabPageOutputs, tabPageInputs, tabPageReferences];
@@ -185,7 +205,9 @@ namespace GUI.Forms
                 GetStringTimesToFire(connectionData.TimesToFire)
             ]);
 
-            dataGridOutputs.Rows[rowIndex].Tag = target != null ? new LinkedEntity(target) : null;
+            var row = dataGridOutputs.Rows[rowIndex];
+            row.Tag = target != null ? new LinkedEntity(target) : null;
+            row.Cells[OutputsFire.Index].Tag = connectionData;
         }
 
         private void AddInputConnection(Connection connectionData)
@@ -199,7 +221,9 @@ namespace GUI.Forms
                 GetStringTimesToFire(connectionData.TimesToFire)
             ]);
 
-            dataGridInputs.Rows[rowIndex].Tag = new LinkedEntity(connectionData.SourceEntity);
+            var row = dataGridInputs.Rows[rowIndex];
+            row.Tag = new LinkedEntity(connectionData.SourceEntity);
+            row.Cells[InputsFire.Index].Tag = connectionData;
         }
 
         private static string GetStringTimesToFire(int timesToFire)
@@ -230,6 +254,26 @@ namespace GUI.Forms
         private void OnReferencesCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
         {
             ShowLinkedResource(dataGridReferences, ReferencesSource, e);
+        }
+
+        private void OnOutputsCellContentClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            FireConnection(dataGridOutputs, OutputsFire, e);
+        }
+
+        private void OnInputsCellContentClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            FireConnection(dataGridInputs, InputsFire, e);
+        }
+
+        private void FireConnection(DataGridView grid, DataGridViewColumn fireColumn, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex != fireColumn.Index || grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Tag is not Connection connection)
+            {
+                return;
+            }
+
+            ConnectionFireRequested?.Invoke(this, connection);
         }
 
         private void ShowLinkedResource(DataGridView grid, DataGridViewColumn linkColumn, DataGridViewCellEventArgs e)
