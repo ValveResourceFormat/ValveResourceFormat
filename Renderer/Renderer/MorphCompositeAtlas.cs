@@ -72,12 +72,17 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void Render()
         {
-            if (queued.Count == 0)
+            if (queued.Count == 0 && placed.Count == 0)
             {
                 return;
             }
 
             using var _ = new GLDebugGroup("Morph Composites");
+
+            if (queued.Count == 0)
+            {
+                return;
+            }
 
             var needsRepack = false;
 

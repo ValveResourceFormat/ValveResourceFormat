@@ -98,11 +98,12 @@ public class Timings
 
         currentIndex++;
 
+        var depth = currentDepth++;
+
         if (cpuOnly)
         {
             // No GPU query objects at all: this region issues no draw work, so the GPU column would
             // only ever report the gap between whatever surrounds it.
-            var depth = activeQueries.TryGetValue(currentIndex, out var existing) ? existing.Depth : currentDepth++;
             activeQueries[currentIndex] = new TimingQuery(Stopwatch.GetTimestamp(), false, name, depth, currentIndex, CpuOnly: true);
             return currentIndex;
         }
@@ -138,14 +139,13 @@ public class Timings
                 GL.QueryCounter(gpuStartQueries[activeQuery.Id], QueryCounterTarget.Timestamp);
             }
 
-            activeQueries[currentIndex] = activeQuery with { StartTimestamp = Stopwatch.GetTimestamp() };
+            activeQueries[currentIndex] = activeQuery with { StartTimestamp = Stopwatch.GetTimestamp(), Depth = depth };
             return currentIndex;
         }
 
         GL.QueryCounter(startQueryId, QueryCounterTarget.Timestamp);
         GL.QueryCounter(endQueryId, QueryCounterTarget.Timestamp);
-        activeQueries[currentIndex] = new TimingQuery(Stopwatch.GetTimestamp(), true, name, currentDepth, currentIndex, CpuOnly: false);
-        currentDepth++;
+        activeQueries[currentIndex] = new TimingQuery(Stopwatch.GetTimestamp(), true, name, depth, currentIndex, CpuOnly: false);
 
         return currentIndex;
     }
@@ -386,6 +386,7 @@ public class Timings
         if (Capture)
         {
             currentIndex = 0;
+            currentDepth = 0;
         }
     }
 
