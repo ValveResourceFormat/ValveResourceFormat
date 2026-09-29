@@ -1,5 +1,5 @@
-using System.Linq;
 using System.IO;
+using System.Linq;
 using SharpGLTF.Schema2;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;

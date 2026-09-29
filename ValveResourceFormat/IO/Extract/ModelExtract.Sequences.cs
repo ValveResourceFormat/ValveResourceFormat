@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
