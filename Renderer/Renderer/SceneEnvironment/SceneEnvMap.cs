@@ -84,7 +84,7 @@ public class SceneEnvMap : SceneNode
     public static readonly Vector4 NoNormalization = Vector4.Zero;
 
     /// <summary>Gets or sets the shader-side index assigned to this env map for UBO packing.</summary>
-    public int ShaderIndex { get; set; }
+    public int ShaderIndex { get; set; } = -1;
 
     internal Matrix4x4 WorldToLocal = Matrix4x4.Identity;
 
@@ -171,6 +171,12 @@ public class SceneEnvMap : SceneNode
             foreach (var envMap in envMaps)
             {
                 var index = envMap.ShaderIndex;
+
+                if (index < 0)
+                {
+                    continue;
+                }
+
                 var bucketIndex = index / 32;
 
                 // Only the first 128 probes get a bit here. The shader reads a probe past that as visible
