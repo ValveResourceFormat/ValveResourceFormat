@@ -5,8 +5,8 @@ using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.ResourceTypes.EntityLump;
 using ValveResourceFormat.Utils;
+using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.IO;
 
