@@ -20,7 +20,7 @@ public partial class GltfModelExporter
     // https://github.com/KhronosGroup/glTF-Validator/blob/master/lib/src/errors.dart
     private const float UnitLengthThresholdVec3 = 0.00674f;
 
-    private const float OverlayNormalOffsetDistance = 0.01f / 0.0254f;
+    private const float OverlayNormalOffsetDistance = 0.01f;
 
     // TODO: Using floats as hash key is kind of unhinged
     private readonly record struct ExportedMaterial(string Name, Vector4 Tint);
