@@ -32,6 +32,7 @@ public partial class GltfModelExporter
     private readonly Dictionary<string, VMaterial.VsInputSignature> MaterialInputSignatures = [];
     // Scaled copies keyed by source accessor, so draw calls sharing a vertex buffer reuse one copy.
     private readonly Dictionary<Accessor, Accessor> ScaledLightmapUvAccessors = [];
+    private readonly Dictionary<(Accessor Position, Accessor Normal), Accessor> OverlayOffsetPositionAccessors = [];
 
     private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[]? boneRemapTable, string? skinMaterialPath, Vector4 tintColor)
     {
@@ -913,13 +914,19 @@ public partial class GltfModelExporter
         }
     }
 
-    private static void OffsetMeshPositionsByNormals(MeshPrimitive primitive)
+    private void OffsetMeshPositionsByNormals(MeshPrimitive primitive)
     {
         var positionAccessor = primitive.GetVertexAccessor("POSITION");
         var normalAccessor = primitive.GetVertexAccessor("NORMAL");
 
         if (positionAccessor == null || normalAccessor == null)
         {
+            return;
+        }
+
+        if (OverlayOffsetPositionAccessors.TryGetValue((positionAccessor, normalAccessor), out var offsetAccessor))
+        {
+            primitive.SetVertexAccessor("POSITION", offsetAccessor);
             return;
         }
 
@@ -933,6 +940,8 @@ public partial class GltfModelExporter
             updatedPositions[i] = positions[i] + normals[i] * OverlayNormalOffsetDistance;
         }
 
-        primitive.SetVertexAccessor("POSITION", CreateAccessor(primitive.LogicalParent.LogicalParent, updatedPositions));
+        offsetAccessor = CreateAccessor(primitive.LogicalParent.LogicalParent, updatedPositions);
+        OverlayOffsetPositionAccessors.Add((positionAccessor, normalAccessor), offsetAccessor);
+        primitive.SetVertexAccessor("POSITION", offsetAccessor);
     }
 }

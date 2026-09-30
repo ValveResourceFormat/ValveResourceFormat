@@ -172,6 +172,7 @@ namespace ValveResourceFormat.IO
                 LightmapUvScale = Vector2.One;
                 MaterialInputSignatures.Clear();
                 ScaledLightmapUvAccessors.Clear();
+                OverlayOffsetPositionAccessors.Clear();
                 PhysicsToExport.Clear();
                 TextureExportingTasks.Clear();
                 ExportedTextures.Clear();
