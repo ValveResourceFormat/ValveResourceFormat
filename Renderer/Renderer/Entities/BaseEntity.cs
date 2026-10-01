@@ -338,16 +338,15 @@ public abstract class BaseEntity
     /// Builds the node this entity is drawn as, or returns <see langword="null"/> for one that draws nothing.
     /// </summary>
     /// <remarks>
-    /// The default is the editor marker, <see cref="CreateEditorNode"/>: the icon the entity's Hammer class
-    /// names, or a box in its colour. A class with real geometry overrides this, so the icon is never built
-    /// for one that has geometry.
+    /// The default is the tool's stand-in, <see cref="CreateEditorNode"/>. A class with real geometry
+    /// overrides this, so the stand-in is never built for one that has geometry.
     /// </remarks>
     /// <returns>The node, or <see langword="null"/> to own none.</returns>
     protected virtual SceneNode? CreateRootNode() => CreateEditorNode();
 
     /// <summary>
-    /// Builds the node the editor draws this entity as: the icon its Hammer class names, or a box in its
-    /// colour. <see langword="null"/> for an entity created at runtime, which has no Hammer class.
+    /// Builds the stand-in the tool draws this entity as, through <see cref="EntitySystem.ToolVisuals"/>.
+    /// <see langword="null"/> without one, and for an entity created at runtime, which was never authored.
     /// </summary>
     /// <param name="flags">Flags for the node.</param>
     /// <returns>The node, or <see langword="null"/>.</returns>
@@ -358,15 +357,7 @@ public abstract class BaseEntity
             return null;
         }
 
-        // Whatever the Hammer class draws, even a model, is the editor's preview and never what the game
-        // shows, so it goes on the editor-only layer. A template and what it spawns stay grouped together.
-        // This also hides entities the game does draw but that only get the Hammer model as a stand-in here,
-        // such as CS2 weapons placed on the ground. They will show again once we make their class spawns its real model.
-        var layerName = LayerName == World.EditorEntityNode.TemplateLayerName
-            ? World.EditorEntityNode.TemplateLayerName
-            : World.EditorEntityNode.LayerName;
-
-        return World.EditorEntityNode.Create(Scene, Data, Classname, Transform, RigidTransform, flags, layerName);
+        return EntitySystem.ToolVisuals?.CreateStandIn(this, flags);
     }
 
     /// <summary>

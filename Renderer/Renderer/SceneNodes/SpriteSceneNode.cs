@@ -4,7 +4,8 @@ using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
-    class SpriteSceneNode : SceneNode
+    /// <summary>A material drawn on a quad that always faces the camera, marking a point.</summary>
+    public class SpriteSceneNode : SceneNode
     {
         [StructLayout(LayoutKind.Sequential)]
         private struct Vertex
@@ -38,8 +39,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly RenderMaterial material;
         private readonly float spriteSize;
 
+        /// <inheritdoc/>
         public override bool IsPointMarker => true;
 
+        /// <summary>Initializes a sprite from a material, sized by its <c>g_flUniformPointSize</c>.</summary>
+        /// <param name="scene">The scene the node belongs to.</param>
+        /// <param name="renderContext">The renderer context to load the material with.</param>
+        /// <param name="resource">The material resource.</param>
+        /// <param name="position">Where the sprite is.</param>
         public SpriteSceneNode(Scene scene, RendererContext renderContext, Resource resource, Vector3 position)
             : base(scene)
         {
@@ -65,6 +72,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             RenderPasses |= CustomRenderPasses.DepthOnly;
         }
 
+        /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
             Transform = Matrix4x4.CreateScale(spriteSize * PlacementScale)
@@ -72,6 +80,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 * Matrix4x4.CreateTranslation(Transform.Translation);
         }
 
+        /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
             if (context.RenderPass is not RenderPass.Opaque and not RenderPass.Outline and not RenderPass.DepthOnly)

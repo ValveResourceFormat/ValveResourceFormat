@@ -5,7 +5,7 @@ using System.Windows.Forms;
 using GUI.Forms;
 using GUI.Utils;
 using SkiaSharp;
-using ValveResourceFormat.Renderer.Utils;
+using ValveResourceFormat.Editor.Entities;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;

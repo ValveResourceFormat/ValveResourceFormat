@@ -170,13 +170,17 @@ namespace ValveResourceFormat.Renderer
         public Scene Scene { get; }
 
         /// <summary>
-        /// How large this node is drawn next to whatever places it. Only an editor marker differs, and
-        /// only where its scene is magnified; a line joining two markers keeps the magnification, since
-        /// it has to span the distance between them.
+        /// Gets or sets whether this node is a marker drawn at the same size in every scene, rather than
+        /// magnified with a scene such as a 3D sky. A line joining two markers is not one, since it has to
+        /// span the distance between them.
         /// </summary>
-        internal float PlacementScale => LayerName == World.EditorEntityNode.LayerName && this is not SceneNodes.LineSceneNode
-            ? Scene.MarkerScale
-            : 1f;
+        public bool KeepsMarkerSize { get; set; }
+
+        /// <summary>
+        /// How large this node is drawn next to whatever places it. Only a marker differs, and only where its
+        /// scene is magnified.
+        /// </summary>
+        internal float PlacementScale => KeepsMarkerSize ? Scene.MarkerScale : 1f;
 
         /// <summary>Shrinks a transform this node is placed at by <see cref="PlacementScale"/>.</summary>
         internal Matrix4x4 ApplyPlacementScale(in Matrix4x4 transform)

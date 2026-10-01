@@ -1,4 +1,6 @@
+using System.Collections.Frozen;
 using System.Linq;
+using ValveResourceFormat.Editor.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
 
@@ -11,6 +13,10 @@ namespace ValveResourceFormat.Editor;
 /// </summary>
 public sealed class ToolsVisibility
 {
+    // What only the editor draws, and the entities a template spawns, which are not in the world until it does
+    private static readonly FrozenSet<string> ToolEntityLayerNames =
+        FrozenSet.Create(StringComparer.Ordinal, HammerEntityVisuals.MarkerLayerName, HammerEntityVisuals.ConnectionsLayerName, WorldLoader.TemplateLayerName);
+
     private readonly bool[] showToolsByMode = [true, false];
 
     /// <summary>Gets the mode whose master switch <see cref="ShowTools"/> reads and writes.</summary>
@@ -37,7 +43,7 @@ public sealed class ToolsVisibility
 
     /// <summary>Gets whether a layer only holds editor-only entities.</summary>
     /// <param name="layerName">The layer.</param>
-    public static bool IsToolEntityLayer(string layerName) => WorldLoader.ToolEntityLayerNames.Contains(layerName);
+    public static bool IsToolEntityLayer(string layerName) => ToolEntityLayerNames.Contains(layerName);
 
     /// <summary>
     /// Gets whether collision shapes end up drawn, given whether their group was chosen to be shown. Tools

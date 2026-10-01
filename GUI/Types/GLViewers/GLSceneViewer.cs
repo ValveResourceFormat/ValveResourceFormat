@@ -8,6 +8,7 @@ using GUI.Types.Audio;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Editor;
+using ValveResourceFormat.Editor.Entities;
 using ValveResourceFormat.Editor.Picking;
 using ValveResourceFormat.Editor.Selection;
 using ValveResourceFormat.Renderer;
@@ -121,6 +122,7 @@ namespace GUI.Types.GLViewers
 
             Renderer = new(rendererContext);
             Input = new UserInput(Renderer);
+            Renderer.EntitySystem.ToolVisuals = new HammerEntityVisuals();
             EditorState = new EditorState(Renderer.EntitySystem, Input);
             EditorState.ModeChanged += OnEditorModeChanged;
             EditorState.WalkingChanged += OnWalkingChanged;

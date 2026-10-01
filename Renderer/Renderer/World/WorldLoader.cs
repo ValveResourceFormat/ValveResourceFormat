@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -46,17 +45,11 @@ namespace ValveResourceFormat.Renderer.World
         // Always enabled, the physics group filter decides what actually draws.
         private const string PhysicsDebugLayerName = "Physics Visualization Layer";
 
-        private const string EntityConnectionsLayerName = "Entity Connections";
-
-        /// <summary>
-        /// Layers of what only exists in the editor: entities without a presence in game, the entities a
-        /// template spawns, and the lines between connected entities.
-        /// </summary>
-        public static FrozenSet<string> ToolEntityLayerNames { get; } =
-            FrozenSet.Create(StringComparer.Ordinal, EditorEntityNode.LayerName, EditorEntityNode.TemplateLayerName, EntityConnectionsLayerName);
+        /// <summary>Visibility layer of the entities a <c>point_template</c> spawns, and of the template itself.</summary>
+        public const string TemplateLayerName = "Template Entities";
 
         /// <summary>Layer names that should be visible by default, populated during loading.</summary>
-        public HashSet<string> DefaultEnabledLayers { get; } = ["No layer", "Entities", EditorEntityNode.LayerName, Scene.ParticlesLayerName, PhysicsDebugLayerName];
+        public HashSet<string> DefaultEnabledLayers { get; } = ["No layer", "Entities", Scene.ParticlesLayerName, PhysicsDebugLayerName];
 
         /// <summary>Names of info_camera_link entities found in the world.</summary>
         public List<string> CameraNames { get; } = [];
@@ -240,23 +233,19 @@ namespace ValveResourceFormat.Renderer.World
                         });
                     }
 
-                    if (resource is { ResourceType: ResourceType.EntityLump, DataBlock: EntityLump entityLump })
+                    if (resource is { ResourceType: ResourceType.EntityLump, DataBlock: EntityLump entityLump } && entitySystem.ToolVisuals is { } toolVisuals)
                     {
-                        HashSet<string> toolIcons = [];
+                        HashSet<string> toolResources = [];
                         foreach (var entity in entityLump.GetEntities())
                         {
                             var className = entity.GetStringProperty("classname");
                             if (className != null)
                             {
-                                var hammerEntity = HammerEntities.Get(className);
-                                if (hammerEntity?.Icons.Length > 0)
-                                {
-                                    toolIcons.UnionWith(hammerEntity.Icons);
-                                }
+                                toolResources.UnionWith(toolVisuals.GetResourcesToPreload(className));
                             }
                         }
 
-                        Parallel.ForEach(toolIcons, parallelOptions, file =>
+                        Parallel.ForEach(toolResources, parallelOptions, file =>
                         {
                             PreloadResource(file);
                         });
@@ -570,7 +559,7 @@ namespace ValveResourceFormat.Renderer.World
                 try
                 {
                     // A point_template shares its layer with what it spawns
-                    var layerName = fromTemplate || classname == "point_template" ? EditorEntityNode.TemplateLayerName : originalLayerName;
+                    var layerName = fromTemplate || classname == "point_template" ? TemplateLayerName : originalLayerName;
 
                     var disabled = entity.GetBooleanProperty("startdisabled");
 
@@ -628,20 +617,26 @@ namespace ValveResourceFormat.Renderer.World
                 }
             }
 
-            // Once the whole lump has spawned, so a line can end at an entity authored after the one it starts at.
-            // A 3D sky loaded part way through adds its own entities, which draw their own lines.
+            if (entitySystem.ToolVisuals is not { } toolVisuals)
+            {
+                return;
+            }
+
+            // Once the whole lump has spawned, so a relation can reach an entity authored after the one it
+            // starts at. A 3D sky loaded part way through adds its own entities, which relate their own.
+            var spawnedHere = new List<BaseEntity>(entitySystem.Entities.Count - firstSpawned);
+
             for (var i = firstSpawned; i < entitySystem.Entities.Count; i++)
             {
                 var spawned = entitySystem.Entities[i];
 
-                if (spawned.Scene != scene || spawned.Data == null)
+                if (spawned.Scene == scene && spawned.Data != null)
                 {
-                    continue;
+                    spawnedHere.Add(spawned);
                 }
-
-                CreateEntityConnectionLines(spawned);
-                CreateHelperLines(spawned);
             }
+
+            toolVisuals.AddEntityRelations(scene, spawnedHere);
         }
 
         private void LoadSkybox(BaseEntity skyboxReference)
@@ -843,115 +838,6 @@ namespace ValveResourceFormat.Renderer.World
             spawnCameraPriority = priority;
             SpawnCameraMatrix = spawnMatrix;
         }
-
-        /// <summary>
-        /// Draws the helper lines the entity's Hammer class declares, from the entity to the ones its
-        /// keyvalues name, as the editor shows them.
-        /// </summary>
-        private void CreateHelperLines(BaseEntity entity)
-        {
-            if (entity.Data is not { } data || HammerEntities.Get(entity.Classname) is not { Lines.Length: > 0 } hammerEntity)
-            {
-                return;
-            }
-
-            var layerName = entity.LayerName == EditorEntityNode.TemplateLayerName ? EditorEntityNode.TemplateLayerName : EditorEntityNode.LayerName;
-
-            foreach (var line in hammerEntity.Lines)
-            {
-                if (data.GetStringProperty(line.StartValueKey) is not { } startValue
-                    || FindHelperLineEnd(line.StartKey, startValue) is not { } startEntity)
-                {
-                    continue;
-                }
-
-                var start = startEntity.Transform.Translation;
-                var end = entity.Transform.Translation;
-
-                if (line.EndKey != null && line.EndValueKey != null)
-                {
-                    if (data.GetStringProperty(line.EndValueKey) is not { } endValue
-                        || FindHelperLineEnd(line.EndKey, endValue) is not { } endEntity)
-                    {
-                        continue;
-                    }
-
-                    end = endEntity.Transform.Translation;
-                }
-
-                var origin = (start + end) / 2f;
-
-                var lineNode = new LineSceneNode(scene, start - origin, end - origin, line.Color, line.Color)
-                {
-                    LayerName = layerName,
-                    Transform = Matrix4x4.CreateTranslation(origin),
-                };
-
-                scene.Add(lineNode, true);
-            }
-        }
-
-        /// <summary>Draws a line from the entity to every entity its entity I/O connections reach.</summary>
-        private void CreateEntityConnectionLines(BaseEntity entity)
-        {
-            if (entity.Data?.Connections is not { } connections)
-            {
-                return;
-            }
-
-            var start = entity.Transform.Translation;
-            var alreadySeen = new HashSet<BaseEntity>(connections.Count);
-
-            foreach (var connection in connections)
-            {
-                var matched = false;
-
-                // The entity as the caller, so a connection aimed at !self reaches it
-                foreach (var target in entitySystem.FindTargets(new EntityIOTarget(connection.TargetName, connection.TargetType), caller: entity))
-                {
-                    // A 3D sky shares names with the map it is placed in
-                    if (target.Scene != scene)
-                    {
-                        continue;
-                    }
-
-                    matched = true;
-
-                    if (!alreadySeen.Add(target))
-                    {
-                        continue;
-                    }
-
-                    var end = target.Transform.Translation;
-                    var origin = (start + end) / 2f;
-
-                    var lineNode = new LineSceneNode(scene, start - origin, end - origin, new Color32(0, 255, 0), new Color32(255, 0, 0))
-                    {
-                        LayerName = EntityConnectionsLayerName,
-                        Transform = Matrix4x4.CreateTranslation(origin),
-#if DEBUG
-                        Name = $"Line from {entity.Data.GetStringProperty("hammeruniqueid")} to {target.Data?.GetStringProperty("hammeruniqueid")}"
-#endif
-                    };
-
-                    scene.Add(lineNode, true);
-                }
-
-                if (!matched)
-                {
-                    RendererContext.Logger.LogDebug("Skipping entity i/o output {TargetName}: no entity matches it", connection.TargetName);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Finds the entity a helper line ends at. Lines address entities by name; the few Hammer classes that
-        /// address AI nodes by <c>nodeid</c> instead do not appear in compiled maps.
-        /// </summary>
-        private BaseEntity? FindHelperLineEnd(string key, string name)
-            => key.Equals("targetname", StringComparison.OrdinalIgnoreCase)
-                ? entitySystem.FindAllByTargetName(name, scene).FirstOrDefault()
-                : null;
 
         /// <summary>
         /// Returns the path to the world resource (<c>.vwrld</c>) for a given map name.

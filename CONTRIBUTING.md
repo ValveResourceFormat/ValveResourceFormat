@@ -76,7 +76,7 @@ There is also a [VrfFgdParser](Misc/VrfFgdParser) tool which parses FGD files to
 
 ### Entity icons for the map viewer
 
-[HammerEntities.cs](GUI/Utils/HammerEntities.cs) contains a mapping of entity names and their Hammer icons (sprite or model).
+[HammerEntities.cs](Editor/Entities/HammerEntities.cs) contains a mapping of entity names and their Hammer icons (sprite or model).
 Unfortunately different games may have different paths for these icons, so they may not always be available.
 
 Use [VrfFgdParser](Misc/VrfFgdParser) to extract them.
