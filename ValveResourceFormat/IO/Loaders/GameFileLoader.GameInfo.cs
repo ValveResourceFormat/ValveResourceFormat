@@ -233,7 +233,8 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Finds the <c>gameinfo.gi</c> of the game that declares <paramref name="addonRoot"/> as one of its addon roots,
-        /// such as <c>csgo/gameinfo.gi</c> for <c>csgo_addons</c>.
+        /// such as <c>csgo/gameinfo.gi</c> for <c>csgo_addons</c>. A standalone game wins over the overlays layered on it,
+        /// and an overlay is used when only it declares the root, such as <c>dota_schinese</c> for <c>dota_schinese_addons</c>.
         /// </summary>
         private static string? FindGameInfoWithAddonRoot(string addonRoot)
         {
@@ -245,16 +246,24 @@ namespace ValveResourceFormat.IO
             }
 
             var folderName = Path.GetFileName(addonRoot);
+            string? overlayGameInfoPath = null;
 
             foreach (var gameInfoPath in FindModGameInfos(gameRoot))
             {
-                if (TryReadGameInfoQuietly(gameInfoPath) is { LayeredOnMod: null } gameInfo && gameInfo.HasAddonRoot(folderName))
+                if (TryReadGameInfoQuietly(gameInfoPath) is not { } gameInfo || !gameInfo.HasAddonRoot(folderName))
+                {
+                    continue;
+                }
+
+                if (gameInfo.LayeredOnMod == null)
                 {
                     return gameInfoPath;
                 }
+
+                overlayGameInfoPath ??= gameInfoPath;
             }
 
-            return null;
+            return overlayGameInfoPath;
         }
 
         /// <summary>
