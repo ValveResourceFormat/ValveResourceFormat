@@ -84,7 +84,6 @@ namespace ValveResourceFormat.Renderer.PostProcess
         public PostProcessRenderer(RendererContext rendererContext)
         {
             RendererContext = rendererContext;
-            Enabled = !rendererContext.FileLoader.GameInfo.SkipPostProcessing;
             Bloom = new BloomRenderer(rendererContext, this);
             DOF = new DOFRenderer(rendererContext);
             Outline = new OutlineRenderer(rendererContext);
@@ -312,7 +311,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 }
                 postProcessShader.SetUniform("g_bFlipY", flipY);
 
-                postProcessShader.SetUniform("g_bPostProcessEnabled", Enabled);
+                postProcessShader.SetUniform("g_bPostProcessEnabled", Enabled && !RendererContext.GameInfo.SkipPostProcessing);
 
                 postProcessShader.SetUniform("g_flToneMapScalarLinear", TonemapScalar);
                 SetPostProcessUniforms(postProcessShader, State.TonemapSettings);

@@ -1063,7 +1063,7 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private void OfferSpawnCamera(BaseEntity entity, bool isMaster)
         {
-            var classname = entity.Classname == RendererContext.FileLoader.GameInfo.HammerDefaultPointEntity
+            var classname = entity.Classname == RendererContext.GameInfo.HammerDefaultPointEntity
                 ? "info_player_start"
                 : entity.Classname;
             var priority = Array.IndexOf(SpawnCameraClasses, classname) * 2;

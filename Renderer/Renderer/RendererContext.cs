@@ -80,6 +80,11 @@ public class RendererContext : IDisposable
     public GameRenderProfile GameProfile { get; }
 
     /// <summary>
+    /// Gets the gameinfo of the game the loaded files belong to.
+    /// </summary>
+    public GameInfo GameInfo => FileLoader.GameInfo;
+
+    /// <summary>
     /// Initializes a new renderer context.
     /// </summary>
     /// <param name="fileLoader">Game file loader for resource access.</param>

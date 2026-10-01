@@ -303,7 +303,7 @@ namespace ValveResourceFormat.Renderer
         {
             RendererContext = context;
 
-            var gameInfo = context.FileLoader.GameInfo;
+            var gameInfo = context.GameInfo;
             StaticOctree = new(sizeHint ?? gameInfo.MapMaxCoord * 2f)
             {
                 MaxCoord = gameInfo.MapMaxCoord,
