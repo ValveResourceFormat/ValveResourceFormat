@@ -729,7 +729,7 @@ public abstract class BaseEntity
         // at the rim, and carrying that contact rubber-bands a player walking off the edge into
         // orbiting with the mover instead of leaving it.
         if (controller.GroundEntity == this
-            && collider.TraceRay(center, center - new Vector3(0, 0, halfExtents.Z + 2f)) is { Hit: true })
+            && collider.TraceRay(center, center - new Vector3(0, 0, halfExtents.Z + 2f), Rubikon.Cs2PlayerCollisionFilter) is { Hit: true })
         {
             // Anchored at the fully corrected position: the walked-off remainder still owed keeps
             // position + pending on the exact carried trajectory, so a rotation's carry cannot

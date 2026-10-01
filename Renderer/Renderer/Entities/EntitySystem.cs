@@ -572,7 +572,7 @@ public sealed class EntitySystem
     public BaseEntity? FindUseTarget(Vector3 from, Vector3 to)
     {
         // Seeded with the world, so a wall between the player and a button wins the trace
-        var nearest = PhysicsWorld?.TraceRay(from, to) ?? new Rubikon.TraceResult();
+        var nearest = PhysicsWorld?.TraceRay(from, to, Rubikon.Cs2PlayerCollisionFilter) ?? new Rubikon.TraceResult();
         BaseEntity? target = null;
 
         foreach (var entity in entities)
@@ -584,7 +584,7 @@ public sealed class EntitySystem
                 continue;
             }
 
-            if (nearest.MinimizeWith(collider.TraceRay(from, to)))
+            if (nearest.MinimizeWith(collider.TraceRay(from, to, Rubikon.Cs2PlayerCollisionFilter)))
             {
                 target = entity;
             }

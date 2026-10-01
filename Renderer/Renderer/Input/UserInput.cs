@@ -239,7 +239,7 @@ public class UserInput
             {
                 OrbitTarget = null;
 
-                var traceResult = PhysicsWorld?.TraceRay(Camera.Location, Camera.Location + Camera.Forward * 10000f);
+                var traceResult = PhysicsWorld?.TraceRay(Camera.Location, Camera.Location + Camera.Forward * 10000f, Rubikon.DefaultGeometry);
                 if (traceResult is { Hit: true, HitPosition: var hitPosition })
                 {
                     OrbitTarget = hitPosition;
@@ -563,7 +563,7 @@ public class UserInput
                 var extendedRay = toLocation + direction * minDistance;
                 var extendedDistance = movementDistance + minDistance;
 
-                var traceResult = PhysicsWorld.TraceRay(fromLocation, extendedRay);
+                var traceResult = PhysicsWorld.TraceRay(fromLocation, extendedRay, Rubikon.DefaultGeometry);
                 if (traceResult is { Hit: true, HitPosition: var hitPosition, Distance: var distance })
                 {
                     return (true, hitPosition - (direction * (minDistance + margin)), distance / extendedDistance);

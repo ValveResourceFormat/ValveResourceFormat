@@ -124,15 +124,16 @@ public sealed class EntityCollider
     /// </summary>
     /// <param name="from">Ray start in world space.</param>
     /// <param name="to">Ray end in world space.</param>
+    /// <param name="collisionName">Collision interaction name used to filter shapes.</param>
     /// <returns>The hit, in world space.</returns>
-    public Rubikon.TraceResult TraceRay(Vector3 from, Vector3 to)
+    public Rubikon.TraceResult TraceRay(Vector3 from, Vector3 to, string collisionName)
     {
         if (IsEmpty || !MightHit(from, to, Vector3.Zero))
         {
             return new Rubikon.TraceResult();
         }
 
-        var result = Shape.TraceRay(Vector3.Transform(from, inverseTransform), Vector3.Transform(to, inverseTransform));
+        var result = Shape.TraceRay(Vector3.Transform(from, inverseTransform), Vector3.Transform(to, inverseTransform), collisionName);
 
         if (!result.Hit)
         {

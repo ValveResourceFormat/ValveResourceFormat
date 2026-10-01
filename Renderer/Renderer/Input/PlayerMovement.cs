@@ -805,7 +805,7 @@ public partial class PlayerMovement : IPlayerController
         }
 
         return entity.Collider?.TraceRay(
-            position, position - new Vector3(0, 0, halfExtents.Z + GroundProbeDistance)) is { Hit: true };
+            position, position - new Vector3(0, 0, halfExtents.Z + GroundProbeDistance), Rubikon.Cs2PlayerCollisionFilter) is { Hit: true };
     }
 
     /// <summary>
@@ -1684,7 +1684,7 @@ public partial class PlayerMovement : IPlayerController
 
         // Clamped by the static world alone: entities are what is doing the pushing. Zero-distance
         // hits are the tracer echoing surface noise at a resting gap, not a wall (see IsMinimalDistance).
-        var wall = Physics?.TraceAABB(start, target, HullHalfExtents, Rubikon.PlayerCollisionName);
+        var wall = Physics?.TraceAABB(start, target, HullHalfExtents, Rubikon.Cs2PlayerCollisionFilter);
 
         if (wall is { Hit: true, IsValid: true, IsMinimalDistance: false, HitPosition: var stopped })
         {
@@ -1737,7 +1737,7 @@ public partial class PlayerMovement : IPlayerController
         var target = position + step;
 
         // Same zero-distance echo guard as the reservation's own clamp
-        var wall = Physics?.TraceAABB(position, target, HullHalfExtents, Rubikon.PlayerCollisionName);
+        var wall = Physics?.TraceAABB(position, target, HullHalfExtents, Rubikon.Cs2PlayerCollisionFilter);
 
         if (wall is { Hit: true, IsValid: true, IsMinimalDistance: false, HitPosition: var stopped })
         {
