@@ -1,6 +1,6 @@
 namespace GUI.Utils;
 
-internal static class Log
+internal static partial class Log
 {
     public enum Category
     {

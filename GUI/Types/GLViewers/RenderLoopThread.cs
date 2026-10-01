@@ -14,6 +14,12 @@ namespace GUI.Types.GLViewers
         private static GLBaseControl? currentGLControl;
         private static readonly ManualResetEventSlim renderSignal = new(initialState: true);
 
+        /// <summary>Lets automation keep frames coming while the app is in the background. Not compiled in otherwise.</summary>
+        static partial void KeepRenderingWhileInBackground(ref bool keepRendering);
+
+        /// <summary>Wakes whatever is waiting on a frame. Not compiled in otherwise.</summary>
+        static partial void OnFramePresented();
+
         public static void Initialize(Form form)
         {
             form.Activated += OnAppActivated;
@@ -206,14 +212,24 @@ namespace GUI.Types.GLViewers
             }
 
             var isPaused = !renderSignal.IsSet;
+            var keepRendering = false;
 
-            if (!isPaused && Form.ActiveForm == null)
+            KeepRenderingWhileInBackground(ref keepRendering);
+
+            if (!isPaused && Form.ActiveForm == null && !keepRendering)
             {
                 isPaused = true;
                 renderSignal.Reset();
             }
 
-            return control.Draw(isPaused);
+            var presented = control.Draw(isPaused);
+
+            if (presented)
+            {
+                OnFramePresented();
+            }
+
+            return presented;
         }
     }
 }

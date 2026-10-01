@@ -29,6 +29,20 @@ There are several ways to open files:
 - Use **File → Open** (<kbd>Ctrl</kbd>+<kbd>O</kbd>) to browse for any `.vpk` file or individual Source 2 files (`.vmdl_c`, `.vtex_c`, etc.)
 - Drag and drop files or folders directly onto the window
 
+### Opening VPK Links
+
+A file inside a VPK can be opened directly with a `vpk:` link, made of the package path, a colon, and the path inside it:
+
+```
+vpk:C:/Program Files (x86)/Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/maps/de_dust2.vpk:maps/de_dust2.vmap_c
+```
+
+- Right-click a file and choose **Copy URL** to get its link.
+- Pass the link to `Source2Viewer.exe` on the command line to open the file.
+- After **Register .vpk file association** in settings, clicking a `vpk:` link anywhere opens it in Source 2 Viewer.
+- A file in a VPK nested inside another uses one more colon: `vpk:outer_dir.vpk:maps/inner.vpk:models/file.vmdl_c`.
+- A `%` in a path is written as `%25`.
+
 ## Searching
 
 Press <kbd>Ctrl</kbd>+<kbd>F</kbd> to open the search dialog. It supports several search modes:

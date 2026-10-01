@@ -28,6 +28,20 @@ namespace GUI
         internal ExplorerControl? explorerControl;
 
         private SearchForm? searchForm;
+
+        private IDisposable? automationServer;
+
+        /// <summary>The main tab control.</summary>
+        internal MainTabs Tabs => mainTabs;
+
+        /// <summary>Raised on the UI thread when a tab opened by <see cref="OpenFile(string)"/> starts loading.</summary>
+        internal event Action<TabPage>? TabLoadStarted;
+
+        /// <summary>
+        /// Raised on the UI thread once a tab opened by <see cref="OpenFile(string)"/> has finished
+        /// loading, with the exception that stopped it or null when it succeeded.
+        /// </summary>
+        internal event Action<TabPage, Exception?>? TabLoadCompleted;
 #pragma warning disable CA2213 // Disposed in OnFormClosing
         private Ipc.IpcWindow? ipcWindow;
 #pragma warning restore CA2213
@@ -60,7 +74,13 @@ namespace GUI
             Themer.ApplyTheme(this);
 
 #if !SCREENSHOT_MODE
-            if (Settings.Config.WindowWidth > 0 && Settings.Config.WindowHeight > 0)
+            // Set before the handle exists so the window is created with WS_MAXIMIZE, which the
+            // unactivated show below keeps. Maximizing afterwards would take the foreground.
+            if (Automation.Automation.IsEnabled)
+            {
+                WindowState = FormWindowState.Maximized;
+            }
+            else if (Settings.Config.WindowWidth > 0 && Settings.Config.WindowHeight > 0)
             {
                 StartPosition = FormStartPosition.Manual;
 
@@ -309,6 +329,9 @@ namespace GUI
             OnMainSelectedTabChanged(null, EventArgs.Empty);
         }
 
+        /// <summary>Automation renders and captures without focus, so it does not take the foreground.</summary>
+        protected override bool ShowWithoutActivation => Automation.Automation.IsEnabled;
+
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
@@ -352,7 +375,13 @@ namespace GUI
             }
 #endif
 
-            if (Settings.IsFirstStartup)
+            automationServer = Automation.Automation.Start();
+
+            // Automation opens what it is told to and nothing else. The explorer also focuses its
+            // filter box on load, which would activate the window.
+            var forAutomation = Automation.Automation.IsEnabled;
+
+            if (Settings.IsFirstStartup && !forAutomation)
             {
                 OpenWelcome();
             }
@@ -360,7 +389,7 @@ namespace GUI
             {
                 OpenCommandLineArgFiles(Args);
             }
-            else if (Settings.Config.OpenExplorerOnStart != 0)
+            else if (Settings.Config.OpenExplorerOnStart != 0 && !forAutomation)
             {
                 OpenExplorer();
             }
@@ -386,7 +415,8 @@ namespace GUI
                 length = (uint)Marshal.SizeOf<WINDOWPLACEMENT>(),
             };
 
-            if (PInvoke.GetWindowPlacement((Windows.Win32.Foundation.HWND)Handle, ref placement))
+            // An automation run picks its own geometry, so saving it would replace the user's.
+            if (!Automation.Automation.IsEnabled && PInvoke.GetWindowPlacement((Windows.Win32.Foundation.HWND)Handle, ref placement))
             {
                 Settings.Config.WindowLeft = placement.rcNormalPosition.left;
                 Settings.Config.WindowTop = placement.rcNormalPosition.top;
@@ -397,6 +427,8 @@ namespace GUI
 #endif
 
             ipcWindow?.Dispose();
+            automationServer?.Dispose();
+            automationServer = null;
 
             Settings.Save();
             base.OnFormClosing(e);
@@ -780,6 +812,8 @@ namespace GUI
 
             Types.Viewers.IViewer? createdViewer = null;
 
+            TabLoadStarted?.Invoke(tab);
+
             var taskLoad = Task.Run(() => Types.Viewers.ViewerFactory.CreateAndLoadAsync(vrfGuiContext, file, viewMode));
 
             taskLoad.ContinueWith(t =>
@@ -918,6 +952,10 @@ namespace GUI
                     // Revealing the viewer does not reliably deliver a paint to the underlying GL control, so tell
                     // the viewer to redraw now that it is visible.
                     createdViewer?.NotifyVisible();
+
+                    // A faulted load cancels this continuation's antecedent, so the reason is on
+                    // the load task itself.
+                    TabLoadCompleted?.Invoke(tab, taskLoad.Exception?.Flatten().InnerException);
                 });
             });
         }

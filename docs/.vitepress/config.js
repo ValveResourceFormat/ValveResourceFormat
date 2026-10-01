@@ -93,6 +93,10 @@ export default defineConfig({
                             text: "Command-line Utility",
                             link: "/guides/command-line",
                         },
+                        {
+                            text: "MCP Automation Server",
+                            link: "/guides/mcp-server",
+                        },
                     ],
                 },
             ],

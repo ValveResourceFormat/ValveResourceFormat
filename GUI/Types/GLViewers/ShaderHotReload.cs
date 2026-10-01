@@ -17,6 +17,14 @@ internal class ShaderHotReload : IDisposable
     private static List<FileSystemWatcher> CreateWatchers()
     {
         var watchers = new List<FileSystemWatcher>(1 + ShaderRegistry.Directories.Length);
+
+        // Automation reloads on request instead. Watching as well would race that call, and a failed
+        // reload opens a modal dialog that blocks the thread every tool marshals through.
+        if (Automation.Automation.IsEnabled)
+        {
+            return watchers;
+        }
+
         var paths = new List<string>(watchers.Capacity);
         paths.AddRange(ShaderRegistry.Directories);
 

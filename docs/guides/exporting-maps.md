@@ -21,6 +21,8 @@ The map viewer uses free-flight camera by default. Move the mouse to look around
 
 Press <kbd>X</kbd> to toggle walk mode, which enables FPS-style movement with collision and gravity. Click on objects in the scene to select and inspect their entity properties.
 
+The viewer culls the map the way the game does. **PVS Culling** hides what the map's precomputed visibility says cannot be seen from the camera, and **Visibility Boxes** (shown on maps that have `info_visibility_box` entities) applies the map's culling boxes. Turn them off to see everything at once.
+
 ![Map viewer showing a Source 2 map](./images/exporting-maps-viewer.png)
 
 ## Export to glTF
