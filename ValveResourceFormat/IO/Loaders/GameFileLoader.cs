@@ -3,6 +3,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.IO.Enumeration;
+using System.Linq;
 using System.Threading;
 using ValveKeyValue;
 using ValvePak;
@@ -421,18 +422,27 @@ namespace ValveResourceFormat.IO
 
         private void HandleGameInfo(HashSet<string> folders, string gameinfoPath)
         {
-            GameInfo gameInfo;
+            if (TryReadGameInfo(gameinfoPath) is { } gameInfo)
+            {
+                HandleGameInfo(folders, gameinfoPath, gameInfo);
+            }
+        }
 
+        private static GameInfo? TryReadGameInfo(string gameinfoPath)
+        {
             try
             {
-                gameInfo = GameInfo.Read(gameinfoPath);
+                return GameInfo.Read(gameinfoPath);
             }
             catch (Exception e)
             {
                 Console.Error.WriteLine(e);
-                return;
+                return null;
             }
+        }
 
+        private void HandleGameInfo(HashSet<string> folders, string gameinfoPath, GameInfo gameInfo)
+        {
             Console.WriteLine($"Found \"{gameInfo.Name}\" from \"{gameinfoPath}\"");
 
             // The walk starts at the file being opened, so the first one found is the mod it belongs to.
@@ -454,7 +464,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var (key, searchPath) in gameInfo.SearchPaths)
             {
-                if (key == "Game")
+                if (key.Equals("Game", StringComparison.OrdinalIgnoreCase) || key.Equals("Game_NonTools", StringComparison.OrdinalIgnoreCase))
                 {
                     folders.Add(Path.Combine(gameInfo.GameRoot, searchPath));
                 }
@@ -934,16 +944,17 @@ namespace ValveResourceFormat.IO
 
         private IEnumerable<string> EnumeratePakVpks(string folder)
         {
-            // Scan for vpks in folder, same logic as in source engine
-            for (var i = 1; i < 99; i++)
+            if (!Directory.Exists(folder))
             {
-                var vpk = Path.Combine(folder, $"pak{i:D2}_dir.vpk");
+                yield break;
+            }
 
-                if (!File.Exists(vpk))
-                {
-                    yield break;
-                }
+            var vpks = Directory.EnumerateFiles(folder, "pak*_dir.vpk")
+                .Where(static vpk => IsPakDirName(Path.GetFileName(vpk)))
+                .Order(StringComparer.OrdinalIgnoreCase);
 
+            foreach (var vpk in vpks)
+            {
                 if (CurrentFileName == vpk)
                 {
 #if DEBUG_FILE_LOAD
@@ -955,6 +966,16 @@ namespace ValveResourceFormat.IO
                 yield return vpk;
             }
         }
+
+        /// <summary>
+        /// Matches the names the engine mounts from a search path, <c>pak</c> followed by two digits and <c>_dir.vpk</c>.
+        /// </summary>
+        private static bool IsPakDirName(string fileName)
+            => fileName.Length == 13
+            && fileName.StartsWith("pak", StringComparison.OrdinalIgnoreCase)
+            && char.IsAsciiDigit(fileName[3])
+            && char.IsAsciiDigit(fileName[4])
+            && fileName.EndsWith("_dir.vpk", StringComparison.OrdinalIgnoreCase);
 
         private HashSet<string> FindGameFoldersForWorkshopFile()
         {
@@ -1035,9 +1056,9 @@ namespace ValveResourceFormat.IO
 
             var folders = new HashSet<string>();
 
-            foreach (var gameInfo in gameInfos)
+            foreach (var gameInfoPath in gameInfos)
             {
-                var modName = Path.GetFileName(Path.GetDirectoryName(gameInfo));
+                var modName = Path.GetFileName(Path.GetDirectoryName(gameInfoPath));
 
                 if (modName == "core")
                 {
@@ -1046,7 +1067,11 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                HandleGameInfo(folders, gameInfo);
+                // Language and low violence overlays would mount their own folder in front of the game's
+                if (TryReadGameInfo(gameInfoPath) is { LayeredOnMod: null } gameInfo)
+                {
+                    HandleGameInfo(folders, gameInfoPath, gameInfo);
+                }
             }
 
             return folders;
