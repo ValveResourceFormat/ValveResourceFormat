@@ -35,7 +35,7 @@ namespace GUI.Types.GLViewers
         private ComboBox? cameraComboBox;
         private SavedCameraPositionsControl? savedCameraPositionsControl;
         private EntityInfoForm? entityInfoForm;
-        private ThemedButton? playButton;
+        private ThemedButton? gameButton;
         private ThemedButton? stepButton;
         private bool ignoreLayersChangeEvents = true;
         private List<Matrix4x4> CameraMatrices = [];
@@ -72,7 +72,7 @@ namespace GUI.Types.GLViewers
             cameraComboBox?.Dispose();
             savedCameraPositionsControl?.Dispose();
             entityInfoForm?.Dispose();
-            playButton?.Dispose();
+            gameButton?.Dispose();
             stepButton?.Dispose();
         }
 
@@ -398,7 +398,7 @@ namespace GUI.Types.GLViewers
 
                     UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
 
-                    AddPlaybackControls();
+                    AddModeControls();
 
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
 
@@ -567,7 +567,7 @@ namespace GUI.Types.GLViewers
             UiControl.AddControl(groupBoxPanel);
         }
 
-        private void AddPlaybackControls()
+        private void AddModeControls()
         {
             Debug.Assert(UiControl != null);
 
@@ -577,12 +577,12 @@ namespace GUI.Types.GLViewers
                 Padding = new Padding(0, UiControl.AdjustForDPI(2), 0, UiControl.AdjustForDPI(2)),
             };
 
-            playButton = new ThemedButton
+            gameButton = new ThemedButton
             {
-                Text = PlayButtonText(EditorState.Mode),
+                Text = GameButtonText(EditorState.Mode),
                 Dock = DockStyle.Fill,
             };
-            playButton.Click += (_, _) => EditorState.Request(EditorRequest.TogglePlay);
+            gameButton.Click += (_, _) => EditorState.Request(EditorRequest.ToggleGame);
 
             stepButton = new ThemedButton
             {
@@ -593,25 +593,27 @@ namespace GUI.Types.GLViewers
             };
             stepButton.Click += (_, _) => EditorState.Request(EditorRequest.Step);
 
-            // Docked from the last added, so the step button takes its edge before play fills the rest
-            panel.Controls.Add(playButton);
+            // Docked from the last added, so the step button takes its edge before the mode button fills the rest
+            panel.Controls.Add(gameButton);
             panel.Controls.Add(stepButton);
 
             UiControl.AddControl(panel);
         }
 
-        private static string PlayButtonText(EditorMode mode) => mode == EditorMode.Playing ? "Pause" : "Play";
+        private static string GameButtonText(EditorMode mode) => mode == EditorMode.Game ? "Back to Viewer" : "Run Game";
+
+        protected override bool ShowsEditorMode => true;
 
         protected override void OnEditorModeChanged(EditorMode mode)
         {
             base.OnEditorModeChanged(mode);
 
             // Raised on the render thread
-            if (playButton is { IsHandleCreated: true } button)
+            if (gameButton is { IsHandleCreated: true } button)
             {
                 button.BeginInvoke(() =>
                 {
-                    button.Text = PlayButtonText(mode);
+                    button.Text = GameButtonText(mode);
                     stepButton?.Enabled = mode == EditorMode.Viewer;
                 });
             }

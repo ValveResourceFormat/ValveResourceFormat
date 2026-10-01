@@ -24,8 +24,11 @@ namespace GUI.Types.GLViewers
         public ValveResourceFormat.Renderer.Renderer Renderer { get; internal set; }
         public UserInput Input { get; protected set; }
 
-        /// <summary>Whether the world is paused for inspecting or running, which picking and the play controls follow.</summary>
+        /// <summary>Whether the world is being viewed or run as in game, which picking and the mode controls follow.</summary>
         protected EditorState EditorState { get; }
+
+        /// <summary>Gets whether the viewport shows the editor mode, for viewers that can run the world as in game.</summary>
+        protected virtual bool ShowsEditorMode => false;
 
         public ValveResourceFormat.Renderer.TextRenderer TextRenderer { get; protected set; }
         private readonly CrosshairRenderer crosshairRenderer;
@@ -346,11 +349,11 @@ namespace GUI.Types.GLViewers
 
         protected abstract void LoadScene();
 
-        /// <summary>Follows a change of editor mode, on the render thread. Running the world drops the selection.</summary>
+        /// <summary>Follows a change of editor mode, on the render thread. Entering game mode drops the selection.</summary>
         /// <param name="mode">The new mode.</param>
         protected virtual void OnEditorModeChanged(EditorMode mode)
         {
-            if (mode == EditorMode.Playing)
+            if (mode == EditorMode.Game)
             {
                 Selection.Clear();
             }
@@ -906,6 +909,21 @@ namespace GUI.Types.GLViewers
             if (Input.ShowCrosshair)
             {
                 crosshairRenderer.Render(Renderer.Camera);
+            }
+
+            if (ShowsEditorMode)
+            {
+                var isGame = EditorState.Mode == EditorMode.Game;
+
+                TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                {
+                    X = 0.5f,
+                    Y = 0.03f,
+                    Scale = 14f,
+                    Color = isGame ? new Color32(90, 220, 90) : new Color32(120, 180, 255),
+                    Text = isGame ? "GAME" : "VIEWER",
+                    CenterHorizontal = true,
+                }, Renderer.Camera);
             }
 
             if (GrabbedMouse && ShowSpeed)
