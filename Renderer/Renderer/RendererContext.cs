@@ -75,6 +75,11 @@ public class RendererContext : IDisposable
     public bool ParallelSimulation { get; set; } = true;
 
     /// <summary>
+    /// Gets the rendering behaviour of the game the loaded files belong to.
+    /// </summary>
+    public GameRenderProfile GameProfile { get; }
+
+    /// <summary>
     /// Initializes a new renderer context.
     /// </summary>
     /// <param name="fileLoader">Game file loader for resource access.</param>
@@ -83,6 +88,7 @@ public class RendererContext : IDisposable
     {
         FileLoader = fileLoader;
         Logger = logger;
+        GameProfile = GameRenderProfile.FromGameInfo(fileLoader.GameInfo);
         Device = GraphicsDevice.Create();
 
         TextureStreaming = new TextureStreamingHelper(this);

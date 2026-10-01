@@ -507,7 +507,7 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             var result = scene.LightingInfo;
-            result.UsesLegacyBarnBrightness = RendererContext.FileLoader.GameName == "Aperture Desk Job"; // adj predates the photometric model.
+            result.UsesLegacyBarnBrightness = RendererContext.GameProfile.UsesLegacyBarnBrightness;
             result.LightmapVersionNumber = worldLightingInfo.GetInt32Property("m_nLightmapVersionNumber");
             result.LightingData.LightmapUvScale = World.GetLightmapUvScale();
             if (scene.LightingInfo.LightmapVersionNumber == 8)
