@@ -1,5 +1,6 @@
 #if DEBUG
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -38,8 +39,11 @@ internal sealed class McpServer : IDisposable
     private readonly McpTools Tools;
     private readonly CancellationTokenSource Cancellation = new();
 
-    // The viewer state the tools drive is global, so calls run one at a time.
+    // The viewer state the tools drive is global, so calls run one at a time, except the few that
+    // only read or that exist to interrupt a call that is running.
     private readonly SemaphoreSlim CallLock = new(1, 1);
+
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> InFlight = new(StringComparer.Ordinal);
 
     public string Url { get; }
 
@@ -200,6 +204,11 @@ internal sealed class McpServer : IDisposable
 
         if (!hasId)
         {
+            if (method == "notifications/cancelled")
+            {
+                CancelRequest(rpc["params"]);
+            }
+
             // A notification gets no body at all.
             response.StatusCode = 202;
             response.Close();
@@ -267,7 +276,7 @@ internal sealed class McpServer : IDisposable
                     return;
                 }
 
-                await WriteRpcResult(response, id, await CallTool(toolName, parameters).ConfigureAwait(false)).ConfigureAwait(false);
+                await WriteRpcResult(response, id, await CallTool(toolName, parameters, id).ConfigureAwait(false)).ConfigureAwait(false);
                 return;
 
             case "initialize":
@@ -354,27 +363,74 @@ internal sealed class McpServer : IDisposable
         }
     }
 
-    private async Task<JsonObject> CallTool(string name, JsonNode? parameters)
+    private async Task<JsonObject> CallTool(string name, JsonNode? parameters, JsonNode? id)
     {
         var arguments = parameters?["arguments"] as JsonObject ?? [];
+        var serialized = !McpTools.RunsAlongsideOthers(name);
 
-        await CallLock.WaitAsync(Cancellation.Token).ConfigureAwait(false);
+        using var call = CancellationTokenSource.CreateLinkedTokenSource(Cancellation.Token);
+        var requestKey = id?.ToJsonString();
+        var tracked = requestKey != null && InFlight.TryAdd(requestKey, call);
 
         try
         {
-            var result = await Tools.Call(name, arguments, Cancellation.Token).ConfigureAwait(false);
-            return result.ToJson();
-        }
+            if (serialized)
+            {
+                await CallLock.WaitAsync(call.Token).ConfigureAwait(false);
+            }
+
+            try
+            {
+                var result = await Tools.Call(name, arguments, call.Token).ConfigureAwait(false);
+
+                if (result.IsError)
+                {
+                    Log.Info(nameof(McpServer), $"Tool '{name}' failed: {result.Summary}");
+                }
+
+                return result.ToJson();
+            }
 #pragma warning disable CA1031 // Any tool failure is reported to the caller, never thrown at the transport
-        catch (Exception e)
+            catch (Exception e)
 #pragma warning restore CA1031
+            {
+                Log.Error(nameof(McpServer), $"Tool '{name}' failed unexpectedly: {e}");
+                return McpToolResult.Error($"Unexpected {e.GetType().Name}: {e.Message}").ToJson();
+            }
+            finally
+            {
+                if (serialized)
+                {
+                    CallLock.Release();
+                }
+            }
+        }
+        catch (OperationCanceledException)
         {
-            Log.Error(nameof(McpServer), $"Tool '{name}' failed: {e}");
-            return McpToolResult.Error($"{e.GetType().Name}: {e.Message}").ToJson();
+            return McpToolResult.Error("The call was cancelled before it started.").ToJson();
         }
         finally
         {
-            CallLock.Release();
+            if (tracked)
+            {
+                InFlight.TryRemove(new KeyValuePair<string, CancellationTokenSource>(requestKey!, call));
+            }
+        }
+    }
+
+    /// <summary>Cancels the call a <c>notifications/cancelled</c> names, if it is still running.</summary>
+    private void CancelRequest(JsonNode? parameters)
+    {
+        if (parameters?["requestId"] is { } requestId && InFlight.TryGetValue(requestId.ToJsonString(), out var call))
+        {
+            try
+            {
+                call.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Finished in the meantime
+            }
         }
     }
 

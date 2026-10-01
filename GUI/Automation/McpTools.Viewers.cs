@@ -47,12 +47,13 @@ internal sealed partial class McpTools
 
     private void RegisterViewerTools()
     {
-        Add("screenshot", "Capture what a rendered tab shows: a 3D view, texture, image or graph. Returns a downscaled JPEG to look at; pass 'path' to also get the full resolution PNG on disk. Selects the tab and renders a fresh frame first, so it works while the window is in the background. A 3D tab captures the frame as the window shows it; a texture or image tab captures the whole image at its selected mip, and a graph tab the whole graph, regardless of pan and zoom.",
+        Add("screenshot", "Capture what a rendered tab shows: a 3D view, texture, image or graph. Returns a downscaled JPEG to look at; pass 'path' to also get the full resolution PNG on disk. Selects the tab and renders a fresh frame first, so it works while the window is in the background. A 3D tab captures the frame as the window shows it, background and grid included, without the overlay text; a texture or image tab captures the whole image at its selected mip, and a graph tab the whole graph, regardless of pan and zoom.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
                 ["settle_frames"] = Prop("integer", "Extra frames to render before capturing, for auto exposure to settle. Defaults to 2."),
-                ["path"] = Prop("string", "Absolute path to write the full resolution PNG to. The inline image is a JPEG, so do not save that as .png."),
+                ["path"] = Prop("string", "Absolute path of a .png file to write the full resolution capture to, in a folder that exists. The inline image is a JPEG, so do not save that as .png."),
+                ["background"] = Prop("string", "'viewer' captures what the window shows. 'transparent', on a model, mesh or material tab only, draws just the object on a transparent background, without the grid, as the viewer's own image export does; the PNG keeps the alpha and the inline JPEG shows it as black. Defaults to viewer.", "viewer", "transparent"),
             }),
             Screenshot, AnyViewer);
 
@@ -186,20 +187,20 @@ internal sealed partial class McpTools
             }),
             GetInfo);
 
-        Add("set_viewport", "Render at an exact pixel size regardless of the window size, so screenshots from two builds can be compared. Pass no size to go back to following the window.",
+        Add("set_viewport", "Render a 3D tab at an exact pixel size regardless of the window size, so screenshots from two builds can be compared. Pass no size to go back to following the window. Texture, image and graph tabs are captured at the image's own size, so it does not apply to them.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
                 ["width"] = Prop("integer", "Render width. Omit along with height to follow the window again."),
                 ["height"] = Prop("integer", "Render height."),
             }),
-            SetViewport, AnyViewer);
+            SetViewport, ViewportViewer);
 
         Add("reload_shaders", "Recompile shaders from the source tree and redraw, without restarting the viewer. A compile failure comes back as the compiler's own error text.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
-                ["name"] = Prop("string", "Only reload shaders derived from this file, for example complex.frag.slang. Omit to reload every shader, which is much slower."),
+                ["name"] = Prop("string", "Only reload shaders derived from this file, for example complex.frag.slang. A file without a stage, such as common/lighting.slang, is included by others and reloads every shader. Omit to reload every shader, which is much slower."),
             }),
             ReloadShaders, ShaderViewer);
 
@@ -310,6 +311,11 @@ internal sealed partial class McpTools
 
         var name = GetString(args, "name");
 
+        if (name != null && !ShaderFileExists(name))
+        {
+            return McpToolResult.Error($"No shader file named '{name}'. Pass a path relative to the shader folder, such as complex.frag.slang or common/lighting.slang.");
+        }
+
         var failure = await OnUi(() =>
         {
             try
@@ -338,10 +344,50 @@ internal sealed partial class McpTools
             }
         }
 
-        return McpToolResult.Json(new JsonObject
+        // A file without a stage in its name is an include, and the loader reloads everything for it.
+        var onlyThat = name != null && Path.GetFileNameWithoutExtension(name).Contains('.', StringComparison.Ordinal);
+
+        var result = new JsonObject
         {
-            ["reloaded"] = name ?? "all",
-        });
+            ["reloaded"] = onlyThat ? name : "all",
+        };
+
+        if (name != null && !onlyThat)
+        {
+            result["because"] = $"{name} is included by other shaders";
+        }
+
+        return McpToolResult.Json(result);
+    }
+
+    /// <summary>Whether <paramref name="name"/> is a shader file in a mounted folder, the source tree or the embedded copies.</summary>
+    private static bool ShaderFileExists(string name)
+    {
+        var relative = name.Replace('\\', '/').TrimStart('/');
+
+        if (relative.Length == 0 || relative.Contains("..", StringComparison.Ordinal) || !relative.EndsWith(".slang", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var folders = new List<string>(ShaderRegistry.Directories);
+
+        if (ShaderParser.ShaderSourceDirectory != null)
+        {
+            folders.Add(ShaderParser.ShaderSourceDirectory);
+        }
+
+        foreach (var folder in folders)
+        {
+            if (File.Exists(Path.Combine(folder, relative)))
+            {
+                return true;
+            }
+        }
+
+        var resourceSuffix = "." + relative.Replace('/', '.');
+
+        return typeof(ShaderParser).Assembly.GetManifestResourceNames().Any(resource => resource.EndsWith(resourceSuffix, StringComparison.Ordinal));
     }
 
     private async Task<McpToolResult> SetViewport(JsonObject args, CancellationToken cancellationToken)
@@ -364,6 +410,11 @@ internal sealed partial class McpTools
         if (error != null)
         {
             return error;
+        }
+
+        if (!ViewportViewer(viewer!))
+        {
+            return McpToolResult.Error($"{viewer!.GetType().Name} tabs are captured at the image's own size whatever the viewport, so set_viewport does not apply to them.");
         }
 
         if (width == null || height == null)
@@ -569,6 +620,7 @@ internal sealed partial class McpTools
         {
             var needs = typeof(T) == typeof(GLWorldViewer) ? "has no map loaded"
                 : typeof(T) == typeof(GLSceneViewer) ? "has no 3D scene"
+                : typeof(T) == typeof(GLParticleViewer) ? "is not a particle system"
                 : "has no rendered view";
 
             var kind = DescribeViewer(page) is { } described ? $" ({described})" : string.Empty;
@@ -637,7 +689,7 @@ internal sealed partial class McpTools
 
                 if (finished == crash)
                 {
-                    throw new InvalidOperationException($"Unhandled exception while rendering: {UnhandledExceptions.Summarize(await crash.ConfigureAwait(false))}");
+                    throw new ToolFailureException($"Unhandled exception while rendering: {UnhandledExceptions.Summarize(await crash.ConfigureAwait(false))}");
                 }
 
                 await task.ConfigureAwait(false);
@@ -657,6 +709,20 @@ internal sealed partial class McpTools
 
     private async Task<McpToolResult> Screenshot(JsonObject args, CancellationToken cancellationToken)
     {
+        var settle = Math.Clamp(GetInt(args, "settle_frames") ?? 2, 1, 120);
+        var path = GetString(args, "path");
+        var background = GetString(args, "background") ?? "viewer";
+
+        if (background is not ("viewer" or "transparent"))
+        {
+            return McpToolResult.Error($"Unknown background '{background}'. Use viewer or transparent.");
+        }
+
+        if (path != null && CheckScreenshotPath(path) is { } pathError)
+        {
+            return McpToolResult.Error($"{pathError} Nothing was captured.");
+        }
+
         var (viewer, error) = await ActivateViewer<GLBaseControl>(args, cancellationToken).ConfigureAwait(false);
 
         if (error != null)
@@ -664,8 +730,12 @@ internal sealed partial class McpTools
             return error;
         }
 
-        var settle = Math.Clamp(GetInt(args, "settle_frames") ?? 2, 1, 120);
-        var path = GetString(args, "path");
+        var transparent = background == "transparent";
+
+        if (transparent && viewer is not GLSingleNodeViewer)
+        {
+            return McpToolResult.Error($"A transparent background is only drawn by model, mesh and material tabs, not {viewer!.GetType().Name}.");
+        }
 
         byte[]? full;
         byte[] inline;
@@ -693,7 +763,8 @@ internal sealed partial class McpTools
                 return McpToolResult.Error(settleError);
             }
 
-            bitmap = viewer.CaptureBitmap();
+            // A single node viewer's own capture is its transparent image export.
+            bitmap = viewer is GLSingleNodeViewer && !transparent ? viewer.CaptureWindowBitmap() : viewer.CaptureBitmap();
         }
 
         if (bitmap == null)
@@ -722,12 +793,43 @@ internal sealed partial class McpTools
 
         if (full != null)
         {
-            await File.WriteAllBytesAsync(path!, full, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await File.WriteAllBytesAsync(path!, full, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return McpToolResult.Error($"Captured {width}x{height}, but could not write '{path}': {e.Message} The capture is attached.")
+                    .WithImage(inline, "image/jpeg");
+            }
 
             result["path"] = path;
         }
 
         return McpToolResult.Json(result).WithImage(inline, "image/jpeg");
+    }
+
+    /// <summary>Why a screenshot cannot be written to <paramref name="path"/>, or null when it can be tried.</summary>
+    private static string? CheckScreenshotPath(string path)
+    {
+        if (!Path.IsPathFullyQualified(path))
+        {
+            return $"'path' must be absolute, got '{path}'.";
+        }
+
+        if (!path.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"'path' must end in .png, because the file is written as PNG, got '{path}'.";
+        }
+
+        if (Directory.Exists(path))
+        {
+            return $"'{path}' is a folder.";
+        }
+
+        return Directory.Exists(Path.GetDirectoryName(path))
+            ? null
+            : $"The folder of '{path}' does not exist.";
     }
 }
 #endif

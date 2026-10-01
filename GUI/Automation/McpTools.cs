@@ -1,5 +1,6 @@
 #if DEBUG
 using System.Diagnostics;
+using System.IO;
 using System.Runtime;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -10,6 +11,7 @@ using GUI.Types.Exporter;
 using GUI.Types.GLViewers;
 using GUI.Types.Viewers;
 using GUI.Utils;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 
 namespace GUI.Automation;
@@ -42,6 +44,8 @@ internal sealed partial class McpTools
 
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
 
+    private static readonly TimeSpan StatusUiTimeout = TimeSpan.FromSeconds(2);
+
     /// <summary>
     /// Tools that change what the active viewer shows without drawing a frame themselves. The loop
     /// parks while the window is in the background, so without a redraw the window would keep
@@ -51,7 +55,16 @@ internal sealed partial class McpTools
     [
         "select_tab", "close_tab", "open_file", "clear_selection", "set_camera", "set_layer",
         "set_physics_group", "set_render_mode", "select_entity", "pick", "pause", "resume",
+        "reload_tab", "particle_playback",
     ];
+
+    /// <summary>
+    /// Tools that do not wait for the call in progress: they only read state that is safe to read
+    /// alongside it, or, like resume, exist to interrupt it.
+    /// </summary>
+    private static readonly HashSet<string> Unserialized = ["get_status", "get_log", "list_tabs", "resume"];
+
+    private const int MaxTimeoutSeconds = 3600;
 
     private static readonly TimeSpan RedrawTimeout = TimeSpan.FromSeconds(2);
 
@@ -69,6 +82,8 @@ internal sealed partial class McpTools
         RegisterViewerTools();
         RegisterEntityTools();
         RegisterSimulationTools();
+        RegisterParticleTools();
+        RegisterPackageTools();
     }
 
     public JsonObject List()
@@ -93,6 +108,9 @@ internal sealed partial class McpTools
 
     /// <summary>Whether a tool by this name is registered.</summary>
     public bool Has(string name) => Table.ContainsKey(name);
+
+    /// <summary>Whether a tool runs without waiting for the call in progress to finish.</summary>
+    public static bool RunsAlongsideOthers(string name) => Unserialized.Contains(name);
 
     public async Task<McpToolResult> Call(string name, JsonObject arguments, CancellationToken cancellationToken)
     {
@@ -126,9 +144,29 @@ internal sealed partial class McpTools
             // Thrown by OnUi, and already worded for the caller.
             return McpToolResult.Error(e.Message);
         }
+        catch (ToolFailureException e)
+        {
+            return McpToolResult.Error(e.Message);
+        }
         catch (OperationCanceledException)
         {
-            return McpToolResult.Error("The server is shutting down.");
+            return McpToolResult.Error("The call was cancelled, or the server is shutting down.");
+        }
+    }
+
+    /// <summary>A failure that is already worded for the caller, as opposed to a bug.</summary>
+    private sealed class ToolFailureException : Exception
+    {
+        public ToolFailureException()
+        {
+        }
+
+        public ToolFailureException(string message) : base(message)
+        {
+        }
+
+        public ToolFailureException(string message, Exception innerException) : base(message, innerException)
+        {
         }
     }
 
@@ -187,6 +225,8 @@ internal sealed partial class McpTools
 
     private static bool SceneViewer(GLBaseControl viewer) => viewer is GLSceneViewer;
 
+    private static bool ViewportViewer(GLBaseControl viewer) => viewer is not GLTextureViewer;
+
     private static bool WorldViewer(GLBaseControl viewer) => viewer is GLWorldViewer;
 
     private static bool MapViewer(GLBaseControl viewer) => viewer is GLWorldViewer { LoadedWorld: not null };
@@ -214,7 +254,7 @@ internal sealed partial class McpTools
 
     private void RegisterCoreTools()
     {
-        Add("get_status", "Server and application status: process id, version, uptime, the active tab and whether the simulation is paused.",
+        Add("get_status", "Server and application status: process id, version, uptime, the active tab and whether the simulation is paused or stepping. Answers straight away even while another call, such as a step, is running; when a load or a dialog holds the UI thread it says so in 'ui_busy' instead of describing the active tab.",
             Schema(),
             (_, ct) => GetStatus(ct));
 
@@ -245,7 +285,7 @@ internal sealed partial class McpTools
             Schema(),
             ClearLog);
 
-        Add("list_tabs", "List open tabs with their id, title, file and viewer kind, marking the active one. A tab whose viewer failed and showed an error instead has 'viewer_error', and one whose file could not be decompiled has 'decompile_error'.",
+        Add("list_tabs", "List open tabs with their id, title, file and viewer kind, marking the active one. 'open_path' is the path that opens the same file again with open_file, such as a vpk: link for a file inside a package. A tab whose viewer failed and showed an error instead has 'viewer_error', and one whose file could not be decompiled has 'decompile_error'.",
             Schema(),
             (_, ct) => ListTabs(ct));
 
@@ -263,25 +303,26 @@ internal sealed partial class McpTools
             }, "tab"),
             CloseTab);
 
-        Add("open_file", "Open a file and wait until its tab has finished loading. Accepts the same paths as the command line. A file inside a package is vpk:outer_dir.vpk:inner/file, so a map is vpk:game/pak01_dir.vpk:maps/name.vmap_c; a bare .vpk only opens the package browser. Fails with the exception when the file opens but its viewer does not, such as a map with an entity that cannot be loaded.",
+        Add("open_file", "Open a file and wait until its tab has finished loading. Accepts the same paths as the command line. A file inside a package is vpk:outer_dir.vpk:inner/file, so a map is vpk:game/pak01_dir.vpk:maps/name.vmap_c; a bare .vpk only opens the package browser, and list_package finds what is inside one. Fails with the exception when the file opens but its viewer does not, such as a map with an entity that cannot be loaded. Once a tab exists every error names its id, and a tab that timed out keeps loading, so do not open the file again. Says so in 'hint' when the file was already open in another tab.",
             Schema(new JsonObject
             {
-                ["path"] = Prop("string", "File path, or vpk:package.vpk:inner/file for a file inside a package."),
-                ["timeout_seconds"] = Prop("integer", "How long to wait for loading. Defaults to 180."),
+                ["path"] = Prop("string", "Absolute file path, or vpk:package.vpk:inner/file for a file inside a package."),
+                ["timeout_seconds"] = Prop("integer", $"How long to wait for loading, 1 to {MaxTimeoutSeconds}. Defaults to 180."),
             }, "path"),
             OpenFile);
+
+        Add("reload_tab", "Reopen a tab from its file, as Ctrl+R does, and wait until it has loaded again. The reloaded file opens in a new tab with a new id, which is returned along with the id it 'replaced'; the old tab is closed.",
+            Schema(new JsonObject
+            {
+                ["tab"] = TabProp(),
+                ["timeout_seconds"] = Prop("integer", $"How long to wait for loading, 1 to {MaxTimeoutSeconds}. Defaults to 180."),
+            }),
+            ReloadTab);
     }
 
     private async Task<McpToolResult> GetStatus(CancellationToken cancellationToken)
     {
         using var process = Process.GetCurrentProcess();
-
-        var active = await OnUi(() =>
-        {
-            var page = Program.MainForm.Tabs.SelectedTab;
-
-            return page == null ? null : DescribeTab(page);
-        }, cancellationToken).ConfigureAwait(false);
 
         var status = new JsonObject
         {
@@ -290,14 +331,33 @@ internal sealed partial class McpTools
             ["uptime_seconds"] = Math.Round(Stopwatch.GetElapsedTime(StartedAt).TotalSeconds),
         };
 
-        if (active != null)
+        try
         {
-            status["active_tab"] = active;
+            var active = await OnUi(() =>
+            {
+                var page = Program.MainForm.Tabs.SelectedTab;
+
+                return page == null ? null : DescribeTab(page);
+            }, StatusUiTimeout, cancellationToken, waitForLoads: false).ConfigureAwait(false);
+
+            if (active != null)
+            {
+                status["active_tab"] = active;
+            }
+        }
+        catch (TimeoutException e)
+        {
+            status["ui_busy"] = e.Message;
         }
 
         if (AutomationClock.IsPaused)
         {
             status["paused"] = true;
+        }
+
+        if (AutomationClock.IsStepping)
+        {
+            status["stepping"] = true;
         }
 
         if (UnhandledExceptions.Latest is { } latest)
@@ -521,12 +581,160 @@ internal sealed partial class McpTools
             return MissingArgument("path", args);
         }
 
-        var timeout = TimeSpan.FromSeconds(GetInt(args, "timeout_seconds") ?? 180);
+        var (timeout, timeoutError) = GetLoadTimeout(args);
+
+        if (timeoutError != null)
+        {
+            return timeoutError;
+        }
+
+        List<int>? alreadyOpen = null;
+
+        var (tab, id, error) = await OpenTab($"'{path}'", form =>
+        {
+            alreadyOpen = TabsShowing(path);
+            form.OpenCommandLineArgFiles([path]);
+        }, timeout, cancellationToken).ConfigureAwait(false);
+
+        if (error != null)
+        {
+            return error;
+        }
+
+        return await OnUi(() =>
+        {
+            var result = DescribeTab(tab!);
+
+            if (alreadyOpen is { Count: > 0 })
+            {
+                result["hint"] = $"This file was already open in tab {string.Join(", ", alreadyOpen)}, so it is now open twice. Pass that id instead of opening it again.";
+            }
+
+            if (!path.StartsWith("vpk:", StringComparison.OrdinalIgnoreCase)
+                && path.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase))
+            {
+                result["hint"] = "This opened the package browser, not a map. Open a file inside it as vpk:package.vpk:inner/file, and list what is in it with list_package.";
+
+                if (MapsInPackage(tab!) is { } maps)
+                {
+                    result["maps"] = maps;
+                }
+            }
+
+            return McpToolResult.Json(result);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<McpToolResult> ReloadTab(JsonObject args, CancellationToken cancellationToken)
+    {
+        var (timeout, timeoutError) = GetLoadTimeout(args);
+
+        if (timeoutError != null)
+        {
+            return timeoutError;
+        }
+
+        var requested = GetInt(args, "tab");
+        int replaced;
+
+        while (true)
+        {
+            var (loading, error, id) = await OnUi<(Task? Loading, McpToolResult? Error, int Id)>(() =>
+            {
+                var page = requested == null ? Program.MainForm.Tabs.SelectedTab : PageFor(requested.Value);
+
+                if (page == null)
+                {
+                    return (null, requested == null ? McpToolResult.Error("No tab is open.") : NoSuchTab(requested.Value), 0);
+                }
+
+                var pageId = IdFor(page);
+
+                if (page.Tag is not ExportData)
+                {
+                    return (null, McpToolResult.Error($"Tab {pageId} '{page.Text}' shows no file, so there is nothing to reload."), pageId);
+                }
+
+                return (TabLoads.Of(page), null, pageId);
+            }, cancellationToken).ConfigureAwait(false);
+
+            if (error != null)
+            {
+                return error;
+            }
+
+            replaced = id;
+
+            if (loading == null)
+            {
+                break;
+            }
+
+            try
+            {
+                await loading.WaitAsync(LoadTimeout, cancellationToken).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                return McpToolResult.Error($"Tab {id} is still loading after {LoadTimeout.TotalSeconds:F0}s.");
+            }
+        }
+
+        var closed = false;
+
+        var (tab, _, openError) = await OpenTab($"the file of tab {replaced}", form =>
+        {
+            if (PageFor(replaced) is not { } page)
+            {
+                closed = true;
+                return;
+            }
+
+            form.Tabs.SelectTab(page);
+            form.ReloadActiveTab();
+        }, timeout, cancellationToken).ConfigureAwait(false);
+
+        if (closed)
+        {
+            return McpToolResult.Error($"Tab {replaced} was closed before it could be reloaded.");
+        }
+
+        if (openError != null)
+        {
+            return openError;
+        }
+
+        return await OnUi(() =>
+        {
+            var result = DescribeTab(tab!);
+            result["replaced"] = replaced;
+
+            return McpToolResult.Json(result);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static (TimeSpan Timeout, McpToolResult? Error) GetLoadTimeout(JsonObject args)
+    {
+        var seconds = GetInt(args, "timeout_seconds") ?? (int)LoadTimeout.TotalSeconds;
+
+        return seconds is < 1 or > MaxTimeoutSeconds
+            ? (TimeSpan.Zero, McpToolResult.Error($"'timeout_seconds' must be between 1 and {MaxTimeoutSeconds}, got {seconds}. Nothing was opened."))
+            : (TimeSpan.FromSeconds(seconds), null);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="open"/> on the UI thread, finds the tab it added and waits for that tab to
+    /// finish loading. Once there is a tab, every error names it, so a caller can close or inspect it
+    /// rather than open the file again.
+    /// </summary>
+    private async Task<(TabPage? Tab, int Id, McpToolResult? Error)> OpenTab(string what, Action<MainForm> open, TimeSpan timeout, CancellationToken cancellationToken)
+    {
         var completion = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var logCursor = AutomationLog.Cursor;
         var crash = UnhandledExceptions.NextAsync();
 
         TabPage? tab = null;
+        var id = 0;
 
         void OnTabLoaded(TabPage page, Exception? error)
         {
@@ -538,7 +746,7 @@ internal sealed partial class McpTools
 
         // Subscribing on the UI thread means no completion can be dispatched before 'tab' is set,
         // because the notification is posted to this same thread.
-        var opened = await OnUi(() =>
+        var openError = await OnUi(() =>
         {
             var form = Program.MainForm;
             var previous = form.Tabs.SelectedTab;
@@ -554,14 +762,25 @@ internal sealed partial class McpTools
             }
 
             form.TabLoadCompleted += OnTabLoaded;
-            form.OpenCommandLineArgFiles([path]);
+
+            string? failure = null;
+
+            try
+            {
+                open(form);
+            }
+            catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or NotSupportedException)
+            {
+                failure = $"Could not open {what}: {e.Message}";
+            }
 
             foreach (TabPage page in form.Tabs.TabPages)
             {
                 if (!before.Contains(page))
                 {
                     tab = page;
-                    return true;
+                    id = IdFor(page);
+                    return null;
                 }
             }
 
@@ -572,14 +791,14 @@ internal sealed partial class McpTools
                 form.Tabs.SelectTab(previous);
             }
 
-            return false;
+            return failure ?? $"Nothing was opened for {what}.{LoggedErrorsSince(logCursor)}";
         }, cancellationToken).ConfigureAwait(false);
 
         try
         {
-            if (!opened)
+            if (openError != null)
             {
-                return McpToolResult.Error($"Nothing was opened for '{path}'.{LoggedErrorsSince(logCursor)}");
+                return (null, 0, McpToolResult.Error(openError));
             }
 
             Exception? failure;
@@ -590,19 +809,19 @@ internal sealed partial class McpTools
 
                 if (finished == crash)
                 {
-                    return McpToolResult.Error($"Unhandled exception while loading '{path}': {UnhandledExceptions.Summarize(await crash.ConfigureAwait(false))}");
+                    return (tab, id, McpToolResult.Error($"Unhandled exception while loading {what} in tab {id}: {UnhandledExceptions.Summarize(await crash.ConfigureAwait(false))}"));
                 }
 
                 failure = await completion.Task.ConfigureAwait(false);
             }
             catch (TimeoutException)
             {
-                return McpToolResult.Error($"Timed out after {timeout.TotalSeconds:F0}s loading '{path}'.");
+                return (tab, id, McpToolResult.Error($"Timed out after {timeout.TotalSeconds:F0}s loading {what} in tab {id}, which is still loading. Wait for it with get_info on tab {id}, or close it with close_tab, rather than opening it again."));
             }
 
             if (failure != null)
             {
-                return McpToolResult.Error($"Failed to load '{path}': {failure.Message}");
+                return (tab, id, McpToolResult.Error($"Tab {id} failed to load {what}: {failure.Message}"));
             }
         }
         finally
@@ -614,35 +833,118 @@ internal sealed partial class McpTools
             }, CancellationToken.None).ConfigureAwait(false);
         }
 
-        return await OnUi(() =>
+        var viewerFailure = await OnUi(() => ViewerFailure(tab!), cancellationToken).ConfigureAwait(false);
+
+        if (viewerFailure != null)
         {
-            if (ViewerFailure(tab!) is { } viewerFailure)
+            return (tab, id, McpToolResult.Error($"Opened {what} as tab {id}, but its viewer failed: {UnhandledExceptions.Summarize(viewerFailure.ToString())}"));
+        }
+
+        return (tab, id, null);
+    }
+
+    /// <summary>Ids of the open tabs that show the file <paramref name="path"/> names, as best as can be told from the path.</summary>
+    private List<int> TabsShowing(string path)
+    {
+        var wanted = NormalizeOpenPath(path);
+        var ids = new List<int>();
+
+        foreach (TabPage page in Program.MainForm.Tabs.TabPages)
+        {
+            if (OpenPath(page) is not { } openPath)
             {
-                return McpToolResult.Error($"Opened '{path}' as tab {IdFor(tab!)}, but its viewer failed: {UnhandledExceptions.Summarize(viewerFailure.ToString())}");
+                continue;
             }
 
-            var result = DescribeTab(tab!);
+            var normalized = NormalizeOpenPath(openPath);
 
-            if (!path.StartsWith("vpk:", StringComparison.OrdinalIgnoreCase)
-                && path.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase))
+            if (normalized == wanted || normalized == wanted + GameFileLoader.CompiledFileSuffix)
             {
-                result["hint"] = "This opened the package browser, not a map. Open a file inside it as vpk:package.vpk:inner/file.";
+                ids.Add(IdFor(page));
+            }
+        }
 
-                if (MapsInPackage(tab!) is { } maps)
-                {
-                    result["maps"] = maps;
-                }
+        return ids;
+    }
+
+    private static string NormalizeOpenPath(string path)
+    {
+        var normalized = Uri.UnescapeDataString(path).Replace('\\', '/');
+
+        if (!normalized.StartsWith("vpk:", StringComparison.OrdinalIgnoreCase) && Path.IsPathFullyQualified(path))
+        {
+            normalized = Path.GetFullPath(path).Replace('\\', '/');
+        }
+
+        return normalized.ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// The path that opens this tab's file again with open_file: a file on disk, or a vpk: link for
+    /// a file inside a package. Null for a tab that shows no file.
+    /// </summary>
+    private static string? OpenPath(TabPage page)
+    {
+        if (page.Tag is not ExportData { VrfGuiContext: { } context } data)
+        {
+            return null;
+        }
+
+        if (data.PackageEntry == null)
+        {
+            return context.ParentGuiContext == null && Path.IsPathFullyQualified(context.FileName)
+                ? context.FileName.Replace('\\', '/')
+                : null;
+        }
+
+        return PackageLink(context) is { } package
+            ? $"{package}:{MainForm.EscapeVpkLinkPath(data.PackageEntry.GetFullPath())}"
+            : null;
+    }
+
+    /// <summary>
+    /// The vpk: link of the package <paramref name="context"/> reads from, nested packages included,
+    /// to which an inner path is appended after a colon. Null when it cannot be traced to a file on disk.
+    /// </summary>
+    private static string? PackageLink(VrfGuiContext context)
+    {
+        var segments = new List<string>();
+
+        for (var current = context; current != null; current = current.ParentGuiContext)
+        {
+            // The context's own package, not the one VrfGuiContext falls back to from its parent.
+            if (((GameFileLoader)current).CurrentPackage == null)
+            {
+                continue;
             }
 
-            return McpToolResult.Json(result);
-        }, cancellationToken).ConfigureAwait(false);
+            var name = current.FileName.Replace('\\', '/');
+
+            // A context made from a package object carries the package's own name, which drops the
+            // _dir suffix and the extension.
+            if (!name.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase))
+            {
+                name += Path.IsPathFullyQualified(name) && File.Exists(name + "_dir.vpk") ? "_dir.vpk" : ".vpk";
+            }
+
+            segments.Add(MainForm.EscapeVpkLinkPath(name));
+
+            if (Path.IsPathFullyQualified(name))
+            {
+                segments.Reverse();
+                return "vpk:" + string.Join(':', segments);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Paths that would open each map in a package tab, ready to pass to open_file.</summary>
     private static JsonArray? MapsInPackage(TabPage page)
     {
         if (page.Tag is not ExportData { VrfGuiContext: { CurrentPackage: { } package } context }
-            || package.Entries?.GetValueOrDefault("vmap_c") is not { Count: > 0 } maps)
+            || package.Entries?.GetValueOrDefault("vmap_c") is not { Count: > 0 } maps
+            || PackageLink(context) is not { } link)
         {
             return null;
         }
@@ -651,7 +953,7 @@ internal sealed partial class McpTools
 
         foreach (var map in maps)
         {
-            paths.Add($"vpk:{MainForm.EscapeVpkLinkPath(context.FileName)}:{MainForm.EscapeVpkLinkPath(map.GetFullPath())}");
+            paths.Add($"{link}:{MainForm.EscapeVpkLinkPath(map.GetFullPath())}");
         }
 
         return paths;
@@ -685,10 +987,15 @@ internal sealed partial class McpTools
             ["title"] = page.Text,
         };
 
-        // The tooltip is the full path, followed by the packages it came from.
+        // The tooltip is the full path, followed by the files it was opened from.
         if (!string.IsNullOrEmpty(page.ToolTipText) && page.ToolTipText != page.Text)
         {
-            tab["file"] = page.ToolTipText;
+            tab["file"] = page.ToolTipText.Replace(" \u2190 ", " <- ", StringComparison.Ordinal);
+        }
+
+        if (OpenPath(page) is { } openPath && openPath != (string?)tab["file"])
+        {
+            tab["open_path"] = openPath;
         }
 
         if (DescribeViewer(page) is { } viewer)
@@ -798,16 +1105,17 @@ internal sealed partial class McpTools
 
     /// <summary>
     /// Runs <paramref name="callback"/> on the UI thread. A load can hold the UI thread for longer
-    /// than <paramref name="timeout"/>, so the wait goes on while any tab is loading, up to
-    /// <see cref="LoadTimeout"/>. A callback that timed out is dropped rather than run later.
+    /// than <paramref name="timeout"/>, so unless <paramref name="waitForLoads"/> is false the wait
+    /// goes on while any tab is loading, up to <see cref="LoadTimeout"/>. A callback that timed out
+    /// is dropped rather than run later.
     /// </summary>
-    private static async Task<T> OnUi<T>(Func<T> callback, TimeSpan timeout, CancellationToken cancellationToken)
+    private static async Task<T> OnUi<T>(Func<T> callback, TimeSpan timeout, CancellationToken cancellationToken, bool waitForLoads = true)
     {
         var form = Program.MainForm;
 
         if (form == null || form.IsDisposed)
         {
-            throw new InvalidOperationException("The main window is not available.");
+            throw new ToolFailureException("The main window is not available.");
         }
 
         using var abandon = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -825,16 +1133,18 @@ internal sealed partial class McpTools
             {
                 var loading = TabLoads.AnyTitle();
 
-                if (loading != null && Stopwatch.GetElapsedTime(started) < LoadTimeout)
+                if (waitForLoads && loading != null && Stopwatch.GetElapsedTime(started) < LoadTimeout)
                 {
                     continue;
                 }
 
                 await abandon.CancelAsync().ConfigureAwait(false);
 
-                throw new TimeoutException(loading != null
-                    ? $"The UI thread is still busy loading '{loading}' after {LoadTimeout.TotalSeconds:F0}s. Try again once it has loaded."
-                    : "Timed out waiting for the UI thread. A modal dialog may be open in the viewer.");
+                throw new TimeoutException(loading == null
+                    ? "Timed out waiting for the UI thread. A modal dialog may be open in the viewer."
+                    : waitForLoads
+                        ? $"The UI thread is still busy loading '{loading}' after {LoadTimeout.TotalSeconds:F0}s. Try again once it has loaded."
+                        : $"The UI thread is busy loading '{loading}'.");
             }
         }
     }

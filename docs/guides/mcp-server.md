@@ -54,11 +54,13 @@ curl http://127.0.0.1:13338/mcp \
 | `list_tabs`                            | Open tabs with their id, title, file, viewer kind, and any error the viewer showed instead.                 |
 | `select_tab`, `close_tab`              | Make a tab active, or close it. Only the active tab renders.                                                |
 | `open_file`                            | Open a file and wait until its tab has finished loading. Fails with the exception when the viewer does.     |
+| `reload_tab`                           | Reopen a tab from its file, as Ctrl+R does, and wait for it to load. Returns the new tab id.                |
 | `get_info`                             | Describe any tab, including which tools work on it.                                                         |
+| `list_package`                         | List or search the files in a package tab or a .vpk on disk, paged, with sizes, types and vpk: links.       |
 | **Camera and view**                    |                                                                                                             |
 | `get_camera`, `set_camera`             | Read or move the camera of a 3D tab.                                                                        |
-| `screenshot`                           | Capture what a tab renders: a 3D view, texture, image or graph.                                             |
-| `set_viewport`                         | Render at an exact pixel size, so screenshots from two builds can be compared.                              |
+| `screenshot`                           | Capture what a tab renders: a 3D view, texture, image or graph. Model tabs can capture transparently.       |
+| `set_viewport`                         | Render a 3D tab at an exact pixel size, so screenshots from two builds can be compared.                     |
 | `list_render_modes`, `set_render_mode` | List or switch the debug render modes of a 3D tab.                                                          |
 | `reload_shaders`                       | Recompile shaders from the source tree without restarting the viewer.                                       |
 | `get_render_stats`                     | Draw counts and renderer metrics of a fresh frame.                                                          |
@@ -72,6 +74,8 @@ curl http://127.0.0.1:13338/mcp \
 | `pause`, `resume`                      | Freeze or resume the simulation of every tab. Frames still render while paused.                             |
 | `step`                                 | Advance the simulation by an exact number of seconds in fixed frames, then stay paused.                     |
 | `get_particles`                        | Particle systems with their age, particle count, control points, bounds and unsupported renderers.          |
+| `particle_playback`                    | Restart, pause, resume or play the endcap of a particle system tab through its sidebar buttons.             |
+| `list_particle_functions`              | The functions of a particle system tab marked supported, unsupported or removed, and its children.          |
 | **Diagnostics**                        |                                                                                                             |
 | `get_log`, `clear_log`                 | Read or clear the viewer's console. Pass the returned cursor back to read only newer lines.                 |
 | `get_memory`                           | Process and managed heap memory, optionally after a full garbage collection.                                |
@@ -81,7 +85,10 @@ Tools that act on a tab take an optional `tab` id from `open_file` or `list_tabs
 ## Behavior
 
 - Files inside a package use `vpk:package.vpk:inner/path`, the same links the command line accepts (see [Getting Started](./getting-started.md#opening-vpk-links)).
-- Calls run one at a time, because the viewer state they drive is global.
+- Calls run one at a time, because the viewer state they drive is global. `get_status`, `get_log`, `list_tabs` and `resume` are the exception: they answer while another call is running, so `resume` can abandon a running `step`. A `notifications/cancelled` naming a running request cancels it.
+- The viewer keeps settings changes in memory only and writes nothing to its settings file: no recent files, window placement, field of view or saved cameras.
+- Replies are ASCII. Other characters in paths and log lines come back as JSON unicode escapes.
+- `screenshot` writes only to an absolute `.png` path in a folder that exists, and checks that before capturing.
 - Calls that change the view draw a frame before answering, so the window shows the result even while it is in the background. Screenshots work in the background too, but not while the window is minimized.
 - For repeatable screenshots, `pause` and then `step` exact amounts of time. Particles do not emit while paused, so step after loading a map to see them.
 - Tools that need a 3D scene only work on 3D tabs (models, maps, materials, particle systems). Texture, image and graph tabs take `screenshot` and `set_viewport`.

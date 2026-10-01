@@ -4,17 +4,26 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Forms;
+using GUI.Types.Exporter;
 using GUI.Types.GLViewers;
+using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Automation;
 
-/// <summary>Tools that control simulation time and inspect particle systems.</summary>
+/// <summary>Tools that control simulation time, inspect particle systems and drive the particle viewer.</summary>
 internal sealed partial class McpTools
 {
     private const float MaxStepSeconds = 60f;
+    private const float MinStepInterval = 1f / 480f;
+    private const float MaxStepInterval = 0.125f;
 
     // Generous per frame, because a frame waits for vsync and a heavy map can take far longer to draw.
     private static readonly TimeSpan StepTimePerFrame = TimeSpan.FromMilliseconds(100);
@@ -29,7 +38,7 @@ internal sealed partial class McpTools
                 return Task.FromResult(McpToolResult.Json(new JsonObject { ["paused"] = true }));
             });
 
-        Add("resume", "Go back to real time simulation, abandoning a step that is still running.",
+        Add("resume", "Go back to real time simulation. Runs alongside a step that is still running and abandons it, so the step answers with an error.",
             Schema(),
             (_, _) =>
             {
@@ -42,7 +51,7 @@ internal sealed partial class McpTools
             {
                 ["tab"] = TabProp(),
                 ["seconds"] = Prop("number", $"Seconds to simulate, at most {MaxStepSeconds:F0}."),
-                ["timestep"] = Prop("number", "Seconds per simulated frame. Defaults to 1/64, one entity tick; at most 0.125."),
+                ["timestep"] = Prop("number", "Seconds per simulated frame, from 1/480 to 0.125. Defaults to 1/64, one entity tick."),
             }, "seconds"),
             Step, SceneViewer);
 
@@ -72,7 +81,13 @@ internal sealed partial class McpTools
             return McpToolResult.Error($"'seconds' must be more than 0 and at most {MaxStepSeconds:F0}.");
         }
 
-        var interval = Math.Clamp(GetFloat(args, "timestep") ?? AutomationClock.DefaultStepInterval, 1f / 480f, 0.125f);
+        var interval = GetFloat(args, "timestep") ?? AutomationClock.DefaultStepInterval;
+
+        // A tolerance, so that 1/480 written out as a decimal still counts as the smallest step.
+        if (interval < MinStepInterval * 0.999f || interval > MaxStepInterval)
+        {
+            return McpToolResult.Error($"'timestep' must be from 1/480 ({MinStepInterval:0.######}) to {MaxStepInterval} seconds, got {interval}.");
+        }
 
         var (viewer, error) = await ActivateViewer<GLSceneViewer>(args, cancellationToken).ConfigureAwait(false);
 
@@ -103,6 +118,11 @@ internal sealed partial class McpTools
             catch (TaskCanceledException) when (stepping.IsCanceled)
             {
                 return McpToolResult.Error("The step was abandoned by resume or by another step.");
+            }
+            catch (OperationCanceledException)
+            {
+                AutomationClock.Abandon(stepping);
+                throw;
             }
 
             // The last stepped frame simulates and then draws, but one more makes sure what is on
@@ -312,6 +332,212 @@ internal sealed partial class McpTools
         }
 
         return count;
+    }
+
+    // The sidebar of the particle viewer lists these groups in this order, each checked against
+    // the same support table it uses.
+    private static readonly (string Name, string ListName, Func<string, bool> IsSupported)[] ParticleFunctionGroups =
+    [
+        ("pre_emission_operators", "m_PreEmissionOperators", ParticleSupportInfo.IsPreEmissionOperatorSupported),
+        ("emitters", "m_Emitters", ParticleSupportInfo.IsEmitterSupported),
+        ("initializers", "m_Initializers", ParticleSupportInfo.IsInitializerSupported),
+        ("operators", "m_Operators", ParticleSupportInfo.IsOperatorSupported),
+        ("force_generators", "m_ForceGenerators", ParticleSupportInfo.IsForceGeneratorSupported),
+        ("constraints", "m_Constraints", ParticleSupportInfo.IsConstraintSupported),
+        ("renderers", "m_Renderers", ParticleRendererFactory.IsSupported),
+    ];
+
+    private static bool ParticleViewer(GLBaseControl viewer) => viewer is GLParticleViewer;
+
+    private void RegisterParticleTools()
+    {
+        Add("particle_playback", "Restart, pause, resume or play the endcap of a particle system tab, through the same buttons as its sidebar. Pausing here holds only this system, unlike pause, which freezes every tab; while pause is in effect a restart shows nothing new until step.",
+            Schema(new JsonObject
+            {
+                ["tab"] = TabProp(),
+                ["action"] = Prop("string", "What to press.", "restart", "pause", "resume", "endcap"),
+            }, "action"),
+            ParticlePlayback, ParticleViewer);
+
+        Add("list_particle_functions", "List the functions of a particle system tab by group, as its sidebar does: each class with whether the viewer implements it ('unsupported' draws or does nothing), the class it was upgraded from, and the ones the format upgrade removed. Also lists the child systems, with the disabled ones marked.",
+            Schema(new JsonObject
+            {
+                ["tab"] = TabProp(),
+            }),
+            ListParticleFunctions, ParticleViewer);
+    }
+
+    private async Task<McpToolResult> ParticlePlayback(JsonObject args, CancellationToken cancellationToken)
+    {
+        var action = GetString(args, "action");
+
+        if (action == null)
+        {
+            return MissingArgument("action", args);
+        }
+
+        if (action is not ("restart" or "pause" or "resume" or "endcap"))
+        {
+            return McpToolResult.Error($"Unknown action '{action}'. Use restart, pause, resume or endcap.");
+        }
+
+        return await WithViewer<GLParticleViewer>(args, viewer =>
+        {
+            // The pause button reads Resume while the system is paused.
+            if (viewer.FindButtons("Pause", "Resume") is not [var pauseButton])
+            {
+                return McpToolResult.Error("The particle viewer has no pause button to read.");
+            }
+
+            var target = action switch
+            {
+                "restart" => viewer.FindButtons("Restart"),
+                "endcap" => viewer.FindButtons("Play Endcap"),
+                "pause" when pauseButton.Text == "Pause" => [pauseButton],
+                "resume" when pauseButton.Text == "Resume" => [pauseButton],
+                _ => [],
+            };
+
+            if (target.Count > 1)
+            {
+                return McpToolResult.Error($"The particle viewer has more than one button for '{action}'.");
+            }
+
+            if (target is [var button])
+            {
+                if (!button.CanSelect)
+                {
+                    return McpToolResult.Error($"The '{button.Text}' button cannot be clicked right now.");
+                }
+
+                button.PerformClick();
+            }
+            else if (action is "restart" or "endcap")
+            {
+                return McpToolResult.Error($"The particle viewer has no button for '{action}'.");
+            }
+
+            return McpToolResult.Json(new JsonObject
+            {
+                ["action"] = action,
+                ["paused"] = pauseButton.Text == "Resume",
+            });
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<McpToolResult> ListParticleFunctions(JsonObject args, CancellationToken cancellationToken)
+    {
+        var (viewer, error) = await ActivateViewer<GLParticleViewer>(args, cancellationToken).ConfigureAwait(false);
+
+        if (error != null)
+        {
+            return error;
+        }
+
+        var resource = await OnUi(() =>
+        {
+            foreach (TabPage page in Program.MainForm.Tabs.TabPages)
+            {
+                if (GLBaseControl.FindHostedIn(page) == viewer && page.Tag is ExportData { DisposableContents: Types.Viewers.Resource shown })
+                {
+                    return shown.LoadedResource;
+                }
+            }
+
+            return null;
+        }, cancellationToken).ConfigureAwait(false);
+
+        // The same system the viewer was given: the resource's own, or one built from its snapshot.
+        var system = resource?.DataBlock as ParticleSystem
+            ?? (resource?.GetBlockByType(BlockType.SNAP) is ParticleSnapshot snapshot ? SnapshotParticleSystem.Create(snapshot) : null);
+
+        if (system == null)
+        {
+            return McpToolResult.Error("The particle system of this tab could not be found.");
+        }
+
+        return await Task.Run(() =>
+        {
+            var trace = system.GetUpgradeTrace();
+            var groups = new JsonObject();
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+            foreach (var (name, listName, isSupported) in ParticleFunctionGroups)
+            {
+                if (trace.GetValueOrDefault(listName) is not { Count: > 0 } functions)
+                {
+                    continue;
+                }
+
+                var list = new JsonArray();
+
+                foreach (var function in functions)
+                {
+                    var status = function.RemovedByUpgrade ? "removed"
+                        : isSupported(function.Class) ? "supported"
+                        : "unsupported";
+
+                    counts[status] = counts.GetValueOrDefault(status) + 1;
+
+                    var entry = new JsonObject
+                    {
+                        ["class"] = function.Class,
+                        ["status"] = status,
+                    };
+
+                    if (!function.RemovedByUpgrade && function.OriginalClass != null)
+                    {
+                        entry["was"] = function.OriginalClass;
+                    }
+
+                    list.Add(entry);
+                }
+
+                groups[name] = list;
+            }
+
+            var result = new JsonObject
+            {
+                ["counts"] = new JsonObject
+                {
+                    ["supported"] = counts.GetValueOrDefault("supported"),
+                    ["unsupported"] = counts.GetValueOrDefault("unsupported"),
+                    ["removed"] = counts.GetValueOrDefault("removed"),
+                },
+                ["groups"] = groups,
+            };
+
+            var children = new JsonArray();
+
+            foreach (var child in system.GetChildren())
+            {
+                var childRef = child.GetStringProperty("m_ChildRef");
+
+                if (string.IsNullOrEmpty(childRef))
+                {
+                    continue;
+                }
+
+                var entry = new JsonObject
+                {
+                    ["ref"] = childRef,
+                };
+
+                if (!system.IsChildEnabled(child))
+                {
+                    entry["disabled"] = true;
+                }
+
+                children.Add(entry);
+            }
+
+            if (children.Count > 0)
+            {
+                result["children"] = children;
+            }
+
+            return McpToolResult.Json(result);
+        }, cancellationToken).ConfigureAwait(false);
     }
 }
 #endif

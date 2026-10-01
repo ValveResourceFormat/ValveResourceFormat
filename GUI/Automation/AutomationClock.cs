@@ -36,6 +36,16 @@ internal static class AutomationClock
         }
     }
 
+    /// <summary>Whether a step is still advancing the simulation.</summary>
+    public static bool IsStepping
+    {
+        get
+        {
+            using var _ = Sync.EnterScope();
+            return stepDone != null;
+        }
+    }
+
     /// <summary>
     /// Called by the viewer each frame, on the render thread. Returns whether automation controls
     /// the clock, in which case <paramref name="timestep"/> has been replaced.
@@ -93,6 +103,24 @@ internal static class AutomationClock
             stepRemaining = 0f;
             abandoned = stepDone;
             stepDone = null;
+        }
+
+        abandoned?.TrySetCanceled();
+    }
+
+    /// <summary>Stops the step that is running, if it is still <paramref name="step"/>, and stays paused where it got to.</summary>
+    public static void Abandon(Task<int> step)
+    {
+        TaskCompletionSource<int>? abandoned = null;
+
+        using (Sync.EnterScope())
+        {
+            if (stepDone?.Task == step)
+            {
+                stepRemaining = 0f;
+                abandoned = stepDone;
+                stepDone = null;
+            }
         }
 
         abandoned?.TrySetCanceled();

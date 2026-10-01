@@ -1,6 +1,7 @@
 #if DEBUG
 using System.Threading;
 using System.Windows.Forms;
+using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
@@ -100,6 +101,61 @@ namespace GUI.Types.GLViewers
 
         /// <summary>Reaches the viewers' own capture path, which is otherwise protected.</summary>
         internal SKBitmap? CaptureBitmap() => ReadPixelsToBitmap();
+
+        /// <summary>
+        /// Reads back the frame as the window shows it, with the background and grid, even in a
+        /// viewer whose own capture path renders something else.
+        /// </summary>
+        internal SKBitmap? CaptureWindowBitmap()
+        {
+            if (GLDefaultFramebuffer is null)
+            {
+                return null;
+            }
+
+            var bitmap = new SKBitmap(GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
+            var pixels = bitmap.GetPixels(out _);
+
+            using var lockedGl = MakeCurrent();
+
+            BlitFramebufferToScreen();
+
+            GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+            GL.ReadPixels(0, 0, GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Scale(1, -1, 0, bitmap.Height / 2f);
+            canvas.DrawBitmap(bitmap, new SKPoint(), SKSamplingOptions.Default);
+
+            return bitmap;
+        }
+
+        /// <summary>The sidebar buttons whose text is one of <paramref name="texts"/>.</summary>
+        internal List<Button> FindButtons(params string[] texts)
+        {
+            var buttons = new List<Button>();
+
+            void Collect(Control parent)
+            {
+                foreach (Control child in parent.Controls)
+                {
+                    if (child is Button button && Array.Exists(texts, text => string.Equals(text, button.Text, StringComparison.Ordinal)))
+                    {
+                        buttons.Add(button);
+                        continue;
+                    }
+
+                    Collect(child);
+                }
+            }
+
+            if (UiControl != null)
+            {
+                Collect(UiControl);
+            }
+
+            return buttons;
+        }
     }
 
     partial class GLTextureViewer
@@ -368,11 +424,23 @@ namespace GUI.Types.Viewers
 {
     partial class Resource
     {
+        /// <summary>The resource this viewer shows.</summary>
+        internal ValveResourceFormat.Resource? LoadedResource => resource;
+
         /// <summary>Why the 3D, texture or other special viewer failed, shown in its Viewer Error tab.</summary>
         internal Exception? ViewerException => GLViewerError?.Exception;
 
         /// <summary>Why reconstructing the source file failed, shown in its Decompile Error tab.</summary>
         internal Exception? DecompileException => DecompileError?.Exception;
+    }
+}
+
+namespace GUI
+{
+    partial class MainForm
+    {
+        /// <summary>Reopens the active tab from its file, as Ctrl+R does.</summary>
+        internal void ReloadActiveTab() => CloseAndReOpenActiveTab();
     }
 }
 

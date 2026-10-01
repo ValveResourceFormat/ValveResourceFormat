@@ -63,6 +63,6 @@ internal static class UnhandledExceptions
 
     /// <summary>Shortens a report to fit in a tool error.</summary>
     public static string Summarize(string text, int maxLength = 3000)
-        => text.Length <= maxLength ? text : string.Concat(text.AsSpan(0, maxLength), " …");
+        => text.Length <= maxLength ? text : string.Concat(text.AsSpan(0, maxLength), " ...");
 }
 #endif

@@ -1,4 +1,6 @@
 #if DEBUG
+using System.Globalization;
+using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -18,15 +20,63 @@ internal sealed class McpToolResult
 
     private bool isError;
 
+    /// <summary>Whether the call failed.</summary>
+    public bool IsError => isError;
+
+    /// <summary>The first line of the first text item, for a one line log entry.</summary>
+    public string Summary
+    {
+        get
+        {
+            var text = Items.Find(item => item.Text != null).Text ?? string.Empty;
+            var end = text.AsSpan().IndexOfAny('\r', '\n');
+
+            return end < 0 ? text : text[..end];
+        }
+    }
+
     private static McpToolResult Text(string text)
     {
         var result = new McpToolResult();
-        result.Items.Add(new Item(text, null, null));
+        result.Items.Add(new Item(ToAscii(text), null, null));
         return result;
     }
 
+    /// <summary>
+    /// Writes every character outside ASCII as a <c>\uXXXX</c> escape, which a JSON reader turns
+    /// back into the same text, so that replies are ASCII whatever paths and log lines they quote.
+    /// </summary>
+    private static string ToAscii(string text)
+    {
+        var first = text.AsSpan().IndexOfAnyExceptInRange((char)0, (char)0x7F);
+
+        if (first < 0)
+        {
+            return text;
+        }
+
+        var builder = new StringBuilder(text.Length + 16);
+        builder.Append(text.AsSpan(0, first));
+
+        for (var i = first; i < text.Length; i++)
+        {
+            var c = text[i];
+
+            if (c > 0x7F)
+            {
+                builder.Append(CultureInfo.InvariantCulture, $"\\u{(int)c:x4}");
+            }
+            else
+            {
+                builder.Append(c);
+            }
+        }
+
+        return builder.ToString();
+    }
+
     // The text is read by a model, not put in a page, so there is nothing to gain from escaping
-    // quotes, angle brackets or non-ASCII, and every escape costs tokens.
+    // quotes or angle brackets, and every escape costs tokens. Non-ASCII is escaped afterwards.
     internal static readonly JsonSerializerOptions SerializerOptions = new()
     {
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
