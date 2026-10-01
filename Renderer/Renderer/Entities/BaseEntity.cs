@@ -358,14 +358,13 @@ public abstract class BaseEntity
             return null;
         }
 
-        // On the editor-only layer, so it hides with the other markers rather than with the world, except a
-        // template and what it spawns, which are grouped together. An icon the Hammer class draws as a
-        // studio model stands in for real geometry, so it stays on the entity's own layer.
+        // Whatever the Hammer class draws, even a model, is the editor's preview and never what the game
+        // shows, so it goes on the editor-only layer. A template and what it spawns stay grouped together.
+        // This also hides entities the game does draw but that only get the Hammer model as a stand-in here,
+        // such as CS2 weapons placed on the ground. They will show again once we make their class spawns its real model.
         var layerName = LayerName == World.EditorEntityNode.TemplateLayerName
             ? World.EditorEntityNode.TemplateLayerName
-            : HammerEntities.Get(Classname)?.Studio == true && LayerName != null
-                ? LayerName
-                : World.EditorEntityNode.LayerName;
+            : World.EditorEntityNode.LayerName;
 
         return World.EditorEntityNode.Create(Scene, Data, Classname, Transform, RigidTransform, flags, layerName);
     }
