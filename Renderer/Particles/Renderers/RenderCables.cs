@@ -19,7 +19,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private readonly Shader shader;
         private readonly Shader? depthShader;
-        private readonly Scene scene;
         private readonly RenderMaterial material;
         private readonly bool ownsMaterial;
         private readonly int vaoHandle;
@@ -58,16 +57,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private static readonly Comparison<(int Id, Vector3 Position, float Radius, Vector3 Color)> ChainComparer =
             static (a, b) => a.Id.CompareTo(b.Id);
 
-        public RenderCables(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse)
+        public RenderCables(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
         {
-            this.scene = scene;
-
-            var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes)
-            {
-                ["D_BAKED_LIGHTING_FROM_PROBE"] = scene.LightingInfo.HasValidLightProbes ? (byte)1 : (byte)0,
-            };
-
-            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
+            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, CreateShaderArguments());
 
             roundness = parse.Int32("m_nRoundness", roundness);
             textureRepetitionMode = parse.Enum("m_nTextureRepetitionMode", textureRepetitionMode);
@@ -212,7 +204,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             if (depthShader != null)
             {
-                DrawTube(depthShader, depthOnly: true);
+                DrawTube(depthShader);
             }
         }
 
@@ -343,7 +335,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         // Grow-only: reused buffers are sliced to the live count, so shrinking never reallocates.
         private static T[] EnsureCapacity<T>(T[] buffer, int size) => buffer.Length >= size ? buffer : new T[size];
 
-        private void DrawTube(Shader drawShader, bool depthOnly = false)
+        private void DrawTube(Shader drawShader)
         {
             if (indexCount == 0)
             {
@@ -353,18 +345,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             drawShader.Use();
             VertexArray.Bind(vaoHandle, drawShader);
             material.Render(drawShader);
-
-            if (!depthOnly)
-            {
-                // todo: batch tube draws and call this less often
-                // todo: should be a scene node drawn with standard pass
-                scene.LightingInfo.BindLightmapTextures();
-
-                if (OwnerNode?.LightProbeBinding is { } lightProbe)
-                {
-                    scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
-                }
-            }
 
             PerfStats.Active.Count(Counter.ParticleDraw);
 

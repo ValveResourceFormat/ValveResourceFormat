@@ -22,7 +22,7 @@ shared uint g_nGroupMask;
 
 const bool OCCLUSION_CULL = true;
 
-uniform sampler2D g_tDepthPyramid; // bound above the reserved slots by Scene.SetOcclusionUniforms
+uniform sampler2D g_tDepthPyramid; // bound above the reserved slots by SceneViewState.SetOcclusionUniforms
 uniform int g_nDepthPyramidMaxMip;
 uniform int g_nDepthPyramidWidth;
 uniform int g_nDepthPyramidHeight;

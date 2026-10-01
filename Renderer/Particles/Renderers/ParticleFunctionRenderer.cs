@@ -22,10 +22,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Multiplies the luminance-weighted blend the output alpha is scaled by.</summary>
         protected INumberProvider OverbrightFactor { get; } = new LiteralNumberProvider(1f);
 
-        /// <summary>Summed with <see cref="SelfIllumAmount"/> into the shader's colour factor.</summary>
+        /// <summary>Scales the scene light a particle is lit by.</summary>
         protected INumberProvider DiffuseAmount { get; } = new LiteralNumberProvider(1f);
 
-        /// <inheritdoc cref="DiffuseAmount"/>
+        /// <summary>Added on top of the scene light, unlit.</summary>
         protected INumberProvider SelfIllumAmount { get; } = new LiteralNumberProvider(0f);
 
         /// <summary>Fraction by which the sampled colour is pulled toward its own luminance.</summary>
@@ -91,8 +91,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Whether this renderer samples the opaque scene depth.</summary>
         public bool WantsSceneDepth => FeatheringMode != ParticleDepthFeatheringMode.PARTICLE_DEPTH_FEATHERING_OFF;
 
-        protected ParticleFunctionRenderer(ParticleDefinitionParser parse) : base(parse)
+        private readonly Scene? scene;
+
+        /// <summary>Whether this renderer is lit by the scene. The water effects map takes data rather than an image, so it never is.</summary>
+        private bool LitByScene => scene != null && OutputIsColor;
+
+        /// <summary>Whether this renderer is lit from the scene's light probes.</summary>
+        private bool LitByProbes => LitByScene && scene!.LightingInfo.HasValidLightProbes;
+
+        protected ParticleFunctionRenderer(ParticleDefinitionParser parse, Scene? scene = null) : base(parse)
         {
+            this.scene = scene;
+
             OnlyRenderInEffectsWaterPass = parse.Boolean("m_bOnlyRenderInEffectsWaterPass", false);
             OnlyRenderInEffectsBloomPass = parse.Boolean("m_bOnlyRenderInEffectsBloomPass", false);
             RadiusScale = parse.NumberProvider("m_flRadiusScale", RadiusScale);
@@ -119,6 +129,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             GammaCorrectVertexColors &= OutputIsColor;
         }
+
+        /// <summary>Creates the static combos for this renderer's shader, lit from the scene when it draws an image.</summary>
+        protected Dictionary<string, byte> CreateShaderArguments()
+            => LitByScene ? scene!.LightingInfo.CreateShaderArguments() : [];
 
         /// <summary>
         /// The hue shift, saturation and lightness scale carried by <see cref="HsvShiftControlPoint"/>,
@@ -164,7 +178,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             shader.SetUniform1("uOverbrightFactor", OverbrightFactor.NextNumber(systemState));
             shader.SetUniform1("uAddSelfAmount", 1f + AddSelfAmount.NextNumber(systemState));
-            shader.SetUniform1("uColorFactor", DiffuseAmount.NextNumber(systemState) + SelfIllumAmount.NextNumber(systemState));
+            shader.SetUniform1("uDiffuseAmount", DiffuseAmount.NextNumber(systemState));
+            shader.SetUniform1("uSelfIllumAmount", SelfIllumAmount.NextNumber(systemState));
             shader.SetUniform1("uDesaturation", Desaturation.NextNumber(systemState));
             shader.SetUniform3("uHsvShift", GetHsvShift(systemState));
             shader.SetUniform2("uAlphaRemapRange", GetAlphaRemapRange(systemState));
@@ -174,6 +189,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uSaturateColorPreAlphaBlend", SaturateColorPreAlphaBlend);
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
             shader.SetUniform1("g_tSceneDepth", (int)ReservedTextureSlots.SceneDepth);
+
+            if (LitByProbes && OwnerNode != null)
+            {
+                shader.SetUniform1("uObjectIndex", OwnerNode.Id);
+            }
 
             shader.SetUniform2("uFeatheringRange", WantsSceneDepth
                 ? new Vector2(FeatheringMinDist.NextNumber(systemState), FeatheringMaxDist.NextNumber(systemState))

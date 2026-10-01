@@ -271,7 +271,7 @@ internal sealed partial class McpTools
 
             info["scene_nodes"] = scene.Scene.AllNodes.Count();
 
-            if (scene.SkyboxScene is { } skyboxScene)
+            if (scene.SkyScene is { } skyboxScene)
             {
                 info["sky_nodes"] = skyboxScene.AllNodes.Count();
             }
@@ -281,7 +281,7 @@ internal sealed partial class McpTools
                 info["map"] = world.MapName;
                 info["entities"] = world.Entities.Count;
 
-                if (world.Skybox3D is { } sky)
+                if (SkyGroup(world) is { } sky)
                 {
                     info["sky_map"] = world.Entities
                         .FirstOrDefault(entity => entity.GetStringProperty("classname") == "skybox_reference")?

@@ -72,12 +72,6 @@ namespace ValveResourceFormat.Renderer
             _ => 0,
         };
 
-        /// <summary>Returns <see langword="true"/> if the request is a <see cref="SceneAggregate"/> with no visible children.</summary>
-        public static bool IsAggregateWithNoVisibleChildren(Request req)
-        {
-            return req.Node is SceneAggregate { AnyChildrenVisible: false };
-        }
-
         /// <summary>Sorts requests according to the active render pass and issues all draw calls.</summary>
         /// <param name="requests">Draw call requests to process.</param>
         /// <param name="context">Render context describing the current pass and scene state.</param>
@@ -95,7 +89,6 @@ namespace ValveResourceFormat.Renderer
             }
             else if (context.RenderPass == RenderPass.OpaqueAggregate)
             {
-                var removed = requests.RemoveAll(IsAggregateWithNoVisibleChildren);
                 requests.Sort(CompareStageThenProgram);
             }
             else if (context.RenderPass == RenderPass.StaticOverlay)
@@ -195,6 +188,11 @@ namespace ValveResourceFormat.Renderer
                     if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline or RenderPass.DepthOnly)
                     {
                         material?.PostRender();
+
+                        if (config.LightProbeType == LightProbeType.IndividualProbes && request.Node.LightProbeBinding is { } lightProbe)
+                        {
+                            request.Node.Scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
+                        }
 
                         // Custom nodes render themselves and may issue several draws internally; count them as one draw call.
                         counters.Count(Counter.DrawCall);

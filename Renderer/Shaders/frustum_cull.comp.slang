@@ -63,7 +63,7 @@ uniform bool g_bOcclusionDebugEnabled;
 uniform bool g_bCpuHiddenEnabled;
 
 // Depth pyramid (hierarchical depth buffer)
-uniform sampler2D g_tDepthPyramid; // bound above the reserved slots by Scene.SetOcclusionUniforms
+uniform sampler2D g_tDepthPyramid; // bound above the reserved slots by SceneViewState.SetOcclusionUniforms
 
 // Depth pyramid dimensions
 uniform int g_nDepthPyramidMaxMip;

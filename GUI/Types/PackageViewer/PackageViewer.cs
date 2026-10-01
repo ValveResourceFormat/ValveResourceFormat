@@ -423,7 +423,7 @@ namespace GUI.Types.PackageViewer
                             package.ReadEntry(newEntry, bytes, validateCrc: false);
                             using var stream = new MemoryStream(bytes, 0, (int)newEntry.TotalLength);
                             using var resource = new ValveResourceFormat.Resource();
-                            resource.Read(stream, verifyFileSize: false);
+                            resource.Read(stream);
 
                             var fileSize = resource.FullFileSize;
 

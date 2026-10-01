@@ -48,8 +48,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private ShapeSceneNode(Scene scene) : base(scene)
         {
-            shader = Scene.RendererContext.ShaderLoader.LoadShader("basic_shape", scene.RenderAttributes);
-            shader = shader.WithCombo("D_BAKED_LIGHTING_FROM_PROBE", scene.LightingInfo.HasValidLightProbes ? (byte)1 : (byte)0);
+            shader = Scene.RendererContext.ShaderLoader.LoadShader("basic_shape", scene.LightingInfo.CreateShaderArguments());
         }
 
         internal ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : this(scene)

@@ -1,14 +1,22 @@
 using System.Windows.Forms;
-using GUI.Utils;
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Forms
 {
     partial class EntityInfoControl : UserControl
     {
-        public DataGridView OutputsGrid => dataGridOutputs;
-        public DataGridView InputsGrid => dataGridInputs;
+        /// <summary>
+        /// Raised when a property naming a file or an entity, or the entity on the other end of a
+        /// connection, is double clicked.
+        /// </summary>
+        public event EventHandler<LinkedResource>? LinkedResourceActivated;
+
+        /// <summary>
+        /// Raised when the fire button of an output or input connection is clicked.
+        /// </summary>
+        public event EventHandler<Connection>? ConnectionFireRequested;
 
         public EntityInfoControl()
         {
@@ -17,29 +25,36 @@ namespace GUI.Forms
             components ??= new System.ComponentModel.Container();
             components.Add(tabPageOutputs);
             components.Add(tabPageInputs);
+            components.Add(tabPageReferences);
+
+            dataGridProperties.CellDoubleClick += OnPropertiesCellDoubleClick;
+            dataGridOutputs.CellDoubleClick += OnOutputsCellDoubleClick;
+            dataGridInputs.CellDoubleClick += OnInputsCellDoubleClick;
+            dataGridReferences.CellDoubleClick += OnReferencesCellDoubleClick;
+            dataGridOutputs.CellContentClick += OnOutputsCellContentClick;
+            dataGridInputs.CellContentClick += OnInputsCellContentClick;
         }
 
-        public EntityInfoControl(VrfGuiContext vrfGuiContext) : this()
+        /// <summary>
+        /// Gets or sets whether connections show a button to fire them, for hosts with a live entity world.
+        /// </summary>
+        public bool CanFireConnections
         {
-            ResourceAddDataGridExternalRef(vrfGuiContext);
+            get => OutputsFire.Visible;
+            set
+            {
+                OutputsFire.Visible = value;
+                InputsFire.Visible = value;
+            }
         }
 
-        public void ResourceAddDataGridExternalRef(VrfGuiContext vrfGuiContext)
-        {
-            AddDataGridExternalRefAction(vrfGuiContext, dataGridProperties, ColumnValue.Name);
-        }
-
-        public void ShowPropertiesTab()
-        {
-            tabControl.SelectedIndex = 0;
-        }
-
-        private TabPage[] TabPageOrder => [tabPageProperties, tabPageOutputs, tabPageInputs];
+        private TabPage[] TabPageOrder => [tabPageProperties, tabPageOutputs, tabPageInputs, tabPageReferences];
 
         public void ShowPopulatedTabs()
         {
             SetTabVisible(tabPageOutputs, dataGridOutputs.RowCount > 0);
             SetTabVisible(tabPageInputs, dataGridInputs.RowCount > 0);
+            SetTabVisible(tabPageReferences, dataGridReferences.RowCount > 0);
         }
 
         private void SetTabVisible(TabPage page, bool shouldShow)
@@ -77,37 +92,35 @@ namespace GUI.Forms
             dataGridProperties.Rows.Clear();
             dataGridOutputs.Rows.Clear();
             dataGridInputs.Rows.Clear();
+            dataGridReferences.Rows.Clear();
+            tabControl.SelectedTab = tabPageProperties;
         }
 
-        public void PopulateFromEntity(Entity entity)
-        {
-            foreach (var child in entity.Children)
-            {
-                var resourcePath = ResourcePath(child.Value);
-                AddProperty(child.Key, resourcePath ?? StringifyValue(child.Value), resourcePath);
-            }
-
-            if (entity.Connections != null)
-            {
-                foreach (var connection in entity.Connections)
-                {
-                    AddOutputConnection(connection);
-                }
-            }
-        }
+        /// <summary>
+        /// Shows an entity's properties, connections and references. <paramref name="entities"/> is the
+        /// world the entity is in, searched for the entities its properties name, the entities whose
+        /// properties name it, the connections targeting it and the targets of its own.
+        /// </summary>
         public void PopulateFromEntity(List<Entity> entities, Entity entity)
         {
             foreach (var child in entity.Children)
             {
-                var resourcePath = ResourcePath(child.Value);
-                AddProperty(child.Key, resourcePath ?? StringifyValue(child.Value), resourcePath);
+                var text = BareText(child.Value);
+                LinkedResource? link = text switch
+                {
+                    null or "" => null,
+                    _ when FindEntity(entities, text) is { } namedEntity => new LinkedEntity(namedEntity),
+                    _ => new LinkedFile(text),
+                };
+
+                AddProperty(child.Key, text ?? StringifyValue(child.Value), link);
             }
 
             if (entity.Connections != null)
             {
                 foreach (var connection in entity.Connections)
                 {
-                    AddOutputConnection(connection);
+                    AddOutputConnection(connection, FindEntity(entities, connection.TargetName));
                 }
             }
 
@@ -115,16 +128,62 @@ namespace GUI.Forms
             {
                 AddInputConnection(connection);
             }
+
+            AddReferences(entities, entity);
         }
 
-        public void AddProperty(string name, string value, string? externalReference = null)
+        /// <summary>
+        /// Lists the properties of other entities that name this one
+        /// </summary>
+        private void AddReferences(List<Entity> entities, Entity entity)
+        {
+            if (string.IsNullOrEmpty(entity.TargetName))
+            {
+                return;
+            }
+
+            foreach (var source in entities)
+            {
+                if (source == entity)
+                {
+                    continue;
+                }
+
+                foreach (var child in source.Children)
+                {
+                    if (child.Key == "targetname")
+                    {
+                        continue;
+                    }
+
+                    var text = BareText(child.Value);
+
+                    if (string.IsNullOrEmpty(text) || !EntityNameMatches(text, entity.TargetName))
+                    {
+                        continue;
+                    }
+
+                    var rowIndex = dataGridReferences.Rows.Add([
+                        source.TargetName ?? "",
+                        source.GetStringProperty("classname", string.Empty),
+                        child.Key,
+                        text,
+                    ]);
+
+                    dataGridReferences.Rows[rowIndex].Tag = new LinkedEntity(source);
+                }
+            }
+        }
+
+        private static Entity? FindEntity(List<Entity> entities, string targetPattern)
+        {
+            return entities.Find(candidate => candidate.TargetName is { } targetName && EntityNameMatches(targetPattern, targetName));
+        }
+
+        public void AddProperty(string name, string value, LinkedResource? link = null)
         {
             var rowIndex = dataGridProperties.Rows.Add([name, value]);
-
-            if (externalReference != null)
-            {
-                dataGridProperties.Rows[rowIndex].Cells[ColumnValue.Name].Tag = externalReference;
-            }
+            dataGridProperties.Rows[rowIndex].Tag = link;
         }
 
         /// <summary>
@@ -132,12 +191,12 @@ namespace GUI.Forms
         /// and, for a resource, its type prefix (<c>resource_name:"particles/foo.vpcf"</c>), which is
         /// neither what the grid should show nor a path anything can be looked up by.
         /// </summary>
-        private static string? ResourcePath(KVObject value)
+        private static string? BareText(KVObject value)
             => value.ValueType == KVValueType.String ? (string)value : null;
 
-        public void AddOutputConnection(Connection connectionData)
+        private void AddOutputConnection(Connection connectionData, Entity? target)
         {
-            dataGridOutputs.Rows.Add([
+            var rowIndex = dataGridOutputs.Rows.Add([
                 connectionData.OutputName,
                 connectionData.TargetName,
                 connectionData.InputName,
@@ -145,9 +204,13 @@ namespace GUI.Forms
                 connectionData.Delay,
                 GetStringTimesToFire(connectionData.TimesToFire)
             ]);
+
+            var row = dataGridOutputs.Rows[rowIndex];
+            row.Tag = target != null ? new LinkedEntity(target) : null;
+            row.Cells[OutputsFire.Index].Tag = connectionData;
         }
 
-        public void AddInputConnection(Connection connectionData)
+        private void AddInputConnection(Connection connectionData)
         {
             var rowIndex = dataGridInputs.Rows.Add([
                 connectionData.SourceEntity.TargetName ?? "",
@@ -158,7 +221,9 @@ namespace GUI.Forms
                 GetStringTimesToFire(connectionData.TimesToFire)
             ]);
 
-            dataGridInputs.Rows[rowIndex].Tag = connectionData.SourceEntity;
+            var row = dataGridInputs.Rows[rowIndex];
+            row.Tag = new LinkedEntity(connectionData.SourceEntity);
+            row.Cells[InputsFire.Index].Tag = connectionData;
         }
 
         private static string GetStringTimesToFire(int timesToFire)
@@ -171,36 +236,54 @@ namespace GUI.Forms
             };
         }
 
-        private void AddDataGridExternalRefAction(VrfGuiContext vrfGuiContext, DataGridView dataGrid, string columnName)
+        private void OnPropertiesCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
         {
-            void OnCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+            ShowLinkedResource(dataGridProperties, ColumnValue, e);
+        }
+
+        private void OnOutputsCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            ShowLinkedResource(dataGridOutputs, OutputsTargetEntity, e);
+        }
+
+        private void OnInputsCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            ShowLinkedResource(dataGridInputs, InputsSource, e);
+        }
+
+        private void OnReferencesCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            ShowLinkedResource(dataGridReferences, ReferencesSource, e);
+        }
+
+        private void OnOutputsCellContentClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            FireConnection(dataGridOutputs, OutputsFire, e);
+        }
+
+        private void OnInputsCellContentClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            FireConnection(dataGridInputs, InputsFire, e);
+        }
+
+        private void FireConnection(DataGridView grid, DataGridViewColumn fireColumn, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex != fireColumn.Index || grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Tag is not Connection connection)
             {
-                if (e.RowIndex < 0 || sender is not DataGridView grid)
-                {
-                    return;
-                }
-
-                var row = grid.Rows[e.RowIndex];
-                var colName = columnName;
-                var cell = row.Cells[colName];
-                var name = cell.Tag as string ?? (string)cell.Value!;
-
-                var found = Types.Viewers.Resource.OpenExternalReference(vrfGuiContext, name);
-
-                if (found && Parent is Form form)
-                {
-                    form.Close();
-                }
+                return;
             }
 
-            void OnDisposed(object? sender, EventArgs e)
+            ConnectionFireRequested?.Invoke(this, connection);
+        }
+
+        private void ShowLinkedResource(DataGridView grid, DataGridViewColumn linkColumn, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex != linkColumn.Index || grid.Rows[e.RowIndex].Tag is not LinkedResource link)
             {
-                dataGrid.CellDoubleClick -= OnCellDoubleClick;
-                dataGrid.Disposed -= OnDisposed;
+                return;
             }
 
-            dataGrid.CellDoubleClick += OnCellDoubleClick;
-            dataGrid.Disposed += OnDisposed;
+            LinkedResourceActivated?.Invoke(this, link);
         }
     }
 }

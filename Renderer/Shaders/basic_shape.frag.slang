@@ -5,17 +5,7 @@
 #include "common/ViewConstants.slang"
 #include "common/fog.slang"
 
-#include "common/features.slang"
-
-#define S_SCENE_PROBE_TYPE 0 // 1 = Individual, 2 = Atlas
-
-#if (D_BAKED_LIGHTING_FROM_PROBE == 1 && S_SCENE_PROBE_TYPE == 2)
-    #define ENABLE_LPV_BLENDING
-
-    #include "common/LightingConstants.slang"
-    #include "common/lighting.lpv.slang"
-    #include "common/shadowmapping.slang"
-#endif
+#include "common/lighting.particle.slang"
 
 #define renderMode_Color 0
 #define renderMode_Normals 0
@@ -75,21 +65,11 @@ void main(void)
         #if (D_BAKED_LIGHTING_FROM_PROBE == 1 && S_SCENE_PROBE_TYPE == 2)
             if (g_iRenderMode != renderMode_FullBright)
             {
-                vec3 irradiance = SampleProbeAmbientCube(CalculateProbeIndirectCoords(vtxPosWs), normalWs);
-
-                float NoL = max(dot(normalWs, g_vSunDirection.xyz), 0.0);
-                float sunVisibility = saturate(1.0 - dot(SampleProbeDirectLightShadows(vtxPosWs), g_vSunLightBakedShadowMask));
-
-                if (NoL * sunVisibility > 0.0)
-                {
-                    sunVisibility *= CalculateSunShadowMapVisibility(vtxPosWs);
-                }
-
-                vec3 sun = g_vSunColor.rgb * NoL * sunVisibility;
+                ParticleLight_t light = CalculateParticleLighting(vtxPosWs, normalWs, 1.0);
 
                 float axisLight = mix(1.0, GetFullbrightAxisLight(normalWs), 0.5);
 
-                lighting = outputColor.rgb * (irradiance * 0.5 + sun) * axisLight;
+                lighting = outputColor.rgb * ((light.Ambient * 0.5) + light.Direct) * axisLight;
             }
         #endif
 

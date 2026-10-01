@@ -67,6 +67,9 @@ internal sealed partial class McpTools
             Pick, SceneViewer);
     }
 
+    /// <summary>The spawn group of the map's 3D sky, picked the way the renderer picks the one it draws as the sky.</summary>
+    private static SpawnGroup? SkyGroup(WorldLoader world) => world.SpawnGroups.FindLast(static group => group.WorldGroup != null);
+
     private static IEnumerable<MapEntity> MapEntities(WorldLoader world)
     {
         for (var i = 0; i < world.Entities.Count; i++)
@@ -74,7 +77,7 @@ internal sealed partial class McpTools
             yield return new MapEntity(i, world.Entities[i], InSky: false);
         }
 
-        if (world.Skybox3D is { } sky)
+        if (SkyGroup(world) is { } sky)
         {
             var id = world.Entities.Count;
 
@@ -94,7 +97,7 @@ internal sealed partial class McpTools
 
         var skyIndex = id - world.Entities.Count;
 
-        if (world.Skybox3D is { } sky && skyIndex >= 0 && skyIndex < sky.Entities.Count)
+        if (SkyGroup(world) is { } sky && skyIndex >= 0 && skyIndex < sky.Entities.Count)
         {
             return new MapEntity(id, sky.Entities.ElementAt(skyIndex), InSky: true);
         }
@@ -119,7 +122,7 @@ internal sealed partial class McpTools
 
     private static McpToolResult NoSuchEntity(WorldLoader world, int id)
     {
-        var count = world.Entities.Count + (world.Skybox3D?.Entities.Count ?? 0);
+        var count = world.Entities.Count + (SkyGroup(world)?.Entities.Count ?? 0);
 
         return McpToolResult.Error($"No entity with id {id}. Ids run from 0 to {count - 1}.");
     }
@@ -129,7 +132,7 @@ internal sealed partial class McpTools
     {
         var origin = entity.Data.GetVector3Property("origin");
 
-        if (entity.InSky && world.Skybox3D is { } sky)
+        if (entity.InSky && SkyGroup(world) is { } sky)
         {
             return sky.EntityOriginToWorld(origin);
         }
@@ -370,13 +373,13 @@ internal sealed partial class McpTools
             }
 
             var nodes = new JsonArray();
-            var sceneNodes = viewer.SkyboxScene == null ? viewer.Scene.AllNodes : viewer.Scene.AllNodes.Concat(viewer.SkyboxScene.AllNodes);
+            var sceneNodes = viewer.SkyScene == null ? viewer.Scene.AllNodes : viewer.Scene.AllNodes.Concat(viewer.SkyScene.AllNodes);
 
             foreach (var node in sceneNodes)
             {
                 if (ReferenceEquals(node.EntityData, entity.Data))
                 {
-                    nodes.Add(DescribeNode(node, node.Scene == viewer.SkyboxScene));
+                    nodes.Add(DescribeNode(node, node.Scene == viewer.SkyScene));
                 }
             }
 
@@ -432,7 +435,7 @@ internal sealed partial class McpTools
 
             if (node != null)
             {
-                result["node"] = DescribeNode(node, node.Scene == viewer.SkyboxScene);
+                result["node"] = DescribeNode(node, node.Scene == viewer.SkyScene);
             }
 
             if (TurnedOn(layersBefore, viewer.GetWorldLayers()) is { } layers)
@@ -548,8 +551,10 @@ internal sealed partial class McpTools
             });
         }
 
-        var inSky = pixel.IsSkybox > 0;
-        var node = inSky ? scene.SkyboxScene?.Find(pixel.ObjectId) : scene.Scene.Find(pixel.ObjectId);
+        var scenes = scene.Renderer.Scenes;
+        var pickedScene = pixel.SceneIndex < scenes.Count ? scenes[(int)pixel.SceneIndex] : null;
+        var inSky = pickedScene != null && pickedScene == scene.SkyScene;
+        var node = pickedScene?.Find(pixel.ObjectId);
 
         var result = new JsonObject
         {

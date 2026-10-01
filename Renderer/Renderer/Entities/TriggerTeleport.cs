@@ -10,8 +10,8 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <remarks>
 /// The volume is the trigger's own <c>model</c>, the brush hulls it was compiled with, supplied by
 /// <see cref="BaseTrigger.InitTrigger"/>. The destination is a plain map entity, usually an
-/// <c>info_teleport_destination</c>, that nothing simulates, so it is found through its scene node in
-/// <see cref="Activate"/> once the whole map has loaded.
+/// <c>info_teleport_destination</c>, found in <see cref="Activate"/> once the whole map has loaded. It may be
+/// in another spawn group of the same world group.
 /// </remarks>
 public sealed class TriggerTeleport : BaseTrigger
 {
@@ -41,14 +41,14 @@ public sealed class TriggerTeleport : BaseTrigger
             return;
         }
 
-        // The destination is a marker nothing simulates, but it still has a scene node carrying its keyvalues
-        if (Scene.FindNodeByTargetName(targetName)?.EntityData is not { } target)
+        if (EntitySystem.FindByTargetName(targetName, Scene) is not { } target)
         {
             EntitySystem.Logger.LogWarning("trigger_teleport '{TargetName}' target '{Target}' was not found", TargetName, targetName);
             return;
         }
 
-        destination = (target.GetVector3Property("origin"), target.GetVector3Property("angles"));
+        // Not the origin keyvalue, which ignores the spawn group placement
+        destination = (target.RigidTransform.Translation, target.Angles);
     }
 
     /// <inheritdoc/>
@@ -56,7 +56,7 @@ public sealed class TriggerTeleport : BaseTrigger
     {
         base.OnStartTouch(other);
 
-        if (destination is not { } target)
+        if (destination is not { } target || !PassesTriggerFilters(other))
         {
             return;
         }

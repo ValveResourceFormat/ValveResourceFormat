@@ -423,7 +423,7 @@ public sealed partial class MapExtract
 
             foreach (var part in physics.Parts)
             {
-                foreach (var mesh in part.Shape.Meshes)
+                foreach (var mesh in part.Shape.GetAllMeshes())
                 {
                     physicsVertices += mesh.Shape.GetVertices().Length;
                 }

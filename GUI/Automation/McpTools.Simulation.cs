@@ -192,7 +192,7 @@ internal sealed partial class McpTools
             }
 
             Collect(viewer.Scene, inSky: false);
-            Collect(viewer.SkyboxScene, inSky: true);
+            Collect(viewer.SkyScene, inSky: true);
 
             if (near != null)
             {

@@ -107,6 +107,7 @@ public sealed class EntitySystem
 
     private readonly List<QueuedInput> inputQueue = [];
     private readonly Dictionary<EntityLump.Connection, int> firedCounts = [];
+    private readonly HashSet<BaseEntity> playerImpacts = [];
     private long sequence;
     private float tickAccumulator;
     private bool hasRemovedEntities;
@@ -196,6 +197,31 @@ public sealed class EntitySystem
 
     /// <summary>Puts an entity built in code, rather than from map keyvalues, into the world.</summary>
     public void AddEntity(BaseEntity entity) => Add(entity);
+
+    /// <summary>Gets or sets the host that draws spawn groups loaded at runtime.</summary>
+    public ISpawnGroupHost? SpawnGroupHost { get; set; }
+
+    internal void AddSpawnGroup(World.SpawnGroup group)
+    {
+        Activate();
+        SpawnGroupHost?.AddSpawnGroup(group);
+    }
+
+    /// <summary>Removes the entities of a spawn group and releases the group.</summary>
+    public void RemoveSpawnGroup(World.SpawnGroup group)
+    {
+        ArgumentNullException.ThrowIfNull(group);
+
+        for (var i = 0; i < entities.Count; i++)
+        {
+            if (entities[i].Scene == group.Scene)
+            {
+                Remove(entities[i]);
+            }
+        }
+
+        SpawnGroupHost?.RemoveSpawnGroup(group);
+    }
 
     /// <summary>
     /// Runs <see cref="BaseEntity.Activate"/> on every entity spawned since the last call. Called once
@@ -318,7 +344,7 @@ public sealed class EntitySystem
             }
 
             // Entities of the 3D sky share coordinates with the map but must not touch it
-            if (entity.Scene != player.Scene)
+            if (entity.Scene.WorldGroup != player.Scene.WorldGroup)
             {
                 continue;
             }
@@ -329,6 +355,37 @@ public sealed class EntitySystem
 
             entity.UpdateTouchLink(player, isOverlapping);
             player.UpdateTouchLink(entity, isOverlapping);
+        }
+    }
+
+    /// <summary>
+    /// Records that the player's movement ran into a solid entity, for the next tick to report as a touch.
+    /// </summary>
+    /// <param name="entity">The entity a movement sweep hit.</param>
+    public void NotePlayerImpact(BaseEntity entity) => playerImpacts.Add(entity);
+
+    // On the tick rather than as the player moves, for the same reason as the trigger touches
+    private void DispatchPlayerImpacts()
+    {
+        if (playerImpacts.Count == 0)
+        {
+            return;
+        }
+
+        BaseEntity[] impacted = [.. playerImpacts];
+        playerImpacts.Clear();
+
+        if (Player is not { IsRemoved: false } player)
+        {
+            return;
+        }
+
+        foreach (var entity in impacted)
+        {
+            if (!entity.IsRemoved && entity.Scene == player.Scene)
+            {
+                entity.Impact(player);
+            }
         }
     }
 
@@ -353,6 +410,7 @@ public sealed class EntitySystem
         activatedCount = 0;
         inputQueue.Clear();
         firedCounts.Clear();
+        playerImpacts.Clear();
         hasRemovedEntities = false;
         tickAccumulator = 0f;
         CurrentTime = 0f;
@@ -430,12 +488,22 @@ public sealed class EntitySystem
 
         if (hasRemovedEntities)
         {
+            // Activated entities are at the front of the list, so the count drops by each removed one
+            for (var i = activatedCount - 1; i >= 0; i--)
+            {
+                if (entities[i].IsRemoved)
+                {
+                    activatedCount--;
+                }
+            }
+
             entities.RemoveAll(static entity => entity.IsRemoved);
             parented.RemoveAll(static entity => entity.IsRemoved);
             hasRemovedEntities = false;
         }
 
         UpdateTouchLinks();
+        DispatchPlayerImpacts();
 
         // Last, as the engine services its event queue after everything has moved and touched. A touch
         // handler's outputs therefore land in the tick that saw the touch rather than the one after it,
@@ -504,7 +572,7 @@ public sealed class EntitySystem
     public BaseEntity? FindUseTarget(Vector3 from, Vector3 to)
     {
         // Seeded with the world, so a wall between the player and a button wins the trace
-        var nearest = PhysicsWorld?.TraceRay(from, to) ?? new Rubikon.TraceResult();
+        var nearest = PhysicsWorld?.TraceRay(from, to, Rubikon.Cs2PlayerCollisionFilter) ?? new Rubikon.TraceResult();
         BaseEntity? target = null;
 
         foreach (var entity in entities)
@@ -516,7 +584,7 @@ public sealed class EntitySystem
                 continue;
             }
 
-            if (nearest.MinimizeWith(collider.TraceRay(from, to)))
+            if (nearest.MinimizeWith(collider.TraceRay(from, to, Rubikon.Cs2PlayerCollisionFilter)))
             {
                 target = entity;
             }
@@ -594,9 +662,11 @@ public sealed class EntitySystem
     /// <summary>
     /// Fires one of an entity's authored outputs, delivering it to every connection with that name.
     /// Source's <c>FireOutput</c>. The value is what the output reports, for the ones that carry a reading;
-    /// a connection authored with its own parameter overrides it, as in the engine.
+    /// a connection authored with its own parameter overrides it, as in the engine. The caller defaults to
+    /// <paramref name="source"/>; the few outputs that pass on the caller of the input that fired them name it.
     /// </summary>
-    public void TriggerOutput(BaseEntity source, string outputName, BaseEntity? activator = null, string? value = null)
+    public void TriggerOutput(BaseEntity source, string outputName, BaseEntity? activator = null, string? value = null,
+        BaseEntity? caller = null)
     {
         if (source.Data?.Connections == null)
         {
@@ -616,16 +686,35 @@ public sealed class EntitySystem
                 continue;
             }
 
-            // The authored override wins over whatever the output reports, which is the precedence
-            // CBaseEntityOutput::FireOutput uses: a parameter on the connection replaces the value
-            var parameter = string.IsNullOrEmpty(connection.OverrideParam) || connection.OverrideParam == "(null)"
-                ? value
-                : connection.OverrideParam;
-
             QueueInputByTarget(new EntityIOTarget(connection.TargetName, connection.TargetType),
-                connection.InputName, parameter, activator, source, connection.Delay, connection);
+                connection.InputName, ConnectionParameter(connection, value), activator, caller ?? source, connection.Delay, connection);
         }
     }
+
+    /// <summary>
+    /// Fires one authored connection on its own, for triggering map logic by
+    /// hand.
+    /// </summary>
+    /// <param name="connection">The connection to fire.</param>
+    /// <param name="activator">The entity that started the chain, usually the player.</param>
+    public void QueueConnection(EntityLump.Connection connection, BaseEntity? activator = null)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+
+        var source = entities.Find(entity => !entity.IsRemoved && entity.Data == connection.SourceEntity);
+
+        QueueInputByTarget(new EntityIOTarget(connection.TargetName, connection.TargetType),
+            connection.InputName, ConnectionParameter(connection, null), activator, source, 0f, null);
+    }
+
+    /// <summary>
+    /// The authored override wins over whatever the output reports, which is the precedence
+    /// CBaseEntityOutput::FireOutput uses: a parameter on the connection replaces the value.
+    /// </summary>
+    private static string? ConnectionParameter(EntityLump.Connection connection, string? value)
+        => string.IsNullOrEmpty(connection.OverrideParam) || connection.OverrideParam == "(null)"
+            ? value
+            : connection.OverrideParam;
 
     /// <summary>
     /// Finds every entity whose targetname matches.
@@ -642,18 +731,31 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Finds every entity of one spawn group whose targetname matches. A 3D sky shares its names with the
-    /// map it is placed in, so anything an entity names in its own keyvalues is looked up this way.
+    /// Finds every entity in the world group of <paramref name="scene"/> whose targetname matches. A 3D sky
+    /// reuses names from the map it is placed in, so names in entity keyvalues must be looked up this way.
     /// </summary>
     public IEnumerable<BaseEntity> FindAllByTargetName(string pattern, Scene scene)
     {
+        ArgumentNullException.ThrowIfNull(scene);
+
         foreach (var entity in entities)
         {
-            if (entity.Scene == scene && Matches(entity, pattern))
+            if (entity.Scene.WorldGroup == scene.WorldGroup && Matches(entity, pattern))
             {
                 yield return entity;
             }
         }
+    }
+
+    /// <summary>Finds the first entity in the world group of <paramref name="scene"/> whose targetname matches.</summary>
+    public BaseEntity? FindByTargetName(string pattern, Scene scene)
+    {
+        foreach (var entity in FindAllByTargetName(pattern, scene))
+        {
+            return entity;
+        }
+
+        return null;
     }
 
     private static bool Matches(BaseEntity entity, string pattern)

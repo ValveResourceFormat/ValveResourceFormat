@@ -365,7 +365,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
 
         var to = from + forward * range;
-        var trace = physics.TraceRay(from, to);
+        var trace = physics.TraceRay(from, to, Rubikon.DefaultGeometry);
 
         if (trace.Hit)
         {

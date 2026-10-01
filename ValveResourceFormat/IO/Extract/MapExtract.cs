@@ -547,7 +547,7 @@ public sealed partial class MapExtract
         if (phys != null)
         {
             var collisionAttributes = phys.CollisionAttributes;
-            var worldPhysMeshes = phys.Parts[0].Shape.Meshes.Where(m => collisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
+            var worldPhysMeshes = phys.Parts[0].Shape.GetAllMeshes().Where(m => collisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
 
             PhysTriangleMatcher = new PhysicsTriangleMatcher(worldPhysMeshes.ToArray());
 
@@ -1616,28 +1616,30 @@ public sealed partial class MapExtract
         for (var i = 0; i < phys.Parts.Length; i++)
         {
             var shape = phys.Parts[i].Shape;
+            var hulls = shape.GetAllHulls().ToArray();
+            var meshes = shape.GetAllMeshes().ToArray();
 
             var hullsSelectionSet = new CMapSelectionSet
             {
-                SelectionSetName = "physics shape (" + shape.Hulls.Length + " hulls)"
+                SelectionSetName = "physics shape (" + hulls.Length + " hulls)"
             };
 
             var hullsEntitySelectionSet = new CMapSelectionSet
             {
-                SelectionSetName = "physics hull entity " + entityClassname + " (reconstructed from " + shape.Hulls.Length + (shape.Hulls.Length > 1 ? " hulls)" : " hull)")
+                SelectionSetName = "physics hull entity " + entityClassname + " (reconstructed from " + hulls.Length + (hulls.Length > 1 ? " hulls)" : " hull)")
             };
 
             var meshesSelectionSet = new CMapSelectionSet
             {
-                SelectionSetName = "physics shape (" + shape.Meshes.Length + " original meshes)"
+                SelectionSetName = "physics shape (" + meshes.Length + " original meshes)"
             };
 
             var meshesEntitySelectionSet = new CMapSelectionSet
             {
-                SelectionSetName = "physics mesh entity " + entityClassname + " (reconstructed from " + shape.Meshes.Length + (shape.Meshes.Length > 1 ? " meshes)" : " mesh)")
+                SelectionSetName = "physics mesh entity " + entityClassname + " (reconstructed from " + meshes.Length + (meshes.Length > 1 ? " meshes)" : " mesh)")
             };
 
-            foreach (var hull in shape.Hulls)
+            foreach (var hull in hulls)
             {
                 var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize };
                 hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, transform, materialOverride);
@@ -1666,13 +1668,13 @@ public sealed partial class MapExtract
             // material doesnt matter and neither does tint
             var physicsMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize };
 
-            foreach (var mesh in shape.Meshes)
+            foreach (var mesh in meshes)
             {
                 var deletedTriangles = PhysTriangleMatcher?.PhysicsMeshes.FirstOrDefault(physicsMesh => physicsMesh.Mesh == mesh)?.DeletedTriangles;
                 physicsMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedTriangles, transform, materialOverride);
             }
 
-            if (shape.Meshes.Length > 0)
+            if (meshes.Length > 0)
             {
                 foreach (var meshData in physicsMeshBuilder.GenerateMeshes(HammerMeshWeldDistance))
                 {
@@ -1690,7 +1692,7 @@ public sealed partial class MapExtract
                 }
             }
 
-            if (shape.Hulls.Length != 0)
+            if (hulls.Length != 0)
             {
                 if (string.IsNullOrEmpty(entityClassname))
                 {
@@ -1702,7 +1704,7 @@ public sealed partial class MapExtract
                 }
             }
 
-            if (shape.Meshes.Length != 0)
+            if (meshes.Length != 0)
             {
                 if (string.IsNullOrEmpty(entityClassname))
                 {

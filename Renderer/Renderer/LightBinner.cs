@@ -6,14 +6,12 @@ using ValveResourceFormat.Renderer.World;
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
-/// Per scene owner of the tile and depth bin cull passes: the item layout, the GPU buffers they read and
-/// write, and the constants that tell the shading pass where to look.
+/// Tile and depth bin light culling for one view of a scene.
 /// </summary>
 /// <remarks>
-/// One per <see cref="Scene"/>, because the bit indices it produces are positions in that scene's barn
-/// light and env map arrays. The 3D skybox has its own arrays, so its bits mean nothing against these.
+/// Bit indices are positions in the barn light and env map arrays of that one scene, so masks are not interchangeable between scenes.
 /// </remarks>
-public sealed class LightBinner(Scene scene) : IDisposable
+public sealed class LightBinner(SceneViewState view) : IDisposable
 {
     /// <summary>Screen tile size as a power of two shift. 4 is 16x16 pixels.</summary>
     private const int TileShift = 4;
@@ -71,18 +69,18 @@ public sealed class LightBinner(Scene scene) : IDisposable
     /// <summary>Gets the buffer holding this scene's per tile and per depth bin masks.</summary>
     public StorageBuffer? CullBits { get; private set; }
 
-    private bool CanCull => (scene.LightingInfo.LightingData.NumBarnLights > 0
-            || scene.LightingInfo.EnvMaps.Count > 0
-            || scene.ProbeAtlasVolumes.Count > 0)
+    private bool CanCull => (view.Scene.LightingInfo.LightingData.NumBarnLights > 0
+            || view.Scene.LightingInfo.EnvMaps.Count > 0
+            || view.Scene.ProbeAtlasVolumes.Count > 0)
         && TileCullBitsShader != null
         && DepthBinCullBitsShader != null;
 
     /// <summary>Loads the two compute shaders. Call once the GL context exists.</summary>
     public void LoadShaders()
     {
-        TileCullBitsShader = scene.RendererContext.ShaderLoader.LoadShader("compute_tile_cullbits");
-        DepthBinCullBitsShader = scene.RendererContext.ShaderLoader.LoadShader("compute_depthbin_cullbits");
-        ReduceCullBitsShader = scene.RendererContext.ShaderLoader.LoadShader("reduce_cullbits");
+        TileCullBitsShader = view.Scene.RendererContext.ShaderLoader.LoadShader("compute_tile_cullbits");
+        DepthBinCullBitsShader = view.Scene.RendererContext.ShaderLoader.LoadShader("compute_depthbin_cullbits");
+        ReduceCullBitsShader = view.Scene.RendererContext.ShaderLoader.LoadShader("reduce_cullbits");
     }
 
     /// <summary>
@@ -172,9 +170,9 @@ public sealed class LightBinner(Scene scene) : IDisposable
 
         if (Active)
         {
-            Feeder.AddBarnLights(scene.LightingInfo.BinnedBarnLightVolumes);
-            Feeder.AddEnvMaps(scene.LightingInfo.EnvMaps);
-            Feeder.AddLightProbes(scene.ProbeAtlasVolumes);
+            Feeder.AddBarnLights(view.Scene.LightingInfo.BinnedBarnLightVolumes);
+            Feeder.AddEnvMaps(view.Scene.LightingInfo.EnvMaps);
+            Feeder.AddLightProbes(view.Scene.ProbeAtlasVolumes);
         }
         else
         {
@@ -183,9 +181,9 @@ public sealed class LightBinner(Scene scene) : IDisposable
             // Capped to the shader array: the scene list can hold probes past it, which CalculateEnvironmentMaps
             // logs and never assigns a shader index to, and iterating them would read off the end of the UBO.
             Feeder.AddCounts(
-                scene.LightingInfo.BinnedBarnLightVolumes.Length,
-                Math.Min(scene.LightingInfo.EnvMaps.Count, EnvMapArray.MAX_ENVMAPS),
-                scene.ProbeAtlasVolumes.Count);
+                view.Scene.LightingInfo.BinnedBarnLightVolumes.Length,
+                Math.Min(view.Scene.LightingInfo.EnvMaps.Count, EnvMapArray.MAX_ENVMAPS),
+                view.Scene.ProbeAtlasVolumes.Count);
         }
 
         Feeder.End();
@@ -288,7 +286,7 @@ public sealed class LightBinner(Scene scene) : IDisposable
 
         visibilityReadbackPending = false;
 
-        var faces = scene.LightingInfo.BinnedBarnLightFaces;
+        var faces = view.Scene.LightingInfo.BinnedBarnLightFaces;
         var words = (int)Constants.LightCullWords;
 
         if (ReduceCullBitsShader == null || faces.Length == 0 || words == 0)
@@ -400,18 +398,18 @@ public sealed class LightBinner(Scene scene) : IDisposable
     /// </summary>
     private void SetOcclusionUniforms(Shader shader)
     {
-        if (!scene.SetOcclusionUniforms(shader))
+        if (!view.SetOcclusionUniforms(shader))
         {
             return;
         }
 
-        Debug.Assert(scene.DepthPyramid != null);
+        Debug.Assert(view.DepthPyramid != null);
 
         // Cull space is pixels, so this is just the pyramid's size over the viewport's. Only this pass
         // needs it, because only this pass starts from a screen rect rather than a world space box.
         shader.SetUniform("g_vCullToPyramidScale", new Vector2(
-            scene.DepthPyramid.Width / MathF.Max(Feeder.ViewportSize.X, 1f),
-            scene.DepthPyramid.Height / MathF.Max(Feeder.ViewportSize.Y, 1f)));
+            view.DepthPyramid.Width / MathF.Max(Feeder.ViewportSize.X, 1f),
+            view.DepthPyramid.Height / MathF.Max(Feeder.ViewportSize.Y, 1f)));
     }
 
     /// <inheritdoc/>

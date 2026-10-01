@@ -70,6 +70,12 @@ in vec4 vLayerUvNext3;
 
 #include "common/utils.slang"
 #include "common/ViewConstants.slang"
+#include "common/features.slang"
+
+#if (D_BAKED_LIGHTING_FROM_PROBE == 1)
+uniform uint uObjectIndex = 0u;
+flat out uint g_nObjectIndex;
+#endif
 
 // m_bGammaCorrectVertexColors, which defaults on. Particle colours are authored in gamma space; without
 // this they are used as though they were already linear. Alpha is left alone.
@@ -213,6 +219,9 @@ void main(void) {
     vFrameBlendOut = vFrameBlend;
     vCardUvOut = cardUv;
     vFragPosition = positionWs;
+#if (D_BAKED_LIGHTING_FROM_PROBE == 1)
+    g_nObjectIndex = uObjectIndex;
+#endif
     gl_Position = g_matWorldToProjection * vec4(positionWs, 1.0);
 
     if (uDepthBias != 0.0)

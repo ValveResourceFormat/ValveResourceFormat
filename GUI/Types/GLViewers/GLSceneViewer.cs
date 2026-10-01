@@ -29,7 +29,6 @@ namespace GUI.Types.GLViewers
         protected QuadOverdraw? QuadOverdrawRenderer { get; set; }
 
         public Scene Scene { get; }
-        public Scene? SkyboxScene => Renderer.SkyboxScene;
         public VrfGuiContext GuiContext;
 
         /// <summary>Optional sound event player, created by viewers that play scene audio.</summary>
@@ -73,8 +72,6 @@ namespace GUI.Types.GLViewers
         private PerfDisplay perfDisplay;
         private ComboBox? perfDisplayComboBox;
 
-        /// <summary>Set by escape to release the mouse in walk mode, cleared by clicking back into the viewport.</summary>
-        private bool mouseReleased;
         private bool roundStarted;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
@@ -323,7 +320,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            if (!MouseDragged)
+            if (!MouseDragged || GrabbedMouse)
             {
                 Picker?.RequestNextFrame(InitialMousePosition.X, InitialMousePosition.Y, PickingIntent.Select);
             }
@@ -332,8 +329,6 @@ namespace GUI.Types.GLViewers
         protected override void OnMouseDown(object? sender, MouseEventArgs e)
         {
             base.OnMouseDown(sender, e);
-
-            mouseReleased = false;
 
             if (Input.WalkMode)
             {
@@ -563,9 +558,9 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                // Walk mode aims with the mouse, so it holds the cursor. Leaving walk mode, pausing,
-                // or pressing escape hands it back.
-                var wantsMouseLook = Input.WalkMode && !Paused && !mouseReleased;
+                // Walk mode and mouse look aim with the mouse, so they hold the cursor. Leaving both,
+                // pausing, escape, or the viewport losing focus hands it back.
+                var wantsMouseLook = (Input.WalkMode || Input.MouseLook) && !Paused && !MouseReleased;
 
                 // Taking the cursor needs it over the viewport, but keeping it does not, or a fast
                 // look that outran the pointer would drop the grab on its way past the edge.
@@ -611,7 +606,6 @@ namespace GUI.Types.GLViewers
 
         protected void DrawWorldSpaceText(string text, float size, Vector3 position, Color32 color, Scene.RenderContext renderContext)
         {
-            Scene.WantsSceneDepth = true;
             TextRenderer.AddTextBillboard(position, new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
             {
                 Scale = size,
@@ -854,11 +848,13 @@ namespace GUI.Types.GLViewers
                     cluster < 0 ? new Color32(255, 0, 0) : Color32.White
                 );
 
-                if (!Scene.CurrentFramePvs.IsEmpty)
+                var pvs = Renderer.MainViewState?.Pvs ?? default;
+
+                if (!pvs.IsEmpty)
                 {
                     var visCount = 0;
 
-                    foreach (var b in Scene.CurrentFramePvs.Span)
+                    foreach (var b in pvs.Span)
                     {
                         visCount += BitOperations.PopCount(b);
                     }
@@ -869,7 +865,7 @@ namespace GUI.Types.GLViewers
 
             if (perfDisplay == PerfDisplay.Stats)
             {
-                Renderer.PerfStats.DisplayStats(TextRenderer, Renderer.Camera, Scene, SkyboxScene);
+                Renderer.PerfStats.DisplayStats(TextRenderer, Renderer.Camera, [.. Renderer.Scenes], Renderer.MainViewState?.LightBinner);
             }
             else if (perfDisplay == PerfDisplay.Timings)
             {
@@ -1069,7 +1065,10 @@ namespace GUI.Types.GLViewers
             if (keyData == Keys.Escape)
             {
                 SelectedNodeRenderer.SelectNode(null);
-                mouseReleased = true;
+                if (Input.WalkMode)
+                {
+                    MouseReleased = true;
+                }
             }
 
             if (keyData == Keys.Tab && perfDisplayComboBox != null)

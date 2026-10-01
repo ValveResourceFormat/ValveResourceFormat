@@ -805,7 +805,7 @@ public partial class PlayerMovement : IPlayerController
         }
 
         return entity.Collider?.TraceRay(
-            position, position - new Vector3(0, 0, halfExtents.Z + GroundProbeDistance)) is { Hit: true };
+            position, position - new Vector3(0, 0, halfExtents.Z + GroundProbeDistance), Rubikon.Cs2PlayerCollisionFilter) is { Hit: true };
     }
 
     /// <summary>
@@ -999,6 +999,8 @@ public partial class PlayerMovement : IPlayerController
                 Velocity += velocityDelta;
                 return position + delta;
             }
+
+            NoteImpact(result);
 
             // Advance to the hit point (already margin-adjusted by TraceBBox)
             var fraction = result.Distance / distance;
@@ -1467,6 +1469,8 @@ public partial class PlayerMovement : IPlayerController
             return (start + delta, 1f, Vector3.UnitZ, false);
         }
 
+        NoteImpact(direct);
+
         // Direct branch: stop at the wall
         var directPosition = direct.HitPosition;
         var directLateral = LateralProgress(start, directPosition, delta);
@@ -1477,6 +1481,11 @@ public partial class PlayerMovement : IPlayerController
         var steppedStart = upTrace.Hit ? upTrace.HitPosition : stepUpEnd;
 
         var steppedSweep = TraceBBox(steppedStart, steppedStart + delta, halfExtents);
+
+        if (steppedSweep.Hit)
+        {
+            NoteImpact(steppedSweep);
+        }
 
         // Blocked at once by a wall the direct sweep missed: it's a wall we're sliding along, so
         // report it without moving and let the caller retry the step along it
@@ -1675,7 +1684,7 @@ public partial class PlayerMovement : IPlayerController
 
         // Clamped by the static world alone: entities are what is doing the pushing. Zero-distance
         // hits are the tracer echoing surface noise at a resting gap, not a wall (see IsMinimalDistance).
-        var wall = Physics?.TraceAABB(start, target, HullHalfExtents, Rubikon.PlayerCollisionName);
+        var wall = Physics?.TraceAABB(start, target, HullHalfExtents, Rubikon.Cs2PlayerCollisionFilter);
 
         if (wall is { Hit: true, IsValid: true, IsMinimalDistance: false, HitPosition: var stopped })
         {
@@ -1728,7 +1737,7 @@ public partial class PlayerMovement : IPlayerController
         var target = position + step;
 
         // Same zero-distance echo guard as the reservation's own clamp
-        var wall = Physics?.TraceAABB(position, target, HullHalfExtents, Rubikon.PlayerCollisionName);
+        var wall = Physics?.TraceAABB(position, target, HullHalfExtents, Rubikon.Cs2PlayerCollisionFilter);
 
         if (wall is { Hit: true, IsValid: true, IsMinimalDistance: false, HitPosition: var stopped })
         {
@@ -2199,6 +2208,14 @@ public partial class PlayerMovement : IPlayerController
         raw.Distance = 0f;
         raw.HitPosition = from + raw.HitNormal * pushDistance;
         return raw;
+    }
+
+    private void NoteImpact(in Rubikon.TraceResult result)
+    {
+        if (result.HitEntity is { } entity && Input.EntitySystem is { } entitySystem && entity != entitySystem.World)
+        {
+            entitySystem.NotePlayerImpact(entity);
+        }
     }
 
     private Rubikon.TraceResult TraceBBoxRaw(Vector3 from, Vector3 to, Vector3 halfExtents, bool detectStartSolid)

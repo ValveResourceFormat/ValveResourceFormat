@@ -9,18 +9,13 @@ using ValveResourceFormat.Utils;
 
 namespace Tests.Renderer
 {
-    /// <summary>
-    /// A 3D sky is placed rigidly and drawn through a second camera that applies the scale. These check
-    /// that this is equivalent to scaling the sky into the world: for positions, projection and fog.
-    /// </summary>
-    public class Skybox3DTest
+    public class SkyTransformTest
     {
         private const float Tolerance = 1e-3f;
 
-        /// <summary>Both sides go through different matrix products, so the error grows with the value.</summary>
+        // Both sides go through different matrix products, so the error grows with the value
         private static float ToleranceFor(float expected) => MathF.Max(Tolerance, MathF.Abs(expected) * 2e-4f);
 
-        /// <summary>The sky camera position in the sky map, before the reference is applied.</summary>
         private static readonly Vector3 SkyCameraOrigin = new(-96f, 48f, 64f);
 
         private static readonly float[] Scales = [1f, 16f];
@@ -53,7 +48,15 @@ namespace Tests.Renderer
             harnessContexts.Clear();
         }
 
-        private Skybox3D CreateSkybox(Matrix4x4 reference, float scale)
+        private static SkyTransform CreateSkybox(Matrix4x4 reference, float scale)
+        {
+            // The loader applies the reference to the whole sky map, the sky camera included
+            var origin = Vector3.Transform(SkyCameraOrigin, reference);
+
+            return new SkyTransform(reference.Translation, origin, scale);
+        }
+
+        private Scene CreateScene()
         {
             var fileLoader = new GameFileLoader(null, null);
             harnessContexts.Add(fileLoader);
@@ -64,10 +67,7 @@ namespace Tests.Renderer
             var scene = new Scene(context);
             harnessContexts.Add(scene);
 
-            // The loader applies the reference to the whole sky map, the sky camera included
-            var origin = Vector3.Transform(SkyCameraOrigin, reference);
-
-            return new Skybox3D(scene, reference, origin, scale, new WorldFogInfo(), new HashSet<EntityLump.Entity>());
+            return scene;
         }
 
         private static Vector3 ToNdc(Vector3 position, in Matrix4x4 viewProjection)
@@ -96,10 +96,6 @@ namespace Tests.Renderer
             return camera;
         }
 
-        /// <summary>
-        /// A sky point maps to where scaling the sky about its camera and then applying the reference
-        /// would put it.
-        /// </summary>
         [Test]
         public async Task ToWorldLandsWhereScalingTheSkyWould()
         {
@@ -120,11 +116,33 @@ namespace Tests.Renderer
             }
         }
 
-        /// <summary>
-        /// The sky drawn through its own camera lands on the same pixels and at the same depth as the sky
-        /// scaled into the world and drawn through the main camera. The depth matters for the sky depth
-        /// range and the shared depth pyramid.
-        /// </summary>
+        [Test]
+        public async Task ToSkyUndoesToWorld()
+        {
+            foreach (var reference in References)
+            {
+                foreach (var scale in Scales)
+                {
+                    var skybox = CreateSkybox(reference, scale);
+
+                    foreach (var authored in SkyPoints)
+                    {
+                        var placed = Vector3.Transform(authored, reference);
+
+                        await AssertClose(skybox.ToSky(skybox.ToWorld(placed)), placed, $"{authored} at {scale}x");
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public async Task RejectsScaleThatIsNotPositive()
+        {
+            await Assert.That(() => new SkyTransform(Vector3.Zero, Vector3.Zero, 0f)).Throws<ArgumentOutOfRangeException>();
+            await Assert.That(() => new SkyTransform(Vector3.Zero, Vector3.Zero, -16f)).Throws<ArgumentOutOfRangeException>();
+        }
+
+        // Depth has to match as well, for the sky depth range and the shared depth pyramid
         [Test]
         public async Task SkyCameraProjectsLikeTheScaledSkyDoes()
         {
@@ -154,16 +172,12 @@ namespace Tests.Renderer
             }
         }
 
-        /// <summary>
-        /// Gradient fog is authored in world units, so it has to give the same result from the distance
-        /// and height the sky camera measures.
-        /// </summary>
         [Test]
         public async Task GradientFogReadsTheSameThroughTheSkyCamera()
         {
             var skybox = CreateSkybox(References[1], 16f);
 
-            var fog = new SceneGradientFog(skybox.Scene)
+            var fog = new SceneGradientFog(CreateScene())
             {
                 StartDist = 500f,
                 EndDist = 6000f,
@@ -200,13 +214,12 @@ namespace Tests.Renderer
                 .IsEqualTo(skyCulling.Y).Within(Tolerance);
         }
 
-        /// <summary>The same for the cubemap fog.</summary>
         [Test]
         public async Task CubemapFogReadsTheSameThroughTheSkyCamera()
         {
             var skybox = CreateSkybox(References[2], 16f);
 
-            var fog = new SceneCubemapFog(skybox.Scene)
+            var fog = new SceneCubemapFog(CreateScene())
             {
                 StartDist = 1200f,
                 EndDist = 15000f,

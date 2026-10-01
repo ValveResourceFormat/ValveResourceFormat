@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using OpenTK.Graphics.OpenGL;
@@ -302,7 +303,7 @@ public class PerfStats
         _ => LightGroup.Environment,
     };
 
-    private void UpdateTotals(Scene scene, Scene? skyboxScene)
+    private void UpdateTotals(IEnumerable<Scene> scenes)
     {
         if (lastTotalsUpdate != 0 && Stopwatch.GetElapsedTime(lastTotalsUpdate).TotalSeconds < 1.0)
         {
@@ -320,14 +321,15 @@ public class PerfStats
             Array.Clear(costGroups);
         }
 
-        AccumulateTotals(scene);
+        RendererContext? rendererContext = null;
 
-        if (skyboxScene != null)
+        foreach (var scene in scenes)
         {
-            AccumulateTotals(skyboxScene);
+            AccumulateTotals(scene);
+            rendererContext = scene.RendererContext;
         }
 
-        totalMaterials = scene.RendererContext.MaterialLoader.MaterialCount;
+        totalMaterials = rendererContext?.MaterialLoader.MaterialCount ?? 0;
     }
 
     private void AccumulateTotals(Scene scene)
@@ -411,19 +413,23 @@ public class PerfStats
     /// </summary>
     /// <param name="textRenderer">Text renderer to use for display.</param>
     /// <param name="camera">Camera for positioning text.</param>
-    /// <param name="scene">Main scene, used to compute map totals.</param>
-    /// <param name="skyboxScene">Optional 3D skybox scene, included in map totals.</param>
+    /// <param name="scenes">Every scene drawn, main scene first.</param>
+    /// <param name="lightBinner">Light binner of the main view, or <see langword="null"/> before the first frame.</param>
     /// <param name="x">X position (0-1 as fraction of screen width).</param>
     /// <param name="y">Y position (0-1 as fraction of screen height).</param>
     /// <param name="scale">Text scale.</param>
-    public void DisplayStats(TextRenderer textRenderer, Camera camera, Scene scene, Scene? skyboxScene, float x = 0.02f, float y = 0.05f, float scale = 11f)
+    public void DisplayStats(TextRenderer textRenderer, Camera camera, IReadOnlyList<Scene> scenes, LightBinner? lightBinner, float x = 0.02f, float y = 0.05f, float scale = 11f)
     {
-        if (!Capture)
+        ArgumentNullException.ThrowIfNull(scenes);
+
+        if (!Capture || scenes.Count == 0)
         {
             return;
         }
 
-        UpdateTotals(scene, skyboxScene);
+        var scene = scenes[0];
+
+        UpdateTotals(scenes);
 
         var lineHeight = scale * 1.5f / camera.WindowSize.Y;
         var valueColor = new Color32(150, 255, 150);
@@ -449,9 +455,12 @@ public class PerfStats
         AddLine($"Scene objects:    drawn {counts[(int)Counter.SceneObjectInView] - counts[(int)Counter.SceneObjectCulledByPvs] - counts[(int)Counter.SceneObjectCulledByVisibilityBox]:N0} of {totalSceneObjects:N0} scene objects ({counts[(int)Counter.SceneObjectCulledByPvs]:N0} vis) in {counts[(int)Counter.DrawCall]:N0} draw calls and {counts[(int)Counter.MeshletDispatch]:N0} meshlet dispatches ({totalDrawCalls:N0} total draw calls)", valueColor);
         AddLine($"Shadow casters:   {counts[(int)Counter.ShadowCasterCulledByPvs]:N0} rejected by the sun visibility row", valueColor);
 
-        if (scene.VisibilityBoxes.Count > 0 || skyboxScene?.VisibilityBoxes.Count > 0)
+        if (scenes.Any(static scene => scene.VisibilityBoxes.Count > 0))
         {
-            AddLine($"Visibility boxes: {counts[(int)Counter.SceneObjectCulledByVisibilityBox]:N0} scene objects and {counts[(int)Counter.ShadowCasterCulledByVisibilityBox]:N0} shadow casters culled by {scene.VisibilityBoxes.View.InsideCount:N0} inside and {scene.VisibilityBoxes.View.OutsideCount:N0} outside boxes", valueColor);
+            var insideBoxes = scenes.Sum(static scene => scene.VisibilityBoxes.View.InsideCount);
+            var outsideBoxes = scenes.Sum(static scene => scene.VisibilityBoxes.View.OutsideCount);
+
+            AddLine($"Visibility boxes: {counts[(int)Counter.SceneObjectCulledByVisibilityBox]:N0} scene objects and {counts[(int)Counter.ShadowCasterCulledByVisibilityBox]:N0} shadow casters culled by {insideBoxes:N0} inside and {outsideBoxes:N0} outside boxes", valueColor);
         }
 
         AddLine($"Materials:        {counts[(int)Counter.MaterialChange]:N0} changes between drawcalls, {totalMaterials:N0} total materials in scene", valueColor);
@@ -465,7 +474,10 @@ public class PerfStats
 
         AddLine($"Shadow maps:      {counts[(int)Counter.DirectionalShadowMap]:N0} directional, {counts[(int)Counter.BarnShadowMap]:N0} barn, {counts[(int)Counter.ShadowFaceSubmitted]:N0} faces binned, {counts[(int)Counter.ShadowFaceMaskCulled]:N0} gpu culled, {floatMetrics[(int)Metric.ShadowAtlasUsage]:0%} atlas utilization", valueColor);
         AddLine($"Particle Systems: {counts[(int)Counter.ParticleSystem]:N0} particle systems rendered in {counts[(int)Counter.ParticleDraw]:N0} draw calls out of {totalParticleSystems:N0} total particle systems", valueColor);
-        AddLine($"Light binning:    {FormatBinnerStats(scene.LightBinner.Stats)}", valueColor);
+        if (lightBinner != null)
+        {
+            AddLine($"Light binning:    {FormatBinnerStats(lightBinner.Stats)}", valueColor);
+        }
 
         AddLine($"Sound cache:      {counts[(int)Counter.SoundCacheMegabytes]:N0} MB decoded, {counts[(int)Counter.SoundDecodeQueue]:N0} queued to decode", valueColor);
         AddLine($"Tonemapping:      {FormatTonemapStats()}", valueColor);

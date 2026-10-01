@@ -231,7 +231,7 @@ vec4 GetTintColorLinear(vec4 vTint)
     return TintFade;
 }
 
-#if (F_DETAIL_TEXTURE > 0)
+#if defined(detail_texture_vfx_common) || CS2_CHARACTER_ADJUSTMENTS
 
     uniform float g_flDetailTexCoordRotation = 0.0;
     uniform vec2 g_vDetailTexCoordOffset = vec2(0.0);
@@ -365,7 +365,7 @@ void main()
     vTexCoord2 = vTEXCOORD1.xy;
 #endif
 
-#if (F_DETAIL_TEXTURE > 0)
+#if defined(detail_texture_vfx_common) || CS2_CHARACTER_ADJUSTMENTS
     #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
         vec2 detailCoords = (g_bUseSecondaryUvForDetailTexture || (F_FORCE_UV2 == 1)) ? vTexCoord2 : vTexCoordOut;
     #else

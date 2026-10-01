@@ -39,7 +39,7 @@ public static class EntityFactory
         Register<FuncButton>("func_button", static (system, spawnInfo) => new FuncButton(system, spawnInfo));
         Register<FuncDoor>("func_door", static (system, spawnInfo) => new FuncDoor(system, spawnInfo));
         Register<FuncDoorRotating>("func_door_rotating", static (system, spawnInfo) => new FuncDoorRotating(system, spawnInfo));
-        Register<FuncDoor>("func_movelinear", static (system, spawnInfo) => new FuncDoor(system, spawnInfo));
+        Register<FuncMoveLinear>("func_movelinear", static (system, spawnInfo) => new FuncMoveLinear(system, spawnInfo));
         Register<FuncRotating>("func_rotating", static (system, spawnInfo) => new FuncRotating(system, spawnInfo));
         Register<PropDoorRotating>("prop_door_rotating", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
         Register<PropDoorRotating>("prop_door_rotating_physics", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
@@ -47,6 +47,8 @@ public static class EntityFactory
         Register<PropDynamic>("prop_dynamic_override", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<FuncBreakable>("func_breakable", static (system, spawnInfo) => new FuncBreakable(system, spawnInfo));
         Register<XenFloraAnimatedMover>("xen_flora_animatedmover", static (system, spawnInfo) => new XenFloraAnimatedMover(system, spawnInfo));
+        Register<TriggerMultiple>("trigger_multiple", static (system, spawnInfo) => new TriggerMultiple(system, spawnInfo));
+        Register<TriggerOnce>("trigger_once", static (system, spawnInfo) => new TriggerOnce(system, spawnInfo));
         Register<TriggerTeleport>("trigger_teleport", static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo));
 
         // lights
@@ -109,11 +111,15 @@ public static class EntityFactory
 
         // logic
         Register<LogicAuto>("logic_auto", static (system, spawnInfo) => new LogicAuto(system, spawnInfo));
+        Register<LogicBranch>("logic_branch", static (system, spawnInfo) => new LogicBranch(system, spawnInfo));
+        Register<LogicBranchListener>("logic_branch_listener", static (system, spawnInfo) => new LogicBranchListener(system, spawnInfo));
         Register<LogicCase>("logic_case", static (system, spawnInfo) => new LogicCase(system, spawnInfo));
+        Register<LogicCompare>("logic_compare", static (system, spawnInfo) => new LogicCompare(system, spawnInfo));
         Register<LogicRelay>("logic_relay", static (system, spawnInfo) => new LogicRelay(system, spawnInfo));
         Register<LogicTimer>("logic_timer", static (system, spawnInfo) => new LogicTimer(system, spawnInfo));
         Register<MathCounter>("math_counter", static (system, spawnInfo) => new MathCounter(system, spawnInfo));
         Register<FilterActivatorModel>("filter_activator_model", static (system, spawnInfo) => new FilterActivatorModel(system, spawnInfo));
+        Register<InfoSpawnGroupLoadUnload>("info_spawngroup_load_unload", static (system, spawnInfo) => new InfoSpawnGroupLoadUnload(system, spawnInfo));
 
         // sounds
         Register<EnvSoundscape>("env_soundscape", static (system, spawnInfo) => new EnvSoundscape(system, spawnInfo));

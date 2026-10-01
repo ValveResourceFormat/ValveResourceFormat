@@ -41,7 +41,7 @@ public partial class GltfModelExporter
                     var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
                     // Process sphere shapes with matching properties
-                    foreach (var sphere in shape.Spheres.Where(s => s.CollisionAttributeIndex == collisionAttrIndex && s.SurfacePropertyIndex == surfacePropIndex))
+                    foreach (var sphere in shape.GetAllSpheres().Where(s => s.CollisionAttributeIndex == collisionAttrIndex && s.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var center = Vector3.Transform(sphere.Shape.Center, pose);
                         var radius = sphere.Shape.Radius;
@@ -49,7 +49,7 @@ public partial class GltfModelExporter
                     }
 
                     // Process capsule shapes with matching properties
-                    foreach (var capsule in shape.Capsules.Where(c => c.CollisionAttributeIndex == collisionAttrIndex && c.SurfacePropertyIndex == surfacePropIndex))
+                    foreach (var capsule in shape.GetAllCapsules().Where(c => c.CollisionAttributeIndex == collisionAttrIndex && c.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var center = capsule.Shape.Center;
                         var start = Vector3.Transform(center[0], pose);
@@ -59,7 +59,7 @@ public partial class GltfModelExporter
                     }
 
                     // Process hull shapes with matching properties
-                    foreach (var hull in shape.Hulls.Where(h => h.CollisionAttributeIndex == collisionAttrIndex && h.SurfacePropertyIndex == surfacePropIndex))
+                    foreach (var hull in shape.GetAllHulls().Where(h => h.CollisionAttributeIndex == collisionAttrIndex && h.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var vertexPositions = hull.Shape.GetVertexPositions();
                         var transformedPositions = TransformVertices(vertexPositions, pose);
@@ -69,7 +69,7 @@ public partial class GltfModelExporter
                     }
 
                     // Process mesh shapes with matching properties
-                    foreach (var mesh in shape.Meshes.Where(m => m.CollisionAttributeIndex == collisionAttrIndex && m.SurfacePropertyIndex == surfacePropIndex))
+                    foreach (var mesh in shape.GetAllMeshes().Where(m => m.CollisionAttributeIndex == collisionAttrIndex && m.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var triangles = mesh.Shape.GetTriangles();
                         var vertices = mesh.Shape.GetVertices();

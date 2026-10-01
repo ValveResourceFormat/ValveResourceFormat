@@ -88,6 +88,29 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         public bool UsesLegacyBarnBrightness { get; set; }
 
+        /// <summary>
+        /// Creates baked lighting combo args for an object, based on object and scene lighting state.
+        /// </summary>
+        public Dictionary<string, byte> CreateShaderArguments(bool hasLightmapUvs = false, bool hasVertexLighting = false)
+        {
+            var arguments = new Dictionary<string, byte>(scene.RenderAttributes);
+
+            if (hasLightmapUvs && HasValidLightmaps)
+            {
+                arguments["D_BAKED_LIGHTING_FROM_LIGHTMAP"] = 1;
+            }
+            else if (hasVertexLighting)
+            {
+                arguments["D_BAKED_LIGHTING_FROM_VERTEX_STREAM"] = 1;
+            }
+            else if (HasValidLightProbes)
+            {
+                arguments["D_BAKED_LIGHTING_FROM_PROBE"] = 1;
+            }
+
+            return arguments;
+        }
+
         /// <summary>Gets a value indicating whether the lightmap contains baked shadow data.</summary>
         public bool HasBakedShadowsFromLightmap => scene.RenderAttributes.GetValueOrDefault("S_LIGHTMAP_VERSION_MINOR") > 0;
         /// <summary>Gets or sets a value indicating whether dynamic shadow rendering is enabled.</summary>
@@ -601,6 +624,43 @@ namespace ValveResourceFormat.Renderer.World
             LightingData.SunDirection = new Vector4(-envLight.Direction, 0f);
             LightingData.SunColor = new Vector4(premultipliedColor, envLight.RenderSpecular ? 1f : 0f);
             LightingData.SunLightBakedShadowMask = bakedShadowData;
+
+            HasOwnSun = true;
+            isSunBorrowed = false;
+        }
+
+        /// <summary>Gets whether the source map has an environment light.</summary>
+        public bool HasOwnSun { get; private set; }
+
+        private bool isSunBorrowed;
+
+        /// <summary>Uses the sun from <paramref name="donor"/> when this map has none, or clears it when <paramref name="donor"/> is <see langword="null"/>.</summary>
+        public void BorrowSun(WorldLightingInfo? donor)
+        {
+            if (HasOwnSun)
+            {
+                return;
+            }
+
+            if (donor == null)
+            {
+                if (isSunBorrowed)
+                {
+                    LightingData.SunDirection = Vector4.Zero;
+                    LightingData.SunColor = Vector4.Zero;
+                    isSunBorrowed = false;
+                }
+
+                return;
+            }
+
+            LightingData.SunDirection = donor.LightingData.SunDirection;
+            LightingData.SunColor = donor.LightingData.SunColor;
+
+            // These lightmaps have no sun baked in, so nothing is in baked shadow
+            LightingData.SunLightBakedShadowMask = new Vector4(-1f, 0f, 0f, 0f);
+
+            isSunBorrowed = true;
         }
 
         /// <summary>
@@ -645,10 +705,11 @@ namespace ValveResourceFormat.Renderer.World
             BarnLightShadowAtlasSize = atlasSize;
             LightingData.NumBarnLights = 0;
 
-            scene.LightBinner.PollBarnLightVisibility();
+            var binner = scene.ShadingLightBinner;
+            binner?.PollBarnLightVisibility();
 
             ShadowMapper.Bin(BarnLights, camera, atlasSize, BarnLightCookiePaths,
-                scene.LightBinner.VisibilitySequence);
+                binner?.VisibilitySequence ?? 0);
 
             foreach (ref readonly var binned in ShadowMapper.BinnedLights)
             {

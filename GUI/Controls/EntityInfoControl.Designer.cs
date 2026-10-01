@@ -43,6 +43,10 @@ namespace GUI.Forms
             var dataGridViewCellStyle10 = new DataGridViewCellStyle();
             var dataGridViewCellStyle11 = new DataGridViewCellStyle();
             var dataGridViewCellStyle12 = new DataGridViewCellStyle();
+            var dataGridViewCellStyle13 = new DataGridViewCellStyle();
+            var dataGridViewCellStyle14 = new DataGridViewCellStyle();
+            var dataGridViewCellStyle15 = new DataGridViewCellStyle();
+            var dataGridViewCellStyle16 = new DataGridViewCellStyle();
             tabControl = new ThemedTabControl();
             tabPageProperties = new ThemedTabPage();
             dataGridProperties = new DataGridView();
@@ -56,6 +60,7 @@ namespace GUI.Forms
             OutputsParameter = new DataGridViewTextBoxColumn();
             OutputsDelay = new DataGridViewTextBoxColumn();
             OutputsTimesToFire = new DataGridViewTextBoxColumn();
+            OutputsFire = new DataGridViewButtonColumn();
             tabPageInputs = new TabPage();
             dataGridInputs = new DataGridView();
             InputsSource = new DataGridViewTextBoxColumn();
@@ -64,6 +69,13 @@ namespace GUI.Forms
             InputsParameter = new DataGridViewTextBoxColumn();
             InputsDelay = new DataGridViewTextBoxColumn();
             InputsTimeToFire = new DataGridViewTextBoxColumn();
+            InputsFire = new DataGridViewButtonColumn();
+            tabPageReferences = new ThemedTabPage();
+            dataGridReferences = new DataGridView();
+            ReferencesSource = new DataGridViewTextBoxColumn();
+            ReferencesClass = new DataGridViewTextBoxColumn();
+            ReferencesProperty = new DataGridViewTextBoxColumn();
+            ReferencesValue = new DataGridViewTextBoxColumn();
             tabControl.SuspendLayout();
             tabPageProperties.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridProperties).BeginInit();
@@ -71,6 +83,8 @@ namespace GUI.Forms
             ((System.ComponentModel.ISupportInitialize)dataGridOutputs).BeginInit();
             tabPageInputs.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridInputs).BeginInit();
+            tabPageReferences.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dataGridReferences).BeginInit();
             SuspendLayout();
             // 
             // tabControl
@@ -79,6 +93,7 @@ namespace GUI.Forms
             tabControl.Controls.Add(tabPageProperties);
             tabControl.Controls.Add(tabPageOutputs);
             tabControl.Controls.Add(tabPageInputs);
+            tabControl.Controls.Add(tabPageReferences);
             tabControl.Dock = DockStyle.Fill;
             tabControl.DrawMode = TabDrawMode.OwnerDrawFixed;
             tabControl.EndEllipsis = false;
@@ -197,7 +212,7 @@ namespace GUI.Forms
             dataGridViewCellStyle6.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle6.WrapMode = DataGridViewTriState.True;
             dataGridOutputs.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle6;
-            dataGridOutputs.Columns.AddRange(new DataGridViewColumn[] { OutputsOutput, OutputsTargetEntity, OutputsTargetInput, OutputsParameter, OutputsDelay, OutputsTimesToFire });
+            dataGridOutputs.Columns.AddRange(new DataGridViewColumn[] { OutputsOutput, OutputsTargetEntity, OutputsTargetInput, OutputsParameter, OutputsDelay, OutputsTimesToFire, OutputsFire });
             dataGridViewCellStyle7.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle7.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             dataGridViewCellStyle7.Font = new System.Drawing.Font("Cascadia Mono", 10F);
@@ -262,6 +277,19 @@ namespace GUI.Forms
             OutputsTimesToFire.Name = "OutputsTimesToFire";
             OutputsTimesToFire.ReadOnly = true;
             // 
+            // OutputsFire
+            // 
+            OutputsFire.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            OutputsFire.FlatStyle = FlatStyle.Flat;
+            OutputsFire.HeaderText = "";
+            OutputsFire.Name = "OutputsFire";
+            OutputsFire.ReadOnly = true;
+            OutputsFire.Resizable = DataGridViewTriState.False;
+            OutputsFire.Text = "Fire";
+            OutputsFire.UseColumnTextForButtonValue = true;
+            OutputsFire.Visible = false;
+            OutputsFire.Width = 56;
+            // 
             // tabPageInputs
             // 
             tabPageInputs.Controls.Add(dataGridInputs);
@@ -290,7 +318,7 @@ namespace GUI.Forms
             dataGridViewCellStyle10.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle10.WrapMode = DataGridViewTriState.True;
             dataGridInputs.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle10;
-            dataGridInputs.Columns.AddRange(new DataGridViewColumn[] { InputsSource, InputsOutput, InputsTargetInput, InputsParameter, InputsDelay, InputsTimeToFire });
+            dataGridInputs.Columns.AddRange(new DataGridViewColumn[] { InputsSource, InputsOutput, InputsTargetInput, InputsParameter, InputsDelay, InputsTimeToFire, InputsFire });
             dataGridViewCellStyle11.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle11.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             dataGridViewCellStyle11.Font = new System.Drawing.Font("Cascadia Mono", 10F);
@@ -355,6 +383,102 @@ namespace GUI.Forms
             InputsTimeToFire.Name = "InputsTimeToFire";
             InputsTimeToFire.ReadOnly = true;
             // 
+            // InputsFire
+            // 
+            InputsFire.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+            InputsFire.FlatStyle = FlatStyle.Flat;
+            InputsFire.HeaderText = "";
+            InputsFire.Name = "InputsFire";
+            InputsFire.ReadOnly = true;
+            InputsFire.Resizable = DataGridViewTriState.False;
+            InputsFire.Text = "Fire";
+            InputsFire.UseColumnTextForButtonValue = true;
+            InputsFire.Visible = false;
+            InputsFire.Width = 56;
+            // 
+            // tabPageReferences
+            // 
+            tabPageReferences.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
+            tabPageReferences.Controls.Add(dataGridReferences);
+            tabPageReferences.ForeColor = System.Drawing.Color.Black;
+            tabPageReferences.Location = new System.Drawing.Point(0, 30);
+            tabPageReferences.Name = "tabPageReferences";
+            tabPageReferences.Size = new System.Drawing.Size(800, 420);
+            tabPageReferences.TabIndex = 3;
+            tabPageReferences.Text = "References";
+            // 
+            // dataGridReferences
+            // 
+            dataGridReferences.AllowUserToAddRows = false;
+            dataGridReferences.AllowUserToDeleteRows = false;
+            dataGridReferences.AllowUserToResizeRows = false;
+            dataGridViewCellStyle13.BackColor = System.Drawing.Color.FromArgb(251, 251, 251);
+            dataGridReferences.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle13;
+            dataGridReferences.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dataGridReferences.BackgroundColor = System.Drawing.Color.FromArgb(236, 236, 236);
+            dataGridReferences.BorderStyle = BorderStyle.None;
+            dataGridReferences.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+            dataGridViewCellStyle14.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle14.BackColor = System.Drawing.Color.FromArgb(251, 251, 251);
+            dataGridViewCellStyle14.Font = new System.Drawing.Font("Segoe UI", 9F);
+            dataGridViewCellStyle14.ForeColor = System.Drawing.Color.Black;
+            dataGridViewCellStyle14.SelectionBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            dataGridViewCellStyle14.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle14.WrapMode = DataGridViewTriState.True;
+            dataGridReferences.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle14;
+            dataGridReferences.Columns.AddRange(new DataGridViewColumn[] { ReferencesSource, ReferencesClass, ReferencesProperty, ReferencesValue });
+            dataGridViewCellStyle15.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle15.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
+            dataGridViewCellStyle15.Font = new System.Drawing.Font("Cascadia Mono", 10F);
+            dataGridViewCellStyle15.ForeColor = System.Drawing.Color.Black;
+            dataGridViewCellStyle15.SelectionBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            dataGridViewCellStyle15.SelectionForeColor = System.Drawing.Color.Black;
+            dataGridViewCellStyle15.WrapMode = DataGridViewTriState.True;
+            dataGridReferences.DefaultCellStyle = dataGridViewCellStyle15;
+            dataGridReferences.Dock = DockStyle.Fill;
+            dataGridReferences.EnableHeadersVisualStyles = false;
+            dataGridReferences.GridColor = System.Drawing.Color.FromArgb(188, 188, 188);
+            dataGridReferences.Location = new System.Drawing.Point(0, 0);
+            dataGridReferences.Name = "dataGridReferences";
+            dataGridReferences.ReadOnly = true;
+            dataGridReferences.RowHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+            dataGridViewCellStyle16.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle16.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
+            dataGridViewCellStyle16.Font = new System.Drawing.Font("Segoe UI", 9F);
+            dataGridViewCellStyle16.ForeColor = System.Drawing.Color.Black;
+            dataGridViewCellStyle16.SelectionBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            dataGridViewCellStyle16.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle16.WrapMode = DataGridViewTriState.True;
+            dataGridReferences.RowHeadersDefaultCellStyle = dataGridViewCellStyle16;
+            dataGridReferences.RowHeadersVisible = false;
+            dataGridReferences.SelectionMode = DataGridViewSelectionMode.CellSelect;
+            dataGridReferences.Size = new System.Drawing.Size(800, 420);
+            dataGridReferences.TabIndex = 0;
+            // 
+            // ReferencesSource
+            // 
+            ReferencesSource.HeaderText = "Source";
+            ReferencesSource.Name = "ReferencesSource";
+            ReferencesSource.ReadOnly = true;
+            // 
+            // ReferencesClass
+            // 
+            ReferencesClass.HeaderText = "Class";
+            ReferencesClass.Name = "ReferencesClass";
+            ReferencesClass.ReadOnly = true;
+            // 
+            // ReferencesProperty
+            // 
+            ReferencesProperty.HeaderText = "Property";
+            ReferencesProperty.Name = "ReferencesProperty";
+            ReferencesProperty.ReadOnly = true;
+            // 
+            // ReferencesValue
+            // 
+            ReferencesValue.HeaderText = "Value";
+            ReferencesValue.Name = "ReferencesValue";
+            ReferencesValue.ReadOnly = true;
+            // 
             // EntityInfoControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -369,6 +493,8 @@ namespace GUI.Forms
             ((System.ComponentModel.ISupportInitialize)dataGridOutputs).EndInit();
             tabPageInputs.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dataGridInputs).EndInit();
+            tabPageReferences.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)dataGridReferences).EndInit();
             ResumeLayout(false);
         }
 
@@ -383,6 +509,7 @@ namespace GUI.Forms
         private DataGridViewTextBoxColumn OutputsParameter;
         private DataGridViewTextBoxColumn OutputsDelay;
         private DataGridViewTextBoxColumn OutputsTimesToFire;
+        private DataGridViewButtonColumn OutputsFire;
         private ThemedTabControl tabControl;
         private TabPage tabPageInputs;
         private ThemedTabPage tabPageProperties;
@@ -394,5 +521,12 @@ namespace GUI.Forms
         private DataGridViewTextBoxColumn InputsParameter;
         private DataGridViewTextBoxColumn InputsDelay;
         private DataGridViewTextBoxColumn InputsTimeToFire;
+        private DataGridViewButtonColumn InputsFire;
+        private ThemedTabPage tabPageReferences;
+        private DataGridView dataGridReferences;
+        private DataGridViewTextBoxColumn ReferencesSource;
+        private DataGridViewTextBoxColumn ReferencesClass;
+        private DataGridViewTextBoxColumn ReferencesProperty;
+        private DataGridViewTextBoxColumn ReferencesValue;
     }
 }

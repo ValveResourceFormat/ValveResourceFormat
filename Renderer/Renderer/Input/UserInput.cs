@@ -94,6 +94,9 @@ public class UserInput
     /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
     public bool NoClip => !WalkMode;
 
+    /// <summary>Gets whether the mouse turns the camera without a button held. Toggled with Z while no mouse button is held, off with escape.</summary>
+    public bool MouseLook { get; private set; }
+
     /// <summary>
     /// Gets a value indicating whether the walk mode crosshair should be drawn. The viewmodel already
     /// hides itself outside walk mode and while the camera is detached, so it decides; without one
@@ -236,7 +239,7 @@ public class UserInput
             {
                 OrbitTarget = null;
 
-                var traceResult = PhysicsWorld?.TraceRay(Camera.Location, Camera.Location + Camera.Forward * 10000f);
+                var traceResult = PhysicsWorld?.TraceRay(Camera.Location, Camera.Location + Camera.Forward * 10000f, Rubikon.DefaultGeometry);
                 if (traceResult is { Hit: true, HitPosition: var hitPosition })
                 {
                     OrbitTarget = hitPosition;
@@ -278,6 +281,16 @@ public class UserInput
             }
         }
 
+        // Z moves down while dragging to look, so it only toggles mouse look with the buttons up
+        if (!WalkMode && Pressed(TrackedKeys.Z) && (keyboardState & TrackedKeys.MouseLeftOrRight) == 0)
+        {
+            MouseLook = !MouseLook;
+        }
+        else if (Pressed(TrackedKeys.Escape))
+        {
+            MouseLook = false;
+        }
+
         if (wasWalking && !WalkMode)
         {
             MoveCamera(new Vector3(0, 0, 32), transition: true);
@@ -298,7 +311,7 @@ public class UserInput
         }
         else if (OrbitMode)
         {
-            HandleOrbitControls(deltaTime, keyboardState, WalkMode);
+            HandleOrbitControls(deltaTime, keyboardState, WalkMode || MouseLook);
         }
         else if (NoClip)
         {
@@ -499,7 +512,7 @@ public class UserInput
         Camera.Location = target - Camera.Forward * OrbitDistance;
     }
 
-    private void HandleOrbitControls(float deltaTime, TrackedKeys keyboardState, bool walking)
+    private void HandleOrbitControls(float deltaTime, TrackedKeys keyboardState, bool mouseLook)
     {
         var previousCamera = CameraPositionAngles;
 
@@ -512,7 +525,7 @@ public class UserInput
             Camera.Location += panOffset;
         }
 
-        if ((keyboardState & TrackedKeys.MouseLeft) != 0 || walking)
+        if ((keyboardState & TrackedKeys.MouseLeft) != 0 || mouseLook)
         {
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.Pitch += MouseDeltaPitchYaw.X;
@@ -569,7 +582,7 @@ public class UserInput
                 var extendedRay = toLocation + direction * minDistance;
                 var extendedDistance = movementDistance + minDistance;
 
-                var traceResult = PhysicsWorld.TraceRay(fromLocation, extendedRay);
+                var traceResult = PhysicsWorld.TraceRay(fromLocation, extendedRay, Rubikon.DefaultGeometry);
                 if (traceResult is { Hit: true, HitPosition: var hitPosition, Distance: var distance })
                 {
                     return (true, hitPosition - (direction * (minDistance + margin)), distance / extendedDistance);
@@ -681,14 +694,17 @@ public class UserInput
             targetVelocity -= Camera.Right * maxSpeed;
         }
 
-        if ((keyboardState & TrackedKeys.Z) != 0)
+        if ((keyboardState & TrackedKeys.MouseLeftOrRight) != 0)
         {
-            targetVelocity += new Vector3(0, 0, -maxSpeed);
-        }
+            if ((keyboardState & TrackedKeys.Z) != 0)
+            {
+                targetVelocity += new Vector3(0, 0, -maxSpeed);
+            }
 
-        if ((keyboardState & TrackedKeys.Q) != 0)
-        {
-            targetVelocity += new Vector3(0, 0, maxSpeed);
+            if ((keyboardState & TrackedKeys.Q) != 0)
+            {
+                targetVelocity += new Vector3(0, 0, maxSpeed);
+            }
         }
 
         // Apply acceleration or deceleration

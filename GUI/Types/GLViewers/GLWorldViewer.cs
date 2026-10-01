@@ -209,14 +209,9 @@ namespace GUI.Types.GLViewers
 
                 LoadedWorld.Load(mapExternalReferences);
 
-                if (LoadedWorld.Skybox3D != null)
+                foreach (var spawnGroup in LoadedWorld.SpawnGroups)
                 {
-                    Renderer.Skybox3D = LoadedWorld.Skybox3D;
-                }
-
-                if (LoadedWorld.Skybox2D != null)
-                {
-                    Renderer.Skybox2D = LoadedWorld.Skybox2D;
+                    Renderer.AddSpawnGroup(spawnGroup);
                 }
 
                 NavMeshSceneNode.AddNavNodesToScene(LoadedWorld.NavMesh, Scene);
@@ -386,7 +381,7 @@ namespace GUI.Types.GLViewers
 
                 using (UiControl.BeginGroup("World"))
                 {
-                    if (Renderer.SkyboxScene != null)
+                    if (Renderer.SkyGroup != null)
                     {
                         UiControl.AddCheckBox("Show Skybox", Renderer.ShowSkybox, (v) => Renderer.ShowSkybox = v);
                     }
@@ -669,9 +664,9 @@ namespace GUI.Types.GLViewers
         {
             var origin = entity.GetVector3Property("origin");
 
-            if (Renderer.Skybox3D is { } skybox && skybox.Entities.Contains(entity))
+            if (Renderer.SpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity)) is { } spawnGroup)
             {
-                origin = skybox.EntityOriginToWorld(origin);
+                origin = spawnGroup.EntityOriginToWorld(origin);
             }
 
             return PointBounds(origin);
@@ -722,173 +717,183 @@ namespace GUI.Types.GLViewers
 
         private void ShowSceneNodeDetails(SceneNode sceneNode)
         {
-            var isEntity = sceneNode.EntityData != null;
-            entityInfoEntity = sceneNode.EntityData;
+            if (sceneNode.EntityData != null)
+            {
+                ShowEntityDetails(sceneNode.EntityData);
+                return;
+            }
 
+            var form = PrepareEntityInfoForm(null);
+            var info = form.EntityInfoControl;
+
+            form.Text = $"{sceneNode.GetType().Name}: {sceneNode.Name}";
+
+            static string FormatVector(Vector3 vector)
+            {
+                return $"{vector.X:F2} {vector.Y:F2} {vector.Z:F2}";
+            }
+
+            static string ToRenderColor(Vector4 tint)
+            {
+                tint *= 255.0f;
+                return $"{tint.X:F0} {tint.Y:F0} {tint.Z:F0}";
+            }
+
+            if (sceneNode is SceneAggregate.Fragment sceneFragment)
+            {
+                var material = sceneFragment.DrawCall.Material.Material;
+                info.AddProperty("Shader", material.ShaderName);
+                info.AddProperty("Material", material.Name, new LinkedFile(material.Name));
+                info.AddProperty("Aggregate Model", sceneFragment.Name!, new LinkedFile(sceneFragment.Name!));
+
+                var tris = sceneFragment.DrawCall.IndexCount / 3;
+                if (sceneFragment.DrawCall.NumMeshlets > 0)
+                {
+                    var clusters = sceneFragment.DrawCall.NumMeshlets;
+                    var trisPerCluster = tris / clusters;
+                    info.AddProperty("Triangles / Clusters / Per Cluster", $"{tris} / {clusters} / {trisPerCluster}");
+                }
+                else
+                {
+                    info.AddProperty("Triangles", $"{tris}");
+                }
+
+                info.AddProperty("Model Tint", ToRenderColor(sceneFragment.DrawCall.TintColor));
+                info.AddProperty("Model Alpha", $"{sceneFragment.DrawCall.TintColor.W:F6}");
+
+                if (sceneFragment.TintAlpha != Vector4.One)
+                {
+                    info.AddProperty("Instance Tint", ToRenderColor(sceneFragment.TintAlpha));
+                    info.AddProperty("Final Tint", ToRenderColor(sceneFragment.DrawCall.TintColor * sceneFragment.TintAlpha));
+                }
+            }
+            else if (sceneNode is ModelSceneNode modelSceneNode)
+            {
+                info.AddProperty("Model", modelSceneNode.Name!, new LinkedFile(modelSceneNode.Name!));
+                info.AddProperty("Model Tint", ToRenderColor(modelSceneNode.TintAlpha));
+                info.AddProperty("Model Alpha", $"{modelSceneNode.Alpha:F6}");
+
+                if (modelSceneNode.LightingOrigin.HasValue)
+                {
+                    info.AddProperty("Custom Lighting Origin", FormatVector(modelSceneNode.LightingOrigin.Value));
+                }
+            }
+
+            if (sceneNode.CubeMapPrecomputedHandshake > 0)
+            {
+                info.AddProperty("Cubemap Handshake", $"{sceneNode.CubeMapPrecomputedHandshake}");
+            }
+
+            if (sceneNode.LightProbeVolumePrecomputedHandshake > 0)
+            {
+                info.AddProperty("Light Probe Handshake", $"{sceneNode.LightProbeVolumePrecomputedHandshake}");
+            }
+
+            info.AddProperty("Flags", sceneNode.Flags.ToString());
+            info.AddProperty("Layer", sceneNode.LayerName ?? string.Empty);
+
+            if (Renderer.SpawnGroups.FirstOrDefault(group => group.Scene == sceneNode.Scene) is { } spawnGroup)
+            {
+                form.Text += SpawnGroupSuffix(spawnGroup);
+            }
+
+            info.ShowPopulatedTabs();
+        }
+
+        private void ShowEntityDetails(EntityLump.Entity entity)
+        {
+            var form = PrepareEntityInfoForm(entity);
+
+            form.EntityInfoControl.PopulateFromEntity(GetLinkableEntities(), entity);
+
+            var classname = entity.GetStringProperty("classname");
+            var targetName = entity.FriendlyTargetName;
+            form.Text = string.IsNullOrEmpty(targetName)
+                ? $"Entity: {classname}"
+                : $"Entity: {classname} ({targetName})";
+
+            if (Renderer.SpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity)) is { } spawnGroup)
+            {
+                form.Text += SpawnGroupSuffix(spawnGroup);
+            }
+
+            form.EntityInfoControl.ShowPopulatedTabs();
+        }
+
+        private static string SpawnGroupSuffix(SpawnGroup spawnGroup)
+            => spawnGroup.WorldGroup != null ? " (in 3D skybox)" : $" (in {spawnGroup.MapName})";
+
+        /// <summary>
+        /// Opens the details window if it is not open yet, and empties it for <paramref name="entity"/>,
+        /// or for a scene node that is not an entity when it is null.
+        /// </summary>
+        private EntityInfoForm PrepareEntityInfoForm(EntityLump.Entity? entity)
+        {
             if (entityInfoForm == null)
             {
-                entityInfoForm = new EntityInfoForm(GuiContext);
+                entityInfoForm = new EntityInfoForm();
+                entityInfoForm.EntityInfoControl.LinkedResourceActivated += OnLinkedResourceActivated;
+                entityInfoForm.EntityInfoControl.ConnectionFireRequested += OnConnectionFireRequested;
+                entityInfoForm.EntityInfoControl.CanFireConnections = true;
 
                 if (ShowEntityInGraph != null)
                 {
                     entityInfoForm.AddShowInGraphButton(OnShowInGraphButtonClick);
                 }
 
+                entityInfoForm.FormClosed += OnEntityInfoFormClosed;
                 entityInfoForm.Show();
-                entityInfoForm.EntityInfoControl.OutputsGrid.CellDoubleClick += OnEntityInfoOutputsCellDoubleClick;
-                entityInfoForm.EntityInfoControl.InputsGrid.CellDoubleClick += OnEntityInfoInputsCellDoubleClick;
-                entityInfoForm.EntityInfoControl.Disposed += OnEntityInfoFormDisposed;
             }
 
-            Debug.Assert(entityInfoForm != null);
+            entityInfoEntity = entity;
 
             if (entityInfoForm.ShowInGraphButton != null)
             {
-                entityInfoForm.ShowInGraphButton.Visible = isEntity
-                    && entityInfoEntity != null
-                    && (EntityHasGraphNode?.Invoke(entityInfoEntity) ?? false);
+                entityInfoForm.ShowInGraphButton.Visible = entity != null && (EntityHasGraphNode?.Invoke(entity) ?? false);
             }
 
             entityInfoForm.EntityInfoControl.Clear();
 
-            if (isEntity)
-            {
-                ShowEntityProperties(sceneNode);
-            }
-            else
-            {
-                entityInfoForm.Text = $"{sceneNode.GetType().Name}: {sceneNode.Name}";
-
-                static string FormatVector(Vector3 vector)
-                {
-                    return $"{vector.X:F2} {vector.Y:F2} {vector.Z:F2}";
-                }
-
-                static string ToRenderColor(Vector4 tint)
-                {
-                    tint *= 255.0f;
-                    return $"{tint.X:F0} {tint.Y:F0} {tint.Z:F0}";
-                }
-
-                if (sceneNode is SceneAggregate.Fragment sceneFragment)
-                {
-                    var material = sceneFragment.DrawCall.Material.Material;
-                    entityInfoForm.EntityInfoControl.AddProperty("Shader", material.ShaderName);
-                    entityInfoForm.EntityInfoControl.AddProperty("Material", material.Name);
-                    entityInfoForm.EntityInfoControl.AddProperty("Aggregate Model", sceneFragment.Name!);
-
-                    var tris = sceneFragment.DrawCall.IndexCount / 3;
-                    if (sceneFragment.DrawCall.NumMeshlets > 0)
-                    {
-                        var clusters = sceneFragment.DrawCall.NumMeshlets;
-                        var trisPerCluster = tris / clusters;
-                        entityInfoForm.EntityInfoControl.AddProperty("Triangles / Clusters / Per Cluster", $"{tris} / {clusters} / {trisPerCluster}");
-                    }
-                    else
-                    {
-                        entityInfoForm.EntityInfoControl.AddProperty("Triangles", $"{tris}");
-                    }
-
-                    entityInfoForm.EntityInfoControl.AddProperty("Model Tint", ToRenderColor(sceneFragment.DrawCall.TintColor));
-                    entityInfoForm.EntityInfoControl.AddProperty("Model Alpha", $"{sceneFragment.DrawCall.TintColor.W:F6}");
-
-                    if (sceneFragment.TintAlpha != Vector4.One)
-                    {
-                        entityInfoForm.EntityInfoControl.AddProperty("Instance Tint", ToRenderColor(sceneFragment.TintAlpha));
-                        entityInfoForm.EntityInfoControl.AddProperty("Final Tint", ToRenderColor(sceneFragment.DrawCall.TintColor * sceneFragment.TintAlpha));
-                    }
-                }
-                else if (sceneNode is ModelSceneNode modelSceneNode)
-                {
-                    entityInfoForm.EntityInfoControl.AddProperty("Model", modelSceneNode.Name!);
-                    entityInfoForm.EntityInfoControl.AddProperty("Model Tint", ToRenderColor(modelSceneNode.TintAlpha));
-                    entityInfoForm.EntityInfoControl.AddProperty("Model Alpha", $"{modelSceneNode.Alpha:F6}");
-
-                    if (modelSceneNode.LightingOrigin.HasValue)
-                    {
-                        entityInfoForm.EntityInfoControl.AddProperty("Custom Lighting Origin", FormatVector(modelSceneNode.LightingOrigin.Value));
-                    }
-                }
-
-                if (sceneNode.CubeMapPrecomputedHandshake > 0)
-                {
-                    entityInfoForm.EntityInfoControl.AddProperty("Cubemap Handshake", $"{sceneNode.CubeMapPrecomputedHandshake}");
-                }
-
-                if (sceneNode.LightProbeVolumePrecomputedHandshake > 0)
-                {
-                    entityInfoForm.EntityInfoControl.AddProperty("Light Probe Handshake", $"{sceneNode.LightProbeVolumePrecomputedHandshake}");
-                }
-
-                entityInfoForm.EntityInfoControl.AddProperty("Flags", sceneNode.Flags.ToString());
-                entityInfoForm.EntityInfoControl.AddProperty("Layer", sceneNode.LayerName ?? string.Empty);
-            }
-
-            if (sceneNode.Scene == Renderer.SkyboxScene)
-            {
-                entityInfoForm.Text += " (in 3D skybox)";
-            }
-
-            entityInfoForm.EntityInfoControl.ShowPopulatedTabs();
-            entityInfoForm.EntityInfoControl.Show();
+            return entityInfoForm;
         }
 
-        private void OnEntityInfoOutputsCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        private List<EntityLump.Entity> GetLinkableEntities()
         {
-            if (entityInfoForm == null)
+            if (LoadedWorld == null)
             {
-                return;
+                return [];
             }
 
-            if (e.ColumnIndex != 1)
+            if (Renderer.SpawnGroups.Count == 0)
             {
-                return;
+                return LoadedWorld.Entities;
             }
 
-            var entityName = (string)(entityInfoForm.EntityInfoControl.OutputsGrid[e.ColumnIndex, e.RowIndex].Value ?? string.Empty);
-
-            if (string.IsNullOrEmpty(entityName))
-            {
-                return;
-            }
-
-            var node = Renderer.FindNodeByTargetName(entityName);
-
-            if (node == null)
-            {
-                return;
-            }
-
-            SelectAndFocusNode(node);
-            ShowSceneNodeDetails(node);
+            return [.. LoadedWorld.Entities, .. Renderer.SpawnGroups.SelectMany(static group => group.Entities)];
         }
 
-        private void OnEntityInfoInputsCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        private void OnLinkedResourceActivated(object? sender, LinkedResource link)
         {
-            if (entityInfoForm == null)
+            switch (link)
             {
-                return;
+                case LinkedEntity { Entity: var entity }:
+                    SelectAndFocusEntity(entity);
+                    ShowEntityDetails(entity);
+                    break;
+
+                case LinkedFile { Path: var path }:
+                    if (Viewers.Resource.OpenExternalReference(GuiContext, path))
+                    {
+                        entityInfoForm?.Close();
+                    }
+                    break;
             }
+        }
 
-            if (e.ColumnIndex != 0 || e.RowIndex < 0)
-            {
-                return;
-            }
-
-            if (entityInfoForm.EntityInfoControl.InputsGrid.Rows[e.RowIndex].Tag is not EntityLump.Entity sourceEntity)
-            {
-                return;
-            }
-
-            var node = Renderer.FindNode(sourceEntity);
-
-            if (node == null)
-            {
-                return;
-            }
-
-            SelectAndFocusNode(node);
-            ShowSceneNodeDetails(node);
+        private void OnConnectionFireRequested(object? sender, EntityLump.Connection connection)
+        {
+            using var lockedGl = MakeCurrent();
+            Renderer.EntitySystem.QueueConnection(connection, Renderer.EntitySystem.Player);
         }
 
         private void OnShowInGraphButtonClick(object? sender, EventArgs e)
@@ -899,17 +904,10 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        private void OnEntityInfoFormDisposed(object? sender, EventArgs e)
+        private void OnEntityInfoFormClosed(object? sender, FormClosedEventArgs e)
         {
-            if (entityInfoForm == null)
-            {
-                return;
-            }
-
-            entityInfoForm.EntityInfoControl.OutputsGrid.CellDoubleClick -= OnEntityInfoOutputsCellDoubleClick;
-            entityInfoForm.EntityInfoControl.InputsGrid.CellDoubleClick -= OnEntityInfoInputsCellDoubleClick;
-            entityInfoForm.EntityInfoControl.Disposed -= OnEntityInfoFormDisposed;
             entityInfoForm = null;
+            entityInfoEntity = null;
         }
 
         protected override void OnPicked(object? sender, PickingResponse pickingResponse)
@@ -925,8 +923,8 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var isInSkybox = pixelInfo.IsSkybox > 0;
-            var sceneNode = isInSkybox ? SkyboxScene?.Find(pixelInfo.ObjectId) : Scene.Find(pixelInfo.ObjectId);
+            var scenes = Renderer.Scenes;
+            var sceneNode = pixelInfo.SceneIndex < scenes.Count ? scenes[(int)pixelInfo.SceneIndex].Find(pixelInfo.ObjectId) : null;
 
             if (sceneNode == null)
             {
@@ -1057,27 +1055,6 @@ namespace GUI.Types.GLViewers
             {
                 Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
             });
-        }
-
-        private void ShowEntityProperties(SceneNode sceneNode)
-        {
-            Debug.Assert(entityInfoForm != null);
-            Debug.Assert(sceneNode.EntityData != null);
-
-            if (LoadedWorld is null)
-            {
-                entityInfoForm.EntityInfoControl.PopulateFromEntity(sceneNode.EntityData);
-            }
-            else
-            {
-                entityInfoForm.EntityInfoControl.PopulateFromEntity(LoadedWorld.Entities, sceneNode.EntityData);
-            }
-
-            var classname = sceneNode.EntityData.GetStringProperty("classname");
-            var targetName = sceneNode.EntityData.FriendlyTargetName;
-            entityInfoForm.Text = string.IsNullOrEmpty(targetName)
-                ? $"Entity: {classname}"
-                : $"Entity: {classname} ({targetName})";
         }
 
         private void SetAvailableLayers(IEnumerable<string> worldLayers)

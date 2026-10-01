@@ -101,7 +101,7 @@ static class ViewerFactory
         }
         else if (Resource.IsAccepted(magicResourceVersion))
         {
-            var viewer = new Resource(vrfGuiContext, viewMode, verifyFileSize: entry == null || entry.CRC32 > 0);
+            var viewer = new Resource(vrfGuiContext, viewMode);
             await viewer.LoadAsync(stream).ConfigureAwait(false);
             return viewer;
         }

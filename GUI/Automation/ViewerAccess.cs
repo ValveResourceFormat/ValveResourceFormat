@@ -113,6 +113,9 @@ namespace GUI.Types.GLViewers
         /// <summary>The picking framebuffer.</summary>
         internal PickingTexture? PickingTexture => Picker;
 
+        /// <summary>The scene of the 3D sky spawn group, or null when the map has no 3D sky.</summary>
+        internal Scene? SkyScene => Renderer.SkyGroup?.Scene;
+
         partial void ApplyAutomationTimestep(ref float timestep)
         {
             var controlled = Automation.AutomationClock.Advance(ref timestep);
@@ -236,7 +239,7 @@ namespace GUI.Types.GLViewers
         /// <returns>The selected node, or null when the entity has none.</returns>
         internal SceneNode? SelectAndFocusEntity(EntityLump.Entity entity, Vector3 worldOrigin)
         {
-            var node = Scene.Find(entity) ?? SkyboxScene?.Find(entity);
+            var node = Scene.Find(entity) ?? SkyScene?.Find(entity);
 
             if (node == null)
             {

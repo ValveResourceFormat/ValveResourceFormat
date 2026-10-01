@@ -128,8 +128,11 @@ public sealed class VisibilityBoxCuller
             return;
         }
 
-        foreach (var box in boxes)
+        // Indexed, a foreach over the interface would box its enumerator every frame
+        for (var i = 0; i < boxes.Count; i++)
         {
+            var box = boxes[i];
+
             if (!box.IsEnabled)
             {
                 continue;

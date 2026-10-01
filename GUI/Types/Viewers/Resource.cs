@@ -31,7 +31,7 @@ namespace GUI.Types.Viewers
         ResourceBlocksOnly,
     };
 
-    partial class Resource(VrfGuiContext vrfGuiContext, ResourceViewMode viewMode, bool verifyFileSize) : IViewer, IDisposable
+    partial class Resource(VrfGuiContext vrfGuiContext, ResourceViewMode viewMode) : IViewer, IDisposable
     {
         /// <summary>
         /// Keyvalues blocks larger than this on disk are not turned into text for display, their text
@@ -64,7 +64,7 @@ namespace GUI.Types.Viewers
             {
                 if (stream != null)
                 {
-                    resource.Read(stream, verifyFileSize);
+                    resource.Read(stream);
                 }
                 else
                 {
