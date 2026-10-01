@@ -29,10 +29,11 @@ public sealed class ToolsVisibility
         set => showToolsByMode[(int)Mode] = value;
     }
 
-    public bool ShowToolEntities { get; set; }
+    /// <summary>Gets or sets whether entities that only exist in the editor are drawn, under the master switch.</summary>
+    public bool ShowToolEntities { get; set; } = true;
 
-    /// <summary>Gets or sets whether tools materials are drawn, under the master switch.</summary>
-    public bool ShowToolMaterials { get; set; } = true;
+    /// <summary>Gets or sets whether tools materials are drawn, under the master switch. Off until asked for.</summary>
+    public bool ShowToolMaterials { get; set; }
 
     /// <summary>Gets whether editor-only entities end up drawn.</summary>
     public bool ToolEntitiesVisible => ShowTools && ShowToolEntities;
