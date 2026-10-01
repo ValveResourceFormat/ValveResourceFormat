@@ -1,6 +1,9 @@
+using System.Collections.Frozen;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -118,6 +121,36 @@ public sealed class EntitySystem
     private float tickAccumulator;
     private bool hasRemovedEntities;
 
+    // Everything spawned from the map's keyvalues, in spawn order, for a round restart to spawn again
+    private readonly List<EntitySpawnInfo> mapSpawns = [];
+
+    /// <summary>
+    /// Classnames of the entities a round restart doesn't respawn, dumped from CS2.
+    /// </summary>
+    public static FrozenSet<string> RoundPersistentClassnames { get; } = FrozenSet.Create(StringComparer.OrdinalIgnoreCase,
+    [
+        "ai_network", "ai_hint", "cs_gamerules", "cs_team_manager", "cs_player_manager", "env_cubemap_fog",
+        "env_soundscape", "env_soundscape_proxy", "env_soundscape_triggerable", "env_sky", "env_wind",
+        "env_fog_controller", "env_tonemap_controller", "env_cascade_light", "env_combined_light_probe_volume",
+        "func_brush", "func_wall", "func_buyzone", "func_illusionary", "func_hostage_rescue", "func_bomb_target",
+        "info_projecteddecal", "info_node", "info_target", "info_node_hint", "info_player_counterterrorist",
+        "info_player_terrorist", "info_enemy_terrorist_spawn", "info_deathmatch_spawn", "info_map_parameters",
+        "keyframe_rope", "light_environment", "light_spot", "light_omni", "light_ortho", "move_rope",
+        "info_ladder", "player", "cs_player_controller", "cs_bot", "point_camera", "scene_manager",
+        "shadow_control", "sky_camera", "soundent", "trigger_soundscape", "viewmodel", "predicted_viewmodel",
+        "csgo_viewmodel", "worldent", "point_devshot_camera", "logic_choreographed_scene",
+        "info_bomb_target_hint_A", "info_bomb_target_hint_B", "info_hostage_rescue_zone_hint", "generic_actor",
+        "vote_controller", "wearable_item", "point_hiding_spot", "game_coopmission_manager", "chicken",
+        "global_chatter", "player_spray_decal", "team_select_camera", "team_select_terrorist",
+        "team_select_counterterrorist", "terrorist_team_intro_camera", "terrorist_wingman_intro_camera",
+        "counterterrorist_team_intro_camera", "counterterrorist_wingman_intro_camera", "team_intro_terrorist",
+        "team_intro_counterterrorist", "wingman_intro_terrorist", "wingman_intro_counterterrorist",
+        "end_of_match_camera", "end_of_match_character", "observer", "point_script", "point_pulse",
+
+        // The world entity, which the map authors as worldspawn
+        "worldspawn",
+    ]);
+
     /// <summary>
     /// Initializes an entity world. Prefer <see cref="Renderer.EntitySystem"/> over constructing one
     /// directly.
@@ -142,7 +175,8 @@ public sealed class EntitySystem
     /// <returns>The spawned entity, or <see langword="null"/> if the keyvalues name no classname.</returns>
     public BaseEntity? CreateEntity(Entity data, Matrix4x4 parentTransform, string? layerName, Scene intoScene)
     {
-        var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, parentTransform, layerName, intoScene));
+        var spawnInfo = new EntitySpawnInfo(data, parentTransform, layerName, intoScene);
+        var entity = EntityFactory.Create(this, spawnInfo);
 
         if (entity == null)
         {
@@ -150,6 +184,7 @@ public sealed class EntitySystem
         }
 
         Add(entity);
+        mapSpawns.Add(spawnInfo);
 
         return entity;
     }
@@ -372,6 +407,59 @@ public sealed class EntitySystem
     }
 
     /// <summary>
+    /// Starts the map over for a new round. Every entity whose class does not persist across rounds, see
+    /// <see cref="RoundPersistentClassnames"/>, is removed, whether the map or the game spawned it, and the
+    /// map's are spawned again from their keyvalues and activated. Pending inputs are dropped. The round
+    /// itself starts with <see cref="StartRound"/>. Call on the render thread, as the respawned entities
+    /// load their models.
+    /// </summary>
+    public void RestartRound()
+    {
+        var persistent = entities.Where(static entity => !entity.IsRemoved && IsRoundPersistent(entity.Classname)).ToList();
+
+        foreach (var entity in entities)
+        {
+            if (entity.IsRemoved || IsRoundPersistent(entity.Classname))
+            {
+                continue;
+            }
+
+            // Only what stays can still be touching it, so only that hears it leave
+            foreach (var other in persistent)
+            {
+                other.UpdateTouchLink(entity, isOverlapping: false);
+            }
+
+            entity.RemoveFromScene();
+        }
+
+        entities.RemoveAll(static entity => entity.IsRemoved);
+        parented.RemoveAll(static entity => entity.IsRemoved);
+        hasRemovedEntities = false;
+        inputQueue.Clear();
+        firedCounts.Clear();
+        playerImpacts.Clear();
+
+        activatedCount = entities.Count;
+
+        foreach (var spawnInfo in mapSpawns)
+        {
+            var classname = spawnInfo.Data.GetStringProperty("classname");
+
+            if (classname == null || IsRoundPersistent(classname) || EntityFactory.Create(this, spawnInfo) is not { } entity)
+            {
+                continue;
+            }
+
+            Add(entity);
+        }
+
+        Activate();
+    }
+
+    private static bool IsRoundPersistent(string classname) => RoundPersistentClassnames.Contains(classname);
+
+    /// <summary>
     /// Drops every entity and resets the clock. The scene nodes themselves are the scene's to clean up,
     /// which <see cref="Renderer.Clear"/> does before calling this.
     /// </summary>
@@ -387,6 +475,7 @@ public sealed class EntitySystem
 
         entities.Clear();
         parented.Clear();
+        mapSpawns.Clear();
         World = null;
         Player = null;
         activatedCount = 0;

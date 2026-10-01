@@ -39,6 +39,7 @@ namespace GUI.Types.GLViewers
         private ThemedToggleButton? playButton;
         private ThemedToggleButton? walkButton;
         private ThemedButton? stepButton;
+        private ThemedButton? restartRoundButton;
         private ThemedToggleButton? showToolsButton;
         private ThemedToggleButton? toolEntitiesButton;
         private ThemedToggleButton? toolMaterialsButton;
@@ -81,6 +82,7 @@ namespace GUI.Types.GLViewers
             playButton?.Dispose();
             walkButton?.Dispose();
             stepButton?.Dispose();
+            restartRoundButton?.Dispose();
             showToolsButton?.Dispose();
             toolEntitiesButton?.Dispose();
             toolMaterialsButton?.Dispose();
@@ -623,6 +625,7 @@ namespace GUI.Types.GLViewers
             });
             stepButton = UiControl.AddToolbarButton("Step", () => EditorState.Request(EditorRequest.Step));
             stepButton.Enabled = EditorState.Mode == EditorMode.Viewer;
+            restartRoundButton = UiControl.AddToolbarButton("Restart Round", () => EditorState.Request(EditorRequest.RestartRound));
 
             UiControl.AddToolbarSeparator();
 

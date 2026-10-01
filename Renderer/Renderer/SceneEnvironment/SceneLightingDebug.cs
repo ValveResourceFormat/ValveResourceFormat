@@ -1,3 +1,4 @@
+using System.Linq;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -110,6 +111,9 @@ public sealed class SceneLightingDebug
         }
     }
 
+    // Binding env maps again writes their real colours back
+    internal void ReapplyEnvMapColors() => reflectionColorsShown = false;
+
     internal void Clear()
     {
         foreach (var grid in probeGrids.Values)
@@ -148,6 +152,14 @@ public sealed class SceneLightingDebug
             }
 
             return;
+        }
+
+        // A volume whose entity left the world takes its grid with it
+        foreach (var (probe, grid) in probeGrids.Where(pair => !scene.LightingInfo.LightProbes.Contains(pair.Key)).ToList())
+        {
+            Destroy(grid.Samples);
+            Destroy(grid.Bounds);
+            probeGrids.Remove(probe);
         }
 
         var closest = LightProbeGrid == LightProbeDebugGridMode.All ? null : scene.ChooseLightProbeVolume(viewPosition);
@@ -276,6 +288,13 @@ public sealed class SceneLightingDebug
             }
 
             return;
+        }
+
+        // An env map whose entity left the world takes its marker with it
+        foreach (var (envMap, marker) in envMapMarkers.Where(pair => !scene.LightingInfo.EnvMaps.Contains(pair.Key)).ToList())
+        {
+            Destroy(marker);
+            envMapMarkers.Remove(envMap);
         }
 
         foreach (var envMap in scene.LightingInfo.EnvMaps)

@@ -263,6 +263,7 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             EnvMaps.Add(envmap);
+            VolumesChanged = true;
 
             if (envmap.HandShake > 0)
             {
@@ -270,15 +271,39 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
+        /// <summary>Unregisters an environment map, as the entity that registered it leaves the world.</summary>
+        /// <param name="envmap">The environment map to remove.</param>
+        public void RemoveEnvironmentMap(SceneEnvMap envmap)
+        {
+            if (!EnvMaps.Remove(envmap))
+            {
+                return;
+            }
+
+            VolumesChanged = true;
+
+            if (envmap.HandShake > 0 && EnvMapHandshakes.TryGetValue(envmap.HandShake, out var registered) && registered == envmap)
+            {
+                EnvMapHandshakes.Remove(envmap.HandShake);
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets whether environment maps or light probes were registered or unregistered since the
+        /// scene last bound its nodes to them.
+        /// </summary>
+        internal bool VolumesChanged { get; set; }
+
         /// <summary>
         /// Registers a light probe with the scene, validating its texture set against the lightmap version.
         /// </summary>
         /// <param name="lightProbe">The light probe to add.</param>
-        public void AddProbe(SceneLightProbe lightProbe)
+        /// <returns>Whether it was added, which it is not without baked lighting.</returns>
+        public bool AddProbe(SceneLightProbe lightProbe)
         {
             if (scene.LightingInfo.LightmapVersionNumber == 0)
             {
-                return;
+                return false;
             }
 
             var validTextureSet = (scene.LightingInfo.LightmapGameVersionNumber, lightProbe) switch
@@ -292,10 +317,30 @@ namespace ValveResourceFormat.Renderer.World
             HasValidLightProbes = (scene.LightingInfo.LightProbes.Count == 0 || HasValidLightProbes) && validTextureSet;
 
             scene.LightingInfo.LightProbes.Add(lightProbe);
+            VolumesChanged = true;
 
             if (lightProbe.HandShake > 0)
             {
                 scene.LightingInfo.ProbeHandshakes.Add(lightProbe.HandShake, lightProbe);
+            }
+
+            return true;
+        }
+
+        /// <summary>Unregisters a light probe, as the entity that registered it leaves the world.</summary>
+        /// <param name="lightProbe">The light probe to remove.</param>
+        public void RemoveProbe(SceneLightProbe lightProbe)
+        {
+            if (!LightProbes.Remove(lightProbe))
+            {
+                return;
+            }
+
+            VolumesChanged = true;
+
+            if (lightProbe.HandShake > 0 && ProbeHandshakes.TryGetValue(lightProbe.HandShake, out var registered) && registered == lightProbe)
+            {
+                ProbeHandshakes.Remove(lightProbe.HandShake);
             }
         }
 
@@ -463,7 +508,7 @@ namespace ValveResourceFormat.Renderer.World
         private bool usesUniformLightStore;
 
         /// <summary>
-        /// Initial store of map lights to GPU.
+        /// Stores the map's lights to GPU, replacing any stored before.
         /// </summary>
         public void StoreLights(List<SceneLight> lights)
         {
@@ -640,6 +685,7 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             LightingData.NumBarnLights = 0; // changed dynamically
+            BarnLights.Clear();
 
             var filtered = lights.Where(SceneLight.IsRealTimeLight).ToList();
             if (filtered.Count == 0)

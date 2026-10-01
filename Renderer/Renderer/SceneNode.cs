@@ -227,6 +227,17 @@ namespace ValveResourceFormat.Renderer
         public SceneLightProbe? LightProbeBinding { get; set; }
 
         /// <summary>
+        /// Gets the probe volume this node is drawn for and binds to, whatever is closer, or
+        /// <see langword="null"/> for a node that binds by where it is.
+        /// </summary>
+        internal virtual SceneLightProbe? OwnLightProbe => null;
+
+        // The scene's lighting generation and the place this node's bindings were looked up for, so they are
+        // looked up again only once either changed
+        internal int LightingGeneration { get; set; } = -1;
+        internal Vector3 LightingLookupPosition { get; set; }
+
+        /// <summary>
         /// Gets or sets the associated entity data from the map.
         /// </summary>
         public EntityLump.Entity? EntityData { get; set; }

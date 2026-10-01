@@ -24,8 +24,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly int sampleCount;
         private readonly AABB sampleBounds;
 
+        private readonly SceneLightProbe probe;
+
         private Shader shader;
         private bool cubes;
+
+        // Lit from its own volume, whichever is closer to it
+        internal override SceneLightProbe? OwnLightProbe => probe;
 
         /// <summary>Gets or sets the radius of a sample, in world units.</summary>
         public float SampleSize
@@ -64,14 +69,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public LightProbeSampleGridSceneNode(Scene scene, SceneLightProbe probe, ReadOnlySpan<Vector3> localSamples)
             : base(scene)
         {
-            LightProbeBinding = probe;
-            LightProbeVolumePrecomputedHandshake = probe.LightProbeVolumePrecomputedHandshake;
+            this.probe = probe;
 
             sampleBounds = probe.LocalBoundingBox;
             Transform = probe.Transform;
             SampleSize = 4f;
-
-            AssignEnvMaps();
 
             sampleCount = localSamples.Length;
             shader = LoadShader();
@@ -80,32 +82,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             vao = SamplePoint.InputLayout.CreateVertexArray(nameof(LightProbeSampleGridSceneNode), vertexBuffer.Handle);
             vertexBuffer.AttachTo(vao, SamplePoint.InputLayout.Stride);
             vertexBuffer.Upload(MemoryMarshal.AsBytes(localSamples));
-        }
-
-        // Added after the scene assigned environment maps to its nodes, so the grid picks its own: every one
-        // reaching into the volume, in the order the scene ranks them for a node
-        private void AssignEnvMaps()
-        {
-            var center = BoundingBox.Center;
-
-            foreach (var envMap in Scene.LightingInfo.EnvMaps)
-            {
-                if (envMap.BoundingBox.Intersects(BoundingBox))
-                {
-                    EnvMaps.Add(envMap);
-                }
-            }
-
-            EnvMaps.Sort((a, b) =>
-            {
-                var priority = b.IndoorOutdoorLevel.CompareTo(a.IndoorOutdoorLevel);
-
-                return priority != 0
-                    ? priority
-                    : Vector3.Distance(center, a.BoundingBox.Center).CompareTo(Vector3.Distance(center, b.BoundingBox.Center));
-            });
-
-            ShaderEnvMapVisibility = default(SceneEnvMap.EnvMapVisibility128).Store(EnvMaps);
         }
 
         private Shader LoadShader()

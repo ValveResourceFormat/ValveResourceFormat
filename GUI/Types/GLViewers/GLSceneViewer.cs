@@ -126,6 +126,7 @@ namespace GUI.Types.GLViewers
             EditorState = new EditorState(Renderer.EntitySystem, Input);
             EditorState.ModeChanged += OnEditorModeChanged;
             EditorState.WalkingChanged += OnWalkingChanged;
+            EditorState.RoundRestarted += OnRoundRestarted;
             TextRenderer = new(rendererContext, Renderer.Camera);
             crosshairRenderer = new CrosshairRenderer(rendererContext);
             Scene = Renderer.Scene;
@@ -371,6 +372,16 @@ namespace GUI.Types.GLViewers
             {
                 Selection.Clear();
             }
+        }
+
+        /// <summary>
+        /// Follows the map being started over for a new round, on the render thread. Selected nodes may be
+        /// gone, and the new ones need the chosen visibility.
+        /// </summary>
+        protected virtual void OnRoundRestarted()
+        {
+            Selection.Clear();
+            RequestVisibilityUpdate();
         }
 
         /// <summary>Follows the camera starting or stopping walking as the player, on the render thread.</summary>

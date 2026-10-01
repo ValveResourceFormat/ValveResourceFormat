@@ -32,6 +32,9 @@ public enum EditorRequest
     /// <summary>Advance the frozen world by one tick, in viewer mode.</summary>
     Step,
 
+    /// <summary>Start the map over for a new round, in either mode.</summary>
+    RestartRound,
+
     /// <summary>Walk as the player, leaving the mode as it is.</summary>
     StartWalking,
 
@@ -69,6 +72,12 @@ public sealed class EditorState
 
     /// <summary>Raised on the render thread when <see cref="Mode"/> changes.</summary>
     public event Action<EditorMode>? ModeChanged;
+
+    /// <summary>
+    /// Raised on the render thread once the map has been started over for a new round. The entities that
+    /// do not persist across rounds are new, so their old nodes are no longer in the scene.
+    /// </summary>
+    public event Action? RoundRestarted;
 
     /// <summary>
     /// Raised on the render thread when <see cref="IsWalking"/> changes, including when the camera leaves
@@ -186,6 +195,20 @@ public sealed class EditorState
                     entitySystem.Step();
                 }
 
+                break;
+
+            case EditorRequest.RestartRound:
+                entitySystem.RestartRound();
+
+                // A running world starts the new round now, a frozen one when it next runs
+                roundStarted = false;
+
+                if (Mode == EditorMode.Game)
+                {
+                    StartRoundOnce();
+                }
+
+                RoundRestarted?.Invoke();
                 break;
 
             case EditorRequest.StartWalking:

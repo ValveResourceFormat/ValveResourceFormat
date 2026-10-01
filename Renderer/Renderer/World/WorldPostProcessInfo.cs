@@ -80,6 +80,16 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
+        /// <summary>Unregisters a post-process volume, as the entity that registered it leaves the world.</summary>
+        /// <param name="postProcess">The post-process volume to remove.</param>
+        public void RemovePostProcessVolume(ScenePostProcessVolume postProcess)
+        {
+            ArgumentNullException.ThrowIfNull(postProcess);
+
+            masterVolumes.Remove(postProcess);
+            PostProcessVolumes.Remove(postProcess);
+        }
+
         /// <summary>
         /// Recalculates <see cref="CurrentState"/>: the master volume is the base, and every non-master
         /// volume containing the camera crossfades on top of it over its fade time.

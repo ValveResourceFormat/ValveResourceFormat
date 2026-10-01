@@ -22,6 +22,10 @@ public abstract class EnvLightingVolume : BaseEntity
 {
     private readonly bool isSphere;
 
+    // What it registered with the scene's lighting, to take back as it leaves
+    private SceneEnvMap? registeredEnvMap;
+    private SceneLightProbe? registeredLightProbe;
+
     // The handshake baked objects name this volume by, 0 when it has none
     private int handShake;
     private int indoorOutdoorLevel;
@@ -87,6 +91,7 @@ public abstract class EnvLightingVolume : BaseEntity
         if (KeyValues.GetStringProperty("customcubemaptexture") == null)
         {
             Scene.LightingInfo.AddEnvironmentMap(envMap);
+            registeredEnvMap = envMap;
         }
     }
 
@@ -146,6 +151,27 @@ public abstract class EnvLightingVolume : BaseEntity
             );
         }
 
-        Scene.LightingInfo.AddProbe(lightProbe);
+        if (Scene.LightingInfo.AddProbe(lightProbe))
+        {
+            registeredLightProbe = lightProbe;
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void OnRemove()
+    {
+        if (registeredEnvMap != null)
+        {
+            Scene.LightingInfo.RemoveEnvironmentMap(registeredEnvMap);
+            registeredEnvMap = null;
+        }
+
+        if (registeredLightProbe != null)
+        {
+            Scene.LightingInfo.RemoveProbe(registeredLightProbe);
+            registeredLightProbe = null;
+        }
+
+        base.OnRemove();
     }
 }

@@ -631,6 +631,9 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     private CS2Projectile? AcquireProjectile(CS2Projectile.GrenadeKind kind)
     {
+        // A round restart removes them along with the rest of the round's entities
+        projectiles.RemoveAll(static projectile => projectile.IsRemoved);
+
         foreach (var projectile in projectiles)
         {
             if (projectile.Kind == kind && !projectile.Live)

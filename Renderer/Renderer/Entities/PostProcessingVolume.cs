@@ -89,6 +89,17 @@ public sealed class PostProcessingVolume : BaseModelEntity
         Volume = postProcess;
     }
 
+    /// <inheritdoc/>
+    protected override void OnRemove()
+    {
+        if (Volume != null)
+        {
+            Scene.PostProcessInfo.RemovePostProcessVolume(Volume);
+        }
+
+        base.OnRemove();
+    }
+
     [EntityInput("Enable")] private void InputEnable(EntityInputData data) => Volume?.IsEnabled = true;
 
     [EntityInput("Disable")] private void InputDisable(EntityInputData data) => Volume?.IsEnabled = false;
