@@ -7,7 +7,7 @@ namespace GUI.Utils
     /// <summary>
     /// Manages application settings.
     /// </summary>
-    static class Settings
+    static partial class Settings
     {
         private const int SettingsFileCurrentVersion = 17;
         private const int RecentFilesLimit = 20;
@@ -126,6 +126,19 @@ namespace GUI.Utils
         /// <summary>Gets the active application configuration.</summary>
         public static AppConfig Config { get; private set; } = new AppConfig();
 
+        /// <summary>Gets whether changes are written to disk. A process driven by automation keeps them in memory only.</summary>
+        private static bool Persists
+        {
+            get
+            {
+                var persists = true;
+                AllowPersisting(ref persists);
+                return persists;
+            }
+        }
+
+        static partial void AllowPersisting(ref bool persists);
+
         /// <summary>Raised when <see cref="AppConfig.SavedCameras"/> is mutated, signaling subscribers to refresh their camera lists.</summary>
         public static event EventHandler? RefreshCamerasOnSave;
         /// <summary>Raises the <see cref="RefreshCamerasOnSave"/> event.</summary>
@@ -154,18 +167,21 @@ namespace GUI.Utils
             {
                 Log.Error(nameof(Settings), $"Failed to parse '{SettingsFilePath}', is it corrupted?{Environment.NewLine}{e}");
 
-                try
+                if (Persists)
                 {
-                    var corruptedPath = Path.ChangeExtension(SettingsFilePath, $".corrupted-{DateTimeOffset.Now.ToUnixTimeSeconds()}.txt");
-                    File.Move(SettingsFilePath, corruptedPath);
+                    try
+                    {
+                        var corruptedPath = Path.ChangeExtension(SettingsFilePath, $".corrupted-{DateTimeOffset.Now.ToUnixTimeSeconds()}.txt");
+                        File.Move(SettingsFilePath, corruptedPath);
 
-                    Log.Error(nameof(Settings), $"Corrupted '{Path.GetFileName(SettingsFilePath)}' has been renamed to '{Path.GetFileName(corruptedPath)}'.");
+                        Log.Error(nameof(Settings), $"Corrupted '{Path.GetFileName(SettingsFilePath)}' has been renamed to '{Path.GetFileName(corruptedPath)}'.");
 
-                    Save();
-                }
-                catch
-                {
-                    //
+                        Save();
+                    }
+                    catch
+                    {
+                        //
+                    }
                 }
             }
 
@@ -334,6 +350,11 @@ namespace GUI.Utils
         /// </summary>
         public static void Save()
         {
+            if (!Persists)
+            {
+                return;
+            }
+
             var tempFile = Path.GetTempFileName();
 
             using (var stream = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None))
@@ -351,6 +372,11 @@ namespace GUI.Utils
         /// <param name="path">The absolute file path to record as recently opened.</param>
         public static void TrackRecentFile(string path)
         {
+            if (!Persists)
+            {
+                return;
+            }
+
             Config.RecentFiles.Remove(path);
             Config.RecentFiles.Add(path);
 

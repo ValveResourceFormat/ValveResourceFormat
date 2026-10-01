@@ -378,6 +378,11 @@ namespace GUI.Types.Viewers
 
 namespace GUI.Utils
 {
+    static partial class Settings
+    {
+        static partial void AllowPersisting(ref bool persists) => persists = !Automation.Automation.IsEnabled;
+    }
+
     partial class ConsoleTab
     {
         static partial void RecordLine(Log.Category category, string component, string message)
