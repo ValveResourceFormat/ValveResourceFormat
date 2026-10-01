@@ -84,6 +84,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
         public PostProcessRenderer(RendererContext rendererContext)
         {
             RendererContext = rendererContext;
+            Enabled = !rendererContext.FileLoader.GameInfo.SkipPostProcessing;
             Bloom = new BloomRenderer(rendererContext, this);
             DOF = new DOFRenderer(rendererContext);
             Outline = new OutlineRenderer(rendererContext);

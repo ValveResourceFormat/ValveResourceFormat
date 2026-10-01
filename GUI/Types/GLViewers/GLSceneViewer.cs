@@ -1028,7 +1028,7 @@ namespace GUI.Types.GLViewers
 
             Renderer.ViewBuffer!.Data!.RenderMode = RenderModes.GetShaderId(renderMode);
 
-            Renderer.Postprocess.Enabled = Renderer.ViewBuffer.Data.RenderMode == 0;
+            Renderer.Postprocess.Enabled = Renderer.ViewBuffer.Data.RenderMode == 0 && !Renderer.RendererContext.FileLoader.GameInfo.SkipPostProcessing;
 
             foreach (var scene in Renderer.Scenes)
             {

@@ -16,11 +16,11 @@ public sealed class GameRenderProfile
     /// <summary>
     /// Resolves the profile for a game.
     /// </summary>
-    /// <param name="gameInfo">The game's info, or <see langword="null"/> when it is unknown.</param>
+    /// <param name="gameInfo">The game's info.</param>
     /// <returns>The profile for the game.</returns>
-    public static GameRenderProfile FromGameInfo(GameInfo? gameInfo)
+    public static GameRenderProfile FromGameInfo(GameInfo gameInfo)
     {
-        var name = gameInfo?.Name;
+        var name = gameInfo.Name;
 
         return new GameRenderProfile
         {

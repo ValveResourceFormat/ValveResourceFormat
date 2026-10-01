@@ -66,7 +66,7 @@ public sealed partial class MapExtract
 
     /// <summary>
     /// The texture size Hammer projects a material with, for faces that have no texture coordinates, in texels at
-    /// <see cref="PolygonMesh.DefaultTextureScale"/>: the units its WorldMappingWidth / WorldMappingHeight attributes
+    /// <see cref="TextureScale"/>: the units its WorldMappingWidth / WorldMappingHeight attributes
     /// say the texture spans, else the size of its representative texture. Null when the material declares neither,
     /// projecting it at the builder's default size.
     /// </summary>
@@ -86,7 +86,7 @@ public sealed partial class MapExtract
     {
         if (ProceduralPhysMaterialsToExtract.Any(m => m.Name == materialName))
         {
-            return new Vector2(AutoPhysicsMaterialWorldMapping) / PolygonMesh.DefaultTextureScale;
+            return new Vector2(AutoPhysicsMaterialWorldMapping) / TextureScale;
         }
 
         using var materialResource = FileLoader.LoadFileCompiled(materialName);
@@ -108,7 +108,7 @@ public sealed partial class MapExtract
 
         if (worldMappingWidth > 0 && worldMappingHeight > 0)
         {
-            return new Vector2(worldMappingWidth, worldMappingHeight) / PolygonMesh.DefaultTextureScale;
+            return new Vector2(worldMappingWidth, worldMappingHeight) / TextureScale;
         }
 
         var representativeWidth = GetIntAttribute("RepresentativeTextureWidth");
@@ -151,6 +151,8 @@ public sealed partial class MapExtract
     private List<CMapRootElement> AdditionalMapDocuments { get; set; } = [];
 
     private readonly IFileLoader FileLoader;
+
+    private readonly float TextureScale;
 
     /// <summary>Gets or sets the progress reporter.</summary>
     public IProgress<string>? ProgressReporter { get; set; }
@@ -237,6 +239,7 @@ public sealed partial class MapExtract
     public MapExtract(Resource resource, IFileLoader? fileLoader)
     {
         FileLoader = fileLoader ?? throw new ArgumentNullException(nameof(fileLoader), "A file loader must be provided to load the map's lumps");
+        TextureScale = FileLoader.GameInfo.HammerTextureScale;
         FileExtract.EnsurePopulatedStringToken(fileLoader);
 
         switch (resource.ResourceType)
@@ -808,6 +811,7 @@ public sealed partial class MapExtract
                         ProgressReporter = ProgressReporter,
                         Untriangulate = true,
                         TextureSizeProvider = GetMaterialTextureSize,
+                        DefaultTextureScale = TextureScale,
                     };
                     builders.Add(group, builder);
                 }
@@ -1041,7 +1045,7 @@ public sealed partial class MapExtract
 
             foreach (var piece in pieces)
             {
-                var builder = new HammerMeshBuilder { ProgressReporter = ProgressReporter };
+                var builder = new HammerMeshBuilder { ProgressReporter = ProgressReporter, DefaultTextureScale = TextureScale };
                 var baseVertex = builder.AddVertices(piece.Positions);
 
                 for (var t = 0; t + 2 < piece.Triangles.Length; t += 3, triangleOrdinal++)
@@ -1639,7 +1643,7 @@ public sealed partial class MapExtract
 
             foreach (var hull in shape.Hulls)
             {
-                var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize };
+                var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, DefaultTextureScale = TextureScale };
                 hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, transform, materialOverride);
                 var meshData = hammerMeshBuilder.GenerateMesh();
 
@@ -1664,7 +1668,7 @@ public sealed partial class MapExtract
 
             // physics meshes are welded together and split by connectivity like the render geometry is, however
             // material doesnt matter and neither does tint
-            var physicsMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize };
+            var physicsMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, DefaultTextureScale = TextureScale };
 
             foreach (var mesh in shape.Meshes)
             {

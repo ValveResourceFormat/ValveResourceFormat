@@ -587,8 +587,8 @@ public sealed class PolygonMesh
     }
 
     /// <summary>
-    /// Units one texel spans when a face's texture is projected at the default scale, Hammer's default when
-    /// aligning a texture to the grid, in most s2 games hammer has this set to 0.125, Sbox uses 0.25 here
+    /// Units one texel spans when a face's texture is projected at the default scale, used when the game's
+    /// <c>gameinfo.gi</c> does not set <c>Hammer/DefaultTextureScale</c>.
     /// </summary>
     public const float DefaultTextureScale = 0.125f;
 
@@ -598,10 +598,11 @@ public sealed class PolygonMesh
     /// </summary>
     /// <param name="hFace">Face to align.</param>
     /// <param name="textureSize">Size of the face's texture in texels, the projection is in texels.</param>
-    public void TextureAlignToGrid(FaceHandle hFace, Vector2 textureSize)
+    /// <param name="textureScale">Units one texel spans, the game's Hammer default.</param>
+    public void TextureAlignToGrid(FaceHandle hFace, Vector2 textureSize, float textureScale = DefaultTextureScale)
     {
         TextureOffset[hFace] = Vector2.Zero;
-        TextureScale[hFace] = new Vector2(DefaultTextureScale);
+        TextureScale[hFace] = new Vector2(textureScale);
 
         ComputeFaceNormal(hFace, out var normal);
         ComputeTextureAxes(normal, out var uAxis, out var vAxis);
@@ -609,7 +610,7 @@ public sealed class PolygonMesh
         TextureUAxis[hFace] = uAxis;
         TextureVAxis[hFace] = vAxis;
 
-        ComputeFaceTextureCoordinatesFromParameters(hFace, textureSize);
+        ComputeFaceTextureCoordinatesFromParameters(hFace, textureSize, textureScale);
     }
 
     /// <summary>

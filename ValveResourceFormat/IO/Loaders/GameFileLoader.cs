@@ -45,11 +45,13 @@ namespace ValveResourceFormat.IO
             ".sbproj",
         ];
 
-        /// <summary>Gets the <c>gameinfo.gi</c> of the mod the opened file belongs to, or <see langword="null"/> when none was found.</summary>
-        public GameInfo? GameInfo { get; private set; }
+        private GameInfo? FoundGameInfo;
+
+        /// <summary>Gets the <c>gameinfo.gi</c> of the mod the opened file belongs to, or <see cref="GameInfo.Empty"/> when none was found.</summary>
+        public GameInfo GameInfo => FoundGameInfo ?? GameInfo.Empty;
 
         /// <summary>Gets the game declared by <see cref="GameInfo"/>, or <see langword="null"/> when none was found.</summary>
-        public string? GameName => GameInfo?.Name;
+        public string? GameName => GameInfo.Name;
 
         private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
         private readonly Lock CachedShadersLock = new();

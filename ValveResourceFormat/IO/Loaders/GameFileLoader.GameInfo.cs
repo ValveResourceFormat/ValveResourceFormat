@@ -2,6 +2,7 @@
 
 using System.IO;
 using System.IO.Enumeration;
+using System.Linq;
 using ValveKeyValue;
 using KVObject = ValveKeyValue.KVObject;
 
@@ -35,7 +36,7 @@ namespace ValveResourceFormat.IO
             Console.WriteLine($"Found \"{gameInfo.Name}\" from \"{gameinfoPath}\"");
 
             // The walk starts at the file being opened, so the first one found is the mod it belongs to.
-            GameInfo ??= gameInfo;
+            FoundGameInfo ??= gameInfo;
 
             // Only games that opt in mount the dependencies listed in an addon's addoninfo.txt
             if (gameInfo.AllowAddonDependencies)
@@ -51,13 +52,14 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            foreach (var folder in gameInfo.GameSearchPaths)
+            {
+                folders.Add(folder);
+            }
+
             foreach (var (key, searchPath) in gameInfo.SearchPaths)
             {
-                if (key.Equals("Game", StringComparison.OrdinalIgnoreCase) || key.Equals("Game_NonTools", StringComparison.OrdinalIgnoreCase))
-                {
-                    folders.Add(Path.Combine(gameInfo.GameRoot, searchPath));
-                }
-                else if (key == "OfficialAddonRoot")
+                if (key == "OfficialAddonRoot")
                 {
                     CurrentGameOfficialAddonsPaths.Add(Path.Combine(gameInfo.GameRoot, searchPath));
                 }
@@ -101,19 +103,15 @@ namespace ValveResourceFormat.IO
                 {
                     folders = FindGameFoldersForWorkshopFile();
 
-                    if (assumedGameRoot.EndsWith(AddonsSuffix, StringComparison.InvariantCultureIgnoreCase))
+                    if (FindGameInfoWithAddonRoot(assumedGameRoot) is { } mainGameInfo)
                     {
-                        var mainGameDir = assumedGameRoot[..^AddonsSuffix.Length];
-                        var mainGameInfo = Path.Join(mainGameDir, GameinfoGi);
-
-                        if (File.Exists(mainGameInfo))
-                        {
-                            HandleGameInfo(folders, mainGameInfo);
-                        }
-                        else if (Directory.Exists(mainGameDir))
-                        {
-                            folders.Add(mainGameDir);
-                        }
+                        HandleGameInfo(folders, mainGameInfo);
+                    }
+                    else if (assumedGameRoot.EndsWith(AddonsSuffix, StringComparison.InvariantCultureIgnoreCase)
+                        && Directory.Exists(assumedGameRoot[..^AddonsSuffix.Length]))
+                    {
+                        // A game without a gameinfo.gi, whose addons sit next to it in <game>_addons
+                        folders.Add(assumedGameRoot[..^AddonsSuffix.Length]);
                     }
 
                     PreferredAddonFolderOnDisk = rootFolder;
@@ -153,22 +151,16 @@ namespace ValveResourceFormat.IO
                 Console.WriteLine($"Scanning \"{directory}\"");
 #endif
 
-                if (directory.EndsWith(AddonsSuffix, StringComparison.InvariantCultureIgnoreCase))
+                if (FindGameInfoWithAddonRoot(directory) is { } mainGameInfo)
                 {
-                    var mainGameDir = directory[..^AddonsSuffix.Length];
-                    var mainGameInfo = Path.Join(mainGameDir, GameinfoGi);
-
-                    if (File.Exists(mainGameInfo))
+                    // Loose compiled files of the addon the opened file is in (e.g. csgo_addons/<addon>/materials).
+                    // An addon packed as csgo_addons/vpks/<addon>.vpk is the opened package itself, not a folder.
+                    if (!string.Equals(Path.GetFileName(childDirectory), "vpks", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Loose compiled files of the addon the opened file is in (e.g. csgo_addons/<addon>/materials).
-                        // An addon packed as csgo_addons/vpks/<addon>.vpk is the opened package itself, not a folder.
-                        if (!string.Equals(Path.GetFileName(childDirectory), "vpks", StringComparison.OrdinalIgnoreCase))
-                        {
-                            PreferredAddonFolderOnDisk ??= childDirectory;
-                        }
-
-                        return mainGameInfo;
+                        PreferredAddonFolderOnDisk ??= childDirectory;
                     }
+
+                    return mainGameInfo;
                 }
 
                 var currentDirectory = Path.GetFileName(directory);
@@ -227,24 +219,11 @@ namespace ValveResourceFormat.IO
                 var childName = Path.GetFileName(childDirectory);
                 childDirectory = directory;
 
-                IEnumerable<string> modFolders;
-
-                try
+                foreach (var gameInfoPath in FindModGameInfos(directory))
                 {
-                    modFolders = Directory.EnumerateDirectories(directory);
-                }
-                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-                {
-                    continue;
-                }
-
-                foreach (var modFolder in modFolders)
-                {
-                    var gameInfo = Path.Join(modFolder, GameinfoGi);
-
-                    if (File.Exists(gameInfo) && GameInfoMountsFolder(gameInfo, childName))
+                    if (TryReadGameInfoQuietly(gameInfoPath) is { } gameInfo && gameInfo.MountsFolder(childName))
                     {
-                        return gameInfo;
+                        return gameInfoPath;
                     }
                 }
             }
@@ -252,15 +231,58 @@ namespace ValveResourceFormat.IO
             return null;
         }
 
-        private static bool GameInfoMountsFolder(string gameinfoPath, string folderName)
+        /// <summary>
+        /// Finds the <c>gameinfo.gi</c> of the game that declares <paramref name="addonRoot"/> as one of its addon roots,
+        /// such as <c>csgo/gameinfo.gi</c> for <c>csgo_addons</c>.
+        /// </summary>
+        private static string? FindGameInfoWithAddonRoot(string addonRoot)
+        {
+            var gameRoot = Path.GetDirectoryName(addonRoot);
+
+            if (gameRoot == null)
+            {
+                return null;
+            }
+
+            var folderName = Path.GetFileName(addonRoot);
+
+            foreach (var gameInfoPath in FindModGameInfos(gameRoot))
+            {
+                if (TryReadGameInfoQuietly(gameInfoPath) is { LayeredOnMod: null } gameInfo && gameInfo.HasAddonRoot(folderName))
+                {
+                    return gameInfoPath;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Finds the <c>gameinfo.gi</c> files of the mod folders directly inside <paramref name="gameRoot"/>.
+        /// </summary>
+        private static List<string> FindModGameInfos(string gameRoot)
         {
             try
             {
-                return GameInfo.Read(gameinfoPath).MountsFolder(folderName);
+                return [.. Directory.EnumerateDirectories(gameRoot)
+                    .Select(static modFolder => Path.Join(modFolder, GameinfoGi))
+                    .Where(File.Exists)];
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return [];
+            }
+        }
+
+        private static GameInfo? TryReadGameInfoQuietly(string gameinfoPath)
+        {
+            try
+            {
+                return GameInfo.Read(gameinfoPath);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or KeyValueException)
             {
-                return false;
+                return null;
             }
         }
 
@@ -341,21 +363,40 @@ namespace ValveResourceFormat.IO
                 ShouldIncludePredicate = static (ref entry) => !entry.IsDirectory && entry.FileName.Equals(GameinfoGi, StringComparison.Ordinal)
             };
 
-            var folders = new HashSet<string>();
+            // Language and low violence overlays would mount their own folder in front of the game's
+            List<(string Path, GameInfo GameInfo)> games = [];
 
             foreach (var gameInfoPath in gameInfos)
             {
-                var modName = Path.GetFileName(Path.GetDirectoryName(gameInfoPath));
-
-                if (modName == "core")
-                {
-                    // Skip loading core gameinfo directly, let it be discovered by any of the other mod folders
-                    // This is needed to prevent core being found first and having highest priority
-                    continue;
-                }
-
-                // Language and low violence overlays would mount their own folder in front of the game's
                 if (TryReadGameInfo(gameInfoPath) is { LayeredOnMod: null } gameInfo)
+                {
+                    games.Add((gameInfoPath, gameInfo));
+                }
+            }
+
+            // A mod another game mounts, such as core, is content of that game rather than a game itself
+            var mountedByOtherGames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var (gameInfoPath, gameInfo) in games)
+            {
+                var modFolder = Path.GetFullPath(Path.GetDirectoryName(gameInfoPath)!);
+
+                foreach (var folder in gameInfo.GameSearchPaths)
+                {
+                    var fullFolder = Path.GetFullPath(folder);
+
+                    if (!string.Equals(fullFolder, modFolder, StringComparison.OrdinalIgnoreCase))
+                    {
+                        mountedByOtherGames.Add(fullFolder);
+                    }
+                }
+            }
+
+            var folders = new HashSet<string>();
+
+            foreach (var (gameInfoPath, gameInfo) in games)
+            {
+                if (!mountedByOtherGames.Contains(Path.GetFullPath(Path.GetDirectoryName(gameInfoPath)!)))
                 {
                     HandleGameInfo(folders, gameInfoPath, gameInfo);
                 }

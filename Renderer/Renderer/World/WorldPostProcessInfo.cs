@@ -55,6 +55,9 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
+        /// <summary>Gets or sets the state used where no volume or tonemap controller applies, the game's defaults.</summary>
+        public PostProcessState DefaultState { get; set; } = PostProcessState.Default;
+
         /// <summary>Gets the post-processing state computed for the current frame.</summary>
         public PostProcessState CurrentState { get; private set; } = new();
 
@@ -88,7 +91,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="deltaTime">Elapsed time in seconds since the last frame, driving the crossfades.</param>
         public void UpdatePostProcessing(Camera camera, float deltaTime)
         {
-            var newState = PostProcessState.Default;
+            var newState = DefaultState;
             ActiveLuts.Clear();
 
             if (MasterPostProcessVolume is { } master)
