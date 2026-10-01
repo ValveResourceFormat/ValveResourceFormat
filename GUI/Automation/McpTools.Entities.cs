@@ -207,6 +207,10 @@ internal sealed partial class McpTools
     /// Where the entity is placed as it renders: an entity of a prefab or spawn group is placed with it,
     /// and one of the 3D sky shows up where its sky scene is seen.
     /// </summary>
+    /// <summary>Whether an entity is a trigger: one the entity system spawns as a trigger, or any trigger_ class.</summary>
+    private static bool IsTrigger(BaseEntity? instance, string? classname)
+        => (instance?.IsTrigger ?? false) || (classname?.StartsWith("trigger_", StringComparison.OrdinalIgnoreCase) ?? false);
+
     private static Vector3 RenderedPosition(MapEntity entity, BaseEntity? instance)
     {
         var origin = entity.Data.GetVector3Property("origin");
@@ -355,10 +359,7 @@ internal sealed partial class McpTools
 
                 var instance = spawned.GetValueOrDefault(entity.Data);
 
-                var isTrigger = (instance?.IsTrigger ?? false)
-                    || entity.Data.GetStringProperty("classname").StartsWith("trigger_", StringComparison.OrdinalIgnoreCase);
-
-                if (trigger != null && isTrigger != trigger.Value)
+                if (trigger != null && IsTrigger(instance, entity.Data.GetStringProperty("classname")) != trigger.Value)
                 {
                     continue;
                 }

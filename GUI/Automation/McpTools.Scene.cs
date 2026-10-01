@@ -10,6 +10,7 @@ using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Automation;
 
@@ -25,7 +26,7 @@ internal sealed partial class McpTools
     {
         RegisterNodeTools();
 
-        Add("trace", "Trace a ray through a 3D tab. Mode 'physics' traces the map's collision, the static world and the colliders of solid brush entities such as doors, the way the player's use trace does: it starts at the camera along its view unless given 'from' with 'direction' or 'to', can sweep a box with 'hull', and returns hit, position, normal, distance and the entity hit or world. The pivot Alt orbits around is a ray along the view against the static world alone. Mode 'render' reads what is drawn at a pixel, the viewport centre by default: its node and mesh, and the world position the depth buffer puts it at with its distance from 'from', the camera the frame was drawn from, which can still be flying in after a load; a 3D sky surface is placed where the sky is seen. A pixel with nothing drawn answers hit false with background 'sky' or 'nothing'; one outside the render area is an error.",
+        Add("trace", "Trace a ray through a 3D tab. Mode 'physics' traces the map's collision, the static world and the colliders of solid brush entities such as doors, the way the player's use trace does: it starts at the camera along its view unless given 'from' with 'direction' or 'to', can sweep a box with 'hull', and returns hit, position, normal, distance and the entity hit or world. A trace that starts inside a solid or an included trigger answers start_solid at distance 0. The pivot Alt orbits around is a ray along the view against the static world alone. Mode 'render' reads what is drawn at a pixel, the viewport centre by default: its node and mesh, and the world position the depth buffer puts it at with its distance from 'from', the camera the frame was drawn from, which can still be flying in after a load; a 3D sky surface is placed where the sky is seen. A pixel with nothing drawn answers hit false with background 'sky' or 'nothing'; one outside the render area is an error.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
@@ -35,7 +36,7 @@ internal sealed partial class McpTools
                 ["to"] = VectorProp("Physics: end point, instead of 'direction'."),
                 ["max_distance"] = Prop("number", $"Physics: how far to trace along 'direction'. Defaults to {DefaultTraceDistance:F0}."),
                 ["hull"] = VectorProp("Physics: half extents [x, y, z] of a box to sweep instead of a ray, against what the player collides with. The player stands in [16, 16, 36]."),
-                ["triggers"] = Prop("boolean", "Physics: also stop at trigger volumes. Defaults to false."),
+                ["triggers"] = Prop("boolean", "Physics: also stop at the enabled trigger volumes the viewer simulates, such as trigger_multiple, trigger_once and trigger_teleport. Trigger classes it does not simulate have no collision here. Defaults to false."),
                 ["x"] = Prop("integer", "Render: pixel X in the render area. Defaults to the centre."),
                 ["y"] = Prop("integer", "Render: pixel Y in the render area. Defaults to the centre."),
             }),
@@ -126,7 +127,7 @@ internal sealed partial class McpTools
 
         if (physics == null)
         {
-            return McpToolResult.Error("This tab has no physics world to trace against; only maps have one. Use mode 'render' for what is drawn.");
+            return McpToolResult.Error("This tab has no physics world to trace against. Use mode 'render' for what is drawn.");
         }
 
         var start = from ?? cameraLocation;
@@ -139,7 +140,7 @@ internal sealed partial class McpTools
 
         // Off the UI thread, because holding a frame there can deadlock against a frame that is
         // waiting on the UI thread. Held because the entity system moves colliders as it ticks.
-        var (hit, hitEntity) = await Task.Run(() =>
+        var (hit, hitEntity, startInside) = await Task.Run(() =>
         {
             using var frame = viewer!.HoldFrame();
 
@@ -148,13 +149,25 @@ internal sealed partial class McpTools
                 : physics.TraceRay(start, end, "player");
 
             BaseEntity? struck = null;
+            BaseEntity? inside = null;
 
             foreach (var entity in viewer.Renderer.EntitySystem.Entities)
             {
-                if (entity.IsRemoved
-                    || entity.Collider is not { IsEmpty: false } collider
-                    || !(entity.IsCollidable || (triggers && entity.IsTrigger)))
+                if (entity.IsRemoved || entity.Collider is not { IsEmpty: false } collider)
                 {
+                    continue;
+                }
+
+                if (IsTrigger(entity, entity.Classname)
+                    ? !triggers || entity is BaseTrigger { IsEnabled: false } || (entity is not BaseTrigger && entity.Data?.GetBooleanProperty("startdisabled") == true)
+                    : !entity.IsCollidable)
+                {
+                    continue;
+                }
+
+                if (hull is { } startHalfExtents ? collider.OverlapsVolume(start, startHalfExtents) : collider.ContainsPoint(start))
+                {
+                    inside ??= entity;
                     continue;
                 }
 
@@ -168,8 +181,15 @@ internal sealed partial class McpTools
                 }
             }
 
-            return (closest, struck);
+            return (closest, struck, inside);
         }, cancellationToken).ConfigureAwait(false);
+
+        if (startInside != null)
+        {
+            hitEntity = startInside;
+        }
+
+        var startsInside = startInside != null || (hit.Hit && Vector3.Dot(hit.HitNormal, end - start) > 0f);
 
         return await OnUi(() =>
         {
@@ -180,18 +200,27 @@ internal sealed partial class McpTools
                 ["to"] = Round(end),
             };
 
-            if (!hit.Hit)
+            if (startsInside)
+            {
+                result["hit"] = true;
+                result["position"] = Round(start);
+                result["distance"] = 0;
+                result["start_solid"] = true;
+            }
+            else if (!hit.Hit)
             {
                 return McpToolResult.Json(result);
             }
-
-            result["position"] = Round(hit.HitPosition);
-            result["normal"] = Round(hit.HitNormal);
-            result["distance"] = Round(hit.Distance);
-
-            if (hit.StartSolid)
+            else
             {
-                result["start_solid"] = true;
+                result["position"] = Round(hit.HitPosition);
+                result["normal"] = Round(hit.HitNormal);
+                result["distance"] = Round(hit.Distance);
+
+                if (hit.StartSolid)
+                {
+                    result["start_solid"] = true;
+                }
             }
 
             if (hitEntity == null)
