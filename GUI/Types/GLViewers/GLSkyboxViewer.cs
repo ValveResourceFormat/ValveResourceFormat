@@ -26,9 +26,5 @@ namespace GUI.Types.GLViewers
         {
             Renderer.Skybox2D = new SceneSkybox2D(Scene.RendererContext.MaterialLoader.LoadMaterial(materialResource));
         }
-
-        protected override void OnPicked(object? sender, PickingTexture.PickingResponse pixelInfo)
-        {
-        }
     }
 }

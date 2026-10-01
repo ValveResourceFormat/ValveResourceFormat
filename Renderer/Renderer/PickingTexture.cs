@@ -6,35 +6,12 @@ using OpenTK.Mathematics;
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
-/// Framebuffer for GPU-based object picking using unique object IDs.
+/// Framebuffer for GPU-based object picking using unique object IDs. Rendering the scene into it with
+/// <see cref="Shader"/> as the replacement shader writes each pixel's node and mesh, which
+/// <see cref="ReadPixel"/> reads back.
 /// </summary>
 public class PickingTexture : Framebuffer
 {
-    /// <summary>
-    /// Type of interaction when picking an object.
-    /// </summary>
-    public enum PickingIntent
-    {
-        /// <summary>Select the picked object.</summary>
-        Select,
-        /// <summary>Open the picked object for viewing.</summary>
-        Open,
-        /// <summary>Show detailed information about the picked object.</summary>
-        Details,
-    }
-
-    /// <summary>
-    /// Object picking response containing intent and pixel data.
-    /// </summary>
-    public readonly struct PickingResponse
-    {
-        /// <summary>Gets the interaction intent that triggered this pick.</summary>
-        public PickingIntent Intent { get; init; }
-
-        /// <summary>Gets the pixel data read back from the picking framebuffer.</summary>
-        public PixelInfo PixelInfo { get; init; }
-    }
-
     /// <summary>
     /// Pixel data read back from the picking framebuffer.
     /// </summary>
@@ -56,9 +33,6 @@ public class PickingTexture : Framebuffer
 #pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
     }
 
-    /// <summary>Raised when a pick response is ready to be consumed.</summary>
-    public event EventHandler<PickingResponse> OnPicked;
-
     /// <summary>Gets the picking shader used during the picking render pass.</summary>
     public Shader Shader { get; }
 
@@ -68,25 +42,15 @@ public class PickingTexture : Framebuffer
     /// <summary>Gets whether the current render mode has activated picking debug visualization.</summary>
     public bool IsDebugActive { get; private set; }
 
-    /// <summary>Gets whether a pick has been requested and will be resolved on the next frame.</summary>
-    public bool ActiveNextFrame { get; private set; }
-
-    private int CursorPositionX;
-    private int CursorPositionY;
-    private PickingIntent Intent;
-    private PickingResponse? Response;
-
     // could share depth buffer with main framebuffer, but msaa doesn't match
     // private readonly Framebuffer depthSource;
 
-    /// <summary>Initializes the picking framebuffer, shaders, and subscribes to the pick event.</summary>
+    /// <summary>Initializes the picking framebuffer and its shaders.</summary>
     /// <param name="rendererContext">Renderer context for loading shaders.</param>
-    /// <param name="onPicked">Handler invoked when a pick result is available.</param>
-    public PickingTexture(RendererContext rendererContext, EventHandler<PickingResponse> onPicked) : base(nameof(PickingTexture))
+    public PickingTexture(RendererContext rendererContext) : base(nameof(PickingTexture))
     {
         Shader = rendererContext.ShaderLoader.LoadShader("picking");
         DebugShader = rendererContext.ShaderLoader.LoadShader("picking", ("F_DEBUG_PICKER", 1));
-        OnPicked += onPicked;
 
         ColorFormat = ImageFormat.RGBA32323232_UINT;
         DepthFormat = ImageFormat.D32;
@@ -99,55 +63,24 @@ public class PickingTexture : Framebuffer
         Initialize();
     }
 
-    /// <summary>Schedules a pick at the given cursor position to be resolved after the next frame renders.</summary>
+    /// <summary>
+    /// Reads back the pixel at a cursor position, waiting for rendering into the framebuffer to finish.
+    /// </summary>
     /// <param name="x">Cursor X position in window coordinates.</param>
-    /// <param name="y">Cursor Y position in window coordinates.</param>
-    /// <param name="intent">The interaction intent for this pick request.</param>
-    public void RequestNextFrame(int x, int y, PickingIntent intent)
-    {
-        ActiveNextFrame = true;
-        CursorPositionX = x;
-        CursorPositionY = y;
-        Intent = intent;
-    }
-
-    /// <summary>Reads back the picking pixel if a request was pending and stores the response for the next event trigger.</summary>
-    public void Finish()
-    {
-        if (ActiveNextFrame)
-        {
-            ActiveNextFrame = false;
-            var pixelInfo = ReadPixelInfo(CursorPositionX, CursorPositionY);
-            Response = new PickingResponse
-            {
-                Intent = Intent,
-                PixelInfo = pixelInfo,
-            };
-        }
-    }
-
-    /// <summary>Fires <see cref="OnPicked"/> with the stored response if one is available.</summary>
-    public void TriggerEventIfAny()
-    {
-        if (Response is PickingResponse response)
-        {
-            Response = null;
-            OnPicked?.Invoke(this, response);
-        }
-    }
-
-    private PixelInfo ReadPixelInfo(int width, int height)
+    /// <param name="y">Cursor Y position in window coordinates, from the top.</param>
+    /// <returns>The node and mesh drawn at that pixel.</returns>
+    public PixelInfo ReadPixel(int x, int y)
     {
         GL.Flush();
         GL.Finish();
 
-        height = Height - height; // flip y
+        y = Height - y; // flip y
         var pixelInfo = new PixelInfo();
 
         Debug.Assert(ColorFormat is not null);
 
         GL.NamedFramebufferReadBuffer(FboHandle, ReadBufferMode.ColorAttachment0);
-        GL.ReadPixels(width, height, 1, 1, ColorFormat!.Value.ToGLPixelFormat(), ColorFormat.Value.ToGLPixelType(), ref pixelInfo);
+        GL.ReadPixels(x, y, 1, 1, ColorFormat!.Value.ToGLPixelFormat(), ColorFormat.Value.ToGLPixelType(), ref pixelInfo);
         GL.NamedFramebufferReadBuffer(FboHandle, ReadBufferMode.None);
 
         return pixelInfo;

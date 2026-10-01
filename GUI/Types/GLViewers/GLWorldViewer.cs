@@ -7,6 +7,7 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Editor.Picking;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
@@ -17,7 +18,6 @@ using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static GUI.Controls.SavedCameraPositionsControl;
-using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {
@@ -595,8 +595,6 @@ namespace GUI.Types.GLViewers
                 tabControl.SelectTab(tabPage);
             }
 
-            Debug.Assert(SelectedNodeRenderer != null);
-
             var hasBounds = false;
             var bounds = default(AABB);
             var selectedAny = false;
@@ -611,11 +609,11 @@ namespace GUI.Types.GLViewers
                 {
                     if (selectedAny)
                     {
-                        SelectedNodeRenderer.ToggleNode(node);
+                        Selection.Toggle(node);
                     }
                     else
                     {
-                        SelectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
+                        Selection.Select(node);
                         selectedAny = true;
                     }
 
@@ -641,9 +639,7 @@ namespace GUI.Types.GLViewers
         {
             ArgumentNullException.ThrowIfNull(node);
 
-            Debug.Assert(SelectedNodeRenderer != null);
-
-            SelectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
+            Selection.Select(node);
             FocusCameraOnBounds(SelectionBounds(node));
             EnsureNodeVisible(node);
         }
@@ -915,36 +911,33 @@ namespace GUI.Types.GLViewers
             entityInfoEntity = null;
         }
 
-        protected override void OnPicked(object? sender, PickingResponse pickingResponse)
+        protected override void OnPicked(PickResult result)
         {
-            Debug.Assert(SelectedNodeRenderer != null);
-
-            var pixelInfo = pickingResponse.PixelInfo;
+            var pixelInfo = result.Pixel;
 
             // Void
-            if (pixelInfo.ObjectId == 0 || pixelInfo.Unused2 != 0)
+            if (result.HitNothing)
             {
-                SelectedNodeRenderer.SelectNode(null);
+                Selection.Clear();
                 return;
             }
 
-            var isInSkybox = pixelInfo.IsSkybox > 0;
-            var sceneNode = isInSkybox ? SkyboxScene?.Find(pixelInfo.ObjectId) : Scene.Find(pixelInfo.ObjectId);
+            var sceneNode = result.IsInSkybox ? SkyboxScene?.Find(pixelInfo.ObjectId) : Scene.Find(pixelInfo.ObjectId);
 
             if (sceneNode == null)
             {
                 return;
             }
 
-            if (pickingResponse.Intent == PickingIntent.Select)
+            if (result.Intent == PickIntent.Select)
             {
-                if ((Control.ModifierKeys & Keys.Control) > 0)
+                if (result.Has(PickModifiers.Control))
                 {
-                    SelectedNodeRenderer.ToggleNode(sceneNode);
+                    Selection.Toggle(sceneNode);
                 }
                 else
                 {
-                    SelectedNodeRenderer.SelectNode(sceneNode);
+                    Selection.Select(sceneNode);
                 }
 
                 //Update the entity properties window if it was opened
@@ -958,7 +951,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            if (pickingResponse.Intent == PickingIntent.Details)
+            if (result.Intent == PickIntent.Details)
             {
                 Program.MainForm.Invoke(() =>
                 {

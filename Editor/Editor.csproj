@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Editor layer for Source 2 Viewer: selection, picking and other tools features built on the renderer.</Description>
+    <RootNamespace>ValveResourceFormat.Editor</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
+    <ProjectReference Include="..\Renderer\Renderer.csproj" />
+  </ItemGroup>
+
+</Project>

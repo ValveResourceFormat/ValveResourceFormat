@@ -131,6 +131,12 @@ namespace ValveResourceFormat.Renderer
         public bool IsSelected { get; set; }
 
         /// <summary>
+        /// Gets whether this node is a fixed-size marker standing in for a point, so its bounds describe
+        /// the marker rather than anything in the world.
+        /// </summary>
+        public virtual bool IsPointMarker => false;
+
+        /// <summary>
         /// Gets or sets the object type flags.
         /// </summary>
         public ObjectTypeFlags Flags { get; set; }

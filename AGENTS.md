@@ -10,6 +10,7 @@ The project folders are:
 - **Renderer/**: OpenGL rendering engine for Source 2 assets.
     - Shaders use the `.slang` extension (`.frag.slang`, `.vert.slang`) with GLSL syntax, and must only contain ASCII characters.
     - After changing shaders, run `dotnet run --project Misc/ShaderValidator -- <name filter>` to compile them and their combos on a real GL context. `complex` has combinatorially many combos and is far too slow to validate interactively, so iterate against a smaller shader.
+- **Editor/**: Editor like layer between Renderer and GUI, currently handles selection and picking.
 - **Tests/**: TUnit test suite for the ValveResourceFormat library, plus some headless Renderer logic tests in `Tests/Renderer/`.
     - Run tests when changing code in `ValveResourceFormat/` or `Renderer/`. GUI and CLI are not covered.
     - Tests are fast, run the whole suite with `dotnet test`. If it reports `Zero tests ran` (exit code 5), do a full `dotnet build` and retry.

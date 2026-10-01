@@ -38,6 +38,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly RenderMaterial material;
         private readonly float spriteSize;
 
+        public override bool IsPointMarker => true;
+
         public SpriteSceneNode(Scene scene, RendererContext renderContext, Resource resource, Vector3 position)
             : base(scene)
         {
