@@ -2,7 +2,6 @@ using GUI.Utils;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneNodes;
-using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {
@@ -23,10 +22,6 @@ namespace GUI.Types.GLViewers
                 LayerName = "Visibility clusters",
             };
             Scene.Add(sceneNode, false);
-        }
-
-        protected override void OnPicked(object? sender, PickingResponse pixelInfo)
-        {
         }
     }
 }

@@ -7,12 +7,13 @@ using GUI.Controls;
 using GUI.Types.Audio;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Editor.Picking;
+using ValveResourceFormat.Editor.Selection;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneNodes;
-using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {
@@ -24,7 +25,13 @@ namespace GUI.Types.GLViewers
         public ValveResourceFormat.Renderer.TextRenderer TextRenderer { get; protected set; }
         private readonly CrosshairRenderer crosshairRenderer;
 
-        protected PickingTexture? Picker { get; set; }
+        protected ScenePicker? Picker { get; private set; }
+
+        /// <summary>The nodes selected in this viewer, drawn with an outline and helpers.</summary>
+        protected SelectionSet Selection { get; } = new();
+
+        /// <summary>Text drawn in the top-left corner of the viewport, such as stats for the selection.</summary>
+        protected string ScreenDebugText { get; set; } = string.Empty;
 
         protected QuadOverdraw? QuadOverdrawRenderer { get; set; }
 
@@ -78,7 +85,7 @@ namespace GUI.Types.GLViewers
         private int renderModeCurrentIndex;
         private ComboBox? renderModeComboBox;
         private InfiniteGrid? baseGrid;
-        protected SelectedNodeRenderer? SelectedNodeRenderer;
+        private SelectionVisuals? selectionVisuals;
 
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
@@ -116,6 +123,12 @@ namespace GUI.Types.GLViewers
             // Delete GL resources before the base disposes the GL context
             physicsTraceRenderer?.Delete();
             physicsTraceRenderer = null;
+
+            selectionVisuals?.Delete();
+            selectionVisuals = null;
+
+            Picker?.Delete();
+            Picker = null;
 
             soundPlayer?.Dispose();
             soundPlayer = null;
@@ -276,7 +289,10 @@ namespace GUI.Types.GLViewers
 
         protected abstract void LoadScene();
 
-        protected abstract void OnPicked(object? sender, PickingTexture.PickingResponse pixelInfo);
+        /// <summary>Handles a pick resolved on the render thread. Viewers that do nothing with picks leave this empty.</summary>
+        protected virtual void OnPicked(PickResult result)
+        {
+        }
 
         protected override void OnResize(int w, int h)
         {
@@ -322,7 +338,7 @@ namespace GUI.Types.GLViewers
 
             if (!MouseDragged || GrabbedMouse)
             {
-                Picker?.RequestNextFrame(InitialMousePosition.X, InitialMousePosition.Y, PickingIntent.Select);
+                Picker?.Request(new PickRequest(InitialMousePosition.X, InitialMousePosition.Y, PickIntent.Select, GetPickModifiers()));
             }
         }
 
@@ -339,12 +355,37 @@ namespace GUI.Types.GLViewers
             {
                 if (e.Clicks == 2)
                 {
-                    var intent = Control.ModifierKeys.HasFlag(Keys.Control)
-                        ? PickingIntent.Open
-                        : PickingIntent.Details;
-                    Picker?.RequestNextFrame(e.X, e.Y, intent);
+                    var modifiers = GetPickModifiers();
+                    var intent = modifiers.HasFlag(PickModifiers.Control)
+                        ? PickIntent.Open
+                        : PickIntent.Details;
+                    Picker?.Request(new PickRequest(e.X, e.Y, intent, modifiers));
                 }
             }
+        }
+
+        // Read when the click happens, since the pick only resolves on a later frame
+        private static PickModifiers GetPickModifiers()
+        {
+            var keys = Control.ModifierKeys;
+            var modifiers = PickModifiers.None;
+
+            if ((keys & Keys.Control) != 0)
+            {
+                modifiers |= PickModifiers.Control;
+            }
+
+            if ((keys & Keys.Shift) != 0)
+            {
+                modifiers |= PickModifiers.Shift;
+            }
+
+            if ((keys & Keys.Alt) != 0)
+            {
+                modifiers |= PickModifiers.Alt;
+            }
+
+            return modifiers;
         }
 
         protected override void OnGLLoad()
@@ -367,7 +408,7 @@ namespace GUI.Types.GLViewers
             Renderer.Postprocess.ExposureCompensation = -0.4f; // eyeballed
 
             baseGrid = new InfiniteGrid(Scene);
-            SelectedNodeRenderer = new(Scene.RendererContext);
+            selectionVisuals = new(Scene.RendererContext, Selection);
             Picker = new(Scene.RendererContext, OnPicked);
 
             QuadOverdrawRenderer = new(Scene.RendererContext);
@@ -557,7 +598,7 @@ namespace GUI.Types.GLViewers
                 // cancel unintentional selection
                 if (!wasWalkMode && Input.WalkMode)
                 {
-                    SelectedNodeRenderer?.SelectNode(null);
+                    Selection.Clear();
 
                     if (!roundStarted)
                     {
@@ -632,9 +673,9 @@ namespace GUI.Types.GLViewers
             Renderer.PostprocessRender(MainFramebuffer, GLDefaultFramebuffer);
 
             // Over the final image, so the selection keeps its colors whatever the exposure
-            if (SelectedNodeRenderer != null && Renderer.ResolvedSceneDepth != null)
+            if (selectionVisuals != null && Renderer.ResolvedSceneDepth != null)
             {
-                SelectedNodeRenderer.Render(Renderer.ResolvedSceneDepth);
+                selectionVisuals.Render(Renderer.ResolvedSceneDepth);
             }
         }
 
@@ -647,7 +688,7 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(MainFramebuffer != null);
             Debug.Assert(Picker != null);
-            Debug.Assert(SelectedNodeRenderer != null);
+            Debug.Assert(selectionVisuals != null);
 
             Renderer.PerfStats.Capture = perfDisplay == PerfDisplay.Stats;
             Renderer.PerfStats.Timings.Capture = perfDisplay == PerfDisplay.Timings;
@@ -677,31 +718,35 @@ namespace GUI.Types.GLViewers
 
                 Input.LateUpdate(Renderer.Camera);
 
-                SelectedNodeRenderer.Update(renderContext, updateContext);
+                if (ScreenDebugText.Length > 0)
+                {
+                    TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                    {
+                        X = 0.005f,
+                        Y = 0.03f,
+                        Scale = 14f,
+                        Text = ScreenDebugText,
+                    }, Renderer.Camera);
+                }
+
+                selectionVisuals.Update(renderContext, updateContext);
             }
 
             // After the update, so the listener is placed with this frame's camera vectors rather than
             // this frame's position and last frame's facing
             UpdateSoundPlayer();
 
-            Renderer.ForceResolveSceneDepth = ShowBaseGrid || SelectedNodeRenderer.HasSelectedNodes;
+            Renderer.ForceResolveSceneDepth = ShowBaseGrid || !Selection.IsEmpty;
 
             var quadOverdrawThisFrame = false;
 
             using (new GLDebugGroup("Scenes Render"))
             {
-                if (Picker.ActiveNextFrame)
-                {
-                    using var _ = new GLDebugGroup("Picker Object Id Render");
+                Picker.Render(Renderer, renderContext);
 
-                    var pickerContext = renderContext with { ReplacementShader = Picker.Shader, Framebuffer = Picker };
-                    Renderer.RenderScenesWithView(pickerContext);
-                    Picker.Finish();
-                }
-
-                if (Picker.IsDebugActive)
+                if (Picker.Texture.IsDebugActive)
                 {
-                    renderContext.ReplacementShader = Picker.DebugShader;
+                    renderContext.ReplacementShader = Picker.Texture.DebugShader;
                 }
                 else if (QuadOverdrawRenderer?.IsActive == true)
                 {
@@ -882,7 +927,7 @@ namespace GUI.Types.GLViewers
             }
 
             TextRenderer.Render(Renderer.Camera, Renderer.ResolvedSceneDepth);
-            Picker?.TriggerEventIfAny();
+            Picker?.DispatchResults();
 
             Renderer.PerfStats.MarkFrameEnd();
         }
@@ -969,7 +1014,7 @@ namespace GUI.Types.GLViewers
             {
                 var selectedIndex = 0;
                 var currentlySelected = keepCurrentSelection ? renderModeComboBox.SelectedItem?.ToString() : null;
-                var supportedRenderModes = new HashSet<string>(Picker.Shader.RenderModes);
+                var supportedRenderModes = new HashSet<string>(Picker.Texture.Shader.RenderModes);
 
                 if (QuadOverdrawRenderer != null)
                 {
@@ -1036,7 +1081,7 @@ namespace GUI.Types.GLViewers
         private void SetRenderMode(string renderMode)
         {
             Debug.Assert(Picker != null);
-            Debug.Assert(SelectedNodeRenderer != null);
+            Debug.Assert(selectionVisuals != null);
 
             Renderer.ViewBuffer!.Data!.RenderMode = RenderModes.GetShaderId(renderMode);
 
@@ -1047,9 +1092,9 @@ namespace GUI.Types.GLViewers
                 scene.EnableCompaction = renderMode != "Meshlets";
             }
 
-            Picker.SetRenderMode(renderMode);
+            Picker.Texture.SetRenderMode(renderMode);
             QuadOverdrawRenderer?.SetRenderMode(renderMode);
-            SelectedNodeRenderer.SetRenderMode(renderMode);
+            selectionVisuals.SetRenderMode(renderMode);
 
             foreach (var node in Renderer.Scenes.SelectMany(static scene => scene.AllNodes))
             {
@@ -1059,17 +1104,20 @@ namespace GUI.Types.GLViewers
 
         protected override void OnKeyDown(Keys keyData)
         {
-            Debug.Assert(SelectedNodeRenderer != null);
-
             if (keyData == Keys.Delete)
             {
-                SelectedNodeRenderer.DisableSelectedNodes();
+                // Hides the selection, or shows it again
+                foreach (var node in Selection.Nodes)
+                {
+                    node.LayerEnabled = !node.LayerEnabled;
+                }
+
                 return;
             }
 
             if (keyData == Keys.Escape)
             {
-                SelectedNodeRenderer.SelectNode(null);
+                Selection.Clear();
                 if (Input.WalkMode)
                 {
                     MouseReleased = true;
