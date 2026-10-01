@@ -61,8 +61,8 @@ namespace ValveResourceFormat.Renderer
         [VertexAttributeName("vTANGENT", Semantic = "TANGENT")]
         Tangent,
 
-        /// <summary>Vertex color.</summary>
-        [VertexAttributeName("vCOLOR", Semantic = "COLOR")]
+        /// <summary>Vertex color, or the vertex paint tint that some materials read from a texcoord stream.</summary>
+        [VertexAttributeName("vCOLOR", "vVertexColor", Semantic = "COLOR")]
         Color,
 
         /// <summary>Secondary texture coordinates.</summary>

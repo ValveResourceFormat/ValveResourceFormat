@@ -12,7 +12,7 @@ in vec2 vTEXCOORD;
 #include "common/compression.slang"
 
 #if (F_PAINT_VERTEX_COLORS == 1)
-    in vec4 vTEXCOORD2;
+    in vec4 vCOLOR;
     out vec4 vVertexColorOut;
 #endif
 
@@ -43,6 +43,6 @@ void main()
     vTexCoordOut = vTEXCOORD * g_vTexCoordScale.xy + g_vTexCoordOffset.xy;
 
     #if (F_PAINT_VERTEX_COLORS == 1)
-        vVertexColorOut = vTEXCOORD2;
+        vVertexColorOut = vCOLOR;
     #endif
 }
