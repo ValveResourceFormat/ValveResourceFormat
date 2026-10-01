@@ -57,6 +57,9 @@ public sealed class EditorState
     /// <summary>Gets the current mode.</summary>
     public EditorMode Mode { get; private set; } = EditorMode.Viewer;
 
+    /// <summary>Gets which tools-only content is drawn, following the mode.</summary>
+    public ToolsVisibility Tools { get; } = new();
+
     /// <summary>Gets whether the camera is walking as the player.</summary>
     public bool IsWalking => input.WalkMode;
 
@@ -187,6 +190,7 @@ public sealed class EditorState
         }
 
         Mode = mode;
+        Tools.Mode = mode;
         entitySystem.Enabled = mode == EditorMode.Game;
 
         if (mode == EditorMode.Game)

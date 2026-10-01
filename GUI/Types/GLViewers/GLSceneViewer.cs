@@ -38,6 +38,9 @@ namespace GUI.Types.GLViewers
         /// <summary>The nodes selected in this viewer, drawn with an outline and helpers.</summary>
         protected SelectionSet Selection { get; } = new();
 
+        private volatile HashSet<string>? chosenLayers;
+        private volatile bool visibilityDirty;
+
         /// <summary>Text drawn in the top-left corner of the viewport, such as stats for the selection.</summary>
         protected string ScreenDebugText { get; set; } = string.Empty;
 
@@ -179,13 +182,18 @@ namespace GUI.Types.GLViewers
 
                 UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) => showStaticOctree = v);
                 UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
-                UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
+
+                // Viewers with an editor mode have their own tools visibility controls
+                if (!ShowsEditorMode)
                 {
-                    foreach (var scene in Renderer.Scenes)
+                    UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
                     {
-                        scene.ShowToolsMaterials = v;
-                    }
-                });
+                        foreach (var scene in Renderer.Scenes)
+                        {
+                            scene.ShowToolsMaterials = v;
+                        }
+                    });
+                }
 
                 if (Renderer.Scenes.Any(static scene => scene.LightingInfo.LightProbes.Count > 0))
                 {
@@ -353,6 +361,9 @@ namespace GUI.Types.GLViewers
         /// <param name="mode">The new mode.</param>
         protected virtual void OnEditorModeChanged(EditorMode mode)
         {
+            // The tools visibility is kept per mode
+            RequestVisibilityUpdate();
+
             if (mode == EditorMode.Game)
             {
                 Selection.Clear();
@@ -631,6 +642,12 @@ namespace GUI.Types.GLViewers
             }
 
             EditorState.Update();
+
+            if (visibilityDirty)
+            {
+                visibilityDirty = false;
+                ApplyVisibility();
+            }
 
             // Walk mode keeps simulating while the cursor is over the ui, otherwise player
             // physics and teleports stay frozen until the mouse moves back over the viewport.
@@ -1133,11 +1150,40 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        /// <summary>Shows the chosen layers from the next frame, less those the tools visibility hides in viewers with an editor mode.</summary>
         protected void SetEnabledLayers(HashSet<string> layers)
         {
+            chosenLayers = layers;
+            RequestVisibilityUpdate();
+        }
+
+        /// <summary>
+        /// Reapplies what is shown at the start of the next frame. Nodes are added and removed on the render
+        /// thread while the world runs, so they are only walked there.
+        /// </summary>
+        protected void RequestVisibilityUpdate() => visibilityDirty = true;
+
+        /// <summary>Applies the chosen layers and, in viewers with an editor mode, <see cref="EditorState.Tools"/>. Runs on the render thread.</summary>
+        protected virtual void ApplyVisibility()
+        {
+            if (ShowsEditorMode)
+            {
+                foreach (var scene in Renderer.Scenes)
+                {
+                    scene.ShowToolsMaterials = EditorState.Tools.ToolMaterialsVisible;
+                }
+            }
+
+            if (chosenLayers is not { } layers)
+            {
+                return;
+            }
+
+            var enabledLayers = ShowsEditorMode ? EditorState.Tools.FilterLayers(layers) : layers;
+
             foreach (var scene in Renderer.Scenes)
             {
-                scene.SetEnabledLayers(layers);
+                scene.SetEnabledLayers(enabledLayers);
             }
         }
 

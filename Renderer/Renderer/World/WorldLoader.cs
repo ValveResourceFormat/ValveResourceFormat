@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -44,6 +45,15 @@ namespace ValveResourceFormat.Renderer.World
         // Kept apart from world_layer_base so the world geometry can be hidden while collision stays visible.
         // Always enabled, the physics group filter decides what actually draws.
         private const string PhysicsDebugLayerName = "Physics Visualization Layer";
+
+        private const string EntityConnectionsLayerName = "Entity Connections";
+
+        /// <summary>
+        /// Layers of what only exists in the editor: entities without a presence in game, the entities a
+        /// template spawns, and the lines between connected entities.
+        /// </summary>
+        public static FrozenSet<string> ToolEntityLayerNames { get; } =
+            FrozenSet.Create(StringComparer.Ordinal, EditorEntityNode.LayerName, EditorEntityNode.TemplateLayerName, EntityConnectionsLayerName);
 
         /// <summary>Layer names that should be visible by default, populated during loading.</summary>
         public HashSet<string> DefaultEnabledLayers { get; } = ["No layer", "Entities", EditorEntityNode.LayerName, Scene.ParticlesLayerName, PhysicsDebugLayerName];
@@ -917,7 +927,7 @@ namespace ValveResourceFormat.Renderer.World
 
                     var lineNode = new LineSceneNode(scene, start - origin, end - origin, new Color32(0, 255, 0), new Color32(255, 0, 0))
                     {
-                        LayerName = "Entity Connections",
+                        LayerName = EntityConnectionsLayerName,
                         Transform = Matrix4x4.CreateTranslation(origin),
 #if DEBUG
                         Name = $"Line from {entity.Data.GetStringProperty("hammeruniqueid")} to {target.Data?.GetStringProperty("hammeruniqueid")}"

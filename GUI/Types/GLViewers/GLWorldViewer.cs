@@ -37,6 +37,10 @@ namespace GUI.Types.GLViewers
         private EntityInfoForm? entityInfoForm;
         private ThemedButton? gameButton;
         private ThemedButton? stepButton;
+        private CheckBox? showToolsCheckBox;
+        private CheckBox? toolEntitiesCheckBox;
+        private CheckBox? toolMaterialsCheckBox;
+        private volatile HashSet<string> chosenPhysicsGroups = [];
         private bool ignoreLayersChangeEvents = true;
         private List<Matrix4x4> CameraMatrices = [];
         private WorldNodeLoader? LoadedWorldNode;
@@ -74,6 +78,9 @@ namespace GUI.Types.GLViewers
             entityInfoForm?.Dispose();
             gameButton?.Dispose();
             stepButton?.Dispose();
+            showToolsCheckBox?.Dispose();
+            toolEntitiesCheckBox?.Dispose();
+            toolMaterialsCheckBox?.Dispose();
         }
 
         private void AddSceneExposureSlider()
@@ -386,7 +393,32 @@ namespace GUI.Types.GLViewers
 
                 if (uniquePhysicsGroups.Count > 0)
                 {
+                    Debug.Assert(physicsGroupsComboBox != null);
+
+                    physicsGroupsComboBox.BeginUpdate();
+
                     SetAvailablePhysicsGroups(uniquePhysicsGroups);
+
+                    // Groups of tools materials start shown, it is the tools visibility that hides them
+                    var toolsMaterialGroups = Scene.AllNodes
+                        .OfType<PhysSceneNode>()
+                        .Where(static node => node.IsToolsMaterial)
+                        .Select(static node => node.PhysGroupName)
+                        .ToHashSet();
+
+                    foreach (var group in toolsMaterialGroups)
+                    {
+                        var checkboxIndex = physicsGroupsComboBox.FindStringExact(group);
+
+                        if (checkboxIndex > -1)
+                        {
+                            physicsGroupsComboBox.SetItemCheckState(checkboxIndex, CheckState.Checked);
+                        }
+                    }
+
+                    physicsGroupsComboBox.EndUpdate();
+
+                    SetEnabledPhysicsGroups(toolsMaterialGroups);
                 }
 
                 using (UiControl.BeginGroup("World"))
@@ -399,6 +431,7 @@ namespace GUI.Types.GLViewers
                     UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
 
                     AddModeControls();
+                    AddToolsVisibilityControls();
 
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
 
@@ -600,6 +633,31 @@ namespace GUI.Types.GLViewers
             UiControl.AddControl(panel);
         }
 
+        private void AddToolsVisibilityControls()
+        {
+            Debug.Assert(UiControl != null);
+
+            var tools = EditorState.Tools;
+
+            showToolsCheckBox = UiControl.AddCheckBox("Show Tools", tools.ShowTools, v =>
+            {
+                tools.ShowTools = v;
+                RequestVisibilityUpdate();
+            });
+            toolEntitiesCheckBox = UiControl.AddCheckBox("Tool Entities", tools.ShowToolEntities, v =>
+            {
+                tools.ShowToolEntities = v;
+                RequestVisibilityUpdate();
+            });
+            toolMaterialsCheckBox = UiControl.AddCheckBox("Tool Materials", tools.ShowToolMaterials, v =>
+            {
+                tools.ShowToolMaterials = v;
+                RequestVisibilityUpdate();
+            });
+
+            RequestVisibilityUpdate();
+        }
+
         private static string GameButtonText(EditorMode mode) => mode == EditorMode.Game ? "Back to Viewer" : "Run Game";
 
         protected override bool ShowsEditorMode => true;
@@ -615,6 +673,9 @@ namespace GUI.Types.GLViewers
                 {
                     button.Text = GameButtonText(mode);
                     stepButton?.Enabled = mode == EditorMode.Viewer;
+
+                    // The master switch is kept per mode, so it changes with the mode
+                    showToolsCheckBox?.Checked = EditorState.Tools.ShowTools;
                 });
             }
         }
@@ -752,6 +813,15 @@ namespace GUI.Types.GLViewers
 
         private void EnsureNodeVisible(SceneNode node)
         {
+            if (node.LayerName != null && ToolsVisibility.IsToolEntityLayer(node.LayerName) && !EditorState.Tools.ToolEntitiesVisible)
+            {
+                EditorState.Tools.ShowTools = true;
+                EditorState.Tools.ShowToolEntities = true;
+                showToolsCheckBox?.Checked = true;
+                toolEntitiesCheckBox?.Checked = true;
+                RequestVisibilityUpdate();
+            }
+
             if (!node.LayerEnabled && worldLayersComboBox != null && node.LayerName != null)
             {
                 var layerId = worldLayersComboBox.Items.IndexOf(node.LayerName);
@@ -760,6 +830,15 @@ namespace GUI.Types.GLViewers
                 {
                     worldLayersComboBox.SetItemChecked(layerId, true);
                 }
+            }
+
+            if (node is PhysSceneNode { IsToolsMaterial: true } && !EditorState.Tools.ToolMaterialsVisible)
+            {
+                EditorState.Tools.ShowTools = true;
+                EditorState.Tools.ShowToolMaterials = true;
+                showToolsCheckBox?.Checked = true;
+                toolMaterialsCheckBox?.Checked = true;
+                RequestVisibilityUpdate();
             }
 
             if (node is PhysSceneNode physNode && !physNode.Enabled && physicsGroupsComboBox != null && physNode.PhysGroupName != null)
@@ -1155,27 +1234,25 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
+        protected override void ApplyVisibility()
         {
-            var renderTranslucent = !physicsGroups.Contains(PhysicsRenderAsOpaque);
+            base.ApplyVisibility();
 
-            if (!renderTranslucent)
-            {
-                physicsGroups.Remove(PhysicsRenderAsOpaque);
-            }
+            var physicsGroups = chosenPhysicsGroups;
+            var renderTranslucent = !physicsGroups.Contains(PhysicsRenderAsOpaque);
+            var tools = EditorState.Tools;
 
             foreach (var physNode in Scene.AllNodes.OfType<PhysSceneNode>())
             {
-                physNode.Enabled = physicsGroups.Contains(physNode.PhysGroupName);
+                physNode.Enabled = tools.IsPhysicsVisible(physNode, physicsGroups.Contains(physNode.PhysGroupName));
                 physNode.IsTranslucentRenderMode = renderTranslucent;
             }
+        }
 
-            using var lockedGl = MakeCurrent();
-
-            foreach (var scene in Renderer.Scenes)
-            {
-                scene.UpdateOctrees();
-            }
+        private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
+        {
+            chosenPhysicsGroups = physicsGroups;
+            RequestVisibilityUpdate();
         }
     }
 }
