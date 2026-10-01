@@ -58,7 +58,7 @@ curl http://127.0.0.1:13338/mcp \
 | `get_info`                             | Describe any tab, including which tools work on it and the spawn groups a map loaded.                       |
 | `list_package`                         | List or search the files in a package tab or a .vpk on disk, paged, with sizes, types and vpk: links.       |
 | **Camera and view**                    |                                                                                                             |
-| `get_camera`, `set_camera`             | Read or move the camera of a 3D tab.                                                                        |
+| `get_camera`, `set_camera`             | Read or move the camera of a 3D tab. Reading also gives the view direction and render area size.            |
 | `frame`                                | Frame an entity, a node, a box or the whole scene, landing there at once.                                   |
 | `screenshot`                           | Capture what a tab renders: a 3D view, texture, image or graph. Model tabs can capture transparently.       |
 | `set_viewport`                         | Render a 3D tab at an exact pixel size, so screenshots from two builds can be compared.                     |

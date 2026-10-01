@@ -1158,9 +1158,15 @@ internal sealed partial class McpTools
     private static JsonObject DescribeCamera(Camera camera) => new()
     {
         ["position"] = Round(camera.Location),
-        ["angles"] = Round(camera.GetQAngle()),
+        ["angles"] = Round(NormalizeAngles(camera.GetQAngle())),
         ["fov"] = Round(camera.FieldOfView),
     };
+
+    /// <summary>Each angle wrapped into -180 to 180 degrees.</summary>
+    private static Vector3 NormalizeAngles(Vector3 angles) => new(
+        MathF.IEEERemainder(angles.X, 360f),
+        MathF.IEEERemainder(angles.Y, 360f),
+        MathF.IEEERemainder(angles.Z, 360f));
 
     private static JsonObject Schema(JsonObject? properties = null, params string[] required)
     {

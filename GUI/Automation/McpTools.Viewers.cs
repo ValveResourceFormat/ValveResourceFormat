@@ -21,6 +21,9 @@ internal sealed partial class McpTools
 {
     private static readonly TimeSpan FrameTimeout = TimeSpan.FromSeconds(30);
 
+    private const float MinFieldOfView = 1f;
+    private const float MaxFieldOfView = 179f;
+
     // Reloading every shader takes a while, and it holds the UI thread the whole time because the
     // reload rebuilds the render mode list, so it does not get the usual marshal timeout.
     private static readonly TimeSpan ShaderReloadTimeout = TimeSpan.FromMinutes(5);
@@ -69,24 +72,34 @@ internal sealed partial class McpTools
             }, ct),
             SceneViewer);
 
-        Add("get_camera", "Read the camera position, angles and field of view of a 3D tab.",
+        Add("get_camera", "Read the camera of a 3D tab: position, angles each within -180 to 180, field of view, the unit vector it looks along, and the size of the render area that pick and trace take pixels in.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
             }),
             // The input camera is the authoritative one. Renderer.Camera is the interpolated view,
             // which lags behind it and does not update at all while the app is paused.
-            (args, ct) => WithViewer<GLSceneViewer>(args, viewer => McpToolResult.Json(DescribeCamera(viewer.Input.Camera)), ct),
+            (args, ct) => WithViewer<GLSceneViewer>(args, viewer =>
+            {
+                var camera = viewer.Input.Camera;
+                var result = DescribeCamera(camera);
+                var (width, height) = viewer.ViewportSize;
+
+                result["forward"] = Round(EntityTransformHelper.EulerAnglesToForwardDirection(camera.GetQAngle()));
+                result["viewport"] = new JsonArray(width, height);
+
+                return McpToolResult.Json(result);
+            }, ct),
             SceneViewer);
 
         Add("set_camera", "Move the camera of a 3D tab instantly, with no fly-in transition. Takes the same shape get_camera returns.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
-                ["position"] = VectorProp("World position [x, y, z]."),
-                ["angles"] = VectorProp("[pitch, yaw, roll] in degrees, pitch positive downwards. Defaults to the current pitch and yaw with no roll."),
+                ["position"] = VectorProp($"World position [x, y, z], within {MaxCoordinate:F0} units of the origin."),
+                ["angles"] = VectorProp("[pitch, yaw, roll] in degrees, pitch positive downwards and at most 90 either way. Defaults to the current pitch and yaw with no roll."),
                 ["look_at"] = VectorProp("World point [x, y, z] to face, instead of 'angles'."),
-                ["fov"] = Prop("number", "Field of view in degrees. Left alone when omitted."),
+                ["fov"] = Prop("number", $"Field of view in degrees, from {MinFieldOfView:F0} to {MaxFieldOfView:F0}. Left alone when omitted."),
             }, "position"),
             SetCamera, SceneViewer);
 
@@ -538,6 +551,36 @@ internal sealed partial class McpTools
         if (angles != null && lookAt != null)
         {
             return McpToolResult.Error("Pass either 'angles' or 'look_at', not both.");
+        }
+
+        if (!IsSanePosition(position.Value))
+        {
+            return McpToolResult.Error(NotAPosition("position"));
+        }
+
+        if (lookAt != null && !IsSanePosition(lookAt.Value))
+        {
+            return McpToolResult.Error(NotAPosition("look_at"));
+        }
+
+        if (angles != null)
+        {
+            if (!IsFinite(angles.Value))
+            {
+                return McpToolResult.Error("'angles' must be finite.");
+            }
+
+            angles = NormalizeAngles(angles.Value);
+
+            if (MathF.Abs(angles.Value.X) > 90f)
+            {
+                return McpToolResult.Error("The pitch in 'angles' must be between -90 and 90 degrees; past that the view turns over.");
+            }
+        }
+
+        if (fov != null && !(fov.Value >= MinFieldOfView && fov.Value <= MaxFieldOfView))
+        {
+            return McpToolResult.Error($"'fov' must be between {MinFieldOfView:F0} and {MaxFieldOfView:F0} degrees.");
         }
 
         return await WithViewer<GLSceneViewer>(args, viewer =>
