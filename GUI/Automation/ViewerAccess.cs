@@ -256,6 +256,31 @@ namespace GUI.Types.GLViewers
         /// </summary>
         internal void ClearSelection() => SelectedNodeRenderer?.SelectNode(null);
 
+        /// <summary>Adds a node to the selection, or takes it out when it is already in, as Ctrl+click does.</summary>
+        internal void ToggleSelectedNode(SceneNode node) => SelectedNodeRenderer?.ToggleNode(node);
+
+        /// <summary>
+        /// Flips whether each node is drawn the way the Delete key does: selects exactly these nodes as
+        /// a click and Ctrl+clicks would, presses Delete, then drops the selection as Escape does.
+        /// </summary>
+        internal void ToggleNodesWithDelete(IReadOnlyList<SceneNode> nodes)
+        {
+            if (SelectedNodeRenderer == null || nodes.Count == 0)
+            {
+                return;
+            }
+
+            SelectedNodeRenderer.SelectNode(nodes[0]);
+
+            for (var i = 1; i < nodes.Count; i++)
+            {
+                SelectedNodeRenderer.ToggleNode(nodes[i]);
+            }
+
+            SelectedNodeRenderer.DisableSelectedNodes();
+            SelectedNodeRenderer.SelectNode(null);
+        }
+
         /// <summary>The value of <see cref="PerfDisplayMode"/> that fills the per frame counters.</summary>
         internal const int PerfDisplayStats = (int)PerfDisplay.Stats;
 
@@ -299,18 +324,27 @@ namespace GUI.Types.GLViewers
         /// <returns>The selected node, or null when the entity has none.</returns>
         internal SceneNode? SelectAndFocusEntity(EntityLump.Entity entity, Vector3 worldOrigin)
         {
-            var node = Scene.Find(entity) ?? SkyScene?.Find(entity);
+            var node = Renderer.FindNode(entity);
 
             if (node == null)
             {
                 SelectedNodeRenderer?.SelectNode(null);
-                FocusCameraOnBounds(new AABB(worldOrigin - new Vector3(32f), worldOrigin + new Vector3(32f)));
+                FocusCameraOnBounds(PointBounds(worldOrigin));
                 return null;
             }
 
             SelectAndFocusNode(node);
             return node;
         }
+
+        /// <summary>Moves the camera to frame these world bounds, as focusing an entity does.</summary>
+        internal void FocusCameraOn(AABB bounds) => FocusCameraOnBounds(bounds);
+
+        /// <summary>The world bounds focusing a node frames, which a point stands in for when the node has no size.</summary>
+        internal static AABB FocusBounds(SceneNode node) => SelectionBounds(node);
+
+        /// <summary>The world bounds focusing frames for an entity that has no node, around where it is placed.</summary>
+        internal static AABB FocusBounds(Vector3 worldOrigin) => PointBounds(worldOrigin);
     }
 
     partial class RenderLoopThread

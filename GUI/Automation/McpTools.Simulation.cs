@@ -11,6 +11,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -155,17 +156,18 @@ internal sealed partial class McpTools
             return error;
         }
 
-        var world = (viewer as GLWorldViewer)?.LoadedWorld;
+        var worldViewer = viewer as GLWorldViewer;
+        var world = worldViewer?.LoadedWorld;
         MapEntity? entity = null;
 
         if (entityId != null)
         {
-            if (world == null)
+            if (worldViewer == null || world == null)
             {
                 return McpToolResult.Error("'entity' needs a tab with a map loaded.");
             }
 
-            entity = EntityById(world, entityId.Value);
+            entity = await OnUi(() => EntityById(worldViewer, world, entityId.Value), cancellationToken).ConfigureAwait(false);
 
             if (entity == null)
             {
@@ -173,21 +175,18 @@ internal sealed partial class McpTools
             }
         }
 
+        var describer = await OnUi(() => new NodeDescriber(viewer!), cancellationToken).ConfigureAwait(false);
+
         // Off the UI thread, because holding a frame there can deadlock against a frame that is
         // waiting on the UI thread.
         return await Task.Run(() =>
         {
             using var frame = viewer!.HoldFrame();
 
-            var systems = new List<(ParticleSceneNode Node, bool InSky, float Distance)>();
+            var systems = new List<(ParticleSceneNode Node, float Distance)>();
 
-            void Collect(Scene? scene, bool inSky)
+            foreach (var scene in viewer!.Renderer.Scenes)
             {
-                if (scene == null)
-                {
-                    return;
-                }
-
                 foreach (var node in scene.AllNodes)
                 {
                     if (node is not ParticleSceneNode particles)
@@ -207,12 +206,9 @@ internal sealed partial class McpTools
                         continue;
                     }
 
-                    systems.Add((particles, inSky, distance));
+                    systems.Add((particles, distance));
                 }
             }
-
-            Collect(viewer.Scene, inSky: false);
-            Collect(viewer.SkyScene, inSky: true);
 
             if (near != null)
             {
@@ -220,10 +216,11 @@ internal sealed partial class McpTools
             }
 
             var list = new JsonArray();
+            var spawned = world != null ? SpawnedEntities(viewer) : null;
 
-            foreach (var (node, inSky, _) in systems.Take(limit))
+            foreach (var (node, _) in systems.Take(limit))
             {
-                list.Add(DescribeParticles(node, inSky, world));
+                list.Add(DescribeParticles(node, describer, worldViewer, spawned));
             }
 
             var result = new JsonObject
@@ -240,28 +237,29 @@ internal sealed partial class McpTools
         }, cancellationToken).ConfigureAwait(false);
     }
 
-    private static JsonObject DescribeParticles(ParticleSceneNode node, bool inSky, ValveResourceFormat.Renderer.World.WorldLoader? world)
+    private JsonObject DescribeParticles(ParticleSceneNode node, NodeDescriber describer, GLWorldViewer? worldViewer, Dictionary<EntityLump.Entity, BaseEntity>? spawned)
     {
         var simulation = node.ParticleSimulation;
 
         var result = new JsonObject
         {
             ["name"] = node.Name ?? simulation.Name,
+            ["node"] = describer.Id(node),
         };
 
-        if (world != null && node.EntityData != null && EntityByData(world, node.EntityData) is { } entity)
+        if (worldViewer is { LoadedWorld: { } world } && node.EntityData != null && EntityByData(worldViewer, world, node.EntityData) is { } entity)
         {
-            result["entity"] = DescribeEntity(world, entity);
+            result["entity"] = DescribeEntity(entity, spawned?.GetValueOrDefault(entity.Data));
         }
 
-        if (inSky)
+        if (node.Scene.WorldGroup != null)
         {
             result["sky"] = true;
         }
 
-        if (!node.LayerEnabled || !node.Visible)
+        if (describer.HiddenReasons(node) is { Count: > 0 } reasons)
         {
-            result["hidden"] = true;
+            result["hidden"] = new JsonArray([.. reasons.Select(static reason => (JsonNode?)reason)]);
         }
 
         if (node.IsPaused)

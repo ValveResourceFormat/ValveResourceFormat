@@ -1,6 +1,6 @@
 # MCP Automation Server
 
-Source 2 Viewer has an opt-in loopback server that lets an agent or script drive the real viewer window over the Model Context Protocol: open files, move the camera, toggle layers and render modes, drive the sidebar controls, inspect entities and particle systems, pick, pause and step simulation time, read the log, render stats and memory use, and take screenshots.
+Source 2 Viewer has an opt-in loopback server that lets an agent or script drive the real viewer window over the Model Context Protocol: open files, move the camera, toggle layers and render modes, drive the sidebar controls, inspect entities, models and particle systems, pick, trace, hide nodes, pause and step simulation time, read the log, render stats and memory use, and take screenshots.
 
 It exists for developing and testing the viewer itself. The tools can open anything the user could open through the UI, and there is no sandbox.
 
@@ -55,10 +55,11 @@ curl http://127.0.0.1:13338/mcp \
 | `select_tab`, `close_tab`              | Make a tab active, or close it. Only the active tab renders.                                                |
 | `open_file`                            | Open a file and wait until its tab has finished loading. Fails with the exception when the viewer does.     |
 | `reload_tab`                           | Reopen a tab from its file, as Ctrl+R does, and wait for it to load. Returns the new tab id.                |
-| `get_info`                             | Describe any tab, including which tools work on it.                                                         |
+| `get_info`                             | Describe any tab, including which tools work on it and the spawn groups a map loaded.                       |
 | `list_package`                         | List or search the files in a package tab or a .vpk on disk, paged, with sizes, types and vpk: links.       |
 | **Camera and view**                    |                                                                                                             |
 | `get_camera`, `set_camera`             | Read or move the camera of a 3D tab.                                                                        |
+| `frame`                                | Frame an entity, a node, a box or the whole scene, landing there at once.                                   |
 | `screenshot`                           | Capture what a tab renders: a 3D view, texture, image or graph. Model tabs can capture transparently.       |
 | `set_viewport`                         | Render a 3D tab at an exact pixel size, so screenshots from two builds can be compared.                     |
 | `list_render_modes`, `set_render_mode` | List or switch the debug render modes of a 3D tab.                                                          |
@@ -71,9 +72,12 @@ curl http://127.0.0.1:13338/mcp \
 | **Maps and entities**                  |                                                                                                             |
 | `list_layers`                          | World layers and physics groups of a map, each with whether it is drawn.                                    |
 | `set_layer`, `set_physics_group`       | Show or hide one world layer or physics group.                                                              |
-| `find_entities`, `get_entity`          | Search the entities of a map and its 3D sky, or read everything about one.                                  |
+| `find_entities`, `get_entity`          | Search the entities of a map and its spawn groups by name, keyvalue or trigger, or read one.                |
 | `select_entity`                        | Select an entity and move the camera to it.                                                                 |
-| `pick`, `clear_selection`              | Identify the node and entity under a pixel, or drop the selection.                                          |
+| `pick`, `clear_selection`              | Identify the node, mesh and entity under a pixel, select, add or open it, or drop the selection.            |
+| `trace`                                | Trace a ray or box through a map's collision, or read what a pixel shows and how far away it is.            |
+| `set_hidden`, `list_hidden`            | Hide or show nodes the way the Delete key does, or list the nodes hidden that way.                          |
+| `get_model_info`                       | Bones, bounds, attachments and other facts about a model that the sidebar does not show.                    |
 | **Simulation and particles**           |                                                                                                             |
 | `pause`, `resume`                      | Freeze or resume the simulation of every tab. Frames still render while paused.                             |
 | `step`                                 | Advance the simulation by an exact number of seconds in fixed frames, then stay paused.                     |
@@ -95,9 +99,12 @@ Tools that act on a tab take an optional `tab` id from `open_file` or `list_tabs
 - `screenshot` writes only to an absolute `.png` path in a folder that exists, and checks that before capturing.
 - Calls that change the view draw a frame before answering, so the window shows the result even while it is in the background. Screenshots work in the background too, but not while the window is minimized.
 - For repeatable screenshots, `pause` and then `step` exact amounts of time. Particles do not emit while paused, so step after loading a map to see them.
-- Tools that need a 3D scene only work on 3D tabs (models, maps, materials, particle systems). Texture, image and graph tabs take `screenshot`, `set_viewport` and the sidebar tools.
+- Tools that need a 3D scene only work on 3D tabs (models, maps, materials, particle systems). Texture, image and graph tabs take `screenshot` and the sidebar tools.
 - A tool that acts on a tab that is still loading waits for the load to finish.
 - An unhandled exception is reported through `get_status` and the failing tool instead of opening the error dialog.
+- Scene nodes have ids like `0:123`: the index of their scene, 0 for the map's own and then one per spawn group such as the 3D sky, and the node's id in it. Entities of the map and its 3D sky keep their integer ids; entities of other spawn groups, such as stages a map loads while it plays, get ids from 1000000 up.
+- Pixel coordinates for `pick` and `trace` run from the top left of the render area, whose size `get_camera` returns. A pixel showing no node answers with background `sky` or `nothing`; one outside the render area is an error.
+- `set_hidden` drives the same selection and Delete key path as the viewer, so it drops the selection. Turning any world layer on or off applies the layers to every node again, which shows every node hidden this way or with Delete.
 
 ## Example Session
 

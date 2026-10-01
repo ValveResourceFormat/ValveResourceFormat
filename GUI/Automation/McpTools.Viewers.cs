@@ -277,6 +277,31 @@ internal sealed partial class McpTools
                 info["sky_nodes"] = skyboxScene.AllNodes.Count();
             }
 
+            if (scene.Renderer.SpawnGroups.Count > 0)
+            {
+                var groups = new JsonArray();
+
+                foreach (var group in scene.Renderer.SpawnGroups)
+                {
+                    var entry = new JsonObject
+                    {
+                        ["map"] = group.MapName,
+                        ["scene"] = scene.Renderer.Scenes.ToList().IndexOf(group.Scene),
+                        ["nodes"] = group.Scene.AllNodes.Count(),
+                        ["entities"] = group.Entities.Count,
+                    };
+
+                    if (group.WorldGroup != null)
+                    {
+                        entry["sky"] = true;
+                    }
+
+                    groups.Add(entry);
+                }
+
+                info["spawn_groups"] = groups;
+            }
+
             if (scene is GLWorldViewer { LoadedWorld: { } world })
             {
                 info["map"] = world.MapName;

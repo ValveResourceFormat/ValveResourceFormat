@@ -55,7 +55,7 @@ internal sealed partial class McpTools
     [
         "select_tab", "close_tab", "open_file", "clear_selection", "set_camera", "set_layer",
         "set_physics_group", "set_render_mode", "set_checkbox", "set_dropdown", "select_entity", "pick", "pause", "resume",
-        "reload_tab", "particle_playback",
+        "reload_tab", "particle_playback", "set_hidden", "frame",
     ];
 
     /// <summary>
@@ -82,6 +82,7 @@ internal sealed partial class McpTools
         RegisterViewerTools();
         RegisterControlTools();
         RegisterEntityTools();
+        RegisterSceneTools();
         RegisterSimulationTools();
         RegisterParticleTools();
         RegisterPackageTools();
@@ -1209,6 +1210,13 @@ internal sealed partial class McpTools
 
     private static JsonObject TabProp() => Prop("integer", "Tab id from open_file or list_tabs. Defaults to the active tab.");
 
+    private static JsonObject StringArrayProp(string description) => new()
+    {
+        ["type"] = "array",
+        ["items"] = new JsonObject { ["type"] = "string" },
+        ["description"] = description,
+    };
+
     private static JsonObject VectorProp(string description) => new()
     {
         ["type"] = "array",
@@ -1286,6 +1294,38 @@ internal sealed partial class McpTools
         }
 
         throw new ArgumentException($"'{name}' must be an array of three numbers, got {node.ToJsonString()}.");
+    }
+
+    private static List<string>? GetStringArray(JsonObject args, string name)
+    {
+        if (!args.TryGetPropertyValue(name, out var node) || node == null)
+        {
+            return null;
+        }
+
+        if (node is JsonValue single && single.TryGetValue<string>(out var only))
+        {
+            return [only];
+        }
+
+        if (node is JsonArray array)
+        {
+            var strings = new List<string>(array.Count);
+
+            foreach (var item in array)
+            {
+                if (item is not JsonValue value || !value.TryGetValue<string>(out var text))
+                {
+                    throw new ArgumentException($"'{name}' must be an array of strings, got {node.ToJsonString()}.");
+                }
+
+                strings.Add(text);
+            }
+
+            return strings;
+        }
+
+        throw new ArgumentException($"'{name}' must be an array of strings, got {node.ToJsonString()}.");
     }
 
     private static Regex? GetRegex(JsonObject args, string name)
