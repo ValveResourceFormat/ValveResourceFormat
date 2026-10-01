@@ -60,11 +60,6 @@ namespace GUI.Types.GLViewers
             base.OnPaint(frameTime);
         }
 
-        protected override void OnPicked(object? sender, PickingTexture.PickingResponse pickingResponse)
-        {
-            //
-        }
-
         // Render only the main scene nodes into a transparent framebuffer
         protected override SKBitmap? ReadPixelsToBitmap()
         {

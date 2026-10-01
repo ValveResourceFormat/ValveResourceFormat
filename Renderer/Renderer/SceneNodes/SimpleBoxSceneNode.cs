@@ -4,6 +4,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     {
         public override bool IsTranslucent => false;
 
+        public override bool IsPointMarker => true;
+
         public SimpleBoxSceneNode(Scene scene, Color32 color, Vector3 scale)
             : base(scene, scale / -2, scale / 2, color)
         {

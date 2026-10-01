@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
+using ValveResourceFormat.Editor.Picking;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -289,7 +290,7 @@ namespace GUI.Types.GLViewers
             }
             else
             {
-                Picker?.OnPicked -= OnPicked;
+                Picker?.Enabled = false;
             }
 
             if (phys != null)
@@ -841,13 +842,13 @@ namespace GUI.Types.GLViewers
         {
             // The stats overlay reflects whatever meshes are currently drawn, so it only needs rebuilding
             // when that set changes (a LoD switch, or a mesh/material group change), not every frame.
-            if (modelSceneNode != null && SelectedNodeRenderer != null)
+            if (modelSceneNode != null)
             {
-                if (!SelectedNodeRenderer.HasSelectedNodes)
+                if (Selection.IsEmpty)
                 {
                     if (modelStatsPosted)
                     {
-                        SelectedNodeRenderer.ScreenDebugText = string.Empty;
+                        ScreenDebugText = string.Empty;
                         modelStatsPosted = false;
                         modelStatsDirty = true;
                     }
@@ -862,7 +863,7 @@ namespace GUI.Types.GLViewers
 
                     if (modelStatsDirty)
                     {
-                        SelectedNodeRenderer.ScreenDebugText = GetModelStatsText();
+                        ScreenDebugText = GetModelStatsText();
                         modelStatsDirty = false;
                         modelStatsPosted = true;
                     }
@@ -889,33 +890,31 @@ namespace GUI.Types.GLViewers
                 : $"LOD: {modelSceneNode.ActiveLod}";
         }
 
-        protected override void OnPicked(object? sender, PickingTexture.PickingResponse pickingResponse)
+        protected override void OnPicked(PickResult result)
         {
             if (modelSceneNode == null)
             {
                 return;
             }
 
-            Debug.Assert(SelectedNodeRenderer != null);
-
             // Void
-            if (pickingResponse.PixelInfo.ObjectId == 0)
+            if (result.HitNothing)
             {
-                SelectedNodeRenderer.SelectNode(null);
+                Selection.Clear();
                 return;
             }
 
-            if (pickingResponse.Intent == PickingTexture.PickingIntent.Select)
+            if (result.Intent == PickIntent.Select)
             {
-                var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
-                SelectedNodeRenderer.SelectNode(sceneNode);
+                var sceneNode = Scene.Find(result.Pixel.ObjectId);
+                Selection.Select(sceneNode);
                 modelStatsDirty = true;
                 return;
             }
 
-            if (pickingResponse.Intent == PickingTexture.PickingIntent.Open)
+            if (result.Intent == PickIntent.Open)
             {
-                var refMesh = modelSceneNode.GetReferenceMeshes().FirstOrDefault(x => x.MeshIndex == pickingResponse.PixelInfo.MeshId);
+                var refMesh = modelSceneNode.GetReferenceMeshes().FirstOrDefault(x => x.MeshIndex == result.Pixel.MeshId);
                 if (refMesh.MeshName != null)
                 {
                     var foundFile = GuiContext.FindFileWithContext(refMesh.MeshName + GameFileLoader.CompiledFileSuffix);

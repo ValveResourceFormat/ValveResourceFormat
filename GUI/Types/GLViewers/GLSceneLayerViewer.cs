@@ -3,7 +3,6 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
-using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {
@@ -65,10 +64,6 @@ namespace GUI.Types.GLViewers
             SetEnabledLayers(enabledLayers);
 
             base.AddUiControls();
-        }
-
-        protected override void OnPicked(object? sender, PickingResponse pixelInfo)
-        {
         }
     }
 }
