@@ -73,7 +73,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <param name="size">The width and height of the quad in world units.</param>
         public static MeshSceneNode CreateMaterialPreviewQuad(Scene scene, RenderMaterial material, Vector2 size)
         {
-            var vbib = new VBIB() { Resource = null! };
             var half = size / 2.0f;
 
             Span<Vertex> vertices =
@@ -90,12 +89,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 new(new(half.X, -half.Y, 0f), new(1f, 1f), Color32.Blue),
             ];
 
-            var bounds = new AABB();
-            foreach (var vertex in vertices)
-            {
-                bounds = bounds.Encapsulate(vertex.Position);
-            }
-
             Span<uint> indices =
             [
                 2, 3, 1,
@@ -107,6 +100,76 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 8, 9, 7,
                 8, 7, 6,
             ];
+
+            return CreateMesh(scene, "MaterialPreviewQuad", material, vertices, indices);
+        }
+
+        /// <summary>
+        /// Creates a sphere mesh node suitable for previewing a material, with texture coordinates wrapping
+        /// once around it and running from pole to pole.
+        /// </summary>
+        /// <param name="scene">The scene to add the node to.</param>
+        /// <param name="material">The material to display on the sphere.</param>
+        /// <param name="radius">The radius of the sphere in world units.</param>
+        public static MeshSceneNode CreateMaterialPreviewSphere(Scene scene, RenderMaterial material, float radius)
+        {
+            const int Segments = 64;
+            const int Rings = 32;
+
+            // The seam and poles repeat vertices so each can carry its own texture coordinate
+            var vertices = new Vertex[(Rings + 1) * (Segments + 1)];
+            var indices = new uint[Rings * Segments * 6];
+
+            for (var ring = 0; ring <= Rings; ring++)
+            {
+                var v = (float)ring / Rings;
+                var (sinTheta, cosTheta) = MathF.SinCos(MathF.PI * v);
+
+                for (var segment = 0; segment <= Segments; segment++)
+                {
+                    var u = (float)segment / Segments;
+                    var (sinPhi, cosPhi) = MathF.SinCos(MathF.Tau * u);
+
+                    var normal = new Vector3(sinTheta * cosPhi, sinTheta * sinPhi, cosTheta);
+
+                    // Along increasing u; the bitangent then points towards the top pole, as on the quad
+                    var tangent = new Vector4(-sinPhi, cosPhi, 0f, 1f);
+
+                    vertices[ring * (Segments + 1) + segment] = new Vertex(normal * radius, new Vector2(u, v), Color32.Black, normal, tangent);
+                }
+            }
+
+            var index = 0;
+
+            for (var ring = 0; ring < Rings; ring++)
+            {
+                for (var segment = 0; segment < Segments; segment++)
+                {
+                    var current = (uint)(ring * (Segments + 1) + segment);
+                    var below = current + Segments + 1;
+
+                    indices[index++] = current;
+                    indices[index++] = below;
+                    indices[index++] = current + 1;
+
+                    indices[index++] = current + 1;
+                    indices[index++] = below;
+                    indices[index++] = below + 1;
+                }
+            }
+
+            return CreateMesh(scene, "MaterialPreviewSphere", material, vertices, indices);
+        }
+
+        private static MeshSceneNode CreateMesh(Scene scene, string name, RenderMaterial material, ReadOnlySpan<Vertex> vertices, ReadOnlySpan<uint> indices)
+        {
+            var vbib = new VBIB() { Resource = null! };
+
+            var bounds = new AABB();
+            foreach (var vertex in vertices)
+            {
+                bounds = bounds.Encapsulate(vertex.Position);
+            }
 
             // Vertex buffer with interleaved data
             vbib.VertexBuffers.Add(new VBIB.OnDiskBufferData
@@ -125,7 +188,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 InputLayoutFields = []
             });
 
-            var renderableMesh = RenderableMesh.CreateMesh("MaterialPreviewQuad", material, vbib, bounds, scene.RendererContext);
+            var renderableMesh = RenderableMesh.CreateMesh(name, material, vbib, bounds, scene.RendererContext);
             return new MeshSceneNode(scene, renderableMesh);
         }
     }
