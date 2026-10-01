@@ -53,8 +53,8 @@ internal sealed partial class McpTools
             string.IsNullOrEmpty(pattern) ? null : WildcardToRegex(pattern),
             pattern?.Contains('/', StringComparison.Ordinal) == true,
             string.IsNullOrEmpty(type) ? null : type,
-            Math.Max(0, GetInt(args, "offset") ?? 0),
-            Math.Clamp(GetInt(args, "limit") ?? 100, 1, 1000));
+            GetOffset(args),
+            GetLimit(args, 100, 1000));
 
         if (packagePath != null)
         {

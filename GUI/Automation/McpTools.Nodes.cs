@@ -400,8 +400,8 @@ internal sealed partial class McpTools
 
     private Task<McpToolResult> ListHidden(JsonObject args, CancellationToken cancellationToken)
     {
-        var offset = Math.Max(0, GetInt(args, "offset") ?? 0);
-        var limit = Math.Clamp(GetInt(args, "limit") ?? 100, 1, 1000);
+        var offset = GetOffset(args);
+        var limit = GetLimit(args, 100, 1000);
 
         return WithViewer<GLSceneViewer>(args, viewer =>
         {

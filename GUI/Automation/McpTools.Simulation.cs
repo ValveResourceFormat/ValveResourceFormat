@@ -147,7 +147,7 @@ internal sealed partial class McpTools
         var entityId = GetInt(args, "entity");
         var near = GetVector(args, "near");
         var radius = GetFloat(args, "radius") ?? 512f;
-        var limit = Math.Clamp(GetInt(args, "limit") ?? 20, 1, 500);
+        var limit = GetLimit(args, 20, 500);
 
         var (viewer, error) = await ActivateViewer<GLSceneViewer>(args, cancellationToken).ConfigureAwait(false);
 

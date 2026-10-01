@@ -297,8 +297,13 @@ internal sealed partial class McpTools
         var radius = GetFloat(args, "radius") ?? 512f;
         var sky = GetBool(args, "sky");
         var fields = GetStringArray(args, "fields");
-        var offset = Math.Max(0, GetInt(args, "offset") ?? 0);
-        var limit = Math.Clamp(GetInt(args, "limit") ?? 50, 1, 1000);
+        var offset = GetOffset(args);
+        var limit = GetLimit(args, 50, 1000);
+
+        if (!float.IsFinite(radius) || radius < 0f)
+        {
+            return McpToolResult.Error("'radius' must be a finite distance that is not negative.");
+        }
 
         return await WithViewer<GLWorldViewer>(args, viewer =>
         {

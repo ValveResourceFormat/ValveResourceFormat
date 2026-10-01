@@ -121,6 +121,11 @@ internal sealed partial class McpTools
             return McpToolResult.Error($"Unknown tool: {name}");
         }
 
+        if (UnknownArgument(tool, arguments) is { } unknown)
+        {
+            return unknown;
+        }
+
         try
         {
             var result = await tool.Handler(arguments, cancellationToken).ConfigureAwait(false);
@@ -426,7 +431,7 @@ internal sealed partial class McpTools
     private static Task<McpToolResult> GetLog(JsonObject args, CancellationToken cancellationToken)
     {
         var since = GetLong(args, "since") ?? 0;
-        var limit = Math.Clamp(GetInt(args, "limit") ?? 200, 1, 5000);
+        var limit = GetLimit(args, 200, 5000);
         var dedupe = GetBool(args, "dedupe") ?? true;
         var include = GetRegex(args, "include");
         var exclude = GetRegex(args, "exclude");
@@ -1098,6 +1103,44 @@ internal sealed partial class McpTools
                 TabIds.Remove(id);
             }
         }
+    }
+
+    private static int GetLimit(JsonObject args, int defaultValue, int max)
+    {
+        var limit = GetInt(args, "limit") ?? defaultValue;
+
+        return limit >= 1 && limit <= max ? limit : throw new ArgumentException($"'limit' must be between 1 and {max}, got {limit}.");
+    }
+
+    private static int GetOffset(JsonObject args)
+    {
+        var offset = GetInt(args, "offset") ?? 0;
+
+        return offset >= 0 ? offset : throw new ArgumentException($"'offset' must not be negative, got {offset}.");
+    }
+
+    private static McpToolResult? UnknownArgument(Tool tool, JsonObject arguments)
+    {
+        var properties = tool.InputSchema["properties"] as JsonObject ?? [];
+
+        foreach (var (key, _) in arguments)
+        {
+            if (!properties.ContainsKey(key))
+            {
+                var known = new List<string>(properties.Count);
+
+                foreach (var (property, _) in properties)
+                {
+                    known.Add($"'{property}'");
+                }
+
+                return McpToolResult.Error(known.Count == 0
+                    ? $"Unknown argument '{key}'. {tool.Name} takes no arguments."
+                    : $"Unknown argument '{key}'. {tool.Name} takes {string.Join(", ", known)}.");
+            }
+        }
+
+        return null;
     }
 
     private static McpToolResult NoSuchTab(int id) => McpToolResult.Error($"No tab with id {id}. Call list_tabs for the open ones.");
