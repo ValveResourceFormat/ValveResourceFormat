@@ -103,4 +103,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// <inheritdoc/>
         public override Shapes.Mesh DeserializeShape(KVObject data) => new(data);
     }
+
+    /// <summary>
+    /// Descriptor for compound shapes.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnCompoundDesc_t">RnCompoundDesc_t</seealso>
+    public class CompoundDescriptor : ShapeDescriptor<Compound>
+    {
+        /// <inheritdoc/>
+        public override Compound DeserializeShape(KVObject data) => new(data);
+    }
 }

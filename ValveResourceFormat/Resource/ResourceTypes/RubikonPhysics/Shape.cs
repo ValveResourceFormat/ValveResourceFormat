@@ -27,6 +27,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// </summary>
         public MeshDescriptor[] Meshes { get; set; }
         /// <summary>
+        /// Gets or sets the compound descriptors.
+        /// </summary>
+        public CompoundDescriptor[] Compounds { get; set; }
+        /// <summary>
         /// Gets or sets the collision attribute indices.
         /// </summary>
         public int[] CollisionAttributeIndices { get; set; }
@@ -40,6 +44,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             Capsules = LoadShapeDescriptorArray<CapsuleDescriptor, Shapes.Capsule>(data, "m_capsules");
             Hulls = LoadShapeDescriptorArray<HullDescriptor, Shapes.Hull>(data, "m_hulls");
             Meshes = LoadShapeDescriptorArray<MeshDescriptor, Shapes.Mesh>(data, "m_meshes");
+            Compounds = LoadShapeDescriptorArray<CompoundDescriptor, Shapes.Compound>(data, "m_compounds");
             CollisionAttributeIndices = data.GetArray<object>("m_CollisionAttributeIndices")!
                 .Select(Convert.ToInt32).ToArray();
         }
@@ -49,6 +54,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             where TShape : struct
         {
             var arrayData = data.GetArray(name);
+
+            if (arrayData == null) // compounds
+            {
+                return [];
+            }
+
             var array = new TDescriptor[arrayData.Count];
             for (var a = 0; a < arrayData.Count; a++)
             {
