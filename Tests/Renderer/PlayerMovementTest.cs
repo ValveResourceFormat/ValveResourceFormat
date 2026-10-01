@@ -55,7 +55,8 @@ namespace Tests.Renderer
             input.Camera.Location = new Vector3(0, 0, spawnHeight);
             input.Camera.Yaw = 0f;
             input.Camera.Pitch = 0f;
-            input.Tick(1f / 128f, TrackedKeys.X, Vector2.Zero, renderCamera);
+            input.SetWalkMode(true);
+            input.Tick(1f / 128f, TrackedKeys.None, Vector2.Zero, renderCamera);
 
             await Assert.That(input.WalkMode).IsTrue();
             return (input, renderCamera);

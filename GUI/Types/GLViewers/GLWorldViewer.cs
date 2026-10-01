@@ -7,6 +7,7 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Editor;
 using ValveResourceFormat.Editor.Picking;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
@@ -34,6 +35,8 @@ namespace GUI.Types.GLViewers
         private ComboBox? cameraComboBox;
         private SavedCameraPositionsControl? savedCameraPositionsControl;
         private EntityInfoForm? entityInfoForm;
+        private ThemedButton? playButton;
+        private ThemedButton? stepButton;
         private bool ignoreLayersChangeEvents = true;
         private List<Matrix4x4> CameraMatrices = [];
         private WorldNodeLoader? LoadedWorldNode;
@@ -69,6 +72,8 @@ namespace GUI.Types.GLViewers
             cameraComboBox?.Dispose();
             savedCameraPositionsControl?.Dispose();
             entityInfoForm?.Dispose();
+            playButton?.Dispose();
+            stepButton?.Dispose();
         }
 
         private void AddSceneExposureSlider()
@@ -393,7 +398,7 @@ namespace GUI.Types.GLViewers
 
                     UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
 
-                    UiControl.AddCheckBox("Entity System", Renderer.EntitySystem.Enabled, v => Renderer.EntitySystem.Enabled = v);
+                    AddPlaybackControls();
 
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
 
@@ -560,6 +565,56 @@ namespace GUI.Types.GLViewers
             groupBoxPanel.Controls.Add(groupBox);
 
             UiControl.AddControl(groupBoxPanel);
+        }
+
+        private void AddPlaybackControls()
+        {
+            Debug.Assert(UiControl != null);
+
+            var panel = new Panel
+            {
+                Height = UiControl.AdjustForDPI(30),
+                Padding = new Padding(0, UiControl.AdjustForDPI(2), 0, UiControl.AdjustForDPI(2)),
+            };
+
+            playButton = new ThemedButton
+            {
+                Text = PlayButtonText(EditorState.Mode),
+                Dock = DockStyle.Fill,
+            };
+            playButton.Click += (_, _) => EditorState.Request(EditorRequest.TogglePlay);
+
+            stepButton = new ThemedButton
+            {
+                Text = "Step",
+                Dock = DockStyle.Right,
+                Width = UiControl.AdjustForDPI(60),
+                Enabled = EditorState.Mode == EditorMode.Viewer,
+            };
+            stepButton.Click += (_, _) => EditorState.Request(EditorRequest.Step);
+
+            // Docked from the last added, so the step button takes its edge before play fills the rest
+            panel.Controls.Add(playButton);
+            panel.Controls.Add(stepButton);
+
+            UiControl.AddControl(panel);
+        }
+
+        private static string PlayButtonText(EditorMode mode) => mode == EditorMode.Playing ? "Pause" : "Play";
+
+        protected override void OnEditorModeChanged(EditorMode mode)
+        {
+            base.OnEditorModeChanged(mode);
+
+            // Raised on the render thread
+            if (playButton is { IsHandleCreated: true } button)
+            {
+                button.BeginInvoke(() =>
+                {
+                    button.Text = PlayButtonText(mode);
+                    stepButton?.Enabled = mode == EditorMode.Viewer;
+                });
+            }
         }
 
         public void SelectAndFocusEntity(EntityLump.Entity entity)
@@ -943,7 +998,7 @@ namespace GUI.Types.GLViewers
                 //Update the entity properties window if it was opened
                 if (entityInfoForm != null)
                 {
-                    Program.MainForm.Invoke(() =>
+                    Program.MainForm.BeginInvoke(() =>
                     {
                         ShowSceneNodeDetails(sceneNode);
                     });
@@ -953,7 +1008,7 @@ namespace GUI.Types.GLViewers
 
             if (result.Intent == PickIntent.Details)
             {
-                Program.MainForm.Invoke(() =>
+                Program.MainForm.BeginInvoke(() =>
                 {
                     ShowSceneNodeDetails(sceneNode);
                     entityInfoForm?.EntityInfoControl.Focus();
@@ -1049,7 +1104,7 @@ namespace GUI.Types.GLViewers
                 }
             };
 
-            Program.MainForm.Invoke(() =>
+            Program.MainForm.BeginInvoke(() =>
             {
                 Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
             });

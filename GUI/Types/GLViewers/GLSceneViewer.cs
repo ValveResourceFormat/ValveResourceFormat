@@ -7,6 +7,7 @@ using GUI.Controls;
 using GUI.Types.Audio;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Editor;
 using ValveResourceFormat.Editor.Picking;
 using ValveResourceFormat.Editor.Selection;
 using ValveResourceFormat.Renderer;
@@ -22,6 +23,9 @@ namespace GUI.Types.GLViewers
     {
         public ValveResourceFormat.Renderer.Renderer Renderer { get; internal set; }
         public UserInput Input { get; protected set; }
+
+        /// <summary>Whether the world is paused for inspecting or running, which picking and the play controls follow.</summary>
+        protected EditorState EditorState { get; }
 
         public ValveResourceFormat.Renderer.TextRenderer TextRenderer { get; protected set; }
         private readonly CrosshairRenderer crosshairRenderer;
@@ -81,8 +85,6 @@ namespace GUI.Types.GLViewers
         private PerfDisplay perfDisplay;
         private ComboBox? perfDisplayComboBox;
 
-        private bool roundStarted;
-
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
         private ComboBox? renderModeComboBox;
@@ -113,6 +115,8 @@ namespace GUI.Types.GLViewers
 
             Renderer = new(rendererContext);
             Input = new UserInput(Renderer);
+            EditorState = new EditorState(Renderer.EntitySystem, Input);
+            EditorState.ModeChanged += OnEditorModeChanged;
             TextRenderer = new(rendererContext, Renderer.Camera);
             crosshairRenderer = new CrosshairRenderer(rendererContext);
             Scene = Renderer.Scene;
@@ -342,6 +346,16 @@ namespace GUI.Types.GLViewers
 
         protected abstract void LoadScene();
 
+        /// <summary>Follows a change of editor mode, on the render thread. Running the world drops the selection.</summary>
+        /// <param name="mode">The new mode.</param>
+        protected virtual void OnEditorModeChanged(EditorMode mode)
+        {
+            if (mode == EditorMode.Playing)
+            {
+                Selection.Clear();
+            }
+        }
+
         /// <summary>Handles a pick resolved on the render thread. Viewers that do nothing with picks leave this empty.</summary>
         protected virtual void OnPicked(PickResult result)
         {
@@ -384,12 +398,13 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseUp(sender, e);
 
-            if (Input.WalkMode)
+            if (EditorState.Mode != EditorMode.Viewer)
             {
                 return;
             }
 
-            if (!MouseDragged || GrabbedMouse)
+            // Only a left click picks, the right button is for moving the camera
+            if (e.Button == MouseButtons.Left && (!MouseDragged || GrabbedMouse))
             {
                 Picker?.Request(new PickRequest(InitialMousePosition.X, InitialMousePosition.Y, PickIntent.Select, GetPickModifiers()));
             }
@@ -399,7 +414,7 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseDown(sender, e);
 
-            if (Input.WalkMode)
+            if (EditorState.Mode != EditorMode.Viewer)
             {
                 return;
             }
@@ -612,6 +627,8 @@ namespace GUI.Types.GLViewers
                 Input.EnableMouseLook = false;
             }
 
+            EditorState.Update();
+
             // Walk mode keeps simulating while the cursor is over the ui, otherwise player
             // physics and teleports stay frozen until the mouse moves back over the viewport.
             if (MouseOverRenderArea || Input.ForceUpdate || Input.WalkMode)
@@ -636,21 +653,9 @@ namespace GUI.Types.GLViewers
                 var wheelDelta = ConsumePendingMouseWheelDelta();
 
                 Input.MouseSensitivity = Settings.Config.MouseSensitivity;
-                var wasWalkMode = Input.WalkMode;
+                EditorState.HandleKeys(pressedKeys);
                 Input.Tick(frameTime, pressedKeys, new Vector2(mouseDelta.X, mouseDelta.Y), Renderer.Camera);
                 LastMouseDelta = mouseDelta;
-
-                // cancel unintentional selection
-                if (!wasWalkMode && Input.WalkMode)
-                {
-                    Selection.Clear();
-
-                    if (!roundStarted)
-                    {
-                        roundStarted = true;
-                        Renderer.EntitySystem.StartRound();
-                    }
-                }
 
                 // Walk mode and mouse look aim with the mouse, so they hold the cursor. Leaving both,
                 // pausing, escape, or the viewport losing focus hands it back.

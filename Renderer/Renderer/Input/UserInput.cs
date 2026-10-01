@@ -152,8 +152,6 @@ public class UserInput
     /// </summary>
     public bool Released(TrackedKeys key) => (PreviousKeys & ~Keys & key) != 0;
 
-    private bool EscapeFreedMouse;
-
     private readonly Dictionary<TrackedKeys, float> lastKeyPressTimes = [];
 
     /// <summary>
@@ -257,30 +255,6 @@ public class UserInput
             }
         }
 
-        if (Pressed(TrackedKeys.MouseLeftOrRight))
-        {
-            EscapeFreedMouse = false;
-        }
-
-        var wasWalking = WalkMode;
-        if (Pressed(TrackedKeys.X))
-        {
-            WalkMode = !WalkMode;
-            PlayerMovement.Initialize = WalkMode;
-        }
-        else if (WalkMode && Pressed(TrackedKeys.Escape))
-        {
-            if (EscapeFreedMouse)
-            {
-                WalkMode = false;
-                PlayerMovement.Initialize = WalkMode;
-            }
-            else
-            {
-                EscapeFreedMouse = true;
-            }
-        }
-
         // Z moves down while dragging to look, so it only toggles mouse look with the buttons up
         if (!WalkMode && Pressed(TrackedKeys.Z) && (keyboardState & TrackedKeys.MouseLeftOrRight) == 0)
         {
@@ -289,18 +263,6 @@ public class UserInput
         else if (Pressed(TrackedKeys.Escape))
         {
             MouseLook = false;
-        }
-
-        if (wasWalking && !WalkMode)
-        {
-            MoveCamera(new Vector3(0, 0, 32), transition: true);
-            CurrentSpeedModifier = 7;
-        }
-        else if (!wasWalking && WalkMode)
-        {
-            // Only reachable on the frame X hands control back, since otherwise the two agree. The body
-            // is about to be seeded from the camera, so the view has to stop trailing it first.
-            SettleCamera();
         }
 
         Camera.Roll = 0f;
@@ -386,6 +348,33 @@ public class UserInput
         => new(Camera.Location, Camera.Pitch, Camera.Yaw);
 
     private ViewmodelSceneNode? Viewmodel { get; set; }
+
+    /// <summary>
+    /// Switches between walking as the player and flying the camera. Entering seeds the player from the
+    /// camera on the next tick; leaving lifts the camera a little and restores a flying speed.
+    /// </summary>
+    /// <param name="walk">Whether to walk as the player.</param>
+    public void SetWalkMode(bool walk)
+    {
+        if (WalkMode == walk)
+        {
+            return;
+        }
+
+        WalkMode = walk;
+        PlayerMovement.Initialize = walk;
+
+        if (walk)
+        {
+            // The body is about to be seeded from the camera, so the view has to stop trailing it first
+            SettleCamera();
+        }
+        else
+        {
+            MoveCamera(new Vector3(0, 0, 32), transition: true);
+            CurrentSpeedModifier = 7;
+        }
+    }
 
     /// <summary>
     /// Switches to noclip mode and begins a smooth camera transition from the current position.

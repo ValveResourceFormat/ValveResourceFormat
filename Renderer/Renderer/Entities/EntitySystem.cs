@@ -326,7 +326,8 @@ public sealed class EntitySystem
 
             // Against the volume rather than its surface: a player standing well inside a big trigger is
             // still touching it. Rejects on world bounds first, so a trigger nowhere near costs one box test.
-            var isOverlapping = volume.OverlapsVolume(center, halfExtents);
+            // A player nobody is controlling is not in the world, so leaving walk mode ends its touches
+            var isOverlapping = player.Controller.IsActive && volume.OverlapsVolume(center, halfExtents);
 
             entity.UpdateTouchLink(player, isOverlapping);
             player.UpdateTouchLink(entity, isOverlapping);
@@ -433,6 +434,19 @@ public sealed class EntitySystem
         {
             entity.Update();
         }
+    }
+
+    /// <summary>
+    /// Advances the world by exactly one tick, for stepping through it while <see cref="Enabled"/> is off.
+    /// </summary>
+    public void Step()
+    {
+        if (entities.Count <= 1)
+        {
+            return;
+        }
+
+        Tick();
     }
 
     private void Tick()
