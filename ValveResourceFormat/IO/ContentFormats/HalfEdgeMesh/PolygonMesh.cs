@@ -587,10 +587,10 @@ public sealed class PolygonMesh
     }
 
     /// <summary>
-    /// Units one texel spans when a face's texture is projected at the default scale, used when the game's
-    /// <c>gameinfo.gi</c> does not set <c>Hammer/DefaultTextureScale</c>.
+    /// Units one texel spans when a face's texture is projected at the default scale, Hammer's value when the game's
+    /// <c>gameinfo.gi</c> does not set <c>Hammer/DefaultTextureScale</c> or sets it to 0.
     /// </summary>
-    public const float DefaultTextureScale = 0.125f;
+    public const float DefaultTextureScale = 0.25f;
 
     /// <summary>
     /// Aligns the texture projection of a face to the world axes closest to its plane, Hammer's default

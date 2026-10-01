@@ -98,7 +98,8 @@ namespace ValveResourceFormat.IO
 
             SearchPaths = searchPaths;
 
-            HammerTextureScale = GetSingle("Hammer/DefaultTextureScale", PolygonMesh.DefaultTextureScale);
+            var textureScale = GetSingle("Hammer/DefaultTextureScale", PolygonMesh.DefaultTextureScale);
+            HammerTextureScale = textureScale != 0f ? textureScale : PolygonMesh.DefaultTextureScale;
             HammerDefaultPointEntity = GetString("Hammer/DefaultPointEntity");
             SkipPostProcessing = GetBoolean("Engine2/RenderingPipeline/SkipPostProcessing");
             DefaultAutoExposureMin = GetSingle("Engine2/RenderingPipeline/Tonemapping_DefaultAutoExposureMin", FallbackAutoExposureMin);
