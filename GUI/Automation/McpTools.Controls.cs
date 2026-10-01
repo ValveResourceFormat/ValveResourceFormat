@@ -355,6 +355,14 @@ internal sealed partial class McpTools
 
                 if (found.Count == 0)
                 {
+                    for (var i = 0; i < comboBox.Items.Count; i++)
+                    {
+                        if (SidebarControls.IsHeader(comboBox, i) && string.Equals(SidebarControls.ItemText(comboBox, i), item, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return McpToolResult.Error($"'{item}' is a header in the '{control.Label}' dropdown, which cannot be selected. Pick an item under it.");
+                        }
+                    }
+
                     return McpToolResult.Error($"The '{control.Label}' dropdown has no item '{item}'. Call list_controls for its items.");
                 }
 

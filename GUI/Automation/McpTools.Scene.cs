@@ -59,7 +59,7 @@ internal sealed partial class McpTools
                 ["tab"] = TabProp(),
                 ["node"] = Prop("string", "Model node id from pick or get_entity. Defaults to the model of a model tab."),
             }),
-            GetModelInfo, SceneViewer);
+            GetModelInfo, static viewer => viewer is GLModelViewer or GLWorldViewer);
     }
 
     private static bool IsFinite(Vector3 vector) => float.IsFinite(vector.X) && float.IsFinite(vector.Y) && float.IsFinite(vector.Z);

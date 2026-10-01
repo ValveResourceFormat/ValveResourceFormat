@@ -823,7 +823,7 @@ internal sealed partial class McpTools
             }
             catch (TimeoutException)
             {
-                return (tab, id, McpToolResult.Error($"Timed out after {timeout.TotalSeconds:F0}s loading {what} in tab {id}, which is still loading. Wait for it with get_info on tab {id}, or close it with close_tab, rather than opening it again."));
+                return (tab, id, McpToolResult.Error($"Timed out after {timeout.TotalSeconds:F0}s loading {what} in tab {id}, which is still loading. Call a tool that acts on tab {id}, which waits for the load, or poll get_info until it no longer reports loading. Close it with close_tab rather than opening it again."));
             }
 
             if (failure != null)
@@ -881,6 +881,15 @@ internal sealed partial class McpTools
         if (!normalized.StartsWith("vpk:", StringComparison.OrdinalIgnoreCase) && Path.IsPathFullyQualified(path))
         {
             normalized = Path.GetFullPath(path).Replace('\\', '/');
+        }
+
+        var package = normalized.IndexOf(".vpk:", 4, StringComparison.OrdinalIgnoreCase);
+
+        if (normalized.StartsWith("vpk:", StringComparison.OrdinalIgnoreCase) && package > 0
+            && !normalized.AsSpan(4, package - 4).EndsWith("_dir", StringComparison.OrdinalIgnoreCase)
+            && File.Exists(string.Concat(normalized.AsSpan(4, package - 4), "_dir.vpk")))
+        {
+            normalized = string.Concat(normalized.AsSpan(0, package), "_dir", normalized.AsSpan(package));
         }
 
         return normalized.ToLowerInvariant();
@@ -1196,7 +1205,8 @@ internal sealed partial class McpTools
 
     private static JsonArray Round(Vector3 vector) => [Round(vector.X), Round(vector.Y), Round(vector.Z)];
 
-    private static double Round(float value) => Math.Round(value, 2);
+    // Adding zero turns a rounded -0 into 0.
+    private static double Round(float value) => Math.Round(value, 2) + 0d;
 
     private static JsonObject DescribeCamera(Camera camera) => new()
     {

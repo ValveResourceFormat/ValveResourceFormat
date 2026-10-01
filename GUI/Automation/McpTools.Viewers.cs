@@ -570,6 +570,11 @@ internal sealed partial class McpTools
                 return McpToolResult.Error("'angles' must be finite.");
             }
 
+            if (angles.Value.Z != 0f)
+            {
+                return McpToolResult.Error("The camera has no roll. Pass 0 as the third value of 'angles'.");
+            }
+
             angles = NormalizeAngles(angles.Value);
 
             if (MathF.Abs(angles.Value.X) > 90f)
