@@ -123,6 +123,7 @@ namespace GUI.Types.GLViewers
             Input = new UserInput(Renderer);
             EditorState = new EditorState(Renderer.EntitySystem, Input);
             EditorState.ModeChanged += OnEditorModeChanged;
+            EditorState.WalkingChanged += OnWalkingChanged;
             TextRenderer = new(rendererContext, Renderer.Camera);
             crosshairRenderer = new CrosshairRenderer(rendererContext);
             Scene = Renderer.Scene;
@@ -368,6 +369,12 @@ namespace GUI.Types.GLViewers
             {
                 Selection.Clear();
             }
+        }
+
+        /// <summary>Follows the camera starting or stopping walking as the player, on the render thread.</summary>
+        /// <param name="walking">Whether the camera now walks.</param>
+        protected virtual void OnWalkingChanged(bool walking)
+        {
         }
 
         /// <summary>Handles a pick resolved on the render thread. Viewers that do nothing with picks leave this empty.</summary>

@@ -20,7 +20,7 @@ public enum EditorMode
 /// <summary>A change to <see cref="EditorState"/> asked for from outside the render thread.</summary>
 public enum EditorRequest
 {
-    /// <summary>Start running the world.</summary>
+    /// <summary>Start running the world and walk as the player.</summary>
     EnterGame,
 
     /// <summary>Freeze the world where it is and return to viewing it, leaving walk mode.</summary>
@@ -32,15 +32,18 @@ public enum EditorRequest
     /// <summary>Advance the frozen world by one tick, in viewer mode.</summary>
     Step,
 
-    /// <summary>Walk as the player, which enters game mode, or stop walking.</summary>
-    ToggleWalk,
+    /// <summary>Walk as the player, leaving the mode as it is.</summary>
+    StartWalking,
+
+    /// <summary>Stop walking as the player, leaving the mode as it is.</summary>
+    StopWalking,
 }
 
 /// <summary>
-/// The editor's mode, which everything else follows. Walking as the player needs the world running, so
-/// walking enters game mode and returning to the viewer stops walking. Requests can come from any thread
-/// and are applied by <see cref="Update"/> on the render thread, where the entity world and the camera are
-/// owned.
+/// The editor's mode, which everything else follows. The player can be walked in either mode, through a
+/// frozen world in the viewer. Entering game mode starts walking and returning to the viewer stops it.
+/// Requests can come from any thread and are applied by <see cref="Update"/> on the render thread, where
+/// the entity world and the camera are owned.
 /// </summary>
 public sealed class EditorState
 {
@@ -53,6 +56,7 @@ public sealed class EditorState
     private TrackedKeys previousKeys;
     private bool escapeFreedMouse;
     private bool roundStarted;
+    private bool walkingNotified;
 
     /// <summary>Gets the current mode.</summary>
     public EditorMode Mode { get; private set; } = EditorMode.Viewer;
@@ -65,6 +69,12 @@ public sealed class EditorState
 
     /// <summary>Raised on the render thread when <see cref="Mode"/> changes.</summary>
     public event Action<EditorMode>? ModeChanged;
+
+    /// <summary>
+    /// Raised on the render thread when <see cref="IsWalking"/> changes, including when the camera leaves
+    /// walk mode by itself, as it does when it is moved to a new place.
+    /// </summary>
+    public event Action<bool>? WalkingChanged;
 
     /// <summary>Starts in viewer mode, with the entity world frozen until game mode is entered.</summary>
     /// <param name="entitySystem">The entity world game mode runs.</param>
@@ -86,7 +96,7 @@ public sealed class EditorState
     }
 
     /// <summary>
-    /// Handles the keys that change the mode: X walks or stops walking, and escape first frees the
+    /// Handles the keys that change the mode: X enters or leaves game mode, and escape first frees the
     /// mouse while walking, then on a second press returns to the viewer. Call on the render thread
     /// with this frame's keys, before the input reads them.
     /// </summary>
@@ -103,7 +113,7 @@ public sealed class EditorState
 
         if ((pressed & TrackedKeys.X) != 0)
         {
-            Apply(EditorRequest.ToggleWalk);
+            Apply(EditorRequest.ToggleGame);
         }
         else if (IsWalking && (pressed & TrackedKeys.Escape) != 0)
         {
@@ -117,6 +127,8 @@ public sealed class EditorState
                 escapeFreedMouse = true;
             }
         }
+
+        NotifyWalking();
     }
 
     /// <summary>Applies the queued requests. Call on the render thread, before the entity world updates.</summary>
@@ -126,11 +138,6 @@ public sealed class EditorState
 
         using (requestLock.EnterScope())
         {
-            if (pendingRequests.Count == 0)
-            {
-                return;
-            }
-
             requests = [.. pendingRequests];
             pendingRequests.Clear();
         }
@@ -138,6 +145,19 @@ public sealed class EditorState
         foreach (var request in requests)
         {
             Apply(request);
+        }
+
+        NotifyWalking();
+    }
+
+    private void NotifyWalking()
+    {
+        var walking = IsWalking;
+
+        if (walking != walkingNotified)
+        {
+            walkingNotified = walking;
+            WalkingChanged?.Invoke(walking);
         }
     }
 
@@ -147,6 +167,7 @@ public sealed class EditorState
         {
             case EditorRequest.EnterGame:
                 SetMode(EditorMode.Game);
+                input.SetWalkMode(true);
                 break;
 
             case EditorRequest.EnterViewer:
@@ -167,17 +188,12 @@ public sealed class EditorState
 
                 break;
 
-            case EditorRequest.ToggleWalk:
-                if (IsWalking)
-                {
-                    input.SetWalkMode(false);
-                }
-                else
-                {
-                    SetMode(EditorMode.Game);
-                    input.SetWalkMode(true);
-                }
+            case EditorRequest.StartWalking:
+                input.SetWalkMode(true);
+                break;
 
+            case EditorRequest.StopWalking:
+                input.SetWalkMode(false);
                 break;
         }
     }

@@ -35,11 +35,12 @@ namespace GUI.Types.GLViewers
         private ComboBox? cameraComboBox;
         private SavedCameraPositionsControl? savedCameraPositionsControl;
         private EntityInfoForm? entityInfoForm;
-        private ThemedButton? gameButton;
+        private ThemedToggleButton? playButton;
+        private ThemedToggleButton? walkButton;
         private ThemedButton? stepButton;
-        private CheckBox? showToolsCheckBox;
-        private CheckBox? toolEntitiesCheckBox;
-        private CheckBox? toolMaterialsCheckBox;
+        private ThemedToggleButton? showToolsButton;
+        private ThemedToggleButton? toolEntitiesButton;
+        private ThemedToggleButton? toolMaterialsButton;
         private volatile HashSet<string> chosenPhysicsGroups = [];
         private bool ignoreLayersChangeEvents = true;
         private List<Matrix4x4> CameraMatrices = [];
@@ -76,11 +77,12 @@ namespace GUI.Types.GLViewers
             cameraComboBox?.Dispose();
             savedCameraPositionsControl?.Dispose();
             entityInfoForm?.Dispose();
-            gameButton?.Dispose();
+            playButton?.Dispose();
+            walkButton?.Dispose();
             stepButton?.Dispose();
-            showToolsCheckBox?.Dispose();
-            toolEntitiesCheckBox?.Dispose();
-            toolMaterialsCheckBox?.Dispose();
+            showToolsButton?.Dispose();
+            toolEntitiesButton?.Dispose();
+            toolMaterialsButton?.Dispose();
         }
 
         private void AddSceneExposureSlider()
@@ -347,6 +349,8 @@ namespace GUI.Types.GLViewers
 
             if (world != null)
             {
+                AddEditorToolbar();
+
                 var uniqueWorldLayers = new HashSet<string>(4);
                 var uniquePhysicsGroups = new HashSet<string>();
 
@@ -429,9 +433,6 @@ namespace GUI.Types.GLViewers
                     }
 
                     UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
-
-                    AddModeControls();
-                    AddToolsVisibilityControls();
 
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
 
@@ -600,56 +601,40 @@ namespace GUI.Types.GLViewers
             UiControl.AddControl(groupBoxPanel);
         }
 
-        private void AddModeControls()
-        {
-            Debug.Assert(UiControl != null);
-
-            var panel = new Panel
-            {
-                Height = UiControl.AdjustForDPI(30),
-                Padding = new Padding(0, UiControl.AdjustForDPI(2), 0, UiControl.AdjustForDPI(2)),
-            };
-
-            gameButton = new ThemedButton
-            {
-                Text = GameButtonText(EditorState.Mode),
-                Dock = DockStyle.Fill,
-            };
-            gameButton.Click += (_, _) => EditorState.Request(EditorRequest.ToggleGame);
-
-            stepButton = new ThemedButton
-            {
-                Text = "Step",
-                Dock = DockStyle.Right,
-                Width = UiControl.AdjustForDPI(60),
-                Enabled = EditorState.Mode == EditorMode.Viewer,
-            };
-            stepButton.Click += (_, _) => EditorState.Request(EditorRequest.Step);
-
-            // Docked from the last added, so the step button takes its edge before the mode button fills the rest
-            panel.Controls.Add(gameButton);
-            panel.Controls.Add(stepButton);
-
-            UiControl.AddControl(panel);
-        }
-
-        private void AddToolsVisibilityControls()
+        // Above the viewport rather than in the sidebar: how the world is run and what of the tools is drawn
+        private void AddEditorToolbar()
         {
             Debug.Assert(UiControl != null);
 
             var tools = EditorState.Tools;
 
-            showToolsCheckBox = UiControl.AddCheckBox("Show Tools", tools.ShowTools, v =>
+            // Both hand the keyboard back to the viewport, which the click took, so the player can be walked
+            playButton = UiControl.AddToolbarToggle("Play", EditorState.Mode == EditorMode.Game, play =>
+            {
+                EditorState.Request(play ? EditorRequest.EnterGame : EditorRequest.EnterViewer);
+                GLControl?.Focus();
+            });
+            walkButton = UiControl.AddToolbarToggle("Walk", EditorState.IsWalking, walk =>
+            {
+                EditorState.Request(walk ? EditorRequest.StartWalking : EditorRequest.StopWalking);
+                GLControl?.Focus();
+            });
+            stepButton = UiControl.AddToolbarButton("Step", () => EditorState.Request(EditorRequest.Step));
+            stepButton.Enabled = EditorState.Mode == EditorMode.Viewer;
+
+            UiControl.AddToolbarSeparator();
+
+            showToolsButton = UiControl.AddToolbarToggle("Show Tools", tools.ShowTools, v =>
             {
                 tools.ShowTools = v;
                 RequestVisibilityUpdate();
             });
-            toolEntitiesCheckBox = UiControl.AddCheckBox("Tool Entities", tools.ShowToolEntities, v =>
+            toolEntitiesButton = UiControl.AddToolbarToggle("Tool Entities", tools.ShowToolEntities, v =>
             {
                 tools.ShowToolEntities = v;
                 RequestVisibilityUpdate();
             });
-            toolMaterialsCheckBox = UiControl.AddCheckBox("Tool Materials", tools.ShowToolMaterials, v =>
+            toolMaterialsButton = UiControl.AddToolbarToggle("Tool Materials", tools.ShowToolMaterials, v =>
             {
                 tools.ShowToolMaterials = v;
                 RequestVisibilityUpdate();
@@ -658,8 +643,6 @@ namespace GUI.Types.GLViewers
             RequestVisibilityUpdate();
         }
 
-        private static string GameButtonText(EditorMode mode) => mode == EditorMode.Game ? "Back to Viewer" : "Run Game";
-
         protected override bool ShowsEditorMode => true;
 
         protected override void OnEditorModeChanged(EditorMode mode)
@@ -667,16 +650,27 @@ namespace GUI.Types.GLViewers
             base.OnEditorModeChanged(mode);
 
             // Raised on the render thread
-            if (gameButton is { IsHandleCreated: true } button)
+            if (playButton is { IsHandleCreated: true } button)
             {
                 button.BeginInvoke(() =>
                 {
-                    button.Text = GameButtonText(mode);
+                    button.Checked = mode == EditorMode.Game;
                     stepButton?.Enabled = mode == EditorMode.Viewer;
 
                     // The master switch is kept per mode, so it changes with the mode
-                    showToolsCheckBox?.Checked = EditorState.Tools.ShowTools;
+                    showToolsButton?.Checked = EditorState.Tools.ShowTools;
                 });
+            }
+        }
+
+        protected override void OnWalkingChanged(bool walking)
+        {
+            base.OnWalkingChanged(walking);
+
+            // Raised on the render thread
+            if (walkButton is { IsHandleCreated: true } button)
+            {
+                button.BeginInvoke(() => button.Checked = walking);
             }
         }
 
@@ -817,8 +811,8 @@ namespace GUI.Types.GLViewers
             {
                 EditorState.Tools.ShowTools = true;
                 EditorState.Tools.ShowToolEntities = true;
-                showToolsCheckBox?.Checked = true;
-                toolEntitiesCheckBox?.Checked = true;
+                showToolsButton?.Checked = true;
+                toolEntitiesButton?.Checked = true;
                 RequestVisibilityUpdate();
             }
 
@@ -836,8 +830,8 @@ namespace GUI.Types.GLViewers
             {
                 EditorState.Tools.ShowTools = true;
                 EditorState.Tools.ShowToolMaterials = true;
-                showToolsCheckBox?.Checked = true;
-                toolMaterialsCheckBox?.Checked = true;
+                showToolsButton?.Checked = true;
+                toolMaterialsButton?.Checked = true;
                 RequestVisibilityUpdate();
             }
 
