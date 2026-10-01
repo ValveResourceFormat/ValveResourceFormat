@@ -69,7 +69,7 @@ public sealed class LogicRelay : BaseEntity
     /// <inheritdoc/>
     public override void Activate()
     {
-        // Queued like any output, so it reaches entities of the spawn group that activate alongside it
+        // Queued, so it also reaches entities of the same spawn group that activate after this one
         EntitySystem.TriggerOutput(this, "OnSpawn");
     }
 

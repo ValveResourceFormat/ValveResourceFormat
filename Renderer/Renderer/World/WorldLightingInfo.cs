@@ -629,18 +629,12 @@ namespace ValveResourceFormat.Renderer.World
             isSunBorrowed = false;
         }
 
-        /// <summary>Gets whether the map this lighting came from has an environment light of its own.</summary>
+        /// <summary>Gets whether the source map has an environment light.</summary>
         public bool HasOwnSun { get; private set; }
 
         private bool isSunBorrowed;
 
-        /// <summary>
-        /// Lights the scene with another scene's sun, or stops doing so when <paramref name="donor"/> is
-        /// <see langword="null"/>. The engine lights a view with the first sun among the worlds it draws, so a
-        /// map without one, such as a stage loaded into another map, is lit by the sun of what it is drawn
-        /// with. Does nothing to a scene that has a sun of its own.
-        /// </summary>
-        /// <param name="donor">The lighting whose sun to use, or <see langword="null"/> for none.</param>
+        /// <summary>Uses the sun from <paramref name="donor"/> when this map has none, or clears it when <paramref name="donor"/> is <see langword="null"/>.</summary>
         public void BorrowSun(WorldLightingInfo? donor)
         {
             if (HasOwnSun)
@@ -663,7 +657,7 @@ namespace ValveResourceFormat.Renderer.World
             LightingData.SunDirection = donor.LightingData.SunDirection;
             LightingData.SunColor = donor.LightingData.SunColor;
 
-            // This scene's lightmaps know nothing of the sun, so nothing of it is baked in shadow
+            // These lightmaps have no sun baked in, so nothing is in baked shadow
             LightingData.SunLightBakedShadowMask = new Vector4(-1f, 0f, 0f, 0f);
 
             isSunBorrowed = true;
@@ -711,7 +705,6 @@ namespace ValveResourceFormat.Renderer.World
             BarnLightShadowAtlasSize = atlasSize;
             LightingData.NumBarnLights = 0;
 
-            // Visibility comes back from the view the scene is shaded for, which no other view overwrites
             var binner = scene.ShadingLightBinner;
             binner?.PollBarnLightVisibility();
 

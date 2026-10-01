@@ -252,7 +252,7 @@ namespace ValveResourceFormat.Renderer
         /// with no clusters at all is not vis culled.
         /// </summary>
         /// <param name="voxelVisibility">The scene's visibility data.</param>
-        /// <param name="worldToVisibility">The transform from the scene's space into the visibility data's, which never changes for a scene.</param>
+        /// <param name="worldToVisibility">The transform from scene space into visibility space.</param>
         internal ReadOnlySpan<ushort> GetVisClusters(IWorldVisibility voxelVisibility, in Matrix4x4 worldToVisibility)
         {
             if (PrecomputedVisClusters != null)

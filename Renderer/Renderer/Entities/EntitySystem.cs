@@ -198,27 +198,16 @@ public sealed class EntitySystem
     /// <summary>Puts an entity built in code, rather than from map keyvalues, into the world.</summary>
     public void AddEntity(BaseEntity entity) => Add(entity);
 
-    /// <summary>
-    /// Gets or sets what draws the spawn groups entities load at runtime. Without one, an entity asked to
-    /// load a spawn group logs it and does nothing.
-    /// </summary>
+    /// <summary>Gets or sets the host that draws spawn groups loaded at runtime.</summary>
     public ISpawnGroupHost? SpawnGroupHost { get; set; }
 
-    /// <summary>
-    /// Takes a spawn group loaded at runtime into the world: activates the entities it spawned, which only
-    /// the group's own load could not do, and hands it to <see cref="SpawnGroupHost"/> to draw.
-    /// </summary>
-    /// <param name="group">The group, whose scene is loaded and initialized.</param>
     internal void AddSpawnGroup(World.SpawnGroup group)
     {
         Activate();
         SpawnGroupHost?.AddSpawnGroup(group);
     }
 
-    /// <summary>
-    /// Removes every entity a spawn group spawned, then has <see cref="SpawnGroupHost"/> release the group.
-    /// </summary>
-    /// <param name="group">The group to unload.</param>
+    /// <summary>Removes the entities of a spawn group and releases the group.</summary>
     public void RemoveSpawnGroup(World.SpawnGroup group)
     {
         ArgumentNullException.ThrowIfNull(group);
@@ -499,7 +488,7 @@ public sealed class EntitySystem
 
         if (hasRemovedEntities)
         {
-            // The activated entities are the front of the list, so it shrinks by the ones leaving it
+            // Activated entities are at the front of the list, so the count drops by each removed one
             for (var i = activatedCount - 1; i >= 0; i--)
             {
                 if (entities[i].IsRemoved)
@@ -742,9 +731,8 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Finds every entity of one world group whose targetname matches. A 3D sky shares its names with the
-    /// map it is placed in, so anything an entity names in its own keyvalues is looked up this way, while
-    /// a stage loaded into the map sees the map's entities and the map sees the stage's.
+    /// Finds every entity in the world group of <paramref name="scene"/> whose targetname matches. A 3D sky
+    /// reuses names from the map it is placed in, so names in entity keyvalues must be looked up this way.
     /// </summary>
     public IEnumerable<BaseEntity> FindAllByTargetName(string pattern, Scene scene)
     {
@@ -759,8 +747,7 @@ public sealed class EntitySystem
         }
     }
 
-    /// <summary>Finds the first entity of one world group whose targetname matches, see <see cref="FindAllByTargetName(string, Scene)"/>.</summary>
-    /// <returns>The entity, or <see langword="null"/> when none matches.</returns>
+    /// <summary>Finds the first entity in the world group of <paramref name="scene"/> whose targetname matches.</summary>
     public BaseEntity? FindByTargetName(string pattern, Scene scene)
     {
         foreach (var entity in FindAllByTargetName(pattern, scene))

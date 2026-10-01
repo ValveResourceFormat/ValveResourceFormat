@@ -664,7 +664,6 @@ namespace GUI.Types.GLViewers
         {
             var origin = entity.GetVector3Property("origin");
 
-            // An entity of a spawn group is placed with the group, and one of the 3D sky shows up magnified
             if (Renderer.SpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity)) is { } spawnGroup)
             {
                 origin = spawnGroup.EntityOriginToWorld(origin);
@@ -858,10 +857,6 @@ namespace GUI.Types.GLViewers
             return entityInfoForm;
         }
 
-        /// <summary>
-        /// Every entity a connection can reach, those of the 3D sky and loaded stages included: entities are
-        /// global across spawn groups.
-        /// </summary>
         private List<EntityLump.Entity> GetLinkableEntities()
         {
             if (LoadedWorld == null)

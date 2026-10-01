@@ -57,7 +57,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Matrix4x4 WorldToShadow = Matrix4x4.Identity;
         /// <summary>Transform into the second, wider sun shadow cascade. Forms <c>g_matWorldToShadow[1]</c>.</summary>
         public Matrix4x4 WorldToShadowCascade1 = Matrix4x4.Identity;
-        /// <summary>Index of the scene being drawn among the renderer's scenes, which the picking pass writes out.</summary>
+        /// <summary>Index of the drawn scene in <see cref="Renderer.Scenes"/>, written out by the picking pass.</summary>
         public uint SceneIndex;
         /// <summary>Whether this view draws the 3D skybox rather than the world.</summary>
         public bool IsSkybox;

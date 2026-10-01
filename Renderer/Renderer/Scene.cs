@@ -60,7 +60,7 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets the scene being rendered.</summary>
             public required Scene Scene { get; set; }
 
-            /// <summary>Gets or sets what the view being drawn keeps of <see cref="Scene"/>, set by the renderer.</summary>
+            /// <summary>Gets or sets the per-view state of the scene being drawn.</summary>
             public SceneViewState? View { get; set; }
 
             /// <summary>Gets or sets the camera providing view and projection matrices.</summary>
@@ -103,11 +103,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the 2D sky the map's sky entities provide, or <see langword="null"/> when it has none.</summary>
         public SceneSkybox2D? Skybox2D { get; set; }
 
-        /// <summary>
-        /// Gets the world group this scene belongs to, such as a 3D sky's <c>skyboxWorldGroup0</c>, or
-        /// <see langword="null"/> for the map's own. Entities see and touch only those of their world group,
-        /// and each view draws one.
-        /// </summary>
+        /// <summary>Gets the world group this scene belongs to, such as <c>skyboxWorldGroup0</c>, or <see langword="null"/> for the main world.</summary>
         public string? WorldGroup { get; init; }
 
         /// <summary>
@@ -128,15 +124,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the voxel visibility data.</summary>
         public IWorldVisibility? VoxelVisibility { get; set; }
 
-        /// <summary>
-        /// Gets or sets the transform from this scene's space into the space <see cref="VoxelVisibility"/> was
-        /// compiled in. Identity, except for a map placed somewhere else than it was built.
-        /// </summary>
+        /// <summary>Gets or sets the transform from scene space into the space <see cref="VoxelVisibility"/> was compiled in.</summary>
         public Matrix4x4 WorldToVisibility { get; set; } = Matrix4x4.Identity;
 
         /// <summary>
-        /// Gets or sets whether PVS culling is enabled for this scene. Has no effect without <see cref="VoxelVisibility"/>.
-        /// <see cref="Renderer"/> reads the main scene's copy for the PVS of every view.
+        /// Gets or sets whether PVS culling is enabled. Only the value on the main scene is read, for every scene.
         /// </summary>
         public bool EnablePvsCulling { get; set; } = true;
 
@@ -147,7 +139,6 @@ namespace ValveResourceFormat.Renderer
         private UniformBuffer<EnvMapArray>? envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
 
-        /// <summary>Gets the frustum planes the meshlet cull reads, uploaded right before each view's dispatch.</summary>
         internal UniformBuffer<FrustumPlanesGpu>? FrustumBuffer { get; private set; }
 
         /// <summary>Gets or sets the GPU buffer each draw reads at its base instance (tint, transform index, skinning).</summary>
@@ -180,29 +171,18 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the total number of meshlets across all indirect-draw-capable aggregates in the scene.</summary>
         public int SceneMeshletCount { get; private set; }
 
-        /// <summary>
-        /// Gets the indirect draw commands every view's cull starts from, one per meshlet, or
-        /// <see langword="null"/> when nothing draws indirectly.
-        /// </summary>
         internal DrawElementsIndirectCommand[]? IndirectDrawTemplate { get; private set; }
 
-        /// <summary>Gets the per aggregate draw counts compaction starts from, alongside <see cref="IndirectDrawTemplate"/>.</summary>
         internal uint[]? CompactedCountsTemplate { get; private set; }
 
-        /// <summary>Gets a number that changes whenever the indirect draw layout is rebuilt.</summary>
         internal int IndirectLayoutVersion { get; private set; }
 
-        /// <summary>Gets a number that changes whenever the octrees are rebuilt, invalidating cached cull results.</summary>
         internal int OctreeVersion { get; private set; }
 
         internal Shader? FrustumCullShader { get; private set; }
         internal Shader? CompactionShader { get; private set; }
         internal Shader? OutlineShader { get; private set; }
 
-        /// <summary>
-        /// Gets the tile and depth bin cull passes of the view this scene is shaded for, which barn light
-        /// visibility is read back from.
-        /// </summary>
         internal LightBinner? ShadingLightBinner { get; set; }
 
         /// <summary>Gets the renderer context providing shared GPU resources and shader loading.</summary>
@@ -239,10 +219,7 @@ namespace ValveResourceFormat.Renderer
         public bool EnableCompaction { get; set; } = true;
 
         /// <summary>Gets or sets whether lights are binned to screen tiles so shaders iterate only what reaches them.</summary>
-        /// <remarks>
-        /// <see cref="Renderer"/> reads the main scene's copy when driving every binner, so that one also
-        /// governs every spawn group. The spawn groups' own copies are never what the viewer toggles.
-        /// </remarks>
+        /// <remarks>Only the value on the main scene is read, for every scene.</remarks>
         public bool EnableTiledLightCulling { get; set; } = true;
 
         internal bool DrawMeshletsIndirect { get; private set; }
@@ -254,10 +231,8 @@ namespace ValveResourceFormat.Renderer
         private readonly List<SceneNode> staticNodes = [];
         private readonly List<SceneNode> dynamicNodes = [];
 
-        /// <summary>Gets the number of static and dynamic nodes in the scene.</summary>
         internal int NodeCount => staticNodes.Count + dynamicNodes.Count;
 
-        /// <summary>Gets the number of object entries the last buffer layout gave the nodes, one past the highest node id.</summary>
         internal int ObjectEntryCount => objectEntryCount;
 
         private readonly ParallelDispatch simulationDispatch = new();
@@ -418,10 +393,7 @@ namespace ValveResourceFormat.Renderer
             RendererContext.MeshBufferCache.Clear();
         }
 
-        /// <summary>
-        /// Removes and deletes every node of the scene, and its 2D sky, leaving the materials and mesh buffers
-        /// shared with other scenes loaded.
-        /// </summary>
+        /// <summary>Removes and deletes every node and the 2D sky, keeping shared materials and mesh buffers loaded.</summary>
         public void DeleteNodes()
         {
             foreach (var item in dynamicNodes)
@@ -1194,7 +1166,6 @@ namespace ValveResourceFormat.Renderer
                 MeshletDataGpu = new StorageBuffer(ReservedBufferSlots.AggregateMeshlets, nameof(ReservedBufferSlots.AggregateMeshlets));
                 MeshletDataGpu.Create(meshletDataGpu, BufferUsage.Static);
 
-                // Every view culls into buffers of its own, starting from these commands and counts
                 var compactedCounts = new uint[compactionRequestList.Count / 2];
 
                 for (var request = 0; request < compactedCounts.Length; request++)
@@ -1219,6 +1190,7 @@ namespace ValveResourceFormat.Renderer
             CommandMeshletsGpu?.Delete();
             CompactionRequestsGpu?.Delete();
             OcclusionDebug?.OccludedBoundsDebugGpu?.Delete();
+            OcclusionDebug = null;
 
             DrawBoundsGpu = null;
             MeshletDataGpu = null;
@@ -1239,7 +1211,7 @@ namespace ValveResourceFormat.Renderer
             lpvBuffer.Update();
         }
 
-        /// <summary>Updates the lighting buffer, then binds the lighting, environment map, light probe, instance, transform, object and barn light buffers to their reserved GPU binding slots.</summary>
+        /// <summary>Updates the lighting buffer and binds the lighting and draw buffers to their reserved slots.</summary>
         public void SetSceneBuffers()
         {
             Debug.Assert(lightingBuffer is not null && envMapBuffer is not null && lpvBuffer is not null);
@@ -1252,11 +1224,7 @@ namespace ValveResourceFormat.Renderer
             LightingInfo.BindBarnLightBuffer();
         }
 
-        /// <summary>
-        /// Binds the instance, transform and object buffers draws index by base instance. Nodes that draw
-        /// themselves index them by their id without binding them, so every switch between scenes must rebind
-        /// these, or such a node reads the buffers of whichever scene drew last.
-        /// </summary>
+        // Nodes that draw themselves read these by id without binding them, so rebind on every scene switch
         internal void BindDrawBuffers()
         {
             InstanceBufferGpu?.BindBufferBase();
@@ -1265,11 +1233,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Tests a node against a visibility row: a view's PVS, or the sun row that says where sunlight
-        /// reaches. A node belongs to every visibility cluster its bounding box touches and survives as long
-        /// as one of them is visible. A node that belongs to none is not vis culled at all, as in the game.
-        /// An empty row means there is nothing to cull with and everything passes, and so does a node
-        /// flagged <see cref="ObjectTypeFlags.DisableVisCulling"/>.
+        /// Tests a node against a visibility row, such as a PVS or the sun row. A node that touches no
+        /// visibility cluster is never vis culled, matching the game, and an empty row passes everything.
         /// </summary>
         /// <param name="node">The node to test.</param>
         /// <param name="visibilityRow">A cluster bitfield, one bit per cluster id.</param>
@@ -1321,15 +1286,7 @@ namespace ValveResourceFormat.Renderer
         public void SetupSceneShadows(Camera camera, int shadowMapSize)
             => SetupSunShadows(LightingInfo, [this], camera, shadowMapSize);
 
-        /// <summary>
-        /// Fits the sun light shadow cascades of one scene's sun around what several scenes draw, and collects
-        /// the shadow draw calls of each of them, if that sun casts dynamic shadows.
-        /// </summary>
-        /// <param name="sun">The lighting whose sun and cascades are used.</param>
-        /// <param name="casters">Every scene that casts into the cascades.</param>
-        /// <param name="camera">The main camera used to fit the shadow cascades.</param>
-        /// <param name="shadowMapSize">The shadow map resolution; pass -1 to produce empty frustums and skip the sun row (pre-warm pass, or all culling disabled).</param>
-        internal static void SetupSunShadows(WorldLightingInfo sun, IEnumerable<Scene> casters, Camera camera, int shadowMapSize)
+        internal static void SetupSunShadows(WorldLightingInfo sun, List<Scene> casters, Camera camera, int shadowMapSize)
         {
             if (!sun.EnableDynamicShadows)
             {

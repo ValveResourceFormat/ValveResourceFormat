@@ -9,18 +9,13 @@ using ValveResourceFormat.Utils;
 
 namespace Tests.Renderer
 {
-    /// <summary>
-    /// A 3D sky is placed rigidly and drawn through a second camera that applies the scale. These check
-    /// that this is equivalent to scaling the sky into the world: for positions, projection and fog.
-    /// </summary>
     public class SkyTransformTest
     {
         private const float Tolerance = 1e-3f;
 
-        /// <summary>Both sides go through different matrix products, so the error grows with the value.</summary>
+        // Both sides go through different matrix products, so the error grows with the value
         private static float ToleranceFor(float expected) => MathF.Max(Tolerance, MathF.Abs(expected) * 2e-4f);
 
-        /// <summary>The sky camera position in the sky map, before the reference is applied.</summary>
         private static readonly Vector3 SkyCameraOrigin = new(-96f, 48f, 64f);
 
         private static readonly float[] Scales = [1f, 16f];
@@ -101,10 +96,6 @@ namespace Tests.Renderer
             return camera;
         }
 
-        /// <summary>
-        /// A sky point maps to where scaling the sky about its camera and then applying the reference
-        /// would put it.
-        /// </summary>
         [Test]
         public async Task ToWorldLandsWhereScalingTheSkyWould()
         {
@@ -125,7 +116,6 @@ namespace Tests.Renderer
             }
         }
 
-        /// <summary>The sky camera stands where the main one does, seen from sky space.</summary>
         [Test]
         public async Task ToSkyUndoesToWorld()
         {
@@ -145,7 +135,6 @@ namespace Tests.Renderer
             }
         }
 
-        /// <summary>A scale that is not positive has no sky to draw.</summary>
         [Test]
         public async Task RejectsScaleThatIsNotPositive()
         {
@@ -153,11 +142,7 @@ namespace Tests.Renderer
             await Assert.That(() => new SkyTransform(Vector3.Zero, Vector3.Zero, -16f)).Throws<ArgumentOutOfRangeException>();
         }
 
-        /// <summary>
-        /// The sky drawn through its own camera lands on the same pixels and at the same depth as the sky
-        /// scaled into the world and drawn through the main camera. The depth matters for the sky depth
-        /// range and the shared depth pyramid.
-        /// </summary>
+        // Depth has to match as well, for the sky depth range and the shared depth pyramid
         [Test]
         public async Task SkyCameraProjectsLikeTheScaledSkyDoes()
         {
@@ -187,10 +172,6 @@ namespace Tests.Renderer
             }
         }
 
-        /// <summary>
-        /// Gradient fog is authored in world units, so it has to give the same result from the distance
-        /// and height the sky camera measures.
-        /// </summary>
         [Test]
         public async Task GradientFogReadsTheSameThroughTheSkyCamera()
         {
@@ -233,7 +214,6 @@ namespace Tests.Renderer
                 .IsEqualTo(skyCulling.Y).Within(Tolerance);
         }
 
-        /// <summary>The same for the cubemap fog.</summary>
         [Test]
         public async Task CubemapFogReadsTheSameThroughTheSkyCamera()
         {

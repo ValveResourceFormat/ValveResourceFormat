@@ -3,29 +3,22 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer;
 
-/// <summary>
-/// Hierarchical depth pyramid built from the resolved scene depth, which the GPU occlusion tests read.
-/// Every view draws into the same depth buffer, so one pyramid serves them all.
-/// </summary>
 internal sealed class DepthPyramid(RendererContext rendererContext)
 {
-    /// <summary>Largest width of the depth pyramid; height follows the viewport's aspect.</summary>
+    // The other side follows the viewport aspect
     private const int MaxDimension = 512;
 
     private Shader? downsampleShader;
     private Shader? npotDownsampleShader;
 
-    /// <summary>Gets the pyramid texture, or <see langword="null"/> until <see cref="EnsureSize"/> ran.</summary>
     public RenderTexture? Texture { get; private set; }
 
-    /// <summary>Loads the compute shaders. Call once the GL context exists.</summary>
     public void LoadShaders()
     {
         downsampleShader = rendererContext.ShaderLoader.LoadShader("depth_pyramid");
         npotDownsampleShader = rendererContext.ShaderLoader.LoadShader("depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
     }
 
-    /// <summary>Resizes the pyramid for a viewport, keeping it when the size did not change.</summary>
     public void EnsureSize(int width, int height)
     {
         var scale = Math.Min(1f, MaxDimension / (float)Math.Max(width, height));
@@ -50,10 +43,6 @@ internal sealed class DepthPyramid(RendererContext rendererContext)
         Texture.SetBaseMaxLevel(0, maxMipLevel);
     }
 
-    /// <summary>
-    /// Generates the pyramid from the given depth texture by downsampling through compute shaders.
-    /// </summary>
-    /// <param name="depthSource">The full-resolution depth texture to downsample.</param>
     public void Generate(RenderTexture depthSource)
     {
         var pyramid = Texture;
@@ -102,7 +91,6 @@ internal sealed class DepthPyramid(RendererContext rendererContext)
         GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
     }
 
-    /// <summary>Releases the pyramid texture.</summary>
     public void Delete()
     {
         Texture?.Delete();

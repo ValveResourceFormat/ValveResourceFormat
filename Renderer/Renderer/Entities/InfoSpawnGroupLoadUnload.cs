@@ -6,22 +6,21 @@ namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
 /// <c>info_spawngroup_load_unload</c>. Loads another map into the running one on <c>StartSpawnGroupLoad</c>
-/// and takes it out again on <c>StartSpawnGroupUnload</c>, which is how a map swaps its stages in and out.
+/// and unloads it on <c>StartSpawnGroupUnload</c>.
 /// </summary>
 /// <remarks>
-/// The loaded map is placed so its <c>info_spawngroup_landmark</c> lands on the one of the same name in
-/// this map, by origin alone, as the engine does. It is loaded as a spawn group of its own, see
-/// <see cref="SpawnGroup"/>. The engine loads it in the background; here the load finishes within the input.
+/// The loaded map is aligned by landmark origin only, with no rotation. The load finishes within the input
+/// instead of in the background.
 /// </remarks>
 public sealed class InfoSpawnGroupLoadUnload : BaseEntity
 {
-    /// <summary>Gets the map this entity loads, such as <c>stages/lms_stage1</c>.</summary>
+    /// <summary>Gets the map to load, such as <c>stages/lms_stage1</c>.</summary>
     public string MapName { get; private set; } = string.Empty;
 
-    /// <summary>Gets the name of the landmark that lines the loaded map up with this one.</summary>
+    /// <summary>Gets the name of the <c>info_spawngroup_landmark</c> present in both maps.</summary>
     public string Landmark { get; private set; } = string.Empty;
 
-    /// <summary>Gets the spawn group this entity loaded, or <see langword="null"/> while none is.</summary>
+    /// <summary>Gets the loaded spawn group, or <see langword="null"/> when none is loaded.</summary>
     public SpawnGroup? SpawnGroup { get; private set; }
 
     /// <summary>Initializes an <c>info_spawngroup_load_unload</c> from its keyvalues.</summary>
@@ -91,10 +90,7 @@ public sealed class InfoSpawnGroupLoadUnload : BaseEntity
         EntitySystem.TriggerOutput(this, "OnSpawnGroupUnloadFinished", data.Activator);
     }
 
-    /// <summary>
-    /// Finds this map's <c>info_spawngroup_landmark</c> of the landmark name. Compiled names carry a
-    /// <c>[PR#]</c> prefix the keyvalue leaves out.
-    /// </summary>
+    // Compiled landmark names carry a [PR#] prefix that the keyvalue leaves out
     private BaseEntity? FindLandmark()
     {
         foreach (var pattern in (ReadOnlySpan<string>)[Landmark, "[PR#]" + Landmark])

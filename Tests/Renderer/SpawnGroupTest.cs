@@ -6,7 +6,6 @@ using ValveResourceFormat.Renderer.World;
 
 namespace Tests.Renderer
 {
-    /// <summary>How a map placed into another one is named, and where its entities end up.</summary>
     public class SpawnGroupTest
     {
         private readonly List<IDisposable> harnessContexts = [];
@@ -36,10 +35,8 @@ namespace Tests.Renderer
             return scene;
         }
 
-        /// <summary>
-        /// A skybox_reference names the map in full, a CS2 ispointprefab entity and an
-        /// info_spawngroup_load_unload name it relative to maps/ without an extension.
-        /// </summary>
+        // skybox_reference names the map in full; ispointprefab entities and info_spawngroup_load_unload
+        // name it relative to maps/ without an extension
         [Test]
         [Arguments("maps/prefabs/de_dust2/de_dust2_skybox.vmap", "maps/prefabs/de_dust2/de_dust2_skybox")]
         [Arguments("prefabs/misc/team_select", "maps/prefabs/misc/team_select")]
@@ -50,7 +47,6 @@ namespace Tests.Renderer
             await Assert.That(WorldLoader.GetSpawnGroupMapName(targetMapName)).IsEqualTo(expected);
         }
 
-        /// <summary>An entity of a group loaded somewhere else than it was built is seen where it was placed.</summary>
         [Test]
         public async Task EntityOriginsFollowThePlacement()
         {

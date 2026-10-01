@@ -81,10 +81,7 @@ namespace ValveResourceFormat.Renderer.World
         private const float PlayerEyeHeight = 64f;
         private int spawnCameraPriority = int.MaxValue;
 
-        /// <summary>
-        /// The maps this one placed into scenes of their own while loading, such as its 3D sky. They are the
-        /// caller's to draw, see <see cref="Renderer.AddSpawnGroup"/>.
-        /// </summary>
+        /// <summary>The spawn groups loaded into separate scenes, such as the 3D sky.</summary>
         public List<SpawnGroup> SpawnGroups { get; } = [];
 
         /// <summary>The loaded navigation mesh, populated by <see cref="LoadNavigationMesh"/>.</summary>
@@ -92,7 +89,6 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Baked bomb damage data for CS2, null if it doesn't exist. Populated by <see cref="LoadBombDamageData"/>.</summary>
         public BombDamage? BombDamage { get; set; }
 
-        /// <summary>The <c>sky_camera</c>s of this map, the first of which a 3D sky is seen from.</summary>
         private List<SkyCamera> SkyCameras { get; } = [];
 
         /// <summary>Applied to everything this map loads.</summary>
@@ -100,28 +96,18 @@ namespace ValveResourceFormat.Renderer.World
 
         private readonly EntitySystem entitySystem;
 
-        /// <summary>What a load is, which decides how much of the map it brings in.</summary>
         private enum LoadKind
         {
-            /// <summary>The map itself: it owns the physics world, the worldspawn, and activates the entities.</summary>
             Map,
 
-            /// <summary>
-            /// A spawn group placed inside another map in a scene of its own, such as a 3D sky. Its lighting
-            /// and visibility come along, but its entities are activated by whoever loaded it.
-            /// </summary>
             SpawnGroup,
 
-            /// <summary>
-            /// A prefab placed into the scene of the map that names it. Prefabs are compiled without lighting
-            /// or visibility of their own, so only their entities and geometry come along.
-            /// </summary>
+            // Prefabs are compiled without lighting or visibility, so only entities and geometry are loaded
             Prefab,
         }
 
         private readonly LoadKind loadKind;
 
-        /// <summary>Whether this load is placed inside another map rather than being the map itself.</summary>
         private bool IsNested => loadKind != LoadKind.Map;
 
         /// <summary>
@@ -279,8 +265,6 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="mapResourceReferences">Optional external reference list from the map resource, used to preload assets in parallel.</param>
         public void Load(ResourceExtRefList? mapResourceReferences = null)
         {
-            // A prefab lands in the scene of the map naming it, whose lighting, visibility and gameplay data
-            // are that map's own
             var ownsScene = loadKind != LoadKind.Prefab;
 
             // Non resource files not covered by ParallelPreloadResources
@@ -346,7 +330,7 @@ namespace ValveResourceFormat.Renderer.World
                 entitySystem.Activate();
             }
 
-            // A prefab's lights are the scene's too, which the map naming it stores once its own lump is done
+            // The placing map stores prefab lights once its lump is done
             if (loadKind != LoadKind.Prefab)
             {
                 scene.LightingInfo.StoreLights(
@@ -665,7 +649,7 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             // Once the whole lump has spawned, so a line can end at an entity authored after the one it starts at.
-            // A 3D sky or a prefab loaded part way through adds its own entities, which draw their own lines.
+            // Entities of a 3D sky or prefab loaded part way through draw their lines in that load.
             var lumpEntities = traversed.Select(static t => t.Entity).ToHashSet();
 
             for (var i = firstSpawned; i < entitySystem.Entities.Count; i++)
@@ -682,18 +666,10 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        /// <summary>
-        /// Whether an entity places another map into this one: a <c>skybox_reference</c>, or a prefab left for
-        /// the game to load, which is a <c>point_prefab</c> or any class flagged <c>ispointprefab</c>, as the
-        /// CS2 team select and team intro stages are.
-        /// </summary>
+        // Any class flagged ispointprefab places a map too, such as the CS2 team select and team intro stages
         private static bool IsSpawnGroupPlacement(string classname, Entity entity)
             => classname is "skybox_reference" or "point_prefab" || entity.GetBooleanProperty("ispointprefab");
 
-        /// <summary>
-        /// Loads the map a <c>skybox_reference</c> names as this map's 3D sky: a spawn group in a scene of
-        /// its own, drawn through a camera that follows the main one.
-        /// </summary>
         private void LoadSkybox(BaseEntity skyboxReference)
         {
             if (skyboxReference.Data?.GetStringProperty("targetmapname") is not { Length: > 0 } targetMapName)
@@ -704,8 +680,8 @@ namespace ValveResourceFormat.Renderer.World
             // Origin and angles only: a 3D sky is not scaled, the sky camera applies the scale instead
             var reference = skyboxReference.RigidTransform;
 
-            // Scenery: nothing can reach the sky, so its entities never build a collider. Every compiled
-            // reference names the sky's world group; one that did not would join the map's.
+            // Scenery: nothing can reach the sky, so its entities never build a collider. Compiled references
+            // always set worldgroupid; without one the sky would join the main world group.
             var skyScene = new Scene(RendererContext)
             {
                 EntitiesCollide = false,
@@ -733,9 +709,7 @@ namespace ValveResourceFormat.Renderer.World
                 MountedPackage = package,
             });
 
-            // The camera the sky is drawn through magnifies it, so its markers shrink to come back out at
-            // their normal size, and anything placed by hand in the viewer lands where it is seen. The view
-            // works the sky out every frame, but its entities do not move once loaded.
+            // The sky camera magnifies the sky, so markers are shrunk to appear at normal size
             var sky = SkyTransform.FromEntities(reference.Translation, skyLoader.SkyCameras.FirstOrDefault());
 
             skyScene.ToViewerWorld = sky.SkyToWorld;
@@ -752,10 +726,7 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        /// <summary>
-        /// Loads the map a prefab entity names into this map's scene, placed where the entity is. A compiled
-        /// map has its prefabs merged in already; the ones left are what the game loads at runtime.
-        /// </summary>
+        // Compiled maps have prefabs merged in already; the ones left are loaded by the game at runtime
         private void LoadPrefab(BaseEntity prefab)
         {
             if (prefab.Data?.GetStringProperty("targetmapname") is not { Length: > 0 } targetMapName)
@@ -778,17 +749,9 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Loads a map as a spawn group while another one plays, the way an <c>info_spawngroup_load_unload</c>
-        /// does: into a scene of its own, moved so the entity it names as its landmark lands on
-        /// <paramref name="landmarkOrigin"/>. The engine lines the landmarks up by their origins alone and
-        /// ignores their angles. The group's entities still need activating, see <see cref="EntitySystem"/>.
+        /// Loads a map as a spawn group, moved so the named landmark lands on <paramref name="landmarkOrigin"/>.
+        /// Landmarks are aligned by origin only, ignoring angles.
         /// </summary>
-        /// <param name="rendererContext">The context to load through.</param>
-        /// <param name="entitySystem">The entity world the map's entities spawn into.</param>
-        /// <param name="targetMapName">The map as the entity names it, such as <c>stages/lms_stage1</c>.</param>
-        /// <param name="landmark">The name of the landmark entity in both maps, or <see langword="null"/> to load the map in place.</param>
-        /// <param name="landmarkOrigin">Where the landmark is in the map that loads the group.</param>
-        /// <returns>The loaded group with its scene initialized, or <see langword="null"/> when the map could not be found.</returns>
         public static SpawnGroup? LoadSpawnGroup(RendererContext rendererContext, EntitySystem entitySystem, string targetMapName,
             string? landmark, Vector3 landmarkOrigin)
         {
@@ -845,11 +808,7 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        /// <summary>
-        /// Finds where a map places the entity of a name, reading only its entity lumps. Compiled names carry
-        /// a <c>[PR#]</c> prefix that the keyvalues naming them leave out, so either spelling matches.
-        /// </summary>
-        /// <returns>The entity's origin, or <see langword="null"/> when the map has none of that name.</returns>
+        // Compiled names carry a [PR#] prefix that keyvalues referring to them leave out
         private static Vector3? FindEntityOrigin(RendererContext rendererContext, string mapResourceName, string targetName)
         {
             var worldResource = rendererContext.FileLoader.LoadFileCompiled(GetWorldNameFromMap(mapResourceName));
@@ -882,18 +841,6 @@ namespace ValveResourceFormat.Renderer.World
             return null;
         }
 
-        /// <summary>
-        /// Loads a map that another one places, from the package it ships in. The engine names such maps
-        /// relative to <c>maps/</c>, with or without it and the extension, and mounts <c>maps/&lt;name&gt;.vpk</c>.
-        /// </summary>
-        /// <param name="rendererContext">The context to load through.</param>
-        /// <param name="entitySystem">The entity world the map's entities spawn into.</param>
-        /// <param name="targetMapName">The map as the placing entity names it.</param>
-        /// <param name="intoScene">The scene to load it into.</param>
-        /// <param name="transform">Where to place it.</param>
-        /// <param name="loadKind">How much of the map to load.</param>
-        /// <param name="package">The package mounted for it, which the caller removes once done with the map.</param>
-        /// <returns>The finished load, or <see langword="null"/> when the map could not be found.</returns>
         private static WorldLoader? LoadNestedMap(RendererContext rendererContext, EntitySystem entitySystem, string targetMapName,
             Scene intoScene, Matrix4x4 transform, LoadKind loadKind, out Package? package)
         {
@@ -916,11 +863,9 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Turns the map name a placing entity carries into the path of the map without its extension, e.g.
-        /// <c>prefabs/misc/team_select</c> into <c>maps/prefabs/misc/team_select</c>.
+        /// Converts a <c>targetmapname</c> keyvalue to a map path without extension, e.g.
+        /// <c>prefabs/misc/team_select</c> to <c>maps/prefabs/misc/team_select</c>.
         /// </summary>
-        /// <param name="targetMapName">The map as the entity names it.</param>
-        /// <returns>The map's path under <c>maps/</c>, without an extension.</returns>
         public static string GetSpawnGroupMapName(string targetMapName)
         {
             ArgumentNullException.ThrowIfNull(targetMapName);
@@ -945,14 +890,6 @@ namespace ValveResourceFormat.Renderer.World
             return $"maps/{name}";
         }
 
-        /// <summary>
-        /// Mounts the package a map ships in, <c>&lt;map&gt;.vpk</c>, so the map's own files resolve. It can
-        /// sit on disk or inside a package that is mounted already, such as a workshop addon.
-        /// </summary>
-        /// <param name="rendererContext">The context whose file loader to mount it into.</param>
-        /// <param name="mapName">The map's path without an extension.</param>
-        /// <param name="package">The mounted package, which the caller removes and disposes once done.</param>
-        /// <returns>Whether the package was found and mounted.</returns>
         private static bool TryMountMapPackage(RendererContext rendererContext, string mapName, out Package? package)
         {
             package = null;

@@ -48,7 +48,7 @@ public class PickingTexture : Framebuffer
         /// <summary>The mesh ID within the picked object.</summary>
         public uint MeshId;
 
-        /// <summary>The index of the picked object's scene in <see cref="Renderer.Scenes"/>.</summary>
+        /// <summary>Index into <see cref="Renderer.Scenes"/> of the scene holding the picked object.</summary>
         public uint SceneIndex;
 
         /// <summary>Reserved padding field.</summary>

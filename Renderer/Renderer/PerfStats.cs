@@ -384,8 +384,8 @@ public class PerfStats
     /// </summary>
     /// <param name="textRenderer">Text renderer to use for display.</param>
     /// <param name="camera">Camera for positioning text.</param>
-    /// <param name="scenes">Every scene drawn, main scene first, used to compute map totals.</param>
-    /// <param name="lightBinner">The main view's light binner, or <see langword="null"/> before the first frame.</param>
+    /// <param name="scenes">Every scene drawn, main scene first.</param>
+    /// <param name="lightBinner">Light binner of the main view, or <see langword="null"/> before the first frame.</param>
     /// <param name="x">X position (0-1 as fraction of screen width).</param>
     /// <param name="y">Y position (0-1 as fraction of screen height).</param>
     /// <param name="scale">Text scale.</param>

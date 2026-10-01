@@ -6,13 +6,10 @@ using ValveResourceFormat.Renderer.World;
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
-/// Owner of the tile and depth bin cull passes of one view of a scene: the item layout, the GPU buffers
-/// they read and write, and the constants that tell the shading pass where to look.
+/// Tile and depth bin light culling for one view of a scene.
 /// </summary>
 /// <remarks>
-/// One per <see cref="SceneViewState"/>. The bit indices it produces are positions in its scene's barn
-/// light and env map arrays, so another scene's bits mean nothing against these, and the tiles are the
-/// pixels of its own view.
+/// Bit indices are positions in the barn light and env map arrays of that one scene, so masks are not interchangeable between scenes.
 /// </remarks>
 public sealed class LightBinner(SceneViewState view) : IDisposable
 {

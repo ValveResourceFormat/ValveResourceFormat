@@ -27,9 +27,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the compaction buffer index used for GPU-driven draw count, or -1 if not compacted.</summary>
         public int CompactionIndex { get; set; } = -1;
 
-        /// <summary>Gets whether any fragment of this aggregate is visible this frame.</summary>
-        public bool AnyChildrenVisible { get; internal set; }
-
         /// <summary>Gets the per-instance transform matrices used for instanced drawing.</summary>
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
 
