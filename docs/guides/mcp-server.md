@@ -1,6 +1,6 @@
 # MCP Automation Server
 
-Source 2 Viewer has an opt-in loopback server that lets an agent or script drive the real viewer window over the Model Context Protocol: open files, move the camera, toggle layers and render modes, inspect entities and particle systems, pick, pause and step simulation time, read the log, render stats and memory use, and take screenshots.
+Source 2 Viewer has an opt-in loopback server that lets an agent or script drive the real viewer window over the Model Context Protocol: open files, move the camera, toggle layers and render modes, drive the sidebar controls, inspect entities and particle systems, pick, pause and step simulation time, read the log, render stats and memory use, and take screenshots.
 
 It exists for developing and testing the viewer itself. The tools can open anything the user could open through the UI, and there is no sandbox.
 
@@ -62,6 +62,10 @@ curl http://127.0.0.1:13338/mcp \
 | `screenshot`                           | Capture what a tab renders: a 3D view, texture, image or graph. Model tabs can capture transparently.       |
 | `set_viewport`                         | Render a 3D tab at an exact pixel size, so screenshots from two builds can be compared.                     |
 | `list_render_modes`, `set_render_mode` | List or switch the debug render modes of a 3D tab.                                                          |
+| `list_controls`                        | The checkboxes, dropdowns, checked lists, sliders and number inputs of a tab's sidebar, with their state.   |
+| `set_checkbox`                         | Toggle a sidebar checkbox, such as fog or PVS culling, or one item of a checked list, such as a mesh group. |
+| `set_dropdown`                         | Select a dropdown item, such as an animation, LOD, map camera or texture mip.                               |
+| `set_value`                            | Move a slider, such as exposure or the animation frame, or set a number input, such as a depth of field.    |
 | `reload_shaders`                       | Recompile shaders from the source tree without restarting the viewer.                                       |
 | `get_render_stats`                     | Draw counts and renderer metrics of a fresh frame.                                                          |
 | **Maps and entities**                  |                                                                                                             |
@@ -91,7 +95,7 @@ Tools that act on a tab take an optional `tab` id from `open_file` or `list_tabs
 - `screenshot` writes only to an absolute `.png` path in a folder that exists, and checks that before capturing.
 - Calls that change the view draw a frame before answering, so the window shows the result even while it is in the background. Screenshots work in the background too, but not while the window is minimized.
 - For repeatable screenshots, `pause` and then `step` exact amounts of time. Particles do not emit while paused, so step after loading a map to see them.
-- Tools that need a 3D scene only work on 3D tabs (models, maps, materials, particle systems). Texture, image and graph tabs take `screenshot` and `set_viewport`.
+- Tools that need a 3D scene only work on 3D tabs (models, maps, materials, particle systems). Texture, image and graph tabs take `screenshot`, `set_viewport` and the sidebar tools.
 - A tool that acts on a tab that is still loading waits for the load to finish.
 - An unhandled exception is reported through `get_status` and the failing tool instead of opening the error dialog.
 

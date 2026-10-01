@@ -1,6 +1,7 @@
 #if DEBUG
 using System.Threading;
 using System.Windows.Forms;
+using GUI.Controls;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat.Renderer;
@@ -156,6 +157,9 @@ namespace GUI.Types.GLViewers
 
             return buttons;
         }
+
+        /// <summary>The sidebar with the viewer's controls, or null before it is built.</summary>
+        internal RendererControl? Sidebar => UiControl;
     }
 
     partial class GLTextureViewer
@@ -276,15 +280,15 @@ namespace GUI.Types.GLViewers
     partial class GLWorldViewer
     {
         /// <summary>World layer names with their current checked state.</summary>
-        internal List<(string Name, bool Enabled)> GetWorldLayers() => GetChecked(worldLayersComboBox);
+        internal List<(string Name, bool Checked)> GetWorldLayers() => Automation.SidebarControls.ListItems(worldLayersComboBox);
 
         /// <summary>Physics group names with their current checked state.</summary>
-        internal List<(string Name, bool Enabled)> GetPhysicsGroups() => GetChecked(physicsGroupsComboBox);
+        internal List<(string Name, bool Checked)> GetPhysicsGroups() => Automation.SidebarControls.ListItems(physicsGroupsComboBox);
 
         // Goes through the checkbox so the UI and the 3D sky scene follow the same path as a click.
-        internal bool TrySetWorldLayer(string name, bool enabled) => TrySetChecked(worldLayersComboBox, name, enabled);
+        internal bool TrySetWorldLayer(string name, bool enabled) => Automation.SidebarControls.TrySetListItem(worldLayersComboBox, name, enabled);
 
-        internal bool TrySetPhysicsGroup(string name, bool enabled) => TrySetChecked(physicsGroupsComboBox, name, enabled);
+        internal bool TrySetPhysicsGroup(string name, bool enabled) => Automation.SidebarControls.TrySetListItem(physicsGroupsComboBox, name, enabled);
 
         /// <summary>
         /// Selects the entity's node and frames it, as the entity list does, turning on its layer and
@@ -306,42 +310,6 @@ namespace GUI.Types.GLViewers
 
             SelectAndFocusNode(node);
             return node;
-        }
-
-        private static List<(string Name, bool Enabled)> GetChecked(CheckedListBox? listBox)
-        {
-            var items = new List<(string, bool)>();
-
-            if (listBox == null)
-            {
-                return items;
-            }
-
-            for (var i = 0; i < listBox.Items.Count; i++)
-            {
-                items.Add((listBox.Items[i].ToString() ?? string.Empty, listBox.GetItemChecked(i)));
-            }
-
-            return items;
-        }
-
-        private static bool TrySetChecked(CheckedListBox? listBox, string name, bool enabled)
-        {
-            if (listBox == null)
-            {
-                return false;
-            }
-
-            var index = listBox.FindStringExact(name);
-
-            if (index < 0)
-            {
-                return false;
-            }
-
-            listBox.SetItemChecked(index, enabled);
-
-            return true;
         }
     }
 

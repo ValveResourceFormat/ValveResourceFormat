@@ -54,7 +54,7 @@ internal sealed partial class McpTools
     private static readonly HashSet<string> ChangesView =
     [
         "select_tab", "close_tab", "open_file", "clear_selection", "set_camera", "set_layer",
-        "set_physics_group", "set_render_mode", "select_entity", "pick", "pause", "resume",
+        "set_physics_group", "set_render_mode", "set_checkbox", "set_dropdown", "select_entity", "pick", "pause", "resume",
         "reload_tab", "particle_playback",
     ];
 
@@ -80,6 +80,7 @@ internal sealed partial class McpTools
 
         RegisterCoreTools();
         RegisterViewerTools();
+        RegisterControlTools();
         RegisterEntityTools();
         RegisterSimulationTools();
         RegisterParticleTools();
