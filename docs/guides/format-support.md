@@ -309,6 +309,12 @@ All four collision shape types (sphere, capsule, hull, mesh) parse, render, and 
 glTF as visualization geometry. Decompiled `.vmdl` files carry all four; `.vmap` decompiles
 carry only hulls and meshes. Hitboxes fully round-trip into decompiled models.
 
+Unpacked compounds (`m_compounds`) are flattened into these same four shape types for
+viewing and geometry export, retaining part-space coordinates and the compound descriptor's
+collision group and surface property. The compound BVH is not needed for visualization.
+Packed compounds and per-child material mappings are not implemented; material indices
+remain available in raw KV3, but children inherit their compound's surface property.
+
 Joints (`m_joints`) and their bodies' mass, inertia, damping, drag, center of mass and tags
 export into decompiled models; joint motors do not. Not parsed anywhere: constraints
 (`m_constraints2`) and the `FeModel` cloth/softbody block; both are visible only in the raw

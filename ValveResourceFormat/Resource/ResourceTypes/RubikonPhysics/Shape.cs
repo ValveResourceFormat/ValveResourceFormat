@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -49,14 +50,35 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             where TShape : struct
         {
             var arrayData = data.GetArray(name);
-            var array = new TDescriptor[arrayData.Count];
-            for (var a = 0; a < arrayData.Count; a++)
+            var descriptors = new List<TDescriptor>(arrayData.Count);
+            foreach (var descriptorData in arrayData)
             {
-                array[a] = new TDescriptor();
-                array[a].KV3Transfer(arrayData[a]);
+                var descriptor = new TDescriptor();
+                descriptor.KV3Transfer(descriptorData);
+                descriptors.Add(descriptor);
             }
 
-            return array;
+            var compoundArrayName = "m_" + char.ToUpperInvariant(name[2]) + name[3..];
+            foreach (var compoundDescriptor in data.GetArray("m_compounds") ?? [])
+            {
+                var compound = compoundDescriptor.GetSubCollection("m_Compound")
+                    ?? throw new InvalidDataException("Compound descriptor has no m_Compound member.");
+                foreach (var child in compound.GetArray(compoundArrayName) ?? [])
+                {
+                    // Children are bare shapes in part space, not descriptors or BVH-local transforms.
+                    var descriptor = new TDescriptor
+                    {
+                        CollisionAttributeIndex = compoundDescriptor.GetInt32Property("m_nCollisionAttributeIndex"),
+                        SurfacePropertyIndex = compoundDescriptor.GetInt32Property("m_nSurfacePropertyIndex"),
+                        UserFriendlyName = compoundDescriptor.GetStringProperty("m_UserFriendlyName"),
+                        HitGroupName = compoundDescriptor.GetStringProperty("m_sHitGroupName"),
+                    };
+                    descriptor.Shape = descriptor.DeserializeShape(child);
+                    descriptors.Add(descriptor);
+                }
+            }
+
+            return [.. descriptors];
         }
     }
 }
