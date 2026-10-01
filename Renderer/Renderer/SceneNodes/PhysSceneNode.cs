@@ -66,7 +66,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     var shape = phys.Parts[p].Shape;
                     //var partCollisionAttributeIndex = phys.Parts[p].CollisionAttributeIndex;
 
-                    foreach (var sphere in shape.Spheres)
+                    foreach (var sphere in shape.GetAllSpheres())
                     {
                         if (collisionAttributeIndex != sphere.CollisionAttributeIndex)
                         {
@@ -101,7 +101,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         }
                     }
 
-                    foreach (var capsule in shape.Capsules)
+                    foreach (var capsule in shape.GetAllCapsules())
                     {
                         if (collisionAttributeIndex != capsule.CollisionAttributeIndex)
                         {
@@ -140,7 +140,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         }
                     }
 
-                    foreach (var hull in shape.Hulls)
+                    foreach (var hull in shape.GetAllHulls())
                     {
                         if (collisionAttributeIndex != hull.CollisionAttributeIndex)
                         {
@@ -201,7 +201,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         }
                     }
 
-                    foreach (var mesh in shape.Meshes)
+                    foreach (var mesh in shape.GetAllMeshes())
                     {
                         if (collisionAttributeIndex != mesh.CollisionAttributeIndex)
                         {

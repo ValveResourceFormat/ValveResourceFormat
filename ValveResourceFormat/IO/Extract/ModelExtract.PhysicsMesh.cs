@@ -97,13 +97,13 @@ partial class ModelExtract
             var parentBone = physAggregateData.GetParentBoneName(partIndex);
             var bindPose = partIndex < bindPoses.Length ? bindPoses[partIndex] : Matrix4x4.Identity;
 
-            foreach (var hull in physicsPart.Shape.Hulls)
+            foreach (var hull in physicsPart.Shape.GetAllHulls())
             {
                 PhysHullsToExtract.Add((hull, GetDmxFileName_ForEmbeddedMesh("hull", i++), parentBone, bindPose));
                 StoreSurfaceTagCombo(hull);
             }
 
-            foreach (var mesh in physicsPart.Shape.Meshes)
+            foreach (var mesh in physicsPart.Shape.GetAllMeshes())
             {
                 PhysMeshesToExtract.Add((mesh, GetDmxFileName_ForEmbeddedMesh("phys", i++), parentBone, bindPose));
 

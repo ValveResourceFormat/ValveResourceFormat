@@ -49,6 +49,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 .Select(Convert.ToInt32).ToArray();
         }
 
+        /// <summary>Enumerates every sphere, root ones and compound children.</summary>
+        public readonly IEnumerable<SphereDescriptor> GetAllSpheres() => Spheres.Concat(Compounds.SelectMany(static c => c.SphereDescriptors));
+
+        /// <summary>Enumerates every capsule, root ones and compound children.</summary>
+        public readonly IEnumerable<CapsuleDescriptor> GetAllCapsules() => Capsules.Concat(Compounds.SelectMany(static c => c.CapsuleDescriptors));
+
+        /// <summary>Enumerates every hull, root ones and compound children.</summary>
+        public readonly IEnumerable<HullDescriptor> GetAllHulls() => Hulls.Concat(Compounds.SelectMany(static c => c.HullDescriptors));
+
+        /// <summary>Enumerates every mesh, root ones and compound children.</summary>
+        public readonly IEnumerable<MeshDescriptor> GetAllMeshes() => Meshes.Concat(Compounds.SelectMany(static c => c.MeshDescriptors));
+
         private static TDescriptor[] LoadShapeDescriptorArray<TDescriptor, TShape>(KVObject data, string name)
             where TDescriptor : ShapeDescriptor<TShape>, new()
             where TShape : struct

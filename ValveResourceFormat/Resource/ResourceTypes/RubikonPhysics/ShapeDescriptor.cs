@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -110,7 +111,30 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnCompoundDesc_t">RnCompoundDesc_t</seealso>
     public class CompoundDescriptor : ShapeDescriptor<Compound>
     {
+        private SphereDescriptor[]? sphereDescriptors;
+        private CapsuleDescriptor[]? capsuleDescriptors;
+        private HullDescriptor[]? hullDescriptors;
+        private MeshDescriptor[]? meshDescriptors;
+
         /// <inheritdoc/>
         public override Compound DeserializeShape(KVObject data) => new(data);
+
+        // Fabricated descriptors
+        internal SphereDescriptor[] SphereDescriptors => sphereDescriptors ??= WrapChildren<SphereDescriptor, Sphere>(Shape.Spheres);
+        internal CapsuleDescriptor[] CapsuleDescriptors => capsuleDescriptors ??= WrapChildren<CapsuleDescriptor, Capsule>(Shape.Capsules);
+        internal HullDescriptor[] HullDescriptors => hullDescriptors ??= WrapChildren<HullDescriptor, Hull>(Shape.Hulls);
+        internal MeshDescriptor[] MeshDescriptors => meshDescriptors ??= WrapChildren<MeshDescriptor, Shapes.Mesh>(Shape.Meshes);
+
+        private TDescriptor[] WrapChildren<TDescriptor, TShape>(TShape[] children)
+            where TDescriptor : ShapeDescriptor<TShape>, new()
+            where TShape : struct
+            => [.. children.Select(child => new TDescriptor
+            {
+                CollisionAttributeIndex = CollisionAttributeIndex,
+                SurfacePropertyIndex = SurfacePropertyIndex,
+                UserFriendlyName = UserFriendlyName,
+                HitGroupName = HitGroupName,
+                Shape = child,
+            })];
     }
 }

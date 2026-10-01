@@ -137,7 +137,7 @@ partial class ModelExtract
                 var shape = physicsPart.Shape;
                 var parentBone = physAggregateData.GetParentBoneName(i);
 
-                foreach (var sphere in shape.Spheres)
+                foreach (var sphere in shape.GetAllSpheres())
                 {
                     var physicsShapeSphere = MakeNode(
                         "PhysicsShapeSphere",
@@ -155,7 +155,7 @@ partial class ModelExtract
                     lists.PhysicsShapes.Add(physicsShapeSphere);
                 }
 
-                foreach (var capsule in shape.Capsules)
+                foreach (var capsule in shape.GetAllCapsules())
                 {
                     var physicsShapeCapsule = MakeNode(
                         "PhysicsShapeCapsule",
@@ -174,8 +174,8 @@ partial class ModelExtract
                     lists.PhysicsShapes.Add(physicsShapeCapsule);
                 }
 
-                int hullCount = Math.Min(shape.Hulls.Length, PhysHullsToExtract.Count - hullIndex);
-                int meshCount = Math.Min(shape.Meshes.Length, PhysMeshesToExtract.Count - meshIndex);
+                int hullCount = Math.Min(shape.GetAllHulls().Count(), PhysHullsToExtract.Count - hullIndex);
+                int meshCount = Math.Min(shape.GetAllMeshes().Count(), PhysMeshesToExtract.Count - meshIndex);
 
                 if (writesShapeFiles)
                 {
@@ -195,7 +195,7 @@ partial class ModelExtract
                 hullIndex += hullCount;
                 meshIndex += meshCount;
 
-                if (parentBone.Length > 0 && shape.Spheres.Length == 0 && shape.Capsules.Length == 0 && shape.Hulls.Length == 0 && shape.Meshes.Length == 0)
+                if (parentBone.Length > 0 && shape.Spheres.Length == 0 && shape.Capsules.Length == 0 && shape.Hulls.Length == 0 && shape.Meshes.Length == 0 && shape.Compounds.Length == 0)
                 {
                     HashSet<string> collisionTags = physicsPart.CollisionAttributeIndex < PhysicsCollisionTags.Length
                         ? PhysicsCollisionTags[physicsPart.CollisionAttributeIndex]

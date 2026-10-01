@@ -276,14 +276,14 @@ partial class ModelExtract
     {
         var mass = 0d;
 
-        foreach (var sphere in shape.Spheres)
+        foreach (var sphere in shape.GetAllSpheres())
         {
             double radius = sphere.Shape.Radius;
             mass += GetSurfaceMass(physics, surfaceProperties, sphere.SurfacePropertyIndex,
                 4d / 3d * Math.PI * radius * radius * radius, 4d * Math.PI * radius * radius);
         }
 
-        foreach (var capsule in shape.Capsules)
+        foreach (var capsule in shape.GetAllCapsules())
         {
             double radius = capsule.Shape.Radius;
             double height = Vector3.Distance(capsule.Shape.Center[0], capsule.Shape.Center[1]);
@@ -291,7 +291,7 @@ partial class ModelExtract
                 Math.PI * radius * radius * (height + 4d / 3d * radius), 2d * Math.PI * radius * (height + 2d * radius));
         }
 
-        foreach (var hull in shape.Hulls)
+        foreach (var hull in shape.GetAllHulls())
         {
             mass += GetSurfaceMass(physics, surfaceProperties, hull.SurfacePropertyIndex, hull.Shape.Volume, GetSurfaceArea(hull.Shape));
         }
