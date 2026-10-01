@@ -238,6 +238,12 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
             envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
         #endif
         g_vEnvMapNormalizationSH = envData.NormalizationSH;
+
+        if (g_nEnvMapDebugColors != 0u)
+        {
+            envMap = envData.Color;
+            g_vEnvMapNormalizationSH = vec4(0.0);
+        }
     #elif (S_SCENE_CUBEMAP_TYPE == 2)
 
     float flTotalWeight = 0.01;
@@ -302,8 +308,16 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
 
             vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
 
-            envMap += textureLod(g_tEnvironmentMap, vec4(coords, envData.ArrayIndex), lod).rgb * weight;
-            normalizationSH += envData.NormalizationSH * weight;
+            if (g_nEnvMapDebugColors != 0u)
+            {
+                // A solid colour per env map, left unnormalized so it reads as that colour
+                envMap += envData.Color * weight;
+            }
+            else
+            {
+                envMap += textureLod(g_tEnvironmentMap, vec4(coords, envData.ArrayIndex), lod).rgb * weight;
+                normalizationSH += envData.NormalizationSH * weight;
+            }
 
             if (flTotalWeight > 0.99)
             {
