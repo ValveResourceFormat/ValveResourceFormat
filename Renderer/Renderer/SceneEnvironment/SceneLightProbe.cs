@@ -1,7 +1,3 @@
-using Microsoft.Extensions.Logging;
-using ValveResourceFormat.Renderer.SceneNodes;
-using ValveResourceFormat.ResourceTypes;
-
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
 
 /// <summary>
@@ -51,80 +47,6 @@ public class SceneLightProbe : SceneNode
     public SceneLightProbe(Scene scene, AABB bounds) : base(scene)
     {
         LocalBoundingBox = bounds;
-    }
-
-    /// <summary>Gets the aggregate scene node used to visualize the probe grid spheres, if created.</summary>
-    public SceneAggregate? DebugGridSpheres { get; private set; }
-
-    /// <summary>
-    /// Creates or re-enables the debug grid sphere visualization for this light probe volume.
-    /// </summary>
-    public void CreateDebugGridSpheres()
-    {
-        if (DebugGridSpheres != null)
-        {
-            DebugGridSpheres.LayerEnabled = true;
-            return;
-        }
-
-        var cubemapModel = ShapeSceneNode.CubemapResource.Value.DataBlock as Model;
-        if (cubemapModel == null)
-        {
-            throw new InvalidOperationException("CubemapResource DataBlock is not a Model");
-        }
-
-        DebugGridSpheres = new SceneAggregate(Scene, cubemapModel)
-        {
-            LightProbeVolumePrecomputedHandshake = LightProbeVolumePrecomputedHandshake,
-            LightProbeBinding = this,
-            LayerName = "Internal - LightProbeGrid" + Id,
-            LayerEnabled = true,
-        };
-
-        DebugGridSpheres.SetInfiniteBoundingBox();
-        Scene.Add(DebugGridSpheres, true);
-
-        const int MaxVoxels = 100_000;
-
-        var grid = LocalBoundingBox.Size / (VoxelSize + 0.5f);
-        var numVoxels = (int)(grid.X * grid.Y * grid.Z);
-
-        if (numVoxels > MaxVoxels)
-        {
-            Scene.RendererContext.Logger.LogWarning("LightProbe {ProbeId} has too many voxels ({NumVoxels}) to visualize. Clamping to {MaxVoxels}", Id, numVoxels, MaxVoxels);
-            numVoxels = MaxVoxels;
-        }
-
-        DebugGridSpheres.InstanceTransforms.EnsureCapacity(numVoxels);
-
-        for (var x = 0; x < grid.X; x++)
-        {
-            for (var y = 0; y < grid.Y; y++)
-            {
-                for (var z = 0; z < grid.Z; z++)
-                {
-                    var localPosition = LocalBoundingBox.Min + new Vector3(x, y, z) * VoxelSize + new Vector3(VoxelSize / 2f);
-                    var worldPosition = Vector3.Transform(localPosition, Transform);
-                    var transform = Matrix4x4.CreateScale(0.2f * (VoxelSize / 24f)) * Matrix4x4.CreateTranslation(worldPosition);
-
-                    DebugGridSpheres.InstanceTransforms.Add(transform.To3x4());
-
-                    if (DebugGridSpheres.InstanceTransforms.Count >= MaxVoxels)
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    /// <summary>Hides the debug grid sphere visualization without destroying it.</summary>
-    public void RemoveDebugGridSpheres()
-    {
-        if (DebugGridSpheres != null)
-        {
-            DebugGridSpheres.LayerEnabled = false;
-        }
     }
 
     /// <summary>

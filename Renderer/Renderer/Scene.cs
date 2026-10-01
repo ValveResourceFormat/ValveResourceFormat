@@ -186,6 +186,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the tile and depth bin cull passes for this scene.</summary>
         public LightBinner LightBinner { get; }
 
+        /// <summary>Gets the debug views of this scene's baked lighting.</summary>
+        public SceneLightingDebug LightingDebug { get; }
+
         private Shader? DepthPyramidShader;
         private Shader? DepthPyramidNpotShader;
         /// <summary>Gets the hierarchical depth pyramid texture used for GPU occlusion culling.</summary>
@@ -299,6 +302,7 @@ namespace ValveResourceFormat.Renderer
 
             LightingInfo = new(this);
             LightBinner = new(this);
+            LightingDebug = new(this);
         }
 
         /// <summary>
@@ -410,6 +414,8 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void Clear()
         {
+            LightingDebug.Clear();
+
             foreach (var item in dynamicNodes)
             {
                 item.Delete();
@@ -574,6 +580,8 @@ namespace ValveResourceFormat.Renderer
         /// <param name="updateContext">Per-frame context data including camera and timestep.</param>
         public void Update(Scene.UpdateContext updateContext)
         {
+            LightingDebug.Update(updateContext);
+
             foreach (var node in staticNodes)
             {
                 node.Update(updateContext);
@@ -2677,6 +2685,82 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Returns the environment map that best covers a position: one whose volume contains it, the
+        /// highest priority among those and then the nearest to its origin, otherwise the one whose
+        /// volume is nearest.
+        /// </summary>
+        /// <param name="position">A position in this scene.</param>
+        /// <returns>The environment map, or <see langword="null"/> when the scene has none.</returns>
+        public SceneEnvMap? ChooseEnvironmentMap(Vector3 position)
+        {
+            SceneEnvMap? best = null;
+            var bestInside = false;
+            var bestPriority = int.MinValue;
+            var bestScore = float.MaxValue;
+
+            foreach (var envMap in LightingInfo.EnvMaps)
+            {
+                if (!Matrix4x4.Invert(envMap.Transform, out var worldToLocal))
+                {
+                    continue;
+                }
+
+                var local = Vector3.Transform(position, worldToLocal);
+                var score = local.LengthSquared();
+                bool inside;
+
+                if (envMap.ProjectionMode == 0)
+                {
+                    // A sphere's bounds are its influence radius on every side
+                    var radius = envMap.LocalBoundingBox.Max.X;
+                    inside = score < radius * radius;
+
+                    if (!inside)
+                    {
+                        var outside = MathF.Sqrt(score) - radius;
+                        score = outside * outside;
+                    }
+                }
+                else
+                {
+                    var distance = envMap.LocalBoundingBox.DistanceSquared(local);
+                    inside = distance == 0f;
+
+                    if (!inside)
+                    {
+                        score = distance;
+                    }
+                }
+
+                if (inside != bestInside)
+                {
+                    if (!inside)
+                    {
+                        continue;
+                    }
+                }
+                else if (inside && envMap.IndoorOutdoorLevel != bestPriority)
+                {
+                    if (envMap.IndoorOutdoorLevel < bestPriority)
+                    {
+                        continue;
+                    }
+                }
+                else if (score > bestScore)
+                {
+                    continue;
+                }
+
+                best = envMap;
+                bestInside = inside;
+                bestPriority = envMap.IndoorOutdoorLevel;
+                bestScore = score;
+            }
+
+            return best;
+        }
+
+        /// <summary>
         /// Returns the best probe volume containing the given position, or <see langword="null"/> when
         /// none does.
         /// </summary>
@@ -2741,6 +2825,37 @@ namespace ValveResourceFormat.Renderer
             }
 
             return best;
+        }
+
+        /// <summary>
+        /// Adds the environment maps a node is shaded with: the first one assigned to it for individual
+        /// cubemaps, or every one its visibility mask selects for a cubemap array.
+        /// </summary>
+        /// <param name="node">A node in this scene.</param>
+        /// <param name="envMaps">The list the environment maps are added to.</param>
+        public void GetEnvMapsUsedBy(SceneNode node, List<SceneEnvMap> envMaps)
+        {
+            ArgumentNullException.ThrowIfNull(node);
+            ArgumentNullException.ThrowIfNull(envMaps);
+
+            if (LightingInfo.CubemapType != CubemapType.CubemapArray)
+            {
+                if (node.EnvMaps.Count > 0)
+                {
+                    envMaps.Add(node.EnvMaps[0]);
+                }
+
+                return;
+            }
+
+            // Shader indices are assigned in order over the sorted list
+            foreach (var shaderIndex in node.ShaderEnvMapVisibility.GetVisibleShaderIndices())
+            {
+                if (shaderIndex < LightingInfo.EnvMaps.Count)
+                {
+                    envMaps.Add(LightingInfo.EnvMaps[shaderIndex]);
+                }
+            }
         }
 
         /// <summary>
@@ -2939,6 +3054,34 @@ namespace ValveResourceFormat.Renderer
                 Color = envMap.Tint,
                 NormalizationSH = envMap.NormalizationSH
             };
+        }
+
+        /// <summary>
+        /// Switches reflections between each environment map's texture and its debug colour.
+        /// </summary>
+        /// <param name="enabled">Whether reflections show debug colours.</param>
+        internal void SetEnvMapDebugColors(bool enabled)
+        {
+            if (lightingBuffer == null || envMapBuffer == null)
+            {
+                return;
+            }
+
+            lightingBuffer.Data.EnvMapDebugColors = enabled ? 1u : 0u;
+
+            // The first entries of the sorted list are the ones uploaded, in order
+            var count = Math.Min(LightingInfo.EnvMaps.Count, EnvMapArray.MAX_ENVMAPS);
+
+            for (var i = 0; i < count; i++)
+            {
+                var envMap = LightingInfo.EnvMaps[i];
+
+                envMapBuffer.Data.EnvMaps[i].Color = enabled
+                    ? LightingDebugColor.FromOrigin(envMap.Transform.Translation).ToLinearColor().AsVector3()
+                    : envMap.Tint;
+            }
+
+            envMapBuffer.Update();
         }
 
         /// <summary>

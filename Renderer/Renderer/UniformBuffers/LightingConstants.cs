@@ -13,8 +13,8 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         /// <summary>UV scale applied when sampling the lightmap atlas.</summary>
         public Vector2 LightmapUvScale;
-        /// <summary>Padding to maintain 16-byte struct alignment.</summary>
-        public uint _LightingPadding1;
+        /// <summary>Non-zero to shade reflections with each environment map's debug colour instead of its texture.</summary>
+        public uint EnvMapDebugColors;
         /// <summary>Number of active barn lights in the scene.</summary>
         public uint NumBarnLights;
         /// <summary>Per-type light counts (index matches light type enum).</summary>

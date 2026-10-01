@@ -1,9 +1,5 @@
-using System.Diagnostics;
-using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -396,31 +392,5 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <inheritdoc/>
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
-
-        /// <summary>Lazily loaded env_cubemap sphere model used for light probe and env map debug visualization.</summary>
-        public static Lazy<ValveResourceFormat.Resource> CubemapResource { get; } = new(() =>
-        {
-            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream($"Renderer.Resources.env_cubemap.vmdl_c");
-            var resource = new ValveResourceFormat.Resource()
-            {
-                FileName = "env_cubemap.vmdl_c"
-            };
-
-            Debug.Assert(stream != null);
-            resource.Read(stream);
-            return resource;
-        });
-
-        /// <summary>Creates a <see cref="ModelSceneNode"/> using the embedded env_cubemap sphere model.</summary>
-        public static ModelSceneNode CreateEnvCubemapSphere(Scene scene)
-        {
-            if (ShapeSceneNode.CubemapResource.Value.DataBlock is not Model model)
-            {
-                throw new InvalidDataException("Cubemap resource is not a Model.");
-            }
-
-            var node = new ModelSceneNode(scene, model);
-            return node;
-        }
     }
 }

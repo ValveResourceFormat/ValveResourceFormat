@@ -23,8 +23,10 @@ namespace ValveResourceFormat.Renderer.Shaders
         Fragment = 1,
         /// <summary>Compute shader stage.</summary>
         Compute = 2,
+        /// <summary>Geometry shader stage, between the vertex and fragment stages.</summary>
+        Geometry = 3,
         /// <summary>Sentinel value equal to the number of shader stages.</summary>
-        Max = 3,
+        Max = 4,
     }
 
     /// <summary>
@@ -479,7 +481,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             throw new ShaderCompilerException($"{errorType} {shaderFile} (original={originalShaderName}):\n\n{info}");
         }
 
-        /// <summary>Returns the bare shader name from a full shader file path by stripping the trailing stage extension (<c>.vert.slang</c>, <c>.frag.slang</c>, or <c>.comp.slang</c>).</summary>
+        /// <summary>Returns the bare shader name from a full shader file path by stripping the trailing stage extension (<c>.vert.slang</c>, <c>.frag.slang</c>, <c>.comp.slang</c>, or <c>.geom.slang</c>).</summary>
         /// <param name="shaderFilePath">The full path or file name of the shader (e.g. <c>/path/complex.vert.slang</c>).</param>
         /// <returns>The shader name without directory or extension (e.g. <c>complex</c>).</returns>
         public static string ShaderNameFromPath(string shaderFilePath)

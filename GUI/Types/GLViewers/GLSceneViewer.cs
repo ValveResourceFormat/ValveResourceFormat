@@ -13,6 +13,7 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
+using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 
 namespace GUI.Types.GLViewers
@@ -85,6 +86,8 @@ namespace GUI.Types.GLViewers
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
         private ComboBox? renderModeComboBox;
+        private ComboBox? cubemapColorsComboBox;
+        private bool isCubemapsRenderMode;
         private InfiniteGrid? baseGrid;
         private SelectionVisuals? selectionVisuals;
 
@@ -147,6 +150,9 @@ namespace GUI.Types.GLViewers
             renderModeComboBox?.Dispose();
             renderModeComboBox = null;
 
+            cubemapColorsComboBox?.Dispose();
+            cubemapColorsComboBox = null;
+
 #if DEBUG
             ShaderHotReload.ShadersReloaded -= OnHotReload;
 #endif
@@ -173,6 +179,52 @@ namespace GUI.Types.GLViewers
                         scene.ShowToolsMaterials = v;
                     }
                 });
+
+                if (Renderer.Scenes.Any(static scene => scene.LightingInfo.LightProbes.Count > 0))
+                {
+                    var lightProbeGridComboBox = UiControl.AddSelection("Light Probe Grid", (_, i) =>
+                    {
+                        foreach (var scene in Renderer.Scenes)
+                        {
+                            scene.LightingDebug.LightProbeGrid = (LightProbeDebugGridMode)i;
+                        }
+                    });
+
+                    lightProbeGridComboBox.Items.AddRange(["Off", "Closest", "Closest and keep", "All"]);
+                    lightProbeGridComboBox.SelectedIndex = (int)Scene.LightingDebug.LightProbeGrid;
+
+                    // Mirror samples show the cubemaps reaching into each volume
+                    var lightProbeGridSurfaceComboBox = UiControl.AddSelection("Light Probe Grid Surface", (_, i) =>
+                    {
+                        var mirror = i == 1;
+
+                        foreach (var scene in Renderer.Scenes)
+                        {
+                            scene.LightingDebug.LightProbeGridAlbedo = mirror ? new Color32(255, 255, 255, 255) : new Color32(128, 128, 128, 255);
+                            scene.LightingDebug.LightProbeGridRoughness = mirror ? 0f : 0.5f;
+                            scene.LightingDebug.LightProbeGridMetalness = mirror ? 1f : 0f;
+                        }
+                    });
+
+                    lightProbeGridSurfaceComboBox.Items.AddRange(["Diffuse", "Mirror"]);
+                    lightProbeGridSurfaceComboBox.SelectedIndex = 0;
+
+                    UiControl.AddCheckBox("Light Probe Grid Cubes", Scene.LightingDebug.LightProbeGridCubes, v =>
+                    {
+                        foreach (var scene in Renderer.Scenes)
+                        {
+                            scene.LightingDebug.LightProbeGridCubes = v;
+                        }
+                    });
+                }
+
+                if (Renderer.Scenes.Any(static scene => scene.LightingInfo.EnvMaps.Exists(static envMap => envMap.EntityData != null)))
+                {
+                    cubemapColorsComboBox = UiControl.AddSelection("Cubemap Debug Colors", (_, _) => ApplyCubemapColors());
+                    cubemapColorsComboBox.Items.AddRange(["Off", "Reflections and markers", "Markers only"]);
+                    cubemapColorsComboBox.SelectedIndex = 0;
+                    cubemapColorsComboBox.Parent!.Visible = isCubemapsRenderMode;
+                }
 
                 if (this is GLWorldViewer)
                 {
@@ -1066,6 +1118,19 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        // Only shown in the Cubemaps render mode; the choice is kept for when that mode is selected again
+        private void ApplyCubemapColors()
+        {
+            var mode = isCubemapsRenderMode && cubemapColorsComboBox != null
+                ? (EnvMapDebugColorsMode)Math.Max(cubemapColorsComboBox.SelectedIndex, 0)
+                : EnvMapDebugColorsMode.Off;
+
+            foreach (var scene in Renderer.Scenes)
+            {
+                scene.LightingDebug.EnvMapColors = mode;
+            }
+        }
+
         private void SetRenderMode(string renderMode)
         {
             Debug.Assert(Picker != null);
@@ -1082,7 +1147,20 @@ namespace GUI.Types.GLViewers
 
             Picker.Texture.SetRenderMode(renderMode);
             QuadOverdrawRenderer?.SetRenderMode(renderMode);
-            selectionVisuals.SetRenderMode(renderMode);
+
+            isCubemapsRenderMode = renderMode == "Cubemaps";
+
+            // The label and the box together, so the row is gone rather than empty
+            cubemapColorsComboBox?.Parent!.Visible = isCubemapsRenderMode;
+
+            ApplyCubemapColors();
+
+            selectionVisuals.LightingBindings = renderMode switch
+            {
+                "Cubemaps" => LightingBindingDisplay.EnvMaps,
+                "Irradiance" or "Illumination" => LightingBindingDisplay.LightProbe,
+                _ => LightingBindingDisplay.None,
+            };
 
             foreach (var node in Renderer.Scenes.SelectMany(static scene => scene.AllNodes))
             {

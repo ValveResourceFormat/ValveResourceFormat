@@ -100,12 +100,7 @@ namespace GUI.Types.GLViewers
             }
 
             {
-                var sphereMesh = ShapeSceneNode.CreateEnvCubemapSphere(Scene);
-                foreach (var renderable in sphereMesh.RenderableMeshes)
-                {
-                    renderable.SetMaterialForMaterialViewer(Resource);
-                }
-
+                var sphereMesh = MeshSceneNode.CreateMaterialPreviewSphere(Scene, renderMat, 8f);
                 Scene.Add(sphereMesh, false);
                 previewObjects[PreviewObjectType.Sphere] = sphereMesh;
             }

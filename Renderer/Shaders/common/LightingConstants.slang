@@ -7,7 +7,7 @@
 
 layout(std140, binding = 1) uniform LightingConstants {
     vec2 g_vLightmapUvScale;
-    uint _lightingPadding1;
+    uint g_nEnvMapDebugColors;       // reflections take each env map's debug colour from its data
     uint g_nNumBarnLights;
     uvec4 g_nNumLights;
     vec4 g_vSunDirection;            // xyz: surface-to-sun, zero when the scene has no sun
