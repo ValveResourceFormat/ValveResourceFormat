@@ -45,8 +45,11 @@ namespace ValveResourceFormat.IO
             ".sbproj",
         ];
 
-        /// <summary>Gets the game declared by the nearest <c>gameinfo.gi</c>, or <see langword="null"/> when none was found.</summary>
-        public string? GameName { get; private set; }
+        /// <summary>Gets the <c>gameinfo.gi</c> of the mod the opened file belongs to, or <see langword="null"/> when none was found.</summary>
+        public GameInfo? GameInfo { get; private set; }
+
+        /// <summary>Gets the game declared by <see cref="GameInfo"/>, or <see langword="null"/> when none was found.</summary>
+        public string? GameName => GameInfo?.Name;
 
         private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
         private readonly Lock CachedShadersLock = new();
@@ -416,57 +419,52 @@ namespace ValveResourceFormat.IO
             return resourceToReturn;
         }
 
-        private void HandleGameInfo(HashSet<string> folders, string gameRoot, string gameinfoPath)
+        private void HandleGameInfo(HashSet<string> folders, string gameinfoPath)
         {
-            KVObject gameInfo;
-            using (var stream = File.OpenRead(gameinfoPath))
+            GameInfo gameInfo;
+
+            try
             {
-                try
-                {
-                    gameInfo = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
-                }
-                catch (Exception e)
-                {
-                    Console.Error.WriteLine(e);
-                    return;
-                }
+                gameInfo = GameInfo.Read(gameinfoPath);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e);
+                return;
             }
 
-            gameInfo.TryGetValue("game", out var gameName);
-            Console.WriteLine($"Found \"{gameName}\" from \"{gameinfoPath}\"");
+            Console.WriteLine($"Found \"{gameInfo.Name}\" from \"{gameinfoPath}\"");
 
             // The walk starts at the file being opened, so the first one found is the mod it belongs to.
-            GameName ??= gameName?.ToString();
-
-            var fileSystem = gameInfo["FileSystem"];
+            GameInfo ??= gameInfo;
 
             // Only games that opt in mount the dependencies listed in an addon's addoninfo.txt
-            if (fileSystem.GetBooleanProperty("AllowAddonDependencies"))
+            if (gameInfo.AllowAddonDependencies)
             {
                 AddonDependenciesPending = true;
 
                 // Workshop dependencies of a local addon are installed next to the game, in steamapps/workshop/content/appid
                 if (WorkshopContentFolder == null
-                    && fileSystem.TryGetValue("SteamAppId", out var steamAppId)
+                    && gameInfo.SteamAppId is { } steamAppId
                     && FindSteamAppsFolder(gameinfoPath) is { } steamApps)
                 {
-                    WorkshopContentFolder = Path.Join(steamApps, "workshop", "content", steamAppId.ToString());
+                    WorkshopContentFolder = Path.Join(steamApps, "workshop", "content", steamAppId);
                 }
             }
 
-            foreach (var (key, searchPath) in fileSystem["SearchPaths"])
+            foreach (var (key, searchPath) in gameInfo.SearchPaths)
             {
                 if (key == "Game")
                 {
-                    folders.Add(Path.Combine(gameRoot, searchPath.ToString()!));
+                    folders.Add(Path.Combine(gameInfo.GameRoot, searchPath));
                 }
                 else if (key == "OfficialAddonRoot")
                 {
-                    CurrentGameOfficialAddonsPaths.Add(Path.Combine(gameRoot, searchPath.ToString()!));
+                    CurrentGameOfficialAddonsPaths.Add(Path.Combine(gameInfo.GameRoot, searchPath));
                 }
                 else if (key == "AddonRoot")
                 {
-                    CurrentGameAddonsPaths.Add(Path.Combine(gameRoot, searchPath.ToString()!));
+                    CurrentGameAddonsPaths.Add(Path.Combine(gameInfo.GameRoot, searchPath));
                 }
             }
         }
@@ -615,7 +613,7 @@ namespace ValveResourceFormat.IO
                 {
                     folders = [];
 
-                    HandleGameInfo(folders, assumedGameRoot, modIdentifierPath);
+                    HandleGameInfo(folders, modIdentifierPath);
                 }
                 else
                 {
@@ -628,7 +626,7 @@ namespace ValveResourceFormat.IO
 
                         if (File.Exists(mainGameInfo))
                         {
-                            HandleGameInfo(folders, Path.GetDirectoryName(mainGameDir)!, mainGameInfo);
+                            HandleGameInfo(folders, mainGameInfo);
                         }
                         else if (Directory.Exists(mainGameDir))
                         {
@@ -774,32 +772,14 @@ namespace ValveResourceFormat.IO
 
         private static bool GameInfoMountsFolder(string gameinfoPath, string folderName)
         {
-            KVObject gameInfo;
-
             try
             {
-                using var stream = File.OpenRead(gameinfoPath);
-                gameInfo = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
+                return GameInfo.Read(gameinfoPath).MountsFolder(folderName);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or KeyValueException)
             {
                 return false;
             }
-
-            if (!gameInfo.TryGetValue("FileSystem", out var fileSystem) || !fileSystem.TryGetValue("SearchPaths", out var searchPaths))
-            {
-                return false;
-            }
-
-            foreach (var (_, searchPath) in searchPaths)
-            {
-                if (string.Equals(searchPath.ToString(), folderName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         private void FindAndLoadOfficialGameAddonPackage()
@@ -1057,9 +1037,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var gameInfo in gameInfos)
             {
-                var directory = Path.GetDirectoryName(gameInfo);
-                var modName = Path.GetFileName(directory);
-                var assumedGameRoot = Path.GetDirectoryName(directory)!;
+                var modName = Path.GetFileName(Path.GetDirectoryName(gameInfo));
 
                 if (modName == "core")
                 {
@@ -1068,7 +1046,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                HandleGameInfo(folders, assumedGameRoot, gameInfo);
+                HandleGameInfo(folders, gameInfo);
             }
 
             return folders;
