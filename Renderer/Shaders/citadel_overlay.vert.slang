@@ -32,8 +32,6 @@ centroid out vec3 vCentroidNormalOut;
 out vec2 vTexCoordOut;
 centroid out vec4 vVertexColorOut;
 
-uniform float g_flModelTintAmount = 1.0;
-
 #include "common/ViewConstants.slang"
 #include "common/LightingConstants.slang"
 
@@ -58,7 +56,7 @@ void main()
 
     vTexCoordOut = vTEXCOORD.xy;
 
-    vVertexColorOut.rgb = mix(vec3(1.0), SrgbGammaToLinear(object.vTint.rgb), g_flModelTintAmount);
+    vVertexColorOut.rgb = SrgbGammaToLinear(object.vTint.rgb);
     vVertexColorOut.a = object.vTint.a;
 
     #if (F_DECAL_SPACE_NORMALS == 1)

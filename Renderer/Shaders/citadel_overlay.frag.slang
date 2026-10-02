@@ -25,7 +25,7 @@ uniform sampler2D g_tColor; // SrgbRead(true)
 uniform sampler2D g_tNormalRoughness;
 uniform sampler2D g_tSelfIllumTintMask; // r=self illum, g=tint mask
 
-uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTint = vec3(1.0);
 
 uniform vec2 g_vAlbedoTexcoordUVOffset = vec2(0.0);
 uniform vec2 g_vAlbedoScrollSpeed = vec2(0.0);
@@ -34,7 +34,7 @@ uniform vec2 g_vNormalAndRoughnessScrollSpeed = vec2(0.0);
 uniform vec2 g_vSelfIllumTexcoordOffset = vec2(0.0);
 uniform vec2 g_vSelfIllumScrollSpeed = vec2(0.0);
 
-uniform vec3 g_vSelfIllumTint = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vSelfIllumTint = vec3(1.0);
 uniform float g_flSelfIllumScale = 0.0;
 uniform float g_flSelfIllumAlbedoFactor = 1.0;
 

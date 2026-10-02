@@ -36,11 +36,9 @@ out vec3 vColorBlendValues; // layer 2 and 3 reveal in xy, environment_simple's 
     out vec3 vPositionOs;
 #endif
 
-uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
-uniform float g_flModelTintAmount = 1.0;
-
 #include "common/ViewConstants.slang"
 #include "common/LightingConstants.slang"
+#include "common/texcoord_scale_by_model.slang"
 
 void main()
 {
@@ -61,11 +59,16 @@ void main()
         vPerVertexLightingOut = pow2(Light);
     #endif
 
-    vec3 vertexPaint = mix(vec3(1.0), SrgbGammaToLinear(vCOLOR.rgb), vCOLOR.a);
-    vec3 tint = mix(vec3(1.0), SrgbGammaToLinear(object.vTint.rgb) * g_vColorTint.rgb, g_flModelTintAmount);
-    vVertexColorOut = vec4(tint * vertexPaint, object.vTint.a);
+    vec4 tint = vec4(SrgbGammaToLinear(object.vTint.rgb), object.vTint.a);
+    #if (GameVfx_environment_simple != 0)
+        // How much of the model tint applies is painted per vertex.
+        tint = mix(vec4(1.0), tint, vTEXCOORD4.w);
+    #endif
 
-    vTexCoord = vec4(vTEXCOORD.xy, vTEXCOORD1.xy);
+    vec3 vertexPaint = mix(vec3(1.0), SrgbGammaToLinear(vCOLOR.rgb), vCOLOR.a);
+    vVertexColorOut = vec4(tint.rgb * vertexPaint, tint.a);
+
+    vTexCoord = ApplyTexCoordScaleByModel(vec4(vTEXCOORD.xy, vTEXCOORD1.xy), CalculateObjectToWorldMatrix());
     vColorBlendValues = vTEXCOORD4.xyz;
 
     #if (WORLD_OVERLAY_OBJECT_SPACE == 1)

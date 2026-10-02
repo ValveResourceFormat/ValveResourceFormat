@@ -43,7 +43,7 @@ uniform bool g_bModelTint1 = true;
 uniform float g_fVertexColorStrength1 = 1.0;
 uniform float g_fLayerNormalStrength1 = 1.0;
 uniform float g_fLayerSelfIllumScale1 = 1.0;
-uniform vec3 g_vLayerSelfIllumTint1 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vLayerSelfIllumTint1 = vec3(1.0);
 uniform vec2 g_vLayerRoughnessContrastBrightness1 = vec2(1.0, 0.0);
 uniform vec2 g_vLayerTintMaskContrastBrightness1 = vec2(1.0, 0.0);
 uniform vec2 g_vLayerMetalnessContrastBrightness1 = vec2(1.0, 0.0);
@@ -69,7 +69,7 @@ uniform bool g_bModelTint2 = true;
 uniform float g_fVertexColorStrength2 = 1.0;
 uniform float g_fLayerNormalStrength2 = 1.0;
 uniform float g_fLayerSelfIllumScale2 = 1.0;
-uniform vec3 g_vLayerSelfIllumTint2 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vLayerSelfIllumTint2 = vec3(1.0);
 uniform vec2 g_vLayerRoughnessContrastBrightness2 = vec2(1.0, 0.0);
 uniform vec2 g_vLayerTintMaskContrastBrightness2 = vec2(1.0, 0.0);
 uniform vec2 g_vLayerMetalnessContrastBrightness2 = vec2(1.0, 0.0);
@@ -85,7 +85,7 @@ uniform vec2 g_vBorderWidth2 = vec2(0.125);
 uniform vec2 g_vBorderSoftness2 = vec2(0.5);
 uniform vec2 g_vBorderLayerAmount2 = vec2(1.0);
 uniform int g_nBorderBlendMode2 = 0; // 0="Multiply", 1="Mod2x", 2="Blend"
-uniform vec4 g_vBorderTint2 = vec4(0.5, 0.5, 0.5, 1.0); // SrgbRead(true)
+uniform vec4 g_vBorderTint2 = vec4(0.5, 0.5, 0.5, 1.0);
 uniform float g_flBorderRoughnessStrength2 = 0.0;
 uniform float g_flBorderRoughness2 = 0.5;
 
@@ -111,7 +111,7 @@ uniform float g_flBorderRoughness2 = 0.5;
     uniform float g_fVertexColorStrength3 = 1.0;
     uniform float g_fLayerNormalStrength3 = 1.0;
     uniform float g_fLayerSelfIllumScale3 = 1.0;
-    uniform vec3 g_vLayerSelfIllumTint3 = vec3(1.0); // SrgbRead(true)
+    uniform vec3 g_vLayerSelfIllumTint3 = vec3(1.0);
     uniform vec2 g_vLayerRoughnessContrastBrightness3 = vec2(1.0, 0.0);
     uniform vec2 g_vLayerTintMaskContrastBrightness3 = vec2(1.0, 0.0);
     uniform vec2 g_vLayerMetalnessContrastBrightness3 = vec2(1.0, 0.0);
@@ -127,7 +127,7 @@ uniform float g_flBorderRoughness2 = 0.5;
     uniform vec2 g_vBorderSoftness3 = vec2(0.5);
     uniform vec3 g_vBorderLayerAmount3 = vec3(1.0);
     uniform int g_nBorderBlendMode3 = 0;
-    uniform vec4 g_vBorderTint3 = vec4(0.5, 0.5, 0.5, 1.0); // SrgbRead(true)
+    uniform vec4 g_vBorderTint3 = vec4(0.5, 0.5, 0.5, 1.0);
     uniform float g_flBorderRoughnessStrength3 = 0.0;
     uniform float g_flBorderRoughness3 = 0.5;
 
@@ -186,10 +186,10 @@ uniform float g_flBorderRoughness2 = 0.5;
         uniform vec2 g_vWorldOverlayTiling = vec2(512.0);
         uniform vec2 g_vWorldOverlayBrightnessContrast = vec2(1.0);
         uniform vec2 g_vWorldOverlayDarknessContrast = vec2(1.0);
-        uniform vec2 g_vWorldOverlayStrengths1 = vec2(1.0);
-        uniform vec2 g_vWorldOverlayStrengths2 = vec2(1.0);
+        uniform vec2 g_vWorldOverlayStrengths1 = vec2(1.0, 0.0);
+        uniform vec2 g_vWorldOverlayStrengths2 = vec2(1.0, 0.0);
         #if (LAYER_COUNT == 3)
-            uniform vec2 g_vWorldOverlayStrengths3 = vec2(1.0);
+            uniform vec2 g_vWorldOverlayStrengths3 = vec2(1.0, 0.0);
         #endif
     #else
         uniform float g_flWorldOverlayTiling = 512.0;
@@ -473,22 +473,29 @@ vec3 ApplyBorderTint(vec3 albedo, vec4 tint, float amount, int blendMode)
 {
     float weight = amount * tint.a;
 
-    if (blendMode == 1) // Mod2x
+    // Mod2x reads the tint as a factor around its 0.5 midpoint, the other modes as a colour.
+    vec3 tintColor = (blendMode == 1) ? tint.rgb : SrgbGammaToLinear(tint.rgb);
+
+    if (blendMode == 0) // Multiply
     {
-        return albedo * mix(vec3(1.0), tint.rgb * 1.9921569, weight);
+        return albedo * mix(vec3(1.0), tintColor, weight);
+    }
+    else if (blendMode == 1) // Mod2x
+    {
+        return albedo * mix(vec3(1.0), tintColor * 1.9921569, weight);
     }
     else if (blendMode == 2) // Blend
     {
-        return mix(albedo, tint.rgb, weight);
+        return mix(albedo, tintColor, weight);
     }
 
-    return albedo * mix(vec3(1.0), tint.rgb, weight); // Multiply
+    return albedo;
 }
 
 #if (GameVfx_environment_simple != 0)
 
-// One texture carries albedo with ambient occlusion in alpha. There is no normal map, and roughness,
-// metalness and self illumination are all vertex painted.
+// One texture carries albedo with the vertex colour tint mask in alpha. There is no normal map, and
+// roughness, metalness and self illumination are all vertex painted.
 MaterialProperties_t GetMaterial(vec3 vertexNormal)
 {
     MaterialProperties_t mat;
@@ -496,7 +503,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
 
     vec4 color = texture(g_tColor, vTexCoord.xy);
 
-    mat.Albedo = color.rgb * vVertexColorOut.rgb;
+    mat.Albedo = mix(color.rgb, color.rgb * vVertexColorOut.rgb, color.a);
     mat.IllumColor = mat.Albedo * vColorBlendValues.z;
     mat.Metalness = vColorBlendValues.y;
     mat.RoughnessTex = vec2(vColorBlendValues.x);
@@ -510,9 +517,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
     mat.DiffuseColor = mat.Albedo - mat.Albedo * mat.Metalness;
     mat.SpecularColor = GetSpecularColorCitadel(mat.Albedo, mat.Metalness);
 
-    mat.AmbientOcclusion = color.a;
-    mat.DiffuseAO = vec3(color.a);
-    mat.SpecularAO = color.a;
 
     return mat;
 }
@@ -696,7 +700,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
     Layer_t result = layer1;
 
     #if (LAYER_COUNT >= 2)
-        float weight2 = smoothstep(-g_flRevealSoftness2, g_flRevealSoftness2, blend2 - threshold2);
+        float weight2 = (blend2 >= 1.0) ? 1.0 : smoothstep(-g_flRevealSoftness2, g_flRevealSoftness2, blend2 - threshold2);
 
         result.Albedo = mix(result.Albedo, layer2.Albedo, weight2);
         result.NormalOffset = mix(result.NormalOffset, layer2.NormalOffset, weight2);
@@ -707,7 +711,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
     #endif
 
     #if (LAYER_COUNT == 3)
-        float weight3 = smoothstep(-g_flRevealSoftness3, g_flRevealSoftness3, blend3 - threshold3);
+        float weight3 = (blend3 >= 1.0) ? 1.0 : smoothstep(-g_flRevealSoftness3, g_flRevealSoftness3, blend3 - threshold3);
 
         result.Albedo = mix(result.Albedo, layer3.Albedo, weight3);
         result.NormalOffset = mix(result.NormalOffset, layer3.NormalOffset, weight3);

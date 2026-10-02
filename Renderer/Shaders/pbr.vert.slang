@@ -35,11 +35,9 @@ centroid out vec3 vCentroidNormalOut;
 out vec4 vTexCoord; // UV1 in xy, UV2 in zw
 centroid out vec4 vVertexColorOut;
 
-uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
-uniform float g_flModelTintAmount = 1.0;
-
 #include "common/ViewConstants.slang"
 #include "common/LightingConstants.slang"
+#include "common/texcoord_scale_by_model.slang"
 
 #if (F_JITTER_VERTICES > 0)
     uniform sampler2D g_tJitterMask;
@@ -137,7 +135,7 @@ void main()
         vPerVertexLightingOut = pow2(Light);
     #endif
 
-    vVertexColorOut.rgb = mix(vec3(1.0), SrgbGammaToLinear(object.vTint.rgb) * g_vColorTint.rgb, g_flModelTintAmount);
+    vVertexColorOut.rgb = SrgbGammaToLinear(object.vTint.rgb);
     vVertexColorOut.a = object.vTint.a;
 
     #if (F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1)
@@ -149,4 +147,6 @@ void main()
     #else
         vTexCoord = vTEXCOORD.xyxy;
     #endif
+
+    vTexCoord = ApplyTexCoordScaleByModel(vTexCoord, CalculateObjectToWorldMatrix());
 }

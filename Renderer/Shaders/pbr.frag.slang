@@ -38,10 +38,6 @@ uniform sampler2D g_tNormalRoughness;
 #else
     uniform sampler2D g_tTintMask;
 #endif
-#if (MATERIAL_OCCLUSION == 1)
-    uniform sampler2D g_tAmbientOcclusion;
-    uniform bool g_bUseSecondaryUvForAmbientOcclusion = false;
-#endif
 
 uniform mat4 g_mAlbedoColorCorrect = mat4(1.0);
 uniform mat4 g_mTextureColorTint = mat4(1.0);
@@ -65,12 +61,6 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
     uniform vec2 g_vNormalTexcoordScale1 = vec2(1.0);
     uniform float g_flNormalTexcoordRotation1 = 0.0;
     uniform vec2 g_vNormalTexcoordOffset1 = vec2(0.0);
-
-    #if (MATERIAL_OCCLUSION == 1)
-        uniform vec2 g_vAmbientOcclusionTexcoordScale1 = vec2(1.0);
-        uniform float g_flAmbientOcclusionTexcoordRotation1 = 0.0;
-        uniform vec2 g_vAmbientOcclusionTexcoordOffset1 = vec2(0.0);
-    #endif
 
     #if (F_SELF_ILLUM == 1)
         uniform vec2 g_vSelfIllumTexcoordScale1 = vec2(1.0);
@@ -111,10 +101,10 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
 #if (F_SELF_ILLUM == 1)
     uniform sampler2D g_tSelfIllumMask;
 
-    uniform vec3 g_vSelfIllumTint1 = vec3(1.0); // SrgbRead(true)
+    uniform vec3 g_vSelfIllumTint1 = vec3(1.0);
     uniform float g_flSelfIllumScale1 = 0.0;
     uniform float g_flSelfIllumAlbedoFactor1 = 1.0;
-    uniform vec3 g_vSelfIllumFresnelMaskTint1 = vec3(1.0); // SrgbRead(true)
+    uniform vec3 g_vSelfIllumFresnelMaskTint1 = vec3(1.0);
     uniform float g_flSelfIllumFresnelMaskExponent = 5.0;
     uniform vec2 g_vSelfIllumFresnelMaskRange1 = vec2(0.0);
     uniform bool g_bUseSecondaryUvForSelfIllum1 = false;
@@ -337,15 +327,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
         mat.Metalness = texture(g_tMetalness, albedoTexCoord).x;
     #elif (F_UNLIT == 0)
         mat.Metalness = color.a;
-    #endif
-
-    #if (MATERIAL_OCCLUSION == 1)
-        vec2 occlusionTexCoord = SelectTexCoord(g_bUseSecondaryUvForAmbientOcclusion);
-        #if (F_ENABLE_TEXTURE_TRANSFORMS == 1)
-            occlusionTexCoord = RotateVector2D(occlusionTexCoord, g_flAmbientOcclusionTexcoordRotation1, g_vAmbientOcclusionTexcoordScale1, g_vAmbientOcclusionTexcoordOffset1);
-        #endif
-
-        mat.AmbientOcclusion = texture(g_tAmbientOcclusion, occlusionTexCoord).x;
     #endif
 
     #if (FADED_OPACITY == 1)

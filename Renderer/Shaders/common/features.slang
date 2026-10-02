@@ -13,6 +13,7 @@
 
 uniform int F_RENDER_BACKFACES; // most shaders
 uniform int F_DONT_FLIP_BACKFACE_NORMALS; // most shaders
+// uniform uint F_USE_FRONT_FACE_NORMALS_FOR_BACK_FACES // citadel pbr, same as above
 uniform int F_RETRO_REFLECTIVE; // csgo_character, vr_complex
 
 #endif
