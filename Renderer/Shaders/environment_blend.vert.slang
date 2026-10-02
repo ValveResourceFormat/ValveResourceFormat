@@ -30,7 +30,7 @@ out vec3 vBitangentOut;
 centroid out vec3 vCentroidNormalOut;
 out vec4 vTexCoord; // UV1 in xy, UV2 in zw
 centroid out vec4 vVertexColorOut;
-out vec2 vColorBlendValues; // layer 2 reveal in x, layer 3 reveal in y
+out vec3 vColorBlendValues; // layer 2 and 3 reveal in xy, environment_simple's roughness, metalness and self illumination in xyz
 
 #if (WORLD_OVERLAY_OBJECT_SPACE == 1)
     out vec3 vPositionOs;
@@ -66,7 +66,7 @@ void main()
     vVertexColorOut = vec4(tint * vertexPaint, object.vTint.a);
 
     vTexCoord = vec4(vTEXCOORD.xy, vTEXCOORD1.xy);
-    vColorBlendValues = vTEXCOORD4.xy;
+    vColorBlendValues = vTEXCOORD4.xyz;
 
     #if (WORLD_OVERLAY_OBJECT_SPACE == 1)
         vPositionOs = vPOSITION;

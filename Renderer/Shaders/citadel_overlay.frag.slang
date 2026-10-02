@@ -24,7 +24,6 @@ out vec4 outputColor;
 uniform sampler2D g_tColor; // SrgbRead(true)
 uniform sampler2D g_tNormalRoughness;
 uniform sampler2D g_tSelfIllumTintMask; // r=self illum, g=tint mask
-uniform sampler2D g_tAmbientOcclusion;
 
 uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
 
@@ -89,7 +88,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
     vec4 color = texture(g_tColor, albedoTexCoord);
     vec4 normalRoughness = texture(g_tNormalRoughness, normalTexCoord);
     vec2 selfIllumTintMask = texture(g_tSelfIllumTintMask, selfIllumTexCoord).xy;
-    float occlusion = texture(g_tAmbientOcclusion, albedoTexCoord).y;
 
     vec3 albedo = mix(color.rgb, color.rgb * g_vColorTint * vVertexColorOut.rgb, selfIllumTintMask.y);
 
@@ -102,7 +100,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
     mat.NormalMap = DecodeHemiOctahedronNormal(normalRoughness.rg);
     mat.Normal = calculateWorldNormal(mat.NormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
     mat.RoughnessTex = normalRoughness.bb;
-    mat.AmbientOcclusion = occlusion;
 
     // A decal writes no metalness of its own.
     mat.Metalness = 0.0;
@@ -112,13 +109,12 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
     mat.Opacity = RemapTranslucency(translucency, g_vColorTranslucencyInputRange, g_vColorTranslucencyOutputRange);
 
     // The other two opacities cannot be written per gbuffer target in a forward pass, so
-    // they fade the normal and the roughness/occlusion back toward the untouched surface.
+    // they fade the normal and the roughness back toward the untouched surface.
     float normalOpacity = RemapTranslucency(translucency, g_vNormalTranslucencyInputRange, g_vNormalTranslucencyOutputRange);
     float surfaceOpacity = RemapTranslucency(translucency, g_vRoughnessSelfIllumAoTranslucencyInputRange, g_vRoughnessSelfIllumAoTranslucencyOutputRange);
 
     mat.Normal = normalize(mix(mat.GeometricNormal, mat.Normal, normalOpacity));
     mat.RoughnessTex = mix(vec2(1.0), mat.RoughnessTex, surfaceOpacity);
-    mat.AmbientOcclusion = mix(1.0, mat.AmbientOcclusion, surfaceOpacity);
     mat.IllumColor *= surfaceOpacity;
 
     AdjustRoughnessByGeometricNormal(mat);
@@ -128,9 +124,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
 
     mat.DiffuseColor = mat.Albedo;
     mat.SpecularColor = GetSpecularColorCitadel(mat.Albedo, mat.Metalness);
-
-    mat.DiffuseAO = vec3(mat.AmbientOcclusion);
-    mat.SpecularAO = mat.AmbientOcclusion;
 
     return mat;
 }

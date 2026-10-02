@@ -14,13 +14,20 @@ in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec4 vTexCoord; // UV1 in xy, UV2 in zw
 centroid in vec4 vVertexColorOut;
-in vec2 vColorBlendValues;
+in vec3 vColorBlendValues;
 
 #if (WORLD_OVERLAY_OBJECT_SPACE == 1)
     in vec3 vPositionOs;
 #endif
 
 out vec4 outputColor;
+
+#if (GameVfx_environment_simple != 0)
+    uniform sampler2D g_tColor; // SrgbRead(true)
+    #define RepresentativeTexture g_tColor
+#else
+    #define RepresentativeTexture g_tColor1
+#endif
 
 // Layer 1
 uniform sampler2D g_tColor1; // SrgbRead(true)
@@ -89,7 +96,7 @@ uniform float g_flBorderRoughness2 = 0.5;
 #endif
 
 // Layer 3
-#if (F_LAYER_COUNT == 1)
+#if (LAYER_COUNT == 3)
     uniform sampler2D g_tColor3; // SrgbRead(true)
     uniform sampler2D g_tNormalRoughness3;
     uniform sampler2D g_tPacked3;
@@ -133,7 +140,7 @@ uniform float g_flBorderRoughness2 = 0.5;
 
 // UV overlay: one texture laid over every layer, plus a mask that pushes layer 2 in on
 // top of the vertex paint.
-#if (F_UV_OVERLAY == 1)
+#if (UV_OVERLAY == 1)
     uniform sampler2D g_tColorOverlay; // SrgbRead(true)
     uniform sampler2D g_tNormalRoughnessOverlay;
     uniform sampler2D g_tRevealOverlay;
@@ -155,7 +162,7 @@ uniform float g_flBorderRoughness2 = 0.5;
     uniform bool g_bRevealOverlayInvert2 = false;
     uniform float g_flRevealOverlayStrength2 = 1.0;
 
-    #if (F_LAYER_COUNT == 1)
+    #if (LAYER_COUNT == 3)
         uniform int g_nOverlayTintMask3 = 0;
         uniform float g_flOverlayStrength3 = 1.0;
         uniform float g_flOverlayNormalStrength3 = 1.0;
@@ -164,16 +171,16 @@ uniform float g_flBorderRoughness2 = 0.5;
 #endif
 
 // World overlay: biplanar-projected colour modulation, shared by every layer.
-#if (F_WORLD_OVERLAY > 0)
+#if (WORLD_OVERLAY > 0)
     uniform sampler2D g_tColorWorldOverlay; // SrgbRead(true)
 
     uniform int g_nWorldOverlayTintMask1 = 1; // 0="Unmasked", 1="Masked", 2="Inverted"
     uniform int g_nWorldOverlayTintMask2 = 1;
-    #if (F_LAYER_COUNT == 1)
+    #if (LAYER_COUNT == 3)
         uniform int g_nWorldOverlayTintMask3 = 1;
     #endif
 
-    #if (F_WORLD_OVERLAY == 2)
+    #if (WORLD_OVERLAY == 2)
         uniform sampler2D g_tColorWorldOverlay2; // SrgbRead(true)
 
         uniform vec2 g_vWorldOverlayTiling = vec2(512.0);
@@ -181,7 +188,7 @@ uniform float g_flBorderRoughness2 = 0.5;
         uniform vec2 g_vWorldOverlayDarknessContrast = vec2(1.0);
         uniform vec2 g_vWorldOverlayStrengths1 = vec2(1.0);
         uniform vec2 g_vWorldOverlayStrengths2 = vec2(1.0);
-        #if (F_LAYER_COUNT == 1)
+        #if (LAYER_COUNT == 3)
             uniform vec2 g_vWorldOverlayStrengths3 = vec2(1.0);
         #endif
     #else
@@ -190,7 +197,7 @@ uniform float g_flBorderRoughness2 = 0.5;
         uniform float g_flWorldOverlayDarknessContrast = 1.0;
         uniform float g_flWorldOverlayStrength1 = 1.0;
         uniform float g_flWorldOverlayStrength2 = 1.0;
-        #if (F_LAYER_COUNT == 1)
+        #if (LAYER_COUNT == 3)
             uniform float g_flWorldOverlayStrength3 = 1.0;
         #endif
     #endif
@@ -266,7 +273,7 @@ LayerFrame_t GetDerivedFrame(vec2 texCoord, vec3 normal)
     return frame;
 }
 
-#if (ANY_BIPLANAR == 1) || (F_WORLD_OVERLAY > 0)
+#if (ANY_BIPLANAR == 1) || (WORLD_OVERLAY > 0)
     // Axis permutations for the biggest and smallest components of the normal, plus the
     // remaining one. Shared by the biplanar layer projection and the world overlay.
     struct PlanarAxes_t
@@ -327,7 +334,7 @@ LayerFrame_t GetDerivedFrame(vec2 texCoord, vec3 normal)
     }
 #endif
 
-#if (F_WORLD_OVERLAY > 0)
+#if (WORLD_OVERLAY > 0)
     #if (WORLD_OVERLAY_OBJECT_SPACE == 1)
         #define WorldOverlayPosition vPositionOs
     #else
@@ -356,7 +363,7 @@ LayerFrame_t GetDerivedFrame(vec2 texCoord, vec3 normal)
     }
 #endif
 
-#if (F_UV_OVERLAY == 1) || (F_WORLD_OVERLAY > 0)
+#if (UV_OVERLAY == 1) || (WORLD_OVERLAY > 0)
     // An overlay texel is a signed multiplier around 0.5. Values above brighten and values
     // below darken, each side shaped by its own contrast exponent.
     vec3 GetOverlayFactor(vec3 overlay, float darknessContrast, float brightnessContrast)
@@ -478,6 +485,40 @@ vec3 ApplyBorderTint(vec3 albedo, vec4 tint, float amount, int blendMode)
     return albedo * mix(vec3(1.0), tint.rgb, weight); // Multiply
 }
 
+#if (GameVfx_environment_simple != 0)
+
+// One texture carries albedo with ambient occlusion in alpha. There is no normal map, and roughness,
+// metalness and self illumination are all vertex painted.
+MaterialProperties_t GetMaterial(vec3 vertexNormal)
+{
+    MaterialProperties_t mat;
+    InitProperties(mat, vertexNormal, vFragPosition, vTangentOut, vBitangentOut);
+
+    vec4 color = texture(g_tColor, vTexCoord.xy);
+
+    mat.Albedo = color.rgb * vVertexColorOut.rgb;
+    mat.IllumColor = mat.Albedo * vColorBlendValues.z;
+    mat.Metalness = vColorBlendValues.y;
+    mat.RoughnessTex = vec2(vColorBlendValues.x);
+
+    mat.Normal = mat.GeometricNormal;
+    AdjustRoughnessByGeometricNormal(mat);
+
+    mat.AmbientNormal = mat.Normal;
+    mat.AmbientGeometricNormal = mat.GeometricNormal;
+
+    mat.DiffuseColor = mat.Albedo - mat.Albedo * mat.Metalness;
+    mat.SpecularColor = GetSpecularColorCitadel(mat.Albedo, mat.Metalness);
+
+    mat.AmbientOcclusion = color.a;
+    mat.DiffuseAO = vec3(color.a);
+    mat.SpecularAO = color.a;
+
+    return mat;
+}
+
+#else
+
 MaterialProperties_t GetMaterial(vec3 vertexNormal)
 {
     MaterialProperties_t mat;
@@ -486,14 +527,14 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
     // Every layer above the first is revealed by its own mask weighed against a channel of
     // the vertex paint.
     float blend2 = vColorBlendValues.x;
-    #if (F_LAYER_COUNT == 1)
+    #if (LAYER_COUNT == 3)
         float blend3 = vColorBlendValues.y;
         blend2 = (blend3 < 1.0) ? blend2 : 0.0;
         blend3 = (blend3 > 1e-5) ? blend3 : 0.0;
     #endif
     blend2 = (blend2 > 1e-5) ? blend2 : 0.0;
 
-    #if (F_UV_OVERLAY == 1)
+    #if (UV_OVERLAY == 1)
         vec2 overlayTexCoord = ApplyUvTransform(
             g_bUseSecondaryUvForOverlay ? vTexCoord.zw : vTexCoord.xy,
             g_vOverlayScaleRotationTranslation);
@@ -515,19 +556,42 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
         g_fLayerNormalStrength1, g_fLayerSelfIllumScale1,
         g_bMaskColorTint1, g_bMaskVertexColorTint1, g_bModelTint1, g_fVertexColorStrength1);
 
-    #if (F_LAYER2_BIPLANAR == 1)
-        LayerFrame_t frame2 = GetBiPlanarFrame(mat.GeometricNormal, g_flBiPlanarTiling2);
-    #else
-        LayerFrame_t frame2 = GetMeshFrame(ApplyUvTransform(vTexCoord.xy, g_vScaleRotationTranslation2));
+    // Self illumination is taken before any seam or overlay decoration touches the albedo.
+    vec3 illumColor = layer1.Albedo * layer1.SelfIllum * g_vLayerSelfIllumTint1;
+
+    // Each seam decorates the layers below it too, so a layer's border runs as soon as it is sampled.
+    #if (LAYER_COUNT >= 2)
+        #if (F_LAYER2_BIPLANAR == 1)
+            LayerFrame_t frame2 = GetBiPlanarFrame(mat.GeometricNormal, g_flBiPlanarTiling2);
+        #else
+            LayerFrame_t frame2 = GetMeshFrame(ApplyUvTransform(vTexCoord.xy, g_vScaleRotationTranslation2));
+        #endif
+
+        Layer_t layer2 = SampleLayer(g_tColor2, g_tNormalRoughness2, g_tPacked2, frame2,
+            g_mAlbedoColorCorrect2, g_mTextureColorTint2,
+            g_vLayerRoughnessContrastBrightness2, g_vLayerTintMaskContrastBrightness2, g_vLayerMetalnessContrastBrightness2,
+            g_fLayerNormalStrength2, g_fLayerSelfIllumScale2,
+            g_bMaskColorTint2, g_bMaskVertexColorTint2, g_bModelTint2, g_fVertexColorStrength2);
+
+        vec3 illumColor2 = layer2.Albedo * layer2.SelfIllum * g_vLayerSelfIllumTint2;
+
+        float revealMask2 = texture(g_tRevealMask2, ApplyUvTransform(
+            g_bRevealUseSecondaryUv2 ? vTexCoord.zw : vTexCoord.xy,
+            g_vRevealScaleRotationTranslation2)).r;
+        float threshold2 = GetRevealThreshold(revealMask2, g_bRevealInvert2, g_flRevealOffset2, g_flRevealSoftness2);
+
+        if (g_bBorderEffects2 && blend2 > 0.0)
+        {
+            vec3 amount = GetBorderAmount(blend2, threshold2, g_vBorderWidth2, g_vBorderSoftness2, vec3(g_vBorderLayerAmount2, 0.0));
+
+            layer1.Albedo = ApplyBorderTint(layer1.Albedo, g_vBorderTint2, amount.x, g_nBorderBlendMode2);
+            layer2.Albedo = ApplyBorderTint(layer2.Albedo, g_vBorderTint2, amount.y, g_nBorderBlendMode2);
+            layer1.Roughness = mix(layer1.Roughness, g_flBorderRoughness2, g_flBorderRoughnessStrength2 * amount.x);
+            layer2.Roughness = mix(layer2.Roughness, g_flBorderRoughness2, g_flBorderRoughnessStrength2 * amount.y);
+        }
     #endif
 
-    Layer_t layer2 = SampleLayer(g_tColor2, g_tNormalRoughness2, g_tPacked2, frame2,
-        g_mAlbedoColorCorrect2, g_mTextureColorTint2,
-        g_vLayerRoughnessContrastBrightness2, g_vLayerTintMaskContrastBrightness2, g_vLayerMetalnessContrastBrightness2,
-        g_fLayerNormalStrength2, g_fLayerSelfIllumScale2,
-        g_bMaskColorTint2, g_bMaskVertexColorTint2, g_bModelTint2, g_fVertexColorStrength2);
-
-    #if (F_LAYER_COUNT == 1)
+    #if (LAYER_COUNT == 3)
         #if (LAYER3_BIPLANAR == 1)
             LayerFrame_t frame3 = GetBiPlanarFrame(mat.GeometricNormal, g_flBiPlanarTiling3);
         #else
@@ -539,39 +603,14 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
             g_vLayerRoughnessContrastBrightness3, g_vLayerTintMaskContrastBrightness3, g_vLayerMetalnessContrastBrightness3,
             g_fLayerNormalStrength3, g_fLayerSelfIllumScale3,
             g_bMaskColorTint3, g_bMaskVertexColorTint3, g_bModelTint3, g_fVertexColorStrength3);
-    #endif
 
-    // Self illumination is taken before any seam or overlay decoration touches the albedo.
-    vec3 illumColor = layer1.Albedo * layer1.SelfIllum * g_vLayerSelfIllumTint1;
-    vec3 illumColor2 = layer2.Albedo * layer2.SelfIllum * g_vLayerSelfIllumTint2;
-    #if (F_LAYER_COUNT == 1)
         vec3 illumColor3 = layer3.Albedo * layer3.SelfIllum * g_vLayerSelfIllumTint3;
-    #endif
 
-    float revealMask2 = texture(g_tRevealMask2, ApplyUvTransform(
-        g_bRevealUseSecondaryUv2 ? vTexCoord.zw : vTexCoord.xy,
-        g_vRevealScaleRotationTranslation2)).r;
-    float threshold2 = GetRevealThreshold(revealMask2, g_bRevealInvert2, g_flRevealOffset2, g_flRevealSoftness2);
-
-    #if (F_LAYER_COUNT == 1)
         float revealMask3 = texture(g_tRevealMask3, ApplyUvTransform(
             g_bRevealUseSecondaryUv3 ? vTexCoord.zw : vTexCoord.xy,
             g_vRevealScaleRotationTranslation3)).r;
         float threshold3 = GetRevealThreshold(revealMask3, g_bRevealInvert3, g_flRevealOffset3, g_flRevealSoftness3);
-    #endif
 
-    // Border effects
-    if (g_bBorderEffects2 && blend2 > 0.0)
-    {
-        vec3 amount = GetBorderAmount(blend2, threshold2, g_vBorderWidth2, g_vBorderSoftness2, vec3(g_vBorderLayerAmount2, 0.0));
-
-        layer1.Albedo = ApplyBorderTint(layer1.Albedo, g_vBorderTint2, amount.x, g_nBorderBlendMode2);
-        layer2.Albedo = ApplyBorderTint(layer2.Albedo, g_vBorderTint2, amount.y, g_nBorderBlendMode2);
-        layer1.Roughness = mix(layer1.Roughness, g_flBorderRoughness2, g_flBorderRoughnessStrength2 * amount.x);
-        layer2.Roughness = mix(layer2.Roughness, g_flBorderRoughness2, g_flBorderRoughnessStrength2 * amount.y);
-    }
-
-    #if (F_LAYER_COUNT == 1)
         if (g_bBorderEffects3 && blend3 > 0.0)
         {
             vec3 amount = GetBorderAmount(blend3, threshold3, g_vBorderWidth3, g_vBorderSoftness3, g_vBorderLayerAmount3);
@@ -585,10 +624,10 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
         }
     #endif
 
-    #if (F_WORLD_OVERLAY > 0)
-        for (int i = 0; i < F_WORLD_OVERLAY; i++)
+    #if (WORLD_OVERLAY > 0)
+        for (int i = 0; i < WORLD_OVERLAY; i++)
         {
-            #if (F_WORLD_OVERLAY == 2)
+            #if (WORLD_OVERLAY == 2)
                 vec4 overlay = (i == 1)
                     ? SampleBiPlanar(g_tColorWorldOverlay2, mat.GeometricNormal, g_vWorldOverlayTiling[i])
                     : SampleBiPlanar(g_tColorWorldOverlay, mat.GeometricNormal, g_vWorldOverlayTiling[i]);
@@ -605,8 +644,8 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
             layer1.Albedo = mix(layer1.Albedo, layer1.Albedo * factor, GetOverlayTintMask(g_nWorldOverlayTintMask1, layer1.TintMask) * strength1);
             layer2.Albedo = mix(layer2.Albedo, layer2.Albedo * factor, GetOverlayTintMask(g_nWorldOverlayTintMask2, layer2.TintMask) * strength2);
 
-            #if (F_LAYER_COUNT == 1)
-                #if (F_WORLD_OVERLAY == 2)
+            #if (LAYER_COUNT == 3)
+                #if (WORLD_OVERLAY == 2)
                     float strength3 = g_vWorldOverlayStrengths3[i];
                 #else
                     float strength3 = g_flWorldOverlayStrength3;
@@ -616,7 +655,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
         }
     #endif
 
-    #if (F_UV_OVERLAY == 1)
+    #if (UV_OVERLAY == 1)
     {
         // The overlay carries its own tangent frame unless it rides on the untransformed
         // primary UVs, in which case the mesh frame is what the layers already use.
@@ -644,7 +683,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
         layer2.NormalOffset += overlayNormalOffset * (g_flOverlayNormalStrength2 * mask2);
         layer2.Roughness = saturate(layer2.Roughness + overlayRoughness * g_flOverlayRoughnessStrength2 * mask2);
 
-        #if (F_LAYER_COUNT == 1)
+        #if (LAYER_COUNT == 3)
             float mask3 = GetOverlayTintMask(g_nOverlayTintMask3, layer3.TintMask);
             layer3.Albedo = mix(layer3.Albedo, layer3.Albedo * factor, mask3 * g_flOverlayStrength3);
             layer3.NormalOffset += overlayNormalOffset * (g_flOverlayNormalStrength3 * mask3);
@@ -654,17 +693,20 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
     #endif
 
     // Composite
-    float weight2 = smoothstep(-g_flRevealSoftness2, g_flRevealSoftness2, blend2 - threshold2);
-
     Layer_t result = layer1;
-    result.Albedo = mix(layer1.Albedo, layer2.Albedo, weight2);
-    result.NormalOffset = mix(layer1.NormalOffset, layer2.NormalOffset, weight2);
-    result.Roughness = mix(layer1.Roughness, layer2.Roughness, weight2);
-    result.Metalness = mix(layer1.Metalness, layer2.Metalness, weight2);
-    result.SelfIllum = mix(layer1.SelfIllum, layer2.SelfIllum, weight2);
-    illumColor = mix(illumColor, illumColor2, weight2);
 
-    #if (F_LAYER_COUNT == 1)
+    #if (LAYER_COUNT >= 2)
+        float weight2 = smoothstep(-g_flRevealSoftness2, g_flRevealSoftness2, blend2 - threshold2);
+
+        result.Albedo = mix(result.Albedo, layer2.Albedo, weight2);
+        result.NormalOffset = mix(result.NormalOffset, layer2.NormalOffset, weight2);
+        result.Roughness = mix(result.Roughness, layer2.Roughness, weight2);
+        result.Metalness = mix(result.Metalness, layer2.Metalness, weight2);
+        result.SelfIllum = mix(result.SelfIllum, layer2.SelfIllum, weight2);
+        illumColor = mix(illumColor, illumColor2, weight2);
+    #endif
+
+    #if (LAYER_COUNT == 3)
         float weight3 = smoothstep(-g_flRevealSoftness3, g_flRevealSoftness3, blend3 - threshold3);
 
         result.Albedo = mix(result.Albedo, layer3.Albedo, weight3);
@@ -701,6 +743,8 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
     return mat;
 }
 
+#endif
+
 void main()
 {
     vec3 vertexNormal = SwitchCentroidNormal(vNormalOut, vCentroidNormalOut);
@@ -721,7 +765,7 @@ void main()
 
     if (HandleMaterialRenderModes(outputColor, mat)
     || HandleLightingRenderModes(outputColor, mat, lighting)
-    || HandleUVRenderModes(outputColor, mat, g_tColor1, vTexCoord.xy))
+    || HandleUVRenderModes(outputColor, mat, RepresentativeTexture, vTexCoord.xy))
     {
         //
     }
@@ -741,6 +785,6 @@ void main()
     }
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {
-        outputColor.rgb = vec3(vColorBlendValues, 0.0);
+        outputColor.rgb = vec3(vColorBlendValues.xy, 0.0);
     }
 }

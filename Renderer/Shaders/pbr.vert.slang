@@ -141,7 +141,7 @@ void main()
     vVertexColorOut.a = object.vTint.a;
 
     #if (F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1)
-        vVertexColorOut *= SrgbGammaToLinear(vCOLOR);
+        vVertexColorOut *= vec4(SrgbGammaToLinear(vCOLOR.rgb), vCOLOR.a);
     #endif
 
     #if (F_SECONDARY_UV == 1)

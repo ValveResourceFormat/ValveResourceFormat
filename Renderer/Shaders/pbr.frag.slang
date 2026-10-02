@@ -38,7 +38,7 @@ uniform sampler2D g_tNormalRoughness;
 #else
     uniform sampler2D g_tTintMask;
 #endif
-#if (F_UNLIT == 0)
+#if (MATERIAL_OCCLUSION == 1)
     uniform sampler2D g_tAmbientOcclusion;
     uniform bool g_bUseSecondaryUvForAmbientOcclusion = false;
 #endif
@@ -66,7 +66,7 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
     uniform float g_flNormalTexcoordRotation1 = 0.0;
     uniform vec2 g_vNormalTexcoordOffset1 = vec2(0.0);
 
-    #if (F_UNLIT == 0)
+    #if (MATERIAL_OCCLUSION == 1)
         uniform vec2 g_vAmbientOcclusionTexcoordScale1 = vec2(1.0);
         uniform float g_flAmbientOcclusionTexcoordRotation1 = 0.0;
         uniform vec2 g_vAmbientOcclusionTexcoordOffset1 = vec2(0.0);
@@ -86,7 +86,6 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
 
 #if (FADED_OPACITY == 1)
     uniform float g_flAlphaAnglePower1 = 0.0;
-    uniform vec2 g_flAlphaAngleScaleBias1 = vec2(0.0);
 
     #if (F_TRANSLUCENT == 1)
         uniform float g_flOpacityScale1 = 1.0;
@@ -117,6 +116,7 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
     uniform float g_flSelfIllumAlbedoFactor1 = 1.0;
     uniform vec3 g_vSelfIllumFresnelMaskTint1 = vec3(1.0); // SrgbRead(true)
     uniform float g_flSelfIllumFresnelMaskExponent = 5.0;
+    uniform vec2 g_vSelfIllumFresnelMaskRange1 = vec2(0.0);
     uniform bool g_bUseSecondaryUvForSelfIllum1 = false;
     uniform vec2 g_vSelfIllumScrollSpeed1 = vec2(0.0);
     uniform float g_flSelfIllumScrollQuantize1 = 0.0;
@@ -314,13 +314,17 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
     mat.RoughnessTex = normalRoughness.bb;
 
     #if (F_SELF_ILLUM == 1)
-        // Grazing angles fall back to the untinted mask, so an emissive surface reads as lit
-        // where it faces away from the camera.
-        vec3 fresnelMask = mix(g_vSelfIllumFresnelMaskTint1, vec3(1.0),
-            vec3(pow(max(0.0, dot(mat.ViewDir, mat.Normal)), g_flSelfIllumFresnelMaskExponent)));
+        // Facing the camera keeps the untinted mask and grazing angles take the fresnel tint, with
+        // the range picking where the change happens. An empty range is a hard step at its start.
+        float fresnel = pow(max(0.0, dot(mat.ViewDir, mat.Normal)), g_flSelfIllumFresnelMaskExponent);
+        float fresnelRange = g_vSelfIllumFresnelMaskRange1.y - g_vSelfIllumFresnelMaskRange1.x;
+        float fresnelBlend = (fresnelRange != 0.0)
+            ? saturate((fresnel - g_vSelfIllumFresnelMaskRange1.x) / fresnelRange)
+            : float(fresnel > g_vSelfIllumFresnelMaskRange1.x);
+        vec3 fresnelMask = mix(g_vSelfIllumFresnelMaskTint1, vec3(1.0), fresnelBlend);
 
         illumTint *= fresnelMask;
-        albedo *= fresnelMask;
+        albedo *= mix(vec3(1.0), fresnelMask, illumMask);
     #endif
 
     // Self illumination replaces the albedo rather than adding to it. The deferred pass
@@ -335,7 +339,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
         mat.Metalness = color.a;
     #endif
 
-    #if (F_UNLIT == 0)
+    #if (MATERIAL_OCCLUSION == 1)
         vec2 occlusionTexCoord = SelectTexCoord(g_bUseSecondaryUvForAmbientOcclusion);
         #if (F_ENABLE_TEXTURE_TRANSFORMS == 1)
             occlusionTexCoord = RotateVector2D(occlusionTexCoord, g_flAmbientOcclusionTexcoordRotation1, g_vAmbientOcclusionTexcoordScale1, g_vAmbientOcclusionTexcoordOffset1);
@@ -360,8 +364,10 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
         #endif
 
         // Fades the surface by how squarely it faces the camera, for volumetric-looking shells.
+        // A negative power inverts the facing term, fading the silhouette instead of the middle.
+        vec2 angleScaleBias = (g_flAlphaAnglePower1 < 0.0) ? vec2(-1.0, 1.0) : vec2(1.0, 0.0);
         float angleFade = pow(
-            max(0.001, g_flAlphaAngleScaleBias1.x * abs(dot(g_vCameraDirWs.xyz, mat.Normal)) + g_flAlphaAngleScaleBias1.y),
+            max(0.001, angleScaleBias.x * abs(dot(g_vCameraDirWs.xyz, mat.Normal)) + angleScaleBias.y),
             abs(g_flAlphaAnglePower1));
 
         mat.Opacity = vVertexColorOut.a * alpha * angleFade;
@@ -421,7 +427,7 @@ void main()
     LightingTerms_t lighting = InitLighting();
 
     #if (F_UNLIT == 1)
-        lighting.DiffuseDirect = mat.Albedo * g_flUnlitAdditiveScale1;
+        lighting.DiffuseDirect = mat.Albedo * ((F_ADDITIVE_BLEND == 1) ? g_flUnlitAdditiveScale1 : 1.0);
         outputColor.rgb = lighting.DiffuseDirect;
     #else
         lighting = CalculateLighting(mat);

@@ -542,7 +542,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             "multiblend.vfx" => "multiblend",
             "csgo_effects.vfx" => "csgo_effects",
             "csgo_environment.vfx" or "csgo_environment_blend.vfx" => "csgo_environment",
-            "environment_blend.vfx" => "environment_blend",
+            "environment_blend.vfx" or "environment_layer.vfx" or "environment_simple.vfx" => "environment_blend",
             "pbr.vfx" => "pbr",
             "citadel_overlay.vfx" => "citadel_overlay",
 

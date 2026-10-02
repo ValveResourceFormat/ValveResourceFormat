@@ -474,7 +474,7 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 EvalCsgoEnvironmentColorMatrices(shader, buffer);
             }
-            else if (shader.Name is "environment_blend.vfx" or "pbr.vfx")
+            else if (shader.Name is "environment_blend.vfx" or "environment_layer.vfx" or "pbr.vfx")
             {
                 EvalDeadlockColorMatrices(shader, buffer);
             }
@@ -743,8 +743,8 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        // environment_blend suffixes both the matrices and their inputs by layer; pbr has one
-        // unsuffixed pair fed by layer 1's params.
+        // environment_blend and environment_layer suffix both the matrices and their inputs by layer;
+        // pbr has one unsuffixed pair fed by layer 1's params.
         private void EvalDeadlockColorMatrices(Shader shader, Globals buffer)
         {
             const float TintStrength = 0.85f;
