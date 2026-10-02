@@ -12,8 +12,6 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </remarks>
 public sealed class InfoVisibilityBox : BaseEntity
 {
-    private const string CameraInsideModeGame = "Counter-Strike 2";
-
     /// <summary>Gets the volume this entity culls with.</summary>
     public VisibilityBox Box { get; private set; } = null!;
 
@@ -26,8 +24,7 @@ public sealed class InfoVisibilityBox : BaseEntity
     public override void Spawn()
     {
         var cullMode = KeyValues.GetInt32Property("cull_mode");
-        var gameName = EntitySystem.RendererContext.FileLoader.GameName;
-        var hasCameraInsideMode = gameName == null || gameName == CameraInsideModeGame;
+        var hasCameraInsideMode = EntitySystem.RendererContext.GameProfile.HasVisibilityBoxCameraInsideMode;
 
         var mode = cullMode switch
         {

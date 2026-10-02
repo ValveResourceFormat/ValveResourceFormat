@@ -1,3 +1,5 @@
+using ValveResourceFormat.IO;
+
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
@@ -344,6 +346,11 @@ namespace ValveResourceFormat.Renderer
         public OctreeDebugRenderer? DebugRenderer { get; set; }
 
         /// <summary>
+        /// Gets the largest absolute coordinate the root is sized to on any axis when fitted to bounds.
+        /// </summary>
+        public float MaxCoord { get; init; } = GameInfo.FallbackMapMaxCoord;
+
+        /// <summary>
         /// Initializes a new octree with the specified size.
         /// </summary>
         /// <param name="size">Total size of the octree region (centered at origin).</param>
@@ -471,8 +478,8 @@ namespace ValveResourceFormat.Renderer
         {
             Clear();
 
-            var min = Vector3.Max(-new Vector3(16384), rootBounds.Min);
-            var max = Vector3.Min(new Vector3(16384), rootBounds.Max);
+            var min = Vector3.Max(-new Vector3(MaxCoord), rootBounds.Min);
+            var max = Vector3.Min(new Vector3(MaxCoord), rootBounds.Max);
 
             max = new Vector3(max.Length());
             Root = new Node(null, min, max - min);

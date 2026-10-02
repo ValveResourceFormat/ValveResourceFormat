@@ -273,11 +273,25 @@ namespace ValveResourceFormat.Renderer
         /// Initializes a new scene with the given renderer context and optional spatial size hint.
         /// </summary>
         /// <param name="context">The renderer context providing shared GPU resources.</param>
-        /// <param name="sizeHint">The initial world-space extent used to size the static octree.</param>
-        public Scene(RendererContext context, float sizeHint = 32768)
+        /// <param name="sizeHint">The initial world-space extent used to size the static octree, or <see langword="null"/> for the game's whole map extent.</param>
+        public Scene(RendererContext context, float? sizeHint = null)
         {
             RendererContext = context;
-            StaticOctree = new(sizeHint);
+
+            var gameInfo = context.GameInfo;
+            StaticOctree = new(sizeHint ?? gameInfo.MapMaxCoord * 2f)
+            {
+                MaxCoord = gameInfo.MapMaxCoord,
+            };
+
+            PostProcessInfo.DefaultState = PostProcessState.Default with
+            {
+                ExposureSettings = new ExposureSettings
+                {
+                    ExposureMin = gameInfo.DefaultAutoExposureMin,
+                    ExposureMax = gameInfo.DefaultAutoExposureMax,
+                },
+            };
 
             LightingInfo = new(this);
         }

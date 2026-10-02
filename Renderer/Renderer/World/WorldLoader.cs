@@ -62,7 +62,8 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>
         /// Spawn marker classnames in priority order; earlier entries win regardless of entity order.
         /// team_select and T/CT spawns are CS2, info_team_spawn is Deadlock, goodguys/badguys are
-        /// Dota 2, then the generic player start, then the camera entities as last resorts.
+        /// Dota 2, then the generic player start, which the game's Hammer default point entity ranks
+        /// with, then the camera entities as last resorts.
         /// </summary>
         private static readonly string[] SpawnCameraClasses =
         [
@@ -491,7 +492,7 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             var result = scene.LightingInfo;
-            result.UsesLegacyBarnBrightness = RendererContext.FileLoader.GameName == "Aperture Desk Job"; // adj predates the photometric model.
+            result.UsesLegacyBarnBrightness = RendererContext.GameProfile.UsesLegacyBarnBrightness;
             result.LightmapVersionNumber = worldLightingInfo.GetInt32Property("m_nLightmapVersionNumber");
             result.LightingData.LightmapUvScale = World.GetLightmapUvScale();
             if (scene.LightingInfo.LightmapVersionNumber == 8)
@@ -999,7 +1000,10 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private void OfferSpawnCamera(BaseEntity entity, bool isMaster)
         {
-            var priority = Array.IndexOf(SpawnCameraClasses, entity.Classname) * 2;
+            var classname = entity.Classname == RendererContext.GameInfo.HammerDefaultPointEntity
+                ? "info_player_start"
+                : entity.Classname;
+            var priority = Array.IndexOf(SpawnCameraClasses, classname) * 2;
 
             if (priority < 0)
             {

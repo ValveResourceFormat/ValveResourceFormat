@@ -45,5 +45,10 @@ namespace ValveResourceFormat.IO
         /// <param name="file">Path to the file to read.</param>
         /// <returns>A readable stream, or null if not found.</returns>
         public Stream? GetFileStream(string file);
+
+        /// <summary>
+        /// Gets the <c>gameinfo.gi</c> of the game the loaded files belong to, or <see cref="IO.GameInfo.Empty"/> when it is unknown.
+        /// </summary>
+        public GameInfo GameInfo => GameInfo.Empty;
     }
 }
