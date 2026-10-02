@@ -37,6 +37,7 @@ public partial class PlayerMovement : IPlayerController
     private const float ContactNudge = SurfaceEpsilon / 4f; // Clearance kept short of a degenerate opposing surface in the margin-restore push
     private const float UntraceableDistanceSquared = Rubikon.Epsilon * Rubikon.Epsilon;
     private const float StepSize = 18f;                   // Maximum height of steps/obstacles player can climb
+    private const float AirStepSize = StepSize / 3f;      // Lower bar for stepping up while airborne
     private const float GroundProbeDistance = 2f;         // How far below the hull to look for ground contact
     private const float StepDownTolerance = 2f;           // A step may end at most this far below where it started
 
@@ -1002,6 +1003,13 @@ public partial class PlayerMovement : IPlayerController
 
             NoteImpact(result);
 
+            // Geometry a ground move would have stepped onto must not stop a jump either
+            if (result.HitNormal.Z < WalkableSlope && TryAirStep(position, delta, halfExtents, out var stepped))
+            {
+                Velocity += velocityDelta;
+                return stepped;
+            }
+
             // Advance to the hit point (already margin-adjusted by TraceBBox)
             var fraction = result.Distance / distance;
 
@@ -1093,6 +1101,47 @@ public partial class PlayerMovement : IPlayerController
         Velocity += velocityDelta;
 
         return position;
+    }
+
+    /// <summary>
+    /// Airborne counterpart of the stepped branch in <see cref="StepSweep"/>: lifts the move by up
+    /// to <see cref="AirStepSize"/>, and takes it only if the lifted sweep clears the whole of
+    /// <paramref name="delta"/> and settling back down by the same lift lands on walkable ground
+    /// or on nothing at all. The landing never sits below where the unobstructed move would have ended.
+    /// </summary>
+    private bool TryAirStep(Vector3 start, Vector3 delta, Vector3 halfExtents, out Vector3 landed)
+    {
+        landed = start;
+
+        var stepUpEnd = start + new Vector3(0, 0, AirStepSize);
+        var upTrace = TraceBBox(start, stepUpEnd, halfExtents);
+        var raised = upTrace.Hit ? upTrace.HitPosition : stepUpEnd;
+        var lift = raised.Z - start.Z;
+
+        if (lift <= SurfaceEpsilon || TraceBBox(raised, raised + delta, halfExtents).Hit)
+        {
+            return false;
+        }
+
+        var raisedEnd = raised + delta;
+        var downTrace = TraceBBox(raisedEnd, raisedEnd - new Vector3(0, 0, lift), halfExtents);
+
+        // Nothing below means the move's own end height is already clear of the step, as when a
+        // jump rising past the edge only clips its corner
+        if (!downTrace.Hit)
+        {
+            landed = start + delta;
+            return true;
+        }
+
+        if (!IsWalkableGroundHit(downTrace) || downTrace.IsMinimalDistance)
+        {
+            return false;
+        }
+
+        landed = downTrace.HitPosition;
+        Effects.OnStep(landed.Z - (start.Z + delta.Z));
+        return true;
     }
 
     /// <summary>
@@ -1489,7 +1538,7 @@ public partial class PlayerMovement : IPlayerController
 
         // Blocked at once by a wall the direct sweep missed: it's a wall we're sliding along, so
         // report it without moving and let the caller retry the step along it
-        if (steppedSweep.Hit && steppedSweep.IsMinimalDistance && direct.HitNormal.Z < WalkableSlope
+        if (steppedSweep.Hit && steppedSweep.IsMinimalDistance
             && !ContainsPlane([direct.HitNormal], steppedSweep.HitNormal))
         {
             return (start, 0f, steppedSweep.HitNormal, true);
