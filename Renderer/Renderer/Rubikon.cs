@@ -1071,6 +1071,8 @@ public class Rubikon
 
     internal const string GrenadeCollisionName = "grenade";
 
+    internal const string LadderCollisionName = "ladder";
+
     internal const string Cs2PlayerCollisionFilter = "player";
 
     /// <summary>Which shapes a query collides with, decided from each shape's interaction tags.</summary>
@@ -1111,6 +1113,11 @@ public class Rubikon
         if (ContainsString(interactExclude, collisionName))
         {
             return true;
+        }
+
+        if (collisionName == LadderCollisionName)
+        {
+            return !ContainsString(interactAs, LadderCollisionName);
         }
 
         // Untagged geometry stops everything; a tagged shape only stops what its tags name.
