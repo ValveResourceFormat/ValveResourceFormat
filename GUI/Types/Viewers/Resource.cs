@@ -41,7 +41,9 @@ namespace GUI.Types.Viewers
 
         private ValveResourceFormat.Resource? resource;
         private RendererContext? rendererContext;
-        private readonly List<(GLGraphViewer Viewer, string TabName)> preparedGraphViewers = [];
+        private readonly List<(Func<GLGraphViewer> Create, string TabName)> preparedGraphViewers = [];
+        private readonly List<GLGraphViewer> loadedGraphViewers = [];
+        private const string EntityIOGraphTabName = "ENTITY I/O GRAPH";
         public GLBaseControl? GLViewer { get; private set; }
         private CodeTextBox? GLViewerError;
         private string? GLViewerTabName;
@@ -534,14 +536,14 @@ namespace GUI.Types.Viewers
 
                 if (!isPreview)
                 {
-                    foreach (var (viewer, tabName) in preparedGraphViewers)
+                    foreach (var (create, tabName) in preparedGraphViewers)
                     {
-                        AddGraphViewerTab(viewer, tabName, resTabs);
+                        var (tabPage, graph) = AddGraphViewerTab(create, tabName, resTabs);
 
-                        if (GLViewer is GLWorldViewer worldViewerWithGraph && viewer is EntityIOGraphViewer entityGraphViewer)
+                        if (GLViewer is GLWorldViewer worldViewerWithGraph && tabName == EntityIOGraphTabName)
                         {
-                            worldViewerWithGraph.ShowEntityInGraph = entityGraphViewer.ShowEntity;
-                            worldViewerWithGraph.EntityHasGraphNode = entityGraphViewer.HasEntity;
+                            worldViewerWithGraph.ShowEntityInGraph = entity => ShowEntityInGraph(entity, graph, tabPage);
+                            worldViewerWithGraph.EntityHasGraphNode = entity => !graph.IsCompleted || (graph.Result as EntityIOGraphViewer)?.HasEntity(entity) == true;
                         }
                     }
                 }
@@ -552,17 +554,81 @@ namespace GUI.Types.Viewers
             return AddSpecialViewerData(resource, isPreview, resTabs);
         }
 
-        private static void AddGraphViewerTab(GLGraphViewer viewer, string tabName, TabControl resTabs)
+        private (TabPage TabPage, Task<GLGraphViewer?> Graph) AddGraphViewerTab(Func<GLGraphViewer> create, string tabName, TabControl resTabs)
         {
-            viewer.InitializeLoad();
             var tabPage = new ThemedTabPage(tabName);
-            tabPage.Controls.Add(viewer.InitializeUiControls(isPreview: false));
+#pragma warning disable CA2000 // Ownership is transferred to the tab, which disposes it
+            var loadingFile = new LoadingFile();
+#pragma warning restore CA2000
+            tabPage.Controls.Add(loadingFile);
             resTabs.TabPages.Add(tabPage);
+
+            return (tabPage, LoadGraphViewerAsync(create, tabPage, loadingFile));
         }
 
-        // Runs on the background load thread: graph construction (entity scans, icon decoding,
-        // layout) is expensive and must not block the UI thread's loading indicator. The UI
-        // thread later only creates the tabs and GL windows in AddSpecialViewer.
+        // Built and loaded off the UI thread, each in its own renderer context as the viewers share no GL objects
+        private async Task<GLGraphViewer?> LoadGraphViewerAsync(Func<GLGraphViewer> create, TabPage tabPage, LoadingFile loadingFile)
+        {
+            GLGraphViewer? viewer = null;
+
+            try
+            {
+                viewer = await Task.Run(create).ConfigureAwait(true);
+                await Task.Run(viewer.InitializeLoad).ConfigureAwait(true);
+            }
+            catch (Exception e)
+            {
+                viewer?.Dispose();
+
+                if (!tabPage.IsDisposed)
+                {
+                    loadingFile.Dispose();
+                    tabPage.Controls.Add(CodeTextBox.CreateFromException(e, vrfGuiContext.FullPath));
+                }
+
+                return null;
+            }
+
+            if (tabPage.IsDisposed)
+            {
+                viewer.Dispose();
+                return null;
+            }
+
+            loadedGraphViewers.Add(viewer);
+            loadingFile.Dispose();
+            tabPage.Controls.Add(viewer.InitializeUiControls(isPreview: false));
+
+            return viewer;
+        }
+
+        private static bool ShowEntityInGraph(EntityLump.Entity entity, Task<GLGraphViewer?> graph, TabPage tabPage)
+        {
+            if (graph.IsCompleted)
+            {
+                return (graph.Result as EntityIOGraphViewer)?.ShowEntity(entity) == true;
+            }
+
+            // Its tab shows that it is loading until it can jump to the entity
+            if (tabPage.Parent is TabControl tabControl)
+            {
+                tabControl.SelectTab(tabPage);
+            }
+
+            _ = ShowEntityWhenLoadedAsync(entity, graph);
+            return true;
+        }
+
+        private static async Task ShowEntityWhenLoadedAsync(EntityLump.Entity entity, Task<GLGraphViewer?> graph)
+        {
+            if (await graph.ConfigureAwait(true) is EntityIOGraphViewer entityGraph)
+            {
+                entityGraph.ShowEntity(entity);
+            }
+        }
+
+        // Runs on the background load thread, but only reads the graph resources. Building the viewers is left to
+        // their tabs, so it does not hold up the main viewer.
         private void PrepareExtraGraphViewers(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource)
         {
             if (rendererContext == null)
@@ -585,7 +651,7 @@ namespace GUI.Types.Viewers
 
                 if (hasConnections)
                 {
-                    preparedGraphViewers.Add((new EntityIOGraphViewer(vrfGuiContext, rendererContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntities), "ENTITY I/O GRAPH"));
+                    preparedGraphViewers.Add((() => new EntityIOGraphViewer(vrfGuiContext, vrfGuiContext.CreateRendererContext(), loadedWorld.Entities, glWorldViewer.SelectAndFocusEntities), EntityIOGraphTabName));
                 }
 
                 PrepareMapPulseGraphViewers(vrfGuiContext, loadedWorld.Entities);
@@ -624,8 +690,7 @@ namespace GUI.Types.Viewers
                 if (rendererContext.FileLoader.LoadFileCompiled(script)?.DataBlock is BinaryKV3 pulseData)
                 {
                     var tabName = scripts.Count > 1 ? $"PULSE GRAPH ({Path.GetFileNameWithoutExtension(script)})" : "PULSE GRAPH";
-                    var viewer = new PulseGraphViewer(vrfGuiContext, rendererContext, pulseData.Data);
-                    preparedGraphViewers.Add((viewer, tabName));
+                    preparedGraphViewers.Add((() => new PulseGraphViewer(vrfGuiContext, vrfGuiContext.CreateRendererContext(), pulseData.Data), tabName));
                 }
             }
         }
@@ -666,17 +731,17 @@ namespace GUI.Types.Viewers
 
             foreach (var path in graphPaths)
             {
-                GLGraphViewer viewer;
+                Func<GLGraphViewer> create;
                 string baseName;
 
                 switch (rendererContext.FileLoader.LoadFileCompiled(path)?.DataBlock)
                 {
                     case AnimGraph ag1Data:
-                        viewer = new AG1GraphViewer(vrfGuiContext, rendererContext, ag1Data.Data);
+                        create = () => new AG1GraphViewer(vrfGuiContext, vrfGuiContext.CreateRendererContext(), ag1Data.Data);
                         baseName = "AG1 ANIMATION GRAPH";
                         break;
                     case BinaryKV3 nmGraphData:
-                        viewer = new AG2GraphViewer(vrfGuiContext, rendererContext, nmGraphData.Data);
+                        create = () => new AG2GraphViewer(vrfGuiContext, vrfGuiContext.CreateRendererContext(), nmGraphData.Data);
                         baseName = "AG2 ANIMATION GRAPH";
                         break;
                     default:
@@ -684,7 +749,7 @@ namespace GUI.Types.Viewers
                 }
 
                 var tabName = graphPaths.Count > 1 ? $"{baseName} ({Path.GetFileNameWithoutExtension(path)})" : baseName;
-                preparedGraphViewers.Add((viewer, tabName));
+                preparedGraphViewers.Add((create, tabName));
             }
         }
 
@@ -1212,11 +1277,12 @@ namespace GUI.Types.Viewers
 
         private void DisposeExtraGraphViewers()
         {
-            foreach (var (viewer, _) in preparedGraphViewers)
+            foreach (var viewer in loadedGraphViewers)
             {
                 viewer.Dispose();
             }
 
+            loadedGraphViewers.Clear();
             preparedGraphViewers.Clear();
         }
 

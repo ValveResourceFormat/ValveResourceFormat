@@ -1,8 +1,8 @@
 using System.Threading.Tasks;
 using GUI.Utils;
 using OpenTK.Windowing.Desktop;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneNodes;
-using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.GLViewers;
 
@@ -40,8 +40,7 @@ static class NativeWindowFactory
                 }));
 
                 using var guiContext = new VrfGuiContext("env_cubemap.vmdl_c", null);
-                var model = (Model)ShapeSceneNode.CubemapResource.Value.DataBlock!;
-                var viewer = new GLModelViewer(guiContext, guiContext.CreateRendererContext(), model);
+                var viewer = new WarmUpViewer(guiContext, guiContext.CreateRendererContext());
 
                 try
                 {
@@ -57,6 +56,18 @@ static class NativeWindowFactory
                 Log.Debug(nameof(NativeWindowFactory), $"OpenGL warm-up failed: {e.Message}");
             }
         });
+    }
+
+    private sealed class WarmUpViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext)
+        : GLSingleNodeViewer(vrfGuiContext, rendererContext)
+    {
+        protected override void LoadScene()
+        {
+            base.LoadScene();
+
+            var material = Scene.RendererContext.MaterialLoader.GetMaterial(null, null);
+            Scene.Add(MeshSceneNode.CreateMaterialPreviewQuad(Scene, material, new Vector2(32)), false);
+        }
     }
 
     public static void Destroy(NativeWindow? window)
