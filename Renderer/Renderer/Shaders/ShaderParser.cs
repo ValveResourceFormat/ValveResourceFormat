@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -249,24 +248,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                                 parsedData.RenderModes.Add(renderMode);
 
-                                value = RenderModes.GetShaderId(renderMode);
-
-                                if (value == 0)
-                                {
-                                    var renderModeObj = new RenderModes.RenderMode(renderMode);
-                                    var index = RenderModes.Items.IndexOf(renderModeObj);
-
-                                    if (index == -1)
-                                    {
-                                        Debug.Assert(false); // Add to <see cref="RenderModes.Items"/> if this assert is hit
-
-                                        RenderModes.Items = RenderModes.Items.Add(renderModeObj);
-                                        index = RenderModes.Items.IndexOf(renderModeObj);
-                                    }
-
-                                    value = (byte)index;
-                                    RenderModes.AddShaderId(renderMode, value);
-                                }
+                                value = RenderModes.GetOrAddShaderId(renderMode);
 
                                 builder.Append("#define ");
                                 builder.Append(defineName);

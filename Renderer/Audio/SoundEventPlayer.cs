@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ValveKeyValue;
@@ -21,10 +22,13 @@ public sealed class SoundEventPlayer : IDisposable
     public SoundCache SoundCache { get; }
 
     /// <summary>Gets the bank of loaded sound event definitions.</summary>
-    public SoundEventBank Bank { get; }
+    public SoundEventBank Bank { get; private set; }
 
     /// <summary>Gets the bank of loaded scripted soundscape definitions (see <see cref="LoadSoundscapes"/>).</summary>
-    public SoundscapeBank Soundscapes { get; }
+    public SoundscapeBank Soundscapes { get; private set; }
+
+    // Swapped in by ApplyLoadedBanks once done, along with its event bank
+    private Task<SoundscapeBank>? loading;
 
     /// <summary>Gets the mixer output sample rate, taken from the device.</summary>
     public int SampleRate => device.SampleRate;
@@ -295,32 +299,53 @@ public sealed class SoundEventPlayer : IDisposable
     /// plus <see cref="AddonSoundEventsFile"/> when present. An optional filter matches against the file
     /// name (e.g. "game_sounds").
     /// </summary>
-    public void LoadSoundEvents(string filter = "")
+    public void LoadSoundEvents(string filter = "") => LoadSoundEventsInto(Bank, filter);
+
+    /// <summary>
+    /// Load sound events and sound scape scripts in the background, then swap them in on the next <see cref="Update"/>.
+    /// </summary>
+    public Task LoadAsync(CancellationToken cancellationToken = default) => loading = Task.Run(() =>
+    {
+        var bank = new SoundEventBank();
+        var soundscapes = new SoundscapeBank(bank);
+
+        LoadSoundEventsInto(bank, string.Empty, cancellationToken);
+        LoadSoundscapesInto(bank, soundscapes);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return soundscapes;
+    }, cancellationToken);
+
+    private void LoadSoundEventsInto(SoundEventBank bank, string filter, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
 
         foreach (var soundEventsFile in GetSoundEventFiles())
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (filter.Length == 0 || soundEventsFile.Contains(filter, StringComparison.OrdinalIgnoreCase))
             {
-                LoadSoundEventsFile(soundEventsFile);
+                LoadSoundEventsFile(bank, soundEventsFile, optional: false);
             }
         }
 
         if (filter.Length == 0 || AddonSoundEventsFile.Contains(filter, StringComparison.OrdinalIgnoreCase))
         {
-            LoadSoundEventsFile(AddonSoundEventsFile, optional: true);
+            LoadSoundEventsFile(bank, AddonSoundEventsFile, optional: true);
         }
 
         stopwatch.Stop();
-        logger.LogInformation("Loaded {Count} sound events in {ElapsedMs} ms", Bank.Count, stopwatch.ElapsedMilliseconds);
+        logger.LogInformation("Loaded {Count} sound events in {ElapsedMs} ms", bank.Count, stopwatch.ElapsedMilliseconds);
     }
 
     /// <summary>
     /// Loads sound event definitions from a single soundevent (vsndevts) file. When <paramref name="optional"/>
     /// is set, a missing file is skipped quietly instead of logging a warning (see <see cref="AddonSoundEventsFile"/>).
     /// </summary>
-    public void LoadSoundEventsFile(string fileName, bool optional = false)
+    public void LoadSoundEventsFile(string fileName, bool optional = false) => LoadSoundEventsFile(Bank, fileName, optional);
+
+    private void LoadSoundEventsFile(SoundEventBank bank, string fileName, bool optional)
     {
         using var soundEventsFile = fileLoader.LoadFileCompiled(fileName);
         if (soundEventsFile?.DataBlock == null)
@@ -342,7 +367,7 @@ public sealed class SoundEventPlayer : IDisposable
             return;
         }
 
-        Bank.AddSoundEvents(soundEventsFile.DataBlock.AsKeyValueCollection());
+        bank.AddSoundEvents(soundEventsFile.DataBlock.AsKeyValueCollection());
     }
 
     /// <summary>
@@ -351,7 +376,9 @@ public sealed class SoundEventPlayer : IDisposable
     /// single-sound-event soundscapes (see <see cref="AddSoundscape"/>), which need no separate loading
     /// step, so a missing manifest is not an error.
     /// </summary>
-    public void LoadSoundscapes()
+    public void LoadSoundscapes() => LoadSoundscapesInto(Bank, Soundscapes);
+
+    private void LoadSoundscapesInto(SoundEventBank bank, SoundscapeBank soundscapes)
     {
         var manifest = ReadKeyValues1("scripts/soundscapes_manifest.txt");
 
@@ -380,14 +407,14 @@ public sealed class SoundEventPlayer : IDisposable
 
                 if (script != null)
                 {
-                    Soundscapes.AddSoundscapes(script);
+                    soundscapes.AddSoundscapes(script);
                 }
             }
             else
             {
                 // Additional sound events used only by the soundscape script (e.g. an ambience .vsndevts)
                 // that may not otherwise be reachable from soundevents_manifest.vrman
-                LoadSoundEventsFile(fileName);
+                LoadSoundEventsFile(bank, fileName, optional: false);
             }
         }
     }
@@ -447,6 +474,8 @@ public sealed class SoundEventPlayer : IDisposable
     public SoundEvent? Play(string soundEventName, Vector3? position = null, string? channel = null, float? volume = null,
         float volumeScale = 1f)
     {
+        ApplyLoadedBanks();
+
         var definition = Bank.GetSoundEvent(soundEventName);
         if (definition == null)
         {
@@ -575,6 +604,8 @@ public sealed class SoundEventPlayer : IDisposable
     /// </summary>
     public void Cache(string soundEventName)
     {
+        ApplyLoadedBanks();
+
         var definition = Bank.GetSoundEvent(soundEventName);
         if (definition == null)
         {
@@ -752,9 +783,36 @@ public sealed class SoundEventPlayer : IDisposable
     public void Update(Camera camera)
     {
         Sound.Player = this;
+        ApplyLoadedBanks();
+
         mixer.Update(camera.Location, camera.Forward, camera.Right, camera.Up);
         UpdateSoundscape(camera.Location);
         ReportStats();
+    }
+
+    private void ApplyLoadedBanks()
+    {
+        if (loading is not { IsCompleted: true } done)
+        {
+            return;
+        }
+
+        loading = null;
+
+        if (done.IsCanceled)
+        {
+            return;
+        }
+
+        // Throws what failed the load
+        var loaded = done.GetAwaiter().GetResult();
+
+        Bank.CopyRemovalsTo(loaded.EventBank);
+        Bank = loaded.EventBank;
+        Soundscapes = loaded;
+
+        // Warmed against the empty bank, so nothing was decoded
+        warmedSoundscapes.Clear();
     }
 
     /// <summary>

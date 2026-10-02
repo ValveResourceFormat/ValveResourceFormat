@@ -1,4 +1,6 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Threading;
 
 namespace ValveResourceFormat.Renderer.Materials
 {
@@ -69,15 +71,45 @@ namespace ValveResourceFormat.Renderer.Materials
             new("QuadOverdraw")
         ];
 
+        // Shaders are preprocessed on several threads at once
+        private static readonly Lock ShaderIdsLock = new();
         private static readonly Dictionary<string, byte> ShaderIds = new(Items.Count);
 
-        /// <summary>Registers the shader define index assigned to a render mode name during preprocessing.</summary>
+        /// <summary>Returns the shader define index of a render mode, assigning it on first use during preprocessing.</summary>
         /// <param name="renderMode">The render mode name (without the <c>renderMode_</c> prefix).</param>
-        /// <param name="value">The byte index assigned to this render mode in the shader define.</param>
-        public static void AddShaderId(string renderMode, byte value) => ShaderIds.Add(renderMode, value);
+        public static byte GetOrAddShaderId(string renderMode)
+        {
+            using var _ = ShaderIdsLock.EnterScope();
+
+            if (ShaderIds.TryGetValue(renderMode, out var value))
+            {
+                return value;
+            }
+
+            var renderModeObj = new RenderMode(renderMode);
+            var index = Items.IndexOf(renderModeObj);
+
+            if (index == -1)
+            {
+                Debug.Assert(false); // Add to <see cref="Items"/> if this assert is hit
+
+                Items = Items.Add(renderModeObj);
+                index = Items.Count - 1;
+            }
+
+            value = (byte)index;
+            ShaderIds.Add(renderMode, value);
+
+            return value;
+        }
 
         /// <summary>Returns the shader define index registered for the given render mode name, or 0 if none has been registered.</summary>
         /// <param name="renderMode">The render mode name (without the <c>renderMode_</c> prefix).</param>
-        public static byte GetShaderId(string renderMode) => ShaderIds.TryGetValue(renderMode, out var value) ? value : (byte)0;
+        public static byte GetShaderId(string renderMode)
+        {
+            using var _ = ShaderIdsLock.EnterScope();
+
+            return ShaderIds.TryGetValue(renderMode, out var value) ? value : (byte)0;
+        }
     }
 }

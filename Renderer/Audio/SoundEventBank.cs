@@ -9,6 +9,7 @@ public sealed class SoundEventBank
     // Sound event names are hashed case-insensitively by the engine (see StringToken), match that here.
     private readonly Dictionary<string, KVObject> soundEvents = new(capacity: 32768, StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, SoundEventDefinition> definitions = new(capacity: 2048, StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> removed = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Gets the number of loaded sound event definitions.</summary>
     public int Count => soundEvents.Count;
@@ -27,8 +28,18 @@ public sealed class SoundEventBank
     /// <returns><see langword="true"/> if the bank held the event.</returns>
     public bool RemoveSoundEvent(string name)
     {
+        removed.Add(name);
         definitions.Remove(name);
         return soundEvents.Remove(name);
+    }
+
+    /// <summary>Drops every event this bank was asked to drop from <paramref name="bank"/> as well.</summary>
+    internal void CopyRemovalsTo(SoundEventBank bank)
+    {
+        foreach (var name in removed)
+        {
+            bank.RemoveSoundEvent(name);
+        }
     }
 
     /// <summary>Adds all sound event definitions from a parsed soundevents file.</summary>

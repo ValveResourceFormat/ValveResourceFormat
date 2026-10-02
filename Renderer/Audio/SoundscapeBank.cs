@@ -29,6 +29,8 @@ public sealed class SoundscapeBank
 {
     private readonly SoundEventBank eventBank;
 
+    internal SoundEventBank EventBank => eventBank;
+
     // Soundscape names are referenced by map entities as plain strings, matched case-insensitively like everything else here
     private readonly Dictionary<string, KVObject> soundscapes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, SoundscapeEvent[]> resolved = new(StringComparer.OrdinalIgnoreCase);

@@ -196,8 +196,6 @@ namespace GUI.Types.GLViewers
         {
             var cameraSet = false;
 
-            // Bring up the sound player before any models load, so their animation clips can pre-cache sound events
-            ReportLoadingStatus("Loading sound events…");
             InitializeSoundPlayer();
 
             if (world != null)

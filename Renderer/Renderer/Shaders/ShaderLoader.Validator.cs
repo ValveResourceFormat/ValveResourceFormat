@@ -65,7 +65,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             // Compile without waiting on link status so the driver can link the batch in parallel
             void Compile(string name, IReadOnlyDictionary<string, byte>? arguments = null)
             {
-                loader.LoadShader(name, arguments, blocking: false);
+                loader.LoadShader(name, arguments);
 
                 if (loader.ShaderCount >= 128)
                 {
@@ -73,7 +73,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                 }
             }
 
-            // Collect the link statuses that were deferred above, failing like a blocking load would, then
+            // Collect the link statuses that were deferred above, failing like any other load would, then
             // delete the programs so they do not pile up across every shader
             void LinkAndDeleteBatch()
             {
@@ -93,17 +93,10 @@ namespace ValveResourceFormat.Renderer.Shaders
                         continue;
                     }
 
-                    var linked = compiledShader.EnsureLoaded();
+                    // Throws on a failure, like any blocking load
+                    compiledShader.EnsureLoaded();
 
                     GL.GetProgramInfoLog(compiledShader.Program, out var log);
-
-                    if (!linked)
-                    {
-                        var failedParsed = GetOrParseShader(compiledShader.FileName);
-                        var argsDescription = GetArgumentDescription(SortAndFilterArguments(failedParsed.Defines, compiledShader.Parameters));
-
-                        ThrowShaderError(log, string.Concat(compiledShader.FileName, argsDescription), compiledShader.Name, "Failed to link shader", failedParsed);
-                    }
 
                     if (!string.IsNullOrWhiteSpace(log) && reportedLinkLogs.Add(log))
                     {

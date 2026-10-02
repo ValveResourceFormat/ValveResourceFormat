@@ -42,6 +42,7 @@ namespace GUI.Controls
 
             statusLabel.Text = status;
             statusLabel.Visible = !string.IsNullOrEmpty(status);
+            statusLabel.Update();
         }
 
         protected override void OnLayout(LayoutEventArgs levent)

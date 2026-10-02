@@ -352,6 +352,8 @@ namespace GUI
             }
 #endif
 
+            NativeWindowFactory.WarmUpInBackground();
+
             if (Settings.IsFirstStartup)
             {
                 OpenWelcome();
@@ -659,13 +661,13 @@ namespace GUI
                 }
             }
 
-            var vrfGuiContext = new VrfGuiContext(fileName, null);
-            OpenFile(vrfGuiContext, null);
+            var vrfGuiContext = new VrfGuiContext(fileName, null, loadSearchPaths: false);
+            OpenFile(vrfGuiContext, null, loadSearchPaths: true);
 
             Settings.TrackRecentFile(fileName);
         }
 
-        public void OpenFile(VrfGuiContext vrfGuiContext, PackageEntry? file, TreeViewWithSearchResults? packageTreeView = null, bool withoutViewer = false)
+        public void OpenFile(VrfGuiContext vrfGuiContext, PackageEntry? file, TreeViewWithSearchResults? packageTreeView = null, bool withoutViewer = false, bool loadSearchPaths = false)
         {
             var isPreview = packageTreeView != null;
 
@@ -780,7 +782,15 @@ namespace GUI
 
             Types.Viewers.IViewer? createdViewer = null;
 
-            var taskLoad = Task.Run(() => Types.Viewers.ViewerFactory.CreateAndLoadAsync(vrfGuiContext, file, viewMode));
+            var taskLoad = Task.Run(() =>
+            {
+                if (loadSearchPaths)
+                {
+                    vrfGuiContext.LoadSearchPaths();
+                }
+
+                return Types.Viewers.ViewerFactory.CreateAndLoadAsync(vrfGuiContext, file, viewMode);
+            });
 
             taskLoad.ContinueWith(t =>
             {
