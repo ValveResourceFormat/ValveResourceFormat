@@ -14,27 +14,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public Dictionary<string, Attachment> Attachments { get; }
 
-        /// <summary>Gets the list of nodes attached to this model and the attachment points used.</summary>
-        public List<(SceneNode Node, string AttachmentName, Vector3 Offset, Quaternion Rotation)> AttachedNodes { get; } = [];
-
-        private void UpdateAttachments(Scene.UpdateContext context)
-        {
-            foreach (var attachment in AttachedNodes)
-            {
-                var child = attachment.Node;
-
-                // keep the child's own scale; the parent drives the rest of its transform
-                var localTransform = Matrix4x4.CreateScale(GetScale(child.Transform)) * Matrix4x4.CreateFromQuaternion(attachment.Rotation) * Matrix4x4.CreateTranslation(attachment.Offset);
-                child.Transform = localTransform * GetAttachmentOrSelfTransform(attachment.AttachmentName);
-                child.Update(context);
-            }
-        }
-
         /// <summary>
-        /// The parent anchor for an attached child: the attachment point's world transform, a bone's when
-        /// no attachment matches, or the model's own transform. Rigid, with no scale.
+        /// The frame a child follows: the attachment point's world transform, a bone's when no attachment
+        /// matches, or the model's own transform. Rigid, with no scale.
         /// </summary>
-        private Matrix4x4 GetAttachmentOrSelfTransform(string attachmentName)
+        public override Matrix4x4 GetChildFrame(string? attachmentName)
         {
             if (!string.IsNullOrEmpty(attachmentName))
             {
@@ -60,21 +44,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool HasAttachmentOrBone(string name)
             => Attachments.ContainsKey(name) || AnimationController.Skeleton.GetBoneIndex(name) != -1;
 
-        // Rotation and translation only, with scale removed.
-        private static Matrix4x4 GetRigidTransform(Matrix4x4 transform)
-        {
-            Matrix4x4.Decompose(transform, out _, out var rotation, out var translation);
-            return Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(translation);
-        }
-
-        private static Vector3 GetScale(Matrix4x4 transform)
-        {
-            Matrix4x4.Decompose(transform, out var scale, out _, out _);
-            return scale;
-        }
-
         /// <summary>
-        /// Attaches another <see cref="SceneNode"/> to this model with optional attachment point, offset and rotation.
+        /// Attaches another <see cref="SceneNode"/> to this model with optional attachment point, offset and rotation,
+        /// keeping the node's own scale. Shorthand for <see cref="SceneNode.SetParent"/>.
         /// </summary>
         /// <param name="node">The child model to attach.</param>
         /// <param name="attachmentName">The attachment point name.</param>
@@ -85,9 +57,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             Vector3 offset = default,
             Quaternion rotation = default)
         {
-            node.Parent = this;
-            AttachedNodes.RemoveAll(entry => entry.Node == node);
-            AttachedNodes.Add((node, attachmentName, offset, rotation));
+            Matrix4x4.Decompose(node.Transform, out var scale, out _, out _);
+
+            node.SetParent(this, attachmentName,
+                Matrix4x4.CreateScale(scale) * Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(offset));
         }
 
         /// <summary>
@@ -97,7 +70,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public void PlaceNode(SceneNode child, string attachmentName, Vector3 offset)
         {
-            child.Transform = Matrix4x4.CreateTranslation(offset) * GetAttachmentOrSelfTransform(attachmentName);
+            child.Transform = Matrix4x4.CreateTranslation(offset) * GetChildFrame(attachmentName);
         }
 
         /// <summary>

@@ -246,10 +246,9 @@ public sealed class EntitySystem
 
     /// <summary>
     /// Resolves an entity's move parent and lists it in <see cref="parented"/> behind its whole parent
-    /// chain. Following is a per-tick delta off the parent, so a parent has to follow before anything
-    /// riding it does.
+    /// chain, the order children tick and draw in.
     /// </summary>
-    private void ResolveMoveParentChain(BaseEntity entity)
+    internal void ResolveMoveParentChain(BaseEntity entity)
     {
         if (entity.IsMoveParentResolved)
         {
@@ -258,9 +257,8 @@ public sealed class EntitySystem
 
         entity.ResolveMoveParent();
 
-        if (entity.MoveParent is { } parent)
+        if (entity.MoveParent != null)
         {
-            ResolveMoveParentChain(parent);
             parented.Add(entity);
         }
     }
@@ -453,8 +451,17 @@ public sealed class EntitySystem
             tickAccumulator = 0f;
         }
 
-        // Entities are not scene nodes, so nothing else would place what they own
+        // Entities are not scene nodes, so nothing else would place what they own. Parents first, as a
+        // child is drawn in the frame its parent was just drawn at.
         foreach (var entity in entities)
+        {
+            if (entity.MoveParent == null)
+            {
+                entity.Update();
+            }
+        }
+
+        foreach (var entity in parented)
         {
             entity.Update();
         }
@@ -465,24 +472,29 @@ public sealed class EntitySystem
         TickCount++;
         CurrentTime = TickCount * TickInterval;
 
+        foreach (var entity in entities)
+        {
+            entity.BeginTick();
+        }
+
         for (var i = 0; i < entities.Count; i++)
         {
             var entity = entities[i];
 
-            if (!entity.IsRemoved)
+            if (!entity.IsRemoved && entity.MoveParent == null)
             {
                 entity.Simulate(TickInterval);
             }
         }
 
-        // Children ride their move parent after every parent has moved, whatever the tick order
+        // Children move in their parent frame, so they simulate after the parents they ride
         for (var i = 0; i < parented.Count; i++)
         {
             var entity = parented[i];
 
             if (!entity.IsRemoved)
             {
-                entity.FollowMoveParent();
+                entity.Simulate(TickInterval);
             }
         }
 

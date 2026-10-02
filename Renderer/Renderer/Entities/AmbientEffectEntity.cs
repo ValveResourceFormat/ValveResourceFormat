@@ -48,7 +48,7 @@ public sealed class AmbientEffectEntity : BaseModelEntity
         }
 
         Effect.GetControlPoint(1).Position = Transform.Translation;
-        Effect.GetControlPoint(2).Position = Angles;
+        Effect.GetControlPoint(2).Position = WorldAngles;
 
         // Only a tint other than white is handed to the effect, which then reads it off control point 15
         var tint = KeyValues.GetColor32Property("particle_tint_color") * 255f;

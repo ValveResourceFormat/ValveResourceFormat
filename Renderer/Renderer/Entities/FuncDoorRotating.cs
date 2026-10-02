@@ -67,14 +67,14 @@ public class FuncDoorRotating : FuncDoor
             (AngleClosed, AngleOpen) = (AngleOpen, AngleClosed);
             moveAngles = -moveAngles;
 
-            Teleport(Origin, AngleClosed);
+            JumpTo(Origin, AngleClosed);
             State = ToggleState.AtBottom;
             return;
         }
 
         if (KeyValues.GetInt32Property("spawnpos") == 1)
         {
-            Teleport(Origin, AngleOpen);
+            JumpTo(Origin, AngleOpen);
             State = ToggleState.AtTop;
             return;
         }
@@ -97,7 +97,7 @@ public class FuncDoorRotating : FuncDoor
     }
 
     /// <inheritdoc/>
-    protected override void JumpToEnd(bool atOpenEnd) => Teleport(Origin, atOpenEnd ? AngleOpen : AngleClosed);
+    protected override void JumpToEnd(bool atOpenEnd) => JumpTo(Origin, atOpenEnd ? AngleOpen : AngleClosed);
 
     /// <summary>
     /// Which way a yawing door opens: away from whoever opened it, judged by the side of the hinge their
@@ -110,8 +110,8 @@ public class FuncDoorRotating : FuncDoor
             return 1f;
         }
 
-        var hinge = Origin;
-        var standing = activator.Origin;
+        var hinge = WorldOrigin;
+        var standing = activator.WorldOrigin;
 
         var toNearest = Flatten(NearestPointOnDoor(standing) - standing);
         var toHinge = Flatten(hinge - standing);
@@ -135,7 +135,7 @@ public class FuncDoorRotating : FuncDoor
     {
         if (Collider is not { IsEmpty: false } collider || !Matrix4x4.Invert(collider.Transform, out var toLocal))
         {
-            return Origin;
+            return WorldOrigin;
         }
 
         var bounds = collider.LocalBounds;

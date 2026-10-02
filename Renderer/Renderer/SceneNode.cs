@@ -177,9 +177,95 @@ namespace ValveResourceFormat.Renderer
             => PlacementScale == 1f ? transform : Matrix4x4.CreateScale(PlacementScale) * transform;
 
         /// <summary>
-        /// The parent node.
+        /// Gets or sets the node that updates this one, so the scene does not update it on its own. Set by
+        /// <see cref="SetParent"/>, or directly by a node that places and updates its parts itself.
         /// </summary>
         public SceneNode? Parent { get; set; }
+
+        /// <summary>Gets the nodes attached with <see cref="SetParent"/>, which follow this one.</summary>
+        public IReadOnlyList<SceneNode> Children => children;
+
+        /// <summary>
+        /// Gets the attachment point or bone of <see cref="Parent"/> this node follows, or <see langword="null"/>
+        /// for the parent itself.
+        /// </summary>
+        public string? ParentAttachment { get; private set; }
+
+        /// <summary>
+        /// Gets or sets this node's transform relative to the frame it follows, which <see cref="Transform"/> is
+        /// rebuilt from whenever the parent updates. Only meaningful while attached with <see cref="SetParent"/>.
+        /// </summary>
+        public Matrix4x4 LocalTransform { get; set; } = Matrix4x4.Identity;
+
+        private readonly List<SceneNode> children = [];
+
+        /// <summary>
+        /// Attaches this node to <paramref name="parent"/>, or detaches it when <see langword="null"/>. From
+        /// then on the parent places it after every update, at <see cref="LocalTransform"/> in the frame of
+        /// <paramref name="attachmentName"/>, and updates it.
+        /// </summary>
+        /// <param name="parent">The node to follow, or <see langword="null"/> to stand alone again.</param>
+        /// <param name="attachmentName">An attachment point or bone of a model parent, or <see langword="null"/> for the parent itself.</param>
+        /// <param name="localTransform">The transform in that frame, or <see langword="null"/> to keep the current world transform.</param>
+        public void SetParent(SceneNode? parent, string? attachmentName = null, Matrix4x4? localTransform = null)
+        {
+            Parent?.children.Remove(this);
+
+            Parent = parent;
+            ParentAttachment = parent == null ? null : attachmentName;
+
+            if (parent == null)
+            {
+                LocalTransform = Matrix4x4.Identity;
+                return;
+            }
+
+            parent.children.Add(this);
+
+            var frame = parent.GetChildFrame(ParentAttachment);
+
+            LocalTransform = localTransform
+                ?? (Matrix4x4.Invert(frame, out var worldToFrame) ? Transform * worldToFrame : Matrix4x4.Identity);
+
+            Transform = LocalTransform * frame;
+        }
+
+        /// <summary>
+        /// Gets the world frame a child attached at <paramref name="attachmentName"/> follows: this node's
+        /// transform without its scale. A model resolves attachment points and bones.
+        /// </summary>
+        /// <param name="attachmentName">The attachment point or bone, or <see langword="null"/> for the node itself.</param>
+        public virtual Matrix4x4 GetChildFrame(string? attachmentName) => GetRigidTransform(Transform);
+
+        // A node leaving the scene stops following, while a parent that only sets Parent keeps managing it
+        internal void DetachFromParent()
+        {
+            if (Parent != null && Parent.children.Remove(this))
+            {
+                Parent = null;
+                ParentAttachment = null;
+            }
+        }
+
+        /// <summary>Updates this node, then places and updates everything attached to it, depth first.</summary>
+        /// <param name="context">The current update context.</param>
+        public void UpdateHierarchy(Scene.UpdateContext context)
+        {
+            Update(context);
+
+            foreach (var child in children)
+            {
+                child.Transform = child.LocalTransform * GetChildFrame(child.ParentAttachment);
+                child.UpdateHierarchy(context);
+            }
+        }
+
+        /// <summary>Removes the scale from a transform, keeping its rotation and translation.</summary>
+        protected static Matrix4x4 GetRigidTransform(Matrix4x4 transform)
+        {
+            Matrix4x4.Decompose(transform, out _, out var rotation, out var translation);
+            return Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(translation);
+        }
 
         /// <summary>
         /// Gets the environment maps affecting this node.

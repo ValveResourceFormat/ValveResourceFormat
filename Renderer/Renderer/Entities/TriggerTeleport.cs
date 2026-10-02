@@ -48,7 +48,7 @@ public sealed class TriggerTeleport : BaseTrigger
         }
 
         // Not the origin keyvalue, which ignores the spawn group placement
-        destination = (target.RigidTransform.Translation, target.Angles);
+        destination = (target.WorldOrigin, target.WorldAngles);
     }
 
     /// <inheritdoc/>

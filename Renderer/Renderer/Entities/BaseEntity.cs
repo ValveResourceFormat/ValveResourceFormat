@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// nodes go into.
 /// </summary>
 /// <param name="Data">The entity's keyvalues, as authored in the map.</param>
-/// <param name="ParentTransform">Transform of the spawner (a template, or identity for map entities).</param>
+/// <param name="ParentTransform">Transform of the spawner (a template or spawn group placement, identity for map entities), applied to the authored origin and angles.</param>
 /// <param name="LayerName">Visibility layer for this entity and every node it creates.</param>
 /// <param name="Scene">The scene the entity's nodes render into.</param>
 public readonly record struct EntitySpawnInfo(Entity Data, Matrix4x4 ParentTransform, string? LayerName, Scene Scene);
@@ -47,7 +47,7 @@ public abstract class BaseEntity
     /// Gets where the entity is in the world at its current tick, without its <see cref="EntityScale"/>:
     /// the placement of anything the scale must not stretch, such as collision or a baked volume.
     /// </summary>
-    public Matrix4x4 RigidTransform => EntityTransformHelper.ToRigidTransformationMatrix(Angles, Origin) * ParentTransform;
+    public Matrix4x4 RigidTransform => EntityTransformHelper.ToRigidTransformationMatrix(angles, origin) * GetParentFrame();
 
     /// <summary>Gets the visibility layer this entity's nodes belong to.</summary>
     public string? LayerName { get; }
@@ -78,8 +78,11 @@ public abstract class BaseEntity
     /// <summary>Gets the entity's <c>spawnflags</c>.</summary>
     public uint SpawnFlags { get; }
 
-    /// <summary>Gets the transform of whatever spawned this entity; identity for plain map entities.</summary>
-    public Matrix4x4 ParentTransform { get; }
+    /// <summary>
+    /// Gets the placement of whatever spawned this entity, a template or a spawn group, already applied to its
+    /// pose. Identity for plain map entities.
+    /// </summary>
+    public Matrix4x4 SpawnTransform { get; }
 
     /// <summary>
     /// Gets or sets the owning entity, Source's <c>m_hOwnerEntity</c>. Null only on the root <see cref="WorldEntity"/>.
@@ -98,9 +101,20 @@ public abstract class BaseEntity
     /// </summary>
     internal bool IsMoveParentResolved { get; private set; }
 
+    // What the move parent frame is: the parent entity, or an attachment point or bone of its model
+    private enum ParentFrameKind
+    {
+        None,
+        Entity,
+        Attachment,
+    }
+
+    private ParentFrameKind parentFrameKind;
+    private string? parentAttachmentName;
+
     /// <summary>
-    /// Resolves <c>parentname</c> once everything has spawned, and hangs the entity's nodes off the parent's
-    /// attachment or bone when it names one.
+    /// Resolves <c>parentname</c> once everything has spawned, and turns the authored world pose into one
+    /// local to the parent, the way the engine does at spawn.
     /// </summary>
     internal void ResolveMoveParent()
     {
@@ -137,40 +151,61 @@ public abstract class BaseEntity
             }
         }
 
-        if (!string.IsNullOrEmpty(attachmentName))
-        {
-            AttachToParentModel(attachmentName);
-        }
-    }
-
-    /// <summary>
-    /// Applies the move parent's motion this tick onto this entity: into the parent's old frame, out
-    /// through its new one, so the child keeps its relative pose while also free to move on its own.
-    /// </summary>
-    internal void FollowMoveParent()
-    {
-        if (isAttachedToParentModel
-            || MoveParent is not { IsRemoved: false } parent
-            || (parent.previousOrigin == parent.Origin && parent.previousAngles == parent.Angles))
+        if (MoveParent == null)
         {
             return;
         }
 
-        var previous = EntityTransformHelper.ToRigidTransformationMatrix(parent.previousAngles, parent.previousOrigin);
+        // Its world pose has to be final before this one is made relative to it
+        EntitySystem.ResolveMoveParentChain(MoveParent);
 
-        if (!Matrix4x4.Invert(previous, out var previousInverse))
+        var data = Data!;
+        var useLocalOffset = data.GetBooleanProperty("uselocaloffset");
+        var authoredLocalOrigin = data.GetVector3Property("local.origin");
+        var authoredLocalAngles = data.GetVector3Property("local.angles");
+
+        if (!string.IsNullOrEmpty(attachmentName) && attachmentName != "!absorigin"
+            && MoveParent is BaseModelEntity { ModelNode: { } parentModel } && parentModel.HasAttachmentOrBone(attachmentName))
         {
-            return;
+            parentFrameKind = ParentFrameKind.Attachment;
+            parentAttachmentName = attachmentName;
+
+            // Snapped onto the attachment unless an offset from it was authored
+            if (useLocalOffset)
+            {
+                SetPose(authoredLocalOrigin, authoredLocalAngles);
+            }
+            else
+            {
+                SetPose(Vector3.Zero, Vector3.Zero);
+            }
+
+            AttachToParentModel(parentModel);
+        }
+        else
+        {
+            if (!string.IsNullOrEmpty(attachmentName) && attachmentName != "!absorigin")
+            {
+                EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' is parented to {AttachmentName} on '{ParentName}', which has no such attachment or bone",
+                    Classname, TargetName, attachmentName, MoveParent.TargetName);
+            }
+
+            var world = RigidTransform;
+
+            parentFrameKind = ParentFrameKind.Entity;
+
+            if (useLocalOffset)
+            {
+                SetPose(authoredLocalOrigin, authoredLocalAngles);
+            }
+            else if (!data.GetBooleanProperty("positioninlocalspace"))
+            {
+                // Keeps the authored world pose, now relative to the parent
+                SetWorldPose(world);
+            }
         }
 
-        var current = EntityTransformHelper.ToRigidTransformationMatrix(parent.Angles, parent.Origin);
-        var world = EntityTransformHelper.ToRigidTransformationMatrix(Angles, Origin);
-
-        var moved = world * previousInverse * current;
-
-        SetOriginAndAngles(
-            moved.Translation,
-            EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(moved)));
+        SnapInterpolation();
     }
 
     /// <summary>Gets the authored <c>scales</c>, which movement never changes.</summary>
@@ -182,21 +217,43 @@ public abstract class BaseEntity
     /// </summary>
     public string? ModelName { get; protected set; }
 
-    /// <summary>Gets or sets the origin. Setting it rebuilds <see cref="Transform"/>.</summary>
+    /// <summary>
+    /// Gets or sets the origin relative to the move parent frame, the world origin for an entity without one.
+    /// Source's <c>m_vecOrigin</c>, which movement works in. Setting it rebuilds <see cref="Transform"/>.
+    /// </summary>
     public Vector3 Origin
     {
         get => origin;
         set => SetOriginAndAngles(value, angles);
     }
 
-    /// <summary>Gets or sets the orientation as a QAngle (pitch, yaw, roll) in degrees. Setting it rebuilds <see cref="Transform"/>.</summary>
+    /// <summary>
+    /// Gets or sets the orientation relative to the move parent frame, as a QAngle (pitch, yaw, roll) in
+    /// degrees. Source's <c>m_angRotation</c>. Setting it rebuilds <see cref="Transform"/>.
+    /// </summary>
     public Vector3 Angles
     {
         get => angles;
         set => SetOriginAndAngles(origin, value);
     }
 
-    /// <summary>Gets or sets the linear velocity in units per second.</summary>
+    /// <summary>Gets or sets the world origin at the current tick. Setting it moves the local origin to match.</summary>
+    public Vector3 WorldOrigin
+    {
+        get => parentFrameKind == ParentFrameKind.None ? origin : RigidTransform.Translation;
+        set => SetWorldOriginAndAngles(value, WorldAngles);
+    }
+
+    /// <summary>Gets or sets the world orientation at the current tick. Setting it turns the local angles to match.</summary>
+    public Vector3 WorldAngles
+    {
+        get => parentFrameKind == ParentFrameKind.None
+            ? angles
+            : EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(RigidTransform));
+        set => SetWorldOriginAndAngles(WorldOrigin, value);
+    }
+
+    /// <summary>Gets or sets the linear velocity in units per second, in the move parent frame.</summary>
     public Vector3 Velocity { get; set; }
 
     /// <summary>
@@ -277,6 +334,9 @@ public abstract class BaseEntity
     private Vector3 previousAngles;
     private bool isInterpolating;
 
+    // Transform without the scale, where children following this entity are drawn from
+    private Matrix4x4 renderFrame = Matrix4x4.Identity;
+
     /// <summary>
     /// Initializes the entity from its keyvalues, reading the properties every entity has.
     /// </summary>
@@ -285,8 +345,7 @@ public abstract class BaseEntity
         EntitySystem = system;
         Scene = spawnInfo.Scene;
         Data = spawnInfo.Data;
-        ParentTransform = spawnInfo.ParentTransform;
-
+        SpawnTransform = spawnInfo.ParentTransform;
         var data = spawnInfo.Data;
 
         Classname = data.GetStringProperty("classname") ?? string.Empty;
@@ -296,8 +355,14 @@ public abstract class BaseEntity
 
         ModelName = data.GetStringProperty("model");
 
-        origin = data.GetVector3Property("origin");
-        angles = data.GetVector3Property("angles");
+        // Authored in the world of the map they were compiled in, and moved with whatever placed it
+        var authored = EntityTransformHelper.ToRigidTransformationMatrix(data.GetVector3Property("angles"), data.GetVector3Property("origin"))
+            * spawnInfo.ParentTransform;
+
+        origin = authored.Translation;
+        angles = spawnInfo.ParentTransform.IsIdentity
+            ? data.GetVector3Property("angles")
+            : EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(authored));
         previousOrigin = origin;
         previousAngles = angles;
 
@@ -326,8 +391,8 @@ public abstract class BaseEntity
     {
         EntitySystem = system;
         Scene = scene;
-        ParentTransform = Matrix4x4.Identity;
         EntityScale = Vector3.One;
+        SpawnTransform = Matrix4x4.Identity;
 
         Classname = classname;
 
@@ -520,14 +585,16 @@ public abstract class BaseEntity
     /// </summary>
     public virtual void Teleport(Vector3 origin, Vector3? angles)
     {
-        Origin = origin;
-
-        if (angles is { } newAngles)
-        {
-            Angles = newAngles;
-        }
+        SetWorldOriginAndAngles(origin, angles ?? WorldAngles);
 
         // A teleport is not movement, so it must not be interpolated across
+        SnapInterpolation();
+    }
+
+    /// <summary>Jumps to a pose in the move parent frame without interpolating across, like a teleport.</summary>
+    protected void JumpTo(Vector3 origin, Vector3 angles)
+    {
+        SetOriginAndAngles(origin, angles);
         SnapInterpolation();
     }
 
@@ -611,12 +678,21 @@ public abstract class BaseEntity
     /// <summary>
     /// Runs one entity tick: think, move, then move-done, the order Source's pusher physics uses.
     /// </summary>
+    // The state this tick starts from is the one frames interpolate out of. Taken for every entity before
+    // any of them moves, so a child sees where its parent started.
+    internal void BeginTick()
+    {
+        previousOrigin = origin;
+        previousAngles = angles;
+    }
+
+    // Whether the entity moved in the world this tick, by itself or by riding its move parent
+    private bool MovedThisTick()
+        => previousOrigin != origin || previousAngles != angles
+        || (parentFrameKind == ParentFrameKind.Entity && MoveParent!.MovedThisTick());
+
     internal void Simulate(float tickInterval)
     {
-        // The state this tick starts from is the one frames interpolate out of
-        previousOrigin = Origin;
-        previousAngles = Angles;
-
         if (NextThink > 0f && NextThink <= EntitySystem.CurrentTime)
         {
             NextThink = -1f;
@@ -645,7 +721,7 @@ public abstract class BaseEntity
 
         PhysicsSimulate(moveTime);
 
-        if (IsPusher && (previousOrigin != Origin || previousAngles != Angles))
+        if (IsPusher && MovedThisTick())
         {
             PushPlayer(moveTime);
         }
@@ -677,10 +753,10 @@ public abstract class BaseEntity
         var turn = AngularVelocity * tickInterval;
 
         SetOriginAndAngles(
-            Origin + Velocity * tickInterval,
-            AngularVelocity == Vector3.Zero ? Angles
-                : TurnsByAngleComponents ? Angles + turn
-                : TurnBody(Angles, turn));
+            origin + Velocity * tickInterval,
+            AngularVelocity == Vector3.Zero ? angles
+                : TurnsByAngleComponents ? angles + turn
+                : TurnBody(angles, turn));
     }
 
     /// <summary>
@@ -849,13 +925,18 @@ public abstract class BaseEntity
     /// <summary>Where this tick's motion took a world point, minus where it was: the rigid displacement.</summary>
     private Vector3 TickDisplacementAt(Vector3 point)
     {
-        var before = EntityTransformHelper.EulerAnglesToRotationMatrix(previousAngles);
-        var after = EntityTransformHelper.EulerAnglesToRotationMatrix(Angles);
+        if (!Matrix4x4.Invert(PreviousRigidTransform, out var previousToLocal))
+        {
+            return Vector3.Zero;
+        }
 
-        var local = Vector3.TransformNormal(point - previousOrigin, Matrix4x4.Transpose(before));
-
-        return Vector3.TransformNormal(local, after) + Origin - point;
+        return Vector3.Transform(Vector3.Transform(point, previousToLocal), RigidTransform) - point;
     }
+
+    // The world pose the tick started from, the parent included
+    private Matrix4x4 PreviousRigidTransform
+        => EntityTransformHelper.ToRigidTransformationMatrix(previousAngles, previousOrigin)
+        * (parentFrameKind == ParentFrameKind.Entity ? MoveParent!.PreviousRigidTransform : GetParentFrame());
 
     /// <summary>The farthest this tick's motion displaced any corner of a hull, or its center.</summary>
     private float MaxHullDisplacement(Vector3 center, Vector3 halfExtents)
@@ -880,7 +961,7 @@ public abstract class BaseEntity
     {
         var omega = new Vector3(AngularVelocity.Z, AngularVelocity.X, AngularVelocity.Y) * (MathF.PI / 180f);
 
-        return Velocity + Vector3.Cross(omega, at - Origin);
+        return Velocity + Vector3.Cross(omega, at - WorldOrigin);
     }
 
     /// <summary>
@@ -911,6 +992,48 @@ public abstract class BaseEntity
         UpdateTransform();
     }
 
+    /// <summary>Puts the entity at a world origin and orientation, whatever frame it moves in.</summary>
+    protected void SetWorldOriginAndAngles(Vector3 newOrigin, Vector3 newAngles)
+    {
+        if (parentFrameKind == ParentFrameKind.None)
+        {
+            SetOriginAndAngles(newOrigin, newAngles);
+            return;
+        }
+
+        SetWorldPose(EntityTransformHelper.ToRigidTransformationMatrix(newAngles, newOrigin));
+    }
+
+    private void SetWorldPose(in Matrix4x4 world)
+    {
+        if (!Matrix4x4.Invert(GetParentFrame(), out var worldToParent))
+        {
+            return;
+        }
+
+        var local = world * worldToParent;
+
+        SetPose(local.Translation, EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(local)));
+    }
+
+    private void SetPose(Vector3 newOrigin, Vector3 newAngles) => SetOriginAndAngles(newOrigin, newAngles);
+
+    // The frame the local pose is in at the current tick
+    private Matrix4x4 GetParentFrame() => parentFrameKind switch
+    {
+        ParentFrameKind.Entity => MoveParent!.RigidTransform,
+        ParentFrameKind.Attachment => ((BaseModelEntity)MoveParent!).ModelNode!.GetChildFrame(parentAttachmentName),
+        _ => Matrix4x4.Identity,
+    };
+
+    // The frame the drawn transform is in this frame
+    private Matrix4x4 GetParentRenderFrame() => parentFrameKind switch
+    {
+        ParentFrameKind.Entity => MoveParent!.renderFrame,
+        ParentFrameKind.Attachment => GetParentFrame(),
+        _ => Matrix4x4.Identity,
+    };
+
     /// <summary>
     /// Brings the entity's node up to date for this frame: interpolate between the last two ticks, then put
     /// the node where that lands.
@@ -924,7 +1047,7 @@ public abstract class BaseEntity
     {
         // A paused world has no span to interpolate across, and reading one would draw every entity at
         // the tick it last started rather than where it stands, re-dirtying the transform every frame
-        var isMoving = EntitySystem.Enabled && (previousOrigin != origin || previousAngles != angles);
+        var isMoving = EntitySystem.Enabled && (MovedThisTick() || parentFrameKind == ParentFrameKind.Attachment);
 
         if (isMoving || isInterpolating)
         {
@@ -983,35 +1106,17 @@ public abstract class BaseEntity
         Scene.Add(node, dynamic: true);
     }
 
-    // The move parent's model then places the entity's nodes, rather than the entity following it
-    private bool isAttachedToParentModel;
-
-    /// <summary>
-    /// Hangs the nodes this entity places off an attachment or bone of the move parent's model, snapping
-    /// them onto it. Plain parenting is left to the move parent, which the entity follows by itself.
-    /// <c>uselocaloffset</c> is ignored, as the engine does here too.
-    /// </summary>
-    private void AttachToParentModel(string attachmentName)
+    // The scene places these nodes after the parent model animates, so they never lag a frame behind it
+    private void AttachToParentModel(SceneNodes.ModelSceneNode parentModel)
     {
-        if (MoveParent is not BaseModelEntity { ModelNode: { } parentModel })
-        {
-            return;
-        }
-
-        if (!parentModel.HasAttachmentOrBone(attachmentName))
-        {
-            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' is parented to {AttachmentName} on '{ParentName}', which has no such attachment or bone",
-                Classname, TargetName, attachmentName, MoveParent.TargetName);
-            return;
-        }
+        var local = Matrix4x4.CreateScale(EntityScale) * EntityTransformHelper.ToRigidTransformationMatrix(angles, origin);
 
         foreach (var node in placedNodes)
         {
-            parentModel.AttachNode(node, attachmentName);
+            node.SetParent(parentModel, parentAttachmentName, node.ApplyPlacementScale(local));
         }
 
         placedNodes.Clear();
-        isAttachedToParentModel = true;
     }
 
     /// <summary>
@@ -1047,7 +1152,7 @@ public abstract class BaseEntity
     /// <summary>Rebuilds <see cref="Transform"/> from the current scale, angles, and origin.</summary>
     protected void UpdateTransform()
     {
-        SetTransform(Origin, Angles);
+        SetTransform(origin, angles);
         UpdateColliderTransform();
     }
 
@@ -1081,16 +1186,15 @@ public abstract class BaseEntity
     /// </remarks>
     protected virtual void UpdateRenderTransform(float fraction)
     {
-        var origin = Vector3.Lerp(previousOrigin, Origin, fraction);
+        var drawnOrigin = Vector3.Lerp(previousOrigin, origin, fraction);
         var rotation = Quaternion.Slerp(
             EntityTransformHelper.EulerAnglesToQuaternion(previousAngles),
-            EntityTransformHelper.EulerAnglesToQuaternion(Angles),
+            EntityTransformHelper.EulerAnglesToQuaternion(angles),
             fraction);
 
-        Transform = Matrix4x4.CreateScale(EntityScale)
-            * Matrix4x4.CreateFromQuaternion(rotation)
-            * Matrix4x4.CreateTranslation(origin)
-            * ParentTransform;
+        // A child interpolates in its parent frame, which the parent has interpolated already
+        renderFrame = Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(drawnOrigin) * GetParentRenderFrame();
+        Transform = Matrix4x4.CreateScale(EntityScale) * renderFrame;
 
         transformDirty = true;
     }
@@ -1102,17 +1206,16 @@ public abstract class BaseEntity
     /// </summary>
     protected void SnapInterpolation()
     {
-        previousOrigin = Origin;
-        previousAngles = Angles;
+        previousOrigin = origin;
+        previousAngles = angles;
         isInterpolating = false;
         UpdateTransform();
     }
 
     private void SetTransform(Vector3 origin, Vector3 angles)
     {
-        Transform = Matrix4x4.CreateScale(EntityScale)
-            * EntityTransformHelper.ToRigidTransformationMatrix(angles, origin)
-            * ParentTransform;
+        renderFrame = EntityTransformHelper.ToRigidTransformationMatrix(angles, origin) * GetParentRenderFrame();
+        Transform = Matrix4x4.CreateScale(EntityScale) * renderFrame;
 
         transformDirty = true;
     }

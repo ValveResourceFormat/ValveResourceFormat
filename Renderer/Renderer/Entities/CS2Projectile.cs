@@ -255,7 +255,7 @@ public sealed class CS2Projectile : BaseEntity
         // the world axes together
         if (!onGround || Velocity != Vector3.Zero)
         {
-            Angles += AngularVelocity * tickInterval;
+            WorldAngles += AngularVelocity * tickInterval;
         }
     }
 
@@ -288,7 +288,7 @@ public sealed class CS2Projectile : BaseEntity
         detonated = true;
         effectTimeLeft = effectDuration;
 
-        Sound.Play(detonateSound, Origin);
+        Sound.Play(detonateSound, WorldOrigin);
 
         StopFlightEffect();
 
@@ -297,7 +297,7 @@ public sealed class CS2Projectile : BaseEntity
 
         if (detonationEffect != null)
         {
-            detonationEffect.Transform = Matrix4x4.CreateTranslation(Origin);
+            detonationEffect.Transform = Matrix4x4.CreateTranslation(WorldOrigin);
             detonationEffect.Visible = true;
             detonationEffect.Play();
         }
@@ -348,15 +348,15 @@ public sealed class CS2Projectile : BaseEntity
 
     private Rubikon.TraceResult PushEntity(Vector3 move)
     {
-        var trace = SweepHull(EntitySystem.PhysicsWorld, EntitySystem, Origin, Origin + move);
+        var trace = SweepHull(EntitySystem.PhysicsWorld, EntitySystem, WorldOrigin, WorldOrigin + move);
 
         if (!trace.IsValid)
         {
-            Origin += move;
+            WorldOrigin += move;
             return trace;
         }
 
-        Origin = trace.Hit ? trace.HitPosition : Origin + move;
+        WorldOrigin = trace.Hit ? trace.HitPosition : WorldOrigin + move;
 
         return trace;
     }
@@ -431,7 +431,7 @@ public sealed class CS2Projectile : BaseEntity
                 onGround = true;
                 Velocity = Vector3.Zero;
                 AngularVelocity = Vector3.Zero;
-                Angles = RestingAngles(trace.HitNormal);
+                WorldAngles = RestingAngles(trace.HitNormal);
             }
             else
             {

@@ -46,7 +46,7 @@ public sealed class PlayerEntity : BaseEntity
     }
 
     /// <summary>
-    /// Teleports the player. <see cref="BaseEntity.Origin"/> is the feet, which is what
+    /// Teleports the player. <see cref="BaseEntity.WorldOrigin"/> is the feet, which is what
     /// <see cref="IPlayerController.Teleport"/> takes, so the destination passes straight through.
     /// </summary>
     public override void Teleport(Vector3 origin, Vector3? angles)
@@ -87,7 +87,7 @@ public sealed class PlayerEntity : BaseEntity
 
     private void SyncFromController()
     {
-        Origin = Controller.Position;
+        WorldOrigin = Controller.Position;
         Velocity = Controller.Velocity;
     }
 }

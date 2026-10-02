@@ -22,7 +22,7 @@ public sealed class PathParticleRopeEntity : BaseEntity
         {
             if (!CableSceneNode.TryCreate(Scene, KeyValues, out var cable))
             {
-                EntitySystem.Logger.LogWarning("Skipped degenerate {Classname} '{Target}' at ({Origin})", Classname, TargetName, Origin);
+                EntitySystem.Logger.LogWarning("Skipped degenerate {Classname} '{Target}' at ({Origin})", Classname, TargetName, WorldOrigin);
                 return null;
             }
 

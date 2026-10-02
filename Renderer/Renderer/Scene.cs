@@ -332,6 +332,8 @@ namespace ValveResourceFormat.Renderer
         /// <param name="dynamic">When <see langword="true"/>, removes from the dynamic partition; otherwise the static partition.</param>
         public void Remove(SceneNode node, bool dynamic)
         {
+            node.DetachFromParent();
+
             if (dynamic)
             {
                 dynamicNodes.Remove(node);
@@ -562,7 +564,10 @@ namespace ValveResourceFormat.Renderer
         {
             foreach (var node in staticNodes)
             {
-                node.Update(updateContext);
+                if (node.Parent == null)
+                {
+                    node.UpdateHierarchy(updateContext);
+                }
             }
 
             foreach (var node in dynamicNodes)
@@ -572,7 +577,7 @@ namespace ValveResourceFormat.Renderer
                     continue; // child nodes are updated by their parent
                 }
 
-                node.Update(updateContext);
+                node.UpdateHierarchy(updateContext);
             }
 
             SimulateNodes(updateContext);

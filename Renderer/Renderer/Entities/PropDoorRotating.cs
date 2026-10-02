@@ -614,7 +614,7 @@ public class PropDoorRotating : BaseToggle
             State = DoorState.Closed;
         }
 
-        Teleport(Origin, angles);
+        JumpTo(Origin, angles);
     }
 
     /// <summary>
@@ -700,8 +700,8 @@ public class PropDoorRotating : BaseToggle
     // Whether an entity stands to the left of the door, looking from the hinge along the panel
     private bool IsOnLeft(BaseEntity entity)
     {
-        var alongPanel = MathUtils.SafeNormalize(((Collider?.WorldBounds.Center ?? Origin) - Origin) with { Z = 0f });
-        var toEntity = MathUtils.SafeNormalize((entity.Origin - Origin) with { Z = 0f });
+        var alongPanel = MathUtils.SafeNormalize(((Collider?.WorldBounds.Center ?? WorldOrigin) - WorldOrigin) with { Z = 0f });
+        var toEntity = MathUtils.SafeNormalize((entity.WorldOrigin - WorldOrigin) with { Z = 0f });
 
         return alongPanel.X * toEntity.Y - alongPanel.Y * toEntity.X >= 0f;
     }
@@ -756,7 +756,7 @@ public class PropDoorRotating : BaseToggle
         var ignore = lastActivator ?? Master?.lastActivator;
 
         // Shrunk by the surface margin, so a neighbour resting exactly against the swept box does not count
-        var center = Origin + volume.Center;
+        var center = WorldOrigin + volume.Center;
         var halfExtents = volume.Size * 0.5f - new Vector3(Rubikon.SurfaceEpsilon);
 
         foreach (var entity in EntitySystem.Entities)
@@ -825,7 +825,7 @@ public class PropDoorRotating : BaseToggle
             return;
         }
 
-        moveSound = Sound.Play(soundMove, Origin);
+        moveSound = Sound.Play(soundMove, WorldOrigin);
         isMoveSoundOn = true;
     }
 
@@ -840,7 +840,7 @@ public class PropDoorRotating : BaseToggle
     {
         if (!IsSilent && soundEvent != null)
         {
-            Sound.Play(soundEvent, Origin);
+            Sound.Play(soundEvent, WorldOrigin);
         }
     }
 
@@ -859,7 +859,7 @@ public class PropDoorRotating : BaseToggle
             return;
         }
 
-        Sound.Play(sound, Origin);
+        Sound.Play(sound, WorldOrigin);
         lockSoundNext = EntitySystem.CurrentTime + LockSoundWait;
     }
 }

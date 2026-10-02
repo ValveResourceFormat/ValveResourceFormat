@@ -87,7 +87,7 @@ public sealed class EnvSky : BaseEntity
         };
 
         // Fixed in the spawn group rather than at the entity
-        dynamicSun.PlaceAt(EntityTransformHelper.EulerAnglesToRotationMatrix(angles) * ParentTransform);
+        dynamicSun.PlaceAt(EntityTransformHelper.EulerAnglesToRotationMatrix(angles) * SpawnTransform);
         AddNode(dynamicSun, followsEntity: false);
 
         Scene.LightingInfo.EnableDynamicShadows = true;

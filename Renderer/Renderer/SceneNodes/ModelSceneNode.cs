@@ -84,9 +84,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             Attachments = model.Attachments;
             AnimationController.BoneConstraints = new BoneConstraintSolver(model);
 
-            // GetAttachmentOrSelfTransform already falls back to this node's own world Transform for an empty/
+            // GetChildFrame already falls back to this node's own world Transform for an empty/
             // unmatched name - AnimationController.Transform is not it (see its doc comment), so route through here.
-            AnimationController.ResolvePosition = attachmentName => GetAttachmentOrSelfTransform(attachmentName).Translation;
+            AnimationController.ResolvePosition = attachmentName => GetChildFrame(attachmentName).Translation;
             AnimationController.AnimationLookup = animationName => Animations.GetValueOrDefault(animationName);
         }
 
@@ -189,7 +189,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             UpdateAutoLod(context.Camera);
             var animationUpdated = AnimationController.Update(context.Timestep);
-            UpdateAttachments(context);
 
             if (!animationUpdated)
             {

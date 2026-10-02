@@ -91,9 +91,9 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
             return;
         }
 
-        localOffset = KeyValues.GetBooleanProperty("uselocaloffset") ? Origin - path[0].Position : Vector3.Zero;
+        localOffset = KeyValues.GetBooleanProperty("uselocaloffset") ? WorldOrigin - path[0].Position : Vector3.Zero;
 
-        SetOriginAndAngles(path[0].Position + localOffset, Angles);
+        SetWorldOriginAndAngles(path[0].Position + localOffset, WorldAngles);
         SnapInterpolation();
     }
 
@@ -152,9 +152,9 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
 
         var angles = faceForward
             ? EntityTransformHelper.ForwardDirectionToEulerAngles(segment)
-            : Angles;
+            : WorldAngles;
 
-        SetOriginAndAngles(Vector3.Lerp(fromNode.Position, toNode.Position, distanceIntoSegment / segmentLength) + localOffset, angles);
+        SetWorldOriginAndAngles(Vector3.Lerp(fromNode.Position, toNode.Position, distanceIntoSegment / segmentLength) + localOffset, angles);
     }
 
     private void ArriveAt(int index)
@@ -163,7 +163,7 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
         distanceIntoSegment = 0f;
         waitTimer = path[index].Wait;
 
-        SetOriginAndAngles(path[index].Position + localOffset, Angles);
+        SetWorldOriginAndAngles(path[index].Position + localOffset, WorldAngles);
     }
 
     // Walks the target chain starting at the path_corner named startName, in the same way path_track/
@@ -172,12 +172,6 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
     // instead of always restarting from the first node.
     private void ResolvePath(string? startName)
     {
-        // Stops are placed in the world, the mover's origin is in the space its spawner put it in
-        if (!Matrix4x4.Invert(ParentTransform, out var worldToLocal))
-        {
-            return;
-        }
-
         var visited = new Dictionary<BaseEntity, int>();
         var current = FindPathCorner(startName);
 
@@ -191,7 +185,7 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
 
             visited[current] = path.Count;
             path.Add(new PathNode(
-                Vector3.Transform(current.Transform.Translation, worldToLocal),
+                current.WorldOrigin,
                 current.Data?.GetFloatProperty("speed") ?? 0f,
                 current.Data?.GetFloatProperty("wait") ?? 0f));
 

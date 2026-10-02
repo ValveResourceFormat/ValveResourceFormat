@@ -413,7 +413,7 @@ public sealed class FuncButton : BaseToggle
             case ThinkFunction.Spark:
                 // Only the sound; the sparks themselves are an engine effect with no particle system to play
                 SetNextThink(EntitySystem.CurrentTime + 0.1f + Random.Shared.NextSingle() * 1.5f);
-                Sound.Play("DoSpark", Origin);
+                Sound.Play("DoSpark", WorldOrigin);
                 break;
 
             case ThinkFunction.Return:
@@ -513,7 +513,7 @@ public sealed class FuncButton : BaseToggle
     {
         if (useSound != null)
         {
-            Sound.Play(useSound, Origin);
+            Sound.Play(useSound, WorldOrigin);
         }
     }
 
@@ -531,7 +531,7 @@ public sealed class FuncButton : BaseToggle
             return;
         }
 
-        Sound.Play(sound, Origin);
+        Sound.Play(sound, WorldOrigin);
         lockSoundNext = EntitySystem.CurrentTime + LockSoundWait;
     }
 }

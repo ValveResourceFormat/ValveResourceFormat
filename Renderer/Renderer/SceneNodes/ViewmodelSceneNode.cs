@@ -1470,7 +1470,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 material.IntParams["g_bFirstpersonLegsDistortion"] = distortionValue;
             }
 
-            Legs.Update(context);
+            Legs.UpdateHierarchy(context);
         }
 
         attackCooldown = MathF.Max(0f, attackCooldown - context.Timestep);
@@ -1509,7 +1509,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         static void UpdateItem(ModelSceneNode item, Scene.UpdateContext context, AABB bounds)
         {
-            item.Update(context);
+            item.UpdateHierarchy(context);
             item.LocalBoundingBox = bounds;
         }
 
