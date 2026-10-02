@@ -41,6 +41,8 @@ public static class EntityFactory
         Register<FuncDoorRotating>("func_door_rotating", static (system, spawnInfo) => new FuncDoorRotating(system, spawnInfo));
         Register<FuncMoveLinear>("func_movelinear", static (system, spawnInfo) => new FuncMoveLinear(system, spawnInfo));
         Register<FuncRotating>("func_rotating", static (system, spawnInfo) => new FuncRotating(system, spawnInfo));
+        Register<FuncTrackTrain>("func_tracktrain", static (system, spawnInfo) => new FuncTrackTrain(system, spawnInfo));
+        Register<PathTrack>("path_track", static (system, spawnInfo) => new PathTrack(system, spawnInfo));
         Register<PropDoorRotating>("prop_door_rotating", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
         Register<PropDoorRotating>("prop_door_rotating_physics", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
         Register<PropDynamic>("prop_dynamic", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
