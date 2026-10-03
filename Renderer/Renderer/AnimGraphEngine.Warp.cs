@@ -115,7 +115,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 // Without a valid direction use the end orientation
                 postWarpOriginalDirCS = TransformMath.IsNearZero(postWarpOriginalDirCS)
                     ? TransformMath.RotateVector(endRotation, TransformMath.WorldForward)
-                    : Normalize2(postWarpOriginalDirCS);
+                    : TransformMath.Normalize2(postWarpOriginalDirCS);
             }
 
             // The target direction we need to align to
@@ -140,7 +140,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     return;
                 }
 
-                targetDirCS = Normalize2(targetDirCS);
+                targetDirCS = TransformMath.Normalize2(targetDirCS);
             }
 
             // The desired modification we need to make
@@ -206,13 +206,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             warpedRootMotion = new RootMotionData(transforms, numFrames, originalRootMotion);
-        }
-
-        // Normalizes by the length on the ground plane
-        static Vector3 Normalize2(Vector3 v)
-        {
-            var length = MathF.Sqrt((v.X * v.X) + (v.Y * v.Y));
-            return length > 0f ? v / length : v;
         }
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)

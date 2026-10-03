@@ -132,4 +132,74 @@ static class TransformMath
 
         return angle;
     }
+
+    /// <summary>Normalizes on the ground plane, dropping the vertical component.</summary>
+    public static Vector3 Normalize2(Vector3 v)
+    {
+        var length = MathF.Sqrt((v.X * v.X) + (v.Y * v.Y));
+        return length != 0f ? new Vector3(v.X / length, v.Y / length, 0f) : Vector3.Zero;
+    }
+
+    public static float Length2(Vector3 v) => MathF.Sqrt((v.X * v.X) + (v.Y * v.Y));
+
+    public static bool IsNearZero2(Vector3 v, float epsilon = Epsilon) => MathF.Abs(v.X) <= epsilon && MathF.Abs(v.Y) <= epsilon;
+
+    public static bool IsVectorInTheSameHemisphere2D(Vector3 reference, Vector3 v) => Vector3.Dot(Normalize2(reference), Normalize2(v)) > 0f;
+
+    /// <summary>Normalized linear interpolation, taking the shorter path.</summary>
+    public static Quaternion NLerp(Quaternion from, Quaternion to, float t)
+    {
+        if (Quaternion.Dot(from, to) < 0f)
+        {
+            from = -from;
+        }
+
+        return Quaternion.Normalize(new Quaternion(
+            from.X + ((to.X - from.X) * t),
+            from.Y + ((to.Y - from.Y) * t),
+            from.Z + ((to.Z - from.Z) * t),
+            from.W + ((to.W - from.W) * t)));
+    }
+
+    /// <summary>Interpolates translation and scale linearly and rotation with a normalized lerp.</summary>
+    public static Transform Lerp(Transform from, Transform to, float t)
+        => new(Vector3.Lerp(from.Position, to.Position, t), float.Lerp(from.Scale, to.Scale, t), NLerp(from.Angle, to.Angle, t));
+
+    /// <summary>The angular distance between two rotations in radians.</summary>
+    public static float Distance(Quaternion q0, Quaternion q1)
+    {
+        var dot = Math.Clamp(Quaternion.Dot(q0, q1), -1f, 1f);
+        return 2f * MathF.Acos(MathF.Abs(dot));
+    }
+
+    public static bool IsNearEqual(Transform a, Transform b, float angleThreshold = MathF.PI / 180f, float translationScaleThreshold = Epsilon)
+    {
+        if (Distance(a.Angle, b.Angle) > angleThreshold)
+        {
+            return false;
+        }
+
+        var delta = a.PositionScale - b.PositionScale;
+        return MathF.Abs(delta.X) <= translationScaleThreshold
+            && MathF.Abs(delta.Y) <= translationScaleThreshold
+            && MathF.Abs(delta.Z) <= translationScaleThreshold
+            && MathF.Abs(delta.W) <= translationScaleThreshold;
+    }
+
+    /// <summary>A rotation facing the forward vector while keeping as close to the up vector as possible.</summary>
+    public static Quaternion LookAt(Vector3 forwardVector, Vector3 upVector)
+    {
+        var forwardProjectedOnUp = forwardVector * Vector3.Dot(forwardVector, upVector);
+        var up = NormalizeOrZero(upVector - forwardProjectedOnUp);
+        var left = NormalizeOrZero(Vector3.Cross(up, forwardVector));
+
+        // Rows are the images of the forward, left and up axes
+        var m = new Matrix4x4(
+            forwardVector.X, forwardVector.Y, forwardVector.Z, 0f,
+            left.X, left.Y, left.Z, 0f,
+            up.X, up.Y, up.Z, 0f,
+            0f, 0f, 0f, 1f);
+
+        return Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(m));
+    }
 }

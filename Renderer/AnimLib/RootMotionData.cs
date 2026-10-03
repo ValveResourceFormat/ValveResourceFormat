@@ -99,4 +99,33 @@ class RootMotionData
 
         return GetDelta(startTime, endTime);
     }
+
+    /// <summary>
+    /// The direction of movement into a frame from the previous one, or the facing when there is no movement.
+    /// </summary>
+    public Quaternion GetIncomingMovementOrientation2DAtFrame(int frameIdx)
+    {
+        if (Transforms.Length == 0)
+        {
+            return Quaternion.Identity;
+        }
+
+        if (Transforms.Length == 1)
+        {
+            return Transforms[0].Angle;
+        }
+
+        if (frameIdx == 0)
+        {
+            return Transforms[frameIdx].Angle;
+        }
+
+        var movementDelta = Transforms[frameIdx].Position - Transforms[frameIdx - 1].Position;
+        if (MathF.Abs(movementDelta.X) <= TransformMath.Epsilon && MathF.Abs(movementDelta.Y) <= TransformMath.Epsilon)
+        {
+            return Transforms[frameIdx].Angle;
+        }
+
+        return TransformMath.FromRotationBetweenUnitVectors(TransformMath.WorldForward, TransformMath.Normalize2(movementDelta));
+    }
 }
