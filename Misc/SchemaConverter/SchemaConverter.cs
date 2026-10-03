@@ -1,13 +1,362 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
+
+// Generates the AnimLib definition classes from the SchemaExplorer schema dump.
+//
+// Generated files are hand edited afterwards, so a regen never overwrites them. Instead the schema the
+// files were last generated from (pinned in generated-from.txt) is generated again as a merge base, and
+// each file gets a three-way merge of (current file, previous generation, new generation). Files deleted
+// by hand stay deleted, and new schema classes are created.
+//
+// Usage: dotnet run [-- [--offline] [--dry-run] [--baseline-dir <dir>]]
+//   --offline           do not fetch, use the last saved schema
+//   --dry-run           report what would change without writing
+//   --baseline-dir      use an already generated folder as the merge base instead of the pinned schema
+
+const string SchemaRepository = "ValveResourceFormat/SchemaExplorer";
+const string SchemaPath = "schemas/cs2.json";
+const string SourceNameSpace = "Nm";
+
+var offline = args.Contains("--offline");
+var dryRun = args.Contains("--dry-run");
+var baselineDirArgIndex = Array.IndexOf(args, "--baseline-dir");
+var baselineDirArg = baselineDirArgIndex >= 0 ? args[baselineDirArgIndex + 1] : null;
+
+var toolDir = Path.GetDirectoryName(CurrentFileName()) ?? throw new InvalidOperationException();
+var cacheDir = Path.Combine(toolDir, "cache");
+var generatedFromFile = Path.Combine(toolDir, "generated-from.txt");
+
+var destinationProject = Path.Combine(WalkUpDir(CurrentFileName(), 3), "Renderer");
+var destinationFolder = "AnimLib";
+var destinationNameSpace = $"ValveResourceFormat.Renderer.{destinationFolder.Replace('/', '.')}";
+var destinationDir = Path.Combine(destinationProject, destinationFolder);
+
+Program.Test();
+
+var (latestSha, latestSchemaFile) = await GetLatestSchema();
+Console.WriteLine($"Using schema {SchemaRepository}@{latestSha}");
+
+var newDir = Path.Combine(Path.GetTempPath(), "SchemaConverter", "new");
+Generate(Schema.Load(latestSchemaFile), newDir);
+
+string? baselineDir = null;
+string? baselineSha = null;
+
+if (baselineDirArg != null)
+{
+    baselineDir = Path.GetFullPath(baselineDirArg);
+}
+else if (File.Exists(generatedFromFile))
+{
+    baselineSha = File.ReadAllText(generatedFromFile).Trim();
+    var baselineSchemaFile = await GetSchemaAtCommit(baselineSha);
+
+    if (baselineSchemaFile != null)
+    {
+        baselineDir = Path.Combine(Path.GetTempPath(), "SchemaConverter", "baseline");
+        Generate(Schema.Load(baselineSchemaFile), baselineDir);
+    }
+    else
+    {
+        Console.WriteLine($"Previous schema {baselineSha} is not available, existing files will be left alone.");
+    }
+}
+else
+{
+    Console.WriteLine($"No {Path.GetFileName(generatedFromFile)}, existing files will be left alone.");
+}
+
+var hasConflicts = MergeInto(destinationDir, baselineDir, newDir);
+
+if (!dryRun)
+{
+    File.WriteAllText(generatedFromFile, latestSha + "\n");
+    Process.Start("dotnet", $"build \"{destinationProject}\" /p:NoWarn=CA1812")?.WaitForExit();
+}
+
+return hasConflicts ? 1 : 0;
+
+async Task<(string Sha, string File)> GetLatestSchema()
+{
+    var latestShaFile = Path.Combine(cacheDir, "latest.txt");
+
+    if (!offline)
+    {
+        try
+        {
+            using var http = CreateHttpClient();
+            var commitsUrl = $"https://api.github.com/repos/{SchemaRepository}/commits?path={SchemaPath}&per_page=1";
+            using var commits = JsonDocument.Parse(await http.GetStringAsync(commitsUrl));
+            var sha = commits.RootElement[0].GetProperty("sha").GetString() ?? throw new InvalidDataException("Commit without sha");
+
+            var file = await GetSchemaAtCommit(sha) ?? throw new InvalidDataException($"Failed to download schema at {sha}");
+            File.WriteAllText(latestShaFile, sha);
+            return (sha, file);
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        {
+            Console.WriteLine($"Failed to fetch the latest schema ({e.Message}), falling back to the saved one.");
+        }
+    }
+
+    if (!File.Exists(latestShaFile))
+    {
+        throw new InvalidOperationException("No saved schema to fall back to, run once with network access.");
+    }
+
+    var savedSha = File.ReadAllText(latestShaFile).Trim();
+    return (savedSha, CachedSchemaFile(savedSha));
+}
+
+async Task<string?> GetSchemaAtCommit(string sha)
+{
+    var file = CachedSchemaFile(sha);
+    if (File.Exists(file))
+    {
+        return file;
+    }
+
+    if (offline)
+    {
+        return null;
+    }
+
+    try
+    {
+        using var http = CreateHttpClient();
+        var content = await http.GetByteArrayAsync($"https://raw.githubusercontent.com/{SchemaRepository}/{sha}/{SchemaPath}");
+
+        Directory.CreateDirectory(cacheDir);
+        File.WriteAllBytes(file, content);
+        return file;
+    }
+    catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+    {
+        Console.WriteLine($"Failed to fetch schema at {sha} ({e.Message}).");
+        return null;
+    }
+}
+
+string CachedSchemaFile(string sha) => Path.Combine(cacheDir, $"cs2-{sha}.json");
+
+static HttpClient CreateHttpClient()
+{
+    var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+    http.DefaultRequestHeaders.UserAgent.ParseAdd("VRF-SchemaConverter");
+    return http;
+}
+
+bool MergeInto(string targetDir, string? baseDir, string generatedDir)
+{
+    var created = 0;
+    var updated = 0;
+    var merged = 0;
+    List<string> conflicts = [];
+    List<string> notes = [];
+
+    var generatedFiles = Directory.GetFiles(generatedDir, "*.cs", SearchOption.AllDirectories)
+        .Select(f => Path.GetRelativePath(generatedDir, f))
+        .Order(StringComparer.Ordinal);
+
+    foreach (var relativePath in generatedFiles)
+    {
+        var newText = ReadNormalized(Path.Combine(generatedDir, relativePath));
+        var basePath = baseDir != null ? Path.Combine(baseDir, relativePath) : null;
+        var baseText = basePath != null && File.Exists(basePath) ? ReadNormalized(basePath) : null;
+        var targetPath = Path.Combine(targetDir, relativePath);
+
+        if (!File.Exists(targetPath))
+        {
+            if (baseText != null)
+            {
+                // Generated before and deleted by hand since
+                if (baseText != newText)
+                {
+                    notes.Add($"deleted locally, schema changed: {relativePath}");
+                }
+
+                continue;
+            }
+
+            if (!dryRun)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+                WriteNormalized(targetPath, newText);
+            }
+
+            Console.WriteLine($"Created {relativePath}");
+            created++;
+            continue;
+        }
+
+        if (baseText == null)
+        {
+            if (ReadNormalized(targetPath) != newText)
+            {
+                notes.Add($"not generated before, kept as is: {relativePath}");
+            }
+
+            continue;
+        }
+
+        if (baseText == newText)
+        {
+            continue;
+        }
+
+        var currentText = ReadNormalized(targetPath);
+
+        if (currentText == baseText)
+        {
+            if (!dryRun)
+            {
+                WriteNormalized(targetPath, newText);
+            }
+
+            Console.WriteLine($"Updated {relativePath}");
+            updated++;
+            continue;
+        }
+
+        var (mergedText, conflicted) = MergeText(currentText, baseText, newText);
+
+        if (!dryRun)
+        {
+            WriteNormalized(targetPath, mergedText);
+        }
+
+        if (conflicted)
+        {
+            conflicts.Add(relativePath);
+        }
+        else
+        {
+            Console.WriteLine($"Merged {relativePath}");
+            merged++;
+        }
+    }
+
+    // Classes that left the schema
+    if (baseDir != null)
+    {
+        foreach (var basePath in Directory.GetFiles(baseDir, "*.cs", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(baseDir, basePath);
+            var targetPath = Path.Combine(targetDir, relativePath);
+
+            if (File.Exists(Path.Combine(generatedDir, relativePath)) || !File.Exists(targetPath))
+            {
+                continue;
+            }
+
+            notes.Add($"no longer in the schema: {relativePath}");
+        }
+    }
+
+    Console.WriteLine();
+    Console.WriteLine($"{created} created, {updated} updated, {merged} merged, {conflicts.Count} conflicted{(dryRun ? " (dry run)" : "")}");
+
+    foreach (var note in notes)
+    {
+        Console.WriteLine($"  {note}");
+    }
+
+    foreach (var conflict in conflicts)
+    {
+        Console.WriteLine($"  CONFLICT: {conflict}");
+    }
+
+    return conflicts.Count > 0;
+}
+
+static (string Text, bool Conflicted) MergeText(string current, string baseline, string generated)
+{
+    var tempDir = Directory.CreateTempSubdirectory("SchemaConverterMerge").FullName;
+
+    try
+    {
+        var currentFile = Path.Combine(tempDir, "current");
+        var baseFile = Path.Combine(tempDir, "base");
+        var newFile = Path.Combine(tempDir, "new");
+        File.WriteAllText(currentFile, current);
+        File.WriteAllText(baseFile, baseline);
+        File.WriteAllText(newFile, generated);
+
+        var startInfo = new ProcessStartInfo("git")
+        {
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+        };
+
+        foreach (var argument in (string[])["merge-file", "-p", "-L", "manual", "-L", "previous schema", "-L", "new schema", currentFile, baseFile, newFile])
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start git");
+        var output = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+
+        // git merge-file exits with the number of conflicts, negative on errors
+        if (process.ExitCode < 0)
+        {
+            throw new InvalidOperationException($"git merge-file failed with {process.ExitCode}");
+        }
+
+        return (output, process.ExitCode > 0);
+    }
+    finally
+    {
+        Directory.Delete(tempDir, recursive: true);
+    }
+}
+
+static string ReadNormalized(string path) => File.ReadAllText(path).ReplaceLineEndings("\n");
+
+static void WriteNormalized(string path, string text) => File.WriteAllText(path, text, new UTF8Encoding(false));
+
+void Generate(Schema schema, string outputDir)
+{
+    if (Directory.Exists(outputDir))
+    {
+        Directory.Delete(outputDir, recursive: true);
+    }
+
+    Directory.CreateDirectory(outputDir);
+
+    var converter = new Converter(schema, SourceNameSpace);
+
+    foreach (var type in schema.Types)
+    {
+        var fileName = converter.ConvertClassName(type.Name, SourceNameSpace);
+        var destinationDirLocal = converter.ChooseFolder(fileName, outputDir);
+        Directory.CreateDirectory(destinationDirLocal);
+
+        var writer = new StringBuilder();
+
+        if (type is not SchemaEnum)
+        {
+            writer.Append("using ValveResourceFormat.Serialization.KeyValues;\n"); // global using?
+        }
+
+        writer.Append($"namespace {destinationNameSpace};\n");
+        writer.Append('\n');
+
+        converter.Write(type, writer);
+
+        WriteNormalized(Path.Combine(destinationDirLocal, fileName + ".cs"), writer.ToString());
+    }
+}
 
 string CurrentFileName([CallerFilePath] string csFilePath = "")
 {
     return csFilePath ?? throw new InvalidOperationException();
 }
 
-string WalkUpDir(string path, int levels)
+static string WalkUpDir(string path, int levels)
 {
     var currentPath = path;
     for (var i = 0; i < levels; i++)
@@ -18,53 +367,208 @@ string WalkUpDir(string path, int levels)
     return currentPath;
 }
 
-HashSet<string> enumTypes = [];
-Dictionary<string, string?> classHierarchies = [];
+abstract record SchemaType(string Name);
 
-string RootClass(string @class)
+record SchemaClass(string Name, string? Parent, List<SchemaField> Fields) : SchemaType(Name);
+
+record SchemaEnum(string Name, string BaseType, List<(string Name, long Value)> Members) : SchemaType(Name);
+
+/// <param name="Type">The outer type name, e.g. CUtlVector.</param>
+/// <param name="Args">The template arguments as declared in C++, e.g. "int16, 5".</param>
+record SchemaField(string Type, string? Args, string Name);
+
+class Schema
 {
-    var rootParent = @class;
-    while (classHierarchies.TryGetValue(rootParent, out var parent) && parent is not null)
+    public required List<SchemaType> Types { get; init; }
+
+    public static Schema Load(string path)
     {
-        rootParent = parent;
+        using var stream = File.OpenRead(path);
+        using var document = JsonDocument.Parse(stream);
+        var root = document.RootElement;
+
+        List<SchemaType> types = [];
+
+        foreach (var @class in root.GetProperty("classes").EnumerateArray())
+        {
+            var name = @class.GetProperty("name").GetString()!;
+            if (!IsIncluded(@class, name))
+            {
+                continue;
+            }
+
+            string? parent = null;
+            if (@class.TryGetProperty("parents", out var parents) && parents.GetArrayLength() > 0)
+            {
+                parent = parents[0].GetProperty("name").GetString();
+            }
+
+            List<SchemaField> fields = [];
+            if (@class.TryGetProperty("fields", out var fieldsElement))
+            {
+                foreach (var field in fieldsElement.EnumerateArray())
+                {
+                    var type = field.GetProperty("type");
+
+                    // Raw pointers are runtime state, not serialized data
+                    if (DeclaredTypeName(type).Contains('*', StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    string? args = null;
+
+                    if (type.TryGetProperty("inner", out var inner) && type.GetProperty("category").GetString() == "atomic")
+                    {
+                        args = DeclaredTypeName(inner);
+                        if (type.TryGetProperty("count", out var count))
+                        {
+                            args += $", {count.GetInt32()}";
+                        }
+                    }
+
+                    var outerName = type.GetProperty("category").GetString() == "atomic" ? type.GetProperty("name").GetString()! : DeclaredTypeName(type);
+                    fields.Add(new SchemaField(outerName, args, field.GetProperty("name").GetString()!));
+                }
+            }
+
+            types.Add(new SchemaClass(name, parent, fields));
+        }
+
+        foreach (var @enum in root.GetProperty("enums").EnumerateArray())
+        {
+            var name = @enum.GetProperty("name").GetString()!;
+            if (!IsIncluded(@enum, name))
+            {
+                continue;
+            }
+
+            var members = @enum.GetProperty("members").EnumerateArray()
+                .Select(m => (m.GetProperty("name").GetString()!, m.GetProperty("value").GetInt64()))
+                .ToList();
+
+            types.Add(new SchemaEnum(name, @enum.GetProperty("alignment").GetString()!, members));
+        }
+
+        return new Schema { Types = types };
     }
 
-    return rootParent;
+    // Editor document classes are not part of the compiled resources
+    private static bool IsIncluded(JsonElement element, string name)
+        => element.GetProperty("module").GetString() == "animlib" && !name.Contains("Doc", StringComparison.Ordinal);
+
+    // The type as it would be declared in C++, e.g. "CUtlVector< CGlobalSymbol >" or "CNmClip*"
+    private static string DeclaredTypeName(JsonElement type)
+    {
+        var category = type.GetProperty("category").GetString();
+
+        if (category == "ptr")
+        {
+            return DeclaredTypeName(type.GetProperty("inner")) + "*";
+        }
+
+        var name = type.GetProperty("name").GetString()!;
+
+        if (category == "atomic" && type.TryGetProperty("inner", out var inner))
+        {
+            var args = DeclaredTypeName(inner);
+            if (type.TryGetProperty("count", out var count))
+            {
+                args += $", {count.GetInt32()}";
+            }
+
+            return $"{name}< {args} >";
+        }
+
+        return name;
+    }
 }
 
-
-void ConvertAnimLib()
+class Converter
 {
-    var sourceDir = @"C:/Users/USER/Downloads/animlib";
-    var sourceNameSpace = "Nm";
+    private readonly HashSet<string> enumTypes = [];
+    private readonly Dictionary<string, string?> classHierarchies = [];
 
-    var destinationProject = WalkUpDir(CurrentFileName(), 3) + "/Renderer";
-    var destinationFolder = "AnimLib";
-    var destinationNameSpace = $"ValveResourceFormat.Renderer.{destinationFolder.Replace('/', '.')}";
-    var destinationDir = destinationProject + "/" + destinationFolder;
+    private static readonly HashSet<string> MatchingTypes =
+    [
+        "bool", "float", "double",
+    ];
 
-    // create dir
-    Directory.CreateDirectory(destinationDir);
-
-    // clear folder
-    foreach (var file in Directory.GetFiles(destinationDir, "*.cs"))
+    private static readonly Dictionary<string, string> SimpleTypeMap = new()
     {
-        File.Delete(file);
+        { "uint8_t", "byte" },
+        { "uint8", "byte" },
+        { "int8_t", "sbyte" },
+        { "uint16_t", "ushort" },
+        { "uint16", "ushort" },
+        { "int16_t", "short" },
+        { "int16", "short" },
+        { "uint32_t", "uint" },
+        { "int32_t", "int" },
+        { "int32", "int" },
+        { "uint32", "uint" },
+        { "float32", "float" },
+        { "uint64_t", "ulong" },
+        { "int64_t", "long" },
+        { "uint64", "ulong" },
+        { "int64", "long" },
+
+        { "CGlobalSymbol", "GlobalSymbol" },
+        { "CUtlStringToken", "GlobalSymbol" },
+        { "CUtlString", "string" },
+        { "CUtlBinaryBlock", "byte[]" },
+        { "Vector2D", "Vector2" },
+        { "Vector", "Vector3" },
+        { "CTransform", "Transform" },
+        { "CResourceName", "string" },
+
+        { "ParticleAttachment_t", "ValveResourceFormat.Particles.ParticleAttachment" },
+        { "CPiecewiseCurve", "ValveResourceFormat.Particles.Utils.PiecewiseCurve" },
+        { "KeyValues3", "KVObject" },
+
+        // todo
+        { "CStrongHandle", "string" },
+        { "CStrongHandleVoid", "string" },
+    };
+
+    public Converter(Schema schema, string sourceNameSpace)
+    {
+        foreach (var type in schema.Types)
+        {
+            switch (type)
+            {
+                case SchemaClass @class:
+                    classHierarchies[ConvertClassName(@class.Name, sourceNameSpace)] = @class.Parent is not null ? ConvertClassName(@class.Parent, sourceNameSpace) : null;
+                    break;
+                case SchemaEnum @enum:
+                    enumTypes.Add(ConvertClassName(@enum.Name, sourceNameSpace));
+                    break;
+            }
+        }
+
+        SourceNameSpace = sourceNameSpace;
     }
 
-    bool IsRootEnum(string enumName)
+    private string SourceNameSpace { get; }
+
+    private string RootClass(string @class)
     {
-        return enumTypes.Contains(enumName);
+        var rootParent = @class;
+        while (classHierarchies.TryGetValue(rootParent, out var parent) && parent is not null)
+        {
+            rootParent = parent;
+        }
+
+        return rootParent;
     }
 
-    string ChooseFolder(string fileName, string destinationDirLocal)
+    public string ChooseFolder(string fileName, string destinationDirLocal)
     {
         fileName = fileName.Split("__", StringSplitOptions.RemoveEmptyEntries)[0];
 
-        if (IsRootEnum(fileName))
+        if (enumTypes.Contains(fileName))
         {
             destinationDirLocal += "/Enums";
-            Directory.CreateDirectory(destinationDirLocal);
         }
 
         Dictionary<string, string> classFolderMapping = new()
@@ -77,459 +581,284 @@ void ConvertAnimLib()
         if (classFolderMapping.TryGetValue(RootClass(fileName), out var folder))
         {
             destinationDirLocal += $"/{folder}";
-            Directory.CreateDirectory(destinationDirLocal);
         }
 
         return destinationDirLocal;
     }
 
-    // for each .h file
-    var headerFiles = Directory.GetFiles(sourceDir, "*.h");
-
-    // pre process
-    foreach (var file in headerFiles)
+    /*
+        CNmVelocityBlendNode::CDefinition -> VelocityBlendNode__Definition
+    */
+    public string ConvertClassName(string cStyleClassName, string cStyleNamespacePreffix = "")
     {
-        using var reader = new StreamReader(file);
-        string? line;
-
-        var classRegex = ClassRegex();
-        var enumRegex = EnumRegex();
-
-        while ((line = reader.ReadLine()) != null)
+        if (MatchingTypes.Contains(cStyleClassName))
         {
-            line = line.Trim();
+            return cStyleClassName;
+        }
 
-            // Skip empty lines and comments
-            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//", StringComparison.Ordinal))
+        if (SimpleTypeMap.TryGetValue(cStyleClassName, out var simpleType))
+        {
+            return simpleType;
+        }
+
+        cStyleClassName = cStyleClassName.Trim();
+        cStyleClassName = cStyleClassName.Replace("::", "__", StringComparison.Ordinal);
+
+        var sb = new StringBuilder(cStyleClassName.Length);
+        var parts = cStyleClassName.Split("__", StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            var cleanPart = part;
+
+            if (cleanPart.StartsWith('C') && cleanPart.Length > 1 && char.IsUpper(cleanPart[1]))
             {
-                continue;
+                cleanPart = cleanPart[1..];
             }
 
-            var match = classRegex.Match(line);
-            if (match.Success)
+            if (cleanPart.StartsWith(cStyleNamespacePreffix, StringComparison.Ordinal))
             {
-                var @class = match.Groups["identifier"].Value;
-                var baseClass = match.Groups["baseIdentifier"].Success ? match.Groups["baseIdentifier"].Value : null;
-
-                classHierarchies[ConvertClassName(@class, sourceNameSpace)] = baseClass is not null ? ConvertClassName(baseClass, sourceNameSpace) : null;
-                continue;
+                cleanPart = cleanPart[cStyleNamespacePreffix.Length..];
             }
 
-            match = enumRegex.Match(line);
-            if (match.Success)
+            if (cleanPart.EndsWith("_t", StringComparison.Ordinal))
             {
-                var identifier = match.Groups["identifier"].Value;
-                enumTypes.Add(ConvertClassName(identifier, sourceNameSpace));
-                continue;
-            }
-        }
-    }
-
-    // dump
-    foreach (var file in headerFiles)
-    {
-        var fileName = Path.GetFileNameWithoutExtension(file);
-        fileName = ConvertClassName(fileName, sourceNameSpace);
-
-        var isEnum = enumTypes.Contains(fileName);
-
-        var destinationDirLocal = ChooseFolder(fileName, destinationDir);
-
-        var destFile = Path.Combine(destinationDirLocal, fileName + ".cs");
-
-        using var reader = new StreamReader(file);
-        using var writer = new StreamWriter(destFile);
-
-        if (!isEnum)
-        {
-            writer.WriteLine($"using ValveResourceFormat.Serialization.KeyValues;"); // global using?
-        }
-        writer.WriteLine($"namespace {destinationNameSpace};");
-        writer.WriteLine();
-
-        ConvertSchemaOutputToCsharp(reader, writer, sourceNameSpace);
-        Console.WriteLine($"Created {Path.GetFileName(destFile)}");
-    }
-
-    // build project
-    Process.Start("dotnet", $"build \"{destinationProject}\" /p:NoWarn=CA1812")?.WaitForExit();
-}
-
-var matchingTypes = new HashSet<string>()
-{
-    "bool", "float", "double",
-};
-
-var simpleTypeMap = new Dictionary<string, string>()
-{
-    { "uint8_t", "byte" },
-    { "uint8", "byte" },
-    { "int8_t", "sbyte" },
-    { "uint16_t", "ushort" },
-    { "uint16", "ushort" },
-    { "int16_t", "short" },
-    { "int16", "short" },
-    { "uint32_t", "uint" },
-    { "int32_t", "int" },
-    { "int32", "int" },
-    { "uint32", "uint" },
-    { "float32", "float" },
-    { "uint64_t", "ulong" },
-    { "int64_t", "long" },
-
-    { "CGlobalSymbol", "GlobalSymbol" },
-    { "CUtlStringToken", "GlobalSymbol" },
-    { "CUtlString", "string" },
-    { "CUtlBinaryBlock", "byte[]" },
-    { "Vector2D", "Vector2" },
-    { "Vector", "Vector3" },
-    { "CTransform", "Transform" },
-    { "CResourceName", "string" },
-
-    { "ParticleAttachment_t", "Particles.ParticleAttachment" },
-    { "CPiecewiseCurve", "Particles.Utils.PiecewiseCurve" },
-    { "KeyValues3", "KVObject" },
-
-    // todo
-    { "CStrongHandle", "string" },
-    { "CStrongHandleVoid", "string" },
-};
-
-/*
-    CNmVelocityBlendNode::CDefinition -> VelocityBlendNode__Definition
-*/
-string ConvertClassName(string cStyleClassName, string cStyleNamespacePreffix = "")
-{
-    if (matchingTypes.Contains(cStyleClassName))
-    {
-        return cStyleClassName;
-    }
-
-    if (simpleTypeMap.TryGetValue(cStyleClassName, out var simpleType))
-    {
-        return simpleType;
-    }
-
-    cStyleClassName = cStyleClassName.Trim();
-    cStyleClassName = cStyleClassName.Replace("::", "__", StringComparison.Ordinal);
-
-    var sb = new System.Text.StringBuilder(cStyleClassName.Length);
-    var parts = cStyleClassName.Split("__", StringSplitOptions.RemoveEmptyEntries);
-    foreach (var part in parts)
-    {
-        var cleanPart = part;
-
-        if (cleanPart.StartsWith('C') && cleanPart.Length > 1 && char.IsUpper(cleanPart[1]))
-        {
-            cleanPart = cleanPart[1..];
-        }
-
-        if (cleanPart.StartsWith(cStyleNamespacePreffix, StringComparison.Ordinal))
-        {
-            cleanPart = cleanPart[cStyleNamespacePreffix.Length..];
-        }
-
-        if (cleanPart.EndsWith("_t", StringComparison.Ordinal))
-        {
-            cleanPart = cleanPart[..^2];
-        }
-
-        if (sb.Length > 0)
-        {
-            sb.Append("__");
-        }
-
-        sb.Append(cleanPart);
-    }
-
-    var clean = sb.ToString();
-    clean = clean.Replace("__Definition", "");
-    return clean;
-}
-
-string ConvertHungarianNotation(string name)
-{
-    var stripInitial = "m_";
-    Span<string> stripType = ["n", "b", "fl", "h", "s", "sz"];
-
-    var newName = name;
-
-    if (newName.StartsWith(stripInitial, StringComparison.Ordinal))
-    {
-        newName = newName[stripInitial.Length..];
-    }
-
-    foreach (var type in stripType)
-    {
-        if (newName.StartsWith(type, StringComparison.Ordinal) && newName.Length > type.Length && char.IsUpper(newName[type.Length]))
-        {
-            newName = newName[type.Length..];
-            break;
-        }
-    }
-
-    // capitalize first letter
-    if (newName.Length > 0)
-    {
-        newName = char.ToUpper(newName[0], CultureInfo.InvariantCulture) + newName[1..];
-    }
-
-    return newName;
-}
-
-/*
-    class CNmVelocityBlendNode::CDefinition : public CNmParameterizedBlendNode::CDefinition
-    {
-    };
-    ------->
-    class VelocityBlendNode__Definition : ParameterizedBlendNode__Definition
-    {
-    }
-*/
-void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, string cStyleNamespacePreffix = "")
-{
-    string? line;
-
-    var classRegex = ClassRegex();
-    var enumRegex = EnumRegex();
-    var memberTemplateRegex = PropertyTypeRegex();
-
-    var writeEnum = false;
-    var writeClassMembers = false;
-    var convertedClass = string.Empty;
-    var hasBaseClass = false;
-    List<string> memberParserLines = [];
-
-    while ((line = reader.ReadLine()) != null)
-    {
-        var rawLine = line;
-        line = line.Trim();
-
-        // Skip empty lines and comments
-        if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//", StringComparison.Ordinal))
-        {
-            continue;
-        }
-
-        var match = classRegex.Match(line);
-        if (match.Success)
-        {
-            var @class = match.Groups["identifier"].Value;
-            var baseClass = match.Groups["baseIdentifier"].Success ? match.Groups["baseIdentifier"].Value : null;
-
-            convertedClass = ConvertClassName(@class, cStyleNamespacePreffix);
-
-            var isFinal = classHierarchies.ContainsValue(convertedClass) == false;
-            hasBaseClass = classHierarchies.TryGetValue(convertedClass, out var baseClassName) && baseClassName is not null;
-
-            var useStruct = false; //isFinal && !hasBaseClass;
-            useStruct |= convertedClass is "BitFlags";
-
-            var partialImplementation = RootClass(convertedClass) == "GraphNode";
-            var csClassType = useStruct ? "readonly partial struct" : (partialImplementation ? "partial class" : "class");
-
-            var csClass = $"{csClassType} {convertedClass}";
-            if (!string.IsNullOrEmpty(baseClass))
-            {
-                csClass += $" : {ConvertClassName(baseClass, cStyleNamespacePreffix)}";
-                hasBaseClass = true;
-            }
-            writer.WriteLine(csClass);
-            writer.WriteLine("{");
-            writeClassMembers = true;
-            continue;
-        }
-
-        match = enumRegex.Match(line);
-        if (match.Success)
-        {
-            var identifier = match.Groups["identifier"].Value;
-            var baseType = match.Groups["baseType"].Success ? match.Groups["baseType"].Value : null;
-
-            var csEnum = $"enum {ConvertClassName(identifier, cStyleNamespacePreffix)}";
-            if (!string.IsNullOrEmpty(baseType))
-            {
-                csEnum += $" : {ConvertClassName(baseType)}";
+                cleanPart = cleanPart[..^2];
             }
 
-            writer.WriteLine(csEnum);
-            writeEnum = true;
-            continue;
-        }
-
-        // todo: move enums to /Enums/ folder?
-        if (writeEnum)
-        {
-            writer.WriteLine(rawLine == "};" ? "}" : rawLine.Replace("\t", "    "));
-            continue;
-        }
-
-        if (writeClassMembers)
-        {
-            if (line == "};")
+            if (sb.Length > 0)
             {
-                if (memberParserLines.Count > 0)
-                {
-                    // kvobject constructor
-                    writer.WriteLine();
-
-                    var baseCtor = hasBaseClass ? $" : base(data)" : string.Empty;
-                    writer.WriteLine($"    public {convertedClass}(KVObject data){baseCtor}");
-                    writer.WriteLine("    {");
-                    foreach (var __line in memberParserLines)
-                    {
-                        writer.WriteLine($"        {__line}");
-                    }
-                    writer.WriteLine("    }");
-                }
-                else
-                {
-                    writer.WriteLine(hasBaseClass
-                        ? $"    public {convertedClass}(KVObject data) : base(data) {{ }}"
-                        : $"    public {convertedClass}(KVObject _) {{ }}"
-                    );
-                }
-                writer.WriteLine("}");
-                writeClassMembers = false;
-                continue;
+                sb.Append("__");
             }
 
-            // member line
-            // e.g.   uint32_t m_nSomeValue;
-            var semicolonIndex = line.IndexOf(';', StringComparison.Ordinal);
-            if (semicolonIndex < 0)
+            sb.Append(cleanPart);
+        }
+
+        var clean = sb.ToString();
+        clean = clean.Replace("__Definition", "", StringComparison.Ordinal);
+        return clean;
+    }
+
+    public static string ConvertHungarianNotation(string name)
+    {
+        var stripInitial = "m_";
+        Span<string> stripType = ["n", "b", "fl", "h", "s", "sz"];
+
+        var newName = name;
+
+        if (newName.StartsWith(stripInitial, StringComparison.Ordinal))
+        {
+            newName = newName[stripInitial.Length..];
+        }
+
+        foreach (var type in stripType)
+        {
+            if (newName.StartsWith(type, StringComparison.Ordinal) && newName.Length > type.Length && char.IsUpper(newName[type.Length]))
             {
-                continue;
-            }
-
-            var memberLine = line[..semicolonIndex].Trim();
-
-            match = memberTemplateRegex.Match(memberLine);
-            if (match.Success)
-            {
-                var type = match.Groups["type"].Value; // CStrongHandle
-                var args = match.Groups["args"].Value; // InfoForResourceTypeIParticleSystemDefinition
-                var name = match.Groups["name"].Value; // m_hParticleSystem
-                // args can be split by ',' for multiple template arguments
-
-                // template types
-                if (type is "CUtlLeanVector" or "CUtlLeanVectorFixedGrowable" or "CUtlVector" or "CUtlVectorFixedGrowable")
-                {
-                    var templateArgs = args.Split(',', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-                    var itemType = ConvertClassName(templateArgs[0], cStyleNamespacePreffix);
-                    type = $"{itemType}[]";
-                    args = null;
-                }
-
-                var newName = ConvertHungarianNotation(name);
-
-                // convert type
-                var csType = ConvertClassName(type, cStyleNamespacePreffix);
-
-                var argComment = args is not null && args.Length > 0 ? $" // {args}" : string.Empty;
-
-                // write property
-                writer.WriteLine($"    public {csType} {newName} {{ get; }}{argComment}");
-
-                var hasHandWrittenImpl = csType is "Transform" or "Range";
-
-                if (classHierarchies.ContainsKey(csType) || hasHandWrittenImpl)
-                {
-                    memberParserLines.Add($"{newName} = new(data.GetProperty<KVObject>(\"{name}\"));");
-                    continue;
-                }
-
-                if (enumTypes.Contains(csType))
-                {
-                    memberParserLines.Add($"{newName} = data.GetEnumValue<{csType}>(\"{name}\");");
-                    continue;
-                }
-
-                if (csType.EndsWith("[]", StringComparison.Ordinal))
-                {
-                    var itemType = csType[..^2];
-                    if (classHierarchies.ContainsKey(itemType))
-                    {
-                        memberParserLines.Add($"{newName} = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>(\"{name}\"), kv => new {itemType}(kv))];");
-                        continue;
-                    }
-
-                    if (enumTypes.Contains(itemType))
-                    {
-                        memberParserLines.Add($"enum array error");
-                        continue;
-                    }
-
-                    if (itemType == "GlobalSymbol")
-                    {
-                        memberParserLines.Add($"{newName} = data.GetSymbolArray(\"{name}\");");
-                        continue;
-                    }
-
-                    memberParserLines.Add($"{newName} = data.GetArray<{itemType}>(\"{name}\");");
-                    continue;
-                }
-
-                memberParserLines.Add(csType switch
-                {
-                    "bool" => $"{newName} = data.GetProperty<bool>(\"{name}\");",
-                    "string" => $"{newName} = data.GetProperty<string>(\"{name}\");",
-                    "short" => $"{newName} = data.GetInt16Property(\"{name}\");",
-                    "int" => $"{newName} = data.GetInt32Property(\"{name}\");",
-                    "uint" => $"{newName} = data.GetUInt32Property(\"{name}\");",
-                    "float" => $"{newName} = data.GetFloatProperty(\"{name}\");",
-                    "GlobalSymbol" => $"{newName} = data.GetProperty<string>(\"{name}\");",
-                    "Transform" => $"{newName} = new(data.GetProperty<KVObject>(\"{name}\"));",
-                    "Vector3" => $"{newName} = data.GetSubCollection(\"{name}\").ToVector3();",
-                    "byte" => $"{newName} = data.GetByteProperty(\"{name}\");",
-                    "Quaternion" => $"{newName} = data.GetSubCollection(\"{name}\").ToQuaternion();",
-                    "Particles.Utils.PiecewiseCurve" => $"{newName} = new(data.GetProperty<KVObject>(\"{name}\"), false);",
-                    "KVObject" => $"{newName} = data.GetProperty<KVObject>(\"{name}\");",
-                    _ => $"//{newName} = {name};",
-                });
+                newName = newName[type.Length..];
+                break;
             }
         }
 
+        // capitalize first letter
+        if (newName.Length > 0)
+        {
+            newName = char.ToUpper(newName[0], CultureInfo.InvariantCulture) + newName[1..];
+        }
+
+        return newName;
+    }
+
+    public void Write(SchemaType type, StringBuilder writer)
+    {
+        switch (type)
+        {
+            case SchemaEnum @enum:
+                WriteEnum(@enum, writer);
+                break;
+            case SchemaClass @class:
+                WriteClass(@class, writer);
+                break;
+        }
+    }
+
+    private void WriteEnum(SchemaEnum @enum, StringBuilder writer)
+    {
+        writer.Append($"enum {ConvertClassName(@enum.Name, SourceNameSpace)} : {ConvertClassName(@enum.BaseType)}\n");
+        writer.Append("{\n");
+
+        foreach (var (name, value) in @enum.Members)
+        {
+            writer.Append(CultureInfo.InvariantCulture, $"    {name} = {value},\n");
+        }
+
+        writer.Append("}\n");
+    }
+
+    /*
+        class CNmVelocityBlendNode::CDefinition : public CNmParameterizedBlendNode::CDefinition
+        {
+        };
+        ------->
+        class VelocityBlendNode__Definition : ParameterizedBlendNode__Definition
+        {
+        }
+    */
+    private void WriteClass(SchemaClass @class, StringBuilder writer)
+    {
+        var convertedClass = ConvertClassName(@class.Name, SourceNameSpace);
+        var hasBaseClass = @class.Parent is not null;
+
+        var useStruct = convertedClass is "BitFlags";
+
+        var partialImplementation = RootClass(convertedClass) == "GraphNode";
+        var csClassType = useStruct ? "readonly partial struct" : (partialImplementation ? "partial class" : "class");
+
+        var csClass = $"{csClassType} {convertedClass}";
+        if (@class.Parent is not null)
+        {
+            csClass += $" : {ConvertClassName(@class.Parent, SourceNameSpace)}";
+        }
+
+        writer.Append(csClass).Append('\n');
+        writer.Append("{\n");
+
+        List<string> memberParserLines = [];
+
+        foreach (var field in @class.Fields)
+        {
+            WriteMember(field, writer, memberParserLines);
+        }
+
+        if (memberParserLines.Count > 0)
+        {
+            // kvobject constructor
+            writer.Append('\n');
+
+            var baseCtor = hasBaseClass ? " : base(data)" : string.Empty;
+            writer.Append($"    public {convertedClass}(KVObject data){baseCtor}\n");
+            writer.Append("    {\n");
+            foreach (var line in memberParserLines)
+            {
+                writer.Append($"        {line}\n");
+            }
+            writer.Append("    }\n");
+        }
+        else
+        {
+            writer.Append(hasBaseClass
+                ? $"    public {convertedClass}(KVObject data) : base(data) {{ }}\n"
+                : $"    public {convertedClass}(KVObject _) {{ }}\n"
+            );
+        }
+
+        writer.Append("}\n");
+    }
+
+    private void WriteMember(SchemaField field, StringBuilder writer, List<string> memberParserLines)
+    {
+        var type = field.Type;
+        var args = field.Args;
+        var name = field.Name;
+
+        // template types
+        if (type is "CUtlLeanVector" or "CUtlLeanVectorFixedGrowable" or "CUtlVector" or "CUtlVectorFixedGrowable")
+        {
+            var templateArgs = args!.Split(',', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            // Nested templates such as CStrongHandle< T > map by their outer name
+            var itemType = ConvertClassName(templateArgs[0].Split('<', 2)[0], SourceNameSpace);
+            type = $"{itemType}[]";
+            args = null;
+        }
+
+        var newName = ConvertHungarianNotation(name);
+
+        // convert type
+        var csType = ConvertClassName(type, SourceNameSpace);
+
+        var argComment = args is not null && args.Length > 0 ? $" // {args}" : string.Empty;
+
+        // write property
+        writer.Append($"    public {csType} {newName} {{ get; }}{argComment}\n");
+
+        var hasHandWrittenImpl = csType is "Transform" or "Range";
+
+        if (classHierarchies.ContainsKey(csType) || hasHandWrittenImpl)
+        {
+            memberParserLines.Add($"{newName} = new(data.GetProperty<KVObject>(\"{name}\"));");
+            return;
+        }
+
+        if (enumTypes.Contains(csType))
+        {
+            memberParserLines.Add($"{newName} = data.GetEnumValue<{csType}>(\"{name}\");");
+            return;
+        }
+
+        if (csType.EndsWith("[]", StringComparison.Ordinal))
+        {
+            var itemType = csType[..^2];
+            if (classHierarchies.ContainsKey(itemType))
+            {
+                memberParserLines.Add($"{newName} = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>(\"{name}\"), kv => new {itemType}(kv))];");
+                return;
+            }
+
+            if (enumTypes.Contains(itemType))
+            {
+                memberParserLines.Add("enum array error");
+                return;
+            }
+
+            if (itemType == "GlobalSymbol")
+            {
+                memberParserLines.Add($"{newName} = data.GetSymbolArray(\"{name}\");");
+                return;
+            }
+
+            memberParserLines.Add($"{newName} = data.GetArray<{itemType}>(\"{name}\");");
+            return;
+        }
+
+        memberParserLines.Add(csType switch
+        {
+            "bool" => $"{newName} = data.GetProperty<bool>(\"{name}\");",
+            "string" => $"{newName} = data.GetProperty<string>(\"{name}\");",
+            "short" => $"{newName} = data.GetInt16Property(\"{name}\");",
+            "int" => $"{newName} = data.GetInt32Property(\"{name}\");",
+            "uint" => $"{newName} = data.GetUInt32Property(\"{name}\");",
+            "long" => $"{newName} = data.GetIntegerProperty(\"{name}\");",
+            "float" => $"{newName} = data.GetFloatProperty(\"{name}\");",
+            "GlobalSymbol" => $"{newName} = data.GetProperty<string>(\"{name}\");",
+            "Transform" => $"{newName} = new(data.GetProperty<KVObject>(\"{name}\"));",
+            "Vector3" => $"{newName} = data.GetSubCollection(\"{name}\").ToVector3();",
+            "byte" => $"{newName} = data.GetByteProperty(\"{name}\");",
+            "Quaternion" => $"{newName} = data.GetSubCollection(\"{name}\").ToQuaternion();",
+            "ValveResourceFormat.Particles.Utils.PiecewiseCurve" => $"{newName} = new(data.GetProperty<KVObject>(\"{name}\"), false);",
+            "KVObject" => $"{newName} = data.GetProperty<KVObject>(\"{name}\");",
+            _ => $"//{newName} = {name};",
+        });
     }
 }
-
-Test();
-Console.WriteLine("Creating classes...");
-ConvertAnimLib();
 
 partial class Program
 {
-    [System.Text.RegularExpressions.GeneratedRegex(@"class (?<identifier>[\w:]+)(?: : public (?<baseIdentifier>[\w:]+))?")]
-    private static partial System.Text.RegularExpressions.Regex ClassRegex();
-
-    [System.Text.RegularExpressions.GeneratedRegex(@"enum (?<identifier>[\w:]+)(?: : (?<baseType>[\w:]+))?")]
-    private static partial System.Text.RegularExpressions.Regex EnumRegex();
-
-    [System.Text.RegularExpressions.GeneratedRegex(@"^\s*(?<type>[\w:]+)(?:\s*<\s*(?<args>[\w:\s,<>]+?)\s*>)?\s+(?<name>\w+)", System.Text.RegularExpressions.RegexOptions.None)]
-    private static partial System.Text.RegularExpressions.Regex PropertyTypeRegex();
-
-
     public static void Test()
     {
-        Span<(string, string?, string, string)> propertyTests = [
-            ("CStrongHandle", "InfoForResourceTypeIParticleSystemDefinition", "m_hParticleSystem", "CStrongHandle< InfoForResourceTypeIParticleSystemDefinition > m_hParticleSystem"),
-            ("CUtlString", null, "m_name", "CUtlString m_name"),
-            ("CNmParticleEvent::Type_t", null, "m_type", "CNmParticleEvent::Type_t m_type"),
+        var converter = new Converter(new Schema { Types = [] }, "Nm");
+
+        Span<(string, string)> classNameTests = [
+            ("CNmVelocityBlendNode::CDefinition", "VelocityBlendNode"),
+            ("CNmStateNode::TimedEvent_t::Comparison_t", "StateNode__TimedEvent__Comparison"),
+            ("NmEasingOperation_t", "EasingOperation"),
+            ("CUtlString", "string"),
         ];
 
-        var regex = PropertyTypeRegex();
-        foreach (var (eType, eTemplateArgs, eName, test) in propertyTests)
+        foreach (var (input, expected) in classNameTests)
         {
-            var match = regex.Match(test);
-            Debug.Assert(match.Success, $"Failed to match '{test}'");
-
-            var type = match.Groups["type"].Value;
-            var args = match.Groups["args"].Value;
-            var name = match.Groups["name"].Value;
-
-            Debug.Assert(type == eType, $"Expected type '{eType}', got '{type}'");
-            Debug.Assert(args == (eTemplateArgs ?? ""), $"Expected args '{eTemplateArgs}', got '{args}'");
-            Debug.Assert(name == eName, $"Expected name '{eName}', got '{name}'");
+            var actual = converter.ConvertClassName(input, "Nm");
+            Debug.Assert(actual == expected, $"Expected '{expected}', got '{actual}'");
         }
+
+        Debug.Assert(Converter.ConvertHungarianNotation("m_flBlendTimeSeconds") == "BlendTimeSeconds");
     }
 }

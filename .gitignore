@@ -225,7 +225,7 @@ Tests/lcov.info
 exceptions*.txt
 /docs/_site/
 /docs/api/
-Misc/SchemaConverter/source2-schema.json
+Misc/SchemaConverter/cache/
 /docs/.vitepress/dist/
 /docs/.vitepress/cache/
 /docs/.vitepress/.temp/
