@@ -1045,6 +1045,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
         // Child control parameter name and the parent parameter node that drives it
         (string Name, ValueNode Source)[] parameterMapping = [];
 
+        // For a child authored on another skeleton: the child bone for each parent bone by name, -1 if it has none
+        int[]? boneMap;
+
         public override void Instantiate(GraphContext ctx)
         {
             base.Instantiate(ctx);
@@ -1079,6 +1082,31 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             parameterMapping = [.. mapping];
+
+            // Shared graphs can fall back to a default variation authored on another character's skeleton
+            if (!string.Equals(childGraph.SkeletonName, ctx.Graph.SkeletonName, StringComparison.OrdinalIgnoreCase))
+            {
+                boneMap = BuildBoneMap(ctx.Graph.Skeleton, childGraph.Skeleton);
+            }
+        }
+
+        static int[] BuildBoneMap(ValveResourceFormat.ResourceTypes.ModelAnimation.Skeleton parent, ValveResourceFormat.ResourceTypes.ModelAnimation.Skeleton child)
+        {
+            Dictionary<string, int> childBones = new(child.Bones.Length, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var bone in child.Bones)
+            {
+                childBones.TryAdd(bone.Name, bone.Index);
+            }
+
+            var map = new int[parent.Bones.Length];
+
+            for (var i = 0; i < map.Length; i++)
+            {
+                map[i] = childBones.GetValueOrDefault(parent.Bones[i].Name, -1);
+            }
+
+            return map;
         }
 
         static Type? GetValueType(GraphNode node) => node switch
@@ -1181,8 +1209,24 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SampledEvents.AppendFrom(childGraph.Context.SampledEvents);
 
             var result = base.Update(ctx);
-            var count = Math.Min(childResult.Pose.Length, result.Pose.Length);
-            childResult.Pose.AsSpan(0, count).CopyTo(result.Pose);
+
+            if (boneMap == null)
+            {
+                var count = Math.Min(childResult.Pose.Length, result.Pose.Length);
+                childResult.Pose.AsSpan(0, count).CopyTo(result.Pose);
+            }
+            else
+            {
+                // Bones the child skeleton lacks keep the pose that leaves them unchanged
+                var defaultPose = ctx.GetDefaultPose();
+                var count = Math.Min(boneMap.Length, result.Pose.Length);
+
+                for (var i = 0; i < count; i++)
+                {
+                    var childBone = boneMap[i];
+                    result.Pose[i] = childBone >= 0 && childBone < childResult.Pose.Length ? childResult.Pose[childBone] : defaultPose[i];
+                }
+            }
             result.RootMotionDelta = childResult.RootMotionDelta;
             result.SampledEventRange = new(eventRangeStart, ctx.SampledEvents.Count);
             result.NoPose = childResult.NoPose;

@@ -84,6 +84,10 @@ Easy to get wrong, each caused a real bug:
   and a referenced graph slot left empty for the game to fill (Deadlock hero overlay layers). Layers
   skip such results, so an empty full weight model space layer no longer replaces the base with
   the reference pose.
+- A referenced graph authored on another skeleton has its pose mapped onto the parent's bones by
+  name, with the default pose for bones it lacks. Deadlock heroes without their own variation of a
+  shared graph (hero_flinch) fall back to the default one, authored on Kelvin's skeleton; copying
+  by index scrambled the bones and added full scale to those past the child's bone count.
 - Parameterized selectors honour `m_bIgnoreInvalidOptions` by initializing each option to test it,
   as the reference does.
 
