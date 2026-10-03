@@ -1400,53 +1400,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
 
         public int PickOption(GraphContext ctx)
-        {
-            var parameterValue = ParameterNode.GetValue(ctx);
-            var seed = (int)Math.Floor(Math.Abs(parameterValue));
-
-            // todo: IgnoreInvalidOptions
-
-            var numOptions = OptionNodes.Length;
-            if (numOptions == 0)
-            {
-                return -1;
-            }
-
-            if (!HasWeightsSet)
-            {
-                return seed % numOptions;
-            }
-
-            Debug.Assert(OptionWeights.Length == numOptions);
-
-            // Build cumulative bucket boundaries from the byte weights.
-            // Zero-weight options exist in shipped data; they are simply never picked.
-            Span<int> boundaries = stackalloc int[numOptions];
-            var totalWeightedOptions = 0;
-            for (var i = 0; i < numOptions; i++)
-            {
-                totalWeightedOptions += OptionWeights[i];
-                boundaries[i] = totalWeightedOptions;
-            }
-
-            if (totalWeightedOptions == 0)
-            {
-                return seed % numOptions;
-            }
-
-            var weightedIdx = seed % totalWeightedOptions;
-
-            // Find the bucket that contains the rolled index
-            for (var i = 0; i < numOptions; i++)
-            {
-                if (weightedIdx < boundaries[i])
-                {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
+            => ParameterizedOptions.Pick(ctx, OptionNodes, OptionWeights, HasWeightsSet, IgnoreInvalidOptions, ParameterNode.GetValue(ctx));
 
         public override void UpdateSelection(GraphContext ctx)
         {

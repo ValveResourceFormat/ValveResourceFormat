@@ -493,6 +493,63 @@ namespace ValveResourceFormat.Renderer.AnimLib
     }
 
     // Selects one of N child pose nodes using a numeric parameter as a seed (with optional weight buckets).
+    static class ParameterizedOptions
+    {
+        // Each option is repeated as often as its weight and the parameter indexes into that list. Options
+        // that are invalid once initialized can be left out.
+        public static int Pick(GraphContext ctx, PoseNode[] optionNodes, byte[] optionWeights, bool hasWeightsSet, bool ignoreInvalidOptions, float parameterValue)
+        {
+            var numOptions = optionNodes.Length;
+            if (numOptions == 0)
+            {
+                return -1;
+            }
+
+            Debug.Assert(!hasWeightsSet || optionWeights.Length == numOptions);
+
+            Span<int> weights = stackalloc int[numOptions];
+            var totalWeight = 0L;
+
+            for (var i = 0; i < numOptions; i++)
+            {
+                if (ignoreInvalidOptions)
+                {
+                    var option = optionNodes[i];
+                    option.Initialize(ctx, default);
+                    var isValid = option.IsValid;
+                    option.Shutdown(ctx);
+
+                    if (!isValid)
+                    {
+                        continue;
+                    }
+                }
+
+                weights[i] = hasWeightsSet ? optionWeights[i] : 1;
+                totalWeight += weights[i];
+            }
+
+            if (totalWeight == 0)
+            {
+                return -1;
+            }
+
+            var pick = (long)MathF.Floor(MathF.Abs(parameterValue)) % totalWeight;
+
+            for (var i = 0; i < numOptions; i++)
+            {
+                if (pick < weights[i])
+                {
+                    return i;
+                }
+
+                pick -= weights[i];
+            }
+
+            return -1;
+        }
+    }
+
     partial class ParameterizedSelectorNode
     {
         public PoseNode[] OptionNodes;
@@ -548,49 +605,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
 
         int SelectOption(GraphContext ctx)
-        {
-            var numOptions = OptionNodes.Length;
-            if (numOptions == 0)
-            {
-                return -1;
-            }
-
-            var parameterValue = ParameterNode.GetValue(ctx);
-            var seed = (int)Math.Floor(Math.Abs(parameterValue));
-
-            if (!HasWeightsSet)
-            {
-                return seed % numOptions;
-            }
-
-            Debug.Assert(OptionWeights.Length == numOptions);
-
-            // Build cumulative bucket boundaries from the byte weights (matches ParameterizedClipSelectorNode).
-            // Zero-weight options exist in shipped data; they are simply never picked.
-            Span<int> boundaries = stackalloc int[numOptions];
-            var totalWeightedOptions = 0;
-            for (var i = 0; i < numOptions; i++)
-            {
-                totalWeightedOptions += OptionWeights[i];
-                boundaries[i] = totalWeightedOptions;
-            }
-
-            if (totalWeightedOptions == 0)
-            {
-                return -1;
-            }
-
-            var weightedIdx = seed % totalWeightedOptions;
-            for (var i = 0; i < numOptions; i++)
-            {
-                if (weightedIdx < boundaries[i])
-                {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
+            => ParameterizedOptions.Pick(ctx, OptionNodes, OptionWeights, HasWeightsSet, IgnoreInvalidOptions, ParameterNode.GetValue(ctx));
 
         public override bool IsValid => SelectedNode?.IsValid ?? false;
 
