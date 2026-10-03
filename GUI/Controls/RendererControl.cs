@@ -151,108 +151,23 @@ partial class RendererControl : UserControl
     }
 
     /// <summary>
-    /// Builds a row with the name in a fixed share of the width and the editor beside it, so stacked rows
-    /// line up. Trailing controls sit at the right end of the editor column.
+    /// Builds a row with the name in the left half and the editor beside it, so stacked rows line up.
+    /// Trailing controls sit at the right end of the editor column.
     /// </summary>
-    public static TableLayoutPanel CreatePropertyRow(string name, Control? editor, params Control[] trailing)
-    {
-        var row = new TableLayoutPanel
-        {
-            AutoSize = true,
-            ColumnCount = 2,
-            RowCount = 1,
-            Margin = Padding.Empty,
-            Padding = new Padding(0, 1, 0, 1),
-        };
-
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-        row.RowStyles.Add(new RowStyle(SizeType.Absolute, row.AdjustForDPI(PropertyRowHeight)));
-
-        row.Controls.Add(new Label
-        {
-            Text = name,
-            AutoEllipsis = true,
-            TextAlign = ContentAlignment.MiddleLeft,
-            Anchor = AnchorStyles.Left | AnchorStyles.Right,
-            Margin = new Padding(0, 0, 4, 0),
-        }, 0, 0);
-
-        var cell = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1 + trailing.Length,
-            RowCount = 1,
-            Margin = Padding.Empty,
-            Padding = Padding.Empty,
-        };
-
-        cell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-        cell.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-        if (editor != null)
-        {
-            editor.Anchor = editor is CheckBox ? AnchorStyles.Left : AnchorStyles.Left | AnchorStyles.Right;
-            editor.Margin = Padding.Empty;
-            cell.Controls.Add(editor, 0, 0);
-        }
-
-        for (var i = 0; i < trailing.Length; i++)
-        {
-            cell.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            trailing[i].Anchor = AnchorStyles.Right;
-            trailing[i].Margin = new Padding(4, 0, 0, 0);
-            cell.Controls.Add(trailing[i], i + 1, 0);
-        }
-
-        row.Controls.Add(cell, 1, 0);
-        return row;
-    }
-
-    private const int PropertyRowHeight = 24;
+    public static Control CreatePropertyRow(string name, Control? editor, params Control[] trailing)
+        => new PropertyRow(name, editor != null ? [editor] : [], trailing);
 
     /// <summary>
     /// Builds a row led by a checkbox that carries the name across the full width, with trailing controls
     /// lined up at the right like those of <see cref="CreatePropertyRow"/>.
     /// </summary>
-    public static TableLayoutPanel CreateCheckBoxRow(CheckBox checkBox, params Control[] trailing)
+    public static Control CreateCheckBoxRow(CheckBox checkBox, params Control[] trailing)
     {
-        var row = new TableLayoutPanel
-        {
-            AutoSize = true,
-            ColumnCount = 1 + trailing.Length,
-            RowCount = 1,
-            Margin = Padding.Empty,
-            Padding = new Padding(0, 1, 0, 1),
-        };
-
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-        row.RowStyles.Add(new RowStyle(SizeType.Absolute, row.AdjustForDPI(PropertyRowHeight)));
-
-        checkBox.AutoSize = false;
         checkBox.AutoEllipsis = true;
-        checkBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        checkBox.Margin = Padding.Empty;
-        row.Controls.Add(checkBox, 0, 0);
-
-        for (var i = 0; i < trailing.Length; i++)
-        {
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            trailing[i].Anchor = AnchorStyles.Right;
-            trailing[i].Margin = new Padding(4, 0, 0, 0);
-            row.Controls.Add(trailing[i], i + 1, 0);
-        }
-
-        return row;
+        return new PropertyRow(null, [checkBox], trailing);
     }
 
-    /// <summary>Adds a row made by <see cref="CreatePropertyRow"/>.</summary>
-    public TableLayoutPanel AddPropertyRow(string name, Control? editor, params Control[] trailing)
-    {
-        var row = CreatePropertyRow(name, editor, trailing);
-        AddControl(row);
-        return row;
-    }
+    private const int PropertyRowHeight = 24;
 
     /// <summary>A compact button sized to line up with the other buttons in a property row column.</summary>
     public static ThemedButton CreateRowButton(string text, Action onClick)
@@ -299,30 +214,15 @@ partial class RendererControl : UserControl
     }
 
     /// <summary>
-    /// A slider over a range with a number field beside it, for an editor column. Typing a value outside
+    /// A slider over a range and a number field to go beside it, for a property row. Typing a value outside
     /// the range widens the slider to include it.
     /// </summary>
-    public static Control CreateRangedFloatEditor(float value, float min, float max, bool wholeNumbers, Action<float> changeCallback)
+    public static (Control Slider, Control Field) CreateRangedFloatEditor(float value, float min, float max, bool wholeNumbers, Action<float> changeCallback)
     {
-        var editor = new TableLayoutPanel
-        {
-            ColumnCount = 2,
-            RowCount = 1,
-            Margin = Padding.Empty,
-            Padding = Padding.Empty,
-        };
-
-        editor.Height = editor.AdjustForDPI(PropertyRowHeight - 2);
-        editor.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-        editor.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, editor.AdjustForDPI(44)));
-        editor.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
         var slider = new Slider
         {
             SliderHeight = 4,
             KnobSize = 12,
-            Anchor = AnchorStyles.Left | AnchorStyles.Right,
-            Margin = new Padding(0, 0, 4, 0),
         };
 
         slider.Height = slider.AdjustForDPI(18);
@@ -334,9 +234,9 @@ partial class RendererControl : UserControl
             DecimalMax = wholeNumbers ? 0 : 2,
             DragWithinRange = false,
             Value = value,
-            Anchor = AnchorStyles.Left | AnchorStyles.Right,
-            Margin = Padding.Empty,
         };
+
+        field.Width = field.AdjustForDPI(44);
 
         void MoveKnob(float newValue)
         {
@@ -372,9 +272,7 @@ partial class RendererControl : UserControl
             changeCallback(field.Value);
         };
 
-        editor.Controls.Add(slider, 0, 0);
-        editor.Controls.Add(field, 1, 0);
-        return editor;
+        return (slider, field);
     }
 
     /// <summary>A dropdown list for an editor column.</summary>
@@ -413,30 +311,16 @@ partial class RendererControl : UserControl
     /// <summary>
     /// Builds a full-width row of equally wide X/Y/Z fields. The callback receives the vector whenever any field changes.
     /// </summary>
-    public static (TableLayoutPanel Row, ThemedFloatNumeric[] Fields) CreateVectorRow(Vector3 startingValue, Action<Vector3> changeCallback)
+    public static (Control Row, ThemedFloatNumeric[] Fields) CreateVectorRow(Vector3 startingValue, Action<Vector3> changeCallback)
     {
-        var row = new TableLayoutPanel
-        {
-            AutoSize = true,
-            ColumnCount = 3,
-            RowCount = 1,
-            Margin = Padding.Empty,
-            Padding = new Padding(0, 0, 0, 2),
-        };
-
         var fields = new ThemedFloatNumeric[3];
 
         for (var i = 0; i < fields.Length; i++)
         {
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3f));
-
             fields[i] = CreateFloatField(startingValue[i], 2, _ => changeCallback(new Vector3(fields[0].Value, fields[1].Value, fields[2].Value)));
-            fields[i].Anchor = AnchorStyles.Left | AnchorStyles.Right;
-            fields[i].Margin = new Padding(i == 0 ? 0 : 2, 0, i == fields.Length - 1 ? 0 : 2, 0);
-            row.Controls.Add(fields[i], i, 0);
         }
 
-        return (row, fields);
+        return (new PropertyRow(null, fields, []), fields);
     }
 
     /// <summary>A dimmed caption that starts a run of related rows.</summary>

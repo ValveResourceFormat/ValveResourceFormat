@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -242,14 +243,24 @@ namespace GUI.Types.GLViewers
 
             if (graphSessions.Length > 0)
             {
-                // Graph controls sit under the playback controls and replace the clip ones while a graph plays
-                graphControlsHost = new Panel
+                // Graph controls sit under the playback controls and replace the clip ones while a graph plays.
+                // Each graph's panel stays visible and laid out in this clipping host, which is sized to the
+                // front one, because showing a hidden panel of this many controls relayouts every row.
+                var host = new Panel
                 {
-                    AutoSize = true,
-                    Visible = false,
+                    Height = 0,
                 };
 
-                UiControl.AddControl(graphControlsHost);
+                host.SizeChanged += (_, _) =>
+                {
+                    foreach (Control panel in host.Controls)
+                    {
+                        panel.Width = host.ClientSize.Width;
+                    }
+                };
+
+                graphControlsHost = host;
+                UiControl.AddControl(host);
             }
         }
 
@@ -660,26 +671,33 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            session.Controls = CreateAnimGraphControls(session.Graph, session.GizmoBindings);
-            session.Controls.Visible = false;
-
             Debug.Assert(graphControlsHost != null);
-            session.Controls.Dock = DockStyle.Top;
-            graphControlsHost.Controls.Add(session.Controls);
-            Themer.ThemeControl(session.Controls);
+
+            var controls = CreateAnimGraphControls(session.Graph, session.GizmoBindings);
+            controls.Width = graphControlsHost.ClientSize.Width;
+            controls.Height = controls.PreferredSize.Height;
+            controls.AutoSize = false;
+
+            graphControlsHost.Controls.Add(controls);
+            Themer.ThemeControl(controls);
+            session.Controls = controls;
         }
 
         private void ShowGraphControls(GraphSession? session)
         {
             Debug.Assert(UiControl != null);
 
-            foreach (var other in graphSessions)
-            {
-                other.Controls?.Visible = other == session;
-            }
+            // Every visibility change below relayouts the sidebar, so they are applied in one pass
+            var sidebar = graphControlsHost?.Parent;
+            sidebar?.SuspendLayout();
 
             var showGraph = session?.Controls != null;
-            graphControlsHost?.Visible = showGraph;
+
+            if (graphControlsHost != null)
+            {
+                session?.Controls?.BringToFront();
+                graphControlsHost.Height = session?.Controls?.Height ?? 0;
+            }
 
             // The frame based controls only apply to clips, pausing and speed apply to graphs too
             animationTimeLabel?.Visible = !showGraph;
@@ -692,11 +710,13 @@ namespace GUI.Types.GLViewers
                 animationPlayPause?.Enabled = true;
                 slowmodeTrackBar?.Enabled = true;
             }
+
+            sidebar?.ResumeLayout();
         }
 
         private const string UnsetIdText = "(none)";
 
-        private static Control CreateFloatParameterEditor(AnimationGraph graph, string paramName)
+        private static (Control Editor, Control[] Trailing) CreateFloatParameterEditor(AnimationGraph graph, string paramName)
         {
             var value = graph.FloatParameters[paramName];
             void SetValue(float newValue) => graph.FloatParameters[paramName] = newValue;
@@ -705,7 +725,7 @@ namespace GUI.Types.GLViewers
 
             if (range is not { } knownRange)
             {
-                return RendererControl.CreateFloatField(value, 3, SetValue);
+                return (RendererControl.CreateFloatField(value, 3, SetValue), []);
             }
 
             if (knownRange.IsDiscrete)
@@ -713,11 +733,12 @@ namespace GUI.Types.GLViewers
                 var options = Enumerable.Range((int)knownRange.Min, (int)(knownRange.Max - knownRange.Min) + 1)
                     .Select(static option => option.ToString(CultureInfo.InvariantCulture));
 
-                return RendererControl.CreateRowComboBox(options, ((int)value).ToString(CultureInfo.InvariantCulture),
-                    option => SetValue(float.Parse(option, CultureInfo.InvariantCulture)));
+                return (RendererControl.CreateRowComboBox(options, ((int)value).ToString(CultureInfo.InvariantCulture),
+                    option => SetValue(float.Parse(option, CultureInfo.InvariantCulture))), []);
             }
 
-            return RendererControl.CreateRangedFloatEditor(value, knownRange.Min, knownRange.Max, knownRange.IsWholeNumber, SetValue);
+            var (slider, field) = RendererControl.CreateRangedFloatEditor(value, knownRange.Min, knownRange.Max, knownRange.IsWholeNumber, SetValue);
+            return (slider, [field]);
         }
 
         // For parameters only read by code the graph does not describe, such as aim nodes
@@ -736,6 +757,7 @@ namespace GUI.Types.GLViewers
             return null;
         }
 
+        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Each row adds its editors to its Controls, which dispose them")]
         private static Panel CreateAnimGraphControls(AnimationGraph graph, List<GraphGizmoBinding> gizmoBindings)
         {
             var panel = new Panel
@@ -743,6 +765,8 @@ namespace GUI.Types.GLViewers
                 AutoSize = true,
                 Margin = Padding.Empty,
             };
+
+            panel.SuspendLayout();
 
             void Add(Control control)
             {
@@ -775,7 +799,8 @@ namespace GUI.Types.GLViewers
 
             foreach (var paramName in Sorted(graph.FloatParameters))
             {
-                Add(RendererControl.CreatePropertyRow(paramName, CreateFloatParameterEditor(graph, paramName)));
+                var (editor, trailing) = CreateFloatParameterEditor(graph, paramName);
+                Add(RendererControl.CreatePropertyRow(paramName, editor, trailing));
             }
 
             AddSection("Identifiers", graph.IdParameters.Count);
@@ -830,6 +855,7 @@ namespace GUI.Types.GLViewers
                 gizmoBindings.Add(binding);
             }
 
+            panel.ResumeLayout(false);
             return panel;
         }
 
