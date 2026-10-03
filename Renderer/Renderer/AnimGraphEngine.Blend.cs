@@ -602,10 +602,18 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var w = (d00 * d21 - d01 * d20) / denom;
             var u = 1f - v - w;
 
-            bary = new Vector3(u, v, w);
-
             const float edgeEpsilon = -1e-4f;
-            return u >= edgeEpsilon && v >= edgeEpsilon && w >= edgeEpsilon;
+            if (u < edgeEpsilon || v < edgeEpsilon || w < edgeEpsilon)
+            {
+                bary = default;
+                return false;
+            }
+
+            // A point accepted just outside an edge has a slightly negative weight, which would push the
+            // pairwise blend weights derived from these past 1
+            bary = Vector3.Max(new Vector3(u, v, w), Vector3.Zero);
+            bary /= bary.X + bary.Y + bary.Z;
+            return true;
         }
 
         static Vector2 ClosestPointOnSegment(Vector2 a, Vector2 b, Vector2 p, out float t)
