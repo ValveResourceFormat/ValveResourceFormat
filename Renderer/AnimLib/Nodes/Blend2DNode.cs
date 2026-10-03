@@ -13,7 +13,7 @@ partial class Blend2DNode : PoseNode
 
     public Blend2DNode(KVObject data) : base(data)
     {
-        SourceNodeIndices = data.GetArray<short>("m_sourceNodeIndices");
+        SourceNodeIndices = data.GetArray<short>("m_sourceNodeIndices") ?? [];
         InputParameterNodeIdx0 = data.GetInt16Property("m_nInputParameterNodeIdx0");
         InputParameterNodeIdx1 = data.GetInt16Property("m_nInputParameterNodeIdx1");
         Values = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_values"), v => v.ToVector2())];

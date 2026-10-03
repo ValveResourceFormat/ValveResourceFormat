@@ -11,7 +11,7 @@ partial class FloatSelectorNode : FloatValueNode
 
     public FloatSelectorNode(KVObject data) : base(data)
     {
-        ConditionNodeIndices = data.GetArray<short>("m_conditionNodeIndices");
+        ConditionNodeIndices = data.GetArray<short>("m_conditionNodeIndices") ?? [];
         Values = data.GetFloatArray("m_values");
         DefaultValue = data.GetFloatProperty("m_flDefaultValue");
         EaseTime = data.GetFloatProperty("m_flEaseTime");

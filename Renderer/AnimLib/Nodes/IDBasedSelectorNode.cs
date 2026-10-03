@@ -12,7 +12,7 @@ partial class IDBasedSelectorNode : PoseNode
 
     public IDBasedSelectorNode(KVObject data) : base(data)
     {
-        OptionNodeIndices = data.GetArray<short>("m_optionNodeIndices");
+        OptionNodeIndices = data.GetArray<short>("m_optionNodeIndices") ?? [];
         OptionIDs = data.GetSymbolArray("m_optionIDs");
         ParameterNodeIdx = data.GetInt16Property("m_nParameterNodeIdx");
         FallbackNodeIdx = data.GetInt16Property("m_nFallbackNodeIdx");

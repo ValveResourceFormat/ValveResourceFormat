@@ -11,6 +11,6 @@ partial class GraphEventConditionNode : BoolValueNode
     {
         SourceStateNodeIdx = data.GetInt16Property("m_nSourceStateNodeIdx");
         EventConditionRules = new(data.GetProperty<KVObject>("m_eventConditionRules"));
-        Conditions = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_conditions"), kv => new GraphEventConditionNode__Condition(kv))];
+        Conditions = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_conditions") ?? [], kv => new GraphEventConditionNode__Condition(kv))];
     }
 }

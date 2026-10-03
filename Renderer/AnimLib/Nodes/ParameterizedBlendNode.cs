@@ -9,7 +9,7 @@ partial class ParameterizedBlendNode : PoseNode
 
     public ParameterizedBlendNode(KVObject data) : base(data)
     {
-        SourceNodeIndices = data.GetArray<short>("m_sourceNodeIndices");
+        SourceNodeIndices = data.GetArray<short>("m_sourceNodeIndices") ?? [];
         InputParameterValueNodeIdx = data.GetInt16Property("m_nInputParameterValueNodeIdx");
         AllowLooping = data.GetProperty<bool>("m_bAllowLooping");
     }

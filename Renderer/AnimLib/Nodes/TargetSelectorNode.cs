@@ -13,7 +13,7 @@ partial class TargetSelectorNode : TargetValueNode
 
     public TargetSelectorNode(KVObject data) : base(data)
     {
-        OptionNodeIndices = data.GetArray<short>("m_optionNodeIndices");
+        OptionNodeIndices = data.GetArray<short>("m_optionNodeIndices") ?? [];
         OrientationScoreWeight = data.GetFloatProperty("m_flOrientationScoreWeight");
         PositionScoreWeight = data.GetFloatProperty("m_flPositionScoreWeight");
         ParameterNodeIdx = data.GetInt16Property("m_parameterNodeIdx");

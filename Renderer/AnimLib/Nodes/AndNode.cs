@@ -7,6 +7,6 @@ partial class AndNode : BoolValueNode
 
     public AndNode(KVObject data) : base(data)
     {
-        ConditionNodeIndices = data.GetArray<short>("m_conditionNodeIndices");
+        ConditionNodeIndices = data.GetArray<short>("m_conditionNodeIndices") ?? [];
     }
 }

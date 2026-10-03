@@ -20,13 +20,13 @@ class Clip
         Skeleton = data.GetProperty<string>("m_skeleton");
         NumFrames = data.GetUInt32Property("m_nNumFrames");
         Duration = data.GetFloatProperty("m_flDuration");
-        CompressedPoseData = data.GetArray<byte>("m_compressedPoseData");
-        TrackCompressionSettings = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_trackCompressionSettings"), kv => new CompressionSettings(kv))];
-        CompressedPoseOffsets = data.GetArray<uint>("m_compressedPoseOffsets");
+        CompressedPoseData = data.GetArray<byte>("m_compressedPoseData") ?? [];
+        TrackCompressionSettings = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_trackCompressionSettings") ?? [], kv => new CompressionSettings(kv))];
+        CompressedPoseOffsets = data.GetArray<uint>("m_compressedPoseOffsets") ?? [];
         SyncTrack = new(data.GetProperty<KVObject>("m_syncTrack"));
         RootMotion = new(data.GetProperty<KVObject>("m_rootMotion"));
         IsAdditive = data.GetProperty<bool>("m_bIsAdditive");
-        ModelSpaceSamplingChain = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_modelSpaceSamplingChain"), kv => new Clip__ModelSpaceSamplingChainLink(kv))];
-        ModelSpaceBoneSamplingIndices = data.GetArray<int>("m_modelSpaceBoneSamplingIndices");
+        ModelSpaceSamplingChain = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_modelSpaceSamplingChain") ?? [], kv => new Clip__ModelSpaceSamplingChainLink(kv))];
+        ModelSpaceBoneSamplingIndices = data.GetArray<int>("m_modelSpaceBoneSamplingIndices") ?? [];
     }
 }

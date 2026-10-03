@@ -21,7 +21,7 @@ partial class ChainLookatNode : PassthroughNode
         LookatTargetNodeIdx = data.GetInt16Property("m_nLookatTargetNodeIdx");
         EnabledNodeIdx = data.GetInt16Property("m_nEnabledNodeIdx");
         BlendTimeSeconds = data.GetFloatProperty("m_flBlendTimeSeconds");
-        ChainWeights = data.GetArray<float>("m_chainWeights");
+        ChainWeights = data.GetArray<float>("m_chainWeights") ?? [];
         ChainLength = data.GetByteProperty("m_nChainLength");
         IsTargetInWorldSpace = data.GetProperty<bool>("m_bIsTargetInWorldSpace");
     }

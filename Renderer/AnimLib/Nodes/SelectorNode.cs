@@ -8,7 +8,7 @@ partial class SelectorNode : PoseNode
 
     public SelectorNode(KVObject data) : base(data)
     {
-        OptionNodeIndices = data.GetArray<short>("m_optionNodeIndices");
-        ConditionNodeIndices = data.GetArray<short>("m_conditionNodeIndices");
+        OptionNodeIndices = data.GetArray<short>("m_optionNodeIndices") ?? [];
+        ConditionNodeIndices = data.GetArray<short>("m_conditionNodeIndices") ?? [];
     }
 }

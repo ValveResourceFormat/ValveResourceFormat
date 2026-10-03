@@ -11,6 +11,6 @@ class StateMachineNode__StateDefinition
     {
         StateNodeIdx = data.GetInt16Property("m_nStateNodeIdx");
         EntryConditionNodeIdx = data.GetInt16Property("m_nEntryConditionNodeIdx");
-        TransitionDefinitions = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_transitionDefinitions"), kv => new StateMachineNode__TransitionDefinition(kv))];
+        TransitionDefinitions = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_transitionDefinitions") ?? [], kv => new StateMachineNode__TransitionDefinition(kv))];
     }
 }

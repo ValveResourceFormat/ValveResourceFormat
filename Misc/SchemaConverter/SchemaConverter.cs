@@ -799,7 +799,7 @@ class Converter
             var itemType = csType[..^2];
             if (classHierarchies.ContainsKey(itemType))
             {
-                memberParserLines.Add($"{newName} = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>(\"{name}\"), kv => new {itemType}(kv))];");
+                memberParserLines.Add($"{newName} = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>(\"{name}\") ?? [], kv => new {itemType}(kv))];");
                 return;
             }
 
@@ -815,7 +815,8 @@ class Converter
                 return;
             }
 
-            memberParserLines.Add($"{newName} = data.GetArray<{itemType}>(\"{name}\");");
+            // Arrays added to the schema later are missing from older resources
+            memberParserLines.Add($"{newName} = data.GetArray<{itemType}>(\"{name}\") ?? [];");
             return;
         }
 

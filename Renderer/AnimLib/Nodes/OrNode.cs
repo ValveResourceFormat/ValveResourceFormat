@@ -7,6 +7,6 @@ partial class OrNode : BoolValueNode
 
     public OrNode(KVObject data) : base(data)
     {
-        ConditionNodeIndices = data.GetArray<short>("m_conditionNodeIndices");
+        ConditionNodeIndices = data.GetArray<short>("m_conditionNodeIndices") ?? [];
     }
 }

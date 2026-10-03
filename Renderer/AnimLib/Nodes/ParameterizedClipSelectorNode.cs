@@ -11,8 +11,8 @@ partial class ParameterizedClipSelectorNode : ClipReferenceNode
 
     public ParameterizedClipSelectorNode(KVObject data) : base(data)
     {
-        OptionNodeIndices = data.GetArray<short>("m_optionNodeIndices");
-        OptionWeights = data.GetArray<byte>("m_optionWeights");
+        OptionNodeIndices = data.GetArray<short>("m_optionNodeIndices") ?? [];
+        OptionWeights = data.GetArray<byte>("m_optionWeights") ?? [];
         ParameterNodeIdx = data.GetInt16Property("m_parameterNodeIdx");
         IgnoreInvalidOptions = data.GetProperty<bool>("m_bIgnoreInvalidOptions");
         HasWeightsSet = data.GetProperty<bool>("m_bHasWeightsSet");

@@ -11,6 +11,6 @@ partial class LayerBlendNode : PoseNode
     {
         BaseNodeIdx = data.GetInt16Property("m_nBaseNodeIdx");
         OnlySampleBaseRootMotion = data.GetProperty<bool>("m_bOnlySampleBaseRootMotion");
-        LayerDefinition = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_layerDefinition"), kv => new LayerBlendNode__LayerDefinition(kv))];
+        LayerDefinition = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_layerDefinition") ?? [], kv => new LayerBlendNode__LayerDefinition(kv))];
     }
 }

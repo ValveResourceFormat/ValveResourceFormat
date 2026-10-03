@@ -22,7 +22,7 @@ class SyncTrack
 
     public SyncTrack(KVObject data)
     {
-        SyncEvents = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_syncEvents"), kv => new SyncTrack__Event(kv))];
+        SyncEvents = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_syncEvents") ?? [], kv => new SyncTrack__Event(kv))];
         StartEventOffset = data.GetInt32Property("m_nStartEventOffset");
 
         if (SyncEvents.Length == 0)

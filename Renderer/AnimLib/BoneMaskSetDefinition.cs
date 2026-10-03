@@ -11,6 +11,6 @@ class BoneMaskSetDefinition
     {
         ID = data.GetProperty<string>("m_ID");
         PrimaryWeightList = new(data.GetProperty<KVObject>("m_primaryWeightList"));
-        SecondaryWeightLists = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_secondaryWeightLists"), kv => new BoneWeightList(kv))];
+        SecondaryWeightLists = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_secondaryWeightLists") ?? [], kv => new BoneWeightList(kv))];
     }
 }

@@ -97,7 +97,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         public static GlobalSymbol[] GetSymbolArray(this KVObject collection, string name)
         {
-            return [.. collection.GetArray<string>(name).Select(s => new GlobalSymbol(s))];
+            // Missing on resources compiled before the field was added
+            return [.. (collection.GetArray<string>(name) ?? []).Select(s => new GlobalSymbol(s))];
         }
 
         /// <summary>Parses an 8-float KV3 array property (position, scale, rotation) into a transform.</summary>

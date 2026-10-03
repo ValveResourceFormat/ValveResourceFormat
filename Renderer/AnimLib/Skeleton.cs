@@ -21,16 +21,16 @@ class Skeleton
     {
         ID = data.GetProperty<string>("m_ID");
         BoneIDs = data.GetSymbolArray("m_boneIDs");
-        ParentIndices = data.GetArray<int>("m_parentIndices");
+        ParentIndices = data.GetArray<int>("m_parentIndices") ?? [];
         ParentSpaceReferencePose = data.GetTransformArray("m_parentSpaceReferencePose");
         ModelSpaceReferencePose = data.GetTransformArray("m_modelSpaceReferencePose");
         NumBonesToSampleAtLowLOD = data.GetInt32Property("m_numBonesToSampleAtLowLOD");
         IsPropSkeleton = data.GetProperty<bool>("m_bIsPropSkeleton");
-        MaskDefinitions = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_maskDefinitions"), kv => new BoneMaskSetDefinition(kv))];
-        SecondarySkeletons = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_secondarySkeletons"), kv => new Skeleton__SecondarySkeleton(kv))];
-        FloatChannelSets = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_floatChannelSets"), kv => new FloatChannelSet(kv))];
-        ContactConfigs = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_contactConfigs"), kv => new Skeleton__ContactConfig(kv))];
-        GameplayRelevantBoneIndices = data.GetArray<int>("m_gameplayRelevantBoneIndices");
+        MaskDefinitions = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_maskDefinitions") ?? [], kv => new BoneMaskSetDefinition(kv))];
+        SecondarySkeletons = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_secondarySkeletons") ?? [], kv => new Skeleton__SecondarySkeleton(kv))];
+        FloatChannelSets = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_floatChannelSets") ?? [], kv => new FloatChannelSet(kv))];
+        ContactConfigs = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_contactConfigs") ?? [], kv => new Skeleton__ContactConfig(kv))];
+        GameplayRelevantBoneIndices = data.GetArray<int>("m_gameplayRelevantBoneIndices") ?? [];
         SpecialDependencyHash = data.GetIntegerProperty("m_nSpecialDependencyHash");
     }
 
