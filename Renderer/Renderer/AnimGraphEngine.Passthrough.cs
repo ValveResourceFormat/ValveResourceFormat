@@ -58,6 +58,79 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    // Scales the child pose's bones by the weights of a bone mask; a zero weight mask hides the
+    // whole pose by collapsing the root.
+    partial class ScaleNode
+    {
+        BoneMaskValueNode MaskNode;
+        BoolValueNode? EnableNode;
+        float[] maskWeights = [];
+
+        public override void Instantiate(GraphContext ctx)
+        {
+            base.Instantiate(ctx);
+            ctx.SetNodeFromIndex(MaskNodeIdx, ref MaskNode);
+            ctx.SetOptionalNodeFromIndex(EnableNodeIdx, ref EnableNode);
+            maskWeights = new float[PoseTransforms.Length];
+        }
+
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
+        {
+            base.InitializeInternal(ctx, initialTime);
+            MaskNode.Initialize(ctx);
+            EnableNode?.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            EnableNode?.Shutdown(ctx);
+            MaskNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
+        }
+
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
+        {
+            var result = base.Update(ctx, updateRange);
+
+            if (ChildNode is not { IsValid: true })
+            {
+                return result;
+            }
+
+            var isEnabled = EnableNode?.GetValue(ctx) ?? true;
+            if (!isEnabled)
+            {
+                return result;
+            }
+
+            var boneMaskTaskList = MaskNode.GetValue(ctx);
+            if (!boneMaskTaskList.HasTasks)
+            {
+                return result;
+            }
+
+            boneMaskTaskList.GenerateBoneMask(ctx.Skeleton, ctx.BoneMaskPool, maskWeights);
+
+            // The child's buffer is its own sampling output, scale a copy of it
+            result.Pose.AsSpan(0, PoseTransforms.Length).CopyTo(PoseTransforms);
+            result.Pose = PoseTransforms;
+
+            if (Array.TrueForAll(maskWeights, w => w == 0f))
+            {
+                PoseTransforms[0].Scale = 0f;
+            }
+            else if (!Array.TrueForAll(maskWeights, w => w == 1f))
+            {
+                for (var i = 0; i < PoseTransforms.Length; i++)
+                {
+                    PoseTransforms[i].Scale *= maskWeights[i];
+                }
+            }
+
+            return result;
+        }
+    }
+
     // Scales the playback speed of the child by adjusting the delta time. Unsynchronized only for now;
     // the synchronized (transition-driven) path is handled in the later sync-track refine pass.
     partial class SpeedScaleBaseNode
