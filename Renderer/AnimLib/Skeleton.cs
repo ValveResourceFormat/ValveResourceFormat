@@ -84,4 +84,8 @@ class Skeleton
 
         return -1; // InvalidIndex
     }
+
+    public int GetBoneIndex(GlobalSymbol boneID) => Array.IndexOf(BoneIDs, boneID);
+
+    public int GetParentBoneIndex(int boneIdx) => boneIdx >= 0 ? ParentIndices[boneIdx] : -1;
 }

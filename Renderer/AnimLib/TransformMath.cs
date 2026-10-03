@@ -6,6 +6,7 @@ static class TransformMath
     // Source axes, which the compiled graph and clip data use
     public static readonly Vector3 WorldForward = Vector3.UnitX;
     public static readonly Vector3 WorldRight = -Vector3.UnitY;
+    public static readonly Vector3 WorldLeft = Vector3.UnitY;
     public static readonly Vector3 WorldUp = Vector3.UnitZ;
 
     public const float Epsilon = 1.0e-06f;
@@ -90,4 +91,45 @@ static class TransformMath
 
     /// <summary>The rotation angle of a quaternion in radians, in [0, 2pi].</summary>
     public static float GetAngle(Quaternion q) => 2f * MathF.Acos(q.W);
+
+    /// <summary>The delta that concatenated onto <paramref name="from"/> gives <paramref name="to"/>.</summary>
+    public static Transform Delta(Transform from, Transform to)
+    {
+        var inverseScale = 1f / from.Scale;
+        var fromInverseRotation = Quaternion.Inverse(from.Angle);
+
+        return new Transform(
+            Vector3.Transform(to.Position - from.Position, fromInverseRotation) * inverseScale,
+            to.Scale * inverseScale,
+            fromInverseRotation * to.Angle);
+    }
+
+    public static Vector3 RotateVector(Quaternion q, Vector3 v) => Vector3.Transform(v, q);
+
+    public static Vector3 InverseRotateVector(Quaternion q, Vector3 v) => Vector3.Transform(v, Quaternion.Conjugate(q));
+
+    public static Vector3 NormalizeOrZero(Vector3 v)
+    {
+        var lengthSquared = v.LengthSquared();
+        return lengthSquared > 0f ? v / MathF.Sqrt(lengthSquared) : Vector3.Zero;
+    }
+
+    /// <summary>The signed angle between two vectors around an axis.</summary>
+    public static float CalculateAngleBetweenVectorsAroundAnAxis(Vector3 sourceVector, Vector3 targetVector, Vector3 rotationAxis)
+    {
+        var altSrc = NormalizeOrZero(Vector3.Cross(sourceVector, rotationAxis));
+        var altDst = NormalizeOrZero(Vector3.Cross(targetVector, rotationAxis));
+
+        var dp = Vector3.Dot(altSrc, altDst);
+        var angle = MathF.Acos(Math.Clamp(dp, -1f, 1f));
+
+        // If the cross product between the vectors is facing away from the rotation axis then the angle is negative
+        var cp = Vector3.Cross(altSrc, altDst);
+        if (Vector3.Dot(cp, rotationAxis) < 0f)
+        {
+            angle *= -1f;
+        }
+
+        return angle;
+    }
 }

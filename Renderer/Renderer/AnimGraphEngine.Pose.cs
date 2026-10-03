@@ -157,6 +157,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
             MarkAsValidPose();
         }
 
+        public void CopyParentSpaceTransformsTo(Span<FrameBone> destination)
+        {
+            ParentSpaceTransforms.AsSpan(0, Math.Min(destination.Length, ParentSpaceTransforms.Length)).CopyTo(destination);
+        }
+
         void MarkAsValidPose()
         {
             if (Type != PoseType.Pose && Type != PoseType.AdditivePose)
