@@ -447,6 +447,22 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Plays an animation graph on this model, binding the skinning buffers the same way
+        /// <see cref="SetAnimation"/> does. Pass <see langword="null"/> to detach the graph.
+        /// </summary>
+        /// <param name="graph">The animation graph to play, or <see langword="null"/> to detach.</param>
+        public void SetAnimationGraph(AnimationGraph? graph)
+        {
+            AnimationController.SetAnimationGraph(graph);
+            UpdateBoundingBox();
+
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.SetSkinningActive(graph != null && IsAnimated);
+            }
+        }
+
 #if DEBUG
         /// <inheritdoc/>
         public override void UpdateVertexArrayObjects()

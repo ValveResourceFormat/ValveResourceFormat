@@ -1,0 +1,90 @@
+using System.Diagnostics;
+using ValveResourceFormat.Serialization.KeyValues;
+namespace ValveResourceFormat.Renderer.AnimLib;
+
+[KV3Transfer]
+partial struct Target
+{
+    /// <summary>
+    /// Either the actual transform or the offsets that need to be applied
+    /// </summary>
+    public Transform Transform { get; set; }
+    public GlobalSymbol BoneID { get; }
+    public bool IsBoneTarget { get; }
+    public bool IsUsingBoneSpaceOffsets { get; set; } = true;
+    public bool HasOffsets { get; set; }
+    public bool IsSet { get; set; }
+
+    /// <summary>Creates a set, non-bone target from a world/character-space transform.</summary>
+    public Target(Transform transform)
+    {
+        Transform = transform;
+        BoneID = default;
+        IsBoneTarget = false;
+        IsUsingBoneSpaceOffsets = false;
+        HasOffsets = false;
+        IsSet = true;
+    }
+
+    public void SetOffsets(Quaternion rotationOffset, Vector3 translationOffset, bool isBoneSpaceOffset)
+    {
+        Debug.Assert(IsSet && IsBoneTarget); // Offsets only make sense for bone targets
+
+        Transform = new(translationOffset, 1f, rotationOffset);
+        IsUsingBoneSpaceOffsets = isBoneSpaceOffset;
+        HasOffsets = true;
+    }
+
+    public readonly bool TryGetTransform(Pose pose, out Transform result)
+    {
+        if (!IsBoneTarget)
+        {
+            result = Transform; // Just use the internal transform
+            return true;
+        }
+
+        Debug.Assert(pose != null && pose.Skeleton != null);
+        var skeleton = pose.Skeleton;
+
+        var boneIdx = Array.IndexOf(skeleton.BoneIDs, BoneID);
+        if (boneIdx < 0)
+        {
+            result = default;
+            return false;
+        }
+
+        if (HasOffsets)
+        {
+            // Get the local transform and the parent global transform
+            if (IsUsingBoneSpaceOffsets)
+            {
+                result = pose.GetTransform(boneIdx);
+
+                // Apply the offset's rotation then translation (preserve multiplication order from the C++ code)
+                var offset = Transform;
+                var combinedRot = Quaternion.Normalize(result.Angle * offset.Angle);
+                result = result with { Angle = combinedRot, Position = result.Position + offset.Position };
+
+                var parentBoneIdx = skeleton.ParentIndices[boneIdx];
+                if (parentBoneIdx != -1)
+                {
+                    // Compose local (bone) transform with parent's model-space transform
+                    result *= pose.GetModelSpaceTransform(parentBoneIdx);
+                }
+            }
+            else // Get the model space transform for the target bone
+            {
+                result = pose.GetModelSpaceTransform(boneIdx);
+                var offset = Transform;
+                var combinedRot = Quaternion.Normalize(result.Angle * offset.Angle);
+                result = result with { Angle = combinedRot, Position = result.Position + offset.Position };
+            }
+        }
+        else
+        {
+            result = pose.GetModelSpaceTransform(boneIdx);
+        }
+
+        return true;
+    }
+}

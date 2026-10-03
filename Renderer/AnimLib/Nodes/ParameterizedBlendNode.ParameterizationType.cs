@@ -1,0 +1,48 @@
+using ValveResourceFormat.Serialization.KeyValues;
+namespace ValveResourceFormat.Renderer.AnimLib;
+
+partial class ParameterizedBlendNode
+{
+    [KV3Transfer]
+    internal partial class ParameterizationType
+    {
+        public ParameterizedBlendNode.BlendRange[] BlendRanges { get; } = [];
+        public Range ParameterRange { get; }
+
+        /// <summary>Constructs a parameterization directly (used for runtime-built parameterizations).</summary>
+        public ParameterizationType(ParameterizedBlendNode.BlendRange[] blendRanges, Range parameterRange)
+        {
+            BlendRanges = blendRanges;
+            ParameterRange = parameterRange;
+        }
+
+        /// <summary>
+        /// Creates a parameterization for a set of values, each corresponding to a source node (in source order).
+        /// Ported from Esoterica's <c>ParameterizedBlendNode::Parameterization::CreateParameterization</c>.
+        /// </summary>
+        public static ParameterizedBlendNode.ParameterizationType CreateParameterization(float[] values)
+        {
+            var numSources = values.Length;
+
+            // Sort index/value pairs by value (ties broken by index)
+            var pairs = new (short Index, float Value)[numSources];
+            for (short i = 0; i < numSources; i++)
+            {
+                pairs[i] = (i, values[i]);
+            }
+
+            Array.Sort(pairs, (a, b) => a.Value == b.Value ? a.Index.CompareTo(b.Index) : a.Value.CompareTo(b.Value));
+
+            var blendRanges = new ParameterizedBlendNode.BlendRange[numSources - 1];
+            for (var i = 0; i < numSources - 1; i++)
+            {
+                blendRanges[i] = new ParameterizedBlendNode.BlendRange(
+                    pairs[i].Index,
+                    pairs[i + 1].Index,
+                    new Range(pairs[i].Value, pairs[i + 1].Value));
+            }
+
+            return new ParameterizedBlendNode.ParameterizationType(blendRanges, new Range(pairs[0].Value, pairs[numSources - 1].Value));
+        }
+    }
+}

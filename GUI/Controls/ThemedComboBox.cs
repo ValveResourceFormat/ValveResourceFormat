@@ -17,6 +17,12 @@ public class ThemedComboBox : ComboBox
     public Color HighlightColor { get; set; } = SystemColors.Highlight;
     public Color HeaderColor { get; set; } = SystemColors.ControlDark;
 
+    /// <summary>
+    /// Whether text that does not fit loses its start rather than its end, keeping the distinctive end
+    /// of names that share a prefix in view.
+    /// </summary>
+    public bool TrimStart { get; set; }
+
     public ThemedComboBox() : base()
     {
         DrawMode = DrawMode.OwnerDrawFixed;
@@ -56,7 +62,7 @@ public class ThemedComboBox : ComboBox
 
         if (themedComboBoxItem == null)
         {
-            text = GetItemText(Items[e.Index]);
+            text = GetItemText(Items[e.Index]) ?? string.Empty;
         }
         else
         {
@@ -90,10 +96,38 @@ public class ThemedComboBox : ComboBox
                 flags = TextFormatFlags.Left | TextFormatFlags.EndEllipsis;
             }
 
+            if (TrimStart && themedComboBoxItem is not { IsHeader: true })
+            {
+                text = TrimStartToFit(e.Graphics, text, e.Font ?? Font, bounds.Width, flags);
+            }
+
             TextRenderer.DrawText(e.Graphics, text, e.Font, bounds, foreColor, Color.Transparent, flags);
 
         }
 
         e.DrawFocusRectangle();
+    }
+
+    private static string TrimStartToFit(Graphics graphics, string text, Font font, int width, TextFormatFlags drawFlags)
+    {
+        // Measured with the padding the text is drawn with, minus the end ellipsis it would otherwise take
+        var measureFlags = (drawFlags & ~(TextFormatFlags.EndEllipsis | TextFormatFlags.PathEllipsis)) | TextFormatFlags.SingleLine;
+
+        if (TextRenderer.MeasureText(graphics, text, font, Size.Empty, measureFlags).Width <= width)
+        {
+            return text;
+        }
+
+        for (var start = 1; start < text.Length; start++)
+        {
+            var trimmed = string.Concat("...", text.AsSpan(start));
+
+            if (TextRenderer.MeasureText(graphics, trimmed, font, Size.Empty, measureFlags).Width <= width)
+            {
+                return trimmed;
+            }
+        }
+
+        return text;
     }
 }

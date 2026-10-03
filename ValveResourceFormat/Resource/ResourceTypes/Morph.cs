@@ -306,22 +306,26 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public void LoadFlexData(IFileLoader fileLoader)
         {
-            if (loaded)
+            if (!loaded)
+            {
+                loaded = true;
+
+                // The rig is described in this block, so it is readable whether or not an atlas of deltas
+                // for it exists.
+                FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
+                    .Select(kv => ParseFlexRule(kv))
+                    .ToArray();
+
+                FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
+                    .Select(kv => ParseFlexController(kv))
+                    .ToArray();
+            }
+
+            // A morph outlives the loader that read its atlas, which may have disposed the atlas since
+            if (TextureResource?.Reader != null)
             {
                 return;
             }
-
-            loaded = true;
-
-            // The rig is described in this block, so it is readable whether or not an atlas of deltas
-            // for it exists.
-            FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
-                .Select(kv => ParseFlexRule(kv))
-                .ToArray();
-
-            FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
-                .Select(kv => ParseFlexController(kv))
-                .ToArray();
 
             var atlasPath = Data.GetStringProperty("m_pTextureAtlas");
             if (string.IsNullOrEmpty(atlasPath))

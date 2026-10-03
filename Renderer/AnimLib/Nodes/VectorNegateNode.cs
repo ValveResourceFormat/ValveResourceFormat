@@ -1,0 +1,8 @@
+using ValveResourceFormat.Serialization.KeyValues;
+namespace ValveResourceFormat.Renderer.AnimLib;
+
+[KV3Transfer]
+partial class VectorNegateNode : VectorValueNode
+{
+    public short InputValueNodeIdx { get; } = -1;
+}

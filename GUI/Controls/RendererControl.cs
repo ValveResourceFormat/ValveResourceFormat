@@ -150,6 +150,228 @@ partial class RendererControl : UserControl
         return checkbox.CheckBox;
     }
 
+    /// <summary>
+    /// Builds a row with the name in the left half and the editor beside it, so stacked rows line up.
+    /// Trailing controls sit at the right end of the editor column.
+    /// </summary>
+    public static Control CreatePropertyRow(string name, Control? editor, params Control[] trailing)
+        => new PropertyRow(name, editor != null ? [editor] : [], trailing);
+
+    /// <summary>
+    /// Builds a row led by a checkbox that carries the name across the full width, with trailing controls
+    /// lined up at the right like those of <see cref="CreatePropertyRow"/>.
+    /// </summary>
+    public static Control CreateCheckBoxRow(CheckBox checkBox, params Control[] trailing)
+    {
+        checkBox.AutoEllipsis = true;
+        return new PropertyRow(null, [checkBox], trailing);
+    }
+
+    private const int PropertyRowHeight = 24;
+
+    /// <summary>A compact button sized to line up with the other buttons in a property row column.</summary>
+    public static ThemedButton CreateRowButton(string text, Action onClick)
+    {
+        var button = new ThemedButton
+        {
+            Text = text,
+            AutoSize = false,
+        };
+
+        button.Size = new Size(button.AdjustForDPI(46), button.AdjustForDPI(PropertyRowHeight - 4));
+        button.Click += (_, _) => onClick();
+        return button;
+    }
+
+    /// <summary>A checkbox for an editor column, optionally with a caption.</summary>
+    public static CheckBox CreateRowCheckBox(bool isChecked, Action<bool> changeCallback, string text = "")
+    {
+        var checkBox = new CheckBox
+        {
+            Text = text,
+            Checked = isChecked,
+            AutoSize = true,
+        };
+
+        checkBox.CheckedChanged += (_, _) => changeCallback(checkBox.Checked);
+        return checkBox;
+    }
+
+    /// <summary>A free-range float field for an editor column.</summary>
+    public static ThemedFloatNumeric CreateFloatField(float value, int decimals, Action<float> changeCallback)
+    {
+        var field = new ThemedFloatNumeric
+        {
+            MinValue = float.MinValue,
+            MaxValue = float.MaxValue,
+            DecimalMax = decimals,
+            DragWithinRange = false,
+            Value = value,
+        };
+
+        field.ValueChanged += (_, _) => changeCallback(field.Value);
+        return field;
+    }
+
+    /// <summary>
+    /// A slider over a range and a number field to go beside it, for a property row. Typing a value outside
+    /// the range widens the slider to include it.
+    /// </summary>
+    public static (Control Slider, Control Field) CreateRangedFloatEditor(float value, float min, float max, bool wholeNumbers, Action<float> changeCallback)
+    {
+        var slider = new Slider
+        {
+            SliderHeight = 4,
+            KnobSize = 12,
+        };
+
+        slider.Height = slider.AdjustForDPI(18);
+
+        var field = new ThemedFloatNumeric
+        {
+            MinValue = float.MinValue,
+            MaxValue = float.MaxValue,
+            DecimalMax = wholeNumbers ? 0 : 2,
+            DragWithinRange = false,
+            Value = value,
+        };
+
+        field.Width = field.AdjustForDPI(44);
+
+        void MoveKnob(float newValue)
+        {
+            min = MathF.Min(min, newValue);
+            max = MathF.Max(max, newValue);
+            slider.Value = MathUtils.Remap(newValue, min, max);
+        }
+
+        MoveKnob(value);
+
+        var fromSlider = false;
+
+        slider.ValueChanged = fraction =>
+        {
+            var newValue = MathUtils.RemapRange(fraction, 0f, 1f, min, max);
+            newValue = wholeNumbers ? MathF.Round(newValue) : newValue;
+
+            fromSlider = true;
+            field.Value = newValue;
+            fromSlider = false;
+
+            changeCallback(newValue);
+        };
+
+        field.ValueChanged += (_, _) =>
+        {
+            if (fromSlider)
+            {
+                return;
+            }
+
+            MoveKnob(field.Value);
+            changeCallback(field.Value);
+        };
+
+        return (slider, field);
+    }
+
+    /// <summary>A dropdown list for an editor column.</summary>
+    public static ThemedComboBox CreateRowComboBox(IEnumerable<string> items, string? selected, Action<string> changeCallback)
+    {
+        var comboBox = new ThemedComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            TrimStart = true,
+        };
+
+        comboBox.Items.AddRange([.. items]);
+
+        // The list opens as wide as its longest option, the box itself shows the trimmed end
+        comboBox.DropDown += (_, _) =>
+        {
+            var widest = comboBox.Items.OfType<string>()
+                .Select(item => TextRenderer.MeasureText(item, comboBox.Font).Width)
+                .DefaultIfEmpty(0)
+                .Max();
+
+            comboBox.DropDownWidth = Math.Max(comboBox.Width, widest + SystemInformation.VerticalScrollBarWidth + comboBox.AdjustForDPI(8));
+        };
+        comboBox.SelectedItem = selected;
+        comboBox.SelectedIndexChanged += (_, _) =>
+        {
+            if (comboBox.SelectedItem is string item)
+            {
+                changeCallback(item);
+            }
+        };
+
+        return comboBox;
+    }
+
+    /// <summary>
+    /// Builds a full-width row of equally wide X/Y/Z fields. The callback receives the vector whenever any field changes.
+    /// </summary>
+    public static (Control Row, ThemedFloatNumeric[] Fields) CreateVectorRow(Vector3 startingValue, Action<Vector3> changeCallback)
+    {
+        var fields = new ThemedFloatNumeric[3];
+
+        for (var i = 0; i < fields.Length; i++)
+        {
+            fields[i] = CreateFloatField(startingValue[i], 2, _ => changeCallback(new Vector3(fields[0].Value, fields[1].Value, fields[2].Value)));
+        }
+
+        return (new PropertyRow(null, fields, []), fields);
+    }
+
+    /// <summary>A dimmed caption that starts a run of related rows.</summary>
+    public static Label CreateSectionHeader(string text)
+    {
+        var label = new Label
+        {
+            Text = text.ToUpperInvariant(),
+            AutoSize = true,
+            ForeColor = Themer.CurrentThemeColors.ContrastSoft,
+            Margin = Padding.Empty,
+        };
+
+        // Derived from the sidebar font once parented, since an unparented label only knows the system default
+        label.ParentChanged += (_, _) =>
+        {
+            if (label.Parent is { } parent)
+            {
+                label.Font = new Font(parent.Font.FontFamily, parent.Font.Size * 0.85f, FontStyle.Bold);
+            }
+        };
+        label.Padding = new Padding(0, label.AdjustForDPI(8), 0, label.AdjustForDPI(2));
+        return label;
+    }
+
+    public Slider AddSlider(string name, float min, float max, float startingValue, Action<float> changeCallback)
+    {
+        var sliderControl = new GLViewerSliderControl();
+        sliderControl.Slider.ValueChanged = changeCallback;
+
+        /*
+        Vector2 range = new(min, max);
+        float Pack(float v) => (v - range.X) / (range.Y - range.X);
+        float Unpack(float s) => s * (range.Y - range.X) + range.X;
+
+        var slider = uiControl.AddTrackBar(val =>
+        {
+            animGraphController.FloatParameters[paramName] = Unpack(val);
+        });
+
+        void SetValue(float v) => slider.Slider.Value = Pack(v);
+        SetValue(value);
+        */
+
+        ControlsPanel.Controls.Add(sliderControl);
+
+        SetControlLocation(sliderControl);
+
+        return sliderControl.Slider;
+    }
+
     public ComboBox AddSelection(string name, Action<string, int> changeCallback, bool horizontal = false, bool fill = false)
     {
         var selectionControl = new GLViewerSelectionControl(name, horizontal, fill);
@@ -313,6 +535,18 @@ partial class RendererControl : UserControl
         panel.Controls.Add(label);
         ControlsPanel.Controls.Add(panel);
         SetControlLocation(panel);
+    }
+
+    public Label AddLabel(string text)
+    {
+        var label = new Label
+        {
+            Text = text,
+            AutoSize = true,
+        };
+        ControlsPanel.Controls.Add(label);
+        SetControlLocation(label);
+        return label;
     }
 
     public void SetMoveSpeed(string text)
