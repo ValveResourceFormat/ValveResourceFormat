@@ -68,7 +68,10 @@ public class FuncDoor : BaseToggle
     /// <summary>Gets the seconds the door stays open before closing; a negative wait keeps it open.</summary>
     public float Wait { get; private set; }
 
-    /// <summary>Gets whether the door closes whatever stands in it, the <c>forceclosed</c> keyvalue.</summary>
+    /// <summary>
+    /// Gets whether a blocked door holds its course rather than turning back, the <c>forceclosed</c> keyvalue.
+    /// It still cannot move through what blocks it.
+    /// </summary>
     public bool ForceClosed { get; private set; }
 
     /// <summary>Gets where the door is in its travel.</summary>
@@ -85,9 +88,6 @@ public class FuncDoor : BaseToggle
     /// arriving at either end forgets it.
     /// </summary>
     protected BaseEntity? LastActivator { get; private set; }
-
-    /// <inheritdoc/>
-    protected override bool PusherForcesThrough => ForceClosed;
 
     private bool StaysOpen => HasSpawnFlags(SpawnFlag.Toggle);
 

@@ -813,6 +813,23 @@ public class PropDoorRotating : BaseToggle
         }
     }
 
+    /// <summary>
+    /// Runs on the first tick something blocks the swing. The door holds where it is, falls quiet, and
+    /// carries on once it is clear.
+    /// </summary>
+    protected override void OnStartBlocked(BaseEntity blocker)
+    {
+        StopMoveSound();
+        EntitySystem.TriggerOutput(this, State == DoorState.Closing ? "OnBlockedClosing" : "OnBlockedOpening", blocker);
+    }
+
+    /// <inheritdoc/>
+    protected override void OnEndBlocked()
+    {
+        StartMoveSound();
+        EntitySystem.TriggerOutput(this, State == DoorState.Closing ? "OnUnblockedClosing" : "OnUnblockedOpening", this);
+    }
+
     private static string? NonEmpty(string? value) => string.IsNullOrEmpty(value) ? null : value;
 
     private bool IsSilent => HasSpawnFlags(SpawnFlag.Silent);

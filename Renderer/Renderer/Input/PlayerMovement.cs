@@ -263,8 +263,8 @@ public partial class PlayerMovement : IPlayerController
         TracePosition = camera.Location - Vector3.UnitZ * ViewHeightStanding + new Vector3(0, 0, StandingHullHalfExtents.Z);
         Velocity = Vector3.Zero;
         HasValidPosition = false; // Do not restore positions from before the reset
-        pendingPush = Vector3.Zero;
-        pendingPushTimeLeft = 0f;
+        pushViewLag = Vector3.Zero;
+        pushViewLagTimeLeft = 0f;
         SlopeClipNormalZ = 1f;
         HasPreviousYaw = false;
         Effects.Reset();
@@ -289,8 +289,8 @@ public partial class PlayerMovement : IPlayerController
         TracePosition = position;
         TracePositionSmooth = position;
         HasValidPosition = false; // Do not restore positions from before the teleport
-        pendingPush = Vector3.Zero;
-        pendingPushTimeLeft = 0f;
+        pushViewLag = Vector3.Zero;
+        pushViewLagTimeLeft = 0f;
         Effects.ClearStepOffset();
 
         if (angles is { } viewAngles)
@@ -383,8 +383,7 @@ public partial class PlayerMovement : IPlayerController
         // vertical velocity, so it must be sampled while still falling
         var fallSpeed = MathF.Max(0f, -Velocity.Z);
 
-        // What the entity tick's pushers reserved lands here, spread across the frames of the interval
-        ApplyPendingPush(ref position, deltaTime);
+        DecayPushViewLag(deltaTime);
 
         CategorizePosition(ref position, playerHull);
 
@@ -506,7 +505,7 @@ public partial class PlayerMovement : IPlayerController
         var horizontalSpeed = new Vector2(Velocity.X, Velocity.Y).Length();
         Effects.Update(deltaTime, horizontalSpeed, StepSmoothingEnabled);
 
-        TracePositionSmooth = TracePosition - new Vector3(0, 0, Effects.StepOffset);
+        TracePositionSmooth = TracePosition - new Vector3(0, 0, Effects.StepOffset) + pushViewLag;
 
         BlendedEyeHeight = ViewHeightStanding + (ViewHeightDucked - ViewHeightStanding) * CrouchBlend;
         EyePosition = Position + Vector3.UnitZ * BlendedEyeHeight;
@@ -645,13 +644,6 @@ public partial class PlayerMovement : IPlayerController
         {
             LastValidPosition = position;
             HasValidPosition = true;
-            return;
-        }
-
-        // A hull a pusher has stepped onto is not stuck, it is mid-correction: the reserved push is
-        // walking it out, and restoring an older spot would fight that walk and compound the overlap
-        if (pendingPush != Vector3.Zero)
-        {
             return;
         }
 
@@ -984,12 +976,14 @@ public partial class PlayerMovement : IPlayerController
         return false;
     }
 
+    // Overlap probes shrink the hull by this, so a hull resting its SurfaceEpsilon gap away is not inside
+    private const float StuckProbeShrink = SurfaceEpsilon / 2f;
+
     /// <summary>
     /// Check whether the hull overlaps solid geometry at the given position.
     /// </summary>
     private bool IsStuck(Vector3 position, Vector3 halfExtents)
     {
-        const float StuckProbeShrink = SurfaceEpsilon / 2f;
         var probe = TraceBBox(position, position + new Vector3(0, 0, 1f), halfExtents - new Vector3(StuckProbeShrink), detectStartSolid: true);
         return probe.StartSolid;
     }
@@ -1757,90 +1751,59 @@ public partial class PlayerMovement : IPlayerController
     /// </summary>
     public Vector3 RideVelocity => GroundEntity?.GetSurfaceVelocity(TracePosition) ?? Vector3.Zero;
 
-    /// <summary>
-    /// Shoves the player by a pusher's tick displacement, stopped early by the static world. Runs on
-    /// the entity tick. A ride carry is reserved and walked off as real motion spread over the
-    /// following interval, so riders move with the pusher's rendered sweep instead of stepping at the
-    /// tick rate; a depenetrating shove lands immediately, so the hull never dwells inside the pusher.
-    /// </summary>
-    public Vector3 Push(Vector3 delta, bool immediate = false)
+    /// <inheritdoc/>
+    public void Push(Vector3 delta)
     {
         if (delta == Vector3.Zero)
         {
-            return Vector3.Zero;
+            return;
         }
 
-        // Validated from where the already-reserved pushes will have left the hull
-        var start = TracePosition + pendingPush;
-        var target = start + delta;
+        TracePosition += delta;
 
-        // Clamped by the static world alone: entities are what is doing the pushing. Zero-distance
-        // hits are the tracer echoing surface noise at a resting gap, not a wall (see IsMinimalDistance).
-        var wall = Physics?.TraceAABB(start, target, HullHalfExtents, Rubikon.Cs2PlayerCollisionFilter);
-
-        if (wall is { Hit: true, IsValid: true, IsMinimalDistance: false, HitPosition: var stopped })
-        {
-            target = stopped;
-        }
-
-        var applied = target - start;
-
-        if (immediate)
-        {
-            TracePosition += applied;
-            TracePositionSmooth += applied;
-        }
-        else
-        {
-            pendingPush += applied;
-            pendingPushTimeLeft = Entities.EntitySystem.TickInterval;
-        }
-
-        return applied;
+        // The view stays where it was drawn and catches up by the next tick, as the pusher is drawn
+        // moving there over the same interval
+        pushViewLag -= delta;
+        pushViewLagTimeLeft = Entities.EntitySystem.TickInterval;
     }
 
-    // Displacement the entity tick reserved but the frames have not walked yet, and how much of its
-    // interval remains
-    private Vector3 pendingPush;
-    private float pendingPushTimeLeft;
+    // How far the view still trails the hull the entity tick pushed, and how much of the tick interval
+    // remains to close it
+    private Vector3 pushViewLag;
+    private float pushViewLagTimeLeft;
 
     /// <inheritdoc/>
-    public Vector3 PendingPush => pendingPush;
+    public Vector3 HullCenter => TracePosition;
+
+    /// <inheritdoc/>
+    public Rubikon.TraceResult TraceHull(Vector3 startCenter, Vector3 endCenter) => TraceBBox(startCenter, endCenter, HullHalfExtents);
+
+    /// <inheritdoc/>
+    public bool IsHullStuck(Vector3 center)
+    {
+        // In place, unlike IsStuck, whose sweep lets a hull shallowly inside an entity count as free
+        // because it could step out
+        var probe = HullHalfExtents - new Vector3(StuckProbeShrink);
+
+        return TraceBBoxRaw(center, center + Vector3.UnitZ, probe, detectStartSolid: true).StartSolid
+            || Input.EntitySystem?.OverlapsSolidEntity(center, probe) == true;
+    }
 
     /// <summary>
-    /// Walks off a slice of the reserved push, at the constant rate that finishes it by the next tick.
-    /// The slice is swept against the static world only: an entity is what is doing the pushing.
+    /// Closes a slice of the view's lag behind a push, at the constant rate that finishes it by the
+    /// next tick.
     /// </summary>
-    private void ApplyPendingPush(ref Vector3 position, float deltaTime)
+    private void DecayPushViewLag(float deltaTime)
     {
-        if (pendingPush == Vector3.Zero || pendingPushTimeLeft <= 0f)
+        if (pushViewLagTimeLeft <= deltaTime)
         {
-            pendingPush = Vector3.Zero;
-            pendingPushTimeLeft = 0f;
+            pushViewLag = Vector3.Zero;
+            pushViewLagTimeLeft = 0f;
             return;
         }
 
-        var dt = MathF.Min(deltaTime, pendingPushTimeLeft);
-        var step = pendingPush * (dt / pendingPushTimeLeft);
-
-        pendingPush -= step;
-        pendingPushTimeLeft -= dt;
-
-        var target = position + step;
-
-        // Same zero-distance echo guard as the reservation's own clamp
-        var wall = Physics?.TraceAABB(position, target, HullHalfExtents, Rubikon.Cs2PlayerCollisionFilter);
-
-        if (wall is { Hit: true, IsValid: true, IsMinimalDistance: false, HitPosition: var stopped })
-        {
-            // A wall took the rest of the push; what remains is not owed
-            position = stopped;
-            pendingPush = Vector3.Zero;
-            pendingPushTimeLeft = 0f;
-            return;
-        }
-
-        position = target;
+        pushViewLag -= pushViewLag * (deltaTime / pushViewLagTimeLeft);
+        pushViewLagTimeLeft -= deltaTime;
     }
 
     private bool LadderMove(ref Vector3 position, Vector3 halfExtents, Camera camera)
@@ -2445,13 +2408,7 @@ public partial class PlayerMovement : IPlayerController
         return raw;
     }
 
-    private void NoteImpact(in Rubikon.TraceResult result)
-    {
-        if (result.HitEntity is { } entity && Input.EntitySystem is { } entitySystem && entity != entitySystem.World)
-        {
-            entitySystem.NotePlayerImpact(entity);
-        }
-    }
+    private void NoteImpact(in Rubikon.TraceResult result) => Input.EntitySystem?.NotePlayerImpact(result);
 
     private Rubikon.TraceResult TraceBBoxRaw(Vector3 from, Vector3 to, Vector3 halfExtents, bool detectStartSolid)
     {

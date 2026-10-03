@@ -97,6 +97,8 @@ public class FuncMoveLinear : BaseToggle
             IsSolid = false;
         }
 
+        MovesWithoutPushing = KeyValues.GetBooleanProperty("movewithoutpushingblockers");
+
         soundStart = NonEmpty(KeyValues.GetStringProperty("startsound"));
         soundStop = NonEmpty(KeyValues.GetStringProperty("stopsound"));
 

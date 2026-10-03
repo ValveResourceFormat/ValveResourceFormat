@@ -33,20 +33,25 @@ public interface IPlayerController
     BaseEntity? GroundEntity { get; }
 
     /// <summary>
-    /// Shoves the player by a world-space delta, stopped early by the static world. The pusher physics
-    /// calls this on the entity tick. A ride carry is reserved and applied as motion spread over the
-    /// tick interval, so riding stays smooth; a depenetrating shove is immediate, so the hull never
-    /// stays inside the pusher and its faces stay plainly solid.
+    /// Gets the center of the collision hull, which is where pushers move the player from. The view can
+    /// trail it for a tick after a push.
     /// </summary>
-    /// <returns>The part of the delta the controller took.</returns>
-    Vector3 Push(Vector3 delta, bool immediate = false);
+    Vector3 HullCenter { get; }
 
     /// <summary>
-    /// Gets the reserved push the controller has not walked yet. A rider's carry is computed at
-    /// <see cref="Position"/> plus this, so each tick targets the exact carried trajectory and the
-    /// walk-off lag cannot accumulate into drift.
+    /// Sweeps the collision hull between two centers against the world and every collidable entity.
     /// </summary>
-    Vector3 PendingPush { get; }
+    Rubikon.TraceResult TraceHull(Vector3 startCenter, Vector3 endCenter);
+
+    /// <summary>Gets whether the collision hull centered at a point overlaps the world or any collidable entity.</summary>
+    bool IsHullStuck(Vector3 center);
+
+    /// <summary>
+    /// Moves the player by a pusher's displacement, already checked against what is in the way. The hull
+    /// moves at once, as the engine moves it on the tick; the view follows over the tick interval, the
+    /// way the pusher is drawn moving.
+    /// </summary>
+    void Push(Vector3 delta);
 
     /// <summary>
     /// Takes the buttons seen since the last call, reporting them against the state the previous call

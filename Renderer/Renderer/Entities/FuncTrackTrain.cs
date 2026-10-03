@@ -28,6 +28,12 @@ public class FuncTrackTrain : BaseModelEntity
         /// <summary>It keeps the orientation it spawned with.</summary>
         FixedOrientation = 16,
 
+        /// <summary>
+        /// It collides as a plain brush rather than a physics mesh, Hammer's "HL1 Train", so turning pushes
+        /// the player by the motion of their origin.
+        /// </summary>
+        LegacyTrain = 128,
+
         /// <summary>Nothing the player does stops it.</summary>
         UnblockableByPlayer = 512,
     }
@@ -100,7 +106,13 @@ public class FuncTrackTrain : BaseModelEntity
     protected internal override bool IsPusher => true;
 
     /// <inheritdoc/>
-    protected override bool PusherForcesThrough => HasSpawnFlags(SpawnFlag.UnblockableByPlayer);
+    protected override bool IsUnblockableByPlayer => HasSpawnFlags(SpawnFlag.UnblockableByPlayer);
+
+    /// <inheritdoc/>
+    protected override bool PushesPlayerAsTrain => true;
+
+    /// <inheritdoc/>
+    protected override bool HasVPhysicsSolid => !HasSpawnFlags(SpawnFlag.LegacyTrain);
 
     /// <inheritdoc/>
     public override void Spawn()

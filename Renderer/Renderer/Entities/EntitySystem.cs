@@ -362,6 +362,15 @@ public sealed class EntitySystem
     /// <param name="entity">The entity a movement sweep hit.</param>
     public void NotePlayerImpact(BaseEntity entity) => playerImpacts.Add(entity);
 
+    /// <summary>Notes what a sweep of the player ran into, unless it missed or struck the world.</summary>
+    public void NotePlayerImpact(in Rubikon.TraceResult trace)
+    {
+        if (trace.HitEntity is { } entity && entity != World)
+        {
+            NotePlayerImpact(entity);
+        }
+    }
+
     // On the tick rather than as the player moves, for the same reason as the trigger touches
     private void DispatchPlayerImpacts()
     {
@@ -546,7 +555,7 @@ public sealed class EntitySystem
             // A hull inside this entity cannot be swept - the SAT sweep is meaningless from an
             // overlapping start. A move whose endpoint is fully outside steps out freely, anything
             // else stops where it stands: escape is always possible, crossing the interior never is,
-            // and the deep depenetration is the pusher's own job, done immediately on its tick.
+            // and a pusher never leaves the player deep inside it.
             if (entity.Collider.OverlapsVolume(from, insideExtents))
             {
                 if (!entity.Collider.OverlapsVolume(to, insideExtents))
@@ -575,6 +584,20 @@ public sealed class EntitySystem
         }
 
         return hitEntity;
+    }
+
+    /// <summary>Gets whether an axis-aligned box overlaps any solid entity where it stands.</summary>
+    public bool OverlapsSolidEntity(Vector3 center, Vector3 halfExtents)
+    {
+        foreach (var entity in entities)
+        {
+            if (entity.IsCollidable && entity.Collider!.OverlapsVolume(center, halfExtents))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

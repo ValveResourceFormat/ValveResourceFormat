@@ -35,11 +35,8 @@ public sealed class FuncRotating : BaseModelEntity
     /// <summary>A turning brush shoves the player rather than swallowing them.</summary>
     protected internal override bool IsPusher => true;
 
-    /// <summary>
-    /// A body cannot stall a rotor: the game grinds through with crush damage, so the nearest thing
-    /// without damage is to keep turning and keep shoving.
-    /// </summary>
-    protected override bool PusherForcesThrough => true;
+    /// <inheritdoc/>
+    protected override bool IsUnblockableByPlayer => HasSpawnFlags(SpawnFlag.UnblockableByPlayer);
 
     /// <summary>
     /// What a <c>func_rotating</c>'s <c>spawnflags</c> mean. The axis flags are named for what they do;
@@ -78,6 +75,9 @@ public sealed class FuncRotating : BaseModelEntity
 
         /// <summary>Rotation sound carries a long way, the Hammer default. Attenuation is not simulated.</summary>
         LargeSoundRadius = 512,
+
+        /// <summary>The player cannot stall it: they are moved the whole way, through the world if need be.</summary>
+        UnblockableByPlayer = 2048,
     }
 
     /// <summary>How the ramp progresses; Source picks between these with <c>SetMoveDone</c>.</summary>
@@ -191,6 +191,7 @@ public sealed class FuncRotating : BaseModelEntity
 
         // Some rotating objects, like fake volumetric lights, are never solid
         IsSolid = !HasSpawnFlags(SpawnFlag.NotSolid);
+        MovesWithoutPushing = KeyValues.GetBooleanProperty("movewithoutpushingblockers");
 
         if (HasSpawnFlags(SpawnFlag.StartOn))
         {
