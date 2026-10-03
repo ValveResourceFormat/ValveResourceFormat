@@ -32,6 +32,11 @@ class Skeleton
         ContactConfigs = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_contactConfigs") ?? [], kv => new Skeleton__ContactConfig(kv))];
         GameplayRelevantBoneIndices = data.GetArray<int>("m_gameplayRelevantBoneIndices") ?? [];
         SpecialDependencyHash = data.GetIntegerProperty("m_nSpecialDependencyHash");
+
+        for (var i = 0; i < MaskDefinitions.Length; i++)
+        {
+            GetResolvedMaskWeights(i);
+        }
     }
 
     private float[][] resolvedMaskWeights;

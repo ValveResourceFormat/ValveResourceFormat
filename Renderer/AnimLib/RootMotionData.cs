@@ -4,10 +4,10 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 class RootMotionData
 {
     public Transform[] Transforms { get; }
-    public int NumFrames { get; }
-    public float AverageLinearVelocity { get; }
-    public float AverageAngularVelocityRadians { get; }
-    public Transform TotalDelta { get; }
+    public int NumFrames { get; private set; }
+    public float AverageLinearVelocity { get; private set; }
+    public float AverageAngularVelocityRadians { get; private set; }
+    public Transform TotalDelta { get; private set; }
 
     public RootMotionData(KVObject data)
     {
@@ -28,6 +28,15 @@ class RootMotionData
     }
 
     public static RootMotionData Empty { get; } = new([], 0);
+
+    /// <summary>Reuses this buffer for root motion written into <see cref="Transforms"/> by the caller.</summary>
+    public void SetFrom(int numFrames, RootMotionData? source)
+    {
+        NumFrames = numFrames;
+        AverageLinearVelocity = source?.AverageLinearVelocity ?? 0f;
+        AverageAngularVelocityRadians = source?.AverageAngularVelocityRadians ?? 0f;
+        TotalDelta = source?.TotalDelta ?? Transform.Identity;
+    }
 
     /// <summary>Valid data, which is distinct from having any actual motion.</summary>
     public bool IsValid => NumFrames > 0;

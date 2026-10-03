@@ -106,7 +106,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
                 if (ctx.Skeleton.GetBoneIndex(effectorTarget.BoneID) == -1)
                 {
-                    ctx.LogWarning(NodeIdx, $"Invalid input target bone ID ('{effectorTarget.BoneID}') specified");
+                    ctx.LogWarning(NodeIdx, "Invalid input target bone ID specified", effectorTarget.BoneID);
                     return result;
                 }
             }
@@ -235,7 +235,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             if (ctx.Skeleton.GetBoneIndex(target.BoneID) == -1)
             {
-                ctx.LogWarning(NodeIdx, $"Invalid effector bone ID ('{target.BoneID}') specified in input target");
+                ctx.LogWarning(NodeIdx, "Invalid effector bone ID specified in input target", target.BoneID);
                 return false;
             }
 

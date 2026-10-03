@@ -256,7 +256,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public static void MapWeapon(GlobalSymbol category, GlobalSymbol type, out byte categoryId, out byte typeId)
         {
-            static bool Is(GlobalSymbol symbol, string name) => symbol == new GlobalSymbol(name);
+            static bool Is(GlobalSymbol symbol, string name) => symbol == GlobalSymbol.Lookup(name);
 
             var c = Category.None;
             byte t = 0;

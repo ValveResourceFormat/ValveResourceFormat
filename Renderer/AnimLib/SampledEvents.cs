@@ -67,7 +67,7 @@ static class EventSearch
             return false;
         }
 
-        optionalID = new GlobalSymbol(animEvent.Data.GetStringProperty("m_optionalID", string.Empty));
+        optionalID = GlobalSymbol.Lookup(animEvent.Data.GetStringProperty("m_optionalID", string.Empty));
         return Enum.TryParse(animEvent.Data.GetStringProperty("m_rule", string.Empty), out rule);
     }
 }
@@ -134,6 +134,8 @@ class SampledEventsBuffer
 {
     private readonly List<SampledEvent> events = [];
 
+    public void EnsureCapacity(int capacity) => events.EnsureCapacity(capacity);
+
     public int Count => events.Count;
 
     public SampledEvent this[int index] => events[index];
@@ -150,7 +152,7 @@ class SampledEventsBuffer
 
     public void EmplaceAnimationEvent(short sourceNodeIdx, NmClipEvent animEvent, float percentageThrough, bool isFromActiveBranch, float weight = 1f)
     {
-        var id = animEvent is NmIDEvent idEvent ? new GlobalSymbol(idEvent.ID) : default;
+        var id = animEvent is NmIDEvent idEvent ? GlobalSymbol.Lookup(idEvent.ID) : default;
 
         events.Add(new SampledEvent
         {

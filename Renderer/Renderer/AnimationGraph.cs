@@ -90,6 +90,20 @@ namespace ValveResourceFormat.Renderer
 
         private readonly Dictionary<string, HashSet<string>> idOptions = [];
 
+        // A float curve event of one of this graph's clips, parsed at load
+        internal ValveResourceFormat.Particles.Utils.PiecewiseCurve GetFloatCurve(NmClipEvent curveEvent)
+        {
+            foreach (var slot in DataSlots)
+            {
+                if (slot != null && slot.FloatCurves.TryGetValue(curveEvent, out var curve))
+                {
+                    return curve;
+                }
+            }
+
+            return new AnimLib.FloatCurveEvent(curveEvent.Data).Curve;
+        }
+
         /// <summary>
         /// Gets the known values for an ID parameter, collected from the graph's IDComparison and
         /// ID-based selector nodes, including those of referenced child graphs. Useful for
@@ -176,6 +190,7 @@ namespace ValveResourceFormat.Renderer
 
             loadStack.Remove(graphResourceName);
 
+            signaledBoolParameters.EnsureCapacity(BoolParameters.Count);
             graphContext = new AnimLib.GraphContext(graph, this);
         }
 
@@ -432,7 +447,22 @@ namespace ValveResourceFormat.Renderer
             var syncTrackData = clipData.GetProperty<KVObject>("m_syncTrack");
             SyncTrack = syncTrackData != null ? new AnimLib.SyncTrack(syncTrackData) : AnimLib.SyncTrack.Default;
             RootMotion = new AnimLib.RootMotionData(clipData.GetProperty<KVObject>("m_rootMotion") ?? new KVObject());
+
+            foreach (var clipEvent in animation.Events)
+            {
+                if (clipEvent is NmIDEvent idEvent)
+                {
+                    StringToken.Store(idEvent.ID);
+                }
+                else if (clipEvent.ClassName == "CNmFloatCurveEvent")
+                {
+                    FloatCurves[clipEvent] = new AnimLib.FloatCurveEvent(clipEvent.Data).Curve;
+                }
+            }
         }
+
+        /// <summary>The parsed curves of the clip's float curve events.</summary>
+        public Dictionary<NmClipEvent, ValveResourceFormat.Particles.Utils.PiecewiseCurve> FloatCurves { get; } = [];
 
         /// <summary>The root motion delta for a time range; handles a single loop.</summary>
         public FrameBone GetRootMotionDelta(float fromTime, float toTime) => RootMotion.GetDelta(fromTime, toTime);

@@ -81,7 +81,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
                 if (alignmentBoneIdx == -1)
                 {
-                    ctx.LogWarning(NodeIdx, $"Cant find specified alignment bone ID ('{AlignmentBoneID}') for target warp node");
+                    ctx.LogWarning(NodeIdx, "Cant find specified alignment bone ID for target warp node", AlignmentBoneID);
                 }
                 else
                 {

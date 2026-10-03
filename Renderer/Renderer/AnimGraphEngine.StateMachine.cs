@@ -68,6 +68,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     States[s].HasForceableTransitions |= transitionDefinition.CanBeForced;
                     t++;
                 }
+
+                forceableTargetStatesUsingCachedPoses.EnsureCapacity(stateDefinition.TransitionDefinitions.Length);
                 s++;
             }
 

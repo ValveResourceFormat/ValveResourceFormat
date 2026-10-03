@@ -202,6 +202,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             RootNode = (PoseNode)Nodes[graphDefinition.RootNodeIdx];
 
+            // Everything an update can need is sized here, so updates never allocate
+            var boneCount = owner.ParentSpaceReferencePose.Length;
+            BoneMaskPool = new BoneMaskPool(boneCount);
+            zeroPose = new Transform[boneCount];
+            Array.Fill(zeroPose, TransformMath.Zero);
+            AllocateCachedPoses(boneCount);
+            SampledEvents.EnsureCapacity(CountPossibleEvents());
+
             // Initialize persistent graph nodes (control and virtual parameters); they stay
             // initialized for the instance's whole life (Esoterica GraphInstance::Initialize).
             // The root node initializes lazily on the first update.
@@ -390,7 +398,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         private readonly LayerContext ownLayerContext = new();
 
-        private Transform[]? zeroPose;
+        private readonly Transform[] zeroPose;
 
         /// <summary>
         /// The pose standing in for a source that produced none: the zero pose inside an additive
@@ -400,12 +408,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             if (IsInLayer && LayerContext.IsAdditive)
             {
-                if (zeroPose == null)
-                {
-                    zeroPose = new Transform[Graph.ParentSpaceReferencePose.Length];
-                    Array.Fill(zeroPose, TransformMath.Zero);
-                }
-
                 return zeroPose;
             }
 
@@ -445,13 +447,49 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
 
         /// <summary>Scratch buffers for bone mask task list evaluation.</summary>
-        public BoneMaskPool BoneMaskPool { get; } = new();
+        public BoneMaskPool BoneMaskPool { get; }
 
         // Cached pose buffers (stand-in for Esoterica's task-system cached pose buffers): forced
         // transitions snapshot their in-flight blend here so the same state is never updated twice
         // in one frame. Buffers are recycled, so steady state allocates nothing.
         private readonly List<Transform[]> cachedPoseBuffers = [];
         private readonly List<bool> cachedPoseBufferInUse = [];
+
+        // Each transition holds at most one cached pose, and only state machines with forceable
+        // transitions cache any
+        private void AllocateCachedPoses(int boneCount)
+        {
+            var count = 0;
+            foreach (var node in Nodes)
+            {
+                if (node is StateMachineNode stateMachine
+                    && stateMachine.StateDefinitions.Any(static state => state.TransitionDefinitions.Any(static transition => transition.CanBeForced)))
+                {
+                    count += stateMachine.StateDefinitions.Sum(static state => state.TransitionDefinitions.Length);
+                }
+            }
+
+            cachedPoseBuffers.Capacity = count;
+            cachedPoseBufferInUse.Capacity = count;
+
+            for (var i = 0; i < count; i++)
+            {
+                cachedPoseBuffers.Add(new Transform[boneCount]);
+                cachedPoseBufferInUse.Add(false);
+            }
+        }
+
+        // Every clip event sampled twice (a looping range) plus state and graph events
+        private int CountPossibleEvents()
+        {
+            var count = Nodes.Length;
+            foreach (var slot in Graph.DataSlots)
+            {
+                count += 2 * (slot?.Animation.Events.Length ?? 0);
+            }
+
+            return count;
+        }
 
         public int CreateCachedPose()
         {
@@ -528,7 +566,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
         }
 
-        private readonly HashSet<(short, string)> loggedWarnings = [];
+        private readonly HashSet<(short, string)> loggedWarnings = new(16);
+
+        /// <summary>Logs a warning with a detail value, formatting it only the first time it is logged.</summary>
+        public void LogWarning<T>(short nodeIdx, string message, T detail)
+        {
+            if (loggedWarnings.Add((nodeIdx, message)))
+            {
+                Console.WriteLine($"[AnimGraph][Node {nodeIdx}] Warning: {message} ('{detail}')");
+            }
+        }
 
         public void LogWarning(short nodeIdx, string message)
         {
@@ -540,7 +587,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
         }
 
-        private readonly HashSet<string> warnedNotImplemented = [];
+        private readonly HashSet<string> warnedNotImplemented = new(16);
 
         /// <summary>
         /// Logs, once per node type, that a value node has no implementation yet and evaluates to a

@@ -273,8 +273,18 @@ namespace ValveResourceFormat.Renderer.AnimLib
     /// </summary>
     class BoneMaskPool
     {
-        private readonly List<float[]> buffers = [];
+        private readonly List<float[]> buffers;
         private int firstFree;
+
+        // A task list evaluation acquires at most one buffer per task
+        public BoneMaskPool(int boneCount)
+        {
+            buffers = new List<float[]>(BoneMaskTaskList.MaxTasks);
+            for (var i = 0; i < BoneMaskTaskList.MaxTasks; i++)
+            {
+                buffers.Add(new float[boneCount]);
+            }
+        }
 
         public int Acquire(int size)
         {

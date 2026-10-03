@@ -98,7 +98,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         protected override GlobalSymbol GetValueInternal(GraphContext ctx)
         {
-            return new GlobalSymbol(ctx.Graph.IdParameters[parameterName]);
+            return GlobalSymbol.Lookup(ctx.Graph.IdParameters[parameterName]);
         }
     }
 

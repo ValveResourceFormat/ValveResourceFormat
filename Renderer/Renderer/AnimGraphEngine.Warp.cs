@@ -12,11 +12,37 @@ namespace ValveResourceFormat.Renderer.AnimLib
         RootMotionData warpedRootMotion = RootMotionData.Empty;
         bool shouldUpdateWarp;
 
+        // One warped root motion buffer per clip length, so warping never allocates
+        readonly Dictionary<int, RootMotionData> warpBuffers = [];
+
         public override void Instantiate(GraphContext ctx)
         {
             base.Instantiate(ctx);
             ctx.SetNodeFromIndex(ClipReferenceNodeIdx, ref ClipReferenceNode);
             ctx.SetNodeFromIndex(TargetValueNodeIdx, ref TargetValueNode);
+
+            foreach (var slot in ctx.Graph.DataSlots)
+            {
+                if (slot != null)
+                {
+                    AddWarpBuffer(slot.FrameCount);
+                    AddWarpBuffer(slot.RootMotion.Transforms.Length);
+                }
+            }
+        }
+
+        void AddWarpBuffer(int numFrames)
+        {
+            if (numFrames > 0 && !warpBuffers.ContainsKey(numFrames))
+            {
+                warpBuffers[numFrames] = new RootMotionData(new Transform[numFrames], numFrames);
+            }
+        }
+
+        RootMotionData GetWarpBuffer(int length)
+        {
+            AddWarpBuffer(length);
+            return warpBuffers[length];
         }
 
         public override bool IsValid => ClipReferenceNode.IsValid;
@@ -146,13 +172,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // The desired modification we need to make
             var desiredOrientationDelta = TransformMath.FromRotationBetweenUnitVectors(postWarpOriginalDirCS, targetDirCS);
 
+            RootMotionData buffer;
             Transform[] transforms;
             int numFrames;
 
             if (originalRootMotion.IsStationary)
             {
                 numFrames = clip.FrameCount;
-                transforms = new Transform[numFrames];
+                buffer = GetWarpBuffer(numFrames);
+                transforms = buffer.Transforms;
 
                 // Set initial world space positions up to the end of the rotation warp event
                 for (var i = 0; i <= warpEndFrame; i++)
@@ -177,7 +205,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
             else
             {
                 numFrames = originalRootMotion.NumFrames;
-                transforms = (Transform[])originalRootMotion.Transforms.Clone();
+                buffer = GetWarpBuffer(originalRootMotion.Transforms.Length);
+                transforms = buffer.Transforms;
+                originalRootMotion.Transforms.CopyTo(transforms, 0);
 
                 // Set start transform
                 transforms[0] = ctx.WorldTransform;
@@ -205,7 +235,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 }
             }
 
-            warpedRootMotion = new RootMotionData(transforms, numFrames, originalRootMotion);
+            buffer.SetFrom(numFrames, originalRootMotion);
+            warpedRootMotion = buffer;
         }
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)

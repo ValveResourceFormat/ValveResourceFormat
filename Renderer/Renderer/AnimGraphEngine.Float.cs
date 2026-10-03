@@ -275,7 +275,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 }
 
                 // Filter based on event ID
-                if (EventID.IsValid && new GlobalSymbol(curveEvent.Data.GetStringProperty("m_ID", string.Empty)) != EventID)
+                if (EventID.IsValid && GlobalSymbol.Lookup(curveEvent.Data.GetStringProperty("m_ID", string.Empty)) != EventID)
                 {
                     continue;
                 }
@@ -290,25 +290,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     eventFound = true;
                     foundPercentageThrough = sampledEvent.PercentageThrough;
                     highestWeightFound = sampledEvent.Weight;
-                    bestValueFound = GetCurve(curveEvent).Evaluate(foundPercentageThrough);
+                    bestValueFound = ctx.Graph.GetFloatCurve(curveEvent).Evaluate(foundPercentageThrough);
                 }
             }
 
             return bestValueFound;
-        }
-
-        // Clip events are shared, parse each curve once
-        readonly Dictionary<NmClipEvent, ValveResourceFormat.Particles.Utils.PiecewiseCurve> curves = [];
-
-        ValveResourceFormat.Particles.Utils.PiecewiseCurve GetCurve(NmClipEvent curveEvent)
-        {
-            if (!curves.TryGetValue(curveEvent, out var curve))
-            {
-                curve = new FloatCurveEvent(curveEvent.Data).Curve;
-                curves.Add(curveEvent, curve);
-            }
-
-            return curve;
         }
     }
 

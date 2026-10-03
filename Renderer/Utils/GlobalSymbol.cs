@@ -15,6 +15,9 @@ readonly struct GlobalSymbol : IEquatable<GlobalSymbol>
         Token = StringToken.Store(name);
     }
 
+    // Hashes without recording the name, so it neither allocates nor touches the shared table
+    public static GlobalSymbol Lookup(ReadOnlySpan<char> name) => new(StringToken.Get(name), allowUnknown: true);
+
     public GlobalSymbol(uint token, bool allowUnknown = false)
     {
         Debug.Assert(
