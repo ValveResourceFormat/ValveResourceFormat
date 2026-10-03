@@ -222,6 +222,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             {
                 // No pose of its own, which must add nothing inside an additive layer
                 ctx.GetDefaultPose().CopyTo(result.Pose, 0);
+                result.NoPose = true;
             }
 
             // track time spent in state
@@ -849,6 +850,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             {
                 result = base.Update(ctx);
                 BlendResultPoses(ctx, sourceNodeResult.Pose, targetNodeResult.Pose, result.Pose);
+                result.NoPose = (!SourceHasPose || sourceNodeResult.NoPose) && (!TargetStateNode.IsValid || targetNodeResult.NoPose);
                 result.RootMotionDelta = Blender.BlendRootMotion(sourceNodeResult.RootMotionDelta, targetNodeResult.RootMotionDelta, BlendWeight, RootMotionBlend);
                 result.SampledEventRange = ctx.SampledEvents.BlendEventRanges(sourceNodeResult.SampledEventRange, targetNodeResult.SampledEventRange, BlendWeight);
 
@@ -1036,10 +1038,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 // No source pose to blend: the result is the target's (C++ keeps the target task only)
                 result.Pose = targetNodeResult.Pose;
                 result.RootMotionDelta = targetNodeResult.RootMotionDelta;
+                result.NoPose = targetNodeResult.NoPose;
             }
             else
             {
                 BlendResultPoses(ctx, sourceNodeResult.Pose, targetNodeResult.Pose, result.Pose);
+                result.NoPose = (!SourceHasPose || sourceNodeResult.NoPose) && (!TargetStateNode.IsValid || targetNodeResult.NoPose);
 
                 result.RootMotionDelta = Blender.BlendRootMotion(
                     sourceNodeResult.RootMotionDelta,

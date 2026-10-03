@@ -80,6 +80,10 @@ Easy to get wrong, each caused a real bug:
 - Zero poses (additive identity) have zero scale. States without a valid child output the layer's
   default pose, and transitions take the side that has a pose instead of blending towards one that
   has none.
+- Results carry `NoPose` where the reference registers no pose task: a state without a valid child,
+  and a referenced graph slot left empty for the game to fill (Deadlock hero overlay layers). Layers
+  skip such results, so an empty full weight model space layer no longer replaces the base with
+  the reference pose.
 - Parameterized selectors honour `m_bIgnoreInvalidOptions` by initializing each option to test it,
   as the reference does.
 

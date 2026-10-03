@@ -217,6 +217,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         /// <summary>The events the update sampled.</summary>
         public SampledEventRange SampledEventRange;
+
+        /// <summary>
+        /// Whether the node had no pose to give, such as a state without a valid child. The pose then holds the
+        /// default pose, and layers leave the pose below untouched rather than blending it in.
+        /// </summary>
+        public bool NoPose;
 #pragma warning restore CA1051
     }
 
@@ -1159,7 +1165,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     return fallbackResult;
                 }
 
-                return base.Update(ctx);
+                // A slot the game fills at runtime, empty in the compiled graph
+                var emptyResult = base.Update(ctx);
+                emptyResult.NoPose = true;
+                return emptyResult;
             }
 
             ReflectControlParametersFromParent(ctx);
@@ -1176,6 +1185,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             childResult.Pose.AsSpan(0, count).CopyTo(result.Pose);
             result.RootMotionDelta = childResult.RootMotionDelta;
             result.SampledEventRange = new(eventRangeStart, ctx.SampledEvents.Count);
+            result.NoPose = childResult.NoPose;
 
             var childRoot = childGraph.Context.RootNode;
             Duration = childRoot.Duration;

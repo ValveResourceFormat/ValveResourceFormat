@@ -785,6 +785,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     ctx.SampledEvents.UpdateWeights(layerResult.SampledEventRange, weight);
                 }
 
+                // A layer without a pose leaves the pose below it as it is
+                if (layerResult.NoPose)
+                {
+                    continue;
+                }
+
                 // Blend layer root motion unless only the base's is sampled
                 if (!OnlySampleBaseRootMotion)
                 {
