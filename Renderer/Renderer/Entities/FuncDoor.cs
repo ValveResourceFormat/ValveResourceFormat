@@ -156,7 +156,7 @@ public class FuncDoor : BaseToggle
     {
         if (KeyValues.GetInt32Property("spawnpos") == 1 || HasSpawnFlags(SpawnFlag.StartsOpen))
         {
-            Teleport(PositionOpen, null);
+            JumpTo(PositionOpen, Angles);
             State = ToggleState.AtTop;
             return;
         }
@@ -172,7 +172,7 @@ public class FuncDoor : BaseToggle
     /// Source's <c>SetToggleState</c>.
     /// </summary>
     /// <param name="atOpenEnd">Whether to the open end rather than the closed one.</param>
-    protected virtual void JumpToEnd(bool atOpenEnd) => Teleport(atOpenEnd ? PositionOpen : PositionClosed, null);
+    protected virtual void JumpToEnd(bool atOpenEnd) => JumpTo(atOpenEnd ? PositionOpen : PositionClosed, Angles);
 
     /// <inheritdoc/>
     public override void MoveDone()

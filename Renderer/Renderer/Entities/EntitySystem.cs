@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -143,6 +144,17 @@ public sealed class EntitySystem
             return null;
         }
 
+        // The engine binds the move parent before spawning, so a child's Spawn sees its pose local to the
+        // parent. The parent may not exist yet, so the child spawns in Activate once it is bound.
+        if (string.IsNullOrEmpty(data.GetStringProperty("parentname")))
+        {
+            entity.Spawn();
+        }
+        else
+        {
+            pendingSpawns.Add(entity);
+        }
+
         Add(entity);
 
         return entity;
@@ -236,6 +248,28 @@ public sealed class EntitySystem
             ResolveMoveParentChain(entities[i]);
         }
 
+        // HACK: Parents before their children, so a parent's Spawn has placed it before its children spawn
+        var spawning = new HashSet<BaseEntity>(pendingSpawns);
+
+        foreach (var entity in parented)
+        {
+            if (spawning.Remove(entity))
+            {
+                entity.Spawn();
+            }
+        }
+
+        // Named a parent that does not exist
+        foreach (var entity in pendingSpawns)
+        {
+            if (spawning.Remove(entity))
+            {
+                entity.Spawn();
+            }
+        }
+
+        pendingSpawns.Clear();
+
         for (var i = activatedCount; i < entities.Count; i++)
         {
             entities[i].Activate();
@@ -264,6 +298,9 @@ public sealed class EntitySystem
     }
 
     private int activatedCount;
+
+    // Parented entities created since the last Activate, waiting for their parent to be bound
+    private readonly List<BaseEntity> pendingSpawns = [];
 
     /// <summary>
     /// Notify every entity a round started.
@@ -412,6 +449,7 @@ public sealed class EntitySystem
 
         entities.Clear();
         parented.Clear();
+        pendingSpawns.Clear();
         World = null;
         Player = null;
         activatedCount = 0;

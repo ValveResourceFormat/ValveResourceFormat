@@ -14,7 +14,7 @@ public sealed class InfoWorldLayer : BaseEntity
     }
 
     /// <summary>Gets the name of the world layer this entity controls.</summary>
-    public string? WorldLayerName { get; private set; }
+    public string? WorldLayerName => KeyValues.GetStringProperty("layername");
 
     /// <summary>Gets whether the controlled layer is shown when the map loads.</summary>
     public bool IsVisibleOnSpawn => HasSpawnFlags(SpawnFlag.VisibleOnSpawn);
@@ -22,12 +22,6 @@ public sealed class InfoWorldLayer : BaseEntity
     /// <summary>Initializes an <c>info_world_layer</c> from its keyvalues.</summary>
     public InfoWorldLayer(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
-    }
-
-    /// <inheritdoc/>
-    public override void Spawn()
-    {
-        WorldLayerName = KeyValues.GetStringProperty("layername");
     }
 
     /// <summary>Shows or hides the controlled layer.</summary>

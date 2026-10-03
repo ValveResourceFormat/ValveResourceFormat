@@ -149,12 +149,12 @@ public static class EntityFactory
     }
 
     /// <summary>
-    /// Creates and spawns the entity for a classname. The entity is fully set up when this returns, but
-    /// is not in the world yet; <see cref="EntitySystem.CreateEntity"/> is what puts it there. A classname
+    /// Creates the entity for a classname, not yet spawned and not yet in the world;
+    /// <see cref="EntitySystem.CreateEntity"/> is what spawns it and puts it there. A classname
     /// that is not implemented spawns a <see cref="GenericModelEntity"/> when it has a model, and a
     /// <see cref="GenericEntity"/> when it does not.
     /// </summary>
-    /// <returns>The spawned entity, or <see langword="null"/> when the keyvalues name no classname.</returns>
+    /// <returns>The entity, or <see langword="null"/> when the keyvalues name no classname.</returns>
     public static BaseEntity? Create(EntitySystem system, EntitySpawnInfo spawnInfo)
     {
         var classname = spawnInfo.Data.GetStringProperty("classname");
@@ -178,8 +178,6 @@ public static class EntityFactory
         {
             entity = new GenericModelEntity(system, spawnInfo);
         }
-
-        entity.Spawn();
 
         return entity;
     }
