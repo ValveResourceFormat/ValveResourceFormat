@@ -652,7 +652,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 if (GetOption(TransitionOptions_t.ClampDuration))
                 {
                     // Calculate the delta between the current position and the real end of the source
-                    var sourceRealEndTime = sourceSyncTrack.GetPercentageThrough(sourceSyncTrack.GetEndTime());
+                    var sourceRealEndTime = sourceSyncTrack.GetPercentageThrough(sourceSyncTrack.EndTime);
                     var sourceCurrentTime = sourceSyncTrack.GetPercentageThrough(sourceUpdateRange.StartTime);
 
                     var deltaToRealEnd = sourceRealEndTime > sourceCurrentTime

@@ -6,11 +6,11 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
-    partial class FloatValueNode
+    public partial class FloatValueNode
     {
         float cachedValue;
 
-        // Returns the node's value, evaluating it at most once per graph update (matches the C++ WasUpdated guard).
+        /// <summary>Gets the node value, evaluating it at most once per graph update.</summary>
         public float GetValue(GraphContext ctx)
         {
             if (!WasUpdated(ctx))
@@ -22,6 +22,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return cachedValue;
         }
 
+        /// <summary>Evaluates the node value.</summary>
         protected virtual float GetValueInternal(GraphContext ctx)
         {
             ctx.LogNodeNotImplemented(NodeIdx, GetType().Name);

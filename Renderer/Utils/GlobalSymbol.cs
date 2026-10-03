@@ -5,19 +5,23 @@ namespace ValveResourceFormat.Renderer;
 /// <summary>
 /// String token hash entry.
 /// </summary>
-readonly struct GlobalSymbol : IEquatable<GlobalSymbol>
+public readonly struct GlobalSymbol : IEquatable<GlobalSymbol>
 {
+    /// <summary>The name the token was hashed from.</summary>
     public string Name => StringToken.GetKnownString(Token);
+    /// <summary>The hashed token.</summary>
     public uint Token { get; }
 
+    /// <summary>Hashes and records a name.</summary>
     public GlobalSymbol(string name)
     {
         Token = StringToken.Store(name);
     }
 
-    // Hashes without recording the name, so it neither allocates nor touches the shared table
+    /// <summary>Hashes a name without recording it, so it neither allocates nor touches the shared table.</summary>
     public static GlobalSymbol Lookup(ReadOnlySpan<char> name) => new(StringToken.Get(name), allowUnknown: true);
 
+    /// <summary>Wraps a token, which must be known unless allowed otherwise.</summary>
     public GlobalSymbol(uint token, bool allowUnknown = false)
     {
         Debug.Assert(
@@ -31,23 +35,41 @@ readonly struct GlobalSymbol : IEquatable<GlobalSymbol>
     /// <summary>Whether this symbol holds a stored token, as opposed to being unset.</summary>
     public bool IsValid => Token != 0;
 
+    /// <inheritdoc/>
     public override readonly string ToString() => Name;
 
+    /// <summary>Gets the token.</summary>
     public static implicit operator uint(GlobalSymbol symbol) => symbol.Token;
+    /// <summary>Wraps a token, known or not.</summary>
     public static implicit operator GlobalSymbol(uint token) => new(token, allowUnknown: true);
+    /// <summary>Hashes and records a name.</summary>
     public static implicit operator GlobalSymbol(string name) => new(name);
+
+    /// <summary>Gets the token.</summary>
+    public uint ToUInt32() => Token;
+
+    /// <summary>Wraps a token, known or not.</summary>
+    public static GlobalSymbol FromUInt32(uint token) => new(token, allowUnknown: true);
+
+    /// <summary>Hashes and records a name.</summary>
+    public static GlobalSymbol FromString(string name) => new(name);
 
     // record struct?
 
+    /// <inheritdoc/>
     public bool Equals(GlobalSymbol other) => Token == other.Token;
+    /// <inheritdoc/>
     public override int GetHashCode() => (int)Token;
 
+    /// <inheritdoc/>
     public override bool Equals(object? obj)
     {
         Debug.Assert(false, $"Boxing operation on {nameof(GlobalSymbol)}. Can you avoid this?");
         return obj is GlobalSymbol other && Equals(other);
     }
 
+    /// <summary>Whether two symbols have the same token.</summary>
     public static bool operator ==(GlobalSymbol left, GlobalSymbol right) => left.Equals(right);
+    /// <summary>Whether two symbols have different tokens.</summary>
     public static bool operator !=(GlobalSymbol left, GlobalSymbol right) => !left.Equals(right);
 }

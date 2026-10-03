@@ -3,21 +3,33 @@ using System.Diagnostics;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
 /// <summary>The weight of a blend switching on and off over time.</summary>
-struct BlendWeight
+public struct BlendWeight
 {
+    /// <summary>Where the weight is in switching on or off.</summary>
     public enum BlendWeightState : byte
     {
+        /// <summary>Fully off.</summary>
         Off,
+        /// <summary>Blending towards off.</summary>
         TurningOff,
+        /// <summary>Blending towards on.</summary>
         TurningOn,
+        /// <summary>Fully on.</summary>
         On,
     }
 
+#pragma warning disable CA1051 // Do not declare visible instance fields
+    /// <summary>The current state.</summary>
     public BlendWeightState State;
+    /// <summary>The easing applied to the blend.</summary>
     public EasingOperation EasingOperation;
+    /// <summary>Seconds elapsed in the current blend.</summary>
     public float BlendTime;
+    /// <summary>Seconds a full blend takes.</summary>
     public float DesiredBlendTime;
+#pragma warning restore CA1051
 
+    /// <summary>Creates a weight that starts off.</summary>
     public BlendWeight()
     {
         State = BlendWeightState.Off;
@@ -25,6 +37,7 @@ struct BlendWeight
         DesiredBlendTime = 0.2f;
     }
 
+    /// <summary>Resets to fully on or off with a new blend time.</summary>
     public void Reset(float desiredBlendTime, bool startOn)
     {
         State = startOn ? BlendWeightState.On : BlendWeightState.Off;
@@ -32,8 +45,10 @@ struct BlendWeight
         BlendTime = desiredBlendTime;
     }
 
+    /// <summary>Whether the weight is turning on or off.</summary>
     public readonly bool IsBlending => State is BlendWeightState.TurningOn or BlendWeightState.TurningOff;
 
+    /// <summary>Gets the current weight, 0 being off and 1 on.</summary>
     public readonly float GetWeight()
     {
         float weight;

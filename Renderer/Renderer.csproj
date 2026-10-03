@@ -10,9 +10,8 @@
     <PublishAot Condition="'$(Configuration)' != 'Debug'">true</PublishAot>
     <IsAotCompatible Condition="'$(Configuration)' != 'Debug'">true</IsAotCompatible>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- CS8618/CS1591 suppressed while the AnimLib port is in progress: graph nodes wire their
-         references in Initialize() rather than constructors, and the ported types lack XML docs. -->
-    <NoWarn>$(NoWarn);CS8618;CS1591</NoWarn>
+    <!-- CS8618 suppressed: graph nodes wire their references in Instantiate() rather than constructors. -->
+    <NoWarn>$(NoWarn);CS8618</NoWarn>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 

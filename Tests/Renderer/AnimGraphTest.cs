@@ -40,7 +40,7 @@ namespace Tests.Renderer
             for (var i = 0; i < nodes.Count; i++)
             {
                 var className = nodes[i].GetStringProperty("_class");
-                await Assert.That(GraphContext.CreateNode(nodes[i])).IsNotNull().Because($"node {i} ({className})");
+                await Assert.That(GraphNodeFactory.Create(nodes[i])).IsNotNull().Because($"node {i} ({className})");
             }
         }
 
@@ -59,7 +59,7 @@ namespace Tests.Renderer
                 string? unknownTypeError = null;
                 try
                 {
-                    GraphContext.CreateNode(nodeData);
+                    GraphNodeFactory.Create(nodeData);
                 }
                 catch (InvalidOperationException e) when (e.Message.StartsWith("Unknown graph node type", StringComparison.Ordinal))
                 {

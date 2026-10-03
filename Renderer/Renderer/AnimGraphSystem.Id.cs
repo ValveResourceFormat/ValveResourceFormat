@@ -3,11 +3,11 @@ using System.Linq;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
-    partial class IDValueNode
+    public partial class IDValueNode
     {
         GlobalSymbol cachedValue;
 
-        // Returns the node's value, evaluating it at most once per graph update (matches the C++ WasUpdated guard).
+        /// <summary>Gets the node value, evaluating it at most once per graph update.</summary>
         public GlobalSymbol GetValue(GraphContext ctx)
         {
             if (!WasUpdated(ctx))
@@ -19,6 +19,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return cachedValue;
         }
 
+        /// <summary>Evaluates the node value.</summary>
         protected virtual GlobalSymbol GetValueInternal(GraphContext ctx)
         {
             ctx.LogNodeNotImplemented(NodeIdx, GetType().Name);

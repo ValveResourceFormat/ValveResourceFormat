@@ -72,13 +72,18 @@ static class EventSearch
     }
 }
 
-// The kind of graph event a state or clip emitted (Esoterica GraphEventType)
-enum GraphEventType : byte
+/// <summary>The kind of graph event a state or clip emitted.</summary>
+public enum GraphEventType : byte
 {
+    /// <summary>The state was entered.</summary>
     Entry,
+    /// <summary>The state is fully blended in.</summary>
     FullyInState,
+    /// <summary>The state was exited.</summary>
     Exit,
+    /// <summary>A timed event of the state.</summary>
     Timed,
+    /// <summary>A generic event.</summary>
     Generic,
 }
 
@@ -86,11 +91,15 @@ enum GraphEventType : byte
 /// One event sampled during a graph update: either an animation event coming from a clip's
 /// timeline, or a graph event emitted by a state (entry/execute/exit/timed).
 /// </summary>
-struct SampledEvent
+public struct SampledEvent
 {
+    /// <summary>The index of the node that sampled the event.</summary>
     public short SourceNodeIdx { get; init; }
+    /// <summary>Whether this is a graph event rather than an animation event.</summary>
     public bool IsGraphEvent { get; init; }
+    /// <summary>Whether the event came from the active branch of a state machine.</summary>
     public bool IsFromActiveBranch { get; set; }
+    /// <summary>Whether the event should be ignored.</summary>
     public bool IsIgnored { get; set; }
 
     /// <summary>The kind of graph event, for graph events.</summary>
@@ -108,21 +117,28 @@ struct SampledEvent
     /// <summary>The clip event, for animation events.</summary>
     public NmClipEvent? AnimEvent { get; init; }
 
+    /// <summary>Whether this is an animation event from a clip.</summary>
     public readonly bool IsAnimationEvent => !IsGraphEvent;
 }
 
 /// <summary>A contiguous range of events in the sampled events buffer.</summary>
-struct SampledEventRange
+public struct SampledEventRange
 {
+#pragma warning disable CA1051 // Do not declare visible instance fields
+    /// <summary>The index of the first event.</summary>
     public int StartIdx;
+    /// <summary>The index past the last event.</summary>
     public int EndIdx;
+#pragma warning restore CA1051
 
+    /// <summary>Creates a range from a start index to an exclusive end index.</summary>
     public SampledEventRange(int startIdx, int endIdx)
     {
         StartIdx = startIdx;
         EndIdx = endIdx;
     }
 
+    /// <summary>Whether the range has valid bounds.</summary>
     public readonly bool IsValid => StartIdx >= 0 && EndIdx >= StartIdx;
 }
 
@@ -130,18 +146,23 @@ struct SampledEventRange
 /// Append-only buffer of the events sampled during one graph update. Nodes record the range they
 /// appended so conditions can restrict their search to a source state's events.
 /// </summary>
-class SampledEventsBuffer
+public class SampledEventsBuffer
 {
     private readonly List<SampledEvent> events = [];
 
+    /// <summary>Ensures the buffer can hold at least the given number of events.</summary>
     public void EnsureCapacity(int capacity) => events.EnsureCapacity(capacity);
 
+    /// <summary>The number of events.</summary>
     public int Count => events.Count;
 
+    /// <summary>Gets the event at an index.</summary>
     public SampledEvent this[int index] => events[index];
 
+    /// <summary>Removes all events.</summary>
     public void Clear() => events.Clear();
 
+    /// <summary>Removes the event at an index.</summary>
     public void RemoveAt(int index) => events.RemoveAt(index);
 
     /// <summary>Appends all of another buffer's events, e.g. to surface a child graph's events to its parent.</summary>
@@ -150,6 +171,7 @@ class SampledEventsBuffer
         events.AddRange(other.events);
     }
 
+    /// <summary>Appends an animation event sampled from a clip.</summary>
     public void EmplaceAnimationEvent(short sourceNodeIdx, NmClipEvent animEvent, float percentageThrough, bool isFromActiveBranch, float weight = 1f)
     {
         var id = animEvent is NmIDEvent idEvent ? GlobalSymbol.Lookup(idEvent.ID) : default;
@@ -166,6 +188,7 @@ class SampledEventsBuffer
         });
     }
 
+    /// <summary>Appends a graph event.</summary>
     public void EmplaceGraphEvent(short sourceNodeIdx, GraphEventType type, GlobalSymbol id, bool isFromActiveBranch, float weight = 1f)
     {
         events.Add(new SampledEvent

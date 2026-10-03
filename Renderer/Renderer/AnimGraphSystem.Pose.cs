@@ -5,23 +5,32 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
-    class Pose
+    /// <summary>Bone transforms of a skeleton, in parent space with cached model space.</summary>
+    public class Pose
     {
+        /// <summary>What a pose currently holds.</summary>
         public enum PoseType
         {
+            /// <summary>Not set.</summary>
             Unset,
+            /// <summary>Arbitrary transforms.</summary>
             Pose,
+            /// <summary>The skeleton reference pose.</summary>
             ReferencePose,
+            /// <summary>The identity additive pose.</summary>
             ZeroPose,
+            /// <summary>An additive pose.</summary>
             AdditivePose,
         }
 
+        /// <summary>The skeleton the pose is for.</summary>
         public Skeleton Skeleton { get; private set; }
         readonly FrameBone[] ParentSpaceTransforms = [];
         readonly FrameBone[] ModelSpaceTransforms = [];
         bool CalculatedModelSpace;
         PoseType Type = PoseType.Unset;
 
+        /// <summary>The number of bones.</summary>
         public int NumBones => Skeleton.ParentSpaceReferencePose.Length;
 
         /// <summary>Creates a pose for <paramref name="skeleton"/> and sets the initial state.</summary>
@@ -34,6 +43,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Reset(initialState);
         }
 
+        /// <summary>Resets to the given state, optionally calculating model space transforms.</summary>
         public void Reset(PoseType initialState, bool calculateModelSpacePose = false)
         {
             switch (initialState)
@@ -50,6 +60,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
         }
 
+        /// <summary>Sets every bone to the reference pose.</summary>
         public void SetToReferencePose()
         {
             Debug.Assert(Skeleton != null);
@@ -57,6 +68,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Type = PoseType.ReferencePose;
         }
 
+        /// <summary>Sets every bone to the identity additive transform.</summary>
         public void SetToZeroPose()
         {
             Debug.Assert(Skeleton != null);
@@ -88,6 +100,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             CalculatedModelSpace = true;
         }
 
+        /// <summary>Gets the model space transform of a bone, calculating it if not cached.</summary>
         public Transform GetModelSpaceTransform(int boneIdx)
         {
             Debug.Assert(Skeleton != null);
@@ -135,11 +148,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return boneModelSpaceTransform;
         }
 
+        /// <summary>Gets the parent space transform of a bone.</summary>
         public Transform GetTransform(int boneIdx)
         {
             return ParentSpaceTransforms[boneIdx];
         }
 
+        /// <summary>Sets the parent space transform of a bone.</summary>
         public void SetTransform(int boneIdx, Transform transform)
         {
             Debug.Assert(boneIdx >= 0 && boneIdx < NumBones);
@@ -157,6 +172,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             MarkAsValidPose();
         }
 
+        /// <summary>Copies the parent space transforms into a destination span.</summary>
         public void CopyParentSpaceTransformsTo(Span<FrameBone> destination)
         {
             ParentSpaceTransforms.AsSpan(0, Math.Min(destination.Length, ParentSpaceTransforms.Length)).CopyTo(destination);
@@ -189,23 +205,39 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     // Currently not using tasks and computing poses directly
 
-    struct GraphPoseNodeResult
+    /// <summary>The output of a pose node update.</summary>
+    public struct GraphPoseNodeResult
     {
+#pragma warning disable CA1051 // Do not declare visible instance fields
+        /// <summary>The parent space pose.</summary>
         public FrameBone[] Pose;
+
+        /// <summary>The root motion over the update, local to the character.</summary>
         public Transform RootMotionDelta;
+
+        /// <summary>The events the update sampled.</summary>
         public SampledEventRange SampledEventRange;
+#pragma warning restore CA1051
     }
 
     partial class PoseNode
     {
-        public int LoopCount;
-        public float Duration;   /* Seconds */
-        public float CurrentTime; /* Percent */
-        public float PreviousTime;  /* Percent */
+        /// <summary>How many times the node has looped.</summary>
+        public int LoopCount { get; protected internal set; }
+
+        /// <summary>The node's duration in seconds.</summary>
+        public float Duration { get; protected internal set; }
+
+        /// <summary>Where the node is, as a percentage through its duration.</summary>
+        public float CurrentTime { get; protected internal set; }
+
+        /// <summary>Where the node was at the previous update, as a percentage through its duration.</summary>
+        public float PreviousTime { get; protected internal set; }
 
         /// <summary>This node's output pose buffer, in parent (local bone) space.</summary>
-        public FrameBone[] PoseTransforms = [];
+        public FrameBone[] PoseTransforms { get; protected internal set; } = [];
 
+        /// <inheritdoc/>
         public override void Instantiate(GraphContext ctx)
         {
             LoopCount = 0;
@@ -232,10 +264,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
         }
 
+        /// <inheritdoc/>
         public sealed override void Initialize(GraphContext ctx) => Initialize(ctx, default);
 
+        /// <inheritdoc/>
         protected sealed override void InitializeInternal(GraphContext ctx) => InitializeInternal(ctx, default);
 
+        /// <summary>Resets the node state when it becomes active, starting at the given time.</summary>
         protected virtual void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
             base.InitializeInternal(ctx);
@@ -247,11 +282,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Duration = 0f;
         }
 
+        /// <summary>Whether the node can produce a pose.</summary>
         public virtual bool IsValid => true;
 
         /// <summary>The sync track for this node's timeline; pass-through nodes forward their child's.</summary>
         public virtual SyncTrack SyncTrack => SyncTrack.Default;
 
+        /// <summary>Advances the node and returns its pose, optionally over a sync track range.</summary>
         public virtual GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             return new GraphPoseNodeResult

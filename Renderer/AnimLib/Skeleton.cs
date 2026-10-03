@@ -1,22 +1,37 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-class Skeleton
+/// <summary>An animation skeleton: bone hierarchy, reference pose and bone masks.</summary>
+public class Skeleton
 {
+    /// <summary>The skeleton ID.</summary>
     public GlobalSymbol ID { get; }
+    /// <summary>The ID of each bone.</summary>
     public GlobalSymbol[] BoneIDs { get; }
+    /// <summary>The parent index of each bone, -1 for roots.</summary>
     public int[] ParentIndices { get; }
+    /// <summary>The reference pose with each bone relative to its parent.</summary>
     public Transform[] ParentSpaceReferencePose { get; }
+    /// <summary>The reference pose in model space.</summary>
     public Transform[] ModelSpaceReferencePose { get; }
+    /// <summary>The number of leading bones sampled at low LOD.</summary>
     public int NumBonesToSampleAtLowLOD { get; }
+    /// <summary>Whether this is a prop skeleton.</summary>
     public bool IsPropSkeleton { get; }
+    /// <summary>The bone mask definitions.</summary>
     public BoneMaskSetDefinition[] MaskDefinitions { get; }
+    /// <summary>Skeletons attached to bones of this one.</summary>
     public Skeleton__SecondarySkeleton[] SecondarySkeletons { get; }
+    /// <summary>The float channel sets.</summary>
     public FloatChannelSet[] FloatChannelSets { get; }
+    /// <summary>The contact point configurations.</summary>
     public Skeleton__ContactConfig[] ContactConfigs { get; }
+    /// <summary>The bones relevant to gameplay.</summary>
     public int[] GameplayRelevantBoneIndices { get; }
+    /// <summary>A hash of the special dependencies.</summary>
     public long SpecialDependencyHash { get; }
 
+    /// <summary>Reads the skeleton from resource data.</summary>
     public Skeleton(KVObject data)
     {
         ID = data.GetProperty<string>("m_ID");
@@ -164,6 +179,7 @@ class Skeleton
         }
     }
 
+    /// <summary>Gets the index of a bone mask definition, or -1 if not found.</summary>
     public int GetBoneMaskIndex(GlobalSymbol boneMaskID)
     {
         for (var i = 0; i < MaskDefinitions.Length; i++)
@@ -177,7 +193,9 @@ class Skeleton
         return -1; // InvalidIndex
     }
 
+    /// <summary>Gets the index of a bone, or -1 if not found.</summary>
     public int GetBoneIndex(GlobalSymbol boneID) => Array.IndexOf(BoneIDs, boneID);
 
+    /// <summary>Gets the parent index of a bone, or -1 for roots and invalid bones.</summary>
     public int GetParentBoneIndex(int boneIdx) => boneIdx >= 0 ? ParentIndices[boneIdx] : -1;
 }

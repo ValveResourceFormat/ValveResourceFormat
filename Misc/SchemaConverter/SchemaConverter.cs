@@ -457,7 +457,8 @@ class Schema
         return new Schema { Types = types };
     }
 
-    // Editor document classes are not part of the compiled resources
+    // Only the graph system's own classes: editor document classes are not part of the compiled resources,
+    // and client module nodes are defined alongside the client code that registers them
     private static bool IsIncluded(JsonElement element, string name)
         => element.GetProperty("module").GetString() == "animlib" && !name.Contains("Doc", StringComparison.Ordinal);
 

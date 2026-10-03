@@ -7,12 +7,14 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 /// track are expressed as <see cref="SyncTrackTime"/> (event index plus percentage through it),
 /// which lets differently-timed clips advance in lockstep. Port of Esoterica's SyncTrack.
 /// </summary>
-class SyncTrack
+public class SyncTrack
 {
     /// <summary>A default track with one full-length unnamed event.</summary>
     public static SyncTrack Default { get; } = new SyncTrack([new SyncTrack__Event(default, 0f, 1f)], 0);
 
+    /// <summary>The sync events, in order.</summary>
     public SyncTrack__Event[] SyncEvents { get; private set; }
+    /// <summary>The index of the event playback starts at.</summary>
     public int StartEventOffset { get; private set; }
 
     private int numEventsOverride = -1;
@@ -20,6 +22,7 @@ class SyncTrack
     /// <summary>The logical event count; the scratch backing array may be larger.</summary>
     public int NumEvents => numEventsOverride >= 0 ? numEventsOverride : SyncEvents.Length;
 
+    /// <summary>Reads the track from resource data.</summary>
     public SyncTrack(KVObject data)
     {
         SyncEvents = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_syncEvents") ?? [], kv => new SyncTrack__Event(kv))];
@@ -31,6 +34,7 @@ class SyncTrack
         }
     }
 
+    /// <summary>Creates a track from events and a start event offset.</summary>
     public SyncTrack(SyncTrack__Event[] events, int startEventOffset)
     {
         Debug.Assert(events.Length > 0);
@@ -129,6 +133,7 @@ class SyncTrack
         return float.Lerp(scaledDuration0, scaledDuration1, blendWeight);
     }
 
+    /// <summary>Gets the lowest common multiple of two integers.</summary>
     public static int LowestCommonMultiple(int a, int b)
     {
         static int Gcd(int x, int y) => y == 0 ? x : Gcd(y, x % y);
@@ -148,6 +153,7 @@ class SyncTrack
 
     private int ClampIndexToTrack(int eventIndex) => ClampIndexToTrack(eventIndex, NumEvents);
 
+    /// <summary>Whether playback starts at an event other than the first.</summary>
     public bool HasStartOffset => StartEventOffset != 0;
 
     /// <summary>Gets the event at the specified index, including the start offset.</summary>
@@ -156,6 +162,7 @@ class SyncTrack
     /// <summary>Gets the ID for the event at the specified index, including the start offset.</summary>
     public GlobalSymbol GetEventID(int i) => GetEvent(i).ID;
 
+    /// <summary>Whether the track has an event with the given ID.</summary>
     public bool HasEventWithID(GlobalSymbol id)
     {
         for (var i = 0; i < NumEvents; i++)
@@ -236,8 +243,10 @@ class SyncTrack
         return StartEventOffset;
     }
 
-    public static SyncTrackTime GetStartTime() => new(0, 0f);
-    public SyncTrackTime GetEndTime() => new(NumEvents - 1, 1f);
+    /// <summary>The time at the start of the first event.</summary>
+    public static SyncTrackTime StartTime => new(0, 0f);
+    /// <summary>The time at the end of the last event.</summary>
+    public SyncTrackTime EndTime => new(NumEvents - 1, 1f);
 
     /// <summary>Calculates the track time resulting from a start time advanced by a percentage delta.</summary>
     public SyncTrackTime UpdateEventTime(SyncTrackTime startTime, float deltaPercentage)
@@ -253,6 +262,7 @@ class SyncTrack
     /// <summary>Gets the percentage through the clip for a sync time, starting at the offset event.</summary>
     public float GetPercentageThrough(SyncTrackTime time) => GetPercentageThrough(time, withOffset: true);
 
+    /// <summary>Gets the sync track time for a percentage through the track, optionally starting at the offset event.</summary>
     public SyncTrackTime GetTime(float percentage, bool withOffset)
     {
         var numSyncEvents = NumEvents;
@@ -307,6 +317,7 @@ class SyncTrack
         return new SyncTrackTime(ClampIndexToTrack(eventIdx - offset), eventPercentageThrough);
     }
 
+    /// <summary>Gets the percentage through the clip for a sync time, optionally starting at the offset event.</summary>
     public float GetPercentageThrough(SyncTrackTime time, bool withOffset)
     {
         var offset = withOffset ? StartEventOffset : 0;
@@ -375,5 +386,6 @@ class SyncTrack
         return syncTimeDistance / NumEvents;
     }
 
+    /// <summary>Calculates the percentage of the track covered by a time range.</summary>
     public float CalculatePercentageCovered(SyncTrackTimeRange range) => CalculatePercentageCovered(range.StartTime, range.EndTime);
 }

@@ -1,19 +1,26 @@
 namespace ValveResourceFormat.Renderer.AnimLib;
 
 /// <summary>Transform helpers that have no equivalent on <see cref="Transform"/> itself.</summary>
-static class TransformMath
+public static class TransformMath
 {
     // Source axes, which the compiled graph and clip data use
+    /// <summary>The world forward axis.</summary>
     public static readonly Vector3 WorldForward = Vector3.UnitX;
+    /// <summary>The world right axis.</summary>
     public static readonly Vector3 WorldRight = -Vector3.UnitY;
+    /// <summary>The world left axis.</summary>
     public static readonly Vector3 WorldLeft = Vector3.UnitY;
+    /// <summary>The world up axis.</summary>
     public static readonly Vector3 WorldUp = Vector3.UnitZ;
 
+    /// <summary>The default tolerance for near comparisons.</summary>
     public const float Epsilon = 1.0e-06f;
 
     // Additive poses store scale as a delta, so the identity additive transform has zero scale
+    /// <summary>The identity additive transform.</summary>
     public static Transform Zero => new(Vector3.Zero, 0f, Quaternion.Identity);
 
+    /// <summary>Whether every component of a vector is within epsilon of zero.</summary>
     public static bool IsNearZero(Vector3 v, float epsilon = Epsilon)
         => MathF.Abs(v.X) <= epsilon && MathF.Abs(v.Y) <= epsilon && MathF.Abs(v.Z) <= epsilon;
 
@@ -107,10 +114,13 @@ static class TransformMath
             fromInverseRotation * to.Angle);
     }
 
+    /// <summary>Rotates a vector by a rotation.</summary>
     public static Vector3 RotateVector(Quaternion q, Vector3 v) => Vector3.Transform(v, q);
 
+    /// <summary>Rotates a vector by the inverse of a rotation.</summary>
     public static Vector3 InverseRotateVector(Quaternion q, Vector3 v) => Vector3.Transform(v, Quaternion.Conjugate(q));
 
+    /// <summary>Normalizes a vector, or returns zero for a zero length vector.</summary>
     public static Vector3 NormalizeOrZero(Vector3 v)
     {
         var lengthSquared = v.LengthSquared();
@@ -143,10 +153,13 @@ static class TransformMath
         return length != 0f ? new Vector3(v.X / length, v.Y / length, 0f) : Vector3.Zero;
     }
 
+    /// <summary>The length on the ground plane, ignoring the vertical component.</summary>
     public static float Length2(Vector3 v) => MathF.Sqrt((v.X * v.X) + (v.Y * v.Y));
 
+    /// <summary>Whether the ground plane components are within epsilon of zero.</summary>
     public static bool IsNearZero2(Vector3 v, float epsilon = Epsilon) => MathF.Abs(v.X) <= epsilon && MathF.Abs(v.Y) <= epsilon;
 
+    /// <summary>Whether two vectors point the same way on the ground plane.</summary>
     public static bool IsVectorInTheSameHemisphere2D(Vector3 reference, Vector3 v) => Vector3.Dot(Normalize2(reference), Normalize2(v)) > 0f;
 
     /// <summary>Normalized linear interpolation, taking the shorter path.</summary>
@@ -175,6 +188,7 @@ static class TransformMath
         return 2f * MathF.Acos(MathF.Abs(dot));
     }
 
+    /// <summary>Whether two transforms are equal within an angle and a translation and scale tolerance.</summary>
     public static bool IsNearEqual(Transform a, Transform b, float angleThreshold = MathF.PI / 180f, float translationScaleThreshold = Epsilon)
     {
         if (Distance(a.Angle, b.Angle) > angleThreshold)

@@ -2,10 +2,10 @@ using System.Diagnostics;
 
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-static class TwoBoneSolver
+/// <summary>Two-bone inverse kinematics.</summary>
+public static class TwoBoneSolver
 {
-    // Solves the two bone chain ending in the effector towards the target, in place on the pose. The chain
-    // rotation weight picks how the effector rotation is solved: 0 fully rotates the effector, 1 rotates the chain.
+    /// <summary>Solves the two bone chain ending in the effector towards the target, in place on the pose. The chain rotation weight picks how the effector rotation is solved: 0 fully rotates the effector, 1 rotates the chain.</summary>
     public static void Solve(Pose pose, int effectorBoneIdx, Transform targetTransform, float chainRotationWeight = 0f, IKBlendMode blendMode = IKBlendMode.Effector, float blendWeight = 1f)
     {
         var skeleton = pose.Skeleton;
@@ -72,6 +72,7 @@ static class TwoBoneSolver
         }
     }
 
+    /// <summary>Solves a three bone chain in model space towards the target, in place. Returns false for a degenerate chain.</summary>
     public static bool Solve(Span<Transform> modelSpaceBoneTransforms, ReadOnlySpan<Transform> modelSpaceReferenceTransforms, Transform targetTransform, float chainRotationWeight)
     {
         var v1 = modelSpaceBoneTransforms[1].Position - modelSpaceBoneTransforms[0].Position;

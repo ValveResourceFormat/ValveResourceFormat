@@ -189,7 +189,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
-    partial class PoseNode
+    public partial class PoseNode
     {
         /// <summary>
         /// Updates a blend source when it is valid; otherwise it contributes the default pose and no events.

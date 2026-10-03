@@ -4,20 +4,28 @@ namespace ValveResourceFormat.Renderer.AnimLib
 {
     // Passes its child pose node through unchanged. Base for speed/duration scaling and (later)
     // root-motion override / warp / IK nodes.
-    partial class PassthroughNode
+    public partial class PassthroughNode
     {
+        // Resolved by reference when the graph is instantiated
+#pragma warning disable CA1051 // Do not declare visible instance fields
+        /// <summary>The child pose node.</summary>
         public PoseNode? ChildNode;
+#pragma warning restore CA1051
 
+        /// <inheritdoc/>
         public override void Instantiate(GraphContext ctx)
         {
             base.Instantiate(ctx);
             ctx.SetOptionalNodeFromIndex(ChildNodeIdx, ref ChildNode);
         }
 
+        /// <inheritdoc/>
         public override bool IsValid => ChildNode?.IsValid ?? false;
 
+        /// <inheritdoc/>
         public override SyncTrack SyncTrack => ChildNode?.SyncTrack ?? SyncTrack.Default;
 
+        /// <inheritdoc/>
         protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
             base.InitializeInternal(ctx, initialTime);
@@ -37,12 +45,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
         }
 
+        /// <inheritdoc/>
         protected override void ShutdownInternal(GraphContext ctx)
         {
             ChildNode?.Shutdown(ctx);
             base.ShutdownInternal(ctx);
         }
 
+        /// <inheritdoc/>
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             if (ChildNode is not { IsValid: true })

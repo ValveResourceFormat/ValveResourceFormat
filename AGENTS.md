@@ -77,20 +77,6 @@ Follow standard Microsoft C# conventions. Key rules:
 - Leave existing comments alone if they are clear and correct
 - XML docs are required for public APIs in ValveResourceFormat and Renderer; keep them concise and use `<inheritdoc/>` on overrides that add nothing new
 
-### AnimGraphEngine context:
-- MathF operations instead of (float)Math
-- C# implementation of GetValue returns the value directly, instead of updating an instance member.
-- Prefer early returns.
-- We don't use tasks / tasklist. Pose is computed synchronously on each node.
-- C++ has on demand initialize and shutdown of nodes. In C# we initialize all nodes at once when creating the graph.
-- Don't bother writing tests.
-- We are ignoring SyncTrack, SampledEventRange for now.
-- No, we do not initialize and shutdown nodes.
-- Maybe we should do Start and Stop that replaces the shutdown/initialize pattern.
-- Get***() functions are just properties in C#.
-- MathUtils.Saturate() instead of clamp between 0 and 1.
-
-
 ## Before Committing Checklist
 
 Run these once when the work is done, not after every edit. While iterating, build only the project you changed.
