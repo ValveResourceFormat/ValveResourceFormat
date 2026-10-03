@@ -22,6 +22,7 @@ namespace ValveResourceFormat.Renderer
             public bool IsContinuous;
             public bool HasEquality;
             public bool IsIndex;
+            public bool IsRate;
             public bool AllWhole = true;
 
             public void Add(float value)
@@ -38,6 +39,7 @@ namespace ValveResourceFormat.Renderer
                 IsContinuous |= other.IsContinuous;
                 HasEquality |= other.HasEquality;
                 IsIndex |= other.IsIndex;
+                IsRate |= other.IsRate;
                 AllWhole &= other.AllWhole;
             }
         }
@@ -89,6 +91,30 @@ namespace ValveResourceFormat.Renderer
             var isWholeNumber = usage.AllWhole && !usage.IsContinuous;
             var isDiscrete = isWholeNumber && (usage.HasEquality || usage.IsIndex) && usage.Max - usage.Min < MaxDiscreteValues;
             return new FloatParameterRange(usage.Min, usage.Max, isWholeNumber, isDiscrete);
+        }
+
+        /// <summary>
+        /// Starts rate parameters at 1 rather than 0, which would freeze what they scale: those a speed scale
+        /// reads, and scales whose range ends at 1.
+        /// </summary>
+        private void SetNeutralFloatDefaults()
+        {
+            foreach (var parameterName in FloatParameters.Keys.ToArray())
+            {
+                var usage = new FloatUsage();
+
+                if (!MergeFloatUsage(parameterName, usage))
+                {
+                    continue;
+                }
+
+                var isScale = parameterName.Contains("scale", StringComparison.OrdinalIgnoreCase) && (usage.Min == 1f || usage.Max == 1f);
+
+                if (usage.IsRate || isScale)
+                {
+                    FloatParameters[parameterName] = 1f;
+                }
+            }
         }
 
         private bool MergeFloatUsage(string parameterName, FloatUsage usage)
@@ -169,6 +195,7 @@ namespace ValveResourceFormat.Renderer
                     case SpeedScaleNode speedScale:
                         // A playback rate multiplier, the graph itself does not bound it
                         AddFloatRange(nodes, speedScale.InputValueNodeIdx, 0f, 2f);
+                        AddFloatUsage(nodes, speedScale.InputValueNodeIdx, static usage => usage.IsRate = true);
                         break;
                     case Blend2DNode blend:
                         foreach (var value in blend.Values)

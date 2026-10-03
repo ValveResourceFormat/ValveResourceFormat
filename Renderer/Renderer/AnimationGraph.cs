@@ -166,6 +166,7 @@ namespace ValveResourceFormat.Renderer
             signaledBoolParameters.EnsureCapacity(BoolParameters.Count);
             graphContext = new AnimLib.GraphContext(graph, this);
             CollectParameterUsage(graphContext.Nodes);
+            SetNeutralFloatDefaults();
         }
 
         /// <summary>
