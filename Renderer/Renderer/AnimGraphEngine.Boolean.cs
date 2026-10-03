@@ -516,13 +516,19 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
-    // External poses and external graph slots are never attached in the viewer, so these are
-    // faithfully always false.
     partial class IsExternalPoseSetNode
     {
-        protected override bool GetValueInternal(GraphContext ctx) => false;
+        ExternalPoseNode ExternalPoseNode;
+
+        public override void Instantiate(GraphContext ctx)
+        {
+            ctx.SetNodeFromIndex(ExternalPoseNodeIdx, ref ExternalPoseNode);
+        }
+
+        protected override bool GetValueInternal(GraphContext ctx) => ExternalPoseNode.IsPoseSet;
     }
 
+    // External graph slots are never attached in the viewer
     partial class IsExternalGraphSlotFilledNode
     {
         protected override bool GetValueInternal(GraphContext ctx) => false;

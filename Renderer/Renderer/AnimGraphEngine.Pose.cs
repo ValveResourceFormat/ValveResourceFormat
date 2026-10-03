@@ -295,6 +295,54 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    // A pose supplied by game code. Only its root motion is used; the viewer never sets one.
+    partial class ExternalPoseNode
+    {
+        public bool IsPoseSet { get; private set; }
+
+        Transform poseRootMotion = Transform.Identity;
+        bool hasRootMotion;
+        bool isRootMotionDelta = true;
+
+        public override bool IsValid => IsPoseSet;
+
+        public void SetPoseData(Transform rootMotion, bool isDelta)
+        {
+            IsPoseSet = true;
+            poseRootMotion = rootMotion;
+            hasRootMotion = true;
+            isRootMotionDelta = isDelta;
+        }
+
+        public void ClearPoseData()
+        {
+            IsPoseSet = false;
+            poseRootMotion = Transform.Identity;
+            hasRootMotion = false;
+            isRootMotionDelta = true;
+        }
+
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
+        {
+            base.InitializeInternal(ctx, initialTime);
+            PreviousTime = CurrentTime = 1f;
+            Duration = 0f;
+        }
+
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
+        {
+            var result = base.Update(ctx);
+
+            if (!IsValid || !hasRootMotion)
+            {
+                return result;
+            }
+
+            result.RootMotionDelta = isRootMotionDelta ? poseRootMotion : poseRootMotion * ctx.WorldTransformInverse;
+            return result;
+        }
+    }
+
     #region Animation Source Nodes
     partial class ClipNode
     {
