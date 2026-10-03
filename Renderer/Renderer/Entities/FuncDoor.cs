@@ -5,8 +5,8 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>
 /// <c>func_door</c>. A brush that slides open along its <c>movedir</c> and back again, Source's
 /// <c>CBaseDoor</c>. It opens when used, told to, or walked into, and a walk into it can be passed on to the
-/// doors it chains to. Not simulated: the sounds, the <c>master</c> that has to be triggered first, the
-/// blocking behaviour that reverses a door onto whoever stands in it, and the door groups that open together.
+/// doors it chains to. Something in its way turns it around. Not simulated: the sounds, the <c>master</c>
+/// that has to be triggered first, the damage it deals whatever blocks it, and the door groups that open together.
 /// </summary>
 public class FuncDoor : BaseToggle
 {
@@ -269,6 +269,57 @@ public class FuncDoor : BaseToggle
                 door.OnTouch(other);
                 door.isChaining = false;
             }
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void OnStartBlocked(BaseEntity blocker)
+        => EntitySystem.TriggerOutput(this, State == ToggleState.GoingDown ? "OnBlockedClosing" : "OnBlockedOpening", blocker);
+
+    /// <inheritdoc/>
+    protected override void OnEndBlocked()
+        => EntitySystem.TriggerOutput(this, State == ToggleState.GoingDown ? "OnUnblockedClosing" : "OnUnblockedOpening", this);
+
+    /// <summary>
+    /// Runs on every tick something blocks the door. Source's <c>CBaseDoor::Blocked</c>: unless it closes
+    /// through or never comes back by itself, the door turns around, and so does every door sharing its name.
+    /// </summary>
+    protected override void OnBlocked(BaseEntity blocker)
+    {
+        if (ForceClosed)
+        {
+            return;
+        }
+
+        if (Wait >= 0f)
+        {
+            Reverse();
+        }
+
+        if (string.IsNullOrEmpty(TargetName))
+        {
+            return;
+        }
+
+        foreach (var entity in EntitySystem.FindAllByTargetName(TargetName, Scene))
+        {
+            if (entity != this && entity is FuncDoor { Wait: >= 0f } door)
+            {
+                door.Reverse();
+            }
+        }
+    }
+
+    // A door that was closing opens again, anything else closes
+    private void Reverse()
+    {
+        if (State == ToggleState.GoingDown)
+        {
+            GoUp();
+        }
+        else
+        {
+            GoDown();
         }
     }
 

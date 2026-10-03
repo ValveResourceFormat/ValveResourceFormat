@@ -112,6 +112,12 @@ public abstract class BaseEntity
     private ParentFrameKind parentFrameKind;
     private string? parentAttachmentName;
 
+    // Entities whose pose is relative to this one
+    private readonly List<BaseEntity> moveChildren = [];
+
+    // What blocked the last push, Source's m_pBlocker
+    private BaseEntity? currentBlocker;
+
     /// <summary>
     /// Resolves <c>parentname</c> once everything has spawned, and turns the authored world pose into one
     /// local to the parent, the way the engine does at spawn.
@@ -204,6 +210,8 @@ public abstract class BaseEntity
                 SetWorldPose(world);
             }
         }
+
+        MoveParent.moveChildren.Add(this);
 
         SnapInterpolation();
     }
@@ -721,9 +729,10 @@ public abstract class BaseEntity
 
         PhysicsSimulate(moveTime);
 
-        if (IsPusher && MovedThisTick())
+        // Only for its own motion, as what it rode was pushed with the parent already
+        if (IsPusher && (previousOrigin != origin || previousAngles != angles))
         {
-            PushPlayer(moveTime);
+            UpdateBlocker(PushPlayer());
         }
 
         if (MoveDoneTime > 0f && MoveDoneTime <= EntitySystem.CurrentTime)
@@ -784,28 +793,42 @@ public abstract class BaseEntity
     /// design - the collider only ever moves here, so this is the only moment penetration can appear,
     /// and the depth is bounded by what the pose swept this tick. The displacement is reserved rather
     /// than teleported: the controller walks it as real motion spread over the following interval.
+    /// Everything parented to the pusher is pushed with it as one body, as the engine does, so a prop
+    /// riding a door carries and blocks like the door itself.
     /// </summary>
-    private void PushPlayer(float moveTime)
+    /// <returns>What blocked the push, or <see langword="null"/>.</returns>
+    private PlayerEntity? PushPlayer()
     {
         if (EntitySystem.Player is not { IsRemoved: false } player
             || !player.Controller.IsActive
-            || Collider is not { IsEmpty: false } collider
-            || !IsSolid || IsTrigger || Scene != player.Scene
+            || Scene != player.Scene
             || !player.TryGetTouchBounds(out var center, out var halfExtents))
         {
-            return;
+            return null;
+        }
+
+        List<BaseEntity> pushed = [];
+        CollectPushed(pushed);
+
+        if (pushed.Count == 0)
+        {
+            return null;
         }
 
         var controller = player.Controller;
         var carried = Vector3.Zero;
+
+        // Where the hull lands once the carry the frames have not walked yet is done, as the controller
+        // validates pushes from there too
+        center += controller.PendingPush;
 
         // Riders first: standing on the surface means moving with it, by the transform delta at the
         // feet rather than a velocity integrated over frames that never quite lands on it. Only with
         // the hull center over the surface: the ground probe is hull-sized and grounds on a sliver
         // at the rim, and carrying that contact rubber-bands a player walking off the edge into
         // orbiting with the mover instead of leaving it.
-        if (controller.GroundEntity == this
-            && collider.TraceRay(center, center - new Vector3(0, 0, halfExtents.Z + 2f), Rubikon.Cs2PlayerCollisionFilter) is { Hit: true })
+        if (controller.GroundEntity is { } ground && pushed.Contains(ground)
+            && ground.Collider!.TraceRay(center, center - new Vector3(0, 0, halfExtents.Z + 2f), Rubikon.Cs2PlayerCollisionFilter) is { Hit: true })
         {
             // Anchored at the fully corrected position: the walked-off remainder still owed keeps
             // position + pending on the exact carried trajectory, so a rotation's carry cannot
@@ -816,6 +839,41 @@ public abstract class BaseEntity
             center += carried;
         }
 
+        var shoved = Vector3.Zero;
+
+        foreach (var entity in pushed)
+        {
+            if (!TryShoveOutOf(entity.Collider!, controller, center + shoved, halfExtents, out var moved))
+            {
+                return Blocked(controller, carried, shoved + moved) ? player : null;
+            }
+
+            shoved += moved;
+        }
+
+        return null;
+    }
+
+    // This entity and everything riding it that the player can collide with
+    private void CollectPushed(List<BaseEntity> pushed)
+    {
+        if (IsCollidable)
+        {
+            pushed.Add(this);
+        }
+
+        foreach (var child in moveChildren)
+        {
+            child.CollectPushed(pushed);
+        }
+    }
+
+    // Shoves the hull out of a collider this tick's motion put it into. False when it cannot get out,
+    // with whatever was shoved regardless.
+    private bool TryShoveOutOf(EntityCollider collider, IPlayerController controller, Vector3 center, Vector3 halfExtents, out Vector3 shoved)
+    {
+        shoved = Vector3.Zero;
+
         // Shrunk like the movement code's own overlap probes: the SAT test is exact, and a hull
         // resting its SurfaceEpsilon gap away reads as touching at times, which would jitter false pushes
         const float ProbeShrink = Rubikon.SurfaceEpsilon / 2f;
@@ -824,7 +882,7 @@ public abstract class BaseEntity
 
         if (!collider.OverlapsVolume(center, probeExtents))
         {
-            return;
+            return true;
         }
 
         // The shove follows the motion at the hull, kept horizontal so a door pushes rather than
@@ -834,15 +892,22 @@ public abstract class BaseEntity
 
         if (direction.LengthSquared() < 1e-8f)
         {
-            // A vertically-moving surface pushes straight away from itself instead
-            direction = center - collider.WorldBounds.Center;
-            direction.Z = 0f;
+            if (motion.Z > 0f)
+            {
+                // A rising surface lifts whoever it came up under, as the engine pushes along the motion
+                direction = Vector3.UnitZ;
+            }
+            else
+            {
+                // A sinking one pushes straight away from itself instead, as pushing down only buries
+                direction = center - collider.WorldBounds.Center;
+                direction.Z = 0f;
+            }
         }
 
         if (direction.LengthSquared() < 1e-8f)
         {
-            Blocked(controller, carried, Vector3.Zero, moveTime);
-            return;
+            return false;
         }
 
         direction = Vector3.Normalize(direction);
@@ -883,30 +948,26 @@ public abstract class BaseEntity
             // Immediate, unlike the carry: a depenetration is a correction, and the hull leaving the
             // pusher right here is what keeps its faces plainly solid to the player's own movement.
             var shove = direction * (clear + ProbeShrink + Rubikon.SurfaceEpsilon);
-            var moved = controller.Push(shove, immediate: true);
+            shoved = controller.Push(shove, immediate: true);
 
-            if (moved != shove && collider.OverlapsVolume(center + moved, probeExtents))
-            {
-                // A wall took part of the push: squeezed between this entity and the world
-                Blocked(controller, carried, moved, moveTime);
-            }
-
-            return;
+            // A wall that took part of the push squeezes the player between this and the world
+            return shoved == shove || !collider.OverlapsVolume(center + shoved, probeExtents);
         }
 
-        Blocked(controller, carried, Vector3.Zero, moveTime);
+        return false;
     }
 
     /// <summary>
     /// A push the player cannot escape: a forcing pusher squeezes on, anything else takes this tick's
     /// motion back - the carry and shove included - and waits, its arrival postponed by the same.
     /// </summary>
-    private void Blocked(IPlayerController controller, Vector3 carried, Vector3 shoved, float moveTime)
+    /// <returns><see langword="true"/> when the motion was taken back.</returns>
+    private bool Blocked(IPlayerController controller, Vector3 carried, Vector3 shoved)
     {
         // The push already went as far as the world allowed, and the motion stands
         if (PusherForcesThrough)
         {
-            return;
+            return false;
         }
 
         // Undone the way each was applied: the reserved carry cancels out of the queue, the
@@ -916,27 +977,76 @@ public abstract class BaseEntity
 
         SetOriginAndAngles(previousOrigin, previousAngles);
 
+        // The engine measures the arrival on the entity's own clock, which a blocked tick winds back, so
+        // the arrival slips by the whole tick. Moving it by only the clamped final step can land it in the
+        // past, where a negative delay would cancel the arrival and leave the entity travelling forever.
         if (MoveDoneTime > 0f)
         {
-            SetMoveDoneTime(MoveDoneTime - EntitySystem.CurrentTime + moveTime);
+            MoveDoneTime += EntitySystem.TickInterval;
+        }
+
+        return true;
+    }
+
+    // Source's pusher remembers what blocked it, telling the entity when that changes and then on every
+    // blocked tick
+    private void UpdateBlocker(BaseEntity? blocker)
+    {
+        if (blocker != currentBlocker)
+        {
+            if (currentBlocker != null)
+            {
+                OnEndBlocked();
+            }
+
+            currentBlocker = blocker;
+
+            if (blocker != null)
+            {
+                OnStartBlocked(blocker);
+            }
+        }
+
+        if (blocker != null)
+        {
+            OnBlocked(blocker);
         }
     }
 
-    /// <summary>Where this tick's motion took a world point, minus where it was: the rigid displacement.</summary>
+    /// <summary>Runs on the first tick a push is blocked by <paramref name="blocker"/>. Source's <c>StartBlocked</c>.</summary>
+    /// <param name="blocker">What the push could not move.</param>
+    protected virtual void OnStartBlocked(BaseEntity blocker)
+    {
+    }
+
+    /// <summary>
+    /// Runs on every tick a push is blocked, after the tick's motion was taken back. Source's <c>Blocked</c>.
+    /// </summary>
+    /// <param name="blocker">What the push could not move.</param>
+    protected virtual void OnBlocked(BaseEntity blocker)
+    {
+    }
+
+    /// <summary>Runs on the first push that is no longer blocked. Source's <c>EndBlocked</c>.</summary>
+    protected virtual void OnEndBlocked()
+    {
+    }
+
+    /// <summary>
+    /// Where this tick's own motion took a world point, minus where it was: the rigid displacement. The
+    /// move parent's motion is left out, as the parent's push already carried the player with it.
+    /// </summary>
     private Vector3 TickDisplacementAt(Vector3 point)
     {
-        if (!Matrix4x4.Invert(PreviousRigidTransform, out var previousToLocal))
+        var previous = EntityTransformHelper.ToRigidTransformationMatrix(previousAngles, previousOrigin) * GetParentFrame();
+
+        if (!Matrix4x4.Invert(previous, out var previousToLocal))
         {
             return Vector3.Zero;
         }
 
         return Vector3.Transform(Vector3.Transform(point, previousToLocal), RigidTransform) - point;
     }
-
-    // The world pose the tick started from, the parent included
-    private Matrix4x4 PreviousRigidTransform
-        => EntityTransformHelper.ToRigidTransformationMatrix(previousAngles, previousOrigin)
-        * (parentFrameKind == ParentFrameKind.Entity ? MoveParent!.PreviousRigidTransform : GetParentFrame());
 
     /// <summary>The farthest this tick's motion displaced any corner of a hull, or its center.</summary>
     private float MaxHullDisplacement(Vector3 center, Vector3 halfExtents)
@@ -1167,12 +1277,16 @@ public abstract class BaseEntity
     /// </remarks>
     protected void UpdateColliderTransform()
     {
-        if (Collider == null)
-        {
-            return;
-        }
+        Collider?.Transform = RigidTransform;
 
-        Collider.Transform = RigidTransform;
+        // Children ride this pose without moving themselves, so their shapes have to follow it here
+        foreach (var child in moveChildren)
+        {
+            if (!child.IsRemoved)
+            {
+                child.UpdateColliderTransform();
+            }
+        }
     }
 
     /// <summary>
