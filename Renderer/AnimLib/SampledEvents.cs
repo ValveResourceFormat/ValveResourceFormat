@@ -140,6 +140,8 @@ class SampledEventsBuffer
 
     public void Clear() => events.Clear();
 
+    public void RemoveAt(int index) => events.RemoveAt(index);
+
     /// <summary>Appends all of another buffer's events, e.g. to surface a child graph's events to its parent.</summary>
     public void AppendFrom(SampledEventsBuffer other)
     {

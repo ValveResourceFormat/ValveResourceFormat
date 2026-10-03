@@ -515,77 +515,25 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             var isFromActiveBranch = ctx.BranchState == BranchState.Active;
             var startCount = ctx.SampledEvents.Count;
-            FrameSnapEventMode? snapMode = null;
 
-            var events = clip.Animation.Events;
-            var clipDuration = clip.Animation.Duration;
+            // Reversed playback covers the mirrored clip range: invert the times and swap the
+            // start and end (Esoterica AnimationClipNode::CalculateResult).
+            var from = shouldPlayInReverse ? 1f - CurrentTime : PreviousTime;
+            var to = shouldPlayInReverse ? 1f - PreviousTime : CurrentTime;
 
-            if (events.Length > 0 && clipDuration > 0f)
+            // Duration events report how far through they are at the clip time reached this
+            // update (Esoterica uses the single sample end time, also for looped ranges),
+            // mirrored back for reversed playback.
+            var sampleEndTime = shouldPlayInReverse ? 1f - CurrentTime : CurrentTime;
+
+            if (to >= from)
             {
-                // Reversed playback covers the mirrored clip range: invert the times and swap the
-                // start and end (Esoterica AnimationClipNode::CalculateResult).
-                var from = shouldPlayInReverse ? 1f - CurrentTime : PreviousTime;
-                var to = shouldPlayInReverse ? 1f - PreviousTime : CurrentTime;
-
-                // Duration events report how far through they are at the clip time reached this
-                // update (Esoterica uses the single sample end time, also for looped ranges),
-                // mirrored back for reversed playback.
-                var sampleEndTime = shouldPlayInReverse ? 1f - CurrentTime : CurrentTime;
-
-                // Every event whose time range overlaps [from, to) is sampled, with the trailing edge
-                // included at the very end of the clip (Esoterica AnimationClip::GetEventsForRange).
-                // A wrapped range (looping) samples [from, 1) and [0, to).
-                void SampleRange(float rangeFrom, float rangeTo, bool includeEnd)
-                {
-                    foreach (var clipEvent in events)
-                    {
-                        var eventStart = clipEvent.StartCycle;
-                        var eventEnd = eventStart + (clipEvent.Duration / clipDuration);
-
-                        var overlaps = clipEvent.Duration > 0f
-                            ? eventStart < rangeTo && eventEnd > rangeFrom
-                            : eventStart >= rangeFrom && (eventStart < rangeTo || (includeEnd && eventStart <= rangeTo && rangeTo >= 1f));
-
-                        if (clipEvent.Duration > 0f && includeEnd && rangeTo >= 1f && eventEnd >= 1f && eventStart < 1f)
-                        {
-                            overlaps = overlaps || eventStart < rangeTo;
-                        }
-
-                        if (!overlaps)
-                        {
-                            continue;
-                        }
-
-                        var percentageThrough = 1f;
-                        if (clipEvent.Duration > 0f)
-                        {
-                            percentageThrough = MathUtils.Saturate((sampleEndTime - eventStart) / (eventEnd - eventStart));
-                            if (shouldPlayInReverse)
-                            {
-                                percentageThrough = 1f - percentageThrough;
-                            }
-                        }
-
-                        if (clipEvent.ClassName == "CNmFrameSnapEvent")
-                        {
-                            snapMode = Enum.TryParse<FrameSnapEventMode>(clipEvent.Data.GetStringProperty("m_frameSnapMode", string.Empty), out var mode)
-                                ? mode
-                                : FrameSnapEventMode.Floor;
-                        }
-
-                        ctx.SampledEvents.EmplaceAnimationEvent(NodeIdx, clipEvent, percentageThrough, isFromActiveBranch);
-                    }
-                }
-
-                if (to >= from)
-                {
-                    SampleRange(from, to, to >= 1f);
-                }
-                else // Looped this update
-                {
-                    SampleRange(from, 1f, true);
-                    SampleRange(0f, to, false);
-                }
+                SampleEventsInRange(ctx, NodeIdx, clip, from, to, to >= 1f, sampleEndTime, shouldPlayInReverse, isFromActiveBranch);
+            }
+            else // Looped this update
+            {
+                SampleEventsInRange(ctx, NodeIdx, clip, from, 1f, true, sampleEndTime, shouldPlayInReverse, isFromActiveBranch);
+                SampleEventsInRange(ctx, NodeIdx, clip, 0f, to, false, sampleEndTime, shouldPlayInReverse, isFromActiveBranch);
             }
 
             // Emit this clip node's authored graph events every update (Generic type)
@@ -595,8 +543,325 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             result.SampledEventRange = new(startCount, ctx.SampledEvents.Count);
+
+            // The last snap to frame event decides
+            FrameSnapEventMode? snapMode = null;
+            for (var i = startCount; i < ctx.SampledEvents.Count; i++)
+            {
+                if (TryGetFrameSnapMode(ctx.SampledEvents[i], out var mode))
+                {
+                    snapMode = mode;
+                }
+            }
+
             return snapMode;
         }
+
+        public static bool TryGetFrameSnapMode(in SampledEvent sampledEvent, out FrameSnapEventMode mode)
+        {
+            mode = FrameSnapEventMode.Floor;
+
+            if (sampledEvent.AnimEvent?.ClassName != "CNmFrameSnapEvent")
+            {
+                return false;
+            }
+
+            if (Enum.TryParse<FrameSnapEventMode>(sampledEvent.AnimEvent.Data.GetStringProperty("m_frameSnapMode", string.Empty), out var parsed))
+            {
+                mode = parsed;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Samples every clip event whose time range overlaps [rangeFrom, rangeTo), with the trailing
+        /// edge included at the very end of the clip (Esoterica AnimationClip::GetEventsForRange).
+        /// </summary>
+        public static void SampleEventsInRange(GraphContext ctx, short nodeIdx, GraphClip clip, float rangeFrom, float rangeTo, bool includeEnd, float sampleEndTime, bool playInReverse, bool isFromActiveBranch)
+        {
+            var events = clip.Animation.Events;
+            var clipDuration = clip.Animation.Duration;
+
+            if (events.Length == 0 || clipDuration <= 0f)
+            {
+                return;
+            }
+
+            foreach (var clipEvent in events)
+            {
+                var eventStart = clipEvent.StartCycle;
+                var eventEnd = eventStart + (clipEvent.Duration / clipDuration);
+
+                var overlaps = clipEvent.Duration > 0f
+                    ? eventStart < rangeTo && eventEnd > rangeFrom
+                    : eventStart >= rangeFrom && (eventStart < rangeTo || (includeEnd && eventStart <= rangeTo && rangeTo >= 1f));
+
+                if (clipEvent.Duration > 0f && includeEnd && rangeTo >= 1f && eventEnd >= 1f && eventStart < 1f)
+                {
+                    overlaps = overlaps || eventStart < rangeTo;
+                }
+
+                if (!overlaps)
+                {
+                    continue;
+                }
+
+                var percentageThrough = 1f;
+                if (clipEvent.Duration > 0f)
+                {
+                    percentageThrough = MathUtils.Saturate((sampleEndTime - eventStart) / (eventEnd - eventStart));
+                    if (playInReverse)
+                    {
+                        percentageThrough = 1f - percentageThrough;
+                    }
+                }
+
+                ctx.SampledEvents.EmplaceAnimationEvent(nodeIdx, clipEvent, percentageThrough, isFromActiveBranch);
+            }
+        }
+    }
+
+    // Plays a clip at a time set directly by a value node rather than advancing it.
+    partial class TimeControlledClipNode
+    {
+        public GraphClip? Clip;
+        FloatValueNode? TimeValueNode;
+        BoolValueNode? PlayInReverseValueNode;
+
+        bool shouldPlayInReverse;
+        bool isFirstUpdate;
+        bool hasLooped;
+        bool warnedSync;
+
+        public override void Instantiate(GraphContext ctx)
+        {
+            base.Instantiate(ctx);
+            ctx.SetOptionalNodeFromIndex(TimeValueNodeIdx, ref TimeValueNode);
+            ctx.SetOptionalNodeFromIndex(PlayInReverseValueNodeIdx, ref PlayInReverseValueNode);
+
+            Clip = DataSlotIdx >= 0 && DataSlotIdx < ctx.Graph.DataSlots.Length ? ctx.Graph.DataSlots[DataSlotIdx] : null;
+        }
+
+        public override bool IsValid => Clip != null;
+
+        public override SyncTrack SyncTrack => Clip?.SyncTrack ?? SyncTrack.Default;
+
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
+        {
+            base.InitializeInternal(ctx, initialTime);
+
+            TimeValueNode?.Initialize(ctx);
+            PlayInReverseValueNode?.Initialize(ctx);
+
+            if (Clip != null)
+            {
+                Duration = Clip.Duration;
+            }
+
+            // Set the initial time from the parameters
+            SetCurrentTimeFromParameters(ctx);
+            PreviousTime = CurrentTime;
+
+            shouldPlayInReverse = false;
+            isFirstUpdate = true;
+            hasLooped = false;
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            PlayInReverseValueNode?.Shutdown(ctx);
+            TimeValueNode?.Shutdown(ctx);
+
+            CurrentTime = PreviousTime = 0f;
+            base.ShutdownInternal(ctx);
+        }
+
+        void SetCurrentTimeFromParameters(GraphContext ctx)
+        {
+            var value = TimeValueNode?.GetValue(ctx) ?? 0f;
+
+            // Normalized time, where a whole number of loops reads as the end of the clip
+            var loopCount = MathF.Truncate(value);
+            CurrentTime = value - loopCount;
+            if (loopCount > 0f && CurrentTime == 0f)
+            {
+                CurrentTime = 1f;
+            }
+
+            // Handle negative input values
+            if (CurrentTime < 0f)
+            {
+                CurrentTime = 1f - MathF.Abs(CurrentTime);
+            }
+
+            Debug.Assert(CurrentTime >= 0f && CurrentTime <= 1f);
+
+            // Invert input time if we are in-reverse
+            if (shouldPlayInReverse)
+            {
+                CurrentTime = 1f - CurrentTime;
+            }
+        }
+
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
+        {
+            if (Clip == null)
+            {
+                return base.Update(ctx);
+            }
+
+            hasLooped = false;
+
+            if (updateRange != null && !warnedSync)
+            {
+                warnedSync = true;
+                ctx.LogWarning(NodeIdx, "Time controlled nodes ignore synchronization!");
+            }
+
+            // Should we change the playback direction?
+            if (PlayInReverseValueNode != null && shouldPlayInReverse != PlayInReverseValueNode.GetValue(ctx))
+            {
+                shouldPlayInReverse = !shouldPlayInReverse;
+                CurrentTime = 1f - CurrentTime;
+
+                if (CurrentTime == 1f)
+                {
+                    CurrentTime = 0f;
+                }
+            }
+
+            if (Clip.FrameCount == 1)
+            {
+                PreviousTime = isFirstUpdate ? 0f : 1f;
+                CurrentTime = 1f;
+            }
+            else
+            {
+                PreviousTime = CurrentTime;
+                SetCurrentTimeFromParameters(ctx);
+
+                // Check for looping
+                if (CurrentTime < PreviousTime)
+                {
+                    hasLooped = true;
+                }
+            }
+
+            return CalculateResult(ctx, Clip);
+        }
+
+        GraphPoseNodeResult CalculateResult(GraphContext ctx, GraphClip clip)
+        {
+            var result = base.Update(ctx);
+
+            var actualSampleStartTime = PreviousTime;
+            var actualSampleEndTime = CurrentTime;
+
+            // Invert times and swap the start and end times to create the correct sampling range for events
+            if (shouldPlayInReverse)
+            {
+                actualSampleEndTime = 1f - CurrentTime;
+                actualSampleStartTime = 1f - PreviousTime;
+            }
+
+            // Events
+            var startCount = ctx.SampledEvents.Count;
+            var isFromActiveBranch = ctx.BranchState == BranchState.Active;
+
+            var eventSampleStartTime = shouldPlayInReverse ? actualSampleEndTime : actualSampleStartTime;
+            var eventSampleEndTime = shouldPlayInReverse ? actualSampleStartTime : actualSampleEndTime;
+            var sampleEndTime = shouldPlayInReverse ? 1f - CurrentTime : CurrentTime;
+
+            if (hasLooped)
+            {
+                ClipNode.SampleEventsInRange(ctx, NodeIdx, clip, eventSampleStartTime, 1f, true, sampleEndTime, shouldPlayInReverse, isFromActiveBranch);
+                ClipNode.SampleEventsInRange(ctx, NodeIdx, clip, 0f, eventSampleEndTime, eventSampleEndTime >= 1f, sampleEndTime, shouldPlayInReverse, isFromActiveBranch);
+
+                // Long duration events can be sampled by both ranges, drop the duplicates
+                for (var i = ctx.SampledEvents.Count - 1; i >= startCount; i--)
+                {
+                    for (var j = startCount; j < i; j++)
+                    {
+                        if (IsSameSampledEvent(ctx.SampledEvents[i], ctx.SampledEvents[j]))
+                        {
+                            ctx.SampledEvents.RemoveAt(j);
+                            break;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                ClipNode.SampleEventsInRange(ctx, NodeIdx, clip, eventSampleStartTime, eventSampleEndTime, eventSampleEndTime >= 1f, sampleEndTime, shouldPlayInReverse, isFromActiveBranch);
+            }
+
+            foreach (var graphEventID in GraphEvents)
+            {
+                ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, GraphEventType.Generic, graphEventID, isFromActiveBranch);
+            }
+
+            result.SampledEventRange = new(startCount, ctx.SampledEvents.Count);
+
+            // The first snap to frame event decides
+            FrameSnapEventMode? snapMode = null;
+            for (var i = startCount; i < ctx.SampledEvents.Count; i++)
+            {
+                if (ClipNode.TryGetFrameSnapMode(ctx.SampledEvents[i], out var mode))
+                {
+                    snapMode = mode;
+                    break;
+                }
+            }
+
+            // Root motion
+            if (SampleRootMotion)
+            {
+                if (shouldPlayInReverse)
+                {
+                    if (PreviousTime <= CurrentTime)
+                    {
+                        result.RootMotionDelta = clip.GetRootMotionDeltaNoLooping(actualSampleStartTime, actualSampleEndTime);
+                    }
+                    else
+                    {
+                        var preLoopDelta = clip.GetRootMotionDeltaNoLooping(actualSampleStartTime, 0f);
+                        var postLoopDelta = clip.GetRootMotionDeltaNoLooping(1f, actualSampleEndTime);
+                        result.RootMotionDelta = postLoopDelta * preLoopDelta;
+                    }
+                }
+                else
+                {
+                    result.RootMotionDelta = clip.GetRootMotionDelta(PreviousTime, CurrentTime);
+                }
+            }
+
+            // Pose
+            var sampleTime = shouldPlayInReverse ? 1f - CurrentTime : CurrentTime;
+
+            if (snapMode is { } frameSelectionMode)
+            {
+                var frameTime = clip.GetFrameTime(sampleTime);
+                var frameIndex = frameSelectionMode == FrameSnapEventMode.Round ? frameTime.NearestFrameIndex : frameTime.LowerBoundFrameIndex;
+                sampleTime = clip.GetPercentageThrough(frameIndex);
+            }
+
+            clip.SamplePoseAtPercentage(sampleTime, result.Pose);
+
+            isFirstUpdate = false;
+            return result;
+        }
+
+        static bool IsSameSampledEvent(in SampledEvent a, in SampledEvent b)
+            => a.SourceNodeIdx == b.SourceNodeIdx
+            && a.IsGraphEvent == b.IsGraphEvent
+            && a.IsFromActiveBranch == b.IsFromActiveBranch
+            && a.IsIgnored == b.IsIgnored
+            && a.GraphEventType == b.GraphEventType
+            && a.Weight == b.Weight
+            && a.PercentageThrough == b.PercentageThrough
+            && a.ID == b.ID
+            && ReferenceEquals(a.AnimEvent, b.AnimEvent);
     }
 
     partial class AnimationPoseNode
