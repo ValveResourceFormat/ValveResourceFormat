@@ -41,8 +41,38 @@ CS2 additions with no Esoterica analogue, reverse engineered from animationsyste
 ported as is), `BodyGroupNode` (emits its event every update while enabled), `SnapWeaponNode`,
 `IsInactiveBranchConditionNode` (implemented as "currently evaluating an inactive branch").
 
-Viewer-only additions with no C++ analogue: `AnimationGraph.ForceLoopingClips` (UI toggle),
-reference-pose-initialized node buffers (unwritten buffers yield bind pose instead of garbage).
+Viewer-only additions with no C++ analogue:
+
+- `AnimationGraph.ForceLoopingClips` (UI toggle).
+- Reference-pose-initialized node buffers (unwritten buffers yield bind pose instead of garbage).
+- Target parameters are nullable; `null` leaves the target unset, so IK reading it stays off.
+- `AnimationGraph.ParameterHints`: IK and look-at nodes reading a control parameter report the value
+  that would leave the pose as animated (the effector's model space transform, or a point ahead of
+  the look-at effector). Referenced graphs forward hints to the parent parameters feeding them. The
+  viewer starts its target gizmos from these.
+- `AnimationGraph.DescribeState`: parameter values and active state machine states of the graph
+  tree. Exceptions thrown from an update carry it in `Exception.Data`, and the GUI assert handler
+  attaches it too, so crash reports include the graph state.
+- Nodes are created through an explicit switch in `GraphContext.CreateNode` rather than by
+  reflection, which trimming cannot follow. `AnimGraphTest.NodeFactoryKnowsEveryNodeType` fails when
+  a node class is missing from it.
+
+Easy to get wrong, each caused a real bug:
+
+- Referenced graphs map their parameters by name during `Instantiate`, so the parameter lookup must
+  be filled before nodes are instantiated; otherwise no parent parameter reaches a child graph.
+- Bone mask weight lists are sparse. Unlisted bones inherit the weight above them, or feather
+  between listed bones (Esoterica `BoneMask::ResetWeights`); leaving them at zero turns the CS2
+  `UpperBody` mask (only `spine_0` and the weapon bones are listed) into a weapon-only mask.
+- Blend space triangles accept a point only with every barycentric weight in [0, 1]. Any tolerance
+  lets a slightly negative weight push the pairwise weights past 1. A point exactly on a shared
+  interior edge can round outside both triangles and fall back to the hull for that update, as in
+  the reference.
+- Zero poses (additive identity) have zero scale. States without a valid child output the layer's
+  default pose, and transitions take the side that has a pose instead of blending towards one that
+  has none.
+- Parameterized selectors honour `m_bIgnoreInvalidOptions` by initializing each option to test it,
+  as the reference does.
 
 ## CS2 data notes (vpk scan, 2026-07)
 
@@ -52,3 +82,13 @@ previously-unimplemented ones in real use. Clip events across 2355 clips: Sound 
 Particle (189), OrientationWarp (26), MaterialAttribute (15), Legacy (3), FloatCurve (1) — no foot
 or transition events. Forced transitions are common: 699 of 10863 transition definitions across
 159 graphs (knife viewmodels and worldmodel locomotion especially).
+
+Later scan (2026-10, 232 graphs):
+
+- 206 graphs set `m_bIgnoreInvalidOptions`; some options point at no clip (the AK deploy picks
+  between `draw` and an empty `draw1`, weighted 1:8).
+- Player locomotion clips carry no root motion (the game moves the player), so the worldmodel walks
+  in place. Walking needs `ground_action = ground_action_move`, `move_type = move_type_ground` and
+  `move_speed_x/y` (walk 136, run 225).
+- The worldmodel keeps the previous locomotion set while `action` is `action_deploy`.
+- 103 of 777 ID parameters are read by no node in the loaded graph tree, so they have no known values.
