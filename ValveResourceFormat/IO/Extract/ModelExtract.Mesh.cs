@@ -65,14 +65,20 @@ partial class ModelExtract
         /// </summary>
         public Skeleton? Skeleton { get; init; }
 
+        /// <summary>
+        /// Parent-space bone positions to emit in place of the skeleton's own, keyed by bone name
+        /// (see <see cref="ClothExtract.RestBonePositions"/>).
+        /// </summary>
+        internal IReadOnlyDictionary<string, Vector3>? BonePositions { get; init; }
+
         /// <summary>The cloth proxy surface a painted render vertex binds to.</summary>
         internal ClothProxySurface? ClothSurface { get; init; }
 
         /// <summary>
-        /// Writes the mesh without cloth handling: the bones the compiler generated from a cloth proxy stay ordinary
-        /// joints and no <c>cloth_enable</c> paint is written.
+        /// Writes the mesh with cloth handling: the bones the compiler generated from a cloth proxy leave the joint list
+        /// and the weight they held is written as <c>cloth_enable</c> paint. Otherwise they stay ordinary joints.
         /// </summary>
-        internal bool SkipCloth { get; init; }
+        internal bool ReconstructCloth { get; init; }
     }
 
     /// <summary>
@@ -180,7 +186,7 @@ partial class ModelExtract
     /// </summary>
     public static IEnumerable<ContentFile> GetContentFiles_DrawCallSplit(Resource aggregateModelResource, IFileLoader fileLoader, Vector3[] drawOrigins, int drawCallCount)
     {
-        var extract = new ModelExtract(aggregateModelResource, fileLoader) { Type = ModelExtractType.Map_AggregateSplit };
+        var extract = new ModelExtract(aggregateModelResource, fileLoader) { Type = ModelExtractType.Map_AggregateSplit, ExtractCloth = false };
         Debug.Assert(extract.RenderMeshesToExtract.Count == 1);
 
         if (extract.RenderMeshesToExtract.Count == 0)
@@ -196,6 +202,8 @@ partial class ModelExtract
             SplitDrawCallsIntoSeparateSubmeshes = true,
             BoneRemapTable = boneRemapTable,
             Skeleton = skeleton,
+            BonePositions = extract.Cloth.RestBonePositions,
+            ReconstructCloth = extract.ReconstructsCloth,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -262,7 +270,7 @@ partial class ModelExtract
 
         if (options.Skeleton is { Bones.Length: > 0 } skeleton)
         {
-            skeletonRoot = BuildDmeDagSkeleton(skeleton, out _, keepClothProxyBones: options.SkipCloth);
+            skeletonRoot = BuildDmeDagSkeleton(skeleton, out _, bonePositions: options.BonePositions, keepClothProxyBones: !options.ReconstructCloth);
         }
 
         return DmxMeshBuilder.Build(mesh, name, new DmxMeshBuildOptions
@@ -272,7 +280,7 @@ partial class ModelExtract
             MaterialInputSignatures = options.MaterialInputSignatures,
             BoneRemapTable = options.BoneRemapTable,
             SkeletonRoot = skeletonRoot,
-            Cloth = options.SkipCloth ? null : ClothRenderBinding.Create(options.Skeleton, options.ClothSurface),
+            Cloth = options.ReconstructCloth ? ClothRenderBinding.Create(options.Skeleton, options.ClothSurface) : null,
         });
     }
 
