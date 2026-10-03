@@ -88,17 +88,22 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class ControlParameterVectorNode
     {
         string parameterName;
+        AnimationGraph owner;
 
         public override void Instantiate(GraphContext ctx)
         {
             Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Graph.ParameterNames.Length);
             parameterName = ctx.Graph.ParameterNames[NodeIdx];
+            owner = ctx.Graph;
         }
 
         protected override Vector3 GetValueInternal(GraphContext ctx)
         {
-            return ctx.Graph.VectorParameters[parameterName].AsVector3();
+            return owner.VectorParameters[parameterName].AsVector3();
         }
+
+        public void ReportHint(Vector3 position, bool isWorldSpace)
+            => owner.ParameterHints[parameterName] = new(new Transform(position, 1f, Quaternion.Identity), isWorldSpace);
     }
 
     // A virtual parameter is a graph-computed sub-expression: evaluates its child (cached once per update).

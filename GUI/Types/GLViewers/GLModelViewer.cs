@@ -2,11 +2,13 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -71,6 +73,10 @@ namespace GUI.Types.GLViewers
 
         public override void Dispose()
         {
+            // Delete GL resources before the base disposes the GL context
+            graphGizmos?.Delete();
+            graphGizmos = null;
+
             base.Dispose();
 
             animationComboBox?.Dispose();
@@ -569,7 +575,7 @@ namespace GUI.Types.GLViewers
             base.AddUiControls();
         }
 
-        private static void CreateAnimGraphControls(RendererControl uiControl, AnimationGraph animGraph)
+        private void CreateAnimGraphControls(RendererControl uiControl, AnimationGraph animGraph)
         {
             uiControl.AddDivider();
             uiControl.AddLabel($"Animation: {animGraph.Name}");
@@ -612,20 +618,250 @@ namespace GUI.Types.GLViewers
                 combo.SelectedIndex = combo.Items.IndexOf(value);
             }
 
+            foreach (var (paramName, value) in animGraph.VectorParameters)
+            {
+                var binding = new GraphGizmoBinding(paramName, isTarget: false);
+                binding.Fields = uiControl.AddVectorField(paramName, new Vector3(value.X, value.Y, value.Z), vector =>
+                {
+                    animGraph.VectorParameters[paramName] = new Vector4(vector, 0f);
+                    binding.Initialized = true;
+                });
+
+                // Only look-at targets report a hint, so only they get a gizmo
+                uiControl.AddGizmoParameter("Gizmo", binding.Gizmo.Visible, visible => binding.Gizmo.Visible = visible, () => binding.ResetPending = true);
+                graphGizmoBindings.Add(binding);
+            }
+
             foreach (var (paramName, _) in animGraph.TargetParameters)
             {
-                uiControl.AddTargetParameter(paramName, values =>
+                var binding = new GraphGizmoBinding(paramName, isTarget: true);
+
+                // An unset target leaves the IK off and the gizmo on the animated bone
+                uiControl.AddGizmoParameter(paramName, binding.Gizmo.Visible, visible => binding.Gizmo.Visible = visible, () =>
                 {
-                    var position = new System.Numerics.Vector3(values[0], values[1], values[2]);
-                    var rotation = System.Numerics.Quaternion.CreateFromYawPitchRoll(
-                        float.DegreesToRadians(values[3]),
-                        float.DegreesToRadians(values[4]),
-                        float.DegreesToRadians(values[5]));
-                    animGraph.TargetParameters[paramName] = new FrameBone(position, 1f, rotation);
+                    animGraph.TargetParameters[paramName] = null;
                 });
+                graphGizmoBindings.Add(binding);
             }
 
             uiControl.AddDivider();
+        }
+
+        private sealed class GraphGizmoBinding(string parameterName, bool isTarget)
+        {
+            public string ParameterName { get; } = parameterName;
+            public bool IsTarget { get; } = isTarget;
+            public TransformGizmos.Gizmo Gizmo { get; } = new(parameterName, allowRotation: isTarget);
+            public ThemedFloatNumeric[]? Fields { get; set; }
+            public bool IsWorldSpace { get; set; }
+            public volatile bool Initialized;
+            public volatile bool ResetPending;
+        }
+
+        private readonly List<GraphGizmoBinding> graphGizmoBindings = [];
+        private TransformGizmos? graphGizmos;
+
+        // Written on the UI thread, read by the render loop
+        private long gizmoMousePosition;
+        private volatile bool gizmoPressPending;
+        private volatile bool gizmoDragging;
+
+        protected override void OnMouseMove(int x, int y)
+        {
+            Interlocked.Exchange(ref gizmoMousePosition, ((long)x << 32) | (uint)y);
+            base.OnMouseMove(x, y);
+        }
+
+        protected override void OnMouseDown(object? sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left && graphGizmos?.HoveredGizmo != null)
+            {
+                Interlocked.Exchange(ref gizmoMousePosition, ((long)e.X << 32) | (uint)e.Y);
+                gizmoPressPending = true;
+                gizmoDragging = true;
+                GLControl?.Focus();
+                return;
+            }
+
+            base.OnMouseDown(sender, e);
+        }
+
+        protected override void OnMouseUp(object? sender, MouseEventArgs e)
+        {
+            if (gizmoDragging && e.Button == MouseButtons.Left)
+            {
+                gizmoDragging = false;
+                return;
+            }
+
+            base.OnMouseUp(sender, e);
+        }
+
+        protected override void RenderOverlayLines(Scene.RenderContext renderContext)
+        {
+            if (animGraph == null || modelSceneNode == null || graphGizmoBindings.Count == 0)
+            {
+                return;
+            }
+
+            if (graphGizmos == null)
+            {
+                graphGizmos = new TransformGizmos(Scene.RendererContext);
+                graphGizmos.Gizmos.AddRange(graphGizmoBindings.Select(static binding => binding.Gizmo));
+            }
+
+            var camera = renderContext.Camera;
+            var packedMouse = Interlocked.Read(ref gizmoMousePosition);
+            var mouse = new Vector2((int)(packedMouse >> 32), (int)(packedMouse & 0xFFFFFFFF));
+
+            var nodeTransform = modelSceneNode.Transform;
+            if (!Matrix4x4.Invert(nodeTransform, out var nodeInverse))
+            {
+                return;
+            }
+
+            foreach (var binding in graphGizmoBindings)
+            {
+                if (binding.Gizmo != graphGizmos.ActiveGizmo)
+                {
+                    ReadGizmoFromParameter(binding, nodeTransform);
+                }
+            }
+
+            if (gizmoPressPending)
+            {
+                gizmoPressPending = false;
+                graphGizmos.BeginDrag(camera, mouse);
+            }
+
+            if (gizmoDragging && graphGizmos.ActiveGizmo is { } activeGizmo)
+            {
+                graphGizmos.Drag(camera, mouse);
+
+                var binding = graphGizmoBindings.First(binding => binding.Gizmo == activeGizmo);
+                WriteParameterFromGizmo(binding, nodeInverse);
+            }
+            else
+            {
+                if (graphGizmos.ActiveGizmo is { } releasedGizmo)
+                {
+                    graphGizmos.EndDrag();
+                    RefreshVectorFields(graphGizmoBindings.First(binding => binding.Gizmo == releasedGizmo));
+                }
+
+                var cameraDragging = (CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) != 0;
+                if (MouseOverRenderArea && !cameraDragging)
+                {
+                    graphGizmos.UpdateHover(camera, mouse);
+                }
+                else
+                {
+                    graphGizmos.UpdateHover(camera, new Vector2(float.MinValue));
+                }
+            }
+
+            graphGizmos.Render(camera);
+        }
+
+        private void ReadGizmoFromParameter(GraphGizmoBinding binding, Matrix4x4 nodeTransform)
+        {
+            Debug.Assert(animGraph != null);
+
+            var gizmo = binding.Gizmo;
+            var hasHint = animGraph.ParameterHints.TryGetValue(binding.ParameterName, out var hint);
+            binding.IsWorldSpace = hasHint && hint.IsWorldSpace;
+
+            FrameBone parameterValue;
+
+            if (binding.IsTarget)
+            {
+                if (animGraph.TargetParameters.GetValueOrDefault(binding.ParameterName) is { } target)
+                {
+                    parameterValue = target;
+                }
+                else if (hasHint)
+                {
+                    parameterValue = hint.Transform;
+                }
+                else
+                {
+                    gizmo.HasValue = false;
+                    return;
+                }
+            }
+            else
+            {
+                if (!hasHint)
+                {
+                    gizmo.HasValue = false;
+                    return;
+                }
+
+                // Look-at targets start ahead of the head rather than at the origin
+                if (binding.ResetPending || !binding.Initialized)
+                {
+                    binding.ResetPending = false;
+                    binding.Initialized = true;
+                    animGraph.VectorParameters[binding.ParameterName] = new Vector4(hint.Transform.Position, 0f);
+                    RefreshVectorFields(binding);
+                }
+
+                var vector = animGraph.VectorParameters[binding.ParameterName];
+                parameterValue = new FrameBone(new Vector3(vector.X, vector.Y, vector.Z), 1f, Quaternion.Identity);
+            }
+
+            var characterValue = binding.IsWorldSpace ? parameterValue * animGraph.WorldTransform.Inverse() : parameterValue;
+
+            if (!Matrix4x4.Decompose(characterValue.ToMatrix() * nodeTransform, out _, out var rotation, out var position))
+            {
+                gizmo.HasValue = false;
+                return;
+            }
+
+            gizmo.Position = position;
+            gizmo.Rotation = rotation;
+            gizmo.HasValue = true;
+        }
+
+        private void WriteParameterFromGizmo(GraphGizmoBinding binding, Matrix4x4 nodeInverse)
+        {
+            Debug.Assert(animGraph != null);
+
+            var gizmo = binding.Gizmo;
+            var scene = Matrix4x4.CreateFromQuaternion(gizmo.Rotation) * Matrix4x4.CreateTranslation(gizmo.Position);
+
+            if (!Matrix4x4.Decompose(scene * nodeInverse, out _, out var rotation, out var position))
+            {
+                return;
+            }
+
+            var characterValue = new FrameBone(position, 1f, rotation);
+            var parameterValue = binding.IsWorldSpace ? characterValue * animGraph.WorldTransform : characterValue;
+
+            if (binding.IsTarget)
+            {
+                animGraph.TargetParameters[binding.ParameterName] = parameterValue;
+            }
+            else
+            {
+                animGraph.VectorParameters[binding.ParameterName] = new Vector4(parameterValue.Position, 0f);
+            }
+        }
+
+        private void RefreshVectorFields(GraphGizmoBinding binding)
+        {
+            if (animGraph == null || binding.Fields is not { } fields || binding.IsTarget)
+            {
+                return;
+            }
+
+            var vector = animGraph.VectorParameters[binding.ParameterName];
+            fields[0].BeginInvoke(() =>
+            {
+                fields[0].Value = vector.X;
+                fields[1].Value = vector.Y;
+                fields[2].Value = vector.Z;
+            });
         }
 
         protected void SetAnimationControllerUpdateHandler()

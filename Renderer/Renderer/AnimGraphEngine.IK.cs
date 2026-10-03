@@ -76,6 +76,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 return result;
             }
 
+            if (EffectorTargetNode is ControlParameterTargetNode targetParameter)
+            {
+                solvePose.SetParentSpaceTransforms(result.Pose);
+                targetParameter.ReportHint(GetEffectorHint(ctx, effectorBoneIdx), IsTargetInWorldSpace);
+            }
+
             var isIKEnabled = EnabledNode?.GetValue(ctx) ?? true;
             var weight = ikWeight.Update(ctx.DeltaTime, isIKEnabled);
 
@@ -121,6 +127,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
             solvePose.CopyParentSpaceTransformsTo(PoseTransforms);
             result.Pose = PoseTransforms;
             return result;
+        }
+
+        // The target that leaves the effector where the animation put it
+        Transform GetEffectorHint(GraphContext ctx, int boneIdx)
+        {
+            var effector = solvePose.GetModelSpaceTransform(boneIdx);
+            return IsTargetInWorldSpace ? effector * ctx.WorldTransform : effector;
         }
     }
 
@@ -238,6 +251,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 return result;
             }
 
+            if (LeftTargetNode is ControlParameterTargetNode || RightTargetNode is ControlParameterTargetNode)
+            {
+                solvePose.SetParentSpaceTransforms(result.Pose);
+                (LeftTargetNode as ControlParameterTargetNode)?.ReportHint(GetEffectorHint(ctx, leftFootBoneIdx), IsTargetInWorldSpace);
+                (RightTargetNode as ControlParameterTargetNode)?.ReportHint(GetEffectorHint(ctx, rightFootBoneIdx), IsTargetInWorldSpace);
+            }
+
             var isIKEnabled = EnabledNode?.GetValue(ctx) ?? true;
             var weight = ikWeight.Update(ctx.DeltaTime, isIKEnabled);
 
@@ -292,6 +312,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
             solvePose.CopyParentSpaceTransformsTo(PoseTransforms);
             result.Pose = PoseTransforms;
             return result;
+        }
+
+        // The target that leaves the effector where the animation put it
+        Transform GetEffectorHint(GraphContext ctx, int boneIdx)
+        {
+            var effector = solvePose.GetModelSpaceTransform(boneIdx);
+            return IsTargetInWorldSpace ? effector * ctx.WorldTransform : effector;
         }
 
         Transform GetFootTargetTransform(GraphContext ctx, Target target)

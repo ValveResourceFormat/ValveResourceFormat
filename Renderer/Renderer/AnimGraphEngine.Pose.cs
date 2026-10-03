@@ -1129,6 +1129,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             var eventRangeStart = ctx.SampledEvents.Count;
             var childResult = childGraph.Context.EvaluateReferencedGraph(ctx, updateRange);
+            ForwardParameterHintsToParent();
 
             // Surface the child's events so parent conditions can see them
             ctx.SampledEvents.AppendFrom(childGraph.Context.SampledEvents);
@@ -1169,7 +1170,32 @@ namespace ValveResourceFormat.Renderer.AnimLib
                         childGraph.VectorParameters[name] = new Vector4(vectorNode.GetValue(ctx), 0f);
                         break;
                     case TargetValueNode targetNode:
-                        childGraph.TargetParameters[name] = targetNode.GetValue(ctx).Transform;
+                        var target = targetNode.GetValue(ctx);
+                        childGraph.TargetParameters[name] = target.IsSet ? target.Transform : null;
+                        break;
+                }
+            }
+        }
+
+        // Hints reported inside the child graph surface on the parent parameters feeding it
+        private void ForwardParameterHintsToParent()
+        {
+            Debug.Assert(childGraph != null);
+
+            foreach (var (name, source) in parameterMapping)
+            {
+                if (!childGraph.ParameterHints.TryGetValue(name, out var hint))
+                {
+                    continue;
+                }
+
+                switch (source)
+                {
+                    case ControlParameterTargetNode targetParameter:
+                        targetParameter.ReportHint(hint.Transform, hint.IsWorldSpace);
+                        break;
+                    case ControlParameterVectorNode vectorParameter:
+                        vectorParameter.ReportHint(hint.Transform.Position, hint.IsWorldSpace);
                         break;
                 }
             }

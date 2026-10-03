@@ -185,61 +185,36 @@ partial class RendererControl : UserControl
     }
 
     /// <summary>
-    /// Adds an editor for a target (transform) parameter: a position (X/Y/Z) and a rotation
-    /// (Yaw/Pitch/Roll, in degrees). The callback receives the six components whenever any field changes.
+    /// Adds a row for a parameter edited with a gizmo in the viewport: a checkbox showing the gizmo and a
+    /// button returning the parameter to its default.
     /// </summary>
-    public void AddTargetParameter(string name, Action<float[]> changeCallback)
+    public CheckBox AddGizmoParameter(string name, bool defaultVisible, Action<bool> visibleCallback, Action resetCallback)
     {
-        var label = new Label
-        {
-            Text = name,
-            AutoSize = true,
-            Dock = DockStyle.Top,
-            Margin = new Padding(0, 4, 0, 0),
-        };
-        ControlsPanel.Controls.Add(label);
-        SetControlLocation(label);
-
         var flowPanel = new FlowLayoutPanel
         {
             AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = true,
+            WrapContents = false,
             Dock = DockStyle.Top,
             Margin = new Padding(0, 0, 0, 0),
         };
 
-        string[] fieldLabels = ["X", "Y", "Z", "Yaw", "Pitch", "Roll"];
-        var fields = new ThemedFloatNumeric[6];
+        var checkbox = CreateCheckBox(name, defaultVisible, visibleCallback);
 
-        for (var i = 0; i < fields.Length; i++)
+        var resetButton = new ThemedButton
         {
-            flowPanel.Controls.Add(new Label
-            {
-                Text = fieldLabels[i],
-                AutoSize = true,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Margin = new Padding(i == 0 ? 0 : 6, 4, 2, 0),
-            });
+            Text = "Reset",
+            AutoSize = true,
+            Margin = new Padding(0, 0, 0, 0),
+        };
+        resetButton.Click += (_, __) => resetCallback();
 
-            var field = new ThemedFloatNumeric
-            {
-                MinValue = float.MinValue,
-                MaxValue = float.MaxValue,
-                DecimalMax = 3,
-                DragWithinRange = false,
-                Value = 0f,
-                Margin = new Padding(0, 0, 0, 0),
-                Size = new Size(48, 20),
-            };
-
-            field.ValueChanged += (_, __) => changeCallback([.. fields.Select(f => f.Value)]);
-            fields[i] = field;
-            flowPanel.Controls.Add(field);
-        }
-
+        flowPanel.Controls.Add(checkbox);
+        flowPanel.Controls.Add(resetButton);
         ControlsPanel.Controls.Add(flowPanel);
         SetControlLocation(flowPanel);
+
+        return checkbox.CheckBox;
     }
 
     public ThemedFloatNumeric AddNumericField(string name, float startingValue, Action<float> changeCallback)
@@ -280,6 +255,53 @@ partial class RendererControl : UserControl
         ControlsPanel.Controls.Add(flowPanel);
         SetControlLocation(flowPanel);
         return field;
+    }
+
+    /// <summary>
+    /// Adds an X/Y/Z editor for a vector on a single row. The callback receives the vector whenever any field changes.
+    /// </summary>
+    public ThemedFloatNumeric[] AddVectorField(string name, Vector3 startingValue, Action<Vector3> changeCallback)
+    {
+        var flowPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = true,
+            Dock = DockStyle.Top,
+            Margin = new Padding(0, 0, 0, 0),
+        };
+
+        flowPanel.Controls.Add(new Label
+        {
+            Text = name,
+            AutoSize = true,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(0, 0, 8, 0),
+        });
+
+        var fields = new ThemedFloatNumeric[3];
+
+        for (var i = 0; i < fields.Length; i++)
+        {
+            var field = new ThemedFloatNumeric
+            {
+                MinValue = float.MinValue,
+                MaxValue = float.MaxValue,
+                DecimalMax = 2,
+                DragWithinRange = false,
+                Value = startingValue[i],
+                Margin = new Padding(0, 0, 4, 0),
+                Size = new Size(48, 20),
+            };
+
+            field.ValueChanged += (_, __) => changeCallback(new Vector3(fields[0].Value, fields[1].Value, fields[2].Value));
+            fields[i] = field;
+            flowPanel.Controls.Add(field);
+        }
+
+        ControlsPanel.Controls.Add(flowPanel);
+        SetControlLocation(flowPanel);
+        return fields;
     }
 
     public Slider AddSlider(string name, float min, float max, float startingValue, Action<float> changeCallback)

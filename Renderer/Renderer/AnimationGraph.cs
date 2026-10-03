@@ -37,8 +37,20 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the vector control parameters by name.</summary>
         public Dictionary<string, Vector4> VectorParameters { get; } = [];
 
-        /// <summary>Gets the target (bone transform) control parameters by name.</summary>
-        public Dictionary<string, FrameBone> TargetParameters { get; } = [];
+        /// <summary>
+        /// Gets the target (bone transform) control parameters by name. A <see langword="null"/> value
+        /// leaves the target unset, which turns off the IK reading it.
+        /// </summary>
+        public Dictionary<string, FrameBone?> TargetParameters { get; } = [];
+
+        /// <summary>
+        /// Gets, for target and vector parameters read by IK or look-at nodes, the value that would leave
+        /// the pose as animated. Refreshed on every update.
+        /// </summary>
+        public Dictionary<string, GraphParameterHint> ParameterHints { get; } = [];
+
+        /// <summary>Gets the transform the graph treats as its world space, the root motion accumulated so far.</summary>
+        public FrameBone WorldTransform => graphContext.WorldTransform;
 
         /// <summary>Gets the control parameter names, indexed by control parameter node index.</summary>
         public string[] ParameterNames { get; private set; } = [];
@@ -241,7 +253,7 @@ namespace ValveResourceFormat.Renderer
                         case "Float": FloatParameters[parameterName] = 0.0f; break;
                         case "ID": IdParameters[parameterName] = string.Empty; break;
                         case "Vector": VectorParameters[parameterName] = Vector4.Zero; break;
-                        case "Target": TargetParameters[parameterName] = FrameBone.Identity; break;
+                        case "Target": TargetParameters[parameterName] = null; break;
                         default: throw new InvalidDataException($"Unknown control parameter type '{parameterType}' in animation graph.");
                     }
                 }
@@ -283,6 +295,13 @@ namespace ValveResourceFormat.Renderer
             RootMotionDelta = FrameBone.Identity;
         }
     }
+
+    /// <summary>
+    /// The value of a target or vector parameter that leaves the pose as animated.
+    /// </summary>
+    /// <param name="Transform">The value, in the space the parameter is read in. Vectors use the position only.</param>
+    /// <param name="IsWorldSpace">Whether the parameter is read in the graph world space rather than in character space.</param>
+    public readonly record struct GraphParameterHint(FrameBone Transform, bool IsWorldSpace);
 
     /// <summary>
     /// An animation clip bound to a graph data slot, sampleable into a parent-space pose on the

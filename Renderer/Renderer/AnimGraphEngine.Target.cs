@@ -88,18 +88,22 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class ControlParameterTargetNode
     {
         string parameterName;
+        AnimationGraph owner;
 
         public override void Instantiate(GraphContext ctx)
         {
             Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Graph.ParameterNames.Length);
             parameterName = ctx.Graph.ParameterNames[NodeIdx];
+            owner = ctx.Graph;
         }
 
         protected override Target GetValueInternal(GraphContext ctx)
         {
-            // Stored as a FrameBone transform (set externally / from the UI); exposed as a set, non-bone target.
-            return new Target(ctx.Graph.TargetParameters[parameterName]);
+            return owner.TargetParameters[parameterName] is { } transform ? new Target(transform) : default;
         }
+
+        public void ReportHint(Transform transform, bool isWorldSpace)
+            => owner.ParameterHints[parameterName] = new(transform, isWorldSpace);
     }
 
     // Valve-specific (not present in Esoterica): picks the option target that best matches a reference

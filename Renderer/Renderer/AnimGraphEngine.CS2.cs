@@ -272,6 +272,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 return result;
             }
 
+            if (LookatTargetNode is ControlParameterVectorNode targetParameter)
+            {
+                // A point straight ahead of the effector leaves the chain as animated
+                solvePose.SetParentSpaceTransforms(result.Pose);
+                var effector = solvePose.GetModelSpaceTransform(effectorBoneIdx);
+                var ahead = effector.TransformPoint(EndEffectorOffset) + (50f * TransformMath.RotateVector(effector.Angle, EndEffectorForwardAxis));
+                targetParameter.ReportHint(IsTargetInWorldSpace ? ctx.WorldTransform.TransformPoint(ahead) : ahead, IsTargetInWorldSpace);
+            }
+
             // The enable input is not read while fading out
             var isOn = blendWeight.State != BlendWeight.BlendWeightState.TurningOff && (EnabledNode?.GetValue(ctx) ?? true);
             var weight = blendWeight.Update(ctx.DeltaTime, isOn);
