@@ -1,0 +1,474 @@
+using System.IO;
+using System.Linq;
+using ValveResourceFormat.IO.ContentFormats.DmxModel;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+
+namespace ValveResourceFormat.IO;
+
+internal sealed partial class ClothExtract
+{
+    /// <summary>
+    /// Separates tied blend weights on one proxy vertex by <see cref="TiedInfluenceSeparation"/>, keeping their order, so
+    /// the importer's weight sort picks the same primary anchor bone.
+    /// </summary>
+    private static SkinInfluence[] SeparateTiedInfluenceWeights(SkinInfluence[] influences)
+    {
+        static bool IsTied(float a, float b)
+            => MathF.Abs(a - b) <= TiedInfluenceSeparation * MathF.Max(MathF.Abs(a), MathF.Abs(b));
+
+        var tied = false;
+        for (var i = 1; i < influences.Length && !tied; i++)
+        {
+            tied = IsTied(influences[i].Weight, influences[i - 1].Weight);
+        }
+
+        if (!tied)
+        {
+            return influences;
+        }
+
+        var separated = new SkinInfluence[influences.Length];
+        influences.CopyTo(separated, 0);
+        for (var i = 1; i < separated.Length; i++)
+        {
+            if (IsTied(influences[i].Weight, influences[i - 1].Weight))
+            {
+                separated[i] = new(separated[i].Bone, separated[i - 1].Weight * (1f - TiedInfluenceSeparation));
+            }
+        }
+
+        return separated;
+    }
+
+    /// <summary>Relative gap forced between two tied proxy blend weights, far below the 1/255 paint quantum.</summary>
+    private const float TiedInfluenceSeparation = 1e-6f;
+
+    /// <summary>
+    /// The sheet's faces, with all-pinned filler triangles appended until every vertex slot has a face corner of its own:
+    /// the compiler reads the rest normals by corner ordinal, and an all-static face adds nothing else.
+    /// </summary>
+    internal static List<int[]> PadSheetCornersToSlotCount(ProxyMesh proxy, int vertexCount)
+    {
+        var corners = 0;
+        foreach (var face in proxy.Faces)
+        {
+            corners += face.Length;
+        }
+
+        if (corners == 0 || corners >= vertexCount)
+        {
+            return proxy.Faces;
+        }
+
+        var pinned = new List<int>();
+        foreach (var corner in proxy.Faces.SelectMany(static face => face).Distinct())
+        {
+            if (proxy.ClothEnable[corner] == 0f)
+            {
+                pinned.Add(corner);
+            }
+        }
+
+        if (pinned.Count < 3)
+        {
+            return proxy.Faces;
+        }
+
+        var padded = new List<int[]>(proxy.Faces);
+        for (var at = 0; corners < vertexCount; at += 3, corners += 3)
+        {
+            padded.Add([pinned[at % pinned.Count], pinned[(at + 1) % pinned.Count], pinned[(at + 2) % pinned.Count]]);
+        }
+
+        return padded;
+    }
+
+    /// <summary>
+    /// The <c>cloth_anchor_free_rotate</c> paint a sheet needs, or null where it states nothing. A sheet with a simulated,
+    /// rotation-locked vertex paints every vertex its recorded class; otherwise a sheet without
+    /// <c>flex_cloth_borders</c> paints the pins recorded rotation-free.
+    /// </summary>
+    internal static float[]? ClothAnchorFreeRotatePaint(ClothReconstruction cloth, ProxyMesh proxy, bool sheetFlexes)
+    {
+        var vertexCount = Math.Min(proxy.Positions.Length, proxy.NodeIndices.Length);
+        var lockedSimulated = false;
+        for (var v = 0; v < vertexCount; v++)
+        {
+            var node = proxy.NodeIndices[v];
+            lockedSimulated |= proxy.ClothEnable[v] != 0f && node < cloth.Fe.StaticNodeCount
+                && !cloth.Fe.AllowsRotation(node);
+        }
+
+        if (!lockedSimulated && sheetFlexes)
+        {
+            return null;
+        }
+
+        var freeRotate = new float[proxy.Positions.Length];
+        var anyFreed = false;
+        for (var v = 0; v < vertexCount; v++)
+        {
+            var node = proxy.NodeIndices[v];
+            var free = lockedSimulated
+                ? node >= cloth.Fe.StaticNodeCount || cloth.Fe.AllowsRotation(node)
+                : proxy.ClothEnable[v] == 0f && node < cloth.Fe.StaticNodeCount && cloth.Fe.AllowsRotation(node);
+            if (free)
+            {
+                freeRotate[v] = 1f;
+                anyFreed = true;
+            }
+        }
+
+        return anyFreed ? freeRotate : null;
+    }
+
+    /// <summary>
+    /// The per-vertex collision-layer paints of a sheet, one for every layer some vertex's compiled mask clears.
+    /// </summary>
+    internal static IEnumerable<(int Layer, float[] Painted)> ClothCollisionLayerPaints(ClothReconstruction cloth,
+        int[] nodeIndices, int vertexCount)
+    {
+        for (var layer = 0; layer < ClothCollisionLayers; layer++)
+        {
+            var bit = 1 << layer;
+            var painted = new float[vertexCount];
+            var anyCleared = false;
+            for (var v = 0; v < vertexCount; v++)
+            {
+                var set = v >= nodeIndices.Length || (cloth.Fe.GetNodeCollisionMask(nodeIndices[v]) & bit) != 0;
+                painted[v] = set ? 1f : 0f;
+                anyCleared |= !set;
+            }
+
+            if (anyCleared)
+            {
+                yield return (layer, painted);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds the proxy-sheet DMX: the sheet's rest positions and faces, every cloth paint the compiled nodes state, and
+    /// its skinning to the skeleton the DMX joint list carries.
+    /// </summary>
+    private byte[] BuildClothProxyMeshDmx(Skeleton skeleton, ClothReconstruction cloth, ProxyMesh proxy, string name)
+    {
+        using var dmx = new Datamodel.Datamodel("model", 22);
+
+        var dmeModel = CreateClothDmxSkeleton(skeleton, name);
+        RespellJointsAsClothControlNodes(dmeModel, cloth);
+
+        var (dag, vertexData) = DmxScaffolding.CreateDagVertexData(dmeModel, name);
+        dag.Shape!.Name = name;
+
+        var vertexCount = proxy.Positions.Length;
+
+        var emittedFaces = PadSheetCornersToSlotCount(proxy, vertexCount);
+        var cornerVertices = emittedFaces.SelectMany(static face => face).ToArray();
+        var identity = Enumerable.Range(0, vertexCount).ToArray();
+        var vertexIndices = cornerVertices.Length > 0 ? cornerVertices : identity;
+
+        vertexData.AddIndexedStream("position$0", proxy.Positions, vertexIndices);
+
+        var restNormals = cloth.RecoverRestNormals(proxy);
+        var cornerNormals = new Vector3[vertexIndices.Length];
+        for (var corner = 0; corner < cornerNormals.Length; corner++)
+        {
+            cornerNormals[corner] = restNormals[corner < vertexCount ? corner : vertexIndices[corner]];
+        }
+
+        vertexData.AddIndexedStream("normal$0", cornerNormals, [.. Enumerable.Range(0, cornerNormals.Length)]);
+
+        var boundsMin = vertexCount > 0 ? proxy.Positions.Aggregate(Vector3.Min) : Vector3.Zero;
+        var boundsMax = vertexCount > 0 ? proxy.Positions.Aggregate(Vector3.Max) : Vector3.Zero;
+        var extent = boundsMax - boundsMin;
+        Span<int> axes = [0, 1, 2];
+        axes.Sort((a, b) => extent[b].CompareTo(extent[a]));
+        var (axisU, axisV) = (axes[0], axes[1]);
+        var texcoords = new Vector2[vertexCount];
+        for (var v = 0; v < vertexCount; v++)
+        {
+            texcoords[v] = new Vector2(
+                extent[axisU] > 1e-6f ? (proxy.Positions[v][axisU] - boundsMin[axisU]) / extent[axisU] : 0f,
+                extent[axisV] > 1e-6f ? (proxy.Positions[v][axisV] - boundsMin[axisV]) / extent[axisV] : 0f);
+        }
+
+        vertexData.AddIndexedStream("texcoord$0", texcoords, vertexIndices);
+
+        AddProxyPaintStreams(vertexData, cloth, proxy, vertexCount, vertexIndices);
+
+        var boneIndexByName = ClothBoneIndexByName(skeleton, dmeModel, cloth);
+
+        if (!proxy.IsFreeFloating)
+        {
+            var jointCount = ClothReconstruction.ClothProxyInfluenceSlots;
+            for (var v = 0; v < vertexCount; v++)
+            {
+                if (v < proxy.NodeIndices.Length && cloth.RecoveredSkinWeights.ContainsKey(proxy.NodeIndices[v]))
+                {
+                    jointCount = Math.Max(jointCount, proxy.SkinInfluences[v].Count(i => boneIndexByName.ContainsKey(i.Bone)));
+                }
+            }
+
+            AddClothBlendStreams(vertexData, vertexCount, jointCount, boneIndexByName,
+                v => SeparateTiedInfluenceWeights(proxy.SkinInfluences[v]));
+        }
+
+        var faceSet = AddClothFaceSet(dag);
+        var cornerOrdinal = 0;
+        foreach (var face in emittedFaces)
+        {
+            foreach (var _ in face)
+            {
+                faceSet.Faces.Add(cornerOrdinal++);
+            }
+
+            faceSet.Faces.Add(-1);
+        }
+
+        if (dag.Shape is DmeMesh morphTarget)
+        {
+            AddClothProxyMorphLayers(morphTarget, proxy, cloth);
+        }
+
+        return SaveClothDmx(dmx, dmeModel);
+    }
+
+    /// <summary>Adds every cloth paint stream of a proxy sheet, in the order an authored sheet carries them.</summary>
+    private void AddProxyPaintStreams(DmeVertexData vertexData, ClothReconstruction cloth, ProxyMesh proxy, int vertexCount,
+        int[] vertexIndices)
+    {
+        void AddPaint(string stream, float[]? values)
+        {
+            if (values is not null)
+            {
+                vertexData.AddIndexedStream(stream, values, vertexIndices);
+            }
+        }
+
+        void AddPaintIfAny(string stream, float[] values)
+            => AddPaint(stream, Array.Exists(values, static value => value != 0f) ? values : null);
+
+        vertexData.AddIndexedStream("cloth_enable$0", proxy.ClothEnable, vertexIndices);
+        vertexData.AddIndexedStream("cloth_goal_strength_v2$0", proxy.GoalStrength, vertexIndices);
+        vertexData.AddIndexedStream("cloth_goal_damping$0", proxy.GoalDamping, vertexIndices);
+
+        if (Array.Exists(proxy.AnimationForceAttract, static value => value != 0f)
+            || Array.Exists(proxy.AnimationAttract, static value => value != 0f))
+        {
+            vertexData.AddIndexedStream("cloth_animation_force_attract$0", proxy.AnimationForceAttract, vertexIndices);
+            vertexData.AddIndexedStream("cloth_animation_attract$0", proxy.AnimationAttract, vertexIndices);
+        }
+
+        vertexData.AddIndexedStream("cloth_collision_radius$0", proxy.CollisionRadius, vertexIndices);
+        vertexData.AddIndexedStream("cloth_ground_collision$0", proxy.GroundCollision, vertexIndices);
+        vertexData.AddIndexedStream("cloth_drag$0", proxy.Drag, vertexIndices);
+
+        AddPaintIfAny("cloth_ground_friction$0", proxy.GroundFriction);
+        AddPaintIfAny("cloth_friction$0", proxy.Friction);
+        vertexData.AddIndexedStream("cloth_gravity$0", proxy.Gravity, vertexIndices);
+
+        foreach (var (layer, painted) in ClothCollisionLayerPaints(cloth, proxy.NodeIndices, vertexCount))
+        {
+            vertexData.AddIndexedStream($"cloth_collision_layer_{layer}$0", painted, vertexIndices);
+        }
+
+        AddPaint("cloth_anchor_free_rotate$0", ClothAnchorFreeRotatePaint(cloth, proxy, flexedProxies.Contains(proxy)));
+        AddPaint("cloth_mass$0", cloth.RecoverMassPaint(proxy));
+
+        var containerMaps = cloth.GetProxyVertexMapName(proxy, ProxyMeshes.ConvertAll(static entry => entry.Proxy)) is { } containerMap
+            ? cloth.VertexMapAliases(containerMap)
+            : [];
+        var selectionWeights = new Dictionary<string, float[]>(proxy.VertexMaps.Length, StringComparer.Ordinal);
+        foreach (var (mapName, weights) in proxy.VertexMaps)
+        {
+            selectionWeights[mapName] = weights;
+        }
+
+        foreach (var mapName in cloth.VertexSetStreamOrder(proxy))
+        {
+            if (containerMaps.Contains(mapName) || !selectionWeights.TryGetValue(mapName, out var weights)
+                || (cloth.TryGetVertexMap(mapName, out var selection) && !cloth.RegistersVertexSet(selection.NameHash)))
+            {
+                continue;
+            }
+
+            vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, vertexIndices);
+        }
+
+        if (ProxyMeshes.Count > 0 && ProxyMeshes[0].Proxy == proxy)
+        {
+            var painted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (mapName, _) in proxy.VertexMaps)
+            {
+                painted.Add(mapName);
+            }
+
+            foreach (var mapName in cloth.ZeroVertexSelectionNames)
+            {
+                if (!painted.Contains(mapName) && !containerMaps.Contains(mapName))
+                {
+                    vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0",
+                        new float[vertexCount], vertexIndices);
+                }
+            }
+        }
+
+        AddPaint("cloth_stray_radius$0", cloth.RecoverStrayRadiusPaint(proxy));
+        AddPaint("cloth_stray_radius_stretchiness$0", cloth.RecoverStrayStretchinessPaint(proxy));
+        AddPaint("cloth_suspenders$0", ClothSuspenderPaint(cloth, proxy));
+        AddPaint("cloth_bend_stiffness$0", ClothBendStiffnessPaint(cloth, proxy));
+        AddPaint("cloth_antishrink$0", cloth.RecoverAntishrinkPaint(proxy));
+        AddPaint("cloth_shear_resistance$0", cloth.RecoverShearResistancePaint(proxy));
+        AddPaint("cloth_stretch$0", cloth.RecoverStretchPaint(proxy));
+
+        if (proxy.RodsDriven.Length == vertexCount)
+        {
+            vertexData.AddIndexedStream("cloth_make_rods$0", proxy.RodsDriven, vertexIndices);
+        }
+        else if (!proxy.UsesAuthoredFaces && cloth.Fe.HasSurfaceElements)
+        {
+            vertexData.AddIndexedStream("cloth_use_rods$0", Filled(vertexCount, 1f), vertexIndices);
+            vertexData.AddIndexedStream("cloth_make_rods$0", Filled(vertexCount, ClothSuppressedMakeRods), vertexIndices);
+
+            if (ClothFaceKeptBendStiffness(cloth, SurfaceRods(cloth)) is { } faceKeptBend)
+            {
+                vertexData.AddIndexedStream("cloth_bend_stiffness$0", Filled(vertexCount, faceKeptBend), vertexIndices);
+            }
+        }
+    }
+
+    /// <summary>Re-emits the sheet's <c>m_MorphLayers</c> as sparse DMX delta states.</summary>
+    private static void AddClothProxyMorphLayers(DmeMesh dmeMesh, ProxyMesh proxy, ClothReconstruction cloth)
+    {
+        if (cloth.Fe.MorphLayers.Length == 0)
+        {
+            return;
+        }
+
+        var localOfNode = new Dictionary<int, int>(proxy.NodeIndices.Length);
+        for (var v = 0; v < proxy.NodeIndices.Length; v++)
+        {
+            localOfNode.TryAdd(proxy.NodeIndices[v], v);
+        }
+
+        foreach (var layer in cloth.Fe.MorphLayers)
+        {
+            var indices = new List<int>(layer.Nodes.Length);
+            var values = new List<Vector3>(layer.Nodes.Length);
+            for (var i = 0; i < layer.Nodes.Length && i < layer.InitPos.Length; i++)
+            {
+                if (localOfNode.TryGetValue(layer.Nodes[i], out var local))
+                {
+                    indices.Add(local);
+                    values.Add(layer.InitPos[i]);
+                }
+            }
+
+            if (values.Count == 0)
+            {
+                continue;
+            }
+
+            var deltaState = new DmeVertexDeltaData { Name = layer.Name };
+            deltaState.AddIndexedStream<Vector3>("position$0", [.. values], [.. indices]);
+            dmeMesh.DeltaStates.Add(deltaState);
+            dmeMesh.DeltaStateWeights.Add(Vector2.Zero);
+            dmeMesh.DeltaStateWeightsLagged.Add(Vector2.Zero);
+        }
+    }
+
+    /// <summary>A cloth DMX's model: the whole skeleton at the proxy rest pose, so blend indices resolve.</summary>
+    private DmeModel CreateClothDmxSkeleton(Skeleton skeleton, string name)
+    {
+        var dmeModel = ModelExtract.BuildDmeDagSkeleton(skeleton, out _, bonePositions: ProxyRestBonePositions,
+            boneRotations: ProxyRestBoneRotations);
+        dmeModel.Name = name;
+        return dmeModel;
+    }
+
+    /// <summary>
+    /// The emitted joint index of every bone of a cloth DMX by name, matched case-insensitively, after appending the
+    /// culled cloth bones.
+    /// </summary>
+    private Dictionary<string, int> ClothBoneIndexByName(Skeleton skeleton, DmeModel dmeModel, ClothReconstruction cloth)
+    {
+        var clothCompaction = ClothBones.Compaction(skeleton);
+        var boneIndexByName = new Dictionary<string, int>(skeleton.Bones.Length * 2, StringComparer.OrdinalIgnoreCase);
+        foreach (var bone in skeleton.Bones)
+        {
+            if (ClothBones.IsGeneratedProxyBone(bone))
+            {
+                continue;
+            }
+
+            var emitted = clothCompaction[bone.Index];
+            boneIndexByName.TryAdd(bone.Name, emitted);
+            boneIndexByName.TryAdd(ModelExtract.GetExportBoneName(bone), emitted);
+        }
+
+        AppendCulledClothBoneJoints(dmeModel, boneIndexByName, cloth, CulledBones);
+        NestProxyJointsUnderCompiledParents(dmeModel, cloth);
+        return boneIndexByName;
+    }
+
+    /// <summary>
+    /// Adds the blend index and weight streams, <paramref name="jointCount"/> slots per vertex filled in order by the
+    /// influences whose bone the DMX carries.
+    /// </summary>
+    private static void AddClothBlendStreams(DmeVertexData vertexData, int vertexCount, int jointCount,
+        Dictionary<string, int> boneIndexByName, Func<int, IEnumerable<SkinInfluence>> influences)
+    {
+        var blendIndices = new int[vertexCount * jointCount];
+        var blendWeights = new float[vertexCount * jointCount];
+        for (var v = 0; v < vertexCount; v++)
+        {
+            var slot = 0;
+            foreach (var (boneName, weight) in influences(v))
+            {
+                if (slot >= jointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
+                {
+                    continue;
+                }
+
+                blendIndices[v * jointCount + slot] = bi;
+                blendWeights[v * jointCount + slot] = weight;
+                slot++;
+            }
+        }
+
+        vertexData.JointCount = jointCount;
+        vertexData.AddStream("blendindices$0", blendIndices);
+        vertexData.AddStream("blendweights$0", blendWeights);
+    }
+
+    /// <summary>Adds the <c>cloth</c> face set to the mesh of <paramref name="dag"/> and returns it.</summary>
+    private static DmeFaceSet AddClothFaceSet(DmeDag dag)
+    {
+        var faceSet = new DmeFaceSet { Name = "cloth" };
+        faceSet.Material.MaterialName = "cloth";
+        if (dag.Shape is DmeMesh dmeMesh)
+        {
+            dmeMesh.FaceSets.Add(faceSet);
+        }
+
+        return faceSet;
+    }
+
+    private static byte[] SaveClothDmx(Datamodel.Datamodel dmx, DmeModel dmeModel)
+    {
+        DmxScaffolding.TieElementRoot(dmx, dmeModel);
+        using var stream = new MemoryStream();
+        dmx.Save(stream, "binary", 9);
+        return stream.ToArray();
+    }
+
+    /// <summary>An array of <paramref name="count"/> copies of <paramref name="value"/>.</summary>
+    private static T[] Filled<T>(int count, T value)
+    {
+        var array = new T[count];
+        Array.Fill(array, value);
+        return array;
+    }
+}
