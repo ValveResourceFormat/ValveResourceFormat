@@ -579,41 +579,20 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         static bool IsNearEqual(float a, float b, float epsilon = 1e-5f) => MathF.Abs(a - b) <= epsilon;
 
+        // True when the point is inside the triangle, edges included. A point exactly on an edge shared by
+        // two triangles can round outside both and fall back to the nearest hull edge for that update.
         static bool CalculateBarycentricCoordinates(Vector2 p, Vector2 a, Vector2 b, Vector2 c, out Vector3 bary)
         {
             var v0 = b - a;
             var v1 = c - a;
             var v2 = p - a;
 
-            var d00 = Vector2.Dot(v0, v0);
-            var d01 = Vector2.Dot(v0, v1);
-            var d11 = Vector2.Dot(v1, v1);
-            var d20 = Vector2.Dot(v2, v0);
-            var d21 = Vector2.Dot(v2, v1);
+            var denominator = 1f / ((v0.X * v1.Y) - (v1.X * v0.Y));
+            var y = ((v2.X * v1.Y) - (v1.X * v2.Y)) * denominator;
+            var z = ((v0.X * v2.Y) - (v2.X * v0.Y)) * denominator;
+            bary = new Vector3(1f - y - z, y, z);
 
-            var denom = d00 * d11 - d01 * d01;
-            if (MathF.Abs(denom) < 1e-10f)
-            {
-                bary = default;
-                return false;
-            }
-
-            var v = (d11 * d20 - d01 * d21) / denom;
-            var w = (d00 * d21 - d01 * d20) / denom;
-            var u = 1f - v - w;
-
-            const float edgeEpsilon = -1e-4f;
-            if (u < edgeEpsilon || v < edgeEpsilon || w < edgeEpsilon)
-            {
-                bary = default;
-                return false;
-            }
-
-            // A point accepted just outside an edge has a slightly negative weight, which would push the
-            // pairwise blend weights derived from these past 1
-            bary = Vector3.Max(new Vector3(u, v, w), Vector3.Zero);
-            bary /= bary.X + bary.Y + bary.Z;
-            return true;
+            return Vector3.GreaterThanOrEqualAll(bary, Vector3.Zero) && Vector3.LessThanOrEqualAll(bary, Vector3.One);
         }
 
         static Vector2 ClosestPointOnSegment(Vector2 a, Vector2 b, Vector2 p, out float t)
