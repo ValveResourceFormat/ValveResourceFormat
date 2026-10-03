@@ -104,6 +104,22 @@ class SyncTrack
         StartEventOffset = 0;
     }
 
+    /// <summary>Reuses this track as a copy of another, without its start event offset.</summary>
+    public void SetToCopyWithoutStartOffset(SyncTrack source)
+    {
+        Debug.Assert(!ReferenceEquals(source, this));
+
+        var numEvents = source.NumEvents;
+        if (SyncEvents.Length < numEvents)
+        {
+            SyncEvents = new SyncTrack__Event[numEvents];
+        }
+
+        source.SyncEvents.AsSpan(0, numEvents).CopyTo(SyncEvents);
+        numEventsOverride = numEvents;
+        StartEventOffset = 0;
+    }
+
     /// <summary>Calculates the duration resulting from a blend of two synchronized tracks.</summary>
     public static float CalculateDurationSynchronized(float duration0, float duration1, int numEvents0, int numEvents1, int eventsLCM, float blendWeight)
     {

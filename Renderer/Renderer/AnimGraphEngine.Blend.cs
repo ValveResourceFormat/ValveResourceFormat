@@ -345,8 +345,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // Calculate the blended sync track and synchronized duration across the up-to-3 sources
             if (bsr.Src1 == -1)
             {
+                // Remove any offsets from the "blended" track
                 var source = SourceNodes[bsr.Src0];
-                ownedSyncTrack2Way.SetToBlendOf(source.SyncTrack, source.SyncTrack, 0f);
+                ownedSyncTrack2Way.SetToCopyWithoutStartOffset(source.SyncTrack);
                 blendedSyncTrack = ownedSyncTrack2Way;
                 Duration = source.Duration;
             }
