@@ -175,8 +175,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // 2-way blend into our own buffer: both sources advance through the same sync range
             var result = base.Update(ctx);
 
-            var result0 = blendSource0!.Update(ctx, range);
-            var result1 = blendSource1.Update(ctx, range);
+            var result0 = UpdateSourceOrDefault(ctx, blendSource0!, range);
+            var result1 = UpdateSourceOrDefault(ctx, blendSource1, range);
 
             Blender.Blend(result0.Pose, result1.Pose, blendWeight, result.Pose);
             result.RootMotionDelta = Blender.BlendRootMotion(result0.RootMotionDelta, result1.RootMotionDelta, blendWeight, RootMotionBlendMode.Blend);
@@ -186,6 +186,27 @@ namespace ValveResourceFormat.Renderer.AnimLib
             CurrentTime = SyncTrack.GetPercentageThrough(range.EndTime);
 
             return result;
+        }
+    }
+
+    partial class PoseNode
+    {
+        /// <summary>
+        /// Updates a blend source when it is valid; otherwise it contributes the default pose and no events.
+        /// </summary>
+        protected static GraphPoseNodeResult UpdateSourceOrDefault(GraphContext ctx, PoseNode source, SyncTrackTimeRange? range)
+        {
+            if (source.IsValid)
+            {
+                return source.Update(ctx, range);
+            }
+
+            return new GraphPoseNodeResult
+            {
+                Pose = ctx.GetDefaultPose(),
+                RootMotionDelta = Transform.Identity,
+                SampledEventRange = new(ctx.SampledEvents.Count, ctx.SampledEvents.Count),
+            };
         }
     }
 
@@ -703,6 +724,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var outerWeight = outerLayerContext.Weight;
             var outerRootMotionWeight = outerLayerContext.RootMotionWeight;
             var outerMask = outerLayerContext.MaskTaskList;
+            var outerIsAdditive = outerLayerContext.IsAdditive;
 
             for (var i = 0; i < LayerDefinition.Length; i++)
             {
@@ -717,6 +739,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 // Start a new layer
                 ctx.IsInLayer = true;
                 ctx.LayerContext.Reset();
+                ctx.LayerContext.IsAdditive = definition.BlendMode == PoseBlendMode.Additive;
 
                 // If we're not a state machine, set up the layer context here
                 if (!definition.IsStateMachineLayer)
@@ -815,6 +838,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.LayerContext = outerLayerContext;
             ctx.LayerContext.Weight = outerWeight;
             ctx.LayerContext.RootMotionWeight = outerRootMotionWeight;
+            ctx.LayerContext.IsAdditive = outerIsAdditive;
             ctx.LayerContext.MaskTaskList = outerMask;
 
             result.Pose = PoseTransforms;

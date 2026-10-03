@@ -15,12 +15,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public float Weight = 1f;
         public float RootMotionWeight = 1f;
         public BoneMaskTaskList MaskTaskList;
+        public bool IsAdditive;
 
         public void Reset()
         {
             Weight = 1f;
             RootMotionWeight = 1f;
             MaskTaskList = default;
+            IsAdditive = false;
         }
 
         public void CopyFrom(LayerContext other)
@@ -28,6 +30,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Weight = other.Weight;
             RootMotionWeight = other.RootMotionWeight;
             MaskTaskList = other.MaskTaskList;
+            IsAdditive = other.IsAdditive;
         }
     }
 
@@ -253,6 +256,28 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public LayerContext LayerContext { get; set; }
 
         private readonly LayerContext ownLayerContext = new();
+
+        private Transform[]? zeroPose;
+
+        /// <summary>
+        /// The pose standing in for a source that produced none: the zero pose inside an additive
+        /// layer, the reference pose otherwise.
+        /// </summary>
+        public Transform[] GetDefaultPose()
+        {
+            if (IsInLayer && LayerContext.IsAdditive)
+            {
+                if (zeroPose == null)
+                {
+                    zeroPose = new Transform[Graph.ParentSpaceReferencePose.Length];
+                    Array.Fill(zeroPose, Transform.Identity);
+                }
+
+                return zeroPose;
+            }
+
+            return Graph.ParentSpaceReferencePose;
+        }
 
         // A referenced graph evaluates within its parent's layer, branch and world
         private void TransferContextDataFromParent(GraphContext parent)
