@@ -20,6 +20,7 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.GenericData.CS2;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers
@@ -197,9 +198,9 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.NmGraph:
-                    if (resource.DataBlock is BinaryKV3 binaryKV3)
+                    if (resource.DataBlock is NmGraphDefinition graphDef)
                     {
-                        GLViewer = new AG2GraphViewer(vrfGuiContext, rendererContext, binaryKV3.Data);
+                        GLViewer = new AG2GraphViewer(vrfGuiContext, rendererContext, graphDef.Data);
                         GLViewerTabName = "AG2 ANIMATION GRAPH";
                     }
                     break;
