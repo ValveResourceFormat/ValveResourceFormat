@@ -19,39 +19,27 @@ an update-ID bump so init-time value reads recompute (GraphInstance::ResetGraphS
 state-machine transition-condition swap uses the immediate shutdown form (Esoterica HEAD defers
 the old state's condition shutdown by one update for debug visualization only).
 
-## Known remaining divergences (from the 2026-07 fidelity audit)
+## Remaining divergences
 
-Behavioral, not yet ported:
+- Sampled event tracking (new / continuous / ended event lists) is not ported; the buffer is
+  cleared each update. Only game code and debug views consume it, and the viewer consumes neither.
+- `OrientationWarpNode.m_bWarpTranslation` (Valve addition) is not applied. `AnimationEndFacing`
+  alignment aligns the clip's end facing instead of its post-warp movement direction.
+- `SnapWeaponNode` (client.dll) snaps the weapon and solves the left hand, but its molotov lighter
+  and knife push modes drive a secondary weapon skeleton pose the graph does not evaluate.
+- The world transform the graph sees is its own accumulated root motion, starting at the origin.
+- `TargetWarpNode` and `RootMotionOverrideNode` have no CS2 users, so they are only exercised by
+  construction and the regression sweep.
 
-- Clip root motion sampling (`RootMotionDelta` stays identity); `VelocityBlendNode` and
-  `VelocityBasedSpeedScaleNode` need per-clip average velocity from decoded root motion. This also
-  covers the reversed-playback root-motion special case (play-in-reverse itself is ported; no CS2
-  graph authors it — Tests/AnimGraphReverseTest.cs drives it synthetically).
-- `SnapToFrameEvent` pose-time snapping.
-- Transition start bone mask (`m_startBoneMaskNodeIdx` / `m_boneMaskBlendInTimePercentage`
-  pose-weight remap during the blend-in).
-- `Blend2DNode` single-source case self-blends the sync track (re-basing event start times)
-  instead of copying it with `ClearStartOffset`.
-- Sampled event tracking (`m_newEvents` / continuous / ended buffers) is not ported; the buffer is
-  cleared each update.
-- `LayerContext.IsAdditive` is not tracked (C++ children use it to pick zero vs reference pose
-  defaults and the root-motion blend mode).
-- `FloatCurveEventNode`: the event search is ported, but curve evaluation is not
-  (`CNmFloatCurveEvent` is not surfaced as a typed clip event); a matched event keeps the default
-  value and logs once. Exactly one CS2 clip contains such an event and no CS2 graph uses the node.
-- Foot events (`FootEventConditionNode`, `FootstepEventIDNode`,
-  `FootstepEventPercentageThroughNode`) and `TransitionEventConditionNode` are ported reading the
-  raw KV of `CNmFootEvent`/`CNmTransitionEvent` clip events; no CS2 clip contains either event
-  class (scanned 2355 clips), so in practice these nodes return their no-event defaults, matching
-  C++ behavior with no events found.
+Axis conventions: Esoterica's `Vector::WorldForward` is -Y, but the compiled graph and clip data use
+Source axes, so `TransformMath` defines forward +X, left +Y, up +Z (chicken run root motion moves along
++X). Esoterica `a * b` on quaternions is Hamilton `b * a` in System.Numerics; transform products keep
+their order. Valve's own helpers compose `A o B` as B expressed in A's space, which is `B * A`.
 
-Cosmetic/numeric: C++ uses `FastSLerp` for blend rotations (we use exact `Slerp`); easing `Expo`
-has a `-0.001` offset upstream; `Range.GetClampedValue` throws on authored inverted ranges;
-`TargetInfoNode` axis conventions (forward/right) need verification against a known-good graph;
-`Blender.LerpMatrix` decomposes matrices where C++ blends transforms directly.
-
-CS2 additions with no Esoterica analogue: `IsInactiveBranchConditionNode` (implemented as
-"currently evaluating an inactive branch").
+CS2 additions with no Esoterica analogue, reverse engineered from animationsystem.dll and client.dll:
+`ChainLookatNode`, `FollowBoneNode` (its partial modes treat the bone's local value as model space,
+ported as is), `BodyGroupNode` (emits its event every update while enabled), `SnapWeaponNode`,
+`IsInactiveBranchConditionNode` (implemented as "currently evaluating an inactive branch").
 
 Viewer-only additions with no C++ analogue: `AnimationGraph.ForceLoopingClips` (UI toggle),
 reference-pose-initialized node buffers (unwritten buffers yield bind pose instead of garbage).
