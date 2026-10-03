@@ -188,13 +188,21 @@ partial class ModelExtract
     /// </summary>
     public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim,
         IReadOnlyList<(Skeleton Skeleton, Animation Animation)> secondaryAnimations, bool nmSkelAxisFixup = false)
+        => ToDmxAnim(skeleton, flexControllers, anim, secondaryAnimations, nmSkelAxisFixup, keepClothProxyBones: false);
+
+    /// <summary>
+    /// Converts an animation to DMX format, writing the bones the compiler generated from a cloth proxy as ordinary joints
+    /// when <c>keepClothProxyBones</c> is set.
+    /// </summary>
+    internal static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim,
+        IReadOnlyList<(Skeleton Skeleton, Animation Animation)> secondaryAnimations, bool nmSkelAxisFixup, bool keepClothProxyBones)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
 
         var rootMotionBone = skeleton["root_motion"];
 
         // The frames below get the axis fixup, so the bind pose it is written against has to have it too
-        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms, nmSkelAxisFixup);
+        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms, nmSkelAxisFixup, keepClothProxyBones: keepClothProxyBones);
 
         var animationList = new DmeAnimationList();
         var clip = new DmeChannelsClip
@@ -231,7 +239,7 @@ partial class ModelExtract
             }
 
             ProcessRootMotionChannel(anim, dmeSkeleton, clip);
-            ProcessBoneChannels(skeleton, anim, transforms, clip, frames);
+            ProcessBoneChannels(skeleton, anim, transforms, clip, frames, keepClothProxyBones);
             ProcessFlexChannels(flexControllers, anim, clip, frames);
         }
 
@@ -242,7 +250,7 @@ partial class ModelExtract
                 continue;
             }
 
-            var secondaryTransforms = AppendDmeSkeletonJoints(dmeSkeleton, secondarySkeleton);
+            var secondaryTransforms = AppendDmeSkeletonJoints(dmeSkeleton, secondarySkeleton, keepClothProxyBones: keepClothProxyBones);
 
             var secondaryFrames = new Frame[secondaryAnimation.FrameCount];
             for (var i = 0; i < secondaryAnimation.FrameCount; i++)
@@ -255,7 +263,7 @@ partial class ModelExtract
                 secondaryFrames[i] = frame;
             }
 
-            ProcessBoneChannels(secondarySkeleton, secondaryAnimation, secondaryTransforms, clip, secondaryFrames);
+            ProcessBoneChannels(secondarySkeleton, secondaryAnimation, secondaryTransforms, clip, secondaryFrames, keepClothProxyBones);
         }
 
         animationList.Animations.Add(clip);
@@ -386,12 +394,18 @@ partial class ModelExtract
         }
     }
 
-    private static void ProcessBoneChannels(Skeleton skeleton, Animation anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames)
+    private static void ProcessBoneChannels(Skeleton skeleton, Animation anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames,
+        bool keepClothProxyBones)
     {
         var rootMotionBone = skeleton["root_motion"];
 
         foreach (var bone in skeleton.Bones)
         {
+            if (!keepClothProxyBones && ClothBones.IsGeneratedProxyBone(bone))
+            {
+                continue;
+            }
+
             var transform = transforms[bone.Index];
             var boneName = GetExportBoneName(bone);
 

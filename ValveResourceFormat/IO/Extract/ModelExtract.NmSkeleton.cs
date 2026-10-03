@@ -31,15 +31,16 @@ partial class ModelExtract
 
     /// <summary>Emits cloth bones with the '_' prefix the compiler sanitizes '$' to.</summary>
     internal static string GetExportBoneName(Bone bone)
-        => bone.IsProceduralCloth && bone.Name.StartsWith('$')
-            ? $"_{bone.Name[1..]}"
-            : bone.Name;
+        => ClothBones.IsGeneratedProxyBone(bone) ? $"_{bone.Name[1..]}" : bone.Name;
 
-    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms, bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1)
+    internal static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms,
+        bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1,
+        IReadOnlyDictionary<string, Vector3>? bonePositions = null,
+        IReadOnlyDictionary<string, Quaternion>? boneRotations = null, bool keepClothProxyBones = false)
     {
         var dmeSkeleton = new DmeModel();
 
-        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, nmLowLodBoneCount);
+        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, nmLowLodBoneCount, bonePositions, boneRotations, keepClothProxyBones);
 
         var rootMotionBone = skeleton["root_motion"];
 
@@ -66,7 +67,9 @@ partial class ModelExtract
     /// joint transforms indexed by bone index. With <paramref name="nmLowLodBoneCount"/> non-negative,
     /// DAG siblings reproduce the compiled NM bone order, otherwise bone index order.
     /// </summary>
-    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton, int nmLowLodBoneCount = -1)
+    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton,
+        int nmLowLodBoneCount = -1, IReadOnlyDictionary<string, Vector3>? bonePositions = null,
+        IReadOnlyDictionary<string, Quaternion>? boneRotations = null, bool keepClothProxyBones = false)
     {
         int[]? minLow = null;
         int[]? minHigh = null;
@@ -88,26 +91,44 @@ partial class ModelExtract
             };
 
             dag.Transform.Name = boneName;
-            dag.Transform.Position = bone.Position;
-            dag.Transform.Orientation = bone.Angle;
+            dag.Transform.Position = BonePosition(bone, bonePositions);
+            dag.Transform.Orientation = boneRotations is not null && boneRotations.TryGetValue(bone.Name, out var rotation)
+                ? rotation
+                : bone.Angle;
 
-            boneDags[bone.Index] = dag;
             transforms[bone.Index] = dag.Transform;
 
+            if (!keepClothProxyBones && ClothBones.IsGeneratedProxyBone(bone))
+            {
+                continue;
+            }
+
+            boneDags[bone.Index] = dag;
             dmeSkeleton.JointList.Add(dag);
         }
 
         foreach (var bone in skeleton.Bones)
         {
+            if (boneDags[bone.Index] is not { } parentDag)
+            {
+                continue;
+            }
+
             foreach (var child in OrderSiblings(bone.Children, minLow, minHigh))
             {
-                boneDags[bone.Index].Children.Add(boneDags[child.Index]);
+                if (boneDags[child.Index] is { } childDag)
+                {
+                    parentDag.Children.Add(childDag);
+                }
             }
         }
 
         foreach (var root in OrderSiblings(skeleton.Roots, minLow, minHigh))
         {
-            dmeSkeleton.Children.Add(boneDags[root.Index]);
+            if (boneDags[root.Index] is { } rootDag)
+            {
+                dmeSkeleton.Children.Add(rootDag);
+            }
         }
 
         return transforms;
