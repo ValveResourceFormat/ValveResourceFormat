@@ -183,14 +183,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 Nodes[i] = CreateNode(nodeArray[i]);
             }
 
-            // Instantiate nodes: wire strong references and definition-derived state
-            foreach (var node in Nodes)
-            {
-                node.Instantiate(this);
-            }
-
-            RootNode = (PoseNode)Nodes[graphDefinition.RootNodeIdx];
-
             for (short i = 0; i < graphDefinition.ControlParameterIDs.Length; i++)
             {
                 parameterLookup.TryAdd(graphDefinition.ControlParameterIDs[i].Name, i);
@@ -200,6 +192,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
             {
                 parameterLookup.TryAdd(graphDefinition.VirtualParameterIDs[i].Name, graphDefinition.VirtualParameterNodeIndices[i]);
             }
+
+            // Instantiate nodes: wire strong references and definition-derived state. Referenced graphs
+            // map their parameters by name here, so the lookup has to be filled first.
+            foreach (var node in Nodes)
+            {
+                node.Instantiate(this);
+            }
+
+            RootNode = (PoseNode)Nodes[graphDefinition.RootNodeIdx];
 
             // Initialize persistent graph nodes (control and virtual parameters); they stay
             // initialized for the instance's whole life (Esoterica GraphInstance::Initialize).
