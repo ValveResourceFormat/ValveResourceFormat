@@ -182,20 +182,34 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class VelocityBasedSpeedScaleNode
     {
-        bool warned;
-
         protected override float CalculateSpeedScaleMultiplier(GraphContext ctx)
         {
-            // TODO: requires the child clip's average linear velocity, which comes from decoded root
-            // motion (not yet available — see ModelAnimation2.AnimationClip). Until then, fall back to
-            // no scaling so the node is a passthrough rather than a hard failure.
-            if (!warned)
+            float desiredVelocity;
+
+            if (InputValueNode != null)
             {
-                ctx.LogWarning(NodeIdx, "VelocityBasedSpeedScale falling back to 1.0 (clip average velocity not yet available).");
-                warned = true;
+                desiredVelocity = InputValueNode.GetValue(ctx);
+
+                if (desiredVelocity < 0f)
+                {
+                    desiredVelocity = 0f;
+                    ctx.LogWarning(NodeIdx, "Requesting a negative velocity is not supported!");
+                }
+            }
+            else
+            {
+                Debug.Assert(DefaultInputValue > 0f);
+                desiredVelocity = DefaultInputValue;
             }
 
-            return 1f;
+            if (MathF.Abs(desiredVelocity) <= 1e-6f)
+            {
+                return 0f;
+            }
+
+            // The editor guarantees the child is a clip reference
+            var averageVelocity = (ChildNode as ClipReferenceNode)?.GetClip(ctx)?.RootMotion.AverageLinearVelocity ?? 0f;
+            return MathF.Abs(averageVelocity) <= 1e-6f ? 0f : desiredVelocity / averageVelocity;
         }
     }
 

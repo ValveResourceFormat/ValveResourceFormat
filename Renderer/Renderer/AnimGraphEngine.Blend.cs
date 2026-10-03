@@ -203,19 +203,26 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class VelocityBlendNode
     {
-        public override void Instantiate(GraphContext ctx)
+        bool lazyInitializationPerformed;
+
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            base.Instantiate(ctx);
+            if (!lazyInitializationPerformed)
+            {
+                CreateParameterizationFromSpeeds(ctx);
+                lazyInitializationPerformed = true;
+            }
 
-            // TODO: parameterization should be built from each source clip's average linear velocity, which
-            // comes from decoded root motion (not yet available). Fall back to even index spacing so the
-            // node still blends across its sources.
-            ctx.LogWarning(NodeIdx, "VelocityBlend parameterization falling back to index spacing (clip average velocity not yet available).");
+            base.InitializeInternal(ctx, initialTime);
+        }
 
+        void CreateParameterizationFromSpeeds(GraphContext ctx)
+        {
+            // The editor guarantees that the source nodes are clip references
             var values = new float[SourceNodes.Length];
             for (var i = 0; i < values.Length; i++)
             {
-                values[i] = i;
+                values[i] = (SourceNodes[i] as ClipReferenceNode)?.GetClip(ctx)?.RootMotion.AverageLinearVelocity ?? 0f;
             }
 
             ActiveParameterization = ParameterizedBlendNode__Parameterization.CreateParameterization(values);
