@@ -63,6 +63,7 @@ namespace CLI
         private bool CachedManifest;
         private bool Decompile;
         private TextureCodec TextureDecodeFlags = TextureCodec.Auto;
+        private bool NoCloth;
         private string[] FileFilter = [];
         private string? LinkedFilePath; // The file inside of the package that a "vpk:" input link points to
         private bool HasPathFilter => FileFilter.Length > 0 || LinkedFilePath != null;
@@ -123,6 +124,7 @@ namespace CLI
         /// <param name="block">-b, Print the content of specific block(s), example: "DATA" or "RERL,RED2".</param>
         /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files. Requires --output.</param>
         /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto" (default), "ForceLDR". Requires --output.</param>
+        /// <param name="no_cloth">Skip reconstructing cloth (soft-body) physics when decompiling models.</param>
         /// <param name="vpk_list">-l, List all files in the given VPK or folder. File extension and path filters apply.</param>
         /// <param name="vpk_dir">Same as --vpk_list, but also print the archive index, offset and metadata size of each file.</param>
         /// <param name="gltf_export_format">Export meshes and models in the given glTF format, "gltf" or "glb". Implies --vpk_decompile.</param>
@@ -163,6 +165,7 @@ namespace CLI
             [HideDefaultValue] string? block = default,
             bool decompile = false,
             [HideDefaultValue] string? texture_decode_flags = default,
+            bool no_cloth = false,
             bool vpk_list = false,
             bool vpk_dir = false,
 
@@ -264,6 +267,7 @@ namespace CLI
             InputFile = isSteamInput ? "steam" : Path.GetFullPath(input);
             OutputFile = output;
             Decompile = decompile;
+            NoCloth = no_cloth;
             RecursiveSearch = recursive;
             RecursiveSearchArchives = recursive_vpk;
             PrintAllBlocks = all;
@@ -1119,7 +1123,7 @@ namespace CLI
                 {
                     DecodeFlags = TextureDecodeFlags,
                 }.ToContentFile(),
-                _ => FileExtract.Extract(resource, fileLoader, ProgressReporter),
+                _ => FileExtract.Extract(resource, fileLoader, ProgressReporter, extractCloth: !NoCloth),
             };
         }
 
