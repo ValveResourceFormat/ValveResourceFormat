@@ -6,7 +6,6 @@ readonly struct SyncTrackTimeRange
     public SyncTrackTime StartTime { get; }
     public SyncTrackTime EndTime { get; }
 
-
     public SyncTrackTimeRange(SyncTrackTime startTime, SyncTrackTime endTime)
     {
         StartTime = startTime;

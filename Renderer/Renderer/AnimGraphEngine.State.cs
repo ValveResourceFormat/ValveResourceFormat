@@ -168,7 +168,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
             SampledEventRange = new(SampledEventRange.StartIdx, ctx.SampledEvents.Count);
         }
 
-
         public void UpdateLayerContext(GraphContext ctx)
         {
             if (!ctx.IsInLayer)
@@ -355,7 +354,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
 
         public bool IsSynchronized => GetOption(TransitionOptions_t.Synchronized);
-
 
         public StateNode GetSourceStateNode()
         {

@@ -873,34 +873,34 @@ namespace ValveResourceFormat.Renderer.AnimLib
             switch (InfoType)
             {
                 case TargetInfoNode__Info.AngleHorizontal:
+                {
+                    var direction = TransformMath.Normalize2(inputTargetTransform.Position);
+                    if (TransformMath.IsNearZero(direction))
                     {
-                        var direction = TransformMath.Normalize2(inputTargetTransform.Position);
-                        if (TransformMath.IsNearZero(direction))
-                        {
-                            value = 0f;
-                            break;
-                        }
-
-                        var dotForward = Vector3.Dot(TransformMath.WorldForward, direction);
-                        value = float.RadiansToDegrees(MathF.Acos(dotForward));
-
-                        var dotRight = Vector3.Dot(TransformMath.WorldRight, direction);
-                        if (dotRight < 0f)
-                        {
-                            value = -value;
-                        }
-
+                        value = 0f;
                         break;
                     }
+
+                    var dotForward = Vector3.Dot(TransformMath.WorldForward, direction);
+                    value = float.RadiansToDegrees(MathF.Acos(dotForward));
+
+                    var dotRight = Vector3.Dot(TransformMath.WorldRight, direction);
+                    if (dotRight < 0f)
+                    {
+                        value = -value;
+                    }
+
+                    break;
+                }
 
                 case TargetInfoNode__Info.AngleVertical:
-                    {
-                        var direction = TransformMath.NormalizeOrZero(inputTargetTransform.Position);
-                        value = TransformMath.IsNearZero(direction)
-                            ? 0f
-                            : float.RadiansToDegrees((MathF.PI / 2f) - MathF.Acos(Vector3.Dot(TransformMath.WorldUp, direction)));
-                        break;
-                    }
+                {
+                    var direction = TransformMath.NormalizeOrZero(inputTargetTransform.Position);
+                    value = TransformMath.IsNearZero(direction)
+                        ? 0f
+                        : float.RadiansToDegrees((MathF.PI / 2f) - MathF.Acos(Vector3.Dot(TransformMath.WorldUp, direction)));
+                    break;
+                }
 
                 case TargetInfoNode__Info.Distance:
                     value = inputTargetTransform.Position.Length();

@@ -1,5 +1,5 @@
-using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using System.Diagnostics;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {

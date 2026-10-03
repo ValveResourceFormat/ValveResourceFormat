@@ -2,12 +2,12 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ValveKeyValue;
+using ValvePak;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.AnimLib;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-using ValvePak;
 
 namespace Tests.Renderer
 {

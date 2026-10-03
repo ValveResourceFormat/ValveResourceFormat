@@ -7,7 +7,6 @@ readonly struct SyncTrack__Event
     public Percent StartTime { get; }
     public Percent Duration { get; }
 
-
     public SyncTrack__Event(GlobalSymbol id, float startTime, float duration)
     {
         ID = id;

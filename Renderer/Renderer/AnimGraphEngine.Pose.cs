@@ -995,7 +995,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
     }
     #endregion
 
-
     // Plays a referenced child graph instance within this graph's layer and branch, reflecting this
     // graph's same-named parameters into the child's control parameters.
     partial class ReferencedGraphNode

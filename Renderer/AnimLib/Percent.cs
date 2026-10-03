@@ -5,7 +5,6 @@ readonly struct Percent
 {
     public float Value { get; }
 
-
     public Percent(float value)
     {
         Value = value;
