@@ -182,12 +182,22 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Advances the graph by <paramref name="timeStep"/> seconds and returns the resulting
-        /// model-space pose on the NM skeleton.
+        /// The root motion delta produced by the last update, in the character's local space: the new
+        /// world transform is this delta concatenated onto the previous one.
         /// </summary>
-        internal FrameBone[] Update(float timeStep, AnimLib.SyncTrackTimeRange? updateRange = null)
+        internal FrameBone RootMotionDelta { get; private set; } = FrameBone.Identity;
+
+        /// <summary>
+        /// Advances the graph by <paramref name="timeStep"/> seconds and returns the resulting
+        /// parent-space pose on the NM skeleton.
+        /// </summary>
+        internal FrameBone[] Update(float timeStep, FrameBone worldTransform)
         {
-            var result = graphContext.Update(timeStep, updateRange);
+            graphContext.WorldTransform = worldTransform;
+            graphContext.WorldTransformInverse = worldTransform.Inverse();
+
+            var result = graphContext.Update(timeStep);
+            RootMotionDelta = result.RootMotionDelta;
 
             // Reset one-shot signaled bool parameters now that the graph has consumed them this frame.
             if (signaledBoolParameters.Count > 0)
@@ -270,6 +280,7 @@ namespace ValveResourceFormat.Renderer
         internal void ResetGraphState(AnimLib.SyncTrackTime initTime = default)
         {
             graphContext.ResetGraphState(initTime);
+            RootMotionDelta = FrameBone.Identity;
         }
     }
 
@@ -292,6 +303,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>The clip's sync track, used to align it with other clips.</summary>
         public AnimLib.SyncTrack SyncTrack { get; }
 
+        /// <summary>The clip's root motion track.</summary>
+        public AnimLib.RootMotionData RootMotion { get; }
+
         private readonly AnimationFrameCache frameCache;
 
         public GraphClip(ClipAnimation animation, Skeleton skeleton)
@@ -299,9 +313,23 @@ namespace ValveResourceFormat.Renderer
             Animation = animation;
             frameCache = new AnimationFrameCache(skeleton, []);
 
-            var syncTrackData = animation.Clip.Data.Root.GetProperty<KVObject>("m_syncTrack");
+            var clipData = animation.Clip.Data.Root;
+            var syncTrackData = clipData.GetProperty<KVObject>("m_syncTrack");
             SyncTrack = syncTrackData != null ? new AnimLib.SyncTrack(syncTrackData) : AnimLib.SyncTrack.Default;
+            RootMotion = new AnimLib.RootMotionData(clipData.GetProperty<KVObject>("m_rootMotion") ?? new KVObject());
         }
+
+        /// <summary>The root motion delta for a time range; handles a single loop.</summary>
+        public FrameBone GetRootMotionDelta(float fromTime, float toTime) => RootMotion.GetDelta(fromTime, toTime);
+
+        /// <summary>The root motion delta for a time range that does not loop.</summary>
+        public FrameBone GetRootMotionDeltaNoLooping(float fromTime, float toTime) => RootMotion.GetDeltaNoLooping(fromTime, toTime);
+
+        /// <summary>Converts a percentage through the clip into a frame time.</summary>
+        public AnimLib.FrameTime GetFrameTime(float percentageThrough) => new(percentageThrough, FrameCount);
+
+        /// <summary>The percentage through the clip at which a frame starts.</summary>
+        public float GetPercentageThrough(int frameIndex) => FrameCount > 1 ? (float)frameIndex / (FrameCount - 1) : 0f;
 
         /// <summary>Samples the clip at an exact frame index into a parent-space pose.</summary>
         public void SamplePoseAtFrame(int frameIndex, FrameBone[] pose)

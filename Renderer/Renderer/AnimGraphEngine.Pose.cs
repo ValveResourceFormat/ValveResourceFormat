@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
@@ -186,7 +187,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     struct GraphPoseNodeResult
     {
         public FrameBone[] Pose;
-        public Matrix4x4 RootMotionDelta;
+        public Transform RootMotionDelta;
         public SampledEventRange SampledEventRange;
     }
 
@@ -251,7 +252,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return new GraphPoseNodeResult
             {
                 Pose = PoseTransforms,
-                RootMotionDelta = Matrix4x4.Identity,
+                RootMotionDelta = Transform.Identity,
                 SampledEventRange = new(ctx.SampledEvents.Count, ctx.SampledEvents.Count),
             };
         }
@@ -299,7 +300,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         public override GraphClip? GetClip(GraphContext ctx) => Clip;
         public override bool IsLooping => AllowLooping;
-        public override bool DisableRootMotionSampling => !SampleRootMotion;
+        public override void DisableRootMotionSampling() => shouldSampleRootMotion = false;
         public override SyncTrack SyncTrack => syncTrackWithOffset ?? Clip?.SyncTrack ?? SyncTrack.Default;
 
         public GraphClip? Clip;
@@ -336,6 +337,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         // Whether the clip currently plays backwards. Time still advances forward; pose and event
         // sampling mirror through (1 - t) (Esoterica AnimationClipNode::CalculateResult).
         bool shouldPlayInReverse;
+        bool shouldSampleRootMotion = true;
         bool warnedReverseDuringSync;
 
         protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
@@ -355,6 +357,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // C++ warns about a missing animation here; unbound variant slots are routine in CS2
             // graphs, so we stay quiet.
 
+            shouldSampleRootMotion = SampleRootMotion;
             shouldPlayInReverse = false;
         }
 
@@ -408,9 +411,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 CurrentTime = SyncTrack.GetPercentageThrough(updateRange.Value.EndTime);
                 LoopCount = 0;
 
-                clip.SamplePoseAtPercentage(shouldPlayInReverse ? 1f - CurrentTime : CurrentTime, result.Pose);
-                SampleAnimationEvents(ctx, ref result);
-                return result;
+                return CalculateResult(ctx, clip, result);
             }
 
             // Unsynchronized Update
@@ -455,13 +456,49 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 CurrentTime = MathUtils.Saturate(CurrentTime);
             }
 
-            // sample animation pose at current time
-            var frame = clip.SamplePoseAtPercentage(shouldPlayInReverse ? 1f - CurrentTime : CurrentTime, result.Pose);
+            return CalculateResult(ctx, clip, result);
+        }
 
-            // root motion
-            // frame.Movement.Position;
+        private GraphPoseNodeResult CalculateResult(GraphContext ctx, GraphClip clip, GraphPoseNodeResult result)
+        {
+            var snapMode = SampleAnimationEvents(ctx, ref result);
 
-            SampleAnimationEvents(ctx, ref result);
+            if (shouldSampleRootMotion)
+            {
+                // Reversed playback samples the mirrored range, computed here rather than in the
+                // clip's delta query to keep that free of the rare special case
+                if (shouldPlayInReverse)
+                {
+                    var sampleStartTime = 1f - PreviousTime;
+                    var sampleEndTime = 1f - CurrentTime;
+
+                    if (PreviousTime <= CurrentTime)
+                    {
+                        result.RootMotionDelta = clip.GetRootMotionDeltaNoLooping(sampleStartTime, sampleEndTime);
+                    }
+                    else
+                    {
+                        var preLoopDelta = clip.GetRootMotionDeltaNoLooping(sampleStartTime, 0f);
+                        var postLoopDelta = clip.GetRootMotionDeltaNoLooping(1f, sampleEndTime);
+                        result.RootMotionDelta = postLoopDelta * preLoopDelta;
+                    }
+                }
+                else
+                {
+                    result.RootMotionDelta = clip.GetRootMotionDelta(PreviousTime, CurrentTime);
+                }
+            }
+
+            var sampleTime = shouldPlayInReverse ? 1f - CurrentTime : CurrentTime;
+
+            if (snapMode is { } frameSelectionMode)
+            {
+                var frameTime = clip.GetFrameTime(sampleTime);
+                var frameIndex = frameSelectionMode == FrameSnapEventMode.Round ? frameTime.NearestFrameIndex : frameTime.LowerBoundFrameIndex;
+                sampleTime = clip.GetPercentageThrough(frameIndex);
+            }
+
+            clip.SamplePoseAtPercentage(sampleTime, result.Pose);
             return result;
         }
 
@@ -469,14 +506,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
         /// Samples the clip's events for the time range covered this update into the graph's event
         /// buffer: duration events that are active at the current time, and instant events that were
         /// crossed between the previous and current time (accounting for looping).
+        /// Returns the frame selection mode of a sampled snap to frame event, if any.
         /// </summary>
-        private void SampleAnimationEvents(GraphContext ctx, ref GraphPoseNodeResult result)
+        private FrameSnapEventMode? SampleAnimationEvents(GraphContext ctx, ref GraphPoseNodeResult result)
         {
             var clip = Clip;
             Debug.Assert(clip != null);
 
             var isFromActiveBranch = ctx.BranchState == BranchState.Active;
             var startCount = ctx.SampledEvents.Count;
+            FrameSnapEventMode? snapMode = null;
 
             var events = clip.Animation.Events;
             var clipDuration = clip.Animation.Duration;
@@ -527,6 +566,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
                             }
                         }
 
+                        if (clipEvent.ClassName == "CNmFrameSnapEvent")
+                        {
+                            snapMode = Enum.TryParse<FrameSnapEventMode>(clipEvent.Data.GetStringProperty("m_frameSnapMode", string.Empty), out var mode)
+                                ? mode
+                                : FrameSnapEventMode.Floor;
+                        }
+
                         ctx.SampledEvents.EmplaceAnimationEvent(NodeIdx, clipEvent, percentageThrough, isFromActiveBranch);
                     }
                 }
@@ -549,6 +595,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             result.SampledEventRange = new(startCount, ctx.SampledEvents.Count);
+            return snapMode;
         }
     }
 
@@ -631,18 +678,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
     #endregion
 
 
-    // Plays a referenced child graph (its own instance with its own context), pushing the parent's
-    // same-named control parameters down every update and surfacing the child's sampled events.
+    // Plays a referenced child graph instance within this graph's layer and branch, reflecting this
+    // graph's same-named parameters into the child's control parameters.
     partial class ReferencedGraphNode
     {
         AnimationGraph? childGraph;
         PoseNode? FallbackNode;
 
-        string[] sharedBoolParameters = [];
-        string[] sharedFloatParameters = [];
-        string[] sharedIdParameters = [];
-        string[] sharedVectorParameters = [];
-        string[] sharedTargetParameters = [];
+        // Child control parameter name and the parent parameter node that drives it
+        (string Name, ValueNode Source)[] parameterMapping = [];
 
         public override void Instantiate(GraphContext ctx)
         {
@@ -651,22 +695,60 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             childGraph = ctx.GetReferencedGraph(ReferencedGraphIdx);
 
-            if (childGraph != null)
+            if (childGraph == null)
             {
-                var parent = ctx.Graph;
-                sharedBoolParameters = [.. childGraph.BoolParameters.Keys.Where(parent.BoolParameters.ContainsKey)];
-                sharedFloatParameters = [.. childGraph.FloatParameters.Keys.Where(parent.FloatParameters.ContainsKey)];
-                sharedIdParameters = [.. childGraph.IdParameters.Keys.Where(parent.IdParameters.ContainsKey)];
-                sharedVectorParameters = [.. childGraph.VectorParameters.Keys.Where(parent.VectorParameters.ContainsKey)];
-                sharedTargetParameters = [.. childGraph.TargetParameters.Keys.Where(parent.TargetParameters.ContainsKey)];
+                return;
             }
+
+            List<(string, ValueNode)> mapping = [];
+            var childNodes = childGraph.Context.Nodes;
+
+            for (var childParamIdx = 0; childParamIdx < childGraph.ParameterNames.Length; childParamIdx++)
+            {
+                var childParamName = childGraph.ParameterNames[childParamIdx];
+                var parentParameterNode = ctx.GetParameterNode(childParamName);
+                if (parentParameterNode == null)
+                {
+                    continue;
+                }
+
+                if (GetValueType(parentParameterNode) != GetValueType(childNodes[childParamIdx]))
+                {
+                    ctx.LogWarning(NodeIdx, $"Mismatch parameter type for referenced graph parameter '{childParamName}'");
+                    continue;
+                }
+
+                mapping.Add((childParamName, parentParameterNode));
+            }
+
+            parameterMapping = [.. mapping];
         }
+
+        static Type? GetValueType(GraphNode node) => node switch
+        {
+            BoolValueNode => typeof(BoolValueNode),
+            IDValueNode => typeof(IDValueNode),
+            FloatValueNode => typeof(FloatValueNode),
+            VectorValueNode => typeof(VectorValueNode),
+            TargetValueNode => typeof(TargetValueNode),
+            _ => null,
+        };
 
         public override bool IsValid => childGraph != null || (FallbackNode?.IsValid ?? false);
 
-        public override SyncTrack SyncTrack => childGraph?.Context.RootNode.SyncTrack
-            ?? FallbackNode?.SyncTrack
-            ?? SyncTrack.Default;
+        public override SyncTrack SyncTrack
+        {
+            get
+            {
+                if (childGraph != null)
+                {
+                    var childRoot = childGraph.Context.RootNode;
+                    return childRoot.IsValid ? childRoot.SyncTrack : SyncTrack.Default;
+                }
+
+                return FallbackNode is { IsValid: true } ? FallbackNode.SyncTrack : SyncTrack.Default;
+            }
+        }
 
         protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
@@ -674,8 +756,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             if (childGraph != null)
             {
+                ReflectControlParametersFromParent(ctx);
+
                 // Reset the referenced instance at the initial time
-                childGraph.ResetGraphState(initialTime);
+                childGraph.Context.ResetReferencedGraphState(ctx, initialTime);
 
                 var childRoot = childGraph.Context.RootNode;
                 Debug.Assert(childRoot.IsInitialized);
@@ -715,9 +799,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             if (childGraph == null)
             {
-                if (FallbackNode != null)
+                if (FallbackNode is { IsValid: true })
                 {
-                    var fallbackResult = FallbackNode.Update(ctx);
+                    var fallbackResult = FallbackNode.Update(ctx, updateRange);
                     Duration = FallbackNode.Duration;
                     PreviousTime = FallbackNode.PreviousTime;
                     CurrentTime = FallbackNode.CurrentTime;
@@ -727,55 +811,53 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 return base.Update(ctx);
             }
 
-            var parent = ctx.Graph;
-            PushParameters(parent);
+            ReflectControlParametersFromParent(ctx);
 
             var eventRangeStart = ctx.SampledEvents.Count;
-            var childPose = childGraph.Update(ctx.DeltaTime, updateRange);
+            var childResult = childGraph.Context.EvaluateReferencedGraph(ctx, updateRange);
 
             // Surface the child's events so parent conditions can see them
             ctx.SampledEvents.AppendFrom(childGraph.Context.SampledEvents);
 
             var result = base.Update(ctx);
-            var count = Math.Min(childPose.Length, result.Pose.Length);
-            childPose.AsSpan(0, count).CopyTo(result.Pose);
+            var count = Math.Min(childResult.Pose.Length, result.Pose.Length);
+            childResult.Pose.AsSpan(0, count).CopyTo(result.Pose);
+            result.RootMotionDelta = childResult.RootMotionDelta;
             result.SampledEventRange = new(eventRangeStart, ctx.SampledEvents.Count);
 
             var childRoot = childGraph.Context.RootNode;
             Duration = childRoot.Duration;
-            PreviousTime = childRoot.PreviousTime;
+            PreviousTime = childRoot.CurrentTime;
             CurrentTime = childRoot.CurrentTime;
 
             return result;
         }
 
-        private void PushParameters(AnimationGraph parent)
+        private void ReflectControlParametersFromParent(GraphContext ctx)
         {
             Debug.Assert(childGraph != null);
 
-            foreach (var name in sharedBoolParameters)
+            foreach (var (name, source) in parameterMapping)
             {
-                childGraph!.BoolParameters[name] = parent.BoolParameters[name];
-            }
-
-            foreach (var name in sharedFloatParameters)
-            {
-                childGraph!.FloatParameters[name] = parent.FloatParameters[name];
-            }
-
-            foreach (var name in sharedIdParameters)
-            {
-                childGraph!.IdParameters[name] = parent.IdParameters[name];
-            }
-
-            foreach (var name in sharedVectorParameters)
-            {
-                childGraph!.VectorParameters[name] = parent.VectorParameters[name];
-            }
-
-            foreach (var name in sharedTargetParameters)
-            {
-                childGraph!.TargetParameters[name] = parent.TargetParameters[name];
+                switch (source)
+                {
+                    case BoolValueNode boolNode:
+                        childGraph.BoolParameters[name] = boolNode.GetValue(ctx);
+                        break;
+                    case IDValueNode idNode:
+                        var id = idNode.GetValue(ctx);
+                        childGraph.IdParameters[name] = id.IsValid ? id.Name : string.Empty;
+                        break;
+                    case FloatValueNode floatNode:
+                        childGraph.FloatParameters[name] = floatNode.GetValue(ctx);
+                        break;
+                    case VectorValueNode vectorNode:
+                        childGraph.VectorParameters[name] = new Vector4(vectorNode.GetValue(ctx), 0f);
+                        break;
+                    case TargetValueNode targetNode:
+                        childGraph.TargetParameters[name] = targetNode.GetValue(ctx).Transform;
+                        break;
+                }
             }
         }
     }
@@ -787,7 +869,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         public virtual GraphClip? GetClip(GraphContext ctx) => SelectedOption?.GetClip(ctx);
         public virtual bool IsLooping => SelectedOption?.IsLooping ?? false;
-        public virtual bool DisableRootMotionSampling => SelectedOption?.DisableRootMotionSampling ?? false;
+        public virtual void DisableRootMotionSampling() => SelectedOption?.DisableRootMotionSampling();
         public ClipReferenceNode? SelectedOption;
 
         public abstract void UpdateSelection(GraphContext ctx);

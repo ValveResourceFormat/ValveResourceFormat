@@ -888,7 +888,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 sourceNodeResult = new GraphPoseNodeResult
                 {
                     Pose = ctx.GetCachedPoseBuffer(cachedPoseBufferID),
-                    RootMotionDelta = Matrix4x4.Identity,
+                    RootMotionDelta = Transform.Identity,
                     SampledEventRange = new(ctx.SampledEvents.Count, ctx.SampledEvents.Count),
                 };
             }
@@ -897,7 +897,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 sourceNodeResult = new GraphPoseNodeResult
                 {
                     Pose = null!,
-                    RootMotionDelta = Matrix4x4.Identity,
+                    RootMotionDelta = Transform.Identity,
                     SampledEventRange = new(ctx.SampledEvents.Count, ctx.SampledEvents.Count),
                 };
             }

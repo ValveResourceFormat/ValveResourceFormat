@@ -53,7 +53,7 @@ namespace Tests.Renderer
 
             for (var i = 0; i < 10; i++)
             {
-                graph.Update(Dt);
+                graph.Update(Dt, FrameBone.Identity);
             }
 
             var clipNode = clipNodes.Where((n, i) => n.CurrentTime > previousTimes[i] && n.CurrentTime < 0.5f && n.Duration > 2f).FirstOrDefault();
@@ -73,7 +73,7 @@ namespace Tests.Renderer
             }
 
             // Forward playback samples at the current time
-            graph.Update(Dt);
+            graph.Update(Dt, FrameBone.Identity);
             await AssertPoseSampledAt(clipNode.CurrentTime, "forward");
 
             // Attach the reverse input and toggle: the current time mirrors, and subsequent frames
@@ -84,28 +84,28 @@ namespace Tests.Renderer
             clipNode.PlayInReverseValueNode = stub;
 
             var timeBeforeToggle = clipNode.CurrentTime;
-            graph.Update(Dt);
+            graph.Update(Dt, FrameBone.Identity);
 
             var expectedAfterToggle = (1f - timeBeforeToggle) + (Dt / clipNode.Duration);
             await Assert.That(clipNode.CurrentTime).IsEqualTo(expectedAfterToggle).Within(1e-4f).Because("toggle mirrors the current time before advancing");
 
             for (var i = 0; i < 30; i++)
             {
-                graph.Update(Dt);
+                graph.Update(Dt, FrameBone.Identity);
                 await AssertPoseSampledAt(1f - clipNode.CurrentTime, $"reversed frame {i}");
             }
 
             // Toggle back: mirrored again, forward sampling resumes
             stub.Value = false;
             timeBeforeToggle = clipNode.CurrentTime;
-            graph.Update(Dt);
+            graph.Update(Dt, FrameBone.Identity);
 
             expectedAfterToggle = (1f - timeBeforeToggle) + (Dt / clipNode.Duration);
             await Assert.That(clipNode.CurrentTime).IsEqualTo(expectedAfterToggle).Within(1e-4f).Because("toggling back mirrors the current time again");
 
             for (var i = 0; i < 30; i++)
             {
-                graph.Update(Dt);
+                graph.Update(Dt, FrameBone.Identity);
                 await AssertPoseSampledAt(clipNode.CurrentTime, $"forward-again frame {i}");
             }
         }

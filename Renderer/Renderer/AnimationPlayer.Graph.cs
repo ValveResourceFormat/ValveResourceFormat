@@ -18,6 +18,7 @@ namespace ValveResourceFormat.Renderer
         public void SetGraph(AnimationGraph? graph)
         {
             Graph = graph;
+            graphRootTransform = FrameBone.Identity;
 
             if (graph != null)
             {
@@ -34,8 +35,10 @@ namespace ValveResourceFormat.Renderer
                 return false;
             }
 
-            var graphPose = graph.Update(IsPaused ? 0f : timeStep);
+            var graphPose = graph.Update(IsPaused ? 0f : timeStep, graphRootTransform);
             forceUpdate = false;
+
+            AccumulateGraphRootMotion(graph.RootMotionDelta);
 
             // The graph does not sample flex data.
             AnimationFrame = null;
@@ -46,6 +49,26 @@ namespace ValveResourceFormat.Renderer
             }
 
             return true;
+        }
+
+        // Where the graph's root motion has moved the character, relative to where the graph started
+        private FrameBone graphRootTransform = FrameBone.Identity;
+
+        /// <summary>
+        /// Graph deltas are local to the character (new transform = delta * old), while
+        /// <see cref="RootMotionDelta"/> composes each step after the motion so far, so the step is
+        /// re-expressed relative to the accumulated transform.
+        /// </summary>
+        private void AccumulateGraphRootMotion(FrameBone delta)
+        {
+            if (delta == FrameBone.Identity)
+            {
+                return;
+            }
+
+            var next = delta * graphRootTransform;
+            RootMotionDelta *= (graphRootTransform.Inverse() * next).ToMatrix();
+            graphRootTransform = next;
         }
 
         private static void ComputeWorldSubtree(Bone bone, Matrix4x4 parentWorld, ReadOnlySpan<FrameBone> parentSpacePose, Span<Matrix4x4> world)

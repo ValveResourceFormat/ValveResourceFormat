@@ -35,51 +35,37 @@ static class Blender
     }
 
     /// <summary>
-    /// Blends root motion transforms.
+    /// Blends two root motion deltas.
     /// </summary>
-    public static Matrix4x4 BlendRootMotion(
-        Matrix4x4 sourceRootMotion,
-        Matrix4x4 targetRootMotion,
+    public static Transform BlendRootMotion(
+        Transform source,
+        Transform target,
         float blendWeight,
-        RootMotionBlendMode blendMode)
+        RootMotionBlendMode blendMode = RootMotionBlendMode.Blend)
     {
-        // Matches Esoterica's early-out ordering: a zero weight or IgnoreTarget yields the source
         if (blendWeight <= 0f || blendMode == RootMotionBlendMode.IgnoreTarget)
         {
-            return sourceRootMotion;
+            return source;
         }
 
         if (blendWeight >= 1f || blendMode == RootMotionBlendMode.IgnoreSource)
         {
-            return targetRootMotion;
+            return target;
         }
 
+        // Root motion deltas carry no scale
         if (blendMode == RootMotionBlendMode.Additive)
         {
-            return LerpMatrix(sourceRootMotion, targetRootMotion * sourceRootMotion, blendWeight);
+            var additiveTarget = source.Angle * target.Angle;
+            return new Transform(
+                Vector3.FusedMultiplyAdd(target.Position, new Vector3(blendWeight), source.Position),
+                1f,
+                Quaternion.Slerp(source.Angle, additiveTarget, blendWeight));
         }
 
-        return LerpMatrix(sourceRootMotion, targetRootMotion, blendWeight);
-    }
-
-    static Matrix4x4 LerpMatrix(Matrix4x4 a, Matrix4x4 b, float t)
-    {
-        if (!Matrix4x4.Decompose(a, out var scaleA, out var rotA, out var transA))
-        {
-            return b;
-        }
-
-        if (!Matrix4x4.Decompose(b, out var scaleB, out var rotB, out var transB))
-        {
-            return a;
-        }
-
-        var lerpedTrans = Vector3.Lerp(transA, transB, t);
-        var lerpedRot = Quaternion.Slerp(rotA, rotB, t);
-        var lerpedScale = Vector3.Lerp(scaleA, scaleB, t);
-
-        return Matrix4x4.CreateScale(lerpedScale)
-            * Matrix4x4.CreateFromQuaternion(lerpedRot)
-            * Matrix4x4.CreateTranslation(lerpedTrans);
+        return new Transform(
+            Vector3.Lerp(source.Position, target.Position, blendWeight),
+            1f,
+            TransformMath.FastSLerp(source.Angle, target.Angle, blendWeight));
     }
 }

@@ -155,14 +155,19 @@ namespace ValveResourceFormat.Renderer.AnimLib
         /// <summary>The events sampled during the current graph update.</summary>
         public SampledEventsBuffer SampledEvents { get; } = new();
 
+        public Transform WorldTransform = Transform.Identity;
         public Transform WorldTransformInverse = Transform.Identity;
 
         private GraphDefinition graphDefinition;
+
+        // Control and virtual parameter node indices by parameter name
+        private readonly Dictionary<string, short> parameterLookup = [];
 
         public GraphContext(KVObject graph, AnimationGraph owner)
         {
             graphDefinition = new GraphDefinition(graph);
             Graph = owner;
+            LayerContext = ownLayerContext;
             Pose = new Pose(owner.AnimLibSkeleton);
 
             // Create nodes
@@ -182,6 +187,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             RootNode = (PoseNode)Nodes[graphDefinition.RootNodeIdx];
+
+            for (short i = 0; i < graphDefinition.ControlParameterIDs.Length; i++)
+            {
+                parameterLookup.TryAdd(graphDefinition.ControlParameterIDs[i].Name, i);
+            }
+
+            for (var i = 0; i < graphDefinition.VirtualParameterIDs.Length; i++)
+            {
+                parameterLookup.TryAdd(graphDefinition.VirtualParameterIDs[i].Name, graphDefinition.VirtualParameterNodeIndices[i]);
+            }
 
             // Initialize persistent graph nodes (control and virtual parameters); they stay
             // initialized for the instance's whole life (Esoterica GraphInstance::Initialize).
@@ -228,10 +243,48 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 ?? throw new InvalidOperationException($"Could not create instance of node type {nodeType.Name}.");
         }
 
+        /// <summary>The control or virtual parameter node with the given name, if the graph has one.</summary>
+        public ValueNode? GetParameterNode(string name)
+            => parameterLookup.TryGetValue(name, out var nodeIdx) ? (ValueNode)Nodes[nodeIdx] : null;
+
         // Layer context. Transitions temporarily swap in a scratch context for their target state
         // (Esoterica swaps the m_pLayerContext pointer), so the reference is settable.
         public bool IsInLayer { get; set; }
-        public LayerContext LayerContext { get; set; } = new();
+        public LayerContext LayerContext { get; set; }
+
+        private readonly LayerContext ownLayerContext = new();
+
+        // A referenced graph evaluates within its parent's layer, branch and world
+        private void TransferContextDataFromParent(GraphContext parent)
+        {
+            LayerContext = parent.LayerContext;
+            IsInLayer = parent.IsInLayer;
+            DeltaTime = parent.DeltaTime;
+            WorldTransform = parent.WorldTransform;
+            WorldTransformInverse = parent.WorldTransformInverse;
+            BranchState = parent.BranchState;
+        }
+
+        private void ReleaseParentContextData()
+        {
+            LayerContext = ownLayerContext;
+            IsInLayer = false;
+        }
+
+        public void ResetReferencedGraphState(GraphContext parent, SyncTrackTime initTime)
+        {
+            TransferContextDataFromParent(parent);
+            ResetGraphState(initTime);
+            ReleaseParentContextData();
+        }
+
+        public GraphPoseNodeResult EvaluateReferencedGraph(GraphContext parent, SyncTrackTimeRange? updateRange)
+        {
+            TransferContextDataFromParent(parent);
+            var result = Update(parent.DeltaTime, updateRange);
+            ReleaseParentContextData();
+            return result;
+        }
 
         /// <summary>Scratch buffers for bone mask task list evaluation.</summary>
         public BoneMaskPool BoneMaskPool { get; } = new();
