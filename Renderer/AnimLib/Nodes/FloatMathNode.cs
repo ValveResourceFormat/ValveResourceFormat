@@ -8,6 +8,6 @@ partial class FloatMathNode : FloatValueNode
     public short InputValueNodeIdxB { get; } = -1;
     public bool ReturnAbsoluteResult { get; }
     public bool ReturnNegatedResult { get; }
-    public FloatMathNode__Operator Operator { get; }
+    public FloatMathNode.OperatorType Operator { get; }
     public float ValueB { get; }
 }

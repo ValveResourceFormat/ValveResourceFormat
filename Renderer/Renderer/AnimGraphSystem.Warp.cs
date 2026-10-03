@@ -130,7 +130,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Vector3 postWarpOriginalDirCS;
             var endRotation = originalRootMotion.Transforms[^1].Angle;
 
-            if (AlignmentMode == OrientationWarpNode__AlignmentMode.AnimationEndFacing)
+            if (AlignmentMode == OrientationWarpNode.AlignmentModeType.AnimationEndFacing)
             {
                 postWarpOriginalDirCS = TransformMath.RotateVector(endRotation, TransformMath.WorldForward);
             }

@@ -6,5 +6,5 @@ partial class LayerBlendNode : PoseNode
 {
     public short BaseNodeIdx { get; } = -1;
     public bool OnlySampleBaseRootMotion { get; } = true;
-    public LayerBlendNode__LayerDefinition[] LayerDefinition { get; } = [];
+    public LayerBlendNode.LayerDefinitionType[] LayerDefinition { get; } = [];
 }

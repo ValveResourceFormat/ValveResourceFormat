@@ -5,6 +5,6 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 partial class TargetInfoNode : FloatValueNode
 {
     public short InputValueNodeIdx { get; } = -1;
-    public TargetInfoNode__Info InfoType { get; } = TargetInfoNode__Info.Distance;
+    public TargetInfoNode.Info InfoType { get; } = TargetInfoNode.Info.Distance;
     public bool IsWorldSpaceTarget { get; } = true;
 }

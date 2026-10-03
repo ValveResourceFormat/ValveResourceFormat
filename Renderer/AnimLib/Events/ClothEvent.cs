@@ -4,7 +4,7 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 [KV3Transfer]
 partial class ClothEvent : Event
 {
-    public ClothEvent__Type Type { get; }
+    public ClothEvent.ClothEventType Type { get; }
     public float Stiffness { get; } = 1f;
     public float SpeedIn { get; } = 10f;
     public float SpeedOut { get; } = 10f;

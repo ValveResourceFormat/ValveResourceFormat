@@ -85,14 +85,14 @@ partial class RootMotionData
     }
 
     /// <summary>Samples either the plain delta, or the delta that moves the character to the expected world space root position.</summary>
-    public Transform SampleRootMotion(RootMotionData__SamplingMode mode, Transform currentWorldTransform, float startTime, float endTime)
+    public Transform SampleRootMotion(RootMotionData.SamplingMode mode, Transform currentWorldTransform, float startTime, float endTime)
     {
         if (Transforms.Length <= 1)
         {
             return Transform.Identity;
         }
 
-        if (mode == RootMotionData__SamplingMode.WorldSpace)
+        if (mode == RootMotionData.SamplingMode.WorldSpace)
         {
             var desiredFinalTransform = GetTransform(endTime);
             return TransformMath.DeltaNoScale(currentWorldTransform, desiredFinalTransform);

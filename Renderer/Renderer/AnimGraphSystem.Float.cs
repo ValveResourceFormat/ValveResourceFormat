@@ -123,9 +123,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             return InfoType switch
             {
-                CurrentSyncEventNode__InfoType.IndexAndPercentage => currentSyncTime.EventIdx + currentSyncTime.PercentageThrough.Value,
-                CurrentSyncEventNode__InfoType.IndexOnly => currentSyncTime.EventIdx,
-                CurrentSyncEventNode__InfoType.PercentageOnly => currentSyncTime.PercentageThrough.Value,
+                CurrentSyncEventNode.CurrentSyncEventNodeInfoType.IndexAndPercentage => currentSyncTime.EventIdx + currentSyncTime.PercentageThrough.Value,
+                CurrentSyncEventNode.CurrentSyncEventNodeInfoType.IndexOnly => currentSyncTime.EventIdx,
+                CurrentSyncEventNode.CurrentSyncEventNodeInfoType.PercentageOnly => currentSyncTime.PercentageThrough.Value,
                 _ => throw new NotImplementedException(),
             };
         }
@@ -157,10 +157,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var input = InputValueNode.GetValue(ctx);
             return Operation switch
             {
-                FloatAngleMathNode__Operation.ClampTo180 => ClampAngle180(input),
-                FloatAngleMathNode__Operation.ClampTo360 => ClampAngle360(input),
-                FloatAngleMathNode__Operation.FlipHemisphere => ClampAngle180(input - 180.0f),
-                FloatAngleMathNode__Operation.FlipHemisphereNegate => -ClampAngle180(input - 180.0f),
+                FloatAngleMathNode.OperationType.ClampTo180 => ClampAngle180(input),
+                FloatAngleMathNode.OperationType.ClampTo360 => ClampAngle360(input),
+                FloatAngleMathNode.OperationType.FlipHemisphere => ClampAngle180(input - 180.0f),
+                FloatAngleMathNode.OperationType.FlipHemisphereNegate => -ClampAngle180(input - 180.0f),
                 _ => throw new NotImplementedException()
             };
         }
@@ -436,22 +436,22 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             var result = Operator switch
             {
-                FloatMathNode__Operator.Add => a + b,
-                FloatMathNode__Operator.Sub => a - b,
-                FloatMathNode__Operator.Mul => a * b,
-                FloatMathNode__Operator.Div => b == 0 ? 0 : a / b,
+                FloatMathNode.OperatorType.Add => a + b,
+                FloatMathNode.OperatorType.Sub => a - b,
+                FloatMathNode.OperatorType.Mul => a * b,
+                FloatMathNode.OperatorType.Div => b == 0 ? 0 : a / b,
 
                 // unary / other ops (ignore `b`)
-                FloatMathNode__Operator.Mod => b == 0 ? 0 : a % b,
-                FloatMathNode__Operator.Abs => MathF.Abs(a),
-                FloatMathNode__Operator.Negate => -a,
-                FloatMathNode__Operator.Floor => MathF.Floor(a),
-                FloatMathNode__Operator.Ceiling => MathF.Ceiling(a),
+                FloatMathNode.OperatorType.Mod => b == 0 ? 0 : a % b,
+                FloatMathNode.OperatorType.Abs => MathF.Abs(a),
+                FloatMathNode.OperatorType.Negate => -a,
+                FloatMathNode.OperatorType.Floor => MathF.Floor(a),
+                FloatMathNode.OperatorType.Ceiling => MathF.Ceiling(a),
 
                 // integer / fractional decomposition uses floor so fractional part is in [0,1)
-                FloatMathNode__Operator.IntegerPart => MathF.Floor(a),
-                FloatMathNode__Operator.FractionalPart => a - MathF.Truncate(a),
-                FloatMathNode__Operator.InverseFractionalPart => 1f - (a - MathF.Truncate(a)),
+                FloatMathNode.OperatorType.IntegerPart => MathF.Floor(a),
+                FloatMathNode.OperatorType.FractionalPart => a - MathF.Truncate(a),
+                FloatMathNode.OperatorType.InverseFractionalPart => 1f - (a - MathF.Truncate(a)),
 
                 _ => throw new UnreachableException()
             };
@@ -859,7 +859,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // The target transform is in character space
             switch (InfoType)
             {
-                case TargetInfoNode__Info.AngleHorizontal:
+                case TargetInfoNode.Info.AngleHorizontal:
                 {
                     var direction = TransformMath.Normalize2(inputTargetTransform.Position);
                     if (TransformMath.IsNearZero(direction))
@@ -880,7 +880,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     break;
                 }
 
-                case TargetInfoNode__Info.AngleVertical:
+                case TargetInfoNode.Info.AngleVertical:
                 {
                     var direction = TransformMath.NormalizeOrZero(inputTargetTransform.Position);
                     value = TransformMath.IsNearZero(direction)
@@ -889,27 +889,27 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     break;
                 }
 
-                case TargetInfoNode__Info.Distance:
+                case TargetInfoNode.Info.Distance:
                     value = inputTargetTransform.Position.Length();
                     break;
 
-                case TargetInfoNode__Info.DistanceHorizontalOnly:
+                case TargetInfoNode.Info.DistanceHorizontalOnly:
                     value = TransformMath.Length2(inputTargetTransform.Position);
                     break;
 
-                case TargetInfoNode__Info.DistanceVerticalOnly:
+                case TargetInfoNode.Info.DistanceVerticalOnly:
                     value = MathF.Abs(inputTargetTransform.Position.Z);
                     break;
 
-                case TargetInfoNode__Info.DeltaOrientationX:
+                case TargetInfoNode.Info.DeltaOrientationX:
                     value = float.RadiansToDegrees(TransformMath.ToEulerAngles(inputTargetTransform.Angle).X);
                     break;
 
-                case TargetInfoNode__Info.DeltaOrientationY:
+                case TargetInfoNode.Info.DeltaOrientationY:
                     value = float.RadiansToDegrees(TransformMath.ToEulerAngles(inputTargetTransform.Angle).Y);
                     break;
 
-                case TargetInfoNode__Info.DeltaOrientationZ:
+                case TargetInfoNode.Info.DeltaOrientationZ:
                     value = float.RadiansToDegrees(TransformMath.ToEulerAngles(inputTargetTransform.Angle).Z);
                     break;
             }

@@ -9,6 +9,6 @@ partial class OrientationWarpNode : PoseNode
     public bool IsOffsetNode { get; }
     public bool IsOffsetRelativeToCharacter { get; } = true;
     public bool WarpTranslation { get; }
-    public OrientationWarpNode__AlignmentMode AlignmentMode { get; }
-    public RootMotionData__SamplingMode SamplingMode { get; } = RootMotionData__SamplingMode.WorldSpace;
+    public OrientationWarpNode.AlignmentModeType AlignmentMode { get; }
+    public RootMotionData.SamplingMode SamplingMode { get; } = RootMotionData.SamplingMode.WorldSpace;
 }

@@ -12,9 +12,9 @@ partial class GraphDefinition
     public GlobalSymbol[] ControlParameterIDs { get; } = [];
     public GlobalSymbol[] VirtualParameterIDs { get; } = [];
     public short[] VirtualParameterNodeIndices { get; } = [];
-    public GraphDefinition__ReferencedGraphSlot[] ReferencedGraphSlots { get; } = [];
-    public GraphDefinition__ExternalGraphSlot[] ExternalGraphSlots { get; } = [];
-    public GraphDefinition__ExternalPoseSlot[] ExternalPoseSlots { get; } = [];
+    public GraphDefinition.ReferencedGraphSlot[] ReferencedGraphSlots { get; } = [];
+    public GraphDefinition.ExternalGraphSlot[] ExternalGraphSlots { get; } = [];
+    public GraphDefinition.ExternalPoseSlot[] ExternalPoseSlots { get; } = [];
     public string[] NodePaths { get; } = [];
     public string[] Resources { get; } = [];
 }

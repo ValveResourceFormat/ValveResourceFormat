@@ -5,6 +5,6 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 partial class IDComparisonNode : BoolValueNode
 {
     public short InputValueNodeIdx { get; } = -1;
-    public IDComparisonNode__Comparison Comparison { get; }
+    public IDComparisonNode.ComparisonType Comparison { get; }
     public GlobalSymbol[] ComparisionIDs { get; } = [];
 }

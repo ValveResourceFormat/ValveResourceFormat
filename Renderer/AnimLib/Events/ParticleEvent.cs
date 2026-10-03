@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 partial class ParticleEvent : Event
 {
     public EventRelevance Relevance { get; } = EventRelevance.ClientAndServer;
-    public ParticleEvent__Type Type { get; }
+    public ParticleEvent.ParticleEventType Type { get; }
     public EventTargetEntity Target { get; }
     [KVProperty("m_hParticleSystem")]
     public string ParticleSystem { get; } // InfoForResourceTypeIParticleSystemDefinition

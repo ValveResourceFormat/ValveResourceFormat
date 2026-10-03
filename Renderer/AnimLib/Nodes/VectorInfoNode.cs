@@ -5,5 +5,5 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 partial class VectorInfoNode : FloatValueNode
 {
     public short InputValueNodeIdx { get; } = -1;
-    public VectorInfoNode__Info DesiredInfo { get; }
+    public VectorInfoNode.Info DesiredInfo { get; }
 }

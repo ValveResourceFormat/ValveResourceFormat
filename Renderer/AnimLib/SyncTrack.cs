@@ -11,10 +11,10 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 public partial class SyncTrack
 {
     /// <summary>A default track with one full-length unnamed event.</summary>
-    public static SyncTrack Default { get; } = new SyncTrack([new SyncTrack__Event(default, 0f, 1f)], 0);
+    public static SyncTrack Default { get; } = new SyncTrack([new SyncTrack.Event(default, 0f, 1f)], 0);
 
     /// <summary>The sync events, in order.</summary>
-    public SyncTrack__Event[] SyncEvents { get; private set; } = [];
+    public SyncTrack.Event[] SyncEvents { get; private set; } = [];
     /// <summary>The index of the event playback starts at.</summary>
     public int StartEventOffset { get; private set; }
 
@@ -27,12 +27,12 @@ public partial class SyncTrack
     {
         if (SyncEvents.Length == 0)
         {
-            SyncEvents = [new SyncTrack__Event(default, 0f, 1f)];
+            SyncEvents = [new SyncTrack.Event(default, 0f, 1f)];
         }
     }
 
     /// <summary>Creates a track from events and a start event offset.</summary>
-    public SyncTrack(SyncTrack__Event[] events, int startEventOffset)
+    public SyncTrack(SyncTrack.Event[] events, int startEventOffset)
     {
         Debug.Assert(events.Length > 0);
         SyncEvents = events;
@@ -50,7 +50,7 @@ public partial class SyncTrack
     }
 
     /// <summary>Creates a reusable scratch track for in-place blending.</summary>
-    public static SyncTrack CreateBlendScratch() => new([new SyncTrack__Event(default, 0f, 1f)], 0);
+    public static SyncTrack CreateBlendScratch() => new([new SyncTrack.Event(default, 0f, 1f)], 0);
 
     /// <summary>
     /// Reuses this track as the blend of two tracks, only reallocating the event array when the
@@ -72,7 +72,7 @@ public partial class SyncTrack
         // reallocate every frame
         if (SyncEvents.Length < lcm)
         {
-            SyncEvents = new SyncTrack__Event[lcm];
+            SyncEvents = new SyncTrack.Event[lcm];
         }
 
         numEventsOverride = lcm;
@@ -87,7 +87,7 @@ public partial class SyncTrack
             var event1Duration = event1.Duration.Value * durationScale1;
 
             var blendedDuration = float.Lerp(event0Duration, event1Duration, blendWeight);
-            SyncEvents[i] = new SyncTrack__Event(blendWeight > 0.5f ? event1.ID : event0.ID, blendedStartPercent, blendedDuration);
+            SyncEvents[i] = new SyncTrack.Event(blendWeight > 0.5f ? event1.ID : event0.ID, blendedStartPercent, blendedDuration);
             blendedStartPercent += blendedDuration;
         }
 
@@ -96,11 +96,11 @@ public partial class SyncTrack
         for (var i = 0; i < lcm; i++)
         {
             var e = SyncEvents[i];
-            SyncEvents[i] = new SyncTrack__Event(e.ID, e.StartTime.Value * normalizedScalingFactor, e.Duration.Value * normalizedScalingFactor);
+            SyncEvents[i] = new SyncTrack.Event(e.ID, e.StartTime.Value * normalizedScalingFactor, e.Duration.Value * normalizedScalingFactor);
         }
 
         var last = SyncEvents[lcm - 1];
-        SyncEvents[lcm - 1] = new SyncTrack__Event(last.ID, last.StartTime.Value, 1f - last.StartTime.Value);
+        SyncEvents[lcm - 1] = new SyncTrack.Event(last.ID, last.StartTime.Value, 1f - last.StartTime.Value);
 
         StartEventOffset = 0;
     }
@@ -113,7 +113,7 @@ public partial class SyncTrack
         var numEvents = source.NumEvents;
         if (SyncEvents.Length < numEvents)
         {
-            SyncEvents = new SyncTrack__Event[numEvents];
+            SyncEvents = new SyncTrack.Event[numEvents];
         }
 
         source.SyncEvents.AsSpan(0, numEvents).CopyTo(SyncEvents);
@@ -154,7 +154,7 @@ public partial class SyncTrack
     public bool HasStartOffset => StartEventOffset != 0;
 
     /// <summary>Gets the event at the specified index, including the start offset.</summary>
-    public SyncTrack__Event GetEvent(int i) => SyncEvents[ClampIndexToTrack(i + StartEventOffset)];
+    public SyncTrack.Event GetEvent(int i) => SyncEvents[ClampIndexToTrack(i + StartEventOffset)];
 
     /// <summary>Gets the ID for the event at the specified index, including the start offset.</summary>
     public GlobalSymbol GetEventID(int i) => GetEvent(i).ID;

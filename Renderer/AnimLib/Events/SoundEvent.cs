@@ -6,7 +6,7 @@ partial class SoundEvent : Event
 {
     public EventRelevance Relevance { get; } = EventRelevance.ClientAndServer;
     public string Name { get; }
-    public SoundEvent__Position Position { get; }
+    public SoundEvent.PositionType Position { get; }
     public string AttachmentName { get; }
     public string Tags { get; }
     public bool ContinuePlayingSoundAtDurationEnd { get; }

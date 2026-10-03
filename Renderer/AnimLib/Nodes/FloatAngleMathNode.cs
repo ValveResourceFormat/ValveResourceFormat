@@ -5,5 +5,5 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 partial class FloatAngleMathNode : FloatValueNode
 {
     public short InputValueNodeIdx { get; } = -1;
-    public FloatAngleMathNode__Operation Operation { get; }
+    public FloatAngleMathNode.OperationType Operation { get; }
 }

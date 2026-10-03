@@ -6,4 +6,3 @@
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
 VRFKV3001 | KV3Transfer | Error | Unsupported KV property type
-VRFKV3002 | KV3Transfer | Error | Nested KV3 transfer type

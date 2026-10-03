@@ -4,6 +4,6 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 [KV3Transfer]
 partial class FloatCurveCompressionSettings
 {
-    public CompressionSettings__QuantizationRange Range { get; }
+    public CompressionSettings.QuantizationRange Range { get; }
     public bool IsStatic { get; }
 }

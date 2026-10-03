@@ -161,19 +161,19 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             switch (DesiredInfo)
             {
-                case VectorInfoNode__Info.X:
+                case VectorInfoNode.Info.X:
                     return inputVector.X;
 
-                case VectorInfoNode__Info.Y:
+                case VectorInfoNode.Info.Y:
                     return inputVector.Y;
 
-                case VectorInfoNode__Info.Z:
+                case VectorInfoNode.Info.Z:
                     return inputVector.Z;
 
-                case VectorInfoNode__Info.Length:
+                case VectorInfoNode.Info.Length:
                     return inputVector.Length();
 
-                case VectorInfoNode__Info.AngleHorizontal:
+                case VectorInfoNode.Info.AngleHorizontal:
                 {
                     if (inputVector.LengthSquared() > 1e-8f)
                     {
@@ -184,7 +184,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     return 0f;
                 }
 
-                case VectorInfoNode__Info.AngleVertical:
+                case VectorInfoNode.Info.AngleVertical:
                 {
                     if (inputVector.LengthSquared() > 1e-8f)
                     {

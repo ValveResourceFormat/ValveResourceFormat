@@ -42,7 +42,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         ClipReferenceNode ClipReferenceNode;
         TargetValueNode TargetValueNode;
 
-        RootMotionData__SamplingMode samplingMode = RootMotionData__SamplingMode.WorldSpace;
+        RootMotionData.SamplingMode samplingMode = RootMotionData.SamplingMode.WorldSpace;
         InternalState internalState = InternalState.RequiresInitialUpdate;
 
         int alignmentBoneIdx = -1;
@@ -868,11 +868,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         bool UpdateWarp(GraphContext ctx, GraphClip clip)
         {
-            var isRecalculationAllowed = TargetUpdateRule is TargetWarpNode__TargetUpdateRule.Recalculate or TargetWarpNode__TargetUpdateRule.RecalculateOrOffset;
+            var isRecalculationAllowed = TargetUpdateRule is TargetWarpNode.TargetUpdateRuleType.Recalculate or TargetWarpNode.TargetUpdateRuleType.RecalculateOrOffset;
 
             if (internalState is InternalState.Completed or InternalState.Failed)
             {
-                if (TargetUpdateRule == TargetWarpNode__TargetUpdateRule.Offset && warpedRootMotion.IsValid)
+                if (TargetUpdateRule == TargetWarpNode.TargetUpdateRuleType.Offset && warpedRootMotion.IsValid)
                 {
                     OffsetWarpedRootMotion(ctx);
                 }
@@ -902,7 +902,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 var currentFrameIdx = clip.GetFrameTime(CurrentTime).UpperBoundFrameIndex;
                 if (!CanRecalculateWarpedRootMotion(currentFrameIdx))
                 {
-                    if (TargetUpdateRule == TargetWarpNode__TargetUpdateRule.RecalculateOrOffset)
+                    if (TargetUpdateRule == TargetWarpNode.TargetUpdateRuleType.RecalculateOrOffset)
                     {
                         OffsetWarpedRootMotion(ctx);
                     }
@@ -1021,24 +1021,24 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             // Accurate sampling matches the exact world space position each update
-            if (samplingMode == RootMotionData__SamplingMode.WorldSpace)
+            if (samplingMode == RootMotionData.SamplingMode.WorldSpace)
             {
                 var expectedTransform = warpedRootMotion.GetTransform(PreviousTime);
                 var positionErrorSq = Vector3.DistanceSquared(expectedTransform.Position, ctx.WorldTransform.Position);
                 if (positionErrorSq <= SamplingPositionErrorThresholdSq)
                 {
-                    result.RootMotionDelta = warpedRootMotion.SampleRootMotion(RootMotionData__SamplingMode.WorldSpace, ctx.WorldTransform, PreviousTime, CurrentTime);
+                    result.RootMotionDelta = warpedRootMotion.SampleRootMotion(RootMotionData.SamplingMode.WorldSpace, ctx.WorldTransform, PreviousTime, CurrentTime);
                 }
                 else // Exceeded the error threshold, so fall back to inaccurate sampling
                 {
-                    samplingMode = RootMotionData__SamplingMode.Delta;
+                    samplingMode = RootMotionData.SamplingMode.Delta;
                     ctx.LogWarning(NodeIdx, "Target warp exceed accurate sampling error threshold! Switching to inaccurate sampling!");
                 }
             }
 
-            if (samplingMode == RootMotionData__SamplingMode.Delta)
+            if (samplingMode == RootMotionData.SamplingMode.Delta)
             {
-                result.RootMotionDelta = warpedRootMotion.SampleRootMotion(RootMotionData__SamplingMode.Delta, ctx.WorldTransform, PreviousTime, CurrentTime);
+                result.RootMotionDelta = warpedRootMotion.SampleRootMotion(RootMotionData.SamplingMode.Delta, ctx.WorldTransform, PreviousTime, CurrentTime);
             }
         }
 
@@ -1064,7 +1064,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 // Always sample in world space when the warp updates, which corrects any sampling error
                 // due to the mid-frame delta calculation
                 var savedSamplingMode = samplingMode;
-                samplingMode = RootMotionData__SamplingMode.WorldSpace;
+                samplingMode = RootMotionData.SamplingMode.WorldSpace;
                 SampleWarpedRootMotion(ctx, ref result);
                 samplingMode = savedSamplingMode;
             }

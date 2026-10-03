@@ -6,5 +6,5 @@ partial class GraphEventConditionNode : BoolValueNode
 {
     public short SourceStateNodeIdx { get; } = -1;
     public BitFlags EventConditionRules { get; }
-    public GraphEventConditionNode__Condition[] Conditions { get; } = [];
+    public GraphEventConditionNode.Condition[] Conditions { get; } = [];
 }

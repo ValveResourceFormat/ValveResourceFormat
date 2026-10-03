@@ -5,5 +5,5 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 partial class CurrentSyncEventNode : FloatValueNode
 {
     public short SourceStateNodeIdx { get; } = -1;
-    public CurrentSyncEventNode__InfoType InfoType { get; }
+    public CurrentSyncEventNode.CurrentSyncEventNodeInfoType InfoType { get; }
 }

@@ -141,7 +141,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var elapsedTime = Duration * CurrentTime;
             foreach (var timedEvent in TimedElapsedEvents)
             {
-                var fire = timedEvent.ComparisionOperator == StateNode__TimedEvent__Comparison.GreaterThanEqual
+                var fire = timedEvent.ComparisionOperator == StateNode.TimedEvent.Comparison.GreaterThanEqual
                     ? elapsedTime >= timedEvent.TimeValueSeconds
                     : elapsedTime <= timedEvent.TimeValueSeconds;
 
@@ -154,7 +154,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var currentTimeRemaining = (1f - CurrentTime) * Duration;
             foreach (var timedEvent in TimedRemainingEvents)
             {
-                var fire = timedEvent.ComparisionOperator == StateNode__TimedEvent__Comparison.GreaterThanEqual
+                var fire = timedEvent.ComparisionOperator == StateNode.TimedEvent.Comparison.GreaterThanEqual
                     ? currentTimeRemaining >= timedEvent.TimeValueSeconds
                     : currentTimeRemaining <= timedEvent.TimeValueSeconds;
 

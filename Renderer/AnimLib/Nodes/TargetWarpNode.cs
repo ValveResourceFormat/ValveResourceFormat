@@ -6,8 +6,8 @@ partial class TargetWarpNode : PoseNode
 {
     public short ClipReferenceNodeIdx { get; } = -1;
     public short TargetValueNodeIdx { get; } = -1;
-    public RootMotionData__SamplingMode SamplingMode { get; }
-    public TargetWarpNode__TargetUpdateRule TargetUpdateRule { get; }
+    public RootMotionData.SamplingMode SamplingMode { get; }
+    public TargetWarpNode.TargetUpdateRuleType TargetUpdateRule { get; }
     public bool AlignWithTargetAtLastWarpEvent { get; }
     public float SamplingPositionErrorThresholdSq { get; }
     public float MaxTangentLength { get; } = 1.25f;

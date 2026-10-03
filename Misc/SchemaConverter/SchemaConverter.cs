@@ -349,8 +349,8 @@ void Generate(Schema schema, string outputDir)
 
     foreach (var type in schema.Types)
     {
-        var fileName = converter.ConvertClassName(type.Name, target.SourceNameSpace);
-        var destinationDirLocal = target.ChooseFolder(converter, fileName, outputDir);
+        var internalName = converter.ConvertClassName(type.Name, target.SourceNameSpace);
+        var destinationDirLocal = target.ChooseFolder(converter, internalName, outputDir);
         Directory.CreateDirectory(destinationDirLocal);
 
         var writer = new StringBuilder();
@@ -363,9 +363,29 @@ void Generate(Schema schema, string outputDir)
         writer.Append(CultureInfo.InvariantCulture, $"namespace {target.DestinationNameSpace};\n");
         writer.Append('\n');
 
-        converter.Write(type, writer);
+        // Nested types go inside partial declarations of the types they belong to
+        var outers = converter.OuterTypes(internalName);
+        for (var i = 0; i < outers.Count; i++)
+        {
+            var indent = new string(' ', i * 4);
+            writer.Append(CultureInfo.InvariantCulture, $"{indent}{target.ClassKeywords(converter, outers[i])} {converter.SimpleName(outers[i])}\n");
+            writer.Append(CultureInfo.InvariantCulture, $"{indent}{{\n");
+        }
 
-        WriteNormalized(Path.Combine(destinationDirLocal, fileName + ".cs"), writer.ToString());
+        var typeWriter = new StringBuilder();
+        converter.Write(type, typeWriter);
+
+        foreach (var line in typeWriter.ToString().TrimEnd('\n').Split('\n'))
+        {
+            writer.Append(line.Length > 0 ? new string(' ', outers.Count * 4) + line : line).Append('\n');
+        }
+
+        for (var i = outers.Count - 1; i >= 0; i--)
+        {
+            writer.Append(CultureInfo.InvariantCulture, $"{new string(' ', i * 4)}}}\n");
+        }
+
+        WriteNormalized(Path.Combine(destinationDirLocal, converter.TypeReference(internalName) + ".cs"), writer.ToString());
     }
 }
 
@@ -565,6 +585,10 @@ class Converter
     private readonly HashSet<string> enumTypes = [];
     private readonly Dictionary<string, Dictionary<string, long>> enumMembers = [];
     private readonly Dictionary<string, string?> classHierarchies = [];
+    private readonly Dictionary<string, HashSet<string>> ownPropertyNames = [];
+
+    // Properties of each class and of the classes deriving from it, which a nested type must not share a name with
+    private readonly Dictionary<string, HashSet<string>> propertyNames = [];
 
     private static readonly HashSet<string> MatchingTypes =
     [
@@ -608,6 +632,7 @@ class Converter
             {
                 case SchemaClass @class:
                     classHierarchies[ConvertClassName(@class.Name, target.SourceNameSpace)] = @class.Parent is not null ? ConvertClassName(@class.Parent, target.SourceNameSpace) : null;
+                    ownPropertyNames[ConvertClassName(@class.Name, target.SourceNameSpace)] = [.. @class.Fields.Select(f => ConvertHungarianNotation(f.Name))];
                     break;
                 case SchemaEnum @enum:
                     enumTypes.Add(ConvertClassName(@enum.Name, target.SourceNameSpace));
@@ -615,11 +640,85 @@ class Converter
                     break;
             }
         }
+
+        CollectPropertyNames();
     }
 
     private string SourceNameSpace => target.SourceNameSpace;
 
+    private void CollectPropertyNames()
+    {
+        foreach (var (@class, properties) in ownPropertyNames)
+        {
+            for (string? ancestor = @class; ancestor != null; ancestor = classHierarchies.GetValueOrDefault(ancestor))
+            {
+                if (!propertyNames.TryGetValue(ancestor, out var names))
+                {
+                    propertyNames[ancestor] = names = [];
+                }
+
+                names.UnionWith(properties);
+            }
+        }
+    }
+
     public bool IsEnum(string type) => enumTypes.Contains(type);
+
+    /*
+        StateNode__TimedEvent__Comparison -> StateNode.TimedEvent.Comparison. A nested type named like a property of
+        the type it is in gets a Type suffix (FloatMathNode__Operator -> FloatMathNode.OperatorType), or the outer
+        name as a prefix when it already ends in Type (ClothEvent__Type -> ClothEvent.ClothEventType)
+    */
+    public string TypeReference(string internalName)
+    {
+        if (internalName.EndsWith("[]", StringComparison.Ordinal))
+        {
+            return TypeReference(internalName[..^2]) + "[]";
+        }
+
+        var parts = internalName.Split("__");
+        if (parts.Length == 1)
+        {
+            return internalName;
+        }
+
+        var reference = new StringBuilder(parts[0]);
+        var outer = parts[0];
+
+        foreach (var part in parts[1..])
+        {
+            var name = part;
+            if (propertyNames.TryGetValue(outer, out var properties) && properties.Contains(part))
+            {
+                // A Type suffix, or the outer name as a prefix when the name already ends in Type
+                name = part.EndsWith("Type", StringComparison.Ordinal) ? outer.Split("__")[^1] + part : part + "Type";
+            }
+
+            reference.Append('.').Append(name);
+            outer += "__" + part;
+        }
+
+        return reference.ToString();
+    }
+
+    /// <summary>The name a type is declared with, the last part of its reference.</summary>
+    public string SimpleName(string internalName) => TypeReference(internalName).Split('.')[^1];
+
+    /// <summary>The types a nested type is declared in, outermost first, by internal name.</summary>
+    public List<string> OuterTypes(string internalName)
+    {
+        var parts = internalName.Split("__");
+        List<string> outers = [];
+
+        for (var i = 1; i < parts.Length; i++)
+        {
+            outers.Add(string.Join("__", parts[..i]));
+        }
+
+        return outers;
+    }
+
+    private static bool IsNested(string internalName) => internalName.Contains("__", StringComparison.Ordinal);
 
     public string RootClass(string @class)
     {
@@ -727,7 +826,9 @@ class Converter
 
     private void WriteEnum(SchemaEnum @enum, StringBuilder writer)
     {
-        writer.Append(CultureInfo.InvariantCulture, $"enum {ConvertClassName(@enum.Name, SourceNameSpace)} : {ConvertClassName(@enum.BaseType)}\n");
+        var enumName = ConvertClassName(@enum.Name, SourceNameSpace);
+        var access = IsNested(enumName) ? "internal " : string.Empty;
+        writer.Append(CultureInfo.InvariantCulture, $"{access}enum {SimpleName(enumName)} : {ConvertClassName(@enum.BaseType)}\n");
         writer.Append("{\n");
 
         foreach (var (name, value) in @enum.Members)
@@ -751,11 +852,12 @@ class Converter
     private void WriteClass(SchemaClass @class, StringBuilder writer)
     {
         var convertedClass = ConvertClassName(@class.Name, SourceNameSpace);
+        var access = IsNested(convertedClass) ? "internal " : string.Empty;
 
-        var csClass = $"{target.ClassKeywords(this, convertedClass)} {convertedClass}";
+        var csClass = $"{access}{target.ClassKeywords(this, convertedClass)} {SimpleName(convertedClass)}";
         if (@class.Parent is not null)
         {
-            csClass += $" : {ConvertClassName(@class.Parent, SourceNameSpace)}";
+            csClass += $" : {TypeReference(ConvertClassName(@class.Parent, SourceNameSpace))}";
         }
 
         writer.Append("[KV3Transfer]\n");
@@ -797,7 +899,7 @@ class Converter
         var initializer = Initializer(csType, schemaDefault);
         var argComment = args is not null && args.Length > 0 ? $" // {args}" : string.Empty;
 
-        writer.Append(CultureInfo.InvariantCulture, $"    public {csType} {newName} {{ get; }}{initializer}{argComment}\n");
+        writer.Append(CultureInfo.InvariantCulture, $"    public {TypeReference(csType)} {newName} {{ get; }}{initializer}{argComment}\n");
     }
 
     // Must match DefaultKey in the KV3Transfer source generator
@@ -863,7 +965,7 @@ class Converter
         if (enumTypes.Contains(csType) && value.ValueKind == JsonValueKind.String
             && enumMembers.TryGetValue(csType, out var members) && members.TryGetValue(value.GetString()!, out var memberValue))
         {
-            return memberValue == 0 ? string.Empty : $" = {csType}.{value.GetString()};";
+            return memberValue == 0 ? string.Empty : $" = {TypeReference(csType)}.{value.GetString()};";
         }
 
         return string.Empty;

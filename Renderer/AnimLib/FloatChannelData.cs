@@ -6,7 +6,7 @@ partial class FloatChannelData
 {
     public string Skeleton { get; } // InfoForResourceTypeCNmSkeleton
     public GlobalSymbol SetID { get; }
-    public FloatChannelData__ChannelSettings[] ChannelSettings { get; } = [];
+    public FloatChannelData.ChannelSettingsType[] ChannelSettings { get; } = [];
     public ushort[] CompressedData { get; } = [];
     public uint[] CompressedOffsets { get; } = [];
 }

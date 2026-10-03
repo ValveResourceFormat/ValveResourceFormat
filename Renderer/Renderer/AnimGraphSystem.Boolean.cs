@@ -184,11 +184,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             return Comparison switch
             {
-                FloatComparisonNode__Comparison.LessThan => a < b,
-                FloatComparisonNode__Comparison.LessThanEqual => a <= b,
-                FloatComparisonNode__Comparison.GreaterThan => a > b,
-                FloatComparisonNode__Comparison.GreaterThanEqual => a >= b,
-                FloatComparisonNode__Comparison.NearEqual => MathF.Abs(a - b) <= Epsilon,
+                FloatComparisonNode.ComparisonType.LessThan => a < b,
+                FloatComparisonNode.ComparisonType.LessThanEqual => a <= b,
+                FloatComparisonNode.ComparisonType.GreaterThan => a > b,
+                FloatComparisonNode.ComparisonType.GreaterThanEqual => a >= b,
+                FloatComparisonNode.ComparisonType.NearEqual => MathF.Abs(a - b) <= Epsilon,
                 _ => false,
             };
         }
@@ -380,8 +380,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             return TriggerMode switch
             {
-                SyncEventIndexConditionNode__TriggerMode.ExactlyAtEventIndex => currentSyncTime.EventIdx == SyncEventIdx,
-                SyncEventIndexConditionNode__TriggerMode.GreaterThanEqualToEventIndex => currentSyncTime.EventIdx >= SyncEventIdx,
+                SyncEventIndexConditionNode.TriggerModeType.ExactlyAtEventIndex => currentSyncTime.EventIdx == SyncEventIdx,
+                SyncEventIndexConditionNode.TriggerModeType.GreaterThanEqualToEventIndex => currentSyncTime.EventIdx >= SyncEventIdx,
                 _ => false,
             };
         }
@@ -510,8 +510,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var matches = ComparisionIDs.Length == 0 ? !inputValue.IsValid : ComparisionIDs.Contains(inputValue);
             return Comparison switch
             {
-                IDComparisonNode__Comparison.Matches => matches,
-                IDComparisonNode__Comparison.DoesntMatch => !matches,
+                IDComparisonNode.ComparisonType.Matches => matches,
+                IDComparisonNode.ComparisonType.DoesntMatch => !matches,
                 _ => false,
             };
         }
@@ -675,10 +675,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             return Operator switch
             {
-                TimeConditionNode__Operator.LessThan => a < b,
-                TimeConditionNode__Operator.LessThanEqual => a <= b,
-                TimeConditionNode__Operator.GreaterThan => a > b,
-                TimeConditionNode__Operator.GreaterThanEqual => a >= b,
+                TimeConditionNode.OperatorType.LessThan => a < b,
+                TimeConditionNode.OperatorType.LessThanEqual => a <= b,
+                TimeConditionNode.OperatorType.GreaterThan => a > b,
+                TimeConditionNode.OperatorType.GreaterThanEqual => a >= b,
                 _ => false,
             };
         }
@@ -689,9 +689,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             return Type switch
             {
-                TimeConditionNode__ComparisonType.PercentageThroughState => Compare(SourceStateNode.CurrentTime, comparisonValue),
-                TimeConditionNode__ComparisonType.PercentageThroughSyncEvent => Compare(SourceStateNode.SyncTrack.GetTime(SourceStateNode.CurrentTime).PercentageThrough.Value, comparisonValue),
-                TimeConditionNode__ComparisonType.ElapsedTime => Compare(SourceStateNode.Duration * SourceStateNode.CurrentTime, comparisonValue),
+                TimeConditionNode.ComparisonType.PercentageThroughState => Compare(SourceStateNode.CurrentTime, comparisonValue),
+                TimeConditionNode.ComparisonType.PercentageThroughSyncEvent => Compare(SourceStateNode.SyncTrack.GetTime(SourceStateNode.CurrentTime).PercentageThrough.Value, comparisonValue),
+                TimeConditionNode.ComparisonType.ElapsedTime => Compare(SourceStateNode.Duration * SourceStateNode.CurrentTime, comparisonValue),
                 _ => false,
             };
         }

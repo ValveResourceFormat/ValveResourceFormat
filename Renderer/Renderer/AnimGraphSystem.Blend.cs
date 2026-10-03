@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             base.ShutdownInternal(ctx);
         }
 
-        protected ParameterizedBlendNode__Parameterization ActiveParameterization;
+        protected ParameterizedBlendNode.ParameterizationType ActiveParameterization;
 
         PoseNode? blendSource0;
         PoseNode? blendSource1;
@@ -246,7 +246,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 values[i] = (SourceNodes[i] as ClipReferenceNode)?.GetClip(ctx)?.RootMotion.AverageLinearVelocity ?? 0f;
             }
 
-            ActiveParameterization = ParameterizedBlendNode__Parameterization.CreateParameterization(values);
+            ActiveParameterization = ParameterizedBlendNode.ParameterizationType.CreateParameterization(values);
         }
     }
 

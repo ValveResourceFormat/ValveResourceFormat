@@ -13,6 +13,6 @@ partial class Clip
     public SyncTrack SyncTrack { get; }
     public RootMotionData RootMotion { get; }
     public bool IsAdditive { get; }
-    public Clip__ModelSpaceSamplingChainLink[] ModelSpaceSamplingChain { get; } = [];
+    public Clip.ModelSpaceSamplingChainLink[] ModelSpaceSamplingChain { get; } = [];
     public int[] ModelSpaceBoneSamplingIndices { get; } = [];
 }

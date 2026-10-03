@@ -23,11 +23,11 @@ public partial class Skeleton
     /// <summary>The bone mask definitions.</summary>
     public BoneMaskSetDefinition[] MaskDefinitions { get; } = [];
     /// <summary>Skeletons attached to bones of this one.</summary>
-    public Skeleton__SecondarySkeleton[] SecondarySkeletons { get; } = [];
+    public Skeleton.SecondarySkeleton[] SecondarySkeletons { get; } = [];
     /// <summary>The float channel sets.</summary>
     public FloatChannelSet[] FloatChannelSets { get; } = [];
     /// <summary>The contact point configurations.</summary>
-    public Skeleton__ContactConfig[] ContactConfigs { get; } = [];
+    public Skeleton.ContactConfig[] ContactConfigs { get; } = [];
     /// <summary>The bones relevant to gameplay.</summary>
     public int[] GameplayRelevantBoneIndices { get; } = [];
     /// <summary>A hash of the special dependencies.</summary>

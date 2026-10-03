@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 partial class SyncEventIndexConditionNode : BoolValueNode
 {
     public short SourceStateNodeIdx { get; } = -1;
-    public SyncEventIndexConditionNode__TriggerMode TriggerMode { get; }
+    public SyncEventIndexConditionNode.TriggerModeType TriggerMode { get; }
     [KVProperty("m_syncEventIdx")]
     public int SyncEventIdx { get; } = -1;
 }

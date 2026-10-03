@@ -5,6 +5,6 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 partial class FloatRemapNode : FloatValueNode
 {
     public short InputValueNodeIdx { get; } = -1;
-    public FloatRemapNode__RemapRange InputRange { get; }
-    public FloatRemapNode__RemapRange OutputRange { get; }
+    public FloatRemapNode.RemapRange InputRange { get; }
+    public FloatRemapNode.RemapRange OutputRange { get; }
 }

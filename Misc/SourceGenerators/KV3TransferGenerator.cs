@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
@@ -51,14 +52,6 @@ public sealed class KV3TransferGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    private static readonly DiagnosticDescriptor NestedType = new(
-        "VRFKV3002",
-        "Nested KV3 transfer type",
-        "KV3 transfer type '{0}' is nested in another type, which is not supported",
-        "KV3Transfer",
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
-
     /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -95,12 +88,6 @@ public sealed class KV3TransferGenerator : IIncrementalGenerator
         var hintName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", "").Replace('<', '_').Replace('>', '_') + ".KV3Transfer.g.cs";
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
 
-        if (type.ContainingType != null)
-        {
-            diagnostics.Add(Diagnostic.Create(NestedType, declaration.Identifier.GetLocation(), type.Name));
-            return new Result(hintName, null, diagnostics.ToImmutable());
-        }
-
         var body = new StringBuilder();
 
         foreach (var member in declaration.Members)
@@ -132,9 +119,6 @@ public sealed class KV3TransferGenerator : IIncrementalGenerator
             body.Append("        }\n\n");
         }
 
-        var keyword = type.TypeKind == TypeKind.Struct
-            ? (type.IsReadOnly ? "readonly partial struct" : "partial struct")
-            : "partial class";
         var constructorAccess = type.IsAbstract ? "protected" : "public";
         var baseCall = HasDataConstructor(type.BaseType) ? " : base(data)" : string.Empty;
 
@@ -148,7 +132,20 @@ public sealed class KV3TransferGenerator : IIncrementalGenerator
             source.Append(FormattableString.Invariant($"namespace {type.ContainingNamespace.ToDisplayString()};\n\n"));
         }
 
-        source.Append(FormattableString.Invariant($"{keyword} {type.Name}\n"));
+        // Nested types are declared inside partial declarations of the types containing them
+        var containingTypes = new List<INamedTypeSymbol>();
+        for (var containing = type.ContainingType; containing != null; containing = containing.ContainingType)
+        {
+            containingTypes.Insert(0, containing);
+        }
+
+        foreach (var containing in containingTypes)
+        {
+            source.Append(FormattableString.Invariant($"{PartialKeyword(containing)} {containing.Name}\n"));
+            source.Append("{\n");
+        }
+
+        source.Append(FormattableString.Invariant($"{PartialKeyword(type)} {type.Name}\n"));
         source.Append("{\n");
         source.Append(FormattableString.Invariant($"    /// <summary>Reads the {type.Name} from its KeyValues3 data.</summary>\n"));
         source.Append(FormattableString.Invariant($"    {constructorAccess} {type.Name}({KVObjectType} data){baseCall}\n"));
@@ -160,8 +157,17 @@ public sealed class KV3TransferGenerator : IIncrementalGenerator
         source.Append(FormattableString.Invariant($"    partial void OnLoaded({KVObjectType} data);\n"));
         source.Append("}\n");
 
+        foreach (var _ in containingTypes)
+        {
+            source.Append("}\n");
+        }
+
         return new Result(hintName, source.ToString(), diagnostics.ToImmutable());
     }
+
+    private static string PartialKeyword(INamedTypeSymbol type) => type.TypeKind == TypeKind.Struct
+        ? (type.IsReadOnly ? "readonly partial struct" : "partial struct")
+        : "partial class";
 
     private static bool IsAutoProperty(PropertyDeclarationSyntax property)
         => property.ExpressionBody == null
