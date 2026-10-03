@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO.ContentFormats.DmxModel;
@@ -33,6 +33,9 @@ internal readonly record struct DmxMeshBuildOptions
     /// datamodel's model element.
     /// </summary>
     public DmeModel? SkeletonRoot { get; init; }
+
+    /// <summary>The cloth proxy bones the mesh is skinned to, written back as <c>cloth_enable</c> paint.</summary>
+    public ClothRenderBinding? Cloth { get; init; }
 }
 
 /// <summary>
@@ -49,9 +52,11 @@ internal static class DmxMeshBuilder
 
     /// <summary>
     /// The values the streams of one vertex data element are decoded against: the input signature of the
-    /// first material its draw calls use that has one, and the mesh's skinning.
+    /// first material its draw calls use that has one, the mesh's skinning, and the cloth binding with the element's
+    /// triangles the <c>cloth_enable</c> paint is grown over.
     /// </summary>
-    private readonly record struct VertexStreams(Material.VsInputSignature MaterialInputSignature, int BoneWeightCount, int[]? BoneRemapTable);
+    private readonly record struct VertexStreams(Material.VsInputSignature MaterialInputSignature, int BoneWeightCount, int[]? BoneRemapTable,
+        ClothRenderBinding? Cloth, List<int>? ClothTriangles);
 
     /// <summary>
     /// A mesh's vertex buffers concatenated into one, the vertex each original buffer starts at, and the
@@ -140,6 +145,9 @@ internal static class DmxMeshBuilder
 
         var boneWeightCount = streams.BoneWeightCount;
         var boneArrayComponents = boneWeightCount > 4 ? 8 : 4;
+        int[]? clothBlendIndices = null;
+        float[]? clothBlendWeights = null;
+        Vector3[]? clothPositions = null;
 
         foreach (var attribute in vertexBuffer.InputLayoutFields)
         {
@@ -187,6 +195,16 @@ internal static class DmxMeshBuilder
                     }
                 }
 
+                if (streams.Cloth != null)
+                {
+                    clothBlendIndices = (int[])compactIndices.Clone();
+
+                    for (var i = 0; i < compactIndices.Length; i++)
+                    {
+                        compactIndices[i] = ClothBones.CompactBoneIndex(streams.Cloth.Compaction, compactIndices[i]);
+                    }
+                }
+
                 vertexData.AddStream(semantic, compactIndices);
                 continue;
             }
@@ -211,6 +229,7 @@ internal static class DmxMeshBuilder
                     }
                 }
 
+                clothBlendWeights = compactWeights;
                 vertexData.AddStream(weightsSemantic, compactWeights);
                 continue;
             }
@@ -228,6 +247,17 @@ internal static class DmxMeshBuilder
             if (HasStream(vertexData, semantic))
             {
                 continue;
+            }
+
+            if (attribute.SemanticName is "POSITION" && streams.Cloth is { BindsPositions: true })
+            {
+                clothPositions = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
+
+                if (attributeFormat.ElementCount == 3)
+                {
+                    vertexData.AddIndexedStream(semantic, clothPositions, indices);
+                    continue;
+                }
             }
 
             switch (attributeFormat.ElementCount)
@@ -261,6 +291,12 @@ internal static class DmxMeshBuilder
             }
 
             vertexData.AddStream("blendweights$0", Enumerable.Repeat(1f, collection.Count).ToArray());
+        }
+
+        if (!isToolsBuffer && streams.Cloth != null)
+        {
+            streams.Cloth.Apply(vertexData, indices, boneWeightCount, streams.ClothTriangles, clothBlendIndices, clothBlendWeights,
+                clothPositions);
         }
     }
 
@@ -394,13 +430,17 @@ internal static class DmxMeshBuilder
                     options.SubmeshDrawCalls?.Add((dag, drawCall));
                 }
 
+                var drawCallIndices = indexBuffer[startIndex..(startIndex + indexCount)];
+
                 DmxScaffolding.TriangleFaceSetFromIndexBuffer(
                     dag,
-                    indexBuffer[startIndex..(startIndex + indexCount)],
+                    drawCallIndices,
                     baseVertex,
                     material,
                     $"{startIndex}..{startIndex + indexCount}"
                 );
+
+                options.Cloth?.AddTriangles(dmeVertexBufferKey, baseVertex, drawCallIndices);
 
                 drawCallIndex++;
             }
@@ -409,7 +449,7 @@ internal static class DmxMeshBuilder
         foreach (var (vertexBufferIndices, dmeObjects) in dmeVertexBuffers)
         {
             var streams = new VertexStreams(inputSignatures.GetValueOrDefault(vertexBufferIndices, Material.VsInputSignature.Empty),
-                mesh.BoneWeightCount, options.BoneRemapTable);
+                mesh.BoneWeightCount, options.BoneRemapTable, options.Cloth, options.Cloth?.TrianglesOf(vertexBufferIndices));
 
             if (merged != null)
             {

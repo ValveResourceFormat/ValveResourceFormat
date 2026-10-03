@@ -51,6 +51,7 @@ namespace CLI
         private bool CachedManifest;
         private bool Decompile;
         private TextureCodec TextureDecodeFlags;
+        private bool NoCloth;
         private string[] FileFilter = [];
         private bool ListResources;
         private string? GamePath;
@@ -99,6 +100,7 @@ namespace CLI
         /// <param name="output">-o, Output path to write to. Treated as a folder when it is an existing folder, ends with a path separator, or has no file extension, otherwise it names the file to write.</param>
         /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files.</param>
         /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto", "ForceLDR".</param>
+        /// <param name="no_cloth">Skip reconstructing cloth (soft-body) physics when decompiling models.</param>
         /// <param name="recursive">If specified and given input is a folder, all sub directories will be scanned too.</param>
         /// <param name="recursive_vpk">If specified along with --recursive, will also recurse into VPK archives.</param>
         /// <param name="all">-a, Print the content of each resource block in the file.</param>
@@ -133,6 +135,7 @@ namespace CLI
             string? output = default,
             bool decompile = false,
             string texture_decode_flags = nameof(TextureCodec.Auto),
+            bool no_cloth = false,
             bool recursive = false,
             bool recursive_vpk = false,
             bool all = false,
@@ -171,6 +174,7 @@ namespace CLI
             OutputFile = output;
             Decompile = decompile;
             TextureDecodeFlags = Enum.Parse<TextureCodec>(texture_decode_flags, true);
+            NoCloth = no_cloth;
             RecursiveSearch = recursive;
             RecursiveSearchArchives = recursive_vpk;
             PrintAllBlocks = all;
@@ -788,7 +792,7 @@ namespace CLI
                 {
                     DecodeFlags = TextureDecodeFlags,
                 }.ToContentFile(),
-                _ => FileExtract.Extract(resource, fileLoader, ProgressReporter),
+                _ => FileExtract.Extract(resource, fileLoader, ProgressReporter, extractCloth: !NoCloth),
             };
         }
 

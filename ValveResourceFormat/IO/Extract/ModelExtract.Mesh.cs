@@ -64,6 +64,21 @@ partial class ModelExtract
         /// When provided, bones are emitted into the DMX <c>jointList</c> so ModelDoc can resolve indices.
         /// </summary>
         public Skeleton? Skeleton { get; init; }
+
+        /// <summary>
+        /// Parent-space bone positions to emit in place of the skeleton's own, keyed by bone name
+        /// (see <see cref="ClothExtract.RestBonePositions"/>).
+        /// </summary>
+        internal IReadOnlyDictionary<string, Vector3>? BonePositions { get; init; }
+
+        /// <summary>The cloth proxy surface a painted render vertex binds to.</summary>
+        internal ClothProxySurface? ClothSurface { get; init; }
+
+        /// <summary>
+        /// Writes the mesh without cloth handling: the bones the compiler generated from a cloth proxy stay ordinary
+        /// joints and no <c>cloth_enable</c> paint is written.
+        /// </summary>
+        internal bool SkipCloth { get; init; }
     }
 
     /// <summary>
@@ -104,6 +119,13 @@ partial class ModelExtract
         EnqueueRenderMeshes();
         EnqueuePhysMeshes();
     }
+
+    /// <summary>
+    /// The parent-space position to emit for a bone: its cloth rest correction where there is one, and
+    /// its compiled transform otherwise.
+    /// </summary>
+    internal static Vector3 BonePosition(Bone bone, IReadOnlyDictionary<string, Vector3>? overrides)
+        => overrides is not null && overrides.TryGetValue(bone.Name, out var position) ? position : bone.Position;
 
     private void EnqueueRenderMeshes()
     {
@@ -180,6 +202,8 @@ partial class ModelExtract
             SplitDrawCallsIntoSeparateSubmeshes = true,
             BoneRemapTable = boneRemapTable,
             Skeleton = skeleton,
+            BonePositions = extract.Cloth.RestBonePositions,
+            SkipCloth = !extract.ReconstructsCloth,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -246,7 +270,7 @@ partial class ModelExtract
 
         if (options.Skeleton is { Bones.Length: > 0 } skeleton)
         {
-            skeletonRoot = BuildDmeDagSkeleton(skeleton, out _);
+            skeletonRoot = BuildDmeDagSkeleton(skeleton, out _, bonePositions: options.BonePositions, keepClothProxyBones: options.SkipCloth);
         }
 
         return DmxMeshBuilder.Build(mesh, name, new DmxMeshBuildOptions
@@ -256,6 +280,7 @@ partial class ModelExtract
             MaterialInputSignatures = options.MaterialInputSignatures,
             BoneRemapTable = options.BoneRemapTable,
             SkeletonRoot = skeletonRoot,
+            Cloth = options.SkipCloth ? null : ClothRenderBinding.Create(options.Skeleton, options.ClothSurface),
         });
     }
 

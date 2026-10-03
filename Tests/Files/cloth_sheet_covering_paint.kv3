@@ -1,0 +1,45 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+    m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11", "$cloth_m0p12", "$cloth_m0p13", "$cloth_m0p14", "$cloth_m0p15" ]
+    m_nNodeCount = 16
+    m_nStaticNodes = 0
+    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+    m_InitPose =
+    [
+        [ -10.815558, 5.645328, 132.523, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -11.083033, 2.5336894E-06, 132.60832, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -10.815558, -5.645328, 132.523, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -16.881643, -7.930124, 122.44642, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -20.313026, 5.300744E-07, 123.969406, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -16.881643, 7.930124, 122.44642, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -27.958843, 4.2594985E-07, 117.86752, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -23.512804, -12.685439, 113.22655, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -23.512804, 12.685439, 113.22655, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -36.28462, -3.9803567E-07, 112.21493, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -32.75763, -13.32593, 106.65457, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -32.75763, 13.32593, 106.65457, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -42.748714, -7.3693547, 103.30281, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -44.183052, -1.4517694E-06, 106.34426, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -42.748714, 7.3693547, 103.30281, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -51.528694, 3.4769377E-07, 99.68677, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+    ]
+    m_Rods =
+    [
+        { nNode = [ 0, 8 ] flMinDist = 23.581099 flMaxDist = 24.224367 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 1, 6 ] flMinDist = 21.832897 flMaxDist = 22.42169 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 2, 7 ] flMinDist = 23.581099 flMaxDist = 24.224367 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 3, 10 ] flMinDist = 20.917269 flMaxDist = 23.07899 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 5, 11 ] flMinDist = 20.91727 flMaxDist = 23.07899 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 4, 9 ] flMinDist = 17.894537 flMaxDist = 19.84255 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 5, 3 ] flMinDist = 15.860248 flMaxDist = 17.301552 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 7, 12 ] flMinDist = 13.51877 flMaxDist = 22.288712 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 8, 14 ] flMinDist = 13.51877 flMaxDist = 22.288712 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 6, 13 ] flMinDist = 11.3243475 flMaxDist = 19.903667 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 8, 7 ] flMinDist = 21.56542 flMaxDist = 28.417582 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 9, 15 ] flMinDist = 7.7820816 flMaxDist = 19.751091 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 10, 15 ] flMinDist = 15.032627 flMaxDist = 24.094904 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 11, 15 ] flMinDist = 15.032627 flMaxDist = 24.094902 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 11, 10 ] flMinDist = 13.903145 flMaxDist = 29.725107 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+        { nNode = [ 14, 12 ] flMinDist = 6.154204 flMaxDist = 16.146252 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+    ]
+}

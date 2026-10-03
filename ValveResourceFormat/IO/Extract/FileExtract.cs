@@ -167,7 +167,8 @@ namespace ValveResourceFormat.IO
         /// <param name="resource">The resource to be extracted or decompiled.</param>
         /// <param name="fileLoader">The file loader for resolving dependencies.</param>
         /// <param name="progress">Optional progress reporter.</param>
-        public static ContentFile Extract(Resource resource, IFileLoader fileLoader, IProgress<string>? progress = null)
+        /// <param name="extractCloth">Whether models, and the models a map extracts, reconstruct their cloth (soft-body) physics.</param>
+        public static ContentFile Extract(Resource resource, IFileLoader fileLoader, IProgress<string>? progress = null, bool extractCloth = true)
         {
             var contentFile = new ContentFile();
 
@@ -175,11 +176,11 @@ namespace ValveResourceFormat.IO
             {
                 case ResourceType.Map:
                 case ResourceType.World:
-                    contentFile = new MapExtract(resource, fileLoader) { ProgressReporter = progress }.ToContentFile();
+                    contentFile = new MapExtract(resource, fileLoader) { ProgressReporter = progress, ExtractCloth = extractCloth }.ToContentFile();
                     break;
 
                 case ResourceType.Model:
-                    contentFile = new ModelExtract(resource, fileLoader) { ProgressReporter = progress }.ToContentFile();
+                    contentFile = new ModelExtract(resource, fileLoader) { ProgressReporter = progress, ExtractCloth = extractCloth }.ToContentFile();
                     break;
 
                 case ResourceType.AnimationGraph:
