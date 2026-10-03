@@ -4,14 +4,16 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 
-// Generates the AnimLib definition classes from the SchemaExplorer schema dump.
+// Generates C# definition classes from the SchemaExplorer schema dump. What gets generated, and where it
+// goes, is described by a SchemaTarget (see SchemaConverter.AnimLib.cs).
 //
 // Generated files are hand edited afterwards, so a regen never overwrites them. Instead the schema the
-// files were last generated from (pinned in generated-from.txt) is generated again as a merge base, and
-// each file gets a three-way merge of (current file, previous generation, new generation). Files deleted
-// by hand stay deleted, and new schema classes are created.
+// files were last generated from (pinned in the target's generated-from file) is generated again as a
+// merge base, and each file gets a three-way merge of (current file, previous generation, new generation).
+// Files deleted by hand stay deleted, and new schema classes are created.
 //
-// Usage: dotnet run [-- [--offline] [--dry-run] [--baseline-dir <dir>]]
+// Usage: dotnet run [-- [--target <name>] [--offline] [--dry-run] [--baseline-dir <dir>]]
+//   --target            which target to generate, defaults to the only one
 //   --offline           do not fetch, use the last saved schema
 //   --dry-run           report what would change without writing
 //   --baseline-dir      use an already generated folder as the merge base instead of the pinned schema
@@ -22,29 +24,31 @@ using System.Text.Json;
 
 const string SchemaRepository = "ValveResourceFormat/SchemaExplorer";
 const string SchemaPath = "schemas/cs2.json";
-const string SourceNameSpace = "Nm";
+
+SchemaTarget[] targets = [new AnimLibTarget()];
 
 var offline = args.Contains("--offline");
 var dryRun = args.Contains("--dry-run");
-var baselineDirArgIndex = Array.IndexOf(args, "--baseline-dir");
-var baselineDirArg = baselineDirArgIndex >= 0 ? args[baselineDirArgIndex + 1] : null;
+var baselineDirArg = OptionValue("--baseline-dir");
+var targetName = OptionValue("--target");
+
+var target = targetName == null
+    ? targets.Single()
+    : targets.FirstOrDefault(t => t.Name == targetName) ?? throw new ArgumentException($"Unknown target {targetName}, expected one of: {string.Join(", ", targets.Select(t => t.Name))}");
 
 var toolDir = Path.GetDirectoryName(CurrentFileName()) ?? throw new InvalidOperationException();
+var repositoryDir = WalkUpDir(CurrentFileName(), 3);
 var cacheDir = Path.Combine(toolDir, "cache");
-var generatedFromFile = Path.Combine(toolDir, "generated-from.txt");
+var generatedFromFile = Path.Combine(toolDir, target.GeneratedFromFileName);
+var destinationDir = Path.Combine(repositoryDir, target.DestinationDir);
 
-var destinationProject = Path.Combine(WalkUpDir(CurrentFileName(), 3), "Renderer");
-var destinationFolder = "AnimLib";
-var destinationNameSpace = $"ValveResourceFormat.Renderer.{destinationFolder.Replace('/', '.')}";
-var destinationDir = Path.Combine(destinationProject, destinationFolder);
-
-Program.Test();
+Converter.Test(target);
 
 var (latestSha, latestSchemaFile) = await GetLatestSchema();
 Console.WriteLine($"Using schema {SchemaRepository}@{latestSha}");
 
-var newDir = Path.Combine(Path.GetTempPath(), "SchemaConverter", "new");
-Generate(Schema.Load(latestSchemaFile), newDir);
+var newDir = Path.Combine(Path.GetTempPath(), "SchemaConverter", target.Name, "new");
+Generate(Schema.Load(latestSchemaFile, target), newDir);
 
 string? baselineDir = null;
 string? baselineSha = null;
@@ -60,8 +64,8 @@ else if (File.Exists(generatedFromFile))
 
     if (baselineSchemaFile != null)
     {
-        baselineDir = Path.Combine(Path.GetTempPath(), "SchemaConverter", "baseline");
-        Generate(Schema.Load(baselineSchemaFile), baselineDir);
+        baselineDir = Path.Combine(Path.GetTempPath(), "SchemaConverter", target.Name, "baseline");
+        Generate(Schema.Load(baselineSchemaFile, target), baselineDir);
     }
     else
     {
@@ -78,10 +82,16 @@ var hasConflicts = MergeInto(destinationDir, baselineDir, newDir);
 if (!dryRun)
 {
     File.WriteAllText(generatedFromFile, latestSha + "\n");
-    Process.Start("dotnet", $"build \"{destinationProject}\" /p:NoWarn=CA1812")?.WaitForExit();
+    Process.Start("dotnet", $"build \"{Path.Combine(repositoryDir, target.BuildProject)}\" /p:NoWarn=CA1812")?.WaitForExit();
 }
 
 return hasConflicts ? 1 : 0;
+
+string? OptionValue(string option)
+{
+    var index = Array.IndexOf(args, option);
+    return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
+}
 
 async Task<(string Sha, string File)> GetLatestSchema()
 {
@@ -331,12 +341,12 @@ void Generate(Schema schema, string outputDir)
 
     Directory.CreateDirectory(outputDir);
 
-    var converter = new Converter(schema, SourceNameSpace);
+    var converter = new Converter(schema, target);
 
     foreach (var type in schema.Types)
     {
-        var fileName = converter.ConvertClassName(type.Name, SourceNameSpace);
-        var destinationDirLocal = converter.ChooseFolder(fileName, outputDir);
+        var fileName = converter.ConvertClassName(type.Name, target.SourceNameSpace);
+        var destinationDirLocal = target.ChooseFolder(converter, fileName, outputDir);
         Directory.CreateDirectory(destinationDirLocal);
 
         var writer = new StringBuilder();
@@ -346,7 +356,7 @@ void Generate(Schema schema, string outputDir)
             writer.Append("using ValveResourceFormat.Serialization.KeyValues;\n"); // global using?
         }
 
-        writer.Append($"namespace {destinationNameSpace};\n");
+        writer.Append(CultureInfo.InvariantCulture, $"namespace {target.DestinationNameSpace};\n");
         writer.Append('\n');
 
         converter.Write(type, writer);
@@ -371,6 +381,59 @@ static string WalkUpDir(string path, int levels)
     return currentPath;
 }
 
+/// <summary>
+/// What to generate from the schema and where to put it.
+/// </summary>
+abstract class SchemaTarget
+{
+    /// <summary>Selects the target with --target.</summary>
+    public abstract string Name { get; }
+
+    /// <summary>Output folder, relative to the repository root.</summary>
+    public abstract string DestinationDir { get; }
+
+    /// <summary>Namespace of the generated files.</summary>
+    public abstract string DestinationNameSpace { get; }
+
+    /// <summary>Project built after a regen, relative to the repository root.</summary>
+    public abstract string BuildProject { get; }
+
+    /// <summary>Pins the schema the files were last generated from, next to the converter.</summary>
+    public virtual string GeneratedFromFileName => $"generated-from-{Name}.txt";
+
+    /// <summary>Prefix stripped from schema class names, e.g. "Nm" for CNmClipNode.</summary>
+    public abstract string SourceNameSpace { get; }
+
+    /// <summary>Whether a schema class or enum is generated.</summary>
+    public abstract bool IsIncluded(string module, string name);
+
+    /// <summary>Schema types mapped to existing C# types, on top of the common ones.</summary>
+    public virtual IReadOnlyDictionary<string, string> TypeMap { get; } = new Dictionary<string, string>();
+
+    /// <summary>C# types read through a constructor taking their KeyValues data.</summary>
+    public virtual IReadOnlySet<string> DataConstructedTypes { get; } = new HashSet<string>();
+
+    /// <summary>Folder a generated type goes in, under the output folder.</summary>
+    public virtual string ChooseFolder(Converter converter, string fileName, string outputDir) => outputDir;
+
+    /// <summary>The C# declaration keywords for a generated class, e.g. "class" or "partial class".</summary>
+    public virtual string ClassKeywords(Converter converter, string className) => "class";
+
+    /// <summary>Adjusts a converted class name, e.g. to drop a suffix.</summary>
+    public virtual string PostProcessClassName(string className) => className;
+
+    /// <summary>Statement reading a property of a target specific type, or null for the common handling.</summary>
+    public virtual string? ReadProperty(string csType, string propertyName, string fieldName) => null;
+
+    /// <summary>Statement reading an array of a target specific item type, or null for the common handling.</summary>
+    public virtual string? ReadArray(string itemType, string propertyName, string fieldName) => null;
+
+    /// <summary>Checks the target specific conversions.</summary>
+    public virtual void Test(Converter converter)
+    {
+    }
+}
+
 abstract record SchemaType(string Name);
 
 record SchemaClass(string Name, string? Parent, List<SchemaField> Fields) : SchemaType(Name);
@@ -385,7 +448,7 @@ class Schema
 {
     public required List<SchemaType> Types { get; init; }
 
-    public static Schema Load(string path)
+    public static Schema Load(string path, SchemaTarget target)
     {
         using var stream = File.OpenRead(path);
         using var document = JsonDocument.Parse(stream);
@@ -396,7 +459,7 @@ class Schema
         foreach (var @class in root.GetProperty("classes").EnumerateArray())
         {
             var name = @class.GetProperty("name").GetString()!;
-            if (!IsIncluded(@class, name))
+            if (!target.IsIncluded(@class.GetProperty("module").GetString()!, name))
             {
                 continue;
             }
@@ -442,7 +505,7 @@ class Schema
         foreach (var @enum in root.GetProperty("enums").EnumerateArray())
         {
             var name = @enum.GetProperty("name").GetString()!;
-            if (!IsIncluded(@enum, name))
+            if (!target.IsIncluded(@enum.GetProperty("module").GetString()!, name))
             {
                 continue;
             }
@@ -456,11 +519,6 @@ class Schema
 
         return new Schema { Types = types };
     }
-
-    // Only the graph system's own classes: editor document classes are not part of the compiled resources,
-    // and client module nodes are defined alongside the client code that registers them
-    private static bool IsIncluded(JsonElement element, string name)
-        => element.GetProperty("module").GetString() == "animlib" && !name.Contains("Doc", StringComparison.Ordinal);
 
     // The type as it would be declared in C++, e.g. "CUtlVector< CGlobalSymbol >" or "CNmClip*"
     private static string DeclaredTypeName(JsonElement type)
@@ -491,6 +549,7 @@ class Schema
 
 class Converter
 {
+    private readonly SchemaTarget target;
     private readonly HashSet<string> enumTypes = [];
     private readonly Dictionary<string, string?> classHierarchies = [];
 
@@ -499,7 +558,7 @@ class Converter
         "bool", "float", "double",
     ];
 
-    private static readonly Dictionary<string, string> SimpleTypeMap = new()
+    private static readonly Dictionary<string, string> CommonTypeMap = new()
     {
         { "uint8_t", "byte" },
         { "uint8", "byte" },
@@ -518,45 +577,37 @@ class Converter
         { "uint64", "ulong" },
         { "int64", "long" },
 
-        { "CGlobalSymbol", "GlobalSymbol" },
-        { "CUtlStringToken", "GlobalSymbol" },
         { "CUtlString", "string" },
         { "CUtlBinaryBlock", "byte[]" },
         { "Vector2D", "Vector2" },
         { "Vector", "Vector3" },
-        { "CTransform", "Transform" },
         { "CResourceName", "string" },
-
-        { "ParticleAttachment_t", "ValveResourceFormat.Particles.ParticleAttachment" },
-        { "CPiecewiseCurve", "ValveResourceFormat.Particles.Utils.PiecewiseCurve" },
         { "KeyValues3", "KVObject" },
-
-        // todo
-        { "CStrongHandle", "string" },
-        { "CStrongHandleVoid", "string" },
     };
 
-    public Converter(Schema schema, string sourceNameSpace)
+    public Converter(Schema schema, SchemaTarget target)
     {
+        this.target = target;
+
         foreach (var type in schema.Types)
         {
             switch (type)
             {
                 case SchemaClass @class:
-                    classHierarchies[ConvertClassName(@class.Name, sourceNameSpace)] = @class.Parent is not null ? ConvertClassName(@class.Parent, sourceNameSpace) : null;
+                    classHierarchies[ConvertClassName(@class.Name, target.SourceNameSpace)] = @class.Parent is not null ? ConvertClassName(@class.Parent, target.SourceNameSpace) : null;
                     break;
                 case SchemaEnum @enum:
-                    enumTypes.Add(ConvertClassName(@enum.Name, sourceNameSpace));
+                    enumTypes.Add(ConvertClassName(@enum.Name, target.SourceNameSpace));
                     break;
             }
         }
-
-        SourceNameSpace = sourceNameSpace;
     }
 
-    private string SourceNameSpace { get; }
+    private string SourceNameSpace => target.SourceNameSpace;
 
-    private string RootClass(string @class)
+    public bool IsEnum(string type) => enumTypes.Contains(type);
+
+    public string RootClass(string @class)
     {
         var rootParent = @class;
         while (classHierarchies.TryGetValue(rootParent, out var parent) && parent is not null)
@@ -567,32 +618,8 @@ class Converter
         return rootParent;
     }
 
-    public string ChooseFolder(string fileName, string destinationDirLocal)
-    {
-        fileName = fileName.Split("__", StringSplitOptions.RemoveEmptyEntries)[0];
-
-        if (enumTypes.Contains(fileName))
-        {
-            destinationDirLocal += "/Enums";
-        }
-
-        Dictionary<string, string> classFolderMapping = new()
-        {
-            { "GraphNode", "Nodes"},
-            { "Event", "Events" },
-            { "PoseTask", "Tasks" },
-        };
-
-        if (classFolderMapping.TryGetValue(RootClass(fileName), out var folder))
-        {
-            destinationDirLocal += $"/{folder}";
-        }
-
-        return destinationDirLocal;
-    }
-
     /*
-        CNmVelocityBlendNode::CDefinition -> VelocityBlendNode__Definition
+        CNmVelocityBlendNode::CDefinition -> VelocityBlendNode__CDefinition, then adjusted by the target
     */
     public string ConvertClassName(string cStyleClassName, string cStyleNamespacePreffix = "")
     {
@@ -601,9 +628,9 @@ class Converter
             return cStyleClassName;
         }
 
-        if (SimpleTypeMap.TryGetValue(cStyleClassName, out var simpleType))
+        if (target.TypeMap.TryGetValue(cStyleClassName, out var mappedType) || CommonTypeMap.TryGetValue(cStyleClassName, out mappedType))
         {
-            return simpleType;
+            return mappedType;
         }
 
         cStyleClassName = cStyleClassName.Trim();
@@ -638,9 +665,7 @@ class Converter
             sb.Append(cleanPart);
         }
 
-        var clean = sb.ToString();
-        clean = clean.Replace("__Definition", "", StringComparison.Ordinal);
-        return clean;
+        return target.PostProcessClassName(sb.ToString());
     }
 
     public static string ConvertHungarianNotation(string name)
@@ -688,7 +713,7 @@ class Converter
 
     private void WriteEnum(SchemaEnum @enum, StringBuilder writer)
     {
-        writer.Append($"enum {ConvertClassName(@enum.Name, SourceNameSpace)} : {ConvertClassName(@enum.BaseType)}\n");
+        writer.Append(CultureInfo.InvariantCulture, $"enum {ConvertClassName(@enum.Name, SourceNameSpace)} : {ConvertClassName(@enum.BaseType)}\n");
         writer.Append("{\n");
 
         foreach (var (name, value) in @enum.Members)
@@ -704,7 +729,7 @@ class Converter
         {
         };
         ------->
-        class VelocityBlendNode__Definition : ParameterizedBlendNode__Definition
+        class VelocityBlendNode : ParameterizedBlendNode
         {
         }
     */
@@ -713,12 +738,7 @@ class Converter
         var convertedClass = ConvertClassName(@class.Name, SourceNameSpace);
         var hasBaseClass = @class.Parent is not null;
 
-        var useStruct = convertedClass is "BitFlags";
-
-        var partialImplementation = RootClass(convertedClass) == "GraphNode";
-        var csClassType = useStruct ? "readonly partial struct" : (partialImplementation ? "partial class" : "class");
-
-        var csClass = $"{csClassType} {convertedClass}";
+        var csClass = $"{target.ClassKeywords(this, convertedClass)} {convertedClass}";
         if (@class.Parent is not null)
         {
             csClass += $" : {ConvertClassName(@class.Parent, SourceNameSpace)}";
@@ -740,11 +760,11 @@ class Converter
             writer.Append('\n');
 
             var baseCtor = hasBaseClass ? " : base(data)" : string.Empty;
-            writer.Append($"    public {convertedClass}(KVObject data){baseCtor}\n");
+            writer.Append(CultureInfo.InvariantCulture, $"    public {convertedClass}(KVObject data){baseCtor}\n");
             writer.Append("    {\n");
             foreach (var line in memberParserLines)
             {
-                writer.Append($"        {line}\n");
+                writer.Append(CultureInfo.InvariantCulture, $"        {line}\n");
             }
             writer.Append("    }\n");
         }
@@ -783,11 +803,9 @@ class Converter
         var argComment = args is not null && args.Length > 0 ? $" // {args}" : string.Empty;
 
         // write property
-        writer.Append($"    public {csType} {newName} {{ get; }}{argComment}\n");
+        writer.Append(CultureInfo.InvariantCulture, $"    public {csType} {newName} {{ get; }}{argComment}\n");
 
-        var hasHandWrittenImpl = csType is "Transform" or "Range";
-
-        if (classHierarchies.ContainsKey(csType) || hasHandWrittenImpl)
+        if (classHierarchies.ContainsKey(csType) || target.DataConstructedTypes.Contains(csType))
         {
             memberParserLines.Add($"{newName} = new(data.GetProperty<KVObject>(\"{name}\"));");
             return;
@@ -814,14 +832,20 @@ class Converter
                 return;
             }
 
-            if (itemType == "GlobalSymbol")
+            if (target.ReadArray(itemType, newName, name) is { } arrayLine)
             {
-                memberParserLines.Add($"{newName} = data.GetSymbolArray(\"{name}\");");
+                memberParserLines.Add(arrayLine);
                 return;
             }
 
             // Arrays added to the schema later are missing from older resources
             memberParserLines.Add($"{newName} = data.GetArray<{itemType}>(\"{name}\") ?? [];");
+            return;
+        }
+
+        if (target.ReadProperty(csType, newName, name) is { } propertyLine)
+        {
+            memberParserLines.Add(propertyLine);
             return;
         }
 
@@ -834,37 +858,21 @@ class Converter
             "uint" => $"{newName} = data.GetUInt32Property(\"{name}\");",
             "long" => $"{newName} = data.GetIntegerProperty(\"{name}\");",
             "float" => $"{newName} = data.GetFloatProperty(\"{name}\");",
-            "GlobalSymbol" => $"{newName} = data.GetProperty<string>(\"{name}\");",
-            "Transform" => $"{newName} = new(data.GetProperty<KVObject>(\"{name}\"));",
             "Vector3" => $"{newName} = data.GetSubCollection(\"{name}\").ToVector3();",
             "byte" => $"{newName} = data.GetByteProperty(\"{name}\");",
             "Quaternion" => $"{newName} = data.GetSubCollection(\"{name}\").ToQuaternion();",
-            "ValveResourceFormat.Particles.Utils.PiecewiseCurve" => $"{newName} = new(data.GetProperty<KVObject>(\"{name}\"), false);",
             "KVObject" => $"{newName} = data.GetProperty<KVObject>(\"{name}\");",
             _ => $"//{newName} = {name};",
         });
     }
-}
 
-partial class Program
-{
-    public static void Test()
+    public static void Test(SchemaTarget target)
     {
-        var converter = new Converter(new Schema { Types = [] }, "Nm");
+        var converter = new Converter(new Schema { Types = [] }, target);
 
-        Span<(string, string)> classNameTests = [
-            ("CNmVelocityBlendNode::CDefinition", "VelocityBlendNode"),
-            ("CNmStateNode::TimedEvent_t::Comparison_t", "StateNode__TimedEvent__Comparison"),
-            ("NmEasingOperation_t", "EasingOperation"),
-            ("CUtlString", "string"),
-        ];
+        Debug.Assert(converter.ConvertClassName("CUtlString", target.SourceNameSpace) == "string");
+        Debug.Assert(ConvertHungarianNotation("m_flBlendTimeSeconds") == "BlendTimeSeconds");
 
-        foreach (var (input, expected) in classNameTests)
-        {
-            var actual = converter.ConvertClassName(input, "Nm");
-            Debug.Assert(actual == expected, $"Expected '{expected}', got '{actual}'");
-        }
-
-        Debug.Assert(Converter.ConvertHungarianNotation("m_flBlendTimeSeconds") == "BlendTimeSeconds");
+        target.Test(converter);
     }
 }
