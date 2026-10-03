@@ -92,7 +92,7 @@ namespace ValveResourceFormat.Particles.Utils
     /// <summary>
     /// A piecewise curve used in particle systems' dynamic parameters.
     /// </summary>
-    class PiecewiseCurve
+    public class PiecewiseCurve
     {
         private readonly Vector2 curveDomainMin;
         private readonly Vector2 curveDomainMax;

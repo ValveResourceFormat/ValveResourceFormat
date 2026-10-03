@@ -13,6 +13,7 @@ launchSettings.json
 
 # Visual Studio Code files
 .vscode/
+Renderer/Animation
 *.lscache
 
 # Build results
