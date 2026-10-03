@@ -15,9 +15,13 @@ static class Blender
     {
         for (var i = 0; i < resultPose.Length; i++)
         {
-            resultPose[i] = sourcePose[i].Blend(targetPose[i], blendWeight);
+            resultPose[i] = BlendTransform(sourcePose[i], targetPose[i], blendWeight);
         }
     }
+
+    // Rotations blend with the approximated slerp
+    static FrameBone BlendTransform(FrameBone source, FrameBone target, float t)
+        => new(Vector4.Lerp(source.PositionScale, target.PositionScale, t), TransformMath.FastSLerp(source.Angle, target.Angle, t));
 
     /// <summary>
     /// Blends two poses with per-bone weights scaled by a bone mask.
@@ -45,7 +49,7 @@ static class Blender
         for (var i = 0; i < resultPose.Length; i++)
         {
             var boneBlendWeight = blendWeight * boneMaskWeights[i];
-            resultPose[i] = boneBlendWeight == 0f ? sourcePose[i] : sourcePose[i].Blend(targetPose[i], boneBlendWeight);
+            resultPose[i] = boneBlendWeight == 0f ? sourcePose[i] : BlendTransform(sourcePose[i], targetPose[i], boneBlendWeight);
         }
     }
 
