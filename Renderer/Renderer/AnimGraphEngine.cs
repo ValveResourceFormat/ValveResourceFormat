@@ -270,7 +270,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 if (zeroPose == null)
                 {
                     zeroPose = new Transform[Graph.ParentSpaceReferencePose.Length];
-                    Array.Fill(zeroPose, Transform.Identity);
+                    Array.Fill(zeroPose, TransformMath.Zero);
                 }
 
                 return zeroPose;

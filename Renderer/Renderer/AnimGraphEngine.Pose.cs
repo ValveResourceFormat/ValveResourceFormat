@@ -60,7 +60,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public void SetToZeroPose()
         {
             Debug.Assert(Skeleton != null);
-            Array.Fill(ParentSpaceTransforms, FrameBone.Identity);
+            Array.Fill(ParentSpaceTransforms, TransformMath.Zero);
             Type = PoseType.ZeroPose;
         }
 
@@ -292,10 +292,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             var result = base.Update(ctx);
-            for (var i = 0; i < result.Pose.Length; i++)
-            {
-                result.Pose[i] = FrameBone.Identity;
-            }
+            Array.Fill(result.Pose, TransformMath.Zero);
             return result;
         }
     }

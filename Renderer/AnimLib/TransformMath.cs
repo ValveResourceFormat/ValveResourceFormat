@@ -11,6 +11,9 @@ static class TransformMath
 
     public const float Epsilon = 1.0e-06f;
 
+    // Additive poses store scale as a delta, so the identity additive transform has zero scale
+    public static Transform Zero => new(Vector3.Zero, 0f, Quaternion.Identity);
+
     public static bool IsNearZero(Vector3 v, float epsilon = Epsilon)
         => MathF.Abs(v.X) <= epsilon && MathF.Abs(v.Y) <= epsilon && MathF.Abs(v.Z) <= epsilon;
 

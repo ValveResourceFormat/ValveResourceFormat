@@ -218,6 +218,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 PreviousTime = ChildNode.PreviousTime;
                 CurrentTime = ChildNode.CurrentTime;
             }
+            else
+            {
+                // No pose of its own, which must add nothing inside an additive layer
+                ctx.GetDefaultPose().CopyTo(result.Pose, 0);
+            }
 
             // track time spent in state
             ElapsedTimeInState += TimeSpan.FromSeconds(ctx.DeltaTime);
@@ -307,6 +312,25 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public bool IsSourceAnOffState => Type == SourceType.OffState;
         public bool IsSourceACachedPoseOrOffState => Type is SourceType.CachedPose or SourceType.OffState;
         public float ProgressPercentage => TransitionProgress;
+
+        bool SourceHasPose => !IsSourceAnOffState && !(IsSourceAState && !GetSourceStateNode().IsValid);
+
+        // A side without a pose of its own takes no part in the blend; the layer weight fades it instead
+        void BlendResultPoses(GraphContext ctx, Transform[] sourcePose, Transform[] targetPose, Transform[] resultPose)
+        {
+            if (!SourceHasPose)
+            {
+                targetPose.CopyTo(resultPose, 0);
+            }
+            else if (!TargetStateNode.IsValid)
+            {
+                sourcePose.CopyTo(resultPose, 0);
+            }
+            else
+            {
+                BlendPoses(ctx, sourcePose, targetPose, resultPose);
+            }
+        }
 
         // With a start bone mask the masked bones blend in first, over the first part of the transition,
         // and the mask then blends out to a full weight
@@ -824,7 +848,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             else
             {
                 result = base.Update(ctx);
-                BlendPoses(ctx, sourceNodeResult.Pose, targetNodeResult.Pose, result.Pose);
+                BlendResultPoses(ctx, sourceNodeResult.Pose, targetNodeResult.Pose, result.Pose);
                 result.RootMotionDelta = Blender.BlendRootMotion(sourceNodeResult.RootMotionDelta, targetNodeResult.RootMotionDelta, BlendWeight, RootMotionBlend);
                 result.SampledEventRange = ctx.SampledEvents.BlendEventRanges(sourceNodeResult.SampledEventRange, targetNodeResult.SampledEventRange, BlendWeight);
 
@@ -1015,7 +1039,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
             else
             {
-                BlendPoses(ctx, sourceNodeResult.Pose, targetNodeResult.Pose, result.Pose);
+                BlendResultPoses(ctx, sourceNodeResult.Pose, targetNodeResult.Pose, result.Pose);
 
                 result.RootMotionDelta = Blender.BlendRootMotion(
                     sourceNodeResult.RootMotionDelta,
