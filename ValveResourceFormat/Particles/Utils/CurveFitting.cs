@@ -98,6 +98,13 @@ namespace ValveResourceFormat.Particles.Utils
         private readonly Vector2 curveDomainMax;
         private readonly SplineCurve[] curveSegments;
         private readonly bool isLooped;
+
+        /// <summary>Gets the lowest input (X) and output (Y) the curve is defined over.</summary>
+        public Vector2 DomainMin => curveDomainMin;
+
+        /// <summary>Gets the highest input (X) and output (Y) the curve is defined over.</summary>
+        public Vector2 DomainMax => curveDomainMax;
+
         /// <summary>
         /// Reads a piecewise curve from its compiled data.
         /// </summary>

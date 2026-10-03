@@ -14,7 +14,7 @@ namespace ValveResourceFormat.Renderer
     /// <see cref="AnimationController.SetAnimationGraph"/>, which routes it to the
     /// <see cref="AnimationPlayer"/> of the matching external skeleton.
     /// </summary>
-    public class AnimationGraph
+    public partial class AnimationGraph
     {
         /// <summary>Gets the NM skeleton (.vnmskel) this graph animates.</summary>
         public Skeleton Skeleton { get; }
@@ -88,8 +88,6 @@ namespace ValveResourceFormat.Renderer
         private readonly HashSet<string> signaledBoolParameters = [];
         private readonly object signalLock = new();
 
-        private readonly Dictionary<string, HashSet<string>> idOptions = [];
-
         // A float curve event of one of this graph's clips, parsed at load
         internal ValveResourceFormat.Particles.Utils.PiecewiseCurve GetFloatCurve(NmClipEvent curveEvent)
         {
@@ -102,31 +100,6 @@ namespace ValveResourceFormat.Renderer
             }
 
             return new AnimLib.FloatCurveEvent(curveEvent.Data).Curve;
-        }
-
-        /// <summary>
-        /// Gets the known values for an ID parameter, collected from the graph's IDComparison and
-        /// ID-based selector nodes, including those of referenced child graphs. Useful for
-        /// populating UI dropdowns.
-        /// </summary>
-        public IEnumerable<string> GetParameterIdOptions(string parameterName)
-        {
-            var options = new HashSet<string>();
-
-            if (idOptions.TryGetValue(parameterName, out var own))
-            {
-                options.UnionWith(own);
-            }
-
-            foreach (var childGraph in ChildGraphs)
-            {
-                if (childGraph != null)
-                {
-                    options.UnionWith(childGraph.GetParameterIdOptions(parameterName));
-                }
-            }
-
-            return options;
         }
 
         /// <summary>
@@ -192,6 +165,7 @@ namespace ValveResourceFormat.Renderer
 
             signaledBoolParameters.EnsureCapacity(BoolParameters.Count);
             graphContext = new AnimLib.GraphContext(graph, this);
+            CollectParameterUsage(graphContext.Nodes);
         }
 
         /// <summary>
@@ -368,35 +342,7 @@ namespace ValveResourceFormat.Renderer
                         default: throw new InvalidDataException($"Unknown control parameter type '{parameterType}' in animation graph.");
                     }
                 }
-                else if (type == "IDComparison")
-                {
-                    CollectIdOptions(node.GetInt32Property("m_nInputValueNodeIdx"), node.GetArray<string>("m_comparisionIDs"));
-                }
-                else if (type is "IDBasedSelector" or "IDBasedClipSelector")
-                {
-                    CollectIdOptions(node.GetInt32Property("m_nParameterNodeIdx"), node.GetArray<string>("m_optionIDs"));
-                }
-                else if (type == "IDToFloat")
-                {
-                    CollectIdOptions(node.GetInt32Property("m_nInputValueNodeIdx"), node.GetArray<string>("m_IDs"));
-                }
-                else if (type == "BoneMaskSelector")
-                {
-                    CollectIdOptions(node.GetInt32Property("m_parameterValueNodeIdx"), node.GetArray<string>("m_parameterValues"));
-                }
             }
-        }
-
-        private void CollectIdOptions(int parameterNodeIdx, string[]? ids)
-        {
-            if (parameterNodeIdx < 0 || parameterNodeIdx >= ParameterNames.Length || ids == null || ids.Length == 0)
-            {
-                return;
-            }
-
-            var parameterName = ParameterNames[parameterNodeIdx];
-            idOptions.TryAdd(parameterName, []);
-            idOptions[parameterName].UnionWith(ids);
         }
 
         /// <summary>(Re)initializes the graph's node tree at the given time.</summary>

@@ -7,19 +7,20 @@ namespace ValveResourceFormat.Renderer;
 /// </summary>
 public readonly struct GlobalSymbol : IEquatable<GlobalSymbol>
 {
-    /// <summary>The name the token was hashed from.</summary>
-    public string Name => StringToken.GetKnownString(Token);
+    /// <summary>The name the token was hashed from, empty when unset.</summary>
+    public string Name => Token == 0 ? string.Empty : StringToken.GetKnownString(Token);
     /// <summary>The hashed token.</summary>
     public uint Token { get; }
 
-    /// <summary>Hashes and records a name.</summary>
+    /// <summary>Hashes and records a name. An empty name is unset.</summary>
     public GlobalSymbol(string name)
     {
-        Token = StringToken.Store(name);
+        // An empty name is the unset symbol rather than the hash of nothing
+        Token = name.Length == 0 ? 0 : StringToken.Store(name);
     }
 
-    /// <summary>Hashes a name without recording it, so it neither allocates nor touches the shared table.</summary>
-    public static GlobalSymbol Lookup(ReadOnlySpan<char> name) => new(StringToken.Get(name), allowUnknown: true);
+    /// <summary>Hashes a name without recording it, so it neither allocates nor touches the shared table. An empty name is unset.</summary>
+    public static GlobalSymbol Lookup(ReadOnlySpan<char> name) => name.IsEmpty ? default : new(StringToken.Get(name), allowUnknown: true);
 
     /// <summary>Wraps a token, which must be known unless allowed otherwise.</summary>
     public GlobalSymbol(uint token, bool allowUnknown = false)
