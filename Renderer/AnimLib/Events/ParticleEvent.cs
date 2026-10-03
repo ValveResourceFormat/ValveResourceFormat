@@ -5,6 +5,7 @@ class ParticleEvent : Event
 {
     public EventRelevance Relevance { get; }
     public ParticleEvent__Type Type { get; }
+    public EventTargetEntity Target { get; }
     public string ParticleSystem { get; } // InfoForResourceTypeIParticleSystemDefinition
     public string Tags { get; }
     public bool StopImmediately { get; }
@@ -21,6 +22,7 @@ class ParticleEvent : Event
     {
         Relevance = data.GetEnumValue<EventRelevance>("m_relevance");
         Type = data.GetEnumValue<ParticleEvent__Type>("m_type");
+        Target = data.GetEnumValue<EventTargetEntity>("m_target");
         ParticleSystem = data.GetProperty<string>("m_hParticleSystem");
         Tags = data.GetProperty<string>("m_tags");
         StopImmediately = data.GetProperty<bool>("m_bStopImmediately");

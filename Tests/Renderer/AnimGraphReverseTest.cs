@@ -39,7 +39,7 @@ namespace Tests.Renderer
             package.Read(VpkPath);
             var loader = new GameFileLoader(package, VpkPath);
 
-            var res = loader.LoadFileCompiled("animation/graphs/chicken.vnmgraph");
+            var res = loader.LoadFileCompiled("animation/graphs/chicken/chicken.vnmgraph");
             var graph = new AnimationGraph((NmGraphDefinition)res!.DataBlock!, loader);
             graph.IdParameters["action"] = "action_idle";
 

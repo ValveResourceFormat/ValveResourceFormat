@@ -3,12 +3,14 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 
 class BodyGroupEvent : Event
 {
+    public EventTargetEntity Target { get; }
     public string GroupName { get; }
-    public int GroupValue { get; }
+    public string ChoiceName { get; }
 
     public BodyGroupEvent(KVObject data) : base(data)
     {
+        Target = data.GetEnumValue<EventTargetEntity>("m_target");
         GroupName = data.GetProperty<string>("m_groupName");
-        GroupValue = data.GetInt32Property("m_nGroupValue");
+        ChoiceName = data.GetProperty<string>("m_choiceName");
     }
 }

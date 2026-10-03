@@ -3,6 +3,7 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 
 class MaterialAttributeEvent : Event
 {
+    public EventTargetEntity Target { get; }
     public string AttributeName { get; }
     public GlobalSymbol AttributeNameToken { get; }
     public ValveResourceFormat.Particles.Utils.PiecewiseCurve X { get; }
@@ -12,6 +13,7 @@ class MaterialAttributeEvent : Event
 
     public MaterialAttributeEvent(KVObject data) : base(data)
     {
+        Target = data.GetEnumValue<EventTargetEntity>("m_target");
         AttributeName = data.GetProperty<string>("m_attributeName");
         AttributeNameToken = data.GetProperty<string>("m_attributeNameToken");
         X = new(data.GetProperty<KVObject>("m_x"), false);

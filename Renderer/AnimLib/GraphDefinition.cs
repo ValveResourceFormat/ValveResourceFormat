@@ -5,6 +5,7 @@ class GraphDefinition
 {
     public GlobalSymbol VariationID { get; }
     public string Skeleton { get; } // InfoForResourceTypeCNmSkeleton
+    public string[] SupportedSecondarySkeletons { get; }
     public short[] PersistentNodeIndices { get; }
     public short RootNodeIdx { get; }
     public GlobalSymbol[] ControlParameterIDs { get; }
@@ -20,6 +21,7 @@ class GraphDefinition
     {
         VariationID = data.GetProperty<string>("m_variationID");
         Skeleton = data.GetProperty<string>("m_skeleton");
+        SupportedSecondarySkeletons = data.GetArray<string>("m_supportedSecondarySkeletons");
         PersistentNodeIndices = data.GetArray<short>("m_persistentNodeIndices");
         RootNodeIdx = data.GetInt16Property("m_nRootNodeIdx");
         ControlParameterIDs = data.GetSymbolArray("m_controlParameterIDs");

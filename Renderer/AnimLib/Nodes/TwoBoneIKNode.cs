@@ -9,7 +9,7 @@ partial class TwoBoneIKNode : PassthroughNode
     public float BlendTimeSeconds { get; }
     public IKBlendMode BlendMode { get; }
     public bool IsTargetInWorldSpace { get; }
-    public float ReferencePoseTwistWeight { get; }
+    public float ChainRotationWeight { get; }
 
     public TwoBoneIKNode(KVObject data) : base(data)
     {
@@ -19,6 +19,6 @@ partial class TwoBoneIKNode : PassthroughNode
         BlendTimeSeconds = data.GetFloatProperty("m_flBlendTimeSeconds");
         BlendMode = data.GetEnumValue<IKBlendMode>("m_blendMode");
         IsTargetInWorldSpace = data.GetProperty<bool>("m_bIsTargetInWorldSpace");
-        ReferencePoseTwistWeight = data.GetFloatProperty("m_flReferencePoseTwistWeight");
+        ChainRotationWeight = data.GetFloatProperty("m_flChainRotationWeight");
     }
 }

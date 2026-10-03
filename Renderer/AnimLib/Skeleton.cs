@@ -9,9 +9,13 @@ class Skeleton
     public Transform[] ParentSpaceReferencePose { get; }
     public Transform[] ModelSpaceReferencePose { get; }
     public int NumBonesToSampleAtLowLOD { get; }
+    public bool IsPropSkeleton { get; }
     public BoneMaskSetDefinition[] MaskDefinitions { get; }
     public Skeleton__SecondarySkeleton[] SecondarySkeletons { get; }
-    public bool IsPropSkeleton { get; }
+    public FloatChannelSet[] FloatChannelSets { get; }
+    public Skeleton__ContactConfig[] ContactConfigs { get; }
+    public int[] GameplayRelevantBoneIndices { get; }
+    public long SpecialDependencyHash { get; }
 
     public Skeleton(KVObject data)
     {
@@ -21,9 +25,13 @@ class Skeleton
         ParentSpaceReferencePose = data.GetTransformArray("m_parentSpaceReferencePose");
         ModelSpaceReferencePose = data.GetTransformArray("m_modelSpaceReferencePose");
         NumBonesToSampleAtLowLOD = data.GetInt32Property("m_numBonesToSampleAtLowLOD");
+        IsPropSkeleton = data.GetProperty<bool>("m_bIsPropSkeleton");
         MaskDefinitions = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_maskDefinitions"), kv => new BoneMaskSetDefinition(kv))];
         SecondarySkeletons = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_secondarySkeletons"), kv => new Skeleton__SecondarySkeleton(kv))];
-        IsPropSkeleton = data.GetProperty<bool>("m_bIsPropSkeleton");
+        FloatChannelSets = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_floatChannelSets"), kv => new FloatChannelSet(kv))];
+        ContactConfigs = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_contactConfigs"), kv => new Skeleton__ContactConfig(kv))];
+        GameplayRelevantBoneIndices = data.GetArray<int>("m_gameplayRelevantBoneIndices");
+        SpecialDependencyHash = data.GetIntegerProperty("m_nSpecialDependencyHash");
     }
 
     private float[][] resolvedMaskWeights;

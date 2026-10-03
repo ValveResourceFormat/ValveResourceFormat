@@ -9,6 +9,7 @@ partial class TargetSelectorNode : TargetValueNode
     public short ParameterNodeIdx { get; }
     public bool IgnoreInvalidOptions { get; }
     public bool IsWorldSpaceTarget { get; }
+    public GlobalSymbol AlignmentBoneID { get; }
 
     public TargetSelectorNode(KVObject data) : base(data)
     {
@@ -18,5 +19,6 @@ partial class TargetSelectorNode : TargetValueNode
         ParameterNodeIdx = data.GetInt16Property("m_parameterNodeIdx");
         IgnoreInvalidOptions = data.GetProperty<bool>("m_bIgnoreInvalidOptions");
         IsWorldSpaceTarget = data.GetProperty<bool>("m_bIsWorldSpaceTarget");
+        AlignmentBoneID = data.GetProperty<string>("m_alignmentBoneID");
     }
 }

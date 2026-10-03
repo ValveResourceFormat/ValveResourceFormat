@@ -8,6 +8,7 @@ partial class OrientationWarpNode : PoseNode
     public bool IsOffsetNode { get; }
     public bool IsOffsetRelativeToCharacter { get; }
     public bool WarpTranslation { get; }
+    public OrientationWarpNode__AlignmentMode AlignmentMode { get; }
     public RootMotionData__SamplingMode SamplingMode { get; }
 
     public OrientationWarpNode(KVObject data) : base(data)
@@ -17,6 +18,7 @@ partial class OrientationWarpNode : PoseNode
         IsOffsetNode = data.GetProperty<bool>("m_bIsOffsetNode");
         IsOffsetRelativeToCharacter = data.GetProperty<bool>("m_bIsOffsetRelativeToCharacter");
         WarpTranslation = data.GetProperty<bool>("m_bWarpTranslation");
+        AlignmentMode = data.GetEnumValue<OrientationWarpNode__AlignmentMode>("m_alignmentMode");
         SamplingMode = data.GetEnumValue<RootMotionData__SamplingMode>("m_samplingMode");
     }
 }
