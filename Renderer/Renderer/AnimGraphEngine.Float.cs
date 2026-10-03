@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.AnimLib
@@ -289,11 +290,25 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     eventFound = true;
                     foundPercentageThrough = sampledEvent.PercentageThrough;
                     highestWeightFound = sampledEvent.Weight;
-                    ctx.LogNodeNotImplemented(NodeIdx, "FloatCurveEventNode curve evaluation");
+                    bestValueFound = GetCurve(curveEvent).Evaluate(foundPercentageThrough);
                 }
             }
 
             return bestValueFound;
+        }
+
+        // Clip events are shared, parse each curve once
+        readonly Dictionary<NmClipEvent, ValveResourceFormat.Particles.Utils.PiecewiseCurve> curves = [];
+
+        ValveResourceFormat.Particles.Utils.PiecewiseCurve GetCurve(NmClipEvent curveEvent)
+        {
+            if (!curves.TryGetValue(curveEvent, out var curve))
+            {
+                curve = new FloatCurveEvent(curveEvent.Data).Curve;
+                curves.Add(curveEvent, curve);
+            }
+
+            return curve;
         }
     }
 
