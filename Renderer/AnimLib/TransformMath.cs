@@ -3,6 +3,16 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 /// <summary>Transform helpers that have no equivalent on <see cref="Transform"/> itself.</summary>
 static class TransformMath
 {
+    // Source axes, which the compiled graph and clip data use
+    public static readonly Vector3 WorldForward = Vector3.UnitX;
+    public static readonly Vector3 WorldRight = -Vector3.UnitY;
+    public static readonly Vector3 WorldUp = Vector3.UnitZ;
+
+    public const float Epsilon = 1.0e-06f;
+
+    public static bool IsNearZero(Vector3 v, float epsilon = Epsilon)
+        => MathF.Abs(v.X) <= epsilon && MathF.Abs(v.Y) <= epsilon && MathF.Abs(v.Z) <= epsilon;
+
     /// <summary>The delta that concatenated onto <paramref name="from"/> gives <paramref name="to"/>, ignoring scale.</summary>
     public static Transform DeltaNoScale(Transform from, Transform to)
     {
@@ -38,4 +48,46 @@ static class TransformMath
             q0.Z * qt0 + q1.Z * qt1,
             q0.W * qt0 + q1.W * qt1));
     }
+
+    /// <summary>The shortest rotation aligning one unit vector onto another.</summary>
+    public static Quaternion FromRotationBetweenUnitVectors(Vector3 from, Vector3 to)
+    {
+        var dot = Vector3.Dot(from, to);
+
+        // Parallel vectors
+        if (dot >= 1f - Epsilon)
+        {
+            return Quaternion.Identity;
+        }
+
+        // Opposite vectors, 180 degrees around any orthogonal axis
+        if (dot <= Epsilon - 1f)
+        {
+            return Quaternion.Normalize(new Quaternion(-from.Z, from.Y, from.X, 0f));
+        }
+
+        var cross = Vector3.Cross(from, to);
+        var q = new Vector4(cross, dot);
+        q.W += q.Length();
+        return Quaternion.Normalize(new Quaternion(q.X, q.Y, q.Z, q.W));
+    }
+
+    /// <summary>The rotation aligning one unit vector onto another, around a fallback axis for opposite vectors.</summary>
+    public static Quaternion FromRotationBetweenUnitVectors(Vector3 from, Vector3 to, Vector3 fallbackRotationAxis)
+    {
+        var rotationAxis = Vector3.Cross(from, to);
+        var axisLengthSquared = rotationAxis.LengthSquared();
+        rotationAxis = axisLengthSquared > 0f ? rotationAxis / MathF.Sqrt(axisLengthSquared) : fallbackRotationAxis;
+
+        var dot = Vector3.Dot(from, to);
+        if (dot >= 1f - Epsilon)
+        {
+            return Quaternion.Identity;
+        }
+
+        return Quaternion.CreateFromAxisAngle(rotationAxis, MathF.Acos(dot));
+    }
+
+    /// <summary>The rotation angle of a quaternion in radians, in [0, 2pi].</summary>
+    public static float GetAngle(Quaternion q) => 2f * MathF.Acos(q.W);
 }
