@@ -316,15 +316,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
         bool SourceHasPose => !IsSourceAnOffState && !(IsSourceAState && !GetSourceStateNode().IsValid);
 
         // A side without a pose of its own takes no part in the blend; the layer weight fades it instead
-        void BlendResultPoses(GraphContext ctx, Transform[] sourcePose, Transform[] targetPose, Transform[] resultPose)
+        void BlendResultPoses(GraphContext ctx, ReadOnlySpan<Transform> sourcePose, ReadOnlySpan<Transform> targetPose, Span<Transform> resultPose)
         {
             if (!SourceHasPose)
             {
-                targetPose.CopyTo(resultPose, 0);
+                targetPose.CopyTo(resultPose);
             }
             else if (!TargetStateNode.IsValid)
             {
-                sourcePose.CopyTo(resultPose, 0);
+                sourcePose.CopyTo(resultPose);
             }
             else
             {
