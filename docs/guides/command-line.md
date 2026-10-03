@@ -22,6 +22,7 @@ The binary name is `Source2Viewer-CLI`.
 | `--block` (or `-b`)          | Print the content of a specific block, example: DATA, RERL, REDI, NTRO.                                                                                         |
 | `--vpk_decompile` (or `-d`)  | Decompile supported resource files.                                                                                                                             |
 | `--texture_decode_flags`     | Decompile textures with specified decode flags. Options: "none", "auto", "ForceLDR". Default: "auto".                                                           |
+| `--no_cloth`                 | Skip reconstructing cloth (soft-body) physics when decompiling models.                                                                                          |
 | `--vpk_list` (or `-l`)       | Lists all resources in given VPK. File extension and path filters apply.                                                                                        |
 | `--vpk_dir`                  | Print a list of files in given VPK and information about them.                                                                                                  |
 | **Type specific export**     |                                                                                                                                                                 |
