@@ -356,6 +356,29 @@ namespace ValveResourceFormat.Renderer.AnimLib
             };
         }
 
+        /// <summary>Lists the state each active state machine is in, by node path.</summary>
+        public void DescribeActiveStates(System.Text.StringBuilder output, string indent)
+        {
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+
+            foreach (var node in Nodes)
+            {
+                if (node is not StateMachineNode { IsInitialized: true, IsValid: true } stateMachine)
+                {
+                    continue;
+                }
+
+                var transition = stateMachine.ActiveTransition is { } activeTransition
+                    ? $" (transitioning, {activeTransition.ProgressPercentage:P0})"
+                    : string.Empty;
+
+                output.Append(culture, $"{indent}{GetNodePath(stateMachine.NodeIdx)} -> {GetNodePath(stateMachine.ActiveStateNode.NodeIdx)}{transition}{Environment.NewLine}");
+            }
+        }
+
+        private string GetNodePath(short nodeIdx)
+            => nodeIdx >= 0 && nodeIdx < graphDefinition.NodePaths.Length ? graphDefinition.NodePaths[nodeIdx] : $"#{nodeIdx}";
+
         /// <summary>The control or virtual parameter node with the given name, if the graph has one.</summary>
         public ValueNode? GetParameterNode(string name)
             => parameterLookup.TryGetValue(name, out var nodeIdx) ? (ValueNode)Nodes[nodeIdx] : null;

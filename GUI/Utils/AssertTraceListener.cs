@@ -32,6 +32,12 @@ namespace GUI.Utils
             }
 
             var exception = new AssertFailedException(text);
+
+            // Asserts fire mid update, while the graph that tripped them can still describe itself
+            if (ValveResourceFormat.Renderer.AnimationGraph.DescribeUpdatingGraph() is { } graphState)
+            {
+                exception.Data[ValveResourceFormat.Renderer.AnimationGraph.ExceptionDataKey] = graphState;
+            }
             ExceptionDispatchInfo.SetRemoteStackTrace(exception, new StackTrace(fNeedFileInfo: true).ToString());
 
             try

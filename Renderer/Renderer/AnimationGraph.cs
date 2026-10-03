@@ -208,7 +208,23 @@ namespace ValveResourceFormat.Renderer
             graphContext.WorldTransform = worldTransform;
             graphContext.WorldTransformInverse = worldTransform.Inverse();
 
-            var result = graphContext.Update(timeStep);
+            AnimLib.GraphPoseNodeResult result;
+            var previousUpdatingGraph = updatingGraph;
+            updatingGraph = this;
+
+            try
+            {
+                result = graphContext.Update(timeStep);
+            }
+            catch (Exception e) when (AttachState(e))
+            {
+                throw;
+            }
+            finally
+            {
+                updatingGraph = previousUpdatingGraph;
+            }
+
             RootMotionDelta = result.RootMotionDelta;
 
             // Reset one-shot signaled bool parameters now that the graph has consumed them this frame.
@@ -226,6 +242,86 @@ namespace ValveResourceFormat.Renderer
             }
 
             return result.Pose;
+        }
+
+        [ThreadStatic]
+        private static AnimationGraph? updatingGraph;
+
+        /// <summary>The key under which a failing update stores <see cref="DescribeState()"/> in the exception data.</summary>
+        public const string ExceptionDataKey = "Animation graph state";
+
+        /// <summary>
+        /// Gets the state of the graph being updated on the calling thread, for reports of a failure raised
+        /// from inside the update, or <see langword="null"/> outside of one.
+        /// </summary>
+        public static string? DescribeUpdatingGraph() => updatingGraph?.DescribeState();
+
+        // Runs as an exception filter, so the state is captured before the stack unwinds; never catches
+        private bool AttachState(Exception exception)
+        {
+            try
+            {
+                exception.Data[ExceptionDataKey] = DescribeState();
+            }
+            catch (Exception describeException) when (describeException is not OutOfMemoryException)
+            {
+                // A broken graph must not hide the original failure
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Describes the parameter values and the active states of this graph and its referenced graphs.
+        /// </summary>
+        public string DescribeState()
+        {
+            var output = new System.Text.StringBuilder(1024);
+            DescribeState(output, string.Empty);
+            return output.ToString();
+        }
+
+        private void DescribeState(System.Text.StringBuilder output, string indent)
+        {
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+
+            output.Append(culture, $"{indent}{Name}{Environment.NewLine}");
+
+            foreach (var (name, value) in BoolParameters)
+            {
+                output.Append(culture, $"{indent}  {name} = {value}{Environment.NewLine}");
+            }
+
+            foreach (var (name, value) in FloatParameters)
+            {
+                output.Append(culture, $"{indent}  {name} = {value}{Environment.NewLine}");
+            }
+
+            foreach (var (name, value) in IdParameters)
+            {
+                output.Append(culture, $"{indent}  {name} = \"{value}\"{Environment.NewLine}");
+            }
+
+            foreach (var (name, value) in VectorParameters)
+            {
+                output.Append(culture, $"{indent}  {name} = ({value.X}, {value.Y}, {value.Z}){Environment.NewLine}");
+            }
+
+            foreach (var (name, value) in TargetParameters)
+            {
+                var text = value is { } target ? $"{target.Position} {target.Angle}" : "unset";
+                output.Append(culture, $"{indent}  {name} = {text}{Environment.NewLine}");
+            }
+
+            graphContext.DescribeActiveStates(output, indent + "  ");
+
+            foreach (var childGraph in ChildGraphs)
+            {
+                if (childGraph?.graphContext.RootNode.IsInitialized == true)
+                {
+                    childGraph.DescribeState(output, indent + "  ");
+                }
+            }
         }
 
         private void CollectParameters(KVObject graph)
