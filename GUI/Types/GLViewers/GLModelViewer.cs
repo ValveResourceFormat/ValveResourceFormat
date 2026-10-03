@@ -614,7 +614,7 @@ namespace GUI.Types.GLViewers
                     animGraph.IdParameters[paramName] = id;
                 }, horizontal: true);
 
-                combo.Items.AddRange([.. animGraph.GetParameterIdOptions(paramName)]);
+                combo.Items.AddRange([.. animGraph.GetParameterIdOptions(paramName).Order(StringComparer.Ordinal)]);
                 combo.SelectedIndex = combo.Items.IndexOf(value);
             }
 

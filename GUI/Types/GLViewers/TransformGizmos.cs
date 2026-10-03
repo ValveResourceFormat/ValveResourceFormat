@@ -23,7 +23,7 @@ namespace GUI.Types.GLViewers
         {
             public string Name { get; } = name;
             public bool AllowRotation { get; } = allowRotation;
-            public bool Visible { get; set; } = true;
+            public bool Visible { get; set; }
             public bool HasValue { get; set; }
             public Vector3 Position { get; set; }
             public Quaternion Rotation { get; set; } = Quaternion.Identity;
