@@ -846,22 +846,22 @@ namespace ValveResourceFormat.Renderer.AnimLib
             base.ShutdownInternal(ctx);
         }
 
+        float value;
+
         protected override float GetValueInternal(GraphContext ctx)
         {
             var target = TargetNode.GetValue(ctx);
 
             if (!target.IsSet)
             {
-                return 0.0f;
+                value = 0f;
+                return value;
             }
 
-            var isValidTransform = target.TryGetTransform(ctx.Pose, out var inputTargetTransform);
-
-            // todo: this code seems to sometimes reuse last computed value, but we don't store it
-            var lastValue = 1f;
-            if (!isValidTransform)
+            // An unresolvable target keeps the last value
+            if (!target.TryGetTransform(ctx.Pose, out var inputTargetTransform))
             {
-                return lastValue;
+                return value;
             }
 
             if (IsWorldSpaceTarget)
@@ -869,68 +869,65 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 inputTargetTransform *= ctx.WorldTransformInverse;
             }
 
+            // The target transform is in character space
             switch (InfoType)
             {
                 case TargetInfoNode__Info.AngleHorizontal:
                     {
-                        var dir2 = inputTargetTransform.Position.AsVector2();
-                        if (dir2.LengthSquared() < 1e-6f)
+                        var direction = TransformMath.Normalize2(inputTargetTransform.Position);
+                        if (TransformMath.IsNearZero(direction))
                         {
-                            return 0.0f;
+                            value = 0f;
+                            break;
                         }
 
-                        var dirN = Vector2.Normalize(dir2);
-                        var dotForward = Math.Clamp(Vector2.Dot(dirN, Vector2.UnitX), -1f, 1f);
-                        var angle = MathF.Acos(dotForward);
-                        var degrees = float.RadiansToDegrees(angle);
+                        var dotForward = Vector3.Dot(TransformMath.WorldForward, direction);
+                        value = float.RadiansToDegrees(MathF.Acos(dotForward));
 
-                        var dotRight = Vector2.Dot(dirN, Vector2.UnitY);
-                        return dotRight < 0.0f ? -degrees : degrees;
+                        var dotRight = Vector3.Dot(TransformMath.WorldRight, direction);
+                        if (dotRight < 0f)
+                        {
+                            value = -value;
+                        }
+
+                        break;
                     }
 
                 case TargetInfoNode__Info.AngleVertical:
                     {
-                        var dir3 = inputTargetTransform.Position;
-                        if (dir3.LengthSquared() < 1e-6f)
-                        {
-                            return 0.0f;
-                        }
-
-                        var dirN = Vector3.Normalize(dir3);
-                        var dotUp = Math.Clamp(Vector3.Dot(Vector3.UnitZ, dirN), -1f, 1f);
-                        return float.RadiansToDegrees((MathF.PI / 2f) - MathF.Acos(dotUp));
+                        var direction = TransformMath.NormalizeOrZero(inputTargetTransform.Position);
+                        value = TransformMath.IsNearZero(direction)
+                            ? 0f
+                            : float.RadiansToDegrees((MathF.PI / 2f) - MathF.Acos(Vector3.Dot(TransformMath.WorldUp, direction)));
+                        break;
                     }
 
                 case TargetInfoNode__Info.Distance:
-                    return inputTargetTransform.Position.Length();
+                    value = inputTargetTransform.Position.Length();
+                    break;
 
                 case TargetInfoNode__Info.DistanceHorizontalOnly:
-                    return inputTargetTransform.Position.AsVector2().Length();
+                    value = TransformMath.Length2(inputTargetTransform.Position);
+                    break;
 
                 case TargetInfoNode__Info.DistanceVerticalOnly:
-                    return MathF.Abs(inputTargetTransform.Position.Z);
+                    value = MathF.Abs(inputTargetTransform.Position.Z);
+                    break;
 
                 case TargetInfoNode__Info.DeltaOrientationX:
-                    {
-                        var e = EntityTransformHelper.ToEulerAngles(inputTargetTransform.Angle);
-                        return e.X;
-                    }
+                    value = float.RadiansToDegrees(TransformMath.ToEulerAngles(inputTargetTransform.Angle).X);
+                    break;
 
                 case TargetInfoNode__Info.DeltaOrientationY:
-                    {
-                        var e = EntityTransformHelper.ToEulerAngles(inputTargetTransform.Angle);
-                        return e.Y;
-                    }
+                    value = float.RadiansToDegrees(TransformMath.ToEulerAngles(inputTargetTransform.Angle).Y);
+                    break;
 
                 case TargetInfoNode__Info.DeltaOrientationZ:
-                    {
-                        var e = EntityTransformHelper.ToEulerAngles(inputTargetTransform.Angle);
-                        return e.Z;
-                    }
-
-                default:
-                    return 0.0f;
+                    value = float.RadiansToDegrees(TransformMath.ToEulerAngles(inputTargetTransform.Angle).Z);
+                    break;
             }
+
+            return value;
         }
     }
 

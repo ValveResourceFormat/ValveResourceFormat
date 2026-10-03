@@ -202,4 +202,20 @@ static class TransformMath
 
         return Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(m));
     }
+
+    /// <summary>Rotations around the X, Y and Z axes in radians, decomposed from the rotation matrix.</summary>
+    public static Vector3 ToEulerAngles(Quaternion q)
+    {
+        var m = Matrix4x4.CreateFromQuaternion(q);
+
+        var x = MathF.Atan2(m.M23, m.M33);
+        var c2 = MathF.Sqrt((m.M11 * m.M11) + (m.M12 * m.M12));
+        var y = MathF.Atan2(-m.M13, c2);
+
+        var s1 = MathF.Sin(x);
+        var c1 = MathF.Cos(x);
+        var z = MathF.Atan2((s1 * m.M31) - (c1 * m.M21), (c1 * m.M22) - (s1 * m.M32));
+
+        return new Vector3(x, y, z);
+    }
 }

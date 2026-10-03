@@ -4,10 +4,8 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 
 static class TwoBoneSolver
 {
-    /// <summary>
-    /// Solves the two bone chain ending in the effector towards the target, in place on the pose.
-    /// </summary>
-    /// <param name="chainRotationWeight">How the effector rotation is solved: 0 fully rotates the effector, 1 rotates the chain.</param>
+    // Solves the two bone chain ending in the effector towards the target, in place on the pose. The chain
+    // rotation weight picks how the effector rotation is solved: 0 fully rotates the effector, 1 rotates the chain.
     public static void Solve(Pose pose, int effectorBoneIdx, Transform targetTransform, float chainRotationWeight = 0f, IKBlendMode blendMode = IKBlendMode.Effector, float blendWeight = 1f)
     {
         var skeleton = pose.Skeleton;

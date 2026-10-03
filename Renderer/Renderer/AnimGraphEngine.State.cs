@@ -311,7 +311,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         // With a start bone mask the masked bones blend in first, over the first part of the transition,
         // and the mask then blends out to a full weight
-        void BlendPoses(GraphContext ctx, Transform[] sourcePose, Transform[] targetPose, Transform[] resultPose)
+        void BlendPoses(GraphContext ctx, ReadOnlySpan<Transform> sourcePose, ReadOnlySpan<Transform> targetPose, Span<Transform> resultPose)
         {
             if (StartBoneMaskNode == null)
             {
