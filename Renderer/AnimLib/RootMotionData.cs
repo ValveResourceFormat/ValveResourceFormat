@@ -18,6 +18,17 @@ class RootMotionData
         TotalDelta = data.GetTransformProperty("m_totalDelta");
     }
 
+    public RootMotionData(Transform[] transforms, int numFrames, RootMotionData? source = null)
+    {
+        Transforms = transforms;
+        NumFrames = numFrames;
+        AverageLinearVelocity = source?.AverageLinearVelocity ?? 0f;
+        AverageAngularVelocityRadians = source?.AverageAngularVelocityRadians ?? 0f;
+        TotalDelta = source?.TotalDelta ?? Transform.Identity;
+    }
+
+    public static RootMotionData Empty { get; } = new([], 0);
+
     /// <summary>Valid data, which is distinct from having any actual motion.</summary>
     public bool IsValid => NumFrames > 0;
 
