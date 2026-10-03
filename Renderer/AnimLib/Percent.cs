@@ -2,7 +2,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
 /// <summary>A percentage in the 0 to 1 range.</summary>
-public readonly struct Percent
+[KV3Transfer]
+public readonly partial struct Percent
 {
     /// <summary>The percentage as a 0 to 1 fraction.</summary>
     public float Value { get; }
@@ -11,11 +12,5 @@ public readonly struct Percent
     public Percent(float value)
     {
         Value = value;
-    }
-
-    /// <summary>Reads the percentage from resource data.</summary>
-    public Percent(KVObject data)
-    {
-        Value = data.GetFloatProperty("m_flValue");
     }
 }

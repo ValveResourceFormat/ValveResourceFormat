@@ -1,14 +1,9 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class SpeedScaleBaseNode : PassthroughNode
 {
-    public short InputValueNodeIdx { get; }
+    public short InputValueNodeIdx { get; } = -1;
     public float DefaultInputValue { get; }
-
-    public SpeedScaleBaseNode(KVObject data) : base(data)
-    {
-        InputValueNodeIdx = data.GetInt16Property("m_nInputValueNodeIdx");
-        DefaultInputValue = data.GetFloatProperty("m_flDefaultInputValue");
-    }
 }

@@ -2,52 +2,39 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
 /// <summary>An animation skeleton: bone hierarchy, reference pose and bone masks.</summary>
-public class Skeleton
+[KV3Transfer]
+public partial class Skeleton
 {
     /// <summary>The skeleton ID.</summary>
     public GlobalSymbol ID { get; }
     /// <summary>The ID of each bone.</summary>
-    public GlobalSymbol[] BoneIDs { get; }
+    public GlobalSymbol[] BoneIDs { get; } = [];
     /// <summary>The parent index of each bone, -1 for roots.</summary>
-    public int[] ParentIndices { get; }
+    public int[] ParentIndices { get; } = [];
     /// <summary>The reference pose with each bone relative to its parent.</summary>
-    public Transform[] ParentSpaceReferencePose { get; }
+    public Transform[] ParentSpaceReferencePose { get; } = [];
     /// <summary>The reference pose in model space.</summary>
-    public Transform[] ModelSpaceReferencePose { get; }
+    public Transform[] ModelSpaceReferencePose { get; } = [];
     /// <summary>The number of leading bones sampled at low LOD.</summary>
+    [KVProperty("m_numBonesToSampleAtLowLOD")]
     public int NumBonesToSampleAtLowLOD { get; }
     /// <summary>Whether this is a prop skeleton.</summary>
     public bool IsPropSkeleton { get; }
     /// <summary>The bone mask definitions.</summary>
-    public BoneMaskSetDefinition[] MaskDefinitions { get; }
+    public BoneMaskSetDefinition[] MaskDefinitions { get; } = [];
     /// <summary>Skeletons attached to bones of this one.</summary>
-    public Skeleton__SecondarySkeleton[] SecondarySkeletons { get; }
+    public Skeleton__SecondarySkeleton[] SecondarySkeletons { get; } = [];
     /// <summary>The float channel sets.</summary>
-    public FloatChannelSet[] FloatChannelSets { get; }
+    public FloatChannelSet[] FloatChannelSets { get; } = [];
     /// <summary>The contact point configurations.</summary>
-    public Skeleton__ContactConfig[] ContactConfigs { get; }
+    public Skeleton__ContactConfig[] ContactConfigs { get; } = [];
     /// <summary>The bones relevant to gameplay.</summary>
-    public int[] GameplayRelevantBoneIndices { get; }
+    public int[] GameplayRelevantBoneIndices { get; } = [];
     /// <summary>A hash of the special dependencies.</summary>
     public long SpecialDependencyHash { get; }
 
-    /// <summary>Reads the skeleton from resource data.</summary>
-    public Skeleton(KVObject data)
+    partial void OnLoaded(KVObject data)
     {
-        ID = data.GetProperty<string>("m_ID");
-        BoneIDs = data.GetSymbolArray("m_boneIDs");
-        ParentIndices = data.GetArray<int>("m_parentIndices") ?? [];
-        ParentSpaceReferencePose = data.GetTransformArray("m_parentSpaceReferencePose");
-        ModelSpaceReferencePose = data.GetTransformArray("m_modelSpaceReferencePose");
-        NumBonesToSampleAtLowLOD = data.GetInt32Property("m_numBonesToSampleAtLowLOD");
-        IsPropSkeleton = data.GetProperty<bool>("m_bIsPropSkeleton");
-        MaskDefinitions = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_maskDefinitions") ?? [], kv => new BoneMaskSetDefinition(kv))];
-        SecondarySkeletons = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_secondarySkeletons") ?? [], kv => new Skeleton__SecondarySkeleton(kv))];
-        FloatChannelSets = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_floatChannelSets") ?? [], kv => new FloatChannelSet(kv))];
-        ContactConfigs = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_contactConfigs") ?? [], kv => new Skeleton__ContactConfig(kv))];
-        GameplayRelevantBoneIndices = data.GetArray<int>("m_gameplayRelevantBoneIndices") ?? [];
-        SpecialDependencyHash = data.GetIntegerProperty("m_nSpecialDependencyHash");
-
         for (var i = 0; i < MaskDefinitions.Length; i++)
         {
             GetResolvedMaskWeights(i);

@@ -2,7 +2,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
 /// <summary>A named sync period of a sync track.</summary>
-public readonly struct SyncTrack__Event
+[KV3Transfer]
+public readonly partial struct SyncTrack__Event
 {
     /// <summary>The event ID.</summary>
     public GlobalSymbol ID { get; }
@@ -17,13 +18,5 @@ public readonly struct SyncTrack__Event
         ID = id;
         StartTime = new(startTime);
         Duration = new(duration);
-    }
-
-    /// <summary>Reads the event from resource data.</summary>
-    public SyncTrack__Event(KVObject data)
-    {
-        ID = data.GetProperty<string>("m_ID");
-        StartTime = new(data.GetProperty<KVObject>("m_startTime"));
-        Duration = new(data.GetProperty<KVObject>("m_duration"));
     }
 }

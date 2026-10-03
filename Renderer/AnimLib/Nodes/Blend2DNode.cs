@@ -1,24 +1,14 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class Blend2DNode : PoseNode
 {
-    public short[] SourceNodeIndices { get; }
-    public short InputParameterNodeIdx0 { get; }
-    public short InputParameterNodeIdx1 { get; }
-    public Vector2[] Values { get; }
-    public uint[] Indices { get; }
-    public uint[] HullIndices { get; }
-    public bool AllowLooping { get; }
-
-    public Blend2DNode(KVObject data) : base(data)
-    {
-        SourceNodeIndices = data.GetArray<short>("m_sourceNodeIndices") ?? [];
-        InputParameterNodeIdx0 = data.GetInt16Property("m_nInputParameterNodeIdx0");
-        InputParameterNodeIdx1 = data.GetInt16Property("m_nInputParameterNodeIdx1");
-        Values = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_values"), v => v.ToVector2())];
-        Indices = data.GetArray<uint>("m_indices");
-        HullIndices = data.GetArray<uint>("m_hullIndices");
-        AllowLooping = data.GetProperty<bool>("m_bAllowLooping");
-    }
+    public short[] SourceNodeIndices { get; } = [];
+    public short InputParameterNodeIdx0 { get; } = -1;
+    public short InputParameterNodeIdx1 { get; } = -1;
+    public Vector2[] Values { get; } = [];
+    public uint[] Indices { get; } = [];
+    public uint[] HullIndices { get; } = [];
+    public bool AllowLooping { get; } = true;
 }

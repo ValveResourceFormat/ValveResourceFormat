@@ -1,20 +1,12 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class BoneMaskSwitchNode : BoneMaskValueNode
 {
-    public short SwitchValueNodeIdx { get; }
-    public short TrueValueNodeIdx { get; }
-    public short FalseValueNodeIdx { get; }
-    public float BlendTimeSeconds { get; }
+    public short SwitchValueNodeIdx { get; } = -1;
+    public short TrueValueNodeIdx { get; } = -1;
+    public short FalseValueNodeIdx { get; } = -1;
+    public float BlendTimeSeconds { get; } = 0.1f;
     public bool SwitchDynamically { get; }
-
-    public BoneMaskSwitchNode(KVObject data) : base(data)
-    {
-        SwitchValueNodeIdx = data.GetInt16Property("m_nSwitchValueNodeIdx");
-        TrueValueNodeIdx = data.GetInt16Property("m_nTrueValueNodeIdx");
-        FalseValueNodeIdx = data.GetInt16Property("m_nFalseValueNodeIdx");
-        BlendTimeSeconds = data.GetFloatProperty("m_flBlendTimeSeconds");
-        SwitchDynamically = data.GetProperty<bool>("m_bSwitchDynamically");
-    }
 }

@@ -1,11 +1,13 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-class ParticleEvent : Event
+[KV3Transfer]
+partial class ParticleEvent : Event
 {
-    public EventRelevance Relevance { get; }
+    public EventRelevance Relevance { get; } = EventRelevance.ClientAndServer;
     public ParticleEvent__Type Type { get; }
     public EventTargetEntity Target { get; }
+    [KVProperty("m_hParticleSystem")]
     public string ParticleSystem { get; } // InfoForResourceTypeIParticleSystemDefinition
     public string Tags { get; }
     public bool StopImmediately { get; }
@@ -17,22 +19,4 @@ class ParticleEvent : Event
     public ValveResourceFormat.Particles.ParticleAttachment AttachmentType1 { get; }
     public string Config { get; }
     public string EffectForConfig { get; }
-
-    public ParticleEvent(KVObject data) : base(data)
-    {
-        Relevance = data.GetEnumValue<EventRelevance>("m_relevance");
-        Type = data.GetEnumValue<ParticleEvent__Type>("m_type");
-        Target = data.GetEnumValue<EventTargetEntity>("m_target");
-        ParticleSystem = data.GetProperty<string>("m_hParticleSystem");
-        Tags = data.GetProperty<string>("m_tags");
-        StopImmediately = data.GetProperty<bool>("m_bStopImmediately");
-        DetachFromOwner = data.GetProperty<bool>("m_bDetachFromOwner");
-        PlayEndCap = data.GetProperty<bool>("m_bPlayEndCap");
-        AttachmentPoint0 = data.GetProperty<string>("m_attachmentPoint0");
-        //AttachmentType0 = m_attachmentType0;
-        AttachmentPoint1 = data.GetProperty<string>("m_attachmentPoint1");
-        //AttachmentType1 = m_attachmentType1;
-        Config = data.GetProperty<string>("m_config");
-        EffectForConfig = data.GetProperty<string>("m_effectForConfig");
-    }
 }

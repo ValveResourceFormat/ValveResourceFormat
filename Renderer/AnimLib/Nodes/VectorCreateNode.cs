@@ -1,18 +1,15 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class VectorCreateNode : VectorValueNode
 {
-    public short InputVectorValueNodeIdx { get; }
-    public short InputValueXNodeIdx { get; }
-    public short InputValueYNodeIdx { get; }
-    public short InputValueZNodeIdx { get; }
-
-    public VectorCreateNode(KVObject data) : base(data)
-    {
-        InputVectorValueNodeIdx = data.GetInt16Property("m_inputVectorValueNodeIdx");
-        InputValueXNodeIdx = data.GetInt16Property("m_inputValueXNodeIdx");
-        InputValueYNodeIdx = data.GetInt16Property("m_inputValueYNodeIdx");
-        InputValueZNodeIdx = data.GetInt16Property("m_inputValueZNodeIdx");
-    }
+    [KVProperty("m_inputVectorValueNodeIdx")]
+    public short InputVectorValueNodeIdx { get; } = -1;
+    [KVProperty("m_inputValueXNodeIdx")]
+    public short InputValueXNodeIdx { get; } = -1;
+    [KVProperty("m_inputValueYNodeIdx")]
+    public short InputValueYNodeIdx { get; } = -1;
+    [KVProperty("m_inputValueZNodeIdx")]
+    public short InputValueZNodeIdx { get; } = -1;
 }

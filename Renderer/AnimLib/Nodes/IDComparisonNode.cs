@@ -1,16 +1,10 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class IDComparisonNode : BoolValueNode
 {
-    public short InputValueNodeIdx { get; }
+    public short InputValueNodeIdx { get; } = -1;
     public IDComparisonNode__Comparison Comparison { get; }
-    public GlobalSymbol[] ComparisionIDs { get; }
-
-    public IDComparisonNode(KVObject data) : base(data)
-    {
-        InputValueNodeIdx = data.GetInt16Property("m_nInputValueNodeIdx");
-        Comparison = data.GetEnumValue<IDComparisonNode__Comparison>("m_comparison");
-        ComparisionIDs = data.GetSymbolArray("m_comparisionIDs");
-    }
+    public GlobalSymbol[] ComparisionIDs { get; } = [];
 }

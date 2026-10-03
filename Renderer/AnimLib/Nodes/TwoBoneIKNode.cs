@@ -1,24 +1,14 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class TwoBoneIKNode : PassthroughNode
 {
     public GlobalSymbol EffectorBoneID { get; }
-    public short EffectorTargetNodeIdx { get; }
-    public short EnabledNodeIdx { get; }
+    public short EffectorTargetNodeIdx { get; } = -1;
+    public short EnabledNodeIdx { get; } = -1;
     public float BlendTimeSeconds { get; }
     public IKBlendMode BlendMode { get; }
     public bool IsTargetInWorldSpace { get; }
     public float ChainRotationWeight { get; }
-
-    public TwoBoneIKNode(KVObject data) : base(data)
-    {
-        EffectorBoneID = data.GetProperty<string>("m_effectorBoneID");
-        EffectorTargetNodeIdx = data.GetInt16Property("m_nEffectorTargetNodeIdx");
-        EnabledNodeIdx = data.GetInt16Property("m_nEnabledNodeIdx");
-        BlendTimeSeconds = data.GetFloatProperty("m_flBlendTimeSeconds");
-        BlendMode = data.GetEnumValue<IKBlendMode>("m_blendMode");
-        IsTargetInWorldSpace = data.GetProperty<bool>("m_bIsTargetInWorldSpace");
-        ChainRotationWeight = data.GetFloatProperty("m_flChainRotationWeight");
-    }
 }

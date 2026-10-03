@@ -1,22 +1,14 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-class RootMotionData
+[KV3Transfer]
+partial class RootMotionData
 {
-    public Transform[] Transforms { get; }
+    public Transform[] Transforms { get; } = [];
     public int NumFrames { get; private set; }
     public float AverageLinearVelocity { get; private set; }
     public float AverageAngularVelocityRadians { get; private set; }
     public Transform TotalDelta { get; private set; }
-
-    public RootMotionData(KVObject data)
-    {
-        Transforms = data.GetTransformArray("m_transforms");
-        NumFrames = data.GetInt32Property("m_nNumFrames");
-        AverageLinearVelocity = data.GetFloatProperty("m_flAverageLinearVelocity");
-        AverageAngularVelocityRadians = data.GetFloatProperty("m_flAverageAngularVelocityRadians");
-        TotalDelta = data.GetTransformProperty("m_totalDelta");
-    }
 
     public RootMotionData(Transform[] transforms, int numFrames, RootMotionData? source = null)
     {

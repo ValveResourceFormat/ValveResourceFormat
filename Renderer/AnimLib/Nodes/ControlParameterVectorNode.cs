@@ -1,7 +1,7 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class ControlParameterVectorNode : VectorValueNode
 {
-    public ControlParameterVectorNode(KVObject data) : base(data) { }
 }

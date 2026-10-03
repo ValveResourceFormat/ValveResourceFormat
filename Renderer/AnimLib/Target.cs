@@ -2,7 +2,8 @@ using System.Diagnostics;
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-struct Target
+[KV3Transfer]
+partial struct Target
 {
     /// <summary>
     /// Either the actual transform or the offsets that need to be applied
@@ -10,19 +11,9 @@ struct Target
     public Transform Transform { get; set; }
     public GlobalSymbol BoneID { get; }
     public bool IsBoneTarget { get; }
-    public bool IsUsingBoneSpaceOffsets { get; set; }
+    public bool IsUsingBoneSpaceOffsets { get; set; } = true;
     public bool HasOffsets { get; set; }
     public bool IsSet { get; set; }
-
-    public Target(KVObject data)
-    {
-        Transform = data.GetTransformProperty("m_transform");
-        BoneID = data.GetProperty<string>("m_boneID");
-        IsBoneTarget = data.GetProperty<bool>("m_bIsBoneTarget");
-        IsUsingBoneSpaceOffsets = data.GetProperty<bool>("m_bIsUsingBoneSpaceOffsets");
-        HasOffsets = data.GetProperty<bool>("m_bHasOffsets");
-        IsSet = data.GetProperty<bool>("m_bIsSet");
-    }
 
     /// <summary>Creates a set, non-bone target from a world/character-space transform.</summary>
     public Target(Transform transform)

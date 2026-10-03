@@ -7,13 +7,14 @@ namespace ValveResourceFormat.Renderer.AnimLib;
 /// track are expressed as <see cref="SyncTrackTime"/> (event index plus percentage through it),
 /// which lets differently-timed clips advance in lockstep. Port of Esoterica's SyncTrack.
 /// </summary>
-public class SyncTrack
+[KV3Transfer]
+public partial class SyncTrack
 {
     /// <summary>A default track with one full-length unnamed event.</summary>
     public static SyncTrack Default { get; } = new SyncTrack([new SyncTrack__Event(default, 0f, 1f)], 0);
 
     /// <summary>The sync events, in order.</summary>
-    public SyncTrack__Event[] SyncEvents { get; private set; }
+    public SyncTrack__Event[] SyncEvents { get; private set; } = [];
     /// <summary>The index of the event playback starts at.</summary>
     public int StartEventOffset { get; private set; }
 
@@ -22,12 +23,8 @@ public class SyncTrack
     /// <summary>The logical event count; the scratch backing array may be larger.</summary>
     public int NumEvents => numEventsOverride >= 0 ? numEventsOverride : SyncEvents.Length;
 
-    /// <summary>Reads the track from resource data.</summary>
-    public SyncTrack(KVObject data)
+    partial void OnLoaded(KVObject data)
     {
-        SyncEvents = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_syncEvents") ?? [], kv => new SyncTrack__Event(kv))];
-        StartEventOffset = data.GetInt32Property("m_nStartEventOffset");
-
         if (SyncEvents.Length == 0)
         {
             SyncEvents = [new SyncTrack__Event(default, 0f, 1f)];

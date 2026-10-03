@@ -1,7 +1,7 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class VelocityBlendNode : ParameterizedBlendNode
 {
-    public VelocityBlendNode(KVObject data) : base(data) { }
 }

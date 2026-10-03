@@ -1,7 +1,7 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class SpeedScaleNode : SpeedScaleBaseNode
 {
-    public SpeedScaleNode(KVObject data) : base(data) { }
 }

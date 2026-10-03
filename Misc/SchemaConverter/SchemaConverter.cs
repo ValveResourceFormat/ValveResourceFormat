@@ -7,6 +7,10 @@ using System.Text.Json;
 // Generates C# definition classes from the SchemaExplorer schema dump. What gets generated, and where it
 // goes, is described by a SchemaTarget (see SchemaConverter.AnimLib.cs).
 //
+// The classes only declare their properties, with the schema defaults as initializers. They are marked
+// [KV3Transfer], and the KV3Transfer source generator writes the constructor reading them from KeyValues3.
+// Keys follow that generator's naming rule, and [KVProperty] names the ones that do not.
+//
 // Generated files are hand edited afterwards, so a regen never overwrites them. Instead the schema the
 // files were last generated from (pinned in the target's generated-from file) is generated again as a
 // merge base, and each file gets a three-way merge of (current file, previous generation, new generation).
@@ -410,23 +414,14 @@ abstract class SchemaTarget
     /// <summary>Schema types mapped to existing C# types, on top of the common ones.</summary>
     public virtual IReadOnlyDictionary<string, string> TypeMap { get; } = new Dictionary<string, string>();
 
-    /// <summary>C# types read through a constructor taking their KeyValues data.</summary>
-    public virtual IReadOnlySet<string> DataConstructedTypes { get; } = new HashSet<string>();
-
     /// <summary>Folder a generated type goes in, under the output folder.</summary>
     public virtual string ChooseFolder(Converter converter, string fileName, string outputDir) => outputDir;
 
-    /// <summary>The C# declaration keywords for a generated class, e.g. "class" or "partial class".</summary>
-    public virtual string ClassKeywords(Converter converter, string className) => "class";
+    /// <summary>The C# declaration keywords for a generated class, e.g. "partial class".</summary>
+    public virtual string ClassKeywords(Converter converter, string className) => "partial class";
 
     /// <summary>Adjusts a converted class name, e.g. to drop a suffix.</summary>
     public virtual string PostProcessClassName(string className) => className;
-
-    /// <summary>Statement reading a property of a target specific type, or null for the common handling.</summary>
-    public virtual string? ReadProperty(string csType, string propertyName, string fieldName) => null;
-
-    /// <summary>Statement reading an array of a target specific item type, or null for the common handling.</summary>
-    public virtual string? ReadArray(string itemType, string propertyName, string fieldName) => null;
 
     /// <summary>Checks the target specific conversions.</summary>
     public virtual void Test(Converter converter)
@@ -436,7 +431,8 @@ abstract class SchemaTarget
 
 abstract record SchemaType(string Name);
 
-record SchemaClass(string Name, string? Parent, List<SchemaField> Fields) : SchemaType(Name);
+/// <param name="Defaults">The schema default of each field by name, from MGetKV3ClassDefaults.</param>
+record SchemaClass(string Name, string? Parent, List<SchemaField> Fields, Dictionary<string, JsonElement> Defaults) : SchemaType(Name);
 
 record SchemaEnum(string Name, string BaseType, List<(string Name, long Value)> Members) : SchemaType(Name);
 
@@ -499,7 +495,23 @@ class Schema
                 }
             }
 
-            types.Add(new SchemaClass(name, parent, fields));
+            Dictionary<string, JsonElement> defaults = [];
+            if (@class.TryGetProperty("metadata", out var metadata))
+            {
+                foreach (var entry in metadata.EnumerateArray())
+                {
+                    if (entry.GetProperty("name").GetString() == "MGetKV3ClassDefaults"
+                        && entry.TryGetProperty("value", out var value) && value.ValueKind == JsonValueKind.Object)
+                    {
+                        foreach (var property in value.EnumerateObject())
+                        {
+                            defaults[property.Name] = property.Value.Clone();
+                        }
+                    }
+                }
+            }
+
+            types.Add(new SchemaClass(name, parent, fields, defaults));
         }
 
         foreach (var @enum in root.GetProperty("enums").EnumerateArray())
@@ -551,6 +563,7 @@ class Converter
 {
     private readonly SchemaTarget target;
     private readonly HashSet<string> enumTypes = [];
+    private readonly Dictionary<string, Dictionary<string, long>> enumMembers = [];
     private readonly Dictionary<string, string?> classHierarchies = [];
 
     private static readonly HashSet<string> MatchingTypes =
@@ -598,6 +611,7 @@ class Converter
                     break;
                 case SchemaEnum @enum:
                     enumTypes.Add(ConvertClassName(@enum.Name, target.SourceNameSpace));
+                    enumMembers[ConvertClassName(@enum.Name, target.SourceNameSpace)] = @enum.Members.ToDictionary(m => m.Name, m => m.Value);
                     break;
             }
         }
@@ -729,14 +743,14 @@ class Converter
         {
         };
         ------->
-        class VelocityBlendNode : ParameterizedBlendNode
+        [KV3Transfer]
+        partial class VelocityBlendNode : ParameterizedBlendNode
         {
         }
     */
     private void WriteClass(SchemaClass @class, StringBuilder writer)
     {
         var convertedClass = ConvertClassName(@class.Name, SourceNameSpace);
-        var hasBaseClass = @class.Parent is not null;
 
         var csClass = $"{target.ClassKeywords(this, convertedClass)} {convertedClass}";
         if (@class.Parent is not null)
@@ -744,42 +758,19 @@ class Converter
             csClass += $" : {ConvertClassName(@class.Parent, SourceNameSpace)}";
         }
 
+        writer.Append("[KV3Transfer]\n");
         writer.Append(csClass).Append('\n');
         writer.Append("{\n");
 
-        List<string> memberParserLines = [];
-
         foreach (var field in @class.Fields)
         {
-            WriteMember(field, writer, memberParserLines);
-        }
-
-        if (memberParserLines.Count > 0)
-        {
-            // kvobject constructor
-            writer.Append('\n');
-
-            var baseCtor = hasBaseClass ? " : base(data)" : string.Empty;
-            writer.Append(CultureInfo.InvariantCulture, $"    public {convertedClass}(KVObject data){baseCtor}\n");
-            writer.Append("    {\n");
-            foreach (var line in memberParserLines)
-            {
-                writer.Append(CultureInfo.InvariantCulture, $"        {line}\n");
-            }
-            writer.Append("    }\n");
-        }
-        else
-        {
-            writer.Append(hasBaseClass
-                ? $"    public {convertedClass}(KVObject data) : base(data) {{ }}\n"
-                : $"    public {convertedClass}(KVObject _) {{ }}\n"
-            );
+            WriteMember(field, @class.Defaults.TryGetValue(field.Name, out var value) ? value : null, writer);
         }
 
         writer.Append("}\n");
     }
 
-    private void WriteMember(SchemaField field, StringBuilder writer, List<string> memberParserLines)
+    private void WriteMember(SchemaField field, JsonElement? schemaDefault, StringBuilder writer)
     {
         var type = field.Type;
         var args = field.Args;
@@ -796,74 +787,98 @@ class Converter
         }
 
         var newName = ConvertHungarianNotation(name);
-
-        // convert type
         var csType = ConvertClassName(type, SourceNameSpace);
 
+        if (DefaultKey(newName, csType) != name)
+        {
+            writer.Append(CultureInfo.InvariantCulture, $"    [KVProperty(\"{name}\")]\n");
+        }
+
+        var initializer = Initializer(csType, schemaDefault);
         var argComment = args is not null && args.Length > 0 ? $" // {args}" : string.Empty;
 
-        // write property
-        writer.Append(CultureInfo.InvariantCulture, $"    public {csType} {newName} {{ get; }}{argComment}\n");
+        writer.Append(CultureInfo.InvariantCulture, $"    public {csType} {newName} {{ get; }}{initializer}{argComment}\n");
+    }
 
-        if (classHierarchies.ContainsKey(csType) || target.DataConstructedTypes.Contains(csType))
+    // Must match DefaultKey in the KV3Transfer source generator
+    private static string DefaultKey(string propertyName, string csType)
+    {
+        var prefix = csType switch
         {
-            memberParserLines.Add($"{newName} = new(data.GetProperty<KVObject>(\"{name}\"));");
-            return;
+            "bool" => "b",
+            "float" or "double" => "fl",
+            "byte" or "sbyte" or "short" or "ushort" or "int" or "uint" or "long" or "ulong" => "n",
+            _ => string.Empty,
+        };
+
+        if (prefix.Length > 0 || propertyName.Length == 0 || (propertyName.Length > 1 && char.IsUpper(propertyName[1])))
+        {
+            return "m_" + prefix + propertyName;
         }
 
-        if (enumTypes.Contains(csType))
-        {
-            memberParserLines.Add($"{newName} = data.GetEnumValue<{csType}>(\"{name}\");");
-            return;
-        }
+        return "m_" + char.ToLowerInvariant(propertyName[0]) + propertyName[1..];
+    }
 
+    // The schema default as a property initializer, empty when it is the type's default value
+    private string Initializer(string csType, JsonElement? schemaDefault)
+    {
+        // Arrays are never null, missing ones are empty
         if (csType.EndsWith("[]", StringComparison.Ordinal))
         {
-            var itemType = csType[..^2];
-            if (classHierarchies.ContainsKey(itemType))
-            {
-                memberParserLines.Add($"{newName} = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>(\"{name}\") ?? [], kv => new {itemType}(kv))];");
-                return;
-            }
-
-            if (enumTypes.Contains(itemType))
-            {
-                memberParserLines.Add("enum array error");
-                return;
-            }
-
-            if (target.ReadArray(itemType, newName, name) is { } arrayLine)
-            {
-                memberParserLines.Add(arrayLine);
-                return;
-            }
-
-            // Arrays added to the schema later are missing from older resources
-            memberParserLines.Add($"{newName} = data.GetArray<{itemType}>(\"{name}\") ?? [];");
-            return;
+            return " = [];";
         }
 
-        if (target.ReadProperty(csType, newName, name) is { } propertyLine)
+        if (schemaDefault is not { } value)
         {
-            memberParserLines.Add(propertyLine);
-            return;
+            return string.Empty;
         }
 
-        memberParserLines.Add(csType switch
+        switch (csType)
         {
-            "bool" => $"{newName} = data.GetProperty<bool>(\"{name}\");",
-            "string" => $"{newName} = data.GetProperty<string>(\"{name}\");",
-            "short" => $"{newName} = data.GetInt16Property(\"{name}\");",
-            "int" => $"{newName} = data.GetInt32Property(\"{name}\");",
-            "uint" => $"{newName} = data.GetUInt32Property(\"{name}\");",
-            "long" => $"{newName} = data.GetIntegerProperty(\"{name}\");",
-            "float" => $"{newName} = data.GetFloatProperty(\"{name}\");",
-            "Vector3" => $"{newName} = data.GetSubCollection(\"{name}\").ToVector3();",
-            "byte" => $"{newName} = data.GetByteProperty(\"{name}\");",
-            "Quaternion" => $"{newName} = data.GetSubCollection(\"{name}\").ToQuaternion();",
-            "KVObject" => $"{newName} = data.GetProperty<KVObject>(\"{name}\");",
-            _ => $"//{newName} = {name};",
-        });
+            case "bool":
+                return value.ValueKind == JsonValueKind.True ? " = true;" : string.Empty;
+
+            case "byte" or "sbyte" or "short" or "ushort" or "int" or "uint" or "long" or "ulong":
+                return value.ValueKind == JsonValueKind.Number && value.GetRawText() != "0" ? $" = {value.GetRawText()};" : string.Empty;
+
+            case "float" or "double":
+                return value.ValueKind == JsonValueKind.Number && value.GetDouble() != 0 ? $" = {FloatLiteral(value.GetDouble(), csType)};" : string.Empty;
+
+            case "Vector2" or "Vector3" or "Vector4" or "Quaternion":
+                if (value.ValueKind != JsonValueKind.Array)
+                {
+                    return string.Empty;
+                }
+
+                var components = value.EnumerateArray().Select(c => c.GetDouble()).ToArray();
+                var isIdentity = csType == "Quaternion" && components is [0, 0, 0, 1];
+                if (components.All(c => c == 0) || isIdentity)
+                {
+                    return string.Empty;
+                }
+
+                return $" = new({string.Join(", ", components.Select(c => FloatLiteral(c, "float")))});";
+        }
+
+        if (enumTypes.Contains(csType) && value.ValueKind == JsonValueKind.String
+            && enumMembers.TryGetValue(csType, out var members) && members.TryGetValue(value.GetString()!, out var memberValue))
+        {
+            return memberValue == 0 ? string.Empty : $" = {csType}.{value.GetString()};";
+        }
+
+        return string.Empty;
+    }
+
+    private static string FloatLiteral(double value, string csType)
+    {
+        var suffix = csType == "float" ? "f" : "d";
+
+        if (csType == "float" && Math.Abs(value) >= float.MaxValue)
+        {
+            return value > 0 ? "float.MaxValue" : "float.MinValue";
+        }
+
+        return value.ToString("R", CultureInfo.InvariantCulture) + suffix;
     }
 
     public static void Test(SchemaTarget target)

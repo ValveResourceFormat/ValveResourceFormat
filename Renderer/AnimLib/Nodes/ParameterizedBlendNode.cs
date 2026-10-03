@@ -1,16 +1,10 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class ParameterizedBlendNode : PoseNode
 {
-    public short[] SourceNodeIndices { get; }
-    public short InputParameterValueNodeIdx { get; }
-    public bool AllowLooping { get; }
-
-    public ParameterizedBlendNode(KVObject data) : base(data)
-    {
-        SourceNodeIndices = data.GetArray<short>("m_sourceNodeIndices") ?? [];
-        InputParameterValueNodeIdx = data.GetInt16Property("m_nInputParameterValueNodeIdx");
-        AllowLooping = data.GetProperty<bool>("m_bAllowLooping");
-    }
+    public short[] SourceNodeIndices { get; } = [];
+    public short InputParameterValueNodeIdx { get; } = -1;
+    public bool AllowLooping { get; } = true;
 }

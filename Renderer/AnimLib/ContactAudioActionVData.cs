@@ -1,7 +1,7 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-class ContactAudioActionVData
+[KV3Transfer]
+partial class ContactAudioActionVData
 {
-    public ContactAudioActionVData(KVObject _) { }
 }

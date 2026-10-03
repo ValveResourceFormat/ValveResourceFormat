@@ -1,16 +1,10 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-class Clip__ModelSpaceSamplingChainLink
+[KV3Transfer]
+partial class Clip__ModelSpaceSamplingChainLink
 {
-    public int BoneIdx { get; }
-    public int ParentBoneIdx { get; }
-    public int ParentChainLinkIdx { get; }
-
-    public Clip__ModelSpaceSamplingChainLink(KVObject data)
-    {
-        BoneIdx = data.GetInt32Property("m_nBoneIdx");
-        ParentBoneIdx = data.GetInt32Property("m_nParentBoneIdx");
-        ParentChainLinkIdx = data.GetInt32Property("m_nParentChainLinkIdx");
-    }
+    public int BoneIdx { get; } = -1;
+    public int ParentBoneIdx { get; } = -1;
+    public int ParentChainLinkIdx { get; } = -1;
 }

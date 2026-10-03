@@ -1,12 +1,9 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-class EntityAttributeFloatEvent : EntityAttributeEventBase
+[KV3Transfer]
+partial class EntityAttributeFloatEvent : EntityAttributeEventBase
 {
+    [KVProperty("m_FloatValue")]
     public ValveResourceFormat.Particles.Utils.PiecewiseCurve FloatValue { get; }
-
-    public EntityAttributeFloatEvent(KVObject data) : base(data)
-    {
-        FloatValue = new(data.GetProperty<KVObject>("m_FloatValue"), false);
-    }
 }

@@ -1,12 +1,8 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-class RootMotionEvent : Event
+[KV3Transfer]
+partial class RootMotionEvent : Event
 {
-    public float BlendTimeSeconds { get; }
-
-    public RootMotionEvent(KVObject data) : base(data)
-    {
-        BlendTimeSeconds = data.GetFloatProperty("m_flBlendTimeSeconds");
-    }
+    public float BlendTimeSeconds { get; } = 0.1f;
 }

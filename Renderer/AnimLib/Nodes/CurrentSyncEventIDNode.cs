@@ -1,12 +1,8 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class CurrentSyncEventIDNode : IDValueNode
 {
-    public short SourceStateNodeIdx { get; }
-
-    public CurrentSyncEventIDNode(KVObject data) : base(data)
-    {
-        SourceStateNodeIdx = data.GetInt16Property("m_nSourceStateNodeIdx");
-    }
+    public short SourceStateNodeIdx { get; } = -1;
 }

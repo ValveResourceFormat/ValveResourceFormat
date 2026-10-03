@@ -1,18 +1,12 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class IDToFloatNode : FloatValueNode
 {
-    public short InputValueNodeIdx { get; }
+    public short InputValueNodeIdx { get; } = -1;
+    [KVProperty("m_defaultValue")]
     public float DefaultValue { get; }
-    public GlobalSymbol[] IDs { get; }
-    public float[] Values { get; }
-
-    public IDToFloatNode(KVObject data) : base(data)
-    {
-        InputValueNodeIdx = data.GetInt16Property("m_nInputValueNodeIdx");
-        DefaultValue = data.GetFloatProperty("m_defaultValue");
-        IDs = data.GetSymbolArray("m_IDs");
-        Values = data.GetFloatArray("m_values");
-    }
+    public GlobalSymbol[] IDs { get; } = [];
+    public float[] Values { get; } = [];
 }

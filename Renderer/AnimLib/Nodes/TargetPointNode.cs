@@ -1,14 +1,9 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class TargetPointNode : VectorValueNode
 {
-    public short InputValueNodeIdx { get; }
-    public bool IsWorldSpaceTarget { get; }
-
-    public TargetPointNode(KVObject data) : base(data)
-    {
-        InputValueNodeIdx = data.GetInt16Property("m_nInputValueNodeIdx");
-        IsWorldSpaceTarget = data.GetProperty<bool>("m_bIsWorldSpaceTarget");
-    }
+    public short InputValueNodeIdx { get; } = -1;
+    public bool IsWorldSpaceTarget { get; } = true;
 }

@@ -2,7 +2,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
 /// <summary>A position on a sync track: an event index and a percentage through that event.</summary>
-public readonly struct SyncTrackTime
+[KV3Transfer]
+public readonly partial struct SyncTrackTime
 {
     /// <summary>The event index.</summary>
     public int EventIdx { get; }
@@ -14,12 +15,5 @@ public readonly struct SyncTrackTime
     {
         EventIdx = eventIdx;
         PercentageThrough = new(percentageThrough);
-    }
-
-    /// <summary>Reads the time from resource data.</summary>
-    public SyncTrackTime(KVObject data)
-    {
-        EventIdx = data.GetInt32Property("m_nEventIdx");
-        PercentageThrough = new(data.GetProperty<KVObject>("m_percentageThrough"));
     }
 }

@@ -51,6 +51,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
+    <ProjectReference Include="..\Misc\SourceGenerators\SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

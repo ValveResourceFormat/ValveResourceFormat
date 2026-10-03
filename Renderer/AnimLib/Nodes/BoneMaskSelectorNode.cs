@@ -1,22 +1,15 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class BoneMaskSelectorNode : BoneMaskValueNode
 {
-    public short DefaultMaskNodeIdx { get; }
-    public short ParameterValueNodeIdx { get; }
+    [KVProperty("m_defaultMaskNodeIdx")]
+    public short DefaultMaskNodeIdx { get; } = -1;
+    [KVProperty("m_parameterValueNodeIdx")]
+    public short ParameterValueNodeIdx { get; } = -1;
     public bool SwitchDynamically { get; }
-    public short[] MaskNodeIndices { get; }
-    public GlobalSymbol[] ParameterValues { get; }
-    public float BlendTimeSeconds { get; }
-
-    public BoneMaskSelectorNode(KVObject data) : base(data)
-    {
-        DefaultMaskNodeIdx = data.GetInt16Property("m_defaultMaskNodeIdx");
-        ParameterValueNodeIdx = data.GetInt16Property("m_parameterValueNodeIdx");
-        SwitchDynamically = data.GetProperty<bool>("m_bSwitchDynamically");
-        MaskNodeIndices = data.GetArray<short>("m_maskNodeIndices") ?? [];
-        ParameterValues = data.GetSymbolArray("m_parameterValues");
-        BlendTimeSeconds = data.GetFloatProperty("m_flBlendTimeSeconds");
-    }
+    public short[] MaskNodeIndices { get; } = [];
+    public GlobalSymbol[] ParameterValues { get; } = [];
+    public float BlendTimeSeconds { get; } = 0.1f;
 }

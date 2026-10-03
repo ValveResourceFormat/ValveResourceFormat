@@ -41,8 +41,6 @@ sealed class AnimLibTarget : SchemaTarget
         { "CStrongHandleVoid", "string" },
     };
 
-    public override IReadOnlySet<string> DataConstructedTypes { get; } = new HashSet<string> { "Transform", "Range" };
-
     public override string ChooseFolder(Converter converter, string fileName, string outputDir)
     {
         fileName = fileName.Split("__", StringSplitOptions.RemoveEmptyEntries)[0];
@@ -60,30 +58,12 @@ sealed class AnimLibTarget : SchemaTarget
         return outputDir;
     }
 
-    // Graph nodes get their runtime half in a partial class
     public override string ClassKeywords(Converter converter, string className)
-    {
-        if (className is "BitFlags")
-        {
-            return "readonly partial struct";
-        }
-
-        return converter.RootClass(className) == "GraphNode" ? "partial class" : "class";
-    }
+        => className is "BitFlags" ? "readonly partial struct" : "partial class";
 
     // CNmVelocityBlendNode::CDefinition is the VelocityBlendNode
     public override string PostProcessClassName(string className)
         => className.Replace("__Definition", "", StringComparison.Ordinal);
-
-    public override string? ReadProperty(string csType, string propertyName, string fieldName) => csType switch
-    {
-        "GlobalSymbol" => $"{propertyName} = data.GetProperty<string>(\"{fieldName}\");",
-        "ValveResourceFormat.Particles.Utils.PiecewiseCurve" => $"{propertyName} = new(data.GetProperty<KVObject>(\"{fieldName}\"), false);",
-        _ => null,
-    };
-
-    public override string? ReadArray(string itemType, string propertyName, string fieldName)
-        => itemType == "GlobalSymbol" ? $"{propertyName} = data.GetSymbolArray(\"{fieldName}\");" : null;
 
     public override void Test(Converter converter)
     {

@@ -1,16 +1,12 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-class Event
+[KV3Transfer]
+partial class Event
 {
+    [KVProperty("m_flStartTime")]
     public Percent StartTime { get; }
+    [KVProperty("m_flDuration")]
     public Percent Duration { get; }
     public GlobalSymbol SyncID { get; }
-
-    public Event(KVObject data)
-    {
-        StartTime = new(data.GetProperty<KVObject>("m_flStartTime"));
-        Duration = new(data.GetProperty<KVObject>("m_flDuration"));
-        SyncID = data.GetProperty<string>("m_syncID");
-    }
 }

@@ -1,7 +1,7 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class IsInactiveBranchConditionNode : BoolValueNode
 {
-    public IsInactiveBranchConditionNode(KVObject data) : base(data) { }
 }

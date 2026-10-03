@@ -1,14 +1,9 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class VectorInfoNode : FloatValueNode
 {
-    public short InputValueNodeIdx { get; }
+    public short InputValueNodeIdx { get; } = -1;
     public VectorInfoNode__Info DesiredInfo { get; }
-
-    public VectorInfoNode(KVObject data) : base(data)
-    {
-        InputValueNodeIdx = data.GetInt16Property("m_nInputValueNodeIdx");
-        DesiredInfo = data.GetEnumValue<VectorInfoNode__Info>("m_desiredInfo");
-    }
 }

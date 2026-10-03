@@ -2,18 +2,18 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class BodyGroupNode : PassthroughNode
 {
-    public short EnabledNodeIdx { get; }
+    public short EnabledNodeIdx { get; } = -1;
     public BodyGroupEvent Event { get; }
 
     // The event as sampled into the event buffer
-    public NmClipEvent ClipEvent { get; }
+    [KVIgnore]
+    public NmClipEvent ClipEvent { get; private set; }
 
-    public BodyGroupNode(KVObject data) : base(data)
+    partial void OnLoaded(KVObject data)
     {
-        EnabledNodeIdx = data.GetInt16Property("m_nEnabledNodeIdx");
-        Event = new(data.GetProperty<KVObject>("m_event"));
         ClipEvent = NmClipEvent.Build(data.GetProperty<KVObject>("m_event"), 1f);
     }
 }

@@ -1,32 +1,22 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class TransitionNode : PoseNode
 {
-    public short TargetStateNodeIdx { get; }
-    public short DurationOverrideNodeIdx { get; }
-    public short TimeOffsetOverrideNodeIdx { get; }
-    public short StartBoneMaskNodeIdx { get; }
+    public short TargetStateNodeIdx { get; } = -1;
+    public short DurationOverrideNodeIdx { get; } = -1;
+    [KVProperty("m_timeOffsetOverrideNodeIdx")]
+    public short TimeOffsetOverrideNodeIdx { get; } = -1;
+    [KVProperty("m_startBoneMaskNodeIdx")]
+    public short StartBoneMaskNodeIdx { get; } = -1;
+    [KVProperty("m_flDuration")]
     public float DurationSeconds { get; } // Definition duration from file
     public Percent BoneMaskBlendInTimePercentage { get; }
     public float TimeOffset { get; }
     public BitFlags TransitionOptions { get; }
-    public short TargetSyncIDNodeIdx { get; }
+    [KVProperty("m_targetSyncIDNodeIdx")]
+    public short TargetSyncIDNodeIdx { get; } = -1;
     public EasingOperation BlendWeightEasing { get; }
     public RootMotionBlendMode RootMotionBlend { get; }
-
-    public TransitionNode(KVObject data) : base(data)
-    {
-        TargetStateNodeIdx = data.GetInt16Property("m_nTargetStateNodeIdx");
-        DurationOverrideNodeIdx = data.GetInt16Property("m_nDurationOverrideNodeIdx");
-        TimeOffsetOverrideNodeIdx = data.GetInt16Property("m_timeOffsetOverrideNodeIdx");
-        StartBoneMaskNodeIdx = data.GetInt16Property("m_startBoneMaskNodeIdx");
-        DurationSeconds = data.GetFloatProperty("m_flDuration");
-        BoneMaskBlendInTimePercentage = new(data.GetProperty<KVObject>("m_boneMaskBlendInTimePercentage"));
-        TimeOffset = data.GetFloatProperty("m_flTimeOffset");
-        TransitionOptions = new(data.GetProperty<KVObject>("m_transitionOptions"));
-        TargetSyncIDNodeIdx = data.GetInt16Property("m_targetSyncIDNodeIdx");
-        BlendWeightEasing = data.GetEnumValue<EasingOperation>("m_blendWeightEasing");
-        RootMotionBlend = data.GetEnumValue<RootMotionBlendMode>("m_rootMotionBlend");
-    }
 }

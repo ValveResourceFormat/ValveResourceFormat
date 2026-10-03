@@ -1,24 +1,15 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class TargetSelectorNode : TargetValueNode
 {
-    public short[] OptionNodeIndices { get; }
-    public float OrientationScoreWeight { get; }
-    public float PositionScoreWeight { get; }
-    public short ParameterNodeIdx { get; }
+    public short[] OptionNodeIndices { get; } = [];
+    public float OrientationScoreWeight { get; } = 1f;
+    public float PositionScoreWeight { get; } = 1f;
+    [KVProperty("m_parameterNodeIdx")]
+    public short ParameterNodeIdx { get; } = -1;
     public bool IgnoreInvalidOptions { get; }
-    public bool IsWorldSpaceTarget { get; }
+    public bool IsWorldSpaceTarget { get; } = true;
     public GlobalSymbol AlignmentBoneID { get; }
-
-    public TargetSelectorNode(KVObject data) : base(data)
-    {
-        OptionNodeIndices = data.GetArray<short>("m_optionNodeIndices") ?? [];
-        OrientationScoreWeight = data.GetFloatProperty("m_flOrientationScoreWeight");
-        PositionScoreWeight = data.GetFloatProperty("m_flPositionScoreWeight");
-        ParameterNodeIdx = data.GetInt16Property("m_parameterNodeIdx");
-        IgnoreInvalidOptions = data.GetProperty<bool>("m_bIgnoreInvalidOptions");
-        IsWorldSpaceTarget = data.GetProperty<bool>("m_bIsWorldSpaceTarget");
-        AlignmentBoneID = data.GetProperty<string>("m_alignmentBoneID");
-    }
 }

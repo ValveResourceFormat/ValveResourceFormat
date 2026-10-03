@@ -1,14 +1,11 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-readonly struct BitFlags
+[KV3Transfer]
+readonly partial struct BitFlags
 {
+    [KVProperty("m_flags")]
     public uint Flags { get; }
-
-    public BitFlags(KVObject data)
-    {
-        Flags = data.GetUInt32Property("m_flags");
-    }
 
     public bool IsFlagSet(uint flag)
     {

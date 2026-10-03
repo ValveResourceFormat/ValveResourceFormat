@@ -1,12 +1,8 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class IsExternalGraphSlotFilledNode : BoolValueNode
 {
-    public short ExternalGraphNodeIdx { get; }
-
-    public IsExternalGraphSlotFilledNode(KVObject data) : base(data)
-    {
-        ExternalGraphNodeIdx = data.GetInt16Property("m_nExternalGraphNodeIdx");
-    }
+    public short ExternalGraphNodeIdx { get; } = -1;
 }

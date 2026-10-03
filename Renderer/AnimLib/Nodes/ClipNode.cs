@@ -1,26 +1,15 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class ClipNode : ClipReferenceNode
 {
-    public short PlayInReverseValueNodeIdx { get; }
-    public bool SampleRootMotion { get; }
+    public short PlayInReverseValueNodeIdx { get; } = -1;
+    public bool SampleRootMotion { get; } = true;
     public bool AllowLooping { get; }
-    public short DataSlotIdx { get; }
-    public short ResetTimeValueNodeIdx { get; }
-    public GlobalSymbol[] GraphEvents { get; }
-    public float SpeedMultiplier { get; }
+    public short DataSlotIdx { get; } = -1;
+    public short ResetTimeValueNodeIdx { get; } = -1;
+    public GlobalSymbol[] GraphEvents { get; } = [];
+    public float SpeedMultiplier { get; } = 1f;
     public int StartSyncEventOffset { get; }
-
-    public ClipNode(KVObject data) : base(data)
-    {
-        PlayInReverseValueNodeIdx = data.GetInt16Property("m_nPlayInReverseValueNodeIdx");
-        SampleRootMotion = data.GetProperty<bool>("m_bSampleRootMotion");
-        AllowLooping = data.GetProperty<bool>("m_bAllowLooping");
-        DataSlotIdx = data.GetInt16Property("m_nDataSlotIdx");
-        ResetTimeValueNodeIdx = data.GetInt16Property("m_nResetTimeValueNodeIdx");
-        GraphEvents = data.GetSymbolArray("m_graphEvents");
-        SpeedMultiplier = data.GetFloatProperty("m_flSpeedMultiplier");
-        StartSyncEventOffset = data.GetInt32Property("m_nStartSyncEventOffset");
-    }
 }

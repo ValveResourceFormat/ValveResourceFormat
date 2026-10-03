@@ -1,26 +1,22 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
+[KV3Transfer]
 partial class RootMotionOverrideNode : PassthroughNode
 {
-    public short DesiredMovingVelocityNodeIdx { get; }
-    public short DesiredFacingDirectionNodeIdx { get; }
-    public short LinearVelocityLimitNodeIdx { get; }
-    public short AngularVelocityLimitNodeIdx { get; }
-    public short EnabledNodeIdx { get; }
-    public float MaxLinearVelocity { get; }
-    public float MaxAngularVelocityRadians { get; }
+    [KVProperty("m_desiredMovingVelocityNodeIdx")]
+    public short DesiredMovingVelocityNodeIdx { get; } = -1;
+    [KVProperty("m_desiredFacingDirectionNodeIdx")]
+    public short DesiredFacingDirectionNodeIdx { get; } = -1;
+    [KVProperty("m_linearVelocityLimitNodeIdx")]
+    public short LinearVelocityLimitNodeIdx { get; } = -1;
+    [KVProperty("m_angularVelocityLimitNodeIdx")]
+    public short AngularVelocityLimitNodeIdx { get; } = -1;
+    [KVProperty("m_enabledNodeIdx")]
+    public short EnabledNodeIdx { get; } = -1;
+    [KVProperty("m_maxLinearVelocity")]
+    public float MaxLinearVelocity { get; } = -1f;
+    [KVProperty("m_maxAngularVelocityRadians")]
+    public float MaxAngularVelocityRadians { get; } = -1f;
     public BitFlags OverrideFlags { get; }
-
-    public RootMotionOverrideNode(KVObject data) : base(data)
-    {
-        DesiredMovingVelocityNodeIdx = data.GetInt16Property("m_desiredMovingVelocityNodeIdx");
-        DesiredFacingDirectionNodeIdx = data.GetInt16Property("m_desiredFacingDirectionNodeIdx");
-        LinearVelocityLimitNodeIdx = data.GetInt16Property("m_linearVelocityLimitNodeIdx");
-        AngularVelocityLimitNodeIdx = data.GetInt16Property("m_angularVelocityLimitNodeIdx");
-        EnabledNodeIdx = data.GetInt16Property("m_enabledNodeIdx");
-        MaxLinearVelocity = data.GetFloatProperty("m_maxLinearVelocity");
-        MaxAngularVelocityRadians = data.GetFloatProperty("m_maxAngularVelocityRadians");
-        OverrideFlags = new(data.GetProperty<KVObject>("m_overrideFlags"));
-    }
 }
