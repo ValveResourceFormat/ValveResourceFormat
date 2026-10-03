@@ -10,10 +10,19 @@ namespace ValveResourceFormat.IO;
 
 partial class ModelExtract
 {
+    private readonly List<(SequenceAnimation Anim, string FileName)> animationsToExtract = [];
+
     /// <summary>
     /// Gets the list of animations to be extracted with their output file names.
     /// </summary>
-    public List<(SequenceAnimation Anim, string FileName)> AnimationsToExtract { get; } = [];
+    public List<(SequenceAnimation Anim, string FileName)> AnimationsToExtract
+    {
+        get
+        {
+            EnsureClothAndAnimationsQueued();
+            return animationsToExtract;
+        }
+    }
 
     private readonly HashSet<SequenceAnimation> animationGroupAnimations = [];
     private SequenceTables? sequenceTables;
@@ -151,6 +160,7 @@ partial class ModelExtract
 
         bool Taken(string name)
             => RenderMeshesToExtract.Exists(mesh => string.Equals(mesh.FileName, name, StringComparison.OrdinalIgnoreCase))
+            || Cloth.ProxyMeshes.Exists(proxy => string.Equals(proxy.FileName, name, StringComparison.OrdinalIgnoreCase))
             || AnimationsToExtract.Exists(entry => string.Equals(entry.FileName, name, StringComparison.OrdinalIgnoreCase));
 
         while (Taken(candidate))
