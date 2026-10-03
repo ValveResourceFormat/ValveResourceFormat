@@ -20,6 +20,12 @@ public class FuncDoor : BaseToggle
         /// </summary>
         StartsOpen = 1,
 
+        /// <summary>
+        /// Non-solid to the player, which also means the player can never block it: a player in its way is
+        /// carried the whole push, through anything else if need be. Only the never-blocking part is modeled.
+        /// </summary>
+        NonSolidToPlayer = 4,
+
         /// <summary>Things pass straight through it.</summary>
         Passable = 8,
 
@@ -88,6 +94,9 @@ public class FuncDoor : BaseToggle
     /// arriving at either end forgets it.
     /// </summary>
     protected BaseEntity? LastActivator { get; private set; }
+
+    /// <inheritdoc/>
+    protected override bool IsUnblockableByPlayer => HasSpawnFlags(SpawnFlag.NonSolidToPlayer);
 
     private bool StaysOpen => HasSpawnFlags(SpawnFlag.Toggle);
 
