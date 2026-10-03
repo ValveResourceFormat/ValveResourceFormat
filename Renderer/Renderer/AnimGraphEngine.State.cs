@@ -294,6 +294,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float BlendedDuration;
         SourceType Type;
         BoneMaskTaskList BoneMaskTaskList;
+        float[] startBoneMaskWeights = [];
         int cachedPoseBufferID = -1;
 
         // Scratch layer context for the target state (Esoterica swaps context.m_pLayerContext)
@@ -307,6 +308,45 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public bool IsSourceAnOffState => Type == SourceType.OffState;
         public bool IsSourceACachedPoseOrOffState => Type is SourceType.CachedPose or SourceType.OffState;
         public float ProgressPercentage => TransitionProgress;
+
+        // With a start bone mask the masked bones blend in first, over the first part of the transition,
+        // and the mask then blends out to a full weight
+        void BlendPoses(GraphContext ctx, Transform[] sourcePose, Transform[] targetPose, Transform[] resultPose)
+        {
+            if (StartBoneMaskNode == null)
+            {
+                Blender.Blend(sourcePose, targetPose, BlendWeight, resultPose);
+                return;
+            }
+
+            var blendInPercentage = BoneMaskBlendInTimePercentage.Value;
+
+            float poseBlendWeight;
+            float boneMaskBlendWeight;
+            if (TransitionProgress >= blendInPercentage)
+            {
+                poseBlendWeight = 1f;
+                boneMaskBlendWeight = (TransitionProgress - blendInPercentage) / (1f - blendInPercentage);
+            }
+            else
+            {
+                poseBlendWeight = TransitionProgress / blendInPercentage;
+                boneMaskBlendWeight = 0f;
+            }
+
+            // A full pose weight takes the target regardless of the mask
+            if (poseBlendWeight >= 1f)
+            {
+                Blender.Blend(sourcePose, targetPose, 1f, resultPose);
+                return;
+            }
+
+            BoneMaskTaskList.CopyFrom(StartBoneMaskNode.GetValue(ctx));
+            BoneMaskTaskList.BlendToGeneratedMask(1f, boneMaskBlendWeight);
+            BoneMaskTaskList.GenerateBoneMask(ctx.Skeleton, ctx.BoneMaskPool, startBoneMaskWeights);
+
+            Blender.BlendMasked(sourcePose, targetPose, poseBlendWeight, startBoneMaskWeights, resultPose);
+        }
 
         public bool GetOption(TransitionOptions_t option)
         {
@@ -337,6 +377,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetOptionalNodeFromIndex(DurationOverrideNodeIdx, ref DurationOverrideNode);
             ctx.SetOptionalNodeFromIndex(TimeOffsetOverrideNodeIdx, ref EventOffsetOverrideNode);
             ctx.SetOptionalNodeFromIndex(StartBoneMaskNodeIdx, ref StartBoneMaskNode);
+            if (StartBoneMaskNode != null)
+            {
+                startBoneMaskWeights = new float[ctx.Graph.ParentSpaceReferencePose.Length];
+            }
             ctx.SetOptionalNodeFromIndex(TargetSyncIDNodeIdx, ref TargetSyncIDNode);
         }
 
@@ -782,7 +826,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             else
             {
                 result = base.Update(ctx);
-                Blender.Blend(sourceNodeResult.Pose, targetNodeResult.Pose, BlendWeight, result.Pose);
+                BlendPoses(ctx, sourceNodeResult.Pose, targetNodeResult.Pose, result.Pose);
                 result.RootMotionDelta = Blender.BlendRootMotion(sourceNodeResult.RootMotionDelta, targetNodeResult.RootMotionDelta, BlendWeight, RootMotionBlend);
                 result.SampledEventRange = ctx.SampledEvents.BlendEventRanges(sourceNodeResult.SampledEventRange, targetNodeResult.SampledEventRange, BlendWeight);
 
@@ -973,11 +1017,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
             else
             {
-                Blender.Blend(
-                    sourceNodeResult.Pose,
-                    targetNodeResult.Pose,
-                    BlendWeight,
-                    result.Pose);
+                BlendPoses(ctx, sourceNodeResult.Pose, targetNodeResult.Pose, result.Pose);
 
                 result.RootMotionDelta = Blender.BlendRootMotion(
                     sourceNodeResult.RootMotionDelta,

@@ -20,6 +20,36 @@ static class Blender
     }
 
     /// <summary>
+    /// Blends two poses with per-bone weights scaled by a bone mask.
+    /// </summary>
+    public static void BlendMasked(
+        ReadOnlySpan<FrameBone> sourcePose,
+        ReadOnlySpan<FrameBone> targetPose,
+        float blendWeight,
+        ReadOnlySpan<float> boneMaskWeights,
+        Span<FrameBone> resultPose)
+    {
+        // A full weight takes the target as is, ignoring the mask
+        if (blendWeight == 0f || boneMaskWeights.IndexOfAnyExcept(0f) == -1)
+        {
+            sourcePose[..resultPose.Length].CopyTo(resultPose);
+            return;
+        }
+
+        if (blendWeight == 1f)
+        {
+            targetPose[..resultPose.Length].CopyTo(resultPose);
+            return;
+        }
+
+        for (var i = 0; i < resultPose.Length; i++)
+        {
+            var boneBlendWeight = blendWeight * boneMaskWeights[i];
+            resultPose[i] = boneBlendWeight == 0f ? sourcePose[i] : sourcePose[i].Blend(targetPose[i], boneBlendWeight);
+        }
+    }
+
+    /// <summary>
     /// Blends two poses using additive blending.
     /// </summary>
     public static void AdditiveBlend(
