@@ -2,46 +2,81 @@ using System.Diagnostics;
 
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-// Robert Penner easing equations
 static class Easing
 {
+    enum Function
+    {
+        Linear,
+        Quad,
+        Cubic,
+        Quart,
+        Quint,
+        Sine,
+        Expo,
+        Circ,
+    }
+
+    static float In(Function function, float t) => function switch
+    {
+        Function.Linear => t,
+        Function.Quad => t * t,
+        Function.Cubic => t * t * t,
+        Function.Quart => t * t * t * t,
+        Function.Quint => t * t * t * t * t,
+        Function.Sine => 1f - MathF.Cos(t * MathF.PI / 2f),
+        Function.Expo => MathF.Pow(2f, 10f * (t - 1f)) - 0.001f,
+        Function.Circ => -(MathF.Sqrt(1f - (t * t)) - 1f),
+        _ => throw new UnreachableException(),
+    };
+
+    static float Out(Function function, float t) => 1f - In(function, 1f - t);
+
+    static float InOut(Function function, float t)
+    {
+        if (t < 0.5f)
+        {
+            return In(function, 2f * t) * 0.5f;
+        }
+
+        return (Out(function, (2f * t) - 1f) * 0.5f) + 0.5f;
+    }
+
     public static float Evaluate(EasingOperation operation, float t)
     {
         t = Math.Clamp(t, 0f, 1f);
 
         return operation switch
         {
-            EasingOperation.Linear => t,
+            EasingOperation.None or EasingOperation.Linear => t,
 
-            EasingOperation.InQuad => t * t,
-            EasingOperation.OutQuad => t * (2f - t),
-            EasingOperation.InOutQuad => t < 0.5f ? 2f * t * t : -1f + (4f - 2f * t) * t,
+            EasingOperation.InQuad => In(Function.Quad, t),
+            EasingOperation.OutQuad => Out(Function.Quad, t),
+            EasingOperation.InOutQuad => InOut(Function.Quad, t),
 
-            EasingOperation.InCubic => t * t * t,
-            EasingOperation.OutCubic => (t - 1f) * (t - 1f) * (t - 1f) + 1f,
-            EasingOperation.InOutCubic => t < 0.5f ? 4f * t * t * t : 1f - MathF.Pow(-2f * t + 2f, 3) / 2f,
+            EasingOperation.InCubic => In(Function.Cubic, t),
+            EasingOperation.OutCubic => Out(Function.Cubic, t),
+            EasingOperation.InOutCubic => InOut(Function.Cubic, t),
 
-            EasingOperation.InQuart => t * t * t * t,
-            EasingOperation.OutQuart => 1f - (t - 1f) * (t - 1f) * (t - 1f) * (t - 1f),
-            EasingOperation.InOutQuart => t < 0.5f ? 8f * t * t * t * t : 1f - MathF.Pow(-2f * t + 2f, 4) / 2f,
+            EasingOperation.InQuart => In(Function.Quart, t),
+            EasingOperation.OutQuart => Out(Function.Quart, t),
+            EasingOperation.InOutQuart => InOut(Function.Quart, t),
 
-            EasingOperation.InQuint => t * t * t * t * t,
-            EasingOperation.OutQuint => (t - 1f) * (t - 1f) * (t - 1f) * (t - 1f) * (t - 1f) + 1f,
-            EasingOperation.InOutQuint => t < 0.5f ? 16f * t * t * t * t * t : 1f - MathF.Pow(-2f * t + 2f, 5) / 2f,
+            EasingOperation.InQuint => In(Function.Quint, t),
+            EasingOperation.OutQuint => Out(Function.Quint, t),
+            EasingOperation.InOutQuint => InOut(Function.Quint, t),
 
-            EasingOperation.InSine => 1f - MathF.Cos(t * MathF.PI / 2f),
-            EasingOperation.OutSine => MathF.Sin(t * MathF.PI / 2f),
-            EasingOperation.InOutSine => 0.5f * (1f - MathF.Cos(MathF.PI * t)),
+            EasingOperation.InSine => In(Function.Sine, t),
+            EasingOperation.OutSine => Out(Function.Sine, t),
+            EasingOperation.InOutSine => InOut(Function.Sine, t),
 
-            EasingOperation.InExpo => t <= 0f ? 0f : MathF.Pow(2f, 10f * (t - 1f)),
-            EasingOperation.OutExpo => t >= 1f ? 1f : 1f - MathF.Pow(2f, -10f * t),
-            EasingOperation.InOutExpo => t <= 0f ? 0f : t >= 1f ? 1f : (t < 0.5f) ? MathF.Pow(2f, 20f * t - 10f) / 2f : (2f - MathF.Pow(2f, -20f * t + 10f)) / 2f,
+            EasingOperation.InExpo => In(Function.Expo, t),
+            EasingOperation.OutExpo => Out(Function.Expo, t),
+            EasingOperation.InOutExpo => InOut(Function.Expo, t),
 
-            EasingOperation.InCirc => 1f - MathF.Sqrt(1f - t * t),
-            EasingOperation.OutCirc => MathF.Sqrt(1f - (t - 1f) * (t - 1f)),
-            EasingOperation.InOutCirc => t < 0.5f ? (1f - MathF.Sqrt(1f - 4f * t * t)) / 2f : (MathF.Sqrt(1f - (-2f * t + 2f) * (-2f * t + 2f)) + 1f) / 2f,
+            EasingOperation.InCirc => In(Function.Circ, t),
+            EasingOperation.OutCirc => Out(Function.Circ, t),
+            EasingOperation.InOutCirc => InOut(Function.Circ, t),
 
-            EasingOperation.None => t,
             _ => throw new UnreachableException(),
         };
     }

@@ -20,7 +20,8 @@ record struct Range(float Min, float Max)
 
     public readonly float GetClampedValue(float input)
     {
-        return Math.Clamp(input, Min, Max);
+        // Math.Clamp throws on an inverted range, which authored data can contain
+        return MathF.Min(MathF.Max(input, Min), Max);
     }
 
     public readonly float GetPercentageThroughClamped(float input)
