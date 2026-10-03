@@ -474,6 +474,7 @@ public class CMapSelectionSet : DMElement
     /// <summary>
     /// Gets <see cref="SelectionSetData"/> as the node selection that sets created by VRF use.
     /// </summary>
+    [DMIgnore]
     public CObjectSelectionSetDataElement ObjectSelection => (CObjectSelectionSetDataElement)SelectionSetData!;
 
     /// <summary>
