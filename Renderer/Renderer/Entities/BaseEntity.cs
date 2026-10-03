@@ -75,8 +75,8 @@ public abstract class BaseEntity
     /// <summary>Gets the entity's <c>targetname</c>, the name entity I/O addresses it by.</summary>
     public string? TargetName { get; }
 
-    /// <summary>Gets the entity's <c>spawnflags</c>.</summary>
-    public uint SpawnFlags { get; }
+    /// <summary>Gets the entity's <c>spawnflags</c>, which some entities change at runtime as Source's do.</summary>
+    public uint SpawnFlags { get; protected set; }
 
     /// <summary>
     /// Gets the placement of whatever spawned this entity, a template or a spawn group, already applied to its
@@ -284,11 +284,17 @@ public abstract class BaseEntity
     public float NextThink { get; private set; } = -1f;
 
     /// <summary>
-    /// Gets the time <see cref="MoveDone"/> next runs, in <see cref="EntitySystem.CurrentTime"/> seconds,
-    /// or -1 when no move is scheduled. Source's <c>m_flMoveDoneTime</c>, how pushing entities step their
-    /// movement state machines.
+    /// Gets the time <see cref="MoveDone"/> next runs on the entity's own move clock, or -1 when no move is
+    /// scheduled. Source's <c>m_flMoveDoneTime</c>, how pushing entities step their movement state machines.
     /// </summary>
+    /// <remarks>
+    /// The clock is Source's <c>m_flLocalTime</c>. It only runs while a move is pending and winds back when
+    /// a push is blocked, so a move lasts exactly as long as it was scheduled for, whenever in the tick it
+    /// was scheduled.
+    /// </remarks>
     public float MoveDoneTime { get; private set; } = -1f;
+
+    private float localTime;
 
     /// <summary>Gets whether this entity has been removed from the world and is awaiting cleanup.</summary>
     public bool IsRemoved { get; private set; }
@@ -687,7 +693,7 @@ public abstract class BaseEntity
     /// <c>SetMoveDoneTime</c>. A negative delay cancels the scheduled move.
     /// </summary>
     public void SetMoveDoneTime(float delay)
-        => MoveDoneTime = delay >= 0f ? EntitySystem.CurrentTime + delay : -1f;
+        => MoveDoneTime = delay >= 0f ? localTime + delay : -1f;
 
     /// <summary>
     /// Runs one entity tick: think, move, then move-done, the order Source's pusher physics uses.
@@ -725,7 +731,7 @@ public abstract class BaseEntity
 
         if (MoveDoneTime > 0f)
         {
-            var remaining = MoveDoneTime - (EntitySystem.CurrentTime - tickInterval);
+            var remaining = MoveDoneTime - localTime;
 
             if (remaining < moveTime)
             {
@@ -735,16 +741,26 @@ public abstract class BaseEntity
 
         PhysicsSimulate(moveTime);
 
+        if (MoveDoneTime > 0f)
+        {
+            localTime += moveTime;
+        }
+
         // Only for its own motion, as what it rode was pushed with the parent already
         if (IsPusher && !MovesWithoutPushing && (previousOrigin != origin || previousAngles != angles))
         {
-            UpdateBlocker(PushPlayer());
+            UpdateBlocker(PushPlayer(moveTime));
         }
 
-        if (MoveDoneTime > 0f && MoveDoneTime <= EntitySystem.CurrentTime)
+        if (MoveDoneTime > 0f && localTime >= MoveDoneTime)
         {
-            MoveDoneTime = -1f;
             MoveDone();
+
+            // Unless the callback scheduled another move
+            if (localTime >= MoveDoneTime)
+            {
+                MoveDoneTime = -1f;
+            }
         }
     }
 
@@ -820,7 +836,7 @@ public abstract class BaseEntity
     /// that leaves them inside something, they block the pusher, which takes its motion back.
     /// </summary>
     /// <returns>What blocked the push, or <see langword="null"/>.</returns>
-    private PlayerEntity? PushPlayer()
+    private PlayerEntity? PushPlayer(float moveTime)
     {
         if (EntitySystem.Player is not { IsRemoved: false } player
             || !player.Controller.IsActive
@@ -858,12 +874,10 @@ public abstract class BaseEntity
         {
             SetOriginAndAngles(previousOrigin, previousAngles);
 
-            // The engine measures the arrival on the entity's own clock, which a blocked tick winds back, so
-            // the arrival slips by the whole tick. Moving it by only the clamped final step can land it in
-            // the past, where a negative delay would cancel the arrival and leave the entity travelling forever.
+            // A blocked step does not count on the move clock, so the arrival slips by it
             if (MoveDoneTime > 0f)
             {
-                MoveDoneTime += EntitySystem.TickInterval;
+                localTime -= moveTime;
             }
 
             return player;
