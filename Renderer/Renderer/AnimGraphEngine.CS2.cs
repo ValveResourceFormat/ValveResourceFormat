@@ -508,7 +508,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return result;
         }
 
-        bool IsAncestor(Skeleton skeleton, int ancestorIdx, int boneIdx)
+        static bool IsAncestor(Skeleton skeleton, int ancestorIdx, int boneIdx)
         {
             for (var b = skeleton.GetParentBoneIndex(boneIdx); b != -1; b = skeleton.GetParentBoneIndex(b))
             {

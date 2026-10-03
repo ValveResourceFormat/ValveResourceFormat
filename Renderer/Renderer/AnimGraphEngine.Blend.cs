@@ -757,18 +757,17 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
                 // Always update state machine layers as the transitions need to be evaluated;
                 // they calculate the final layer weight and store it in the layer context.
-                var updated = false;
-                GraphPoseNodeResult layerResult = default;
-                if (definition.IsStateMachineLayer || ctx.LayerContext.Weight > 0f)
+                if (!definition.IsStateMachineLayer && !(ctx.LayerContext.Weight > 0f))
                 {
-                    layerResult = layerInput.Update(ctx, definition.IsSynchronized ? layerUpdateRange : null);
-                    updated = true;
+                    continue;
                 }
+
+                var layerResult = layerInput.Update(ctx, definition.IsSynchronized ? layerUpdateRange : null);
 
                 var weight = MathUtils.Saturate(ctx.LayerContext.Weight);
                 var mask = ctx.LayerContext.MaskTaskList;
 
-                if (!updated || weight <= 1e-4f)
+                if (weight <= 1e-4f)
                 {
                     continue;
                 }

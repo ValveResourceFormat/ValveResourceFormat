@@ -37,7 +37,7 @@ namespace Tests.Renderer
 
             using var package = new Package();
             package.Read(VpkPath);
-            var loader = new GameFileLoader(package, VpkPath);
+            using var loader = new GameFileLoader(package, VpkPath);
 
             var res = loader.LoadFileCompiled("animation/graphs/chicken/chicken.vnmgraph");
             var graph = new AnimationGraph((NmGraphDefinition)res!.DataBlock!, loader);

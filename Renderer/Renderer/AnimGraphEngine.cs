@@ -228,23 +228,132 @@ namespace ValveResourceFormat.Renderer.AnimLib
             RootNode.Initialize(this, initTime);
         }
 
-        // Maps schema class names (minus the CNm prefix and ::CDefinition suffix) to AnimLib node types.
-        // todo: code gen
-        private static readonly Dictionary<string, Type> NodeTypes = typeof(GraphNode).Assembly.GetTypes()
-            .Where(t => t.IsSubclassOf(typeof(GraphNode)))
-            .ToDictionary(t => t.Name, t => t);
-
         /// <summary>Creates the AnimLib node instance for one <c>m_nodes</c> entry of a graph definition.</summary>
         public static GraphNode CreateNode(KVObject nodeData)
         {
             var @class = nodeData.GetProperty<string>("_class")
                 ?? throw new InvalidOperationException("Graph node has no _class property.");
 
+            // Schema class names minus the CNm prefix and ::CDefinition suffix
             var nodeTypeName = @class["CNm".Length..^"::CDefinition".Length];
-            var nodeType = NodeTypes[nodeTypeName];
 
-            return (GraphNode?)Activator.CreateInstance(nodeType, [nodeData])
-                ?? throw new InvalidOperationException($"Could not create instance of node type {nodeType.Name}.");
+            return nodeTypeName switch
+            {
+                "AimCSNode" => new AimCSNode(nodeData),
+                "AndNode" => new AndNode(nodeData),
+                "AnimationPoseNode" => new AnimationPoseNode(nodeData),
+                "Blend1DNode" => new Blend1DNode(nodeData),
+                "Blend2DNode" => new Blend2DNode(nodeData),
+                "BodyGroupNode" => new BodyGroupNode(nodeData),
+                "BoneMaskBlendNode" => new BoneMaskBlendNode(nodeData),
+                "BoneMaskNode" => new BoneMaskNode(nodeData),
+                "BoneMaskSelectorNode" => new BoneMaskSelectorNode(nodeData),
+                "BoneMaskSwitchNode" => new BoneMaskSwitchNode(nodeData),
+                "BoneMaskValueNode" => new BoneMaskValueNode(nodeData),
+                "BoolValueNode" => new BoolValueNode(nodeData),
+                "CachedBoolNode" => new CachedBoolNode(nodeData),
+                "CachedFloatNode" => new CachedFloatNode(nodeData),
+                "CachedIDNode" => new CachedIDNode(nodeData),
+                "CachedTargetNode" => new CachedTargetNode(nodeData),
+                "CachedVectorNode" => new CachedVectorNode(nodeData),
+                "ChainLookatNode" => new ChainLookatNode(nodeData),
+                "ClipNode" => new ClipNode(nodeData),
+                "ClipSelectorNode" => new ClipSelectorNode(nodeData),
+                "ConstBoolNode" => new ConstBoolNode(nodeData),
+                "ConstFloatNode" => new ConstFloatNode(nodeData),
+                "ConstIDNode" => new ConstIDNode(nodeData),
+                "ConstTargetNode" => new ConstTargetNode(nodeData),
+                "ConstVectorNode" => new ConstVectorNode(nodeData),
+                "ControlParameterBoolNode" => new ControlParameterBoolNode(nodeData),
+                "ControlParameterFloatNode" => new ControlParameterFloatNode(nodeData),
+                "ControlParameterIDNode" => new ControlParameterIDNode(nodeData),
+                "ControlParameterTargetNode" => new ControlParameterTargetNode(nodeData),
+                "ControlParameterVectorNode" => new ControlParameterVectorNode(nodeData),
+                "CurrentSyncEventIDNode" => new CurrentSyncEventIDNode(nodeData),
+                "CurrentSyncEventNode" => new CurrentSyncEventNode(nodeData),
+                "DurationScaleNode" => new DurationScaleNode(nodeData),
+                "ExternalPoseNode" => new ExternalPoseNode(nodeData),
+                "FixedWeightBoneMaskNode" => new FixedWeightBoneMaskNode(nodeData),
+                "FloatAngleMathNode" => new FloatAngleMathNode(nodeData),
+                "FloatClampNode" => new FloatClampNode(nodeData),
+                "FloatComparisonNode" => new FloatComparisonNode(nodeData),
+                "FloatCurveEventNode" => new FloatCurveEventNode(nodeData),
+                "FloatCurveNode" => new FloatCurveNode(nodeData),
+                "FloatEaseNode" => new FloatEaseNode(nodeData),
+                "FloatMathNode" => new FloatMathNode(nodeData),
+                "FloatRangeComparisonNode" => new FloatRangeComparisonNode(nodeData),
+                "FloatRemapNode" => new FloatRemapNode(nodeData),
+                "FloatSelectorNode" => new FloatSelectorNode(nodeData),
+                "FloatSpringNode" => new FloatSpringNode(nodeData),
+                "FloatSwitchNode" => new FloatSwitchNode(nodeData),
+                "FloatValueNode" => new FloatValueNode(nodeData),
+                "FollowBoneNode" => new FollowBoneNode(nodeData),
+                "FootEventConditionNode" => new FootEventConditionNode(nodeData),
+                "FootIKNode" => new FootIKNode(nodeData),
+                "FootstepEventIDNode" => new FootstepEventIDNode(nodeData),
+                "FootstepEventPercentageThroughNode" => new FootstepEventPercentageThroughNode(nodeData),
+                "GraphEventConditionNode" => new GraphEventConditionNode(nodeData),
+                "IDBasedClipSelectorNode" => new IDBasedClipSelectorNode(nodeData),
+                "IDBasedSelectorNode" => new IDBasedSelectorNode(nodeData),
+                "IDComparisonNode" => new IDComparisonNode(nodeData),
+                "IDEventConditionNode" => new IDEventConditionNode(nodeData),
+                "IDEventNode" => new IDEventNode(nodeData),
+                "IDEventPercentageThroughNode" => new IDEventPercentageThroughNode(nodeData),
+                "IDSelectorNode" => new IDSelectorNode(nodeData),
+                "IDSwitchNode" => new IDSwitchNode(nodeData),
+                "IDToFloatNode" => new IDToFloatNode(nodeData),
+                "IDValueNode" => new IDValueNode(nodeData),
+                "IsExternalGraphSlotFilledNode" => new IsExternalGraphSlotFilledNode(nodeData),
+                "IsExternalPoseSetNode" => new IsExternalPoseSetNode(nodeData),
+                "IsInactiveBranchConditionNode" => new IsInactiveBranchConditionNode(nodeData),
+                "IsTargetSetNode" => new IsTargetSetNode(nodeData),
+                "LayerBlendNode" => new LayerBlendNode(nodeData),
+                "NotNode" => new NotNode(nodeData),
+                "OrNode" => new OrNode(nodeData),
+                "OrientationWarpNode" => new OrientationWarpNode(nodeData),
+                "ParameterizedBlendNode" => new ParameterizedBlendNode(nodeData),
+                "ParameterizedClipSelectorNode" => new ParameterizedClipSelectorNode(nodeData),
+                "ParameterizedSelectorNode" => new ParameterizedSelectorNode(nodeData),
+                "PassthroughNode" => new PassthroughNode(nodeData),
+                "PoseNode" => new PoseNode(nodeData),
+                "ReferencePoseNode" => new ReferencePoseNode(nodeData),
+                "ReferencedGraphNode" => new ReferencedGraphNode(nodeData),
+                "RootMotionOverrideNode" => new RootMotionOverrideNode(nodeData),
+                "ScaleNode" => new ScaleNode(nodeData),
+                "SelectorNode" => new SelectorNode(nodeData),
+                "SnapWeaponNode" => new SnapWeaponNode(nodeData),
+                "SpeedScaleBaseNode" => new SpeedScaleBaseNode(nodeData),
+                "SpeedScaleNode" => new SpeedScaleNode(nodeData),
+                "StateCompletedConditionNode" => new StateCompletedConditionNode(nodeData),
+                "StateMachineNode" => new StateMachineNode(nodeData),
+                "StateNode" => new StateNode(nodeData),
+                "SyncEventIndexConditionNode" => new SyncEventIndexConditionNode(nodeData),
+                "TargetInfoNode" => new TargetInfoNode(nodeData),
+                "TargetOffsetNode" => new TargetOffsetNode(nodeData),
+                "TargetPointNode" => new TargetPointNode(nodeData),
+                "TargetSelectorNode" => new TargetSelectorNode(nodeData),
+                "TargetValueNode" => new TargetValueNode(nodeData),
+                "TargetWarpNode" => new TargetWarpNode(nodeData),
+                "TimeConditionNode" => new TimeConditionNode(nodeData),
+                "TimeControlledClipNode" => new TimeControlledClipNode(nodeData),
+                "TransitionEventConditionNode" => new TransitionEventConditionNode(nodeData),
+                "TransitionNode" => new TransitionNode(nodeData),
+                "TwoBoneIKNode" => new TwoBoneIKNode(nodeData),
+                "VectorCreateNode" => new VectorCreateNode(nodeData),
+                "VectorInfoNode" => new VectorInfoNode(nodeData),
+                "VectorNegateNode" => new VectorNegateNode(nodeData),
+                "VectorValueNode" => new VectorValueNode(nodeData),
+                "VelocityBasedSpeedScaleNode" => new VelocityBasedSpeedScaleNode(nodeData),
+                "VelocityBlendNode" => new VelocityBlendNode(nodeData),
+                "VirtualParameterBoneMaskNode" => new VirtualParameterBoneMaskNode(nodeData),
+                "VirtualParameterBoolNode" => new VirtualParameterBoolNode(nodeData),
+                "VirtualParameterFloatNode" => new VirtualParameterFloatNode(nodeData),
+                "VirtualParameterIDNode" => new VirtualParameterIDNode(nodeData),
+                "VirtualParameterTargetNode" => new VirtualParameterTargetNode(nodeData),
+                "VirtualParameterVectorNode" => new VirtualParameterVectorNode(nodeData),
+                "ZeroPoseNode" => new ZeroPoseNode(nodeData),
+                _ => throw new InvalidOperationException($"Unknown graph node type {nodeTypeName}."),
+            };
         }
 
         /// <summary>The control or virtual parameter node with the given name, if the graph has one.</summary>

@@ -236,7 +236,7 @@ class SyncTrack
         return StartEventOffset;
     }
 
-    public SyncTrackTime GetStartTime() => new(0, 0f);
+    public static SyncTrackTime GetStartTime() => new(0, 0f);
     public SyncTrackTime GetEndTime() => new(NumEvents - 1, 1f);
 
     /// <summary>Calculates the track time resulting from a start time advanced by a percentage delta.</summary>

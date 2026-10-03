@@ -43,5 +43,34 @@ namespace Tests.Renderer
                 await Assert.That(GraphContext.CreateNode(nodes[i])).IsNotNull().Because($"node {i} ({className})");
             }
         }
+
+        [Test]
+        public async Task NodeFactoryKnowsEveryNodeType()
+        {
+            var nodeTypes = typeof(GraphNode).Assembly.GetTypes()
+                .Where(static type => type.IsSubclassOf(typeof(GraphNode)) && !type.IsAbstract);
+
+            foreach (var nodeType in nodeTypes)
+            {
+                var nodeData = KVObject.Collection();
+                nodeData["_class"] = new KVObject($"CNm{nodeType.Name}::CDefinition");
+
+                // Constructors may reject the empty data, the factory just has to reach them
+                string? unknownTypeError = null;
+                try
+                {
+                    GraphContext.CreateNode(nodeData);
+                }
+                catch (InvalidOperationException e) when (e.Message.StartsWith("Unknown graph node type", StringComparison.Ordinal))
+                {
+                    unknownTypeError = e.Message;
+                }
+                catch (Exception)
+                {
+                }
+
+                await Assert.That(unknownTypeError).IsNull().Because(nodeType.Name);
+            }
+        }
     }
 }
