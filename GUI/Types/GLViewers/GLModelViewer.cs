@@ -699,16 +699,21 @@ namespace GUI.Types.GLViewers
                 graphControlsHost.Height = session?.Controls?.Height ?? 0;
             }
 
-            // The frame based controls only apply to clips, pausing and speed apply to graphs too
+            // Playback controls only apply to clips
             animationTimeLabel?.Visible = !showGraph;
             animationTrackBar?.Visible = !showGraph;
+            animationPlayPause?.Parent?.Visible = !showGraph;
+            slowmodeTrackBar?.Visible = !showGraph;
             rootMotionCheckBox?.Parent?.Visible = !showGraph;
             additiveCheckBox?.Parent?.Visible = !showGraph;
 
-            if (showGraph)
+            // Graphs have no pause or speed controls, so they must not inherit those of a clip
+            if (showGraph && animationController != null)
             {
-                animationPlayPause?.Enabled = true;
-                slowmodeTrackBar?.Enabled = true;
+                animationPlayPause?.Checked = true;
+                animationController.IsPaused = false;
+                animationController.FrametimeMultiplier = 1f;
+                slowmodeTrackBar?.Slider.Value = 1f;
             }
 
             sidebar?.ResumeLayout();
@@ -1100,10 +1105,9 @@ namespace GUI.Types.GLViewers
                         maximum = 0;
                     }
 
-                    var playing = animation != null || animGraph != null;
                     animationTrackBar.Enabled = animation != null;
-                    animationPlayPause.Enabled = playing;
-                    slowmodeTrackBar.Enabled = playing;
+                    animationPlayPause.Enabled = animation != null;
+                    slowmodeTrackBar.Enabled = animation != null;
 
                     frame = 0;
                 }
