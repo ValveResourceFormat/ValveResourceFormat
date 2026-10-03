@@ -151,157 +151,315 @@ partial class RendererControl : UserControl
     }
 
     /// <summary>
-    /// Adds a checkbox (for persistent toggles) alongside a momentary "Signal" button (for one-shot
-    /// triggers). The checkbox writes its state via <paramref name="changeCallback"/>; the button invokes
-    /// <paramref name="signalCallback"/>, which pulses the value true for a single graph update.
+    /// Builds a row with the name in a fixed share of the width and the editor beside it, so stacked rows
+    /// line up. Trailing controls sit at the right end of the editor column.
     /// </summary>
-    public CheckBox AddCheckBoxWithSignal(string name, bool defaultChecked, Action<bool> changeCallback, Action signalCallback)
+    public static TableLayoutPanel CreatePropertyRow(string name, Control? editor, params Control[] trailing)
     {
-        var flowPanel = new FlowLayoutPanel
+        var row = new TableLayoutPanel
         {
             AutoSize = true,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Dock = DockStyle.Top,
-            Margin = new Padding(0, 0, 0, 0),
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = Padding.Empty,
+            Padding = new Padding(0, 1, 0, 1),
         };
 
-        var checkbox = CreateCheckBox(name, defaultChecked, changeCallback);
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        row.RowStyles.Add(new RowStyle(SizeType.Absolute, row.AdjustForDPI(PropertyRowHeight)));
 
-        var signalButton = new ThemedButton
+        row.Controls.Add(new Label
         {
-            Text = "Signal",
-            AutoSize = true,
-            Margin = new Padding(0, 0, 0, 0),
+            Text = name,
+            AutoEllipsis = true,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Anchor = AnchorStyles.Left | AnchorStyles.Right,
+            Margin = new Padding(0, 0, 4, 0),
+        }, 0, 0);
+
+        var cell = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1 + trailing.Length,
+            RowCount = 1,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
         };
-        signalButton.Click += (_, __) => signalCallback();
 
-        flowPanel.Controls.Add(checkbox);
-        flowPanel.Controls.Add(signalButton);
-        ControlsPanel.Controls.Add(flowPanel);
-        SetControlLocation(flowPanel);
+        cell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        cell.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-        return checkbox.CheckBox;
+        if (editor != null)
+        {
+            editor.Anchor = editor is CheckBox ? AnchorStyles.Left : AnchorStyles.Left | AnchorStyles.Right;
+            editor.Margin = Padding.Empty;
+            cell.Controls.Add(editor, 0, 0);
+        }
+
+        for (var i = 0; i < trailing.Length; i++)
+        {
+            cell.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            trailing[i].Anchor = AnchorStyles.Right;
+            trailing[i].Margin = new Padding(4, 0, 0, 0);
+            cell.Controls.Add(trailing[i], i + 1, 0);
+        }
+
+        row.Controls.Add(cell, 1, 0);
+        return row;
+    }
+
+    private const int PropertyRowHeight = 24;
+
+    /// <summary>
+    /// Builds a row led by a checkbox that carries the name across the full width, with trailing controls
+    /// lined up at the right like those of <see cref="CreatePropertyRow"/>.
+    /// </summary>
+    public static TableLayoutPanel CreateCheckBoxRow(CheckBox checkBox, params Control[] trailing)
+    {
+        var row = new TableLayoutPanel
+        {
+            AutoSize = true,
+            ColumnCount = 1 + trailing.Length,
+            RowCount = 1,
+            Margin = Padding.Empty,
+            Padding = new Padding(0, 1, 0, 1),
+        };
+
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        row.RowStyles.Add(new RowStyle(SizeType.Absolute, row.AdjustForDPI(PropertyRowHeight)));
+
+        checkBox.AutoSize = false;
+        checkBox.AutoEllipsis = true;
+        checkBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        checkBox.Margin = Padding.Empty;
+        row.Controls.Add(checkBox, 0, 0);
+
+        for (var i = 0; i < trailing.Length; i++)
+        {
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            trailing[i].Anchor = AnchorStyles.Right;
+            trailing[i].Margin = new Padding(4, 0, 0, 0);
+            row.Controls.Add(trailing[i], i + 1, 0);
+        }
+
+        return row;
+    }
+
+    /// <summary>Adds a row made by <see cref="CreatePropertyRow"/>.</summary>
+    public TableLayoutPanel AddPropertyRow(string name, Control? editor, params Control[] trailing)
+    {
+        var row = CreatePropertyRow(name, editor, trailing);
+        AddControl(row);
+        return row;
+    }
+
+    /// <summary>A compact button sized to line up with the other buttons in a property row column.</summary>
+    public static ThemedButton CreateRowButton(string text, Action onClick)
+    {
+        var button = new ThemedButton
+        {
+            Text = text,
+            AutoSize = false,
+        };
+
+        button.Size = new Size(button.AdjustForDPI(46), button.AdjustForDPI(PropertyRowHeight - 4));
+        button.Click += (_, _) => onClick();
+        return button;
+    }
+
+    /// <summary>A checkbox for an editor column, optionally with a caption.</summary>
+    public static CheckBox CreateRowCheckBox(bool isChecked, Action<bool> changeCallback, string text = "")
+    {
+        var checkBox = new CheckBox
+        {
+            Text = text,
+            Checked = isChecked,
+            AutoSize = true,
+        };
+
+        checkBox.CheckedChanged += (_, _) => changeCallback(checkBox.Checked);
+        return checkBox;
+    }
+
+    /// <summary>A free-range float field for an editor column.</summary>
+    public static ThemedFloatNumeric CreateFloatField(float value, int decimals, Action<float> changeCallback)
+    {
+        var field = new ThemedFloatNumeric
+        {
+            MinValue = float.MinValue,
+            MaxValue = float.MaxValue,
+            DecimalMax = decimals,
+            DragWithinRange = false,
+            Value = value,
+        };
+
+        field.ValueChanged += (_, _) => changeCallback(field.Value);
+        return field;
     }
 
     /// <summary>
-    /// Adds a row for a parameter edited with a gizmo in the viewport: a checkbox showing the gizmo and a
-    /// button returning the parameter to its default.
+    /// A slider over a range with a number field beside it, for an editor column. Typing a value outside
+    /// the range widens the slider to include it.
     /// </summary>
-    public CheckBox AddGizmoParameter(string name, bool defaultVisible, Action<bool> visibleCallback, Action resetCallback)
+    public static Control CreateRangedFloatEditor(float value, float min, float max, bool wholeNumbers, Action<float> changeCallback)
     {
-        var flowPanel = new FlowLayoutPanel
+        var editor = new TableLayoutPanel
         {
-            AutoSize = true,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Dock = DockStyle.Top,
-            Margin = new Padding(0, 0, 0, 0),
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
         };
 
-        var checkbox = CreateCheckBox(name, defaultVisible, visibleCallback);
+        editor.Height = editor.AdjustForDPI(PropertyRowHeight - 2);
+        editor.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        editor.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, editor.AdjustForDPI(44)));
+        editor.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-        var resetButton = new ThemedButton
+        var slider = new Slider
         {
-            Text = "Reset",
-            AutoSize = true,
-            Margin = new Padding(0, 0, 0, 0),
-        };
-        resetButton.Click += (_, __) => resetCallback();
-
-        flowPanel.Controls.Add(checkbox);
-        flowPanel.Controls.Add(resetButton);
-        ControlsPanel.Controls.Add(flowPanel);
-        SetControlLocation(flowPanel);
-
-        return checkbox.CheckBox;
-    }
-
-    public ThemedFloatNumeric AddNumericField(string name, float startingValue, Action<float> changeCallback)
-    {
-        // Use FlowLayoutPanel for horizontal layout
-        var flowPanel = new FlowLayoutPanel
-        {
-            AutoSize = true,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Dock = DockStyle.Top,
-            Margin = new Padding(0, 0, 0, 0),
+            SliderHeight = 4,
+            KnobSize = 12,
+            Anchor = AnchorStyles.Left | AnchorStyles.Right,
+            Margin = new Padding(0, 0, 4, 0),
         };
 
-        var label = new Label
-        {
-            Text = name,
-            AutoSize = true,
-            TextAlign = ContentAlignment.MiddleLeft,
-            Margin = new Padding(0, 0, 8, 0),
-        };
+        slider.Height = slider.AdjustForDPI(18);
 
         var field = new ThemedFloatNumeric
         {
             MinValue = float.MinValue,
             MaxValue = float.MaxValue,
-            DecimalMax = 3,
+            DecimalMax = wholeNumbers ? 0 : 2,
             DragWithinRange = false,
-            Value = startingValue,
-            Margin = new Padding(0, 0, 0, 0),
-            Size = new Size(40, 20),
+            Value = value,
+            Anchor = AnchorStyles.Left | AnchorStyles.Right,
+            Margin = Padding.Empty,
         };
 
-        field.ValueChanged += (s, e) => changeCallback(field.Value);
+        void MoveKnob(float newValue)
+        {
+            min = MathF.Min(min, newValue);
+            max = MathF.Max(max, newValue);
+            slider.Value = MathUtils.Remap(newValue, min, max);
+        }
 
-        flowPanel.Controls.Add(label);
-        flowPanel.Controls.Add(field);
-        ControlsPanel.Controls.Add(flowPanel);
-        SetControlLocation(flowPanel);
-        return field;
+        MoveKnob(value);
+
+        var fromSlider = false;
+
+        slider.ValueChanged = fraction =>
+        {
+            var newValue = MathUtils.RemapRange(fraction, 0f, 1f, min, max);
+            newValue = wholeNumbers ? MathF.Round(newValue) : newValue;
+
+            fromSlider = true;
+            field.Value = newValue;
+            fromSlider = false;
+
+            changeCallback(newValue);
+        };
+
+        field.ValueChanged += (_, _) =>
+        {
+            if (fromSlider)
+            {
+                return;
+            }
+
+            MoveKnob(field.Value);
+            changeCallback(field.Value);
+        };
+
+        editor.Controls.Add(slider, 0, 0);
+        editor.Controls.Add(field, 1, 0);
+        return editor;
+    }
+
+    /// <summary>A dropdown list for an editor column.</summary>
+    public static ThemedComboBox CreateRowComboBox(IEnumerable<string> items, string? selected, Action<string> changeCallback)
+    {
+        var comboBox = new ThemedComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            TrimStart = true,
+        };
+
+        comboBox.Items.AddRange([.. items]);
+
+        // The list opens as wide as its longest option, the box itself shows the trimmed end
+        comboBox.DropDown += (_, _) =>
+        {
+            var widest = comboBox.Items.OfType<string>()
+                .Select(item => TextRenderer.MeasureText(item, comboBox.Font).Width)
+                .DefaultIfEmpty(0)
+                .Max();
+
+            comboBox.DropDownWidth = Math.Max(comboBox.Width, widest + SystemInformation.VerticalScrollBarWidth + comboBox.AdjustForDPI(8));
+        };
+        comboBox.SelectedItem = selected;
+        comboBox.SelectedIndexChanged += (_, _) =>
+        {
+            if (comboBox.SelectedItem is string item)
+            {
+                changeCallback(item);
+            }
+        };
+
+        return comboBox;
     }
 
     /// <summary>
-    /// Adds an X/Y/Z editor for a vector on a single row. The callback receives the vector whenever any field changes.
+    /// Builds a full-width row of equally wide X/Y/Z fields. The callback receives the vector whenever any field changes.
     /// </summary>
-    public ThemedFloatNumeric[] AddVectorField(string name, Vector3 startingValue, Action<Vector3> changeCallback)
+    public static (TableLayoutPanel Row, ThemedFloatNumeric[] Fields) CreateVectorRow(Vector3 startingValue, Action<Vector3> changeCallback)
     {
-        var flowPanel = new FlowLayoutPanel
+        var row = new TableLayoutPanel
         {
             AutoSize = true,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = true,
-            Dock = DockStyle.Top,
-            Margin = new Padding(0, 0, 0, 0),
+            ColumnCount = 3,
+            RowCount = 1,
+            Margin = Padding.Empty,
+            Padding = new Padding(0, 0, 0, 2),
         };
-
-        flowPanel.Controls.Add(new Label
-        {
-            Text = name,
-            AutoSize = true,
-            TextAlign = ContentAlignment.MiddleLeft,
-            Margin = new Padding(0, 0, 8, 0),
-        });
 
         var fields = new ThemedFloatNumeric[3];
 
         for (var i = 0; i < fields.Length; i++)
         {
-            var field = new ThemedFloatNumeric
-            {
-                MinValue = float.MinValue,
-                MaxValue = float.MaxValue,
-                DecimalMax = 2,
-                DragWithinRange = false,
-                Value = startingValue[i],
-                Margin = new Padding(0, 0, 4, 0),
-                Size = new Size(48, 20),
-            };
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3f));
 
-            field.ValueChanged += (_, __) => changeCallback(new Vector3(fields[0].Value, fields[1].Value, fields[2].Value));
-            fields[i] = field;
-            flowPanel.Controls.Add(field);
+            fields[i] = CreateFloatField(startingValue[i], 2, _ => changeCallback(new Vector3(fields[0].Value, fields[1].Value, fields[2].Value)));
+            fields[i].Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            fields[i].Margin = new Padding(i == 0 ? 0 : 2, 0, i == fields.Length - 1 ? 0 : 2, 0);
+            row.Controls.Add(fields[i], i, 0);
         }
 
-        ControlsPanel.Controls.Add(flowPanel);
-        SetControlLocation(flowPanel);
-        return fields;
+        return (row, fields);
+    }
+
+    /// <summary>A dimmed caption that starts a run of related rows.</summary>
+    public static Label CreateSectionHeader(string text)
+    {
+        var label = new Label
+        {
+            Text = text.ToUpperInvariant(),
+            AutoSize = true,
+            ForeColor = Themer.CurrentThemeColors.ContrastSoft,
+            Margin = Padding.Empty,
+        };
+
+        // Derived from the sidebar font once parented, since an unparented label only knows the system default
+        label.ParentChanged += (_, _) =>
+        {
+            if (label.Parent is { } parent)
+            {
+                label.Font = new Font(parent.Font.FontFamily, parent.Font.Size * 0.85f, FontStyle.Bold);
+            }
+        };
+        label.Padding = new Padding(0, label.AdjustForDPI(8), 0, label.AdjustForDPI(2));
+        return label;
     }
 
     public Slider AddSlider(string name, float min, float max, float startingValue, Action<float> changeCallback)
