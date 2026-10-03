@@ -37,7 +37,7 @@ Source axes, so `TransformMath` defines forward +X, left +Y, up +Z (chicken run 
 their order. Valve's own helpers compose `A o B` as B expressed in A's space, which is `B * A`.
 
 CS2 additions with no Esoterica analogue, reverse engineered from animationsystem.dll and client.dll:
-`ChainLookatNode`, `FollowBoneNode` (its partial modes treat the bone's local value as model space,
+`AimCSNode` (spine, head and weapon aiming per weapon category, then both hands onto the weapon), `ChainLookatNode`, `FollowBoneNode` (its partial modes treat the bone's local value as model space,
 ported as is), `BodyGroupNode` (emits its event every update while enabled), `SnapWeaponNode`,
 `IsInactiveBranchConditionNode` (implemented as "currently evaluating an inactive branch").
 
