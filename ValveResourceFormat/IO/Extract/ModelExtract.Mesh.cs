@@ -65,6 +65,12 @@ partial class ModelExtract
         /// </summary>
         public Skeleton? Skeleton { get; init; }
 
+        /// <summary>
+        /// Parent-space bone positions to emit in place of the skeleton's own, keyed by bone name
+        /// (see <see cref="ClothExtract.RestBonePositions"/>).
+        /// </summary>
+        internal IReadOnlyDictionary<string, Vector3>? BonePositions { get; init; }
+
         /// <summary>The cloth proxy surface a painted render vertex binds to.</summary>
         internal ClothProxySurface? ClothSurface { get; init; }
 
@@ -196,6 +202,8 @@ partial class ModelExtract
             SplitDrawCallsIntoSeparateSubmeshes = true,
             BoneRemapTable = boneRemapTable,
             Skeleton = skeleton,
+            BonePositions = extract.Cloth.RestBonePositions,
+            SkipCloth = !extract.ReconstructsCloth,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -262,7 +270,7 @@ partial class ModelExtract
 
         if (options.Skeleton is { Bones.Length: > 0 } skeleton)
         {
-            skeletonRoot = BuildDmeDagSkeleton(skeleton, out _, keepClothProxyBones: options.SkipCloth);
+            skeletonRoot = BuildDmeDagSkeleton(skeleton, out _, bonePositions: options.BonePositions, keepClothProxyBones: options.SkipCloth);
         }
 
         return DmxMeshBuilder.Build(mesh, name, new DmxMeshBuildOptions

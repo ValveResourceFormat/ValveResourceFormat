@@ -454,14 +454,20 @@ partial class ModelExtract
     /// Copies a key across only when the compiled block carries it, leaving a key an older compiler
     /// never wrote absent.
     /// </summary>
-    static void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
+    void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
     {
         foreach (var bone in bones)
         {
+            if (ReconstructsCloth && ClothBones.IsCompilerOwned(bone))
+            {
+                AddBonesRecursive(bone.Children, parent);
+                continue;
+            }
+
             var boneDefinitionNode = MakeNode(
                 "Bone",
                 ("name", GetExportBoneName(bone)),
-                ("origin", ToKVArray(bone.Position)),
+                ("origin", ToKVArray(BonePosition(bone, Cloth.RestBonePositions))),
                 ("angles", ToKVArray(EntityTransformHelper.ToEulerAngles(bone.Angle))),
                 ("do_not_discard", true)
             );

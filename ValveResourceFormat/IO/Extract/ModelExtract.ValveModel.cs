@@ -86,9 +86,15 @@ partial class ModelExtract
             {
                 AddBonesRecursive(model.Skeleton.Roots, lists.Skeleton);
             }
+
+            if (Cloth.CulledBones.Count > 0)
+            {
+                Cloth.AddCulledBonesTo(lists.Skeleton);
+            }
         }
 
         AddPhysicsBodyNodes(lists);
+        Cloth.AddToValveModel(root.Children);
 
         if (Translation != Vector3.Zero)
         {
