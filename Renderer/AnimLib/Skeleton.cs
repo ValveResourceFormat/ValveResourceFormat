@@ -38,7 +38,7 @@ class Skeleton
 
     /// <summary>
     /// Gets per-bone weights for a mask definition, mapping its bone ID list onto this skeleton.
-    /// Bones the mask does not list get weight 0.
+    /// Bones the mask does not list take their weights from the listed bones around them.
     /// </summary>
     public float[] GetResolvedMaskWeights(int maskIndex)
     {
@@ -54,22 +54,109 @@ class Skeleton
             var weights = new float[BoneIDs.Length];
             var list = MaskDefinitions[maskIndex].PrimaryWeightList;
 
-            for (var i = 0; i < list.BoneIDs.Length && i < list.Weights.Length; i++)
+            if (list.BoneIDs.Length == 0)
             {
-                for (var b = 0; b < BoneIDs.Length; b++)
+                Array.Fill(weights, 1f);
+            }
+            else
+            {
+                Array.Fill(weights, UnsetWeight);
+
+                for (var i = 0; i < list.BoneIDs.Length && i < list.Weights.Length; i++)
                 {
-                    if (BoneIDs[b] == list.BoneIDs[i])
+                    var boneIdx = GetBoneIndex(list.BoneIDs[i]);
+                    if (boneIdx != -1)
                     {
-                        weights[b] = list.Weights[i];
-                        break;
+                        weights[boneIdx] = list.Weights[i];
                     }
                 }
+
+                FillUnsetWeights(weights);
             }
 
             resolvedMaskWeights[maskIndex] = weights;
         }
 
         return resolvedMaskWeights[maskIndex];
+    }
+
+    const float UnsetWeight = -1f;
+
+    // A mask lists only some bones. Unlisted bones below a listed one take its weight, and a listed bone
+    // with unlisted parents feathers its weight up the chain towards the nearest listed ancestor, or to
+    // zero when there is none.
+    void FillUnsetWeights(float[] weights)
+    {
+        var originalWeights = (float[])weights.Clone();
+        var boneChainIndices = new List<int>();
+
+        for (var boneIdx = BoneIDs.Length - 1; boneIdx > 0; boneIdx--)
+        {
+            if (weights[boneIdx] == UnsetWeight)
+            {
+                boneChainIndices.Clear();
+                boneChainIndices.Add(boneIdx);
+
+                var chainWeight = 0f;
+                var parentBoneIdx = GetParentBoneIndex(boneIdx);
+                while (parentBoneIdx != -1)
+                {
+                    if (originalWeights[parentBoneIdx] != UnsetWeight)
+                    {
+                        chainWeight = originalWeights[parentBoneIdx];
+                        break;
+                    }
+
+                    boneChainIndices.Add(parentBoneIdx);
+                    parentBoneIdx = GetParentBoneIndex(parentBoneIdx);
+                }
+
+                // The root keeps its own weight
+                if (parentBoneIdx == -1 && boneChainIndices.Count > 0)
+                {
+                    boneChainIndices.RemoveAt(boneChainIndices.Count - 1);
+                }
+
+                foreach (var i in boneChainIndices)
+                {
+                    weights[i] = chainWeight;
+                }
+            }
+            else if (GetParentBoneIndex(boneIdx) is var parent and not -1 && weights[parent] == UnsetWeight)
+            {
+                var endWeight = weights[boneIdx];
+                var startWeight = UnsetWeight;
+
+                boneChainIndices.Clear();
+                boneChainIndices.Add(boneIdx);
+
+                var parentBoneIdx = parent;
+                while (parentBoneIdx != -1)
+                {
+                    boneChainIndices.Add(parentBoneIdx);
+
+                    if (originalWeights[parentBoneIdx] != UnsetWeight)
+                    {
+                        startWeight = originalWeights[parentBoneIdx];
+                        break;
+                    }
+
+                    parentBoneIdx = GetParentBoneIndex(parentBoneIdx);
+                }
+
+                var numBonesInChain = boneChainIndices.Count;
+                for (var i = numBonesInChain - 2; i > 0; i--)
+                {
+                    var percentageThrough = (float)i / (numBonesInChain - 1);
+                    weights[boneChainIndices[i]] = startWeight != UnsetWeight ? float.Lerp(endWeight, startWeight, percentageThrough) : 0f;
+                }
+            }
+        }
+
+        if (weights[0] == UnsetWeight)
+        {
+            weights[0] = 0f;
+        }
     }
 
     public int GetBoneMaskIndex(GlobalSymbol boneMaskID)
