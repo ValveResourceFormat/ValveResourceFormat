@@ -44,10 +44,21 @@ jobs:
       - name: Check reported version
         if: github.event.issue.author_association != 'MEMBER' && github.event.issue.author_association != 'COLLABORATOR'
         run: |
-          VERSION_TEXT=$(echo "$ISSUE_BODY" | grep -A 3 '### What version of S2V are you using' | tail -n +2 | grep -m 1 . || true)
-          BUILD_NUMBER=$(echo "${VERSION_TEXT%% on *}" | grep -oP '\d+\.\d+\.\K\d+' | head -1 || true)
+          BODY_TEXT=$(printf '%s\n' "$ISSUE_BODY" | tr -d '\r')
+          VERSION_TEXT=$(printf '%s\n' "$BODY_TEXT" | grep -A 3 '### What version of S2V are you using' | tail -n +2 | grep -m 1 . || true)
+          INPUT_BUILD=$(printf '%s\n' "${VERSION_TEXT%% on *}" | grep -oP '\d+\.\d+\.\K\d+' | head -1 || true)
+
+          # Copied exceptions end with "*S2V 20.0.1234 <commit> on <os>*", and the console log starts with "Source 2 Viewer v20.0.1234+<commit>"
+          EXCEPTION_BUILD=$(printf '%s\n' "$BODY_TEXT" | grep -oP '(?:\bS2V|Source 2 Viewer) v?\d+\.\d+\.\K\d+' | sort -n | tail -1 || true)
+
           echo "Detected version text: $VERSION_TEXT"
-          echo "Detected build number: $BUILD_NUMBER"
+          echo "Detected input build number: $INPUT_BUILD"
+          echo "Detected exception build number: $EXCEPTION_BUILD"
+
+          if [ "$INPUT_BUILD" = "0" ] || [ "$EXCEPTION_BUILD" = "0" ]; then
+            echo "Local build detected, skipping"
+            exit 0
+          fi
 
           LATEST_BUILD=$(gh run list --branch master --status success --workflow build.yml --limit 1 --json number --jq '.[0].number')
           echo "Latest build number: $LATEST_BUILD"
@@ -57,17 +68,28 @@ jobs:
             exit 0
           fi
 
+          BUILD_NUMBER="${INPUT_BUILD:-$EXCEPTION_BUILD}"
+          if [ -n "$INPUT_BUILD" ] && [ -n "$EXCEPTION_BUILD" ] && [ "$EXCEPTION_BUILD" -lt "$INPUT_BUILD" ]; then
+            BUILD_NUMBER="$EXCEPTION_BUILD"
+          fi
+
+          BODY=""
+
           if [ -z "$BUILD_NUMBER" ]; then
             BODY=$'Unable to determine the version of Source 2 Viewer from this issue.\nPlease provide the version by using the **copy version** button in the about window, and download the [latest dev build](https://s2v.app/dev/) to confirm that this issue still occurs.'
-          elif [ "$BUILD_NUMBER" -ge "$LATEST_BUILD" ]; then
-            echo "Version is up to date"
-            exit 0
-          elif [ "$BUILD_NUMBER" -eq 0 ]; then
-            echo "Local build detected, skipping"
-            exit 0
-          else
+          elif [ "$BUILD_NUMBER" -lt "$LATEST_BUILD" ]; then
             BUILDS_BEHIND=$((LATEST_BUILD - BUILD_NUMBER))
             BODY="The version of Source 2 Viewer reported in this issue is **$BUILDS_BEHIND** build(s) behind the latest dev build."$'\nPlease download the [latest dev build](https://s2v.app/dev/) and confirm that this issue still occurs.'
+          fi
+
+          if [ -n "$INPUT_BUILD" ] && [ -n "$EXCEPTION_BUILD" ] && [ "$INPUT_BUILD" -ne "$EXCEPTION_BUILD" ]; then
+            MISMATCH="The exception in this issue is from build **$EXCEPTION_BUILD**, but the reported version is build **$INPUT_BUILD**. Please make sure the exception is from the version you are reporting."
+            BODY="${BODY:+$BODY$'\n\n'}$MISMATCH"
+          fi
+
+          if [ -z "$BODY" ]; then
+            echo "Version is up to date"
+            exit 0
           fi
 
           gh issue comment "$ISSUE_NUMBER" --body "$BODY"
