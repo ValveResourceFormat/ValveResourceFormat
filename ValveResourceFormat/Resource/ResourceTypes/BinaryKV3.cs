@@ -718,46 +718,38 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (context.Version >= 3)
             {
-                if ((databyte & 0x80) > 0)
+                if ((databyte & 0x80) != 0)
                 {
-                    databyte &= 0x3F; // Remove the flag bit
-
                     flagInfo = (KVFlag)context.Types[0];
                     context.Types = context.Types[1..];
 
-                    if (flagInfo > KVFlag.EntityName)
+                    if (flagInfo == KVFlag.None || !Enum.IsDefined(flagInfo))
                     {
                         throw new UnexpectedMagicException("Unexpected kv3 flag", (int)flagInfo, nameof(flagInfo));
                     }
                 }
-            }
-            else if ((databyte & 0x80) > 0) // TODO: Valve's new code also checks for 0x40 even for old kv3 version
-            {
-                databyte &= 0x7F; // Remove the flag bit
 
-                flagInfo = (KVFlag)context.Types[0];
-                context.Types = context.Types[1..];
-
-                if (((int)flagInfo & 4) > 0) // Multiline string
+                // No known writer sets this bit, readers skip the extra byte that follows
+                if ((databyte & 0x40) != 0)
                 {
-                    Debug.Assert(databyte == (int)KV3BinaryNodeType.STRING);
-                    flagInfo ^= (KVFlag)4;
+                    context.Types = context.Types[1..];
                 }
 
-                // Strictly speaking there could be more than one flag set, but in practice it was seemingly never.
-                // Valve's new code just sets whichever flag is highest, new kv3 version does not support multiple flags at once.
-                flagInfo = (int)flagInfo switch
+                databyte &= 0x3F;
+            }
+            else
+            {
+                if ((databyte & 0x80) != 0)
                 {
-                    0 => KVFlag.None,
-                    1 => KVFlag.Resource,
-                    2 => KVFlag.ResourceName,
-                    8 => KVFlag.Panorama,
-                    16 => KVFlag.SoundEvent,
-                    32 => KVFlag.SubClass,
-                    _ => throw new UnexpectedMagicException("Unexpected kv3 flag", (int)flagInfo, nameof(flagInfo))
-                };
+                    flagInfo = ConvertLegacyFlags(context.Types[0]);
+                    context.Types = context.Types[1..];
+                }
+
+                databyte &= 0x7F;
             }
 
+            // Flags are not validated against the value type: subclass is only valid on objects,
+            // and every other flag is only valid on strings
             return ((KV3BinaryNodeType)databyte, flagInfo);
         }
 

@@ -9,6 +9,7 @@ using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
 namespace Tests.Formats
 {
@@ -252,6 +253,109 @@ namespace Tests.Formats
             binaryKV3.SerializationVersion = 5;
             binaryKV3.SerializationCompressionMethod = (KV3BinaryCompressionMethod)99;
             await Assert.That(() => binaryKV3.Serialize(new MemoryStream())).ThrowsExactly<NotSupportedException>();
+        }
+
+        [Test]
+        public async Task TestBinaryKV3SkipsByteAfterTypeWithBit6()
+        {
+            var binaryKV3 = ReadCraftedBinaryKV3(4, bytes1: [], bytes4: [2, 0, 42, 1, 43], strings: ["a", "b"], types: [9, 0x40 | 11, 0xAB, 11]);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That((int)binaryKV3.Data.Root["a"]).IsEqualTo(42);
+                await Assert.That((int)binaryKV3.Data.Root["b"]).IsEqualTo(43);
+            }
+        }
+
+        [Test]
+        public async Task TestBinaryKV3Version2FlagBits()
+        {
+            // Resource, ResourceName and Panorama at once, a lone multiline bit, and multiline with SoundEvent
+            var binaryKV3 = ReadCraftedBinaryKV3(2, bytes1: [], bytes4: [3, 0, 0, 1, 1, 2, 2], strings: ["a", "b", "c"], types: [9, 0x86, 0x0B, 0x86, 0x04, 0x86, 0x14]);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(binaryKV3.Data.Root["a"].Flag).IsEqualTo(KVFlag.Resource);
+                await Assert.That(binaryKV3.Data.Root["b"].Flag).IsEqualTo(KVFlag.None);
+                await Assert.That(binaryKV3.Data.Root["c"].Flag).IsEqualTo(KVFlag.SoundEvent);
+            }
+        }
+
+        [Test]
+        public async Task TestBinaryKV3RejectsEmptyFlag()
+        {
+            await Assert.That(() => ReadCraftedBinaryKV3(4, bytes1: [], bytes4: [1, 0, 0], strings: ["a"], types: [9, 0x86, 0x00])).Throws<UnexpectedMagicException>();
+        }
+
+        // Builds an uncompressed version 2 to 4 block without blobs
+        private static BinaryKV3 ReadCraftedBinaryKV3(int version, byte[] bytes1, int[] bytes4, string[] strings, byte[] types)
+        {
+            using var buffer = new MemoryStream();
+            int countTypes;
+
+            using (var writer = new BinaryWriter(buffer, Encoding.UTF8, leaveOpen: true))
+            {
+                writer.Write(bytes1);
+
+                while (buffer.Length % 4 != 0)
+                {
+                    writer.Write((byte)0);
+                }
+
+                writer.Write(strings.Length);
+
+                foreach (var value in bytes4)
+                {
+                    writer.Write(value);
+                }
+
+                while (buffer.Length % 8 != 0)
+                {
+                    writer.Write((byte)0);
+                }
+
+                var stringsStart = buffer.Length;
+
+                foreach (var value in strings)
+                {
+                    writer.Write(Encoding.UTF8.GetBytes(value));
+                    writer.Write((byte)0);
+                }
+
+                writer.Write(types);
+                countTypes = (int)(buffer.Length - stringsStart);
+                writer.Write(0xFFEEDD00);
+            }
+
+            var stream = new MemoryStream();
+
+            using (var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
+            {
+                writer.Write(0x4B563300 | version);
+                writer.Write(KV3IDLookup.Get("generic").Id.ToByteArray());
+                writer.Write(0); // uncompressed
+                writer.Write(0); // dictionary id and frame size
+                writer.Write(bytes1.Length);
+                writer.Write(bytes4.Length + 1);
+                writer.Write(0);
+                writer.Write(countTypes);
+                writer.Write(0); // object and array counts
+                writer.Write((int)buffer.Length);
+                writer.Write((int)buffer.Length);
+                writer.Write(0);
+                writer.Write(0);
+
+                if (version >= 4)
+                {
+                    writer.Write(0);
+                    writer.Write(0);
+                }
+
+                writer.Write(buffer.ToArray());
+            }
+
+            stream.Position = 0;
+            return ReadBinaryKV3(stream);
         }
 
         [Test]
