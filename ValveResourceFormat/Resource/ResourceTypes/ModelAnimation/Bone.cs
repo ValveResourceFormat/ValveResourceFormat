@@ -60,8 +60,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public bool IsProceduralCloth => (Flags & ModelSkeletonBoneFlags.ProceduralCloth) == ModelSkeletonBoneFlags.ProceduralCloth;
 
         /// <summary>
-        /// Gets a value indicating whether this bone is an FeModel cloth control node (<c>m_CtrlName</c>), static ones
-        /// included. <see cref="IsProceduralCloth"/> marks only the procedurally driven subset.
+        /// Gets a value indicating whether this bone is a cloth control node. Unlike <see cref="IsProceduralCloth"/>,
+        /// this includes static nodes.
         /// </summary>
         public bool IsClothControlNode => (Flags & ModelSkeletonBoneFlags.Cloth) == ModelSkeletonBoneFlags.Cloth;
 

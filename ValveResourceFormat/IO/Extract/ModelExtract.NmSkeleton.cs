@@ -92,9 +92,7 @@ partial class ModelExtract
 
             dag.Transform.Name = boneName;
             dag.Transform.Position = BonePosition(bone, bonePositions);
-            dag.Transform.Orientation = boneRotations is not null && boneRotations.TryGetValue(bone.Name, out var rotation)
-                ? rotation
-                : bone.Angle;
+            dag.Transform.Orientation = BoneRotation(bone, boneRotations);
 
             transforms[bone.Index] = dag.Transform;
 

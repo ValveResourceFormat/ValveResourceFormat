@@ -5,8 +5,39 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
+    // How far two hinges' stated sums may sit apart and still count as the same paint.
+    private const float ClothBendStiffnessAgreement = 0.02f;
+
+    // How many times the bound repair may raise vertices before the solve gives up.
+    private const int ClothBendStiffnessRepairPasses = 8;
+
+    // The fraction of its open span a hinge has to fold a rod by to count as generating it.
+    private const float ClothHingeMinimumFold = 0.02f;
+
+    // How far a rod's flat span may sit from its closest hinge's open span, relative to the span.
+    private const float ClothHingeFitTolerance = 0.005f;
+
+    // How close to its rest span, relative to the span, a rod's minimum reads as capped there.
+    private const float ClothRodCapTolerance = 2e-4f;
+
+    private static readonly float[] ClothBendStiffnessCoverTolerances = [1e-5f, 1e-4f, 1e-3f, ClothBendStiffnessAgreement];
+
     /// <summary>A per-vertex <c>cloth_bend_stiffness</c> keyed by control node, or null for none, and its <c>add_curvature</c>.</summary>
     internal readonly record struct BendPaintSolution(Dictionary<int, float>? Paint, float AddCurvature);
+
+    /// <summary>
+    /// A network rod's curvature reading: the hinge it was folded about, the fraction of the fold, whether its minimum is
+    /// capped at its rest span, the fit error, and every generating hinge's own reading.
+    /// </summary>
+    private readonly record struct HingeReading((int, int) Hinge, float Fraction, bool Capped, float Error,
+        ((int, int) Hinge, float Fraction)[] Candidates);
+
+    /// <summary>
+    /// A hinge-sum solve: the per-vertex paint or null, the sum each hinge states, and the largest rod miss without and
+    /// with the paint.
+    /// </summary>
+    private readonly record struct HingeSolve(Dictionary<int, float>? Paint, Dictionary<(int, int), float> StatedSums,
+        float UnpaintedSlack, float SolvedSlack);
 
     /// <summary>
     /// The per-vertex <c>cloth_bend_stiffness</c> of a regenerated bend network, keyed by control node, and the
@@ -16,27 +47,40 @@ internal sealed partial class ClothExtract
     internal static BendPaintSolution ClothBendStiffnessOverFold(ClothReconstruction cloth,
         List<int[]> faces, HashSet<(int, int)> network, float addCurvature, bool keepsCurvature)
     {
-        var readings = ClothHingeReadings(cloth, faces, network);
-        return ClothPaintCoveringEveryRod(cloth, faces, network, readings, ClothCurvatureMeetsItsCappedRods(cloth, readings,
-            ClothBendStiffnessRead(cloth, readings, addCurvature, keepsCurvature), keepsCurvature), keepsCurvature);
+        return ClothBendStiffnessOverFold(cloth, faces, network, ClothHingeReadings(cloth, faces, network), addCurvature,
+            keepsCurvature);
     }
 
     /// <summary>
-    /// Replaces the <paramref name="settled"/> answer with a covering-hinge solve, on top of its <c>add_curvature</c> and
-    /// then at zero, where that rebuilds strictly more network rods.
+    /// The per-vertex <c>cloth_bend_stiffness</c> of a regenerated bend network and its <c>add_curvature</c>, from the
+    /// network's hinge <paramref name="readings"/>.
+    /// </summary>
+    private static BendPaintSolution ClothBendStiffnessOverFold(ClothReconstruction cloth, List<int[]> faces,
+        HashSet<(int, int)> network, List<HingeReading> readings, float addCurvature, bool keepsCurvature)
+    {
+        // A curvature stated by suspenders or the chain rings is kept rather than solved for
+        var curvatureStated = keepsCurvature || cloth.ChainRingCurvature > 0f;
+        return ClothPaintCoveringEveryRod(cloth, faces, network, readings, ClothCurvatureMeetsItsCappedRods(readings,
+            ClothBendStiffnessRead(cloth, readings, addCurvature, curvatureStated), curvatureStated), curvatureStated);
+    }
+
+    /// <summary>
+    /// Replaces the <paramref name="settled"/> answer with a covering-hinge solve, at its <c>add_curvature</c> or at zero,
+    /// where that rebuilds strictly more network rods.
     /// </summary>
     private static BendPaintSolution ClothPaintCoveringEveryRod(ClothReconstruction cloth,
         List<int[]> faces, HashSet<(int, int)> network, List<HingeReading> readings, BendPaintSolution settled,
-        bool keepsCurvature)
+        bool curvatureStated)
     {
+        var generators = HingeGenerators(faces);
         var best = settled;
-        var bestMisses = ClothPaintMisses(cloth, faces, network, settled.Paint, settled.AddCurvature);
+        var bestMisses = ClothPaintMisses(cloth, generators, network, settled.Paint, settled.AddCurvature);
         if (bestMisses == 0)
         {
             return settled;
         }
 
-        float[] curvatures = keepsCurvature || cloth.ChainRingCurvature > 0f || settled.AddCurvature == 0f
+        float[] curvatures = curvatureStated || settled.AddCurvature == 0f
             ? [settled.AddCurvature]
             : [settled.AddCurvature, 0f];
         foreach (var curvature in curvatures)
@@ -46,7 +90,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            var misses = ClothPaintMisses(cloth, faces, network, covered, curvature);
+            var misses = ClothPaintMisses(cloth, generators, network, covered, curvature);
             if (misses < bestMisses)
             {
                 (best, bestMisses) = (new BendPaintSolution(covered, curvature), misses);
@@ -57,20 +101,45 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The network rods whose compiled minimum the paint and add_curvature would not rebuild: each rod takes the
-    /// shortest span any of its generating hinges folds it to, capped at its rest span.
+    /// The hinges that generate each bend rod of <paramref name="faces"/>, keyed by the rod's node pair, each hinge once
+    /// in first-generated order.
     /// </summary>
-    private static int ClothPaintMisses(ClothReconstruction cloth, List<int[]> faces, HashSet<(int, int)> network,
-        Dictionary<int, float>? paint, float addCurvature)
+    private static Dictionary<(int, int), List<(int, int)>> HingeGenerators(List<int[]> faces)
     {
-        var positions = cloth.Fe.InitPosePositions;
         var generators = new Dictionary<(int, int), List<(int, int)>>();
         foreach (var (hinge, nodeA, nodeB) in ClothReconstruction.BendRodGenerators(faces))
         {
-            var pair = ClothReconstruction.UnorderedPair(nodeA, nodeB);
-            ClothReconstruction.GetOrAdd(generators, pair).Add(hinge);
+            var about = ClothReconstruction.GetOrAdd(generators, ClothReconstruction.UnorderedPair(nodeA, nodeB));
+            if (!about.Contains(hinge))
+            {
+                about.Add(hinge);
+            }
         }
 
+        return generators;
+    }
+
+    /// <summary>
+    /// Where a rod's ends sit about a hinge: how far along the unit <paramref name="axis"/> from the hinge's first node
+    /// each lies, and how far off it.
+    /// </summary>
+    private static (float AlongA, float AlongB, float RiseA, float RiseB) HingeOffsets(Vector3[] positions, FeModel.Rod rod,
+        (int, int) hinge, Vector3 axis)
+    {
+        var toA = positions[rod.NodeA] - positions[hinge.Item1];
+        var toB = positions[rod.NodeB] - positions[hinge.Item1];
+        return (Vector3.Dot(toA, axis), Vector3.Dot(toB, axis),
+            MathUtils.ProjectOntoPlane(toA, axis).Length(), MathUtils.ProjectOntoPlane(toB, axis).Length());
+    }
+
+    /// <summary>
+    /// Counts the network rods whose compiled minimum the paint and <c>add_curvature</c> would not rebuild. Each rod takes
+    /// the shortest span any of its generating hinges folds it to, capped at its rest span.
+    /// </summary>
+    private static int ClothPaintMisses(ClothReconstruction cloth, Dictionary<(int, int), List<(int, int)>> generators,
+        HashSet<(int, int)> network, Dictionary<int, float>? paint, float addCurvature)
+    {
+        var positions = cloth.Fe.InitPosePositions;
         var misses = 0;
         foreach (var rod in cloth.Fe.Rods)
         {
@@ -89,13 +158,7 @@ internal sealed partial class ClothExtract
                     continue;
                 }
 
-                axis = Vector3.Normalize(axis);
-                var toA = positions[rod.NodeA] - positions[hinge.Item1];
-                var toB = positions[rod.NodeB] - positions[hinge.Item1];
-                var alongA = Vector3.Dot(toA, axis);
-                var alongB = Vector3.Dot(toB, axis);
-                var riseA = (toA - (alongA * axis)).Length();
-                var riseB = (toB - (alongB * axis)).Length();
+                var (alongA, alongB, riseA, riseB) = HingeOffsets(positions, rod, hinge, Vector3.Normalize(axis));
                 var sum = (paint?.GetValueOrDefault(hinge.Item1) ?? 0f) + (paint?.GetValueOrDefault(hinge.Item2) ?? 0f);
                 var fold = Math.Clamp((sum * MathF.PI / 2f) + (addCurvature * MathF.PI), 0f, MathF.PI);
                 var folded = MathF.Sqrt(MathF.Max(0f, ((alongA - alongB) * (alongA - alongB)) + (riseA * riseA) + (riseB * riseB)
@@ -113,13 +176,13 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Raises a model-wide <c>add_curvature</c> that no paint, suspender or chain ring states to the lower bound its capped
-    /// rods give.
+    /// Raises a model-wide <c>add_curvature</c> that no paint, suspender or chain ring states to the bound its capped rods
+    /// give.
     /// </summary>
-    private static BendPaintSolution ClothCurvatureMeetsItsCappedRods(ClothReconstruction cloth,
-        List<HingeReading> readings, BendPaintSolution read, bool keepsCurvature)
+    private static BendPaintSolution ClothCurvatureMeetsItsCappedRods(List<HingeReading> readings, BendPaintSolution read,
+        bool curvatureStated)
     {
-        if (read.Paint is not null || keepsCurvature || cloth.ChainRingCurvature > 0f)
+        if (read.Paint is not null || curvatureStated)
         {
             return read;
         }
@@ -133,50 +196,58 @@ internal sealed partial class ClothExtract
         var stated = MathF.Sin(MathF.PI * read.AddCurvature / 2f);
         var bound = capped.Max();
         return bound > (stated * stated) + ClothCurvatureAgreement
-            ? read with { AddCurvature = 2f / MathF.PI * MathF.Asin(MathF.Sqrt(bound)) }
+            ? read with { AddCurvature = AddCurvatureFromFold(bound) }
             : read;
     }
 
     /// <summary>
-    /// The bend-stiffness paint and <c>add_curvature</c> read off the hinge <paramref name="readings"/>, before any
-    /// repair of the rods it leaves unbuilt.
+    /// The bend-stiffness paint and <c>add_curvature</c> read off the hinge <paramref name="readings"/>, before repairing
+    /// the rods it leaves unbuilt.
     /// </summary>
     private static BendPaintSolution ClothBendStiffnessRead(ClothReconstruction cloth,
-        List<HingeReading> readings, float addCurvature, bool keepsCurvature)
+        List<HingeReading> readings, float addCurvature, bool curvatureStated)
     {
         var paint = ClothBendStiffnessFromHinges(cloth, readings,
-            addCurvature > 0f ? addCurvature : cloth.ChainRingCurvature, generatorBound: false, out _, out _, out _);
-        if (paint is not null || keepsCurvature || cloth.ChainRingCurvature > 0f)
+            addCurvature > 0f ? addCurvature : cloth.ChainRingCurvature, generatorBound: false).Paint;
+        if (paint is not null || curvatureStated)
         {
             return new(paint, addCurvature);
         }
 
         if (addCurvature <= 0f)
         {
-            return new(ClothBendStiffnessFromHinges(cloth, readings, 0f, generatorBound: true, out _, out _, out _)
-                ?? ClothBendStiffnessFromHinges(cloth, readings, 0f, generatorBound: true, out _, out _, out _,
-                    relaxSetters: true)
+            return new(ClothBendStiffnessFromHinges(cloth, readings, 0f, generatorBound: true).Paint
+                ?? ClothBendStiffnessFromHinges(cloth, readings, 0f, generatorBound: true, relaxSetters: true).Paint
                 ?? ClothBendStiffnessCoveringHinges(cloth, readings, 0f), addCurvature);
         }
 
-        var residual = ClothBendStiffnessFromHinges(cloth, readings, addCurvature, generatorBound: true,
-            out var residuals, out var sharedSlack, out var residualSlack);
+        var (residual, residuals, sharedSlack, residualSlack) = ClothBendStiffnessFromHinges(cloth, readings, addCurvature,
+            generatorBound: true);
         var overFolds = residuals.Values.Any(static sum => sum < -ClothBendStiffnessAgreement);
-        (Dictionary<int, float>? Paint, float Slack, float Spread) RetryAtZero(bool relaxSetters)
+
+        // The paint at zero curvature, where it spreads its hinges apart and leaves less slack than the shared one
+        Dictionary<int, float>? RetryAtZero(bool relaxSetters)
         {
-            var retried = ClothBendStiffnessFromHinges(cloth, readings, 0f, generatorBound: true, out var folds,
-                out _, out var paintedSlack, relaxSetters);
-            return (retried, paintedSlack, folds.Count > 0 ? folds.Values.Max() - folds.Values.Min() : 0f);
+            var (retried, folds, _, paintedSlack) = ClothBendStiffnessFromHinges(cloth, readings, 0f, generatorBound: true,
+                relaxSetters);
+            var spread = folds.Count > 0 ? folds.Values.Max() - folds.Values.Min() : 0f;
+            return retried is { Count: > 0 } && spread > ClothBendStiffnessAgreement
+                && sharedSlack > paintedSlack + ClothBendStiffnessAgreement
+                    ? retried
+                    : null;
         }
 
-        if (overFolds && RetryAtZero(relaxSetters: false) is ({ Count: > 0 } whole, var slack, var spread)
-            && spread > ClothBendStiffnessAgreement && sharedSlack > slack + ClothBendStiffnessAgreement)
+        if (overFolds && RetryAtZero(relaxSetters: false) is { } whole)
         {
             return new(whole, 0f);
         }
 
-        residual ??= ClothBendStiffnessFromHinges(cloth, readings, addCurvature, generatorBound: true, out _, out _,
-            out residualSlack, relaxSetters: true);
+        if (residual is null)
+        {
+            (residual, _, _, residualSlack) = ClothBendStiffnessFromHinges(cloth, readings, addCurvature, generatorBound: true,
+                relaxSetters: true);
+        }
+
         if (residual is null && !overFolds && sharedSlack > ClothBendStiffnessAgreement
             && ClothBendStiffnessCoveringHinges(cloth, readings, addCurvature) is { } coveredResidual)
         {
@@ -188,8 +259,7 @@ internal sealed partial class ClothExtract
             return new(residual, addCurvature);
         }
 
-        if (overFolds && RetryAtZero(relaxSetters: true) is ({ Count: > 0 } relaxed, var relaxedSlack, var relaxedSpread)
-            && relaxedSpread > ClothBendStiffnessAgreement && sharedSlack > relaxedSlack + ClothBendStiffnessAgreement)
+        if (overFolds && RetryAtZero(relaxSetters: true) is { } relaxed)
         {
             return new(relaxed, 0f);
         }
@@ -203,34 +273,12 @@ internal sealed partial class ClothExtract
         return new(paint, addCurvature);
     }
 
-    /// <summary>
-    /// A network rod's curvature reading: the hinge it was folded about, the fraction of the fold, whether its minimum is
-    /// capped at its rest span, the fit error, and every generating hinge's own reading.
-    /// </summary>
-    private readonly record struct HingeReading((int, int) Hinge, float Fraction, bool Capped, float Error,
-        ((int, int) Hinge, float Fraction)[] Candidates);
-
     /// <summary>The curvature readings of the network rods beyond the faces, one per rod.</summary>
     private static List<HingeReading> ClothHingeReadings(
         ClothReconstruction cloth, List<int[]> faces, HashSet<(int, int)> beyondSurface)
     {
         var positions = cloth.Fe.InitPosePositions;
-        var generators = new Dictionary<(int, int), List<(int, int)>>();
-        foreach (var (hinge, nodeA, nodeB) in ClothReconstruction.BendRodGenerators(faces))
-        {
-            if (nodeA == nodeB)
-            {
-                continue;
-            }
-
-            var generated = ClothReconstruction.UnorderedPair(nodeA, nodeB);
-            var about = ClothReconstruction.GetOrAdd(generators, generated);
-            if (!about.Contains(hinge))
-            {
-                about.Add(hinge);
-            }
-        }
-
+        var generators = HingeGenerators(faces);
         var readings = new List<HingeReading>();
         foreach (var rod in cloth.Fe.Rods)
         {
@@ -247,7 +295,9 @@ internal sealed partial class ClothExtract
             var folded = 0f;
             var about = (0, 0);
             var fits = new List<((int, int) Hinge, float Error, float Open, float Shut)>();
-            foreach (var hinge in generators.TryGetValue(edge, out var generating) ? generating : [])
+            // The map keeps degenerate one-node pairs for the miss count, but a rod on one node reads no hinge
+            var generating = edge.Item1 != edge.Item2 ? generators.GetValueOrDefault(edge) : null;
+            foreach (var hinge in generating ?? [])
             {
                 var axis = positions[hinge.Item2] - positions[hinge.Item1];
                 var axisLength = axis.Length();
@@ -256,23 +306,19 @@ internal sealed partial class ClothExtract
                     continue;
                 }
 
-                axis /= axisLength;
-                var toA = positions[rod.NodeA] - positions[hinge.Item1];
-                var toB = positions[rod.NodeB] - positions[hinge.Item1];
-                var alongA = Vector3.Dot(toA, axis);
-                var alongB = Vector3.Dot(toB, axis);
-                var riseA = (toA - alongA * axis).Length();
-                var riseB = (toB - alongB * axis).Length();
+                var (alongA, alongB, riseA, riseB) = HingeOffsets(positions, rod, hinge, axis / axisLength);
                 var slide = (alongA - alongB) * (alongA - alongB);
                 var open = MathF.Sqrt(slide + ((riseA + riseB) * (riseA + riseB)));
                 var shut = MathF.Sqrt(slide + ((riseA - riseB) * (riseA - riseB)));
                 var error = MathF.Abs(open - coplanar);
-                if (open - shut >= ClothHingeMinimumFold * open)
+                var generates = open - shut >= ClothHingeMinimumFold * open;
+                if (!generates)
                 {
-                    fits.Add((hinge, error, open, shut));
+                    continue;
                 }
 
-                if (error < closest && open - shut >= ClothHingeMinimumFold * open)
+                fits.Add((hinge, error, open, shut));
+                if (error < closest)
                 {
                     closest = error;
                     flat = open;
@@ -288,10 +334,10 @@ internal sealed partial class ClothExtract
 
             var reach = (flat * flat) - (folded * folded);
             var span = rod.MinDist >= rest - (ClothRodCapTolerance * MathF.Max(1f, rest)) ? rest : rod.MinDist;
-            var fraction = Math.Clamp(((span * span) - (folded * folded)) / reach, 0f, 1f);
+            var fraction = MathUtils.Saturate(((span * span) - (folded * folded)) / reach);
             var candidates = fits
-                .Select(fit => (fit.Hinge, Math.Clamp(((span * span) - (fit.Shut * fit.Shut))
-                    / ((fit.Open * fit.Open) - (fit.Shut * fit.Shut)), 0f, 1f)))
+                .Select(fit => (fit.Hinge, MathUtils.Saturate(((span * span) - (fit.Shut * fit.Shut))
+                    / ((fit.Open * fit.Open) - (fit.Shut * fit.Shut)))))
                 .ToArray();
             readings.Add(new HingeReading(about, fraction, span == rest, closest, candidates));
         }
@@ -302,18 +348,15 @@ internal sealed partial class ClothExtract
     /// <summary>
     /// The per-vertex paint the sheet's bend rods state on top of <paramref name="addCurvature"/>, keyed by control node,
     /// or null where they state none or contradict each other, and the sum each hinge states. With
-    /// <paramref name="generatorBound"/> every generating hinge is bounded by every rod it generates, and
-    /// <paramref name="unpaintedSlack"/> and <paramref name="solvedSlack"/> are the largest miss without and with the paint;
-    /// with <paramref name="relaxSetters"/> only a rod's sole setter is solved exactly.
+    /// <paramref name="generatorBound"/> every generating hinge is bounded by every rod it generates, and the slacks are
+    /// the largest miss without and with the paint; with <paramref name="relaxSetters"/> only a rod's sole setter is solved
+    /// exactly.
     /// </summary>
-    private static Dictionary<int, float>? ClothBendStiffnessFromHinges(ClothReconstruction cloth, List<HingeReading> readings,
-        float addCurvature, bool generatorBound,
-        out Dictionary<(int, int), float> statedSums, out float unpaintedSlack, out float solvedSlack, bool relaxSetters = false)
+    private static HingeSolve ClothBendStiffnessFromHinges(ClothReconstruction cloth, List<HingeReading> readings,
+        float addCurvature, bool generatorBound, bool relaxSetters = false)
     {
-        unpaintedSlack = 0f;
-        solvedSlack = 0f;
-        float StatedSum(float fraction)
-            => (4f / MathF.PI * MathF.Asin(MathF.Sqrt(fraction))) - (2f * addCurvature);
+        var unpaintedSlack = 0f;
+        var solvedSlack = 0f;
 
         float RodSlack(Func<(int, int), float> assigned)
         {
@@ -326,8 +369,9 @@ internal sealed partial class ClothExtract
                 }
 
                 worst = MathF.Max(worst, capped
-                    ? candidates.Max(candidate => StatedSum(candidate.Fraction) - assigned(candidate.Hinge))
-                    : MathF.Abs(candidates.Min(candidate => assigned(candidate.Hinge) - StatedSum(candidate.Fraction))));
+                    ? candidates.Max(candidate => HingeSum(candidate.Fraction, addCurvature) - assigned(candidate.Hinge))
+                    : MathF.Abs(candidates.Min(candidate
+                        => assigned(candidate.Hinge) - HingeSum(candidate.Fraction, addCurvature))));
             }
 
             return worst;
@@ -344,10 +388,10 @@ internal sealed partial class ClothExtract
 
         var exact = new Dictionary<(int, int), float>();
         var bounds = new Dictionary<(int, int), float>();
-        statedSums = exact;
+        var statedSums = exact;
         foreach (var (hinge, reading) in best)
         {
-            (reading.Capped ? bounds : exact)[hinge] = StatedSum(reading.Fraction);
+            (reading.Capped ? bounds : exact)[hinge] = HingeSum(reading.Fraction, addCurvature);
         }
 
         if (generatorBound)
@@ -362,7 +406,7 @@ internal sealed partial class ClothExtract
 
                 foreach (var (hinge, candidateFraction) in candidates)
                 {
-                    var sum = StatedSum(candidateFraction);
+                    var sum = HingeSum(candidateFraction, addCurvature);
                     exact[hinge] = exact.TryGetValue(hinge, out var known) ? MathF.Max(known, sum) : sum;
                 }
             }
@@ -379,7 +423,8 @@ internal sealed partial class ClothExtract
                     }
 
                     var setters = candidates
-                        .Where(candidate => StatedSum(candidate.Fraction) >= exact[candidate.Hinge] - ClothBendStiffnessAgreement)
+                        .Where(candidate => HingeSum(candidate.Fraction, addCurvature)
+                            >= exact[candidate.Hinge] - ClothBendStiffnessAgreement)
                         .Select(static candidate => candidate.Hinge)
                         .Distinct()
                         .ToList();
@@ -408,7 +453,7 @@ internal sealed partial class ClothExtract
 
             foreach (var (hinge, candidateFraction) in candidates)
             {
-                var least = StatedSum(candidateFraction);
+                var least = HingeSum(candidateFraction, addCurvature);
                 if (!bounds.TryGetValue(hinge, out var known) || least > known)
                 {
                     bounds[hinge] = least;
@@ -418,13 +463,13 @@ internal sealed partial class ClothExtract
 
         if (exact.Count == 0 && bounds.Count == 0)
         {
-            return null;
+            return new(null, statedSums, unpaintedSlack, solvedSlack);
         }
 
         var solved = SolveHingeSums(exact, bounds);
         if (solved is null)
         {
-            return null;
+            return new(null, statedSums, unpaintedSlack, solvedSlack);
         }
 
         if (generatorBound)
@@ -432,11 +477,12 @@ internal sealed partial class ClothExtract
             solvedSlack = RodSlack(hinge => solved.GetValueOrDefault(hinge.Item1) + solved.GetValueOrDefault(hinge.Item2));
             if (solvedSlack > ClothBendStiffnessAgreement)
             {
-                return null;
+                return new(null, statedSums, unpaintedSlack, solvedSlack);
             }
         }
 
-        return solved.Values.Any(static value => value > ClothBendStiffnessAgreement) ? solved : null;
+        var paint = solved.Values.Any(static value => value > ClothBendStiffnessAgreement) ? solved : null;
+        return new(paint, statedSums, unpaintedSlack, solvedSlack);
     }
 
     /// <summary>
@@ -583,8 +629,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Solves the exact hinge sums: each connected chain alternates as sign *
-    /// p + offset, fixed by a pin or a closed cycle.
+    /// Solves the exact hinge sums: each connected component alternates as <c>sign * p + offset</c>, with <c>p</c> fixed by
+    /// a pin or a closed cycle.
     /// </summary>
     private static Dictionary<int, float>? ClothBendStiffnessComponents(Dictionary<int, float> pinned,
         List<(int U, int V, float Sum)> equations, List<(int U, int V, float Least)> checks)
@@ -717,7 +763,7 @@ internal sealed partial class ClothExtract
                     return null;
                 }
 
-                solved[node] = Math.Clamp(value, 0f, 1f);
+                solved[node] = MathUtils.Saturate(value);
             }
         }
 
@@ -726,14 +772,12 @@ internal sealed partial class ClothExtract
 
     /// <summary>
     /// The per-vertex paint that folds a bend network on top of <paramref name="addCurvature"/> where the rods do not say
-    /// which hinge built them: each rod's sole setter is held exact, the rest covered greedily, and the system is solved
-    /// as pairwise bounds from the tightest tolerance up.
+    /// which hinge built them. Each rod's sole setter is held exact, the rest are covered greedily, and the system is
+    /// solved as pairwise bounds from the tightest tolerance up.
     /// </summary>
     private static Dictionary<int, float>? ClothBendStiffnessCoveringHinges(ClothReconstruction cloth, List<HingeReading> readings,
         float addCurvature)
     {
-        float Sum(float fraction) => (4f / MathF.PI * MathF.Asin(MathF.Sqrt(fraction))) - (2f * addCurvature);
-
         static ((int, int) Hinge, float Fraction)[] Usable(bool capped, ((int, int) Hinge, float Fraction)[] candidates)
             => capped || !Array.Exists(candidates, static candidate => candidate.Fraction > 0f)
                 ? candidates
@@ -744,7 +788,7 @@ internal sealed partial class ClothExtract
         {
             foreach (var (hinge, fraction) in Usable(capped, candidates))
             {
-                least[hinge] = MathF.Max(least.GetValueOrDefault(hinge, float.MinValue), Sum(fraction));
+                least[hinge] = MathF.Max(least.GetValueOrDefault(hinge, float.MinValue), HingeSum(fraction, addCurvature));
             }
         }
 
@@ -761,7 +805,7 @@ internal sealed partial class ClothExtract
                 }
 
                 var setters = Usable(capped, candidates)
-                    .Where(candidate => Sum(candidate.Fraction) >= least[candidate.Hinge] - tolerance)
+                    .Where(candidate => HingeSum(candidate.Fraction, addCurvature) >= least[candidate.Hinge] - tolerance)
                     .Select(static candidate => candidate.Hinge)
                     .Distinct()
                     .Order()
@@ -822,8 +866,6 @@ internal sealed partial class ClothExtract
 
         return null;
     }
-
-    private static readonly float[] ClothBendStiffnessCoverTolerances = [1e-5f, 1e-4f, 1e-3f, ClothBendStiffnessAgreement];
 
     /// <summary>
     /// Values in [0, 1] for every node the constraints name, each constraint <c>SignU * x[U] + SignV * x[V] &lt;= Most</c>,
@@ -888,19 +930,4 @@ internal sealed partial class ClothExtract
 
         return null;
     }
-
-    /// <summary>How far two hinges' stated sums may sit apart and still count as the same paint.</summary>
-    private const float ClothBendStiffnessAgreement = 0.02f;
-
-    /// <summary>How many times the bound repair may raise vertices before the solve gives up.</summary>
-    private const int ClothBendStiffnessRepairPasses = 8;
-
-    /// <summary>The fraction of its open span a hinge has to fold a rod by to count as generating it.</summary>
-    private const float ClothHingeMinimumFold = 0.02f;
-
-    /// <summary>How far a rod's flat span may sit from its closest hinge's open span, relative to the span.</summary>
-    private const float ClothHingeFitTolerance = 0.005f;
-
-    /// <summary>How close to its rest span, relative to the span, a rod's minimum reads as capped there.</summary>
-    private const float ClothRodCapTolerance = 2e-4f;
 }

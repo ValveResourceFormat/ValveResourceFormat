@@ -7,12 +7,21 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    /// <summary>
-    /// A <c>ClothProxyMeshFile</c> referencing a sheet DMX. The influence threshold defaults to the compiler's own, for
-    /// the generated grids.
-    /// </summary>
-    private static KVObject MakeClothProxyMeshFile(string name, string fileName, bool backSolveJoints, bool driveMeshes, bool addBonesToRenderMesh = false,
-        float backSolveInfluenceThreshold = ClothReconstruction.DefaultBackSolveInfluenceThreshold, bool flexClothBorders = false)
+    /// <summary>A free <c>$cloth_node_</c> control node, its element name and where it is re-authored.</summary>
+    private readonly record struct FreeClothNode(int Node, string ElementName, ClothNodeAnchor Anchor);
+
+    /// <summary>The control nodes of a sheet phase that no exported sheet or independent chain recreates.</summary>
+    private sealed record SheetControlNodes(
+        HashSet<int> IndependentChainNodes,
+        HashSet<string> ProxySkinnedBones,
+        List<NodeRef> LoneClothNodes,
+        List<NodeRef> LeftoverStaticNodes,
+        List<NodeRef> UnregisteredNodes,
+        List<FreeClothNode> UnregisteredFreeNodes,
+        Dictionary<int, string> FreeClothNodeNames);
+
+    private static KVObject MakeClothProxyMeshFile(string name, string fileName, bool backSolveJoints, bool driveMeshes,
+        bool addBonesToRenderMesh, float backSolveInfluenceThreshold, bool flexClothBorders)
     {
         var node = MakeNode("ClothProxyMeshFile",
             ("name", name),
@@ -58,27 +67,38 @@ internal sealed partial class ClothExtract
     /// Maps the control node of every faced vertex of the exported proxies to the <c>$cloth_m{N}p{L}</c> name the
     /// recompile gives it.
     /// </summary>
-    private static Dictionary<int, string> BuildProxyNodeNameMap(
-        List<ClothProxyFile> proxies)
+    private static Dictionary<int, string> BuildProxyNodeNameMap(List<ClothProxyFile> proxies)
     {
         var proxyNodeNames = new Dictionary<int, string>();
         for (var proxyIndex = 0; proxyIndex < proxies.Count; proxyIndex++)
         {
             var proxy = proxies[proxyIndex].Proxy;
             var nodeIndices = proxy.NodeIndices;
-
             var faced = proxy.Faces.SelectMany(static face => face).ToHashSet();
 
             for (var localIndex = 0; localIndex < nodeIndices.Length; localIndex++)
             {
                 if (faced.Contains(localIndex))
                 {
-                    proxyNodeNames[nodeIndices[localIndex]] = $"$cloth_m{proxyIndex}p{localIndex}";
+                    proxyNodeNames[nodeIndices[localIndex]] = $"{ClothReconstruction.ProxyNamePrefix}{proxyIndex}p{localIndex}";
                 }
             }
         }
 
         return proxyNodeNames;
+    }
+
+    /// <summary>The selection an exported sheet stands for among all of <see cref="ProxyMeshes"/>, or null where none does.</summary>
+    private string? ProxyVertexMapName(ClothReconstruction cloth, ProxyMesh proxy)
+    {
+        if (!proxyVertexMapNames.TryGetValue(proxy, out var mapName))
+        {
+            proxyGroup ??= ProxyMeshes.ConvertAll(static entry => entry.Proxy);
+            mapName = cloth.GetProxyVertexMapName(proxy, proxyGroup);
+            proxyVertexMapNames[proxy] = mapName;
+        }
+
+        return mapName;
     }
 
     /// <summary>
@@ -109,7 +129,7 @@ internal sealed partial class ClothExtract
         return surviving;
     }
 
-    private bool EmitProxySheetClothPhase(ClothReconstruction cloth, List<BoneChain> boneChains, KVObject rootChildren)
+    private void EmitProxySheetClothPhase(ClothReconstruction cloth, List<BoneChain> boneChains, KVObject rootChildren)
     {
         var backSolveJoints = cloth.Fe.FitMatrixNodes.Count > 0 || cloth.DrivesRealBones;
         var independentChains = boneChains.Where(cloth.IsIndependentChain).ToList();
@@ -130,9 +150,8 @@ internal sealed partial class ClothExtract
             DeclareSheetClothFolder(cloth, softbodyChildren, independentChains, nodes, proxyNodeNames);
         }
 
-        var authoredClothNodes = nodes.LoneClothNodes.Concat(nodes.LeftoverStaticNodes).Concat(nodes.UnregisteredNodes)
-            .Select(static entry => entry.Node)
-            .ToHashSet();
+        List<NodeRef> authoredNodes = [.. nodes.LoneClothNodes, .. nodes.LeftoverStaticNodes, .. nodes.UnregisteredNodes];
+        var authoredClothNodes = authoredNodes.Select(static entry => entry.Node).ToHashSet();
         AddClothProxySprings(softbodyChildren, cloth, ProxyMeshes, nodes.IndependentChainNodes,
             authoredClothNodes, nodes.FreeClothNodeNames, surfaceRods.Derived, proxyNodeNames);
         AddClothSourceSprings(softbodyChildren, cloth, independentChains);
@@ -142,10 +161,8 @@ internal sealed partial class ClothExtract
 
         var clothBones = ClothBoneNames(cloth);
         clothBones.UnionWith(nodes.ProxySkinnedBones);
-        clothBones.UnionWith(independentChains.SelectMany(static chain => chain.Joints)
-            .Select(static joint => joint.Name));
-        clothBones.UnionWith(nodes.LoneClothNodes.Concat(nodes.LeftoverStaticNodes).Concat(nodes.UnregisteredNodes)
-            .Select(static entry => entry.Name));
+        clothBones.UnionWith(independentChains.SelectMany(static chain => chain.Joints).Select(static joint => joint.Name));
+        clothBones.UnionWith(authoredNodes.Select(static entry => entry.Name));
         clothBones.UnionWith(nodes.UnregisteredFreeNodes.Select(static entry => entry.Anchor.RootBone));
         AddClothSelfCollisionClusters(softbodyChildren, cloth, clothBones);
         AddClothPhaseTail(cloth, rootChildren, softbody, softbodyChildren, clothBones, independentChains,
@@ -153,7 +170,6 @@ internal sealed partial class ClothExtract
             jointLocks: (node, name) => !nodes.IndependentChainNodes.Contains(node) && !authoredClothNodes.Contains(node)
                 && (cloth.Fe.FitMatrixNodes.Contains(node) || nodes.ProxySkinnedBones.Contains(name)),
             proxyNodeNames: proxyNodeNames);
-        return true;
     }
 
     /// <summary>
@@ -171,18 +187,22 @@ internal sealed partial class ClothExtract
             cloth.Fe.CtrlNames.Skip(cloth.FirstPositionDrivenNode).Where(static name => !FeModel.IsProxyNodeName(name)),
             StringComparer.OrdinalIgnoreCase);
 
-        bool ProxyDrivesUnchainedBone(ProxyMesh proxy)
+        bool ProxyDrivesUnchainedBone(ProxyMesh proxy, float threshold)
         {
-            var threshold = cloth.GetBackSolveInfluenceThreshold(proxy);
-
             IEnumerable<string> CarriedBones(int vertex)
-                => cloth.HasCompiledFirstPositionDrivenNode
-                    ? proxy.SkinInfluences[vertex]
-                        .Where(i => i.Weight >= threshold)
-                        .Select(static i => i.Bone)
-                    : cloth.Fe.FitMatrixNodes.Count == 0
-                        ? [cloth.ResolveSkinBone(proxy.NodeIndices[vertex]) ?? string.Empty]
-                        : proxy.SkinInfluences[vertex].Select(static i => i.Bone);
+            {
+                if (cloth.HasCompiledFirstPositionDrivenNode)
+                {
+                    return proxy.SkinInfluences[vertex].Where(i => i.Weight >= threshold).Select(static i => i.Bone);
+                }
+
+                if (cloth.Fe.FitMatrixNodes.Count == 0)
+                {
+                    return [cloth.ResolveSkinBone(proxy.NodeIndices[vertex]) ?? string.Empty];
+                }
+
+                return proxy.SkinInfluences[vertex].Select(static i => i.Bone);
+            }
 
             for (var v = 0; v < proxy.ClothEnable.Length; v++)
             {
@@ -215,11 +235,11 @@ internal sealed partial class ClothExtract
                     && proxyRenderBones.Contains(cloth.Fe.CtrlNames[node])));
 
         var (clothProxyList, clothProxyChildren) = MakeListNode("ClothProxyMeshList");
-        var proxyGroup = ProxyMeshes.ConvertAll(static entry => entry.Proxy);
         var vertexMapContainers = new Dictionary<string, KVObject>(StringComparer.Ordinal);
         foreach (var proxyFile in ProxyMeshes)
         {
-            var proxyBackSolve = backSolveJoints && ProxyDrivesUnchainedBone(proxyFile.Proxy)
+            var threshold = cloth.GetBackSolveInfluenceThreshold(proxyFile.Proxy);
+            var proxyBackSolve = backSolveJoints && ProxyDrivesUnchainedBone(proxyFile.Proxy, threshold)
                 && !cloth.IsUnbackSolvedProxyMesh(proxyFile.Proxy);
             var proxyDrivesMeshes = proxyBackSolve || cloth.ProxyFitsUndrivenBone(proxyFile.Proxy);
             var addsBonesToRenderMesh = ProxyAddsBonesToRenderMesh(proxyFile.Proxy);
@@ -229,12 +249,10 @@ internal sealed partial class ClothExtract
                 flexedProxies.Add(proxyFile.Proxy);
             }
 
-            var proxyNode = MakeClothProxyMeshFile(proxyFile.Name, proxyFile.FileName, proxyBackSolve,
-                driveMeshes: proxyDrivesMeshes, addsBonesToRenderMesh,
-                backSolveInfluenceThreshold: cloth.GetBackSolveInfluenceThreshold(proxyFile.Proxy),
-                flexClothBorders: proxyFlexes);
+            var proxyNode = MakeClothProxyMeshFile(proxyFile.Name, proxyFile.FileName, proxyBackSolve, proxyDrivesMeshes,
+                addsBonesToRenderMesh, threshold, proxyFlexes);
 
-            if (cloth.GetProxyVertexMapName(proxyFile.Proxy, proxyGroup) is { } proxyVertexMap)
+            if (ProxyVertexMapName(cloth, proxyFile.Proxy) is { } proxyVertexMap)
             {
                 if (!vertexMapContainers.TryGetValue(proxyVertexMap, out var mapChildren))
                 {
@@ -294,19 +312,6 @@ internal sealed partial class ClothExtract
         return clothProxyList;
     }
 
-    /// <summary>A free <c>$cloth_node_</c> control node, its element name and where it is re-authored.</summary>
-    private readonly record struct FreeClothNode(int Node, string ElementName, ClothNodeAnchor Anchor);
-
-    /// <summary>The control nodes of a sheet phase that no exported sheet or independent chain recreates.</summary>
-    private sealed record SheetControlNodes(
-        HashSet<int> IndependentChainNodes,
-        HashSet<string> ProxySkinnedBones,
-        List<NodeRef> LoneClothNodes,
-        List<NodeRef> LeftoverStaticNodes,
-        List<NodeRef> UnregisteredNodes,
-        List<FreeClothNode> UnregisteredFreeNodes,
-        Dictionary<int, string> FreeClothNodeNames);
-
     /// <summary>
     /// Sorts the control nodes of a sheet phase into the simulated lone nodes, the static control bones, and the
     /// generated or fitted nodes no exported sheet or independent chain recreates.
@@ -316,16 +321,11 @@ internal sealed partial class ClothExtract
     {
         var chainNodes = ChainJointNodes(boneChains);
         var independentChainNodes = ChainJointNodes(independentChains);
-        var loneClothNodes = new List<NodeRef>();
-
         var boneByName = model?.Skeleton.Bones
             .GroupBy(static bone => bone.Name, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(static g => g.Key, static g => g.First(), StringComparer.OrdinalIgnoreCase);
         var shapeParentBones = cloth.CollisionShapes.ParentBones;
-        var leftoverStaticNodes = new List<NodeRef>();
-
         var anchorOf = BuildCtrlAnchorMap(cloth);
-        var jiggleNodes = LookupsOf(cloth).JiggleNodes;
         var proxyRegisteredNodes = new HashSet<int>();
         var proxySkinnedBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var recoveredSkinnedBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -349,9 +349,15 @@ internal sealed partial class ClothExtract
 
         bool IsRecreated(int node, string name)
             => proxyRegisteredNodes.Contains(node) || proxySkinnedBones.Contains(name)
-                || independentChainNodes.Contains(node) || jiggleNodes.Contains(node)
+                || independentChainNodes.Contains(node) || IsDeclaredByItsJiggleBone(cloth, node)
                 || shapeParentBones.Contains(name);
 
+        bool IsSkinnedRoot(int node, string name)
+            => (recoveredSkinnedBones.Contains(name) || (cloth.Fe.FitMatrixNodes.Count == 0 && proxySkinnedBones.Contains(name)))
+                && node < cloth.SkelParents.Length && cloth.SkelParents[node] < 0;
+
+        var loneClothNodes = new List<NodeRef>();
+        var leftoverStaticNodes = new List<NodeRef>();
         var unregisteredNodes = new List<NodeRef>();
         var unregisteredFreeNodes = new List<FreeClothNode>();
         var freeClothNodeNames = new Dictionary<int, string>();
@@ -366,11 +372,11 @@ internal sealed partial class ClothExtract
                     continue;
                 }
 
-                if (name.StartsWith(ClothReconstruction.FreeClothNodePrefix, StringComparison.Ordinal))
+                if (cloth.IsFreeClothNode(node))
                 {
                     if (TryResolveClothNodeAnchor(cloth, anchorOf, node, out var anchor))
                     {
-                        var elementName = name[ClothReconstruction.FreeClothNodePrefix.Length..];
+                        var elementName = ClothFaceCornerName(cloth, node);
                         unregisteredFreeNodes.Add(new FreeClothNode(node, elementName, anchor));
                         freeClothNodeNames[node] = elementName;
                     }
@@ -383,7 +389,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            if (jiggleNodes.Contains(node))
+            if (IsDeclaredByItsJiggleBone(cloth, node))
             {
                 continue;
             }
@@ -392,10 +398,7 @@ internal sealed partial class ClothExtract
             {
                 loneClothNodes.Add(new NodeRef(name, node));
             }
-            else if (!shapeParentBones.Contains(name)
-                && !((recoveredSkinnedBones.Contains(name)
-                        || (cloth.Fe.FitMatrixNodes.Count == 0 && proxySkinnedBones.Contains(name)))
-                    && node < cloth.SkelParents.Length && cloth.SkelParents[node] < 0)
+            else if (!shapeParentBones.Contains(name) && !IsSkinnedRoot(node, name)
                 && boneByName is not null && boneByName.TryGetValue(name, out var bone) && bone.IsClothControlNode)
             {
                 leftoverStaticNodes.Add(new NodeRef(name, node));

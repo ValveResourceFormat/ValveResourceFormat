@@ -7,8 +7,12 @@ namespace ValveResourceFormat.IO
     internal sealed partial class ClothReconstruction
     {
         /// <summary>
-        /// Marks the joints a second <c>ClothChain</c> re-declares, and the bone that chain is rooted at.
+        /// Gets the bones a chain declares only to spring its siblings together, as the last chain build found them. Such a
+        /// bone anchors no chain of its own, so a cloth node parented to it still needs its own static declaration.
         /// </summary>
+        internal IReadOnlySet<string> SiblingSpringHubs { get; private set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Marks the joints a second <c>ClothChain</c> re-declares, and the bone that chain is rooted at.</summary>
         /// <param name="chains">The reconstructed chains, edited in place.</param>
         private void MarkSecondDeclarations(List<BoneChain> chains)
         {
@@ -26,8 +30,7 @@ namespace ValveResourceFormat.IO
                     byNode[joint.Node] = joint;
                     if (joint.ParentNode >= 0)
                     {
-                        var siblings = GetOrAdd(children, joint.ParentNode);
-                        siblings.Add(joint);
+                        GetOrAdd(children, joint.ParentNode).Add(joint);
                     }
                 }
 
@@ -171,12 +174,6 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the bones a chain declares only to spring its siblings together, as the last chain build found them. Such a
-        /// bone anchors no chain of its own, so a cloth node parented to it still needs its own static declaration.
-        /// </summary>
-        internal IReadOnlySet<string> SiblingSpringHubs { get; private set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>
         /// Gathers the chains of a ringless sibling group under the bone that parents them, marks the hub as springing its
         /// children together, and returns the hubs.
         /// </summary>
@@ -189,12 +186,7 @@ namespace ValveResourceFormat.IO
                 return siblingSpringHubs;
             }
 
-            var nodeOf = new Dictionary<string, int>(Fe.CtrlNames.Length, StringComparer.OrdinalIgnoreCase);
-            for (var i = 0; i < Fe.CtrlNames.Length; i++)
-            {
-                nodeOf.TryAdd(Fe.CtrlNames[i], i);
-            }
-
+            var nodeOf = NodeByNameIgnoreCase;
             var groups = new Dictionary<string, List<BoneChain>>(StringComparer.OrdinalIgnoreCase);
             foreach (var chain in chains)
             {
@@ -216,8 +208,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var members = GetOrAdd(groups, hub);
-                members.Add(chain);
+                GetOrAdd(groups, hub).Add(chain);
             }
 
             foreach (var (hub, members) in groups)

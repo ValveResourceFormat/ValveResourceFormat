@@ -1,8 +1,8 @@
 using System.Buffers;
 using System.Linq;
-using System.Runtime.InteropServices;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 
@@ -13,20 +13,18 @@ namespace ValveResourceFormat.IO;
 /// </summary>
 internal sealed class ClothRenderBinding
 {
-    /// <summary>The compiler's <c>m_flClothEnableThreshold</c>.</summary>
+    /// <summary>The <c>cloth_enable</c> paint from which the compiler binds a render vertex to the proxy.</summary>
     private const float ClothEnableThreshold = 0.05f;
 
     /// <summary>The paint of a grown vertex, the smallest share the render mesh's binding gate allows.</summary>
     private const float ClothEnableGrowthPaint = 0.006f;
 
-    private readonly bool[] proxyBones;
     private readonly string[]? boneNames;
     private readonly ClothProxySurface? surface;
     private readonly Dictionary<(int, int), List<int>> triangles = [];
 
-    private ClothRenderBinding(bool[] proxyBones, int[] compaction, string[]? boneNames, ClothProxySurface? surface)
+    private ClothRenderBinding(int[] compaction, string[]? boneNames, ClothProxySurface? surface)
     {
-        this.proxyBones = proxyBones;
         Compaction = compaction;
         this.boneNames = boneNames;
         this.surface = surface;
@@ -38,42 +36,38 @@ internal sealed class ClothRenderBinding
     /// <summary>Gets whether painted vertices are bound to a proxy surface, which needs their positions.</summary>
     internal bool BindsPositions => surface is not null;
 
+    private bool IsProxyBone(int bone) => bone >= 0 && bone < Compaction.Length && Compaction[bone] < 0;
+
     /// <summary>
     /// The binding of a mesh skinned to <paramref name="skeleton"/>, its painted vertices bound to
     /// <paramref name="surface"/>, or null where no bone of the skeleton was generated from a cloth proxy.
     /// </summary>
     internal static ClothRenderBinding? Create(Skeleton? skeleton, ClothProxySurface? surface)
     {
-        if (skeleton == null)
+        if (skeleton is null)
         {
             return null;
         }
 
-        var mask = new bool[skeleton.Bones.Length];
-        var any = false;
-
-        foreach (var bone in skeleton.Bones)
-        {
-            if (ClothBones.IsGeneratedProxyBone(bone))
-            {
-                mask[bone.Index] = true;
-                any = true;
-            }
-        }
-
-        if (!any)
+        if (!Array.Exists(skeleton.Bones, ClothBones.IsGeneratedProxyBone))
         {
             return null;
         }
 
-        var boneNames = surface != null ? skeleton.Bones.Select(static bone => bone.Name).ToArray() : null;
-        return new ClothRenderBinding(mask, ClothBones.Compaction(skeleton), boneNames, surface);
+        var boneNames = surface is not null ? skeleton.Bones.Select(static bone => bone.Name).ToArray() : null;
+        return new ClothRenderBinding(ClothBones.Compaction(skeleton), boneNames, surface);
     }
 
     /// <summary>Records a draw call's triangles on the vertex data element <paramref name="vertexBuffer"/>.</summary>
     internal void AddTriangles((int, int) vertexBuffer, int baseVertex, ReadOnlySpan<int> indices)
     {
-        var list = CollectionsMarshal.GetValueRefOrAddDefault(triangles, vertexBuffer, out _) ??= [];
+        // Only growing paint over a proxy surface reads the triangles
+        if (surface is null)
+        {
+            return;
+        }
+
+        var list = ClothReconstruction.GetOrAdd(triangles, vertexBuffer);
 
         foreach (var index in indices)
         {
@@ -100,7 +94,7 @@ internal sealed class ClothRenderBinding
     /// </summary>
     private void DropProxyInfluences(int boneWeightCount, int[]? blendIndices, float[]? blendWeights)
     {
-        if (blendIndices == null || blendWeights == null || boneWeightCount <= 0)
+        if (blendIndices is null || blendWeights is null || boneWeightCount <= 0)
         {
             return;
         }
@@ -146,7 +140,7 @@ internal sealed class ClothRenderBinding
     private void AddClothEnablePaint(DmeVertexData vertexData, int[] indices, int boneWeightCount, List<int>? elementTriangles,
         int[]? blendIndices, float[]? blendWeights, Vector3[]? positions)
     {
-        if (blendIndices == null || blendWeights == null || boneWeightCount <= 0
+        if (blendIndices is null || blendWeights is null || boneWeightCount <= 0
             || vertexData.VertexFormat.Contains("cloth_enable$0"))
         {
             return;
@@ -163,13 +157,13 @@ internal sealed class ClothRenderBinding
             {
                 var bone = blendIndices[slot];
 
-                if (bone >= 0 && bone < proxyBones.Length && proxyBones[bone] && slot < blendWeights.Length)
+                if (IsProxyBone(bone) && slot < blendWeights.Length)
                 {
                     total += blendWeights[slot];
                 }
             }
 
-            paint[vertex] = Math.Clamp(total, 0f, 1f);
+            paint[vertex] = MathUtils.Saturate(total);
         }
 
         if (!Array.Exists(paint, value => value > 0f))
@@ -177,7 +171,7 @@ internal sealed class ClothRenderBinding
             return;
         }
 
-        if (surface != null && positions != null && boneNames != null)
+        if (surface is not null && positions is not null && boneNames is not null)
         {
             var unbound = new HashSet<string>(surface.BoneOwningNodes, StringComparer.OrdinalIgnoreCase);
             var boundNodes = new List<string>();
@@ -197,7 +191,7 @@ internal sealed class ClothRenderBinding
                 {
                     var bone = blendIndices[slot];
 
-                    if (bone >= 0 && bone < proxyBones.Length && proxyBones[bone]
+                    if (IsProxyBone(bone)
                         && slot < blendWeights.Length && blendWeights[slot] > 0f
                         && boundNodes.Contains(boneNames[bone], StringComparer.OrdinalIgnoreCase))
                     {
@@ -213,15 +207,15 @@ internal sealed class ClothRenderBinding
     }
 
     /// <summary>
-    /// Grows the paint ring by ring across the mesh's triangles toward the <paramref name="unbound"/> bone-owning proxy
-    /// nodes, the ones no painted vertex holds weight on, painting a reached vertex only when it binds one of them. A
-    /// vertex that may bind a node the skeleton has no bone for is neither painted nor grown through. Each ring visits the
-    /// corners of the triangles the previous ring's newly reached vertices touch, in triangle order.
+    /// Grows the paint ring by ring across the mesh's triangles, in triangle order, until every one of the
+    /// <paramref name="unbound"/> bone-owning proxy nodes is bound or nothing new is reached. A reached vertex is painted
+    /// only when it binds one of them, and a vertex that may bind a node the skeleton has no bone for is neither painted
+    /// nor grown through.
     /// </summary>
     private static void GrowClothEnablePaint(float[] paint, int vertexCount, List<int>? elementTriangles, Vector3[] positions,
         ClothProxySurface surface, HashSet<string> unbound)
     {
-        if (elementTriangles == null)
+        if (elementTriangles is null)
         {
             return;
         }
@@ -319,9 +313,9 @@ internal sealed class ClothRenderBinding
 }
 
 /// <summary>
-/// The faces of a model's cloth proxies, projected onto the way the compiler binds a painted render vertex: the nearest
-/// face binds all its corners from its interior, and the two ends of its nearest edge from outside it. The compiler
-/// gives every rotation-free generated node a binding reaches a <c>$cloth</c> bone.
+/// The faces of a model's cloth proxies, for predicting how the compiler binds a painted render vertex: the nearest face
+/// binds all its corners from its interior, or the two ends of its nearest edge from outside it. Every rotation-free
+/// generated node a binding reaches is given a <c>$cloth</c> bone.
 /// </summary>
 internal sealed class ClothProxySurface
 {
@@ -341,9 +335,8 @@ internal sealed class ClothProxySurface
     private const float CertainWeight = 0.001f;
 
     /// <summary>
-    /// The relative slack the culling lower bound is lowered by, far above the float32 error of the distances it is
-    /// compared with, so a face is skipped only when its projection cannot reach the nearest distance plus
-    /// <see cref="TieTolerance"/>.
+    /// Relative slack on the culling lower bound, well above float error, so a face is skipped only when its projection
+    /// cannot come within <see cref="TieTolerance"/> of the nearest.
     /// </summary>
     private const float CullSlack = 1e-3f;
 
@@ -505,7 +498,7 @@ internal sealed class ClothProxySurface
             {
                 for (var i = 0; i < 3; i++)
                 {
-                    weights[(i + 2) % 3] = Math.Clamp(side[i] / geometry.Opposing[i], 0f, 1f);
+                    weights[(i + 2) % 3] = MathUtils.Saturate(side[i] / geometry.Opposing[i]);
                 }
             }
 
@@ -562,7 +555,7 @@ internal sealed class ClothProxySurface
             var count = corners.Length;
             var normal = count == 4
                 ? Vector3.Cross(corners[2] - corners[0], corners[3] - corners[1])
-                : Vector3.Cross(corners[1] - corners[0], corners[2] - corners[0]);
+                : MathUtils.TriangleCross(corners[0], corners[1], corners[2]);
 
             IsDegenerate = normal.LengthSquared() < 1e-10f;
             normal = Vector3.Normalize(normal);

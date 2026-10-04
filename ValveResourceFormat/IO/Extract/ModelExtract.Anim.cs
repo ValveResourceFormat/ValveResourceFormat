@@ -65,7 +65,7 @@ partial class ModelExtract
 
         foreach (var anim in model.GetEmbeddedAnimations())
         {
-            AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
+            animationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
         }
 
         EnqueueAnimationGroups(model);
@@ -83,9 +83,9 @@ partial class ModelExtract
             return;
         }
 
-        var names = new HashSet<string>(AnimationsToExtract.Count, StringComparer.OrdinalIgnoreCase);
+        var names = new HashSet<string>(animationsToExtract.Count, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (anim, _) in AnimationsToExtract)
+        foreach (var (anim, _) in animationsToExtract)
         {
             names.Add(anim.Name);
         }
@@ -111,7 +111,7 @@ partial class ModelExtract
             }
 
             animationGroupAnimations.Add(anim);
-            AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
+            animationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
         }
     }
 
@@ -158,12 +158,7 @@ partial class ModelExtract
         var candidate = baseName + ".dmx";
         var suffix = 0;
 
-        bool Taken(string name)
-            => RenderMeshesToExtract.Exists(mesh => string.Equals(mesh.FileName, name, StringComparison.OrdinalIgnoreCase))
-            || Cloth.ProxyMeshes.Exists(proxy => string.Equals(proxy.FileName, name, StringComparison.OrdinalIgnoreCase))
-            || AnimationsToExtract.Exists(entry => string.Equals(entry.FileName, name, StringComparison.OrdinalIgnoreCase));
-
-        while (Taken(candidate))
+        while (IsDmxFileNameTaken(candidate, includePhysics: false, includeAnimations: true))
         {
             candidate = FormattableString.Invariant($"{baseName}_anim{(suffix > 0 ? suffix : string.Empty)}.dmx");
             suffix++;
@@ -200,8 +195,8 @@ partial class ModelExtract
         => ToDmxAnim(skeleton, flexControllers, anim, secondaryAnimations, nmSkelAxisFixup, keepClothProxyBones: true);
 
     /// <summary>
-    /// Converts an animation to DMX format, writing the bones the compiler generated from a cloth proxy as ordinary joints
-    /// when <c>keepClothProxyBones</c> is set.
+    /// Converts an animation to DMX format. Generated cloth proxy bones are written as ordinary joints only when
+    /// <paramref name="keepClothProxyBones"/> is set.
     /// </summary>
     internal static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim,
         IReadOnlyList<(Skeleton Skeleton, Animation Animation)> secondaryAnimations, bool nmSkelAxisFixup, bool keepClothProxyBones)

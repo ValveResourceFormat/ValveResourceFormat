@@ -7,6 +7,21 @@ namespace ValveResourceFormat.IO
 {
     internal sealed partial class ClothReconstruction
     {
+        private const float TwistRelaxToParentFactor = 0.618f;
+        private const float TwistRelaxToChildFactor = 0.382f;
+
+        /// <summary>The prefix of a ring node the compiler generates around a chain joint.</summary>
+        private const string RingNodePrefix = "$cc";
+
+        private readonly HashSet<int> relaxlessTwistNodes = [];
+        private readonly HashSet<int> relaxlessTwistOrients = [];
+        private readonly Dictionary<int, float> twistOrientFallback = [];
+
+        private Dictionary<string, int>? strayChainProxies;
+        private bool? isImportedCloth;
+        private HashSet<int>? importedStripNodes;
+        private HashSet<int>? ropeNodes;
+
         /// <summary>
         /// Gets the <c>transform_alignment</c> and <c>node_base</c> references that compile to the node's
         /// <c>m_NodeBases</c> entry, or null when it has none. Alignment 3 returns X0 and Y0 as -1.
@@ -26,21 +41,11 @@ namespace ValveResourceFormat.IO
             return (4, basis);
         }
 
-        private const float TwistRelaxToParentFactor = 0.618f;
-
-        private const float TwistRelaxToChildFactor = 0.382f;
-
-        /// <summary>
-        /// Gets whether a twist link naming <paramref name="node"/> carries a zero <c>flTwistRelax</c> in both directions.
-        /// </summary>
+        /// <summary>Gets whether a twist link naming <paramref name="node"/> has a zero <c>flTwistRelax</c> both ways.</summary>
         internal bool HasRelaxlessTwistLink(int node) => relaxlessTwistNodes.Contains(node);
 
         /// <summary>Gets whether <paramref name="node"/> orients a twist entry with a zero <c>flTwistRelax</c>.</summary>
         internal bool OrientsRelaxlessTwist(int node) => relaxlessTwistOrients.Contains(node);
-
-        private readonly HashSet<int> relaxlessTwistNodes = [];
-
-        private readonly HashSet<int> relaxlessTwistOrients = [];
 
         /// <summary>
         /// Recovers the joint's authored <c>twist_relax</c> from its entry toward its ring node
@@ -64,8 +69,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// The <c>twist_relax</c> the declaration at <paramref name="rank"/> stated toward the joint's
-        /// own parent, or null where the pair carries no entry at that rank.
+        /// The <c>twist_relax</c> declared toward the joint's parent by the declaration at <paramref name="rank"/>,
+        /// or null where the pair has no entry at that rank.
         /// </summary>
         internal float? TwistRelaxDeclaredAt(int node, int parent, int rank)
             => parent >= 0 && TwistRelaxCopies.TryGetValue((node, parent), out var copies)
@@ -73,62 +78,48 @@ namespace ValveResourceFormat.IO
                 ? copies[rank] / TwistRelaxToParentFactor
                 : null;
 
-        private readonly Dictionary<int, float> twistOrientFallback = [];
-
         /// <summary>
-        /// Gets whether every simulated node collides with the world, which is how the source's
-        /// force-world-collision-on-all-nodes switch shows up (the switch itself leaves no flag bit).
+        /// Gets whether every simulated node collides with the world. The authored switch that forces this leaves no flag bit.
         /// </summary>
         internal bool ForcesWorldCollisionOnAllNodes
             => Fe.NodeCount > Fe.StaticNodeCount && Fe.WorldCollisionNodes.Count == Fe.NodeCount - Fe.StaticNodeCount;
 
         /// <summary>
-        /// Gets the ground friction shared by the world-colliding nodes, which is what the source authored
-        /// as the cloth's default. Zero when the model has no world collision params.
+        /// Gets the most common ground friction of the world-colliding nodes, which is the cloth's authored default,
+        /// or zero when there are none.
         /// </summary>
         internal float DefaultGroundFriction => Fe.WorldCollisionFriction.Count > 0
             ? Fe.WorldCollisionFriction.Values.GroupBy(static f => f.Ground).OrderByDescending(static g => g.Count()).First().Key
             : 0f;
 
         /// <summary>
-        /// Gets the scale every compiled <c>flRelaxationFactor</c> of <c>m_AnimStrayRadii</c> carries:
-        /// <c>exp(-m_flDefaultThreadStretch)</c>, and 1 for a model that authors no thread stretch.
+        /// Gets the scale baked into every compiled <c>m_AnimStrayRadii</c> relaxation factor:
+        /// <c>exp(-m_flDefaultThreadStretch)</c>, or 1 without thread stretch.
         /// </summary>
         private float StrayRelaxationScale => Fe.DefaultThreadStretch <= 0f ? 1f : MathF.Exp(-Fe.DefaultThreadStretch);
 
-        /// <summary>
-        /// Gets the authored relaxation factor of <paramref name="node"/>'s stray radius, or 1 for a node with none.
-        /// </summary>
+        /// <summary>Gets the authored relaxation factor of <paramref name="node"/>'s stray radius, or 1 without one.</summary>
         internal float GetStrayRelaxationFactor(int node)
             => Fe.AnimStrayRadii.TryGetValue(node, out var stray)
                 ? MathUtils.Saturate(stray.RelaxationFactor / StrayRelaxationScale)
                 : 1f;
 
-        /// <summary>Gets the authored stray-radius stretchiness of <paramref name="node"/>, 0 for a node with none.</summary>
+        /// <summary>Gets the authored stray-radius stretchiness of <paramref name="node"/>, or 0 without a stray radius.</summary>
         internal float GetStrayStretchiness(int node)
             => Fe.AnimStrayRadii.ContainsKey(node) ? 1f - GetStrayRelaxationFactor(node) : 0f;
 
         /// <summary>
         /// Gets the node a chain joint's stray radius is recorded on: the joint node itself, else the first of its
-        /// extruded proxies that carries one.
+        /// extruded proxies that has one.
         /// </summary>
         internal int StrayRadiusNode(int node, string jointName)
-        {
-            if (Fe.AnimStrayRadii.ContainsKey(node))
-            {
-                return node;
-            }
-
-            return StrayChainProxies.GetValueOrDefault(jointName, node);
-        }
+            => Fe.AnimStrayRadii.ContainsKey(node) ? node : StrayChainProxies.GetValueOrDefault(jointName, node);
 
         /// <summary>
-        /// Gets the first node with a stray radius named <c>$cc&lt;joint&gt;_Ctr</c> or <c>$cc&lt;joint&gt;_&lt;index&gt;</c>, keyed by
-        /// the joint's name.
+        /// Gets the first node with a stray radius named <c>$cc&lt;joint&gt;_Ctr</c> or <c>$cc&lt;joint&gt;_&lt;index&gt;</c>,
+        /// keyed by joint name.
         /// </summary>
         private Dictionary<string, int> StrayChainProxies => strayChainProxies ??= BuildStrayChainProxies();
-
-        private Dictionary<string, int>? strayChainProxies;
 
         private Dictionary<string, int> BuildStrayChainProxies()
         {
@@ -143,7 +134,8 @@ namespace ValveResourceFormat.IO
 
                 var split = name.LastIndexOf('_');
                 var suffix = name.AsSpan(split + 1);
-                if (split < RingNodePrefix.Length || suffix.IsEmpty || (!suffix.SequenceEqual("Ctr") && !IsAsciiDigits(suffix)))
+                if (split < RingNodePrefix.Length || suffix.IsEmpty
+                    || (!suffix.SequenceEqual("Ctr") && suffix.ContainsAnyExceptInRange('0', '9')))
                 {
                     continue;
                 }
@@ -152,24 +144,11 @@ namespace ValveResourceFormat.IO
             }
 
             return proxies;
-
-            static bool IsAsciiDigits(ReadOnlySpan<char> text)
-            {
-                foreach (var c in text)
-                {
-                    if (!char.IsAsciiDigit(c))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
-            }
         }
 
         /// <summary>
-        /// Gets whether the cloth was authored as ModelDoc's <c>ImportedCloth</c> node: it carries a field only an imported
-        /// node row writes and none of the ring, sheet or fit data other constructs produce.
+        /// Gets whether the cloth was authored as a ModelDoc <c>ImportedCloth</c> node: it has a field only an imported
+        /// node writes and none of the ring, sheet or fit data other constructs produce.
         /// </summary>
         internal bool IsImportedCloth
             => isImportedCloth ??= (Fe.CtrlOsOffsets.Length > 0 || HasImportedNodeFields)
@@ -179,15 +158,11 @@ namespace ValveResourceFormat.IO
                 && Fe.CtrlNames.Length > 0
                 && !Array.Exists(Fe.CtrlNames, IsCompilerGeneratedNodeName);
 
-        private bool? isImportedCloth;
-
         /// <summary>
-        /// Gets both columns of every <c>m_CtrlOsOffsets</c> pair on a model without a surface that is not
+        /// Gets the nodes of every authored <c>m_CtrlOsOffsets</c> pair on a surfaceless model that is not
         /// <see cref="IsImportedCloth"/> as a whole.
         /// </summary>
         internal IReadOnlySet<int> ImportedStripNodes => importedStripNodes ??= BuildImportedStripNodes();
-
-        private HashSet<int>? importedStripNodes;
 
         private HashSet<int> BuildImportedStripNodes()
         {
@@ -221,24 +196,19 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        /// <summary>The prefix of a ring node the compiler generates around a chain joint.</summary>
-        private const string RingNodePrefix = "$cc";
-
         private static bool IsCompilerGeneratedNodeName(string? name)
             => string.IsNullOrEmpty(name)
                 || name.StartsWith(RingNodePrefix, StringComparison.Ordinal)
                 || name.StartsWith(ProxyNamePrefix, StringComparison.Ordinal)
                 || name.StartsWith(FreeClothNodePrefix, StringComparison.Ordinal)
                 || name.StartsWith(ClothRootNodeName, StringComparison.Ordinal)
-                || name.StartsWith("$ha_", StringComparison.Ordinal);
+                || name.StartsWith(HingeAnchorPrefix, StringComparison.Ordinal);
 
         /// <summary>
-        /// Gets whether a node lies on an <c>m_Ropes</c> run of two or more nodes. The rope pass never starts or keeps a
-        /// run on a node whose class byte is 1, which is what a <c>ClothNode</c> at the default alignment compiles to.
+        /// Gets whether a node lies on an <c>m_Ropes</c> run of two or more nodes. Runs never include a node of class 1,
+        /// which is what a <c>ClothNode</c> at the default alignment compiles to.
         /// </summary>
         internal bool IsRopeNode(int node)
             => (ropeNodes ??= [.. RopeRuns.Where(static run => run.Length >= 2).SelectMany(static run => run)]).Contains(node);
-
-        private HashSet<int>? ropeNodes;
     }
 }

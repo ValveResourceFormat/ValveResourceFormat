@@ -1,5 +1,4 @@
 using System.Linq;
-using System.Runtime.CompilerServices;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -8,18 +7,35 @@ using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
 namespace ValveResourceFormat.IO
 {
-    /// <summary>
-    /// The hinge constraint a chain joint was authored with. <see cref="Vector"/> spans the joint to
-    /// one side of its proxy ring, so its length is the ring's half-width and overrides the joint's
-    /// own extrude radius; the limits are in degrees.
-    /// </summary>
-    /// <param name="Vector">World-space hinge axis, its length the ring half-width.</param>
-    /// <param name="LimitCw">Clockwise angular limit.</param>
-    /// <param name="LimitCcw">Counter-clockwise angular limit.</param>
+    /// <summary>The hinge constraint a chain joint was authored with.</summary>
+    /// <param name="Vector">
+    /// World-space hinge axis from the joint to one side of its proxy ring. Its length is the ring's half-width, which
+    /// overrides the joint's own extrude radius.
+    /// </param>
+    /// <param name="LimitCw">Clockwise angular limit in degrees.</param>
+    /// <param name="LimitCcw">Counter-clockwise angular limit in degrees.</param>
     internal readonly record struct ChainHinge(Vector3 Vector, float LimitCw, float LimitCcw);
 
     internal sealed partial class ClothReconstruction
     {
+        internal const float SaturatedCurvature = 1f;
+
+        private const float FullMotionBiasEpsilon = 1e-6f;
+        private const float KelagerHeightFloor = 0.001f;
+        private const string HingeAnchorPrefix = "$ha_";
+
+        private bool? hasChainRingBends;
+        private float? rigidHingeCurvature;
+        private Solved<Dictionary<int, float>?>? rigidHingeBendPaint;
+        private HashSet<string>? ctrlNameSet;
+
+        /// <summary>Each <c>m_HingeLimits</c> record by its first two nodes, the first record where several share them.</summary>
+        private Dictionary<(int, int), KVObject>? hingeLimits;
+
+        private Dictionary<int, bool>? hingeRegeneratingParents;
+        private Dictionary<int, Vector3>? rigidHingeJoints;
+        private Dictionary<int, Vector3>? hingeFanJoints;
+
         /// <summary>
         /// Gets whether <paramref name="bend"/> is a ring bend laid over a chain: its hub's joint lies between the joints
         /// owning its first and second ends.
@@ -39,8 +55,6 @@ namespace ValveResourceFormat.IO
         /// </summary>
         internal bool HasChainRingBends => hasChainRingBends ??= Fe.KelagerBends.Any(IsChainRingBend);
 
-        private bool? hasChainRingBends;
-
         private int BendOwner(int node)
             => node < 0 || node >= Fe.CtrlNames.Length ? -1
                 : !IsProxyNodeName(Fe.CtrlNames[node]) ? node
@@ -51,7 +65,7 @@ namespace ValveResourceFormat.IO
         /// joint at <paramref name="jointNode"/> from the bend whose first end is the joint or one of its proxies, or null
         /// when it has none.
         /// </summary>
-        /// <param name="jointNode">The node of the joint whose stiff hinge to recover.</param>
+        /// <param name="jointNode">The joint's node.</param>
         /// <param name="rank">Which of the joint's bends to read, in declaration order.</param>
         internal (float Stiffness, float Angle, float MotionBias)? GetStiffHinge(int jointNode, int rank = 0)
         {
@@ -93,10 +107,6 @@ namespace ValveResourceFormat.IO
             return null;
         }
 
-        private const float FullMotionBiasEpsilon = 1e-6f;
-
-        private const float KelagerHeightFloor = 0.001f;
-
         private float BendAngle(KelagerBend bend)
         {
             if (bend.MidNode >= Fe.InitPosePositions.Length || bend.End0 >= Fe.InitPosePositions.Length
@@ -105,11 +115,7 @@ namespace ValveResourceFormat.IO
                 return 0f;
             }
 
-            var toEnd0 = Fe.InitPosePositions[bend.MidNode] - Fe.InitPosePositions[bend.End0];
-            var toEnd1 = Fe.InitPosePositions[bend.MidNode] - Fe.InitPosePositions[bend.End1];
-            var restHeight = (toEnd0 + toEnd1).Length() / 3f;
-            var l0 = toEnd0.Length();
-            var l1 = toEnd1.Length();
+            var (l0, l1, restHeight) = BendArms(bend);
             if (bend.Height <= MathF.Max(restHeight * 1.0001f, KelagerHeightFloor) || l0 <= 0f || l1 <= 0f)
             {
                 return 0f;
@@ -124,8 +130,6 @@ namespace ValveResourceFormat.IO
         /// sheet-hub <see cref="FeModel.KelagerBends"/>; <see cref="SaturatedCurvature"/> when they do not agree.
         /// </summary>
         internal float RigidHingeCurvature => rigidHingeCurvature ??= ReadRigidHingeCurvature();
-
-        private float? rigidHingeCurvature;
 
         private float ReadRigidHingeCurvature()
         {
@@ -143,14 +147,11 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var reading = fold.Reading;
-                lowest = MathF.Min(lowest, reading);
-                highest = MathF.Max(highest, reading);
+                lowest = MathF.Min(lowest, fold.Reading);
+                highest = MathF.Max(highest, fold.Reading);
             }
 
-            if (lowest is float.MaxValue
-                || highest - lowest > ChainRingCurvatureAgreement * MathF.Max(highest, ChainRingCurvatureAgreement)
-                || highest >= 1f - ChainRingCurvatureAgreement)
+            if (lowest is float.MaxValue || HubFoldsDisagree(lowest, highest) || highest >= 1f - ChainRingCurvatureAgreement)
             {
                 return SaturatedCurvature;
             }
@@ -158,15 +159,11 @@ namespace ValveResourceFormat.IO
             return MathUtils.Saturate(highest);
         }
 
-        internal const float SaturatedCurvature = 1f;
-
         /// <summary>
         /// Gets the per-hub <c>cloth_bend_stiffness</c> of a rigid-hinged model whose hubs fold by different angles, or
         /// null when <see cref="RigidHingeCurvature"/> accounts for every hub.
         /// </summary>
         internal Dictionary<int, float>? RigidHingeBendPaint => (rigidHingeBendPaint ??= new(ReadRigidHingeBendPaint())).Value;
-
-        private StrongBox<Dictionary<int, float>?>? rigidHingeBendPaint;
 
         private Dictionary<int, float>? ReadRigidHingeBendPaint()
         {
@@ -191,15 +188,14 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var reading = fold.Reading;
-                lowest[bend.MidNode] = MathF.Min(lowest.GetValueOrDefault(bend.MidNode, float.MaxValue), reading);
-                highest[bend.MidNode] = MathF.Max(highest.GetValueOrDefault(bend.MidNode), reading);
+                lowest[bend.MidNode] = MathF.Min(lowest.GetValueOrDefault(bend.MidNode, float.MaxValue), fold.Reading);
+                highest[bend.MidNode] = MathF.Max(highest.GetValueOrDefault(bend.MidNode), fold.Reading);
             }
 
             var paint = new Dictionary<int, float>();
             foreach (var (hub, high) in highest)
             {
-                if (high - lowest[hub] > ChainRingCurvatureAgreement * MathF.Max(high, ChainRingCurvatureAgreement))
+                if (HubFoldsDisagree(lowest[hub], high))
                 {
                     return null;
                 }
@@ -229,16 +225,13 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
-            var toEnd0 = Fe.InitPosePositions[bend.End0] - Fe.InitPosePositions[bend.MidNode];
-            var toEnd1 = Fe.InitPosePositions[bend.End1] - Fe.InitPosePositions[bend.MidNode];
-            var l0 = toEnd0.Length();
-            var l1 = toEnd1.Length();
+            var (l0, l1, restHeight) = BendArms(bend);
             if (l0 <= 0f || l1 <= 0f)
             {
                 return null;
             }
 
-            if (bend.Height <= (toEnd0 + toEnd1).Length() / 3f * 1.0001f)
+            if (bend.Height <= restHeight * 1.0001f)
             {
                 return (true, 0f);
             }
@@ -248,26 +241,32 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
+        /// Gets the rest lengths of a bend's two arms from its mid node, and the rest height its height is measured
+        /// against. The bend's nodes must index <see cref="FeModel.InitPosePositions"/>.
+        /// </summary>
+        private (float L0, float L1, float RestHeight) BendArms(KelagerBend bend)
+        {
+            var toEnd0 = Fe.InitPosePositions[bend.End0] - Fe.InitPosePositions[bend.MidNode];
+            var toEnd1 = Fe.InitPosePositions[bend.End1] - Fe.InitPosePositions[bend.MidNode];
+            return (toEnd0.Length(), toEnd1.Length(), (toEnd0 + toEnd1).Length() / 3f);
+        }
+
+        /// <summary>Gets whether the lowest and highest hub fold readings are too far apart to be one authored curvature.</summary>
+        private static bool HubFoldsDisagree(float lowest, float highest)
+            => highest - lowest > ChainRingCurvatureAgreement * MathF.Max(highest, ChainRingCurvatureAgreement);
+
+        /// <summary>
         /// Recovers the per-vertex <c>cloth_bend_stiffness</c> paint of a rigid-hinged proxy sheet, or null when the
         /// sheet's hubs state none. See <see cref="RigidHingeBendPaint"/>.
         /// </summary>
         internal float[]? RecoverRigidHingeBendPaint(ProxyMesh proxy)
-        {
-            if (RigidHingeBendPaint is not { } byNode)
-            {
-                return null;
-            }
-
-            return PaintPerVertex(proxy, byNode.GetValueOrDefault, static value => value > 0f);
-        }
-
-        private const string HingeAnchorPrefix = "$ha_";
+            => RigidHingeBendPaint is { } byNode
+                ? PaintPerVertex(proxy, byNode.GetValueOrDefault, static value => value > 0f)
+                : null;
 
         /// <summary>Gets whether the compiler created a hinge anchor node for the bone <paramref name="boneName"/>.</summary>
         private bool HasHingeAnchor(string boneName)
             => (ctrlNameSet ??= [.. Fe.CtrlNames]).Contains(HingeAnchorPrefix + boneName);
-
-        private HashSet<string>? ctrlNameSet;
 
         /// <summary>Gets the hinge authored on the joint, or null when it carries none.</summary>
         internal ChainHinge? GetChainHinge(string boneName, int jointNode)
@@ -314,9 +313,6 @@ namespace ValveResourceFormat.IO
             return hingeLimits.GetValueOrDefault((ring[0], ring[1]));
         }
 
-        /// <summary>Gets each <c>m_HingeLimits</c> record by its first two nodes, the first record where several share them.</summary>
-        private Dictionary<(int, int), KVObject>? hingeLimits;
-
         private (float Cw, float Ccw) HingeLimitsOf(KVObject hinge)
         {
             var extents = hinge.GetFloatProperty("flAngleExtents");
@@ -354,7 +350,7 @@ namespace ValveResourceFormat.IO
             Vector3 Perpendicular(Vector3 point)
             {
                 var arm = point - origin;
-                return Vector3.Normalize(arm - (Vector3.Dot(arm, axis) * axis));
+                return Vector3.Normalize(MathUtils.ProjectOntoPlane(arm, axis));
             }
 
             var reference = Perpendicular(Blend((int)nodes[2], (int)nodes[4], hinge.GetFloatProperty("flWeight4")));
@@ -500,14 +496,12 @@ namespace ValveResourceFormat.IO
             hingeRegeneratingParents ??= [];
             if (!hingeRegeneratingParents.TryGetValue(parent, out var regenerates))
             {
-                regenerates = HasHingeAnchor(Fe.CtrlNames[parent]) || IsHingedJoint(parent) || RigidHingeJoints.ContainsKey(parent);
+                regenerates = HasHingeAnchor(Fe.CtrlNames[parent]) || IsAnyHingedJoint(parent);
                 hingeRegeneratingParents[parent] = regenerates;
             }
 
             return regenerates;
         }
-
-        private Dictionary<int, bool>? hingeRegeneratingParents;
 
         /// <summary>
         /// Gets whether a surface element joins a hinged joint of <paramref name="chain"/> to one of its children.
@@ -554,10 +548,6 @@ namespace ValveResourceFormat.IO
 
             return false;
         }
-
-        private Dictionary<int, Vector3>? rigidHingeJoints;
-
-        private Dictionary<int, Vector3>? hingeFanJoints;
 
         /// <summary>
         /// Gets the chain joints a rigid <c>ClothChainHinge</c> constrains, with each <c>hinge_vector</c> in the joint's bone
@@ -655,8 +645,7 @@ namespace ValveResourceFormat.IO
                 foreach (var corner in face)
                 {
                     var joint = SkelParentOf(corner);
-                    if (joint < 0 || joints.ContainsKey(joint)
-                        || !IsRingNode(corner))
+                    if (joint < 0 || joints.ContainsKey(joint) || !IsRingNode(corner))
                     {
                         continue;
                     }

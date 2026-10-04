@@ -1,4 +1,3 @@
-using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using static ValveResourceFormat.IO.KVHelpers;
@@ -107,23 +106,26 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>The <c>JiggleBoneList</c> of <paramref name="cloth"/>, or null where it has no jiggle bones.</summary>
-    internal static KVObject? ExtractJiggleBones(ClothReconstruction? cloth)
+    internal static KVObject? ExtractJiggleBones(ClothReconstruction cloth)
     {
-        if (cloth is null || cloth.Fe.JiggleBones.Length == 0)
+        if (cloth.Fe.JiggleBones.Length == 0)
         {
             return null;
         }
 
         var children = KVObject.Array();
-        foreach (var node in cloth.Fe.JiggleBones.Select(jiggleBone => ProcessJiggleBone(jiggleBone, cloth.Fe.CtrlNames)).OfType<KVObject>())
+        foreach (var jiggleBone in cloth.Fe.JiggleBones)
         {
-            children.Add(node);
+            if (ProcessJiggleBone(jiggleBone, cloth.Fe.CtrlNames) is { } node)
+            {
+                children.Add(node);
+            }
         }
 
         return children.Count > 0 ? MakeNode("JiggleBoneList", ("children", children)) : null;
     }
 
-    /// <summary>Whether a control node is a jiggle bone's, which its <c>JiggleBone</c> declares on its own.</summary>
+    /// <summary>Whether a control node belongs to a jiggle bone, whose <c>JiggleBone</c> node already declares it.</summary>
     internal static bool IsDeclaredByItsJiggleBone(ClothReconstruction cloth, int node)
         => LookupsOf(cloth).JiggleNodes.Contains(node);
 }

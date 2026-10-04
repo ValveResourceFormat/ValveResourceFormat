@@ -1,16 +1,16 @@
 using System.Linq;
 using ValveKeyValue;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
+    private const float ImportedClothDefaultContraction = 0.05f;
+
     /// <summary>
-    /// The <c>ImportedCloth</c> node that carries a PhysAuthFx cloth's node and rod tables verbatim, every field written
-    /// on its row. With <paramref name="tableNodes"/> only those nodes are rows, and a parent, follow parent or rod
-    /// reaching outside them is dropped.
+    /// The <c>ImportedCloth</c> node carrying the node and rod tables verbatim. With <paramref name="tableNodes"/> only
+    /// those nodes become rows, and a parent, follow parent or rod reaching outside them is dropped.
     /// </summary>
     private static KVObject MakeImportedCloth(ClothReconstruction cloth, IReadOnlySet<int>? tableNodes = null)
     {
@@ -67,8 +67,7 @@ internal sealed partial class ClothExtract
                 row.Add("m_flMass", 1f / invMass);
             }
 
-            var isOsOffsetChild = osOffsetParents.TryGetValue(node, out var osOffsetParent);
-            if (isOsOffsetChild)
+            if (osOffsetParents.TryGetValue(node, out var osOffsetParent))
             {
                 row.Add("m_bVirtual", true);
                 row.Add("m_bOsOffset", true);
@@ -191,12 +190,10 @@ internal sealed partial class ClothExtract
             ("rod_attrs", KVObject.Collection()));
     }
 
-    private const float ImportedClothDefaultContraction = 0.05f;
-
     private static IEnumerable<string> ImportedStripBoneNames(ClothReconstruction cloth, IReadOnlySet<int> strip)
         => strip.Select(node => cloth.Fe.CtrlNames[node]).Where(name => !cloth.IsGeneratedNodeName(name));
 
-    private bool EmitImportedClothPhase(ClothReconstruction cloth, List<BoneChain> boneChains, KVObject rootChildren)
+    private void EmitImportedClothPhase(ClothReconstruction cloth, List<BoneChain> boneChains, KVObject rootChildren)
     {
         var (softbody, softbodyChildren) = MakeSoftbody(cloth);
         softbodyChildren.Add(MakeClothParams(cloth, forceExplicitMasses: true));
@@ -212,6 +209,5 @@ internal sealed partial class ClothExtract
         }
 
         AddClothPhaseTail(cloth, rootChildren, softbody, softbodyChildren, clothBones, boneChains);
-        return true;
     }
 }

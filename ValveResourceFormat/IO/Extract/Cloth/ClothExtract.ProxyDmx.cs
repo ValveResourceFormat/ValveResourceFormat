@@ -2,15 +2,17 @@ using System.IO;
 using System.Linq;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 
 namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
+    // Relative gap forced between two tied proxy blend weights, far below the 1/255 paint quantum
+    private const float TiedInfluenceSeparation = 1e-6f;
+
     /// <summary>
-    /// Separates tied blend weights on one proxy vertex by <see cref="TiedInfluenceSeparation"/>, keeping their order, so
-    /// the importer's weight sort picks the same primary anchor bone.
+    /// Nudges tied blend weights on one proxy vertex apart, keeping their order, so the importer's weight sort picks the
+    /// same primary anchor bone.
     /// </summary>
     private static SkinInfluence[] SeparateTiedInfluenceWeights(SkinInfluence[] influences)
     {
@@ -40,9 +42,6 @@ internal sealed partial class ClothExtract
 
         return separated;
     }
-
-    /// <summary>Relative gap forced between two tied proxy blend weights, far below the 1/255 paint quantum.</summary>
-    private const float TiedInfluenceSeparation = 1e-6f;
 
     /// <summary>
     /// The sheet's faces, with all-pinned filler triangles appended until every vertex slot has a face corner of its own:
@@ -166,8 +165,7 @@ internal sealed partial class ClothExtract
 
         var emittedFaces = PadSheetCornersToSlotCount(proxy, vertexCount);
         var cornerVertices = emittedFaces.SelectMany(static face => face).ToArray();
-        var identity = Enumerable.Range(0, vertexCount).ToArray();
-        var vertexIndices = cornerVertices.Length > 0 ? cornerVertices : identity;
+        var vertexIndices = cornerVertices.Length > 0 ? cornerVertices : [.. Enumerable.Range(0, vertexCount)];
 
         vertexData.AddIndexedStream("position$0", proxy.Positions, vertexIndices);
 
@@ -219,7 +217,7 @@ internal sealed partial class ClothExtract
         var cornerOrdinal = 0;
         foreach (var face in emittedFaces)
         {
-            foreach (var _ in face)
+            for (var i = 0; i < face.Length; i++)
             {
                 faceSet.Faces.Add(cornerOrdinal++);
             }
@@ -277,7 +275,7 @@ internal sealed partial class ClothExtract
         AddPaint("cloth_anchor_free_rotate$0", ClothAnchorFreeRotatePaint(cloth, proxy, flexedProxies.Contains(proxy)));
         AddPaint("cloth_mass$0", cloth.RecoverMassPaint(proxy));
 
-        var containerMaps = cloth.GetProxyVertexMapName(proxy, ProxyMeshes.ConvertAll(static entry => entry.Proxy)) is { } containerMap
+        var containerMaps = ProxyVertexMapName(cloth, proxy) is { } containerMap
             ? cloth.VertexMapAliases(containerMap)
             : [];
         var selectionWeights = new Dictionary<string, float[]>(proxy.VertexMaps.Length, StringComparer.Ordinal);
@@ -464,7 +462,6 @@ internal sealed partial class ClothExtract
         return stream.ToArray();
     }
 
-    /// <summary>An array of <paramref name="count"/> copies of <paramref name="value"/>.</summary>
     private static T[] Filled<T>(int count, T value)
     {
         var array = new T[count];

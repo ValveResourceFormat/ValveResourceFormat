@@ -18,7 +18,7 @@ internal sealed partial class ClothExtract
         return (mapNode, children);
     }
 
-    /// <summary>A volume-solved selection states its strength and scale source node on its container.</summary>
+    /// <summary>Adds the <c>volumetric_solve</c> strength and <c>scale_source_node</c> of a volume-solved selection.</summary>
     private static void AddClothVertexMapAttributes(KVObject mapNode, ClothReconstruction cloth, string mapName,
         IReadOnlyDictionary<int, string>? proxyNodeNames)
     {

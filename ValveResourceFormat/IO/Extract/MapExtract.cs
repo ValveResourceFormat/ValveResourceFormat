@@ -157,6 +157,7 @@ public sealed partial class MapExtract
 
     /// <summary>Gets or sets whether the models extracted with the map reconstruct their cloth (soft-body) physics.</summary>
     public bool ExtractCloth { get; set; } = true;
+
     /// <summary>Gets the physics vertex matcher used for physics mesh processing.</summary>
     public PhysicsTriangleMatcher? PhysTriangleMatcher { get; private set; }
 

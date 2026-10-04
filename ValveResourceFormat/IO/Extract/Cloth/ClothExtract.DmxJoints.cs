@@ -6,17 +6,20 @@ namespace ValveResourceFormat.IO;
 internal sealed partial class ClothExtract
 {
     /// <summary>
-    /// Renames the joints of a cloth DMX to the control-node spelling of their bone, which the compiler registers the
-    /// control node under.
+    /// Renames the joints of a cloth DMX to their control-node spelling, which the compiler registers the node under.
     /// </summary>
     private static void RespellJointsAsClothControlNodes(DmeModel dmeModel, ClothReconstruction cloth)
     {
         var nodeByName = LookupsOf(cloth).NodeByNameIgnoreCase;
-
         foreach (var element in dmeModel.JointList)
         {
-            if (element is DmeJoint joint
-                && nodeByName.TryGetValue(joint.Name, out var node) && cloth.Fe.CtrlNames[node] is var spelling && spelling != joint.Name)
+            if (element is not DmeJoint joint || !nodeByName.TryGetValue(joint.Name, out var node))
+            {
+                continue;
+            }
+
+            var spelling = cloth.Fe.CtrlNames[node];
+            if (spelling != joint.Name)
             {
                 joint.Name = spelling;
                 joint.Transform.Name = spelling;
@@ -25,8 +28,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Moves every joint of a cloth DMX whose compiled parent is another joint of the same DMX, but neither an ancestor nor
-    /// a descendant, under that parent, keeping its model-space transform.
+    /// Moves every joint of a cloth DMX under its compiled parent where that is another joint of the DMX in a separate
+    /// branch, keeping its model-space transform.
     /// </summary>
     internal static void NestProxyJointsUnderCompiledParents(DmeModel dmeModel, ClothReconstruction cloth)
     {
@@ -35,8 +38,9 @@ internal sealed partial class ClothExtract
             return;
         }
 
-        var nodeByName = LookupsOf(cloth).NodeByNameIgnoreCase;
+        static Datamodel.ElementArray ChildrenOf(object dag) => dag is DmeModel model ? model.Children : ((DmeDag)dag).Children;
 
+        var nodeByName = LookupsOf(cloth).NodeByNameIgnoreCase;
         var jointByName = JointsByName(dmeModel);
 
         var parentOf = new Dictionary<DmeJoint, object>();
@@ -45,8 +49,7 @@ internal sealed partial class ClothExtract
         while (pending.Count > 0)
         {
             var dag = pending.Pop();
-            var children = dag is DmeModel model ? model.Children : ((DmeDag)dag).Children;
-            foreach (var child in children)
+            foreach (var child in ChildrenOf(dag))
             {
                 if (child is DmeJoint childJoint && parentOf.TryAdd(childJoint, dag))
                 {
@@ -101,9 +104,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            var oldParent = parentOf[joint];
-            var siblings = oldParent is DmeModel model ? model.Children : ((DmeDag)oldParent).Children;
-            siblings.Remove(joint);
+            ChildrenOf(parentOf[joint]).Remove(joint);
 
             var (position, rotation) = world[joint];
             var (parentPosition, parentRotation) = world[parentJoint];
@@ -131,9 +132,7 @@ internal sealed partial class ClothExtract
             var joint = new DmeJoint { Name = culledName };
             joint.Transform.Name = culledName;
             joint.Transform.Position = cloth.Fe.InitPosePositions[node];
-            joint.Transform.Orientation = node < cloth.Fe.InitPoseRotations.Length
-                ? cloth.Fe.InitPoseRotations[node]
-                : Quaternion.Identity;
+            joint.Transform.Orientation = cloth.Fe.InitPoseRotations[node];
             boneIndexByName[culledName] = dmeModel.JointList.Count;
             dmeModel.JointList.Add(joint);
             appended.Add((node, joint));

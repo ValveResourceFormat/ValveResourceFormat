@@ -7,8 +7,8 @@ namespace ValveResourceFormat.IO
     internal sealed partial class ClothReconstruction
     {
         /// <summary>
-        /// Reconstructs sheets for the uncovered proxy nodes that no solve element covers, grouped by rods, source faces and
-        /// mesh index, with authored faces where they fit and a triangulation otherwise.
+        /// Reconstructs sheets from the proxy nodes no solve element covers, grouped by rods, source faces and mesh index,
+        /// with authored faces where they fit and a triangulation otherwise.
         /// </summary>
         private List<ProxyMesh> BuildProxyMeshesFromRodsOnly(HashSet<int> coveredNodes)
         {
@@ -22,17 +22,12 @@ namespace ValveResourceFormat.IO
             var isProxy = new bool[n];
             for (var node = 0; node < n && node < Fe.InitPosePositions.Length; node++)
             {
-                isProxy[node] = IsProxyNodeName(Fe.CtrlNames[node]) && !string.IsNullOrEmpty(Fe.CtrlNames[node])
+                isProxy[node] = Fe.CtrlNames[node]?.StartsWith('$') == true
                     && !Fe.CtrlNames[node].StartsWith(FreeClothNodePrefix, StringComparison.Ordinal)
                     && !coveredNodes.Contains(node) && !IsHingeRegeneratedProxy(node);
             }
 
-            var parent = new int[n];
-            for (var i = 0; i < n; i++)
-            {
-                parent[i] = i;
-            }
-
+            var parent = Enumerable.Range(0, n).ToArray();
             int Find(int x) => FindRoot(parent, x);
 
             foreach (var rod in Fe.Rods)
@@ -97,14 +92,10 @@ namespace ValveResourceFormat.IO
             var groups = new Dictionary<int, List<int>>();
             for (var node = 0; node < n; node++)
             {
-                if (!isProxy[node])
+                if (isProxy[node])
                 {
-                    continue;
+                    GetOrAdd(groups, Find(node)).Add(node);
                 }
-
-                var root = Find(node);
-                var nodes = GetOrAdd(groups, root);
-                nodes.Add(node);
             }
 
             foreach (var (_, nodeIndices) in groups.OrderBy(static kv => kv.Value.Min()))
@@ -124,34 +115,34 @@ namespace ValveResourceFormat.IO
             return result;
         }
 
-        private ProxyMesh? BuildProxyMeshFromNodeSet(List<int> nodeIndices)
+        private ProxyMesh? BuildProxyMeshFromNodeSet(List<int> nodeSet)
         {
-            var sorted = nodeIndices.ToArray();
-            SortByAuthoredVertexOrder(sorted);
-            nodeIndices = [.. sorted];
+            var nodeIndices = nodeSet.ToArray();
+            SortByAuthoredVertexOrder(nodeIndices);
 
-            var count = nodeIndices.Count;
             var vertices = ComputeProxyVertexArrays(nodeIndices);
             var positions = vertices.Positions;
             var clothEnable = vertices.ClothEnable;
 
-            var localOf = new Dictionary<int, int>(count);
-            for (var i = 0; i < count; i++)
+            var localOf = new Dictionary<int, int>(nodeIndices.Length);
+            for (var i = 0; i < nodeIndices.Length; i++)
             {
                 localOf[nodeIndices[i]] = i;
             }
 
             var faces = TakeAuthoredFaces(localOf, nodeIndices, out var truncatedTail);
             var usesAuthoredFaces = faces.Count > 0;
-            if (!usesAuthoredFaces)
+            if (usesAuthoredFaces)
+            {
+                foreach (var node in truncatedTail)
+                {
+                    clothEnable[localOf[node]] = 1f;
+                }
+            }
+            else
             {
                 faces = TriangulateDominantPlane(positions);
                 EnsureAllVerticesFaced(positions, faces);
-            }
-
-            foreach (var node in usesAuthoredFaces ? truncatedTail : [])
-            {
-                clothEnable[localOf[node]] = 1f;
             }
 
             if (faces.Count == 0)
@@ -163,7 +154,7 @@ namespace ValveResourceFormat.IO
 
             var isDropRisk = !usesAuthoredFaces && ComputeDropRisk(positions, clothEnable, faces);
 
-            return AssembleProxyMesh(vertices, [.. nodeIndices], faces, [], usesAuthoredFaces, isDropRisk,
+            return AssembleProxyMesh(vertices, nodeIndices, faces, [], usesAuthoredFaces, isDropRisk,
                 usesAuthoredFaces && HasGeneratedClothRoot
                     && vertices.SkinInfluences.All(static v => v.All(static i => IsProxyNodeName(i.Bone))));
         }
@@ -195,14 +186,7 @@ namespace ValveResourceFormat.IO
                 return;
             }
 
-            var faced = new HashSet<int>();
-            foreach (var face in faces)
-            {
-                foreach (var v in face)
-                {
-                    faced.Add(v);
-                }
-            }
+            var faced = faces.SelectMany(static face => face).ToHashSet();
 
             for (var i = 0; i < n; i++)
             {
@@ -225,7 +209,7 @@ namespace ValveResourceFormat.IO
                 var b = -1;
                 for (var k = 1; k < ordered.Count; k++)
                 {
-                    var cross = Vector3.Cross(positions[a] - positions[i], positions[ordered[k]] - positions[i]);
+                    var cross = MathUtils.TriangleCross(positions[i], positions[a], positions[ordered[k]]);
                     if (cross.LengthSquared() > 1e-6f)
                     {
                         b = ordered[k];
@@ -279,22 +263,7 @@ namespace ValveResourceFormat.IO
 
             for (var i = 0; i < n; i++)
             {
-                if (clothEnable[i] != 0f)
-                {
-                    continue;
-                }
-
-                var hasSimulatedNeighbour = false;
-                foreach (var nb in adjacency[i])
-                {
-                    if (clothEnable[nb] != 0f)
-                    {
-                        hasSimulatedNeighbour = true;
-                        break;
-                    }
-                }
-
-                if (!hasSimulatedNeighbour)
+                if (clothEnable[i] == 0f && !adjacency[i].Any(neighbour => clothEnable[neighbour] != 0f))
                 {
                     return true;
                 }
@@ -361,21 +330,11 @@ namespace ValveResourceFormat.IO
                 var polygon = new List<(int A, int B)>();
                 foreach (var tri in bad)
                 {
-                    foreach (var edge in new[] { (tri.A, tri.B), (tri.B, tri.C), (tri.C, tri.A) })
+                    foreach (var (a, b) in new[] { (tri.A, tri.B), (tri.B, tri.C), (tri.C, tri.A) })
                     {
-                        var shared = false;
-                        foreach (var other in bad)
+                        if (!bad.Exists(other => !other.Equals(tri) && HasEdge(other, a, b)))
                         {
-                            if (!other.Equals(tri) && HasEdge(other, edge.Item1, edge.Item2))
-                            {
-                                shared = true;
-                                break;
-                            }
-                        }
-
-                        if (!shared)
-                        {
-                            polygon.Add(edge);
+                            polygon.Add((a, b));
                         }
                     }
                 }

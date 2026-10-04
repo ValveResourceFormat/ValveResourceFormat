@@ -9,13 +9,11 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    /// <summary>The only leader_type that compiles to an m_DynKinLinks entry.</summary>
+    // Leader type 0 compiles to an m_DynKinLinks entry, 1 to an m_BoneMergeLinks entry naming the leader by its name hash.
     private const int ClothFollowBoneLeaderTypeBone = 0;
-
-    /// <summary>Compiles to an m_BoneMergeLinks entry naming the leader by its bone name hash.</summary>
     private const int ClothFollowBoneLeaderTypeBoneMerge = 1;
 
-    /// <summary>Wind speeds are authored in mph and compiled to units per second.</summary>
+    // Wind speeds are authored in mph and compiled to units per second.
     private const float ClothWindSpeedToUnits = 17.6f;
 
     private const int ClothEffectTypeWind = 1;
@@ -23,10 +21,7 @@ internal sealed partial class ClothExtract
     private const int ClothEffectTypeAddGravity = 4;
     private const int ClothEffectTypeDampenVelocity = 6;
 
-    /// <summary>
-    /// The goal pair a ClothNode declared without one compiles, and how
-    /// close a recovered value has to sit to read as it.
-    /// </summary>
+    // The goal pair a ClothNode declared without one compiles to.
     private const float ClothNodeDefaultGoalStrength = 0.6f;
     private const float ClothNodeDefaultGoalDamping = 0.3f;
     private const float ClothNodeDefaultTolerance = 1e-3f;
@@ -68,7 +63,8 @@ internal sealed partial class ClothExtract
             }
 
             var follower = names[link.ChildNode];
-            if (!LookupsOf(cloth).BoneByHash.TryGetValue(link.ParentHash, out var leader) || !clothBones.Contains(follower) || cloth.IsGeneratedNodeName(follower))
+            if (!LookupsOf(cloth).BoneByHash.TryGetValue(link.ParentHash, out var leader)
+                || !clothBones.Contains(follower) || cloth.IsGeneratedNodeName(follower))
             {
                 continue;
             }
@@ -103,15 +99,13 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Declares every effect the export can recreate. An effect whose parameters name a control bone <c>Node</c> is
-    /// declared under a static <c>ClothNode</c> on that bone, preferring one with a name of its own, and its angles are
-    /// expressed in that node's frame.
+    /// Declares every effect the export can recreate. An effect whose <c>Node</c> parameter names a control bone is
+    /// declared under a static <c>ClothNode</c> on that bone, and its angles are expressed in that node's frame.
     /// </summary>
     internal static void AddClothEffects(KVObject softbodyChildren, ClothReconstruction cloth, IReadOnlySet<string> availableMaps)
     {
         var declaredMaps = new HashSet<string>(availableMaps, StringComparer.OrdinalIgnoreCase);
         CollectDeclaredVertexMaps(softbodyChildren, declaredMaps);
-        availableMaps = declaredMaps;
 
         foreach (var effect in cloth.Fe.Effects)
         {
@@ -125,7 +119,7 @@ internal sealed partial class ClothExtract
                 ? EntityTransformHelper.EulerAnglesToQuaternion(angles.ToVector3())
                 : Quaternion.Identity;
 
-            if (MakeClothEffect(cloth, effect, availableMaps, frame) is not { } node)
+            if (MakeClothEffect(cloth, effect, declaredMaps, frame) is not { } node)
             {
                 continue;
             }
@@ -154,7 +148,7 @@ internal sealed partial class ClothExtract
 
     /// <summary>
     /// Declares a bare static <c>ClothNode</c> on every collision-shape parent bone that compiles the <c>ClothNode</c>
-    /// default goal pair and gravity and that no static <c>ClothNode</c> or <c>ClothChain</c> joint already names.
+    /// defaults and is not already declared by a static <c>ClothNode</c> or a <c>ClothChain</c> joint.
     /// </summary>
     internal static void AddShapeParentDefaultClothNodes(KVObject softbodyChildren, ClothReconstruction cloth)
     {
@@ -171,7 +165,8 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            if (LookupsOf(cloth).NodeByName.TryGetValue(bone, out var node) && cloth.Fe.IsStatic(node) && CompilesClothNodeDefaults(cloth, node))
+            if (LookupsOf(cloth).NodeByName.TryGetValue(bone, out var node) && cloth.Fe.IsStatic(node)
+                && CompilesClothNodeDefaults(cloth, node))
             {
                 bones.Add((node, bone));
             }
@@ -226,10 +221,7 @@ internal sealed partial class ClothExtract
         }
     }
 
-    /// <summary>
-    /// Adds every selection the document declares: each <c>ClothVertexMap</c> by name and each chain joint's
-    /// <c>vertex_map</c> entries by their bare names.
-    /// </summary>
+    /// <summary>Adds every <c>ClothVertexMap</c> name and every bare name a chain joint's <c>vertex_map</c> lists.</summary>
     private static void CollectDeclaredVertexMaps(KVObject children, HashSet<string> maps)
     {
         foreach (var child in EnumerateTree(children))
@@ -263,10 +255,7 @@ internal sealed partial class ClothExtract
             ?? matches.FirstOrDefault();
     }
 
-    /// <summary>
-    /// The named vertex selections the export recreates: those painted into a proxy mesh plus those a chain joint names,
-    /// reduced to bare names.
-    /// </summary>
+    /// <summary>The bare names of the vertex maps painted into a proxy mesh or named by a chain joint.</summary>
     private HashSet<string> AvailableVertexMaps(ClothReconstruction cloth, List<BoneChain> chains)
     {
         var maps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -294,8 +283,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Declares one compiled effect, its direction expressed in <paramref name="frame"/>, the rotation of the node it is
-    /// declared under.
+    /// Declares one compiled effect, with its direction expressed in <paramref name="frame"/>, the rotation of the node it
+    /// is declared under.
     /// </summary>
     internal static KVObject? MakeClothEffect(ClothReconstruction cloth, FeModel.Effect effect, IReadOnlySet<string> availableMaps,
         Quaternion? frame = null)

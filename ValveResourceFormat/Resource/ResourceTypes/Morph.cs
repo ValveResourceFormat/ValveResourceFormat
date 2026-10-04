@@ -33,13 +33,12 @@ namespace ValveResourceFormat.ResourceTypes
         public Resource? TextureResource { get; private set; }
 
         /// <summary>
-        /// Gets the delta atlas this morph set names, whether or not it was found.
+        /// Gets the path of the delta atlas texture, empty when there is none.
         /// </summary>
         public string AtlasPath => Data.GetStringProperty("m_pTextureAtlas", string.Empty);
 
         /// <summary>
-        /// Gets whether the morph set names a delta atlas that <see cref="LoadFlexData"/> could not
-        /// load. Every delta reads as zero while this holds.
+        /// Gets whether <see cref="LoadFlexData"/> could not load the delta atlas, so every delta reads as zero.
         /// </summary>
         public bool HasMissingAtlas => loaded && Texture == null && AtlasPath.Length > 0;
 
@@ -334,8 +333,8 @@ namespace ValveResourceFormat.ResourceTypes
                 .Select(kv => ParseFlexController(kv))
                 .ToArray();
 
-            var atlasPath = Data.GetStringProperty("m_pTextureAtlas");
-            if (string.IsNullOrEmpty(atlasPath))
+            var atlasPath = AtlasPath;
+            if (atlasPath.Length == 0)
             {
                 return;
             }
