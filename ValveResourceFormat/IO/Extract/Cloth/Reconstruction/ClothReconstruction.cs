@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 using ValveKeyValue;
@@ -315,7 +314,7 @@ namespace ValveResourceFormat.IO
         /// Gets the unordered node pairs of <c>m_SimdRodsAnim</c>, the rods of chain joints declared with
         /// <c>animated_length</c>, which no other array records.
         /// </summary>
-        private IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= [.. Index.AnimRods.Select(static rod => UnorderedPair(rod.NodeA, rod.NodeB))];
+        private IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= [.. Index.AnimRods.Select(static rod => rod.Pair)];
 
         /// <summary>Gets every node an <see cref="AnimRodPairs"/> rod ends on.</summary>
         private IReadOnlySet<int> AnimRodNodes => animRodNodes ??= [.. AnimRodPairs.SelectMany(static pair => (int[])[pair.Item1, pair.Item2])];
@@ -568,19 +567,10 @@ namespace ValveResourceFormat.IO
             var ringSides = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (var name in ctrlNames)
             {
-                if (!name.StartsWith(RingNodePrefix, StringComparison.Ordinal))
+                if (TryParseRingNodeName(name, out var owner, out var ringIndex) && ringIndex >= 0)
                 {
-                    continue;
+                    ringSides[owner] = ringSides.GetValueOrDefault(owner) + 1;
                 }
-
-                var split = name.LastIndexOf('_');
-                if (split <= RingNodePrefix.Length || !int.TryParse(name.AsSpan(split + 1), NumberStyles.None, CultureInfo.InvariantCulture, out _))
-                {
-                    continue;
-                }
-
-                var owner = name[RingNodePrefix.Length..split];
-                ringSides[owner] = ringSides.GetValueOrDefault(owner) + 1;
             }
 
             foreach (var (owner, sides) in ringSides)

@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Utils;
@@ -92,16 +94,10 @@ namespace ValveResourceFormat.IO
             ? Index.WorldCollisionFriction.Values.GroupBy(static f => f.Ground).OrderByDescending(static g => g.Count()).First().Key
             : 0f;
 
-        /// <summary>
-        /// Gets the scale baked into every compiled <c>m_AnimStrayRadii</c> relaxation factor:
-        /// <c>exp(-m_flDefaultThreadStretch)</c>, or 1 without thread stretch.
-        /// </summary>
-        private float StrayRelaxationScale => Fe.DefaultThreadStretch <= 0f ? 1f : MathF.Exp(-Fe.DefaultThreadStretch);
-
         /// <summary>Gets the authored relaxation factor of <paramref name="node"/>'s stray radius, or 1 without one.</summary>
         internal float GetStrayRelaxationFactor(int node)
             => Index.AnimStrayRadii.TryGetValue(node, out var stray)
-                ? MathUtils.Saturate(stray.RelaxationFactor / StrayRelaxationScale)
+                ? MathUtils.Saturate(stray.RelaxationFactor / Index.ThreadStretchScale)
                 : 1f;
 
         /// <summary>Gets the authored stray-radius stretchiness of <paramref name="node"/>, or 0 without a stray radius.</summary>
@@ -126,24 +122,43 @@ namespace ValveResourceFormat.IO
             var proxies = new Dictionary<string, int>(StringComparer.Ordinal);
             for (var proxy = 0; proxy < Fe.CtrlName.Length; proxy++)
             {
-                var name = Fe.CtrlName[proxy];
-                if (!Index.AnimStrayRadii.ContainsKey(proxy) || !name.StartsWith(RingNodePrefix, StringComparison.Ordinal))
+                if (Index.AnimStrayRadii.ContainsKey(proxy) && TryParseRingNodeName(Fe.CtrlName[proxy], out var owner, out _))
                 {
-                    continue;
+                    proxies.TryAdd(owner, proxy);
                 }
-
-                var split = name.LastIndexOf('_');
-                var suffix = name.AsSpan(split + 1);
-                if (split < RingNodePrefix.Length || suffix.IsEmpty
-                    || (!suffix.SequenceEqual("Ctr") && suffix.ContainsAnyExceptInRange('0', '9')))
-                {
-                    continue;
-                }
-
-                proxies.TryAdd(name[RingNodePrefix.Length..split], proxy);
             }
 
             return proxies;
+        }
+
+        /// <summary>Gets the trailing <c>_&lt;n&gt;</c> index of a node name, or -1 when it has none.</summary>
+        private static int RingSuffixIndex(string name) => RingSuffixIndex(name, out _);
+
+        private static int RingSuffixIndex(string name, out int underscore)
+        {
+            underscore = name.LastIndexOf('_');
+            return underscore >= 0
+                && int.TryParse(name.AsSpan(underscore + 1), NumberStyles.None, CultureInfo.InvariantCulture, out var index)
+                ? index
+                : -1;
+        }
+
+        /// <summary>
+        /// Parses a ring node name the compiler generates around a chain joint, <c>$cc&lt;owner&gt;_&lt;index&gt;</c> or
+        /// <c>$cc&lt;owner&gt;_Ctr</c>. <paramref name="index"/> is -1 for the <c>Ctr</c> node.
+        /// </summary>
+        private static bool TryParseRingNodeName(string name, [NotNullWhen(true)] out string? owner, out int index)
+        {
+            owner = null;
+            index = RingSuffixIndex(name, out var underscore);
+            if (underscore <= RingNodePrefix.Length || !name.StartsWith(RingNodePrefix, StringComparison.Ordinal)
+                || (index < 0 && !name.AsSpan(underscore + 1).SequenceEqual("Ctr")))
+            {
+                return false;
+            }
+
+            owner = name[RingNodePrefix.Length..underscore];
+            return true;
         }
 
         /// <summary>

@@ -54,7 +54,7 @@ internal sealed partial class ClothExtract
         var beyondSurface = new HashSet<(int, int)>();
         foreach (var rod in cloth.Index.Rods)
         {
-            var edge = RodPair(rod);
+            var edge = rod.Pair;
             if (surfaceNodes.Contains(edge.Item1) && surfaceNodes.Contains(edge.Item2) && !derived.Contains(edge))
             {
                 beyondSurface.Add(edge);
@@ -270,7 +270,7 @@ internal sealed partial class ClothExtract
 
     /// <summary>Whether any rod on a pair of <paramref name="pairs"/> has a bounded maximum length.</summary>
     private static bool HasBoundedRod(ClothReconstruction cloth, HashSet<(int, int)> pairs)
-        => cloth.Index.Rods.Any(rod => rod.MaxDist < ClothReconstruction.UnboundedRodDistance && pairs.Contains(RodPair(rod)));
+        => cloth.Index.Rods.Any(rod => rod.MaxDist < ClothReconstruction.UnboundedRodDistance && pairs.Contains(rod.Pair));
 
     /// <summary>
     /// The uniform <c>cloth_bend_stiffness</c> of a face-kept sheet, or null where the compiler folds rods across the
@@ -326,7 +326,7 @@ internal sealed partial class ClothExtract
         var shaped = new List<((int, int) Edge, float Reading)>();
         foreach (var rod in cloth.Index.Rods)
         {
-            var edge = RodPair(rod);
+            var edge = rod.Pair;
             if (!beyondSurface.Contains(edge)
                 || edge.Item2 >= positions.Length || edge.Item2 >= invMasses.Length)
             {
@@ -339,7 +339,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            var rest = Vector3.Distance(positions[rod.NodeA], positions[rod.NodeB]);
+            var rest = cloth.Index.RestDistance(rod.NodeA, rod.NodeB);
             if (rest <= 0f || MathF.Abs(rod.MaxDist - rest) > 1e-3f * rest)
             {
                 continue;

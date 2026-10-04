@@ -43,7 +43,7 @@ namespace ValveResourceFormat.IO
         private Dictionary<(int, int), List<float>> ChainGeneratedSpans(List<BoneChain> chains)
         {
             var generated = new Dictionary<(int, int), List<float>>();
-            var sliderScale = MathF.Exp(-Fe.DefaultSurfaceStretch);
+            var sliderScale = Index.SurfaceStretchScale;
 
             void Generate(int a, int b, float slider) => ExpectPair(generated, a, b, slider * sliderScale);
 
@@ -377,7 +377,7 @@ namespace ValveResourceFormat.IO
 
         /// <summary>Gets the node pairs whose every rod is a surface fold, so no declaration put a rod there.</summary>
         private HashSet<(int, int)> SurfaceFoldOnlyPairs => surfaceFoldOnlyPairs ??= [.. Index.Rods
-            .GroupBy(static rod => UnorderedPair(rod.NodeA, rod.NodeB))
+            .GroupBy(static rod => rod.Pair)
             .Where(group => group.All(rod => IsSurfaceFanRod(rod, banded: true)))
             .Select(static group => group.Key)];
 
@@ -407,7 +407,7 @@ namespace ValveResourceFormat.IO
                 return false;
             }
 
-            return SurfaceFanPairs.Contains(UnorderedPair(rod.NodeA, rod.NodeB));
+            return SurfaceFanPairs.Contains(rod.Pair);
         }
 
         /// <summary>
@@ -424,7 +424,7 @@ namespace ValveResourceFormat.IO
         }
 
         private bool IsUnequalFoldedPair(Rod rod)
-            => HasUnequalInverseMasses(rod) && SurfaceFanPairs.Contains(UnorderedPair(rod.NodeA, rod.NodeB));
+            => HasUnequalInverseMasses(rod) && SurfaceFanPairs.Contains(rod.Pair);
 
         /// <summary>Gets whether the inverse-mass ratio of <paramref name="rod"/>'s endpoints is off an even split.</summary>
         private bool HasUnequalInverseMasses(Rod rod)
@@ -491,7 +491,7 @@ namespace ValveResourceFormat.IO
             var byBand = new Dictionary<(float, float), Dictionary<(int, int), (int Copies, float Relaxation)>>();
             foreach (var rod in Index.Rods)
             {
-                var pair = UnorderedPair(rod.NodeA, rod.NodeB);
+                var pair = rod.Pair;
                 if (rod.MaxDist <= rod.MinDist || rod.RelaxationFactor <= 0f
                     || rod.Weight0 != 0.5f || sprung.Contains(pair)
                     || ImportedStripNodes.Contains(rod.NodeA) || ImportedStripNodes.Contains(rod.NodeB))
@@ -605,7 +605,7 @@ namespace ValveResourceFormat.IO
             {
                 for (var j = i + 1; j < members.Count; j++)
                 {
-                    var rest = Vector3.Distance(Index.InitPosePositions[members[i]], Index.InitPosePositions[members[j]]);
+                    var rest = Index.RestDistance(members[i], members[j]);
                     if (Rod.IsAtRestLength(bandMax, rest))
                     {
                         return false;
@@ -640,7 +640,7 @@ namespace ValveResourceFormat.IO
             for (var i = 0; i < Index.Rods.Length; i++)
             {
                 var rod = Index.Rods[i];
-                var pair = UnorderedPair(rod.NodeA, rod.NodeB);
+                var pair = rod.Pair;
                 if (wanted.TryGetValue(pair, out var band) && rod.MinDist == band.Min
                     && rod.MaxDist == band.Max && MathF.Abs(rod.RelaxationFactor - band.Relaxation) <= 1e-4f
                     && rod.Weight0 == 0.5f)

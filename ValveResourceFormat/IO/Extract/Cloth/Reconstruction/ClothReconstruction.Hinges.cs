@@ -22,6 +22,9 @@ namespace ValveResourceFormat.IO
 
         private const float FullMotionBiasEpsilon = 1e-6f;
         private const float KelagerHeightFloor = 0.001f;
+
+        /// <summary>The factor over its rest height a Kelager bend's height has to exceed to read as bent.</summary>
+        private const float KelagerRestHeightSlack = 1.0001f;
         private const string HingeAnchorPrefix = "$ha_";
 
         private bool? hasChainRingBends;
@@ -116,7 +119,7 @@ namespace ValveResourceFormat.IO
             }
 
             var (l0, l1, restHeight) = BendArms(bend);
-            if (bend.Height <= MathF.Max(restHeight * 1.0001f, KelagerHeightFloor) || l0 <= 0f || l1 <= 0f)
+            if (bend.Height <= MathF.Max(restHeight * KelagerRestHeightSlack, KelagerHeightFloor) || l0 <= 0f || l1 <= 0f)
             {
                 return 0f;
             }
@@ -231,7 +234,7 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
-            if (bend.Height <= restHeight * 1.0001f)
+            if (bend.Height <= restHeight * KelagerRestHeightSlack)
             {
                 return (true, 0f);
             }
@@ -392,7 +395,7 @@ namespace ValveResourceFormat.IO
             {
                 for (var far = 2; far < 4; far++)
                 {
-                    var span = Vector3.Distance(Index.InitPosePositions[ring[near]], Index.InitPosePositions[ring[far]]);
+                    var span = Index.RestDistance(ring[near], ring[far]);
                     longest = MathF.Max(longest, span);
                     shortest = MathF.Min(shortest, span);
                 }
@@ -434,10 +437,10 @@ namespace ValveResourceFormat.IO
 
                 var spans = new[]
                 {
-                    Vector3.Distance(Index.InitPosePositions[quad[0]], Index.InitPosePositions[quad[2]]),
-                    Vector3.Distance(Index.InitPosePositions[quad[1]], Index.InitPosePositions[quad[3]]),
-                    Vector3.Distance(Index.InitPosePositions[quad[0]], Index.InitPosePositions[quad[3]]),
-                    Vector3.Distance(Index.InitPosePositions[quad[1]], Index.InitPosePositions[quad[2]]),
+                    Index.RestDistance(quad[0], quad[2]),
+                    Index.RestDistance(quad[1], quad[3]),
+                    Index.RestDistance(quad[0], quad[3]),
+                    Index.RestDistance(quad[1], quad[2]),
                 };
                 var longest = spans.Max();
                 if (longest <= 0f || longest - spans.Min() > longest * 1e-5f)

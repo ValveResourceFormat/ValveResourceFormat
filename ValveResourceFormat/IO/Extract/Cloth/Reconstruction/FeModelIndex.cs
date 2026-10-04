@@ -74,6 +74,9 @@ namespace ValveResourceFormat.IO
             /// <summary>Gets whether the rod's minimum and maximum distance differ by more than a relative 1e-4.</summary>
             internal bool IsBanded => MathF.Abs(MinDist - MaxDist) > 1e-4f * MathF.Max(1f, MathF.Abs(MaxDist));
 
+            /// <summary>Gets the rod's two nodes, the lower first.</summary>
+            internal (int, int) Pair => ClothReconstruction.UnorderedPair(NodeA, NodeB);
+
             /// <summary>Gets whether <paramref name="length"/> matches the rest distance <paramref name="rest"/>.</summary>
             internal static bool IsAtRestLength(float length, float rest) => MathF.Abs(length - rest) <= MathF.Max(1e-3f, 1e-4f * rest);
         }
@@ -82,7 +85,11 @@ namespace ValveResourceFormat.IO
         /// <param name="NodeA">First node of the lane.</param>
         /// <param name="NodeB">Second node of the lane.</param>
         /// <param name="Weight0">Share of <paramref name="NodeA"/> in the correction, as in <see cref="Rod.Weight0"/>.</param>
-        internal readonly record struct AnimRod(int NodeA, int NodeB, float Weight0);
+        internal readonly record struct AnimRod(int NodeA, int NodeB, float Weight0)
+        {
+            /// <summary>Gets the rod's two nodes, the lower first.</summary>
+            internal (int, int) Pair => ClothReconstruction.UnorderedPair(NodeA, NodeB);
+        }
 
         /// <summary>A node's explicit orientation basis (from <c>m_NodeBases</c>).</summary>
         /// <param name="NodeX0">First control node of the local X axis.</param>
@@ -128,11 +135,26 @@ namespace ValveResourceFormat.IO
         /// <summary>Gets <c>m_flDefaultGravityScale</c>, 1 when absent.</summary>
         internal float DefaultGravityScale => fe.DefaultGravityScale ?? 1.0f;
 
+        /// <summary>
+        /// Gets the factor the compiler scales rod relaxations by: <c>exp(-m_flDefaultSurfaceStretch)</c>, or 1 where the
+        /// stretch is not positive.
+        /// </summary>
+        internal float SurfaceStretchScale => StretchScale(fe.DefaultSurfaceStretch);
+
+        /// <summary>
+        /// Gets the factor the compiler scales <c>m_AnimStrayRadii</c> relaxations by: <c>exp(-m_flDefaultThreadStretch)</c>,
+        /// or 1 where the stretch is not positive.
+        /// </summary>
+        internal float ThreadStretchScale => StretchScale(fe.DefaultThreadStretch);
+
         /// <summary>Gets the per-node rest positions in model space (from <c>m_InitPose</c>).</summary>
         internal Vector3[] InitPosePositions { get; }
 
         /// <summary>Gets the per-node rest orientations (from <c>m_InitPose</c>).</summary>
         internal Quaternion[] InitPoseRotations { get; }
+
+        /// <summary>Gets the distance between two nodes' <see cref="InitPosePositions"/>.</summary>
+        internal float RestDistance(int a, int b) => Vector3.Distance(InitPosePositions[a], InitPosePositions[b]);
 
         /// <summary>Gets the cloth surface quads, each as four control-node indices.</summary>
         internal int[][] Quads { get; }
@@ -285,6 +307,8 @@ namespace ValveResourceFormat.IO
 
             return flat;
         }
+
+        private static float StretchScale(float stretch) => stretch > 0f ? MathF.Exp(-stretch) : 1f;
 
         /// <summary>Reads a per-dynamic-node array, which starts past the static nodes, at control node <paramref name="node"/>.</summary>
         private T DynamicNodeValue<T>(T[] values, int node, T fallback)

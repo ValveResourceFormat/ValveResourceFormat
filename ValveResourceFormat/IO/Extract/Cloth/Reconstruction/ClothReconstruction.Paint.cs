@@ -92,7 +92,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var rest = Vector3.Distance(Index.InitPosePositions[pair.Item1], Index.InitPosePositions[pair.Item2]);
+                var rest = Index.RestDistance(pair.Item1, pair.Item2);
                 var authored = candidates.MinBy(r => MathF.Abs(r.MaxDist - rest));
                 if (MathF.Abs(authored.MaxDist - rest) <= FaceRodRestTolerance * MathF.Max(1f, rest))
                 {
@@ -119,7 +119,7 @@ namespace ValveResourceFormat.IO
             var byPair = new Dictionary<(int, int), List<Rod>>();
             foreach (var rod in Index.Rods)
             {
-                GetOrAdd(byPair, UnorderedPair(rod.NodeA, rod.NodeB)).Add(rod);
+                GetOrAdd(byPair, rod.Pair).Add(rod);
             }
 
             return byPair;
@@ -143,67 +143,19 @@ namespace ValveResourceFormat.IO
             float fallback, float upper,
             Func<IReadOnlyDictionary<int, float>, IReadOnlyDictionary<int, float>, float?>? chooseFree = null)
         {
-            var adjacency = new Dictionary<int, List<(int Other, float Sum)>>();
-            foreach (var ((a, b), sum) in stated)
+            var adjacency = ClothMath.PairSumAdjacency(stated.Select(static entry => (entry.Key.A, entry.Key.B, entry.Value)));
+            if (ClothMath.PairSumComponents(adjacency, adjacency.Keys, PaintSolveTolerance, depthFirst: true) is not { } components)
             {
-                GetOrAdd(adjacency, a).Add((b, sum));
-                GetOrAdd(adjacency, b).Add((a, sum));
+                return null;
             }
 
             var solved = new Dictionary<int, float>(adjacency.Count);
-            var sign = new Dictionary<int, float>(adjacency.Count);
-            var offset = new Dictionary<int, float>(adjacency.Count);
-            var component = new List<int>();
-            var stack = new Stack<int>();
-
-            foreach (var start in adjacency.Keys)
+            foreach (var (component, sign, offset, forced) in components)
             {
-                if (solved.ContainsKey(start))
+                float? pinned = forced.Count > 0 ? forced[0] : null;
+                if (forced.Exists(value => MathF.Abs(forced[0] - value) > PaintSolveTolerance))
                 {
-                    continue;
-                }
-
-                sign.Clear();
-                offset.Clear();
-                component.Clear();
-                sign[start] = 1f;
-                offset[start] = 0f;
-                component.Add(start);
-                stack.Push(start);
-
-                float? pinned = null;
-                while (stack.Count > 0)
-                {
-                    var node = stack.Pop();
-                    foreach (var (other, sum) in adjacency[node])
-                    {
-                        var otherSign = -sign[node];
-                        var otherOffset = sum - offset[node];
-                        if (sign.TryGetValue(other, out var known))
-                        {
-                            if (known != otherSign)
-                            {
-                                var forced = (otherOffset - offset[other]) / (known - otherSign);
-                                if (pinned is { } already && MathF.Abs(already - forced) > PaintSolveTolerance)
-                                {
-                                    return null;
-                                }
-
-                                pinned ??= forced;
-                            }
-                            else if (MathF.Abs(offset[other] - otherOffset) > PaintSolveTolerance)
-                            {
-                                return null;
-                            }
-
-                            continue;
-                        }
-
-                        sign[other] = otherSign;
-                        offset[other] = otherOffset;
-                        component.Add(other);
-                        stack.Push(other);
-                    }
+                    return null;
                 }
 
                 var free = pinned ?? chooseFree?.Invoke(sign, offset)
@@ -391,7 +343,7 @@ namespace ValveResourceFormat.IO
 
         private Dictionary<int, float>? SolveStretchPaint()
         {
-            var thread = Fe.DefaultSurfaceStretch > 0f ? MathF.Exp(-Fe.DefaultSurfaceStretch) : 1f;
+            var thread = Index.SurfaceStretchScale;
             var stated = new Dictionary<(int A, int B), float>();
             var diagonals = new List<(int A, int B, float Relaxation)>();
             foreach (var (pair, diagonal, rod) in SheetFaceRods)

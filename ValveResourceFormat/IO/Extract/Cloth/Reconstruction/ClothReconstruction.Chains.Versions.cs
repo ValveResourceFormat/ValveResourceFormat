@@ -75,17 +75,9 @@ namespace ValveResourceFormat.IO
                 fitRingNodes = new Dictionary<string, List<int>>(StringComparer.Ordinal);
                 for (var node = 0; node < Fe.CtrlName.Length; node++)
                 {
-                    var name = Fe.CtrlName[node];
-                    var split = name.LastIndexOf('_');
-                    if (split < RingNodePrefix.Length || !name.StartsWith(RingNodePrefix, StringComparison.Ordinal))
+                    if (TryParseRingNodeName(Fe.CtrlName[node], out var owner, out _))
                     {
-                        continue;
-                    }
-
-                    var suffix = name.AsSpan(split + 1);
-                    if (suffix.SequenceEqual("Ctr") || (suffix.Length > 0 && int.TryParse(suffix, out _)))
-                    {
-                        GetOrAdd(fitRingNodes, name[RingNodePrefix.Length..split]).Add(node);
+                        GetOrAdd(fitRingNodes, owner).Add(node);
                     }
                 }
             }

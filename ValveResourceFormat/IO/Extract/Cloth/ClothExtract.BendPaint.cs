@@ -143,13 +143,13 @@ internal sealed partial class ClothExtract
         var misses = 0;
         foreach (var rod in cloth.Index.Rods)
         {
-            var pair = RodPair(rod);
+            var pair = rod.Pair;
             if (!network.Contains(pair) || pair.Item2 >= positions.Length)
             {
                 continue;
             }
 
-            var span = Vector3.Distance(positions[rod.NodeA], positions[rod.NodeB]);
+            var span = cloth.Index.RestDistance(rod.NodeA, rod.NodeB);
             foreach (var hinge in generators.GetValueOrDefault(pair) ?? [])
             {
                 var axis = positions[hinge.Item2] - positions[hinge.Item1];
@@ -166,7 +166,7 @@ internal sealed partial class ClothExtract
                 span = MathF.Min(span, folded);
             }
 
-            if (MathF.Abs(span - rod.MinDist) > MathF.Max(1e-3f, 1e-4f * rod.MinDist))
+            if (!FeModelIndex.Rod.IsAtRestLength(span, rod.MinDist))
             {
                 misses++;
             }
@@ -282,13 +282,13 @@ internal sealed partial class ClothExtract
         var readings = new List<HingeReading>();
         foreach (var rod in cloth.Index.Rods)
         {
-            var edge = RodPair(rod);
+            var edge = rod.Pair;
             if (!beyondSurface.Contains(edge) || edge.Item2 >= positions.Length)
             {
                 continue;
             }
 
-            var rest = Vector3.Distance(positions[rod.NodeA], positions[rod.NodeB]);
+            var rest = cloth.Index.RestDistance(rod.NodeA, rod.NodeB);
             var coplanar = rod.MaxDist < ClothReconstruction.UnboundedRodDistance ? rod.MaxDist : rest;
             var closest = float.MaxValue;
             var flat = 0f;
@@ -635,90 +635,46 @@ internal sealed partial class ClothExtract
     private static Dictionary<int, float>? ClothBendStiffnessComponents(Dictionary<int, float> pinned,
         List<(int U, int V, float Sum)> equations, List<(int U, int V, float Least)> checks)
     {
-        var adjacency = new Dictionary<int, List<(int Node, float Sum)>>();
-        foreach (var (u, v, sum) in equations)
+        var adjacency = ClothMath.PairSumAdjacency(equations);
+        if (ClothMath.PairSumComponents(adjacency, adjacency.Keys.Concat(pinned.Keys).Distinct().Order(),
+            ClothBendStiffnessAgreement, depthFirst: false) is not { } components)
         {
-            ClothReconstruction.GetOrAdd(adjacency, u).Add((v, sum));
-            ClothReconstruction.GetOrAdd(adjacency, v).Add((u, sum));
+            return null;
         }
 
-        var sign = new Dictionary<int, float>();
-        var offset = new Dictionary<int, float>();
-        var component = new Dictionary<int, int>();
-        var members = new List<List<int>>();
-        var forced = new List<List<float>>();
-
-        foreach (var root in adjacency.Keys.Concat(pinned.Keys).Distinct().Order())
+        var componentOf = new Dictionary<int, ClothMath.PairSumComponent>();
+        foreach (var component in components)
         {
-            if (component.ContainsKey(root))
+            foreach (var member in component.Members)
             {
-                continue;
-            }
-
-            var index = members.Count;
-            members.Add([root]);
-            forced.Add([]);
-            sign[root] = 1f;
-            offset[root] = 0f;
-            component[root] = index;
-            var walk = new Queue<int>();
-            walk.Enqueue(root);
-            while (walk.Count > 0)
-            {
-                var here = walk.Dequeue();
-                foreach (var (there, sum) in adjacency.GetValueOrDefault(here) ?? [])
-                {
-                    var thereSign = -sign[here];
-                    var thereOffset = sum - offset[here];
-                    if (component.ContainsKey(there))
-                    {
-                        if (thereSign == sign[there])
-                        {
-                            if (MathF.Abs(thereOffset - offset[there]) > ClothBendStiffnessAgreement)
-                            {
-                                return null;
-                            }
-                        }
-                        else
-                        {
-                            forced[index].Add((thereOffset - offset[there]) / (2f * sign[there]));
-                        }
-
-                        continue;
-                    }
-
-                    sign[there] = thereSign;
-                    offset[there] = thereOffset;
-                    component[there] = index;
-                    members[index].Add(there);
-                    walk.Enqueue(there);
-                }
+                componentOf[member] = component;
             }
         }
 
         foreach (var (node, value) in pinned)
         {
-            forced[component[node]].Add((value - offset[node]) / sign[node]);
+            var component = componentOf[node];
+            component.Forced.Add((value - component.Offset[node]) / component.Sign[node]);
         }
 
         var solved = new Dictionary<int, float>();
-        for (var index = 0; index < members.Count; index++)
+        foreach (var (members, sign, offset, forced) in components)
         {
             float parameter;
-            if (forced[index].Count > 0)
+            if (forced.Count > 0)
             {
-                if (forced[index].Max() - forced[index].Min() > ClothBendStiffnessAgreement)
+                if (forced.Max() - forced.Min() > ClothBendStiffnessAgreement)
                 {
                     return null;
                 }
 
-                parameter = forced[index].Average();
+                parameter = forced.Average();
             }
             else
             {
                 var least = float.MinValue;
                 var most = float.MaxValue;
-                foreach (var node in members[index])
+                foreach (var node in members)
                 {
                     var end = (1f - offset[node]) / sign[node];
                     var start = -offset[node] / sign[node];
@@ -728,15 +684,13 @@ internal sealed partial class ClothExtract
 
                 foreach (var (u, v, need) in checks)
                 {
-                    if (component.GetValueOrDefault(u, -1) != index
-                        || component.GetValueOrDefault(v, -1) != index
-                        || sign[u] + sign[v] == 0f)
+                    if (!sign.TryGetValue(u, out var signU) || !sign.TryGetValue(v, out var signV) || signU + signV == 0f)
                     {
                         continue;
                     }
 
-                    var edge = (need - offset[u] - offset[v]) / (sign[u] + sign[v]);
-                    if (sign[u] > 0f)
+                    var edge = (need - offset[u] - offset[v]) / (signU + signV);
+                    if (signU > 0f)
                     {
                         least = MathF.Max(least, edge);
                     }
@@ -751,11 +705,11 @@ internal sealed partial class ClothExtract
                     return null;
                 }
 
-                var direction = members[index].Sum(node => sign[node]);
+                var direction = members.Sum(node => sign[node]);
                 parameter = direction > 0f ? least : direction < 0f ? most : 0.5f * (least + most);
             }
 
-            foreach (var node in members[index])
+            foreach (var node in members)
             {
                 var value = (sign[node] * parameter) + offset[node];
                 if (value < -ClothBendStiffnessAgreement || value > 1f + ClothBendStiffnessAgreement)

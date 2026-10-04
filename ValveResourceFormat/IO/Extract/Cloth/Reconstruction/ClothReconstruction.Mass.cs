@@ -22,6 +22,24 @@ namespace ValveResourceFormat.IO
         private const float MassMultiplierTolerance = 1e-3f;
         private const float MotionBiasTolerance = 1e-3f;
 
+        /// <summary>The smallest inverse mass an <c>explicit_masses</c> node carries.</summary>
+        private const float MinExplicitInverseMass = 0.05f;
+
+        /// <summary>The largest inverse mass an <c>explicit_masses</c> node carries.</summary>
+        private const float MaxExplicitInverseMass = 20f;
+
+        /// <summary>How far, relative to the mass, an <c>explicit_masses</c> mass may sit from two decimals.</summary>
+        private const float ExplicitMassRoundingTolerance = 1e-3f;
+
+        /// <summary>How far, relative to the larger, two inverse masses may differ and still count as equal.</summary>
+        private const float InverseMassAgreement = 1e-6f;
+
+        /// <summary>
+        /// How far a rod's <c>flWeight0</c> may sit from its endpoints' inverse-mass share <c>a / (a + b)</c> and still read
+        /// as mass-proportional.
+        /// </summary>
+        private const float MassProportionalWeightTolerance = 2e-5f;
+
         /// <summary>
         /// Recovers the <c>cloth_mass</c> paint of an authored-face proxy sheet from what each node's mass carries beyond
         /// its geometric term, or null when there is none. Under the <see cref="HasVoronoiElementMasses">Voronoi element
@@ -347,13 +365,13 @@ namespace ValveResourceFormat.IO
                 }
 
                 var mass = 1f / invMass;
-                if (invMass < 0.05f || invMass > 20f
-                    || MathF.Abs(mass - MathF.Round(mass, 2)) > 1e-3f * MathF.Max(1f, mass))
+                if (invMass < MinExplicitInverseMass || invMass > MaxExplicitInverseMass
+                    || MathF.Abs(mass - MathF.Round(mass, 2)) > ExplicitMassRoundingTolerance * MathF.Max(1f, mass))
                 {
                     return false;
                 }
 
-                if (shared is { } first && MathF.Abs(invMass - first) > 1e-6f * MathF.Max(invMass, first))
+                if (shared is { } first && MathF.Abs(invMass - first) > InverseMassAgreement * MathF.Max(invMass, first))
                 {
                     uniform = false;
                 }
@@ -374,13 +392,13 @@ namespace ValveResourceFormat.IO
                 }
 
                 var (a, b) = (Fe.NodeInvMasses[rod.NodeA], Fe.NodeInvMasses[rod.NodeB]);
-                if (MathF.Abs(a - b) <= 1e-6f * MathF.Max(a, b))
+                if (MathF.Abs(a - b) <= InverseMassAgreement * MathF.Max(a, b))
                 {
                     continue;
                 }
 
                 unequal++;
-                if (MathF.Abs(rod.Weight0 - a / (a + b)) <= 2e-5f)
+                if (MathF.Abs(rod.Weight0 - a / (a + b)) <= MassProportionalWeightTolerance)
                 {
                     proportional++;
                 }
@@ -693,7 +711,7 @@ namespace ValveResourceFormat.IO
                         }
 
                         var term = ElementMassPerUnitLength
-                            * Vector3.Distance(Index.InitPosePositions[a], Index.InitPosePositions[b]);
+                            * Index.RestDistance(a, b);
                         mass[a] += term;
                         mass[b] += term;
                     }
@@ -737,14 +755,14 @@ namespace ValveResourceFormat.IO
 
             foreach (var rod in Index.Rods)
             {
-                var (a, b) = UnorderedPair(rod.NodeA, rod.NodeB);
+                var (a, b) = rod.Pair;
                 if (b >= mass.Length
                     || rod.MaxDist >= UnboundedRodDistance || (FoldedAfterMass(rod) && derived.Remove((a, b))))
                 {
                     continue;
                 }
 
-                var term = RodMassPerUnitLength * Vector3.Distance(Index.InitPosePositions[a], Index.InitPosePositions[b]);
+                var term = RodMassPerUnitLength * Index.RestDistance(a, b);
                 mass[a] += term;
                 mass[b] += term;
             }
@@ -761,19 +779,16 @@ namespace ValveResourceFormat.IO
             var rings = new Dictionary<string, Dictionary<int, int>>(StringComparer.Ordinal);
             for (var node = 0; node < Fe.CtrlName.Length; node++)
             {
-                var name = Fe.CtrlName[node];
-                var index = RingSuffixIndex(name);
-                if (index >= 0 && name.StartsWith(RingNodePrefix, StringComparison.Ordinal))
+                if (TryParseRingNodeName(Fe.CtrlName[node], out var owner, out var index) && index >= 0)
                 {
-                    var ring = name[..name.LastIndexOf('_')];
-                    GetOrAdd(rings, ring)[index] = node;
+                    GetOrAdd(rings, owner)[index] = node;
                 }
             }
 
             Dictionary<int, int>? TwoWideRingOf(int a, int b)
             {
-                var name = Fe.CtrlName[a];
-                return RingSuffixIndex(name) >= 0 && rings.TryGetValue(name[..name.LastIndexOf('_')], out var members)
+                return TryParseRingNodeName(Fe.CtrlName[a], out var owner, out var index) && index >= 0
+                    && rings.TryGetValue(owner, out var members)
                     && members.Count == 2 && members.ContainsKey(0) && members.ContainsKey(1)
                     && members.ContainsValue(a) && members.ContainsValue(b) && a != b
                     ? members
@@ -833,7 +848,7 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        rods[(a, b)] = Vector3.Distance(Index.InitPosePositions[a], Index.InitPosePositions[b]);
+                        rods[(a, b)] = Index.RestDistance(a, b);
                     }
                 }
             }
