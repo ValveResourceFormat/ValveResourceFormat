@@ -438,8 +438,8 @@ public class ViewmodelSceneNode : ModelSceneNode
     // Brush and prop entities carry their own colliders, which move with them, so the world alone misses doors
     private static Rubikon.TraceResult TraceWorldAndEntities(UserInput input, Vector3 from, Vector3 to)
     {
-        var trace = input.PhysicsWorld?.TraceRay(from, to, Rubikon.DefaultGeometry) ?? new Rubikon.TraceResult();
-        input.EntitySystem?.TraceRay(from, to, Rubikon.DefaultGeometry, ref trace);
+        var trace = input.PhysicsWorld?.TraceRay(from, to, Rubikon.DecalGeometry) ?? new Rubikon.TraceResult();
+        input.EntitySystem?.TraceRay(from, to, Rubikon.DecalGeometry, ref trace);
 
         return trace;
     }

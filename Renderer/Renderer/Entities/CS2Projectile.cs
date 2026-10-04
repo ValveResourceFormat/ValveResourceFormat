@@ -333,8 +333,8 @@ public sealed class CS2Projectile : BaseEntity
             var from = WorldOrigin - direction * ScorchTraceBackOff;
             var to = WorldOrigin + direction * ScorchTraceDistance;
 
-            var trace = EntitySystem.PhysicsWorld?.TraceRay(from, to, Rubikon.DefaultGeometry) ?? new Rubikon.TraceResult();
-            EntitySystem.TraceRay(from, to, Rubikon.DefaultGeometry, ref trace);
+            var trace = EntitySystem.PhysicsWorld?.TraceRay(from, to, Rubikon.DecalGeometry) ?? new Rubikon.TraceResult();
+            EntitySystem.TraceRay(from, to, Rubikon.DecalGeometry, ref trace);
 
             if (!trace.Hit)
             {

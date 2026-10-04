@@ -1108,6 +1108,9 @@ public class Rubikon
     // Solid untagged geometry that closely resembles the render mesh
     internal const string DefaultGeometry = "default";
 
+    // What takes a decal: default geometry, and the glass and fences that bullets pass through
+    internal const string DecalGeometry = "decal";
+
     internal const string GrenadeCollisionName = "grenade";
 
     internal const string LadderCollisionName = "ladder";
@@ -1147,6 +1150,11 @@ public class Rubikon
         if (collisionName == DefaultGeometry)
         {
             return interactAs.Length > 0;
+        }
+
+        if (collisionName == DecalGeometry)
+        {
+            return interactAs.Length > 0 && !ContainsString(interactAs, "passbullets");
         }
 
         if (ContainsString(interactExclude, collisionName))
