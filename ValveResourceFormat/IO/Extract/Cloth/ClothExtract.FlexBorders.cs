@@ -1,30 +1,26 @@
 using System.Linq;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 
 namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    /// <summary>Whether every pin <c>flex_cloth_borders</c> would free on <paramref name="proxy"/> carries an <c>m_NodeBases</c> entry.</summary>
+    /// <summary>Whether every pin <c>flex_cloth_borders</c> would free on <paramref name="proxy"/> has an <c>m_NodeBases</c> entry.</summary>
     internal static bool FlexedPinsCarryNodeBases(ClothReconstruction cloth, ProxyMesh proxy)
         => FlexedPinNodes(cloth, proxy).All(cloth.Fe.NodeBases.ContainsKey);
 
     /// <summary>
-    /// Whether there are pins <c>flex_cloth_borders</c> would free on <paramref name="proxy"/> and all of them carry an
+    /// Whether <paramref name="proxy"/> has pins <c>flex_cloth_borders</c> would free and all of them have an
     /// <c>m_NodeBases</c> entry, which only that flag gives a pinned proxy vertex.
     /// </summary>
     internal static bool FlexedPinsStateClothBorders(ClothReconstruction cloth, ProxyMesh proxy)
         => FlexedPinNodes(cloth, proxy).Any() && FlexedPinsCarryNodeBases(cloth, proxy);
 
-    /// <summary>
-    /// The static pins <c>flex_cloth_borders</c> would free on <paramref name="proxy"/>: the pinned corners of every face
-    /// with two or more simulated corners.
-    /// </summary>
+    /// <summary>The pinned corners of every face with two or more simulated corners.</summary>
     private static IEnumerable<int> FlexedPinNodes(ClothReconstruction cloth, ProxyMesh proxy)
     {
         foreach (var face in proxy.Faces)
         {
-            if (face.Distinct().Count(corner => proxy.ClothEnable[corner] != 0f) < 2)
+            if (!FaceFlexes(proxy, face))
             {
                 continue;
             }
@@ -39,6 +35,9 @@ internal sealed partial class ClothExtract
             }
         }
     }
+
+    private static bool FaceFlexes(ProxyMesh proxy, int[] face)
+        => face.Distinct().Count(corner => proxy.ClothEnable[corner] != 0f) >= 2;
 
     /// <summary>
     /// Whether <paramref name="proxy"/> states <c>flex_cloth_borders</c>: every pin the flag frees is recorded
@@ -55,7 +54,6 @@ internal sealed partial class ClothExtract
         }
 
         var ctrlIndexByName = LookupsOf(cloth).NodeByNameIgnoreCase;
-
         var statedByPinNodeBases = FlexedPinsStateClothBorders(cloth, proxy);
 
         var faced = new HashSet<int>();
@@ -63,7 +61,7 @@ internal sealed partial class ClothExtract
         foreach (var face in proxy.Faces)
         {
             faced.UnionWith(face);
-            if (face.Distinct().Count(corner => proxy.ClothEnable[corner] != 0f) >= 2)
+            if (FaceFlexes(proxy, face))
             {
                 flexReaches.UnionWith(face.Where(corner => proxy.ClothEnable[corner] == 0f));
             }

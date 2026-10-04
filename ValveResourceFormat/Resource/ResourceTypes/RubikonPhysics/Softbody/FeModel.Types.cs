@@ -4,72 +4,67 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 {
     public sealed partial class FeModel
     {
-        /// <summary>A single structural rod (from <c>m_Rods</c>).</summary>
+        /// <summary>A distance constraint between two control nodes (from <c>m_Rods</c>).</summary>
         /// <param name="NodeA">First endpoint control-node index.</param>
         /// <param name="NodeB">Second endpoint control-node index.</param>
-        /// <param name="MinDist">Minimum allowed distance (<c>flMinDist</c>).</param>
-        /// <param name="MaxDist">Maximum allowed distance (<c>flMaxDist</c>).</param>
-        /// <param name="Weight0">Share of <paramref name="NodeA"/> in the correction (<c>flWeight0</c>).</param>
-        /// <param name="RelaxationFactor">Relaxation factor (<c>flRelaxationFactor</c>).</param>
+        /// <param name="MinDist">Minimum allowed distance.</param>
+        /// <param name="MaxDist">Maximum allowed distance.</param>
+        /// <param name="Weight0">Share of <paramref name="NodeA"/> in the correction.</param>
+        /// <param name="RelaxationFactor">Relaxation factor.</param>
         public readonly record struct Rod(int NodeA, int NodeB, float MinDist, float MaxDist, float Weight0, float RelaxationFactor)
         {
-            /// <summary>Gets whether the rod's length band is open: its bounds lie more than a relative 1e-4 apart.</summary>
+            /// <summary>Gets whether the rod's minimum and maximum distance differ by more than a relative 1e-4.</summary>
             internal bool IsBanded => MathF.Abs(MinDist - MaxDist) > 1e-4f * MathF.Max(1f, MathF.Abs(MaxDist));
 
-            /// <summary>Gets whether <paramref name="length"/> is the rest distance <paramref name="rest"/>.</summary>
+            /// <summary>Gets whether <paramref name="length"/> matches the rest distance <paramref name="rest"/>.</summary>
             internal static bool IsAtRestLength(float length, float rest) => MathF.Abs(length - rest) <= MathF.Max(1e-3f, 1e-4f * rest);
         }
 
-        /// <summary>
-        /// One rod of <c>m_SimdRodsAnim</c>: its two nodes in lane order and the <c>f4Weight0</c> lane value, which is
-        /// the share of <paramref name="NodeA"/> exactly as <see cref="Rod.Weight0"/> is on a rod kept in <c>m_Rods</c>.
-        /// </summary>
+        /// <summary>A rod of <c>m_SimdRodsAnim</c>.</summary>
         /// <param name="NodeA">First node of the lane.</param>
         /// <param name="NodeB">Second node of the lane.</param>
-        /// <param name="Weight0">Blend weight of <paramref name="NodeA"/>.</param>
+        /// <param name="Weight0">Share of <paramref name="NodeA"/> in the correction, as in <see cref="Rod.Weight0"/>.</param>
         public readonly record struct AnimRod(int NodeA, int NodeB, float Weight0);
 
-        /// <summary>A single node's explicit orientation basis (from <c>m_NodeBases</c>).</summary>
-        /// <param name="NodeX0">Control-node index defining the local X axis' first endpoint.</param>
-        /// <param name="NodeX1">Control-node index defining the local X axis' second endpoint.</param>
-        /// <param name="NodeY0">Control-node index defining the local Y axis' first endpoint.</param>
-        /// <param name="NodeY1">Control-node index defining the local Y axis' second endpoint.</param>
+        /// <summary>A node's explicit orientation basis (from <c>m_NodeBases</c>).</summary>
+        /// <param name="NodeX0">First control node of the local X axis.</param>
+        /// <param name="NodeX1">Second control node of the local X axis.</param>
+        /// <param name="NodeY0">First control node of the local Y axis.</param>
+        /// <param name="NodeY1">Second control node of the local Y axis.</param>
         public readonly record struct NodeBasis(int NodeX0, int NodeX1, int NodeY0, int NodeY1);
 
-        /// <summary>
-        /// A single node's solver integrator parameters (from <c>m_NodeIntegrator</c>).
-        /// </summary>
-        /// <param name="PointDamping">Velocity damping (<c>flPointDamping</c>).</param>
-        /// <param name="ForceAttraction">Goal/force attraction toward the animated pose (<c>flAnimationForceAttraction</c>).</param>
-        /// <param name="VertexAttraction">Per-vertex attraction toward the animated pose (<c>flAnimationVertexAttraction</c>).</param>
-        /// <param name="Gravity">Gravity acceleration applied to the node (<c>flGravity</c>).</param>
+        /// <summary>A node's solver integrator parameters (from <c>m_NodeIntegrator</c>).</summary>
+        /// <param name="PointDamping">Velocity damping.</param>
+        /// <param name="ForceAttraction">Force attraction toward the animated pose.</param>
+        /// <param name="VertexAttraction">Position attraction toward the animated pose.</param>
+        /// <param name="Gravity">Gravity applied to the node.</param>
         public readonly record struct NodeIntegrator(float PointDamping, float ForceAttraction, float VertexAttraction, float Gravity);
 
-        /// <summary>A single twist constraint record (from <c>m_Twists</c>).</summary>
+        /// <summary>A twist constraint (from <c>m_Twists</c>).</summary>
         /// <param name="Orient">The node whose frame the twist is measured in.</param>
         /// <param name="End">The node the twist is measured toward.</param>
-        /// <param name="TwistRelax">The record's <c>flTwistRelax</c>.</param>
-        /// <param name="SwingRelax">The record's <c>flSwingRelax</c>.</param>
+        /// <param name="TwistRelax">Twist relaxation factor.</param>
+        /// <param name="SwingRelax">Swing relaxation factor.</param>
         public readonly record struct TwistRecord(int Orient, int End, float TwistRelax, float SwingRelax);
 
         /// <summary>A three-node bend constraint (from <c>m_KelagerBends</c>).</summary>
-        /// <param name="MidNode">The bent node, whose joint carries the authored stiff hinge.</param>
+        /// <param name="MidNode">The bent node.</param>
         /// <param name="End0">The first node the bend measures against.</param>
         /// <param name="End1">The second node the bend measures against.</param>
         /// <param name="MidWeight">Solver share of <paramref name="MidNode"/>.</param>
         /// <param name="End0Weight">Solver share of <paramref name="End0"/>.</param>
         /// <param name="End1Weight">Solver share of <paramref name="End1"/>.</param>
-        /// <param name="Height">Distance from the bent node to the triple's centroid the bend allows.</param>
+        /// <param name="Height">Allowed distance from the bent node to the centroid of the three nodes.</param>
         public readonly record struct KelagerBend(int MidNode, int End0, int End1,
             float MidWeight, float End0Weight, float End1Weight, float Height);
 
         /// <summary>A named vertex selection, used to target cloth effects and joint vertex maps.</summary>
-        /// <param name="Name">The authored selection name.</param>
-        /// <param name="NameHash">The hash the compiler keys the selection by.</param>
+        /// <param name="Name">The selection name.</param>
+        /// <param name="NameHash">The selection name hash.</param>
         /// <param name="VertexBase">The first control node the selection covers.</param>
         /// <param name="VertexCount">How many consecutive control nodes it covers.</param>
-        /// <param name="CenterOfMass">The selection's centre of mass.</param>
-        /// <param name="Weights">Membership weight of each covered node, 0..1, indexed from <paramref name="VertexBase"/>.</param>
+        /// <param name="CenterOfMass">The selection's center of mass.</param>
+        /// <param name="Weights">Membership weight of each covered node, 0 to 1, indexed from <paramref name="VertexBase"/>.</param>
         /// <param name="VolumetricSolveStrength">How strongly the selection is solved as a volume.</param>
         /// <param name="ScaleSourceNode">The control node whose scale the selection follows, or -1.</param>
         public readonly record struct VertexMap(string Name, uint NameHash, int VertexBase, int VertexCount,
@@ -91,15 +86,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public readonly record struct DynKinLink(int Parent, int Child);
 
         /// <summary>
-        /// A collision plane (from <c>m_CollisionPlanes</c>). <see cref="Stickiness"/> is read from the older layout's
-        /// <c>flStickiness</c> and is 0 on current files, which carry <c>flStrength</c> only.
+        /// A collision plane (from <c>m_CollisionPlanes</c>). <see cref="Stickiness"/> only exists in older files,
+        /// newer ones carry <see cref="Strength"/> instead.
         /// </summary>
         public readonly record struct CollisionPlane(int CtrlParent, int ChildNode, Vector3 PlaneNormal,
             float PlaneOffset, float Stickiness, float Strength);
 
         /// <summary>
-        /// A named cloth effect (from <c>m_Effects</c>). <see cref="Params"/> is the unparsed per-type parameter block as
-        /// stored (an object of value type null when the file stores null), or null when the key is absent.
+        /// A named cloth effect (from <c>m_Effects</c>). <see cref="Params"/> is the raw per-type parameter block,
+        /// or null when absent.
         /// </summary>
         public readonly record struct Effect(string Name, uint NameHash, int Type, KVObject? Params);
 
@@ -109,8 +104,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>
         /// One row of <c>m_RigidColliderPriorities</c>: the index at which a priority group starts in each
-        /// rigid-collider array. Row <c>g</c> holds group <c>g</c>'s first index in every array and the last
-        /// row holds each array's element count, so group <c>g</c> owns <c>[row[g], row[g + 1])</c>.
+        /// rigid-collider array. The last row holds each array's element count, so group <c>g</c> owns
+        /// <c>[row[g], row[g + 1])</c>.
         /// </summary>
         public readonly record struct RigidColliderIndices(int TaperedCapsuleRigidIndex, int SphereRigidIndex,
             int BoxRigidIndex, int SDFRigidIndex, int CollisionPlaneIndex);
@@ -129,15 +124,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             float Radius0, float Radius1, Vector3 Point0, Vector3 Point1, int CollisionMask);
 
         /// <summary>
-        /// A jiggle bone keyed to its control node (from <c>m_JiggleBones</c>). Both indices are stored unsigned, and the
-        /// all-ones "none" value reads as -1.
+        /// A jiggle bone keyed to its control node (from <c>m_JiggleBones</c>). Both indices are stored unsigned,
+        /// so the all-ones "none" value reads as -1.
         /// </summary>
         public readonly record struct IndexedJiggleBone(int Node, int JiggleParent, JiggleBone Bone);
 
         /// <summary>A bone-merge link (from <c>m_BoneMergeLinks</c>).</summary>
         public readonly record struct BoneMergeLink(uint ParentHash, int ChildNode);
 
-        /// <summary>A node locked to its parent's offset transform (from <c>m_LockToParent</c>).</summary>
+        /// <summary>A node locked to its parent at a fixed offset (from <c>m_LockToParent</c>).</summary>
         public readonly record struct LockToParentLink(Vector3 Offset, int CtrlParent, int CtrlChild);
 
         /// <summary>A strip's column pairing (from <c>m_CtrlOsOffsets</c>).</summary>

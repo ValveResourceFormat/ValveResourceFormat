@@ -7,6 +7,11 @@ namespace ValveResourceFormat.IO
 {
     internal sealed partial class ClothReconstruction
     {
+        /// <summary>The numbered and <c>Ctr</c> ring nodes of each <c>$cc</c> owner name, in node order.</summary>
+        private Dictionary<string, List<int>>? fitRingNodes;
+        private Dictionary<int, HashSet<int>>? reverseOffsetTargets;
+        private HashSet<int>? reverseOffsetBones;
+
         /// <summary>
         /// Gets whether <paramref name="node"/> was authored with <c>lock_translation</c>: its parent or goal lock is one
         /// that the fit-influence pass could not have written for it.
@@ -15,6 +20,9 @@ namespace ValveResourceFormat.IO
             => (Fe.IsLockedToParent(node) && !((chainVersion < 2 || !ChainPresetsJoint(node, chain))
                     && ReachesParentLockUnkeyed(node) && ChainStagesFitGroup(node, chainVersion, chain)))
                 || (Fe.IsLockedToGoal(node) && !Fe.IsStatic(node));
+
+        /// <summary>Gets whether <paramref name="node"/> is a hinged joint or a rigid hinge-fan joint.</summary>
+        private bool IsAnyHingedJoint(int node) => IsHingedJoint(node) || RigidHingeJoints.ContainsKey(node);
 
         private bool ChainPresetsJoint(int node, BoneChain? chain)
         {
@@ -69,7 +77,7 @@ namespace ValveResourceFormat.IO
                 {
                     var name = Fe.CtrlNames[node];
                     var split = name.LastIndexOf('_');
-                    if (split < 3 || !name.StartsWith("$cc", StringComparison.Ordinal))
+                    if (split < RingNodePrefix.Length || !name.StartsWith(RingNodePrefix, StringComparison.Ordinal))
                     {
                         continue;
                     }
@@ -77,7 +85,7 @@ namespace ValveResourceFormat.IO
                     var suffix = name.AsSpan(split + 1);
                     if (suffix.SequenceEqual("Ctr") || (suffix.Length > 0 && int.TryParse(suffix, out _)))
                     {
-                        GetOrAdd(fitRingNodes, name[3..split]).Add(node);
+                        GetOrAdd(fitRingNodes, name[RingNodePrefix.Length..split]).Add(node);
                     }
                 }
             }
@@ -97,9 +105,6 @@ namespace ValveResourceFormat.IO
 
             return list;
         }
-
-        /// <summary>Gets the numbered and <c>Ctr</c> ring nodes of each <c>$cc</c> owner name, in node order.</summary>
-        private Dictionary<string, List<int>>? fitRingNodes;
 
         private bool ReachesParentLockUnkeyed(int node)
         {
@@ -123,8 +128,8 @@ namespace ValveResourceFormat.IO
             var influences = Fe.FitMatrixTargets.TryGetValue(child, out var own) ? own
                 : Fe.NodeBases.TryGetValue(child, out var basis) ? [basis.NodeX0, basis.NodeX1, basis.NodeY0, basis.NodeY1]
                 : [];
-            return influences.Length > 0 && Array.TrueForAll(influences, influence => Array.IndexOf(targets, influence) >= 0)
-                || own is not null && HoldsOneWideEntryOf(targets, child);
+            return (influences.Length > 0 && Array.TrueForAll(influences, influence => Array.IndexOf(targets, influence) >= 0))
+                || (own is not null && HoldsOneWideEntryOf(targets, child));
         }
 
         private bool HoldsOneWideEntryOf(int[] targets, int node)
@@ -175,10 +180,6 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private Dictionary<int, HashSet<int>>? reverseOffsetTargets;
-
-        private HashSet<int>? reverseOffsetBones;
-
         /// <summary>
         /// Gets whether a proxy-sheet vertex of <paramref name="proxy"/> carries an <c>m_NodeBases</c> entry, which only a
         /// sheet imported with <c>add_bones_to_render_mesh</c> gives it.
@@ -197,8 +198,7 @@ namespace ValveResourceFormat.IO
             var unmoved = new Dictionary<int, Vector3>();
             foreach (var joint in chain.Joints)
             {
-                if (!Fe.NodeBases.TryGetValue(joint.Node, out var want) || ChainJointRing(joint).Count >= 2
-                    || IsHingedJoint(joint.Node) || RigidHingeJoints.ContainsKey(joint.Node))
+                if (!Fe.NodeBases.TryGetValue(joint.Node, out var want) || ChainJointRing(joint).Count >= 2 || IsAnyHingedJoint(joint.Node))
                 {
                     continue;
                 }
@@ -243,9 +243,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Whether the original fits a joint of <paramref name="chain"/> that a <c>ClothChain</c> of version 2 would have given
-        /// both a preset basis and a reverse offset, which puts the joint in both of the fit pass's skip sets and discards its
-        /// group, so the chain compiled below version 2.
+        /// Whether the original fits a joint of <paramref name="chain"/> that version 2 would have given both a preset basis
+        /// and a reverse offset. Version 2 skips fitting such a joint, so the chain compiled below version 2.
         /// </summary>
         internal bool ChainFitsAPresetJoint(BoneChain chain)
         {
@@ -288,8 +287,7 @@ namespace ValveResourceFormat.IO
             var unmoved = new Dictionary<int, Vector3>();
             foreach (var joint in chain.Joints)
             {
-                if (joint.Node < Fe.StaticNodeCount || !targets.TryGetValue(joint.Node, out var jointTargets)
-                    || IsHingedJoint(joint.Node) || RigidHingeJoints.ContainsKey(joint.Node))
+                if (joint.Node < Fe.StaticNodeCount || !targets.TryGetValue(joint.Node, out var jointTargets) || IsAnyHingedJoint(joint.Node))
                 {
                     continue;
                 }
@@ -386,7 +384,12 @@ namespace ValveResourceFormat.IO
             var pairs = new Dictionary<int, (int X0, int X1)>();
             foreach (var run in RopeRuns)
             {
-                for (var i = 0; i < run.Length && run.Length >= 2; i++)
+                if (run.Length < 2)
+                {
+                    continue;
+                }
+
+                for (var i = 0; i < run.Length; i++)
                 {
                     var pair = i == 0 ? (run[i], run[i + 1])
                         : i == run.Length - 1 ? (run[i], run[i - 1])
@@ -448,7 +451,7 @@ namespace ValveResourceFormat.IO
             var unstaged = false;
             foreach (var joint in list)
             {
-                if (joint.Node < Fe.StaticNodeCount || IsHingedJoint(joint.Node) || RigidHingeJoints.ContainsKey(joint.Node))
+                if (joint.Node < Fe.StaticNodeCount || IsAnyHingedJoint(joint.Node))
                 {
                     continue;
                 }

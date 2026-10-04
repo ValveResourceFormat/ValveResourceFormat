@@ -8,6 +8,14 @@ namespace ValveResourceFormat.IO
     internal sealed partial class ClothReconstruction
     {
         /// <summary>
+        /// The weight a selection is painted at on a node <c>m_DynNodeVertexSet</c> puts in its set while its compiled
+        /// weight there is 0; it rounds back to 0.
+        /// </summary>
+        internal const float SubQuantumMembershipWeight = 0.001f;
+
+        private readonly bool vertexMapsFromSets;
+
+        /// <summary>
         /// Orders <paramref name="proxy"/>'s selections so each node's <c>m_DynNodeVertexSet</c> winner precedes every
         /// other selection painting it at the same weight. Returns the proxy's own order when that is not possible.
         /// </summary>
@@ -87,6 +95,10 @@ namespace ValveResourceFormat.IO
             return OrderByFirstWriterWins(names, constraints);
         }
 
+        /// <summary>
+        /// Orders <paramref name="names"/> so every winner precedes its rivals, keeping the given order otherwise. Returns
+        /// <paramref name="names"/> unchanged when the constraints form a cycle.
+        /// </summary>
         internal static string[] OrderByFirstWriterWins(IReadOnlyList<string> names,
             IReadOnlyList<(string Winner, string Rival)> constraints)
         {
@@ -157,8 +169,6 @@ namespace ValveResourceFormat.IO
 
             return sets;
         }
-
-        private readonly bool vertexMapsFromSets;
 
         /// <summary>
         /// Drops the selection rebuilt from the vertex set named after the model's file. Selections read from
@@ -388,12 +398,6 @@ namespace ValveResourceFormat.IO
             return simulated;
         }
 
-        /// <summary>
-        /// The weight a selection is painted at on a node <c>m_DynNodeVertexSet</c> puts in its set while its compiled
-        /// weight there is 0; it rounds back to 0.
-        /// </summary>
-        internal const float SubQuantumMembershipWeight = 0.001f;
-
         private (string Name, float[] Weights)[] BuildVertexMapWeights(int[] nodeIndices)
         {
             var maps = new List<(string, float[])>();
@@ -422,9 +426,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Whether <c>m_DynNodeVertexSet</c> puts <paramref name="node"/> in the vertex set keyed by
-        /// <paramref name="nameHash"/>. False for a static node, and for every node of a model that ships no per-node
-        /// set array.
+        /// Gets whether <c>m_DynNodeVertexSet</c> puts <paramref name="node"/> in the vertex set keyed by
+        /// <paramref name="nameHash"/>; never true for a static node.
         /// </summary>
         private bool InRecordedVertexSet(int node, uint nameHash)
         {

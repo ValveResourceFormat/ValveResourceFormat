@@ -23,7 +23,7 @@ internal sealed partial class ClothExtract
             shapes.Boxes
                 .Select(b => (b.Priority, Node: ParentBoneNode(cloth, b.ParentBone), Shape: MakeClothShapeBox(b))),
         }
-        .SelectMany(static shapes => shapes.GroupBy(static entry => entry.Priority)
+        .SelectMany(static entries => entries.GroupBy(static entry => entry.Priority)
             .Select(static group => group.Select(static entry => (entry.Node, entry.Shape)).ToList()))
         .ToArray();
 
@@ -60,9 +60,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The model's planarized collision shapes in the order that leaves each one its original <c>m_CollisionPlanes</c>
-    /// entries: the first shape claims every node it reaches and later shapes win the rest, so the smallest shape leads
-    /// and the others follow largest first.
+    /// The planarized collision shapes ordered so each keeps its original <c>m_CollisionPlanes</c> entries. The first shape
+    /// claims every node it reaches and later shapes win the rest, so the smallest leads and the others follow largest first.
     /// </summary>
     internal static List<KVObject> PlanarizedShapesInClaimOrder(ClothReconstruction cloth)
     {
@@ -86,8 +85,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Declares the anti-tunnel collider group that compiles to <c>m_AntiTunnelBytecode</c>, naming both the shapes and
-    /// the cloth; a group missing either compiles to nothing.
+    /// Declares the anti-tunnel collider group behind <c>m_AntiTunnelBytecode</c>; it needs both shapes and cloth, as a
+    /// group missing either compiles to nothing.
     /// </summary>
     internal static void AddClothAntiTunnelGroup(KVObject softbodyChildren, ClothReconstruction cloth,
         List<string> shapeNames, List<string> clothNames)
@@ -113,14 +112,11 @@ internal sealed partial class ClothExtract
             ("data", MakeNodeTable(nodes))));
     }
 
-    /// <summary>A shape parent bone's control node, or int.MaxValue where it is not one.</summary>
+    /// <summary>A shape parent bone's control node, or int.MaxValue so shapes without one sort last.</summary>
     private static int ParentBoneNode(ClothReconstruction cloth, string? parentBone)
         => parentBone is not null && LookupsOf(cloth).NodeByName.TryGetValue(parentBone, out var node) ? node : int.MaxValue;
 
-    /// <summary>
-    /// Declares every anti-tunnel probe as a top-level <c>ClothAntiTunnelProbe</c>, in <c>Begin</c> order, with its targets
-    /// in compiled order.
-    /// </summary>
+    /// <summary>Declares every anti-tunnel probe as a top-level <c>ClothAntiTunnelProbe</c>, in <c>Begin</c> order.</summary>
     internal static void AddClothAntiTunnelProbes(KVObject rootChildren, ClothReconstruction cloth, IReadOnlyDictionary<int, string>? proxyNodeNames)
     {
         foreach (var i in Enumerable.Range(0, cloth.Fe.AntiTunnelProbes.Length)
@@ -152,7 +148,6 @@ internal sealed partial class ClothExtract
         }
     }
 
-    /// <summary>A <c>ClothAntiTunnelProbe</c> from <paramref name="sourceNode"/> to each distinct target.</summary>
     private static KVObject MakeClothAntiTunnelProbe(string name, string sourceNode, bool animSource, float weight,
         float activationDistance, IReadOnlyList<string> targetNames)
     {
@@ -176,7 +171,6 @@ internal sealed partial class ClothExtract
             ("data", MakeNodeTable(nodes)));
     }
 
-    /// <summary>The <c>ClothShapeBox</c> declaring a compiled collision box.</summary>
     private static KVObject MakeClothShapeBox(CollisionBox box)
     {
         var node = MakeClothShape("ClothShapeBox", box.Planarize ? "_clothPlanarizedBox" : "_clothBox", box.ParentBone,
@@ -188,7 +182,6 @@ internal sealed partial class ClothExtract
         return node;
     }
 
-    /// <summary>The <c>ClothShapeCapsule</c> declaring a compiled collision capsule.</summary>
     private static KVObject MakeClothShapeCapsule(CollisionCapsule capsule)
     {
         var node = MakeClothShape("ClothShapeCapsule", capsule.Planarize ? "_clothPlanarizedCapsule" : "_clothCapsule",
@@ -200,7 +193,6 @@ internal sealed partial class ClothExtract
         return node;
     }
 
-    /// <summary>The <c>ClothShapeSphere</c> declaring a compiled collision sphere.</summary>
     private static KVObject MakeClothShapeSphere(CollisionSphere sphere)
     {
         var node = MakeClothShape("ClothShapeSphere", "_clothSphere", sphere.ParentBone, sphere.CollisionMask, sphere.Priority,
@@ -210,7 +202,7 @@ internal sealed partial class ClothExtract
         return node;
     }
 
-    /// <summary>The keys every cloth collision shape carries ahead of its geometry; a zero mask means all layers.</summary>
+    /// <summary>The keys every cloth collision shape carries ahead of its geometry. A zero mask means all layers.</summary>
     private static KVObject MakeClothShape(string className, string nameSuffix, string? parentBone, int collisionMask,
         int priority, string? vertexMap, bool inverted, bool planarize)
     {

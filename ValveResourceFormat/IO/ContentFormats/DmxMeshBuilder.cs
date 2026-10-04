@@ -52,8 +52,8 @@ internal static class DmxMeshBuilder
 
     /// <summary>
     /// The values the streams of one vertex data element are decoded against: the input signature of the
-    /// first material its draw calls use that has one, the mesh's skinning, and the cloth binding with the element's
-    /// triangles the <c>cloth_enable</c> paint is grown over.
+    /// first material its draw calls use that has one, the mesh's skinning, and the cloth binding with the triangles
+    /// its <c>cloth_enable</c> paint is grown over.
     /// </summary>
     private readonly record struct VertexStreams(Material.VsInputSignature MaterialInputSignature, int BoneWeightCount, int[]? BoneRemapTable,
         ClothRenderBinding? Cloth, List<int>? ClothTriangles);

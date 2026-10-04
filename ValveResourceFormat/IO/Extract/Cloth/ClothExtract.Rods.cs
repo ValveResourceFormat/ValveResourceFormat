@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Linq;
+using System.Runtime.InteropServices;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using static ValveResourceFormat.IO.KVHelpers;
@@ -8,9 +9,19 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
+    // How far a cluster band's maximum has to sit from the pair's rest length before it is read as summed stray radii
+    private const float ClusterRestTolerance = 1e-3f;
+
+    // How closely solved member radii have to reproduce every band of a clique, relative to the band
+    private const float ClusterRadiusTolerance = 1e-4f;
+
+    // Bounds on the clique search: larger components, or ones needing more steps, yield no cliques
+    private const int MaxCliqueComponentNodes = 64;
+    private const int MaxCliqueSearchSteps = 1 << 16;
+
     /// <summary>
     /// A <c>ClothSpring</c> between two named nodes with explicit lengths; its stiffness compiles to the rod's relaxation
-    /// factor, and its weight is always the builder's default.
+    /// factor, and its weight is left at the default.
     /// </summary>
     private static KVObject MakeClothSpring(string name, string n0, string n1, float minLength, float maxLength,
         float stiffness, int extraIterations = 0)
@@ -93,48 +104,53 @@ internal sealed partial class ClothExtract
             ("chain", MakeChainData(joints, attrs, version: 0)));
     }
 
-    // TODO: some models re-export more rods than the original, from overlap between the springs emitted
-    // here, the chains, and the proxy sheet all re-declaring the same span.
+    // TODO: The springs here, the chains and the proxy sheet can each re-declare the same span, re-exporting more rods
+    // than the original had.
     private static void AddClothProxySprings(KVObject softbodyChildren, ClothReconstruction cloth,
         List<ClothProxyFile> proxies, HashSet<int> chainJointNodes,
         HashSet<int> authoredClothNodes, Dictionary<int, string> freeClothNodeNames,
         HashSet<(int, int)> derivedRods, Dictionary<int, string> proxyNodeNames)
     {
         var riskyNodes = new HashSet<int>();
-
         foreach (var (_, _, proxyMesh) in proxies)
         {
             if (proxyMesh.IsDropRisk)
             {
-                foreach (var node in proxyMesh.NodeIndices)
-                {
-                    riskyNodes.Add(node);
-                }
+                riskyNodes.UnionWith(proxyMesh.NodeIndices);
             }
         }
 
         string? ResolveName(int node)
-            => node < 0 || node >= cloth.Fe.CtrlNames.Length ? null
-            : FeModel.IsProxyNodeName(cloth.Fe.CtrlNames[node])
-                ? proxyNodeNames.GetValueOrDefault(node) ?? freeClothNodeNames.GetValueOrDefault(node)
-                : authoredClothNodes.Contains(node) ? cloth.Fe.CtrlNames[node] : null;
-
-        foreach (var rods in cloth.Fe.Rods.GroupBy(RodPair))
         {
-            var edge = rods.Key;
+            if (node < 0 || node >= cloth.Fe.CtrlNames.Length)
+            {
+                return null;
+            }
+
+            var name = cloth.Fe.CtrlNames[node];
+            if (FeModel.IsProxyNodeName(name))
+            {
+                return proxyNodeNames.GetValueOrDefault(node) ?? freeClothNodeNames.GetValueOrDefault(node);
+            }
+
+            return authoredClothNodes.Contains(node) ? name : null;
+        }
+
+        foreach (var (edge, rods) in cloth.RodsByPair)
+        {
             if (riskyNodes.Contains(edge.Item1) || riskyNodes.Contains(edge.Item2) || derivedRods.Contains(edge)
                 || chainJointNodes.Contains(edge.Item1) || chainJointNodes.Contains(edge.Item2))
             {
                 continue;
             }
 
-            var rod = rods.First();
+            var rod = rods[0];
             if (ResolveName(rod.NodeA) is not { } name0 || ResolveName(rod.NodeB) is not { } name1)
             {
                 continue;
             }
 
-            AddPairSprings(softbodyChildren, $"rod_{edge.Item1}_{edge.Item2}", name0, name1, [.. rods]);
+            AddPairSprings(softbodyChildren, $"rod_{edge.Item1}_{edge.Item2}", name0, name1, rods);
         }
     }
 
@@ -261,7 +277,6 @@ internal sealed partial class ClothExtract
     {
         var controlNames = cloth.Fe.CtrlNames;
         var chainJoints = ChainJointNodes(chains);
-
         var rodCounts = RodCountsByPair(cloth).Entries;
 
         var surplus = cloth.GetUngeneratedRods(chains);
@@ -269,23 +284,14 @@ internal sealed partial class ClothExtract
         AddRingClusterCliques(softbodyChildren, cloth, RingOwners(chains));
         foreach (var rod in surplus)
         {
-            if (rod.NodeA >= controlNames.Length || rod.NodeB >= controlNames.Length)
+            if (rod.NodeA >= controlNames.Length || rod.NodeB >= controlNames.Length
+                || !chainJoints.Contains(rod.NodeA) || !chainJoints.Contains(rod.NodeB))
             {
                 continue;
             }
 
-            if (!chainJoints.Contains(rod.NodeA) || !chainJoints.Contains(rod.NodeB))
-            {
-                continue;
-            }
-
-            var pairKey = RodPair(rod);
-            if (rodCounts.GetValueOrDefault(pairKey) > 1 && !clusterTies.Contains(pairKey))
-            {
-                continue;
-            }
-
-            if (!HasClusterSignature(rod))
+            var pair = RodPair(rod);
+            if ((rodCounts.GetValueOrDefault(pair) > 1 && !clusterTies.Contains(pair)) || !HasClusterSignature(rod))
             {
                 continue;
             }
@@ -391,17 +397,6 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// How far a cluster band's maximum has to sit from the pair's rest length before it is read as summed stray radii.
-    /// </summary>
-    private const float ClusterRestTolerance = 1e-3f;
-
-    /// <summary>The largest connected component <see cref="MaximalCliques"/> searches.</summary>
-    private const int MaxCliqueComponentNodes = 64;
-
-    /// <summary>The most search steps <see cref="MaximalCliques"/> spends on one connected component.</summary>
-    private const int MaxCliqueSearchSteps = 1 << 16;
-
-    /// <summary>
     /// Maximal cliques of an undirected graph, each in ascending node order, in lexicographic order. Self-loops are
     /// ignored, and a connected component larger than <see cref="MaxCliqueComponentNodes"/> or whose search takes more than
     /// <see cref="MaxCliqueSearchSteps"/> steps yields none.
@@ -435,18 +430,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        cliques.Sort(static (a, b) =>
-        {
-            for (var i = 0; i < a.Count && i < b.Count; i++)
-            {
-                if (a[i] != b[i])
-                {
-                    return a[i].CompareTo(b[i]);
-                }
-            }
-
-            return a.Count.CompareTo(b.Count);
-        });
+        cliques.Sort(static (a, b) => CollectionsMarshal.AsSpan(a).SequenceCompareTo(CollectionsMarshal.AsSpan(b)));
 
         return cliques;
     }
@@ -539,11 +523,6 @@ internal sealed partial class ClothExtract
 
         return (radii, strayRadii);
     }
-
-    /// <summary>
-    /// How closely the solved radii have to reproduce every band of the clique, relative to the band.
-    /// </summary>
-    private const float ClusterRadiusTolerance = 1e-4f;
 
     /// <summary>
     /// Whether a surplus rod is a second rigid copy of a span at its rest distance, with the cluster's fixed relaxation and
@@ -687,19 +666,15 @@ internal sealed partial class ClothExtract
 
         foreach (var (a, b, copies) in cloth.GetAuthoredSourceSprings(chains))
         {
-            if (a < 0 || a >= names.Length || b < 0 || b >= names.Length)
-            {
-                continue;
-            }
-
-            if (!rodByEdge.TryGetValue(ClothReconstruction.UnorderedPair(a, b), out var rod))
+            var pair = ClothReconstruction.UnorderedPair(a, b);
+            if (a < 0 || a >= names.Length || b < 0 || b >= names.Length || !rodByEdge.TryGetValue(pair, out var rod))
             {
                 continue;
             }
 
             softbodyChildren.Add(MakeClothSpring($"spring_{a}_{b}", names[a], names[b], rod.MinDist,
                 rod.MaxDist, rod.RelaxationFactor, copies - 1));
-            emitted.Add(ClothReconstruction.UnorderedPair(a, b));
+            emitted.Add(pair);
         }
 
         return emitted;
@@ -708,16 +683,13 @@ internal sealed partial class ClothExtract
     /// <summary>The node pair of <paramref name="rod"/>, lower node first.</summary>
     private static (int, int) RodPair(FeModel.Rod rod) => ClothReconstruction.UnorderedPair(rod.NodeA, rod.NodeB);
 
-    /// <summary>The first rod the model records on every node pair.</summary>
     private static Dictionary<(int, int), FeModel.Rod> FirstRodByPair(ClothReconstruction cloth) => LookupsOf(cloth).FirstRodByPair;
 
     /// <summary>Whether a rod carries the relaxation of 1 and weight of 0.5 every cluster rod compiles with.</summary>
     private static bool HasClusterSignature(FeModel.Rod rod) => rod.RelaxationFactor == 1f && rod.Weight0 == 0.5f;
 
-    /// <summary>The number of rods, and of banded rods, on every node pair.</summary>
     internal static RodPairCounts RodCountsByPair(ClothReconstruction cloth) => LookupsOf(cloth).RodCounts;
 
-    /// <summary>The joint nodes of <paramref name="chains"/>.</summary>
     private static HashSet<int> ChainJointNodes(IEnumerable<BoneChain> chains)
         => [.. chains.SelectMany(static chain => chain.Joints).Select(static joint => joint.Node)];
 

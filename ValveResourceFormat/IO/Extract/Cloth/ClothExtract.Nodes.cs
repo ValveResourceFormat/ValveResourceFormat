@@ -1,15 +1,29 @@
 using System.Globalization;
-using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+using ValveResourceFormat.Utils;
 using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
+    // A chain joint's stretchiness at or above this cancels its stray radius
+    private const float ChainStrayStretchinessLimit = 0.99999988f;
+
+    // Bone-local distance under which the compiler merges a free ClothNode into its root bone's control node
+    private const float ClothNodeMergeRadius = 1e-3f;
+
+    // Multiple of ClothNodeMergeRadius a node too close to its root bone is pushed out to
+    private const float ClothNodeMergeClearance = 1.25f;
+
+    // Radians of rest rotation under which a free ClothNode counts as unrotated
+    private const float ClothNodeRotationTolerance = 1e-4f;
+
+    private (HashSet<string> ControlNames, Dictionary<string, Bone>? BoneByName)? clothControlLookups;
+
     /// <summary>
     /// The name the document references a control node by: the exported <c>$cloth_m{N}p{L}</c> name for a proxy vertex,
     /// the element name for a free <c>ClothNode</c>, and the control name for anything else.
@@ -21,7 +35,7 @@ internal sealed partial class ClothExtract
             return null;
         }
 
-        return cloth.Fe.CtrlNames[node].StartsWith("$cloth_m", StringComparison.Ordinal)
+        return cloth.Fe.CtrlNames[node].StartsWith(ClothReconstruction.ProxyNamePrefix, StringComparison.Ordinal)
             ? proxyNodeNames?.GetValueOrDefault(node)
             : ClothFaceCornerName(cloth, node);
     }
@@ -42,34 +56,27 @@ internal sealed partial class ClothExtract
         var anchorOf = BuildCtrlAnchorMap(cloth);
 
         var nodeByName = LookupsOf(cloth).NodeByName;
-        var jiggleNodes = LookupsOf(cloth).JiggleNodes;
         var shapeParentBones = cloth.CollisionShapes.ParentBones;
-
-        var rodTouched = new HashSet<int>();
-        foreach (var rod in cloth.Fe.Rods)
-        {
-            rodTouched.Add(rod.NodeA);
-            rodTouched.Add(rod.NodeB);
-        }
+        var rodTouched = LookupsOf(cloth).RodNeighbourCounts;
 
         var springName = new Dictionary<int, string>();
         var declared = new HashSet<int>();
         var emitted = 0;
 
         KVObject FolderOf(int node)
-            => folderFor is not null ? folderFor(node, !rodTouched.Contains(node)) : clothChildren;
+            => folderFor is not null ? folderFor(node, !rodTouched.ContainsKey(node)) : clothChildren;
 
         for (var node = 0; node < names.Length; node++)
         {
             var name = names[node];
-            if (coveredNodes.Contains(node) || jiggleNodes.Contains(node) || shapeParentBones.Contains(name))
+            if (coveredNodes.Contains(node) || IsDeclaredByItsJiggleBone(cloth, node) || shapeParentBones.Contains(name))
             {
                 continue;
             }
 
-            if (name.StartsWith(ClothReconstruction.FreeClothNodePrefix, StringComparison.Ordinal))
+            if (cloth.IsFreeClothNode(node))
             {
-                var elementName = name[ClothReconstruction.FreeClothNodePrefix.Length..];
+                var elementName = ClothFaceCornerName(cloth, node);
                 if (!TryResolveClothNodeAnchor(cloth, anchorOf, node, out var anchor))
                 {
                     continue;
@@ -91,14 +98,21 @@ internal sealed partial class ClothExtract
             else if (!cloth.IsGeneratedNodeName(name))
             {
                 var isStatic = cloth.Fe.IsStatic(node);
-                var bareStatic = isStatic && !rodTouched.Contains(node);
-                if (!isStatic || !bareStatic || emitBareStatic(name))
+                var bareStatic = isStatic && !rodTouched.ContainsKey(node);
+                if (!bareStatic || emitBareStatic(name))
                 {
-                    var loneNode = LoneNodeIsJointChain(cloth, node, bareStatic, bareStaticReparented?.Invoke(name) ?? false)
-                        && !(StrayRecordOnlyAClothNodeStates(cloth, node) && bareStaticReparented?.Invoke(name) == false);
-                    (loneNode ? clothChildren : FolderOf(node)).Add(loneNode
-                        ? MakeLoneJointChain(cloth, name, node)
-                        : MakeClothNode(cloth, name, node, isStaticNode: isStatic));
+                    var reparented = bareStaticReparented?.Invoke(name);
+                    var loneNode = LoneNodeIsJointChain(cloth, node, bareStatic, reparented ?? false)
+                        && !(StrayRecordOnlyAClothNodeStates(cloth, node) && reparented == false);
+                    if (loneNode)
+                    {
+                        clothChildren.Add(MakeLoneJointChain(cloth, name, node));
+                    }
+                    else
+                    {
+                        FolderOf(node).Add(MakeClothNode(cloth, name, node, isStaticNode: isStatic));
+                    }
+
                     springName[node] = name;
                     declared.Add(node);
                     clothBones.Add(name);
@@ -127,20 +141,10 @@ internal sealed partial class ClothExtract
         bool IsEndpoint(int node, int other) => springName.ContainsKey(node)
             || (chainJoints is not null && chainJoints.Contains(node) && declared.Contains(other));
 
-        var rodsByEdge = new Dictionary<(int, int), List<FeModel.Rod>>();
-        foreach (var rod in cloth.Fe.Rods)
+        foreach (var (edge, rods) in cloth.RodsByPair)
         {
-            if (!IsEndpoint(rod.NodeA, rod.NodeB) || !IsEndpoint(rod.NodeB, rod.NodeA))
-            {
-                continue;
-            }
-
-            ClothReconstruction.GetOrAdd(rodsByEdge, RodPair(rod)).Add(rod);
-        }
-
-        foreach (var (edge, rods) in rodsByEdge)
-        {
-            if (alreadyEmitted is not null && alreadyEmitted.Contains(edge))
+            if (!IsEndpoint(edge.Item1, edge.Item2) || !IsEndpoint(edge.Item2, edge.Item1)
+                || (alreadyEmitted is not null && alreadyEmitted.Contains(edge)))
             {
                 continue;
             }
@@ -155,10 +159,9 @@ internal sealed partial class ClothExtract
                 (name0, name1) = (name1, name0);
             }
 
-            var first = rods[0];
-
             if (IsUnrecordedJointTie(cloth, edge, rods, springName))
             {
+                var first = rods[0];
                 var memberStiffness = MathF.Sqrt(first.RelaxationFactor);
                 softbodyChildren.Add(MakeClothSelfCollisionCluster($"cluster_{edge.Item1}_{edge.Item2}", [name0, name1],
                     first.MaxDist / 2f, first.MaxDist / 2f, [memberStiffness, memberStiffness]));
@@ -216,6 +219,9 @@ internal sealed partial class ClothExtract
     }
 
     private (HashSet<string> ControlNames, Dictionary<string, Bone>? BoneByName) ClothControlLookups(ClothReconstruction cloth)
+        => clothControlLookups ??= BuildClothControlLookups(cloth);
+
+    private (HashSet<string> ControlNames, Dictionary<string, Bone>? BoneByName) BuildClothControlLookups(ClothReconstruction cloth)
     {
         Dictionary<string, Bone>? boneByName = null;
         if (model is not null)
@@ -231,13 +237,11 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Whether a node's stray radius record can only be stated by a <c>ClothNode</c>: a chain joint's stretchiness at or
-    /// above <see cref="ChainStrayStretchinessLimit"/> cancels the radius.
+    /// Whether a node's stray radius can only be stated by a <c>ClothNode</c>, because its stretchiness would cancel the
+    /// radius on a chain joint.
     /// </summary>
     private static bool StrayRecordOnlyAClothNodeStates(ClothReconstruction cloth, int node)
         => cloth.Fe.GetStrayRadius(node) > 0f && cloth.GetStrayStretchiness(node) >= ChainStrayStretchinessLimit;
-
-    private const float ChainStrayStretchinessLimit = 0.99999988f;
 
     private static bool LoneClothNodeIsOriginalRoot(ClothReconstruction cloth, int node)
         => cloth.HasCompiledSkelParents
@@ -296,14 +300,7 @@ internal sealed partial class ClothExtract
 
         var hasBasis = cloth.Fe.NodeBases.TryGetValue(node, out var basis);
         string BasisName(int basisNode)
-        {
-            if (!hasBasis || basisNode < 0 || basisNode >= cloth.Fe.CtrlNames.Length)
-            {
-                return string.Empty;
-            }
-
-            return AuthoredNodeName(cloth, basisNode, proxyNodeNames) ?? string.Empty;
-        }
+            => hasBasis ? AuthoredNodeName(cloth, basisNode, proxyNodeNames) ?? string.Empty : string.Empty;
 
         var preset = elementName is not null || (isStaticNode && !cloth.Fe.AllowsRotation(node)) || RodNeighbourCount(cloth, node) < 2
             ? cloth.ClothNodeBasisPreset(node)
@@ -352,7 +349,7 @@ internal sealed partial class ClothExtract
             return new NodePaint(cloth.GoalStrengthPaint(integrator.ForceAttraction),
                 cloth.GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction),
                 integrator.Gravity / ClothReconstruction.ClothSourceBaseGravity,
-                Math.Clamp(integrator.PointDamping / ClothReconstruction.ClothDragPointDampingScale, 0f, 1f));
+                MathUtils.Saturate(integrator.PointDamping / ClothReconstruction.ClothDragPointDampingScale));
         }
     }
 
@@ -444,8 +441,7 @@ internal sealed partial class ClothExtract
     /// </summary>
     internal static void AddClothStiffHinges(KVObject softbodyChildren, ClothReconstruction cloth)
     {
-        bool IsFreeNode(int node) => node >= 0 && node < cloth.Fe.CtrlNames.Length && node < cloth.Fe.InitPosePositions.Length
-            && cloth.Fe.CtrlNames[node].StartsWith(ClothReconstruction.FreeClothNodePrefix, StringComparison.Ordinal);
+        bool IsFreeNode(int node) => cloth.IsFreeClothNode(node) && node < cloth.Fe.InitPosePositions.Length;
 
         foreach (var bend in cloth.Fe.KelagerBends)
         {
@@ -467,7 +463,7 @@ internal sealed partial class ClothExtract
                 ("cloth_node_0", ClothFaceCornerName(cloth, bend.MidNode)),
                 ("cloth_node_1", ClothFaceCornerName(cloth, bend.End0)),
                 ("cloth_node_2", ClothFaceCornerName(cloth, bend.End1)),
-                ("max_angle", float.RadiansToDegrees(MathF.Acos(Math.Clamp(cosine, -1f, 1f))))));
+                ("max_angle", float.RadiansToDegrees(MathUtils.SafeAcos(cosine)))));
         }
     }
 
@@ -549,12 +545,9 @@ internal sealed partial class ClothExtract
         {
             parent = cloth.SkelParents[node];
             rootBone = names[parent];
-            if (node < cloth.Fe.InitPosePositions.Length && parent < cloth.Fe.InitPosePositions.Length
-                && parent < cloth.Fe.InitPoseRotations.Length)
+            if (node < cloth.Fe.InitPosePositions.Length && parent < cloth.Fe.InitPosePositions.Length)
             {
-                origin = Vector3.Transform(
-                    cloth.Fe.InitPosePositions[node] - cloth.Fe.InitPosePositions[parent],
-                    Quaternion.Conjugate(cloth.Fe.InitPoseRotations[parent]));
+                origin = ClothBoneLocalPose(cloth, node, parent).Origin;
             }
         }
 
@@ -576,15 +569,4 @@ internal sealed partial class ClothExtract
         resolved = new ClothNodeAnchor(rootBone ?? string.Empty, origin, angles);
         return rootBone is not null && !FeModel.IsProxyNodeName(rootBone);
     }
-
-    /// <summary>
-    /// Bone-local distance under which the compiler merges a free ClothNode into its root bone's control node.
-    /// </summary>
-    private const float ClothNodeMergeRadius = 1e-3f;
-
-    /// <summary>The multiple of <see cref="ClothNodeMergeRadius"/> a node too close to its root bone is pushed out to.</summary>
-    private const float ClothNodeMergeClearance = 1.25f;
-
-    /// <summary>Radians of rest rotation under which a free ClothNode counts as unrotated.</summary>
-    private const float ClothNodeRotationTolerance = 1e-4f;
 }

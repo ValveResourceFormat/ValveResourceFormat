@@ -12,6 +12,20 @@ namespace ValveResourceFormat.IO
 
     internal sealed partial class ClothReconstruction
     {
+        private const float SurfaceFanBandTolerance = 1e-4f;
+        private const float SurfaceFanWeightTolerance = 2e-4f;
+
+        /// <summary>The smallest rod clique read as a cluster without <see cref="IsRadiusBandTriangle"/>.</summary>
+        private const int SelfCollisionClusterMinMembers = 4;
+
+        private bool? hasSurfaceFolds;
+        private bool? surfaceFoldsAbsent;
+        private HashSet<(int, int)>? surfaceFanPairs;
+        private HashSet<(int, int)>? surfaceFoldOnlyPairs;
+        private List<SelfCollisionCluster>? selfCollisionClusters;
+        private HashSet<int>? selfCollisionClusterRods;
+        private HashSet<(int, int)>? selfCollisionClusterPairs;
+
         private static void ExpectPair(Dictionary<(int, int), List<float>> expectations, int a, int b, float relaxation)
         {
             if (a < 0 || b < 0)
@@ -19,9 +33,7 @@ namespace ValveResourceFormat.IO
                 return;
             }
 
-            var key = UnorderedPair(a, b);
-            var values = GetOrAdd(expectations, key);
-            values.Add(relaxation);
+            GetOrAdd(expectations, UnorderedPair(a, b)).Add(relaxation);
         }
 
         /// <summary>
@@ -96,11 +108,10 @@ namespace ValveResourceFormat.IO
         /// Gets the two-corner source elements between chain joints or <c>$cc</c> ring nodes that the chains do not span,
         /// with how many rod copies each one has to declare.
         /// </summary>
-        internal List<(int A, int B, int Copies)> GetAuthoredSourceSprings(List<BoneChain> chains)
-            => GetAuthoredSourceSprings(chains, null);
-
-        private List<(int A, int B, int Copies)> GetAuthoredSourceSprings(List<BoneChain> chains,
-            Dictionary<(int, int), List<float>>? spanned)
+        /// <param name="chains">The chains the export emits.</param>
+        /// <param name="spanned">The <see cref="ChainGeneratedSpans"/> of <paramref name="chains"/>, when already built.</param>
+        internal List<(int A, int B, int Copies)> GetAuthoredSourceSprings(List<BoneChain> chains,
+            Dictionary<(int, int), List<float>>? spanned = null)
         {
             if (Fe.SourceSprings.Length == 0)
             {
@@ -186,9 +197,7 @@ namespace ValveResourceFormat.IO
             var entriesByPair = new Dictionary<(int, int), List<int>>();
             for (var i = 0; i < Fe.Rods.Length; i++)
             {
-                var key = UnorderedPair(Fe.Rods[i].NodeA, Fe.Rods[i].NodeB);
-                var entries = GetOrAdd(entriesByPair, key);
-                entries.Add(i);
+                GetOrAdd(entriesByPair, UnorderedPair(Fe.Rods[i].NodeA, Fe.Rods[i].NodeB)).Add(i);
             }
 
             var claimed = new bool[Fe.Rods.Length];
@@ -318,7 +327,7 @@ namespace ValveResourceFormat.IO
 
             return Fe.Rods.Any(rod => rod.MaxDist < UnboundedRodDistance && rod.MinDist < rod.MaxDist
                 && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB))
-                || Fe.Rods.Any(rod => IsSurfaceFanRod(rod, banded: true));
+                || HasSurfaceFolds;
         }
 
         /// <summary>Maps each joint of <paramref name="chain"/> and each of its ring nodes to the joint's node.</summary>
@@ -350,40 +359,27 @@ namespace ValveResourceFormat.IO
             return generated.Count == 0 ? SourceFaceRingNodes() : generated;
         }
 
-        /// <summary>
-        /// Gets whether the compiler folded rods across this model's own faces: some banded rod on a folded pair carries its
-        /// endpoints' final inverse-mass ratio as its weight, which only a rod the compiler built itself does.
-        /// </summary>
+        /// <summary>Gets whether the compiler folded any rod across this model's own faces.</summary>
         internal bool HasSurfaceFolds => hasSurfaceFolds ??= Fe.Rods.Any(rod => IsSurfaceFanRod(rod, banded: true));
 
-        private bool? hasSurfaceFolds;
-
         /// <summary>
-        /// Returns whether <paramref name="rod"/> is a banded rod the compiler folded across a face edge on its own: it carries its
-        /// endpoints' final inverse-mass ratio as its weight, which no declaration does.
+        /// Gets whether <paramref name="rod"/> is a banded rod the compiler folded across a face edge on its own: it carries
+        /// its endpoints' final inverse-mass ratio as its weight, which no declaration does.
         /// </summary>
         internal bool IsSurfaceFold(Rod rod) => IsSurfaceFanRod(rod, banded: true);
 
         /// <summary>
-        /// The pairs <c>add_stiffness_rods</c> makes the compiler fold across the edges this model's own faces
-        /// share, in the order its fold walk meets them: the solve elements (see <see cref="FoldWalkSolveElements"/>),
-        /// then the faces that were built into rods instead (see <see cref="SourceElementWalk"/>).
+        /// Gets the pairs <c>add_stiffness_rods</c> makes the compiler fold across the edges this model's own faces share,
+        /// walking the solve elements first and then the faces built into rods instead.
         /// </summary>
         private HashSet<(int, int)> SurfaceFanPairs => surfaceFanPairs ??= PredictBendRods(
             [.. FoldWalkSolveElements(), .. SourceElementWalk()], Fe.IsStatic);
 
-        private HashSet<(int, int)>? surfaceFanPairs;
-
-        /// <summary>
-        /// The node pairs whose every rod is one the compiler folded across a face edge on its own (see
-        /// <see cref="IsSurfaceFanRod"/>), so that no declaration put any rod there.
-        /// </summary>
+        /// <summary>Gets the node pairs whose every rod is a surface fold, so no declaration put a rod there.</summary>
         private HashSet<(int, int)> SurfaceFoldOnlyPairs => surfaceFoldOnlyPairs ??= [.. Fe.Rods
             .GroupBy(static rod => UnorderedPair(rod.NodeA, rod.NodeB))
             .Where(group => group.All(rod => IsSurfaceFanRod(rod, banded: true)))
             .Select(static group => group.Key)];
-
-        private HashSet<(int, int)>? surfaceFoldOnlyPairs;
 
         /// <summary>
         /// Gets whether <paramref name="rod"/> lies on a surface fold pair and carries its endpoints' final inverse-mass
@@ -419,10 +415,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private bool FoldedAfterMass(Rod rod)
         {
-            var sum = rod.NodeA < Fe.NodeInvMasses.Length && rod.NodeB < Fe.NodeInvMasses.Length
-                ? Fe.NodeInvMasses[rod.NodeA] + Fe.NodeInvMasses[rod.NodeB]
-                : 0f;
-            if (sum > 0f && MathF.Abs(Fe.NodeInvMasses[rod.NodeA] / sum - 0.5f) > SurfaceFanWeightTolerance)
+            if (HasUnequalInverseMasses(rod))
             {
                 return IsSurfaceFanRod(rod, banded: false);
             }
@@ -430,9 +423,11 @@ namespace ValveResourceFormat.IO
             return !(surfaceFoldsAbsent ??= Fe.Rods.Any(IsUnequalFoldedPair) && !Fe.Rods.Any(other => IsSurfaceFanRod(other, banded: false)));
         }
 
-        private bool? surfaceFoldsAbsent;
-
         private bool IsUnequalFoldedPair(Rod rod)
+            => HasUnequalInverseMasses(rod) && SurfaceFanPairs.Contains(UnorderedPair(rod.NodeA, rod.NodeB));
+
+        /// <summary>Gets whether the inverse-mass ratio of <paramref name="rod"/>'s endpoints is off an even split.</summary>
+        private bool HasUnequalInverseMasses(Rod rod)
         {
             if (rod.NodeA >= Fe.NodeInvMasses.Length || rod.NodeB >= Fe.NodeInvMasses.Length)
             {
@@ -440,24 +435,8 @@ namespace ValveResourceFormat.IO
             }
 
             var sum = Fe.NodeInvMasses[rod.NodeA] + Fe.NodeInvMasses[rod.NodeB];
-            return sum > 0f && MathF.Abs(Fe.NodeInvMasses[rod.NodeA] / sum - 0.5f) > SurfaceFanWeightTolerance
-                && SurfaceFanPairs.Contains(UnorderedPair(rod.NodeA, rod.NodeB));
+            return sum > 0f && MathF.Abs(Fe.NodeInvMasses[rod.NodeA] / sum - 0.5f) > SurfaceFanWeightTolerance;
         }
-
-        private const float SurfaceFanBandTolerance = 1e-4f;
-
-        private const float SurfaceFanWeightTolerance = 2e-4f;
-
-        /// <summary>
-        /// The smallest rod clique read as a cluster without <see cref="IsRadiusBandTriangle"/>.
-        /// </summary>
-        private const int SelfCollisionClusterMinMembers = 4;
-
-        private List<SelfCollisionCluster>? selfCollisionClusters;
-
-        private HashSet<int>? selfCollisionClusterRods;
-
-        private HashSet<(int, int)>? selfCollisionClusterPairs;
 
         /// <summary>Gets the node pairs a recovered cluster puts one of its own rods on.</summary>
         private IReadOnlySet<(int, int)> SelfCollisionClusterPairs
@@ -473,9 +452,7 @@ namespace ValveResourceFormat.IO
                         {
                             for (var j = i + 1; j < cluster.Nodes.Length; j++)
                             {
-                                var a = cluster.Nodes[i];
-                                var b = cluster.Nodes[j];
-                                selfCollisionClusterPairs.Add(UnorderedPair(a, b));
+                                selfCollisionClusterPairs.Add(UnorderedPair(cluster.Nodes[i], cluster.Nodes[j]));
                             }
                         }
                     }
@@ -654,10 +631,8 @@ namespace ValveResourceFormat.IO
                 {
                     for (var j = i + 1; j < cluster.Nodes.Length; j++)
                     {
-                        var a = cluster.Nodes[i];
-                        var b = cluster.Nodes[j];
                         var relaxation = cluster.Stiffness[i] * cluster.Stiffness[j];
-                        wanted[UnorderedPair(a, b)] = (cluster.MinDist, cluster.MaxDist, relaxation);
+                        wanted[UnorderedPair(cluster.Nodes[i], cluster.Nodes[j])] = (cluster.MinDist, cluster.MaxDist, relaxation);
                     }
                 }
             }
@@ -691,8 +666,7 @@ namespace ValveResourceFormat.IO
                 {
                     for (var b = a + 1; b < face.Length; b++)
                     {
-                        var (x, y) = UnorderedPair(face[a], face[b]);
-                        derived.Add((x, y));
+                        derived.Add(UnorderedPair(face[a], face[b]));
                     }
                 }
             }

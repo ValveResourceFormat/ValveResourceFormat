@@ -14,14 +14,14 @@ namespace ValveResourceFormat.IO;
 partial class ModelExtract
 {
     /// <summary>
-    /// Influences per vertex a render mesh gets when its <c>RenderMeshFile</c> carries no
-    /// <c>RenderMeshMarkup</c>, so a mesh skinned to more than this needs one written out.
+    /// Influences per vertex a render mesh gets without a <c>RenderMeshMarkup</c>, so a mesh skinned to more
+    /// needs one written out.
     /// </summary>
     private const int DefaultBlendWeightsPerVertex = 4;
 
     /// <summary>
-    /// The <c>blend_weights_per_vertex</c> cap to write for such a mesh. It is a ceiling, not a
-    /// count: the compiler emits whatever maximum the vertices actually use, up to this.
+    /// The <c>blend_weights_per_vertex</c> to write for such a mesh. It is a cap: the compiler uses the
+    /// actual maximum up to it.
     /// </summary>
     private const string WideBlendWeightsPerVertex = "8";
 

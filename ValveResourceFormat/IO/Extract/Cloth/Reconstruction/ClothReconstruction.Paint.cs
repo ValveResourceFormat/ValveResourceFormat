@@ -7,6 +7,39 @@ namespace ValveResourceFormat.IO
 {
     internal sealed partial class ClothReconstruction
     {
+        private const float FaceRodRestTolerance = 1e-3f;
+        private const float PaintSolveTolerance = 2e-3f;
+
+        /// <summary>The <c>cloth_antishrink</c> of a proxy-sheet vertex that is not painted.</summary>
+        private const float SheetAntishrinkDefault = 0.75f;
+
+        /// <summary>The largest <c>cloth_shear_resistance</c> a vertex can state.</summary>
+        private const float MaxStatedShearResistance = 2f;
+
+        /// <summary>
+        /// The largest <c>cloth_stretch</c> a compiled sheet can state. The compiler clamps the cube of one minus the
+        /// endpoints' mean, so one vertex may sit above 1 as long as its partner sits below.
+        /// </summary>
+        private const float MaxStatedStretch = 2f;
+
+        /// <summary>
+        /// The largest <c>cloth_stray_radius_stretchiness</c> a proxy vertex can have and keep its stray radius;
+        /// at or above it the compiler cancels the radius instead of relaxing it.
+        /// </summary>
+        private const float MaxProxyStrayStretchiness = 0.9999998f;
+
+        private Dictionary<(int, int), List<Rod>>? rodsByPair;
+        private List<FaceRod>? sheetFaceRods;
+        private HashSet<int>? sheetNodes;
+        private Solved<(Dictionary<int, float> Paint, float BaseRelaxation)?>? shearResistance;
+        private Solved<Dictionary<int, float>?>? stretchPaint;
+
+        /// <summary>A lazily computed value that may itself be null.</summary>
+        private sealed record Solved<T>(T Value);
+
+        /// <summary>The rod on an edge or diagonal of an authored face.</summary>
+        private readonly record struct FaceRod((int A, int B) Pair, bool Diagonal, Rod Rod);
+
         /// <summary>Recovers each proxy vertex's normal as the local +Z of its rest orientation.</summary>
         internal Vector3[] RecoverRestNormals(ProxyMesh proxy)
         {
@@ -19,7 +52,7 @@ namespace ValveResourceFormat.IO
                     : Quaternion.Identity;
 
                 var axis = Vector3.Transform(Vector3.UnitZ, rotation);
-                normals[v] = axis.LengthSquared() > 1e-12f ? Vector3.Normalize(axis) : Vector3.UnitZ;
+                normals[v] = MathUtils.SafeNormalize(axis, Vector3.UnitZ, 1e-12f);
             }
 
             return normals;
@@ -29,7 +62,7 @@ namespace ValveResourceFormat.IO
         /// Gets the rod of each edge and diagonal of the authored faces within <paramref name="nodes"/>: the record on
         /// that pair whose maximum is the endpoints' rest distance.
         /// </summary>
-        private List<((int A, int B) Pair, bool Diagonal, Rod Rod)> AuthoredFaceRods(HashSet<int> nodes)
+        private List<FaceRod> AuthoredFaceRods(HashSet<int> nodes)
         {
             var kinds = new Dictionary<(int, int), bool>();
             foreach (var face in Fe.SourceFaces)
@@ -51,7 +84,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            var found = new List<((int, int), bool, Rod)>(kinds.Count);
+            var found = new List<FaceRod>(kinds.Count);
             foreach (var (pair, diagonal) in kinds)
             {
                 if (!RodsByPair.TryGetValue(pair, out var candidates))
@@ -60,12 +93,10 @@ namespace ValveResourceFormat.IO
                 }
 
                 var rest = Vector3.Distance(Fe.InitPosePositions[pair.Item1], Fe.InitPosePositions[pair.Item2]);
-                var authored = candidates.Count == 1
-                    ? candidates[0]
-                    : candidates.MinBy(r => MathF.Abs(r.MaxDist - rest));
+                var authored = candidates.MinBy(r => MathF.Abs(r.MaxDist - rest));
                 if (MathF.Abs(authored.MaxDist - rest) <= FaceRodRestTolerance * MathF.Max(1f, rest))
                 {
-                    found.Add((pair, diagonal, authored));
+                    found.Add(new FaceRod(pair, diagonal, authored));
                 }
             }
 
@@ -80,12 +111,8 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private const float FaceRodRestTolerance = 1e-3f;
-
         /// <summary>Gets the rods on each unordered node pair, in <see cref="FeModel.Rods"/> order.</summary>
-        private Dictionary<(int, int), List<Rod>> RodsByPair => rodsByPair ??= BuildRodsByPair();
-
-        private Dictionary<(int, int), List<Rod>>? rodsByPair;
+        internal Dictionary<(int, int), List<Rod>> RodsByPair => rodsByPair ??= BuildRodsByPair();
 
         private Dictionary<(int, int), List<Rod>> BuildRodsByPair()
         {
@@ -99,9 +126,7 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>Gets the <see cref="AuthoredFaceRods"/> of the <see cref="SheetNodes"/>.</summary>
-        private List<((int A, int B) Pair, bool Diagonal, Rod Rod)> SheetFaceRods => sheetFaceRods ??= AuthoredFaceRods(SheetNodes);
-
-        private List<((int A, int B) Pair, bool Diagonal, Rod Rod)>? sheetFaceRods;
+        private List<FaceRod> SheetFaceRods => sheetFaceRods ??= AuthoredFaceRods(SheetNodes);
 
         /// <summary>
         /// Solves a per-node paint from pair sums <c>p[a] + p[b] = stated</c>, or null when they contradict each other
@@ -198,25 +223,21 @@ namespace ValveResourceFormat.IO
             return solved;
         }
 
-        private const float PaintSolveTolerance = 2e-3f;
-
         /// <summary>Gets the control nodes that are proxy-sheet vertices.</summary>
         private HashSet<int> SheetNodes => sheetNodes ??= BuildSheetNodes();
 
-        private HashSet<int>? sheetNodes;
-
         private HashSet<int> BuildSheetNodes()
         {
-            var sheetNodes = new HashSet<int>();
+            var nodes = new HashSet<int>();
             for (var node = 0; node < Fe.CtrlNames.Length; node++)
             {
                 if (IsProxyMeshNode(node))
                 {
-                    sheetNodes.Add(node);
+                    nodes.Add(node);
                 }
             }
 
-            return sheetNodes;
+            return nodes;
         }
 
         /// <summary>
@@ -264,20 +285,12 @@ namespace ValveResourceFormat.IO
                 static value => MathF.Abs(value - SheetAntishrinkDefault) > PaintSolveTolerance);
         }
 
-        /// <summary>The <c>cloth_antishrink</c> of a proxy-sheet vertex that is not painted.</summary>
-        private const float SheetAntishrinkDefault = 0.75f;
-
         /// <summary>
         /// Gets the per-node <c>cloth_shear_resistance</c> of the proxy sheets relative to the stiffest face diagonal's
         /// relaxation, or null when every diagonal states one value.
         /// </summary>
         internal (Dictionary<int, float> Paint, float BaseRelaxation)? ShearResistance
             => (shearResistance ??= new(SolveShearResistance())).Value;
-
-        private Solved<(Dictionary<int, float> Paint, float BaseRelaxation)?>? shearResistance;
-
-        /// <summary>A computed value, which may itself be null.</summary>
-        private sealed record Solved<T>(T Value);
 
         private (Dictionary<int, float>, float)? SolveShearResistance()
         {
@@ -301,7 +314,7 @@ namespace ValveResourceFormat.IO
             }
 
             var unbuilt = new HashSet<int>();
-            foreach (var pair in UnbuiltFaceDiagonals(SheetNodes, faceRods))
+            foreach (var pair in UnbuiltFaceDiagonals())
             {
                 stated[pair] = 0f;
                 unbuilt.Add(pair.A);
@@ -331,13 +344,13 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// The diagonals of the proxy quads that made their four edges but carry no rod at all along the diagonal. A span between two
-        /// static nodes constrains nothing and is never built, so it neither counts against the face nor states anything itself.
+        /// The diagonals without any rod on proxy quads that built all four edges. A span between two static nodes is never
+        /// built, so it neither counts against the face nor states anything itself.
         /// </summary>
-        private IEnumerable<(int A, int B)> UnbuiltFaceDiagonals(HashSet<int> nodes,
-            List<((int A, int B) Pair, bool Diagonal, Rod Rod)> faceRods)
+        private IEnumerable<(int A, int B)> UnbuiltFaceDiagonals()
         {
-            var edges = faceRods.Where(static entry => !entry.Diagonal).Select(static entry => entry.Pair).ToHashSet();
+            var nodes = SheetNodes;
+            var edges = SheetFaceRods.Where(static entry => !entry.Diagonal).Select(static entry => entry.Pair).ToHashSet();
             bool BothStatic((int A, int B) pair) => Fe.IsStatic(pair.A) && Fe.IsStatic(pair.B);
             bool Spans((int, int) pair) => edges.Contains(pair) || BothStatic(pair);
 
@@ -360,31 +373,21 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        /// <summary>The largest <c>cloth_shear_resistance</c> a vertex can state.</summary>
-        private const float MaxStatedShearResistance = 2f;
-
         /// <summary>
         /// Recovers the per-vertex <c>cloth_shear_resistance</c> paint of a proxy sheet, or null when the
         /// sheet's diagonals state one uniform value. See <see cref="ShearResistance"/>.
         /// </summary>
         internal float[]? RecoverShearResistancePaint(ProxyMesh proxy)
-        {
-            if (ShearResistance is not { } shear)
-            {
-                return null;
-            }
-
-            return PaintPerVertex(proxy, node => shear.Paint.TryGetValue(node, out var value) ? value : 1f,
-                static value => MathF.Abs(value - 1f) > PaintSolveTolerance);
-        }
+            => ShearResistance is { } shear
+                ? PaintPerVertex(proxy, node => shear.Paint.TryGetValue(node, out var value) ? value : 1f,
+                    static value => MathF.Abs(value - 1f) > PaintSolveTolerance)
+                : null;
 
         /// <summary>
         /// Gets the per-node <c>cloth_stretch</c> of the proxy sheets solved from their face edges, or null where they
         /// state none.
         /// </summary>
         internal Dictionary<int, float>? StretchPaint => (stretchPaint ??= new(SolveStretchPaint())).Value;
-
-        private Solved<Dictionary<int, float>?>? stretchPaint;
 
         private Dictionary<int, float>? SolveStretchPaint()
         {
@@ -467,14 +470,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// The largest <c>cloth_stretch</c> a compiled sheet can state. The compiler clamps the cube of one minus the
-        /// endpoints' MEAN, so one vertex may sit above 1 as long as its partner sits below.
-        /// </summary>
-        private const float MaxStatedStretch = 2f;
-
-        /// <summary>
-        /// A sheet rod's relaxation with the recovered <c>cloth_stretch</c> factor taken back out, which is what its
-        /// shear terms and the model's own stretch scalars left on it.
+        /// A sheet rod's relaxation with the recovered <c>cloth_stretch</c> factor divided back out, leaving only its shear
+        /// terms and the model's own stretch scalars.
         /// </summary>
         private float UnstretchedRelaxation(Rod rod)
         {
@@ -493,14 +490,9 @@ namespace ValveResourceFormat.IO
         /// See <see cref="StretchPaint"/>.
         /// </summary>
         internal float[]? RecoverStretchPaint(ProxyMesh proxy)
-        {
-            if (StretchPaint is not { } byNode)
-            {
-                return null;
-            }
-
-            return PaintPerVertex(proxy, byNode.GetValueOrDefault, static value => value > PaintSolveTolerance);
-        }
+            => StretchPaint is { } byNode
+                ? PaintPerVertex(proxy, byNode.GetValueOrDefault, static value => value > PaintSolveTolerance)
+                : null;
 
         /// <summary>
         /// Recovers the <c>cloth_stray_radius</c> paint of a proxy sheet, or null when none of its vertices has one.
@@ -508,12 +500,6 @@ namespace ValveResourceFormat.IO
         /// </summary>
         internal float[]? RecoverStrayRadiusPaint(ProxyMesh proxy)
             => StrayPaint(proxy, node => Fe.AnimStrayRadii[node].MaxDistance);
-
-        /// <summary>
-        /// The largest <c>cloth_stray_radius_stretchiness</c> a proxy vertex can carry and keep its
-        /// stray radius: at or above it the compiler cancels the radius instead of relaxing it.
-        /// </summary>
-        private const float MaxProxyStrayStretchiness = 0.9999998f;
 
         /// <summary>
         /// Recovers the <c>cloth_stray_radius_stretchiness</c> paint of a proxy sheet, or null when none of its vertices
@@ -562,7 +548,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private HashSet<int> IndependentChainCoveredNodes()
         {
-            var chainBoneNodes = IndependentBoneChains().SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
+            var chainBoneNodes = IndependentChainJointNodes();
             if (chainBoneNodes.Count == 0)
             {
                 return chainBoneNodes;

@@ -5,6 +5,17 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
+    // The cloth_make_rods paint of a sheet kept out of the rod path, under the importer's 0.5 threshold
+    private const float ClothSuppressedMakeRods = 0.4f;
+
+    // The bend paint a face-kept sheet states where nothing folds its fans
+    private const float ClothFaceKeptBendStiffnessDefault = 0.2f;
+
+    // How far two rods' readings may sit apart, in sin^2 of the half angle, and still count as one value
+    private const float ClothCurvatureAgreement = 1e-3f;
+
+    private ClothSurfaceRods? surfaceRodsCache;
+
     /// <summary>
     /// The rods the compiler rebuilds from the exported sheets on its own, which are not declared as springs, with the bend
     /// switches, curvature, suspender nodes and bend-stiffness paint that rebuild them.
@@ -12,14 +23,14 @@ internal sealed partial class ClothExtract
     internal sealed record ClothSurfaceRods(HashSet<(int, int)> Derived, bool GeneratesBendRods, bool GeneratesBendOnlyRods,
         float AddCurvature, HashSet<int> SuspenderNodes, float BendStiffness, Dictionary<int, float>? BendStiffnessByNode);
 
-    private ClothSurfaceRods? surfaceRodsCache;
+    /// <summary>A sheet's bend network and suspender rods sharing one <c>add_curvature</c>, and whether the network is bounded.</summary>
+    private sealed record MixedSurfaceRods(HashSet<(int, int)> Bend, HashSet<(int, int)> Suspenders, float AddCurvature,
+        float BendStiffness, bool Bounded);
 
-    /// <summary>The <see cref="ClothRodsFromSurface"/> reading of <see cref="ProxyMeshes"/>, taken once.</summary>
     private ClothSurfaceRods SurfaceRods(ClothReconstruction cloth) => surfaceRodsCache ??= ClothRodsFromSurface(cloth, ProxyMeshes);
 
     /// <summary>Reads the rods the compiler rebuilds from the exported <paramref name="proxies"/> on its own.</summary>
-    internal static ClothSurfaceRods ClothRodsFromSurface(ClothReconstruction cloth,
-        List<ClothProxyFile> proxies)
+    internal static ClothSurfaceRods ClothRodsFromSurface(ClothReconstruction cloth, List<ClothProxyFile> proxies)
     {
         var suspenderNodes = new HashSet<int>();
         var bendStiffness = 0f;
@@ -66,7 +77,8 @@ internal sealed partial class ClothExtract
         var generatesBendOnlyRods = regenerable && !boundedBeyondSurface;
         var generatesBendRods = regenerable && boundedBeyondSurface;
 
-        var addCurvature = regenerable ? ClothCurvatureFromSurface(cloth, surfaceFaces, beyondSurface) : 0f;
+        var regeneratedReadings = regenerable ? ClothHingeReadings(cloth, surfaceFaces, beyondSurface) : null;
+        var addCurvature = regeneratedReadings is null ? 0f : ClothCurvatureFromSurface(regeneratedReadings);
 
         var bendNetwork = new HashSet<(int, int)>();
 
@@ -119,11 +131,9 @@ internal sealed partial class ClothExtract
                 }
             }
 
-            var shipped = cloth.Fe.Rods.Select(RodPair)
-                .ToHashSet();
             var folds = ClothReconstruction.BendRodsFromDeclaredFaces(keptFaces, cloth.Fe.IsStatic);
             folds.ExceptWith(derived);
-            if (folds.Count > 0 && folds.All(fold => shipped.Contains(fold)
+            if (folds.Count > 0 && folds.All(fold => cloth.RodsByPair.ContainsKey(fold)
                 || cloth.Fe.IsStatic(fold.Item1) || cloth.Fe.IsStatic(fold.Item2)))
             {
                 var boundedFolds = HasBoundedRod(cloth, folds);
@@ -142,8 +152,10 @@ internal sealed partial class ClothExtract
         if (bendStiffness <= 0f && bendNetwork.Count > 0 && !cloth.Fe.HasAxialEdges
             && (generatesBendRods || generatesBendOnlyRods))
         {
+            // A regenerated network is exactly the rods beyond the surface, so its readings are the ones already taken
             (bendStiffnessByNode, addCurvature) = ClothBendStiffnessOverFold(cloth, surfaceFaces, bendNetwork,
-                addCurvature, keepsCurvature: suspenderNodes.Count > 0);
+                regeneratedReadings ?? ClothHingeReadings(cloth, surfaceFaces, bendNetwork), addCurvature,
+                keepsCurvature: suspenderNodes.Count > 0);
         }
 
         AddRodsTheSheetsRebuild(derived, cloth, proxies);
@@ -155,8 +167,7 @@ internal sealed partial class ClothExtract
     /// Adds the rods the compiler builds from the exported sheets' faces whatever the bend switches: every face rod of a
     /// model with no surface of its own, and the discarded diagonal of every bent quad kept out of the rod path.
     /// </summary>
-    private static void AddRodsTheSheetsRebuild(HashSet<(int, int)> derived, ClothReconstruction cloth,
-        List<ClothProxyFile> proxies)
+    private static void AddRodsTheSheetsRebuild(HashSet<(int, int)> derived, ClothReconstruction cloth, List<ClothProxyFile> proxies)
     {
         if (!cloth.Fe.HasSurfaceElements)
         {
@@ -182,11 +193,6 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The cloth_make_rods paint of a sheet kept out of the rod path, under the importer's 0.5 threshold.
-    /// </summary>
-    private const float ClothSuppressedMakeRods = 0.4f;
-
-    /// <summary>
     /// Whether the compiler turns <paramref name="face"/> into rods rather than a solve element, by the mean
     /// <c>cloth_make_rods</c> paint <see cref="BuildClothProxyMeshDmx"/> writes over its corners.
     /// </summary>
@@ -210,10 +216,6 @@ internal sealed partial class ClothExtract
         return painted >= 0.5f * face.Length;
     }
 
-    /// <summary>A sheet's bend network and suspender rods sharing one <c>add_curvature</c>, and whether the network is bounded.</summary>
-    private sealed record MixedSurfaceRods(HashSet<(int, int)> Bend, HashSet<(int, int)> Suspenders, float AddCurvature,
-        float BendStiffness, bool Bounded);
-
     /// <summary>
     /// Splits a sheet's rods beyond its faces into the <c>add_stiffness_rods</c> bend network and suspender rods sharing
     /// one <c>add_curvature</c>, or null where they do not split that way. A saturated suspender set leaves the curvature
@@ -227,13 +229,7 @@ internal sealed partial class ClothExtract
         }
 
         var network = ClothReconstruction.BendRodsFromSurface(surfaceFaces, cloth.Fe.IsStatic);
-        var shipped = new HashSet<(int, int)>();
-        foreach (var rod in cloth.Fe.Rods)
-        {
-            shipped.Add(RodPair(rod));
-        }
-
-        if (network.Count == 0 || !network.IsSubsetOf(shipped))
+        if (network.Count == 0 || !network.All(cloth.RodsByPair.ContainsKey))
         {
             return null;
         }
@@ -251,7 +247,7 @@ internal sealed partial class ClothExtract
             return null;
         }
 
-        var curvature = ClothCurvatureFromSurface(cloth, surfaceFaces, bend);
+        var curvature = ClothCurvatureFromSurface(ClothHingeReadings(cloth, surfaceFaces, bend));
         var bendStiffness = 0f;
         if (suspenders.Count > 0 && saturated)
         {
@@ -281,18 +277,10 @@ internal sealed partial class ClothExtract
     /// model's sheets without <c>rigid_edge_hinges</c>.
     /// </summary>
     internal static float? ClothFaceKeptBendStiffness(ClothReconstruction cloth, ClothSurfaceRods surfaceRods)
-    {
-        if (!cloth.Fe.HasAxialEdges && !cloth.HasChainRingBends
-            && (surfaceRods.GeneratesBendRods || surfaceRods.GeneratesBendOnlyRods))
-        {
-            return null;
-        }
-
-        return ClothFaceKeptBendStiffnessDefault;
-    }
-
-    /// <summary>The bend paint a face-kept sheet states where nothing folds its fans.</summary>
-    private const float ClothFaceKeptBendStiffnessDefault = 0.2f;
+        => !cloth.Fe.HasAxialEdges && !cloth.HasChainRingBends
+            && (surfaceRods.GeneratesBendRods || surfaceRods.GeneratesBendOnlyRods)
+                ? null
+                : ClothFaceKeptBendStiffnessDefault;
 
     /// <summary>
     /// The <c>cloth_bend_stiffness</c> paint of a sheet exported with its own faces, or null when it needs none.
@@ -310,21 +298,14 @@ internal sealed partial class ClothExtract
         }
 
         var rods = SurfaceRods(cloth);
-        var bendStiffness = rods.BendStiffness;
-        var bendStiffnessByNode = rods.BendStiffnessByNode;
-        if (bendStiffness > 0f)
+        if (rods.BendStiffness > 0f)
         {
-            var uniform = new float[proxy.NodeIndices.Length];
-            Array.Fill(uniform, bendStiffness);
-            return uniform;
+            return Filled(proxy.NodeIndices.Length, rods.BendStiffness);
         }
 
-        if (bendStiffnessByNode is null)
-        {
-            return null;
-        }
-
-        return ClothReconstruction.PaintPerVertex(proxy, bendStiffnessByNode.GetValueOrDefault, static value => value > 0f);
+        return rods.BendStiffnessByNode is { } byNode
+            ? ClothReconstruction.PaintPerVertex(proxy, byNode.GetValueOrDefault, static value => value > 0f)
+            : null;
     }
 
     /// <summary>
@@ -364,7 +345,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            shaped.Add((edge, MathF.Asin(Math.Clamp(rod.MinDist / rod.MaxDist, 0f, 1f)) / MathF.PI));
+            shaped.Add((edge, MathF.Asin(MathUtils.Saturate(rod.MinDist / rod.MaxDist)) / MathF.PI));
         }
 
         var curvature = DominantReading(shaped.Select(static s => s.Reading), out var agreeing);
@@ -396,8 +377,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The value the largest subset of readings agrees on to ChainRingCurvatureAgreement, taking the largest such value
-    /// on a tie, with the size of that subset. Zero when there are none.
+    /// The value the largest subset of readings agrees on to <see cref="ClothReconstruction.ChainRingCurvatureAgreement"/>,
+    /// taking the largest such value on a tie, with the size of that subset. Zero when there are none.
     /// </summary>
     private static float DominantReading(IEnumerable<float> readings, out int agreeing)
     {
@@ -438,12 +419,12 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The <c>add_curvature</c> the bend network was folded by: the value most uncapped rods agree on, or the largest
-    /// lower bound the capped rods give where too few agree.
+    /// The <c>add_curvature</c> the bend network was folded by, from its hinge <paramref name="readings"/>: the value most
+    /// uncapped rods agree on, or the largest lower bound the capped rods give where too few agree.
     /// </summary>
-    private static float ClothCurvatureFromSurface(ClothReconstruction cloth, List<int[]> faces, HashSet<(int, int)> beyondSurface)
+    private static float ClothCurvatureFromSurface(List<HingeReading> readings)
     {
-        var (opened, capped) = ClothCurvatureReadings(cloth, faces, beyondSurface);
+        var (opened, capped) = CurvatureFractions(readings);
 
         opened.Sort();
         var agreed = 0;
@@ -474,13 +455,8 @@ internal sealed partial class ClothExtract
             consensus = capped.Max();
         }
 
-        return 2f / MathF.PI * MathF.Asin(MathF.Sqrt(consensus));
+        return AddCurvatureFromFold(consensus);
     }
-
-    /// <summary>
-    /// How far two rods' readings may sit apart, in sin^2 of the half angle, and still count as one value.
-    /// </summary>
-    private const float ClothCurvatureAgreement = 1e-3f;
 
     /// <summary>
     /// The <c>add_curvature</c> of a regenerated bend network where it states one value: every uncapped rod reads the same
@@ -511,8 +487,17 @@ internal sealed partial class ClothExtract
             consensus = opened[^1];
         }
 
-        return consensus > ClothCurvatureAgreement ? 2f / MathF.PI * MathF.Asin(MathF.Sqrt(consensus)) : 0f;
+        return consensus > ClothCurvatureAgreement ? AddCurvatureFromFold(consensus) : 0f;
     }
+
+    /// <summary>Inverts the fold fraction <c>sin(pi * add_curvature / 2)^2</c> back to <c>add_curvature</c>.</summary>
+    private static float AddCurvatureFromFold(float fraction) => 2f / MathF.PI * MathF.Asin(MathF.Sqrt(fraction));
+
+    /// <summary>
+    /// The paint sum <c>paint[u] + paint[v]</c> a hinge needs to fold by <paramref name="fraction"/> on top of
+    /// <paramref name="addCurvature"/>.
+    /// </summary>
+    private static float HingeSum(float fraction, float addCurvature) => 2f * (AddCurvatureFromFold(fraction) - addCurvature);
 
     /// <summary>
     /// Per rod of the network, the fraction of its fold the compiled minimum sits at, split into exact readings and the

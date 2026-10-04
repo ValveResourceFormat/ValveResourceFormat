@@ -12,65 +12,59 @@ namespace ValveResourceFormat.IO
     /// </summary>
     internal sealed class ProxyMesh
     {
-        /// <summary>Gets the original FeModel control-node index of each proxy vertex.</summary>
+        /// <summary>Gets the FeModel control node of each vertex.</summary>
         public required int[] NodeIndices { get; init; }
-        /// <summary>Gets the model-space rest position of each proxy vertex.</summary>
         public required Vector3[] Positions { get; init; }
-        /// <summary>Gets the per-vertex <c>cloth_enable</c> flag (1 = simulated, 0 = pinned anchor).</summary>
+        /// <summary>Gets the <c>cloth_enable</c> paint: 1 for simulated, 0 for pinned.</summary>
         public required float[] ClothEnable { get; init; }
-        /// <summary>Gets the per-vertex <c>cloth_goal_strength_v2</c> paint.</summary>
+        /// <summary>Gets the <c>cloth_goal_strength_v2</c> paint.</summary>
         public required float[] GoalStrength { get; init; }
-        /// <summary>Gets the per-vertex <c>cloth_goal_damping</c> paint.</summary>
+        /// <summary>Gets the <c>cloth_goal_damping</c> paint.</summary>
         public required float[] GoalDamping { get; init; }
-        /// <summary>
-        /// Gets the per-vertex <c>cloth_animation_force_attract</c> paint for the <see cref="ClothReconstruction.RawGoalPaintNodes"/>, or empty.
-        /// </summary>
+        /// <summary>Gets the <c>cloth_animation_force_attract</c> paint of <see cref="ClothReconstruction.RawGoalPaintNodes"/>, or empty.</summary>
         public float[] AnimationForceAttract { get; init; } = [];
-        /// <summary>Gets the per-vertex <c>cloth_animation_attract</c> paint, alongside <see cref="AnimationForceAttract"/>.</summary>
+        /// <summary>Gets the <c>cloth_animation_attract</c> paint, alongside <see cref="AnimationForceAttract"/>.</summary>
         public float[] AnimationAttract { get; init; } = [];
-        /// <summary>Gets the per-vertex self-collision radius (recovered from <c>m_NodeCollisionRadii</c>).</summary>
         public required float[] CollisionRadius { get; init; }
-        /// <summary>Gets the per-vertex friction (recovered from <c>m_DynNodeFriction</c>), 0..1 paint range.</summary>
         public required float[] Friction { get; init; }
-        /// <summary>Gets the per-vertex air drag (recovered from the FeModel air-drag scalar), 0..1 paint range.</summary>
         public required float[] Drag { get; init; }
-        /// <summary>Gets the per-vertex ground-collision weight (recovered where available), 0..1 paint range.</summary>
         public required float[] GroundCollision { get; init; }
-        /// <summary>Gets the per-vertex ground friction of a world-colliding node (recovered from <c>m_WorldCollisionParams</c>), 0..1 paint range.</summary>
         public required float[] GroundFriction { get; init; }
-        /// <summary>Gets the per-vertex <c>cloth_gravity</c> paint (the integrator's <c>flGravity</c>).</summary>
+        /// <summary>Gets the <c>cloth_gravity</c> paint.</summary>
         public required float[] Gravity { get; init; }
         /// <summary>Gets the compiled <c>flAnimationVertexAttraction</c> of each vertex.</summary>
         public required float[] VertexAttraction { get; init; }
-        /// <summary>Gets the skeleton bone influences of each vertex.</summary>
         public required SkinInfluence[][] SkinInfluences { get; init; }
-        /// <summary>Gets the faces as proxy-vertex index quads and triangles.</summary>
+        /// <summary>Gets the faces as quads and triangles of vertex indices.</summary>
         public required List<int[]> Faces { get; init; }
         /// <summary>Gets the named vertex selections covering this sheet, as a membership weight per vertex.</summary>
         public (string Name, float[] Weights)[] VertexMaps { get; init; } = [];
         /// <summary>
-        /// Gets the per-vertex <c>cloth_make_rods</c> paint: 1 where every element of the vertex was built into rods.
-        /// Empty when the sheet has no such region.
+        /// Gets the <c>cloth_make_rods</c> paint, 1 where every element of the vertex was built into rods, or empty when the
+        /// sheet has no such region.
         /// </summary>
         public float[] RodsDriven { get; init; } = [];
-        /// <summary>Gets the number of simulated (cloth_enable == 1) vertices.</summary>
         public int SimulatedCount { get; init; }
-        /// <summary>Gets the number of pinned (cloth_enable == 0) vertices.</summary>
         public int PinnedCount { get; init; }
         /// <summary>
-        /// Gets whether the importer is expected to drop a vertex of this synthesised island (see <see cref="ClothReconstruction.ComputeDropRisk"/>).
+        /// Gets whether the importer is expected to drop a vertex of this triangulated island, see <see cref="ClothReconstruction.ComputeDropRisk"/>.
         /// </summary>
         public bool IsDropRisk { get; init; }
-        /// <summary>Gets whether <see cref="Faces"/> came from the authored <c>m_SourceElems</c> rather than a triangulation.</summary>
+        /// <summary>Gets whether <see cref="Faces"/> came from <c>m_SourceElems</c> rather than a triangulation.</summary>
         public bool UsesAuthoredFaces { get; init; }
-        /// <summary>
-        /// Gets whether no vertex of this sheet is driven by a real skeleton bone.
-        /// </summary>
+        /// <summary>Gets whether no vertex of this sheet is driven by a real skeleton bone.</summary>
         public bool IsFreeFloating { get; init; }
     }
 
     internal sealed partial class ClothReconstruction
     {
+        internal const string ProxyNamePrefix = "$cloth_m";
+
+        /// <summary>The exclusive upper bound of a vertex slot <see cref="PadToAuthoredSlots"/> pads up to.</summary>
+        private const int MaxProxySlots = 1 << 16;
+
+        private Dictionary<int, int>? firstOffsetParentByNode;
+
         /// <summary>
         /// Fills the gaps in a proxy's <c>$cloth_m{N}p{SLOT}</c> numbering with pinned, unfaced copies of the nearest
         /// preceding vertex, so every vertex sits at its original slot.
@@ -128,18 +122,14 @@ namespace ValveResourceFormat.IO
             }
 
             var clothEnable = GatherSlots(mesh.ClothEnable, srcOf);
+            var localToSlot = new int[n];
             for (var slot = 0; slot < total; slot++)
             {
                 if (dummy[slot])
                 {
                     clothEnable[slot] = 0f;
                 }
-            }
-
-            var localToSlot = new int[n];
-            for (var slot = 0; slot < total; slot++)
-            {
-                if (!dummy[slot])
+                else
                 {
                     localToSlot[srcOf[slot]] = slot;
                 }
@@ -149,9 +139,6 @@ namespace ValveResourceFormat.IO
                 [.. mesh.Faces.Select(f => f.Select(v => localToSlot[v]).ToArray())],
                 mesh.SimulatedCount, mesh.PinnedCount + (total - n), mesh.IsDropRisk, mesh.IsFreeFloating);
         }
-
-        /// <summary>The exclusive upper bound of a proxy vertex slot <see cref="PadToAuthoredSlots"/> pads up to.</summary>
-        private const int MaxProxySlots = 1 << 16;
 
         private static T[] GatherSlots<T>(T[] source, int[] sourceOf) => [.. sourceOf.Select(index => source[index])];
 
@@ -189,17 +176,14 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Reconstructs the cloth proxy sheets, one per connected island and <c>$cloth_m&lt;N&gt;</c> index, ordered by that
-        /// index. Empty when the FeModel has no sheet.
+        /// index.
         /// </summary>
         internal List<ProxyMesh> BuildProxyMeshes()
         {
-            var result = new List<ProxyMesh>();
             var coveredNodes = new HashSet<int>();
-            var merged = BuildProxyMesh();
-
             var pending = new List<ProxyMesh>();
 
-            if (merged is not null)
+            if (BuildProxyMesh() is { } merged)
             {
                 coveredNodes.UnionWith(merged.NodeIndices);
 
@@ -217,7 +201,7 @@ namespace ValveResourceFormat.IO
                 var meshIndexRep = new Dictionary<int, int>();
                 for (var v = 0; v < count; v++)
                 {
-                    var meshIndex = ParseProxyMeshIndex(Fe.CtrlNames[merged.NodeIndices[v]]);
+                    var meshIndex = ProxyMeshIndexOf(merged.NodeIndices[v]);
                     if (meshIndex < 0)
                     {
                         continue;
@@ -258,13 +242,13 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            var independentChains = IndependentBoneChains();
-            var chainBoneNodes = independentChains.SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
+            // Unnumbered proxy nodes hanging off an independent chain belong to that chain, not to a sheet
+            var chainBoneNodes = IndependentChainJointNodes();
             if (chainBoneNodes.Count > 0)
             {
                 for (var node = 0; node < Fe.CtrlNames.Length; node++)
                 {
-                    if (!IsProxyNodeName(Fe.CtrlNames[node]) || ParseProxyMeshIndex(Fe.CtrlNames[node]) >= 0)
+                    if (!IsProxyNodeName(Fe.CtrlNames[node]) || ProxyMeshIndexOf(node) >= 0)
                     {
                         continue;
                     }
@@ -291,12 +275,10 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            result.AddRange(pending
+            return [.. pending
                 .OrderBy(p => { var m = ProxyMeshOriginalIndex(p); return m >= 0 ? m : int.MaxValue; })
                 .ThenBy(p => p.NodeIndices.Length == 0 ? int.MaxValue : p.NodeIndices.Min())
-                .Select(PadToAuthoredSlots));
-
-            return result;
+                .Select(PadToAuthoredSlots)];
         }
 
         /// <summary>Finds the root of <paramref name="x"/> in a union-find forest, halving the path on the way.</summary>
@@ -312,7 +294,7 @@ namespace ValveResourceFormat.IO
 
         /// <summary>Gets the smallest <c>$cloth_m&lt;N&gt;</c> index among the mesh's nodes, or -1.</summary>
         private int ProxyMeshOriginalIndex(ProxyMesh mesh) => mesh.NodeIndices
-            .Select(node => ParseProxyMeshIndex(Fe.CtrlNames[node]))
+            .Select(ProxyMeshIndexOf)
             .Where(m => m >= 0)
             .DefaultIfEmpty(-1)
             .Min();
@@ -322,7 +304,8 @@ namespace ValveResourceFormat.IO
         {
             var an = a.NodeIndices.Length;
             var bn = b.NodeIndices.Length;
-            float[] Weights(ProxyMesh mesh, string name, int count) => Array.Find(mesh.VertexMaps, m => m.Name == name).Weights ?? new float[count];
+            static float[] Weights(ProxyMesh mesh, string name)
+                => Array.Find(mesh.VertexMaps, m => m.Name == name).Weights ?? new float[mesh.NodeIndices.Length];
 
             var both = new ProxyMesh
             {
@@ -342,7 +325,7 @@ namespace ValveResourceFormat.IO
                 VertexAttraction = [.. a.VertexAttraction, .. b.VertexAttraction],
                 SkinInfluences = [.. a.SkinInfluences, .. b.SkinInfluences],
                 VertexMaps = [.. a.VertexMaps.Select(static m => m.Name).Union(b.VertexMaps.Select(static m => m.Name))
-                    .Select(name => (name, (float[])[.. Weights(a, name, an), .. Weights(b, name, bn)]))],
+                    .Select(name => (name, (float[])[.. Weights(a, name), .. Weights(b, name)]))],
                 Faces = [],
                 RodsDriven = a.RodsDriven.Length == 0 && b.RodsDriven.Length == 0
                     ? []
@@ -364,9 +347,11 @@ namespace ValveResourceFormat.IO
                 a.IsDropRisk || b.IsDropRisk, a.IsFreeFloating && b.IsFreeFloating);
         }
 
-        /// <summary>The bone chains <see cref="IsIndependentChain"/> accepts.</summary>
         private List<BoneChain> IndependentBoneChains()
             => [.. BuildBoneChains().Where(IsIndependentChain)];
+
+        private HashSet<int> IndependentChainJointNodes()
+            => IndependentBoneChains().SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
 
         /// <summary>
         /// Gets whether a chain is exported as a standalone <c>ClothChain</c>: no joint is back-solved by a proxy sheet and
@@ -409,7 +394,7 @@ namespace ValveResourceFormat.IO
             var sheetDriven = false;
             for (var node = 0; node < Fe.CtrlNames.Length; node++)
             {
-                var sheetVertex = ParseProxyMeshIndex(Fe.CtrlNames[node]) >= 0;
+                var sheetVertex = ProxyMeshIndexOf(node) >= 0;
                 var generatedRing = IsRingNode(node);
                 if (!sheetVertex && !generatedRing)
                 {
@@ -417,16 +402,9 @@ namespace ValveResourceFormat.IO
                 }
 
                 var parent = SkelParentOf(node);
-                if (parent < 0 && !HasCompiledSkelParents)
+                if (parent < 0 && !HasCompiledSkelParents && FirstOffsetParentByNode.TryGetValue(node, out var offsetParent))
                 {
-                    foreach (var off in Fe.CtrlOffsets)
-                    {
-                        if (off.CtrlChild == node)
-                        {
-                            parent = off.CtrlParent;
-                            break;
-                        }
-                    }
+                    parent = offsetParent;
                 }
 
                 if (parent < 0 || !jointNodes.Contains(parent))
@@ -445,14 +423,20 @@ namespace ValveResourceFormat.IO
             return sheetDriven;
         }
 
-        /// <summary>
-        /// The control nodes of every bone chain the export emits as a standalone <c>ClothChain</c>.
-        /// </summary>
-        private HashSet<int> IndependentChainJointNodes()
-            => [.. IndependentBoneChains().SelectMany(static chain => chain.Joints)
-                .Select(static joint => joint.Node)];
+        /// <summary>Gets the parent of the first control offset of each child node.</summary>
+        private Dictionary<int, int> FirstOffsetParentByNode => firstOffsetParentByNode ??= BuildFirstOffsetParentByNode();
 
-        /// <summary>Gets whether every corner of a face is a joint of an independent chain.</summary>
+        private Dictionary<int, int> BuildFirstOffsetParentByNode()
+        {
+            var parents = new Dictionary<int, int>(Fe.CtrlOffsets.Length);
+            foreach (var off in Fe.CtrlOffsets)
+            {
+                parents.TryAdd(off.CtrlChild, off.CtrlParent);
+            }
+
+            return parents;
+        }
+
         private static bool IsChainJointFace(int[] face, HashSet<int> chainJoints)
             => face.Length >= 3 && chainJoints.Count > 0
             && Array.TrueForAll(face, chainJoints.Contains);
@@ -475,12 +459,11 @@ namespace ValveResourceFormat.IO
                     return false;
                 }
 
-                var name = Fe.CtrlNames[corner];
-                if (name.StartsWith(FreeClothNodePrefix, StringComparison.Ordinal))
+                if (IsFreeClothNode(corner))
                 {
                     free = true;
                 }
-                else if (IsProxyNodeName(name))
+                else if (IsProxyNodeName(Fe.CtrlNames[corner]))
                 {
                     return false;
                 }
@@ -490,36 +473,15 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the compiled surface faces the original built from a <c>ClothTri</c> or <c>ClothQuad</c>
-        /// element over already-declared cloth nodes, quads before triangles. Corners are control-node
-        /// indices in the compiled cycle order.
+        /// Gets the compiled surface faces built from <c>ClothTri</c> and <c>ClothQuad</c> elements, quads before triangles,
+        /// with corners in the compiled cycle order.
         /// </summary>
         internal List<int[]> GetAuthoredElementFaces()
-        {
-            var faces = new List<int[]>();
-            foreach (var face in Fe.Quads)
-            {
-                if (!IsHingeFanFace(face) && IsAuthoredElementFace(face))
-                {
-                    faces.Add(face);
-                }
-            }
-
-            foreach (var face in Fe.Tris)
-            {
-                if (!IsHingeFanFace(face) && IsAuthoredElementFace(face))
-                {
-                    faces.Add(face);
-                }
-            }
-
-            return faces;
-        }
+            => [.. Fe.Quads.Concat(Fe.Tris).Where(face => !IsHingeFanFace(face) && IsAuthoredElementFace(face))];
 
         /// <summary>
-        /// Reconstructs the cloth proxy mesh (sheet) from the FeModel surface arrays as one merged mesh.
-        /// Returns null when the FeModel has no surface (no quads/tris) - e.g. a pure bone-chain cloth
-        /// that only needs ClothChain.
+        /// Reconstructs the proxy sheets from the FeModel surface as one merged mesh, or null when there is no surface,
+        /// as on a cloth made only of chains.
         /// </summary>
         internal ProxyMesh? BuildProxyMesh()
         {
@@ -535,7 +497,7 @@ namespace ValveResourceFormat.IO
             }
 
             var surfaceNodes = new HashSet<int>(referenced);
-            var surfaceMeshes = surfaceNodes.Select(node => ParseProxyMeshIndex(Fe.CtrlNames[node]))
+            var surfaceMeshes = surfaceNodes.Select(ProxyMeshIndexOf)
                 .Where(static mesh => mesh >= 0).ToHashSet();
             var rodsFaces = AddRodRegionFaces(referenced, surfaceNodes, surfaceMeshes);
             var strays = rodsFaces.Count > 0 ? AddUncoveredSheetVertices(referenced, surfaceMeshes) : [];
@@ -549,12 +511,10 @@ namespace ValveResourceFormat.IO
             }
 
             var vertices = ComputeProxyVertexArrays(nodeIndices);
-            var positions = vertices.Positions;
 
             var faces = SurfaceFacesInLaneOrder(remap);
             RestoreStaticQuadCornerOrder(faces, [.. rodsFaces.Select(face => face.Select(corner => remap[corner]).ToArray())], nodeIndices);
 
-            var rodsDriven = new float[nodeIndices.Length];
             var surfaceFaceCount = faces.Count;
             rodsFaces.Reverse();
             foreach (var face in rodsFaces)
@@ -562,30 +522,26 @@ namespace ValveResourceFormat.IO
                 faces.Add([.. face.Select(corner => remap[corner])]);
             }
 
-            var meshOf = Array.ConvertAll(nodeIndices, node => ParseProxyMeshIndex(Fe.CtrlNames[node]));
+            var meshOf = Array.ConvertAll(nodeIndices, ProxyMeshIndexOf);
             foreach (var stray in strays)
             {
-                AttachStrayToTriangle(remap[stray], positions, faces, meshOf);
+                AttachStrayToTriangle(remap[stray], vertices.Positions, faces, meshOf);
             }
 
             var declared = RotateQuadsToShippedMasses(
                 ChooseFaceDeclarationOrder(faces, surfaceFaceCount, nodeIndices),
                 surfaceFaceCount, nodeIndices, Fe.InitPosePositions, Fe.NodeInvMasses);
-            faces.Clear();
-            faces.AddRange(declared);
 
-            for (var i = 0; i < nodeIndices.Length; i++)
-            {
-                rodsDriven[i] = surfaceNodes.Contains(nodeIndices[i]) ? 0f : 1f;
-            }
+            var hasRodRegion = rodsFaces.Count > 0;
+            float[] rodsDriven = hasRodRegion ? Array.ConvertAll(nodeIndices, node => surfaceNodes.Contains(node) ? 0f : 1f) : [];
 
-            return AssembleProxyMesh(vertices, nodeIndices, faces, rodsFaces.Count > 0 ? rodsDriven : [],
-                usesAuthoredFaces: rodsFaces.Count > 0, isDropRisk: false, isFreeFloating: false);
+            return AssembleProxyMesh(vertices, nodeIndices, declared, rodsDriven,
+                usesAuthoredFaces: hasRodRegion, isDropRisk: false, isFreeFloating: false);
         }
 
         /// <summary>
-        /// Gets the nodes of the compiled solve elements that belong to a proxy sheet: every face except hinge fans,
-        /// authored element faces and faces over independent chain joints.
+        /// Gets the nodes of the solve elements that belong to a proxy sheet: every face except hinge fans, authored element
+        /// faces and faces over independent chain joints.
         /// </summary>
         private SortedSet<int> SurfaceFaceNodes()
         {
@@ -617,8 +573,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the source faces of the covered sheets that reach a node outside the solve elements, the sheets' rod
-        /// region, and adds their corners to <paramref name="referenced"/>.
+        /// Gets the source faces of the covered sheets that reach a node outside the solve elements, which make up the
+        /// sheets' rod region, and adds their corners to <paramref name="referenced"/>.
         /// </summary>
         private List<int[]> AddRodRegionFaces(SortedSet<int> referenced, HashSet<int> surfaceNodes, HashSet<int> surfaceMeshes)
         {
@@ -635,7 +591,7 @@ namespace ValveResourceFormat.IO
                 foreach (var corner in face)
                 {
                     if (corner < 0 || corner >= Fe.InitPosePositions.Length || corner >= Fe.CtrlNames.Length || IsHingeRegeneratedProxy(corner)
-                        || !surfaceMeshes.Contains(ParseProxyMeshIndex(Fe.CtrlNames[corner])))
+                        || !surfaceMeshes.Contains(ProxyMeshIndexOf(corner)))
                     {
                         sheet = false;
                         break;
@@ -670,7 +626,7 @@ namespace ValveResourceFormat.IO
             for (var node = 0; node < Fe.CtrlNames.Length && node < Fe.InitPosePositions.Length; node++)
             {
                 if (!covered.Contains(node) && !IsHingeRegeneratedProxy(node)
-                    && surfaceMeshes.Contains(ParseProxyMeshIndex(Fe.CtrlNames[node])))
+                    && surfaceMeshes.Contains(ProxyMeshIndexOf(node)))
                 {
                     strays.Add(node);
                     referenced.Add(node);
@@ -788,10 +744,10 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>Fills the per-vertex arrays of the given nodes from their compiled per-node values.</summary>
-        private ProxyVertexArrays ComputeProxyVertexArrays(IReadOnlyList<int> nodeIndices)
+        private ProxyVertexArrays ComputeProxyVertexArrays(int[] nodeIndices)
         {
-            var arrays = new ProxyVertexArrays(nodeIndices.Count);
-            for (var i = 0; i < nodeIndices.Count; i++)
+            var arrays = new ProxyVertexArrays(nodeIndices.Length);
+            for (var i = 0; i < nodeIndices.Length; i++)
             {
                 var node = nodeIndices[i];
                 var isSim = Simulates(node);
@@ -893,14 +849,19 @@ namespace ValveResourceFormat.IO
                 ? index
                 : int.MaxValue;
 
-        private const string ProxyNamePrefix = "$cloth_m";
-
         private static int ProxyNameSeparator(string name)
             => name.StartsWith(ProxyNamePrefix, StringComparison.Ordinal) ? name.IndexOf('p', ProxyNamePrefix.Length) : -1;
 
         /// <summary>Gets whether <paramref name="node"/> is a proxy-sheet vertex (<c>$cloth_m&lt;N&gt;p&lt;S&gt;</c>).</summary>
-        internal bool IsProxyMeshNode(int node)
-            => node >= 0 && node < Fe.CtrlNames.Length && ParseProxyMeshIndex(Fe.CtrlNames[node]) >= 0;
+        internal bool IsProxyMeshNode(int node) => ProxyMeshIndexOf(node) >= 0;
+
+        /// <summary>Gets the <c>$cloth_m&lt;N&gt;</c> mesh index of <paramref name="node"/>, or -1.</summary>
+        private int ProxyMeshIndexOf(int node)
+            => node >= 0 && node < Fe.CtrlNames.Length ? ParseProxyMeshIndex(Fe.CtrlNames[node]) : -1;
+
+        /// <summary>Gets whether <paramref name="node"/> is a free cloth node (<c>$cloth_node_</c>).</summary>
+        internal bool IsFreeClothNode(int node)
+            => node >= 0 && node < Fe.CtrlNames.Length && Fe.CtrlNames[node].StartsWith(FreeClothNodePrefix, StringComparison.Ordinal);
 
         /// <summary>
         /// Reorders faces to their SIMD lane order, each in its lane's node order; faces without a lane follow in array order.
@@ -914,14 +875,11 @@ namespace ValveResourceFormat.IO
             }
 
             var rows = faces[0].Length;
-            static string FaceKey(IEnumerable<int> nodes) => string.Join(',', nodes.Order());
 
             var remaining = new Dictionary<string, List<int[]>>();
             foreach (var face in faces)
             {
-                var k = FaceKey(face);
-                var list = GetOrAdd(remaining, k);
-                list.Add(face);
+                GetOrAdd(remaining, SurfaceElementKey(face)).Add(face);
             }
 
             var ordered = new List<int[]>(faces.Length);
@@ -946,8 +904,7 @@ namespace ValveResourceFormat.IO
                         laneNodes[r] = flat[r * 4 + lane];
                     }
 
-                    var k = FaceKey(laneNodes);
-                    if (remaining.TryGetValue(k, out var list) && list.Count > 0)
+                    if (remaining.TryGetValue(SurfaceElementKey(laneNodes), out var list) && list.Count > 0)
                     {
                         list.RemoveAt(list.Count - 1);
                         ordered.Add(laneNodes);

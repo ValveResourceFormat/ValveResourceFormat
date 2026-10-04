@@ -61,8 +61,7 @@ namespace ValveResourceFormat.ResourceTypes
             => collisionAttributes ??= Data.GetArray("m_collisionAttributes");
 
         /// <summary>
-        /// Gets the embedded finite-element (soft body / cloth) model (<c>m_pFeModel</c>), or null when the
-        /// aggregate has no cloth.
+        /// Gets the embedded cloth (soft body) model (<c>m_pFeModel</c>), or null when the aggregate has none.
         /// </summary>
         public FeModel? FeModel
         {
@@ -73,14 +72,10 @@ namespace ValveResourceFormat.ResourceTypes
                     return feModel;
                 }
 
-                var feModelData = Data.GetSubCollection("m_pFeModel");
-                if (feModelData is not null)
+                if (Data.GetSubCollection("m_pFeModel") is { } feModelData
+                    && new FeModel(feModelData) is { HasData: true } parsed)
                 {
-                    var parsed = new FeModel(feModelData);
-                    if (parsed.HasData)
-                    {
-                        feModel = parsed;
-                    }
+                    feModel = parsed;
                 }
 
                 feModelParsed = true;

@@ -7,17 +7,31 @@ namespace ValveResourceFormat.IO
 {
     internal sealed partial class ClothReconstruction
     {
+        /// <summary>The compiled point damping of a node painted with full drag.</summary>
         internal const float ClothDragPointDampingScale = 30f;
 
+        /// <summary>The compiled gravity of a node painted with a gravity scale of 1.</summary>
         internal const float ClothSourceBaseGravity = 360f;
 
-        private const float GoalDampingSolveMaxAttraction = 0.9999f;
+        private const float ClothRawGoalScale = 30f;
 
+        private const float GoalDampingSolveMaxAttraction = 0.9999f;
         private const float GoalDampingSolveMinAttraction = 0.0001f;
 
+        // The bias is the most common cube root gap, rounded to this many steps per unit.
+        private const float GoalStrengthBiasQuantum = 10000f;
+        private const int GoalStrengthBiasMinNodes = 8;
+        private const float GoalStrengthBiasMinShare = 0.5f;
+        private const int GoalStrengthBiasMinSupport = 3;
+
+        private const uint NodeFlagGoalAttraction = 0x80;
+        private const uint NodeFlagRawForceAttraction = 0x200;
+        private const uint NodeFlagRawVertexAttraction = 0x400;
+
+        private float? goalStrengthBias;
+
         /// <summary>
-        /// Recovers the source <c>goal_strength</c> from a node's compiled
-        /// <c>flAnimationForceAttraction</c>, which the compiler writes as the cube of it.
+        /// Recovers the source <c>goal_strength</c> from a compiled <c>flAnimationForceAttraction</c>, which is its cube.
         /// </summary>
         internal static float GoalStrengthFromAttraction(float forceAttraction)
             => MathF.Cbrt(MathUtils.Saturate(forceAttraction));
@@ -27,14 +41,6 @@ namespace ValveResourceFormat.IO
         /// attractions shared by most goal-damped nodes, or 0 when no such majority exists.
         /// </summary>
         internal float GoalStrengthBias => goalStrengthBias ??= ComputeGoalStrengthBias();
-
-        private float? goalStrengthBias;
-
-        private const float GoalStrengthBiasQuantum = 10000f;
-
-        private const int GoalStrengthBiasMinNodes = 8;
-
-        private const float GoalStrengthBiasMinShare = 0.5f;
 
         private float ComputeGoalStrengthBias()
         {
@@ -76,24 +82,31 @@ namespace ValveResourceFormat.IO
                 return mode / GoalStrengthBiasQuantum;
             }
 
+            // Without a majority, fall back to the largest gap when enough nodes land on it or one step below it.
             var top = counts.Keys.Max();
             return top > 0 && counts[top] + counts.GetValueOrDefault(top - 1) >= GoalStrengthBiasMinSupport
                 ? top / GoalStrengthBiasQuantum
                 : 0f;
         }
 
-        private const int GoalStrengthBiasMinSupport = 3;
-
         /// <summary>
         /// Gets the <c>cloth_goal_strength_v2</c> paint for a compiled force attraction: its cube root less
         /// <see cref="GoalStrengthBias"/>. A saturated attraction keeps the plain cube root.
         /// </summary>
         internal float GoalStrengthPaint(float forceAttraction)
-            => GoalStrengthBias <= 0f || forceAttraction >= 1f
-                ? GoalStrengthFromAttraction(forceAttraction)
-                : forceAttraction <= 0f
-                    ? -MathF.Cbrt(GoalStrengthBias)
-                    : MathUtils.Saturate(GoalStrengthFromAttraction(forceAttraction) - GoalStrengthBias);
+        {
+            if (GoalStrengthBias <= 0f || forceAttraction >= 1f)
+            {
+                return GoalStrengthFromAttraction(forceAttraction);
+            }
+
+            if (forceAttraction <= 0f)
+            {
+                return -MathF.Cbrt(GoalStrengthBias);
+            }
+
+            return MathUtils.Saturate(GoalStrengthFromAttraction(forceAttraction) - GoalStrengthBias);
+        }
 
         /// <summary>
         /// Gets the <c>cloth_goal_damping</c> paint that goes with <see cref="GoalStrengthPaint"/>, solved against the
@@ -130,14 +143,6 @@ namespace ValveResourceFormat.IO
             return MathUtils.Saturate((s * s - (1f - forceAttraction) * forceAttraction) / (2f * s));
         }
 
-        private const float ClothRawGoalScale = 30f;
-
-        private const uint NodeFlagGoalAttraction = 0x80;
-
-        private const uint NodeFlagRawForceAttraction = 0x200;
-
-        private const uint NodeFlagRawVertexAttraction = 0x400;
-
         /// <summary>
         /// Gets whether <paramref name="node"/> compiled on the goal-damped spring integrator rather than the raw one.
         /// </summary>
@@ -148,6 +153,7 @@ namespace ValveResourceFormat.IO
                 return MathUtils.GetBit(Fe.GoalDampedSpringIntegrators, dynamicIndex);
             }
 
+            // Without the per-node bit, fall back to the flags of the node's static or dynamic group.
             var flags = dynamicIndex >= 0 ? Fe.DynamicNodeFlags : Fe.StaticNodeFlags;
             if ((flags & (NodeFlagRawForceAttraction | NodeFlagRawVertexAttraction)) == 0)
             {
@@ -173,7 +179,6 @@ namespace ValveResourceFormat.IO
             return index >= 0 && index < length;
         }
 
-        /// <summary>Gets whether the goal-damped solve can produce this pair of attractions.</summary>
         private static bool GoalSolveCanProduce(float forceAttraction, float vertexAttraction)
         {
             if (forceAttraction is < 0f or > 1f || vertexAttraction is < 0f or > 1f)
@@ -223,6 +228,7 @@ namespace ValveResourceFormat.IO
                 }
                 else if (integrator.ForceAttraction != 0f || integrator.VertexAttraction != 0f)
                 {
+                    // Only proxy sheet nodes can keep raw attraction paints; the rest are re-authored as goal-damped.
                     wasRaw = true;
                     if (IsProxyMeshNode(node))
                     {

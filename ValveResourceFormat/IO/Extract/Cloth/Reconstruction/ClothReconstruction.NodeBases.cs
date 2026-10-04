@@ -19,6 +19,11 @@ namespace ValveResourceFormat.IO
         /// <summary>The furthest a roll may move a node or change a rod's rest length.</summary>
         private const float NodeBaseCostBudget = 5e-4f;
 
+        private const float NodeBaseDegenerateAxis = 0.05f;
+        private const float NodeBaseFoldResidual = 1e-4f;
+
+        private Dictionary<int, List<int>>? nodeNeighbours;
+
         /// <summary>
         /// A joint's compiled node base with the candidate list scanned for it and the two joints the list is drawn from.
         /// </summary>
@@ -26,9 +31,8 @@ namespace ValveResourceFormat.IO
             BoneChainJoint First, BoneChainJoint Second);
 
         /// <summary>
-        /// Rolls the extruded ring of a chain joint whose <c>m_NodeBases</c> axis scan is a numerical tie
-        /// onto the axis pair the original kept, recording the roll in
-        /// <see cref="BoneChainJoint.ExtrudeTwistTieNudge"/>.
+        /// Rolls the extruded ring of a chain joint whose <c>m_NodeBases</c> axis scan is a numerical tie onto the axis
+        /// pair the compiled model kept, recording the roll in <see cref="BoneChainJoint.ExtrudeTwistTieNudge"/>.
         /// </summary>
         private void SteerNodeBaseTies(BoneChain chain)
         {
@@ -155,12 +159,8 @@ namespace ValveResourceFormat.IO
 
             foreach (var rod in Fe.Rods)
             {
-                if (!probe.ContainsKey(rod.NodeA) && !probe.ContainsKey(rod.NodeB))
-                {
-                    continue;
-                }
-
-                if (rod.NodeA >= Fe.InitPosePositions.Length || rod.NodeB >= Fe.InitPosePositions.Length)
+                if ((!probe.ContainsKey(rod.NodeA) && !probe.ContainsKey(rod.NodeB))
+                    || rod.NodeA >= Fe.InitPosePositions.Length || rod.NodeB >= Fe.InitPosePositions.Length)
                 {
                     continue;
                 }
@@ -241,8 +241,6 @@ namespace ValveResourceFormat.IO
             return nodeNeighbours.TryGetValue(node, out var neighbours) ? neighbours : [];
         }
 
-        private Dictionary<int, List<int>>? nodeNeighbours;
-
         private Dictionary<int, List<int>> BuildNodeNeighbours()
         {
             var sets = new Dictionary<int, SortedSet<int>>();
@@ -291,9 +289,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// The node list <see cref="ScanNodeBasePair"/> scans for a joint's graded or fit-arm basis, ascending by node
-        /// index, which puts the higher node index of the winning pair in X0 and settles which pair an exact tie keeps.
-        /// The chain preset scans its own list unsorted (<see cref="ChainNodeBaseCandidates"/>).
+        /// The node list scanned for a joint's graded or fit-arm basis. It is sorted ascending, which puts the higher node
+        /// of the winning pair in X0 and decides which pair an exact tie keeps.
         /// </summary>
         private List<int>? NodeBaseCandidates(params BoneChainJoint[] joints)
         {
@@ -318,16 +315,15 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// A joint's ring by its skeleton parents, or, where the compiled data parents none of the joint's
-        /// <c>$cc</c> nodes to it, the ring the chain reconstruction assigned to the joint's declaration.
+        /// A joint's ring by its skeleton parents, or, where none of the joint's <c>$cc</c> nodes is parented to it,
+        /// the ring assigned to the joint's declaration.
         /// </summary>
         private List<int> ChainJointRing(BoneChainJoint joint)
             => ProxyRingOf(joint.Node) is { Count: > 0 } ring ? ring : [.. joint.RingNodes];
 
         /// <summary>
-        /// The preset scan's node list for <paramref name="joint"/> and its child over <see cref="ChainJointRing"/>, in the order
-        /// the chain importer hands it to the scan: the joint's own vector, then the child's, each as the extrusion pushes it and
-        /// neither sorted. Where two pairs tie, the scan keeps the later one in this order and writes its later node as X0.
+        /// The chain preset's scan list for <paramref name="joint"/> and its child: the joint's extrusion vector, then the
+        /// child's, unsorted. Where two pairs tie, the scan keeps the later one and writes its later node as X0.
         /// </summary>
         private List<int>? ChainNodeBaseCandidates(BoneChainJoint joint, BoneChainJoint child)
         {
@@ -342,12 +338,7 @@ namespace ValveResourceFormat.IO
                 candidates.AddRange(vector);
             }
 
-            if (candidates.Count < 3)
-            {
-                return null;
-            }
-
-            return candidates.TrueForAll(node => node < Fe.InitPosePositions.Length) ? candidates : null;
+            return candidates.Count >= 3 && candidates.TrueForAll(node => node < Fe.InitPosePositions.Length) ? candidates : null;
         }
 
         private Vector3 RestPosition(int node, Dictionary<int, Vector3> moved)
@@ -360,28 +351,26 @@ namespace ValveResourceFormat.IO
         private readonly record struct NodeBaseScan(NodeBasis Basis, float XMargin, float YMargin, float Handedness, float Fold)
         {
             public const int Decisions = 4;
+
             public int Decided => State(XMargin) + State(YMargin) + State(Handedness) + State(Fold);
+
+            public bool DecidedAgainst
+                => State(XMargin) < 0 || State(YMargin) < 0 || State(Handedness) < 0 || State(Fold) < 0;
+
             public bool NoWorseThan(NodeBaseScan other)
                 => State(XMargin) >= State(other.XMargin) && State(YMargin) >= State(other.YMargin)
                 && State(Handedness) >= State(other.Handedness) && State(Fold) >= State(other.Fold);
-            public bool DecidedAgainst
-                => State(XMargin) < 0 || State(YMargin) < 0 || State(Handedness) < 0 || State(Fold) < 0;
+
             private static int State(float margin) => margin >= NodeBaseTieMargin ? 1 : margin <= -NodeBaseTieMargin ? -1 : 0;
         }
 
-        private const float NodeBaseDegenerateAxis = 0.05f;
-
-        private const float NodeBaseFoldResidual = 1e-4f;
-
         /// <summary>
-        /// Runs the compiler's own two axis scans, the handedness flip that follows them and the pair swaps
-        /// it folds a near-half-turn residual into over <paramref name="candidates"/>, scoring the result
-        /// against the basis <paramref name="want"/> the original wrote for <paramref name="node"/>.
+        /// Replays the compiler's two axis scans over <paramref name="candidates"/>, the handedness flip after them and the
+        /// half-turn folds, scoring each decision against the compiled basis <paramref name="want"/> of <paramref name="node"/>.
         /// </summary>
         private NodeBaseScan PredictNodeBase(List<int> candidates, int node, Dictionary<int, Vector3> moved, NodeBasis want)
         {
-            var (xOuter, xInner, xMargin) = ScanNodeBasePair(candidates, moved,
-                static (a, b) => NodeBaseSpan(a, b), want.NodeX1, want.NodeX0);
+            var (xOuter, xInner, xMargin) = ScanNodeBasePair(candidates, moved, NodeBaseSpan, want.NodeX1, want.NodeX0);
             var xAxis = RestPosition(xOuter, moved) - RestPosition(xInner, moved);
 
             var (yOuter, yInner, yMargin) = ScanNodeBasePair(candidates, moved,
@@ -408,16 +397,14 @@ namespace ValveResourceFormat.IO
         private (NodeBasis Basis, float Residual) FoldNodeBase(NodeBasis basis, Vector3 xAxis, Vector3 yAxis,
             bool swapped, int node)
         {
-            var up = node < Fe.InitPoseRotations.Length
-                ? Vector3.Transform(Vector3.UnitZ, Fe.InitPoseRotations[node])
-                : Vector3.UnitZ;
-            var y = yAxis.Length() > 0f ? Vector3.Normalize(yAxis) : new Vector3(0f, 0f, -1f);
+            var up = NodeUpAxis(node);
+            var y = MathUtils.SafeNormalize(yAxis, -Vector3.UnitZ);
             if (swapped)
             {
                 y = -y;
             }
 
-            var x = xAxis - (y * Vector3.Dot(y, xAxis));
+            var x = MathUtils.ProjectOntoPlane(xAxis, y);
             if (x.Length() <= NodeBaseDegenerateAxis)
             {
                 var alt = Vector3.Cross(up, y);
@@ -451,30 +438,36 @@ namespace ValveResourceFormat.IO
 
             if (both < NodeBaseFoldResidual)
             {
-                return (new NodeBasis(basis.NodeX1, basis.NodeX0, basis.NodeY1, basis.NodeY0), residual);
+                return (FoldBoth(basis), residual);
             }
 
             if (acrossX < NodeBaseFoldResidual)
             {
-                return (new NodeBasis(basis.NodeX1, basis.NodeX0, basis.NodeY0, basis.NodeY1), residual);
+                return (FoldAcrossX(basis), residual);
             }
 
             if (acrossY < NodeBaseFoldResidual)
             {
-                return (new NodeBasis(basis.NodeX0, basis.NodeX1, basis.NodeY1, basis.NodeY0), residual);
+                return (FoldAcrossY(basis), residual);
             }
 
             return (basis, residual);
         }
 
+        private static NodeBasis FoldBoth(NodeBasis basis) => new(basis.NodeX1, basis.NodeX0, basis.NodeY1, basis.NodeY0);
+
+        private static NodeBasis FoldAcrossX(NodeBasis basis) => new(basis.NodeX1, basis.NodeX0, basis.NodeY0, basis.NodeY1);
+
+        private static NodeBasis FoldAcrossY(NodeBasis basis) => new(basis.NodeX0, basis.NodeX1, basis.NodeY1, basis.NodeY0);
+
+        private Vector3 NodeUpAxis(int node)
+            => node < Fe.InitPoseRotations.Length ? Vector3.Transform(Vector3.UnitZ, Fe.InitPoseRotations[node]) : Vector3.UnitZ;
+
         private static float NodeBaseResidual(Quaternion q)
             => MathF.Sqrt((q.X * q.X) + (q.Y * q.Y) + (q.Z * q.Z));
 
         private static bool NodeBaseFoldReaches(NodeBasis basis, NodeBasis want)
-            => want == basis
-            || want == new NodeBasis(basis.NodeX1, basis.NodeX0, basis.NodeY1, basis.NodeY0)
-            || want == new NodeBasis(basis.NodeX1, basis.NodeX0, basis.NodeY0, basis.NodeY1)
-            || want == new NodeBasis(basis.NodeX0, basis.NodeX1, basis.NodeY1, basis.NodeY0);
+            => want == basis || want == FoldBoth(basis) || want == FoldAcrossX(basis) || want == FoldAcrossY(basis);
 
         /// <summary>
         /// Scans every pair in list order keeping the last maximum, and returns it with the margin by which the wanted pair
@@ -542,9 +535,7 @@ namespace ValveResourceFormat.IO
         {
             var length = MathF.Sqrt((yAxis.Y * yAxis.Y) + (yAxis.Z * yAxis.Z) + (yAxis.X * yAxis.X));
             var y = length > 0f ? yAxis * (1f / length) : new Vector3(0f, 0f, -1f);
-            var z = node < Fe.InitPoseRotations.Length
-                ? Vector3.Transform(Vector3.UnitZ, Fe.InitPoseRotations[node])
-                : Vector3.UnitZ;
+            var z = NodeUpAxis(node);
 
             return (((y.X * xAxis.Z) - (xAxis.X * y.Z)) * z.Y)
                 + (((xAxis.X * y.Y) - (y.X * xAxis.Y)) * z.Z)

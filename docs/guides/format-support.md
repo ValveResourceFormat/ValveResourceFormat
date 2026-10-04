@@ -126,12 +126,12 @@ attachments, bodygroups, LOD groups, hitbox sets, material groups (skins), stati
 shapes, physics joints and body properties, bone constraints, IK chains and control rigs,
 face flexes, breakable pieces, cloth (chains, sheets, springs, collision shapes and effects
 rebuilt from the compiled `FeModel`), embedded sequences with events/layers/root motion,
-Animgraph 2 clips and references, and a wide range of game data blocks (prop_data, particle attachments,
-and many more) passed through verbatim.
+Animgraph 2 clips and references, and a wide range of game data blocks (prop_data, particle
+attachments, and many more) passed through verbatim.
 
-Cloth decompiling is experimental. Most cloth recompiles to the same simulation, but some models
-will not come back right; please report the ones that do not. A model whose cloth cannot be rebuilt
-is decompiled without it, and the decompiler reports which one.
+Cloth decompiling is experimental. Most cloth recompiles to the same simulation, but not all of
+it does, so please report models whose cloth comes back wrong. A model whose cloth cannot be
+rebuilt is decompiled without it, with a warning.
 
 What a recompiled model will be missing:
 

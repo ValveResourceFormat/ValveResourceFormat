@@ -14,11 +14,24 @@ namespace ValveResourceFormat.IO;
 /// </summary>
 internal sealed partial class ClothExtract(Model? model, PhysAggregateData? physAggregateData)
 {
-    /// <summary>A proxy sheet exported as its own DMX: the file name, the proxy name and the sheet.</summary>
-    internal readonly record struct ClothProxyFile(string FileName, string Name, ProxyMesh Proxy);
+    private readonly ClothRestPose noRestPose = new(new(StringComparer.OrdinalIgnoreCase), new(StringComparer.OrdinalIgnoreCase),
+        new(StringComparer.OrdinalIgnoreCase));
 
-    /// <summary>Gets the cloth proxy sheets to extract as DMX files, in declaration order.</summary>
-    internal List<ClothProxyFile> ProxyMeshes { get; } = [];
+    // Sheets declared with flex_cloth_borders, recorded while the vmdl is emitted and read when their DMX is built
+    private readonly HashSet<ProxyMesh> flexedProxies = [];
+
+    // The vmdl and each sheet's DMX both ask which selection a sheet stands for
+    private readonly Dictionary<ProxyMesh, string?> proxyVertexMapNames = [];
+    private List<ProxyMesh>? proxyGroup;
+
+    private readonly List<KVObject> culledBoneNodes = [];
+    private readonly KVObject rootNodes = KVObject.Array();
+    private readonly List<(string FileName, byte[] Data)> subFiles = [];
+    private ClothReconstruction? reconstruction;
+    private KVObject? jiggleBoneList;
+
+    /// <summary>A proxy sheet exported as its own DMX.</summary>
+    internal readonly record struct ClothProxyFile(string FileName, string Name, ProxyMesh Proxy);
 
     /// <summary>A control node and the name it is declared under.</summary>
     internal readonly record struct NodeRef(string Name, int Node);
@@ -26,7 +39,8 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
     /// <summary>The root bone, bone-local origin and angles a free <c>$cloth_node_</c> control node is re-authored at.</summary>
     internal readonly record struct ClothNodeAnchor(string RootBone, Vector3 Origin, Vector3 Angles);
 
-    private ClothReconstruction? reconstruction;
+    /// <summary>Gets the cloth proxy sheets to extract as DMX files, in declaration order.</summary>
+    internal List<ClothProxyFile> ProxyMeshes { get; } = [];
 
     /// <summary>Gets the reconstruction of the model's cloth, or null where it has none.</summary>
     internal ClothReconstruction? Reconstruction
@@ -34,9 +48,6 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
 
     /// <summary>Gets the cloth control nodes whose bones the compiled skeleton culled, which the vmdl re-declares.</summary>
     internal IReadOnlyList<CulledBone> CulledBones => reconstruction?.Context?.CulledBones ?? [];
-
-    private readonly ClothRestPose noRestPose = new(new(StringComparer.OrdinalIgnoreCase), new(StringComparer.OrdinalIgnoreCase),
-        new(StringComparer.OrdinalIgnoreCase));
 
     private ClothRestPose RestPose => reconstruction?.RestPose ?? noRestPose;
 
@@ -54,16 +65,6 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
 
     /// <summary>Gets the parent-space bone rotations written beside <see cref="ProxyRestBonePositions"/>.</summary>
     private Dictionary<string, Quaternion> ProxyRestBoneRotations => RestPose.ProxyBoneRotations;
-
-    /// <summary>
-    /// The sheets declared with flex_cloth_borders, filled while the vmdl is emitted and read when their DMX is built.
-    /// </summary>
-    private readonly HashSet<ProxyMesh> flexedProxies = [];
-
-    private readonly List<KVObject> culledBoneNodes = [];
-    private readonly KVObject rootNodes = KVObject.Array();
-    private readonly List<(string FileName, byte[] Data)> subFiles = [];
-    private KVObject? jiggleBoneList;
 
     /// <summary>
     /// Reconstructs the model's cloth and builds everything it writes: the vmdl nodes, the proxy-sheet DMX files and the
@@ -85,7 +86,7 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
 
         if (CulledBones.Count > 0)
         {
-            AddCulledClothBones(culledBoneNodes);
+            AddCulledClothBones(cloth);
         }
 
         jiggleBoneList = ExtractJiggleBones(cloth);
@@ -170,30 +171,26 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
     private static HashSet<string> ClothBoneNames(ClothReconstruction cloth)
         => new(cloth.CollisionShapes.ParentBones, StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Adds the cloth source of <paramref name="cloth"/> to <paramref name="rootChildren"/>, and returns whether any
-    /// was emitted.
-    /// </summary>
-    internal bool EmitCloth(ClothReconstruction cloth, KVObject rootChildren)
+    private void EmitCloth(ClothReconstruction cloth, KVObject rootChildren)
     {
         var boneChains = cloth.BuildDeclaredBoneChains();
 
         if (cloth.IsImportedCloth)
         {
-            return EmitImportedClothPhase(cloth, boneChains, rootChildren);
+            EmitImportedClothPhase(cloth, boneChains, rootChildren);
         }
-
-        if (ProxyMeshes.Count > 0)
+        else if (ProxyMeshes.Count > 0)
         {
-            return EmitProxySheetClothPhase(cloth, boneChains, rootChildren);
+            EmitProxySheetClothPhase(cloth, boneChains, rootChildren);
         }
-
-        if (boneChains.Count > 0)
+        else if (boneChains.Count > 0)
         {
-            return EmitChainClothPhase(cloth, boneChains, rootChildren);
+            EmitChainClothPhase(cloth, boneChains, rootChildren);
         }
-
-        return EmitFreeNodeClothPhase(cloth, boneChains, rootChildren);
+        else
+        {
+            EmitFreeNodeClothPhase(cloth, boneChains, rootChildren);
+        }
     }
 
     /// <summary>A <c>Softbody</c> node carrying its own attributes, and its children list.</summary>
@@ -252,18 +249,12 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
     }
 
     /// <summary>
-    /// Re-declares the <see cref="CulledBones"/> without <c>do_not_discard</c>, so the compiler culls them again, adding
-    /// the top-level ones to <paramref name="skeletonChildren"/>.
+    /// Re-declares the <see cref="CulledBones"/> without <c>do_not_discard</c>, so the compiler culls them again.
     /// </summary>
-    private void AddCulledClothBones(List<KVObject> skeletonChildren)
+    private void AddCulledClothBones(ClothReconstruction cloth)
     {
-        if (reconstruction is not { } culledSource)
-        {
-            return;
-        }
-
-        var nestByClothParent = model is not null && model.Skeleton.Roots.Length == 0 && culledSource.HasCompiledSkelParents;
-        var emitted = CulledBones.Where(bone => bone.Node < culledSource.Fe.InitPosePositions.Length)
+        var nestByClothParent = model is not null && model.Skeleton.Roots.Length == 0 && cloth.HasCompiledSkelParents;
+        var emitted = CulledBones.Where(bone => bone.Node < cloth.Fe.InitPosePositions.Length)
             .Select(static bone => bone.Node).ToHashSet();
 
         var parentOf = new Dictionary<int, int>();
@@ -271,13 +262,14 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
         {
             if (emitted.Contains(node))
             {
-                parentOf[node] = nestByClothParent && node < culledSource.SkelParents.Length
-                    && emitted.Contains(culledSource.SkelParents[node])
-                        ? culledSource.SkelParents[node]
+                parentOf[node] = nestByClothParent && node < cloth.SkelParents.Length
+                    && emitted.Contains(cloth.SkelParents[node])
+                        ? cloth.SkelParents[node]
                         : -1;
             }
         }
 
+        // Break parent cycles by turning a bone on each into a root
         foreach (var node in parentOf.Keys.ToList())
         {
             var ancestor = parentOf[node];
@@ -301,9 +293,8 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
             }
 
             var (origin, rotation) = parent >= 0
-                ? ClothBoneLocalPose(culledSource, node, parent)
-                : (culledSource.Fe.InitPosePositions[node],
-                    node < culledSource.Fe.InitPoseRotations.Length ? culledSource.Fe.InitPoseRotations[node] : Quaternion.Identity);
+                ? ClothBoneLocalPose(cloth, node, parent)
+                : (cloth.Fe.InitPosePositions[node], cloth.Fe.InitPoseRotations[node]);
             bones.Add((node, parent, MakeNode("Bone",
                 ("name", name),
                 ("origin", ToKVArray(origin)),
@@ -315,7 +306,7 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
         {
             if (parent < 0)
             {
-                skeletonChildren.Add(bone);
+                culledBoneNodes.Add(bone);
                 continue;
             }
 
@@ -333,9 +324,8 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
     /// <summary>The rest pose of control node <paramref name="node"/> relative to control node <paramref name="parent"/>.</summary>
     internal static (Vector3 Origin, Quaternion Rotation) ClothBoneLocalPose(ClothReconstruction cloth, int node, int parent)
     {
-        var parentRotation = parent < cloth.Fe.InitPoseRotations.Length ? cloth.Fe.InitPoseRotations[parent] : Quaternion.Identity;
-        var rotation = node < cloth.Fe.InitPoseRotations.Length ? cloth.Fe.InitPoseRotations[node] : Quaternion.Identity;
-        return RelativePose(cloth.Fe.InitPosePositions[node], rotation, cloth.Fe.InitPosePositions[parent], parentRotation);
+        return RelativePose(cloth.Fe.InitPosePositions[node], cloth.Fe.InitPoseRotations[node],
+            cloth.Fe.InitPosePositions[parent], cloth.Fe.InitPoseRotations[parent]);
     }
 
     /// <summary>A pose relative to its parent's pose.</summary>

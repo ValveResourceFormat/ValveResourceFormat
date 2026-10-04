@@ -6,7 +6,7 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    private bool EmitChainClothPhase(ClothReconstruction cloth, List<BoneChain> boneChains, KVObject rootChildren)
+    private void EmitChainClothPhase(ClothReconstruction cloth, List<BoneChain> boneChains, KVObject rootChildren)
     {
         var (softbody, softbodyChildren) = MakeSoftbody(cloth);
         softbodyChildren.Add(MakeClothParams(cloth,
@@ -21,8 +21,7 @@ internal sealed partial class ClothExtract
             clothFolderChildren.Add(jointNode);
         }
 
-        var declarationPlan = TryPlanClothChainDeclarations(cloth, boneChains,
-            ClothControlParentTest(cloth));
+        var declarationPlan = TryPlanClothChainDeclarations(cloth, boneChains, ClothControlParentTest(cloth));
         var declaredChains = declarationPlan?.Chains ?? boneChains;
         foreach (var (name, node) in declarationPlan?.PreDeclared ?? [])
         {
@@ -45,8 +44,7 @@ internal sealed partial class ClothExtract
             .Select(static joint => joint.Node)
             .ToHashSet();
         var clothBones = ClothBoneNames(cloth);
-        clothBones.UnionWith(boneChains.SelectMany(static chain => chain.Joints)
-            .Select(static joint => joint.Name));
+        clothBones.UnionWith(boneChains.SelectMany(static chain => chain.Joints).Select(static joint => joint.Name));
         chainCoveredNodes.UnionWith(strip);
         clothBones.UnionWith(ImportedStripBoneNames(cloth, strip));
         chainCoveredNodes.UnionWith(AddClothSelfCollisionClusters(softbodyChildren, cloth, clothBones));
@@ -65,6 +63,5 @@ internal sealed partial class ClothExtract
         AddClothChainVolumetricMaps(softbodyChildren, cloth, boneChains);
         AddClothPhaseTail(cloth, rootChildren, softbody, softbodyChildren, clothBones, boneChains,
             antiTunnelCloth: declaredChains.Select(static chain => chain.RootBone + chain.DeclarationSuffix));
-        return true;
     }
 }

@@ -17,8 +17,8 @@ internal sealed partial class ClothReconstruction
         ClothReconstruction cloth, BoneChain chain)
         => chain.Joints
             .Where(joint => cloth.Fe.IsLockedToGoal(joint.Node))
-            .Select(joint => (joint, chain.Joints.Where(child => child.ParentNode == joint.Node).ToList()))
-            .Where(static entry => entry.Item2.Count > 0);
+            .Select(joint => (Joint: joint, Children: chain.Joints.FindAll(child => child.ParentNode == joint.Node)))
+            .Where(static entry => entry.Children.Count > 0);
 
     /// <summary>The compiled evidence <see cref="ClothChainVersion(ChainVersionEvidence)"/> reads a chain's version off.</summary>
     internal readonly record struct ChainVersionEvidence(bool? RootAllowsRotation, bool RootHasBase, bool LockedJoint,
@@ -50,12 +50,8 @@ internal sealed partial class ClothReconstruction
             version = 1;
         }
 
-        if (version != 0 && !rootKeepsPreset && guardOpen && evidence.HintsTwistWritten && evidence.BasesBulkGraded != false)
-        {
-            version = 0;
-        }
-
-        if (version != 0 && !rootKeepsPreset && guardOpen && evidence.HasUnbasedLeaf && evidence.BasesBulkGraded != false)
+        if (version != 0 && !rootKeepsPreset && guardOpen && evidence.BasesBulkGraded != false
+            && (evidence.HintsTwistWritten || evidence.HasUnbasedLeaf))
         {
             version = 0;
         }
@@ -77,13 +73,14 @@ internal sealed partial class ClothReconstruction
     {
         var root = chain.Joints.Count > 0 ? chain.Joints[0] : null;
         var locksJoints = ChainLocksJoints(cloth, chain);
+        var basesBulkGraded = cloth.ChainBasesAreBulkGraded(chain);
         return new ChainVersionEvidence(
             RootAllowsRotation: root is null ? null : cloth.Fe.AllowsRotation(root.Node),
             RootHasBase: root is not null && cloth.Fe.NodeBases.ContainsKey(root.Node),
             LockedJoint: chain.Joints.Exists(joint => cloth.Fe.IsLockedToGoal(joint.Node)),
-            RigidCloudClusterLock: IsRigidCloudClusterLock(cloth, chain),
+            RigidCloudClusterLock: LockedJointsWithChildren(cloth, chain).Any() && basesBulkGraded == false,
             LocksJoints: locksJoints,
-            BasesBulkGraded: cloth.ChainBasesAreBulkGraded(chain),
+            BasesBulkGraded: basesBulkGraded,
             HintsTwistWritten: cloth.ChainHintsAreTwistWritten(chain),
             HasUnstagedThinJoint: cloth.ChainHasUnstagedThinJoint(chain),
             ReverseOffsetsPreset: cloth.ChainReverseOffsetsArePreset(chain),
@@ -99,13 +96,12 @@ internal sealed partial class ClothReconstruction
     }
 
     /// <summary>
-    /// Whether format 1 would lock a joint of <paramref name="chain"/> to its parent rather than its goal: a joint
+    /// Whether version 1 would lock a joint of <paramref name="chain"/> to its parent rather than its goal: a joint
     /// <see cref="ChainLocksJoints"/> counts whose compiled parent is simulated or rotates freely.
     /// </summary>
     private static bool ChainLocksJointsToParent(ClothReconstruction cloth, BoneChain chain)
         => chain.ExtrudeSides >= 1
-            && chain.Joints.Exists(joint => !joint.Simulated && cloth.Fe.AllowsRotation(joint.Node)
-                && StagesFitTable(chain, joint) && LocksToParent(cloth, joint.Node));
+            && chain.Joints.Exists(joint => CountsLockedJoint(cloth, chain, joint) && LocksToParent(cloth, joint.Node));
 
     private static bool LocksToParent(ClothReconstruction cloth, int node)
     {
@@ -114,23 +110,23 @@ internal sealed partial class ClothReconstruction
     }
 
     /// <summary>
-    /// Whether every joint <see cref="ChainLocksJoints"/> counts on <paramref name="chain"/> is locked to its parent in the
-    /// original.
+    /// Whether every joint <see cref="ChainLocksJoints"/> counts on <paramref name="chain"/> is locked to its parent.
     /// </summary>
     private static bool ChainLocksOnlyParentLockedJoints(ClothReconstruction cloth, BoneChain chain)
         => chain.ExtrudeSides >= 1
-            && chain.Joints.TrueForAll(joint => joint.Simulated || !cloth.Fe.AllowsRotation(joint.Node)
-                || !StagesFitTable(chain, joint)
-                || cloth.Fe.IsLockedToParent(joint.Node));
+            && chain.Joints.TrueForAll(joint => !CountsLockedJoint(cloth, chain, joint) || cloth.Fe.IsLockedToParent(joint.Node));
 
     /// <summary>
-    /// Whether format 1 would goal-lock a joint of <paramref name="chain"/>: a non-simulated, rotation-free joint that has
+    /// Whether version 1 would goal-lock a joint of <paramref name="chain"/>: a non-simulated, rotation-free joint that has
     /// a ring of its own or a child with one.
     /// </summary>
     internal static bool ChainLocksJoints(ClothReconstruction cloth, BoneChain chain)
         => chain.ExtrudeSides >= 1
-            && chain.Joints.Exists(joint => !joint.Simulated && cloth.Fe.AllowsRotation(joint.Node)
-                && StagesFitTable(chain, joint));
+            && chain.Joints.Exists(joint => CountsLockedJoint(cloth, chain, joint));
+
+    /// <summary>Whether version 1 would lock <paramref name="joint"/>: it is static, rotates freely and stages fit influences.</summary>
+    private static bool CountsLockedJoint(ClothReconstruction cloth, BoneChain chain, BoneChainJoint joint)
+        => !joint.Simulated && cloth.Fe.AllowsRotation(joint.Node) && StagesFitTable(chain, joint);
 
     /// <summary>Whether a joint stages fit influences: it has a ring of its own or a chain child with one.</summary>
     private static bool StagesFitTable(BoneChain chain, BoneChainJoint joint)

@@ -75,8 +75,8 @@ partial class ModelExtract
         internal ClothProxySurface? ClothSurface { get; init; }
 
         /// <summary>
-        /// Writes the mesh with cloth handling: the bones the compiler generated from a cloth proxy leave the joint list
-        /// and the weight they held is written as <c>cloth_enable</c> paint. Otherwise they stay ordinary joints.
+        /// Whether generated cloth proxy bones are left out of the joint list, with their weight written as
+        /// <c>cloth_enable</c> paint instead.
         /// </summary>
         internal bool ReconstructCloth { get; init; }
     }
@@ -121,11 +121,16 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// The parent-space position to emit for a bone: its cloth rest correction where there is one, and
-    /// its compiled transform otherwise.
+    /// Gets the parent-space position to emit for a bone, preferring its entry in <paramref name="overrides"/>.
     /// </summary>
     internal static Vector3 BonePosition(Bone bone, IReadOnlyDictionary<string, Vector3>? overrides)
         => overrides is not null && overrides.TryGetValue(bone.Name, out var position) ? position : bone.Position;
+
+    /// <summary>
+    /// Gets the parent-space rotation to emit for a bone, preferring its entry in <paramref name="overrides"/>.
+    /// </summary>
+    private static Quaternion BoneRotation(Bone bone, IReadOnlyDictionary<string, Quaternion>? overrides)
+        => overrides is not null && overrides.TryGetValue(bone.Name, out var rotation) ? rotation : bone.Angle;
 
     private void EnqueueRenderMeshes()
     {
@@ -202,8 +207,6 @@ partial class ModelExtract
             SplitDrawCallsIntoSeparateSubmeshes = true,
             BoneRemapTable = boneRemapTable,
             Skeleton = skeleton,
-            BonePositions = extract.Cloth.RestBonePositions,
-            ReconstructCloth = extract.ReconstructsCloth,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(

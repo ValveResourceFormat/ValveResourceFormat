@@ -7,26 +7,20 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    /// <summary>
-    /// An unrolled proxy ring sits on the joint frame's +Y, so an authored twist counts down from 90 degrees.
-    /// </summary>
+    // An unrolled proxy ring sits on the joint frame's +Y, so an authored twist counts down from 90 degrees.
     private const float ClothExtrudeTwistBase = 90f;
+
+    private const float ClothExtrudeTwistAttrDefault = 0f;
+
+    // Every twist_relax above zero compiles a static root's twist entries alike, so the top of the range stands for it.
+    private const float ClothStaticRootTwistRelax = 1f;
 
     /// <summary>The <c>extrude_twist</c> a joint row states for a ring rolled <paramref name="measuredTwist"/> degrees.</summary>
     internal static float ClothExtrudeTwistKey(float measuredTwist) => ClothExtrudeTwistBase - measuredTwist;
 
-    /// <summary>The <c>extrude_twist</c> default of a chain's <c>attrs</c> table, the key's schema default.</summary>
-    private const float ClothExtrudeTwistAttrDefault = 0f;
-
     /// <summary>
-    /// Every twist_relax above zero compiles a static root's twist entries
-    /// alike, so the top of the range stands for it.
-    /// </summary>
-    private const float ClothStaticRootTwistRelax = 1f;
-
-    /// <summary>
-    /// Declares an algorithm-0 <c>ClothRigidCloudCluster</c> behind every chain lock <see cref="ClothReconstruction.IsRigidCloudClusterLock"/>
-    /// attributes to one.
+    /// Declares an algorithm-0 <c>ClothRigidCloudCluster</c> behind every chain lock that
+    /// <see cref="ClothReconstruction.IsRigidCloudClusterLock"/> attributes to one.
     /// </summary>
     private static void AddClothRigidCloudClusterLocks(KVObject softbodyChildren, ClothReconstruction cloth,
         IEnumerable<BoneChain> chains)
@@ -42,7 +36,7 @@ internal sealed partial class ClothExtract
 
     /// <summary>
     /// The members of the <c>ClothRigidCloudCluster</c> locking <paramref name="joint"/>: its chain descendants a generation
-    /// at a time until there are two, completed by the joint itself where its subtree has fewer.
+    /// at a time until there are two, plus the joint itself where its subtree has fewer.
     /// </summary>
     internal static List<string> RigidCloudClusterMembers(BoneChain chain, BoneChainJoint joint)
     {
@@ -63,10 +57,7 @@ internal sealed partial class ClothExtract
         return members;
     }
 
-    /// <summary>
-    /// An algorithm-0 <c>ClothRigidCloudCluster</c> locking <paramref name="parentNode"/>, with <paramref name="members"/> as
-    /// its joints at the default stiffness.
-    /// </summary>
+    /// <summary>An algorithm-0 <c>ClothRigidCloudCluster</c> locking <paramref name="parentNode"/> at the default stiffness.</summary>
     internal static KVObject MakeClothRigidCloudCluster(string parentNode, IEnumerable<string> members)
     {
         var joints = KVObject.Array();
@@ -90,20 +81,19 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Where a chain joint's basis names a <c>$cloth_node_</c> reference, declares every dynamic chain joint as a static
+    /// Where a chain joint's basis references a <c>$cloth_node_</c>, declares every dynamic chain joint as a static
     /// <c>ClothNode</c> in node order, the based ones carrying their alignment-3 preset.
     /// </summary>
     internal static IEnumerable<KVObject> ChainJointClothNodes(ClothReconstruction cloth, IReadOnlyList<BoneChain> chains)
     {
         var joints = ChainJointNodes(chains);
         var names = cloth.Fe.CtrlNames;
-        bool NamesClothNode(int node) => node >= 0 && node < names.Length && names[node].StartsWith(ClothReconstruction.FreeClothNodePrefix, StringComparison.Ordinal);
 
         var presets = new Dictionary<int, FeModel.NodeBasis>();
         foreach (var node in joints)
         {
             if (cloth.ClothNodeBasisPreset(node) is (3, var references)
-                && (NamesClothNode(references.NodeX1) || NamesClothNode(references.NodeY1)))
+                && (cloth.IsFreeClothNode(references.NodeX1) || cloth.IsFreeClothNode(references.NodeY1)))
             {
                 presets[node] = references;
             }
@@ -132,7 +122,10 @@ internal sealed partial class ClothExtract
         }
     }
 
-    /// <summary>Declares <paramref name="chain"/>, walked in <paramref name="walk"/> order where given, then its restatement and second declarations.</summary>
+    /// <summary>
+    /// Declares <paramref name="chain"/>, walked in <paramref name="walk"/> order where given, then its restatement and
+    /// second declarations.
+    /// </summary>
     private static void AddClothChainDeclarations(KVObject children, ClothReconstruction cloth, BoneChain chain,
         IReadOnlyList<BoneChainJoint>? walk = null)
     {
@@ -152,9 +145,7 @@ internal sealed partial class ClothExtract
         IReadOnlyList<BoneChainJoint>? walk = null)
     {
         var softHinge = cloth.HasChainRods(chain) && !cloth.HasRigidHingeLink(chain);
-
         var version = cloth.ChainVersionOf(chain);
-
         var chainMass = cloth.RecoverChainMassDefault(chain);
 
         var joints = KVObject.Array();
@@ -201,8 +192,8 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The plain second declaration of the joints <c>BuildBoneChains</c> marked restated, read off the joint nodes, or null
-    /// when there are none.
+    /// The plain second declaration of the joints marked <see cref="BoneChainJoint.Restated"/>, read off the joint nodes,
+    /// or null when there are none.
     /// </summary>
     private static KVObject? MakeClothChainRestatement(ClothReconstruction cloth, BoneChain chain)
     {
@@ -242,21 +233,11 @@ internal sealed partial class ClothExtract
                 kv.Add("collision_radius", cloth.Fe.GetCollisionRadius(joint.Node));
             }
 
-            if (parented)
+            if (parented
+                && LookupsOf(cloth).FirstRodByPair.TryGetValue(ClothReconstruction.UnorderedPair(joint.Node, joint.ParentNode), out var rod)
+                && rod.RelaxationFactor != 1f)
             {
-                foreach (var rod in cloth.Fe.Rods)
-                {
-                    if ((rod.NodeA == joint.Node && rod.NodeB == joint.ParentNode)
-                        || (rod.NodeA == joint.ParentNode && rod.NodeB == joint.Node))
-                    {
-                        if (rod.RelaxationFactor != 1f)
-                        {
-                            kv.Add("stretch_spring", rod.RelaxationFactor);
-                        }
-
-                        break;
-                    }
-                }
+                kv.Add("stretch_spring", rod.RelaxationFactor);
             }
 
             joints.Add(kv);
@@ -270,8 +251,9 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The second declaration of every sub-chain <c>BuildBoneChains</c> marked. It carries the members' whole attribute set
-    /// except <c>stiff_hinge</c> and <c>child_sibling_spring</c>, which each declaration writes again.
+    /// The second declaration of every sub-chain with a <see cref="BoneChainJoint.SecondDeclarationRoot"/>. It carries the
+    /// members' whole attribute set except <c>stiff_hinge</c> and <c>child_sibling_spring</c>, which each declaration writes
+    /// again.
     /// </summary>
     private static List<KVObject> MakeClothChainSecondDeclarations(ClothReconstruction cloth, BoneChain chain)
     {

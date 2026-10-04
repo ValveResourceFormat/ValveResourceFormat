@@ -7,6 +7,39 @@ namespace ValveResourceFormat.IO
 {
     internal sealed partial class ClothReconstruction
     {
+        /// <summary>The default <c>back_solve_influence_threshold</c> of a <c>ClothProxyMeshFile</c>.</summary>
+        internal const float DefaultBackSolveInfluenceThreshold = 0.05f;
+
+        /// <summary>The smallest per-vertex skin influence count a cloth proxy DMX is written with.</summary>
+        internal const int ClothProxyInfluenceSlots = 4;
+
+        /// <summary>The number of influencing vertices from which the compiler fits a bone with an <c>m_FitMatrices</c> solve.</summary>
+        private const int FitMatrixMinInfluences = 8;
+
+        /// <summary>The most <c>m_CtrlSoftOffsets</c> records the compiler writes for one proxy vertex.</summary>
+        private const int ClothProxySoftOffsetSlots = 8;
+
+        /// <summary>Relative gap under which two recovered influence weights are one authored value.</summary>
+        private const float TiedWeightEpsilon = 1e-4f;
+
+        private const string ClothRootNodeName = "$cloth_root";
+
+        private Dictionary<string, int>? nodeByNameIgnoreCase;
+
+        /// <summary>Gets the first control node of every control name, ignoring case. Callers must not modify it.</summary>
+        internal Dictionary<string, int> NodeByNameIgnoreCase => nodeByNameIgnoreCase ??= IndexNodeNamesIgnoreCase();
+
+        private Dictionary<string, int> IndexNodeNamesIgnoreCase()
+        {
+            var index = new Dictionary<string, int>(Fe.CtrlNames.Length, StringComparer.OrdinalIgnoreCase);
+            for (var node = 0; node < Fe.CtrlNames.Length; node++)
+            {
+                index.TryAdd(Fe.CtrlNames[node], node);
+            }
+
+            return index;
+        }
+
         /// <summary>
         /// Recovers the authored skin weights of the proxy-sheet vertices, the vertices left to the offset network, and the
         /// proxy meshes compiled without back-solving.
@@ -74,13 +107,8 @@ namespace ValveResourceFormat.IO
                     var pinned = new List<SkinInfluence>();
                     var anchorWeight = 0f;
                     var rival = 0f;
-                    foreach (var (bone, weight) in ExpandSoftOffsets(softPerVertex, node, primary))
+                    foreach (var (bone, weight) in ValidSoftWeights(softPerVertex, node, primary))
                     {
-                        if (weight <= 0f || bone < 0 || bone >= Fe.CtrlNames.Length)
-                        {
-                            continue;
-                        }
-
                         if (bone == primary)
                         {
                             anchorWeight = weight;
@@ -199,8 +227,7 @@ namespace ValveResourceFormat.IO
                 {
                     var node = fitWeights[i].GetInt32Property("nNode");
                     var weight = fitWeights[i].GetFloatProperty("flWeight");
-                    var boneWeights = GetOrAdd(fitPerVertex, node);
-                    boneWeights[bone] = weight;
+                    GetOrAdd(fitPerVertex, node)[bone] = weight;
                     minIncludedWeight = MathF.Min(minIncludedWeight, weight);
                 }
 
@@ -218,9 +245,8 @@ namespace ValveResourceFormat.IO
             {
                 foreach (var e in softOffsets)
                 {
-                    var child = e.GetInt32Property("nCtrlChild");
-                    var list = GetOrAdd(softPerVertex, child);
-                    list.Add((e.GetInt32Property("nCtrlParent"), e.GetFloatProperty("flAlpha")));
+                    GetOrAdd(softPerVertex, e.GetInt32Property("nCtrlChild"))
+                        .Add((e.GetInt32Property("nCtrlParent"), e.GetFloatProperty("flAlpha")));
                 }
             }
 
@@ -233,67 +259,54 @@ namespace ValveResourceFormat.IO
         private HashSet<int> FindUnbackSolvedMeshes(Dictionary<int, int> rigidParents,
             Dictionary<int, List<(int Parent, float Alpha)>> softPerVertex)
         {
-            var unbackSolvedMeshes = new HashSet<int>();
             var backSolvedMeshes = new HashSet<int>();
-            var fitBoneMeshes = new Dictionary<int, HashSet<int>>();
+            var fitBones = new HashSet<int>();
             foreach (var (bone, targets) in Fe.FitMatrixTargets)
             {
                 foreach (var target in targets)
                 {
-                    var targetMesh = target >= 0 && target < Fe.CtrlNames.Length
-                        ? ParseProxyMeshIndex(Fe.CtrlNames[target]) : -1;
-                    if (targetMesh < 0)
+                    var targetMesh = ProxyMeshIndexOf(target);
+                    if (targetMesh >= 0)
                     {
-                        continue;
+                        backSolvedMeshes.Add(targetMesh);
+                        fitBones.Add(bone);
                     }
-
-                    backSolvedMeshes.Add(targetMesh);
-                    var boneMeshes = GetOrAdd(fitBoneMeshes, bone);
-                    boneMeshes.Add(targetMesh);
                 }
             }
 
-            if (backSolvedMeshes.Count > 0)
+            if (backSolvedMeshes.Count == 0)
             {
-                var drivenByMesh = new Dictionary<int, HashSet<int>>();
-                foreach (var (node, primary) in rigidParents)
+                return [];
+            }
+
+            var drivenByMesh = new Dictionary<int, HashSet<int>>();
+            foreach (var (node, primary) in rigidParents)
+            {
+                var mesh = ProxyMeshIndexOf(node);
+                if (mesh < 0 || backSolvedMeshes.Contains(mesh) || Fe.IsStatic(node)
+                    || primary < 0 || primary >= Fe.CtrlNames.Length)
                 {
-                    var mesh = node >= 0 && node < Fe.CtrlNames.Length ? ParseProxyMeshIndex(Fe.CtrlNames[node]) : -1;
-                    if (mesh < 0 || backSolvedMeshes.Contains(mesh) || Fe.IsStatic(node)
-                        || primary < 0 || primary >= Fe.CtrlNames.Length)
+                    continue;
+                }
+
+                foreach (var (bone, weight) in ExpandSoftOffsets(softPerVertex, node, primary))
+                {
+                    if (weight < DefaultBackSolveInfluenceThreshold || bone < 0 || bone >= Fe.CtrlNames.Length
+                        || !IsPositionDriven(bone) || IsProxyNodeName(Fe.CtrlNames[bone]))
                     {
                         continue;
                     }
 
-                    foreach (var (bone, weight) in ExpandSoftOffsets(softPerVertex, node, primary))
-                    {
-                        if (weight < DefaultBackSolveInfluenceThreshold || bone < 0 || bone >= Fe.CtrlNames.Length
-                            || !IsPositionDriven(bone) || IsProxyNodeName(Fe.CtrlNames[bone]))
-                        {
-                            continue;
-                        }
-
-                        var bones = GetOrAdd(drivenByMesh, mesh);
-                        bones.Add(bone);
-                    }
+                    GetOrAdd(drivenByMesh, mesh).Add(bone);
                 }
+            }
 
-                foreach (var (mesh, bones) in drivenByMesh)
+            var unbackSolvedMeshes = new HashSet<int>();
+            foreach (var (mesh, bones) in drivenByMesh)
+            {
+                if (bones.All(fitBones.Contains))
                 {
-                    var fitElsewhere = bones.Count > 0;
-                    foreach (var bone in bones)
-                    {
-                        if (!fitBoneMeshes.ContainsKey(bone))
-                        {
-                            fitElsewhere = false;
-                            break;
-                        }
-                    }
-
-                    if (fitElsewhere)
-                    {
-                        unbackSolvedMeshes.Add(mesh);
-                    }
+                    unbackSolvedMeshes.Add(mesh);
                 }
             }
 
@@ -308,11 +321,7 @@ namespace ValveResourceFormat.IO
             Dictionary<int, List<(int Parent, float Alpha)>> softPerVertex, HashSet<int> unbackSolvedMeshes, float? threshold,
             Dictionary<int, SkinInfluence[]> recovered, Dictionary<int, SkinInfluence[]> deferred)
         {
-            var fitlessNodes = new HashSet<int>(fitlessSoft.Count);
-            foreach (var (node, _) in fitlessSoft)
-            {
-                fitlessNodes.Add(node);
-            }
+            var fitlessNodes = fitlessSoft.Select(static fitless => fitless.Node).ToHashSet();
 
             var drivenDynamicBones = new HashSet<int>();
             foreach (var (node, parent) in rigidParents)
@@ -330,15 +339,10 @@ namespace ValveResourceFormat.IO
                 var painted = new List<SkinInfluence>();
                 var prunable = true;
 
-                var mesh = node >= 0 && node < Fe.CtrlNames.Length ? ParseProxyMeshIndex(Fe.CtrlNames[node]) : -1;
+                var mesh = ProxyMeshIndexOf(node);
                 var sheetBackSolves = mesh < 0 || !unbackSolvedMeshes.Contains(mesh);
-                foreach (var (bone, weight) in ExpandSoftOffsets(softPerVertex, node, primary))
+                foreach (var (bone, weight) in ValidSoftWeights(softPerVertex, node, primary))
                 {
-                    if (weight <= 0f || bone < 0 || bone >= Fe.CtrlNames.Length)
-                    {
-                        continue;
-                    }
-
                     if (prunable && sheetBackSolves && Fe.FitMatrixNodes.Contains(bone)
                         && weight >= (threshold ?? DefaultBackSolveInfluenceThreshold))
                     {
@@ -405,6 +409,23 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
+        /// Gets the <see cref="ExpandSoftOffsets"/> weights whose bone is a control node, without those at or below zero.
+        /// </summary>
+        private IEnumerable<(int Bone, float Weight)> ValidSoftWeights(
+            Dictionary<int, List<(int Parent, float Alpha)>> softPerVertex, int node, int primary)
+        {
+            foreach (var (bone, weight) in ExpandSoftOffsets(softPerVertex, node, primary))
+            {
+                if (weight <= 0f || bone < 0 || bone >= Fe.CtrlNames.Length)
+                {
+                    continue;
+                }
+
+                yield return (bone, weight);
+            }
+        }
+
+        /// <summary>
         /// Gets whether <paramref name="proxy"/> has sheet vertices and all of them belong to <see cref="UnbackSolvedProxyMeshes"/>.
         /// </summary>
         internal bool IsUnbackSolvedProxyMesh(ProxyMesh proxy)
@@ -412,7 +433,7 @@ namespace ValveResourceFormat.IO
             var sheetVertices = 0;
             foreach (var node in proxy.NodeIndices)
             {
-                var mesh = node >= 0 && node < Fe.CtrlNames.Length ? ParseProxyMeshIndex(Fe.CtrlNames[node]) : -1;
+                var mesh = ProxyMeshIndexOf(node);
                 if (mesh < 0)
                 {
                     continue;
@@ -453,37 +474,11 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// The ModelDoc default for <c>ClothProxyMeshFile.back_solve_influence_threshold</c>.
-        /// </summary>
-        internal const float DefaultBackSolveInfluenceThreshold = 0.05f;
-
-        /// <summary>
-        /// The number of surviving influence vertices from which the compiler fits a bone with an <c>m_FitMatrices</c> solve.
-        /// </summary>
-        private const int FitMatrixMinInfluences = 8;
-
-        /// <summary>
-        /// The smallest per-vertex skin influence count a cloth proxy DMX is written with.
-        /// </summary>
-        internal const int ClothProxyInfluenceSlots = 4;
-
-        /// <summary>
-        /// The most <c>m_CtrlSoftOffsets</c> records the compiler writes for one proxy vertex.
-        /// </summary>
-        private const int ClothProxySoftOffsetSlots = 8;
-
-        /// <summary>
         /// Gets the <c>back_solve_influence_threshold</c> for <paramref name="proxy"/>: the default, unless the proxy's fit
         /// data keeps a lighter weight, then between that weight and the heaviest weight a fit drops.
         /// </summary>
         internal float GetBackSolveInfluenceThreshold(ProxyMesh proxy)
         {
-            var ctrlIndex = new Dictionary<string, int>(Fe.CtrlNames.Length, StringComparer.OrdinalIgnoreCase);
-            for (var i = 0; i < Fe.CtrlNames.Length; i++)
-            {
-                ctrlIndex.TryAdd(Fe.CtrlNames[i], i);
-            }
-
             var proxyNodes = new HashSet<int>(proxy.NodeIndices);
             var fitTargets = new Dictionary<int, HashSet<int>>(Fe.FitMatrixTargets.Count);
             foreach (var (bone, targets) in Fe.FitMatrixTargets)
@@ -501,18 +496,13 @@ namespace ValveResourceFormat.IO
                 var node = proxy.NodeIndices[v];
                 foreach (var (boneName, weight) in proxy.SkinInfluences[v])
                 {
-                    if (!ctrlIndex.TryGetValue(boneName, out var bone))
+                    if (!NodeByNameIgnoreCase.TryGetValue(boneName, out var bone)
+                        || weight <= 0f || IsProxyNodeName(Fe.CtrlNames[bone]) || Fe.IsStatic(bone))
                     {
                         continue;
                     }
 
-                    if (weight <= 0f || IsProxyNodeName(Fe.CtrlNames[bone]) || Fe.IsStatic(bone))
-                    {
-                        continue;
-                    }
-
-                    var influences = GetOrAdd(painted, bone);
-                    influences.Add((node, weight));
+                    GetOrAdd(painted, bone).Add((node, weight));
                 }
             }
 
@@ -579,20 +569,13 @@ namespace ValveResourceFormat.IO
             return -1;
         }
 
-        /// <summary>Relative gap under which two recovered influence weights are one authored value.</summary>
-        private const float TiedWeightEpsilon = 1e-4f;
-
         /// <summary>
         /// Orders influences by descending weight, keeping the existing order for weights within <see cref="TiedWeightEpsilon"/>.
         /// </summary>
         private static void OrderByWeightKeepingTies(List<SkinInfluence> influences)
         {
             var source = influences.ToArray();
-            var order = new int[source.Length];
-            for (var i = 0; i < order.Length; i++)
-            {
-                order[i] = i;
-            }
+            var order = Enumerable.Range(0, source.Length).ToArray();
 
             Array.Sort(order, (x, y) =>
             {
@@ -638,9 +621,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        /// <summary>
-        /// Snaps the weights onto whole 1/255 steps where each lies within 0.01 of one and the steps sum to 255.
-        /// </summary>
+        /// <summary>Snaps the weights onto whole 1/255 steps where each lies within 0.01 of one and the steps sum to 255.</summary>
         private static void SnapToBytePartition(List<SkinInfluence> influences)
         {
             var bytes = new int[influences.Count];
@@ -669,24 +650,18 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        /// <summary>
-        /// Gets whether the compiler created its own <c>$cloth_root</c> node, which it does for an unskinned proxy mesh.
-        /// </summary>
+        /// <summary>Gets whether the compiler created its own <c>$cloth_root</c> node, which it does for an unskinned proxy mesh.</summary>
         private bool HasGeneratedClothRoot => Array.Exists(Fe.CtrlNames, static n => n == ClothRootNodeName);
 
-        private const string ClothRootNodeName = "$cloth_root";
-
         /// <summary>
-        /// Returns whether a control node is generated by the cloth compiler rather than being a skeleton
-        /// bone the chain can name as a joint.
+        /// Gets whether a control node was generated by the cloth compiler rather than being a skeleton bone a chain can
+        /// name as a joint.
         /// </summary>
         internal bool IsGeneratedNodeName(string? name)
             => IsProxyNodeName(name)
                 || (SkeletonBoneNames is not null && !SkeletonBoneNames.Contains(name!));
 
-        /// <summary>
-        /// Gets whether a position-driven control node carries a real bone name.
-        /// </summary>
+        /// <summary>Gets whether a position-driven control node carries a real bone name.</summary>
         internal bool DrivesRealBones
         {
             get
@@ -703,9 +678,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        /// <summary>
-        /// Gets the first ancestor of <paramref name="node"/> with a real bone name.
-        /// </summary>
+        /// <summary>Gets the first ancestor of <paramref name="node"/> with a real bone name.</summary>
         internal string? ResolveSkinBone(int node)
         {
             var index = FindRealAncestor(node);

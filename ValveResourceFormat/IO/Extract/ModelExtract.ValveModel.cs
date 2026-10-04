@@ -87,6 +87,7 @@ partial class ModelExtract
                 AddBonesRecursive(model.Skeleton.Roots, lists.Skeleton);
             }
 
+            // Reading lists.Skeleton creates the section, so only touch it when there is something to add
             if (Cloth.CulledBones.Count > 0)
             {
                 Cloth.AddCulledBonesTo(lists.Skeleton);

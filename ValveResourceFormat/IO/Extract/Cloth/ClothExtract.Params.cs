@@ -1,5 +1,4 @@
 using ValveKeyValue;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 
@@ -7,22 +6,16 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    /// <summary>Bits of m_nDynamicNodeFlags that carry a ClothParams boolean.</summary>
+    // m_nDynamicNodeFlags bits that carry a ClothParams boolean
     private const uint ClothFlagUninertialRods = 0x10;
-
     private const uint ClothFlagFollowTheLead = 0x20;
-
     private const uint ClothFlagImmovable = 0x4000;
-
     private const uint ClothFlagCollideWorldCapsulesAndSpheres = 0x30000;
-
     private const uint ClothFlagCollideWorldHulls = 0x40000;
-
     private const uint ClothFlagCollideWorldMeshes = 0x80000;
 
-    /// <summary>Bits of m_nDynamicNodeFlags that carry a Softbody node boolean rather than a ClothParams one.</summary>
+    // m_nDynamicNodeFlags bits that carry a Softbody node boolean
     private const uint ClothFlagPerBoneScaleEnabled = 0x8000;
-
     private const uint ClothFlagKeychainMotion = 0x1000000;
 
     /// <summary>Adds the Softbody node's own attributes; each flag key is written only when its bit is set.</summary>
@@ -43,10 +36,7 @@ internal sealed partial class ClothExtract
         AddSoftbodyModelKeyValues(softbody, model?.KeyValues);
     }
 
-    /// <summary>
-    /// Restores the Softbody keys the compiler stores in the model's key values: <c>stiffness_on_ragdoll</c> and
-    /// <c>cloth_sleep_enabled</c>.
-    /// </summary>
+    /// <summary>Restores the Softbody keys the compiler moves into the model's key values.</summary>
     internal static void AddSoftbodyModelKeyValues(KVObject softbody, KVObject? keyValues)
     {
         if (keyValues is null)
@@ -65,12 +55,13 @@ internal sealed partial class ClothExtract
         }
     }
 
-    /// <summary>The <c>ClothParams</c> node, read off the FeModel's scalars and dynamic node flags.</summary>
     private static KVObject MakeClothParams(ClothReconstruction cloth, bool generatesBendRods = false, bool generatesBendOnlyRods = false,
         float addCurvature = 0f, bool forceExplicitMasses = false)
     {
         var flags = cloth.Fe.DynamicNodeFlags;
         bool Flag(uint bits) => (flags & bits) != 0;
+
+        var rigidEdgeHinges = cloth.Fe.HasAxialEdges || cloth.HasChainRingBends;
 
         return MakeNode("ClothParams",
             ("default_stretch", cloth.Fe.DefaultSurfaceStretch),
@@ -92,7 +83,7 @@ internal sealed partial class ClothExtract
             ("add_world_collision_radius", cloth.Fe.AddWorldCollisionRadius),
             ("local_force", cloth.Fe.LocalForce),
             ("local_rotation", cloth.Fe.LocalRotation),
-            ("add_curvature", cloth.Fe.HasAxialEdges || cloth.HasChainRingBends
+            ("add_curvature", rigidEdgeHinges
                 ? (cloth.RigidHingeBendPaint is null ? cloth.RigidHingeCurvature : 0f)
                 : addCurvature),
             ("quad_bend_tolerance", cloth.QuadBendTolerance),
@@ -108,7 +99,7 @@ internal sealed partial class ClothExtract
             ("can_collide_with_world_meshes", Flag(ClothFlagCollideWorldMeshes)),
             ("can_collide_with_world_capsule_and_spheres", Flag(ClothFlagCollideWorldCapsulesAndSpheres)),
             ("add_stiffness_rods", generatesBendRods),
-            ("rigid_edge_hinges", cloth.Fe.HasAxialEdges || cloth.HasChainRingBends),
+            ("rigid_edge_hinges", rigidEdgeHinges),
             ("add_bend_only_rods", generatesBendOnlyRods),
             ("immovable", Flag(ClothFlagImmovable)));
     }

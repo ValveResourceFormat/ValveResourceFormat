@@ -17,7 +17,7 @@ namespace ValveResourceFormat.IO
         public string? VertexMap { get; internal set; }
         /// <summary>Gets whether the shape keeps the cloth inside it rather than out of it.</summary>
         public bool Inverted { get; internal set; }
-        /// <summary>Gets the authored collision priority, recovered by <see cref="ClothReconstruction.ColliderPriority"/>.</summary>
+        /// <summary>Gets the authored collision priority, the rank of its <c>m_RigidColliderPriorities</c> group.</summary>
         public int Priority { get; internal set; }
     }
 
@@ -67,6 +67,13 @@ namespace ValveResourceFormat.IO
 
     internal sealed partial class ClothReconstruction
     {
+        private const uint RigidFlagInverted = 1;
+
+        /// <summary>The collision-layer mask a planarized shape is recovered with: all four layers.</summary>
+        private const int PlanarizeCollisionMask = 0xF;
+
+        private (List<CollisionCapsule> Capsules, List<CollisionBox> Boxes)? planarizedShapes;
+
         /// <summary>Which per-type array of <c>m_RigidColliderPriorities</c> a collider is indexed by.</summary>
         private enum RigidColliderKind
         {
@@ -119,11 +126,6 @@ namespace ValveResourceFormat.IO
 
         private string? RigidVertexMap(int index)
             => index >= 0 && index < VertexMaps.Count ? VertexMaps[index].Name : null;
-
-        private const uint RigidFlagInverted = 1;
-
-        /// <summary>The collision-layer mask a planarized shape is recovered with: all four layers.</summary>
-        private const int PlanarizeCollisionMask = 0xF;
 
         /// <summary>Reconstructs the cloth collision capsules (<c>m_TaperedCapsuleRigids</c>).</summary>
         public List<CollisionCapsule> BuildCollisionCapsules()
@@ -189,8 +191,6 @@ namespace ValveResourceFormat.IO
 
         private (List<CollisionCapsule> Capsules, List<CollisionBox> Boxes) PlanarizedShapes
             => planarizedShapes ??= FitPlanarizeGroups();
-
-        private (List<CollisionCapsule> Capsules, List<CollisionBox> Boxes)? planarizedShapes;
 
         /// <summary>Fits every <see cref="PlanarizeGroups"/> entry once, as capsules or else as a box.</summary>
         private (List<CollisionCapsule> Capsules, List<CollisionBox> Boxes) FitPlanarizeGroups()
@@ -348,15 +348,14 @@ namespace ValveResourceFormat.IO
                     return null;
                 }
 
-                var group = GetOrAdd(groups, map);
-                group.Add(member);
+                GetOrAdd(groups, map).Add(member);
             }
 
             return [.. groups.Select(static kv => (kv.Key, kv.Value))];
         }
 
         /// <summary>Reconstructs the cloth collision boxes (<c>m_BoxRigids</c>).</summary>
-        public List<CollisionBox> BuildCollisionBoxes()
+        private List<CollisionBox> BuildCollisionBoxes()
             => ReadRigids("m_BoxRigids", RigidColliderKind.Box, static rigid =>
             {
                 Vector3 origin;
@@ -382,7 +381,7 @@ namespace ValveResourceFormat.IO
             });
 
         /// <summary>Reconstructs the cloth collision spheres (<c>m_SphereRigids</c>).</summary>
-        public List<CollisionSphere> BuildCollisionSpheres()
+        private List<CollisionSphere> BuildCollisionSpheres()
             => ReadRigids("m_SphereRigids", RigidColliderKind.Sphere, static rigid =>
             {
                 Vector4 sphere;

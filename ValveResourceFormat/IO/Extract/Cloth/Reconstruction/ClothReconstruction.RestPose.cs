@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
@@ -11,15 +12,21 @@ internal sealed partial class ClothReconstruction
     private const float ClothRestBoneTolerance = 1.0f;
 
     /// <summary>
-    /// How far far control bones may sit from one uniform scale of their
-    /// compiled positions and still read as a scaled skeleton.
+    /// How far bones beyond <see cref="ClothRestBoneTolerance"/> may stray from one shared offset or uniform scale of
+    /// their compiled positions.
     /// </summary>
     private const float ClothRestBoneRigidSpread = 1e-2f;
 
     /// <summary>
-    /// Re-derives each bone's parent-space position from the cloth rest pose, root first: a control node's bone is moved
-    /// onto its recorded position, judged against the compiled pose, and every bone keeps its compiled offset from its
-    /// corrected parent. Also fills the proxy dictionaries, and returns the <see cref="ChainExtrudeOrigins"/> or null.
+    /// cos of half of 0.3 degrees: a recorded rest rotation further than this from the bind rotation turns the bone.
+    /// </summary>
+    private const float ClothProxyRestRotationTurn = 0.99999657f;
+
+    /// <summary>
+    /// Re-derives each bone's parent-space position from the cloth rest pose, root first: a control node's bone moves
+    /// onto its recorded position when that is within <see cref="ClothRestBoneTolerance"/> of the compiled pose, and
+    /// every other bone keeps its compiled offset from its corrected parent. Also fills the proxy dictionaries, and
+    /// returns the <see cref="ChainExtrudeOrigins"/> or null.
     /// </summary>
     private Dictionary<string, Vector3>? BuildClothRestBonePositions(Skeleton skeleton)
     {
@@ -60,10 +67,10 @@ internal sealed partial class ClothReconstruction
             if (targets.TryGetValue(bone.Name, out var target))
             {
                 var apart = Vector3.Distance(compiled, target);
-                maxApartUncapped = Math.Max(maxApartUncapped, apart);
+                maxApartUncapped = MathF.Max(maxApartUncapped, apart);
                 if (apart <= ClothRestBoneTolerance)
                 {
-                    maxApart = Math.Max(maxApart, apart);
+                    maxApart = MathF.Max(maxApart, apart);
                 }
                 else
                 {
@@ -108,38 +115,10 @@ internal sealed partial class ClothReconstruction
 
         var turned = ProxyRestRotations(skeleton.Roots, rotationTargets, RestPose.ProxyBoneRotations);
 
-        void Walk(Bone bone, Vector3 parentPosition, Vector3 compiledParent, Quaternion parentRotation)
-        {
-            var world = parentPosition + Vector3.Transform(bone.Position, parentRotation);
-            var compiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
-
-            if (targets.TryGetValue(bone.Name, out var target))
-            {
-                var apart = Vector3.Distance(compiled, target);
-                if (apart > 0f && apart <= ClothRestBoneTolerance)
-                {
-                    world = target;
-                }
-            }
-
-            var local = Vector3.Transform(world - parentPosition, Quaternion.Conjugate(parentRotation));
-            if (local != bone.Position)
-            {
-                RestPose.BonePositions[bone.Name] = local;
-            }
-
-            foreach (var child in bone.Children)
-            {
-                Walk(child, world, compiled, parentRotation * bone.Angle);
-            }
-        }
-
         if (maxApart > 0f)
         {
-            foreach (var root in skeleton.Roots)
-            {
-                Walk(root, Vector3.Zero, Vector3.Zero, Quaternion.Identity);
-            }
+            ProxyRestPositions(skeleton.Roots, targets, ReadOnlyDictionary<string, Quaternion>.Empty, RestPose.BonePositions,
+                ClothRestBoneTolerance);
         }
 
         if (maxApartUncapped > 0f || turned.Count > 0)
@@ -153,10 +132,11 @@ internal sealed partial class ClothReconstruction
     /// <summary>
     /// The parent-local positions that put every bone with a recorded rest position on it, root first, while every other
     /// bone keeps its compiled offset composed through the <paramref name="turned"/> world rotations. Only positions that
-    /// change are written to <paramref name="into"/>.
+    /// change are written to <paramref name="into"/>. Targets further than <paramref name="maxApart"/> from the compiled
+    /// position are ignored.
     /// </summary>
     internal static void ProxyRestPositions(IEnumerable<Bone> roots, IReadOnlyDictionary<string, Vector3> targets,
-        IReadOnlyDictionary<string, Quaternion> turned, Dictionary<string, Vector3> into)
+        IReadOnlyDictionary<string, Quaternion> turned, Dictionary<string, Vector3> into, float maxApart = float.PositiveInfinity)
     {
         void Walk(Bone bone, Vector3 parentPosition, Quaternion parentRotation, Vector3 compiledParent,
             Quaternion compiledParentRotation)
@@ -165,9 +145,13 @@ internal sealed partial class ClothReconstruction
             var compiled = compiledParent + Vector3.Transform(bone.Position, compiledParentRotation);
             var rotation = turned.TryGetValue(bone.Name, out var turnedRotation) ? turnedRotation : parentRotation * bone.Angle;
 
-            if (targets.TryGetValue(bone.Name, out var target) && Vector3.Distance(compiled, target) > 0f)
+            if (targets.TryGetValue(bone.Name, out var target))
             {
-                world = target;
+                var apart = Vector3.Distance(compiled, target);
+                if (apart > 0f && apart <= maxApart)
+                {
+                    world = target;
+                }
             }
 
             var local = Vector3.Transform(world - parentPosition, Quaternion.Conjugate(parentRotation));
@@ -228,9 +212,4 @@ internal sealed partial class ClothReconstruction
 
         return turned;
     }
-
-    /// <summary>
-    /// cos of half of 0.3 degrees: a recorded rest rotation further than this from the bind rotation turns the bone.
-    /// </summary>
-    private const float ClothProxyRestRotationTurn = 0.99999657f;
 }

@@ -1,21 +1,43 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
 namespace ValveResourceFormat.IO
 {
     internal sealed partial class ClothReconstruction
     {
+        private const float DefaultQuadBendTolerance = 0.05f;
+
+        // Rods whose inverse-mass sum is at or below this are dropped by the rod importer.
+        private const float RodMassFloor = 1e-6f;
+
+        internal static readonly Comparer<int[]> ShippedNodeComparer = Comparer<int[]>.Create(static (x, y) =>
+        {
+            for (var i = 0; i < x.Length && i < y.Length; i++)
+            {
+                if (x[i] != y[i])
+                {
+                    return x[i].CompareTo(y[i]);
+                }
+            }
+
+            return x.Length.CompareTo(y.Length);
+        });
+
+        private float? quadBendTolerance;
+        private int[]? surfaceNodeRanks;
+        private (Dictionary<(int, int, int), int[]> Quads, HashSet<(int, int, int)> Halves)? splitQuads;
+
         /// <summary>
         /// Gets the <c>quad_bend_tolerance</c> the compiler split quads against: 0.05, unless a split quad bends by less,
         /// then the largest bend among the dynamic quads kept whole, or 0.
         /// </summary>
         internal float QuadBendTolerance => quadBendTolerance ??= ComputeQuadBendTolerance();
 
-        private float? quadBendTolerance;
-
-        private const float DefaultQuadBendTolerance = 0.05f;
+        /// <summary>
+        /// Gets each node's BFS layer from the static set over the surface, the rank the compiler lays the dynamic
+        /// node block out by.
+        /// </summary>
+        private int[] SurfaceNodeRanks => surfaceNodeRanks ??= BuildSurfaceNodeRanks();
 
         private float ComputeQuadBendTolerance()
         {
@@ -48,13 +70,12 @@ namespace ValveResourceFormat.IO
                         var far = UnorderedPair(quad[1], quad[3]);
                         if (quad.Distinct().Count() == 4 && Array.TrueForAll(quad, Dynamic) && rigid.Contains(far))
                         {
-                            lowestSplit = MathF.Min(lowestSplit, QuadBendSine(Array.ConvertAll(quad, node => Fe.InitPosePositions[node])));
+                            lowestSplit = MathF.Min(lowestSplit, QuadBendSine(quad));
                         }
                     }
                 }
 
-                var halves = GetOrAdd(inPlace, (tri[0], tri[2]));
-                halves.Add(tri);
+                GetOrAdd(inPlace, (tri[0], tri[2])).Add(tri);
             }
 
             if (lowestSplit > DefaultQuadBendTolerance)
@@ -67,7 +88,7 @@ namespace ValveResourceFormat.IO
             {
                 if (quad.Length == 4 && quad.Distinct().Count() == 4 && Array.TrueForAll(quad, Dynamic))
                 {
-                    highestKept = MathF.Max(highestKept, QuadBendSine(Array.ConvertAll(quad, node => Fe.InitPosePositions[node])));
+                    highestKept = MathF.Max(highestKept, QuadBendSine(quad));
                 }
             }
 
@@ -101,9 +122,12 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Pairs the <see cref="FeModel.Tris"/> the compiler split from bent quads back into those quads, keyed by
         /// <see cref="SortedTriKey"/>: the quad to export instead of the half that stayed in place, and the appended half to
-        /// drop.
+        /// drop. Callers only read the result, which is computed once.
         /// </summary>
         private (Dictionary<(int, int, int), int[]> Quads, HashSet<(int, int, int)> Halves) MergeSplitQuads()
+            => splitQuads ??= ComputeSplitQuads();
+
+        private (Dictionary<(int, int, int), int[]> Quads, HashSet<(int, int, int)> Halves) ComputeSplitQuads()
         {
             var quads = new Dictionary<(int, int, int), int[]>();
             var halves = new HashSet<(int, int, int)>();
@@ -143,9 +167,7 @@ namespace ValveResourceFormat.IO
                 {
                     for (var b = a + 1; b < 3; b++)
                     {
-                        var edge = UnorderedPair(tri[a], tri[b]);
-                        var sharing = GetOrAdd(byEdge, edge);
-                        sharing.Add(i);
+                        GetOrAdd(byEdge, UnorderedPair(tri[a], tri[b])).Add(i);
                     }
                 }
             }
@@ -165,16 +187,14 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        var quad = new[] { first[0], first[1], first[2], second[2] };
-                        if (quad.Distinct().Count() != 4)
+                        int[] quad = [first[0], first[1], first[2], second[2]];
+                        if (quad.Distinct().Count() != 4 || Array.Exists(quad, node => Fe.NodeInvMasses[node] == 0f))
                         {
                             continue;
                         }
 
                         var corners = Array.ConvertAll(quad, node => Fe.InitPosePositions[node]);
-                        var staticCorners = quad.Count(node => Fe.NodeInvMasses[node] == 0f);
-                        var order = PredictQuadSplit(corners, staticCorners, QuadBendTolerance);
-                        if (order is null)
+                        if (PredictQuadSplit(corners, QuadBendTolerance) is not { } order)
                         {
                             continue;
                         }
@@ -227,7 +247,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                if (PredictQuadSplit(Array.ConvertAll(face, node => positions[node]), 0, tolerance) is not { } order)
+                if (PredictQuadSplit(Array.ConvertAll(face, node => positions[node]), tolerance) is not { } order)
                 {
                     continue;
                 }
@@ -240,28 +260,23 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Whether the compiler splits the quad with the given rest corners at the given
-        /// <c>quad_bend_tolerance</c>, and in which corner order: the two triangles it emits are
-        /// <c>(order[0], order[1], order[2])</c> and <c>(order[0], order[2], order[3])</c>. Null when the quad is
+        /// Gets the corner order the compiler splits a fully dynamic quad in at the given <c>quad_bend_tolerance</c>,
+        /// emitting <c>(order[0], order[1], order[2])</c> and <c>(order[0], order[2], order[3])</c>, or null when it is
         /// kept whole.
         /// </summary>
-        private static int[]? PredictQuadSplit(Vector3[] corners, int staticCorners, float tolerance)
+        private static int[]? PredictQuadSplit(Vector3[] corners, float tolerance)
         {
-            if (staticCorners != 0)
-            {
-                return null;
-            }
-
-            var bend = QuadBend(corners, MaximalQuadPairing(corners));
+            var bend = QuadBend(corners);
             return bend.Cross > bend.Normals * tolerance ? bend.Order : null;
         }
 
         /// <summary>
-        /// The quad rotated onto its shorter diagonal, with the two lengths the compiler's bend test compares: the
-        /// cross product of the two half normals, and the product of their lengths.
+        /// Gets the quad's <see cref="MaximalQuadPairing"/> rotated onto its shorter diagonal, with the two lengths the
+        /// compiler's bend test compares: the cross product of the two half normals, and the product of their lengths.
         /// </summary>
-        private static (int[] Order, float Cross, float Normals) QuadBend(Vector3[] corners, int[] order)
+        private static (int[] Order, float Cross, float Normals) QuadBend(Vector3[] corners)
         {
+            var order = MaximalQuadPairing(corners);
             if (Vector3.Distance(corners[order[0]], corners[order[2]])
                 > Vector3.Distance(corners[order[1]], corners[order[3]]))
             {
@@ -269,15 +284,15 @@ namespace ValveResourceFormat.IO
             }
 
             var (a, b, c, d) = (corners[order[0]], corners[order[1]], corners[order[2]], corners[order[3]]);
-            var n1 = Vector3.Cross(b - a, c - a);
-            var n2 = Vector3.Cross(d - c, a - c);
+            var n1 = MathUtils.TriangleCross(a, b, c);
+            var n2 = MathUtils.TriangleCross(c, d, a);
             return (order, Vector3.Cross(n1, n2).Length(), n1.Length() * n2.Length());
         }
 
-        /// <summary>The sine of a fully dynamic quad's bend across its shorter diagonal, zero when degenerate.</summary>
-        private static float QuadBendSine(Vector3[] corners)
+        /// <summary>Gets the sine of a quad's bend across its shorter diagonal at rest, zero when degenerate.</summary>
+        private float QuadBendSine(int[] quad)
         {
-            var bend = QuadBend(corners, MaximalQuadPairing(corners));
+            var bend = QuadBend(Array.ConvertAll(quad, node => Fe.InitPosePositions[node]));
             return bend.Normals > 0f ? bend.Cross / bend.Normals : 0f;
         }
 
@@ -467,8 +482,7 @@ namespace ValveResourceFormat.IO
                     {
                         foreach (var local in face)
                         {
-                            var set = GetOrAdd(neighbours, local);
-                            set.UnionWith(face);
+                            GetOrAdd(neighbours, local).UnionWith(face);
                         }
                     }
                 }
@@ -581,22 +595,8 @@ namespace ValveResourceFormat.IO
                 ?? candidates[0];
         }
 
-        /// <summary>Gets whether the node at position <paramref name="local"/> of <paramref name="nodeIndices"/> is static.</summary>
         private bool IsStaticLocal(IReadOnlyList<int> nodeIndices, int local)
             => local >= 0 && local < nodeIndices.Count && Fe.IsStatic(nodeIndices[local]);
-
-        private static readonly Comparer<int[]> ShippedNodeComparer = Comparer<int[]>.Create(static (x, y) =>
-        {
-            for (var i = 0; i < x.Length && i < y.Length; i++)
-            {
-                if (x[i] != y[i])
-                {
-                    return x[i].CompareTo(y[i]);
-                }
-            }
-
-            return x.Length.CompareTo(y.Length);
-        });
 
         /// <summary>
         /// Rotates fully dynamic surface quads one corner back where that makes the compiler's mass pass reproduce the
@@ -614,7 +614,7 @@ namespace ValveResourceFormat.IO
             float SquaredDistance(int a, int b)
             {
                 var d = positions[nodeIndices[b]] - positions[nodeIndices[a]];
-                return d.X * d.X + d.Y * d.Y + d.Z * d.Z;
+                return (d.X * d.X) + (d.Y * d.Y) + (d.Z * d.Z);
             }
 
             bool Flippable(int[] face) => face.Length == 4 && face.Distinct().Count() == 4
@@ -698,19 +698,15 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    var trial = new List<int[]>(current)
+                    current[i] = [face[3], face[0], face[1], face[2]];
+                    if (Created(current).SequenceEqual(creation) && Missed(current) is var trialMissed
+                        && trialMissed.Count < missed.Count)
                     {
-                        [i] = [face[3], face[0], face[1], face[2]]
-                    };
-                    if (!Created(trial).SequenceEqual(creation))
-                    {
-                        continue;
+                        (missed, flipped[i], changed) = (trialMissed, true, true);
                     }
-
-                    var trialMissed = Missed(trial);
-                    if (trialMissed.Count < missed.Count)
+                    else
                     {
-                        (current, missed, flipped[i], changed) = (trial, trialMissed, true, true);
+                        current[i] = face;
                     }
                 }
             }
@@ -719,8 +715,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Rotates each surface face's declared corner order so the sheet hands the compiler its static
-        /// vertices in the order the shipped node array numbers them.
+        /// Rotates each surface face so the sheet introduces its static vertices in the order the shipped node array
+        /// numbers them.
         /// </summary>
         private void DeclareFacesInStaticNodeOrder(List<int[]> faces, int rotatableFaceCount, IReadOnlyList<int> nodeIndices)
         {
@@ -736,13 +732,10 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                if (i < rotatableFaceCount && corners.Length == face.Length)
+                if (i < rotatableFaceCount && corners.Length == face.Length
+                    && RotateToStaticNodeOrder(face, created, nodeIndices, IsStatic) is { } rotated)
                 {
-                    var rotated = RotateToStaticNodeOrder(face, created, nodeIndices, IsStatic);
-                    if (rotated is not null)
-                    {
-                        faces[i] = corners = rotated;
-                    }
+                    faces[i] = corners = rotated;
                 }
 
                 foreach (var corner in corners)
@@ -801,7 +794,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                if (Array.FindAll(rotated, corner => introduced.Contains(corner)).Distinct().SequenceEqual(wanted))
+                if (Array.FindAll(rotated, introduced.Contains).Distinct().SequenceEqual(wanted))
                 {
                     return rotated;
                 }
@@ -811,8 +804,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// The corner order a declared face reaches the compiler's own element array in: the import
-        /// canonicalisation and the mass pass's static-first partition.
+        /// Gets the corner order a declared face reaches the compiler's element array in, after import canonicalisation
+        /// and the mass pass's static-first partition.
         /// </summary>
         private static int[] CompilerCornerCycle(int[] face, Func<int, bool> isStatic)
         {
@@ -868,9 +861,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// The corner order the compiler pairs bend rods in for a fixed declaration: the passes
-        /// <see cref="CompilerCornerCycle"/> models, and then the convexity swap it applies to a quad whose
-        /// two leading corners are static.
+        /// Gets the corner order the compiler pairs bend rods in: <see cref="CompilerCornerCycle"/>, then the convexity
+        /// swap applied to a quad whose two leading corners are static.
         /// </summary>
         private static int[] CompiledElementOrder(int[] face, Func<int, bool> isStatic, Func<int, Vector3> positionOf)
         {
@@ -892,15 +884,14 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the bend rods <c>add_stiffness_rods</c> derives from faces in their declared corner order, over their first
-        /// four corners.
+        /// Gets the bend rods <c>add_stiffness_rods</c> derives from the first four corners of faces in declared order.
         /// </summary>
         internal static HashSet<(int, int)> BendRodsFromSurface(IEnumerable<int[]> faces, Func<int, bool> isStatic)
             => PredictBendRods([.. faces.Select(FirstCorners)], isStatic);
 
         /// <summary>
-        /// The bend rods the compiler derives from faces a document declares, each taken in the corner order it reaches the
-        /// compiler's element array in (see <see cref="CompilerCornerCycle"/>), which decides the corners a hinge pairs.
+        /// Gets the bend rods the compiler derives from declared faces, each taken in its
+        /// <see cref="CompilerCornerCycle"/> order, which decides the corners a hinge pairs.
         /// </summary>
         internal static HashSet<(int, int)> BendRodsFromDeclaredFaces(IEnumerable<int[]> faces, Func<int, bool> isStatic)
             => PredictBendRods([.. faces.Select(face => CompilerCornerCycle(FirstCorners(face), isStatic))], isStatic);
@@ -954,7 +945,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private List<int[]> TakeAuthoredFaces(Dictionary<int, int> localOf, List<int> nodeIndices,
+        private List<int[]> TakeAuthoredFaces(Dictionary<int, int> localOf, int[] nodeIndices,
             out List<int> truncatedTail)
         {
             truncatedTail = [];
@@ -969,17 +960,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var complete = true;
-                foreach (var corner in face)
-                {
-                    if (!localOf.ContainsKey(corner))
-                    {
-                        complete = false;
-                        break;
-                    }
-                }
-
-                if (complete)
+                if (Array.TrueForAll(face, localOf.ContainsKey))
                 {
                     faces.Add(face);
                     if (i < triangleElements)
@@ -1024,15 +1005,7 @@ namespace ValveResourceFormat.IO
             return [.. faces.Select(face => face.Select(corner => localOf[corner]).ToArray())];
         }
 
-        /// <summary>
-        /// The inverse-mass sum at or below which the rod importer drops a rod outright.
-        /// </summary>
-        private const float RodMassFloor = 1e-6f;
-
-        /// <summary>
-        /// The edges of the given faces: each face's consecutive corner pairs in its declared cycle. A
-        /// quad's two diagonals are not among them.
-        /// </summary>
+        /// <summary>Gets each face's consecutive corner pairs, so never a quad's diagonals.</summary>
         private static HashSet<(int, int)> FaceEdges(IEnumerable<int[]> faces)
         {
             var edges = new HashSet<(int, int)>();
@@ -1052,9 +1025,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Interleaves the quad run and the triangle run of a recovered surface the way the authored sheet
-        /// declared them, placing an already-faced node as an extra corner where the sheet's own wider
-        /// polygon named it early.
+        /// Interleaves the quad and triangle runs of a recovered surface in the authored declaration order, adding a
+        /// node as an extra corner of an earlier wider polygon where that polygon must have introduced it.
         /// </summary>
         private void MergeFacesInNodeCreationOrder(List<int[]> faces, int triangleCount)
         {
@@ -1104,21 +1076,10 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// The pinned nodes the surface introduces, in the order the compiled node array numbers them.
+        /// Gets the pinned nodes the surface introduces, in the order the compiled node array numbers them.
         /// </summary>
         private List<int> CompiledPinnedRun(List<int[]> faces)
-        {
-            var covered = new SortedSet<int>();
-            foreach (var face in faces)
-            {
-                foreach (var corner in PinnedRunCorners(face))
-                {
-                    covered.Add(corner);
-                }
-            }
-
-            return [.. covered];
-        }
+            => [.. new SortedSet<int>(faces.SelectMany(PinnedRunCorners))];
 
         private IEnumerable<int> PinnedRunCorners(int[] face)
         {
@@ -1130,9 +1091,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Whether walking the faces in order introduces the nodes in the order the compiled node array
-        /// numbers them, in both of the compiler's walks: the simulated nodes per rank, taking each face's
-        /// own corners as a set, and the rotation-locked pinned nodes in one run.
+        /// Gets whether walking the faces introduces nodes in compiled node order, both the simulated nodes per rank
+        /// (each face's corners taken as a set) and the rotation-locked pinned nodes as one run.
         /// </summary>
         private bool IntroducesInCompiledOrder(List<int[]> faces, int[] rank)
         {
@@ -1157,8 +1117,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var freshPinned = PinnedRunCorners(face).Where(corner => seenPinned.Add(corner)).ToList();
-                if (freshPinned.Count > 0 && (pinned.Count < freshPinned.Count
-                    || !pinned.Take(freshPinned.Count).ToHashSet().SetEquals(freshPinned)))
+                if (!LeadsPinnedRun(pinned, freshPinned))
                 {
                     return false;
                 }
@@ -1178,7 +1137,11 @@ namespace ValveResourceFormat.IO
             return true;
         }
 
-        /// <summary>Gets the dynamic ranked corners of <paramref name="face"/> not in <paramref name="seen"/>, in corner order.</summary>
+        /// <summary>Gets whether <paramref name="fresh"/> is empty or exactly the head of the pending pinned run.</summary>
+        private static bool LeadsPinnedRun(List<int> pinned, List<int> fresh)
+            => fresh.Count == 0 || (pinned.Count >= fresh.Count && pinned.Take(fresh.Count).ToHashSet().SetEquals(fresh));
+
+        /// <summary>Gets the dynamic ranked corners of a face not yet in <paramref name="seen"/>.</summary>
         private List<int> FreshRankedCorners(int[] face, int[] rank, HashSet<int> seen)
         {
             var fresh = new List<int>(4);
@@ -1212,12 +1175,7 @@ namespace ValveResourceFormat.IO
             List<int> IntroducedPinned(int face)
                 => [.. PinnedRunCorners(faces[face]).Where(corner => !createdPinned.Contains(corner)).Distinct()];
 
-            bool IsNextPinned(int face)
-            {
-                var fresh = IntroducedPinned(face);
-                return fresh.Count == 0 || (pinned.Count >= fresh.Count
-                    && pinned.Take(fresh.Count).ToHashSet().SetEquals(fresh));
-            }
+            bool IsNextPinned(int face) => LeadsPinnedRun(pinned, IntroducedPinned(face));
 
             List<int>? Preceding(List<int> fresh)
             {
@@ -1267,9 +1225,12 @@ namespace ValveResourceFormat.IO
 
             while (quad < quadCount || triangle < faces.Count)
             {
-                var heads = quad < quadCount
-                    ? (triangle < faces.Count ? (int[])[0, 1] : [0])
-                    : (int[])[1];
+                int[] heads = (quad < quadCount, triangle < faces.Count) switch
+                {
+                    (true, true) => [0, 1],
+                    (true, false) => [0],
+                    _ => [1],
+                };
                 int Face(int run) => run == 0 ? quad : triangle;
 
                 var taken = -1;
@@ -1361,14 +1322,6 @@ namespace ValveResourceFormat.IO
             return merged;
         }
 
-        /// <summary>
-        /// Each node's BFS layer from the static set over the surface, which is the <c>nRank</c> the builder
-        /// lays the dynamic node block out by.
-        /// </summary>
-        private int[] SurfaceNodeRanks => surfaceNodeRanks ??= BuildSurfaceNodeRanks();
-
-        private int[]? surfaceNodeRanks;
-
         private int[] BuildSurfaceNodeRanks()
         {
             var count = Fe.CtrlNames.Length;
@@ -1445,11 +1398,11 @@ namespace ValveResourceFormat.IO
         /// Appends each unfaced, unrodded vertex past the fourth corner of the nearest quad, the corners the compiler
         /// truncates from a larger polygon. Returns false when a vertex cannot be placed that way.
         /// </summary>
-        private bool AppendTruncatedCorners(List<int[]> faces, List<int> nodeIndices, HashSet<int> covered,
+        private bool AppendTruncatedCorners(List<int[]> faces, int[] nodeIndices, HashSet<int> covered,
             HashSet<(int, int)> shipped, List<int> truncatedTail)
         {
-            var unfaced = nodeIndices.FindAll(node => !covered.Contains(node));
-            if (unfaced.Count == 0)
+            var unfaced = Array.FindAll(nodeIndices, node => !covered.Contains(node));
+            if (unfaced.Length == 0)
             {
                 return true;
             }
@@ -1496,8 +1449,7 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
-                GetOrAdd(appended, quads[nearest])
-                    .Add(node);
+                GetOrAdd(appended, quads[nearest]).Add(node);
                 truncatedTail.Add(node);
             }
 

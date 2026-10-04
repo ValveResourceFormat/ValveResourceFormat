@@ -6,11 +6,26 @@ namespace ValveResourceFormat.IO
 {
     internal sealed partial class ClothReconstruction
     {
+        private const float ElementMassPerUnitLength = 4f;
+        private const float RodMassPerUnitLength = 8f;
+        private const float VolumetricMassPerUnitExtent = 12f;
+        private const float MinVolumetricSolveStrength = 1.1920929e-7f;
+        private const float VoronoiAreaScale = 0.125f;
+        private const float VoronoiMassWitnessMargin = 1e-4f;
+
+        private const float MinRecoverableMassPaintTerm = 0.05f;
+        private const float MaxRecoverableMassPaintTerm = 1e6f;
+        private const float NegligibleMassPaint = -30f;
+        private const int MassPaintRefineSweeps = 400;
+        private const float UniformMassPaintSteps = 16f;
+
+        private const float MassMultiplierTolerance = 1e-3f;
+        private const float MotionBiasTolerance = 1e-3f;
+
         /// <summary>
         /// Recovers the <c>cloth_mass</c> paint of an authored-face proxy sheet from what each node's mass carries beyond
-        /// its geometric term, or null when the sheet carries none. On a model whose sheet masses follow the
-        /// <see cref="HasVoronoiElementMasses">mixed Voronoi element mass pass</see> a sheet of compiled elements alone is read
-        /// too, and every vertex without a reading states a negligible bias.
+        /// its geometric term, or null when there is none. Under the <see cref="HasVoronoiElementMasses">Voronoi element
+        /// mass pass</see> sheets of compiled elements are read too, and vertices without a reading get a negligible paint.
         /// </summary>
         internal float[]? RecoverMassPaint(ProxyMesh proxy)
         {
@@ -95,10 +110,10 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Sets the <c>cloth_mass</c> paint of a sheet under the mixed Voronoi element mass pass from its face rods, whose weights
-        /// the compiler fixes from the endpoints' mass bias alone, so each states <c>paint[b] - paint[a] = ln(w / (1 - w))</c>.
-        /// Every set of dynamic vertices the face rods connect takes those differences, shifted by the median offset of its
-        /// readings on nodes no bracketed element touches; a set without such a reading keeps its readings.
+        /// Solves the <c>cloth_mass</c> paint of a sheet under the Voronoi element mass pass from its face rods, whose
+        /// weights depend only on the endpoints' mass paint, so each states <c>paint[b] - paint[a] = ln(w / (1 - w))</c>.
+        /// Each connected set is shifted by the median offset of its readings on nodes outside bracketed elements; a set
+        /// without such a reading keeps its readings.
         /// </summary>
         private float[] PinVoronoiMassPaint(ProxyMesh proxy, float[] paint, List<(int Vertex, float Tolerance)> painted,
             HashSet<int> bracketed)
@@ -137,10 +152,7 @@ namespace ValveResourceFormat.IO
             return pinned;
         }
 
-        /// <summary>
-        /// Gets the authored face rods between the nodes of <paramref name="vertexOfNode"/>, as vertex pairs with the rod's
-        /// weight.
-        /// </summary>
+        /// <summary>Gets the authored face rods between the nodes of <paramref name="vertexOfNode"/>, as weighted vertex pairs.</summary>
         private List<(int A, int B, float Weight0)> FaceRodsBetween(Dictionary<int, int> vertexOfNode)
         {
             var rods = new List<(int A, int B, float Weight0)>();
@@ -275,8 +287,6 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private const int MassPaintRefineSweeps = 400;
-
         /// <summary>
         /// Gets the median of the <c>cloth_mass</c> readings when every reading lies within
         /// <see cref="UniformMassPaintSteps"/> of its tolerance from it, else null.
@@ -301,8 +311,6 @@ namespace ValveResourceFormat.IO
             return median;
         }
 
-        private const float UniformMassPaintSteps = 16f;
-
         /// <summary>
         /// Recovers the authored <c>mass</c> multiplier of a cloth node, or null when it is the default 1 or cannot be read.
         /// </summary>
@@ -314,9 +322,7 @@ namespace ValveResourceFormat.IO
                 : null;
         }
 
-        /// <summary>
-        /// Gets whether the model was compiled with <c>ClothParams explicit_masses</c>.
-        /// </summary>
+        /// <summary>Gets whether the model was compiled with <c>ClothParams explicit_masses</c>.</summary>
         internal bool HasExplicitMasses => hasExplicitMasses ??= ComputeHasExplicitMasses();
 
         private bool? hasExplicitMasses;
@@ -400,7 +406,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                if ((HasExplicitMasses ? ExplicitMassOf(node) : ChainMassMultiplierOf(node))
+                if ((HasExplicitMasses ? ExplicitMassOf(node) : MassMultiplierOf(node, chainJoint: true))
                     is not { } nodeMultiplier)
                 {
                     return null;
@@ -418,8 +424,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// The <c>mass</c> a chain joint's own row has to state, or null where the chain's
-        /// <paramref name="chainDefault"/> already states it and the row may omit the key.
+        /// Gets the <c>mass</c> a chain joint's row has to state, or null where <paramref name="chainDefault"/> already
+        /// covers it.
         /// </summary>
         internal float? RecoverJointMass(int joint, float chainDefault)
             => RecoverJointMassMultiplier(joint) is { } value
@@ -427,9 +433,7 @@ namespace ValveResourceFormat.IO
                 ? value
                 : null;
 
-        /// <summary>
-        /// Gets the <c>mass</c> shared by more than half of the chain's readable joints, else 1.
-        /// </summary>
+        /// <summary>Gets the <c>mass</c> shared by more than half of the chain's readable joints, else 1.</summary>
         internal float RecoverChainMassDefault(BoneChain chain)
         {
             var readings = new List<float>();
@@ -462,9 +466,6 @@ namespace ValveResourceFormat.IO
 
             return best * 2 > readings.Count ? common : 1f;
         }
-
-        /// <summary>Gets the mass multiplier of a chain joint's node.</summary>
-        private float? ChainMassMultiplierOf(int node) => MassMultiplierOf(node, chainJoint: true);
 
         /// <summary>
         /// Gets the mass multiplier of a node over its geometric mass. A rod endpoint is read against the rod mass pass
@@ -553,8 +554,6 @@ namespace ValveResourceFormat.IO
 
         private HashSet<int>? rodEndpoints;
 
-        private const float MassMultiplierTolerance = 1e-3f;
-
         /// <summary>
         /// Gets the mass the compiler derives from the cloth's geometry per control node: the solve elements, the rods
         /// built from the authored elements that did not stay solve elements, and the volumetric selections.
@@ -569,9 +568,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets whether the model was compiled without <c>m_SkelParents</c> by a compiler whose mass pass lumps each element's
-        /// mixed Voronoi area, which some proxy sheet node witnesses by weighing less than the corner-pair element term
-        /// alone gives it.
+        /// Gets whether the element mass pass lumped mixed Voronoi areas, as it can on models compiled without
+        /// <c>m_SkelParents</c>. A proxy sheet node lighter than its corner-pair element term alone reveals it.
         /// </summary>
         private bool HasVoronoiElementMasses => hasVoronoiElementMasses ??= ComputeHasVoronoiElementMasses();
 
@@ -600,10 +598,10 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the geometric masses under the mixed Voronoi element mass pass: each element's lumped area plus the authored rod
-        /// term, with no volumetric term. An element with a static corner may have had its corner cycle turned after the
-        /// mass pass, as may a quad merged back from its split halves, so each takes the mean of its two fan diagonals and
-        /// lists its corners as bracketed.
+        /// Gets the geometric masses under the Voronoi element mass pass: each element's lumped area plus the authored rod
+        /// term, with no volumetric term. A quad whose corner cycle may have turned after the mass pass (one with a static
+        /// corner, or one merged back from its split halves) takes the mean of both fan diagonals and lists its corners as
+        /// bracketed.
         /// </summary>
         private (float[] Mass, HashSet<int> Bracketed) VoronoiMasses => voronoiMasses ??= VoronoiNodeMasses();
 
@@ -722,14 +720,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            var derived = PredictBendRods([.. FoldWalkSolveElements(), .. SourceElementWalk()], Fe.IsStatic);
-
-            var rodsOnPair = new Dictionary<(int, int), int>();
-            foreach (var rod in Fe.Rods)
-            {
-                var pair = UnorderedPair(rod.NodeA, rod.NodeB);
-                rodsOnPair[pair] = rodsOnPair.GetValueOrDefault(pair) + 1;
-            }
+            var derived = new HashSet<(int, int)>(SurfaceFanPairs);
 
             foreach (var cycle in cycles)
             {
@@ -737,7 +728,7 @@ namespace ValveResourceFormat.IO
                 {
                     var (p, q) = (cycle[j], cycle[(j + 1) % cycle.Length]);
                     var edge = UnorderedPair(p, q);
-                    if (rodsOnPair.GetValueOrDefault(edge) == 1)
+                    if (RodsByPair.TryGetValue(edge, out var rods) && rods.Count == 1)
                     {
                         derived.Remove(edge);
                     }
@@ -764,9 +755,7 @@ namespace ValveResourceFormat.IO
                 => node >= 0 && node < Fe.InitPosePositions.Length ? Fe.InitPosePositions[node] : Vector3.Zero;
         }
 
-        /// <summary>
-        /// Gets the solve elements in the corner order the compiler's fold walk meets them.
-        /// </summary>
+        /// <summary>Gets the solve elements in the corner order the compiler's fold walk meets them.</summary>
         private List<int[]> FoldWalkSolveElements()
         {
             var rings = new Dictionary<string, Dictionary<int, int>>(StringComparer.Ordinal);
@@ -806,7 +795,7 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// The faces the importer built into rods, in the order and corner order the compiler walks them for its
+        /// Gets the faces the importer built into rods, in the order and corner order the compiler walks them for its
         /// fold rods. <c>m_SourceElems</c> packs each corner-count group from its end, so every group is read backwards.
         /// </summary>
         private IEnumerable<int[]> SourceElementWalk()
@@ -825,7 +814,7 @@ namespace ValveResourceFormat.IO
                 solved.Add(CornerKey(element));
             }
 
-            var unbuilt = UnbuiltFaceDiagonals(SheetNodes, SheetFaceRods).ToHashSet();
+            var unbuilt = UnbuiltFaceDiagonals().ToHashSet();
             var rods = new Dictionary<(int A, int B), float>();
             foreach (var face in Fe.SourceFaces)
             {
@@ -865,9 +854,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// The elements the mass pass ran over, each as four corners with a triangle repeating its last
-        /// one, rebuilt from the compiled surface by merging every triangle pair the compiler split an
-        /// over-bent quad into back into that quad.
+        /// Gets the elements the mass pass ran over as four corners each, a triangle repeating its last, with every
+        /// over-bent quad the compiler split into two triangles merged back.
         /// </summary>
         private IReadOnlyList<int[]> MassElements => massElements ??= BuildMassElements();
 
@@ -894,9 +882,9 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Credits every node a volumetric selection covers with 12 per unit of the summed bounding-box
-        /// extent of that selection's own nodes, scaled by how strongly the node belongs to it. A
-        /// selection the solver does not solve volumetrically weighs nothing.
+        /// Credits every node a volumetric selection covers with <see cref="VolumetricMassPerUnitExtent"/> per unit of the
+        /// summed bounding-box extent of the selection, scaled by the node's weight in it. A selection that is not solved
+        /// volumetrically weighs nothing.
         /// </summary>
         private void AddVolumetricNodeMasses(float[] mass)
         {
@@ -940,26 +928,6 @@ namespace ValveResourceFormat.IO
                 }
             }
         }
-
-        private const float ElementMassPerUnitLength = 4f;
-
-        private const float RodMassPerUnitLength = 8f;
-
-        private const float VolumetricMassPerUnitExtent = 12f;
-
-        private const float MinVolumetricSolveStrength = 1.1920929e-7f;
-
-        private const float MinRecoverableMassPaintTerm = 0.05f;
-
-        private const float MaxRecoverableMassPaintTerm = 1e6f;
-
-        private const float NegligibleMassPaint = -30f;
-
-        private const float VoronoiAreaScale = 0.125f;
-
-        private const float VoronoiMassWitnessMargin = 1e-4f;
-
-        private const float MotionBiasTolerance = 1e-3f;
 
         /// <summary>
         /// Recovers the <c>motion_bias</c> of a chain joint from the weights of the rods between it and its parent, or

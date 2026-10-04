@@ -17,6 +17,7 @@ public partial class ModelExtract
     private readonly PhysAggregateData? physAggregateData;
     private readonly IFileLoader? fileLoader;
     private readonly string fileName;
+    private ClothExtract? cloth;
 
     /// <summary>
     /// Specifies the type of model extraction.
@@ -37,8 +38,8 @@ public partial class ModelExtract
     public IProgress<string>? ProgressReporter { get; init; }
 
     /// <summary>
-    /// Gets whether to reconstruct the model's cloth (soft-body) physics. When false, the soft-body data is not read and
-    /// the model is extracted as if it had none: no cloth nodes, proxy DMX files or cloth bone handling.
+    /// Gets whether to reconstruct the model's cloth (soft-body) physics. When false, the model is extracted as if it
+    /// had no cloth.
     /// </summary>
     public bool ExtractCloth { get; init; } = true;
 
@@ -190,12 +191,7 @@ public partial class ModelExtract
     /// </summary>
     public string ModelName => model?.Name ?? fileName;
 
-    private ClothExtract? cloth;
-    private bool clothFailed;
-
-    /// <summary>
-    /// Gets the cloth reconstruction of the model's soft-body physics, empty when <see cref="ReconstructsCloth"/> is false.
-    /// </summary>
+    /// <summary>Gets the model's cloth reconstruction, empty when <see cref="ReconstructsCloth"/> is false.</summary>
     internal ClothExtract Cloth
     {
         get
@@ -206,21 +202,20 @@ public partial class ModelExtract
     }
 
     /// <summary>
-    /// Gets whether the cloth is reconstructed: <see cref="ExtractCloth"/>, where the model has a <c>FeModel</c> and
-    /// reconstructing it did not fail.
+    /// Gets whether cloth is reconstructed: it was requested, the model has some, and building it did not fail.
     /// </summary>
     private bool ReconstructsCloth
     {
         get
         {
             EnsureClothAndAnimationsQueued();
-            return ExtractCloth && !clothFailed && cloth.Reconstruction is not null;
+            return cloth.Reconstruction is not null;
         }
     }
 
     /// <summary>
-    /// Builds the cloth and then queues the animations, whose file names avoid the cloth's, on first use. A cloth that
-    /// fails to build is reported and left out, as if <see cref="ExtractCloth"/> were false.
+    /// On first use, builds the cloth and then queues the animations, so that animation file names avoid the cloth's.
+    /// Cloth that fails to build is reported and left out.
     /// </summary>
     [MemberNotNull(nameof(cloth))]
     private void EnsureClothAndAnimationsQueued()
@@ -239,7 +234,6 @@ public partial class ModelExtract
         catch (Exception e)
         {
             ProgressReporter?.Report($"Skipping cloth of {ModelName}: {e.Message}");
-            clothFailed = true;
             cloth = new ClothExtract(null, null);
         }
 
@@ -247,24 +241,32 @@ public partial class ModelExtract
     }
 
     /// <summary>
-    /// The DMX file name of the cloth file <paramref name="name"/>, suffixed where a render or physics mesh or an earlier
-    /// cloth file already has it.
+    /// Gets the DMX file name for cloth file <paramref name="name"/>, suffixed when a mesh or earlier cloth file already
+    /// uses it.
     /// </summary>
     private string GetDmxFileName_ForCloth(string name)
     {
-        bool Taken(string candidate)
-            => RenderMeshesToExtract.Exists(mesh => string.Equals(mesh.FileName, candidate, StringComparison.OrdinalIgnoreCase))
-            || PhysHullsToExtract.Exists(hull => string.Equals(hull.FileName, candidate, StringComparison.OrdinalIgnoreCase))
-            || PhysMeshesToExtract.Exists(mesh => string.Equals(mesh.FileName, candidate, StringComparison.OrdinalIgnoreCase))
-            || (cloth is not null
-                && cloth.ProxyMeshes.Exists(proxy => string.Equals(proxy.FileName, candidate, StringComparison.OrdinalIgnoreCase)));
-
         var dmxFileName = GetDmxFileName_ForEmbeddedMesh(name);
-        for (var suffix = 1; Taken(dmxFileName); suffix++)
+        for (var suffix = 1; IsDmxFileNameTaken(dmxFileName, includePhysics: true, includeAnimations: false); suffix++)
         {
             dmxFileName = GetDmxFileName_ForEmbeddedMesh(FormattableString.Invariant($"{name}_{suffix}"));
         }
 
         return dmxFileName;
+    }
+
+    /// <summary>
+    /// Whether a queued render mesh or cloth file already uses <paramref name="name"/>, and optionally a queued physics or
+    /// animation file.
+    /// </summary>
+    private bool IsDmxFileNameTaken(string name, bool includePhysics, bool includeAnimations)
+    {
+        bool Same(string fileName) => string.Equals(fileName, name, StringComparison.OrdinalIgnoreCase);
+
+        return RenderMeshesToExtract.Exists(mesh => Same(mesh.FileName))
+            || (includePhysics && (PhysHullsToExtract.Exists(hull => Same(hull.FileName))
+                || PhysMeshesToExtract.Exists(mesh => Same(mesh.FileName))))
+            || (cloth is not null && cloth.ProxyMeshes.Exists(proxy => Same(proxy.FileName)))
+            || (includeAnimations && animationsToExtract.Exists(entry => Same(entry.FileName)));
     }
 }

@@ -66,29 +66,17 @@ namespace ValveResourceFormat.IO
         public float TorsionStiffness { get; set; }
         /// <summary>Gets the distance from this joint to its own proxy ring.</summary>
         public float ExtrudeRadius { get; set; }
-        /// <summary>
-        /// Gets the roll in degrees added to <see cref="ExtrudeTwist"/> to settle a node-base scan tie, 0 otherwise.
-        /// </summary>
+        /// <summary>Gets the roll in degrees added to <see cref="ExtrudeTwist"/> to settle a node-base scan tie.</summary>
         public float ExtrudeTwistTieNudge { get; set; }
-        /// <summary>
-        /// Gets the roll in degrees of the joint's proxy ring about the forward axis, from the rest frame's +Y.
-        /// </summary>
+        /// <summary>Gets the roll in degrees of the joint's proxy ring about the forward axis, from the rest frame's +Y.</summary>
         public float ExtrudeTwist { get; set; }
-        /// <summary>
-        /// Gets the forward distance to the joint's second proxy ring (<c>end_effector</c>), or 0 for a single ring.
-        /// </summary>
+        /// <summary>Gets the forward distance to the joint's second proxy ring (<c>end_effector</c>), or 0 for a single ring.</summary>
         public float EndEffector { get; set; }
-        /// <summary>
-        /// Gets the <c>extrude_forward_axis</c> of the joint's proxy ring (<c>'x'</c>, <c>'y'</c> or <c>'z'</c>).
-        /// </summary>
+        /// <summary>Gets the <c>extrude_forward_axis</c> of the joint's proxy ring.</summary>
         public char ForwardAxis { get; set; } = 'x';
-        /// <summary>
-        /// Gets whether the joint is declared a second time in a plain chain after the extruding one.
-        /// </summary>
+        /// <summary>Gets whether the joint is declared a second time in a plain chain after the extruding one.</summary>
         public bool Restated { get; set; }
-        /// <summary>
-        /// Gets whether the joint is a static, goal-locked sibling that a hub's <c>child_sibling_spring</c> gathers.
-        /// </summary>
+        /// <summary>Gets whether the joint is a static, goal-locked sibling that a hub's <c>child_sibling_spring</c> gathers.</summary>
         public bool SpringsWithSiblings { get; set; }
         /// <summary>
         /// Gets the root bone of the second <c>ClothChain</c> that re-declares this joint, or null when only one declares it.
@@ -99,9 +87,7 @@ namespace ValveResourceFormat.IO
         /// spring has to add beyond <see cref="ExtraIterations"/>.
         /// </summary>
         public IReadOnlyList<(int A, int B, int Copies)> CrossLinkSurplus { get; set; } = [];
-        /// <summary>Gets a value indicating whether this joint is simulated (invMass &gt; 0).</summary>
         public bool Simulated => InvMass > 0f;
-        /// <summary>Gets a value indicating whether this joint is the chain root.</summary>
         public bool IsRoot => ParentNode < 0;
     }
 
@@ -128,7 +114,29 @@ namespace ValveResourceFormat.IO
 
     internal sealed partial class ClothReconstruction
     {
-        /// <summary>Gets how many auto-generated proxy nodes the compiler extruded from a joint.</summary>
+        /// <summary>How far apart along a joint's forward axis two proxies must be to lie on separate rings.</summary>
+        private const float EndEffectorRingTolerance = 0.05f;
+
+        /// <summary>How far two rod readings of one chain may differ and still count as one authored value.</summary>
+        private const float ChainReadingTolerance = 1e-4f;
+
+        private const int AncestorWalkLimit = 256;
+
+        private const int SubtreeWalkLimit = 4096;
+
+        private const float ExtrudeForwardAxisTolerance = 0.02f;
+
+        internal const float ChainRingCurvatureAgreement = 0.01f;
+
+        private static readonly Quaternion ExtrudeAxisSelectY = new(0f, 0f, 0.70710677f, 0.70710677f);
+
+        private static readonly Quaternion ExtrudeAxisSelectZ = new(0f, -0.70710677f, 0f, 0.70710677f);
+
+        private Dictionary<int, List<int>>? proxyRings;
+        private float? chainRingCurvature;
+        private List<BoneChain>? unversionedChains;
+
+        /// <summary>Gets how many proxy nodes the compiler extruded from a joint.</summary>
         internal int ProxyCountOf(int jointNode) => ProxyRingOf(jointNode).Count;
 
         private List<int> ProxyRingOf(int jointNode)
@@ -136,8 +144,6 @@ namespace ValveResourceFormat.IO
             proxyRings ??= BuildProxyRingIndex();
             return proxyRings.TryGetValue(jointNode, out var ring) ? ring : [];
         }
-
-        private Dictionary<int, List<int>>? proxyRings;
 
         /// <summary>Gets the <c>$cc</c> ring nodes of every joint, each ring sorted by name.</summary>
         private Dictionary<int, List<int>> BuildProxyRingIndex()
@@ -166,22 +172,10 @@ namespace ValveResourceFormat.IO
             public bool RinglessRoot { get; init; }
             /// <summary>The children each listed node keeps in this chain; a node absent keeps all of them.</summary>
             public Dictionary<int, HashSet<int>>? ChildrenOf { get; set; }
-            /// <summary>The ring each listed node extruded in THIS declaration; empty for a ringless one.</summary>
+            /// <summary>The ring each listed node extruded in this declaration; empty for a ringless one.</summary>
             public Dictionary<int, List<int>>? RingOf { get; set; }
             public string Suffix { get; set; } = string.Empty;
         }
-
-        /// <summary>How far apart along a joint's forward axis two proxies must be to lie on separate rings.</summary>
-        private const float EndEffectorRingTolerance = 0.05f;
-
-        /// <summary>How far two rod readings of one chain may differ and still count as one authored value.</summary>
-        private const float ChainReadingTolerance = 1e-4f;
-
-        /// <summary>The most parent links an ancestor walk follows.</summary>
-        private const int AncestorWalkLimit = 256;
-
-        /// <summary>The most nodes a subtree walk visits.</summary>
-        private const int SubtreeWalkLimit = 4096;
 
         /// <summary>Gets the trailing <c>_&lt;n&gt;</c> index of a ring node's name, or -1 when it has none.</summary>
         private static int RingSuffixIndex(string name)
@@ -194,8 +188,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Splits one bone's generated ring nodes into the declarations that built them, or null when a
-        /// single ClothChain declared the bone.
+        /// Splits one bone's generated ring nodes into the declarations that built them, or null when a single
+        /// <c>ClothChain</c> declared the bone.
         /// </summary>
         private static List<List<int>>? SplitRingDeclarations(List<int> proxies, string[] names)
         {
@@ -224,7 +218,7 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Splits every chain spec whose bones were declared by more than one ClothChain into one spec per
+        /// Splits every chain spec whose bones were declared by more than one <c>ClothChain</c> into one spec per
         /// declaration, each carrying that declaration's own ring and the children hanging off it.
         /// </summary>
         private void SplitRingDeclarations(List<ChainSpec> specs, List<int>?[] children, int[] realParent,
@@ -280,33 +274,13 @@ namespace ValveResourceFormat.IO
                         result.AddRange(ring);
                     }
 
-                    foreach (var kid in KeptChildren(spec, node))
+                    foreach (var kid in KeptChildren(spec, children, node))
                     {
                         stack.Push(kid);
                     }
                 }
 
                 return result;
-            }
-
-            List<int> KeptChildren(ChainSpec spec, int node)
-            {
-                var kept = new List<int>();
-                if (children[node] is not { } all)
-                {
-                    return kept;
-                }
-
-                foreach (var kid in all)
-                {
-                    if (spec.ChildrenOf is null || !spec.ChildrenOf.TryGetValue(node, out var allowed)
-                        || allowed.Contains(kid))
-                    {
-                        kept.Add(kid);
-                    }
-                }
-
-                return kept;
             }
 
             int NextSplit(ChainSpec spec, HashSet<int> done)
@@ -322,7 +296,7 @@ namespace ValveResourceFormat.IO
                         return node;
                     }
 
-                    foreach (var kid in KeptChildren(spec, node))
+                    foreach (var kid in KeptChildren(spec, children, node))
                     {
                         stack.Push(kid);
                     }
@@ -353,7 +327,7 @@ namespace ValveResourceFormat.IO
                     ? groups.FindIndex(group => ReferenceEquals(group, spec.RingOf[bone]))
                     : bone == spec.Root ? 0 : BestGroup(groups, SideOf(realParent[bone]));
 
-                var kids = KeptChildren(spec, bone);
+                var kids = KeptChildren(spec, children, bone);
                 var membership = new List<Dictionary<int, List<int>>>(kids.Count);
                 foreach (var kid in kids)
                 {
@@ -361,18 +335,7 @@ namespace ValveResourceFormat.IO
                     var byGroup = new Dictionary<int, List<int>>();
                     for (var g = 0; g < groups.Count; g++)
                     {
-                        var best = -1;
-                        var bestHits = 0;
-                        for (var h = 0; h < kidGroups.Count; h++)
-                        {
-                            var hits = RodCount(groups[g], kidGroups[h]);
-                            if (hits > bestHits)
-                            {
-                                bestHits = hits;
-                                best = h;
-                            }
-                        }
-
+                        var best = BestGroup(kidGroups, groups[g]);
                         if (best >= 0)
                         {
                             byGroup[g] = kidGroups[best];
@@ -384,7 +347,7 @@ namespace ValveResourceFormat.IO
                         var reach = Reach(spec, kid);
                         for (var g = 0; g < groups.Count; g++)
                         {
-                            if (RodCount(groups[g], reach) > 0)
+                            if (AnyRod(rodPairs, groups[g], reach))
                             {
                                 byGroup[g] = kidGroups[0];
                             }
@@ -481,18 +444,12 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private static readonly Quaternion ExtrudeAxisSelectY = new(0f, 0f, 0.70710677f, 0.70710677f);
-
-        private static readonly Quaternion ExtrudeAxisSelectZ = new(0f, -0.70710677f, 0f, 0.70710677f);
-
         private static Quaternion ExtrudeAxisSelectQuaternion(char axis) => axis switch
         {
             'y' => ExtrudeAxisSelectY,
             'z' => ExtrudeAxisSelectZ,
             _ => Quaternion.Identity,
         };
-
-        private const float ExtrudeForwardAxisTolerance = 0.02f;
 
         /// <summary>
         /// Detects the forward axis a joint's ring was laid out around: the local axis its points have no extent along,
@@ -561,13 +518,16 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the rod graph without cluster rods: the rodded pairs, every rod's relaxation per pair, the same for rigid
-        /// rods alone, the relaxations a repeat could have written, and each rod's <c>flMinDist / flMaxDist</c>.
+        /// The rod graph without cluster rods: the rodded pairs, every rod's relaxation per pair, the same for rigid rods
+        /// alone, the relaxations a repeat could have written, and each rod's <c>flMinDist / flMaxDist</c>.
         /// </summary>
-        private (HashSet<(int, int)> Pairs, Dictionary<(int, int), List<float>> RelaxationsByPair,
+        private sealed record RodGraph(HashSet<(int, int)> Pairs, Dictionary<(int, int), List<float>> RelaxationsByPair,
             Dictionary<(int, int), List<float>> RigidRelaxationsByPair,
             Dictionary<(int, int), List<float>> RepeatRelaxationsByPair,
-            Dictionary<(int, int), List<float>> ContractionsByPair) BuildRodGraph()
+            Dictionary<(int, int), List<float>> ContractionsByPair);
+
+        /// <summary>Gets the <see cref="RodGraph"/> of the compiled rods.</summary>
+        private RodGraph BuildRodGraph()
         {
             static bool SameRecord(Rod x, Rod y)
                 => MathF.Abs(x.MaxDist - y.MaxDist) <= 1e-4f * MathF.Max(1f, MathF.Abs(x.MaxDist))
@@ -591,22 +551,18 @@ namespace ValveResourceFormat.IO
                 var rod = Fe.Rods[index];
                 var pair = UnorderedPair(rod.NodeA, rod.NodeB);
                 pairs.Add(pair);
-                var relaxations = GetOrAdd(relaxationsByPair, pair);
-                relaxations.Add(rod.RelaxationFactor);
+                GetOrAdd(relaxationsByPair, pair).Add(rod.RelaxationFactor);
 
                 if (rod.MaxDist > 0f)
                 {
-                    var contractions = GetOrAdd(contractionsByPair, pair);
-                    contractions.Add(rod.MinDist / rod.MaxDist);
+                    GetOrAdd(contractionsByPair, pair).Add(rod.MinDist / rod.MaxDist);
                 }
 
-                var all = GetOrAdd(rodsByPair, pair);
-                all.Add(rod);
+                GetOrAdd(rodsByPair, pair).Add(rod);
 
                 if (MathF.Abs(rod.MinDist - rod.MaxDist) <= 1e-4f * MathF.Max(1f, MathF.Abs(rod.MaxDist)))
                 {
-                    var rigid = GetOrAdd(rigidRelaxationsByPair, pair);
-                    rigid.Add(rod.RelaxationFactor);
+                    GetOrAdd(rigidRelaxationsByPair, pair).Add(rod.RelaxationFactor);
                 }
             }
 
@@ -621,8 +577,7 @@ namespace ValveResourceFormat.IO
                 repeatRelaxationsByPair[pair] = rods.ConvertAll(static rod => rod.RelaxationFactor);
             }
 
-            return (pairs, relaxationsByPair, rigidRelaxationsByPair, repeatRelaxationsByPair,
-                contractionsByPair);
+            return new RodGraph(pairs, relaxationsByPair, rigidRelaxationsByPair, repeatRelaxationsByPair, contractionsByPair);
         }
 
         /// <summary>
@@ -641,11 +596,10 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var pp = ParentNodeOf(node);
-                if (pp >= 0)
+                var parent = ParentNodeOf(node);
+                if (parent >= 0)
                 {
-                    var list = GetOrAdd(childrenOf, pp);
-                    list.Add(node);
+                    GetOrAdd(childrenOf, parent).Add(node);
                 }
             }
 
@@ -661,15 +615,11 @@ namespace ValveResourceFormat.IO
             return (childrenOf, ownerOf);
         }
 
-        internal const float ChainRingCurvatureAgreement = 0.01f;
-
         /// <summary>
         /// Gets the authored <c>add_curvature</c> from the bend rods across each chain ring, whose minimum is
         /// <c>flMaxDist * sin(add_curvature * pi / 2)</c>; 0 when the rods disagree or there are none.
         /// </summary>
         internal float ChainRingCurvature => chainRingCurvature ??= ReadChainRingCurvature();
-
-        private float? chainRingCurvature;
 
         private float ReadChainRingCurvature()
         {
@@ -732,8 +682,6 @@ namespace ValveResourceFormat.IO
         /// </summary>
         internal List<BoneChain> BuildBoneChains() => unversionedChains ??= BuildBoneChains(null, null);
 
-        private List<BoneChain>? unversionedChains;
-
         /// <summary>
         /// Reconstructs the bone chains as <see cref="BuildBoneChains()"/> does, and declares a merged root twice where
         /// its sub-chains were staged at two versions and <paramref name="chainVersion"/> reads the merged declaration as
@@ -764,8 +712,8 @@ namespace ValveResourceFormat.IO
                 isReal[i] = !IsGeneratedNodeName(Fe.CtrlNames[i]) && !ImportedStripNodes.Contains(i);
             }
 
-            var (rodPairs, rodRelaxationsByPair, rigidRodRelaxationsByPair, repeatRodRelaxationsByPair,
-                rodContractionsByPair) = BuildRodGraph();
+            var rodGraph = BuildRodGraph();
+            var rodPairs = rodGraph.Pairs;
             var (proxyChildrenOf, ringOwnerOf) = BuildProxyRings();
 
             var ropeParents = HasCompiledSkelParents ? RopeRunParents : new Dictionary<int, int>();
@@ -774,8 +722,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var spec in chainSpecs)
             {
-                var (chain, firstSimulated) = ReadChainSpec(spec, children, realParent, proxyChildrenOf, rodPairs,
-                    rodRelaxationsByPair, rigidRodRelaxationsByPair, repeatRodRelaxationsByPair, rodContractionsByPair, ropeParents);
+                var (chain, firstSimulated) = ReadChainSpec(spec, children, realParent, proxyChildrenOf, rodGraph, ropeParents);
                 chainFirstSimulated[chain] = firstSimulated;
                 chains.Add(chain);
                 if (spec.ChildrenOf is null && spec.RingOf is null && !spec.RinglessRoot)
@@ -866,8 +813,27 @@ namespace ValveResourceFormat.IO
             bool IsCentreRing(List<int> ring)
                 => ring.TrueForAll(node => Fe.CtrlNames[node].EndsWith("_Ctr", StringComparison.Ordinal));
 
-            bool RingsShareFace(List<int> a, List<int> b)
-                => Array.Exists(Fe.SourceFaces, face => Array.Exists(face, a.Contains) && Array.Exists(face, b.Contains));
+            var facesTouchingRing = new Dictionary<List<int>, HashSet<int>>();
+            HashSet<int> FacesTouching(List<int> ring)
+            {
+                if (!facesTouchingRing.TryGetValue(ring, out var faces))
+                {
+                    faces = [];
+                    for (var f = 0; f < Fe.SourceFaces.Length; f++)
+                    {
+                        if (Array.Exists(Fe.SourceFaces[f], ring.Contains))
+                        {
+                            faces.Add(f);
+                        }
+                    }
+
+                    facesTouchingRing[ring] = faces;
+                }
+
+                return faces;
+            }
+
+            bool RingsShareFace(List<int> a, List<int> b) => FacesTouching(a).Overlaps(FacesTouching(b));
 
             bool? chainSurfacesRecorded = null;
             var unlinkedRingChildren = new HashSet<int>();
@@ -920,7 +886,7 @@ namespace ValveResourceFormat.IO
                 return false;
             }
 
-            bool EndsItsChain(int node) => Array.IndexOf(Fe.CtrlNames, "$cc" + Fe.CtrlNames[node] + "_Ctr") >= 0;
+            bool EndsItsChain(int node) => (ctrlNameSet ??= [.. Fe.CtrlNames]).Contains(RingNodePrefix + Fe.CtrlNames[node] + "_Ctr");
 
             var realParent = new int[n];
             var children = new List<int>?[n];
@@ -942,16 +908,9 @@ namespace ValveResourceFormat.IO
                 }
 
                 var rodLinked = rodPairs.Contains(UnorderedPair(p, i));
-
-                var bothDrivenSim = i >= FirstPositionDrivenNode && p >= FirstPositionDrivenNode
-                    && Simulates(i)
-                    && Simulates(p);
-
+                var bothDrivenSim = i >= FirstPositionDrivenNode && p >= FirstPositionDrivenNode && Simulates(i) && Simulates(p);
                 var proxyRibbon = proxyChildrenOf.ContainsKey(i);
-
-                var hingedRoot = HasHingeAnchor(Fe.CtrlNames[p])
-                    || RigidHingeJoints.ContainsKey(p);
-
+                var hingedRoot = HasHingeAnchor(Fe.CtrlNames[p]) || RigidHingeJoints.ContainsKey(p);
                 var bendLinked = KelagerBendsByMidNode.TryGetValue(p, out var midBends)
                     && midBends.Exists(bend => bend.End0 == i || bend.End1 == i);
 
@@ -959,21 +918,9 @@ namespace ValveResourceFormat.IO
                 var bendRodLinked = grandParent >= 0 && grandParent < n && isReal[grandParent]
                     && rodPairs.Contains(UnorderedPair(grandParent, i));
 
-                var ringLinked = false;
-                if (proxyChildrenOf.TryGetValue(p, out var parentRing))
-                {
-                    foreach (var ring in parentRing)
-                    {
-                        if (rodPairs.Contains(UnorderedPair(ring, i)))
-                        {
-                            ringLinked = true;
-                            break;
-                        }
-                    }
-                }
-
+                var ringLinked = proxyChildrenOf.TryGetValue(p, out var parentRing)
+                    && parentRing.Exists(ring => rodPairs.Contains(UnorderedPair(ring, i)));
                 var ropeLinked = ropeParents.TryGetValue(i, out var ropeParent) && ropeParent == p && !EndsItsChain(p);
-
                 var twistLinked = TwistLinks.Contains(UnorderedPair(p, i));
 
                 if ((rodLinked || bothDrivenSim || proxyRibbon || hingedRoot || bendLinked
@@ -1337,11 +1284,9 @@ namespace ValveResourceFormat.IO
         /// and the lowest simulated node it occupies.
         /// </summary>
         private (BoneChain Chain, int FirstSimulated) ReadChainSpec(ChainSpec spec, List<int>?[] children, int[] realParent,
-            Dictionary<int, List<int>> proxyChildrenOf, HashSet<(int, int)> rodPairs,
-            Dictionary<(int, int), List<float>> rodRelaxationsByPair, Dictionary<(int, int), List<float>> rigidRodRelaxationsByPair,
-            Dictionary<(int, int), List<float>> repeatRodRelaxationsByPair, Dictionary<(int, int), List<float>> rodContractionsByPair,
-            IReadOnlyDictionary<int, int> ropeParents)
+            Dictionary<int, List<int>> proxyChildrenOf, RodGraph rodGraph, IReadOnlyDictionary<int, int> ropeParents)
         {
+            var (rodPairs, rodRelaxationsByPair, rigidRodRelaxationsByPair, repeatRodRelaxationsByPair, rodContractionsByPair) = rodGraph;
             var rootNode = spec.Root;
             var ringlessRoot = spec.RinglessRoot;
             var chain = new BoneChain { RootBone = Fe.CtrlNames[rootNode], DeclarationSuffix = spec.Suffix };
@@ -1352,6 +1297,13 @@ namespace ValveResourceFormat.IO
             var (jointRingOf, endEffectorRingOf) = ReadChainExtrusion(chain, spec, proxyChildrenOf);
 
             var jointByNode = chain.Joints.ToDictionary(static j => j.Node);
+            var kidsByParent = new Dictionary<int, List<BoneChainJoint>>();
+            foreach (var chainJoint in chain.Joints)
+            {
+                GetOrAdd(kidsByParent, chainJoint.ParentNode).Add(chainJoint);
+            }
+
+            List<BoneChainJoint> KidsOf(BoneChainJoint joint) => kidsByParent.GetValueOrDefault(joint.Node) ?? [];
 
             List<int> Side(int end)
             {
@@ -1403,21 +1355,19 @@ namespace ValveResourceFormat.IO
             float? NaturalRf(bool? crossingRoot)
             {
                 float? natural = null;
-                foreach (var kv in rodRelaxationsByPair)
+                foreach (var (pair, relaxations) in rodRelaxationsByPair)
                 {
-                    if (kv.Value.Count != 1
-                        || !chainNodes.Contains(kv.Key.Item1) || !chainNodes.Contains(kv.Key.Item2)
-                        || (crossingRoot is { } want && crossesRoot.Contains(kv.Key) != want))
+                    if (relaxations.Count != 1
+                        || !chainNodes.Contains(pair.Item1) || !chainNodes.Contains(pair.Item2)
+                        || (crossingRoot is { } want && crossesRoot.Contains(pair) != want))
                     {
                         continue;
                     }
 
-                    if (natural is { } already && MathF.Abs(already - kv.Value[0]) > ChainReadingTolerance)
+                    if (!AgreeInto(ref natural, relaxations[0]))
                     {
                         return null;
                     }
-
-                    natural = kv.Value[0];
                 }
 
                 return natural;
@@ -1438,6 +1388,7 @@ namespace ValveResourceFormat.IO
                     return null;
                 }
 
+                var otherSide = Side(other);
                 return Across(rodRelaxationsByPair) ?? Across(rigidRodRelaxationsByPair);
 
                 float? Across(Dictionary<(int, int), List<float>> byPair)
@@ -1445,7 +1396,7 @@ namespace ValveResourceFormat.IO
                     float? value = null;
                     foreach (var a in lhs)
                     {
-                        foreach (var b in Side(other))
+                        foreach (var b in otherSide)
                         {
                             if (!byPair.TryGetValue(UnorderedPair(a, b), out var relaxations) || !AgreeInto(ref value, relaxations))
                             {
@@ -1492,7 +1443,15 @@ namespace ValveResourceFormat.IO
             bool Declared((int, int) pair) => rodPairs.Contains(pair) && !SurfaceFoldOnlyPairs.Contains(pair);
 
             bool AllPairs(List<int> lhs, int other, Func<(int, int), bool> holds)
-                => other >= 0 && lhs.Count > 0 && lhs.All(a => Side(other).All(b => holds(UnorderedPair(a, b))));
+            {
+                if (other < 0 || lhs.Count == 0)
+                {
+                    return false;
+                }
+
+                var otherSide = Side(other);
+                return lhs.All(a => otherSide.All(b => holds(UnorderedPair(a, b))));
+            }
 
             bool SpannedByDeclaredRod(int node, int other)
                 => other >= 0 && (Declared(UnorderedPair(node, other)) || AllPairs(Side(node), other, Declared));
@@ -1515,9 +1474,7 @@ namespace ValveResourceFormat.IO
                 {
                     foreach (var b in Side(other))
                     {
-                        var count = repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b), out var repeat)
-                            ? repeat.Count
-                            : 0;
+                        var count = SpanRodCopies(a, b);
                         if (count == 0 || (copies != 0 && count != copies))
                         {
                             return 0;
@@ -1572,10 +1529,7 @@ namespace ValveResourceFormat.IO
                     {
                         foreach (var b in Side(other))
                         {
-                            var count = repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b),
-                                out var repeat)
-                                ? repeat.Count
-                                : 0;
+                            var count = SpanRodCopies(a, b);
                             if (count == 0 || (!floor && copies != 0 && count != copies))
                             {
                                 return false;
@@ -1596,7 +1550,7 @@ namespace ValveResourceFormat.IO
                     || (joint.BendSpring && !Repeats(grand))
                     || (joint.TorsionSpring && !Repeats(greatGrand)))
                 {
-                    if (copies != 0 || ChildSiblingValue(joint) == 0f)
+                    if (copies != 0 || joint.ChildSiblingSpring == 0f)
                     {
                         return 1;
                     }
@@ -1604,32 +1558,12 @@ namespace ValveResourceFormat.IO
                     return Math.Max(SiblingCopies(joint), 1);
                 }
 
-                if (copies == 0)
+                if (copies == 0 && KidsOf(joint) is [var onlyChild] && !Repeats(onlyChild.Node))
                 {
-                    var onlyChild = -1;
-                    foreach (var other in chain.Joints)
-                    {
-                        if (other.ParentNode != joint.Node)
-                        {
-                            continue;
-                        }
-
-                        if (onlyChild >= 0)
-                        {
-                            onlyChild = -1;
-                            break;
-                        }
-
-                        onlyChild = other.Node;
-                    }
-
-                    if (onlyChild >= 0 && !Repeats(onlyChild))
-                    {
-                        copies = 0;
-                    }
+                    copies = 0;
                 }
 
-                if (copies == 0 && ChildSiblingValue(joint) != 0f)
+                if (copies == 0 && joint.ChildSiblingSpring != 0f)
                 {
                     copies = SiblingCopies(joint);
                 }
@@ -1639,7 +1573,7 @@ namespace ValveResourceFormat.IO
 
             int SiblingCopies(BoneChainJoint joint)
             {
-                var kids = chain.Joints.FindAll(kid => kid.ParentNode == joint.Node);
+                var kids = KidsOf(joint);
                 var common = 0;
                 for (var i = 0; i < kids.Count; i++)
                 {
@@ -1649,13 +1583,13 @@ namespace ValveResourceFormat.IO
                         {
                             foreach (var b in Side(kids[i].Node))
                             {
-                                if (!repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b),
-                                    out var repeat))
+                                var count = SpanRodCopies(a, b);
+                                if (count == 0)
                                 {
                                     continue;
                                 }
 
-                                common = common == 0 ? repeat.Count : Math.Min(common, repeat.Count);
+                                common = common == 0 ? count : Math.Min(common, count);
                             }
                         }
                     }
@@ -1700,8 +1634,10 @@ namespace ValveResourceFormat.IO
                     || (joint.BendSpring && rootNode == grand)
                     || (joint.TorsionSpring && rootNode == greatGrand);
 
-            float? RootSuspenderValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand)
+            // upwardCopies is the joint's JointCopies when the root is an upward target, else 0.
+            float? RootSuspenderValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand, out int upwardCopies)
             {
+                upwardCopies = 0;
                 if (joint.Node == rootNode)
                 {
                     return null;
@@ -1710,7 +1646,7 @@ namespace ValveResourceFormat.IO
                 if (RootIsUpwardTarget(joint, parentNode, grand, greatGrand))
                 {
                     var naturalRf = chainNaturalRf ?? 1f;
-                    var totalCopies = JointCopies(joint);
+                    var totalCopies = upwardCopies = JointCopies(joint);
                     if (totalCopies <= 1 || totalCopies % 2 != 0)
                     {
                         return null;
@@ -1733,40 +1669,34 @@ namespace ValveResourceFormat.IO
                                     ?? (ringCopies == baseCopies && relaxations.TrueForAll(rf => MathF.Abs(rf - naturalRf) < ChainReadingTolerance)
                                         ? naturalRf
                                         : null)) is not { } value
-                                || (suspender is { } already && MathF.Abs(already - value) > ChainReadingTolerance))
+                                || !AgreeInto(ref suspender, value))
                             {
                                 return null;
                             }
-
-                            suspender = value;
                         }
                     }
 
                     return suspender;
                 }
 
+                float? rigidSuspender = null;
+                foreach (var a in Side(joint.Node))
                 {
-                    float? suspender = null;
-                    foreach (var a in Side(joint.Node))
+                    foreach (var b in Side(rootNode))
                     {
-                        foreach (var b in Side(rootNode))
+                        var pair = UnorderedPair(a, b);
+                        if (IsSourceSpring(pair.Item1, pair.Item2)
+                            || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations)
+                            || relaxations.Count < 1
+                            || relaxations.Exists(rf => MathF.Abs(rf - relaxations[0]) > ChainReadingTolerance)
+                            || !AgreeInto(ref rigidSuspender, relaxations[0]))
                         {
-                            var pair = UnorderedPair(a, b);
-                            if (IsSourceSpring(pair.Item1, pair.Item2)
-                                || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations)
-                                || relaxations.Count < 1
-                                || relaxations.Exists(rf => MathF.Abs(rf - relaxations[0]) > ChainReadingTolerance)
-                                || (suspender is { } already && MathF.Abs(already - relaxations[0]) > ChainReadingTolerance))
-                            {
-                                return null;
-                            }
-
-                            suspender = relaxations[0];
+                            return null;
                         }
                     }
-
-                    return suspender;
                 }
+
+                return rigidSuspender;
             }
 
             float? RootCompanionValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand, out float? spanRelaxation)
@@ -1960,6 +1890,14 @@ namespace ValveResourceFormat.IO
             List<int> Extrusion(int node)
                 => jointRingOf.TryGetValue(node, out var ring) ? [node, .. ring] : [node];
 
+            var ropeHinted = Fe.NodeBases.Count == 0 ? RopeRunParents : new Dictionary<int, int>();
+
+            // Read up front: JointCopies consults it, and nothing the loop below writes feeds it.
+            foreach (var joint in chain.Joints)
+            {
+                joint.ChildSiblingSpring = ChildSiblingValue(joint);
+            }
+
             foreach (var joint in chain.Joints)
             {
                 var parent = joint.ParentNode;
@@ -1987,9 +1925,6 @@ namespace ValveResourceFormat.IO
                     ? 0f
                     : stretch > 0f ? Slider(stretch) : 1f;
 
-                var ropeHinted = Fe.NodeBases.Count == 0
-                    ? RopeRunParents
-                    : (IReadOnlyDictionary<int, int>)new Dictionary<int, int>();
                 bool AuthoredSpring(int other) => other >= 0
                     && !ropeHinted.ContainsKey(joint.Node) && !ropeHinted.ContainsKey(other)
                     && IsSourceSpring(joint.Node, other);
@@ -2004,22 +1939,21 @@ namespace ValveResourceFormat.IO
                 if (AuthoredSpring(grandParent))
                 {
                     joint.BendSpring = false;
-                    joint.BendStiffness = 0f;
                 }
 
                 if (AuthoredSpring(greatGrandParent))
                 {
                     joint.TorsionSpring = false;
-                    joint.TorsionStiffness = 0f;
                 }
+
                 joint.BendStiffness = joint.BendSpring ? SpringStiffness(grandParent, parent) : 0f;
                 joint.TorsionStiffness = joint.TorsionSpring ? SpringStiffness(greatGrandParent, grandParent) : 0f;
                 joint.Antishrink = JointContraction(joint, parent, grandParent, greatGrandParent);
 
-                if (RootSuspenderValue(joint, parent, grandParent, greatGrandParent) is { } suspender)
+                if (RootSuspenderValue(joint, parent, grandParent, greatGrandParent, out var upwardCopies) is { } suspender)
                 {
                     joint.Suspender = suspender;
-                    joint.ExtraIterations = RootIsUpwardTarget(joint, parent, grandParent, greatGrandParent) ? JointCopies(joint) / 2 - 1 : JointCopies(joint) - 1;
+                    joint.ExtraIterations = upwardCopies > 0 ? upwardCopies / 2 - 1 : JointCopies(joint) - 1;
                 }
                 else if (RootCompanionValue(joint, parent, grandParent, greatGrandParent, out var spanReading) is { } companion)
                 {
@@ -2040,7 +1974,7 @@ namespace ValveResourceFormat.IO
                     var copies = JointCopies(joint, floor: true);
                     var own = OwnRingRodCopies(joint.Node);
                     if (own > 0 && own < copies && parent >= 0 && !joint.BendSpring && !joint.TorsionSpring
-                        && joint.StretchStiffness != 0f && EndEffectorRing(joint.Node).Count == 0 && ChildSiblingValue(joint) == 0f)
+                        && joint.StretchStiffness != 0f && EndEffectorRing(joint.Node).Count == 0 && joint.ChildSiblingSpring == 0f)
                     {
                         joint.ExtraIterations = own - 1;
                         joint.CrossLinkSurplus = [.. Side(joint.Node).SelectMany(a => Side(parent).Select(b => (a, b, copies - own)))];
@@ -2060,7 +1994,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var own = Extrusion(joint.Node);
-                var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
+                var kids = KidsOf(joint);
 
                 var animated = own.Exists(AnimRodNodes.Contains);
 
@@ -2078,7 +2012,7 @@ namespace ValveResourceFormat.IO
 
             float ChildSiblingValue(BoneChainJoint joint)
             {
-                var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
+                var kids = KidsOf(joint);
                 if (kids.Count < 2)
                 {
                     return 0f;
@@ -2136,11 +2070,6 @@ namespace ValveResourceFormat.IO
 
             foreach (var joint in chain.Joints)
             {
-                joint.ChildSiblingSpring = ChildSiblingValue(joint);
-            }
-
-            foreach (var joint in chain.Joints)
-            {
                 if (joint.IsRoot || joint.ProxyNode < 0 || joint.ExtrudeSides < 2 || !IsPositionDriven(joint.Node)
                     || !rodPairs.Contains(UnorderedPair(joint.Node, joint.ParentNode)))
                 {
@@ -2185,6 +2114,19 @@ namespace ValveResourceFormat.IO
                 ? ring
                 : proxyChildrenOf.GetValueOrDefault(node);
 
+        /// <summary>Gets the children of <paramref name="node"/> the declaration <paramref name="spec"/> keeps, in child order.</summary>
+        private static List<int> KeptChildren(ChainSpec spec, List<int>?[] children, int node)
+        {
+            if (children[node] is not { } all)
+            {
+                return [];
+            }
+
+            return spec.ChildrenOf is not null && spec.ChildrenOf.TryGetValue(node, out var kept)
+                ? all.FindAll(kept.Contains)
+                : [.. all];
+        }
+
         /// <summary>
         /// Adds the declaration's joints to <paramref name="chain"/> in pre-order, each node's children ordered by the lowest
         /// simulated node their subtree occupies.
@@ -2199,15 +2141,7 @@ namespace ValveResourceFormat.IO
 
             List<int> DeclaredChildren(int node)
             {
-                if (children[node] is not { } all)
-                {
-                    return [];
-                }
-
-                var kids = spec.ChildrenOf is not null && spec.ChildrenOf.TryGetValue(node, out var kept)
-                    ? all.FindAll(kept.Contains)
-                    : [.. all];
-
+                var kids = KeptChildren(spec, children, node);
                 kids.Sort((a, b) =>
                 {
                     var order = SubtreeFirstNode(a).CompareTo(SubtreeFirstNode(b));
@@ -2245,18 +2179,9 @@ namespace ValveResourceFormat.IO
                         }
                     }
 
-                    if (children[node] is not { } all)
+                    foreach (var kid in KeptChildren(spec, children, node))
                     {
-                        continue;
-                    }
-
-                    foreach (var kid in all)
-                    {
-                        if (spec.ChildrenOf is null || !spec.ChildrenOf.TryGetValue(node, out var kept)
-                            || kept.Contains(kid))
-                        {
-                            stack.Push(kid);
-                        }
+                        stack.Push(kid);
                     }
                 }
 
@@ -2444,14 +2369,27 @@ namespace ValveResourceFormat.IO
         {
             foreach (var reading in readings)
             {
-                if (value is { } already && MathF.Abs(already - reading) > ChainReadingTolerance)
+                if (!AgreeInto(ref value, reading))
                 {
                     return false;
                 }
-
-                value = reading;
             }
 
+            return true;
+        }
+
+        /// <summary>
+        /// Folds <paramref name="reading"/> into <paramref name="value"/>, returning false when it differs from it by more
+        /// than <see cref="ChainReadingTolerance"/>.
+        /// </summary>
+        private static bool AgreeInto(ref float? value, float reading)
+        {
+            if (value is { } already && MathF.Abs(already - reading) > ChainReadingTolerance)
+            {
+                return false;
+            }
+
+            value = reading;
             return true;
         }
 
@@ -2459,18 +2397,7 @@ namespace ValveResourceFormat.IO
             => lhs.Any(a => rhs.Any(b => rodPairs.Contains(UnorderedPair(a, b))));
 
         private bool DrivesProxySheetVertex(int node)
-        {
-            foreach (var offset in Fe.CtrlOffsets)
-            {
-                if (offset.CtrlParent == node && offset.CtrlChild >= 0 && offset.CtrlChild < Fe.CtrlNames.Length
-                    && ParseProxyMeshIndex(Fe.CtrlNames[offset.CtrlChild]) >= 0)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
+            => Array.Exists(Fe.CtrlOffsets, offset => offset.CtrlParent == node && IsProxyMeshNode(offset.CtrlChild));
 
         private static string SurfaceElementKey(IEnumerable<int> corners)
         {

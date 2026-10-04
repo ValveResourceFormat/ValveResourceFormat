@@ -1,6 +1,4 @@
 using System.Linq;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
 namespace ValveResourceFormat.IO
 {
@@ -19,27 +17,45 @@ namespace ValveResourceFormat.IO
     /// </summary>
     internal static class PlanarizedShapeFitter
     {
+        private const float PlanarizeGeometryGap = 1e-4f;
+        private const float PlanarizeNormalTolerance = 1e-3f;
+        private const float PlanarizeOffsetTolerance = 1e-2f;
+        private const float PlanarizeAxisTolerance = 2e-3f;
+        private const float PlanarizeSideAxisSpan = 1e-2f;
+        private const float PlanarizeFrameMinimumPart = 1e-2f;
+        private const float PlanarizeFrameAxisSlack = 1e-5f;
+        private const float PlanarizeCandidateGrid = 1e4f;
+        private const float PlanarizeCapAxisMinimum = 1e-4f;
+        private const float PlanarizeCapAxisLength = 0.01f;
+        private const int PlanarizeSphereRounds = 4;
+        private const int PlanarizeAxisPicks = 16;
+        private const int PlanarizeCandidateLimit = 4096;
+        private const int PlanarizeMinShapePlanes = 3;
+        private const int PlanarizeMaxShapes = 4;
+        private const int PlanarizeCapPicks = 4;
+        private const int PlanarizeSubsetRounds = 3;
+        private const int CapConsensusSeeds = 48;
+        private const int NonlinearMaxIterations = 60;
+        private const double NonlinearConvergedCost = 1e-8;
+
+        private static readonly float[] PlanarizeCapMargins = [0.25f, 1f, 4f];
+        private static readonly float[] PlanarizeRadiusMargins = [0.05f, 0.5f, 2f];
+
         /// <summary>
-        /// Gets the plane a planarized capsule imposes on a node: the capsule surface at that node, in the parent bone's
-        /// local space.
+        /// Gets the plane a planarized capsule imposes on a node at <paramref name="x"/>, in the parent bone's local
+        /// space.
         /// </summary>
         private static (Vector3 Normal, float Offset) PlanarizedSurfaceAt(Vector3 x, Vector3 c0, float r0, Vector3 c1,
             float r1)
         {
-            var axis = c1 - c0;
-            var length = axis.Length();
+            var (unit, length, dr) = CapsuleAxis(c0, r0, c1, r1);
             if (length < 1e-6f)
             {
                 var only = Vector3.Normalize(x - c0);
                 return (only, Vector3.Dot(only, c0) + r0);
             }
 
-            var unit = axis / length;
-            var dr = r1 - r0;
-            var d = x - c0;
-            var along = Vector3.Dot(d, unit);
-            var perp = d - (along * unit);
-            var rad = perp.Length();
+            var (along, perp, rad) = AxisCoordinates(x, c0, unit);
             var s = Math.Clamp((along * length) + (rad * dr), 0f, length * length) / (length * length);
 
             if (rad < 1e-6f)
@@ -60,6 +76,29 @@ namespace ValveResourceFormat.IO
             }
 
             return BandPlaneAt(c0, r0, unit, length, dr, perp / rad, s);
+        }
+
+        /// <summary>
+        /// Gets a capsule's unit axis, its length and how much the radius grows along it. The unit axis is meaningless
+        /// when the length is near zero, so callers test that first.
+        /// </summary>
+        private static (Vector3 Unit, float Length, float Dr) CapsuleAxis(Vector3 c0, float r0, Vector3 c1, float r1)
+        {
+            var axis = c1 - c0;
+            var length = axis.Length();
+            return (axis / length, length, r1 - r0);
+        }
+
+        /// <summary>
+        /// Gets a point's distance along a capsule axis from <paramref name="c0"/>, its offset perpendicular to the axis,
+        /// and that offset's length.
+        /// </summary>
+        private static (float Along, Vector3 Perp, float Rad) AxisCoordinates(Vector3 x, Vector3 c0, Vector3 unit)
+        {
+            var d = x - c0;
+            var along = Vector3.Dot(d, unit);
+            var perp = d - (along * unit);
+            return (along, perp, perp.Length());
         }
 
         /// <summary>
@@ -157,6 +196,7 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
+                // A face seen from one side only is mirrored about the origin.
                 var low = lower ?? (upper is { } mirroredLow ? -mirroredLow : inside.Low);
                 var high = upper ?? (lower is { } mirroredHigh ? -mirroredHigh : inside.High);
                 if (lower is null)
@@ -261,8 +301,7 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets candidate frames for a planarized box, built from the plane normals, as rotations from the box's axes
-        /// into the parent's.
+        /// Gets candidate box frames built from the plane normals, as rotations from the box's axes into the parent's.
         /// </summary>
         private static IEnumerable<Quaternion> PlanarizedBoxFrames(List<PlanarizeSample> samples)
         {
@@ -287,7 +326,7 @@ namespace ValveResourceFormat.IO
                 var mean = Vector3.Zero;
                 foreach (var normal in normals)
                 {
-                    var part = normal - (Vector3.Dot(normal, first) * first);
+                    var part = MathUtils.ProjectOntoPlane(normal, first);
                     if (part.Length() >= PlanarizeFrameMinimumPart)
                     {
                         part = Vector3.Normalize(part);
@@ -365,30 +404,6 @@ namespace ValveResourceFormat.IO
             return (fit.C0, fit.C0 + (away * (PlanarizeCapAxisLength / length)));
         }
 
-        private const float PlanarizeGeometryGap = 1e-4f;
-
-        private const float PlanarizeNormalTolerance = 1e-3f;
-
-        private const float PlanarizeOffsetTolerance = 1e-2f;
-
-        private const float PlanarizeAxisTolerance = 2e-3f;
-
-        private const int PlanarizeSphereRounds = 4;
-
-        private const int PlanarizeAxisPicks = 16;
-
-        private const int PlanarizeCandidateLimit = 4096;
-
-        private const float PlanarizeCandidateGrid = 1e4f;
-
-        private const float PlanarizeFrameMinimumPart = 1e-2f;
-
-        private const float PlanarizeFrameAxisSlack = 1e-5f;
-
-        private const int PlanarizeMinShapePlanes = 3;
-
-        private const int PlanarizeMaxShapes = 4;
-
         /// <summary>
         /// Splits a control parent's collision planes into the shapes that produced them, or null unless the shapes
         /// account for every plane.
@@ -400,6 +415,7 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
+            // Each wider candidate pool is only tried when the cheaper one cannot cover the planes.
             var primary = PlanarizeCandidates(samples);
             if (CoverGroup(samples, primary) is { } covered)
             {
@@ -440,9 +456,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                AddBandCapsules(candidates, samples, inliers, axis, TaperFromCosine(cosine));
-                AddBandCapsules(candidates, samples, inliers, -axis, TaperFromCosine(-cosine));
-                AddCapSpheres(candidates, samples, inliers);
+                AddAxisCandidates(candidates, samples, inliers, axis, TaperFromCosine(cosine), TaperFromCosine(-cosine));
             }
 
             return candidates.Fits;
@@ -455,6 +469,8 @@ namespace ValveResourceFormat.IO
             var all = Enumerable.Range(0, samples.Count).ToList();
             var seen = new HashSet<List<int>>(IndexListComparer.Instance);
 
+            // Both directions share this negative zero taper.
+            var taper = TaperFromCosine(0f);
             for (var i = 0; i < samples.Count; i++)
             {
                 for (var j = i + 1; j < samples.Count; j++)
@@ -472,18 +488,29 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    var taper = TaperFromCosine(0f);
-                    AddBandCapsules(candidates, samples, inliers, axis, taper);
-                    AddBandCapsules(candidates, samples, inliers, -axis, taper);
-                    AddCapSpheres(candidates, samples, inliers);
+                    AddAxisCandidates(candidates, samples, inliers, axis, taper, taper);
                 }
             }
 
             return candidates.Fits;
         }
 
-        private const float PlanarizeSideAxisSpan = 1e-2f;
+        /// <summary>
+        /// Adds band capsules along <paramref name="axis"/> in both directions, each with its own taper, then the cap
+        /// sphere of the inliers.
+        /// </summary>
+        private static void AddAxisCandidates(CandidateSet candidates, List<PlanarizeSample> samples, List<int> inliers,
+            Vector3 axis, float taper, float reverseTaper)
+        {
+            AddBandCapsules(candidates, samples, inliers, axis, taper);
+            AddBandCapsules(candidates, samples, inliers, -axis, reverseTaper);
+            AddCapSpheres(candidates, samples, inliers);
+        }
 
+        /// <summary>
+        /// Greedily picks the fits that reproduce the most uncovered planes, or null when they cannot cover every plane
+        /// within <see cref="PlanarizeMaxShapes"/> shapes.
+        /// </summary>
         private static List<(CapsuleFit Fit, List<int> Members)>? CoverGroup(List<PlanarizeSample> samples,
             List<CapsuleFit> fits)
         {
@@ -547,6 +574,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
+                // A node closer to the surface than its radius gets a plane through itself.
                 if (Vector3.Dot(normal, sample.Local) - offset < sample.Radius)
                 {
                     offset = Vector3.Dot(normal, sample.Local);
@@ -563,9 +591,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Every shape the group's planes could come from: each end-cap sphere on its own, each pair of
-        /// them as a capsule, each sphere extended along the axis its remaining planes imply, and, when no
-        /// cap is witnessed at all, a capsule built from the cone band alone.
+        /// Gets every shape the planes could come from: each end-cap sphere alone, each pair of them as a capsule, each
+        /// sphere extended along the axis its remaining planes imply, and capsules built from the cone band alone.
         /// </summary>
         private static List<CapsuleFit> PlanarizeCandidates(List<PlanarizeSample> samples)
         {
@@ -579,12 +606,14 @@ namespace ValveResourceFormat.IO
                 candidates.Add(new CapsuleFit(centre, radius, centre, radius));
             }
 
-            foreach (var (first, second) in spheres.SelectMany(a => spheres.Select(b => (a, b))))
+            foreach (var first in spheres)
             {
-                if (first != second)
+                foreach (var second in spheres)
                 {
-                    candidates.Add(new CapsuleFit(first.Centre, first.Radius, second.Centre,
-                        second.Radius));
+                    if (first != second)
+                    {
+                        candidates.Add(new CapsuleFit(first.Centre, first.Radius, second.Centre, second.Radius));
+                    }
                 }
             }
 
@@ -600,6 +629,7 @@ namespace ValveResourceFormat.IO
                     AddAnchoredCandidates(candidates, samples, centre, radius, axis, TaperFromCosine(cosine));
                 }
 
+                // Too few band planes for an axis consensus, so fit the other cap directly.
                 if (axisFits.Count == 0 && band.Count is > 0 and < 3
                     && NonlinearAnchoredFit(samples, band, centre, radius) is { } nonlinearFit)
                 {
@@ -617,18 +647,6 @@ namespace ValveResourceFormat.IO
 
         private static float TaperFromCosine(float cosine)
             => -cosine / MathF.Sqrt(1f - (cosine * cosine));
-
-        private static readonly float[] PlanarizeCapMargins = [0.25f, 1f, 4f];
-
-        private static readonly float[] PlanarizeRadiusMargins = [0.05f, 0.5f, 2f];
-
-        private const float PlanarizeCapAxisMinimum = 1e-4f;
-
-        private const float PlanarizeCapAxisLength = 0.01f;
-
-        private const int PlanarizeCapPicks = 4;
-
-        private const int PlanarizeSubsetRounds = 3;
 
         /// <summary>
         /// Gets the shapes the planes could come from when read through their normals, searching the whole group and then
@@ -694,9 +712,9 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// The unit eigenvector of the smallest eigenvalue of a symmetric 3x3 matrix, in closed form:
-        /// the eigenvalue from the trigonometric solution of its characteristic cubic, the vector from
-        /// the longest cross product of two rows of the shifted matrix.
+        /// Gets the unit eigenvector of the smallest eigenvalue of a symmetric 3x3 matrix in closed form: the eigenvalue
+        /// from the trigonometric solution of the characteristic cubic, the vector from the longest cross product of two
+        /// rows of the shifted matrix.
         /// </summary>
         private static bool SmallestEigenvector(double xx, double xy, double xz, double yy, double yz, double zz,
             out Vector3 vector)
@@ -763,8 +781,7 @@ namespace ValveResourceFormat.IO
 
         private static bool RadialDirection(Vector3 normal, Vector3 unit, float taper, out Vector3 radial)
         {
-            radial = (normal * MathF.Sqrt(1f + (taper * taper))) + (taper * unit);
-            radial -= Vector3.Dot(radial, unit) * unit;
+            radial = MathUtils.ProjectOntoPlane((normal * MathF.Sqrt(1f + (taper * taper))) + (taper * unit), unit);
             var length = radial.Length();
             if (length < 1e-6f)
             {
@@ -788,7 +805,6 @@ namespace ValveResourceFormat.IO
             }
 
             double m00 = 0, m01 = 0, m11 = 0, b0 = 0, b1 = 0;
-            var rows = 0;
             foreach (var i in subset)
             {
                 if (!RadialDirection(samples[i].Normal, unit, taper, out var radial))
@@ -805,11 +821,10 @@ namespace ValveResourceFormat.IO
                 m11 += v * v;
                 b0 += u * rhs;
                 b1 += v * rhs;
-                rows++;
             }
 
             var determinant = (m00 * m11) - (m01 * m01);
-            if (rows < 2 || Math.Abs(determinant) < 1e-12)
+            if (subset.Count < 2 || Math.Abs(determinant) < 1e-12)
             {
                 return false;
             }
@@ -837,12 +852,9 @@ namespace ValveResourceFormat.IO
                 return;
             }
 
-            var radii = new float[samples.Count];
             var lowest = float.MaxValue;
             var highest = float.MinValue;
-            var gapped = 0;
-            var radiusSum = 0f;
-            var floor = float.MinValue;
+            var estimate = new RadiusEstimate();
 
             foreach (var i in subset)
             {
@@ -859,40 +871,17 @@ namespace ValveResourceFormat.IO
                     return;
                 }
 
-                radii[i] = radius;
-                var reach = (radius * scale) - (taper * along);
-                if (samples[i].Gap > PlanarizeGeometryGap)
-                {
-                    gapped++;
-                    radiusSum += reach - samples[i].Gap;
-                }
-                else
-                {
-                    floor = MathF.Max(floor, reach - samples[i].Radius);
-                }
+                estimate.Add(samples[i], (radius * scale) - (taper * along));
 
                 var position = along + (radius * taper);
                 lowest = MathF.Min(lowest, position);
                 highest = MathF.Max(highest, position);
             }
 
-            var betas = new List<float>();
-            if (gapped > 0)
-            {
-                betas.Add(radiusSum / gapped);
-            }
-
-            if (floor > float.MinValue)
-            {
-                foreach (var margin in PlanarizeRadiusMargins)
-                {
-                    betas.Add(floor + margin);
-                }
-            }
-
+            var betas = estimate.Radii();
             var inside = subset.ToHashSet();
-            var starts = new List<float>(PlanarizeCapMargins.Select(m => lowest - m));
-            var ends = new List<float>(PlanarizeCapMargins.Select(m => highest + m));
+            List<float> starts = [.. PlanarizeCapMargins.Select(m => lowest - m)];
+            List<float> ends = [.. PlanarizeCapMargins.Select(m => highest + m)];
             var extraStarts = new List<float>();
             var extraEnds = new List<float>();
 
@@ -942,6 +931,10 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <summary>
+        /// Gets where the line from the node back along its plane normal comes closest to the axis, the centre of an end
+        /// cap that would produce that plane.
+        /// </summary>
         private static bool CapPositionOnAxis(PlanarizeSample sample, Vector3 line, Vector3 unit,
             out float position)
         {
@@ -967,7 +960,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Adds the sphere at the point closest to every ray the normals of <paramref name="subset"/> run back along.
+        /// Adds the sphere centred at the point closest to every ray the normals of <paramref name="subset"/> run back
+        /// along.
         /// </summary>
         private static void AddCapSpheres(CandidateSet candidates, List<PlanarizeSample> samples, List<int> subset)
         {
@@ -1014,9 +1008,7 @@ namespace ValveResourceFormat.IO
                 return;
             }
 
-            var gapped = 0;
-            var radiusSum = 0f;
-            var floor = float.MinValue;
+            var estimate = new RadiusEstimate();
             foreach (var i in subset)
             {
                 var distance = (samples[i].Local - centre).Length();
@@ -1025,28 +1017,12 @@ namespace ValveResourceFormat.IO
                     return;
                 }
 
-                if (samples[i].Gap > PlanarizeGeometryGap)
-                {
-                    gapped++;
-                    radiusSum += distance - samples[i].Gap;
-                }
-                else
-                {
-                    floor = MathF.Max(floor, distance - samples[i].Radius);
-                }
+                estimate.Add(samples[i], distance);
             }
 
-            if (gapped > 0)
+            foreach (var radius in estimate.Radii())
             {
-                candidates.Add(new CapsuleFit(centre, radiusSum / gapped, centre, radiusSum / gapped));
-            }
-
-            if (floor > float.MinValue)
-            {
-                foreach (var margin in PlanarizeRadiusMargins)
-                {
-                    candidates.Add(new CapsuleFit(centre, floor + margin, centre, floor + margin));
-                }
+                candidates.Add(new CapsuleFit(centre, radius, centre, radius));
             }
         }
 
@@ -1071,7 +1047,7 @@ namespace ValveResourceFormat.IO
                     break;
                 }
 
-                if (FitCapSphere(Pick(tangents, consensus), out var centre, out var radius))
+                if (FitCapSphere([.. consensus.Order().Select(i => tangents[i])], out var centre, out var radius))
                 {
                     spheres.Add((centre, radius));
                 }
@@ -1086,28 +1062,18 @@ namespace ValveResourceFormat.IO
             return spheres;
         }
 
-        private const int NonlinearMaxIterations = 60;
-
-        private const double NonlinearConvergedCost = 1e-8;
-
         private static bool BandSurfaceAt(Vector3 x, Vector3 c0, float r0, Vector3 c1, float r1, out Vector3 normal,
             out float offset)
         {
             normal = default;
             offset = 0f;
-            var axis = c1 - c0;
-            var length = axis.Length();
+            var (unit, length, dr) = CapsuleAxis(c0, r0, c1, r1);
             if (length < 1e-6f)
             {
                 return false;
             }
 
-            var unit = axis / length;
-            var dr = r1 - r0;
-            var d = x - c0;
-            var along = Vector3.Dot(d, unit);
-            var perp = d - (along * unit);
-            var rad = perp.Length();
+            var (along, perp, rad) = AxisCoordinates(x, c0, unit);
             if (rad < 1e-6f)
             {
                 return false;
@@ -1125,11 +1091,6 @@ namespace ValveResourceFormat.IO
         private static CapsuleFit? NonlinearAnchoredFit(List<PlanarizeSample> samples, List<int> unexplained,
             Vector3 capCentre, float capRadius)
         {
-            if (unexplained.Count == 0)
-            {
-                return null;
-            }
-
             var normal0 = samples[unexplained[0]].Normal;
             var perpendicular = Vector3.Cross(normal0, Vector3.UnitZ);
             if (perpendicular.LengthSquared() < 1e-6f)
@@ -1137,10 +1098,10 @@ namespace ValveResourceFormat.IO
                 perpendicular = Vector3.Cross(normal0, Vector3.UnitX);
             }
 
-            perpendicular = perpendicular.LengthSquared() > 1e-6f ? Vector3.Normalize(perpendicular) : normal0;
+            perpendicular = MathUtils.SafeNormalize(perpendicular, normal0, 1e-6f);
 
-            var seedDirections = new List<Vector3> { perpendicular, -perpendicular, normal0, -normal0 };
-            var seedLengths = new List<float> { 2f, 5f, 10f, 20f, 40f, 80f };
+            Vector3[] seedDirections = [perpendicular, -perpendicular, normal0, -normal0];
+            float[] seedLengths = [2f, 5f, 10f, 20f, 40f, 80f];
 
             CapsuleFit? best = null;
             var bestCost = double.PositiveInfinity;
@@ -1161,22 +1122,19 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            return bestCost <= NonlinearConvergedCost ? best : null;
+
             bool EveryUnexplainedIsOnTheBand(Vector3 c0, float r0)
             {
-                var axis = capCentre - c0;
-                var length = axis.Length();
+                var (unit, length, dr) = CapsuleAxis(c0, r0, capCentre, capRadius);
                 if (length < 1e-6f)
                 {
                     return false;
                 }
 
-                var unit = axis / length;
-                var dr = capRadius - r0;
                 foreach (var index in unexplained)
                 {
-                    var d = samples[index].Local - c0;
-                    var along = Vector3.Dot(d, unit);
-                    var rad = (d - (along * unit)).Length();
+                    var (along, _, rad) = AxisCoordinates(samples[index].Local, c0, unit);
                     var s = ((along * length) + (rad * dr)) / (length * length);
                     if (s is < -0.02f or > 1.02f)
                     {
@@ -1186,8 +1144,6 @@ namespace ValveResourceFormat.IO
 
                 return true;
             }
-
-            return bestCost <= NonlinearConvergedCost ? best : null;
 
             (Vector3 C0, float R0, double Cost)? RunFrom(Vector3 c0, float r0)
             {
@@ -1310,21 +1266,15 @@ namespace ValveResourceFormat.IO
             }
 
             var lengths = new List<float>();
-            foreach (var multiple in (float[])[1f, 1.02f, 1.1f, 1.3f, 2f])
+            if (shortest > 0f)
             {
-                if (shortest > 0f)
+                foreach (var multiple in (float[])[1f, 1.02f, 1.1f, 1.3f, 2f])
                 {
                     lengths.Add((shortest * multiple) + 1e-2f);
                 }
             }
 
-            AddLengthCandidates(lengths, samples, centre, radius, axis, taper);
-
-            foreach (var length in lengths)
-            {
-                candidates.Add(new CapsuleFit(centre, radius, centre + (length * axis),
-                    radius + (taper * length)));
-            }
+            AddLengthCapsules(candidates, lengths, samples, centre, radius, axis, taper);
         }
 
         /// <summary>
@@ -1364,18 +1314,16 @@ namespace ValveResourceFormat.IO
                     lengths.Add(highest + after - start);
                 }
 
-                AddLengthCandidates(lengths, samples, c0, r0, axis, taper);
-
-                foreach (var length in lengths)
-                {
-                    candidates.Add(new CapsuleFit(c0, r0, c0 + (length * axis),
-                        r0 + (taper * length)));
-                }
+                AddLengthCapsules(candidates, lengths, samples, c0, r0, axis, taper);
             }
         }
 
-        private static void AddLengthCandidates(List<float> lengths, List<PlanarizeSample> samples, Vector3 centre,
-            float radius, Vector3 axis, float taper)
+        /// <summary>
+        /// Adds a capsule from the cap at <paramref name="centre"/> along <paramref name="axis"/> for each of
+        /// <paramref name="lengths"/>, extended with each length that puts a sample's plane on the far cap.
+        /// </summary>
+        private static void AddLengthCapsules(CandidateSet candidates, List<float> lengths, List<PlanarizeSample> samples,
+            Vector3 centre, float radius, Vector3 axis, float taper)
         {
             var origin = Vector3.Dot(centre, axis);
             foreach (var sample in samples)
@@ -1393,6 +1341,11 @@ namespace ValveResourceFormat.IO
                 {
                     lengths.Add(length);
                 }
+            }
+
+            foreach (var length in lengths)
+            {
+                candidates.Add(new CapsuleFit(centre, radius, centre + (length * axis), radius + (taper * length)));
             }
         }
 
@@ -1514,6 +1467,10 @@ namespace ValveResourceFormat.IO
             return (mean, xx, xy, xz, yy, yz, zz);
         }
 
+        /// <summary>
+        /// Gets every triple of up to <see cref="PlanarizeAxisPicks"/> evenly spread members of
+        /// <paramref name="subset"/>, then every run of three consecutive members.
+        /// </summary>
         private static IEnumerable<(int A, int B, int C)> AxisSeedTriples(List<int> subset)
         {
             var picks = new List<int>();
@@ -1566,6 +1523,10 @@ namespace ValveResourceFormat.IO
             return inliers;
         }
 
+        /// <summary>
+        /// Refits the axis as the smallest-variance direction of the inliers' normals by power iteration on the shifted
+        /// covariance.
+        /// </summary>
         private static bool RefitAxis(List<PlanarizeSample> samples, List<int> inliers, out Vector3 axis,
             out float cosine)
         {
@@ -1658,11 +1619,9 @@ namespace ValveResourceFormat.IO
             return IsFinite(centre) && float.IsFinite(beta);
         }
 
-        /// <summary>Gets two unit axes perpendicular to <paramref name="axis"/> and to each other.</summary>
         private static bool PerpendicularBasis(Vector3 axis, out Vector3 first, out Vector3 second)
         {
-            first = MathF.Abs(axis.X) < 0.9f ? Vector3.UnitX : Vector3.UnitY;
-            first -= Vector3.Dot(first, axis) * axis;
+            first = MathUtils.ProjectOntoPlane(MathF.Abs(axis.X) < 0.9f ? Vector3.UnitX : Vector3.UnitY, axis);
             second = default;
             if (first.Length() < 1e-6f)
             {
@@ -1674,6 +1633,7 @@ namespace ValveResourceFormat.IO
             return true;
         }
 
+        /// <summary>Solves a 4x4 system given as an augmented 4x5 matrix by Gaussian elimination.</summary>
         private static bool SolveInPlace(double[,] matrix, out double[] solution)
         {
             solution = new double[4];
@@ -1728,57 +1688,6 @@ namespace ValveResourceFormat.IO
         private static bool IsFinite(Vector3 value)
             => float.IsFinite(value.X) && float.IsFinite(value.Y) && float.IsFinite(value.Z);
 
-        /// <summary>Compares index lists by their elements in order.</summary>
-        private sealed class IndexListComparer : IEqualityComparer<List<int>>
-        {
-            public static IndexListComparer Instance { get; } = new();
-
-            public bool Equals(List<int>? x, List<int>? y)
-                => ReferenceEquals(x, y) || (x is not null && y is not null && x.SequenceEqual(y));
-
-            public int GetHashCode(List<int> obj)
-            {
-                var hash = new HashCode();
-                foreach (var index in obj)
-                {
-                    hash.Add(index);
-                }
-
-                return hash.ToHashCode();
-            }
-        }
-
-        private sealed class CandidateSet
-        {
-            private readonly HashSet<(int, int, int, int, int, int, int, int)> seen = [];
-
-            public List<CapsuleFit> Fits { get; } = [];
-
-            public void Add(CapsuleFit fit)
-            {
-                if (Fits.Count >= PlanarizeCandidateLimit || fit.R0 <= 0f || fit.R1 <= 0f
-                    || !float.IsFinite(fit.R0) || !float.IsFinite(fit.R1)
-                    || !IsFinite(fit.C0) || !IsFinite(fit.C1))
-                {
-                    return;
-                }
-
-                static int Cell(float value) => (int)MathF.Round(value * PlanarizeCandidateGrid);
-
-                if (seen.Add((Cell(fit.C0.X), Cell(fit.C0.Y), Cell(fit.C0.Z), Cell(fit.R0),
-                    Cell(fit.C1.X), Cell(fit.C1.Y), Cell(fit.C1.Z), Cell(fit.R1))))
-                {
-                    Fits.Add(fit);
-                }
-            }
-        }
-
-        private static List<(Vector3 Tangent, Vector3 Normal)> Pick(List<(Vector3 Tangent, Vector3 Normal)> samples,
-            HashSet<int> which)
-            => [.. which.Order().Select(i => samples[i])];
-
-        private const int CapConsensusSeeds = 48;
-
         private static HashSet<int>? FindCapConsensus(List<(Vector3 Tangent, Vector3 Normal)> samples,
             HashSet<int> exclude)
         {
@@ -1830,6 +1739,95 @@ namespace ValveResourceFormat.IO
             }
 
             return best;
+        }
+
+        private sealed class IndexListComparer : IEqualityComparer<List<int>>
+        {
+            public static IndexListComparer Instance { get; } = new();
+
+            public bool Equals(List<int>? x, List<int>? y)
+                => ReferenceEquals(x, y) || (x is not null && y is not null && x.SequenceEqual(y));
+
+            public int GetHashCode(List<int> obj)
+            {
+                var hash = new HashCode();
+                foreach (var index in obj)
+                {
+                    hash.Add(index);
+                }
+
+                return hash.ToHashCode();
+            }
+        }
+
+        /// <summary>
+        /// Estimates a shape's radius from how far each plane's node reaches: planes with a gap pin the radius, touching
+        /// ones only bound it from below.
+        /// </summary>
+        private struct RadiusEstimate()
+        {
+            private int gapped;
+            private float radiusSum;
+            private float floor = float.MinValue;
+
+            public void Add(PlanarizeSample sample, float reach)
+            {
+                if (sample.Gap > PlanarizeGeometryGap)
+                {
+                    gapped++;
+                    radiusSum += reach - sample.Gap;
+                }
+                else
+                {
+                    floor = MathF.Max(floor, reach - sample.Radius);
+                }
+            }
+
+            /// <summary>Gets the pinned radius, then the lower bound at each of <see cref="PlanarizeRadiusMargins"/>.</summary>
+            public readonly List<float> Radii()
+            {
+                var radii = new List<float>();
+                if (gapped > 0)
+                {
+                    radii.Add(radiusSum / gapped);
+                }
+
+                if (floor > float.MinValue)
+                {
+                    foreach (var margin in PlanarizeRadiusMargins)
+                    {
+                        radii.Add(floor + margin);
+                    }
+                }
+
+                return radii;
+            }
+        }
+
+        /// <summary>Collects candidate fits, dropping invalid ones and near-duplicates on a fixed grid.</summary>
+        private sealed class CandidateSet
+        {
+            private readonly HashSet<(int, int, int, int, int, int, int, int)> seen = [];
+
+            public List<CapsuleFit> Fits { get; } = [];
+
+            public void Add(CapsuleFit fit)
+            {
+                if (Fits.Count >= PlanarizeCandidateLimit || fit.R0 <= 0f || fit.R1 <= 0f
+                    || !float.IsFinite(fit.R0) || !float.IsFinite(fit.R1)
+                    || !IsFinite(fit.C0) || !IsFinite(fit.C1))
+                {
+                    return;
+                }
+
+                static int Cell(float value) => (int)MathF.Round(value * PlanarizeCandidateGrid);
+
+                if (seen.Add((Cell(fit.C0.X), Cell(fit.C0.Y), Cell(fit.C0.Z), Cell(fit.R0),
+                    Cell(fit.C1.X), Cell(fit.C1.Y), Cell(fit.C1.Z), Cell(fit.R1))))
+                {
+                    Fits.Add(fit);
+                }
+            }
         }
     }
 }

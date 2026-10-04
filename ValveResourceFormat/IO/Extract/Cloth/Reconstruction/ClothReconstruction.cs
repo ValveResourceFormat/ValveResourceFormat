@@ -48,17 +48,37 @@ namespace ValveResourceFormat.IO
     /// </summary>
     internal sealed partial class ClothReconstruction
     {
-        /// <summary>Initializes a reconstruction of <paramref name="fe"/>, resolved against <paramref name="context"/> when given.</summary>
+        /// <summary>The maximum length given to a rod that is not length-limited at all.</summary>
+        internal const float UnboundedRodDistance = 16384f;
+
+        /// <summary>The prefix of a control node created for an authored free-standing <c>ClothNode</c>.</summary>
+        internal const string FreeClothNodePrefix = "$cloth_node_";
+
+        private List<BoneChain>? declaredChains;
+        private Dictionary<BoneChain, int>? declaredChainVersions;
+        private ClothCollisionShapes? collisionShapes;
+        private HashSet<(int, int)>? animRodPairs;
+        private HashSet<int>? animRodNodes;
+        private HashSet<(int, int)>? sourceSpringSet;
+        private HashSet<int>? quadNodes;
+        private Dictionary<int, List<KelagerBend>>? kelagerBendsByMidNode;
+        private HashSet<int>? proxyFitMatrixNodes;
+        private (Dictionary<int, SkinInfluence[]>, Dictionary<int, SkinInfluence[]>, HashSet<int>)? skinWeights;
+        private Dictionary<int, int>? offsetParentByNode;
+        private bool[]? rawGoalPaintNodes;
+        private Dictionary<int, int>? ropeRunParents;
+        private List<int[]>? ropeRuns;
+
         internal ClothReconstruction(FeModel fe, ClothSkeletonContext? context = null)
         {
             Fe = fe;
             Context = context;
             HasCompiledSkelParents = fe.SkelParents.Length > 0;
-            SkelParents = HasCompiledSkelParents ? fe.SkelParents : BuildRopeParents(fe.Data, RopeRuns);
+            SkelParents = HasCompiledSkelParents ? fe.SkelParents : BuildRopeParents(fe, RopeRuns);
             HasCompiledFirstPositionDrivenNode = fe.Data.ContainsKey("m_nFirstPositionDrivenNode");
             FirstPositionDrivenNode = HasCompiledFirstPositionDrivenNode
                 ? fe.FirstPositionDrivenNode
-                : DeriveFirstPositionDrivenNode(fe.Data, fe.CtrlNames, fe.NodeCount, fe.StaticNodeCount);
+                : DeriveFirstPositionDrivenNode(fe);
 
             VertexMaps = fe.VertexMaps;
             ZeroVertexSelectionNames = [.. fe.VertexMaps
@@ -79,8 +99,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets whether the node counts, <c>m_SkelParents</c> and <c>m_CtrlOffsets</c> of <paramref name="fe"/> all lie within
-        /// its <see cref="FeModel.NodeCount"/> nodes.
+        /// Gets whether the node counts, <c>m_SkelParents</c> and <c>m_CtrlOffsets</c> of <paramref name="fe"/> all stay
+        /// within its node count.
         /// </summary>
         internal static bool HasConsistentLayout(FeModel fe)
         {
@@ -125,13 +145,10 @@ namespace ValveResourceFormat.IO
             return cloth;
         }
 
-        /// <summary>Gets the compiled cloth this reconstruction reads.</summary>
         internal FeModel Fe { get; }
 
-        /// <summary>Gets the skeleton this reconstruction is resolved against, or null when it has none.</summary>
         internal ClothSkeletonContext? Context { get; private set; }
 
-        /// <summary>Gets the bone transforms that put the skeleton back on the cloth rest pose.</summary>
         internal ClothRestPose RestPose { get; } = new(new(StringComparer.OrdinalIgnoreCase), new(StringComparer.OrdinalIgnoreCase),
             new(StringComparer.OrdinalIgnoreCase));
 
@@ -145,17 +162,17 @@ namespace ValveResourceFormat.IO
         internal bool HasCompiledSkelParents { get; }
 
         /// <summary>
-        /// Gets the index of the first position-driven node, or <see cref="FeModel.NodeCount"/> when there is none. Derived from the
-        /// compiled arrays when the compile omits <c>m_nFirstPositionDrivenNode</c>.
+        /// Gets the index of the first position-driven node, or <see cref="FeModel.NodeCount"/> when there is none. Derived
+        /// from the compiled arrays when the compile omits <c>m_nFirstPositionDrivenNode</c>.
         /// </summary>
         internal int FirstPositionDrivenNode { get; }
 
-        /// <summary>Gets whether the compile wrote <c>m_nFirstPositionDrivenNode</c> itself.</summary>
+        /// <summary>Gets whether the compile carries <c>m_nFirstPositionDrivenNode</c>.</summary>
         internal bool HasCompiledFirstPositionDrivenNode { get; }
 
         /// <summary>
-        /// Gets the named vertex selections the cloth carries: <c>m_VertexMaps</c>, or where it has none the selections
-        /// rebuilt from the vertex sets.
+        /// Gets the named vertex selections: <c>m_VertexMaps</c>, or where the cloth has none the selections rebuilt from
+        /// the vertex sets.
         /// </summary>
         internal IReadOnlyList<VertexMap> VertexMaps { get; private set; }
 
@@ -165,7 +182,6 @@ namespace ValveResourceFormat.IO
         /// <summary>Gets the culled control-node bones, whose names <see cref="SkeletonBoneNames"/> includes.</summary>
         internal IReadOnlySet<int>? CulledBoneCtrlNodes => Context?.CulledNodes;
 
-        /// <summary>Gets each skeleton bone's parent bone name.</summary>
         internal IReadOnlyDictionary<string, string?>? SkeletonBoneParents => Context?.BoneParents;
 
         /// <summary>Gets the bind position a chain joint's ring is measured from, for bones a scaled proxy skeleton moved.</summary>
@@ -173,7 +189,7 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Builds the bone chains with the <c>ClothChain</c> version each was authored at. The versions read while building
-        /// see the sibling hubs of <see cref="BuildBoneChains()"/> when it ran first, and none otherwise.
+        /// see the sibling hubs of <see cref="BuildBoneChains()"/> only when it ran first.
         /// </summary>
         internal List<BoneChain> BuildDeclaredBoneChains()
         {
@@ -185,10 +201,6 @@ namespace ValveResourceFormat.IO
 
             return declaredChains;
         }
-
-        private List<BoneChain>? declaredChains;
-
-        private Dictionary<BoneChain, int>? declaredChainVersions;
 
         /// <summary>Gets the <c>ClothChain</c> version <paramref name="chain"/> was authored at.</summary>
         internal int ChainVersionOf(BoneChain chain)
@@ -207,10 +219,7 @@ namespace ValveResourceFormat.IO
             return version;
         }
 
-        /// <summary>Gets every collision shape recovered from the cloth.</summary>
         internal ClothCollisionShapes CollisionShapes => collisionShapes ??= BuildCollisionShapes();
-
-        private ClothCollisionShapes? collisionShapes;
 
         private ClothCollisionShapes BuildCollisionShapes()
         {
@@ -225,8 +234,7 @@ namespace ValveResourceFormat.IO
                 .Concat(spheres.Select(static s => s.ParentBone))
                 .Concat(boxes.Select(static b => b.ParentBone))
                 .OfType<string>()];
-            return new ClothCollisionShapes([.. capsules], [.. spheres], [.. boxes], [.. planarizedCapsules], [.. planarizedBoxes],
-                parentBones);
+            return new ClothCollisionShapes(capsules, spheres, boxes, planarizedCapsules, planarizedBoxes, parentBones);
         }
 
         /// <summary>
@@ -234,18 +242,10 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private static List<CulledBone> GetCulledBoneCtrls(FeModel fe, HashSet<string> skeletonBoneNames)
         {
+            HashSet<int> generatedChildren = [.. fe.CtrlOffsets.Select(static offset => offset.CtrlChild),
+                .. fe.CtrlOsOffsets.Select(static offset => offset.CtrlChild)];
+
             var result = new List<CulledBone>();
-            var generatedChildren = new HashSet<int>();
-            foreach (var offset in fe.CtrlOffsets)
-            {
-                generatedChildren.Add(offset.CtrlChild);
-            }
-
-            foreach (var pair in fe.CtrlOsOffsets)
-            {
-                generatedChildren.Add(pair.CtrlChild);
-            }
-
             for (var node = 0; node < fe.CtrlNames.Length; node++)
             {
                 var name = fe.CtrlNames[node];
@@ -263,21 +263,14 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Rebuilds <see cref="SkelParents"/> from the bone hierarchy when the compile carries none: each node takes its
-        /// nearest ancestor bone that is a control node. A walk stops after as many steps as there are bones.
+        /// nearest ancestor bone that is a control node.
         /// </summary>
         private void SetSkeletonParents(IReadOnlyDictionary<string, string?> boneParents)
         {
-            if (SkelParents.Length > 0 || Fe.CtrlNames.Length == 0 || Fe.NodeCount <= 0)
+            if (SkelParents.Length > 0 || Fe.CtrlNames.Length == 0 || Fe.NodeCount <= 0
+                || Array.Exists(Fe.CtrlNames, IsProxyNodeName))
             {
                 return;
-            }
-
-            foreach (var name in Fe.CtrlNames)
-            {
-                if (IsProxyNodeName(name))
-                {
-                    return;
-                }
             }
 
             var nodeByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -292,6 +285,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var (name, node) in nodeByName)
             {
+                // The step limit guards against a cyclic bone hierarchy.
                 var ancestor = boneParents.GetValueOrDefault(name);
                 for (var steps = 0; ancestor is not null && steps <= boneParents.Count; steps++)
                 {
@@ -312,18 +306,14 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private HashSet<(int, int)>? animRodPairs;
-
         /// <summary>
         /// Gets the unordered node pairs of <c>m_SimdRodsAnim</c>, the rods of chain joints declared with
-        /// <c>animated_length</c>. These rods appear nowhere else in the file.
+        /// <c>animated_length</c>, which no other array records.
         /// </summary>
         private IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= [.. Fe.AnimRods.Select(static rod => UnorderedPair(rod.NodeA, rod.NodeB))];
 
         /// <summary>Gets every node an <see cref="AnimRodPairs"/> rod ends on.</summary>
         private IReadOnlySet<int> AnimRodNodes => animRodNodes ??= [.. AnimRodPairs.SelectMany(static pair => (int[])[pair.Item1, pair.Item2])];
-
-        private HashSet<int>? animRodNodes;
 
         /// <summary>Gets whether <c>m_SourceElems</c> records a two-corner element on the pair, in either order.</summary>
         internal bool IsSourceSpring(int a, int b) => SourceSpringSet.Contains((a, b)) || SourceSpringSet.Contains((b, a));
@@ -333,12 +323,8 @@ namespace ValveResourceFormat.IO
 
         private HashSet<(int, int)> SourceSpringSet => sourceSpringSet ??= [.. Fe.SourceSprings];
 
-        private HashSet<(int, int)>? sourceSpringSet;
-
         /// <summary>Gets every node a quad corner names.</summary>
         private IReadOnlySet<int> QuadNodes => quadNodes ??= [.. Fe.Quads.SelectMany(static quad => quad)];
-
-        private HashSet<int>? quadNodes;
 
         /// <summary>Gets the <see cref="FeModel.KelagerBends"/> keyed by their bent node, in array order.</summary>
         private Dictionary<int, List<KelagerBend>> KelagerBendsByMidNode
@@ -358,15 +344,11 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private Dictionary<int, List<KelagerBend>>? kelagerBendsByMidNode;
-
         /// <summary>
-        /// Gets the subset of <see cref="FeModel.FitMatrixNodes"/> whose fit covers a proxy sheet vertex
-        /// (<c>$cloth_m&lt;N&gt;p&lt;S&gt;</c>), i.e. the bones a proxy sheet back-solves.
+        /// Gets the <see cref="FeModel.FitMatrixNodes"/> whose fit covers a proxy sheet vertex, i.e. the bones a proxy
+        /// sheet back-solves.
         /// </summary>
         internal IReadOnlySet<int> ProxyFitMatrixNodes => proxyFitMatrixNodes ??= ReadProxyFitMatrixNodes();
-
-        private HashSet<int>? proxyFitMatrixNodes;
 
         private HashSet<int> ReadProxyFitMatrixNodes()
         {
@@ -391,13 +373,13 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the authored skin weights of back-solved proxy-sheet vertices, keyed by control node, recovered from
+        /// Gets the authored skin weights of back-solved proxy sheet vertices, keyed by control node, recovered from
         /// <c>m_FitWeights</c>, <c>m_CtrlOffsets</c> and <c>m_CtrlSoftOffsets</c>.
         /// </summary>
         internal IReadOnlyDictionary<int, SkinInfluence[]> RecoveredSkinWeights => SkinWeights.Recovered;
 
         /// <summary>
-        /// Gets the offset-network skin weights of the proxy-sheet vertices <see cref="RecoveredSkinWeights"/> leaves out,
+        /// Gets the offset-network skin weights of the proxy sheet vertices <see cref="RecoveredSkinWeights"/> leaves out,
         /// keyed by control node.
         /// </summary>
         internal IReadOnlyDictionary<int, SkinInfluence[]> DeferredOffsetSkinWeights => SkinWeights.Deferred;
@@ -423,8 +405,6 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private (Dictionary<int, SkinInfluence[]>, Dictionary<int, SkinInfluence[]>, HashSet<int>)? skinWeights;
-
         /// <summary>Gets the unordered node pairs a twist constraint spans.</summary>
         private HashSet<(int, int)> TwistLinks { get; } = [];
 
@@ -434,9 +414,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private Dictionary<(int Orient, int End), float> TwistRelaxByLink { get; } = [];
 
-        /// <summary>
-        /// Gets every <c>flTwistRelax</c> of each directed pair in array order, one per chain declaration that wrote it.
-        /// </summary>
+        /// <summary>Gets every <c>flTwistRelax</c> of each directed pair in array order, one per chain declaration that wrote it.</summary>
         private Dictionary<(int Orient, int End), List<float>> TwistRelaxCopies { get; } = [];
 
         /// <summary>Fills the twist links, the relaxless twist sets and the orient fallback from <paramref name="records"/>.</summary>
@@ -470,9 +448,9 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private static int[] BuildRopeParents(KVObject data, IReadOnlyList<int[]> ropeRuns)
+        private static int[] BuildRopeParents(FeModel fe, IReadOnlyList<int[]> ropeRuns)
         {
-            var nodeCount = data.GetInt32Property("m_nNodeCount");
+            var nodeCount = fe.NodeCount;
             if (nodeCount <= 0)
             {
                 return [];
@@ -513,19 +491,18 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            foreach (var follow in data.GetArray("m_FollowNodes") ?? [])
+            foreach (var follow in fe.Data.GetArray("m_FollowNodes") ?? [])
             {
                 Adopt(follow.GetInt32Property("nChildNode"), follow.GetInt32Property("nParentNode"));
             }
 
-            var names = data.GetArray<string>("m_CtrlName") ?? [];
-            var twists = data.GetArray("m_Twists") ?? [];
+            // A twist followed by its reverse is consumed as one link that hangs its end off its orient node.
+            var names = fe.CtrlNames;
+            var twists = fe.TwistRecords;
             for (var k = 0; k < twists.Count; k++)
             {
-                var orient = twists[k].GetInt32Property("nNodeOrient");
-                var end = twists[k].GetInt32Property("nNodeEnd");
-                var paired = k + 1 < twists.Count && twists[k + 1].GetInt32Property("nNodeOrient") == end
-                    && twists[k + 1].GetInt32Property("nNodeEnd") == orient;
+                var (orient, end, _, _) = twists[k];
+                var paired = k + 1 < twists.Count && twists[k + 1].Orient == end && twists[k + 1].End == orient;
                 if (orient >= 0 && end >= 0 && orient < names.Length && end < names.Length
                     && !IsProxyNodeName(names[orient]) && !IsProxyNodeName(names[end]))
                 {
@@ -563,25 +540,22 @@ namespace ValveResourceFormat.IO
         /// <summary>Gets the <see cref="SkelParents"/> entry of <paramref name="node"/>, or -1 when it has none.</summary>
         private int SkelParentOf(int node) => node >= 0 && node < SkelParents.Length ? SkelParents[node] : -1;
 
-        /// <summary>Gets whether <paramref name="node"/> carries a non-zero inverse mass.</summary>
         private bool Simulates(int node) => InverseMassOf(node) != 0f;
 
         /// <summary>Gets whether <paramref name="node"/> is a generated <c>$cc</c> chain ring node.</summary>
-        private bool IsRingNode(int node) => node >= 0 && node < Fe.CtrlNames.Length && Fe.CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal);
+        private bool IsRingNode(int node) => node >= 0 && node < Fe.CtrlNames.Length && Fe.CtrlNames[node].StartsWith(RingNodePrefix, StringComparison.Ordinal);
 
         /// <summary>Gets whether the node is position-driven (back-solved rather than simulated).</summary>
         internal bool IsPositionDriven(int node) => node >= FirstPositionDrivenNode;
 
-        private static int DeriveFirstPositionDrivenNode(KVObject data, string[] ctrlNames, int nodeCount, int staticNodes)
+        private static int DeriveFirstPositionDrivenNode(FeModel fe)
         {
-            var driven = new HashSet<int>();
+            // Position-driven nodes come last, so the first one starts the trailing run of fit matrix nodes, reverse
+            // offset bones and chain joints with a generated ring.
+            var ctrlNames = fe.CtrlNames;
+            var driven = new HashSet<int>(fe.FitMatrixNodes);
 
-            foreach (var fit in data.GetArray("m_FitMatrices") ?? [])
-            {
-                driven.Add(fit.GetInt32Property("nNode"));
-            }
-
-            foreach (var offset in data.GetArray("m_ReverseOffsets") ?? [])
+            foreach (var offset in fe.Data.GetArray("m_ReverseOffsets") ?? [])
             {
                 driven.Add(offset.GetInt32Property("nBoneCtrl"));
             }
@@ -589,32 +563,37 @@ namespace ValveResourceFormat.IO
             var ringSides = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (var name in ctrlNames)
             {
-                if (!name.StartsWith("$cc", StringComparison.Ordinal))
+                if (!name.StartsWith(RingNodePrefix, StringComparison.Ordinal))
                 {
                     continue;
                 }
 
                 var split = name.LastIndexOf('_');
-                if (split <= 3 || !int.TryParse(name.AsSpan(split + 1), NumberStyles.None, CultureInfo.InvariantCulture, out _))
+                if (split <= RingNodePrefix.Length || !int.TryParse(name.AsSpan(split + 1), NumberStyles.None, CultureInfo.InvariantCulture, out _))
                 {
                     continue;
                 }
 
-                var owner = name[3..split];
+                var owner = name[RingNodePrefix.Length..split];
                 ringSides[owner] = ringSides.GetValueOrDefault(owner) + 1;
             }
 
             foreach (var (owner, sides) in ringSides)
             {
-                var joint = sides >= 2 ? Array.IndexOf(ctrlNames, owner) : -1;
+                if (sides < 2)
+                {
+                    continue;
+                }
+
+                var joint = Array.IndexOf(ctrlNames, owner);
                 if (joint >= 0)
                 {
                     driven.Add(joint);
                 }
             }
 
-            var first = nodeCount;
-            while (first > staticNodes && driven.Contains(first - 1))
+            var first = fe.NodeCount;
+            while (first > fe.StaticNodeCount && driven.Contains(first - 1))
             {
                 first--;
             }
@@ -623,8 +602,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the parent control node of <paramref name="node"/>, or -1 for a root: its skeleton parent,
-        /// or on an original that ships no <c>m_SkelParents</c> the parent its ctrl offset names.
+        /// Gets the parent control node of <paramref name="node"/>, or -1 for a root: its skeleton parent, or when the
+        /// compile carries no <c>m_SkelParents</c> the parent its ctrl offset names.
         /// </summary>
         private int ParentNodeOf(int node)
         {
@@ -646,16 +625,8 @@ namespace ValveResourceFormat.IO
             return offsetParentByNode.GetValueOrDefault(node, -1);
         }
 
-        private Dictionary<int, int>? offsetParentByNode;
-
         private float InverseMassOf(int node)
             => node >= 0 && node < Fe.NodeInvMasses.Length ? Fe.NodeInvMasses[node] : 0f;
-
-        /// <summary>The maximum length a rod that is not length-limited at all is given.</summary>
-        internal const float UnboundedRodDistance = 16384f;
-
-        /// <summary>The prefix of a control node created for an authored free-standing <c>ClothNode</c>.</summary>
-        internal const string FreeClothNodePrefix = "$cloth_node_";
 
         /// <summary>
         /// Gets, per control node, whether its goal values are exported through the raw attraction paints instead of the
@@ -663,15 +634,11 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private bool[] RawGoalPaintNodes => rawGoalPaintNodes ??= BuildRawGoalPaintNodes();
 
-        private bool[]? rawGoalPaintNodes;
-
         /// <summary>
-        /// Gets each node's parent along the <c>m_Ropes</c> runs alone, without the <c>m_FollowNodes</c> fallback of
+        /// Gets each node's parent along the <c>m_Ropes</c> runs alone, without the follow node and twist parents of
         /// <see cref="BuildRopeParents"/>.
         /// </summary>
         internal IReadOnlyDictionary<int, int> RopeRunParents => ropeRunParents ??= BuildRopeRunParents();
-
-        private Dictionary<int, int>? ropeRunParents;
 
         private Dictionary<int, int> BuildRopeRunParents()
         {
@@ -691,8 +658,6 @@ namespace ValveResourceFormat.IO
         /// Gets the node runs of <c>m_Ropes</c>, whose first <c>m_nRopeCount</c> entries are the runs' exclusive end offsets.
         /// </summary>
         private IReadOnlyList<int[]> RopeRuns => ropeRuns ??= ReadRopeRuns(Fe.Data);
-
-        private List<int[]>? ropeRuns;
 
         private static List<int[]> ReadRopeRuns(KVObject data)
         {
