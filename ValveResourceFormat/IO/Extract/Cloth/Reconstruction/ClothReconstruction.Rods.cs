@@ -84,7 +84,7 @@ namespace ValveResourceFormat.IO
 
                         if (joint.Suspender != 0f)
                         {
-                            ExpectPair(generated, rootNode, joint.Node, joint.Suspender);
+                            Generate(rootNode, joint.Node, joint.Suspender);
                         }
 
                         if (joint.ChildSiblingSpring != 0f)

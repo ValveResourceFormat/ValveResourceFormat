@@ -1442,5 +1442,39 @@ namespace Tests
 
             await Assert.That(cloth.GetUngeneratedRods([chain])).IsEmpty();
         }
+
+        /// <summary>
+        /// A suspender's root rods are scaled by <c>exp(-default_stretch)</c> like every other chain rod, so the reading
+        /// divides it back out: 0.5 * exp(-0.5) = 0.30327 reads as 0.5 and regenerates the compiled rods.
+        /// </summary>
+        [Test]
+        public async Task ASuspenderUnderDefaultStretchReadsTheAuthoredValue()
+        {
+            var cloth = SyntheticCloth.Model(
+                ["root", "j1", "j2", "j3"], staticNodes: 1, parents: [-1, 0, 1, 2],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f)],
+                body: $$"""
+                    m_flDefaultSurfaceStretch = 0.5
+                    m_flDefaultThreadStretch = 0.5
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 0.60653066f)}}
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 0.30326533f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 10f, 0.60653066f)}}
+                        {{SyntheticCloth.RigidRod(2, 3, 10f, 0.60653066f)}}
+                        {{SyntheticCloth.RigidRod(0, 2, 20f, 0.30326533f)}}
+                        {{SyntheticCloth.RigidRod(0, 3, 30f, 0.30326533f)}}
+                    ]
+                    """);
+            var chains = cloth.BuildBoneChains();
+            var joint = chains[0].Joints[1];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(joint.Suspender).IsEqualTo(0.5f).Within(1e-4f);
+                await Assert.That(joint.ExtraIterations).IsEqualTo(0);
+                await Assert.That(cloth.GetUngeneratedRods(chains)).IsEmpty();
+            }
+        }
     }
 }

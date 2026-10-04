@@ -1949,12 +1949,12 @@ namespace ValveResourceFormat.IO
 
                 if (RootSuspenderValue(joint, parent, grandParent, greatGrandParent, out var upwardCopies) is { } suspender)
                 {
-                    joint.Suspender = suspender;
+                    joint.Suspender = Slider(suspender);
                     joint.ExtraIterations = upwardCopies > 0 ? upwardCopies / 2 - 1 : JointCopies(joint) - 1;
                 }
                 else if (RootCompanionValue(joint, parent, grandParent, greatGrandParent, out var spanReading) is { } companion)
                 {
-                    joint.Suspender = companion;
+                    joint.Suspender = Slider(companion);
                     joint.ExtraIterations = SpanCopies(joint, parent) - 1;
                     if (spanReading is { } span && joint.BendSpring && rootNode == grandParent)
                     {
