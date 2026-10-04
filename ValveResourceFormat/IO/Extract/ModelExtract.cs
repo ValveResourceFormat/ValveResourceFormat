@@ -38,10 +38,10 @@ public partial class ModelExtract
     public IProgress<string>? ProgressReporter { get; init; }
 
     /// <summary>
-    /// Gets whether to reconstruct the model's cloth (soft-body) physics. When false, the model is extracted as if it
+    /// Gets whether to reconstruct the model's soft-body (cloth) physics. When false, the model is extracted as if it
     /// had no cloth.
     /// </summary>
-    public bool ExtractCloth { get; init; } = true;
+    public bool ReconstructSoftbody { get; init; } = true;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ModelExtract"/> class.
@@ -77,6 +77,7 @@ public partial class ModelExtract
 
         fileName = Path.ChangeExtension(modelResource.FileName ?? "model", ".vmdl");
         EnqueueMeshes();
+        EnqueueAnimations();
     }
 
     /// <inheritdoc cref="ModelExtract(Resource, IFileLoader)"/>
@@ -196,7 +197,7 @@ public partial class ModelExtract
     {
         get
         {
-            EnsureClothAndAnimationsQueued();
+            EnsureCloth();
             return cloth;
         }
     }
@@ -208,24 +209,23 @@ public partial class ModelExtract
     {
         get
         {
-            EnsureClothAndAnimationsQueued();
+            EnsureCloth();
             return cloth.Reconstruction is not null;
         }
     }
 
     /// <summary>
-    /// On first use, builds the cloth and then queues the animations, so that animation file names avoid the cloth's.
-    /// Cloth that fails to build is reported and left out.
+    /// Builds the cloth on first use. Cloth that fails to build is reported and left out.
     /// </summary>
     [MemberNotNull(nameof(cloth))]
-    private void EnsureClothAndAnimationsQueued()
+    private void EnsureCloth()
     {
         if (cloth is not null)
         {
             return;
         }
 
-        cloth = ExtractCloth ? new ClothExtract(model, physAggregateData) : new ClothExtract(null, null);
+        cloth = ReconstructSoftbody ? new ClothExtract(model, physAggregateData) : new ClothExtract(null, null);
 
         try
         {
@@ -236,18 +236,16 @@ public partial class ModelExtract
             ProgressReporter?.Report($"Skipping cloth of {ModelName}: {e.Message}");
             cloth = new ClothExtract(null, null);
         }
-
-        EnqueueAnimations();
     }
 
     /// <summary>
-    /// Gets the DMX file name for cloth file <paramref name="name"/>, suffixed when a mesh or earlier cloth file already
-    /// uses it.
+    /// Gets the DMX file name for cloth file <paramref name="name"/>, suffixed when a mesh, animation or earlier cloth
+    /// file already uses it.
     /// </summary>
     private string GetDmxFileName_ForCloth(string name)
     {
         var dmxFileName = GetDmxFileName_ForEmbeddedMesh(name);
-        for (var suffix = 1; IsDmxFileNameTaken(dmxFileName, includePhysics: true, includeAnimations: false); suffix++)
+        for (var suffix = 1; IsDmxFileNameTaken(dmxFileName, includePhysics: true, includeAnimations: true); suffix++)
         {
             dmxFileName = GetDmxFileName_ForEmbeddedMesh(FormattableString.Invariant($"{name}_{suffix}"));
         }
@@ -267,6 +265,6 @@ public partial class ModelExtract
             || (includePhysics && (PhysHullsToExtract.Exists(hull => Same(hull.FileName))
                 || PhysMeshesToExtract.Exists(mesh => Same(mesh.FileName))))
             || (cloth is not null && cloth.ProxyMeshes.Exists(proxy => Same(proxy.FileName)))
-            || (includeAnimations && animationsToExtract.Exists(entry => Same(entry.FileName)));
+            || (includeAnimations && AnimationsToExtract.Exists(entry => Same(entry.FileName)));
     }
 }

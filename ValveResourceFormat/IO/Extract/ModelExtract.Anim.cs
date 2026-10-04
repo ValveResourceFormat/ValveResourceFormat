@@ -10,19 +10,10 @@ namespace ValveResourceFormat.IO;
 
 partial class ModelExtract
 {
-    private readonly List<(SequenceAnimation Anim, string FileName)> animationsToExtract = [];
-
     /// <summary>
     /// Gets the list of animations to be extracted with their output file names.
     /// </summary>
-    public List<(SequenceAnimation Anim, string FileName)> AnimationsToExtract
-    {
-        get
-        {
-            EnsureClothAndAnimationsQueued();
-            return animationsToExtract;
-        }
-    }
+    public List<(SequenceAnimation Anim, string FileName)> AnimationsToExtract { get; } = [];
 
     private readonly HashSet<SequenceAnimation> animationGroupAnimations = [];
     private SequenceTables? sequenceTables;
@@ -65,7 +56,7 @@ partial class ModelExtract
 
         foreach (var anim in model.GetEmbeddedAnimations())
         {
-            animationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
+            AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
         }
 
         EnqueueAnimationGroups(model);
@@ -83,9 +74,9 @@ partial class ModelExtract
             return;
         }
 
-        var names = new HashSet<string>(animationsToExtract.Count, StringComparer.OrdinalIgnoreCase);
+        var names = new HashSet<string>(AnimationsToExtract.Count, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (anim, _) in animationsToExtract)
+        foreach (var (anim, _) in AnimationsToExtract)
         {
             names.Add(anim.Name);
         }
@@ -111,7 +102,7 @@ partial class ModelExtract
             }
 
             animationGroupAnimations.Add(anim);
-            animationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
+            AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
         }
     }
 

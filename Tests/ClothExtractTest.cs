@@ -228,7 +228,7 @@ namespace Tests
         {
             using var resource = LoadFixture("cloth_sheet_chain_spring.vmdl_c");
             using var enabled = new ModelExtract(resource, new NullFileLoader()).ToContentFile();
-            using var disabled = new ModelExtract(resource, new NullFileLoader()) { ExtractCloth = false }.ToContentFile();
+            using var disabled = new ModelExtract(resource, new NullFileLoader()) { ReconstructSoftbody = false }.ToContentFile();
             var vmdl = Encoding.UTF8.GetString(disabled.Data!);
 
             using (Assert.Multiple())

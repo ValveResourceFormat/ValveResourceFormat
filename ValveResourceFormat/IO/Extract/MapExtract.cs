@@ -155,8 +155,8 @@ public sealed partial class MapExtract
     /// <summary>Gets or sets the progress reporter.</summary>
     public IProgress<string>? ProgressReporter { get; set; }
 
-    /// <summary>Gets or sets whether the models extracted with the map reconstruct their cloth (soft-body) physics.</summary>
-    public bool ExtractCloth { get; set; } = true;
+    /// <summary>Gets or sets whether the models extracted with the map reconstruct their soft-body (cloth) physics.</summary>
+    public bool ReconstructSoftbody { get; set; } = true;
 
     /// <summary>Gets the physics vertex matcher used for physics mesh processing.</summary>
     public PhysicsTriangleMatcher? PhysTriangleMatcher { get; private set; }
@@ -487,7 +487,7 @@ public sealed partial class MapExtract
 
             var sceneObjectExtract = sceneObject.ResourceType switch
             {
-                ResourceType.Model => new ModelExtract(sceneObject, FileLoader) { ExtractCloth = ExtractCloth },
+                ResourceType.Model => new ModelExtract(sceneObject, FileLoader) { ReconstructSoftbody = ReconstructSoftbody },
                 ResourceType.Mesh => new ModelExtract((Mesh)sceneObject.DataBlock, sceneObjectResourceName),
                 _ => throw new InvalidDataException($"Unhandled resource type: {sceneObject.ResourceType} as a scene object"),
             };
@@ -2479,7 +2479,7 @@ public sealed partial class MapExtract
                 ? ModelExtract.ModelExtractType.Map_PhysicsToRenderMesh
                 : ModelExtract.ModelExtractType.Default,
             PhysicsToRenderMaterialNameProvider = (_) => toolTexture,
-            ExtractCloth = ExtractCloth,
+            ReconstructSoftbody = ReconstructSoftbody,
         };
 
         var vmdl = modelExtract.ToContentFile();
