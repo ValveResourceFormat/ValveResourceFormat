@@ -157,6 +157,17 @@ namespace ValveResourceFormat.IO
     }
 
     /// <summary>
+    /// Options for <see cref="FileExtract.Extract(Resource, IFileLoader, IProgress{string}?, FileExtractOptions)"/>.
+    /// </summary>
+    public sealed record FileExtractOptions
+    {
+        /// <summary>
+        /// Gets whether models, and the models a map extracts, reconstruct their soft-body (cloth) physics. Defaults to true.
+        /// </summary>
+        public bool ReconstructSoftbody { get; init; } = true;
+    }
+
+    /// <summary>
     /// Provides methods for extracting content files from compiled resources.
     /// </summary>
     public static class FileExtract
@@ -167,20 +178,31 @@ namespace ValveResourceFormat.IO
         /// <param name="resource">The resource to be extracted or decompiled.</param>
         /// <param name="fileLoader">The file loader for resolving dependencies.</param>
         /// <param name="progress">Optional progress reporter.</param>
-        /// <param name="extractCloth">Whether models, and the models a map extracts, reconstruct their cloth (soft-body) physics.</param>
-        public static ContentFile Extract(Resource resource, IFileLoader fileLoader, IProgress<string>? progress = null, bool extractCloth = true)
+        public static ContentFile Extract(Resource resource, IFileLoader fileLoader, IProgress<string>? progress = null)
+            => Extract(resource, fileLoader, progress, new FileExtractOptions());
+
+        /// <summary>
+        /// Extract content file from a compiled resource.
+        /// </summary>
+        /// <param name="resource">The resource to be extracted or decompiled.</param>
+        /// <param name="fileLoader">The file loader for resolving dependencies.</param>
+        /// <param name="progress">Optional progress reporter.</param>
+        /// <param name="options">Options that control how resources are extracted.</param>
+        public static ContentFile Extract(Resource resource, IFileLoader fileLoader, IProgress<string>? progress, FileExtractOptions options)
         {
+            ArgumentNullException.ThrowIfNull(options);
+
             var contentFile = new ContentFile();
 
             switch (resource.ResourceType)
             {
                 case ResourceType.Map:
                 case ResourceType.World:
-                    contentFile = new MapExtract(resource, fileLoader) { ProgressReporter = progress, ExtractCloth = extractCloth }.ToContentFile();
+                    contentFile = new MapExtract(resource, fileLoader) { ProgressReporter = progress, ReconstructSoftbody = options.ReconstructSoftbody }.ToContentFile();
                     break;
 
                 case ResourceType.Model:
-                    contentFile = new ModelExtract(resource, fileLoader) { ProgressReporter = progress, ExtractCloth = extractCloth }.ToContentFile();
+                    contentFile = new ModelExtract(resource, fileLoader) { ProgressReporter = progress, ReconstructSoftbody = options.ReconstructSoftbody }.ToContentFile();
                     break;
 
                 case ResourceType.AnimationGraph:

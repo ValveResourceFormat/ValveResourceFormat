@@ -191,7 +191,7 @@ partial class ModelExtract
     /// </summary>
     public static IEnumerable<ContentFile> GetContentFiles_DrawCallSplit(Resource aggregateModelResource, IFileLoader fileLoader, Vector3[] drawOrigins, int drawCallCount)
     {
-        var extract = new ModelExtract(aggregateModelResource, fileLoader) { Type = ModelExtractType.Map_AggregateSplit, ExtractCloth = false };
+        var extract = new ModelExtract(aggregateModelResource, fileLoader) { Type = ModelExtractType.Map_AggregateSplit, ReconstructSoftbody = false };
         Debug.Assert(extract.RenderMeshesToExtract.Count == 1);
 
         if (extract.RenderMeshesToExtract.Count == 0)

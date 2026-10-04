@@ -16,11 +16,10 @@ namespace Tests;
 /// Decompiles models from Source 2 games and validates that the decompiled source recompiles
 /// successfully with the game's own resourcecompiler.
 ///
-/// Each game's root is read from an environment variable (<c>VRF_TEST_DOTA2_ROOT</c>,
-/// <c>VRF_TEST_CS2_ROOT</c>) and the game's tests are skipped when it is unset. A root has the
-/// layout of a Workshop Tools installation (<c>game/bin/win64/resourcecompiler.exe</c>,
-/// <c>game/&lt;mod&gt;/pak01_dir.vpk</c>, <c>content/&lt;mod&gt;_addons</c>), and the tests stage and
-/// compile a temporary addon inside it, so point it at a copy rather than a Steam installation.
+/// Each game is found through its Steam installation, and its tests are skipped when it is not
+/// installed or has no Workshop Tools. The tests stage and compile a temporary addon
+/// (<c>vrf_recompile_test_&lt;pid&gt;</c>) inside the installation's <c>content</c> and <c>game</c>
+/// addon folders, and delete it after every test.
 /// </summary>
 [ClassDataSource<ResourceCompilerTest.GameInstallations>(Shared = SharedType.PerClass)]
 [NotInParallel(nameof(ResourceCompilerTest))]
@@ -33,13 +32,13 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
     private static readonly string TestAddonName = $"vrf_recompile_test_{Environment.ProcessId}";
     private const int CompileTimeoutMs = 10 * 60 * 1000;
 
-    public sealed record WorkshopToolsGame(string RootVariable, string Name, string ModFolder)
+    public sealed record WorkshopToolsGame(int AppId, string Name, string ModFolder)
     {
         public override string ToString() => Name;
     }
 
-    private static readonly WorkshopToolsGame Dota2 = new("VRF_TEST_DOTA2_ROOT", "Dota 2", "dota");
-    private static readonly WorkshopToolsGame CounterStrike2 = new("VRF_TEST_CS2_ROOT", "Counter-Strike 2", "csgo");
+    private static readonly WorkshopToolsGame Dota2 = new(570, "Dota 2", "dota");
+    private static readonly WorkshopToolsGame CounterStrike2 = new(730, "Counter-Strike 2", "csgo");
 
     // Models exercising the vmdl features the exporter emits: morphs and flex rules, activity
     // modifiers, turn/1D blend sequences, material groups (skins), LODs, cloth chains and sheets.
@@ -51,6 +50,7 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         (CounterStrike2, "models/chicken/chicken.vmdl_c"),
         (CounterStrike2, "agents/models/ctm_sas/ctm_sas.vmdl_c"),
         (CounterStrike2, "weapons/models/knife/knife_bayonet/weapon_knife_bayonet.vmdl_c"),
+        (CounterStrike2, "weapons/keychains/missinglink/vmdl/kc_missinglink_bigfoot.vmdl_c"),
     ];
 
     public sealed class GameInstallation : IDisposable
@@ -65,16 +65,30 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         /// <summary>game/&lt;mod&gt;_addons/&lt;addon&gt; - resourcecompiler writes compiled resources here.</summary>
         public required string GameAddonPath { get; init; }
 
+        public void DeleteTestAddon()
+        {
+            if (Directory.Exists(ContentAddonPath))
+            {
+                Directory.Delete(ContentAddonPath, recursive: true);
+            }
+
+            if (Directory.Exists(GameAddonPath))
+            {
+                Directory.Delete(GameAddonPath, recursive: true);
+            }
+        }
+
         public void Dispose()
         {
             FileLoader.Dispose();
             Package.Dispose();
+            DeleteTestAddon();
         }
     }
 
     /// <summary>
-    /// Lazily opens and shares each game's root across this fixture's test cases, disposing them
-    /// and their staged test addons once every test has finished.
+    /// Lazily opens and shares each game's installation across this fixture's test cases, disposing
+    /// them once every test has finished.
     /// </summary>
     public sealed class GameInstallations : IAsyncDisposable
     {
@@ -92,16 +106,17 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
                 Skip.Test("Source 2 Workshop Tools are only available on Windows.");
             }
 
-            var gamePath = Environment.GetEnvironmentVariable(game.RootVariable);
-            if (string.IsNullOrEmpty(gamePath))
+            var steamGame = GameFolderLocator.FindSteamGameByAppId(game.AppId);
+            if (!steamGame.HasValue)
             {
-                Skip.Test($"{game.RootVariable} is not set.");
+                Skip.Test($"Steam game with AppId {game.AppId} not present.");
             }
 
+            var gamePath = steamGame.Value.GamePath;
             var resourceCompiler = Path.Combine(gamePath, "game", "bin", "win64", "resourcecompiler.exe");
             if (!File.Exists(resourceCompiler))
             {
-                Skip.Test($"{game.RootVariable} has no Workshop Tools ({resourceCompiler} does not exist).");
+                Skip.Test($"{game.Name} has no Workshop Tools ({resourceCompiler} does not exist).");
             }
 
             var pakPath = Path.Combine(gamePath, "game", game.ModFolder, "pak01_dir.vpk");
@@ -131,16 +146,6 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
             foreach (var installation in installations.Values)
             {
                 installation.Dispose();
-
-                if (Directory.Exists(installation.ContentAddonPath))
-                {
-                    Directory.Delete(installation.ContentAddonPath, recursive: true);
-                }
-
-                if (Directory.Exists(installation.GameAddonPath))
-                {
-                    Directory.Delete(installation.GameAddonPath, recursive: true);
-                }
             }
 
             installations.Clear();
@@ -168,6 +173,18 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
 
         await Assert.That(resource.DataBlock).IsAssignableTo<Model>().Because($"{assetPath} is not a model resource.");
 
+        try
+        {
+            await RecompileAndCompare(installation, resource, assetPath);
+        }
+        finally
+        {
+            installation.DeleteTestAddon();
+        }
+    }
+
+    private static async Task RecompileAndCompare(GameInstallation installation, Resource resource, string assetPath)
+    {
         using var contentFile = FileExtract.Extract(resource, installation.FileLoader);
         await Assert.That(contentFile.Data).IsNotEmpty().Because($"Decompiling {assetPath} produced no vmdl data.");
 
