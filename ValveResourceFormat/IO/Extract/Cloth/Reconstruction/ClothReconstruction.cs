@@ -5,7 +5,7 @@ using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -72,16 +72,15 @@ namespace ValveResourceFormat.IO
         internal ClothReconstruction(FeModel fe, ClothSkeletonContext? context = null)
         {
             Fe = fe;
+            Index = new FeModelIndex(fe);
             Context = context;
             HasCompiledSkelParents = fe.SkelParents.Length > 0;
             SkelParents = HasCompiledSkelParents ? fe.SkelParents : BuildRopeParents(fe, RopeRuns);
-            HasCompiledFirstPositionDrivenNode = fe.Data.ContainsKey("m_nFirstPositionDrivenNode");
-            FirstPositionDrivenNode = HasCompiledFirstPositionDrivenNode
-                ? fe.FirstPositionDrivenNode
-                : DeriveFirstPositionDrivenNode(fe);
+            HasCompiledFirstPositionDrivenNode = fe.FirstPositionDrivenNode.HasValue;
+            FirstPositionDrivenNode = fe.FirstPositionDrivenNode ?? DeriveFirstPositionDrivenNode(fe, Index);
 
-            VertexMaps = fe.VertexMaps;
-            ZeroVertexSelectionNames = [.. fe.VertexMaps
+            VertexMaps = Index.VertexMaps;
+            ZeroVertexSelectionNames = [.. Index.VertexMaps
                 .Where(static map => map.VertexCount == 0 && map.Name.Length > 0)
                 .Select(static map => map.Name)];
             if (VertexMaps.Count == 0)
@@ -90,7 +89,7 @@ namespace ValveResourceFormat.IO
                 vertexMapsFromSets = VertexMaps.Count > 0;
             }
 
-            ReadTwistLinks(fe.TwistRecords);
+            ReadTwistLinks(fe.Twists);
 
             if (context is not null)
             {
@@ -104,12 +103,14 @@ namespace ValveResourceFormat.IO
         /// </summary>
         internal static bool HasConsistentLayout(FeModel fe)
         {
-            var count = fe.NodeCount;
+            var count = Math.Max(fe.NodeCount, 0);
             bool InRange(int node) => node >= 0 && node < count;
 
-            return fe.StaticNodeCount >= 0 && fe.StaticNodeCount <= count
-                && fe.RotationLockedStaticNodeCount >= 0 && fe.RotationLockedStaticNodeCount <= count
-                && fe.FirstPositionDrivenNode >= 0 && fe.FirstPositionDrivenNode <= count
+            var firstPositionDrivenNode = fe.FirstPositionDrivenNode ?? count;
+
+            return fe.StaticNodes >= 0 && fe.StaticNodes <= count
+                && fe.RotLockStaticNodes >= 0 && fe.RotLockStaticNodes <= count
+                && firstPositionDrivenNode >= 0 && firstPositionDrivenNode <= count
                 && Array.TrueForAll(fe.SkelParents, parent => parent == -1 || InRange(parent))
                 && Array.TrueForAll(fe.CtrlOffsets, offset => InRange(offset.CtrlParent) && InRange(offset.CtrlChild));
         }
@@ -145,7 +146,11 @@ namespace ValveResourceFormat.IO
             return cloth;
         }
 
+        /// <summary>Gets the compiled cloth.</summary>
         internal FeModel Fe { get; }
+
+        /// <summary>Gets the decompile-side views of <see cref="Fe"/>.</summary>
+        internal FeModelIndex Index { get; }
 
         internal ClothSkeletonContext? Context { get; private set; }
 
@@ -246,11 +251,11 @@ namespace ValveResourceFormat.IO
                 .. fe.CtrlOsOffsets.Select(static offset => offset.CtrlChild)];
 
             var result = new List<CulledBone>();
-            for (var node = 0; node < fe.CtrlNames.Length; node++)
+            for (var node = 0; node < fe.CtrlName.Length; node++)
             {
-                var name = fe.CtrlNames[node];
+                var name = fe.CtrlName[node];
                 if (IsProxyNodeName(name) || skeletonBoneNames.Contains(name)
-                    || generatedChildren.Contains(node) || node >= fe.InitPosePositions.Length)
+                    || generatedChildren.Contains(node) || node >= fe.InitPose.Length)
                 {
                     continue;
                 }
@@ -267,19 +272,19 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private void SetSkeletonParents(IReadOnlyDictionary<string, string?> boneParents)
         {
-            if (SkelParents.Length > 0 || Fe.CtrlNames.Length == 0 || Fe.NodeCount <= 0
-                || Array.Exists(Fe.CtrlNames, IsProxyNodeName))
+            if (SkelParents.Length > 0 || Fe.CtrlName.Length == 0 || Index.NodeCount <= 0
+                || Array.Exists(Fe.CtrlName, IsProxyNodeName))
             {
                 return;
             }
 
             var nodeByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            for (var node = 0; node < Fe.CtrlNames.Length && node < Fe.NodeCount; node++)
+            for (var node = 0; node < Fe.CtrlName.Length && node < Index.NodeCount; node++)
             {
-                nodeByName.TryAdd(Fe.CtrlNames[node], node);
+                nodeByName.TryAdd(Fe.CtrlName[node], node);
             }
 
-            var parents = new int[Fe.NodeCount];
+            var parents = new int[Index.NodeCount];
             Array.Fill(parents, -1);
             var parented = false;
 
@@ -310,7 +315,7 @@ namespace ValveResourceFormat.IO
         /// Gets the unordered node pairs of <c>m_SimdRodsAnim</c>, the rods of chain joints declared with
         /// <c>animated_length</c>, which no other array records.
         /// </summary>
-        private IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= [.. Fe.AnimRods.Select(static rod => UnorderedPair(rod.NodeA, rod.NodeB))];
+        private IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= [.. Index.AnimRods.Select(static rod => UnorderedPair(rod.NodeA, rod.NodeB))];
 
         /// <summary>Gets every node an <see cref="AnimRodPairs"/> rod ends on.</summary>
         private IReadOnlySet<int> AnimRodNodes => animRodNodes ??= [.. AnimRodPairs.SelectMany(static pair => (int[])[pair.Item1, pair.Item2])];
@@ -321,12 +326,12 @@ namespace ValveResourceFormat.IO
         /// <summary>Gets whether <c>m_SourceElems</c> records a two-corner element from <paramref name="a"/> to <paramref name="b"/>.</summary>
         internal bool HasDirectedSourceSpring(int a, int b) => SourceSpringSet.Contains((a, b));
 
-        private HashSet<(int, int)> SourceSpringSet => sourceSpringSet ??= [.. Fe.SourceSprings];
+        private HashSet<(int, int)> SourceSpringSet => sourceSpringSet ??= [.. Index.SourceSprings];
 
         /// <summary>Gets every node a quad corner names.</summary>
-        private IReadOnlySet<int> QuadNodes => quadNodes ??= [.. Fe.Quads.SelectMany(static quad => quad)];
+        private IReadOnlySet<int> QuadNodes => quadNodes ??= [.. Index.Quads.SelectMany(static quad => quad)];
 
-        /// <summary>Gets the <see cref="FeModel.KelagerBends"/> keyed by their bent node, in array order.</summary>
+        /// <summary>Gets the <see cref="FeModelIndex.KelagerBends"/> keyed by their bent node, in array order.</summary>
         private Dictionary<int, List<KelagerBend>> KelagerBendsByMidNode
         {
             get
@@ -334,7 +339,7 @@ namespace ValveResourceFormat.IO
                 if (kelagerBendsByMidNode is null)
                 {
                     kelagerBendsByMidNode = [];
-                    foreach (var bend in Fe.KelagerBends)
+                    foreach (var bend in Index.KelagerBends)
                     {
                         GetOrAdd(kelagerBendsByMidNode, bend.MidNode).Add(bend);
                     }
@@ -345,7 +350,7 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets the <see cref="FeModel.FitMatrixNodes"/> whose fit covers a proxy sheet vertex, i.e. the bones a proxy
+        /// Gets the <see cref="FeModelIndex.FitMatrixNodes"/> whose fit covers a proxy sheet vertex, i.e. the bones a proxy
         /// sheet back-solves.
         /// </summary>
         internal IReadOnlySet<int> ProxyFitMatrixNodes => proxyFitMatrixNodes ??= ReadProxyFitMatrixNodes();
@@ -353,16 +358,16 @@ namespace ValveResourceFormat.IO
         private HashSet<int> ReadProxyFitMatrixNodes()
         {
             var nodes = new HashSet<int>();
-            var fitWeights = Fe.Data.GetArray("m_FitWeights") ?? [];
+            var fitWeights = Fe.FitWeights;
             var begin = 0;
-            foreach (var fit in Fe.Data.GetArray("m_FitMatrices") ?? [])
+            foreach (var fit in Fe.FitMatrices)
             {
-                var end = fit.GetInt32Property("nEnd");
-                for (var i = begin; i < end && i < fitWeights.Count; i++)
+                var end = fit.End;
+                for (var i = begin; i < end && i < fitWeights.Length; i++)
                 {
-                    if (IsProxyMeshNode(fitWeights[i].GetInt32Property("nNode")))
+                    if (IsProxyMeshNode(fitWeights[i].Node))
                     {
-                        nodes.Add(fit.GetInt32Property("nNode"));
+                        nodes.Add(fit.Node);
                     }
                 }
 
@@ -418,7 +423,7 @@ namespace ValveResourceFormat.IO
         private Dictionary<(int Orient, int End), List<float>> TwistRelaxCopies { get; } = [];
 
         /// <summary>Fills the twist links, the relaxless twist sets and the orient fallback from <paramref name="records"/>.</summary>
-        private void ReadTwistLinks(IReadOnlyList<TwistRecord> records)
+        private void ReadTwistLinks(IReadOnlyList<FeModel.FeTwistConstraint> records)
         {
             foreach (var (orient, end, relax, _) in records)
             {
@@ -491,18 +496,18 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            foreach (var follow in fe.Data.GetArray("m_FollowNodes") ?? [])
+            foreach (var follow in fe.FollowNodes)
             {
-                Adopt(follow.GetInt32Property("nChildNode"), follow.GetInt32Property("nParentNode"));
+                Adopt(follow.ChildNode, follow.ParentNode);
             }
 
             // A twist followed by its reverse is consumed as one link that hangs its end off its orient node.
-            var names = fe.CtrlNames;
-            var twists = fe.TwistRecords;
-            for (var k = 0; k < twists.Count; k++)
+            var names = fe.CtrlName;
+            var twists = fe.Twists;
+            for (var k = 0; k < twists.Length; k++)
             {
                 var (orient, end, _, _) = twists[k];
-                var paired = k + 1 < twists.Count && twists[k + 1].Orient == end && twists[k + 1].End == orient;
+                var paired = k + 1 < twists.Length && twists[k + 1].NodeOrient == end && twists[k + 1].NodeEnd == orient;
                 if (orient >= 0 && end >= 0 && orient < names.Length && end < names.Length
                     && !IsProxyNodeName(names[orient]) && !IsProxyNodeName(names[end]))
                 {
@@ -543,21 +548,21 @@ namespace ValveResourceFormat.IO
         private bool Simulates(int node) => InverseMassOf(node) != 0f;
 
         /// <summary>Gets whether <paramref name="node"/> is a generated <c>$cc</c> chain ring node.</summary>
-        private bool IsRingNode(int node) => node >= 0 && node < Fe.CtrlNames.Length && Fe.CtrlNames[node].StartsWith(RingNodePrefix, StringComparison.Ordinal);
+        private bool IsRingNode(int node) => node >= 0 && node < Fe.CtrlName.Length && Fe.CtrlName[node].StartsWith(RingNodePrefix, StringComparison.Ordinal);
 
         /// <summary>Gets whether the node is position-driven (back-solved rather than simulated).</summary>
         internal bool IsPositionDriven(int node) => node >= FirstPositionDrivenNode;
 
-        private static int DeriveFirstPositionDrivenNode(FeModel fe)
+        private static int DeriveFirstPositionDrivenNode(FeModel fe, FeModelIndex index)
         {
             // Position-driven nodes come last, so the first one starts the trailing run of fit matrix nodes, reverse
             // offset bones and chain joints with a generated ring.
-            var ctrlNames = fe.CtrlNames;
-            var driven = new HashSet<int>(fe.FitMatrixNodes);
+            var ctrlNames = fe.CtrlName;
+            var driven = new HashSet<int>(index.FitMatrixNodes);
 
-            foreach (var offset in fe.Data.GetArray("m_ReverseOffsets") ?? [])
+            foreach (var offset in fe.ReverseOffsets)
             {
-                driven.Add(offset.GetInt32Property("nBoneCtrl"));
+                driven.Add(offset.BoneCtrl);
             }
 
             var ringSides = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -592,8 +597,8 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            var first = fe.NodeCount;
-            while (first > fe.StaticNodeCount && driven.Contains(first - 1))
+            var first = index.NodeCount;
+            while (first > fe.StaticNodes && driven.Contains(first - 1))
             {
                 first--;
             }
@@ -657,13 +662,13 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Gets the node runs of <c>m_Ropes</c>, whose first <c>m_nRopeCount</c> entries are the runs' exclusive end offsets.
         /// </summary>
-        private IReadOnlyList<int[]> RopeRuns => ropeRuns ??= ReadRopeRuns(Fe.Data);
+        private IReadOnlyList<int[]> RopeRuns => ropeRuns ??= ReadRopeRuns(Fe);
 
-        private static List<int[]> ReadRopeRuns(KVObject data)
+        private static List<int[]> ReadRopeRuns(FeModel fe)
         {
             var runs = new List<int[]>();
-            var ropeCount = data.GetInt32Property("m_nRopeCount");
-            var ropes = data.GetIntegerArray("m_Ropes");
+            var ropeCount = fe.RopeCount;
+            var ropes = fe.Ropes;
             if (ropeCount <= 0 || ropes.Length <= ropeCount)
             {
                 return runs;
@@ -672,11 +677,11 @@ namespace ValveResourceFormat.IO
             var begin = ropeCount;
             for (var rope = 0; rope < ropeCount; rope++)
             {
-                var end = Math.Min((int)ropes[rope], ropes.Length);
+                var end = Math.Min(ropes[rope], ropes.Length);
                 var run = new int[Math.Max(end - begin, 0)];
                 for (var i = 0; i < run.Length; i++)
                 {
-                    run[i] = (int)ropes[begin + i];
+                    run[i] = ropes[begin + i];
                 }
 
                 runs.Add(run);

@@ -95,8 +95,8 @@ internal sealed partial class ClothExtract
         for (var v = 0; v < vertexCount; v++)
         {
             var node = proxy.NodeIndices[v];
-            lockedSimulated |= proxy.ClothEnable[v] != 0f && node < cloth.Fe.StaticNodeCount
-                && !cloth.Fe.AllowsRotation(node);
+            lockedSimulated |= proxy.ClothEnable[v] != 0f && node < cloth.Fe.StaticNodes
+                && !cloth.Index.AllowsRotation(node);
         }
 
         if (!lockedSimulated && sheetFlexes)
@@ -110,8 +110,8 @@ internal sealed partial class ClothExtract
         {
             var node = proxy.NodeIndices[v];
             var free = lockedSimulated
-                ? node >= cloth.Fe.StaticNodeCount || cloth.Fe.AllowsRotation(node)
-                : proxy.ClothEnable[v] == 0f && node < cloth.Fe.StaticNodeCount && cloth.Fe.AllowsRotation(node);
+                ? node >= cloth.Fe.StaticNodes || cloth.Index.AllowsRotation(node)
+                : proxy.ClothEnable[v] == 0f && node < cloth.Fe.StaticNodes && cloth.Index.AllowsRotation(node);
             if (free)
             {
                 freeRotate[v] = 1f;
@@ -135,7 +135,7 @@ internal sealed partial class ClothExtract
             var anyCleared = false;
             for (var v = 0; v < vertexCount; v++)
             {
-                var set = v >= nodeIndices.Length || (cloth.Fe.GetNodeCollisionMask(nodeIndices[v]) & bit) != 0;
+                var set = v >= nodeIndices.Length || (cloth.Index.GetNodeCollisionMask(nodeIndices[v]) & bit) != 0;
                 painted[v] = set ? 1f : 0f;
                 anyCleared |= !set;
             }
@@ -325,7 +325,7 @@ internal sealed partial class ClothExtract
         {
             vertexData.AddIndexedStream("cloth_make_rods$0", proxy.RodsDriven, vertexIndices);
         }
-        else if (!proxy.UsesAuthoredFaces && cloth.Fe.HasSurfaceElements)
+        else if (!proxy.UsesAuthoredFaces && cloth.Index.HasSurfaceElements)
         {
             vertexData.AddIndexedStream("cloth_use_rods$0", Filled(vertexCount, 1f), vertexIndices);
             vertexData.AddIndexedStream("cloth_make_rods$0", Filled(vertexCount, ClothSuppressedMakeRods), vertexIndices);

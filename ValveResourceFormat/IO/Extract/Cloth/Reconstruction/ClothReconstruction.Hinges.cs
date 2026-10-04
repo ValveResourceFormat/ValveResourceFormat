@@ -3,7 +3,7 @@ using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -30,7 +30,7 @@ namespace ValveResourceFormat.IO
         private HashSet<string>? ctrlNameSet;
 
         /// <summary>Each <c>m_HingeLimits</c> record by its first two nodes, the first record where several share them.</summary>
-        private Dictionary<(int, int), KVObject>? hingeLimits;
+        private Dictionary<(int, int), FeModel.FeHingeLimit>? hingeLimits;
 
         private Dictionary<int, bool>? hingeRegeneratingParents;
         private Dictionary<int, Vector3>? rigidHingeJoints;
@@ -50,14 +50,14 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets whether any <see cref="FeModel.KelagerBends"/> record is a chain ring bend (<see cref="IsChainRingBend"/>), which only
+        /// Gets whether any <see cref="FeModelIndex.KelagerBends"/> record is a chain ring bend (<see cref="IsChainRingBend"/>), which only
         /// <c>rigid_edge_hinges</c> builds.
         /// </summary>
-        internal bool HasChainRingBends => hasChainRingBends ??= Fe.KelagerBends.Any(IsChainRingBend);
+        internal bool HasChainRingBends => hasChainRingBends ??= Index.KelagerBends.Any(IsChainRingBend);
 
         private int BendOwner(int node)
-            => node < 0 || node >= Fe.CtrlNames.Length ? -1
-                : !IsProxyNodeName(Fe.CtrlNames[node]) ? node
+            => node < 0 || node >= Fe.CtrlName.Length ? -1
+                : !IsProxyNodeName(Fe.CtrlName[node]) ? node
                 : SkelParentOf(node);
 
         /// <summary>
@@ -71,9 +71,9 @@ namespace ValveResourceFormat.IO
         {
             var seen = 0;
 
-            foreach (var bend in Fe.KelagerBends)
+            foreach (var bend in Index.KelagerBends)
             {
-                var owner = bend.End0 >= 0 && bend.End0 < Fe.CtrlNames.Length && IsProxyNodeName(Fe.CtrlNames[bend.End0])
+                var owner = bend.End0 >= 0 && bend.End0 < Fe.CtrlName.Length && IsProxyNodeName(Fe.CtrlName[bend.End0])
                     ? SkelParentOf(bend.End0)
                     : -1;
                 if ((bend.End0 != jointNode && owner != jointNode) || IsChainRingBend(bend))
@@ -109,8 +109,8 @@ namespace ValveResourceFormat.IO
 
         private float BendAngle(KelagerBend bend)
         {
-            if (bend.MidNode >= Fe.InitPosePositions.Length || bend.End0 >= Fe.InitPosePositions.Length
-                || bend.End1 >= Fe.InitPosePositions.Length || bend.MidNode < 0 || bend.End0 < 0 || bend.End1 < 0)
+            if (bend.MidNode >= Index.InitPosePositions.Length || bend.End0 >= Index.InitPosePositions.Length
+                || bend.End1 >= Index.InitPosePositions.Length || bend.MidNode < 0 || bend.End0 < 0 || bend.End1 < 0)
             {
                 return 0f;
             }
@@ -127,20 +127,20 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Gets the <c>add_curvature</c> of a model compiled with <c>rigid_edge_hinges</c>, read off the heights of its
-        /// sheet-hub <see cref="FeModel.KelagerBends"/>; <see cref="SaturatedCurvature"/> when they do not agree.
+        /// sheet-hub <see cref="FeModelIndex.KelagerBends"/>; <see cref="SaturatedCurvature"/> when they do not agree.
         /// </summary>
         internal float RigidHingeCurvature => rigidHingeCurvature ??= ReadRigidHingeCurvature();
 
         private float ReadRigidHingeCurvature()
         {
-            if (Fe.KelagerBends.Count == 0)
+            if (Index.KelagerBends.Count == 0)
             {
                 return 0f;
             }
 
             var lowest = float.MaxValue;
             var highest = 0f;
-            foreach (var bend in Fe.KelagerBends)
+            foreach (var bend in Index.KelagerBends)
             {
                 if (HubFold(bend) is not { Shut: false } fold)
                 {
@@ -167,7 +167,7 @@ namespace ValveResourceFormat.IO
 
         private Dictionary<int, float>? ReadRigidHingeBendPaint()
         {
-            if (Fe.KelagerBends.Count == 0 || RigidHingeCurvature != SaturatedCurvature)
+            if (Index.KelagerBends.Count == 0 || RigidHingeCurvature != SaturatedCurvature)
             {
                 return null;
             }
@@ -175,7 +175,7 @@ namespace ValveResourceFormat.IO
             var lowest = new Dictionary<int, float>();
             var highest = new Dictionary<int, float>();
             var shut = new HashSet<int>();
-            foreach (var bend in Fe.KelagerBends)
+            foreach (var bend in Index.KelagerBends)
             {
                 if (HubFold(bend) is not { } fold)
                 {
@@ -218,9 +218,9 @@ namespace ValveResourceFormat.IO
         private (bool Shut, float Reading)? HubFold(KelagerBend bend)
         {
             if (bend.MidNode < 0 || bend.End0 < 0 || bend.End1 < 0
-                || bend.MidNode >= Fe.InitPosePositions.Length
-                || bend.End0 >= Fe.InitPosePositions.Length || bend.End1 >= Fe.InitPosePositions.Length
-                || bend.MidNode >= Fe.CtrlNames.Length || !IsProxyNodeName(Fe.CtrlNames[bend.MidNode]))
+                || bend.MidNode >= Index.InitPosePositions.Length
+                || bend.End0 >= Index.InitPosePositions.Length || bend.End1 >= Index.InitPosePositions.Length
+                || bend.MidNode >= Fe.CtrlName.Length || !IsProxyNodeName(Fe.CtrlName[bend.MidNode]))
             {
                 return null;
             }
@@ -242,12 +242,12 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Gets the rest lengths of a bend's two arms from its mid node, and the rest height its height is measured
-        /// against. The bend's nodes must index <see cref="FeModel.InitPosePositions"/>.
+        /// against. The bend's nodes must index <see cref="FeModelIndex.InitPosePositions"/>.
         /// </summary>
         private (float L0, float L1, float RestHeight) BendArms(KelagerBend bend)
         {
-            var toEnd0 = Fe.InitPosePositions[bend.End0] - Fe.InitPosePositions[bend.MidNode];
-            var toEnd1 = Fe.InitPosePositions[bend.End1] - Fe.InitPosePositions[bend.MidNode];
+            var toEnd0 = Index.InitPosePositions[bend.End0] - Index.InitPosePositions[bend.MidNode];
+            var toEnd1 = Index.InitPosePositions[bend.End1] - Index.InitPosePositions[bend.MidNode];
             return (toEnd0.Length(), toEnd1.Length(), (toEnd0 + toEnd1).Length() / 3f);
         }
 
@@ -266,13 +266,13 @@ namespace ValveResourceFormat.IO
 
         /// <summary>Gets whether the compiler created a hinge anchor node for the bone <paramref name="boneName"/>.</summary>
         private bool HasHingeAnchor(string boneName)
-            => (ctrlNameSet ??= [.. Fe.CtrlNames]).Contains(HingeAnchorPrefix + boneName);
+            => (ctrlNameSet ??= [.. Fe.CtrlName]).Contains(HingeAnchorPrefix + boneName);
 
         /// <summary>Gets the hinge authored on the joint, or null when it carries none.</summary>
         internal ChainHinge? GetChainHinge(string boneName, int jointNode)
         {
             var ring = ProxyRingOf(jointNode);
-            if (ring.Count < 2 || ring[0] >= Fe.InitPosePositions.Length || ring[1] >= Fe.InitPosePositions.Length)
+            if (ring.Count < 2 || ring[0] >= Index.InitPosePositions.Length || ring[1] >= Index.InitPosePositions.Length)
             {
                 return null;
             }
@@ -283,7 +283,7 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
-            var axis = (Fe.InitPosePositions[ring[1]] - Fe.InitPosePositions[ring[0]]) * 0.5f;
+            var axis = (Index.InitPosePositions[ring[1]] - Index.InitPosePositions[ring[0]]) * 0.5f;
             if (axis.LengthSquared() <= 0f)
             {
                 return null;
@@ -295,27 +295,27 @@ namespace ValveResourceFormat.IO
             return new ChainHinge(axis, cw, ccw);
         }
 
-        private KVObject? HingeLimitOverRing(List<int> ring)
+        private FeModel.FeHingeLimit? HingeLimitOverRing(List<int> ring)
         {
             if (hingeLimits is null)
             {
                 hingeLimits = [];
-                foreach (var hinge in Fe.Data.GetArray("m_HingeLimits") ?? [])
+                foreach (var hinge in Fe.HingeLimits)
                 {
-                    var nodes = hinge.GetIntegerArray("nNode");
+                    var nodes = hinge.Nodes;
                     if (nodes.Length >= 2)
                     {
-                        hingeLimits.TryAdd(((int)nodes[0], (int)nodes[1]), hinge);
+                        hingeLimits.TryAdd((nodes[0], nodes[1]), hinge);
                     }
                 }
             }
 
-            return hingeLimits.GetValueOrDefault((ring[0], ring[1]));
+            return hingeLimits.TryGetValue((ring[0], ring[1]), out var limit) ? limit : null;
         }
 
-        private (float Cw, float Ccw) HingeLimitsOf(KVObject hinge)
+        private (float Cw, float Ccw) HingeLimitsOf(FeModel.FeHingeLimit hinge)
         {
-            var extents = hinge.GetFloatProperty("flAngleExtents");
+            var extents = hinge.AngleExtents;
             var span = float.RadiansToDegrees(extents) * 2f;
             var rest = HingeRestAngle(hinge);
             if (rest is null)
@@ -323,25 +323,25 @@ namespace ValveResourceFormat.IO
                 return (0f, span);
             }
 
-            var solved = float.RadiansToDegrees(WrapAngle(hinge.GetFloatProperty("flAngleCenter") + extents - rest.Value));
+            var solved = float.RadiansToDegrees(WrapAngle(hinge.AngleCenter + extents - rest.Value));
             var cw = Math.Clamp(solved, 0f, span);
 
             return MathF.Abs(cw - solved) < 0.01f ? (cw, span - cw) : (0f, span);
         }
 
-        private float? HingeRestAngle(KVObject hinge)
+        private float? HingeRestAngle(FeModel.FeHingeLimit hinge)
         {
-            var nodes = hinge.GetIntegerArray("nNode");
-            if (nodes.Length < 6 || nodes.Any(node => node < 0 || node >= Fe.InitPosePositions.Length))
+            var nodes = hinge.Nodes;
+            if (nodes.Length < 6 || nodes.Any(node => node < 0 || node >= Index.InitPosePositions.Length))
             {
                 return null;
             }
 
             Vector3 Blend(int a, int b, float weight)
-                => Vector3.Lerp(Fe.InitPosePositions[a], Fe.InitPosePositions[b], weight);
+                => Vector3.Lerp(Index.InitPosePositions[a], Index.InitPosePositions[b], weight);
 
-            var origin = Fe.InitPosePositions[(int)nodes[0]];
-            var axis = Vector3.Normalize(Fe.InitPosePositions[(int)nodes[1]] - origin);
+            var origin = Index.InitPosePositions[nodes[0]];
+            var axis = Vector3.Normalize(Index.InitPosePositions[nodes[1]] - origin);
             if (!float.IsFinite(axis.X))
             {
                 return null;
@@ -353,8 +353,8 @@ namespace ValveResourceFormat.IO
                 return Vector3.Normalize(MathUtils.ProjectOntoPlane(arm, axis));
             }
 
-            var reference = Perpendicular(Blend((int)nodes[2], (int)nodes[4], hinge.GetFloatProperty("flWeight4")));
-            var arm = Perpendicular(Blend((int)nodes[3], (int)nodes[5], hinge.GetFloatProperty("flWeight5")));
+            var reference = Perpendicular(Blend(nodes[2], nodes[4], hinge.Weight4));
+            var arm = Perpendicular(Blend(nodes[3], nodes[5], hinge.Weight5));
             if (!float.IsFinite(reference.X) || !float.IsFinite(arm.X))
             {
                 return null;
@@ -381,7 +381,7 @@ namespace ValveResourceFormat.IO
 
         private Vector3 BreakEndEffectorQuadTie(List<int> ring, Vector3 axis)
         {
-            if (ring.Count < 4 || ring[2] >= Fe.InitPosePositions.Length || ring[3] >= Fe.InitPosePositions.Length)
+            if (ring.Count < 4 || ring[2] >= Index.InitPosePositions.Length || ring[3] >= Index.InitPosePositions.Length)
             {
                 return axis;
             }
@@ -392,7 +392,7 @@ namespace ValveResourceFormat.IO
             {
                 for (var far = 2; far < 4; far++)
                 {
-                    var span = Vector3.Distance(Fe.InitPosePositions[ring[near]], Fe.InitPosePositions[ring[far]]);
+                    var span = Vector3.Distance(Index.InitPosePositions[ring[near]], Index.InitPosePositions[ring[far]]);
                     longest = MathF.Max(longest, span);
                     shortest = MathF.Min(shortest, span);
                 }
@@ -403,7 +403,7 @@ namespace ValveResourceFormat.IO
                 return axis;
             }
 
-            var tip = Fe.InitPosePositions[ring[2]] - Fe.InitPosePositions[ring[3]];
+            var tip = Index.InitPosePositions[ring[2]] - Index.InitPosePositions[ring[3]];
             if (tip.LengthSquared() <= 0f)
             {
                 return axis;
@@ -424,20 +424,20 @@ namespace ValveResourceFormat.IO
             }
 
             int[]? tied = null;
-            foreach (var quad in Fe.Quads)
+            foreach (var quad in Index.Quads)
             {
                 if (quad.Length != 4 || !((quad[0] == ring[0] && quad[1] == ring[1]) || (quad[0] == ring[1] && quad[1] == ring[0]))
-                    || !Array.TrueForAll(quad, corner => corner >= 0 && corner < Fe.InitPosePositions.Length))
+                    || !Array.TrueForAll(quad, corner => corner >= 0 && corner < Index.InitPosePositions.Length))
                 {
                     continue;
                 }
 
                 var spans = new[]
                 {
-                    Vector3.Distance(Fe.InitPosePositions[quad[0]], Fe.InitPosePositions[quad[2]]),
-                    Vector3.Distance(Fe.InitPosePositions[quad[1]], Fe.InitPosePositions[quad[3]]),
-                    Vector3.Distance(Fe.InitPosePositions[quad[0]], Fe.InitPosePositions[quad[3]]),
-                    Vector3.Distance(Fe.InitPosePositions[quad[1]], Fe.InitPosePositions[quad[2]]),
+                    Vector3.Distance(Index.InitPosePositions[quad[0]], Index.InitPosePositions[quad[2]]),
+                    Vector3.Distance(Index.InitPosePositions[quad[1]], Index.InitPosePositions[quad[3]]),
+                    Vector3.Distance(Index.InitPosePositions[quad[0]], Index.InitPosePositions[quad[3]]),
+                    Vector3.Distance(Index.InitPosePositions[quad[1]], Index.InitPosePositions[quad[2]]),
                 };
                 var longest = spans.Max();
                 if (longest <= 0f || longest - spans.Min() > longest * 1e-5f)
@@ -458,7 +458,7 @@ namespace ValveResourceFormat.IO
                 return vector;
             }
 
-            var across = Fe.InitPosePositions[tied[3]] - Fe.InitPosePositions[tied[2]];
+            var across = Index.InitPosePositions[tied[3]] - Index.InitPosePositions[tied[2]];
             if (tied[0] == ring[0])
             {
                 across = -across;
@@ -482,13 +482,13 @@ namespace ValveResourceFormat.IO
 
         private bool IsHingeRegeneratedProxy(int node)
         {
-            if (node >= Fe.CtrlNames.Length || !IsProxyNodeName(Fe.CtrlNames[node]))
+            if (node >= Fe.CtrlName.Length || !IsProxyNodeName(Fe.CtrlName[node]))
             {
                 return false;
             }
 
             var parent = SkelParentOf(node);
-            if (parent < 0 || parent >= Fe.CtrlNames.Length)
+            if (parent < 0 || parent >= Fe.CtrlName.Length)
             {
                 return false;
             }
@@ -496,7 +496,7 @@ namespace ValveResourceFormat.IO
             hingeRegeneratingParents ??= [];
             if (!hingeRegeneratingParents.TryGetValue(parent, out var regenerates))
             {
-                regenerates = HasHingeAnchor(Fe.CtrlNames[parent]) || IsAnyHingedJoint(parent);
+                regenerates = HasHingeAnchor(Fe.CtrlName[parent]) || IsAnyHingedJoint(parent);
                 hingeRegeneratingParents[parent] = regenerates;
             }
 
@@ -530,7 +530,7 @@ namespace ValveResourceFormat.IO
                     && (!overTheRing || (ProxyRingOf(link.ParentNode) is { Count: 2 } ring && SpansRing(face, ring))));
             }
 
-            foreach (var quad in Fe.Quads)
+            foreach (var quad in Index.Quads)
             {
                 if (JoinsAHingedLink(quad, overTheRing: false))
                 {
@@ -538,7 +538,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            foreach (var tri in Fe.Tris)
+            foreach (var tri in Index.Tris)
             {
                 if (JoinsAHingedLink(tri, overTheRing: true))
                 {
@@ -614,7 +614,7 @@ namespace ValveResourceFormat.IO
                 return false;
             }
 
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 if (childOfRing.TryGetValue(rod.NodeA, out var a)
                     && childOfRing.TryGetValue(rod.NodeB, out var b) && a != b)
@@ -627,7 +627,7 @@ namespace ValveResourceFormat.IO
         }
 
         private bool IsChainOnlyFace(int[] face)
-            => !Array.Exists(face, corner => corner < 0 || corner >= Fe.CtrlNames.Length || IsProxyMeshNode(corner));
+            => !Array.Exists(face, corner => corner < 0 || corner >= Fe.CtrlName.Length || IsProxyMeshNode(corner));
 
         private static bool SpansRing(int[] face, List<int> ring)
             => Array.IndexOf(face, ring[0]) >= 0 && Array.IndexOf(face, ring[1]) >= 0;
@@ -635,7 +635,7 @@ namespace ValveResourceFormat.IO
         private Dictionary<int, Vector3> CollectHingeFanJoints(bool rigidOnly)
         {
             var joints = new Dictionary<int, Vector3>();
-            foreach (var face in Fe.Quads.Concat(Fe.Tris))
+            foreach (var face in Index.Quads.Concat(Index.Tris))
             {
                 if (!IsChainOnlyFace(face))
                 {
@@ -655,13 +655,13 @@ namespace ValveResourceFormat.IO
                         || !Array.TrueForAll(face, other => ring.Contains(other)
                             || (ChainJointOf(other) is { } child && SkelParentOf(child) == joint))
                         || (rigidOnly && HingeLimitOverRing(ring) is not null)
-                        || (rigidOnly && HasHingeAnchor(Fe.CtrlNames[joint]))
+                        || (rigidOnly && HasHingeAnchor(Fe.CtrlName[joint]))
                         || RigidHingeVector(joint, ring) is not { } vector)
                     {
                         continue;
                     }
 
-                    var toBoneFrame = joint < Fe.InitPoseRotations.Length ? Quaternion.Inverse(Fe.InitPoseRotations[joint]) : Quaternion.Identity;
+                    var toBoneFrame = joint < Index.InitPoseRotations.Length ? Quaternion.Inverse(Index.InitPoseRotations[joint]) : Quaternion.Identity;
                     joints[joint] = BreakHingeFanQuadTie(ring, vector, toBoneFrame);
                 }
             }
@@ -673,7 +673,7 @@ namespace ValveResourceFormat.IO
         {
             if (!IsRingNode(node))
             {
-                return IsGeneratedNodeName(Fe.CtrlNames[node]) ? null : node;
+                return IsGeneratedNodeName(Fe.CtrlName[node]) ? null : node;
             }
 
             var owner = SkelParentOf(node);
@@ -690,13 +690,13 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            if (ring[1] >= Fe.InitPosePositions.Length || joint >= Fe.InitPoseRotations.Length)
+            if (ring[1] >= Index.InitPosePositions.Length || joint >= Index.InitPoseRotations.Length)
             {
                 return null;
             }
 
-            var half = (Fe.InitPosePositions[ring[1]] - Fe.InitPosePositions[ring[0]]) * 0.5f;
-            return Vector3.Transform(half, Quaternion.Inverse(Fe.InitPoseRotations[joint]));
+            var half = (Index.InitPosePositions[ring[1]] - Index.InitPosePositions[ring[0]]) * 0.5f;
+            return Vector3.Transform(half, Quaternion.Inverse(Index.InitPoseRotations[joint]));
         }
     }
 }

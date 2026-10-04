@@ -269,7 +269,7 @@ namespace Tests
         {
             var cloth = SheetFitOverTipBone("m_nFirstPositionDrivenNode = 8");
             var sheet = cloth.BuildProxyMeshes().First(proxy => Array.Exists(proxy.NodeIndices,
-                node => cloth.Fe.CtrlNames[node].StartsWith("$cloth_m1p", StringComparison.Ordinal)));
+                node => cloth.Fe.CtrlName[node].StartsWith("$cloth_m1p", StringComparison.Ordinal)));
 
             var lockedSimulated = RotationSheet(sheet, [0, 4, 5, 6], [1f, 1f, 1f, 1f]);
             var pinnedInstead = RotationSheet(sheet, [0, 4, 5, 6], [0f, 1f, 1f, 1f]);
@@ -277,8 +277,8 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(cloth.Fe.AllowsRotation(0)).IsFalse();
-                await Assert.That(cloth.Fe.StaticNodeCount).IsEqualTo(1);
+                await Assert.That(cloth.Index.AllowsRotation(0)).IsFalse();
+                await Assert.That(cloth.Fe.StaticNodes).IsEqualTo(1);
 
                 var flexed = ClothExtract.ClothAnchorFreeRotatePaint(cloth, lockedSimulated, sheetFlexes: true);
                 var unflexed = ClothExtract.ClothAnchorFreeRotatePaint(cloth, lockedSimulated, sheetFlexes: false);
@@ -530,7 +530,7 @@ namespace Tests
         private static List<(int, int)> FoldedRodMisses(ClothReconstruction sheet, List<int[]> faces, HashSet<(int, int)> network,
             Dictionary<int, float>? paint, float curvature, bool tight = false)
         {
-            var positions = sheet.Fe.InitPosePositions;
+            var positions = sheet.Index.InitPosePositions;
             var generators = new Dictionary<(int, int), List<(int, int)>>();
             foreach (var (hinge, a, b) in ClothReconstruction.BendRodGenerators(faces))
             {
@@ -539,7 +539,7 @@ namespace Tests
             }
 
             var misses = new List<(int, int)>();
-            foreach (var rod in sheet.Fe.Rods)
+            foreach (var rod in sheet.Index.Rods)
             {
                 var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
                 if (!network.Contains(pair))

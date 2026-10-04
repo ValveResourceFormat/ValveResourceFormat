@@ -73,11 +73,11 @@ internal sealed partial class ClothExtract
         }
     }
 
-    private static bool CoversNodeOutsideChains(ClothReconstruction cloth, FeModel.VertexMap map, HashSet<string> jointNames)
+    private static bool CoversNodeOutsideChains(ClothReconstruction cloth, FeModelIndex.VertexMap map, HashSet<string> jointNames)
     {
-        for (var node = map.VertexBase; node < map.VertexBase + map.VertexCount && node < cloth.Fe.CtrlNames.Length; node++)
+        for (var node = map.VertexBase; node < map.VertexBase + map.VertexCount && node < cloth.Fe.CtrlName.Length; node++)
         {
-            var name = cloth.Fe.CtrlNames[node];
+            var name = cloth.Fe.CtrlName[node];
             if (map.WeightOf(node) > 0f && (name.StartsWith("$cloth_", StringComparison.Ordinal)
                 || (!name.StartsWith('$') && !jointNames.Contains(name))))
             {

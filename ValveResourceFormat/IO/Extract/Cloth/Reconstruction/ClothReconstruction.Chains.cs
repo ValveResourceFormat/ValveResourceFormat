@@ -2,7 +2,7 @@ using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -149,7 +149,7 @@ namespace ValveResourceFormat.IO
         private Dictionary<int, List<int>> BuildProxyRingIndex()
         {
             var rings = new Dictionary<int, List<int>>();
-            for (var node = 0; node < Fe.CtrlNames.Length && node < SkelParents.Length; node++)
+            for (var node = 0; node < Fe.CtrlName.Length && node < SkelParents.Length; node++)
             {
                 if (IsRingNode(node))
                 {
@@ -159,7 +159,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var ring in rings.Values)
             {
-                ring.Sort((a, b) => string.CompareOrdinal(Fe.CtrlNames[a], Fe.CtrlNames[b]));
+                ring.Sort((a, b) => string.CompareOrdinal(Fe.CtrlName[a], Fe.CtrlName[b]));
             }
 
             return rings;
@@ -227,7 +227,7 @@ namespace ValveResourceFormat.IO
             var declarations = new Dictionary<int, List<List<int>>>();
             foreach (var (bone, proxies) in proxyChildrenOf)
             {
-                if (SplitRingDeclarations(proxies, Fe.CtrlNames) is { } groups)
+                if (SplitRingDeclarations(proxies, Fe.CtrlName) is { } groups)
                 {
                     declarations[bone] = groups;
                 }
@@ -503,14 +503,11 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            if (Fe.Data.GetArray("m_CtrlSoftOffsets") is { } softOffsets)
+            foreach (var entry in Fe.CtrlSoftOffsets)
             {
-                foreach (var entry in softOffsets)
+                if (IsProxyMeshNode(entry.CtrlChild))
                 {
-                    if (IsProxyMeshNode(entry.GetInt32Property("nCtrlChild")))
-                    {
-                        result.Add(entry.GetInt32Property("nCtrlParent"));
-                    }
+                    result.Add(entry.CtrlParent);
                 }
             }
 
@@ -541,14 +538,14 @@ namespace ValveResourceFormat.IO
             var contractionsByPair = new Dictionary<(int, int), List<float>>();
             var rodsByPair = new Dictionary<(int, int), List<Rod>>();
             var clusterRods = SelfCollisionClusterRods;
-            for (var index = 0; index < Fe.Rods.Length; index++)
+            for (var index = 0; index < Index.Rods.Length; index++)
             {
                 if (clusterRods.Contains(index))
                 {
                     continue;
                 }
 
-                var rod = Fe.Rods[index];
+                var rod = Index.Rods[index];
                 var pair = UnorderedPair(rod.NodeA, rod.NodeB);
                 pairs.Add(pair);
                 GetOrAdd(relaxationsByPair, pair).Add(rod.RelaxationFactor);
@@ -587,10 +584,10 @@ namespace ValveResourceFormat.IO
         {
             var childrenOf = new Dictionary<int, List<int>>();
 
-            for (var node = 0; node < Fe.CtrlNames.Length; node++)
+            for (var node = 0; node < Fe.CtrlName.Length; node++)
             {
                 if ((!IsRingNode(node)
-                    && !(!IsProxyNodeName(Fe.CtrlNames[node]) && IsGeneratedNodeName(Fe.CtrlNames[node])))
+                    && !(!IsProxyNodeName(Fe.CtrlName[node]) && IsGeneratedNodeName(Fe.CtrlName[node])))
                     || ImportedStripNodes.Contains(node))
                 {
                     continue;
@@ -631,19 +628,19 @@ namespace ValveResourceFormat.IO
 
             var lowest = float.MaxValue;
             var highest = 0f;
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 if (!ringOwnerOf.TryGetValue(rod.NodeA, out var ownerA)
                     || !ringOwnerOf.TryGetValue(rod.NodeB, out var ownerB)
                     || ownerA != ownerB
-                    || rod.NodeA >= Fe.InitPosePositions.Length || rod.NodeB >= Fe.InitPosePositions.Length
+                    || rod.NodeA >= Index.InitPosePositions.Length || rod.NodeB >= Index.InitPosePositions.Length
                     || !IsRingNode(rod.NodeA)
                     || !IsRingNode(rod.NodeB))
                 {
                     continue;
                 }
 
-                var rest = Vector3.Distance(Fe.InitPosePositions[rod.NodeA], Fe.InitPosePositions[rod.NodeB]);
+                var rest = Vector3.Distance(Index.InitPosePositions[rod.NodeA], Index.InitPosePositions[rod.NodeB]);
                 if (rod.MaxDist <= rest * 1.001f || rod.MaxDist <= 0f)
                 {
                     continue;
@@ -700,7 +697,7 @@ namespace ValveResourceFormat.IO
             var mergedChains = new List<BoneChain>();
 
             var chainFirstSimulated = new Dictionary<BoneChain, int>();
-            var n = Fe.CtrlNames.Length;
+            var n = Fe.CtrlName.Length;
             if (n == 0)
             {
                 return chains;
@@ -709,7 +706,7 @@ namespace ValveResourceFormat.IO
             var isReal = new bool[n];
             for (var i = 0; i < n; i++)
             {
-                isReal[i] = !IsGeneratedNodeName(Fe.CtrlNames[i]) && !ImportedStripNodes.Contains(i);
+                isReal[i] = !IsGeneratedNodeName(Fe.CtrlName[i]) && !ImportedStripNodes.Contains(i);
             }
 
             var rodGraph = BuildRodGraph();
@@ -767,10 +764,10 @@ namespace ValveResourceFormat.IO
         }
 
         private Vector3 ExtrudeOrigin(int node)
-            => ChainExtrudeOrigins is { } origins && node < Fe.CtrlNames.Length
-                && origins.TryGetValue(Fe.CtrlNames[node], out var origin)
+            => ChainExtrudeOrigins is { } origins && node < Fe.CtrlName.Length
+                && origins.TryGetValue(Fe.CtrlName[node], out var origin)
                 ? origin
-                : Fe.InitPosePositions[node];
+                : Index.InitPosePositions[node];
 
         /// <summary>
         /// Resolves each real node's parent among real nodes from the skeleton, rod, ring, bend, rope and twist evidence, and
@@ -780,11 +777,11 @@ namespace ValveResourceFormat.IO
             HashSet<(int, int)> rodPairs, Dictionary<int, List<int>> proxyChildrenOf, Dictionary<int, int> ringOwnerOf,
             IReadOnlyDictionary<int, int> ropeParents)
         {
-            var n = Fe.CtrlNames.Length;
+            var n = Fe.CtrlName.Length;
             HashSet<string>? surfaceElements = null;
             bool RinglessLinkUnrecorded(int parent, int child)
             {
-                if (Fe.SourceFaces.Length == 0 || proxyChildrenOf.ContainsKey(parent)
+                if (Index.SourceFaces.Length == 0 || proxyChildrenOf.ContainsKey(parent)
                     || !proxyChildrenOf.TryGetValue(child, out var ring) || ring.Count < 2
                     || !DrivesProxySheetVertex(parent))
                 {
@@ -795,7 +792,7 @@ namespace ValveResourceFormat.IO
                 {
                     surfaceElements = [];
                     var recordsChainSurfaces = false;
-                    foreach (var face in Fe.SourceFaces)
+                    foreach (var face in Index.SourceFaces)
                     {
                         surfaceElements.Add(SurfaceElementKey(face));
                         recordsChainSurfaces |= Array.Exists(face, ringOwnerOf.ContainsKey);
@@ -811,7 +808,7 @@ namespace ValveResourceFormat.IO
             }
 
             bool IsCentreRing(List<int> ring)
-                => ring.TrueForAll(node => Fe.CtrlNames[node].EndsWith("_Ctr", StringComparison.Ordinal));
+                => ring.TrueForAll(node => Fe.CtrlName[node].EndsWith("_Ctr", StringComparison.Ordinal));
 
             var facesTouchingRing = new Dictionary<List<int>, HashSet<int>>();
             HashSet<int> FacesTouching(List<int> ring)
@@ -819,9 +816,9 @@ namespace ValveResourceFormat.IO
                 if (!facesTouchingRing.TryGetValue(ring, out var faces))
                 {
                     faces = [];
-                    for (var f = 0; f < Fe.SourceFaces.Length; f++)
+                    for (var f = 0; f < Index.SourceFaces.Length; f++)
                     {
-                        if (Array.Exists(Fe.SourceFaces[f], ring.Contains))
+                        if (Array.Exists(Index.SourceFaces[f], ring.Contains))
                         {
                             faces.Add(f);
                         }
@@ -840,14 +837,14 @@ namespace ValveResourceFormat.IO
 
             bool RingLinkUnrecorded(int parent, int child)
             {
-                if (HasCompiledSkelParents || Fe.SourceFaces.Length == 0
+                if (HasCompiledSkelParents || Index.SourceFaces.Length == 0
                     || !proxyChildrenOf.TryGetValue(parent, out var parentRing) || !proxyChildrenOf.TryGetValue(child, out var childRing)
                     || IsCentreRing(parentRing) || IsCentreRing(childRing))
                 {
                     return false;
                 }
 
-                chainSurfacesRecorded ??= Array.Exists(Fe.SourceFaces, face => Array.Exists(face, ringOwnerOf.ContainsKey));
+                chainSurfacesRecorded ??= Array.Exists(Index.SourceFaces, face => Array.Exists(face, ringOwnerOf.ContainsKey));
                 if (chainSurfacesRecorded == false || RingsShareFace(parentRing, childRing))
                 {
                     return false;
@@ -874,10 +871,10 @@ namespace ValveResourceFormat.IO
                     return false;
                 }
 
-                for (var name = boneParents.GetValueOrDefault(Fe.CtrlNames[from]); name is not null && guard++ < 2 * AncestorWalkLimit;
+                for (var name = boneParents.GetValueOrDefault(Fe.CtrlName[from]); name is not null && guard++ < 2 * AncestorWalkLimit;
                     name = boneParents.GetValueOrDefault(name))
                 {
-                    if (string.Equals(name, Fe.CtrlNames[to], StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(name, Fe.CtrlName[to], StringComparison.OrdinalIgnoreCase))
                     {
                         return true;
                     }
@@ -886,7 +883,7 @@ namespace ValveResourceFormat.IO
                 return false;
             }
 
-            bool EndsItsChain(int node) => (ctrlNameSet ??= [.. Fe.CtrlNames]).Contains(RingNodePrefix + Fe.CtrlNames[node] + "_Ctr");
+            bool EndsItsChain(int node) => (ctrlNameSet ??= [.. Fe.CtrlName]).Contains(RingNodePrefix + Fe.CtrlName[node] + "_Ctr");
 
             var realParent = new int[n];
             var children = new List<int>?[n];
@@ -910,7 +907,7 @@ namespace ValveResourceFormat.IO
                 var rodLinked = rodPairs.Contains(UnorderedPair(p, i));
                 var bothDrivenSim = i >= FirstPositionDrivenNode && p >= FirstPositionDrivenNode && Simulates(i) && Simulates(p);
                 var proxyRibbon = proxyChildrenOf.ContainsKey(i);
-                var hingedRoot = HasHingeAnchor(Fe.CtrlNames[p]) || RigidHingeJoints.ContainsKey(p);
+                var hingedRoot = HasHingeAnchor(Fe.CtrlName[p]) || RigidHingeJoints.ContainsKey(p);
                 var bendLinked = KelagerBendsByMidNode.TryGetValue(p, out var midBends)
                     && midBends.Exists(bend => bend.End0 == i || bend.End1 == i);
 
@@ -995,7 +992,7 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        if (string.Equals(SkeletonBoneParents.GetValueOrDefault(Fe.CtrlNames[i]), Fe.CtrlNames[p],
+                        if (string.Equals(SkeletonBoneParents.GetValueOrDefault(Fe.CtrlName[i]), Fe.CtrlName[p],
                             StringComparison.OrdinalIgnoreCase))
                         {
                             realParent[i] = p;
@@ -1006,14 +1003,14 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            if (!HasCompiledSkelParents && Fe.Rods.Length > 0)
+            if (!HasCompiledSkelParents && Index.Rods.Length > 0)
             {
                 int OwnerOf(int node) => ringOwnerOf.TryGetValue(node, out var owner)
                     ? owner
                     : node < n && isReal[node] ? node : -1;
 
                 var linkCounts = new Dictionary<(int, int), int>();
-                foreach (var rod in Fe.Rods)
+                foreach (var rod in Index.Rods)
                 {
                     var a = OwnerOf(rod.NodeA);
                     var b = OwnerOf(rod.NodeB);
@@ -1036,7 +1033,7 @@ namespace ValveResourceFormat.IO
                 {
                     if (isReal[i])
                     {
-                        nodeByName.TryAdd(Fe.CtrlNames[i], i);
+                        nodeByName.TryAdd(Fe.CtrlName[i], i);
                     }
                 }
 
@@ -1049,7 +1046,7 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        var ancestor = SkeletonBoneParents.GetValueOrDefault(Fe.CtrlNames[i]);
+                        var ancestor = SkeletonBoneParents.GetValueOrDefault(Fe.CtrlName[i]);
                         var guard = 0;
                         while (ancestor is not null && guard++ < AncestorWalkLimit)
                         {
@@ -1162,7 +1159,7 @@ namespace ValveResourceFormat.IO
                     var (kids, ringless) = groups[g];
                     foreach (var kid in kids)
                     {
-                        if (!Fe.FitMatrixTargets.TryGetValue(kid, out var targets) || targets.Length == 0
+                        if (!Index.FitMatrixTargets.TryGetValue(kid, out var targets) || targets.Length == 0
                             || ProxyFitMatrixNodes.Contains(kid))
                         {
                             continue;
@@ -1203,7 +1200,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var looseKids = rootKids.Count > 1 && proxyChildrenOf.TryGetValue(rootNode, out var ownRing) && ownRing.Count > 0
-                    ? rootKids.FindAll(kid => Fe.IsStatic(kid) && children[kid] is null
+                    ? rootKids.FindAll(kid => Index.IsStatic(kid) && children[kid] is null
                         && proxyChildrenOf.TryGetValue(kid, out var kidRing) && kidRing.Count > 0
                         && !AnyRod(rodPairs, [rootNode, .. ownRing], [kid, .. kidRing]))
                     : [];
@@ -1289,7 +1286,7 @@ namespace ValveResourceFormat.IO
             var (rodPairs, rodRelaxationsByPair, rigidRodRelaxationsByPair, repeatRodRelaxationsByPair, rodContractionsByPair) = rodGraph;
             var rootNode = spec.Root;
             var ringlessRoot = spec.RinglessRoot;
-            var chain = new BoneChain { RootBone = Fe.CtrlNames[rootNode], DeclarationSuffix = spec.Suffix };
+            var chain = new BoneChain { RootBone = Fe.CtrlName[rootNode], DeclarationSuffix = spec.Suffix };
 
             List<int>? DeclaredRing(int node) => DeclaredRingOf(spec, proxyChildrenOf, node);
 
@@ -1890,7 +1887,7 @@ namespace ValveResourceFormat.IO
             List<int> Extrusion(int node)
                 => jointRingOf.TryGetValue(node, out var ring) ? [node, .. ring] : [node];
 
-            var ropeHinted = Fe.NodeBases.Count == 0 ? RopeRunParents : new Dictionary<int, int>();
+            var ropeHinted = Index.NodeBases.Count == 0 ? RopeRunParents : new Dictionary<int, int>();
 
             // Read up front: JointCopies consults it, and nothing the loop below writes feeds it.
             foreach (var joint in chain.Joints)
@@ -1999,9 +1996,9 @@ namespace ValveResourceFormat.IO
                 var animated = own.Exists(AnimRodNodes.Contains);
 
                 joint.AnimatedLength = animated && (kids.Count == 0
-                    ? Fe.NodeBases.ContainsKey(joint.Node)
+                    ? Index.NodeBases.ContainsKey(joint.Node)
                     : kids.TrueForAll(kid => jointRingOf.ContainsKey(kid.Node) && !AnyRod(rodPairs, Extrusion(kid.Node), own))
-                        && ((Fe.NodeBases.ContainsKey(joint.Node) && !SelfCollisionClusters.Any(cluster => cluster.Nodes.Contains(joint.Node)))
+                        && ((Index.NodeBases.ContainsKey(joint.Node) && !SelfCollisionClusters.Any(cluster => cluster.Nodes.Contains(joint.Node)))
                             || kids.TrueForAll(kid => AnyRod(rodPairs, Extrusion(kid.Node), Extrusion(kid.Node)))));
 
                 if (joint.AnimatedLength)
@@ -2088,7 +2085,7 @@ namespace ValveResourceFormat.IO
             var firstSimulated = int.MaxValue;
             foreach (var joint in chain.Joints)
             {
-                if (joint.Node >= Fe.StaticNodeCount)
+                if (joint.Node >= Fe.StaticNodes)
                 {
                     firstSimulated = Math.Min(firstSimulated, joint.Node);
                 }
@@ -2097,7 +2094,7 @@ namespace ValveResourceFormat.IO
                 {
                     foreach (var proxy in declaredRing)
                     {
-                        if (proxy >= Fe.StaticNodeCount)
+                        if (proxy >= Fe.StaticNodes)
                         {
                             firstSimulated = Math.Min(firstSimulated, proxy);
                         }
@@ -2173,7 +2170,7 @@ namespace ValveResourceFormat.IO
                         }
 
                         first = Math.Min(first, member);
-                        if (member >= Fe.StaticNodeCount && member < FirstPositionDrivenNode)
+                        if (member >= Fe.StaticNodes && member < FirstPositionDrivenNode)
                         {
                             firstSimulated = Math.Min(firstSimulated, member);
                         }
@@ -2197,9 +2194,9 @@ namespace ValveResourceFormat.IO
                 chain.Joints.Add(new BoneChainJoint
                 {
                     Node = node,
-                    Name = Fe.CtrlNames[node],
+                    Name = Fe.CtrlName[node],
                     ParentNode = parent,
-                    ParentName = parent >= 0 ? Fe.CtrlNames[parent] : null,
+                    ParentName = parent >= 0 ? Fe.CtrlName[parent] : null,
                     InvMass = InverseMassOf(node),
                 });
 
@@ -2249,13 +2246,13 @@ namespace ValveResourceFormat.IO
 
                 var ring = proxies;
                 List<int>? endEffectorRing = null;
-                if (proxies.TrueForAll(p => Fe.CtrlNames[p].EndsWith("_Ctr", StringComparison.Ordinal))
-                    && joint.Node < Fe.InitPoseRotations.Length && joint.Node < Fe.InitPosePositions.Length
-                    && proxies[0] < Fe.InitPosePositions.Length)
+                if (proxies.TrueForAll(p => Fe.CtrlName[p].EndsWith("_Ctr", StringComparison.Ordinal))
+                    && joint.Node < Index.InitPoseRotations.Length && joint.Node < Index.InitPosePositions.Length
+                    && proxies[0] < Index.InitPosePositions.Length)
                 {
                     var centreOffset = Vector3.Transform(
-                        Fe.InitPosePositions[proxies[0]] - ExtrudeOrigin(joint.Node),
-                        Quaternion.Conjugate(Fe.InitPoseRotations[joint.Node]));
+                        Index.InitPosePositions[proxies[0]] - ExtrudeOrigin(joint.Node),
+                        Quaternion.Conjugate(Index.InitPoseRotations[joint.Node]));
                     if (MathF.Abs(centreOffset.X) >= EndEffectorRingTolerance)
                     {
                         joint.EndEffector = centreOffset.X;
@@ -2266,16 +2263,16 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
-                if (joint.Node < Fe.InitPoseRotations.Length && joint.Node < Fe.InitPosePositions.Length)
+                if (joint.Node < Index.InitPoseRotations.Length && joint.Node < Index.InitPosePositions.Length)
                 {
                     var forwardOf = new Dictionary<int, float>(proxies.Count);
                     foreach (var proxy in proxies)
                     {
-                        if (proxy < Fe.InitPosePositions.Length)
+                        if (proxy < Index.InitPosePositions.Length)
                         {
                             forwardOf[proxy] = Vector3.Transform(
-                                Fe.InitPosePositions[proxy] - ExtrudeOrigin(joint.Node),
-                                Quaternion.Conjugate(Fe.InitPoseRotations[joint.Node])).X;
+                                Index.InitPosePositions[proxy] - ExtrudeOrigin(joint.Node),
+                                Quaternion.Conjugate(Index.InitPoseRotations[joint.Node])).X;
                         }
                     }
 
@@ -2305,23 +2302,23 @@ namespace ValveResourceFormat.IO
                 jointRingOf[joint.Node] = ring;
                 sideFrequency[ring.Count] = sideFrequency.GetValueOrDefault(ring.Count) + 1;
                 proxies = ring;
-                if (joint.Node < Fe.InitPosePositions.Length)
+                if (joint.Node < Index.InitPosePositions.Length)
                 {
-                    if (joint.Node < Fe.InitPoseRotations.Length)
+                    if (joint.Node < Index.InitPoseRotations.Length)
                     {
                         joint.ForwardAxis = DetectExtrudeForwardAxis(
-                            ExtrudeOrigin(joint.Node), Fe.InitPoseRotations[joint.Node], proxies, Fe.InitPosePositions);
+                            ExtrudeOrigin(joint.Node), Index.InitPoseRotations[joint.Node], proxies, Index.InitPosePositions);
                     }
 
                     var measured = endEffectorRing is { Count: > 0 } && IsHingedJoint(joint.Node)
                         ? endEffectorRing
                         : proxies;
 
-                    if (joint.Node < Fe.InitPoseRotations.Length && measured[0] < Fe.InitPosePositions.Length)
+                    if (joint.Node < Index.InitPoseRotations.Length && measured[0] < Index.InitPosePositions.Length)
                     {
-                        var ringFrame = Fe.InitPoseRotations[joint.Node] * ExtrudeAxisSelectQuaternion(joint.ForwardAxis);
+                        var ringFrame = Index.InitPoseRotations[joint.Node] * ExtrudeAxisSelectQuaternion(joint.ForwardAxis);
                         var offset = Vector3.Transform(
-                            Fe.InitPosePositions[measured[0]] - ExtrudeOrigin(joint.Node),
+                            Index.InitPosePositions[measured[0]] - ExtrudeOrigin(joint.Node),
                             Quaternion.Conjugate(ringFrame));
                         if (new Vector2(offset.Y, offset.Z).LengthSquared() > 1e-6f)
                         {
@@ -2331,15 +2328,15 @@ namespace ValveResourceFormat.IO
                         }
 
                         joint.ExtrudeRadius = measured == proxies
-                            ? Vector3.Distance(ExtrudeOrigin(joint.Node), Fe.InitPosePositions[measured[0]])
+                            ? Vector3.Distance(ExtrudeOrigin(joint.Node), Index.InitPosePositions[measured[0]])
                             : new Vector2(offset.Y, offset.Z).Length();
                     }
 
                     foreach (var proxy in proxies)
                     {
-                        if (proxy < Fe.InitPosePositions.Length)
+                        if (proxy < Index.InitPosePositions.Length)
                         {
-                            radii.Add(Vector3.Distance(ExtrudeOrigin(joint.Node), Fe.InitPosePositions[proxy]));
+                            radii.Add(Vector3.Distance(ExtrudeOrigin(joint.Node), Index.InitPosePositions[proxy]));
                         }
                     }
                 }

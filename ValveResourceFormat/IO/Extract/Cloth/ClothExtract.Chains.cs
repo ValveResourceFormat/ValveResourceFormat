@@ -87,9 +87,9 @@ internal sealed partial class ClothExtract
     internal static IEnumerable<KVObject> ChainJointClothNodes(ClothReconstruction cloth, IReadOnlyList<BoneChain> chains)
     {
         var joints = ChainJointNodes(chains);
-        var names = cloth.Fe.CtrlNames;
+        var names = cloth.Fe.CtrlName;
 
-        var presets = new Dictionary<int, FeModel.NodeBasis>();
+        var presets = new Dictionary<int, FeModelIndex.NodeBasis>();
         foreach (var node in joints)
         {
             if (cloth.ClothNodeBasisPreset(node) is (3, var references)
@@ -104,7 +104,7 @@ internal sealed partial class ClothExtract
             yield break;
         }
 
-        foreach (var node in joints.Where(node => !cloth.Fe.IsStatic(node)).Order())
+        foreach (var node in joints.Where(node => !cloth.Index.IsStatic(node)).Order())
         {
             if (!presets.TryGetValue(node, out var references))
             {
@@ -230,7 +230,7 @@ internal sealed partial class ClothExtract
 
             if (joint.Simulated)
             {
-                kv.Add("collision_radius", cloth.Fe.GetCollisionRadius(joint.Node));
+                kv.Add("collision_radius", cloth.Index.GetCollisionRadius(joint.Node));
             }
 
             if (parented
@@ -336,9 +336,9 @@ internal sealed partial class ClothExtract
             twistRelax = ClothStaticRootTwistRelax;
         }
 
-        if (joint.Node < cloth.Fe.StaticNodeCount)
+        if (joint.Node < cloth.Fe.StaticNodes)
         {
-            kv.Add("allow_rotation", cloth.Fe.AllowsRotation(joint.Node));
+            kv.Add("allow_rotation", cloth.Index.AllowsRotation(joint.Node));
         }
 
         if (cloth.LocksTranslation(joint.Node, chainVersion, chain) || pinnedSimulatedRoot)
@@ -359,25 +359,25 @@ internal sealed partial class ClothExtract
 
         kv.Add("twist_relax", twistRelax);
 
-        kv.Add("world_collision", cloth.Fe.IsWorldCollisionNode(joint.Node));
+        kv.Add("world_collision", cloth.Index.IsWorldCollisionNode(joint.Node));
 
-        var collisionMask = cloth.Fe.GetNodeCollisionMask(joint.Node);
+        var collisionMask = cloth.Index.GetNodeCollisionMask(joint.Node);
         if (collisionMask is >= 0 and < ClothAllCollisionLayers)
         {
             AddCollisionLayerFlags(kv, "collision_layer_", collisionMask);
         }
 
-        var (worldFriction, groundFriction) = cloth.Fe.GetWorldFriction(joint.Node);
+        var (worldFriction, groundFriction) = cloth.Index.GetWorldFriction(joint.Node);
         kv.Add("world_friction", worldFriction);
         kv.Add("ground_friction", groundFriction);
-        kv.Add("collision_radius", cloth.Fe.GetCollisionRadius(valueNode));
+        kv.Add("collision_radius", cloth.Index.GetCollisionRadius(valueNode));
 
         var strayNode = joint.ValueNode >= 0
             ? joint.ValueNode
             : cloth.StrayRadiusNode(joint.Node, joint.Name);
-        kv.Add("stray_radius", cloth.Fe.GetStrayRadius(strayNode));
+        kv.Add("stray_radius", cloth.Index.GetStrayRadius(strayNode));
         kv.Add("stray_radius_stretchiness", cloth.GetStrayStretchiness(strayNode));
-        kv.Add("friction", cloth.Fe.GetNodeFriction(joint.Node));
+        kv.Add("friction", cloth.Index.GetNodeFriction(joint.Node));
 
         if (cloth.RecoverJointMass(joint.Node, chainMass) is { } massMultiplier)
         {

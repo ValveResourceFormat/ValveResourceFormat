@@ -9,7 +9,7 @@ internal sealed partial class ClothExtract
 
     private ClothProxySurface? BuildRenderBindingSurface()
     {
-        if (model is null || physAggregateData?.FeModel is not { } cloth)
+        if (model is null || physAggregateData?.FeModel is null || Reconstruction is not { } cloth)
         {
             return null;
         }
@@ -37,9 +37,9 @@ internal sealed partial class ClothExtract
                 {
                     var node = proxy.NodeIndices[face[i]];
                     corners[i] = proxy.Positions[face[i]];
-                    names[i] = cloth.CtrlNames[node];
+                    names[i] = cloth.Fe.CtrlName[node];
 
-                    var generated = cloth.AllowsRotation(node) && ClothBones.IsProxyName(names[i]);
+                    var generated = cloth.Index.AllowsRotation(node) && ClothBones.IsProxyName(names[i]);
                     ownsBone[i] = generated && boneNames.Contains(names[i]);
                     boneless[i] = generated && !ownsBone[i];
                 }

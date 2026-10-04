@@ -32,22 +32,22 @@ internal sealed partial class ClothReconstruction
     {
         var targets = new Dictionary<string, Vector3>(StringComparer.OrdinalIgnoreCase);
         var rotationTargets = new Dictionary<string, Quaternion>(StringComparer.OrdinalIgnoreCase);
-        for (var node = 0; node < Fe.CtrlNames.Length; node++)
+        for (var node = 0; node < Fe.CtrlName.Length; node++)
         {
-            var name = Fe.CtrlNames[node];
+            var name = Fe.CtrlName[node];
             if (string.IsNullOrEmpty(name) || IsGeneratedNodeName(name))
             {
                 continue;
             }
 
-            if (node < Fe.InitPosePositions.Length)
+            if (node < Index.InitPosePositions.Length)
             {
-                targets.TryAdd(name, Fe.InitPosePositions[node]);
+                targets.TryAdd(name, Index.InitPosePositions[node]);
             }
 
-            if (node < Fe.InitPoseRotations.Length)
+            if (node < Index.InitPoseRotations.Length)
             {
-                rotationTargets.TryAdd(name, Fe.InitPoseRotations[node]);
+                rotationTargets.TryAdd(name, Index.InitPoseRotations[node]);
             }
         }
 

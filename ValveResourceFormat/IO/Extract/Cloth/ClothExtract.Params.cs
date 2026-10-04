@@ -61,7 +61,7 @@ internal sealed partial class ClothExtract
         var flags = cloth.Fe.DynamicNodeFlags;
         bool Flag(uint bits) => (flags & bits) != 0;
 
-        var rigidEdgeHinges = cloth.Fe.HasAxialEdges || cloth.HasChainRingBends;
+        var rigidEdgeHinges = cloth.Index.HasAxialEdges || cloth.HasChainRingBends;
 
         return MakeNode("ClothParams",
             ("default_stretch", cloth.Fe.DefaultSurfaceStretch),
@@ -70,14 +70,14 @@ internal sealed partial class ClothExtract
             ("extra_goal_iterations", cloth.Fe.ExtraGoalIterations),
             ("extra_pressure_iterations", cloth.Fe.ExtraPressureIterations),
             ("goal_strength_bias", cloth.GoalStrengthBias),
-            ("default_gravity_scale", cloth.Fe.DefaultGravityScale),
+            ("default_gravity_scale", cloth.Index.DefaultGravityScale),
             ("default_vel_air_drag", cloth.Fe.DefaultVelAirDrag),
             ("default_exp_air_drag", cloth.Fe.DefaultExpAirDrag),
-            ("velocity_smooth_rate", cloth.Fe.VelocitySmoothRate),
+            ("velocity_smooth_rate", cloth.Fe.RodVelocitySmoothRate),
             ("internal_pressure", cloth.Fe.InternalPressure),
             ("windage", cloth.Fe.Windage),
             ("wind_drag", cloth.Fe.WindDrag),
-            ("velocity_smooth_iterations", cloth.Fe.VelocitySmoothIterations),
+            ("velocity_smooth_iterations", cloth.Fe.RodVelocitySmoothIterations),
             ("default_ground_friction", cloth.DefaultGroundFriction),
             ("default_world_collision_penetration", 0.0f),
             ("add_world_collision_radius", cloth.Fe.AddWorldCollisionRadius),
@@ -89,7 +89,7 @@ internal sealed partial class ClothExtract
             ("quad_bend_tolerance", cloth.QuadBendTolerance),
             ("local_drag1", cloth.Fe.LocalDrag1),
             ("follow_the_lead", Flag(ClothFlagFollowTheLead)),
-            ("use_per_node_local_force_and_rotation", cloth.Fe.HasPerNodeLocalForce),
+            ("use_per_node_local_force_and_rotation", cloth.Index.HasPerNodeLocalForce),
             ("uninertial_rods", Flag(ClothFlagUninertialRods)),
             ("explicit_masses", forceExplicitMasses || cloth.HasExplicitMasses),
             ("unitless_damping", true),

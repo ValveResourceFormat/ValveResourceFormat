@@ -70,7 +70,7 @@ namespace Tests
         /// </summary>
         public static ClothReconstruction WithSkeleton(ClothReconstruction cloth, IReadOnlyDictionary<string, string?>? boneParents = null,
             IEnumerable<string>? boneNames = null)
-            => new(cloth.Fe, new ClothSkeletonContext((boneNames ?? cloth.Fe.CtrlNames).ToHashSet(StringComparer.OrdinalIgnoreCase),
+            => new(cloth.Fe, new ClothSkeletonContext((boneNames ?? cloth.Fe.CtrlName).ToHashSet(StringComparer.OrdinalIgnoreCase),
                 boneParents ?? new Dictionary<string, string?>(), new HashSet<int>(), [], null));
 
         /// <summary>Reads the FeModel body of a KV3 fixture in <c>Tests/Files</c>.</summary>

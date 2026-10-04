@@ -6,7 +6,7 @@ internal sealed partial class ClothExtract
 {
     /// <summary>Whether every pin <c>flex_cloth_borders</c> would free on <paramref name="proxy"/> has an <c>m_NodeBases</c> entry.</summary>
     internal static bool FlexedPinsCarryNodeBases(ClothReconstruction cloth, ProxyMesh proxy)
-        => FlexedPinNodes(cloth, proxy).All(cloth.Fe.NodeBases.ContainsKey);
+        => FlexedPinNodes(cloth, proxy).All(cloth.Index.NodeBases.ContainsKey);
 
     /// <summary>
     /// Whether <paramref name="proxy"/> has pins <c>flex_cloth_borders</c> would free and all of them have an
@@ -28,7 +28,7 @@ internal sealed partial class ClothExtract
             foreach (var corner in face)
             {
                 var node = proxy.NodeIndices[corner];
-                if (proxy.ClothEnable[corner] == 0f && node < cloth.Fe.StaticNodeCount)
+                if (proxy.ClothEnable[corner] == 0f && node < cloth.Fe.StaticNodes)
                 {
                     yield return node;
                 }
@@ -79,12 +79,12 @@ internal sealed partial class ClothExtract
 
             if (!proxyBackSolves)
             {
-                if (!faced.Contains(v) || node >= cloth.Fe.StaticNodeCount)
+                if (!faced.Contains(v) || node >= cloth.Fe.StaticNodes)
                 {
                     continue;
                 }
 
-                if (flexReaches.Contains(v) != cloth.Fe.AllowsRotation(node))
+                if (flexReaches.Contains(v) != cloth.Index.AllowsRotation(node))
                 {
                     return false;
                 }
@@ -112,17 +112,17 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            if (node >= cloth.Fe.StaticNodeCount)
+            if (node >= cloth.Fe.StaticNodes)
             {
                 continue;
             }
 
-            if ((registeredAnchors.Length > 0) != cloth.Fe.AllowsRotation(node))
+            if ((registeredAnchors.Length > 0) != cloth.Index.AllowsRotation(node))
             {
                 return false;
             }
 
-            if (!cloth.Fe.AllowsRotation(node))
+            if (!cloth.Index.AllowsRotation(node))
             {
                 continue;
             }
@@ -136,12 +136,12 @@ internal sealed partial class ClothExtract
 
             foreach (var anchorNode in registeredAnchors)
             {
-                if (!cloth.Fe.IsStatic(anchorNode))
+                if (!cloth.Index.IsStatic(anchorNode))
                 {
                     continue;
                 }
 
-                if (cloth.SkeletonBoneParents?.GetValueOrDefault(cloth.Fe.CtrlNames[anchorNode]) is { } parent
+                if (cloth.SkeletonBoneParents?.GetValueOrDefault(cloth.Fe.CtrlName[anchorNode]) is { } parent
                     && (!ctrlIndexByName.TryGetValue(parent, out var parentNode)
                         || !cloth.IsPositionDriven(parentNode)))
                 {

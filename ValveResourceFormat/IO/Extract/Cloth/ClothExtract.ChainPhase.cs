@@ -52,7 +52,7 @@ internal sealed partial class ClothExtract
             .Where(static b => b.IsClothControlNode)
             .Select(static b => b.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var chainSurface = cloth.Fe.HasSurfaceElements;
+        var chainSurface = cloth.Index.HasSurfaceElements;
         AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, cloth, chainCoveredNodes,
             name => chainSurface || (clothControlBones?.Contains(name) ?? false),
             clothBones, ClothVertexMapFolders(cloth, clothFolderChildren),

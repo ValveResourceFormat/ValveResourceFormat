@@ -1,6 +1,6 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -36,7 +36,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private void SteerNodeBaseTies(BoneChain chain)
         {
-            if (Fe.NodeBases.Count == 0)
+            if (Index.NodeBases.Count == 0)
             {
                 return;
             }
@@ -45,7 +45,7 @@ namespace ValveResourceFormat.IO
             for (var i = 0; i < chain.Joints.Count; i++)
             {
                 var joint = chain.Joints[i];
-                if (!Fe.NodeBases.TryGetValue(joint.Node, out var want))
+                if (!Index.NodeBases.TryGetValue(joint.Node, out var want))
                 {
                     continue;
                 }
@@ -101,22 +101,22 @@ namespace ValveResourceFormat.IO
             Dictionary<int, Vector3> moved, NodeBaseScan before)
         {
             var ring = ProxyRingOf(joint.Node);
-            if (ring.Count == 0 || IsHingedJoint(joint.Node) || joint.Node >= Fe.InitPoseRotations.Length
-                || ring.Exists(node => node >= Fe.InitPosePositions.Length)
+            if (ring.Count == 0 || IsHingedJoint(joint.Node) || joint.Node >= Index.InitPoseRotations.Length
+                || ring.Exists(node => node >= Index.InitPosePositions.Length)
                 || NodeBaseRingIsReadElsewhere(ring, targets))
             {
                 return false;
             }
 
             var axis = Vector3.Transform(Vector3.UnitX,
-                Fe.InitPoseRotations[joint.Node] * ExtrudeAxisSelectQuaternion(joint.ForwardAxis));
+                Index.InitPoseRotations[joint.Node] * ExtrudeAxisSelectQuaternion(joint.ForwardAxis));
             if (axis.LengthSquared() <= 0f)
             {
                 return false;
             }
 
             axis = Vector3.Normalize(axis);
-            var pivot = Fe.InitPosePositions[joint.Node];
+            var pivot = Index.InitPosePositions[joint.Node];
 
             foreach (var nudge in NodeBaseNudgeLadder)
             {
@@ -125,7 +125,7 @@ namespace ValveResourceFormat.IO
                     float.DegreesToRadians(joint.ExtrudeTwistTieNudge + nudge));
                 foreach (var node in ring)
                 {
-                    probe[node] = pivot + Vector3.Transform(Fe.InitPosePositions[node] - pivot, rotation);
+                    probe[node] = pivot + Vector3.Transform(Index.InitPosePositions[node] - pivot, rotation);
                 }
 
                 var after = PredictNodeBase(target.Candidates, target.Node, probe, target.Want);
@@ -151,21 +151,21 @@ namespace ValveResourceFormat.IO
         {
             foreach (var (node, position) in probe)
             {
-                if (Vector3.Distance(Fe.InitPosePositions[node], position) > NodeBaseCostBudget)
+                if (Vector3.Distance(Index.InitPosePositions[node], position) > NodeBaseCostBudget)
                 {
                     return false;
                 }
             }
 
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 if ((!probe.ContainsKey(rod.NodeA) && !probe.ContainsKey(rod.NodeB))
-                    || rod.NodeA >= Fe.InitPosePositions.Length || rod.NodeB >= Fe.InitPosePositions.Length)
+                    || rod.NodeA >= Index.InitPosePositions.Length || rod.NodeB >= Index.InitPosePositions.Length)
                 {
                     continue;
                 }
 
-                var rest = Vector3.Distance(Fe.InitPosePositions[rod.NodeA], Fe.InitPosePositions[rod.NodeB]);
+                var rest = Vector3.Distance(Index.InitPosePositions[rod.NodeA], Index.InitPosePositions[rod.NodeB]);
                 var rolled = Vector3.Distance(RestPosition(rod.NodeA, probe), RestPosition(rod.NodeB, probe));
                 if (MathF.Abs(rolled - rest) > NodeBaseCostBudget * MathF.Max(1f, rest))
                 {
@@ -178,7 +178,7 @@ namespace ValveResourceFormat.IO
 
         private bool NodeBaseRingIsReadElsewhere(List<int> ring, List<NodeBaseTarget> targets)
         {
-            foreach (var (node, basis) in Fe.NodeBases)
+            foreach (var (node, basis) in Index.NodeBases)
             {
                 if (targets.Exists(target => target.Node == node))
                 {
@@ -249,7 +249,7 @@ namespace ValveResourceFormat.IO
             {
                 foreach (var a in corners)
                 {
-                    if (a < 0 || a >= Fe.InitPosePositions.Length)
+                    if (a < 0 || a >= Index.InitPosePositions.Length)
                     {
                         continue;
                     }
@@ -261,7 +261,7 @@ namespace ValveResourceFormat.IO
 
                     foreach (var b in corners)
                     {
-                        if (b >= 0 && b < Fe.InitPosePositions.Length)
+                        if (b >= 0 && b < Index.InitPosePositions.Length)
                         {
                             set.Add(b);
                         }
@@ -269,12 +269,12 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            foreach (var face in Fe.SourceFaces)
+            foreach (var face in Index.SourceFaces)
             {
                 Join(face);
             }
 
-            foreach (var (a, b) in Fe.SourceSprings)
+            foreach (var (a, b) in Index.SourceSprings)
             {
                 Join([a, b]);
             }
@@ -311,7 +311,7 @@ namespace ValveResourceFormat.IO
             }
 
             candidates.Sort();
-            return candidates.TrueForAll(node => node < Fe.InitPosePositions.Length) ? candidates : null;
+            return candidates.TrueForAll(node => node < Index.InitPosePositions.Length) ? candidates : null;
         }
 
         /// <summary>
@@ -338,11 +338,11 @@ namespace ValveResourceFormat.IO
                 candidates.AddRange(vector);
             }
 
-            return candidates.Count >= 3 && candidates.TrueForAll(node => node < Fe.InitPosePositions.Length) ? candidates : null;
+            return candidates.Count >= 3 && candidates.TrueForAll(node => node < Index.InitPosePositions.Length) ? candidates : null;
         }
 
         private Vector3 RestPosition(int node, Dictionary<int, Vector3> moved)
-            => moved.TryGetValue(node, out var position) ? position : Fe.InitPosePositions[node];
+            => moved.TryGetValue(node, out var position) ? position : Index.InitPosePositions[node];
 
         /// <summary>
         /// The basis the compiler's scans write for one joint, with the signed margin of each of the four decisions behind
@@ -422,7 +422,7 @@ namespace ValveResourceFormat.IO
             var z = Vector3.Cross(x, y);
             var predicted = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
                 x.X, x.Y, x.Z, 0f, y.X, y.Y, y.Z, 0f, z.X, z.Y, z.Z, 0f, 0f, 0f, 0f, 1f));
-            var orientation = node < Fe.InitPoseRotations.Length ? Fe.InitPoseRotations[node] : Quaternion.Identity;
+            var orientation = node < Index.InitPoseRotations.Length ? Index.InitPoseRotations[node] : Quaternion.Identity;
             var adjust = Quaternion.Normalize(Quaternion.Conjugate(predicted) * orientation);
 
             var straight = NodeBaseResidual(adjust);
@@ -461,7 +461,7 @@ namespace ValveResourceFormat.IO
         private static NodeBasis FoldAcrossY(NodeBasis basis) => new(basis.NodeX0, basis.NodeX1, basis.NodeY1, basis.NodeY0);
 
         private Vector3 NodeUpAxis(int node)
-            => node < Fe.InitPoseRotations.Length ? Vector3.Transform(Vector3.UnitZ, Fe.InitPoseRotations[node]) : Vector3.UnitZ;
+            => node < Index.InitPoseRotations.Length ? Vector3.Transform(Vector3.UnitZ, Index.InitPoseRotations[node]) : Vector3.UnitZ;
 
         private static float NodeBaseResidual(Quaternion q)
             => MathF.Sqrt((q.X * q.X) + (q.Y * q.Y) + (q.Z * q.Z));

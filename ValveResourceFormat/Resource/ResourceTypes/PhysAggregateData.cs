@@ -73,7 +73,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
 
                 if (Data.GetSubCollection("m_pFeModel") is { } feModelData
-                    && new FeModel(feModelData) is { HasData: true } parsed)
+                    && new FeModel(feModelData) is { CtrlName.Length: > 0 } parsed)
                 {
                     feModel = parsed;
                 }

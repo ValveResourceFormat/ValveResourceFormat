@@ -193,10 +193,10 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(ring.IsChainRingBend(ring.Fe.KelagerBends[0])).IsTrue();
+                await Assert.That(ring.IsChainRingBend(ring.Index.KelagerBends[0])).IsTrue();
                 await Assert.That(ring.HasChainRingBends).IsTrue();
                 await Assert.That(ring.GetStiffHinge(0)).IsNull();
-                await Assert.That(hinge.IsChainRingBend(hinge.Fe.KelagerBends[0])).IsFalse();
+                await Assert.That(hinge.IsChainRingBend(hinge.Index.KelagerBends[0])).IsFalse();
                 await Assert.That(hinge.HasChainRingBends).IsFalse();
                 await Assert.That(hinge.GetStiffHinge(2)).IsNotNull();
             }

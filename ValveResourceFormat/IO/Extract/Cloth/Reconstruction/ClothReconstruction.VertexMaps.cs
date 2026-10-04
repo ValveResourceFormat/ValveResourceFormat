@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -163,7 +163,7 @@ namespace ValveResourceFormat.IO
                 if (members > 0)
                 {
                     sets.Add(new VertexMap(SynthesizedVertexSetName(set), Fe.VertexSetNames[set],
-                        Fe.StaticNodeCount, Fe.DynNodeVertexSet.Length, default, weights));
+                        Fe.StaticNodes, Fe.DynNodeVertexSet.Length, default, weights));
                 }
             }
 
@@ -237,7 +237,7 @@ namespace ValveResourceFormat.IO
             float? shared = null;
             if (TryGetVertexMap(mapName, out var map))
             {
-                for (var node = 0; node < Fe.CtrlNames.Length; node++)
+                for (var node = 0; node < Fe.CtrlName.Length; node++)
                 {
                     var weight = map.WeightOf(node);
                     if (weight <= 0f)

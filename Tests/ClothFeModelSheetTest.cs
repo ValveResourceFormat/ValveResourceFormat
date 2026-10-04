@@ -512,9 +512,9 @@ namespace Tests
                 await Assert.That(nearlyPlanar.QuadBendTolerance).IsEqualTo(0f);
                 await Assert.That(Model(0.01f, string.Empty).QuadBendTolerance).IsEqualTo(0.05f);
                 await Assert.That(Model(1f, rod).QuadBendTolerance).IsEqualTo(0.05f);
-                await Assert.That(ClothReconstruction.BentQuadRodsFromFaces(faces, nearlyPlanar.Fe.InitPosePositions, static node => node == 0, 0f))
+                await Assert.That(ClothReconstruction.BentQuadRodsFromFaces(faces, nearlyPlanar.Index.InitPosePositions, static node => node == 0, 0f))
                     .IsEquivalentTo(splitRod);
-                await Assert.That(ClothReconstruction.BentQuadRodsFromFaces(faces, nearlyPlanar.Fe.InitPosePositions, static node => node == 0, 0.05f))
+                await Assert.That(ClothReconstruction.BentQuadRodsFromFaces(faces, nearlyPlanar.Index.InitPosePositions, static node => node == 0, 0.05f))
                     .IsEmpty();
             }
         }
@@ -1025,12 +1025,12 @@ namespace Tests
 
             static ProxyMesh Sheet(ClothReconstruction cloth, int mesh)
                 => cloth.BuildProxyMeshes().First(proxy => Array.Exists(proxy.NodeIndices,
-                    node => cloth.Fe.CtrlNames[node].StartsWith($"$cloth_m{mesh}p", StringComparison.Ordinal)));
+                    node => cloth.Fe.CtrlName[node].StartsWith($"$cloth_m{mesh}p", StringComparison.Ordinal)));
 
             using (Assert.Multiple())
             {
-                await Assert.That(undriven.Fe.FitMatrixTargets.Count).IsEqualTo(1);
-                await Assert.That(string.Join(",", undriven.Fe.FitMatrixTargets[7])).IsEqualTo("4,5,6");
+                await Assert.That(undriven.Index.FitMatrixTargets.Count).IsEqualTo(1);
+                await Assert.That(string.Join(",", undriven.Index.FitMatrixTargets[7])).IsEqualTo("4,5,6");
                 await Assert.That(undriven.IsPositionDriven(7)).IsFalse();
 
                 await Assert.That(undriven.ProxyFitsUndrivenBone(Sheet(undriven, 1))).IsTrue();

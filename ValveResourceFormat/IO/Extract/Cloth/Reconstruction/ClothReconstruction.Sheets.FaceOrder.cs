@@ -41,11 +41,11 @@ namespace ValveResourceFormat.IO
 
         private float ComputeQuadBendTolerance()
         {
-            bool Dynamic(int node) => node >= 0 && node < Fe.InitPosePositions.Length && node < Fe.NodeInvMasses.Length
+            bool Dynamic(int node) => node >= 0 && node < Index.InitPosePositions.Length && node < Fe.NodeInvMasses.Length
                 && Fe.NodeInvMasses[node] != 0f;
 
             var rigid = new HashSet<(int, int)>();
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 if (rod.MinDist == rod.MaxDist)
                 {
@@ -55,7 +55,7 @@ namespace ValveResourceFormat.IO
 
             var inPlace = new Dictionary<(int, int), List<int[]>>();
             var lowestSplit = float.MaxValue;
-            foreach (var tri in Fe.Tris)
+            foreach (var tri in Index.Tris)
             {
                 if (tri.Length != 3)
                 {
@@ -84,7 +84,7 @@ namespace ValveResourceFormat.IO
             }
 
             var highestKept = 0f;
-            foreach (var quad in Fe.Quads)
+            foreach (var quad in Index.Quads)
             {
                 if (quad.Length == 4 && quad.Distinct().Count() == 4 && Array.TrueForAll(quad, Dynamic))
                 {
@@ -120,7 +120,7 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Pairs the <see cref="FeModel.Tris"/> the compiler split from bent quads back into those quads, keyed by
+        /// Pairs the <see cref="FeModelIndex.Tris"/> the compiler split from bent quads back into those quads, keyed by
         /// <see cref="SortedTriKey"/>: the quad to export instead of the half that stayed in place, and the appended half to
         /// drop. Callers only read the result, which is computed once.
         /// </summary>
@@ -131,22 +131,22 @@ namespace ValveResourceFormat.IO
         {
             var quads = new Dictionary<(int, int, int), int[]>();
             var halves = new HashSet<(int, int, int)>();
-            if (Fe.Tris.Length < 2 || Fe.InitPosePositions.Length == 0)
+            if (Index.Tris.Length < 2 || Index.InitPosePositions.Length == 0)
             {
                 return (quads, halves);
             }
 
-            bool Usable(int node) => node >= 0 && node < Fe.InitPosePositions.Length
+            bool Usable(int node) => node >= 0 && node < Index.InitPosePositions.Length
                 && node < Fe.NodeInvMasses.Length && !IsHingeRegeneratedProxy(node);
 
-            var keys = new (int, int, int)[Fe.Tris.Length];
+            var keys = new (int, int, int)[Index.Tris.Length];
             var ambiguous = new HashSet<(int, int, int)>();
             var distinct = new HashSet<(int, int, int)>();
             var byEdge = new Dictionary<(int, int), List<int>>();
 
-            for (var i = 0; i < Fe.Tris.Length; i++)
+            for (var i = 0; i < Index.Tris.Length; i++)
             {
-                var tri = Fe.Tris[i];
+                var tri = Index.Tris[i];
                 if (tri.Length != 3)
                 {
                     continue;
@@ -180,8 +180,8 @@ namespace ValveResourceFormat.IO
                     for (var y = x + 1; y < sharing.Count; y++)
                     {
                         var (inPlace, appended) = (sharing[x], sharing[y]);
-                        var first = Fe.Tris[inPlace];
-                        var second = Fe.Tris[appended];
+                        var first = Index.Tris[inPlace];
+                        var second = Index.Tris[appended];
                         if (first[0] != second[0] || first[2] != second[1])
                         {
                             continue;
@@ -193,7 +193,7 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        var corners = Array.ConvertAll(quad, node => Fe.InitPosePositions[node]);
+                        var corners = Array.ConvertAll(quad, node => Index.InitPosePositions[node]);
                         if (PredictQuadSplit(corners, QuadBendTolerance) is not { } order)
                         {
                             continue;
@@ -292,7 +292,7 @@ namespace ValveResourceFormat.IO
         /// <summary>Gets the sine of a quad's bend across its shorter diagonal at rest, zero when degenerate.</summary>
         private float QuadBendSine(int[] quad)
         {
-            var bend = QuadBend(Array.ConvertAll(quad, node => Fe.InitPosePositions[node]));
+            var bend = QuadBend(Array.ConvertAll(quad, node => Index.InitPosePositions[node]));
             return bend.Normals > 0f ? bend.Cross / bend.Normals : 0f;
         }
 
@@ -344,7 +344,7 @@ namespace ValveResourceFormat.IO
             }
 
             var shipped = new HashSet<(int, int)>();
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 if (localOf.TryGetValue(rod.NodeA, out var a) && localOf.TryGetValue(rod.NodeB, out var b) && a != b)
                 {
@@ -460,7 +460,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         internal List<int[]> ChooseFaceDeclarationOrder(List<int[]> faces, int surfaceFaceCount, IReadOnlyList<int> nodeIndices)
         {
-            var rotationLockedCount = Fe.RotationLockedStaticNodeCount;
+            var rotationLockedCount = Fe.RotLockStaticNodes;
             bool IsStatic(int local) => IsStaticLocal(nodeIndices, local);
 
             bool SimulatedAscend(List<int[]> order)
@@ -596,7 +596,7 @@ namespace ValveResourceFormat.IO
         }
 
         private bool IsStaticLocal(IReadOnlyList<int> nodeIndices, int local)
-            => local >= 0 && local < nodeIndices.Count && Fe.IsStatic(nodeIndices[local]);
+            => local >= 0 && local < nodeIndices.Count && Index.IsStatic(nodeIndices[local]);
 
         /// <summary>
         /// Rotates fully dynamic surface quads one corner back where that makes the compiler's mass pass reproduce the
@@ -768,7 +768,7 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
-            var rotationLocked = Fe.RotationLockedStaticNodeCount;
+            var rotationLocked = Fe.RotLockStaticNodes;
             if (introduced.Exists(corner => nodeIndices[corner] < rotationLocked != (nodeIndices[introduced[0]] < rotationLocked)))
             {
                 return null;
@@ -950,11 +950,11 @@ namespace ValveResourceFormat.IO
         {
             truncatedTail = [];
             var faces = new List<int[]>();
-            var triangleElements = Fe.SourceTriangleCount;
+            var triangleElements = Index.SourceTriangleCount;
             var triangles = 0;
-            for (var i = 0; i < Fe.SourceFaces.Length; i++)
+            for (var i = 0; i < Index.SourceFaces.Length; i++)
             {
-                var face = Fe.SourceFaces[i];
+                var face = Index.SourceFaces[i];
                 if (SpansProxyMeshes(face))
                 {
                     continue;
@@ -976,7 +976,7 @@ namespace ValveResourceFormat.IO
             }
 
             var shipped = new HashSet<(int, int)>();
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 shipped.Add(UnorderedPair(rod.NodeA, rod.NodeB));
             }
@@ -1060,7 +1060,7 @@ namespace ValveResourceFormat.IO
             {
                 foreach (var corner in face)
                 {
-                    if (corner >= Fe.StaticNodeCount && corner < rank.Length)
+                    if (corner >= Fe.StaticNodes && corner < rank.Length)
                     {
                         covered.Add(corner);
                     }
@@ -1085,9 +1085,9 @@ namespace ValveResourceFormat.IO
         {
             var corners = FirstCorners(face);
             return Array.TrueForAll(corners, static corner => corner < 0)
-                || Array.TrueForAll(corners, corner => corner < Fe.RotationLockedStaticNodeCount)
+                || Array.TrueForAll(corners, corner => corner < Fe.RotLockStaticNodes)
                 ? []
-                : corners.Where(corner => corner >= 0 && corner < Fe.RotationLockedStaticNodeCount);
+                : corners.Where(corner => corner >= 0 && corner < Fe.RotLockStaticNodes);
         }
 
         /// <summary>
@@ -1147,7 +1147,7 @@ namespace ValveResourceFormat.IO
             var fresh = new List<int>(4);
             foreach (var corner in face)
             {
-                if (corner >= Fe.StaticNodeCount && corner < rank.Length && !seen.Contains(corner) && !fresh.Contains(corner))
+                if (corner >= Fe.StaticNodes && corner < rank.Length && !seen.Contains(corner) && !fresh.Contains(corner))
                 {
                     fresh.Add(corner);
                 }
@@ -1324,7 +1324,7 @@ namespace ValveResourceFormat.IO
 
         private int[] BuildSurfaceNodeRanks()
         {
-            var count = Fe.CtrlNames.Length;
+            var count = Fe.CtrlName.Length;
             var neighbours = new HashSet<int>[count];
 
             void Link(int a, int b)
@@ -1349,22 +1349,22 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            foreach (var quad in Fe.Quads)
+            foreach (var quad in Index.Quads)
             {
                 LinkFace(quad);
             }
 
-            foreach (var tri in Fe.Tris)
+            foreach (var tri in Index.Tris)
             {
                 LinkFace(tri);
             }
 
-            foreach (var face in Fe.SourceFaces)
+            foreach (var face in Index.SourceFaces)
             {
                 LinkFace(face);
             }
 
-            foreach (var (a, b) in Fe.SourceSprings)
+            foreach (var (a, b) in Index.SourceSprings)
             {
                 Link(a, b);
             }
@@ -1372,7 +1372,7 @@ namespace ValveResourceFormat.IO
             var rank = new int[count];
             Array.Fill(rank, int.MaxValue);
             var queue = new Queue<int>();
-            for (var node = 0; node < Fe.StaticNodeCount && node < count; node++)
+            for (var node = 0; node < Fe.StaticNodes && node < count; node++)
             {
                 rank[node] = 0;
                 queue.Enqueue(node);
@@ -1425,7 +1425,7 @@ namespace ValveResourceFormat.IO
                 var sum = Vector3.Zero;
                 foreach (var corner in face)
                 {
-                    sum += Fe.InitPosePositions[corner];
+                    sum += Index.InitPosePositions[corner];
                 }
 
                 return sum / face.Length;
@@ -1434,7 +1434,7 @@ namespace ValveResourceFormat.IO
             var appended = new Dictionary<int[], List<int>>();
             foreach (var node in unfaced)
             {
-                if (roddedNodes.Contains(node) || node >= Fe.InitPosePositions.Length)
+                if (roddedNodes.Contains(node) || node >= Index.InitPosePositions.Length)
                 {
                     return false;
                 }
@@ -1442,8 +1442,8 @@ namespace ValveResourceFormat.IO
                 var nearest = 0;
                 for (var i = 1; i < quads.Count; i++)
                 {
-                    if (Vector3.DistanceSquared(Fe.InitPosePositions[node], centre[i])
-                        < Vector3.DistanceSquared(Fe.InitPosePositions[node], centre[nearest]))
+                    if (Vector3.DistanceSquared(Index.InitPosePositions[node], centre[i])
+                        < Vector3.DistanceSquared(Index.InitPosePositions[node], centre[nearest]))
                     {
                         nearest = i;
                     }

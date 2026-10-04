@@ -32,7 +32,7 @@ internal sealed partial class ClothExtract
     /// </summary>
     internal static void AddClothFollowBones(KVObject softbodyChildren, ClothReconstruction cloth, HashSet<string> clothBones)
     {
-        var names = cloth.Fe.CtrlNames;
+        var names = cloth.Fe.CtrlName;
         foreach (var link in cloth.Fe.DynKinLinks)
         {
             if (link.Parent < 0 || link.Parent >= names.Length || link.Child < 0 || link.Child >= names.Length)
@@ -83,12 +83,12 @@ internal sealed partial class ClothExtract
     /// </summary>
     internal static void AddClothJointLocks(KVObject softbodyChildren, ClothReconstruction cloth, Func<int, string, bool> needsLock)
     {
-        for (var node = 0; node < cloth.Fe.CtrlNames.Length; node++)
+        for (var node = 0; node < cloth.Fe.CtrlName.Length; node++)
         {
-            var name = cloth.Fe.CtrlNames[node];
-            var lockedWithoutParent = cloth.Fe.IsLockedToGoal(node) && node < cloth.SkelParents.Length
+            var name = cloth.Fe.CtrlName[node];
+            var lockedWithoutParent = cloth.Index.IsLockedToGoal(node) && node < cloth.SkelParents.Length
                 && cloth.SkelParents[node] < 0;
-            if (name.StartsWith('$') || !(lockedWithoutParent || cloth.Fe.IsLockedToParent(node))
+            if (name.StartsWith('$') || !(lockedWithoutParent || cloth.Index.IsLockedToParent(node))
                 || !needsLock(node, name))
             {
                 continue;
@@ -110,9 +110,9 @@ internal sealed partial class ClothExtract
         foreach (var effect in cloth.Fe.Effects)
         {
             var bone = effect.Params is not null && effect.Params.ContainsKey("Node")
-                && effect.Params.GetInt32Property("Node") is var ctrl && ctrl >= 0 && ctrl < cloth.Fe.CtrlNames.Length
-                && !cloth.Fe.CtrlNames[ctrl].StartsWith('$')
-                    ? cloth.Fe.CtrlNames[ctrl]
+                && effect.Params.GetInt32Property("Node") is var ctrl && ctrl >= 0 && ctrl < cloth.Fe.CtrlName.Length
+                && !cloth.Fe.CtrlName[ctrl].StartsWith('$')
+                    ? cloth.Fe.CtrlName[ctrl]
                     : null;
             var parent = bone is null ? null : FindStaticClothNode(softbodyChildren, bone);
             var frame = parent?.GetSubCollection("angles") is { } angles
@@ -165,7 +165,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            if (LookupsOf(cloth).NodeByName.TryGetValue(bone, out var node) && cloth.Fe.IsStatic(node)
+            if (LookupsOf(cloth).NodeByName.TryGetValue(bone, out var node) && cloth.Index.IsStatic(node)
                 && CompilesClothNodeDefaults(cloth, node))
             {
                 bones.Add((node, bone));
@@ -180,7 +180,7 @@ internal sealed partial class ClothExtract
 
     private static bool CompilesClothNodeDefaults(ClothReconstruction cloth, int node)
     {
-        var integrator = cloth.Fe.GetIntegrator(node);
+        var integrator = cloth.Index.GetIntegrator(node);
         var paint = NodePaint.Of(cloth, node);
         return integrator.PointDamping == 0f
             && MathF.Abs(integrator.Gravity - ClothReconstruction.ClothSourceBaseGravity) <= ClothNodeDefaultTolerance
@@ -286,7 +286,7 @@ internal sealed partial class ClothExtract
     /// Declares one compiled effect, with its direction expressed in <paramref name="frame"/>, the rotation of the node it
     /// is declared under.
     /// </summary>
-    internal static KVObject? MakeClothEffect(ClothReconstruction cloth, FeModel.Effect effect, IReadOnlySet<string> availableMaps,
+    internal static KVObject? MakeClothEffect(ClothReconstruction cloth, FeModel.FeEffectDesc effect, IReadOnlySet<string> availableMaps,
         Quaternion? frame = null)
     {
         var className = effect.Type switch
