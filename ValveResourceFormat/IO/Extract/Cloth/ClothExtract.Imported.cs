@@ -157,9 +157,9 @@ internal sealed partial class ClothExtract
             row.Add("m_nNodes", MakeArray(rowA, rowB));
 
             var restLength = rod.NodeA < cloth.Index.InitPosePositions.Length && rod.NodeB < cloth.Index.InitPosePositions.Length
-                ? Vector3.Distance(cloth.Index.InitPosePositions[rod.NodeA], cloth.Index.InitPosePositions[rod.NodeB])
+                ? cloth.Index.RestDistance(rod.NodeA, rod.NodeB)
                 : 0f;
-            if (MathF.Abs(rod.MaxDist - restLength) > MathF.Max(1e-3f, 1e-4f * MathF.Max(rod.MaxDist, restLength)))
+            if (!FeModelIndex.Rod.IsAtRestLength(rod.MaxDist, restLength))
             {
                 row.Add("m_bExplicitLength", true);
                 row.Add("m_flLength", rod.MaxDist);

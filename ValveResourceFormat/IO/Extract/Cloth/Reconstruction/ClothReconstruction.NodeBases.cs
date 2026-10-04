@@ -165,7 +165,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var rest = Vector3.Distance(Index.InitPosePositions[rod.NodeA], Index.InitPosePositions[rod.NodeB]);
+                var rest = Index.RestDistance(rod.NodeA, rod.NodeB);
                 var rolled = Vector3.Distance(RestPosition(rod.NodeA, probe), RestPosition(rod.NodeB, probe));
                 if (MathF.Abs(rolled - rest) > NodeBaseCostBudget * MathF.Max(1f, rest))
                 {

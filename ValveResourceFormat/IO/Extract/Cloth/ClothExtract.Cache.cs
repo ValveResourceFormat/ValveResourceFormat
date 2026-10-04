@@ -86,7 +86,7 @@ internal sealed partial class ClothExtract
             {
                 if (rod.IsBanded)
                 {
-                    var key = RodPair(rod);
+                    var key = rod.Pair;
                     banded[key] = banded.GetValueOrDefault(key) + 1;
                 }
             }

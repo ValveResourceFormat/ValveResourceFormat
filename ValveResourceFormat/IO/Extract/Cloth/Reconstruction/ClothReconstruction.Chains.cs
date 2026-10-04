@@ -133,6 +133,8 @@ namespace ValveResourceFormat.IO
         private static readonly Quaternion ExtrudeAxisSelectZ = new(0f, -0.70710677f, 0f, 0.70710677f);
 
         private Dictionary<int, List<int>>? proxyRings;
+        private (Dictionary<int, List<int>> ChildrenOf, Dictionary<int, int> OwnerOf)? proxyRingsByOwner;
+        private ChainTopology? chainTopology;
         private float? chainRingCurvature;
         private List<BoneChain>? unversionedChains;
 
@@ -175,16 +177,6 @@ namespace ValveResourceFormat.IO
             /// <summary>The ring each listed node extruded in this declaration; empty for a ringless one.</summary>
             public Dictionary<int, List<int>>? RingOf { get; set; }
             public string Suffix { get; set; } = string.Empty;
-        }
-
-        /// <summary>Gets the trailing <c>_&lt;n&gt;</c> index of a ring node's name, or -1 when it has none.</summary>
-        private static int RingSuffixIndex(string name)
-        {
-            var underscore = name.LastIndexOf('_');
-            return underscore >= 0 && underscore + 1 < name.Length
-                && int.TryParse(name.AsSpan(underscore + 1), out var index)
-                ? index
-                : -1;
         }
 
         /// <summary>
@@ -546,7 +538,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var rod = Index.Rods[index];
-                var pair = UnorderedPair(rod.NodeA, rod.NodeB);
+                var pair = rod.Pair;
                 pairs.Add(pair);
                 GetOrAdd(relaxationsByPair, pair).Add(rod.RelaxationFactor);
 
@@ -557,7 +549,7 @@ namespace ValveResourceFormat.IO
 
                 GetOrAdd(rodsByPair, pair).Add(rod);
 
-                if (MathF.Abs(rod.MinDist - rod.MaxDist) <= 1e-4f * MathF.Max(1f, MathF.Abs(rod.MaxDist)))
+                if (!rod.IsBanded)
                 {
                     GetOrAdd(rigidRelaxationsByPair, pair).Add(rod.RelaxationFactor);
                 }
@@ -578,8 +570,11 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets each real bone's <c>$cc</c> proxy nodes, and the inverse map from ring node to owning bone.
+        /// Gets each real bone's <c>$cc</c> proxy nodes, and the inverse map from ring node to owning bone. Callers must not
+        /// modify them.
         /// </summary>
+        private (Dictionary<int, List<int>> ChildrenOf, Dictionary<int, int> OwnerOf) ProxyRings => proxyRingsByOwner ??= BuildProxyRings();
+
         private (Dictionary<int, List<int>> ChildrenOf, Dictionary<int, int> OwnerOf) BuildProxyRings()
         {
             var childrenOf = new Dictionary<int, List<int>>();
@@ -620,7 +615,7 @@ namespace ValveResourceFormat.IO
 
         private float ReadChainRingCurvature()
         {
-            var (_, ringOwnerOf) = BuildProxyRings();
+            var (_, ringOwnerOf) = ProxyRings;
             if (ringOwnerOf.Count == 0)
             {
                 return 0f;
@@ -640,7 +635,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var rest = Vector3.Distance(Index.InitPosePositions[rod.NodeA], Index.InitPosePositions[rod.NodeB]);
+                var rest = Index.RestDistance(rod.NodeA, rod.NodeB);
                 if (rod.MaxDist <= rest * 1.001f || rod.MaxDist <= 0f)
                 {
                     continue;
@@ -697,24 +692,13 @@ namespace ValveResourceFormat.IO
             var mergedChains = new List<BoneChain>();
 
             var chainFirstSimulated = new Dictionary<BoneChain, int>();
-            var n = Fe.CtrlName.Length;
-            if (n == 0)
+            if (Fe.CtrlName.Length == 0)
             {
                 return chains;
             }
 
-            var isReal = new bool[n];
-            for (var i = 0; i < n; i++)
-            {
-                isReal[i] = !IsGeneratedNodeName(Fe.CtrlName[i]) && !ImportedStripNodes.Contains(i);
-            }
-
-            var rodGraph = BuildRodGraph();
+            var (rodGraph, proxyChildrenOf, ringOwnerOf, ropeParents, realParent, children, roots) = Topology;
             var rodPairs = rodGraph.Pairs;
-            var (proxyChildrenOf, ringOwnerOf) = BuildProxyRings();
-
-            var ropeParents = HasCompiledSkelParents ? RopeRunParents : new Dictionary<int, int>();
-            var (realParent, children, roots) = ResolveChainParents(isReal, rodPairs, proxyChildrenOf, ringOwnerOf, ropeParents);
             var chainSpecs = BuildChainSpecs(roots, children, realParent, proxyChildrenOf, ringOwnerOf, rodPairs, ringlessKids);
 
             foreach (var spec in chainSpecs)
@@ -763,11 +747,41 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <summary>
+        /// The rod graph, the ring nodes of each real bone and the real-node parents every <see cref="BuildBoneChains()"/>
+        /// variant walks. Callers must not modify it.
+        /// </summary>
+        private sealed record ChainTopology(RodGraph RodGraph, Dictionary<int, List<int>> ProxyChildrenOf,
+            Dictionary<int, int> RingOwnerOf, IReadOnlyDictionary<int, int> RopeParents, int[] RealParent,
+            List<int>?[] Children, List<int> Roots);
+
+        private ChainTopology Topology => chainTopology ??= BuildChainTopology();
+
+        private ChainTopology BuildChainTopology()
+        {
+            var n = Fe.CtrlName.Length;
+            var isReal = new bool[n];
+            for (var i = 0; i < n; i++)
+            {
+                isReal[i] = !IsGeneratedNodeName(Fe.CtrlName[i]) && !ImportedStripNodes.Contains(i);
+            }
+
+            var rodGraph = BuildRodGraph();
+            var (proxyChildrenOf, ringOwnerOf) = ProxyRings;
+            var ropeParents = HasCompiledSkelParents ? RopeRunParents : new Dictionary<int, int>();
+            var (realParent, children, roots) = ResolveChainParents(isReal, rodGraph.Pairs, proxyChildrenOf, ringOwnerOf, ropeParents);
+            return new ChainTopology(rodGraph, proxyChildrenOf, ringOwnerOf, ropeParents, realParent, children, roots);
+        }
+
         private Vector3 ExtrudeOrigin(int node)
             => ChainExtrudeOrigins is { } origins && node < Fe.CtrlName.Length
                 && origins.TryGetValue(Fe.CtrlName[node], out var origin)
                 ? origin
                 : Index.InitPosePositions[node];
+
+        /// <summary>Gets <paramref name="node"/>'s rest position relative to <paramref name="joint"/>'s extrude origin, in the joint's rest frame.</summary>
+        private Vector3 ExtrudeOffset(int joint, int node)
+            => Vector3.Transform(Index.InitPosePositions[node] - ExtrudeOrigin(joint), Quaternion.Conjugate(Index.InitPoseRotations[joint]));
 
         /// <summary>
         /// Resolves each real node's parent among real nodes from the skeleton, rod, ring, bend, rope and twist evidence, and
@@ -927,6 +941,15 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            var linkedKids = new List<int>?[n];
+            for (var i = 0; i < n; i++)
+            {
+                if (realParent[i] >= 0)
+                {
+                    (linkedKids[realParent[i]] ??= []).Add(i);
+                }
+            }
+
             for (var linked = true; linked;)
             {
                 linked = false;
@@ -943,14 +966,11 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    for (var child = 0; child < n && realParent[i] < 0; child++)
+                    if (linkedKids[i]?.Exists(child => child != p && rodPairs.Contains(UnorderedPair(p, child))) == true)
                     {
-                        if (child != p && realParent[child] == i
-                            && rodPairs.Contains(UnorderedPair(p, child)))
-                        {
-                            realParent[i] = p;
-                            linked = true;
-                        }
+                        realParent[i] = p;
+                        (linkedKids[p] ??= []).Add(i);
+                        linked = true;
                     }
                 }
             }
@@ -1725,7 +1745,7 @@ namespace ValveResourceFormat.IO
                     return null;
                 }
 
-                var baseRf = (rootTarget == grand ? joint.BendStiffness : joint.TorsionStiffness) * MathF.Exp(-Fe.DefaultSurfaceStretch);
+                var baseRf = (rootTarget == grand ? joint.BendStiffness : joint.TorsionStiffness) * Index.SurfaceStretchScale;
                 float? companion = null;
                 var pairsAgree = true;
                 (float Low, float High)? split = null;
@@ -1820,7 +1840,7 @@ namespace ValveResourceFormat.IO
                 return odd >= 0 && groups[1 - odd].Count == baseCopies ? groups[odd].Value : null;
             }
 
-            var sliderScale = MathF.Exp(-Fe.DefaultSurfaceStretch);
+            var sliderScale = Index.SurfaceStretchScale;
             float Slider(float relaxation) => MathF.Min(1f, relaxation / sliderScale);
 
             var clusterPairs = SelfCollisionClusterPairs;
@@ -2250,9 +2270,7 @@ namespace ValveResourceFormat.IO
                     && joint.Node < Index.InitPoseRotations.Length && joint.Node < Index.InitPosePositions.Length
                     && proxies[0] < Index.InitPosePositions.Length)
                 {
-                    var centreOffset = Vector3.Transform(
-                        Index.InitPosePositions[proxies[0]] - ExtrudeOrigin(joint.Node),
-                        Quaternion.Conjugate(Index.InitPoseRotations[joint.Node]));
+                    var centreOffset = ExtrudeOffset(joint.Node, proxies[0]);
                     if (MathF.Abs(centreOffset.X) >= EndEffectorRingTolerance)
                     {
                         joint.EndEffector = centreOffset.X;
@@ -2270,9 +2288,7 @@ namespace ValveResourceFormat.IO
                     {
                         if (proxy < Index.InitPosePositions.Length)
                         {
-                            forwardOf[proxy] = Vector3.Transform(
-                                Index.InitPosePositions[proxy] - ExtrudeOrigin(joint.Node),
-                                Quaternion.Conjugate(Index.InitPoseRotations[joint.Node])).X;
+                            forwardOf[proxy] = ExtrudeOffset(joint.Node, proxy).X;
                         }
                     }
 

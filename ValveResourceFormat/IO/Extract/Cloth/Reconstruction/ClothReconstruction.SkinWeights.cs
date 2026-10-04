@@ -702,7 +702,7 @@ namespace ValveResourceFormat.IO
             {
                 if (candidate < Index.InitPosePositions.Length)
                 {
-                    weighted.Add((candidate, Vector3.Distance(Index.InitPosePositions[node], Index.InitPosePositions[candidate])));
+                    weighted.Add((candidate, Index.RestDistance(node, candidate)));
                 }
             }
 

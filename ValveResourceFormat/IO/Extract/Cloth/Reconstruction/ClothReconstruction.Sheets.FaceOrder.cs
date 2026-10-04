@@ -49,7 +49,7 @@ namespace ValveResourceFormat.IO
             {
                 if (rod.MinDist == rod.MaxDist)
                 {
-                    rigid.Add(UnorderedPair(rod.NodeA, rod.NodeB));
+                    rigid.Add(rod.Pair);
                 }
             }
 
@@ -978,7 +978,7 @@ namespace ValveResourceFormat.IO
             var shipped = new HashSet<(int, int)>();
             foreach (var rod in Index.Rods)
             {
-                shipped.Add(UnorderedPair(rod.NodeA, rod.NodeB));
+                shipped.Add(rod.Pair);
             }
 
             foreach (var (a, b) in FaceEdges(faces))

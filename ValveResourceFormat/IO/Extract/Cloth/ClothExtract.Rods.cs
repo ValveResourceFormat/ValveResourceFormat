@@ -189,7 +189,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            var pair = RodPair(rod);
+            var pair = rod.Pair;
             if (cliquePairs.Contains(pair) && rod.IsBanded)
             {
                 continue;
@@ -290,7 +290,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            var pair = RodPair(rod);
+            var pair = rod.Pair;
             if ((rodCounts.GetValueOrDefault(pair) > 1 && !clusterTies.Contains(pair)) || !HasClusterSignature(rod))
             {
                 continue;
@@ -324,13 +324,13 @@ internal sealed partial class ClothExtract
         }
 
         var poses = cloth.Index.InitPosePositions;
-        if (rodCounts.GetValueOrDefault(RodPair(rod)) != 1 || rod.NodeA >= poses.Length || rod.NodeB >= poses.Length)
+        if (rodCounts.GetValueOrDefault(rod.Pair) != 1 || rod.NodeA >= poses.Length || rod.NodeB >= poses.Length)
         {
             return false;
         }
 
-        var rest = Vector3.Distance(poses[rod.NodeA], poses[rod.NodeB]);
-        return rod.IsBanded || MathF.Abs(rod.MaxDist - rest) > MathF.Max(1e-3f, 1e-4f * rest);
+        var rest = cloth.Index.RestDistance(rod.NodeA, rod.NodeB);
+        return rod.IsBanded || !FeModelIndex.Rod.IsAtRestLength(rod.MaxDist, rest);
     }
 
     /// <summary>
@@ -347,7 +347,7 @@ internal sealed partial class ClothExtract
         {
             if (rod.IsBanded && !cloth.IsSurfaceFold(rod))
             {
-                var key = RodPair(rod);
+                var key = rod.Pair;
                 bandedOnPair[key] = bandedOnPair.GetValueOrDefault(key) + 1;
             }
         }
@@ -356,11 +356,11 @@ internal sealed partial class ClothExtract
         var neighbours = new Dictionary<int, HashSet<int>>();
         foreach (var rod in cloth.Index.Rods)
         {
-            var key = RodPair(rod);
+            var key = rod.Pair;
             if (!rod.IsBanded || !HasClusterSignature(rod)
                 || !ringOwner.ContainsKey(rod.NodeA) || !ringOwner.ContainsKey(rod.NodeB)
                 || bandedOnPair.GetValueOrDefault(key) != 1 || rod.NodeA >= poses.Length || rod.NodeB >= poses.Length
-                || MathF.Abs(rod.MaxDist - Vector3.Distance(poses[rod.NodeA], poses[rod.NodeB])) <= ClusterRestTolerance)
+                || MathF.Abs(rod.MaxDist - cloth.Index.RestDistance(rod.NodeA, rod.NodeB)) <= ClusterRestTolerance)
             {
                 continue;
             }
@@ -542,8 +542,8 @@ internal sealed partial class ClothExtract
             return false;
         }
 
-        var onPair = rodCounts.GetValueOrDefault(RodPair(rod));
-        var rest = Vector3.Distance(poses[rod.NodeA], poses[rod.NodeB]);
+        var onPair = rodCounts.GetValueOrDefault(rod.Pair);
+        var rest = cloth.Index.RestDistance(rod.NodeA, rod.NodeB);
         return onPair >= 2 && FeModelIndex.Rod.IsAtRestLength(rod.MaxDist, rest);
     }
 
@@ -564,7 +564,7 @@ internal sealed partial class ClothExtract
         var poses = cloth.Index.InitPosePositions;
         foreach (var rod in surplus)
         {
-            var key = RodPair(rod);
+            var key = rod.Pair;
             if (!ringOwner.TryGetValue(rod.NodeA, out var ownerA)
                 || !ringOwner.TryGetValue(rod.NodeB, out var ownerB) || ownerA == ownerB
                 || entries.GetValueOrDefault(key) < 2 || banded.GetValueOrDefault(key) != 1
@@ -574,7 +574,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            if (FeModelIndex.Rod.IsAtRestLength(rod.MaxDist, Vector3.Distance(poses[rod.NodeA], poses[rod.NodeB])))
+            if (FeModelIndex.Rod.IsAtRestLength(rod.MaxDist, cloth.Index.RestDistance(rod.NodeA, rod.NodeB)))
             {
                 continue;
             }
@@ -595,14 +595,14 @@ internal sealed partial class ClothExtract
         var surplusCounts = new Dictionary<(int, int), int>();
         foreach (var rod in surplus)
         {
-            var key = RodPair(rod);
+            var key = rod.Pair;
             surplusCounts[key] = surplusCounts.GetValueOrDefault(key) + 1;
         }
 
         var ties = new HashSet<(int, int)>();
         foreach (var rod in surplus)
         {
-            var key = RodPair(rod);
+            var key = rod.Pair;
             if (entries.GetValueOrDefault(key) > 1 && banded.GetValueOrDefault(key) == 1
                 && surplusCounts[key] == 1 && rod.IsBanded && HasClusterSignature(rod))
             {
@@ -679,9 +679,6 @@ internal sealed partial class ClothExtract
 
         return emitted;
     }
-
-    /// <summary>The node pair of <paramref name="rod"/>, lower node first.</summary>
-    private static (int, int) RodPair(FeModelIndex.Rod rod) => ClothReconstruction.UnorderedPair(rod.NodeA, rod.NodeB);
 
     private static Dictionary<(int, int), FeModelIndex.Rod> FirstRodByPair(ClothReconstruction cloth) => LookupsOf(cloth).FirstRodByPair;
 
