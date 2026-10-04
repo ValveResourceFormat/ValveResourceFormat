@@ -365,18 +365,19 @@ namespace ValveResourceFormat.Renderer
         /// <param name="position">The position on the surface.</param>
         /// <param name="normal">The surface normal.</param>
         /// <param name="parent">The entity the surface belongs to, which the decal moves with, or null for the static world.</param>
+        /// <param name="sizeOverride">The width and height of the decal, or zero for the size its material gives.</param>
         /// <returns>Whether a decal was added.</returns>
-        public bool SpawnGroupDecal(string groupName, Vector3 position, Vector3 normal, BaseEntity? parent = null)
+        public bool SpawnGroupDecal(string groupName, Vector3 position, Vector3 normal, BaseEntity? parent = null, float sizeOverride = 0f)
         {
             impactDecals ??= ImpactDecalTable.Load(scene.RendererContext.FileLoader);
 
             normal = Vector3.Normalize(normal);
             var up = RotateAround(normal, GetOrthogonal(normal), Random.Shared.NextSingle() * MathF.Tau);
 
-            return SpawnFromGroup(groupName, position, normal, up, parent);
+            return SpawnFromGroup(groupName, position, normal, up, parent, sizeOverride);
         }
 
-        private bool SpawnFromGroup(string? groupName, Vector3 position, Vector3 normal, Vector3 up, BaseEntity? parent)
+        private bool SpawnFromGroup(string? groupName, Vector3 position, Vector3 normal, Vector3 up, BaseEntity? parent, float sizeOverride = 0f)
         {
             var random = Random.Shared;
             var materialPath = impactDecals?.PickMaterial(groupName, random);
@@ -402,6 +403,11 @@ namespace ValveResourceFormat.Renderer
 
             var height = attributes.GetValueOrDefault("DecalWorldHeight", attributes.GetValueOrDefault("DecalWorldWidth", defaultHeight));
             var width = attributes.GetValueOrDefault("DecalWorldWidth", attributes.ContainsKey("DecalWorldHeight") ? height : defaultWidth);
+            if (sizeOverride > 0f)
+            {
+                width = height = sizeOverride;
+            }
+
             // A triplanar decal wraps around what is inside its box, so it reaches as far out of the surface as along it
             var depth = attributes.GetValueOrDefault("DecalDepth", materials[materialIndex].IsTriplanar ? width : DefaultDecalDepth);
             var depthOffset = attributes.GetValueOrDefault("DecalDepthOffset");
