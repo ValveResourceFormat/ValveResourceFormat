@@ -64,7 +64,8 @@ namespace GUI.Controls
             // Draw the text
             if (!string.IsNullOrEmpty(Text))
             {
-                TextRenderer.DrawText(e.Graphics, Text, Font, textPoint, ForeColor, TextFormatFlags.VerticalCenter);
+                var textRect = new Rectangle(textPoint.X, textPoint.Y - textSize.Height, textSize.Width, textSize.Height * 2);
+                TextRenderer.DrawText(e.Graphics, Text, Font, textRect, ForeColor, TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
             }
         }
 
