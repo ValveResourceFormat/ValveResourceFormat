@@ -341,10 +341,9 @@ namespace GUI.Types.Viewers
             {
                 var previewTab = resTabs.TabPages[0];
 
-                // Preview only displays the first tab page, so copy over the contents
-                foreach (Control c in previewTab.Controls)
+                while (previewTab.Controls.Count > 0)
                 {
-                    containerTabPage.Controls.Add(c);
+                    containerTabPage.Controls.Add(previewTab.Controls[0]);
                 }
 
                 resTabs.Dispose();
