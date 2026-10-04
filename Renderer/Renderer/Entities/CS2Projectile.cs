@@ -39,6 +39,10 @@ public sealed class CS2Projectile : BaseEntity
 
     private const float SmokeEffectDuration = 17f;
     private const float ExplosionEffectDuration = 6f;
+
+    private const string ScorchDecalGroup = "Scorch";
+    private const float ScorchTraceUp = 2f;
+    private const float ScorchTraceDown = 64f;
     private const float FireEffectDuration = 7f;
 
     private const float FireMaxDetonateSlopeDegrees = 30f;
@@ -300,6 +304,26 @@ public sealed class CS2Projectile : BaseEntity
             detonationEffect.Transform = Matrix4x4.CreateTranslation(WorldOrigin);
             detonationEffect.Visible = true;
             detonationEffect.Play();
+        }
+
+        if (Kind == GrenadeKind.Explosive)
+        {
+            SpawnScorchDecal();
+        }
+    }
+
+    // Only a surface close below the blast is scorched, so one going off in the air leaves nothing
+    private void SpawnScorchDecal()
+    {
+        var from = WorldOrigin + new Vector3(0f, 0f, ScorchTraceUp);
+        var to = WorldOrigin - new Vector3(0f, 0f, ScorchTraceDown);
+
+        var trace = EntitySystem.PhysicsWorld?.TraceRay(from, to, Rubikon.DefaultGeometry) ?? new Rubikon.TraceResult();
+        EntitySystem.TraceRay(from, to, Rubikon.DefaultGeometry, ref trace);
+
+        if (trace.Hit)
+        {
+            Scene.ProjectedDecals.SpawnGroupDecal(ScorchDecalGroup, trace.HitPosition, trace.HitNormal, trace.HitEntity);
         }
     }
 

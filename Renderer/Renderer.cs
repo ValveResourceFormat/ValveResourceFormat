@@ -1185,6 +1185,12 @@ public class Renderer : ISpawnGroupHost
 
         using (new GLDebugGroup("Main Scene Translucent Render"))
         {
+            if (Prewarming && isStandardPass)
+            {
+                DrawThrough(mainView, mainState, ref renderContext);
+                Scene.ProjectedDecals.Prewarm(renderContext);
+            }
+
             // Decals read the depth grabbed above, which only the main framebuffer gets
             var drawDecals = isStandardPass && !isWireframe && Scene.ProjectedDecals.Count > 0;
             var decalTranslucentSurfaces = drawDecals && RenderTranslucentSceneDepth(mainView, ref renderContext);

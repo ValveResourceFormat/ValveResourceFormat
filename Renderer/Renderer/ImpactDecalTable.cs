@@ -19,6 +19,8 @@ namespace ValveResourceFormat.Renderer
         private readonly Dictionary<string, SurfaceImpact> surfaceImpacts = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, DecalOption[]> decalGroups = new(StringComparer.OrdinalIgnoreCase);
 
+        public bool HasDecalGroups => decalGroups.Count > 0;
+
         public static ImpactDecalTable Load(GameFileLoader fileLoader)
         {
             var table = new ImpactDecalTable();

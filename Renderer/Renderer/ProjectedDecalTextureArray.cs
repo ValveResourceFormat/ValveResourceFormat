@@ -32,6 +32,9 @@ namespace ValveResourceFormat.Renderer
         private int capacity;
         private int levels;
 
+        /// <summary>Gets the only texture format this array accepts.</summary>
+        public VTexFormat Format => format;
+
         /// <summary>Gets the array texture, or null before anything was added.</summary>
         public RenderTexture? ArrayTexture { get; private set; }
 
@@ -68,6 +71,7 @@ namespace ValveResourceFormat.Renderer
 
             using var resource = fileLoader.LoadFileCompiled(path);
 
+            // TODO: Compress textures in other formats to BC7 on the GPU instead of rejecting them
             if (resource?.DataBlock is not Texture data || data.Format != format || data.Depth != 1)
             {
                 return null;

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
@@ -316,6 +317,22 @@ namespace ValveResourceFormat.Renderer
             return SpawnFromGroup(KnifeDecalGroup, position, normal, up, parent);
         }
 
+        /// <summary>Adds a decal picked from a decal group, turned at random on the surface.</summary>
+        /// <param name="groupName">A group in <c>scripts/decalgroups.vdata</c>.</param>
+        /// <param name="position">The position on the surface.</param>
+        /// <param name="normal">The surface normal.</param>
+        /// <param name="parent">The entity the surface belongs to, which the decal moves with, or null for the static world.</param>
+        /// <returns>Whether a decal was added.</returns>
+        public bool SpawnGroupDecal(string groupName, Vector3 position, Vector3 normal, BaseEntity? parent = null)
+        {
+            impactDecals ??= ImpactDecalTable.Load(scene.RendererContext.FileLoader);
+
+            normal = Vector3.Normalize(normal);
+            var up = RotateAround(normal, GetOrthogonal(normal), Random.Shared.NextSingle() * MathF.Tau);
+
+            return SpawnFromGroup(groupName, position, normal, up, parent);
+        }
+
         private bool SpawnFromGroup(string? groupName, Vector3 position, Vector3 normal, Vector3 up, BaseEntity? parent)
         {
             var random = Random.Shared;
@@ -335,8 +352,13 @@ namespace ValveResourceFormat.Renderer
 
             var attributes = materials[materialIndex].Data.FloatAttributes;
 
-            var height = attributes.GetValueOrDefault("DecalWorldHeight", attributes.GetValueOrDefault("DecalWorldWidth", DefaultDecalSize));
-            var width = attributes.GetValueOrDefault("DecalWorldWidth", height);
+            // Triplanar decals such as the explosion scorch carry no decal size, only how far their texture spans
+            var worldMapping = materials[materialIndex].Data.IntAttributes;
+            var defaultHeight = (float)worldMapping.GetValueOrDefault("WorldMappingHeight", worldMapping.GetValueOrDefault("WorldMappingWidth", (long)DefaultDecalSize));
+            var defaultWidth = (float)worldMapping.GetValueOrDefault("WorldMappingWidth", (long)defaultHeight);
+
+            var height = attributes.GetValueOrDefault("DecalWorldHeight", attributes.GetValueOrDefault("DecalWorldWidth", defaultHeight));
+            var width = attributes.GetValueOrDefault("DecalWorldWidth", attributes.ContainsKey("DecalWorldHeight") ? height : defaultWidth);
             var depth = attributes.GetValueOrDefault("DecalDepth", DefaultDecalDepth);
             var depthOffset = attributes.GetValueOrDefault("DecalDepthOffset");
 
@@ -514,6 +536,12 @@ namespace ValveResourceFormat.Renderer
 
             var layer = array.Add(scene.RendererContext.FileLoader, path);
 
+            if (layer == null)
+            {
+                scene.RendererContext.Logger.LogWarning("Projected decal texture {Path} of {Material} was skipped, it is missing or not {Format}",
+                    path, data.Name, array.Format);
+            }
+
             // A texture larger than the rest regrows its array, which changes every material's scale into it
             materialsDirty = true;
 
@@ -610,7 +638,34 @@ namespace ValveResourceFormat.Renderer
         /// scene instead, which needs <c>g_tTranslucentSceneDepth</c> filled and the translucent layer drawn.</param>
         public void Render(Scene.RenderContext context, bool translucentSurfaces = false)
         {
-            if (decals.Count == 0 || context.ReplacementShader != null || context.View is not { LightBinner: var binner })
+            if (decals.Count > 0)
+            {
+                Draw(context, translucentSurfaces);
+            }
+        }
+
+        /// <summary>
+        /// Loads the decal tables and draws both decal passes with no decals in them, so that the first
+        /// decal waits for neither a shader to compile nor the driver to specialize it. Does nothing in
+        /// a game without decal groups.
+        /// </summary>
+        /// <param name="context">The render context of the main scene, during the prewarm frame.</param>
+        public void Prewarm(Scene.RenderContext context)
+        {
+            impactDecals ??= ImpactDecalTable.Load(scene.RendererContext.FileLoader);
+
+            if (!impactDecals.HasDecalGroups)
+            {
+                return;
+            }
+
+            Draw(context, translucentSurfaces: false);
+            Draw(context, translucentSurfaces: true);
+        }
+
+        private void Draw(Scene.RenderContext context, bool translucentSurfaces)
+        {
+            if (context.ReplacementShader != null || context.View is not { LightBinner: var binner })
             {
                 return;
             }
