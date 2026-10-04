@@ -21,7 +21,10 @@ namespace ValveResourceFormat.ResourceTypes
             public MemoryStream ObjectLengths = new();
             public MemoryStream BinaryBlobs = new();
             public List<int> BinaryBlobLengths = [];
+            public int CountObjects;
             public int CountArrays;
+            public int CountArrayElements;
+            public int CountNodes;
 
             public BinaryWriter Bytes1Writer;
             public BinaryWriter Bytes2Writer;
@@ -144,8 +147,8 @@ namespace ValveResourceFormat.ResourceTypes
             writer.Write((int)context.Bytes4.Length / 4);
             writer.Write((int)context.Bytes8.Length / 8);
             writer.Write(countTypes);
-            writer.Write((ushort)0); // countObjects
-            writer.Write((ushort)0); // countArrays
+            writer.Write(ushort.CreateSaturating(context.CountObjects));
+            writer.Write(ushort.CreateSaturating(context.CountArrays));
             writer.Write(buffer.Count);
             writer.Write(GetCompressedSize(compressedBuffer.Count, compressedBlobs));
             writer.Write(context.BinaryBlobLengths.Count);
@@ -201,8 +204,7 @@ namespace ValveResourceFormat.ResourceTypes
             var compressedBuffer1 = CompressMainBuffer(buffer1);
             var compressedBuffer2 = CompressMainBuffer(buffer2);
             var compressed = SerializationCompressionMethod != KV3BinaryCompressionMethod.Uncompressed;
-            var countObjects = checked((ushort)(context.ObjectLengths.Length / sizeof(int)));
-            var countArrays = checked((ushort)context.CountArrays);
+            var countObjects = (int)context.ObjectLengths.Length / sizeof(int);
 
             using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
             WriteHeader(writer, MAGIC5);
@@ -210,8 +212,8 @@ namespace ValveResourceFormat.ResourceTypes
             writer.Write(1); // countBytes4 in buffer 1 (one int: string count)
             writer.Write(0); // 8-byte values in buffer 1
             writer.Write((int)context.Types.Length);
-            writer.Write(countObjects);
-            writer.Write(countArrays);
+            writer.Write(ushort.CreateSaturating(countObjects));
+            writer.Write(ushort.CreateSaturating(context.CountArrays));
             writer.Write(checked(buffer1.Count + buffer2.Count));
             writer.Write(GetCompressedSize(checked(compressedBuffer1.Count + compressedBuffer2.Count), compressedBlobs));
             writer.Write(context.BinaryBlobLengths.Count);
@@ -226,10 +228,12 @@ namespace ValveResourceFormat.ResourceTypes
             writer.Write((int)context.Bytes2.Length / 2);
             writer.Write((int)context.Bytes4.Length / 4 - 1);
             writer.Write((int)context.Bytes8.Length / 8);
-            writer.Write(0); // unknown, in official files it is close to the total member count, the reader ignores it
-            writer.Write((int)countObjects);
-            writer.Write((int)countArrays);
-            writer.Write(0); // unknown, the reader ignores it
+            // Nodes (the root, every object member and every array element) and array elements are allocation hints,
+            // an empty array counts as one element
+            writer.Write(context.CountNodes);
+            writer.Write(countObjects);
+            writer.Write(context.CountArrays);
+            writer.Write(context.CountArrayElements);
 
             writer.Write(compressedBuffer1.AsSpan());
             writer.Write(compressedBuffer2.AsSpan());
@@ -386,6 +390,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static void WriteValueRecursive(KVObject value, SerializationContext context)
         {
+            context.CountNodes++;
+
             if (value.ValueType == KVValueType.Boolean)
             {
                 if ((bool)value)
@@ -476,6 +482,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KVValueType.Collection:
                 {
+                    context.CountObjects++;
                     context.ObjectLengthsWriter.Write(value.Count);
 
                     foreach (var (key, property) in value)
@@ -487,6 +494,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case KVValueType.Array:
                 {
                     context.CountArrays++;
+                    context.CountArrayElements += Math.Max(value.Count, 1);
                     context.Bytes4Writer.Write(value.Count);
 
                     foreach (var (_, item) in value)

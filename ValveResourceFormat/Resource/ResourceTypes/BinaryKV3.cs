@@ -300,10 +300,11 @@ namespace ValveResourceFormat.ResourceTypes
                 countBytes2_buffer2 = reader.ReadInt32();
                 countBytes4_buffer2 = reader.ReadInt32();
                 countBytes8_buffer2 = reader.ReadInt32();
-                var unk13 = reader.ReadInt32();
+                // The node and element counts are only allocation hints, the data itself is self-describing
+                var countNodes = reader.ReadInt32();
                 countObjects_buffer2 = reader.ReadInt32();
                 countArrays_buffer2 = reader.ReadInt32();
-                var unk16 = reader.ReadInt32();
+                var countArrayElements = reader.ReadInt32();
 
                 Debug.Assert(sizeUncompressedTotal == sizeUncompressedBuffer1 + sizeUncompressedBuffer2);
             }

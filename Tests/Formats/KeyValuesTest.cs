@@ -293,6 +293,68 @@ namespace Tests.Formats
         }
 
         [Test]
+        public async Task TestBinaryKV3Version5HeaderCounts()
+        {
+            var root = KVObject.Collection();
+            root["array"] = KVObject.Array([1, 2]);
+            root["object"] = KVObject.Collection();
+            root["emptyArray"] = KVObject.Array();
+            root["blob"] = KVObject.Blob([1, 2, 3]);
+            var binaryKV3 = new BinaryKV3(root, KV3IDLookup.Get("generic"))
+            {
+                Resource = null!,
+                SerializationVersion = 5,
+            };
+
+            using var stream = new MemoryStream();
+            binaryKV3.Serialize(stream);
+            var data = stream.ToArray();
+            int Header(int offset) => BitConverter.ToInt32(data, HeaderStart + offset);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(BitConverter.ToUInt16(data, HeaderStart + 24)).IsEqualTo((ushort)2);
+                await Assert.That(BitConverter.ToUInt16(data, HeaderStart + 26)).IsEqualTo((ushort)2);
+                await Assert.That(Header(84)).IsEqualTo(7); // root, 4 members, 2 array elements
+                await Assert.That(Header(88)).IsEqualTo(2);
+                await Assert.That(Header(92)).IsEqualTo(2);
+                await Assert.That(Header(96)).IsEqualTo(3); // the empty array counts as one element
+                await Assert.That(Header(32)).IsEqualTo(Header(28)); // uncompressed blobs are not part of the compressed size
+            }
+        }
+
+        [Test]
+        public async Task TestBinaryKV3Version5ManyObjects()
+        {
+            var root = KVObject.Array();
+
+            for (var i = 0; i < 70000; i++)
+            {
+                root.Add(KVObject.Collection());
+            }
+
+            var binaryKV3 = new BinaryKV3(root, KV3IDLookup.Get("generic"))
+            {
+                Resource = null!,
+                SerializationVersion = 5,
+            };
+
+            using var stream = new MemoryStream();
+            binaryKV3.Serialize(stream);
+            var data = stream.ToArray();
+
+            stream.Position = 0;
+            var deserializedBinaryKV3 = ReadBinaryKV3(stream);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(BitConverter.ToUInt16(data, HeaderStart + 24)).IsEqualTo(ushort.MaxValue);
+                await Assert.That(BitConverter.ToInt32(data, HeaderStart + 88)).IsEqualTo(70000);
+                await Assert.That(deserializedBinaryKV3.Data.Root).Count().IsEqualTo(70000);
+            }
+        }
+
+        [Test]
         public async Task TestBinaryKV3ReadsInt8AndUInt8()
         {
             var binaryKV3 = ReadCraftedBinaryKV3(4, bytes1: [0xFF, 0xFF], bytes4: [2, 0, 1], strings: ["a", "b"], types: [9, 22, 23]);
