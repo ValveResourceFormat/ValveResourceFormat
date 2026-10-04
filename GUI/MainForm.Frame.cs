@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Controls;
+using Microsoft.Win32;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -275,21 +276,26 @@ partial class MainForm
 
     private static readonly Lazy<bool> IsRunningOnWine = new(GetIsRunningOnWine);
 
-    // Detect Wine by checking for the `wine_get_version` export on ntdll.dll.
+    // Detect Wine by checking for the `wine_get_version` export on ntdll.dll. Wine-staging can hide that
+    // export, so fall back to the registry key that every Wine prefix has.
     private static bool GetIsRunningOnWine()
     {
-        if (!NativeLibrary.TryLoad("ntdll.dll", out var lib))
+        if (NativeLibrary.TryLoad("ntdll.dll", out var lib))
         {
-            return false;
+            try
+            {
+                if (NativeLibrary.TryGetExport(lib, "wine_get_version", out _))
+                {
+                    return true;
+                }
+            }
+            finally
+            {
+                NativeLibrary.Free(lib);
+            }
         }
 
-        try
-        {
-            return NativeLibrary.TryGetExport(lib, "wine_get_version", out _);
-        }
-        finally
-        {
-            NativeLibrary.Free(lib);
-        }
+        using var wineKey = Registry.LocalMachine.OpenSubKey(@"Software\Wine");
+        return wineKey != null;
     }
 }
