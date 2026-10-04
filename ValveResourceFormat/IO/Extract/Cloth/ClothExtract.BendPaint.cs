@@ -123,7 +123,7 @@ internal sealed partial class ClothExtract
     /// Where a rod's ends sit about a hinge: how far along the unit <paramref name="axis"/> from the hinge's first node
     /// each lies, and how far off it.
     /// </summary>
-    private static (float AlongA, float AlongB, float RiseA, float RiseB) HingeOffsets(Vector3[] positions, FeModel.Rod rod,
+    private static (float AlongA, float AlongB, float RiseA, float RiseB) HingeOffsets(Vector3[] positions, FeModelIndex.Rod rod,
         (int, int) hinge, Vector3 axis)
     {
         var toA = positions[rod.NodeA] - positions[hinge.Item1];
@@ -139,9 +139,9 @@ internal sealed partial class ClothExtract
     private static int ClothPaintMisses(ClothReconstruction cloth, Dictionary<(int, int), List<(int, int)>> generators,
         HashSet<(int, int)> network, Dictionary<int, float>? paint, float addCurvature)
     {
-        var positions = cloth.Fe.InitPosePositions;
+        var positions = cloth.Index.InitPosePositions;
         var misses = 0;
-        foreach (var rod in cloth.Fe.Rods)
+        foreach (var rod in cloth.Index.Rods)
         {
             var pair = RodPair(rod);
             if (!network.Contains(pair) || pair.Item2 >= positions.Length)
@@ -277,10 +277,10 @@ internal sealed partial class ClothExtract
     private static List<HingeReading> ClothHingeReadings(
         ClothReconstruction cloth, List<int[]> faces, HashSet<(int, int)> beyondSurface)
     {
-        var positions = cloth.Fe.InitPosePositions;
+        var positions = cloth.Index.InitPosePositions;
         var generators = HingeGenerators(faces);
         var readings = new List<HingeReading>();
-        foreach (var rod in cloth.Fe.Rods)
+        foreach (var rod in cloth.Index.Rods)
         {
             var edge = RodPair(rod);
             if (!beyondSurface.Contains(edge) || edge.Item2 >= positions.Length)

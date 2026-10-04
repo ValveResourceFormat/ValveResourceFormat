@@ -2,7 +2,7 @@ using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -116,12 +116,12 @@ namespace ValveResourceFormat.IO
         /// <summary>Gets the bone a rigid's node resolves to, following a proxy node up to its skin bone.</summary>
         private string? ResolveRigidBone(int node)
         {
-            if (node < 0 || node >= Fe.CtrlNames.Length)
+            if (node < 0 || node >= Fe.CtrlName.Length)
             {
                 return null;
             }
 
-            return IsProxyNodeName(Fe.CtrlNames[node]) ? ResolveSkinBone(node) : Fe.CtrlNames[node];
+            return IsProxyNodeName(Fe.CtrlName[node]) ? ResolveSkinBone(node) : Fe.CtrlName[node];
         }
 
         private string? RigidVertexMap(int index)
@@ -129,13 +129,14 @@ namespace ValveResourceFormat.IO
 
         /// <summary>Reconstructs the cloth collision capsules (<c>m_TaperedCapsuleRigids</c>).</summary>
         public List<CollisionCapsule> BuildCollisionCapsules()
-            => ReadRigids("m_TaperedCapsuleRigids", RigidColliderKind.TaperedCapsule, static rigid =>
+            => ReadRigids(RigidColliderKind.TaperedCapsule, Fe.TaperedCapsuleRigids.Select(static rigid =>
             {
-                if (rigid.GetArray("vSphere") is { Count: >= 2 } spheres)
+                CollisionCapsule? capsule = null;
+                if (rigid.Spheres is { Length: >= 2 } spheres)
                 {
-                    var s0 = spheres[0].ToVector4();
-                    var s1 = spheres[1].ToVector4();
-                    return new CollisionCapsule
+                    var s0 = spheres[0];
+                    var s1 = spheres[1];
+                    capsule = new CollisionCapsule
                     {
                         Point0 = new Vector3(s0.X, s0.Y, s0.Z),
                         Radius0 = s0.W,
@@ -144,32 +145,31 @@ namespace ValveResourceFormat.IO
                     };
                 }
 
-                return rigid.GetArray("vCenter") is { Count: >= 2 } centres && rigid.GetArray<float>("flRadius") is { Length: >= 2 } radii
-                    ? new CollisionCapsule { Point0 = centres[0].ToVector3(), Radius0 = radii[0], Point1 = centres[1].ToVector3(), Radius1 = radii[1] }
-                    : null;
-            });
+                return (capsule, rigid.Node, rigid.CollisionMask, rigid.VertexMapIndex, rigid.Flags);
+            }));
 
         /// <summary>
-        /// Reads every entry of the rigid array <paramref name="key"/> whose shape <paramref name="read"/> recognises, and gives
-        /// it the properties all rigids share.
+        /// Gives every rigid whose shape was recognised the properties all rigids share. The priority of each is read off
+        /// its index among <paramref name="rigids"/>, recognised or not.
         /// </summary>
-        private List<TShape> ReadRigids<TShape>(string key, RigidColliderKind kind, Func<KVObject, TShape?> read)
+        private List<TShape> ReadRigids<TShape>(RigidColliderKind kind,
+            IEnumerable<(TShape? Shape, int Node, int CollisionMask, int VertexMapIndex, int Flags)> rigids)
             where TShape : CollisionShape
         {
             var result = new List<TShape>();
-            var rigids = Fe.Data.GetArray(key) ?? [];
-            for (var i = 0; i < rigids.Count; i++)
+            var i = -1;
+            foreach (var (read, node, collisionMask, vertexMapIndex, flags) in rigids)
             {
-                var rigid = rigids[i];
-                if (read(rigid) is not { } shape)
+                i++;
+                if (read is not { } shape)
                 {
                     continue;
                 }
 
-                shape.ParentBone = ResolveRigidBone(rigid.GetInt32Property("nNode"));
-                shape.CollisionMask = rigid.GetInt32Property("nCollisionMask");
-                shape.VertexMap = RigidVertexMap(rigid.GetInt32Property("nVertexMapIndex", -1));
-                shape.Inverted = (rigid.GetUInt32Property("nFlags") & RigidFlagInverted) != 0;
+                shape.ParentBone = ResolveRigidBone(node);
+                shape.CollisionMask = collisionMask;
+                shape.VertexMap = RigidVertexMap(vertexMapIndex);
+                shape.Inverted = ((uint)flags & RigidFlagInverted) != 0;
                 shape.Priority = ColliderPriority(kind, i);
                 result.Add(shape);
             }
@@ -273,14 +273,14 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private IEnumerable<(int Parent, List<PlanarizeSample> Samples, int FirstPlane)> PlanarizeGroups()
         {
-            if (Fe.InitPosePositions.Length == 0)
+            if (Index.InitPosePositions.Length == 0)
             {
                 yield break;
             }
 
             foreach (var group in Fe.CollisionPlanes.Select(static (plane, index) => (plane, index)).GroupBy(static e => e.plane.CtrlParent))
             {
-                if (group.Key >= 0 && group.Key < Fe.InitPosePositions.Length)
+                if (group.Key >= 0 && group.Key < Index.InitPosePositions.Length)
                 {
                     yield return (group.Key, PlanarizeSamples(group.Key, group.Select(static e => e.index)), group.Min(static e => e.index));
                 }
@@ -289,23 +289,23 @@ namespace ValveResourceFormat.IO
 
         private List<PlanarizeSample> PlanarizeSamples(int parent, IEnumerable<int> planeIndices)
         {
-            var toLocal = Quaternion.Conjugate(Fe.InitPoseRotations[parent]);
-            var origin = Fe.InitPosePositions[parent];
+            var toLocal = Quaternion.Conjugate(Index.InitPoseRotations[parent]);
+            var origin = Index.InitPosePositions[parent];
 
             var samples = new List<PlanarizeSample>();
             foreach (var index in planeIndices)
             {
                 var plane = Fe.CollisionPlanes[index];
                 var node = plane.ChildNode;
-                if (node < 0 || node >= Fe.InitPosePositions.Length)
+                if (node < 0 || node >= Index.InitPosePositions.Length)
                 {
                     continue;
                 }
 
-                var x = Vector3.Transform(Fe.InitPosePositions[node] - origin, toLocal);
-                var normal = plane.PlaneNormal;
-                samples.Add(new PlanarizeSample(node, x, normal, plane.PlaneOffset,
-                    Vector3.Dot(normal, x) - plane.PlaneOffset, Fe.GetCollisionRadius(node)));
+                var x = Vector3.Transform(Index.InitPosePositions[node] - origin, toLocal);
+                var normal = plane.Plane.Normal;
+                samples.Add(new PlanarizeSample(node, x, normal, plane.Plane.Offset,
+                    Vector3.Dot(normal, x) - plane.Plane.Offset, Index.GetCollisionRadius(node)));
             }
 
             return samples;
@@ -356,53 +356,16 @@ namespace ValveResourceFormat.IO
 
         /// <summary>Reconstructs the cloth collision boxes (<c>m_BoxRigids</c>).</summary>
         private List<CollisionBox> BuildCollisionBoxes()
-            => ReadRigids("m_BoxRigids", RigidColliderKind.Box, static rigid =>
-            {
-                Vector3 origin;
-                Quaternion rotation;
-                if (rigid.GetSubCollection("tmFrame2") is { } frame)
-                {
-                    (origin, _, rotation) = frame.ToTransform();
-                }
-                else if (rigid.GetSubCollection("tmFrame") is { } matrixFrame)
-                {
-                    var matrix = matrixFrame.ToMatrix4x4();
-                    origin = matrix.Translation;
-                    rotation = Quaternion.CreateFromRotationMatrix(matrix);
-                }
-                else
-                {
-                    return null;
-                }
-
-                return rigid.GetSubCollection("vSize") is { } size
-                    ? new CollisionBox { Origin = origin, Rotation = rotation, Size = size.ToVector3() }
-                    : null;
-            });
+            => ReadRigids(RigidColliderKind.Box, Fe.BoxRigids.Select(static rigid =>
+                (rigid.Frame2 is { } frame && rigid.Size is { } size
+                    ? new CollisionBox { Origin = frame.Position, Rotation = frame.Orientation, Size = size }
+                    : null,
+                rigid.Node, rigid.CollisionMask, rigid.VertexMapIndex, rigid.Flags)));
 
         /// <summary>Reconstructs the cloth collision spheres (<c>m_SphereRigids</c>).</summary>
         private List<CollisionSphere> BuildCollisionSpheres()
-            => ReadRigids("m_SphereRigids", RigidColliderKind.Sphere, static rigid =>
-            {
-                Vector4 sphere;
-                if (rigid.GetArray<float>("vSphere") is { Length: 4 } s)
-                {
-                    sphere = new Vector4(s[0], s[1], s[2], s[3]);
-                }
-                else if (rigid.ContainsKey("m_vSphere"))
-                {
-                    sphere = rigid.GetSubCollection("m_vSphere").ToVector4();
-                }
-                else if (rigid.GetSubCollection("vCenter") is { } centre)
-                {
-                    sphere = new Vector4(centre.ToVector3(), rigid.GetFloatProperty("flRadius"));
-                }
-                else
-                {
-                    return null;
-                }
-
-                return new CollisionSphere { Center = new Vector3(sphere.X, sphere.Y, sphere.Z), Radius = sphere.W };
-            });
+            => ReadRigids(RigidColliderKind.Sphere, Fe.SphereRigids.Select(static rigid =>
+                (rigid.Sphere is { } sphere ? new CollisionSphere { Center = new Vector3(sphere.X, sphere.Y, sphere.Z), Radius = sphere.W } : null,
+                rigid.Node, rigid.CollisionMask, rigid.VertexMapIndex, rigid.Flags)));
     }
 }

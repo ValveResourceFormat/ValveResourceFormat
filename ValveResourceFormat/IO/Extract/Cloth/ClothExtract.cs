@@ -254,7 +254,7 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
     private void AddCulledClothBones(ClothReconstruction cloth)
     {
         var nestByClothParent = model is not null && model.Skeleton.Roots.Length == 0 && cloth.HasCompiledSkelParents;
-        var emitted = CulledBones.Where(bone => bone.Node < cloth.Fe.InitPosePositions.Length)
+        var emitted = CulledBones.Where(bone => bone.Node < cloth.Index.InitPosePositions.Length)
             .Select(static bone => bone.Node).ToHashSet();
 
         var parentOf = new Dictionary<int, int>();
@@ -294,7 +294,7 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
 
             var (origin, rotation) = parent >= 0
                 ? ClothBoneLocalPose(cloth, node, parent)
-                : (cloth.Fe.InitPosePositions[node], cloth.Fe.InitPoseRotations[node]);
+                : (cloth.Index.InitPosePositions[node], cloth.Index.InitPoseRotations[node]);
             bones.Add((node, parent, MakeNode("Bone",
                 ("name", name),
                 ("origin", ToKVArray(origin)),
@@ -324,8 +324,8 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
     /// <summary>The rest pose of control node <paramref name="node"/> relative to control node <paramref name="parent"/>.</summary>
     internal static (Vector3 Origin, Quaternion Rotation) ClothBoneLocalPose(ClothReconstruction cloth, int node, int parent)
     {
-        return RelativePose(cloth.Fe.InitPosePositions[node], cloth.Fe.InitPoseRotations[node],
-            cloth.Fe.InitPosePositions[parent], cloth.Fe.InitPoseRotations[parent]);
+        return RelativePose(cloth.Index.InitPosePositions[node], cloth.Index.InitPoseRotations[node],
+            cloth.Index.InitPosePositions[parent], cloth.Index.InitPoseRotations[parent]);
     }
 
     /// <summary>A pose relative to its parent's pose.</summary>

@@ -28,7 +28,7 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>The <c>JiggleBone</c> node of one compiled jiggle bone, or null where its node has no control name.</summary>
-    internal static KVObject? ProcessJiggleBone(FeModel.IndexedJiggleBone indexedJiggleBone, string[] controlNames)
+    internal static KVObject? ProcessJiggleBone(FeModel.FeIndexedJiggleBone indexedJiggleBone, string[] controlNames)
     {
         var nodeIndex = indexedJiggleBone.Node;
         if (nodeIndex < 0 || nodeIndex >= controlNames.Length)
@@ -36,7 +36,7 @@ internal sealed partial class ClothExtract
             return null;
         }
 
-        var jiggleBone = indexedJiggleBone.Bone;
+        var jiggleBone = indexedJiggleBone.JiggleBone;
         var flags = (FeJiggleBoneFlags)jiggleBone.Flags;
 
         var type = JiggleBoneType.Neither;
@@ -116,7 +116,7 @@ internal sealed partial class ClothExtract
         var children = KVObject.Array();
         foreach (var jiggleBone in cloth.Fe.JiggleBones)
         {
-            if (ProcessJiggleBone(jiggleBone, cloth.Fe.CtrlNames) is { } node)
+            if (ProcessJiggleBone(jiggleBone, cloth.Fe.CtrlName) is { } node)
             {
                 children.Add(node);
             }

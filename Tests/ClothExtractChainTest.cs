@@ -615,8 +615,8 @@ namespace Tests
             using (Assert.Multiple())
             {
                 await Assert.That(chain.ExtrudeSides).IsLessThan(1);
-                await Assert.That(ringless.Fe.AllowsRotation(chain.Joints[0].Node)).IsFalse();
-                await Assert.That(ringless.Fe.NodeBases.ContainsKey(chain.Joints[0].Node)).IsFalse();
+                await Assert.That(ringless.Index.AllowsRotation(chain.Joints[0].Node)).IsFalse();
+                await Assert.That(ringless.Index.NodeBases.ContainsKey(chain.Joints[0].Node)).IsFalse();
                 await Assert.That(ClothReconstruction.ClothChainVersion(ringless, chain))
                     .IsEqualTo(2);
             }

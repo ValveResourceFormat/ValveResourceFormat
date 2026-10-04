@@ -1,6 +1,6 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -113,7 +113,7 @@ namespace ValveResourceFormat.IO
         internal List<(int A, int B, int Copies)> GetAuthoredSourceSprings(List<BoneChain> chains,
             Dictionary<(int, int), List<float>>? spanned = null)
         {
-            if (Fe.SourceSprings.Length == 0)
+            if (Index.SourceSprings.Length == 0)
             {
                 return [];
             }
@@ -130,9 +130,9 @@ namespace ValveResourceFormat.IO
             bool IsEndpoint(int node) => IsRingNode(node) || joints.Contains(node);
 
             spanned ??= ChainGeneratedSpans(chains);
-            var authored = new List<(int, int)>(Fe.SourceSprings.Length);
+            var authored = new List<(int, int)>(Index.SourceSprings.Length);
             var occurrences = new Dictionary<(int, int), int>();
-            foreach (var (a, b) in Fe.SourceSprings)
+            foreach (var (a, b) in Index.SourceSprings)
             {
                 if (IsEndpoint(a) && IsEndpoint(b))
                 {
@@ -144,9 +144,9 @@ namespace ValveResourceFormat.IO
 
             var copies = new Dictionary<(int, int), int>();
             var clusterRods = SelfCollisionClusterRods;
-            for (var i = 0; i < Fe.Rods.Length; i++)
+            for (var i = 0; i < Index.Rods.Length; i++)
             {
-                var key = UnorderedPair(Fe.Rods[i].NodeA, Fe.Rods[i].NodeB);
+                var key = UnorderedPair(Index.Rods[i].NodeA, Index.Rods[i].NodeB);
                 if (!clusterRods.Contains(i) && occurrences.ContainsKey(key))
                 {
                     copies[key] = copies.GetValueOrDefault(key) + 1;
@@ -195,12 +195,12 @@ namespace ValveResourceFormat.IO
             }
 
             var entriesByPair = new Dictionary<(int, int), List<int>>();
-            for (var i = 0; i < Fe.Rods.Length; i++)
+            for (var i = 0; i < Index.Rods.Length; i++)
             {
-                GetOrAdd(entriesByPair, UnorderedPair(Fe.Rods[i].NodeA, Fe.Rods[i].NodeB)).Add(i);
+                GetOrAdd(entriesByPair, UnorderedPair(Index.Rods[i].NodeA, Index.Rods[i].NodeB)).Add(i);
             }
 
-            var claimed = new bool[Fe.Rods.Length];
+            var claimed = new bool[Index.Rods.Length];
 
             foreach (var index in SelfCollisionClusterRods)
             {
@@ -209,9 +209,9 @@ namespace ValveResourceFormat.IO
 
             if (surfaceFansRegenerate)
             {
-                for (var i = 0; i < Fe.Rods.Length; i++)
+                for (var i = 0; i < Index.Rods.Length; i++)
                 {
-                    claimed[i] |= IsSurfaceFanRod(Fe.Rods[i], banded: false);
+                    claimed[i] |= IsSurfaceFanRod(Index.Rods[i], banded: false);
                 }
             }
 
@@ -233,7 +233,7 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        var rod = Fe.Rods[index];
+                        var rod = Index.Rods[index];
                         var score = (rod.IsBanded ? 1f : 0f) + (float.IsNaN(expected)
                             ? 0f
                             : 0.5f * MathF.Min(1f, MathF.Abs(rod.RelaxationFactor - expected)));
@@ -252,11 +252,11 @@ namespace ValveResourceFormat.IO
             }
 
             var surplus = new List<Rod>();
-            for (var i = 0; i < Fe.Rods.Length; i++)
+            for (var i = 0; i < Index.Rods.Length; i++)
             {
                 if (!claimed[i])
                 {
-                    surplus.Add(Fe.Rods[i]);
+                    surplus.Add(Index.Rods[i]);
                 }
             }
 
@@ -269,7 +269,7 @@ namespace ValveResourceFormat.IO
         private HashSet<int> SourceFaceRingNodes()
         {
             var nodes = new HashSet<int>();
-            foreach (var (a, b) in DeriveRodsFromFaces(Fe.SourceFaces))
+            foreach (var (a, b) in DeriveRodsFromFaces(Index.SourceFaces))
             {
                 if (IsRingNode(a) && IsRingNode(b))
                 {
@@ -293,7 +293,7 @@ namespace ValveResourceFormat.IO
                 .Select(static joint => (joint.ParentNode, joint.Node))
                 .ToHashSet();
 
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 if (rod.MaxDist < UnboundedRodDistance
                     && groupOf.TryGetValue(rod.NodeA, out var a) && groupOf.TryGetValue(rod.NodeB, out var b)
@@ -313,7 +313,7 @@ namespace ValveResourceFormat.IO
         {
             var generated = ChainGeneratedNodes(chains);
 
-            return Fe.Rods.Any(rod => rod.MaxDist >= UnboundedRodDistance
+            return Index.Rods.Any(rod => rod.MaxDist >= UnboundedRodDistance
                 && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB));
         }
 
@@ -325,7 +325,7 @@ namespace ValveResourceFormat.IO
         {
             var generated = ChainGeneratedNodes(chains);
 
-            return Fe.Rods.Any(rod => rod.MaxDist < UnboundedRodDistance && rod.MinDist < rod.MaxDist
+            return Index.Rods.Any(rod => rod.MaxDist < UnboundedRodDistance && rod.MinDist < rod.MaxDist
                 && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB))
                 || HasSurfaceFolds;
         }
@@ -360,7 +360,7 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>Gets whether the compiler folded any rod across this model's own faces.</summary>
-        internal bool HasSurfaceFolds => hasSurfaceFolds ??= Fe.Rods.Any(rod => IsSurfaceFanRod(rod, banded: true));
+        internal bool HasSurfaceFolds => hasSurfaceFolds ??= Index.Rods.Any(rod => IsSurfaceFanRod(rod, banded: true));
 
         /// <summary>
         /// Gets whether <paramref name="rod"/> is a banded rod the compiler folded across a face edge on its own: it carries
@@ -373,10 +373,10 @@ namespace ValveResourceFormat.IO
         /// walking the solve elements first and then the faces built into rods instead.
         /// </summary>
         private HashSet<(int, int)> SurfaceFanPairs => surfaceFanPairs ??= PredictBendRods(
-            [.. FoldWalkSolveElements(), .. SourceElementWalk()], Fe.IsStatic);
+            [.. FoldWalkSolveElements(), .. SourceElementWalk()], Index.IsStatic);
 
         /// <summary>Gets the node pairs whose every rod is a surface fold, so no declaration put a rod there.</summary>
-        private HashSet<(int, int)> SurfaceFoldOnlyPairs => surfaceFoldOnlyPairs ??= [.. Fe.Rods
+        private HashSet<(int, int)> SurfaceFoldOnlyPairs => surfaceFoldOnlyPairs ??= [.. Index.Rods
             .GroupBy(static rod => UnorderedPair(rod.NodeA, rod.NodeB))
             .Where(group => group.All(rod => IsSurfaceFanRod(rod, banded: true)))
             .Select(static group => group.Key)];
@@ -420,7 +420,7 @@ namespace ValveResourceFormat.IO
                 return IsSurfaceFanRod(rod, banded: false);
             }
 
-            return !(surfaceFoldsAbsent ??= Fe.Rods.Any(IsUnequalFoldedPair) && !Fe.Rods.Any(other => IsSurfaceFanRod(other, banded: false)));
+            return !(surfaceFoldsAbsent ??= Index.Rods.Any(IsUnequalFoldedPair) && !Index.Rods.Any(other => IsSurfaceFanRod(other, banded: false)));
         }
 
         private bool IsUnequalFoldedPair(Rod rod)
@@ -469,7 +469,7 @@ namespace ValveResourceFormat.IO
         internal IReadOnlyList<SelfCollisionCluster> SelfCollisionClusters
             => selfCollisionClusters ??= BuildSelfCollisionClusters();
 
-        /// <summary>Gets the index into <see cref="FeModel.Rods"/> of every rod a <see cref="SelfCollisionClusters"/> entry accounts for.</summary>
+        /// <summary>Gets the index into <see cref="FeModelIndex.Rods"/> of every rod a <see cref="SelfCollisionClusters"/> entry accounts for.</summary>
         internal IReadOnlySet<int> SelfCollisionClusterRods
             => selfCollisionClusterRods ??= BuildSelfCollisionClusterRods();
 
@@ -477,19 +477,19 @@ namespace ValveResourceFormat.IO
         {
             var found = new List<SelfCollisionCluster>();
             const int minMembers = 3;
-            if (IsImportedCloth || Fe.Rods.Length < minMembers)
+            if (IsImportedCloth || Index.Rods.Length < minMembers)
             {
                 return found;
             }
 
             var sprung = new HashSet<(int, int)>();
-            foreach (var (a, b) in Fe.SourceSprings)
+            foreach (var (a, b) in Index.SourceSprings)
             {
                 sprung.Add(UnorderedPair(a, b));
             }
 
             var byBand = new Dictionary<(float, float), Dictionary<(int, int), (int Copies, float Relaxation)>>();
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 var pair = UnorderedPair(rod.NodeA, rod.NodeB);
                 if (rod.MaxDist <= rod.MinDist || rod.RelaxationFactor <= 0f
@@ -595,7 +595,7 @@ namespace ValveResourceFormat.IO
         {
             foreach (var node in members)
             {
-                if (node >= Fe.CtrlNames.Length || node >= Fe.InitPosePositions.Length || IsGeneratedNodeName(Fe.CtrlNames[node]))
+                if (node >= Fe.CtrlName.Length || node >= Index.InitPosePositions.Length || IsGeneratedNodeName(Fe.CtrlName[node]))
                 {
                     return false;
                 }
@@ -605,7 +605,7 @@ namespace ValveResourceFormat.IO
             {
                 for (var j = i + 1; j < members.Count; j++)
                 {
-                    var rest = Vector3.Distance(Fe.InitPosePositions[members[i]], Fe.InitPosePositions[members[j]]);
+                    var rest = Vector3.Distance(Index.InitPosePositions[members[i]], Index.InitPosePositions[members[j]]);
                     if (Rod.IsAtRestLength(bandMax, rest))
                     {
                         return false;
@@ -637,9 +637,9 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            for (var i = 0; i < Fe.Rods.Length; i++)
+            for (var i = 0; i < Index.Rods.Length; i++)
             {
-                var rod = Fe.Rods[i];
+                var rod = Index.Rods[i];
                 var pair = UnorderedPair(rod.NodeA, rod.NodeB);
                 if (wanted.TryGetValue(pair, out var band) && rod.MinDist == band.Min
                     && rod.MaxDist == band.Max && MathF.Abs(rod.RelaxationFactor - band.Relaxation) <= 1e-4f

@@ -1,6 +1,6 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -13,24 +13,24 @@ namespace ValveResourceFormat.IO
         private List<ProxyMesh> BuildProxyMeshesFromRodsOnly(HashSet<int> coveredNodes)
         {
             var result = new List<ProxyMesh>();
-            if (Fe.InitPosePositions.Length == 0)
+            if (Index.InitPosePositions.Length == 0)
             {
                 return result;
             }
 
-            var n = Fe.CtrlNames.Length;
+            var n = Fe.CtrlName.Length;
             var isProxy = new bool[n];
-            for (var node = 0; node < n && node < Fe.InitPosePositions.Length; node++)
+            for (var node = 0; node < n && node < Index.InitPosePositions.Length; node++)
             {
-                isProxy[node] = Fe.CtrlNames[node]?.StartsWith('$') == true
-                    && !Fe.CtrlNames[node].StartsWith(FreeClothNodePrefix, StringComparison.Ordinal)
+                isProxy[node] = Fe.CtrlName[node]?.StartsWith('$') == true
+                    && !Fe.CtrlName[node].StartsWith(FreeClothNodePrefix, StringComparison.Ordinal)
                     && !coveredNodes.Contains(node) && !IsHingeRegeneratedProxy(node);
             }
 
             var parent = Enumerable.Range(0, n).ToArray();
             int Find(int x) => FindRoot(parent, x);
 
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 if (rod.NodeA < n && rod.NodeB < n
                     && isProxy[rod.NodeA] && isProxy[rod.NodeB])
@@ -39,7 +39,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            foreach (var face in Fe.SourceFaces)
+            foreach (var face in Index.SourceFaces)
             {
                 if (SpansProxyMeshes(face))
                 {
@@ -73,7 +73,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var meshIndex = ParseProxyMeshIndex(Fe.CtrlNames[node]);
+                var meshIndex = ParseProxyMeshIndex(Fe.CtrlName[node]);
                 if (meshIndex < 0)
                 {
                     continue;

@@ -20,7 +20,7 @@ internal sealed partial class ClothExtract
         private Dictionary<int, int>? rodNeighbourCounts;
         private Dictionary<uint, string>? boneByHash;
         private RodPairCounts? rodCounts;
-        private Dictionary<(int, int), FeModel.Rod>? firstRodByPair;
+        private Dictionary<(int, int), FeModelIndex.Rod>? firstRodByPair;
 
         /// <summary>Gets the first control node of every control name, matched by ordinal.</summary>
         public Dictionary<string, int> NodeByName => nodeByName ??= IndexNames();
@@ -41,15 +41,15 @@ internal sealed partial class ClothExtract
         public RodPairCounts RodCounts => rodCounts ??= CountRodPairs();
 
         /// <summary>Gets the first rod the model records on every node pair.</summary>
-        public Dictionary<(int, int), FeModel.Rod> FirstRodByPair
+        public Dictionary<(int, int), FeModelIndex.Rod> FirstRodByPair
             => firstRodByPair ??= cloth.RodsByPair.ToDictionary(static entry => entry.Key, static entry => entry.Value[0]);
 
         private Dictionary<string, int> IndexNames()
         {
-            var index = new Dictionary<string, int>(cloth.Fe.CtrlNames.Length, StringComparer.Ordinal);
-            for (var node = 0; node < cloth.Fe.CtrlNames.Length; node++)
+            var index = new Dictionary<string, int>(cloth.Fe.CtrlName.Length, StringComparer.Ordinal);
+            for (var node = 0; node < cloth.Fe.CtrlName.Length; node++)
             {
-                index.TryAdd(cloth.Fe.CtrlNames[node], node);
+                index.TryAdd(cloth.Fe.CtrlName[node], node);
             }
 
             return index;
@@ -58,7 +58,7 @@ internal sealed partial class ClothExtract
         private Dictionary<int, int> CountRodNeighbours()
         {
             var neighbours = new Dictionary<int, HashSet<int>>();
-            foreach (var rod in cloth.Fe.Rods)
+            foreach (var rod in cloth.Index.Rods)
             {
                 ClothReconstruction.GetOrAdd(neighbours, rod.NodeA).Add(rod.NodeB);
                 ClothReconstruction.GetOrAdd(neighbours, rod.NodeB).Add(rod.NodeA);
@@ -70,7 +70,7 @@ internal sealed partial class ClothExtract
         private Dictionary<uint, string> HashBoneNames()
         {
             var byHash = new Dictionary<uint, string>();
-            foreach (var name in (cloth.SkeletonBoneNames ?? Enumerable.Empty<string>()).Concat(cloth.Fe.CtrlNames))
+            foreach (var name in (cloth.SkeletonBoneNames ?? Enumerable.Empty<string>()).Concat(cloth.Fe.CtrlName))
             {
                 byHash.TryAdd(StringToken.Get(name), name);
             }
@@ -82,7 +82,7 @@ internal sealed partial class ClothExtract
         {
             var entries = cloth.RodsByPair.ToDictionary(static entry => entry.Key, static entry => entry.Value.Count);
             var banded = new Dictionary<(int, int), int>();
-            foreach (var rod in cloth.Fe.Rods)
+            foreach (var rod in cloth.Index.Rods)
             {
                 if (rod.IsBanded)
                 {

@@ -18,7 +18,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            var spelling = cloth.Fe.CtrlNames[node];
+            var spelling = cloth.Fe.CtrlName[node];
             if (spelling != joint.Name)
             {
                 joint.Name = spelling;
@@ -80,8 +80,8 @@ internal sealed partial class ClothExtract
             }
 
             var parent = cloth.SkelParents[node];
-            if (parent < 0 || parent >= cloth.Fe.CtrlNames.Length
-                || !jointByName.TryGetValue(cloth.Fe.CtrlNames[parent], out var parentJoint)
+            if (parent < 0 || parent >= cloth.Fe.CtrlName.Length
+                || !jointByName.TryGetValue(cloth.Fe.CtrlName[parent], out var parentJoint)
                 || parentJoint == joint || !parentOf.ContainsKey(joint) || !parentOf.ContainsKey(parentJoint)
                 || IsAncestor(parentJoint, joint) || IsAncestor(joint, parentJoint))
             {
@@ -124,15 +124,15 @@ internal sealed partial class ClothExtract
         var appended = new List<(int Node, DmeJoint Joint)>();
         foreach (var (node, culledName) in culledClothBones)
         {
-            if (node >= cloth.Fe.InitPosePositions.Length || boneIndexByName.ContainsKey(culledName))
+            if (node >= cloth.Index.InitPosePositions.Length || boneIndexByName.ContainsKey(culledName))
             {
                 continue;
             }
 
             var joint = new DmeJoint { Name = culledName };
             joint.Transform.Name = culledName;
-            joint.Transform.Position = cloth.Fe.InitPosePositions[node];
-            joint.Transform.Orientation = cloth.Fe.InitPoseRotations[node];
+            joint.Transform.Position = cloth.Index.InitPosePositions[node];
+            joint.Transform.Orientation = cloth.Index.InitPoseRotations[node];
             boneIndexByName[culledName] = dmeModel.JointList.Count;
             dmeModel.JointList.Add(joint);
             appended.Add((node, joint));
@@ -154,8 +154,8 @@ internal sealed partial class ClothExtract
         foreach (var (node, joint) in appended)
         {
             var parent = cloth.HasCompiledSkelParents && node < cloth.SkelParents.Length ? cloth.SkelParents[node] : -1;
-            if (parent < 0 || parent >= cloth.Fe.CtrlNames.Length
-                || !jointByName.TryGetValue(cloth.Fe.CtrlNames[parent], out var parentJoint)
+            if (parent < 0 || parent >= cloth.Fe.CtrlName.Length
+                || !jointByName.TryGetValue(cloth.Fe.CtrlName[parent], out var parentJoint)
                 || parentJoint == joint || !world.TryGetValue(parentJoint, out var parentWorld))
             {
                 dmeModel.Children.Add(joint);

@@ -15,16 +15,16 @@ internal sealed partial class ClothExtract
     private static KVObject MakeImportedCloth(ClothReconstruction cloth, IReadOnlySet<int>? tableNodes = null)
     {
         var ropeParents = cloth.RopeRunParents;
-        var followLinks = cloth.Fe.FollowNodeLinks;
-        var localForce = cloth.Fe.LocalForceValues;
-        var localRotation = cloth.Fe.LocalRotationValues;
+        var followLinks = cloth.Index.FollowNodeLinks;
+        var localForce = cloth.Fe.LocalForces;
+        var localRotation = cloth.Fe.LocalRotations;
         var osOffsetParents = new Dictionary<int, int>(cloth.Fe.CtrlOsOffsets.Length);
         foreach (var pair in cloth.Fe.CtrlOsOffsets)
         {
             osOffsetParents.TryAdd(pair.CtrlChild, pair.CtrlParent);
         }
 
-        List<int> rowNodes = tableNodes is null ? [.. Enumerable.Range(0, cloth.Fe.CtrlNames.Length)] : [.. tableNodes.Order()];
+        List<int> rowNodes = tableNodes is null ? [.. Enumerable.Range(0, cloth.Fe.CtrlName.Length)] : [.. tableNodes.Order()];
         var rowOf = new Dictionary<int, int>(rowNodes.Count);
         for (var row = 0; row < rowNodes.Count; row++)
         {
@@ -33,12 +33,12 @@ internal sealed partial class ClothExtract
 
         float PerDynamic(float[] values, int node)
         {
-            if (values.Length == cloth.Fe.CtrlNames.Length)
+            if (values.Length == cloth.Fe.CtrlName.Length)
             {
                 return values[node];
             }
 
-            var dynamicIndex = node - cloth.Fe.StaticNodeCount;
+            var dynamicIndex = node - cloth.Fe.StaticNodes;
             return dynamicIndex >= 0 && dynamicIndex < values.Length ? values[dynamicIndex] : float.NaN;
         }
 
@@ -46,10 +46,10 @@ internal sealed partial class ClothExtract
         foreach (var node in rowNodes)
         {
             var row = KVObject.Collection();
-            row.Add("m_Name", cloth.Fe.CtrlNames[node]);
+            row.Add("m_Name", cloth.Fe.CtrlName[node]);
 
-            var position = node < cloth.Fe.InitPosePositions.Length ? cloth.Fe.InitPosePositions[node] : Vector3.Zero;
-            var rotation = node < cloth.Fe.InitPoseRotations.Length ? cloth.Fe.InitPoseRotations[node] : Quaternion.Identity;
+            var position = node < cloth.Index.InitPosePositions.Length ? cloth.Index.InitPosePositions[node] : Vector3.Zero;
+            var rotation = node < cloth.Index.InitPoseRotations.Length ? cloth.Index.InitPoseRotations[node] : Quaternion.Identity;
             row.Add("m_Transform", MakeArray(position.X, position.Y, position.Z,
                 rotation.X, rotation.Y, rotation.Z, rotation.W));
 
@@ -57,7 +57,7 @@ internal sealed partial class ClothExtract
             if (invMass == 0f)
             {
                 row.Add("m_bSimulated", false);
-                if (node < cloth.Fe.RotationLockedStaticNodeCount)
+                if (node < cloth.Fe.RotLockStaticNodes)
                 {
                     row.Add("m_bFreeRotation", false);
                 }
@@ -95,11 +95,11 @@ internal sealed partial class ClothExtract
                 row.Add("m_flFollowWeight", follow.Weight);
             }
 
-            var integrator = cloth.Fe.GetIntegrator(node);
+            var integrator = cloth.Index.GetIntegrator(node);
             var integratorRow = KVObject.Collection();
             integratorRow.Add("flPointDamping", integrator.PointDamping);
-            integratorRow.Add("flAnimationForceAttraction", integrator.ForceAttraction);
-            integratorRow.Add("flAnimationVertexAttraction", integrator.VertexAttraction);
+            integratorRow.Add("flAnimationForceAttraction", integrator.AnimationForceAttraction);
+            integratorRow.Add("flAnimationVertexAttraction", integrator.AnimationVertexAttraction);
             integratorRow.Add("flGravity", integrator.Gravity);
             row.Add("m_Integrator", integratorRow);
 
@@ -120,22 +120,22 @@ internal sealed partial class ClothExtract
                 row.Add("m_flLocalRotation", rotationScale);
             }
 
-            var radius = cloth.Fe.GetCollisionRadius(node);
+            var radius = cloth.Index.GetCollisionRadius(node);
             if (radius != 0f)
             {
                 row.Add("m_flCollisionRadius", radius);
             }
 
-            var friction = cloth.Fe.GetNodeFriction(node);
+            var friction = cloth.Index.GetNodeFriction(node);
             if (friction != 0f)
             {
                 row.Add("m_flFriction", friction);
             }
 
-            if (cloth.Fe.WorldCollisionNodes.Contains(node))
+            if (cloth.Index.WorldCollisionNodes.Contains(node))
             {
                 row.Add("m_bNeedsWorldCollision", true);
-                if (cloth.Fe.WorldCollisionFriction.TryGetValue(node, out var worldFriction))
+                if (cloth.Index.WorldCollisionFriction.TryGetValue(node, out var worldFriction))
                 {
                     row.Add("m_flWorldFriction", worldFriction.World);
                     row.Add("m_flGroundFriction", worldFriction.Ground);
@@ -146,7 +146,7 @@ internal sealed partial class ClothExtract
         }
 
         var rods = KVObject.Array();
-        foreach (var rod in cloth.Fe.Rods)
+        foreach (var rod in cloth.Index.Rods)
         {
             if (!rowOf.TryGetValue(rod.NodeA, out var rowA) || !rowOf.TryGetValue(rod.NodeB, out var rowB))
             {
@@ -156,8 +156,8 @@ internal sealed partial class ClothExtract
             var row = KVObject.Collection();
             row.Add("m_nNodes", MakeArray(rowA, rowB));
 
-            var restLength = rod.NodeA < cloth.Fe.InitPosePositions.Length && rod.NodeB < cloth.Fe.InitPosePositions.Length
-                ? Vector3.Distance(cloth.Fe.InitPosePositions[rod.NodeA], cloth.Fe.InitPosePositions[rod.NodeB])
+            var restLength = rod.NodeA < cloth.Index.InitPosePositions.Length && rod.NodeB < cloth.Index.InitPosePositions.Length
+                ? Vector3.Distance(cloth.Index.InitPosePositions[rod.NodeA], cloth.Index.InitPosePositions[rod.NodeB])
                 : 0f;
             if (MathF.Abs(rod.MaxDist - restLength) > MathF.Max(1e-3f, 1e-4f * MathF.Max(rod.MaxDist, restLength)))
             {
@@ -191,7 +191,7 @@ internal sealed partial class ClothExtract
     }
 
     private static IEnumerable<string> ImportedStripBoneNames(ClothReconstruction cloth, IReadOnlySet<int> strip)
-        => strip.Select(node => cloth.Fe.CtrlNames[node]).Where(name => !cloth.IsGeneratedNodeName(name));
+        => strip.Select(node => cloth.Fe.CtrlName[node]).Where(name => !cloth.IsGeneratedNodeName(name));
 
     private void EmitImportedClothPhase(ClothReconstruction cloth, List<BoneChain> boneChains, KVObject rootChildren)
     {
@@ -200,7 +200,7 @@ internal sealed partial class ClothExtract
         AddClothFolder(softbodyChildren).Add(MakeImportedCloth(cloth));
 
         var clothBones = ClothBoneNames(cloth);
-        foreach (var name in cloth.Fe.CtrlNames)
+        foreach (var name in cloth.Fe.CtrlName)
         {
             if (!cloth.IsGeneratedNodeName(name))
             {

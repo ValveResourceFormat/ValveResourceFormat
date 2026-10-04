@@ -41,48 +41,48 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(cloth.Fe.HasData).IsTrue();
+                await Assert.That(cloth.Fe.CtrlName.Length).IsGreaterThan(0);
                 await Assert.That(cloth.Fe.NodeCount).IsEqualTo(8);
-                await Assert.That(cloth.Fe.CtrlNames.Length).IsEqualTo(8);
-                await Assert.That(cloth.Fe.CtrlNames[0]).IsEqualTo("back_fur_r0c0");
-                await Assert.That(cloth.Fe.CtrlNames[7]).IsEqualTo("back_fur_r3c1");
-                await Assert.That(cloth.Fe.StaticNodeCount).IsEqualTo(4);
-                await Assert.That(cloth.Fe.RotationLockedStaticNodeCount).IsEqualTo(4);
+                await Assert.That(cloth.Fe.CtrlName.Length).IsEqualTo(8);
+                await Assert.That(cloth.Fe.CtrlName[0]).IsEqualTo("back_fur_r0c0");
+                await Assert.That(cloth.Fe.CtrlName[7]).IsEqualTo("back_fur_r3c1");
+                await Assert.That(cloth.Fe.StaticNodes).IsEqualTo(4);
+                await Assert.That(cloth.Fe.RotLockStaticNodes).IsEqualTo(4);
 
                 await Assert.That(cloth.Fe.NodeInvMasses.Length).IsEqualTo(8);
                 await Assert.That(cloth.Fe.NodeInvMasses[3]).IsEqualTo(0f);
                 await Assert.That(cloth.Fe.NodeInvMasses[4]).IsEqualTo(1f);
                 await Assert.That(cloth.Fe.NodeInvMasses[6]).IsEqualTo(0.666667f).Within(1e-6f);
 
-                await Assert.That(cloth.Fe.InitPosePositions.Length).IsEqualTo(8);
-                await Assert.That(cloth.Fe.InitPoseRotations.Length).IsEqualTo(8);
-                await Assert.That(cloth.Fe.InitPosePositions[0].Z).IsEqualTo(150.352509f).Within(1e-3f);
+                await Assert.That(cloth.Index.InitPosePositions.Length).IsEqualTo(8);
+                await Assert.That(cloth.Index.InitPoseRotations.Length).IsEqualTo(8);
+                await Assert.That(cloth.Index.InitPosePositions[0].Z).IsEqualTo(150.352509f).Within(1e-3f);
 
-                await Assert.That(cloth.Fe.Rods.Length).IsEqualTo(6);
-                await Assert.That(cloth.Fe.Rods[0].NodeA).IsEqualTo(3);
-                await Assert.That(cloth.Fe.Rods[0].NodeB).IsEqualTo(5);
-                await Assert.That(cloth.Fe.Rods[0].MinDist).IsEqualTo(0.778344f).Within(1e-6f);
-                await Assert.That(cloth.Fe.Rods[0].MaxDist).IsEqualTo(15.566884f).Within(1e-5f);
-                await Assert.That(cloth.Fe.Rods[0].Weight0).IsEqualTo(0f);
-                await Assert.That(cloth.Fe.Rods[0].RelaxationFactor).IsEqualTo(1f);
+                await Assert.That(cloth.Index.Rods.Length).IsEqualTo(6);
+                await Assert.That(cloth.Index.Rods[0].NodeA).IsEqualTo(3);
+                await Assert.That(cloth.Index.Rods[0].NodeB).IsEqualTo(5);
+                await Assert.That(cloth.Index.Rods[0].MinDist).IsEqualTo(0.778344f).Within(1e-6f);
+                await Assert.That(cloth.Index.Rods[0].MaxDist).IsEqualTo(15.566884f).Within(1e-5f);
+                await Assert.That(cloth.Index.Rods[0].Weight0).IsEqualTo(0f);
+                await Assert.That(cloth.Index.Rods[0].RelaxationFactor).IsEqualTo(1f);
 
-                await Assert.That(cloth.Fe.NodeBases.Count).IsEqualTo(2);
-                await Assert.That(cloth.Fe.NodeBases[4]).IsEqualTo(new FeModel.NodeBasis(4, 5, 2, 6));
-                await Assert.That(cloth.Fe.NodeBases[6]).IsEqualTo(new FeModel.NodeBasis(6, 7, 4, 6));
+                await Assert.That(cloth.Index.NodeBases.Count).IsEqualTo(2);
+                await Assert.That(cloth.Index.NodeBases[4]).IsEqualTo(new FeModelIndex.NodeBasis(4, 5, 2, 6));
+                await Assert.That(cloth.Index.NodeBases[6]).IsEqualTo(new FeModelIndex.NodeBasis(6, 7, 4, 6));
 
-                await Assert.That(cloth.Fe.NodeIntegrators.Length).IsEqualTo(8);
-                await Assert.That(cloth.Fe.GetIntegrator(0).Gravity).IsEqualTo(700f);
-                await Assert.That(cloth.Fe.GetIntegrator(6).PointDamping).IsEqualTo(0.071333f).Within(1e-6f);
+                await Assert.That(cloth.Fe.NodeIntegrator.Length).IsEqualTo(8);
+                await Assert.That(cloth.Index.GetIntegrator(0).Gravity).IsEqualTo(700f);
+                await Assert.That(cloth.Index.GetIntegrator(6).PointDamping).IsEqualTo(0.071333f).Within(1e-6f);
 
                 await Assert.That(cloth.Fe.CtrlOsOffsets.Length).IsEqualTo(4);
                 await Assert.That(cloth.Fe.CtrlOffsets.Length).IsEqualTo(0);
-                await Assert.That(cloth.Fe.FollowNodeLinks.Count).IsEqualTo(4);
+                await Assert.That(cloth.Index.FollowNodeLinks.Count).IsEqualTo(4);
                 await Assert.That(cloth.Fe.LegacyStretchForce.Length).IsEqualTo(8);
 
-                await Assert.That(cloth.Fe.Quads.Length).IsEqualTo(0);
-                await Assert.That(cloth.Fe.Tris.Length).IsEqualTo(0);
-                await Assert.That(cloth.Fe.HasSurfaceElements).IsFalse();
-                await Assert.That(cloth.Fe.SourceFaces.Length).IsEqualTo(0);
+                await Assert.That(cloth.Index.Quads.Length).IsEqualTo(0);
+                await Assert.That(cloth.Index.Tris.Length).IsEqualTo(0);
+                await Assert.That(cloth.Index.HasSurfaceElements).IsFalse();
+                await Assert.That(cloth.Index.SourceFaces.Length).IsEqualTo(0);
                 await Assert.That(cloth.Fe.CollisionPlanes.Length).IsEqualTo(0);
                 await Assert.That(cloth.BuildCollisionCapsules().Count).IsEqualTo(0);
                 await Assert.That(cloth.BuildPlanarizeCapsules().Count).IsEqualTo(0);
@@ -119,7 +119,7 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(cloth.Fe.Data.ContainsKey("m_nFirstPositionDrivenNode")).IsFalse();
+                await Assert.That(cloth.Fe.FirstPositionDrivenNode).IsNull();
                 await Assert.That(cloth.FirstPositionDrivenNode).IsEqualTo(8);
                 await Assert.That(cloth.IsPositionDriven(7)).IsFalse();
             }
@@ -135,18 +135,18 @@ namespace Tests
             {
                 for (var node = 0; node < 4; node++)
                 {
-                    await Assert.That(cloth.Fe.IsStatic(node)).IsTrue();
-                    await Assert.That(cloth.Fe.AllowsRotation(node)).IsFalse();
+                    await Assert.That(cloth.Index.IsStatic(node)).IsTrue();
+                    await Assert.That(cloth.Index.AllowsRotation(node)).IsFalse();
                 }
 
                 for (var node = 4; node < 8; node++)
                 {
-                    await Assert.That(cloth.Fe.IsStatic(node)).IsFalse();
-                    await Assert.That(cloth.Fe.AllowsRotation(node)).IsTrue();
+                    await Assert.That(cloth.Index.IsStatic(node)).IsFalse();
+                    await Assert.That(cloth.Index.AllowsRotation(node)).IsTrue();
                 }
 
                 await Assert.That(cloth.ForcesWorldCollisionOnAllNodes).IsFalse();
-                await Assert.That(cloth.Fe.WorldCollisionNodes.Count).IsEqualTo(0);
+                await Assert.That(cloth.Index.WorldCollisionNodes.Count).IsEqualTo(0);
             }
         }
 
@@ -169,29 +169,29 @@ namespace Tests
             using (Assert.Multiple())
             {
                 await Assert.That(cloth.Fe.NodeCount).IsEqualTo(24);
-                await Assert.That(cloth.Fe.CtrlNames.Length).IsEqualTo(24);
-                await Assert.That(cloth.Fe.StaticNodeCount).IsEqualTo(0);
+                await Assert.That(cloth.Fe.CtrlName.Length).IsEqualTo(24);
+                await Assert.That(cloth.Fe.StaticNodes).IsEqualTo(0);
                 await Assert.That(cloth.FirstPositionDrivenNode).IsEqualTo(24);
-                await Assert.That(cloth.Fe.Rods.Length).IsEqualTo(129);
-                await Assert.That(cloth.Fe.NodeBases.Count).IsEqualTo(6);
+                await Assert.That(cloth.Index.Rods.Length).IsEqualTo(129);
+                await Assert.That(cloth.Index.NodeBases.Count).IsEqualTo(6);
                 await Assert.That(cloth.Fe.CtrlOffsets.Length).IsEqualTo(18);
-                await Assert.That(cloth.Fe.NodeIntegrators.Length).IsEqualTo(24);
-                await Assert.That(cloth.Fe.InitPosePositions.Length).IsEqualTo(24);
+                await Assert.That(cloth.Fe.NodeIntegrator.Length).IsEqualTo(24);
+                await Assert.That(cloth.Index.InitPosePositions.Length).IsEqualTo(24);
 
-                await Assert.That(cloth.Fe.Quads.Length).IsEqualTo(0);
-                await Assert.That(cloth.Fe.Tris.Length).IsEqualTo(0);
-                await Assert.That(cloth.Fe.SourceFaces.Length).IsEqualTo(15);
-                await Assert.That(cloth.Fe.SourceFaces[0].Length).IsEqualTo(4);
-                await Assert.That(cloth.Fe.SourceSprings.Length).IsEqualTo(0);
+                await Assert.That(cloth.Index.Quads.Length).IsEqualTo(0);
+                await Assert.That(cloth.Index.Tris.Length).IsEqualTo(0);
+                await Assert.That(cloth.Index.SourceFaces.Length).IsEqualTo(15);
+                await Assert.That(cloth.Index.SourceFaces[0].Length).IsEqualTo(4);
+                await Assert.That(cloth.Index.SourceSprings.Length).IsEqualTo(0);
 
                 await Assert.That(cloth.Fe.VertexSetNames.Length).IsEqualTo(1);
                 await Assert.That(cloth.Fe.DynNodeVertexSet.Length).IsEqualTo(0);
                 await Assert.That(cloth.VertexMaps.Count).IsEqualTo(0);
 
-                await Assert.That(cloth.Fe.TwistNodes.Count).IsEqualTo(0);
-                await Assert.That(cloth.Fe.KelagerBends.Count).IsEqualTo(0);
+                await Assert.That(cloth.Index.TwistNodes.Count).IsEqualTo(0);
+                await Assert.That(cloth.Index.KelagerBends.Count).IsEqualTo(0);
                 await Assert.That(cloth.IsImportedCloth).IsFalse();
-                await Assert.That(cloth.Fe.DefaultGravityScale).IsEqualTo(1f);
+                await Assert.That(cloth.Index.DefaultGravityScale).IsEqualTo(1f);
                 await Assert.That(cloth.Fe.LocalForce).IsEqualTo(1f);
             }
         }
@@ -214,12 +214,12 @@ namespace Tests
                 foreach (var (joint, size) in ringSizes)
                 {
                     await Assert.That(size).IsEqualTo(3);
-                    await Assert.That(FeModel.IsProxyNodeName(cloth.Fe.CtrlNames[joint])).IsFalse();
+                    await Assert.That(FeModelIndex.IsProxyNodeName(cloth.Fe.CtrlName[joint])).IsFalse();
                 }
 
-                await Assert.That(cloth.Fe.CtrlNames[18]).IsEqualTo("wizardSpine1_0");
-                await Assert.That(cloth.Fe.CtrlNames[21]).IsEqualTo("head1");
-                await Assert.That(cloth.Fe.CtrlNames[0]).IsEqualTo("$ccwizardSpine1_0_0");
+                await Assert.That(cloth.Fe.CtrlName[18]).IsEqualTo("wizardSpine1_0");
+                await Assert.That(cloth.Fe.CtrlName[21]).IsEqualTo("head1");
+                await Assert.That(cloth.Fe.CtrlName[0]).IsEqualTo("$ccwizardSpine1_0_0");
 
                 await Assert.That(cloth.HasCompiledSkelParents).IsFalse();
                 await Assert.That(cloth.SkelParents.Length).IsEqualTo(0);
@@ -239,15 +239,15 @@ namespace Tests
             {
                 for (var i = 0; i < expected.Length; i++)
                 {
-                    var integrator = cloth.Fe.GetIntegrator(18 + i);
-                    await Assert.That(ClothReconstruction.GoalStrengthFromAttraction(integrator.ForceAttraction))
+                    var integrator = cloth.Index.GetIntegrator(18 + i);
+                    await Assert.That(ClothReconstruction.GoalStrengthFromAttraction(integrator.AnimationForceAttraction))
                         .IsEqualTo(expected[i]).Within(1e-4f);
-                    await Assert.That(ClothReconstruction.GoalDampingFromAttraction(integrator.ForceAttraction,
-                        integrator.VertexAttraction)).IsEqualTo(0.01f).Within(1e-3f);
+                    await Assert.That(ClothReconstruction.GoalDampingFromAttraction(integrator.AnimationForceAttraction,
+                        integrator.AnimationVertexAttraction)).IsEqualTo(0.01f).Within(1e-3f);
                     await Assert.That(integrator.Gravity).IsEqualTo(0f);
                 }
 
-                await Assert.That(cloth.Fe.GetIntegrator(0).Gravity).IsEqualTo(360f);
+                await Assert.That(cloth.Index.GetIntegrator(0).Gravity).IsEqualTo(360f);
             }
         }
 
@@ -273,7 +273,7 @@ namespace Tests
         [Test]
         public async Task MalformedCountsAndShortVectorsReadAsEmpty()
         {
-            var fe = SyntheticCloth.Parse("""
+            var cloth = SyntheticCloth.Parse("""
                 {
                 m_CtrlName = [ "a", "b" ]
                 m_nNodeCount = -3
@@ -284,14 +284,16 @@ namespace Tests
                 m_VertexMaps = [ { sName = "m" nNameHash = 1 nVertexBase = 0 nVertexCount = -1 nMapOffset = 0 vCenterOfMass = [ 0.0 ] flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 }, ]
                 m_LockToParent = [ { vOffset = [ 1.0 ] nCtrlParent = 0 nCtrlChild = 1 }, ]
                 }
-                """).Fe;
+                """);
 
             using (Assert.Multiple())
             {
-                await Assert.That(fe.NodeCount).IsEqualTo(0);
-                await Assert.That(fe.InitPosePositions).IsEquivalentTo([Vector3.Zero, new Vector3(0f, 0f, 5f)], CollectionOrdering.Matching);
-                await Assert.That(fe.VertexMaps[0].Weights.Length).IsEqualTo(0);
-                await Assert.That(fe.LockToParent[0].Offset).IsEqualTo(Vector3.Zero);
+                await Assert.That(cloth.Fe.NodeCount).IsEqualTo(-3);
+                await Assert.That(cloth.Index.NodeCount).IsEqualTo(0);
+                await Assert.That(cloth.Index.InitPosePositions).IsEquivalentTo([Vector3.Zero, new Vector3(0f, 0f, 5f)], CollectionOrdering.Matching);
+                await Assert.That(cloth.Fe.VertexMaps[0].VertexCount).IsEqualTo(-1);
+                await Assert.That(cloth.Index.VertexMaps[0].Weights.Length).IsEqualTo(0);
+                await Assert.That(cloth.Fe.LockToParent[0].Offset).IsEqualTo(Vector3.Zero);
             }
         }
 
@@ -334,18 +336,18 @@ namespace Tests
         [Test]
         public async Task LocalForceAndRotationAreIndexedByDynamicNode()
         {
-            var fe = SyntheticCloth.Model(["a", "b", "c"], staticNodes: 1, body: """
+            var index = SyntheticCloth.Model(["a", "b", "c"], staticNodes: 1, body: """
                 m_LocalForce = [ 0.25, 0.5 ]
                 m_LocalRotation = [ 0.75, 1.0 ]
-                """).Fe;
+                """).Index;
 
             using (Assert.Multiple())
             {
-                await Assert.That(fe.GetLocalForce(0)).IsEqualTo(0f);
-                await Assert.That(fe.GetLocalForce(1)).IsEqualTo(0.25f);
-                await Assert.That(fe.GetLocalForce(2)).IsEqualTo(0.5f);
-                await Assert.That(fe.GetLocalRotation(2)).IsEqualTo(1f);
-                await Assert.That(fe.GetLocalRotation(3)).IsEqualTo(0f);
+                await Assert.That(index.GetLocalForce(0)).IsEqualTo(0f);
+                await Assert.That(index.GetLocalForce(1)).IsEqualTo(0.25f);
+                await Assert.That(index.GetLocalForce(2)).IsEqualTo(0.5f);
+                await Assert.That(index.GetLocalRotation(2)).IsEqualTo(1f);
+                await Assert.That(index.GetLocalRotation(3)).IsEqualTo(0f);
             }
         }
 
@@ -383,8 +385,44 @@ namespace Tests
                 await Assert.That(fe.VertexMaps[0].NameHash).IsEqualTo(3000000000u);
                 await Assert.That(fe.JiggleBones[0].Node).IsEqualTo(-1);
                 await Assert.That(fe.JiggleBones[0].JiggleParent).IsEqualTo(-1);
-                await Assert.That(fe.JiggleBones[0].Bone.Flags).IsEqualTo(uint.MaxValue);
+                await Assert.That(fe.JiggleBones[0].JiggleBone.Flags).IsEqualTo(uint.MaxValue);
                 await Assert.That(fe.BoneMergeLinks[0].ParentHash).IsEqualTo(uint.MaxValue - 2);
+            }
+        }
+
+        /// <summary>
+        /// A SIMD <c>nNode</c> block reads as rows of four lanes whether stored as rows or as one row-major array, and a
+        /// collision plane keeps whichever of <c>flStrength</c> and <c>flStickiness</c> it carries.
+        /// </summary>
+        [Test]
+        public async Task SimdNodesAndCollisionPlanesKeepTheirLayoutAcrossEras()
+        {
+            var cloth = SyntheticCloth.Model(["a", "b", "c"], staticNodes: 1, body: """
+                m_SimdRodsAnim =
+                [
+                    { nNode = [ [ 0, 1, 1, 1 ], [ 2, 2, 2, 2 ] ] f4Weight0 = [ 0.25, 0.5, 0.5, 0.5 ] },
+                    { nNode = [ 0, 1, 1, 1, 2, 2, 2, 2 ] },
+                ]
+                m_CollisionPlanes =
+                [
+                    { nCtrlParent = 0 nChildNode = 1 m_Plane = { m_vNormal = [ 0.0, 0.0, 1.0 ] m_flOffset = 2.0 } flStrength = 0.5 },
+                    { nCtrlParent = 0 nChildNode = 2 flStickiness = 0.75 },
+                ]
+                """);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(cloth.Fe.SimdRodsAnim[0].Nodes[1]).IsEquivalentTo([2, 2, 2, 2], CollectionOrdering.Matching);
+                await Assert.That(cloth.Fe.SimdRodsAnim[1].Nodes[0]).IsEquivalentTo([0, 1, 1, 1], CollectionOrdering.Matching);
+                await Assert.That(cloth.Fe.SimdRodsAnim[1].Weight0.Length).IsEqualTo(0);
+                await Assert.That(cloth.Index.AnimRods).IsEquivalentTo(
+                    [new FeModelIndex.AnimRod(0, 2, 0.25f), new FeModelIndex.AnimRod(1, 2, 0.5f), new FeModelIndex.AnimRod(0, 2, 0.5f)],
+                    CollectionOrdering.Matching);
+
+                await Assert.That(cloth.Fe.CollisionPlanes[0].Plane).IsEqualTo(new FeModel.RnPlane(Vector3.UnitZ, 2f));
+                await Assert.That(cloth.Fe.CollisionPlanes[0].Strength).IsEqualTo(0.5f);
+                await Assert.That(cloth.Fe.CollisionPlanes[1].Stickiness).IsEqualTo(0.75f);
+                await Assert.That(cloth.Fe.CollisionPlanes[1].Strength).IsEqualTo(0f);
             }
         }
 
@@ -402,10 +440,12 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(fe.InitPosePositions[0]).IsEqualTo(new Vector3(1f, 2f, 3f));
-                await Assert.That(fe.InitPosePositions[1]).IsEqualTo(fe.InitPosePositions[0]);
-                await Assert.That(fe.InitPoseRotations[1]).IsEqualTo(fe.InitPoseRotations[0]);
-                await Assert.That(fe.InitPoseRotations[0].W).IsEqualTo(0.70710677f);
+                await Assert.That(fe.InitPose[0].Position).IsEqualTo(new Vector3(1f, 2f, 3f));
+                await Assert.That(fe.InitPose[0].Scale).IsEqualTo(1f);
+                await Assert.That(fe.InitPose[1].Scale).IsEqualTo(0.5f);
+                await Assert.That(fe.InitPose[1].Position).IsEqualTo(fe.InitPose[0].Position);
+                await Assert.That(fe.InitPose[1].Orientation).IsEqualTo(fe.InitPose[0].Orientation);
+                await Assert.That(fe.InitPose[0].Orientation.W).IsEqualTo(0.70710677f);
             }
         }
     }

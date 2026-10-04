@@ -1,7 +1,7 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Utils;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -47,8 +47,8 @@ namespace ValveResourceFormat.IO
             for (var v = 0; v < normals.Length; v++)
             {
                 var node = v < proxy.NodeIndices.Length ? proxy.NodeIndices[v] : -1;
-                var rotation = node >= 0 && node < Fe.InitPoseRotations.Length
-                    ? Fe.InitPoseRotations[node]
+                var rotation = node >= 0 && node < Index.InitPoseRotations.Length
+                    ? Index.InitPoseRotations[node]
                     : Quaternion.Identity;
 
                 var axis = Vector3.Transform(Vector3.UnitZ, rotation);
@@ -65,7 +65,7 @@ namespace ValveResourceFormat.IO
         private List<FaceRod> AuthoredFaceRods(HashSet<int> nodes)
         {
             var kinds = new Dictionary<(int, int), bool>();
-            foreach (var face in Fe.SourceFaces)
+            foreach (var face in Index.SourceFaces)
             {
                 if (face.Length is not (3 or 4) || !Array.TrueForAll(face, nodes.Contains))
                 {
@@ -92,7 +92,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var rest = Vector3.Distance(Fe.InitPosePositions[pair.Item1], Fe.InitPosePositions[pair.Item2]);
+                var rest = Vector3.Distance(Index.InitPosePositions[pair.Item1], Index.InitPosePositions[pair.Item2]);
                 var authored = candidates.MinBy(r => MathF.Abs(r.MaxDist - rest));
                 if (MathF.Abs(authored.MaxDist - rest) <= FaceRodRestTolerance * MathF.Max(1f, rest))
                 {
@@ -104,20 +104,20 @@ namespace ValveResourceFormat.IO
 
             void Add(int x, int y, bool diagonal)
             {
-                if (x != y && x >= 0 && y >= 0 && x < Fe.InitPosePositions.Length && y < Fe.InitPosePositions.Length)
+                if (x != y && x >= 0 && y >= 0 && x < Index.InitPosePositions.Length && y < Index.InitPosePositions.Length)
                 {
                     kinds[UnorderedPair(x, y)] = diagonal;
                 }
             }
         }
 
-        /// <summary>Gets the rods on each unordered node pair, in <see cref="FeModel.Rods"/> order.</summary>
+        /// <summary>Gets the rods on each unordered node pair, in <see cref="FeModelIndex.Rods"/> order.</summary>
         internal Dictionary<(int, int), List<Rod>> RodsByPair => rodsByPair ??= BuildRodsByPair();
 
         private Dictionary<(int, int), List<Rod>> BuildRodsByPair()
         {
             var byPair = new Dictionary<(int, int), List<Rod>>();
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 GetOrAdd(byPair, UnorderedPair(rod.NodeA, rod.NodeB)).Add(rod);
             }
@@ -229,7 +229,7 @@ namespace ValveResourceFormat.IO
         private HashSet<int> BuildSheetNodes()
         {
             var nodes = new HashSet<int>();
-            for (var node = 0; node < Fe.CtrlNames.Length; node++)
+            for (var node = 0; node < Fe.CtrlName.Length; node++)
             {
                 if (IsProxyMeshNode(node))
                 {
@@ -351,10 +351,10 @@ namespace ValveResourceFormat.IO
         {
             var nodes = SheetNodes;
             var edges = SheetFaceRods.Where(static entry => !entry.Diagonal).Select(static entry => entry.Pair).ToHashSet();
-            bool BothStatic((int A, int B) pair) => Fe.IsStatic(pair.A) && Fe.IsStatic(pair.B);
+            bool BothStatic((int A, int B) pair) => Index.IsStatic(pair.A) && Index.IsStatic(pair.B);
             bool Spans((int, int) pair) => edges.Contains(pair) || BothStatic(pair);
 
-            foreach (var face in Fe.SourceFaces)
+            foreach (var face in Index.SourceFaces)
             {
                 if (face.Length != 4 || !Array.TrueForAll(face, nodes.Contains)
                     || !Spans(UnorderedPair(face[0], face[1])) || !Spans(UnorderedPair(face[1], face[2]))
@@ -499,7 +499,7 @@ namespace ValveResourceFormat.IO
         /// Vertices owned by an independent chain are skipped.
         /// </summary>
         internal float[]? RecoverStrayRadiusPaint(ProxyMesh proxy)
-            => StrayPaint(proxy, node => Fe.AnimStrayRadii[node].MaxDistance);
+            => StrayPaint(proxy, node => Index.AnimStrayRadii[node].MaxDistance);
 
         /// <summary>
         /// Recovers the <c>cloth_stray_radius_stretchiness</c> paint of a proxy sheet, or null when none of its vertices
@@ -522,7 +522,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private float[]? StrayPaint(ProxyMesh proxy, Func<int, float?> valueOf)
         {
-            if (Fe.AnimStrayRadii.Count == 0)
+            if (Index.AnimStrayRadii.Count == 0)
             {
                 return null;
             }
@@ -533,7 +533,7 @@ namespace ValveResourceFormat.IO
             for (var v = 0; v < paint.Length; v++)
             {
                 var node = proxy.NodeIndices[v];
-                if (!chainNodes.Contains(node) && Fe.AnimStrayRadii.ContainsKey(node) && valueOf(node) is { } value)
+                if (!chainNodes.Contains(node) && Index.AnimStrayRadii.ContainsKey(node) && valueOf(node) is { } value)
                 {
                     paint[v] = value;
                     painted++;
@@ -581,7 +581,7 @@ namespace ValveResourceFormat.IO
                 }
                 else
                 {
-                    foreach (var rod in Fe.Rods)
+                    foreach (var rod in Index.Rods)
                     {
                         if (!IsProxyMeshNode(rod.NodeA) || !IsProxyMeshNode(rod.NodeB))
                         {

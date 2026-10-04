@@ -52,7 +52,7 @@ internal sealed partial class ClothExtract
         }
 
         var beyondSurface = new HashSet<(int, int)>();
-        foreach (var rod in cloth.Fe.Rods)
+        foreach (var rod in cloth.Index.Rods)
         {
             var edge = RodPair(rod);
             if (surfaceNodes.Contains(edge.Item1) && surfaceNodes.Contains(edge.Item2) && !derived.Contains(edge))
@@ -107,7 +107,7 @@ internal sealed partial class ClothExtract
         }
         else
         {
-            var bend = ClothReconstruction.BendRodsFromSurface(surfaceFaces, cloth.Fe.IsStatic);
+            var bend = ClothReconstruction.BendRodsFromSurface(surfaceFaces, cloth.Index.IsStatic);
             bend.ExceptWith(derived);
             if (bend.Count > 0 && bend.IsSubsetOf(beyondSurface))
             {
@@ -131,10 +131,10 @@ internal sealed partial class ClothExtract
                 }
             }
 
-            var folds = ClothReconstruction.BendRodsFromDeclaredFaces(keptFaces, cloth.Fe.IsStatic);
+            var folds = ClothReconstruction.BendRodsFromDeclaredFaces(keptFaces, cloth.Index.IsStatic);
             folds.ExceptWith(derived);
             if (folds.Count > 0 && folds.All(fold => cloth.RodsByPair.ContainsKey(fold)
-                || cloth.Fe.IsStatic(fold.Item1) || cloth.Fe.IsStatic(fold.Item2)))
+                || cloth.Index.IsStatic(fold.Item1) || cloth.Index.IsStatic(fold.Item2)))
             {
                 var boundedFolds = HasBoundedRod(cloth, folds);
                 generatesBendRods = boundedFolds;
@@ -149,7 +149,7 @@ internal sealed partial class ClothExtract
             bendStiffness = 0f;
         }
 
-        if (bendStiffness <= 0f && bendNetwork.Count > 0 && !cloth.Fe.HasAxialEdges
+        if (bendStiffness <= 0f && bendNetwork.Count > 0 && !cloth.Index.HasAxialEdges
             && (generatesBendRods || generatesBendOnlyRods))
         {
             // A regenerated network is exactly the rods beyond the surface, so its readings are the ones already taken
@@ -169,7 +169,7 @@ internal sealed partial class ClothExtract
     /// </summary>
     private static void AddRodsTheSheetsRebuild(HashSet<(int, int)> derived, ClothReconstruction cloth, List<ClothProxyFile> proxies)
     {
-        if (!cloth.Fe.HasSurfaceElements)
+        if (!cloth.Index.HasSurfaceElements)
         {
             foreach (var (_, _, proxyMesh) in proxies)
             {
@@ -181,7 +181,7 @@ internal sealed partial class ClothExtract
         {
             derived.UnionWith(ClothReconstruction.BentQuadRodsFromFaces(
                 GlobalFaces(proxyMesh, proxyMesh.Faces.Where(face => !ClothFaceMakesRods(cloth, proxyMesh, face))),
-                cloth.Fe.InitPosePositions, cloth.Fe.IsStatic, cloth.QuadBendTolerance));
+                cloth.Index.InitPosePositions, cloth.Index.IsStatic, cloth.QuadBendTolerance));
         }
     }
 
@@ -200,7 +200,7 @@ internal sealed partial class ClothExtract
     {
         var vertexCount = proxy.Positions.Length;
         var driven = proxy.RodsDriven.Length == vertexCount;
-        if (!driven && (proxy.UsesAuthoredFaces || !cloth.Fe.HasSurfaceElements))
+        if (!driven && (proxy.UsesAuthoredFaces || !cloth.Index.HasSurfaceElements))
         {
             return true;
         }
@@ -223,12 +223,12 @@ internal sealed partial class ClothExtract
     /// </summary>
     private static MixedSurfaceRods? ClothMixedSurfaceRods(ClothReconstruction cloth, List<int[]> surfaceFaces, HashSet<(int, int)> beyondSurface)
     {
-        if (beyondSurface.Count == 0 || cloth.Fe.HasAxialEdges)
+        if (beyondSurface.Count == 0 || cloth.Index.HasAxialEdges)
         {
             return null;
         }
 
-        var network = ClothReconstruction.BendRodsFromSurface(surfaceFaces, cloth.Fe.IsStatic);
+        var network = ClothReconstruction.BendRodsFromSurface(surfaceFaces, cloth.Index.IsStatic);
         if (network.Count == 0 || !network.All(cloth.RodsByPair.ContainsKey))
         {
             return null;
@@ -270,14 +270,14 @@ internal sealed partial class ClothExtract
 
     /// <summary>Whether any rod on a pair of <paramref name="pairs"/> has a bounded maximum length.</summary>
     private static bool HasBoundedRod(ClothReconstruction cloth, HashSet<(int, int)> pairs)
-        => cloth.Fe.Rods.Any(rod => rod.MaxDist < ClothReconstruction.UnboundedRodDistance && pairs.Contains(RodPair(rod)));
+        => cloth.Index.Rods.Any(rod => rod.MaxDist < ClothReconstruction.UnboundedRodDistance && pairs.Contains(RodPair(rod)));
 
     /// <summary>
     /// The uniform <c>cloth_bend_stiffness</c> of a face-kept sheet, or null where the compiler folds rods across the
     /// model's sheets without <c>rigid_edge_hinges</c>.
     /// </summary>
     internal static float? ClothFaceKeptBendStiffness(ClothReconstruction cloth, ClothSurfaceRods surfaceRods)
-        => !cloth.Fe.HasAxialEdges && !cloth.HasChainRingBends
+        => !cloth.Index.HasAxialEdges && !cloth.HasChainRingBends
             && (surfaceRods.GeneratesBendRods || surfaceRods.GeneratesBendOnlyRods)
                 ? null
                 : ClothFaceKeptBendStiffnessDefault;
@@ -292,7 +292,7 @@ internal sealed partial class ClothExtract
             return null;
         }
 
-        if (cloth.Fe.HasAxialEdges)
+        if (cloth.Index.HasAxialEdges)
         {
             return cloth.RecoverRigidHingeBendPaint(proxy);
         }
@@ -316,15 +316,15 @@ internal sealed partial class ClothExtract
     private static (HashSet<(int, int)> Suspenders, float AddCurvature, bool Saturated) ClothSuspenders(
         ClothReconstruction cloth, HashSet<(int, int)> beyondSurface)
     {
-        if (beyondSurface.Count == 0 || cloth.Fe.HasAxialEdges)
+        if (beyondSurface.Count == 0 || cloth.Index.HasAxialEdges)
         {
             return ([], 0f, false);
         }
 
-        var positions = cloth.Fe.InitPosePositions;
+        var positions = cloth.Index.InitPosePositions;
         var invMasses = cloth.Fe.NodeInvMasses;
         var shaped = new List<((int, int) Edge, float Reading)>();
-        foreach (var rod in cloth.Fe.Rods)
+        foreach (var rod in cloth.Index.Rods)
         {
             var edge = RodPair(rod);
             if (!beyondSurface.Contains(edge)

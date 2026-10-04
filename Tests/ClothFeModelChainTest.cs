@@ -264,12 +264,12 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(free.LocksTranslation(Array.IndexOf(free.Fe.CtrlNames, "a0"), chainVersion: 1)).IsFalse();
-                await Assert.That(free.LocksTranslation(Array.IndexOf(free.Fe.CtrlNames, "a0"), chainVersion: 2)).IsTrue();
-                await Assert.That(free.LocksTranslation(Array.IndexOf(free.Fe.CtrlNames, "b0"), chainVersion: 1)).IsTrue();
-                await Assert.That(fitted.LocksTranslation(Array.IndexOf(fitted.Fe.CtrlNames, "a0"), chainVersion: 1)).IsTrue();
-                await Assert.That(locked.LocksTranslation(Array.IndexOf(locked.Fe.CtrlNames, "a0"), chainVersion: 1)).IsTrue();
-                await Assert.That(locked.LocksTranslation(Array.IndexOf(locked.Fe.CtrlNames, "b0"), chainVersion: 1)).IsTrue();
+                await Assert.That(free.LocksTranslation(Array.IndexOf(free.Fe.CtrlName, "a0"), chainVersion: 1)).IsFalse();
+                await Assert.That(free.LocksTranslation(Array.IndexOf(free.Fe.CtrlName, "a0"), chainVersion: 2)).IsTrue();
+                await Assert.That(free.LocksTranslation(Array.IndexOf(free.Fe.CtrlName, "b0"), chainVersion: 1)).IsTrue();
+                await Assert.That(fitted.LocksTranslation(Array.IndexOf(fitted.Fe.CtrlName, "a0"), chainVersion: 1)).IsTrue();
+                await Assert.That(locked.LocksTranslation(Array.IndexOf(locked.Fe.CtrlName, "a0"), chainVersion: 1)).IsTrue();
+                await Assert.That(locked.LocksTranslation(Array.IndexOf(locked.Fe.CtrlName, "b0"), chainVersion: 1)).IsTrue();
             }
         }
 
@@ -306,9 +306,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(model.LocksTranslation(Array.IndexOf(model.Fe.CtrlNames, "a0"), chainVersion: 1)).IsTrue();
-                await Assert.That(model.LocksTranslation(Array.IndexOf(model.Fe.CtrlNames, "b0"), chainVersion: 1)).IsFalse();
-                await Assert.That(model.LocksTranslation(Array.IndexOf(model.Fe.CtrlNames, "b0"), chainVersion: 2)).IsTrue();
+                await Assert.That(model.LocksTranslation(Array.IndexOf(model.Fe.CtrlName, "a0"), chainVersion: 1)).IsTrue();
+                await Assert.That(model.LocksTranslation(Array.IndexOf(model.Fe.CtrlName, "b0"), chainVersion: 1)).IsFalse();
+                await Assert.That(model.LocksTranslation(Array.IndexOf(model.Fe.CtrlName, "b0"), chainVersion: 2)).IsTrue();
             }
         }
 
@@ -395,13 +395,13 @@ namespace Tests
             static BoneChain Chain(ClothReconstruction cloth, bool withKid, bool tipSimulated = false)
             {
                 var chain = new BoneChain { RootBone = "tip" };
-                var tip = Array.IndexOf(cloth.Fe.CtrlNames, "tip");
+                var tip = Array.IndexOf(cloth.Fe.CtrlName, "tip");
                 chain.Joints.Add(new BoneChainJoint { Node = tip, Name = "tip", ParentNode = -1, InvMass = tipSimulated ? 1f : 0f });
                 if (withKid)
                 {
                     chain.Joints.Add(new BoneChainJoint
                     {
-                        Node = Array.IndexOf(cloth.Fe.CtrlNames, "kid"),
+                        Node = Array.IndexOf(cloth.Fe.CtrlName, "kid"),
                         Name = "kid",
                         ParentNode = tip,
                         ParentName = "tip",
@@ -412,8 +412,8 @@ namespace Tests
                 return chain;
             }
 
-            var ringedTip = Array.IndexOf(ringed.Fe.CtrlNames, "tip");
-            var ringlessTip = Array.IndexOf(ringless.Fe.CtrlNames, "tip");
+            var ringedTip = Array.IndexOf(ringed.Fe.CtrlName, "tip");
+            var ringlessTip = Array.IndexOf(ringless.Fe.CtrlName, "tip");
 
             using (Assert.Multiple())
             {
@@ -1018,21 +1018,21 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(cloth.Fe.NodeBases.Count).IsEqualTo(2);
-                await Assert.That(cloth.Fe.NodeBases[1]).IsEqualTo(new FeModel.NodeBasis(1, 0, 2, 0));
-                await Assert.That(cloth.Fe.TwistNodes.Order()).IsEquivalentTo([0, 1, 2], CollectionOrdering.Matching);
+                await Assert.That(cloth.Index.NodeBases.Count).IsEqualTo(2);
+                await Assert.That(cloth.Index.NodeBases[1]).IsEqualTo(new FeModelIndex.NodeBasis(1, 0, 2, 0));
+                await Assert.That(cloth.Index.TwistNodes.Order()).IsEquivalentTo([0, 1, 2], CollectionOrdering.Matching);
 
-                await Assert.That(cloth.Fe.TwistRecords).IsEquivalentTo(
+                await Assert.That(cloth.Fe.Twists).IsEquivalentTo(
                     [
-                        new FeModel.TwistRecord(1, 0, 0.618f, 0f),
-                        new FeModel.TwistRecord(1, 2, 0.382f, 1f),
-                        new FeModel.TwistRecord(1, 0, 0.2163f, 0.5f),
+                        new FeModel.FeTwistConstraint(1, 0, 0.618f, 0f),
+                        new FeModel.FeTwistConstraint(1, 2, 0.382f, 1f),
+                        new FeModel.FeTwistConstraint(1, 0, 0.2163f, 0.5f),
                     ], CollectionOrdering.Matching);
-                await Assert.That(cloth.Fe.NodeBaseRecords).IsEquivalentTo(
+                await Assert.That(cloth.Index.NodeBaseRecords).IsEquivalentTo(
                     [
-                        (1, new FeModel.NodeBasis(1, 2, 0, 2)),
-                        (1, new FeModel.NodeBasis(1, 0, 2, 0)),
-                        (2, new FeModel.NodeBasis(2, 1, 0, 1)),
+                        (1, new FeModelIndex.NodeBasis(1, 2, 0, 2)),
+                        (1, new FeModelIndex.NodeBasis(1, 0, 2, 0)),
+                        (2, new FeModelIndex.NodeBasis(2, 1, 0, 1)),
                     ], CollectionOrdering.Matching);
             }
         }
@@ -1089,13 +1089,13 @@ namespace Tests
             static BoneChain Chain(ClothReconstruction cloth, bool withKid, int sides)
             {
                 var chain = new BoneChain { RootBone = "tip" };
-                var tip = Array.IndexOf(cloth.Fe.CtrlNames, "tip");
+                var tip = Array.IndexOf(cloth.Fe.CtrlName, "tip");
                 chain.Joints.Add(new BoneChainJoint { Node = tip, Name = "tip", ParentNode = -1, InvMass = 0f, ExtrudeSides = sides });
                 if (withKid)
                 {
                     chain.Joints.Add(new BoneChainJoint
                     {
-                        Node = Array.IndexOf(cloth.Fe.CtrlNames, "kid"),
+                        Node = Array.IndexOf(cloth.Fe.CtrlName, "kid"),
                         Name = "kid",
                         ParentNode = tip,
                         ParentName = "tip",
@@ -1110,10 +1110,10 @@ namespace Tests
             static BoneChain TwoKids(ClothReconstruction cloth)
             {
                 var chain = Chain(cloth, withKid: true, sides: 0);
-                var tip = Array.IndexOf(cloth.Fe.CtrlNames, "tip");
+                var tip = Array.IndexOf(cloth.Fe.CtrlName, "tip");
                 chain.Joints.Add(new BoneChainJoint
                 {
-                    Node = Array.IndexOf(cloth.Fe.CtrlNames, "root"),
+                    Node = Array.IndexOf(cloth.Fe.CtrlName, "root"),
                     Name = "root",
                     ParentNode = tip,
                     ParentName = "tip",
@@ -1124,8 +1124,8 @@ namespace Tests
 
             var ringed = ParentLockedTip(rings: true);
             var ringless = ParentLockedTip(rings: false);
-            var ringedTip = Array.IndexOf(ringed.Fe.CtrlNames, "tip");
-            var ringlessTip = Array.IndexOf(ringless.Fe.CtrlNames, "tip");
+            var ringedTip = Array.IndexOf(ringed.Fe.CtrlName, "tip");
+            var ringlessTip = Array.IndexOf(ringless.Fe.CtrlName, "tip");
 
             using (Assert.Multiple())
             {

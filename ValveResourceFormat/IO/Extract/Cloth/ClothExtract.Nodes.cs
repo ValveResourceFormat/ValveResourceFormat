@@ -30,12 +30,12 @@ internal sealed partial class ClothExtract
     /// </summary>
     private static string? AuthoredNodeName(ClothReconstruction cloth, int node, IReadOnlyDictionary<int, string>? proxyNodeNames)
     {
-        if (node < 0 || node >= cloth.Fe.CtrlNames.Length)
+        if (node < 0 || node >= cloth.Fe.CtrlName.Length)
         {
             return null;
         }
 
-        return cloth.Fe.CtrlNames[node].StartsWith(ClothReconstruction.ProxyNamePrefix, StringComparison.Ordinal)
+        return cloth.Fe.CtrlName[node].StartsWith(ClothReconstruction.ProxyNamePrefix, StringComparison.Ordinal)
             ? proxyNodeNames?.GetValueOrDefault(node)
             : ClothFaceCornerName(cloth, node);
     }
@@ -51,7 +51,7 @@ internal sealed partial class ClothExtract
         Func<string, bool>? bareStaticReparented = null, HashSet<(int, int)>? alreadyEmitted = null,
         HashSet<int>? chainJoints = null)
     {
-        var names = cloth.Fe.CtrlNames;
+        var names = cloth.Fe.CtrlName;
 
         var anchorOf = BuildCtrlAnchorMap(cloth);
 
@@ -84,7 +84,7 @@ internal sealed partial class ClothExtract
 
                 var rootBone = anchor.RootBone;
                 FolderOf(node).Add(MakeClothNode(cloth, rootBone, node,
-                    isStaticNode: cloth.Fe.IsStatic(node), elementName: elementName, origin: anchor.Origin, angles: anchor.Angles));
+                    isStaticNode: cloth.Index.IsStatic(node), elementName: elementName, origin: anchor.Origin, angles: anchor.Angles));
                 springName[node] = elementName;
                 declared.Add(node);
                 clothBones.Add(rootBone);
@@ -97,7 +97,7 @@ internal sealed partial class ClothExtract
             }
             else if (!cloth.IsGeneratedNodeName(name))
             {
-                var isStatic = cloth.Fe.IsStatic(node);
+                var isStatic = cloth.Index.IsStatic(node);
                 var bareStatic = isStatic && !rodTouched.ContainsKey(node);
                 if (!bareStatic || emitBareStatic(name))
                 {
@@ -136,7 +136,7 @@ internal sealed partial class ClothExtract
     private static void AddFreeClothSprings(KVObject softbodyChildren, ClothReconstruction cloth, Dictionary<int, string> springName,
         HashSet<int> declared, HashSet<(int, int)>? alreadyEmitted, HashSet<int>? chainJoints)
     {
-        var names = cloth.Fe.CtrlNames;
+        var names = cloth.Fe.CtrlName;
 
         bool IsEndpoint(int node, int other) => springName.ContainsKey(node)
             || (chainJoints is not null && chainJoints.Contains(node) && declared.Contains(other));
@@ -176,7 +176,7 @@ internal sealed partial class ClothExtract
     /// Whether the single rigid rod on <paramref name="edge"/> between a declared node and a chain joint has no two-corner
     /// source element in the original, so it is declared as a two-member <c>ClothSelfCollisionCluster</c>.
     /// </summary>
-    private static bool IsUnrecordedJointTie(ClothReconstruction cloth, (int A, int B) edge, List<FeModel.Rod> rods,
+    private static bool IsUnrecordedJointTie(ClothReconstruction cloth, (int A, int B) edge, List<FeModelIndex.Rod> rods,
         Dictionary<int, string> springName)
     {
         if (springName.ContainsKey(edge.A) && springName.ContainsKey(edge.B))
@@ -233,7 +233,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        return (new HashSet<string>(cloth.Fe.CtrlNames, StringComparer.Ordinal), boneByName);
+        return (new HashSet<string>(cloth.Fe.CtrlName, StringComparer.Ordinal), boneByName);
     }
 
     /// <summary>
@@ -241,7 +241,7 @@ internal sealed partial class ClothExtract
     /// radius on a chain joint.
     /// </summary>
     private static bool StrayRecordOnlyAClothNodeStates(ClothReconstruction cloth, int node)
-        => cloth.Fe.GetStrayRadius(node) > 0f && cloth.GetStrayStretchiness(node) >= ChainStrayStretchinessLimit;
+        => cloth.Index.GetStrayRadius(node) > 0f && cloth.GetStrayStretchiness(node) >= ChainStrayStretchinessLimit;
 
     private static bool LoneClothNodeIsOriginalRoot(ClothReconstruction cloth, int node)
         => cloth.HasCompiledSkelParents
@@ -254,7 +254,7 @@ internal sealed partial class ClothExtract
     /// </summary>
     internal static bool LoneNodeIsJointChain(ClothReconstruction cloth, int node, bool bareStatic, bool bareStaticReparented)
         => LoneClothNodeIsOriginalRoot(cloth, node)
-            && (!cloth.Fe.IsStatic(node) || (bareStatic && bareStaticReparented) || cloth.Fe.IsLockedToGoal(node));
+            && (!cloth.Index.IsStatic(node) || (bareStatic && bareStaticReparented) || cloth.Index.IsLockedToGoal(node));
 
     private static KVObject MakeLoneJointChain(ClothReconstruction cloth, string name, int node)
     {
@@ -296,18 +296,18 @@ internal sealed partial class ClothExtract
         IReadOnlyDictionary<int, string>? proxyNodeNames = null)
     {
         var paint = NodePaint.Of(cloth, node);
-        var strayRadius = cloth.Fe.GetStrayRadius(node);
+        var strayRadius = cloth.Index.GetStrayRadius(node);
 
-        var hasBasis = cloth.Fe.NodeBases.TryGetValue(node, out var basis);
+        var hasBasis = cloth.Index.NodeBases.TryGetValue(node, out var basis);
         string BasisName(int basisNode)
             => hasBasis ? AuthoredNodeName(cloth, basisNode, proxyNodeNames) ?? string.Empty : string.Empty;
 
-        var preset = elementName is not null || (isStaticNode && !cloth.Fe.AllowsRotation(node)) || RodNeighbourCount(cloth, node) < 2
+        var preset = elementName is not null || (isStaticNode && !cloth.Index.AllowsRotation(node)) || RodNeighbourCount(cloth, node) < 2
             ? cloth.ClothNodeBasisPreset(node)
             : null;
         var references = preset?.References ?? basis;
 
-        var collisionMask = cloth.Fe.GetNodeCollisionMask(node);
+        var collisionMask = cloth.Index.GetNodeCollisionMask(node);
 
         return BuildClothNode(new ClothNodeFields
         {
@@ -316,7 +316,7 @@ internal sealed partial class ClothExtract
             Angles = angles,
             RootBone = boneName,
             HasStrayRadius = strayRadius > 0f,
-            HasWorldCollision = cloth.Fe.IsWorldCollisionNode(node),
+            HasWorldCollision = cloth.Index.IsWorldCollisionNode(node),
             CollisionMask = collisionMask,
             TransformAlignment = preset?.TransformAlignment ?? RopeClothNodeAlignment(cloth, node, elementName is not null, hasBasis),
             NodeBaseY1 = BasisName(references.NodeY1),
@@ -328,12 +328,12 @@ internal sealed partial class ClothExtract
             GoalStrength = paint.GoalStrength,
             GoalDamping = paint.GoalDamping,
             Mass = cloth.RecoverMassMultiplier(node) ?? 1.0f,
-            Friction = cloth.Fe.GetNodeFriction(node),
+            Friction = cloth.Index.GetNodeFriction(node),
             StrayRadius = strayRadius,
             StrayRadiusRelaxationFactor = cloth.GetStrayRelaxationFactor(node),
-            CollisionRadius = cloth.Fe.GetCollisionRadius(node),
+            CollisionRadius = cloth.Index.GetCollisionRadius(node),
             IsStaticNode = isStaticNode,
-            AllowRotation = cloth.Fe.AllowsRotation(node),
+            AllowRotation = cloth.Index.AllowsRotation(node),
             SuperDamping = paint.Drag,
         });
     }
@@ -345,9 +345,9 @@ internal sealed partial class ClothExtract
     {
         public static NodePaint Of(ClothReconstruction cloth, int node)
         {
-            var integrator = cloth.Fe.GetIntegrator(node);
-            return new NodePaint(cloth.GoalStrengthPaint(integrator.ForceAttraction),
-                cloth.GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction),
+            var integrator = cloth.Index.GetIntegrator(node);
+            return new NodePaint(cloth.GoalStrengthPaint(integrator.AnimationForceAttraction),
+                cloth.GoalDampingPaint(integrator.AnimationForceAttraction, integrator.AnimationVertexAttraction),
                 integrator.Gravity / ClothReconstruction.ClothSourceBaseGravity,
                 MathUtils.Saturate(integrator.PointDamping / ClothReconstruction.ClothDragPointDampingScale));
         }
@@ -429,7 +429,7 @@ internal sealed partial class ClothExtract
     /// </summary>
     private static string ClothFaceCornerName(ClothReconstruction cloth, int node)
     {
-        var name = cloth.Fe.CtrlNames[node];
+        var name = cloth.Fe.CtrlName[node];
         return name.StartsWith(ClothReconstruction.FreeClothNodePrefix, StringComparison.Ordinal)
             ? name[ClothReconstruction.FreeClothNodePrefix.Length..]
             : name;
@@ -441,18 +441,18 @@ internal sealed partial class ClothExtract
     /// </summary>
     internal static void AddClothStiffHinges(KVObject softbodyChildren, ClothReconstruction cloth)
     {
-        bool IsFreeNode(int node) => cloth.IsFreeClothNode(node) && node < cloth.Fe.InitPosePositions.Length;
+        bool IsFreeNode(int node) => cloth.IsFreeClothNode(node) && node < cloth.Index.InitPosePositions.Length;
 
-        foreach (var bend in cloth.Fe.KelagerBends)
+        foreach (var bend in cloth.Index.KelagerBends)
         {
             if (!IsFreeNode(bend.MidNode) || !IsFreeNode(bend.End0) || !IsFreeNode(bend.End1))
             {
                 continue;
             }
 
-            var hinge = cloth.Fe.InitPosePositions[bend.MidNode];
-            var base1 = (cloth.Fe.InitPosePositions[bend.End0] - hinge).Length();
-            var base2 = (cloth.Fe.InitPosePositions[bend.End1] - hinge).Length();
+            var hinge = cloth.Index.InitPosePositions[bend.MidNode];
+            var base1 = (cloth.Index.InitPosePositions[bend.End0] - hinge).Length();
+            var base2 = (cloth.Index.InitPosePositions[bend.End1] - hinge).Length();
             if (base1 <= 0f || base2 <= 0f)
             {
                 continue;
@@ -509,9 +509,9 @@ internal sealed partial class ClothExtract
         }
     }
 
-    private static Dictionary<int, FeModel.CtrlOffset> BuildCtrlAnchorMap(ClothReconstruction cloth)
+    private static Dictionary<int, FeModel.FeCtrlOffset> BuildCtrlAnchorMap(ClothReconstruction cloth)
     {
-        var anchorOf = new Dictionary<int, FeModel.CtrlOffset>();
+        var anchorOf = new Dictionary<int, FeModel.FeCtrlOffset>();
         foreach (var offset in cloth.Fe.CtrlOffsets)
         {
             anchorOf[offset.CtrlChild] = offset;
@@ -524,10 +524,10 @@ internal sealed partial class ClothExtract
     /// Resolves where a free <c>$cloth_node_</c> control node is re-authored, from its <c>m_CtrlOffsets</c> entry or else
     /// its skeleton parent. False where it has no root or the root is a generated node.
     /// </summary>
-    internal static bool TryResolveClothNodeAnchor(ClothReconstruction cloth, Dictionary<int, FeModel.CtrlOffset> anchorOf,
+    internal static bool TryResolveClothNodeAnchor(ClothReconstruction cloth, Dictionary<int, FeModel.FeCtrlOffset> anchorOf,
         int node, out ClothNodeAnchor resolved)
     {
-        var names = cloth.Fe.CtrlNames;
+        var names = cloth.Fe.CtrlName;
         string? rootBone = null;
         var origin = Vector3.Zero;
         var angles = Vector3.Zero;
@@ -545,15 +545,15 @@ internal sealed partial class ClothExtract
         {
             parent = cloth.SkelParents[node];
             rootBone = names[parent];
-            if (node < cloth.Fe.InitPosePositions.Length && parent < cloth.Fe.InitPosePositions.Length)
+            if (node < cloth.Index.InitPosePositions.Length && parent < cloth.Index.InitPosePositions.Length)
             {
                 origin = ClothBoneLocalPose(cloth, node, parent).Origin;
             }
         }
 
-        if (parent >= 0 && node < cloth.Fe.InitPoseRotations.Length && parent < cloth.Fe.InitPoseRotations.Length)
+        if (parent >= 0 && node < cloth.Index.InitPoseRotations.Length && parent < cloth.Index.InitPoseRotations.Length)
         {
-            var local = Quaternion.Conjugate(cloth.Fe.InitPoseRotations[parent]) * cloth.Fe.InitPoseRotations[node];
+            var local = Quaternion.Conjugate(cloth.Index.InitPoseRotations[parent]) * cloth.Index.InitPoseRotations[node];
             if (2f * MathF.Atan2(new Vector3(local.X, local.Y, local.Z).Length(), MathF.Abs(local.W)) > ClothNodeRotationTolerance)
             {
                 angles = EntityTransformHelper.ToEulerAngles(local);
@@ -567,6 +567,6 @@ internal sealed partial class ClothExtract
         }
 
         resolved = new ClothNodeAnchor(rootBone ?? string.Empty, origin, angles);
-        return rootBone is not null && !FeModel.IsProxyNodeName(rootBone);
+        return rootBone is not null && !FeModelIndex.IsProxyNodeName(rootBone);
     }
 }

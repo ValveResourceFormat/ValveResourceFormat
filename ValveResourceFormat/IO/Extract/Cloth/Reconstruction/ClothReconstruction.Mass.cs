@@ -1,6 +1,6 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -333,12 +333,12 @@ namespace ValveResourceFormat.IO
                 ? FirstPositionDrivenNode
                 : Fe.NodeInvMasses.Length;
 
-            bool Simulated(int node) => node >= Fe.StaticNodeCount && node < end && Fe.NodeInvMasses[node] > 0f;
+            bool Simulated(int node) => node >= Fe.StaticNodes && node < end && Fe.NodeInvMasses[node] > 0f;
 
             float? shared = null;
             var uniform = true;
             var simulated = 0;
-            for (var node = Fe.StaticNodeCount; node < end; node++)
+            for (var node = Fe.StaticNodes; node < end; node++)
             {
                 var invMass = Fe.NodeInvMasses[node];
                 if (invMass <= 0f)
@@ -365,7 +365,7 @@ namespace ValveResourceFormat.IO
             var anyRod = false;
             var unequal = 0;
             var proportional = 0;
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 anyRod = true;
                 if (!Simulated(rod.NodeA) || !Simulated(rod.NodeB))
@@ -401,7 +401,7 @@ namespace ValveResourceFormat.IO
             float? multiplier = null;
             foreach (var node in JointMassNodes(joint))
             {
-                if (Fe.IsStatic(node) || (!HasExplicitMasses && InverseMassOf(node) == 1f))
+                if (Index.IsStatic(node) || (!HasExplicitMasses && InverseMassOf(node) == 1f))
                 {
                     continue;
                 }
@@ -527,7 +527,7 @@ namespace ValveResourceFormat.IO
         private Dictionary<int, List<int>> BuildRingNodesByParent()
         {
             var rings = new Dictionary<int, List<int>>();
-            for (var node = 0; node < Fe.CtrlNames.Length; node++)
+            for (var node = 0; node < Fe.CtrlName.Length; node++)
             {
                 if (IsRingNode(node))
                 {
@@ -546,11 +546,11 @@ namespace ValveResourceFormat.IO
 
         private float[]? rodMassPass;
 
-        private bool HasProxyMeshNodes => hasProxyMeshNodes ??= Fe.CtrlNames.Any(static name => name.StartsWith(ProxyNamePrefix, StringComparison.Ordinal));
+        private bool HasProxyMeshNodes => hasProxyMeshNodes ??= Fe.CtrlName.Any(static name => name.StartsWith(ProxyNamePrefix, StringComparison.Ordinal));
 
         private bool? hasProxyMeshNodes;
 
-        private HashSet<int> RodEndpoints => rodEndpoints ??= [.. Fe.Rods.SelectMany(static rod => new[] { rod.NodeA, rod.NodeB })];
+        private HashSet<int> RodEndpoints => rodEndpoints ??= [.. Index.Rods.SelectMany(static rod => new[] { rod.NodeA, rod.NodeB })];
 
         private HashSet<int>? rodEndpoints;
 
@@ -560,7 +560,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private float[] GeometricNodeMasses()
         {
-            var mass = new float[Fe.InitPosePositions.Length];
+            var mass = new float[Index.InitPosePositions.Length];
             AddElementNodeMasses(mass, MassElements);
             AddAuthoredRodNodeMasses(mass, MassElements);
             AddVolumetricNodeMasses(mass);
@@ -582,12 +582,12 @@ namespace ValveResourceFormat.IO
                 return false;
             }
 
-            var term = new float[Fe.InitPosePositions.Length];
+            var term = new float[Index.InitPosePositions.Length];
             AddElementNodeMasses(term, MassElements);
-            for (var node = 0; node < term.Length && node < Fe.NodeInvMasses.Length && node < Fe.CtrlNames.Length; node++)
+            for (var node = 0; node < term.Length && node < Fe.NodeInvMasses.Length && node < Fe.CtrlName.Length; node++)
             {
                 var invMass = Fe.NodeInvMasses[node];
-                if (invMass > 0f && Fe.CtrlNames[node].StartsWith(ProxyNamePrefix, StringComparison.Ordinal)
+                if (invMass > 0f && Fe.CtrlName[node].StartsWith(ProxyNamePrefix, StringComparison.Ordinal)
                     && 1f / invMass < term[node] * (1f - VoronoiMassWitnessMargin))
                 {
                     return true;
@@ -609,7 +609,7 @@ namespace ValveResourceFormat.IO
 
         private (float[] Mass, HashSet<int> Bracketed) VoronoiNodeMasses()
         {
-            var mass = new float[Fe.InitPosePositions.Length];
+            var mass = new float[Index.InitPosePositions.Length];
             var bracketed = new HashSet<int>();
             var elements = MassElements;
             for (var e = 0; e < elements.Count; e++)
@@ -620,7 +620,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                if (element[2] == element[3] || (e < Fe.Quads.Length && !Array.Exists(element, Fe.IsStatic)))
+                if (element[2] == element[3] || (e < Index.Quads.Length && !Array.Exists(element, Index.IsStatic)))
                 {
                     AddVoronoiFan(mass, element, 1f);
                     continue;
@@ -648,9 +648,9 @@ namespace ValveResourceFormat.IO
                 return;
             }
 
-            var ab = Fe.InitPosePositions[b] - Fe.InitPosePositions[a];
-            var ac = Fe.InitPosePositions[c] - Fe.InitPosePositions[a];
-            var bc = Fe.InitPosePositions[c] - Fe.InitPosePositions[b];
+            var ab = Index.InitPosePositions[b] - Index.InitPosePositions[a];
+            var ac = Index.InitPosePositions[c] - Index.InitPosePositions[a];
+            var bc = Index.InitPosePositions[c] - Index.InitPosePositions[b];
             var n = Vector3.Cross(ab, ac).Length();
             if (n <= 0f)
             {
@@ -693,7 +693,7 @@ namespace ValveResourceFormat.IO
                         }
 
                         var term = ElementMassPerUnitLength
-                            * Vector3.Distance(Fe.InitPosePositions[a], Fe.InitPosePositions[b]);
+                            * Vector3.Distance(Index.InitPosePositions[a], Index.InitPosePositions[b]);
                         mass[a] += term;
                         mass[b] += term;
                     }
@@ -707,16 +707,16 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private float[] GeometricNodeMassesWithRods()
         {
-            var mass = new float[Fe.InitPosePositions.Length];
+            var mass = new float[Index.InitPosePositions.Length];
             AddElementNodeMasses(mass, MassElements);
             AddVolumetricNodeMasses(mass);
 
             var cycles = new List<int[]>();
-            foreach (var face in Fe.SourceFaces)
+            foreach (var face in Index.SourceFaces)
             {
                 if (face.Length is 3 or 4)
                 {
-                    cycles.Add(CompiledElementOrder(face, Fe.IsStatic, RestPositionOf));
+                    cycles.Add(CompiledElementOrder(face, Index.IsStatic, RestPositionOf));
                 }
             }
 
@@ -735,7 +735,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 var (a, b) = UnorderedPair(rod.NodeA, rod.NodeB);
                 if (b >= mass.Length
@@ -744,7 +744,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var term = RodMassPerUnitLength * Vector3.Distance(Fe.InitPosePositions[a], Fe.InitPosePositions[b]);
+                var term = RodMassPerUnitLength * Vector3.Distance(Index.InitPosePositions[a], Index.InitPosePositions[b]);
                 mass[a] += term;
                 mass[b] += term;
             }
@@ -752,16 +752,16 @@ namespace ValveResourceFormat.IO
             return mass;
 
             Vector3 RestPositionOf(int node)
-                => node >= 0 && node < Fe.InitPosePositions.Length ? Fe.InitPosePositions[node] : Vector3.Zero;
+                => node >= 0 && node < Index.InitPosePositions.Length ? Index.InitPosePositions[node] : Vector3.Zero;
         }
 
         /// <summary>Gets the solve elements in the corner order the compiler's fold walk meets them.</summary>
         private List<int[]> FoldWalkSolveElements()
         {
             var rings = new Dictionary<string, Dictionary<int, int>>(StringComparer.Ordinal);
-            for (var node = 0; node < Fe.CtrlNames.Length; node++)
+            for (var node = 0; node < Fe.CtrlName.Length; node++)
             {
-                var name = Fe.CtrlNames[node];
+                var name = Fe.CtrlName[node];
                 var index = RingSuffixIndex(name);
                 if (index >= 0 && name.StartsWith(RingNodePrefix, StringComparison.Ordinal))
                 {
@@ -772,7 +772,7 @@ namespace ValveResourceFormat.IO
 
             Dictionary<int, int>? TwoWideRingOf(int a, int b)
             {
-                var name = Fe.CtrlNames[a];
+                var name = Fe.CtrlName[a];
                 return RingSuffixIndex(name) >= 0 && rings.TryGetValue(name[..name.LastIndexOf('_')], out var members)
                     && members.Count == 2 && members.ContainsKey(0) && members.ContainsKey(1)
                     && members.ContainsValue(a) && members.ContainsValue(b) && a != b
@@ -784,7 +784,7 @@ namespace ValveResourceFormat.IO
             for (var i = 0; i < elements.Count; i++)
             {
                 var quad = elements[i];
-                if (quad.Length == 4 && quad.Distinct().Count() == 4 && quad.All(node => node >= 0 && node < Fe.CtrlNames.Length)
+                if (quad.Length == 4 && quad.Distinct().Count() == 4 && quad.All(node => node >= 0 && node < Fe.CtrlName.Length)
                     && TwoWideRingOf(quad[0], quad[1]) is not null && TwoWideRingOf(quad[2], quad[3]) is { } far)
                 {
                     elements[i] = [quad[0], quad[1], far[1], far[0]];
@@ -799,8 +799,8 @@ namespace ValveResourceFormat.IO
         /// fold rods. <c>m_SourceElems</c> packs each corner-count group from its end, so every group is read backwards.
         /// </summary>
         private IEnumerable<int[]> SourceElementWalk()
-            => Fe.SourceFaces.Where(static face => face.Length == 3).Reverse()
-                .Concat(Fe.SourceFaces.Where(static face => face.Length == 4).Reverse());
+            => Index.SourceFaces.Where(static face => face.Length == 3).Reverse()
+                .Concat(Index.SourceFaces.Where(static face => face.Length == 4).Reverse());
 
         /// <summary>
         /// Credits both ends of every distinct corner pair of the authored elements that are not solve elements with
@@ -816,7 +816,7 @@ namespace ValveResourceFormat.IO
 
             var unbuilt = UnbuiltFaceDiagonals().ToHashSet();
             var rods = new Dictionary<(int A, int B), float>();
-            foreach (var face in Fe.SourceFaces)
+            foreach (var face in Index.SourceFaces)
             {
                 if (face.Length < 3 || solved.Contains(CornerKey(face)))
                 {
@@ -833,7 +833,7 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        rods[(a, b)] = Vector3.Distance(Fe.InitPosePositions[a], Fe.InitPosePositions[b]);
+                        rods[(a, b)] = Vector3.Distance(Index.InitPosePositions[a], Index.InitPosePositions[b]);
                     }
                 }
             }
@@ -863,11 +863,11 @@ namespace ValveResourceFormat.IO
 
         private List<int[]> BuildMassElements()
         {
-            var elements = new List<int[]>(Fe.Quads.Length + Fe.Tris.Length);
-            elements.AddRange(Fe.Quads);
+            var elements = new List<int[]>(Index.Quads.Length + Index.Tris.Length);
+            elements.AddRange(Index.Quads);
 
             var (splitQuads, splitHalves) = MergeSplitQuads();
-            foreach (var tri in Fe.Tris)
+            foreach (var tri in Index.Tris)
             {
                 var key = SortedTriKey(tri);
                 if (splitHalves.Contains(key))
@@ -906,8 +906,8 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    min = Vector3.Min(min, Fe.InitPosePositions[node]);
-                    max = Vector3.Max(max, Fe.InitPosePositions[node]);
+                    min = Vector3.Min(min, Index.InitPosePositions[node]);
+                    max = Vector3.Max(max, Index.InitPosePositions[node]);
                     covered = true;
                 }
 
@@ -954,8 +954,8 @@ namespace ValveResourceFormat.IO
             }
 
             float? bias = null;
-            var spanRods = Fe.Rods.Select(static rod => (rod.NodeA, rod.NodeB, rod.Weight0))
-                .Concat(Fe.AnimRods.Select(static rod => (rod.NodeA, rod.NodeB, rod.Weight0)));
+            var spanRods = Index.Rods.Select(static rod => (rod.NodeA, rod.NodeB, rod.Weight0))
+                .Concat(Index.AnimRods.Select(static rod => (rod.NodeA, rod.NodeB, rod.Weight0)));
             foreach (var (nodeA, nodeB, weight0) in spanRods)
             {
                 var weight = nodeA == joint.ParentNode && nodeB == joint.Node ? weight0

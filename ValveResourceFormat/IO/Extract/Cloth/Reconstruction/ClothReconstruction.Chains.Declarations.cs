@@ -1,6 +1,6 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -196,7 +196,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 if (chain.Joints.Find(static joint => joint.IsRoot) is not { Simulated: false } root
-                    || !Fe.IsLockedToGoal(root.Node))
+                    || !Index.IsLockedToGoal(root.Node))
                 {
                     continue;
                 }
@@ -227,14 +227,14 @@ namespace ValveResourceFormat.IO
                     host.Joints.Insert(0, new BoneChainJoint
                     {
                         Node = hubNode,
-                        Name = Fe.CtrlNames[hubNode],
+                        Name = Fe.CtrlName[hubNode],
                         ParentNode = -1,
                         InvMass = InverseMassOf(hubNode),
                     });
                 }
 
                 host.Joints.Find(joint => joint.Node == hubNode)!.ChildSiblingSpring = 1f;
-                siblingSpringHubs.Add(Fe.CtrlNames[hubNode]);
+                siblingSpringHubs.Add(Fe.CtrlName[hubNode]);
                 var hostNodes = host.Joints.Select(static joint => joint.Node).ToHashSet();
 
                 foreach (var member in members)
@@ -280,7 +280,7 @@ namespace ValveResourceFormat.IO
 
                 var root = chain.Joints[0].Node;
                 var ringEnd = chain.Joints[0].RingNodes.Max();
-                if (ringEnd >= Fe.StaticNodeCount)
+                if (ringEnd >= Fe.StaticNodes)
                 {
                     continue;
                 }
@@ -309,8 +309,8 @@ namespace ValveResourceFormat.IO
                         }
                     }
 
-                    var rings = subtree.SelectMany(static joint => joint.RingNodes).Where(node => node < Fe.StaticNodeCount).ToList();
-                    var ringBlock = rings.FindAll(node => Fe.AllowsRotation(node) == Fe.AllowsRotation(ringEnd));
+                    var rings = subtree.SelectMany(static joint => joint.RingNodes).Where(node => node < Fe.StaticNodes).ToList();
+                    var ringBlock = rings.FindAll(node => Index.AllowsRotation(node) == Index.AllowsRotation(ringEnd));
                     sharesRingBlock |= ringBlock.Count > 0;
                     var first = (AfterRing: ringBlock.Where(node => node > ringEnd).DefaultIfEmpty(int.MaxValue).Min(),
                         Any: rings.DefaultIfEmpty(int.MaxValue).Min());
@@ -348,6 +348,6 @@ namespace ValveResourceFormat.IO
         }
 
         private int NumberedRingCount(int jointNode)
-            => ProxyRingOf(jointNode).Count(node => RingSuffixIndex(Fe.CtrlNames[node]) >= 0);
+            => ProxyRingOf(jointNode).Count(node => RingSuffixIndex(Fe.CtrlName[node]) >= 0);
     }
 }

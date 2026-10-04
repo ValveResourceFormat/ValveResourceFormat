@@ -1,7 +1,7 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Utils;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -46,11 +46,11 @@ namespace ValveResourceFormat.IO
         {
             var counts = new Dictionary<int, int>();
             var constraining = 0;
-            for (var node = 0; node < Fe.NodeCount; node++)
+            for (var node = 0; node < Index.NodeCount; node++)
             {
-                var integrator = Fe.GetIntegrator(node);
-                var fa = integrator.ForceAttraction;
-                var va = integrator.VertexAttraction;
+                var integrator = Index.GetIntegrator(node);
+                var fa = integrator.AnimationForceAttraction;
+                var va = integrator.AnimationVertexAttraction;
                 if (fa <= 0f || fa >= 1f || va <= 0f || !UsesGoalDampedIntegrator(node))
                 {
                     continue;
@@ -165,8 +165,8 @@ namespace ValveResourceFormat.IO
                 return false;
             }
 
-            var integrator = Fe.GetIntegrator(node);
-            return GoalSolveCanProduce(integrator.ForceAttraction, integrator.VertexAttraction);
+            var integrator = Index.GetIntegrator(node);
+            return GoalSolveCanProduce(integrator.AnimationForceAttraction, integrator.AnimationVertexAttraction);
         }
 
         /// <summary>
@@ -175,7 +175,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private bool TryDynamicIndex(int node, int length, out int index)
         {
-            index = node - Fe.StaticNodeCount;
+            index = node - Fe.StaticNodes;
             return index >= 0 && index < length;
         }
 
@@ -196,14 +196,14 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private bool[] BuildRawGoalPaintNodes()
         {
-            if (Fe.NodeCount <= 0)
+            if (Index.NodeCount <= 0)
             {
                 return [];
             }
 
-            var raw = new bool[Fe.NodeCount];
+            var raw = new bool[Index.NodeCount];
             var any = false;
-            for (var node = 0; node < Fe.NodeCount; node++)
+            for (var node = 0; node < Index.NodeCount; node++)
             {
                 raw[node] = !UsesGoalDampedIntegrator(node);
                 any |= raw[node];
@@ -218,15 +218,15 @@ namespace ValveResourceFormat.IO
             var wasRaw = false;
             var staysGoal = false;
             var staysRaw = false;
-            for (var node = Math.Max(Fe.StaticNodeCount, 0); node < Fe.NodeCount; node++)
+            for (var node = Math.Max(Fe.StaticNodes, 0); node < Index.NodeCount; node++)
             {
-                var integrator = Fe.GetIntegrator(node);
+                var integrator = Index.GetIntegrator(node);
                 if (!raw[node])
                 {
-                    wasGoal |= integrator.ForceAttraction > 0f;
-                    staysGoal |= integrator.ForceAttraction > 0f;
+                    wasGoal |= integrator.AnimationForceAttraction > 0f;
+                    staysGoal |= integrator.AnimationForceAttraction > 0f;
                 }
-                else if (integrator.ForceAttraction != 0f || integrator.VertexAttraction != 0f)
+                else if (integrator.AnimationForceAttraction != 0f || integrator.AnimationVertexAttraction != 0f)
                 {
                     // Only proxy sheet nodes can keep raw attraction paints; the rest are re-authored as goal-damped.
                     wasRaw = true;
@@ -236,7 +236,7 @@ namespace ValveResourceFormat.IO
                     }
                     else
                     {
-                        staysGoal |= integrator.ForceAttraction > 0f;
+                        staysGoal |= integrator.AnimationForceAttraction > 0f;
                     }
                 }
             }

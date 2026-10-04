@@ -157,12 +157,12 @@ namespace Tests
             var cloth = new ClothReconstruction(model.GetEmbeddedPhys()!.FeModel!);
 
             var targets = new Dictionary<string, Vector3>(StringComparer.OrdinalIgnoreCase);
-            for (var node = 0; node < cloth.Fe.CtrlNames.Length && node < cloth.Fe.InitPosePositions.Length; node++)
+            for (var node = 0; node < cloth.Fe.CtrlName.Length && node < cloth.Index.InitPosePositions.Length; node++)
             {
-                var name = cloth.Fe.CtrlNames[node];
+                var name = cloth.Fe.CtrlName[node];
                 if (!string.IsNullOrEmpty(name) && !cloth.IsGeneratedNodeName(name))
                 {
-                    targets.TryAdd(name, cloth.Fe.InitPosePositions[node]);
+                    targets.TryAdd(name, cloth.Index.InitPosePositions[node]);
                 }
             }
 
@@ -241,7 +241,7 @@ namespace Tests
                 await Assert.That(hip.GetStringProperty("node_base_y1")).IsEqualTo("c");
                 await Assert.That(pin.GetInt32Property("transform_alignment")).IsEqualTo(0);
                 await Assert.That(crossed?.TransformAlignment).IsEqualTo(4);
-                await Assert.That(crossed?.References).IsEqualTo(new FeModel.NodeBasis(4, 3, 3, 5));
+                await Assert.That(crossed?.References).IsEqualTo(new FeModelIndex.NodeBasis(4, 3, 3, 5));
                 await Assert.That(cloth.ClothNodeBasisPreset(5) is null).IsTrue();
             }
         }
@@ -326,7 +326,7 @@ namespace Tests
         public async Task AJiggleBoneDeclaresTheCollisionLayersItsMaskLeavesOut()
         {
             static KVObject? Declare(uint flags, int mask) => ClothExtract.ProcessJiggleBone(
-                new FeModel.IndexedJiggleBone(0, -1, default(FeModel.JiggleBone) with { Flags = flags, Length = 5f, CollisionMask = mask }),
+                new FeModel.FeIndexedJiggleBone(0, -1, default(FeModel.FeJiggleBone) with { Flags = flags, Length = 5f, CollisionMask = mask }),
                 ["tophat"]);
 
             var leftOut = Declare(802, 13)!;

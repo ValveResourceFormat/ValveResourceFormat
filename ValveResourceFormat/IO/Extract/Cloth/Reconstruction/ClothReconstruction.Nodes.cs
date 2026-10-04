@@ -1,7 +1,7 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Utils;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -28,7 +28,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         internal (int TransformAlignment, NodeBasis References)? ClothNodeBasisPreset(int node)
         {
-            if (!Fe.NodeBases.TryGetValue(node, out var basis))
+            if (!Index.NodeBases.TryGetValue(node, out var basis))
             {
                 return null;
             }
@@ -82,14 +82,14 @@ namespace ValveResourceFormat.IO
         /// Gets whether every simulated node collides with the world. The authored switch that forces this leaves no flag bit.
         /// </summary>
         internal bool ForcesWorldCollisionOnAllNodes
-            => Fe.NodeCount > Fe.StaticNodeCount && Fe.WorldCollisionNodes.Count == Fe.NodeCount - Fe.StaticNodeCount;
+            => Index.NodeCount > Fe.StaticNodes && Index.WorldCollisionNodes.Count == Index.NodeCount - Fe.StaticNodes;
 
         /// <summary>
         /// Gets the most common ground friction of the world-colliding nodes, which is the cloth's authored default,
         /// or zero when there are none.
         /// </summary>
-        internal float DefaultGroundFriction => Fe.WorldCollisionFriction.Count > 0
-            ? Fe.WorldCollisionFriction.Values.GroupBy(static f => f.Ground).OrderByDescending(static g => g.Count()).First().Key
+        internal float DefaultGroundFriction => Index.WorldCollisionFriction.Count > 0
+            ? Index.WorldCollisionFriction.Values.GroupBy(static f => f.Ground).OrderByDescending(static g => g.Count()).First().Key
             : 0f;
 
         /// <summary>
@@ -100,20 +100,20 @@ namespace ValveResourceFormat.IO
 
         /// <summary>Gets the authored relaxation factor of <paramref name="node"/>'s stray radius, or 1 without one.</summary>
         internal float GetStrayRelaxationFactor(int node)
-            => Fe.AnimStrayRadii.TryGetValue(node, out var stray)
+            => Index.AnimStrayRadii.TryGetValue(node, out var stray)
                 ? MathUtils.Saturate(stray.RelaxationFactor / StrayRelaxationScale)
                 : 1f;
 
         /// <summary>Gets the authored stray-radius stretchiness of <paramref name="node"/>, or 0 without a stray radius.</summary>
         internal float GetStrayStretchiness(int node)
-            => Fe.AnimStrayRadii.ContainsKey(node) ? 1f - GetStrayRelaxationFactor(node) : 0f;
+            => Index.AnimStrayRadii.ContainsKey(node) ? 1f - GetStrayRelaxationFactor(node) : 0f;
 
         /// <summary>
         /// Gets the node a chain joint's stray radius is recorded on: the joint node itself, else the first of its
         /// extruded proxies that has one.
         /// </summary>
         internal int StrayRadiusNode(int node, string jointName)
-            => Fe.AnimStrayRadii.ContainsKey(node) ? node : StrayChainProxies.GetValueOrDefault(jointName, node);
+            => Index.AnimStrayRadii.ContainsKey(node) ? node : StrayChainProxies.GetValueOrDefault(jointName, node);
 
         /// <summary>
         /// Gets the first node with a stray radius named <c>$cc&lt;joint&gt;_Ctr</c> or <c>$cc&lt;joint&gt;_&lt;index&gt;</c>,
@@ -124,10 +124,10 @@ namespace ValveResourceFormat.IO
         private Dictionary<string, int> BuildStrayChainProxies()
         {
             var proxies = new Dictionary<string, int>(StringComparer.Ordinal);
-            for (var proxy = 0; proxy < Fe.CtrlNames.Length; proxy++)
+            for (var proxy = 0; proxy < Fe.CtrlName.Length; proxy++)
             {
-                var name = Fe.CtrlNames[proxy];
-                if (!Fe.AnimStrayRadii.ContainsKey(proxy) || !name.StartsWith(RingNodePrefix, StringComparison.Ordinal))
+                var name = Fe.CtrlName[proxy];
+                if (!Index.AnimStrayRadii.ContainsKey(proxy) || !name.StartsWith(RingNodePrefix, StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -153,10 +153,10 @@ namespace ValveResourceFormat.IO
         internal bool IsImportedCloth
             => isImportedCloth ??= (Fe.CtrlOsOffsets.Length > 0 || HasImportedNodeFields)
                 && Fe.CtrlOffsets.Length == 0
-                && Fe.Quads.Length == 0 && Fe.Tris.Length == 0
-                && Fe.FitMatrixNodes.Count == 0
-                && Fe.CtrlNames.Length > 0
-                && !Array.Exists(Fe.CtrlNames, IsCompilerGeneratedNodeName);
+                && Index.Quads.Length == 0 && Index.Tris.Length == 0
+                && Index.FitMatrixNodes.Count == 0
+                && Fe.CtrlName.Length > 0
+                && !Array.Exists(Fe.CtrlName, IsCompilerGeneratedNodeName);
 
         /// <summary>
         /// Gets the nodes of every authored <c>m_CtrlOsOffsets</c> pair on a surfaceless model that is not
@@ -167,15 +167,15 @@ namespace ValveResourceFormat.IO
         private HashSet<int> BuildImportedStripNodes()
         {
             var strip = new HashSet<int>();
-            if (Fe.CtrlOsOffsets.Length == 0 || IsImportedCloth || Fe.Quads.Length > 0 || Fe.Tris.Length > 0)
+            if (Fe.CtrlOsOffsets.Length == 0 || IsImportedCloth || Index.Quads.Length > 0 || Index.Tris.Length > 0)
             {
                 return strip;
             }
 
             foreach (var pair in Fe.CtrlOsOffsets)
             {
-                if (pair.CtrlParent >= 0 && pair.CtrlParent < Fe.CtrlNames.Length && pair.CtrlChild >= 0 && pair.CtrlChild < Fe.CtrlNames.Length
-                    && !IsCompilerGeneratedNodeName(Fe.CtrlNames[pair.CtrlParent]) && !IsCompilerGeneratedNodeName(Fe.CtrlNames[pair.CtrlChild]))
+                if (pair.CtrlParent >= 0 && pair.CtrlParent < Fe.CtrlName.Length && pair.CtrlChild >= 0 && pair.CtrlChild < Fe.CtrlName.Length
+                    && !IsCompilerGeneratedNodeName(Fe.CtrlName[pair.CtrlParent]) && !IsCompilerGeneratedNodeName(Fe.CtrlName[pair.CtrlChild]))
                 {
                     strip.Add(pair.CtrlParent);
                     strip.Add(pair.CtrlChild);
@@ -191,7 +191,7 @@ namespace ValveResourceFormat.IO
             {
                 var flags = Fe.StaticNodeFlags | Fe.DynamicNodeFlags;
                 return ((flags & (NodeFlagRawForceAttraction | NodeFlagRawVertexAttraction)) != 0 && (flags & NodeFlagGoalAttraction) == 0)
-                    || Fe.FollowNodeLinks.Count > 0
+                    || Index.FollowNodeLinks.Count > 0
                     || Array.Exists(Fe.LegacyStretchForce, static force => force != 0f);
             }
         }

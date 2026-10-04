@@ -405,7 +405,7 @@ namespace Tests
             var unparented = Pair(rigid + rigid, string.Empty, string.Empty);
 
             static bool SpanCopy(ClothReconstruction cloth, int rod)
-                => ClothExtract.IsUnrecordedSpanCopy(cloth, cloth.Fe.Rods[rod], ClothExtract.RodCountsByPair(cloth).Entries);
+                => ClothExtract.IsUnrecordedSpanCopy(cloth, cloth.Index.Rods[rod], ClothExtract.RodCountsByPair(cloth).Entries);
 
             using (Assert.Multiple())
             {

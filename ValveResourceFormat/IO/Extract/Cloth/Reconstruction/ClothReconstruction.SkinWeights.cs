@@ -1,7 +1,7 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -31,10 +31,10 @@ namespace ValveResourceFormat.IO
 
         private Dictionary<string, int> IndexNodeNamesIgnoreCase()
         {
-            var index = new Dictionary<string, int>(Fe.CtrlNames.Length, StringComparer.OrdinalIgnoreCase);
-            for (var node = 0; node < Fe.CtrlNames.Length; node++)
+            var index = new Dictionary<string, int>(Fe.CtrlName.Length, StringComparer.OrdinalIgnoreCase);
+            for (var node = 0; node < Fe.CtrlName.Length; node++)
             {
-                index.TryAdd(Fe.CtrlNames[node], node);
+                index.TryAdd(Fe.CtrlName[node], node);
             }
 
             return index;
@@ -70,7 +70,7 @@ namespace ValveResourceFormat.IO
             var fitlessSoft = new List<(int Node, int Primary)>();
             foreach (var (node, primary) in rigidParents)
             {
-                if (primary < 0 || primary >= Fe.CtrlNames.Length)
+                if (primary < 0 || primary >= Fe.CtrlName.Length)
                 {
                     continue;
                 }
@@ -85,9 +85,9 @@ namespace ValveResourceFormat.IO
                     var painted = new List<SkinInfluence>();
                     foreach (var (bone, weight) in ExpandSoftOffsets(softPerVertex, node, primary))
                     {
-                        if (weight > 0f && bone >= 0 && bone < Fe.CtrlNames.Length)
+                        if (weight > 0f && bone >= 0 && bone < Fe.CtrlName.Length)
                         {
-                            painted.Add(new(Fe.CtrlNames[bone], weight));
+                            painted.Add(new(Fe.CtrlName[bone], weight));
                         }
                     }
 
@@ -96,11 +96,11 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                if (Fe.IsStatic(node))
+                if (Index.IsStatic(node))
                 {
                     if (fitPerVertex.ContainsKey(node))
                     {
-                        recovered[node] = [new(Fe.CtrlNames[primary], 1f)];
+                        recovered[node] = [new(Fe.CtrlName[primary], 1f)];
                         continue;
                     }
 
@@ -118,18 +118,18 @@ namespace ValveResourceFormat.IO
                             rival = MathF.Max(rival, weight);
                         }
 
-                        pinned.Add(new(Fe.CtrlNames[bone], weight));
+                        pinned.Add(new(Fe.CtrlName[bone], weight));
                     }
 
                     if (pinned.Count > 0 && anchorWeight >= rival)
                     {
                         SnapToBytePartition(pinned);
-                        EnsureAnchorMostBound(pinned, Fe.CtrlNames[primary]);
+                        EnsureAnchorMostBound(pinned, Fe.CtrlName[primary]);
                         recovered[node] = [.. pinned];
                     }
                     else
                     {
-                        recovered[node] = [new(Fe.CtrlNames[primary], 1f)];
+                        recovered[node] = [new(Fe.CtrlName[primary], 1f)];
                     }
 
                     continue;
@@ -139,7 +139,7 @@ namespace ValveResourceFormat.IO
                 {
                     if (!softPerVertex.ContainsKey(node))
                     {
-                        recovered[node] = [new(Fe.CtrlNames[primary], 1f)];
+                        recovered[node] = [new(Fe.CtrlName[primary], 1f)];
                     }
                     else
                     {
@@ -167,12 +167,12 @@ namespace ValveResourceFormat.IO
                 foreach (var (bone, normalized) in dynamicWeights)
                 {
                     var weight = normalized * scale;
-                    if (weight <= 0f || bone < 0 || bone >= Fe.CtrlNames.Length)
+                    if (weight <= 0f || bone < 0 || bone >= Fe.CtrlName.Length)
                     {
                         continue;
                     }
 
-                    influences.Add(new(Fe.CtrlNames[bone], weight));
+                    influences.Add(new(Fe.CtrlName[bone], weight));
                     total += weight;
                     if (!fits.ContainsKey(bone))
                     {
@@ -184,21 +184,21 @@ namespace ValveResourceFormat.IO
                 if (remainder > 1e-4f && softPerVertex.TryGetValue(node, out var slots)
                     && slots.Count >= ClothProxySoftOffsetSlots)
                 {
-                    var anchor = FindRealAncestor(primary, Fe.IsStatic);
+                    var anchor = FindRealAncestor(primary, Index.IsStatic);
                     var walked = new HashSet<int>();
-                    while (anchor >= 0 && influences.Exists(influence => influence.Bone == Fe.CtrlNames[anchor]))
+                    while (anchor >= 0 && influences.Exists(influence => influence.Bone == Fe.CtrlName[anchor]))
                     {
-                        anchor = walked.Add(anchor) ? FindRealAncestor(anchor, Fe.IsStatic) : -1;
+                        anchor = walked.Add(anchor) ? FindRealAncestor(anchor, Index.IsStatic) : -1;
                     }
 
                     if (anchor >= 0)
                     {
-                        influences.Add(new(Fe.CtrlNames[anchor], remainder));
+                        influences.Add(new(Fe.CtrlName[anchor], remainder));
                     }
                 }
 
                 OrderByWeightKeepingTies(influences);
-                EnsureAnchorMostBound(influences, Fe.CtrlNames[primary]);
+                EnsureAnchorMostBound(influences, Fe.CtrlName[primary]);
                 recovered[node] = [.. influences];
             }
 
@@ -213,20 +213,19 @@ namespace ValveResourceFormat.IO
         /// <summary>Gets each vertex's <c>m_FitWeights</c> weight per fit bone, and the lightest weight any fit keeps.</summary>
         private (Dictionary<int, Dictionary<int, float>> FitPerVertex, float MinIncludedWeight) ReadFitWeightsPerVertex()
         {
-            var fitMatrices = Fe.Data.GetArray("m_FitMatrices");
-            var fitWeights = Fe.Data.GetArray("m_FitWeights") ?? [];
+            var fitWeights = Fe.FitWeights;
 
             var fitPerVertex = new Dictionary<int, Dictionary<int, float>>();
             var minIncludedWeight = float.MaxValue;
             var begin = 0;
-            foreach (var fm in fitMatrices ?? [])
+            foreach (var fm in Fe.FitMatrices)
             {
-                var end = fm.GetInt32Property("nEnd");
-                var bone = fm.GetInt32Property("nNode");
-                for (var i = begin; i < end && i < fitWeights.Count; i++)
+                var end = fm.End;
+                var bone = fm.Node;
+                for (var i = begin; i < end && i < fitWeights.Length; i++)
                 {
-                    var node = fitWeights[i].GetInt32Property("nNode");
-                    var weight = fitWeights[i].GetFloatProperty("flWeight");
+                    var node = fitWeights[i].Node;
+                    var weight = fitWeights[i].Weight;
                     GetOrAdd(fitPerVertex, node)[bone] = weight;
                     minIncludedWeight = MathF.Min(minIncludedWeight, weight);
                 }
@@ -241,13 +240,9 @@ namespace ValveResourceFormat.IO
         private Dictionary<int, List<(int Parent, float Alpha)>> ReadSoftOffsetsPerVertex()
         {
             var softPerVertex = new Dictionary<int, List<(int Parent, float Alpha)>>();
-            if (Fe.Data.GetArray("m_CtrlSoftOffsets") is { } softOffsets)
+            foreach (var e in Fe.CtrlSoftOffsets)
             {
-                foreach (var e in softOffsets)
-                {
-                    GetOrAdd(softPerVertex, e.GetInt32Property("nCtrlChild"))
-                        .Add((e.GetInt32Property("nCtrlParent"), e.GetFloatProperty("flAlpha")));
-                }
+                GetOrAdd(softPerVertex, e.CtrlChild).Add((e.CtrlParent, e.Alpha));
             }
 
             return softPerVertex;
@@ -261,7 +256,7 @@ namespace ValveResourceFormat.IO
         {
             var backSolvedMeshes = new HashSet<int>();
             var fitBones = new HashSet<int>();
-            foreach (var (bone, targets) in Fe.FitMatrixTargets)
+            foreach (var (bone, targets) in Index.FitMatrixTargets)
             {
                 foreach (var target in targets)
                 {
@@ -283,16 +278,16 @@ namespace ValveResourceFormat.IO
             foreach (var (node, primary) in rigidParents)
             {
                 var mesh = ProxyMeshIndexOf(node);
-                if (mesh < 0 || backSolvedMeshes.Contains(mesh) || Fe.IsStatic(node)
-                    || primary < 0 || primary >= Fe.CtrlNames.Length)
+                if (mesh < 0 || backSolvedMeshes.Contains(mesh) || Index.IsStatic(node)
+                    || primary < 0 || primary >= Fe.CtrlName.Length)
                 {
                     continue;
                 }
 
                 foreach (var (bone, weight) in ExpandSoftOffsets(softPerVertex, node, primary))
                 {
-                    if (weight < DefaultBackSolveInfluenceThreshold || bone < 0 || bone >= Fe.CtrlNames.Length
-                        || !IsPositionDriven(bone) || IsProxyNodeName(Fe.CtrlNames[bone]))
+                    if (weight < DefaultBackSolveInfluenceThreshold || bone < 0 || bone >= Fe.CtrlName.Length
+                        || !IsPositionDriven(bone) || IsProxyNodeName(Fe.CtrlName[bone]))
                     {
                         continue;
                     }
@@ -326,7 +321,7 @@ namespace ValveResourceFormat.IO
             var drivenDynamicBones = new HashSet<int>();
             foreach (var (node, parent) in rigidParents)
             {
-                if (fitlessNodes.Contains(node) || Fe.IsStatic(node) || parent < 0 || parent >= Fe.CtrlNames.Length)
+                if (fitlessNodes.Contains(node) || Index.IsStatic(node) || parent < 0 || parent >= Fe.CtrlName.Length)
                 {
                     continue;
                 }
@@ -343,19 +338,19 @@ namespace ValveResourceFormat.IO
                 var sheetBackSolves = mesh < 0 || !unbackSolvedMeshes.Contains(mesh);
                 foreach (var (bone, weight) in ValidSoftWeights(softPerVertex, node, primary))
                 {
-                    if (prunable && sheetBackSolves && Fe.FitMatrixNodes.Contains(bone)
+                    if (prunable && sheetBackSolves && Index.FitMatrixNodes.Contains(bone)
                         && weight >= (threshold ?? DefaultBackSolveInfluenceThreshold))
                     {
                         prunable = false;
                     }
 
-                    if (prunable && !Fe.IsStatic(bone) && !drivenDynamicBones.Contains(bone)
-                        && !ReverseOffsetBones.Contains(bone) && !Fe.FitMatrixNodes.Contains(bone))
+                    if (prunable && !Index.IsStatic(bone) && !drivenDynamicBones.Contains(bone)
+                        && !ReverseOffsetBones.Contains(bone) && !Index.FitMatrixNodes.Contains(bone))
                     {
                         prunable = false;
                     }
 
-                    painted.Add(new(Fe.CtrlNames[bone], weight));
+                    painted.Add(new(Fe.CtrlName[bone], weight));
                 }
 
                 if (painted.Count == 0)
@@ -416,7 +411,7 @@ namespace ValveResourceFormat.IO
         {
             foreach (var (bone, weight) in ExpandSoftOffsets(softPerVertex, node, primary))
             {
-                if (weight <= 0f || bone < 0 || bone >= Fe.CtrlNames.Length)
+                if (weight <= 0f || bone < 0 || bone >= Fe.CtrlName.Length)
                 {
                     continue;
                 }
@@ -456,13 +451,13 @@ namespace ValveResourceFormat.IO
         /// </summary>
         internal bool ProxyFitsUndrivenBone(ProxyMesh proxy)
         {
-            if (!HasCompiledFirstPositionDrivenNode || Fe.FitMatrixTargets.Count == 0)
+            if (!HasCompiledFirstPositionDrivenNode || Index.FitMatrixTargets.Count == 0)
             {
                 return false;
             }
 
             var own = new HashSet<int>(proxy.NodeIndices);
-            foreach (var (bone, targets) in Fe.FitMatrixTargets)
+            foreach (var (bone, targets) in Index.FitMatrixTargets)
             {
                 if (!IsPositionDriven(bone) && Array.Exists(targets, own.Contains))
                 {
@@ -480,8 +475,8 @@ namespace ValveResourceFormat.IO
         internal float GetBackSolveInfluenceThreshold(ProxyMesh proxy)
         {
             var proxyNodes = new HashSet<int>(proxy.NodeIndices);
-            var fitTargets = new Dictionary<int, HashSet<int>>(Fe.FitMatrixTargets.Count);
-            foreach (var (bone, targets) in Fe.FitMatrixTargets)
+            var fitTargets = new Dictionary<int, HashSet<int>>(Index.FitMatrixTargets.Count);
+            foreach (var (bone, targets) in Index.FitMatrixTargets)
             {
                 var covered = new HashSet<int>(targets);
                 if (covered.Overlaps(proxyNodes))
@@ -497,7 +492,7 @@ namespace ValveResourceFormat.IO
                 foreach (var (boneName, weight) in proxy.SkinInfluences[v])
                 {
                     if (!NodeByNameIgnoreCase.TryGetValue(boneName, out var bone)
-                        || weight <= 0f || IsProxyNodeName(Fe.CtrlNames[bone]) || Fe.IsStatic(bone))
+                        || weight <= 0f || IsProxyNodeName(Fe.CtrlName[bone]) || Index.IsStatic(bone))
                     {
                         continue;
                     }
@@ -531,7 +526,7 @@ namespace ValveResourceFormat.IO
                         kept = MathF.Min(kept, weights[^FitMatrixMinInfluences]);
                     }
                 }
-                else if (Fe.NodeBases.ContainsKey(bone) && IsPositionDriven(bone))
+                else if (Index.NodeBases.ContainsKey(bone) && IsPositionDriven(bone))
                 {
                     var heaviest = 0f;
                     foreach (var (_, weight) in influences)
@@ -556,9 +551,9 @@ namespace ValveResourceFormat.IO
         {
             var p = SkelParentOf(node);
             var guard = 0;
-            while (p >= 0 && p < Fe.CtrlNames.Length && guard++ < AncestorWalkLimit)
+            while (p >= 0 && p < Fe.CtrlName.Length && guard++ < AncestorWalkLimit)
             {
-                if (!IsProxyNodeName(Fe.CtrlNames[p]) && (accept is null || accept(p)))
+                if (!IsProxyNodeName(Fe.CtrlName[p]) && (accept is null || accept(p)))
                 {
                     return p;
                 }
@@ -651,7 +646,7 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>Gets whether the compiler created its own <c>$cloth_root</c> node, which it does for an unskinned proxy mesh.</summary>
-        private bool HasGeneratedClothRoot => Array.Exists(Fe.CtrlNames, static n => n == ClothRootNodeName);
+        private bool HasGeneratedClothRoot => Array.Exists(Fe.CtrlName, static n => n == ClothRootNodeName);
 
         /// <summary>
         /// Gets whether a control node was generated by the cloth compiler rather than being a skeleton bone a chain can
@@ -666,9 +661,9 @@ namespace ValveResourceFormat.IO
         {
             get
             {
-                for (var i = FirstPositionDrivenNode; i < Fe.CtrlNames.Length; i++)
+                for (var i = FirstPositionDrivenNode; i < Fe.CtrlName.Length; i++)
                 {
-                    if (!IsProxyNodeName(Fe.CtrlNames[i]))
+                    if (!IsProxyNodeName(Fe.CtrlName[i]))
                     {
                         return true;
                     }
@@ -682,7 +677,7 @@ namespace ValveResourceFormat.IO
         internal string? ResolveSkinBone(int node)
         {
             var index = FindRealAncestor(node);
-            return index >= 0 ? Fe.CtrlNames[index] : null;
+            return index >= 0 ? Fe.CtrlName[index] : null;
         }
 
         /// <summary>
@@ -697,29 +692,29 @@ namespace ValveResourceFormat.IO
                 return [];
             }
 
-            if (node >= Fe.InitPosePositions.Length)
+            if (node >= Index.InitPosePositions.Length)
             {
-                return [new(Fe.CtrlNames[anchor], 1f)];
+                return [new(Fe.CtrlName[anchor], 1f)];
             }
 
             var weighted = new List<(int Node, float Distance)>();
             foreach (var candidate in GetChainComponent(anchor))
             {
-                if (candidate < Fe.InitPosePositions.Length)
+                if (candidate < Index.InitPosePositions.Length)
                 {
-                    weighted.Add((candidate, Vector3.Distance(Fe.InitPosePositions[node], Fe.InitPosePositions[candidate])));
+                    weighted.Add((candidate, Vector3.Distance(Index.InitPosePositions[node], Index.InitPosePositions[candidate])));
                 }
             }
 
             if (weighted.Count == 0)
             {
-                return [new(Fe.CtrlNames[anchor], 1f)];
+                return [new(Fe.CtrlName[anchor], 1f)];
             }
 
             weighted.Sort(static (a, b) => a.Distance.CompareTo(b.Distance));
             if (weighted[0].Distance <= 1e-6f)
             {
-                return [new(Fe.CtrlNames[weighted[0].Node], 1f)];
+                return [new(Fe.CtrlName[weighted[0].Node], 1f)];
             }
 
             var top = new List<(int Node, float Weight)>(4);
@@ -738,7 +733,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                influences.Add(new(Fe.CtrlNames[candidate], weight));
+                influences.Add(new(Fe.CtrlName[candidate], weight));
                 total += weight;
             }
 
@@ -792,7 +787,7 @@ namespace ValveResourceFormat.IO
 
         private (int[] RealParent, List<int>[] Children) BuildRealBoneTree()
         {
-            var n = Fe.CtrlNames.Length;
+            var n = Fe.CtrlName.Length;
             var realParent = new int[n];
             var children = new List<int>[n];
             for (var i = 0; i < n; i++)
@@ -803,13 +798,13 @@ namespace ValveResourceFormat.IO
             for (var i = 0; i < n; i++)
             {
                 realParent[i] = -1;
-                if (IsProxyNodeName(Fe.CtrlNames[i]))
+                if (IsProxyNodeName(Fe.CtrlName[i]))
                 {
                     continue;
                 }
 
                 var p = SkelParentOf(i);
-                if (p >= 0 && p < n && !IsProxyNodeName(Fe.CtrlNames[p]))
+                if (p >= 0 && p < n && !IsProxyNodeName(Fe.CtrlName[p]))
                 {
                     realParent[i] = p;
                     children[p].Add(i);

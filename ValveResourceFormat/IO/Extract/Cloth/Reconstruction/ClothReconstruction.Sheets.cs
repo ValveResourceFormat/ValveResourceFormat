@@ -3,7 +3,7 @@ using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -82,13 +82,13 @@ namespace ValveResourceFormat.IO
             for (var i = 0; i < n; i++)
             {
                 var node = mesh.NodeIndices[i];
-                if (node < 0 || node >= Fe.CtrlNames.Length)
+                if (node < 0 || node >= Fe.CtrlName.Length)
                 {
                     return mesh;
                 }
 
-                var m = ParseProxyMeshIndex(Fe.CtrlNames[node]);
-                var p = ParseProxyVertexIndex(Fe.CtrlNames[node]);
+                var m = ParseProxyMeshIndex(Fe.CtrlName[node]);
+                var p = ParseProxyVertexIndex(Fe.CtrlName[node]);
                 if (m < 0 || p < 0 || p >= MaxProxySlots || (i > 0 && (m != meshIndex || p <= slots[i - 1])))
                 {
                     return mesh;
@@ -246,9 +246,9 @@ namespace ValveResourceFormat.IO
             var chainBoneNodes = IndependentChainJointNodes();
             if (chainBoneNodes.Count > 0)
             {
-                for (var node = 0; node < Fe.CtrlNames.Length; node++)
+                for (var node = 0; node < Fe.CtrlName.Length; node++)
                 {
-                    if (!IsProxyNodeName(Fe.CtrlNames[node]) || ProxyMeshIndexOf(node) >= 0)
+                    if (!IsProxyNodeName(Fe.CtrlName[node]) || ProxyMeshIndexOf(node) >= 0)
                     {
                         continue;
                     }
@@ -333,7 +333,7 @@ namespace ValveResourceFormat.IO
                 UsesAuthoredFaces = a.UsesAuthoredFaces,
             };
 
-            var sourceOf = Enumerable.Range(0, an + bn).OrderBy(i => ParseProxyVertexIndex(Fe.CtrlNames[both.NodeIndices[i]])).ToArray();
+            var sourceOf = Enumerable.Range(0, an + bn).OrderBy(i => ParseProxyVertexIndex(Fe.CtrlName[both.NodeIndices[i]])).ToArray();
             var slotOf = new int[sourceOf.Length];
             for (var slot = 0; slot < sourceOf.Length; slot++)
             {
@@ -374,7 +374,7 @@ namespace ValveResourceFormat.IO
                     return false;
                 }
 
-                if (joint.Node >= Fe.StaticNodeCount)
+                if (joint.Node >= Fe.StaticNodes)
                 {
                     if (!IsPositionDriven(joint.Node))
                     {
@@ -392,7 +392,7 @@ namespace ValveResourceFormat.IO
 
             var jointNodes = chain.Joints.Select(static j => j.Node).ToHashSet();
             var sheetDriven = false;
-            for (var node = 0; node < Fe.CtrlNames.Length; node++)
+            for (var node = 0; node < Fe.CtrlName.Length; node++)
             {
                 var sheetVertex = ProxyMeshIndexOf(node) >= 0;
                 var generatedRing = IsRingNode(node);
@@ -454,7 +454,7 @@ namespace ValveResourceFormat.IO
             var free = false;
             foreach (var corner in face)
             {
-                if (corner < 0 || corner >= Fe.CtrlNames.Length)
+                if (corner < 0 || corner >= Fe.CtrlName.Length)
                 {
                     return false;
                 }
@@ -463,7 +463,7 @@ namespace ValveResourceFormat.IO
                 {
                     free = true;
                 }
-                else if (IsProxyNodeName(Fe.CtrlNames[corner]))
+                else if (IsProxyNodeName(Fe.CtrlName[corner]))
                 {
                     return false;
                 }
@@ -477,7 +477,7 @@ namespace ValveResourceFormat.IO
         /// with corners in the compiled cycle order.
         /// </summary>
         internal List<int[]> GetAuthoredElementFaces()
-            => [.. Fe.Quads.Concat(Fe.Tris).Where(face => !IsHingeFanFace(face) && IsAuthoredElementFace(face))];
+            => [.. Index.Quads.Concat(Index.Tris).Where(face => !IsHingeFanFace(face) && IsAuthoredElementFace(face))];
 
         /// <summary>
         /// Reconstructs the proxy sheets from the FeModel surface as one merged mesh, or null when there is no surface,
@@ -485,7 +485,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         internal ProxyMesh? BuildProxyMesh()
         {
-            if ((Fe.Quads.Length == 0 && Fe.Tris.Length == 0) || Fe.InitPosePositions.Length == 0)
+            if ((Index.Quads.Length == 0 && Index.Tris.Length == 0) || Index.InitPosePositions.Length == 0)
             {
                 return null;
             }
@@ -530,7 +530,7 @@ namespace ValveResourceFormat.IO
 
             var declared = RotateQuadsToShippedMasses(
                 ChooseFaceDeclarationOrder(faces, surfaceFaceCount, nodeIndices),
-                surfaceFaceCount, nodeIndices, Fe.InitPosePositions, Fe.NodeInvMasses);
+                surfaceFaceCount, nodeIndices, Index.InitPosePositions, Fe.NodeInvMasses);
 
             var hasRodRegion = rodsFaces.Count > 0;
             float[] rodsDriven = hasRodRegion ? Array.ConvertAll(nodeIndices, node => surfaceNodes.Contains(node) ? 0f : 1f) : [];
@@ -559,7 +559,7 @@ namespace ValveResourceFormat.IO
 
                     foreach (var n in face)
                     {
-                        if (n >= 0 && n < Fe.InitPosePositions.Length && n < Fe.CtrlNames.Length && !IsHingeRegeneratedProxy(n))
+                        if (n >= 0 && n < Index.InitPosePositions.Length && n < Fe.CtrlName.Length && !IsHingeRegeneratedProxy(n))
                         {
                             referenced.Add(n);
                         }
@@ -567,8 +567,8 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            Collect(Fe.Quads);
-            Collect(Fe.Tris);
+            Collect(Index.Quads);
+            Collect(Index.Tris);
             return referenced;
         }
 
@@ -579,7 +579,7 @@ namespace ValveResourceFormat.IO
         private List<int[]> AddRodRegionFaces(SortedSet<int> referenced, HashSet<int> surfaceNodes, HashSet<int> surfaceMeshes)
         {
             var rodsFaces = new List<int[]>();
-            foreach (var face in Fe.SourceFaces)
+            foreach (var face in Index.SourceFaces)
             {
                 if (face.Length < 3 || SpansProxyMeshes(face))
                 {
@@ -590,7 +590,7 @@ namespace ValveResourceFormat.IO
                 var sheet = true;
                 foreach (var corner in face)
                 {
-                    if (corner < 0 || corner >= Fe.InitPosePositions.Length || corner >= Fe.CtrlNames.Length || IsHingeRegeneratedProxy(corner)
+                    if (corner < 0 || corner >= Index.InitPosePositions.Length || corner >= Fe.CtrlName.Length || IsHingeRegeneratedProxy(corner)
                         || !surfaceMeshes.Contains(ProxyMeshIndexOf(corner)))
                     {
                         sheet = false;
@@ -617,13 +617,13 @@ namespace ValveResourceFormat.IO
         {
             var strays = new List<int>();
             var covered = new HashSet<int>(referenced);
-            foreach (var rod in Fe.Rods)
+            foreach (var rod in Index.Rods)
             {
                 covered.Add(rod.NodeA);
                 covered.Add(rod.NodeB);
             }
 
-            for (var node = 0; node < Fe.CtrlNames.Length && node < Fe.InitPosePositions.Length; node++)
+            for (var node = 0; node < Fe.CtrlName.Length && node < Index.InitPosePositions.Length; node++)
             {
                 if (!covered.Contains(node) && !IsHingeRegeneratedProxy(node)
                     && surfaceMeshes.Contains(ProxyMeshIndexOf(node)))
@@ -642,10 +642,10 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private List<int[]> SurfaceFacesInLaneOrder(Dictionary<int, int> remap)
         {
-            var faces = new List<int[]>(Fe.Quads.Length + Fe.Tris.Length);
+            var faces = new List<int[]>(Index.Quads.Length + Index.Tris.Length);
             bool Kept(int[] face) => Array.TrueForAll(face, corner => remap.ContainsKey(corner));
 
-            foreach (var q in OrderFacesBySimdLanes(Fe.Quads, "m_SimdQuads"))
+            foreach (var q in OrderFacesBySimdLanes(Index.Quads, [.. Fe.SimdQuads.Select(static simd => simd.Nodes)]))
             {
                 if (Kept(q))
                 {
@@ -655,7 +655,7 @@ namespace ValveResourceFormat.IO
 
             var (splitQuads, splitHalves) = MergeSplitQuads();
 
-            foreach (var t in OrderFacesBySimdLanes(Fe.Tris, "m_SimdTris"))
+            foreach (var t in OrderFacesBySimdLanes(Index.Tris, [.. Fe.SimdTris.Select(static simd => simd.Nodes)]))
             {
                 if (!Kept(t))
                 {
@@ -751,11 +751,11 @@ namespace ValveResourceFormat.IO
             {
                 var node = nodeIndices[i];
                 var isSim = Simulates(node);
-                var integrator = Fe.GetIntegrator(node);
+                var integrator = Index.GetIntegrator(node);
                 var rawGoal = node < RawGoalPaintNodes.Length && RawGoalPaintNodes[node];
-                var (worldFriction, groundFriction) = Fe.GetWorldFriction(node);
+                var (worldFriction, groundFriction) = Index.GetWorldFriction(node);
 
-                arrays.Positions[i] = Fe.InitPosePositions[node];
+                arrays.Positions[i] = Index.InitPosePositions[node];
                 arrays.ClothEnable[i] = isSim ? 1f : 0f;
                 if (isSim)
                 {
@@ -767,19 +767,19 @@ namespace ValveResourceFormat.IO
                 }
 
                 arrays.SkinInfluences[i] = ProxyVertexSkinInfluences(node, isSim);
-                arrays.GoalStrength[i] = rawGoal ? 0f : GoalStrengthPaint(integrator.ForceAttraction);
-                arrays.GoalDamping[i] = rawGoal ? 0f : GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction);
-                arrays.AnimationForceAttract[i] = rawGoal ? integrator.ForceAttraction / ClothRawGoalScale : 0f;
-                arrays.AnimationAttract[i] = rawGoal ? integrator.VertexAttraction / ClothRawGoalScale : 0f;
-                arrays.CollisionRadius[i] = Fe.GetCollisionRadius(node);
-                arrays.Friction[i] = MathUtils.Saturate(Fe.GetNodeFriction(node));
+                arrays.GoalStrength[i] = rawGoal ? 0f : GoalStrengthPaint(integrator.AnimationForceAttraction);
+                arrays.GoalDamping[i] = rawGoal ? 0f : GoalDampingPaint(integrator.AnimationForceAttraction, integrator.AnimationVertexAttraction);
+                arrays.AnimationForceAttract[i] = rawGoal ? integrator.AnimationForceAttraction / ClothRawGoalScale : 0f;
+                arrays.AnimationAttract[i] = rawGoal ? integrator.AnimationVertexAttraction / ClothRawGoalScale : 0f;
+                arrays.CollisionRadius[i] = Index.GetCollisionRadius(node);
+                arrays.Friction[i] = MathUtils.Saturate(Index.GetNodeFriction(node));
                 arrays.Drag[i] = MathF.Max(integrator.PointDamping / ClothDragPointDampingScale, 0f);
-                arrays.GroundCollision[i] = Fe.IsWorldCollisionNode(node) && IsProxyMeshNode(node)
+                arrays.GroundCollision[i] = Index.IsWorldCollisionNode(node) && IsProxyMeshNode(node)
                     ? MathF.Max(1f - worldFriction, 1e-6f)
                     : 0f;
                 arrays.GroundFriction[i] = groundFriction;
                 arrays.Gravity[i] = integrator.Gravity;
-                arrays.VertexAttraction[i] = integrator.VertexAttraction;
+                arrays.VertexAttraction[i] = integrator.AnimationVertexAttraction;
             }
 
             return arrays;
@@ -857,19 +857,18 @@ namespace ValveResourceFormat.IO
 
         /// <summary>Gets the <c>$cloth_m&lt;N&gt;</c> mesh index of <paramref name="node"/>, or -1.</summary>
         private int ProxyMeshIndexOf(int node)
-            => node >= 0 && node < Fe.CtrlNames.Length ? ParseProxyMeshIndex(Fe.CtrlNames[node]) : -1;
+            => node >= 0 && node < Fe.CtrlName.Length ? ParseProxyMeshIndex(Fe.CtrlName[node]) : -1;
 
         /// <summary>Gets whether <paramref name="node"/> is a free cloth node (<c>$cloth_node_</c>).</summary>
         internal bool IsFreeClothNode(int node)
-            => node >= 0 && node < Fe.CtrlNames.Length && Fe.CtrlNames[node].StartsWith(FreeClothNodePrefix, StringComparison.Ordinal);
+            => node >= 0 && node < Fe.CtrlName.Length && Fe.CtrlName[node].StartsWith(FreeClothNodePrefix, StringComparison.Ordinal);
 
         /// <summary>
         /// Reorders faces to their SIMD lane order, each in its lane's node order; faces without a lane follow in array order.
         /// </summary>
-        private int[][] OrderFacesBySimdLanes(int[][] faces, string simdKey)
+        private static int[][] OrderFacesBySimdLanes(int[][] faces, int[][][] simd)
         {
-            var simd = Fe.Data.GetArray(simdKey);
-            if (simd is null || simd.Count == 0 || faces.Length == 0)
+            if (simd.Length == 0 || faces.Length == 0)
             {
                 return faces;
             }
@@ -885,12 +884,7 @@ namespace ValveResourceFormat.IO
             var ordered = new List<int[]>(faces.Length);
             foreach (var entry in simd)
             {
-                if (!entry.TryGetValue("nNode", out var nNodeValue) || !nNodeValue.IsArray)
-                {
-                    return faces;
-                }
-
-                var flat = FlattenSimdNodes(nNodeValue, rows * 4);
+                var flat = FlattenSimdNodes(entry);
                 if (flat.Count < rows * 4)
                 {
                     return faces;
@@ -925,15 +919,15 @@ namespace ValveResourceFormat.IO
         {
             Array.Sort(nodeIndices, (x, y) =>
             {
-                var mx = ParseProxyMeshIndex(Fe.CtrlNames[x]);
-                var my = ParseProxyMeshIndex(Fe.CtrlNames[y]);
+                var mx = ParseProxyMeshIndex(Fe.CtrlName[x]);
+                var my = ParseProxyMeshIndex(Fe.CtrlName[y]);
                 if (mx != my)
                 {
                     return mx.CompareTo(my);
                 }
 
-                var px = ParseProxyVertexIndex(Fe.CtrlNames[x]);
-                var py = ParseProxyVertexIndex(Fe.CtrlNames[y]);
+                var px = ParseProxyVertexIndex(Fe.CtrlName[x]);
+                var py = ParseProxyVertexIndex(Fe.CtrlName[y]);
                 if (px != py)
                 {
                     return px.CompareTo(py);
@@ -948,12 +942,12 @@ namespace ValveResourceFormat.IO
             var meshIndex = int.MinValue;
             foreach (var corner in face)
             {
-                if (corner < 0 || corner >= Fe.CtrlNames.Length || !IsProxyNodeName(Fe.CtrlNames[corner]))
+                if (corner < 0 || corner >= Fe.CtrlName.Length || !IsProxyNodeName(Fe.CtrlName[corner]))
                 {
                     continue;
                 }
 
-                var cornerMesh = ParseProxyMeshIndex(Fe.CtrlNames[corner]);
+                var cornerMesh = ParseProxyMeshIndex(Fe.CtrlName[corner]);
                 if (meshIndex == int.MinValue)
                 {
                     meshIndex = cornerMesh;

@@ -270,13 +270,13 @@ namespace Tests
                     ]
                     """);
 
-            await Assert.That(cloth.Fe.Rods.Length).IsEqualTo(1);
+            await Assert.That(cloth.Index.Rods.Length).IsEqualTo(1);
 
             using (Assert.Multiple())
             {
-                await Assert.That(cloth.Fe.Rods[0].NodeA).IsEqualTo(0);
-                await Assert.That(cloth.Fe.Rods[0].NodeB).IsEqualTo(1);
-                await Assert.That(cloth.Fe.Rods[0].MaxDist).IsEqualTo(2f);
+                await Assert.That(cloth.Index.Rods[0].NodeA).IsEqualTo(0);
+                await Assert.That(cloth.Index.Rods[0].NodeB).IsEqualTo(1);
+                await Assert.That(cloth.Index.Rods[0].MaxDist).IsEqualTo(2f);
             }
         }
 
@@ -1220,7 +1220,7 @@ namespace Tests
             {
                 await Assert.That(string.Join(",", doubledChain.Joints.Select(static joint => joint.Name)))
                     .IsEqualTo("j0,j1,j2,j3");
-                await Assert.That(doubled.Fe.SourceSprings.Length).IsEqualTo(1);
+                await Assert.That(doubled.Index.SourceSprings.Length).IsEqualTo(1);
 
                 await Assert.That(doubledChain.Joints[2].StretchStiffness).IsNotEqualTo(0f);
                 await Assert.That(doubled.GetAuthoredSourceSprings([doubledChain])
@@ -1282,7 +1282,7 @@ namespace Tests
             var declared = FoldedChainModel(0.5f, fanPair: true);
             var elsewhere = FoldedChainModel(0.666667f, fanPair: false);
 
-            static bool Holds(List<FeModel.Rod> rods, int a, int b)
+            static bool Holds(List<FeModelIndex.Rod> rods, int a, int b)
                 => rods.Exists(rod => (rod.NodeA == a && rod.NodeB == b) || (rod.NodeA == b && rod.NodeB == a));
 
             using (Assert.Multiple())

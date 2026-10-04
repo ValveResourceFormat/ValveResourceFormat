@@ -20,8 +20,8 @@ internal sealed partial class ClothExtract
     /// </summary>
     private static int[]? ClothNodeBands(ClothReconstruction cloth)
     {
-        var count = cloth.Fe.NodeCount;
-        if (count <= 0 || cloth.Fe.CtrlNames.Length != count || cloth.Fe.StaticNodeCount <= 0)
+        var count = cloth.Index.NodeCount;
+        if (count <= 0 || cloth.Fe.CtrlName.Length != count || cloth.Fe.StaticNodes <= 0)
         {
             return null;
         }
@@ -37,7 +37,7 @@ internal sealed partial class ClothExtract
                 if (node >= 0 && node < count)
                 {
                     named[node] = true;
-                    simulated |= node >= cloth.Fe.StaticNodeCount;
+                    simulated |= node >= cloth.Fe.StaticNodes;
                 }
             }
 
@@ -60,27 +60,27 @@ internal sealed partial class ClothExtract
             }
         }
 
-        foreach (var face in cloth.Fe.SourceFaces)
+        foreach (var face in cloth.Index.SourceFaces)
         {
             Connect(face);
         }
 
-        foreach (var (a, b) in cloth.Fe.SourceSprings)
+        foreach (var (a, b) in cloth.Index.SourceSprings)
         {
             Connect([a, b]);
         }
 
-        foreach (var quad in cloth.Fe.Quads)
+        foreach (var quad in cloth.Index.Quads)
         {
             Connect(quad);
         }
 
-        foreach (var tri in cloth.Fe.Tris)
+        foreach (var tri in cloth.Index.Tris)
         {
             Connect(tri);
         }
 
-        foreach (var rod in cloth.Fe.Rods)
+        foreach (var rod in cloth.Index.Rods)
         {
             Connect([rod.NodeA, rod.NodeB]);
         }
@@ -88,7 +88,7 @@ internal sealed partial class ClothExtract
         var rank = new int[count];
         Array.Fill(rank, int.MaxValue);
         var frontier = new List<int>();
-        for (var i = 0; i < cloth.Fe.StaticNodeCount; i++)
+        for (var i = 0; i < cloth.Fe.StaticNodes; i++)
         {
             rank[i] = 0;
             frontier.Add(i);
@@ -122,9 +122,9 @@ internal sealed partial class ClothExtract
             }
         }
 
-        var rotLock = Math.Clamp(cloth.Fe.RotationLockedStaticNodeCount, 0, cloth.Fe.StaticNodeCount);
-        var positionDriven = Math.Clamp(cloth.FirstPositionDrivenNode, cloth.Fe.StaticNodeCount, count);
-        int Block(int node) => node < rotLock ? 0 : node < cloth.Fe.StaticNodeCount ? 1 : node < positionDriven ? 2 : 3;
+        var rotLock = Math.Clamp(cloth.Fe.RotLockStaticNodes, 0, cloth.Fe.StaticNodes);
+        var positionDriven = Math.Clamp(cloth.FirstPositionDrivenNode, cloth.Fe.StaticNodes, count);
+        int Block(int node) => node < rotLock ? 0 : node < cloth.Fe.StaticNodes ? 1 : node < positionDriven ? 2 : 3;
 
         var bands = new int[count];
         for (var i = 1; i < count; i++)
@@ -679,9 +679,9 @@ internal sealed partial class ClothExtract
         {
             Name = boneName,
             RootBone = boneName,
-            CollisionMask = cloth.Fe.GetNodeCollisionMask(node),
-            IsStaticNode = node < cloth.Fe.StaticNodeCount,
-            AllowRotation = cloth.Fe.AllowsRotation(node),
+            CollisionMask = cloth.Index.GetNodeCollisionMask(node),
+            IsStaticNode = node < cloth.Fe.StaticNodes,
+            AllowRotation = cloth.Index.AllowsRotation(node),
         });
     }
 }

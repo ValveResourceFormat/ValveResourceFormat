@@ -1,7 +1,7 @@
 using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
+using static ValveResourceFormat.IO.FeModelIndex;
 
 namespace ValveResourceFormat.IO
 {
@@ -17,9 +17,9 @@ namespace ValveResourceFormat.IO
         /// that the fit-influence pass could not have written for it.
         /// </summary>
         internal bool LocksTranslation(int node, int chainVersion = 2, BoneChain? chain = null)
-            => (Fe.IsLockedToParent(node) && !((chainVersion < 2 || !ChainPresetsJoint(node, chain))
+            => (Index.IsLockedToParent(node) && !((chainVersion < 2 || !ChainPresetsJoint(node, chain))
                     && ReachesParentLockUnkeyed(node) && ChainStagesFitGroup(node, chainVersion, chain)))
-                || (Fe.IsLockedToGoal(node) && !Fe.IsStatic(node));
+                || (Index.IsLockedToGoal(node) && !Index.IsStatic(node));
 
         /// <summary>Gets whether <paramref name="node"/> is a hinged joint or a rigid hinge-fan joint.</summary>
         private bool IsAnyHingedJoint(int node) => IsHingedJoint(node) || RigidHingeJoints.ContainsKey(node);
@@ -73,9 +73,9 @@ namespace ValveResourceFormat.IO
             if (fitRingNodes is null)
             {
                 fitRingNodes = new Dictionary<string, List<int>>(StringComparer.Ordinal);
-                for (var node = 0; node < Fe.CtrlNames.Length; node++)
+                for (var node = 0; node < Fe.CtrlName.Length; node++)
                 {
-                    var name = Fe.CtrlNames[node];
+                    var name = Fe.CtrlName[node];
                     var split = name.LastIndexOf('_');
                     if (split < RingNodePrefix.Length || !name.StartsWith(RingNodePrefix, StringComparison.Ordinal))
                     {
@@ -92,10 +92,10 @@ namespace ValveResourceFormat.IO
 
             var list = new HashSet<int>();
             var wide = false;
-            foreach (var node in fitRingNodes.GetValueOrDefault(Fe.CtrlNames[jointNode]) ?? [])
+            foreach (var node in fitRingNodes.GetValueOrDefault(Fe.CtrlName[jointNode]) ?? [])
             {
                 list.Add(node);
-                wide |= Fe.CtrlNames[node].EndsWith("_1", StringComparison.Ordinal);
+                wide |= Fe.CtrlName[node].EndsWith("_1", StringComparison.Ordinal);
             }
 
             if (!wide)
@@ -108,25 +108,25 @@ namespace ValveResourceFormat.IO
 
         private bool ReachesParentLockUnkeyed(int node)
         {
-            if (!Fe.IsStatic(node) || !Fe.AllowsRotation(node) || (!Fe.NodeBases.ContainsKey(node) && !Fe.FitMatrixNodes.Contains(node)))
+            if (!Index.IsStatic(node) || !Index.AllowsRotation(node) || (!Index.NodeBases.ContainsKey(node) && !Index.FitMatrixNodes.Contains(node)))
             {
                 return false;
             }
 
             return Array.Exists(Fe.LockToParent, link => link.CtrlChild == node
-                && (!Fe.IsStatic(link.CtrlParent) || Fe.AllowsRotation(link.CtrlParent))
+                && (!Index.IsStatic(link.CtrlParent) || Index.AllowsRotation(link.CtrlParent))
                 && !FitsOverInfluencesOf(link.CtrlParent, node));
         }
 
         private bool FitsOverInfluencesOf(int parent, int child)
         {
-            if (!Fe.FitMatrixTargets.TryGetValue(parent, out var targets))
+            if (!Index.FitMatrixTargets.TryGetValue(parent, out var targets))
             {
                 return false;
             }
 
-            var influences = Fe.FitMatrixTargets.TryGetValue(child, out var own) ? own
-                : Fe.NodeBases.TryGetValue(child, out var basis) ? [basis.NodeX0, basis.NodeX1, basis.NodeY0, basis.NodeY1]
+            var influences = Index.FitMatrixTargets.TryGetValue(child, out var own) ? own
+                : Index.NodeBases.TryGetValue(child, out var basis) ? [basis.NodeX0, basis.NodeX1, basis.NodeY0, basis.NodeY1]
                 : [];
             return (influences.Length > 0 && Array.TrueForAll(influences, influence => Array.IndexOf(targets, influence) >= 0))
                 || (own is not null && HoldsOneWideEntryOf(targets, child));
@@ -169,10 +169,10 @@ namespace ValveResourceFormat.IO
                 if (reverseOffsetTargets is null)
                 {
                     reverseOffsetTargets = [];
-                    foreach (var entry in Fe.Data.GetArray("m_ReverseOffsets") ?? [])
+                    foreach (var entry in Fe.ReverseOffsets)
                     {
-                        var boneTargets = GetOrAdd(reverseOffsetTargets, entry.GetInt32Property("nBoneCtrl"));
-                        boneTargets.Add(entry.GetInt32Property("nTargetNode"));
+                        var boneTargets = GetOrAdd(reverseOffsetTargets, entry.BoneCtrl);
+                        boneTargets.Add(entry.TargetNode);
                     }
                 }
 
@@ -185,7 +185,7 @@ namespace ValveResourceFormat.IO
         /// sheet imported with <c>add_bones_to_render_mesh</c> gives it.
         /// </summary>
         internal bool ProxyOwnsNodeBases(ProxyMesh proxy)
-            => Array.Exists(proxy.NodeIndices, node => IsProxyMeshNode(node) && Fe.NodeBases.ContainsKey(node));
+            => Array.Exists(proxy.NodeIndices, node => IsProxyMeshNode(node) && Index.NodeBases.ContainsKey(node));
 
         /// <summary>
         /// Gets whether the chain's <c>m_NodeBases</c> entries are the bulk grade over each joint's neighbours (true) or the
@@ -198,7 +198,7 @@ namespace ValveResourceFormat.IO
             var unmoved = new Dictionary<int, Vector3>();
             foreach (var joint in chain.Joints)
             {
-                if (!Fe.NodeBases.TryGetValue(joint.Node, out var want) || ChainJointRing(joint).Count >= 2 || IsAnyHingedJoint(joint.Node))
+                if (!Index.NodeBases.TryGetValue(joint.Node, out var want) || ChainJointRing(joint).Count >= 2 || IsAnyHingedJoint(joint.Node))
                 {
                     continue;
                 }
@@ -220,7 +220,7 @@ namespace ValveResourceFormat.IO
                     && NodeBaseDenotes(PredictNodeBase(presetCandidates, joint.Node, unmoved, want).Basis, want);
 
                 var neighbours = NodeNeighbours(joint.Node);
-                var bulkEligible = joint.InvMass > 0f || Fe.AllowsRotation(joint.Node);
+                var bulkEligible = joint.InvMass > 0f || Index.AllowsRotation(joint.Node);
                 var bulkHit = bulkEligible && neighbours.Count >= 3 && NodeBaseContains(neighbours, want)
                     && (!presetReaches || NodeBaseDenotes(PredictNodeBase(neighbours, joint.Node, unmoved, want).Basis, want));
 
@@ -251,7 +251,7 @@ namespace ValveResourceFormat.IO
             var unmoved = new Dictionary<int, Vector3>();
             foreach (var joint in chain.Joints)
             {
-                if (!joint.Simulated || !Fe.FitMatrixNodes.Contains(joint.Node) || IsHingedJoint(joint.Node))
+                if (!joint.Simulated || !Index.FitMatrixNodes.Contains(joint.Node) || IsHingedJoint(joint.Node))
                 {
                     continue;
                 }
@@ -287,7 +287,7 @@ namespace ValveResourceFormat.IO
             var unmoved = new Dictionary<int, Vector3>();
             foreach (var joint in chain.Joints)
             {
-                if (joint.Node < Fe.StaticNodeCount || !targets.TryGetValue(joint.Node, out var jointTargets) || IsAnyHingedJoint(joint.Node))
+                if (joint.Node < Fe.StaticNodes || !targets.TryGetValue(joint.Node, out var jointTargets) || IsAnyHingedJoint(joint.Node))
                 {
                     continue;
                 }
@@ -322,7 +322,7 @@ namespace ValveResourceFormat.IO
         /// with the handedness that orders the pair inside <see cref="NodeBaseTieMargin"/>.
         /// </summary>
         private bool NodeBaseYPairTies(int node, NodeBaseScan scan)
-            => scan.Handedness < NodeBaseTieMargin && Fe.NodeBases.TryGetValue(node, out var want)
+            => scan.Handedness < NodeBaseTieMargin && Index.NodeBases.TryGetValue(node, out var want)
                 && want == new NodeBasis(scan.Basis.NodeX0, scan.Basis.NodeX1, scan.Basis.NodeY1, scan.Basis.NodeY0);
 
         private static bool NodeBaseDenotes(NodeBasis basis, NodeBasis want)
@@ -334,8 +334,8 @@ namespace ValveResourceFormat.IO
         /// </summary>
         internal bool ChainHintsAreTwistWritten(BoneChain chain)
         {
-            var hints = Fe.Data.GetArray("m_DynNodeWindBases");
-            if (hints is null || hints.Count == 0)
+            var hints = Fe.DynNodeWindBases;
+            if (hints.Length == 0)
             {
                 return false;
             }
@@ -344,21 +344,21 @@ namespace ValveResourceFormat.IO
             var twistWritten = false;
             foreach (var joint in chain.Joints)
             {
-                if (Fe.FitMatrixNodes.Contains(joint.Node))
+                if (Index.FitMatrixNodes.Contains(joint.Node))
                 {
                     return false;
                 }
 
-                var slot = joint.Node - Fe.StaticNodeCount;
-                if (slot < 0 || slot >= hints.Count)
+                var slot = joint.Node - Fe.StaticNodes;
+                if (slot < 0 || slot >= hints.Length)
                 {
                     continue;
                 }
 
                 var hint = hints[slot];
-                var x0 = hint.GetInt32Property("nNodeX0");
-                var x1 = hint.GetInt32Property("nNodeX1");
-                var ungraded = hint.GetInt32Property("nNodeY0") == 0 && hint.GetInt32Property("nNodeY1") == 0;
+                var x0 = hint.NodeX0;
+                var x1 = hint.NodeX1;
+                var ungraded = hint.NodeY0 == 0 && hint.NodeY1 == 0;
                 if (ungraded && ((x0 == joint.Node && x1 != joint.Node && TwistRelaxByLink.ContainsKey((joint.Node, x1)))
                     || (ropePairs.TryGetValue(joint.Node, out var ropePair) && ropePair == (x0, x1))))
                 {
@@ -433,10 +433,10 @@ namespace ValveResourceFormat.IO
             return chain.Joints.Exists(joint => !joint.IsRoot && joint.Simulated
                 && joint.ExtrudeSides == 2
                 && !chain.Joints.Exists(child => child.ParentNode == joint.Node)
-                && !Fe.NodeBases.ContainsKey(joint.Node)
-                && !Fe.FitMatrixNodes.Contains(joint.Node)
+                && !Index.NodeBases.ContainsKey(joint.Node)
+                && !Index.FitMatrixNodes.Contains(joint.Node)
                 && !ReverseOffsetBones.Contains(joint.Node)
-                && !Fe.IsLockedToGoal(joint.Node) && !Fe.IsLockedToParent(joint.Node)
+                && !Index.IsLockedToGoal(joint.Node) && !Index.IsLockedToParent(joint.Node)
                 && (joint.StretchStiffness != 0f || joint.AnimatedLength)
                 && NodeNeighbours(joint.Node).Count < 3);
         }
@@ -451,7 +451,7 @@ namespace ValveResourceFormat.IO
             var unstaged = false;
             foreach (var joint in list)
             {
-                if (joint.Node < Fe.StaticNodeCount || IsAnyHingedJoint(joint.Node))
+                if (joint.Node < Fe.StaticNodes || IsAnyHingedJoint(joint.Node))
                 {
                     continue;
                 }
@@ -468,8 +468,8 @@ namespace ValveResourceFormat.IO
 
                 if (table is >= 1 and <= 2)
                 {
-                    if (ReverseOffsetBones.Contains(joint.Node) || Fe.IsLockedToGoal(joint.Node)
-                        || Fe.IsLockedToParent(joint.Node) || Fe.FitMatrixNodes.Contains(joint.Node))
+                    if (ReverseOffsetBones.Contains(joint.Node) || Index.IsLockedToGoal(joint.Node)
+                        || Index.IsLockedToParent(joint.Node) || Index.FitMatrixNodes.Contains(joint.Node))
                     {
                         return ThinJointStaging.Staged;
                     }
