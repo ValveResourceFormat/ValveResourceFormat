@@ -129,16 +129,13 @@ namespace ValveResourceFormat.ResourceTypes
         private void SerializeVersion4(Stream stream, SerializationContext context)
         {
             var blobs = AsSegment(context.BinaryBlobs);
+            var hasBlobs = context.BinaryBlobLengths.Count > 0;
             List<ushort> blockCompressedSizes = [];
-
-            // For Zstd, blobs are appended to the main buffer and compressed together with it
-            var compressedBlobs = SerializationCompressionMethod != KV3BinaryCompressionMethod.Zstd
-                ? CompressBinaryBlobs(blobs, [blobs.Count], out blockCompressedSizes)
+            var compressedBlobs = hasBlobs
+                ? CompressBinaryBlobs(blobs, context.BinaryBlobLengths, out blockCompressedSizes)
                 : default;
             var buffer = BuildVersion4Buffer(context, blockCompressedSizes, out var countTypes);
-            var compressedBuffer = SerializationCompressionMethod == KV3BinaryCompressionMethod.Zstd
-                ? CompressZstd([.. buffer, .. blobs])
-                : CompressMainBuffer(buffer);
+            var compressedBuffer = CompressMainBuffer(buffer);
 
             using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
 
@@ -150,22 +147,27 @@ namespace ValveResourceFormat.ResourceTypes
             writer.Write((ushort)0); // countObjects
             writer.Write((ushort)0); // countArrays
             writer.Write(buffer.Count);
-            writer.Write(compressedBuffer.Count);
+            writer.Write(GetCompressedSize(compressedBuffer.Count, compressedBlobs));
             writer.Write(context.BinaryBlobLengths.Count);
             writer.Write(blobs.Count);
             writer.Write((int)context.Bytes2.Length / 2);
-            writer.Write(0); // sizeBlockCompressedSizesBytes
+            writer.Write(0); // sizeBlockCompressedSizesBytes, only filled in by version 5
             writer.Write(compressedBuffer.AsSpan());
 
-            if (context.BinaryBlobLengths.Count > 0)
+            if (hasBlobs)
             {
-                if (SerializationCompressionMethod != KV3BinaryCompressionMethod.Zstd)
-                {
-                    writer.Write(compressedBlobs.AsSpan());
-                }
-
+                writer.Write(compressedBlobs.AsSpan());
                 writer.Write(0xFFEEDD00);
             }
+        }
+
+        // The zstd blob frame is part of the compressed size, uncompressed and LZ4 blobs are not.
+        // LZ4 decoding of the buffer needs its exact compressed size.
+        private int GetCompressedSize(int compressedBuffers, ArraySegment<byte> compressedBlobs)
+        {
+            return SerializationCompressionMethod == KV3BinaryCompressionMethod.Zstd
+                ? checked(compressedBuffers + compressedBlobs.Count)
+                : compressedBuffers;
         }
 
         private static ArraySegment<byte> BuildVersion4Buffer(SerializationContext context, List<ushort> blockCompressedSizes, out int countTypes)
@@ -211,7 +213,7 @@ namespace ValveResourceFormat.ResourceTypes
             writer.Write(countObjects);
             writer.Write(countArrays);
             writer.Write(checked(buffer1.Count + buffer2.Count));
-            writer.Write(checked(compressedBuffer1.Count + compressedBuffer2.Count + compressedBlobs.Count));
+            writer.Write(GetCompressedSize(checked(compressedBuffer1.Count + compressedBuffer2.Count), compressedBlobs));
             writer.Write(context.BinaryBlobLengths.Count);
             writer.Write(blobs.Count);
             writer.Write(0); // 2-byte values in buffer 1
