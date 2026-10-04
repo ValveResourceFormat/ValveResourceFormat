@@ -30,6 +30,10 @@ namespace ValveResourceFormat.Renderer
 
         // None of these are in the decal data, so they are chosen rather than known
         private const float DefaultDecalDepth = 12f;
+
+        // Seconds a decal stays before it starts to fade, and how long the fade takes, unless its material says
+        private const float DefaultFadeStartTime = 30f;
+        private const float DefaultFadeDuration = 3f;
         private const float DefaultDecalSize = 8f;
         private const float MinDecalSize = 0.5f;
 
@@ -49,6 +53,7 @@ namespace ValveResourceFormat.Renderer
             Parallax = 32,
             Specular = 64,
             OcclusionMap = 128,
+            Triplanar = 256,
         }
 
         // Matches ProjectedDecal_t, 64 bytes
@@ -88,9 +93,12 @@ namespace ValveResourceFormat.Renderer
             public ProjectedDecalTextureArray.Layer? Normal { get; init; }
             public ProjectedDecalTextureArray.Layer? Occlusion { get; init; }
             public ProjectedDecalTextureArray.Layer? Height { get; init; }
+            public bool IsTriplanar { get; init; }
+            public float FadeStartTime { get; init; }
+            public float FadeDuration { get; init; }
         }
 
-        private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform);
+        private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform, float PlaceTime);
 
         // BC7 mode 6 with every endpoint zero, which is transparent black
         private static readonly byte[] Bc7ClearBlock = [0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -121,6 +129,8 @@ namespace ValveResourceFormat.Renderer
         private StorageBuffer? materialBuffer;
         private int materialBufferCapacity;
         private bool decalsDirty;
+        private bool tintsDirty;
+        private float time;
         private bool materialsDirty;
         private int parentedCount;
         private Shader? shader;
@@ -182,7 +192,7 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            decals.Add(new ProjectedDecal(materialIndex, flipU ? FlagFlipU : 0, tint, parent, localTransform));
+            decals.Add(new ProjectedDecal(materialIndex, flipU ? FlagFlipU : 0, tint, parent, localTransform, time));
             boxTransforms.Add(boxTransform);
             decalsDirty = true;
 
@@ -190,19 +200,37 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Moves decals with the entities they were added on, hides them while their entity is not drawn,
-        /// and drops them once it is removed. Call once a frame, before the cull batch reads <see cref="BoxTransforms"/>.
+        /// Fades decals out as they age and drops them once gone. Moves decals with the entities they were
+        /// added on, hides them while their entity is not drawn, and drops them once it is removed.
+        /// Call once a frame, before the cull batch reads <see cref="BoxTransforms"/>.
         /// </summary>
-        public void UpdateParentedDecals()
+        /// <param name="deltaTime">Seconds since the last call.</param>
+        public void Update(float deltaTime)
         {
-            if (parentedCount == 0)
-            {
-                return;
-            }
+            time += deltaTime;
 
             for (var i = decals.Count - 1; i >= 0; i--)
             {
                 var decal = decals[i];
+                var material = materials[decal.MaterialIndex];
+
+                if (time - decal.PlaceTime >= material.FadeStartTime + material.FadeDuration)
+                {
+                    RemoveDecalAt(i);
+                    continue;
+                }
+
+                // A removal already has every decal written again
+                if (!decalsDirty)
+                {
+                    var tint = GetFadedTint(decal);
+
+                    if (decalGpuData[i].Tint != tint)
+                    {
+                        decalGpuData[i].Tint = tint;
+                        tintsDirty = true;
+                    }
+                }
 
                 if (decal.Parent is not { } parent)
                 {
@@ -229,6 +257,21 @@ namespace ValveResourceFormat.Renderer
 
                 decalsDirty = true;
             }
+        }
+
+        // Fading is the opacity of the decal itself, which alpha cutoff materials read as how far they have eroded
+        private uint GetFadedTint(in ProjectedDecal decal)
+        {
+            var material = materials[decal.MaterialIndex];
+            var fadeTime = time - decal.PlaceTime - material.FadeStartTime;
+            var tint = decal.Tint;
+
+            if (fadeTime > 0f)
+            {
+                tint.W *= 1f - Math.Clamp(fadeTime / MathF.Max(material.FadeDuration, 1e-4f), 0f, 1f);
+            }
+
+            return Color32.FromVector4Clamped(tint).PackedValue;
         }
 
         private void RemoveDecalAt(int index)
@@ -359,7 +402,8 @@ namespace ValveResourceFormat.Renderer
 
             var height = attributes.GetValueOrDefault("DecalWorldHeight", attributes.GetValueOrDefault("DecalWorldWidth", defaultHeight));
             var width = attributes.GetValueOrDefault("DecalWorldWidth", attributes.ContainsKey("DecalWorldHeight") ? height : defaultWidth);
-            var depth = attributes.GetValueOrDefault("DecalDepth", DefaultDecalDepth);
+            // A triplanar decal wraps around what is inside its box, so it reaches as far out of the surface as along it
+            var depth = attributes.GetValueOrDefault("DecalDepth", materials[materialIndex].IsTriplanar ? width : DefaultDecalDepth);
             var depthOffset = attributes.GetValueOrDefault("DecalDepthOffset");
 
             // Variances are in world units: a knife scuff 25 wide varies by 6, a bullet hole 5 wide by 0.5
@@ -461,6 +505,13 @@ namespace ValveResourceFormat.Renderer
                 flags |= MaterialFlags.AlphaCutoff;
             }
 
+            var isTriplanar = intParams.GetValueOrDefault("F_TRIPLANAR_MAPPING") == 1;
+
+            if (isTriplanar)
+            {
+                flags |= MaterialFlags.Triplanar;
+            }
+
             if (intParams.GetValueOrDefault("F_CUTOFF_ANGLE") == 1)
             {
                 flags |= MaterialFlags.CutoffAngle;
@@ -498,6 +549,9 @@ namespace ValveResourceFormat.Renderer
             materials.Add(new DecalMaterial
             {
                 Data = data,
+                IsTriplanar = isTriplanar,
+                FadeStartTime = data.FloatAttributes.GetValueOrDefault("DecalFadeStartTime", DefaultFadeStartTime),
+                FadeDuration = data.FloatAttributes.GetValueOrDefault("DecalFadeDuration", DefaultFadeDuration),
                 Color = color,
                 Normal = normal,
                 Occlusion = occlusion,
@@ -592,6 +646,7 @@ namespace ValveResourceFormat.Renderer
             if (decalsDirty)
             {
                 decalsDirty = false;
+                tintsDirty = false;
 
                 decalBuffer ??= StorageBuffer.Allocate<DecalGpu>(ReservedBufferSlots.ProjectedDecals, "ProjectedDecals", MaxDecals, BufferUsage.Dynamic);
 
@@ -605,10 +660,15 @@ namespace ValveResourceFormat.Renderer
                         WorldToDecal = worldToDecal.To3x4(),
                         MaterialIndex = (uint)decal.MaterialIndex,
                         Flags = decal.Flags,
-                        Tint = Color32.FromVector4Clamped(decal.Tint).PackedValue,
+                        Tint = GetFadedTint(decal),
                     };
                 }
 
+                decalBuffer.Update<DecalGpu>(decalGpuData.AsSpan(0, decals.Count), 0);
+            }
+            else if (tintsDirty && decalBuffer != null)
+            {
+                tintsDirty = false;
                 decalBuffer.Update<DecalGpu>(decalGpuData.AsSpan(0, decals.Count), 0);
             }
         }
@@ -754,6 +814,7 @@ namespace ValveResourceFormat.Renderer
             materialBufferCapacity = 0;
 
             decalsDirty = false;
+            tintsDirty = false;
             materialsDirty = false;
             parentedCount = 0;
             shader = null;

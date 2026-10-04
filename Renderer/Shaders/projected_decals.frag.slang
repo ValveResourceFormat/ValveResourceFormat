@@ -55,6 +55,7 @@ const uint DECAL_NORMAL_MAP = 16u;
 const uint DECAL_PARALLAX = 32u;
 const uint DECAL_SPECULAR = 64u;
 const uint DECAL_OCCLUSION_MAP = 128u;
+const uint DECAL_TRIPLANAR = 256u;
 
 layout(std430, binding = 6) readonly buffer ProjectedDecalBuffer
 {
@@ -310,7 +311,10 @@ void main()
             vec2 texCoordDdx = vec2(dot(positionDdx, axisX), dot(positionDdx, -axisY)) * 0.5;
             vec2 texCoordDdy = vec2(dot(positionDdy, axisX), dot(positionDdy, -axisY)) * 0.5;
 
-            float fade = saturate(decalCoords.z * material.Fade.z);
+            bool isTriplanar = (material.Flags & DECAL_TRIPLANAR) != 0u;
+
+            // A triplanar decal has no single depth axis to fade along, it fades toward every box face instead
+            float fade = isTriplanar ? 1.0 : saturate(decalCoords.z * material.Fade.z);
 
             if ((material.Flags & DECAL_CUTOFF_ANGLE) != 0u)
             {
@@ -338,7 +342,35 @@ void main()
             }
 
             vec4 tint = UnpackDecalTint(decal.Tint);
-            vec4 color = SampleDecalTexture(uDecalColor, material.ColorScaleLayer, texCoord, texCoordDdx, texCoordDdy);
+            vec4 color;
+
+            if (isTriplanar)
+            {
+                vec3 coords = decalCoords;
+
+                if ((decal.Flags & DECAL_FLIP_U) != 0u)
+                {
+                    coords.xz = 1.0 - coords.xz;
+                }
+
+                vec3 coordsDdx = vec3(texCoordDdx, dot(positionDdx, axisZ) * 0.5);
+                vec3 coordsDdy = vec3(texCoordDdy, dot(positionDdy, axisZ) * 0.5);
+
+                // Each box axis projects the texture, weighted by how squarely the surface faces it
+                vec3 facing = vec3(dot(geometricNormal, normalize(axisX)), dot(geometricNormal, normalize(axisY)), dot(geometricNormal, normalize(axisZ)));
+                vec3 weights = facing * facing;
+
+                color = SampleDecalTexture(uDecalColor, material.ColorScaleLayer, coords.zy, coordsDdx.zy, coordsDdy.zy) * weights.x
+                    + SampleDecalTexture(uDecalColor, material.ColorScaleLayer, vec2(coords.x, decalCoords.z), coordsDdx.xz, coordsDdy.xz) * weights.y
+                    + SampleDecalTexture(uDecalColor, material.ColorScaleLayer, coords.xy, coordsDdx.xy, coordsDdy.xy) * weights.z;
+
+                vec3 toFace = min(decalCoords, 1.0 - decalCoords);
+                color.a *= saturate(8.0 * min(toFace.x, min(toFace.y, toFace.z)));
+            }
+            else
+            {
+                color = SampleDecalTexture(uDecalColor, material.ColorScaleLayer, texCoord, texCoordDdx, texCoordDdy);
+            }
 
             float opacity = (material.Flags & DECAL_ALPHA_CUTOFF) != 0u
                 ? min((color.a * fade + tint.a - 1.0) * material.Fade.w, 1.0)
