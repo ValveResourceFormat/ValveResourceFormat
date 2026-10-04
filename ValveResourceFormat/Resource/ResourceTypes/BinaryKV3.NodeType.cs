@@ -25,8 +25,8 @@ namespace ValveResourceFormat.ResourceTypes
             FLOAT = 19,
             INT16 = 20,
             UINT16 = 21,
-            UNKNOWN_22 = 22,
-            INT32_AS_BYTE = 23,
+            INT8 = 22,
+            UINT8 = 23,
             ARRAY_TYPE_BYTE_LENGTH = 24,
             ARRAY_TYPE_AUXILIARY_BUFFER = 25,
         }

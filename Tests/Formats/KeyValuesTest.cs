@@ -256,6 +256,20 @@ namespace Tests.Formats
         }
 
         [Test]
+        public async Task TestBinaryKV3ReadsInt8AndUInt8()
+        {
+            var binaryKV3 = ReadCraftedBinaryKV3(4, bytes1: [0xFF, 0xFF], bytes4: [2, 0, 1], strings: ["a", "b"], types: [9, 22, 23]);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(binaryKV3.Data.Root["a"].ValueType).IsEqualTo(KVValueType.Int32);
+                await Assert.That((int)binaryKV3.Data.Root["a"]).IsEqualTo(-1);
+                await Assert.That(binaryKV3.Data.Root["b"].ValueType).IsEqualTo(KVValueType.UInt32);
+                await Assert.That((uint)binaryKV3.Data.Root["b"]).IsEqualTo(255U);
+            }
+        }
+
+        [Test]
         public async Task TestBinaryKV3SkipsByteAfterTypeWithBit6()
         {
             var binaryKV3 = ReadCraftedBinaryKV3(4, bytes1: [], bytes4: [2, 0, 42, 1, 43], strings: ["a", "b"], types: [9, 0x40 | 11, 0xAB, 11]);
@@ -265,6 +279,36 @@ namespace Tests.Formats
                 await Assert.That((int)binaryKV3.Data.Root["a"]).IsEqualTo(42);
                 await Assert.That((int)binaryKV3.Data.Root["b"]).IsEqualTo(43);
             }
+        }
+
+        [Test]
+        public async Task TestBinaryKV3InvalidStringIdsAreEmpty()
+        {
+            var binaryKV3 = ReadCraftedBinaryKV3(4, bytes1: [], bytes4: [2, 0, 7, -5, 0], strings: ["a"], types: [9, 6, 6]);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That((string)binaryKV3.Data.Root["a"]).IsEmpty();
+                await Assert.That((string)binaryKV3.Data.Root[string.Empty]).IsEqualTo("a");
+            }
+        }
+
+        [Test]
+        public async Task TestBinaryKV3RepeatedMemberNameReplacesValue()
+        {
+            var binaryKV3 = ReadCraftedBinaryKV3(4, bytes1: [], bytes4: [2, 0, 1, 0, 2], strings: ["a"], types: [9, 11, 11]);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(binaryKV3.Data.Root).Count().IsEqualTo(1);
+                await Assert.That((int)binaryKV3.Data.Root["a"]).IsEqualTo(2);
+            }
+        }
+
+        [Test]
+        public async Task TestBinaryKV3RejectsEmptyTypedArray()
+        {
+            await Assert.That(() => ReadCraftedBinaryKV3(4, bytes1: [0], bytes4: [], strings: [], types: [24, 11])).Throws<InvalidDataException>();
         }
 
         [Test]

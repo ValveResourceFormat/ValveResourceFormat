@@ -445,10 +445,11 @@ namespace ValveResourceFormat.ResourceTypes
                     buffer1.Bytes4 = buffer1.Bytes4[sizeof(int)..];
                     context.Strings = new string[countStrings];
 
+                    // Before version 5 there is only one buffer, so auxiliary reads use it as well
+                    context.AuxiliaryBuffer = buffer1;
+
                     if (version >= 5)
                     {
-                        context.AuxiliaryBuffer = buffer1;
-
                         var readStringBytes = 0;
 
                         for (var i = 0; i < countStrings; i++)
@@ -672,7 +673,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
 
                 var (rootType, rootFlag) = ReadType(context);
-                var root = ReadBinaryValue(context, rootType, rootFlag);
+                var root = ReadBinaryValue(context, rootType, rootFlag, context.Buffer);
                 Data = new KVDocument(new KVHeader { Format = format }, null, root);
 
                 Debug.Assert(context.Types.Count == 0);
@@ -753,26 +754,38 @@ namespace ValveResourceFormat.ResourceTypes
             return ((KV3BinaryNodeType)databyte, flagInfo);
         }
 
+        private static string GetString(Context context, int id)
+        {
+            // Negative and out of range ids, including -1 for an empty string, resolve to an empty string
+            return (uint)id < (uint)context.Strings.Length ? context.Strings[id] : string.Empty;
+        }
+
         private static void ParseBinaryKV3(Context context, KVObject parent)
         {
             var (datatype, flagInfo) = ReadType(context);
 
             if (parent.IsArray)
             {
-                parent.Add(ReadBinaryValue(context, datatype, flagInfo));
+                parent.Add(ReadBinaryValue(context, datatype, flagInfo, context.Buffer));
                 return;
             }
 
-            var stringID = MemoryMarshal.Read<int>(context.Buffer.Bytes4);
-            context.Buffer.Bytes4 = context.Buffer.Bytes4[sizeof(int)..];
+            var name = GetString(context, ReadLane<int>(ref context.Buffer.Bytes4));
 
-            var name = (stringID == -1) ? string.Empty : context.Strings[stringID];
-            parent.Add(name, ReadBinaryValue(context, datatype, flagInfo));
+            // A repeated member name replaces the earlier value
+            parent[name] = ReadBinaryValue(context, datatype, flagInfo, context.Buffer);
         }
 
-        private static KVObject ReadBinaryValue(Context context, KV3BinaryNodeType datatype, KVFlag flagInfo)
+        private static T ReadLane<T>(ref ArraySegment<byte> lane) where T : unmanaged
         {
-            var result = ReadValue(context, datatype);
+            var value = MemoryMarshal.Read<T>(lane);
+            lane = lane[Unsafe.SizeOf<T>()..];
+            return value;
+        }
+
+        private static KVObject ReadBinaryValue(Context context, KV3BinaryNodeType datatype, KVFlag flagInfo, Buffers lane)
+        {
+            var result = ReadValue(context, datatype, lane);
 
             if (flagInfo != KVFlag.None)
             {
@@ -782,7 +795,9 @@ namespace ValveResourceFormat.ResourceTypes
             return result;
         }
 
-        private static KVObject ReadValue(Context context, KV3BinaryNodeType datatype)
+        // Primitive values are read from the given lane, which is the auxiliary buffer for elements of
+        // ARRAY_TYPE_AUXILIARY_BUFFER. Strings, blobs and container lengths always come from the main buffer.
+        private static KVObject ReadValue(Context context, KV3BinaryNodeType datatype, Buffers lane)
         {
             var buffer = context.Buffer;
 
@@ -806,103 +821,45 @@ namespace ValveResourceFormat.ResourceTypes
 
                 // 1 byte values
                 case KV3BinaryNodeType.BOOLEAN:
-                {
-                    var value = buffer.Bytes1[0] == 1;
-                    buffer.Bytes1 = buffer.Bytes1[1..];
-
-                    return value;
-                }
-                // TODO: 22 might be INT32_AS_BYTE, and 23 is UINT32_AS_BYTE
-                case KV3BinaryNodeType.INT32_AS_BYTE:
-                {
+                    return ReadLane<byte>(ref lane.Bytes1) != 0;
+                case KV3BinaryNodeType.INT8:
                     Debug.Assert(context.Version >= 4);
-
-                    var value = (int)buffer.Bytes1[0];
-                    buffer.Bytes1 = buffer.Bytes1[1..];
-
-                    return value;
-                }
+                    return (int)ReadLane<sbyte>(ref lane.Bytes1);
+                case KV3BinaryNodeType.UINT8:
+                    Debug.Assert(context.Version >= 4);
+                    return (uint)ReadLane<byte>(ref lane.Bytes1);
 
                 // 2 byte values
                 case KV3BinaryNodeType.INT16:
-                {
                     Debug.Assert(context.Version >= 4);
-
-                    var value = MemoryMarshal.Read<short>(buffer.Bytes2);
-                    buffer.Bytes2 = buffer.Bytes2[sizeof(short)..];
-
-                    return value;
-                }
+                    return ReadLane<short>(ref lane.Bytes2);
                 case KV3BinaryNodeType.UINT16:
-                {
                     Debug.Assert(context.Version >= 4);
-
-                    var value = MemoryMarshal.Read<ushort>(buffer.Bytes2);
-                    buffer.Bytes2 = buffer.Bytes2[sizeof(ushort)..];
-
-                    return value;
-                }
+                    return ReadLane<ushort>(ref lane.Bytes2);
 
                 // 4 byte values
                 case KV3BinaryNodeType.INT32:
-                {
-                    var value = MemoryMarshal.Read<int>(buffer.Bytes4);
-                    buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
-
-                    return value;
-                }
+                    return ReadLane<int>(ref lane.Bytes4);
                 case KV3BinaryNodeType.UINT32:
-                {
-                    var value = MemoryMarshal.Read<uint>(buffer.Bytes4);
-                    buffer.Bytes4 = buffer.Bytes4[sizeof(uint)..];
-
-                    return value;
-                }
+                    return ReadLane<uint>(ref lane.Bytes4);
                 case KV3BinaryNodeType.FLOAT:
-                {
                     Debug.Assert(context.Version >= 4);
-
-                    var value = MemoryMarshal.Read<float>(buffer.Bytes4);
-                    buffer.Bytes4 = buffer.Bytes4[sizeof(float)..];
-
-                    return value;
-                }
+                    return ReadLane<float>(ref lane.Bytes4);
 
                 // 8 byte values
                 case KV3BinaryNodeType.INT64:
-                {
-                    var value = MemoryMarshal.Read<long>(buffer.Bytes8);
-                    buffer.Bytes8 = buffer.Bytes8[sizeof(long)..];
-
-                    return value;
-                }
+                    return ReadLane<long>(ref lane.Bytes8);
                 case KV3BinaryNodeType.UINT64:
-                {
-                    var value = MemoryMarshal.Read<ulong>(buffer.Bytes8);
-                    buffer.Bytes8 = buffer.Bytes8[sizeof(ulong)..];
-
-                    return value;
-                }
+                    return ReadLane<ulong>(ref lane.Bytes8);
                 case KV3BinaryNodeType.DOUBLE:
-                {
-                    var value = MemoryMarshal.Read<double>(buffer.Bytes8);
-                    buffer.Bytes8 = buffer.Bytes8[sizeof(double)..];
-
-                    return value;
-                }
+                    return ReadLane<double>(ref lane.Bytes8);
 
                 // Custom types
                 case KV3BinaryNodeType.STRING:
-                {
-                    var id = MemoryMarshal.Read<int>(buffer.Bytes4);
-                    buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
-
-                    return id == -1 ? string.Empty : context.Strings[id];
-                }
+                    return GetString(context, ReadLane<int>(ref buffer.Bytes4));
                 case KV3BinaryNodeType.BINARY_BLOB when context.Version < 2:
                 {
-                    var blockLength = MemoryMarshal.Read<int>(buffer.Bytes4);
-                    buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
+                    var blockLength = ReadLane<int>(ref buffer.Bytes4);
                     byte[] output;
 
                     if (blockLength > 0)
@@ -919,8 +876,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 case KV3BinaryNodeType.BINARY_BLOB:
                 {
-                    var blockLength = MemoryMarshal.Read<int>(context.BinaryBlobLengths);
-                    context.BinaryBlobLengths = context.BinaryBlobLengths[sizeof(int)..];
+                    var blockLength = ReadLane<int>(ref context.BinaryBlobLengths);
                     byte[] output;
 
                     if (blockLength > 0)
@@ -937,9 +893,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 case KV3BinaryNodeType.ARRAY:
                 {
-                    var arrayLength = MemoryMarshal.Read<int>(buffer.Bytes4);
-                    buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
-
+                    var arrayLength = ReadLane<int>(ref buffer.Bytes4);
                     var array = KVObject.Array(arrayLength);
 
                     for (var i = 0; i < arrayLength; i++)
@@ -951,68 +905,34 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 case KV3BinaryNodeType.ARRAY_TYPED:
                 case KV3BinaryNodeType.ARRAY_TYPE_BYTE_LENGTH:
-                {
-                    int arrayLength;
-
-                    if (datatype == KV3BinaryNodeType.ARRAY_TYPE_BYTE_LENGTH)
-                    {
-                        arrayLength = buffer.Bytes1[0];
-                        buffer.Bytes1 = buffer.Bytes1[1..];
-                    }
-                    else
-                    {
-                        arrayLength = MemoryMarshal.Read<int>(buffer.Bytes4);
-                        buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
-                    }
-
-                    var (subType, subFlagInfo) = ReadType(context);
-                    var typedArray = KVObject.Array(arrayLength);
-
-                    for (var i = 0; i < arrayLength; i++)
-                    {
-                        typedArray.Add(ReadBinaryValue(context, subType, subFlagInfo));
-                    }
-
-                    return typedArray;
-                }
                 case KV3BinaryNodeType.ARRAY_TYPE_AUXILIARY_BUFFER:
                 {
-                    Debug.Assert(context.Version >= 5);
+                    var arrayLength = datatype == KV3BinaryNodeType.ARRAY_TYPED
+                        ? ReadLane<int>(ref buffer.Bytes4)
+                        : ReadLane<byte>(ref buffer.Bytes1);
 
-                    var arrayLength = buffer.Bytes1[0];
-                    buffer.Bytes1 = buffer.Bytes1[1..];
+                    if (arrayLength == 0 && context.Version >= 2)
+                    {
+                        throw new InvalidDataException("Typed KV3 arrays can not be empty");
+                    }
 
                     var (subType, subFlagInfo) = ReadType(context);
                     var typedArray = KVObject.Array(arrayLength);
-
-                    // Swap the buffers and simply call read again instead of reimplementing the switch here
-                    (context.AuxiliaryBuffer, context.Buffer) = (context.Buffer, context.AuxiliaryBuffer);
+                    var elementLane = datatype == KV3BinaryNodeType.ARRAY_TYPE_AUXILIARY_BUFFER ? context.AuxiliaryBuffer : buffer;
 
                     for (var i = 0; i < arrayLength; i++)
                     {
-                        typedArray.Add(ReadBinaryValue(context, subType, subFlagInfo));
+                        typedArray.Add(ReadBinaryValue(context, subType, subFlagInfo, elementLane));
                     }
-
-                    (context.AuxiliaryBuffer, context.Buffer) = (context.Buffer, context.AuxiliaryBuffer);
 
                     return typedArray;
                 }
 
                 case KV3BinaryNodeType.OBJECT:
                 {
-                    int objectLength;
-
-                    if (context.Version >= 5)
-                    {
-                        objectLength = MemoryMarshal.Read<int>(context.ObjectLengths);
-                        context.ObjectLengths = context.ObjectLengths[sizeof(int)..];
-                    }
-                    else
-                    {
-                        objectLength = MemoryMarshal.Read<int>(buffer.Bytes4);
-                        buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
-                    }
-
+                    var objectLength = context.Version >= 5
+                        ? ReadLane<int>(ref context.ObjectLengths)
+                        : ReadLane<int>(ref buffer.Bytes4);
                     var newObject = KVObject.Collection(objectLength);
 
                     for (var i = 0; i < objectLength; i++)
