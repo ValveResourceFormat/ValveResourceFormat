@@ -212,7 +212,9 @@ namespace GUI.Types.GLViewers
                     Renderer.AddSpawnGroup(spawnGroup);
                 }
 
-                NavMeshSceneNode.AddNavNodesToScene(LoadedWorld.NavMesh, Scene);
+                NavMeshSceneNode.AddNavNodesToScene(LoadedWorld.NavMesh, Scene, LoadedWorld.NavigationHullNames);
+                NavSpaceSceneNode.AddToScene(LoadedWorld.NavSpace, Scene);
+                NavMeshSceneNode.AddFlowMapNodesToScene(LoadedWorld.NavFlowMap, LoadedWorld.NavMesh, Scene, LoadedWorld.NavigationHullNames);
                 CS2BombDamageSceneNode.AddBakedBombDamageToScene(LoadedWorld.BombDamage, Scene);
 
                 if (LoadedWorld.CameraMatrices.Count > 0)

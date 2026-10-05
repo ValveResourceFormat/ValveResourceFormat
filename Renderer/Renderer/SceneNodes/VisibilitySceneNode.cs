@@ -1,6 +1,3 @@
-using System.IO.Hashing;
-using System.Runtime.InteropServices;
-using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
@@ -8,29 +5,36 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// <summary>
     /// Debug scene node that draws voxel visibility cluster bounds as colored wireframe boxes.
     /// </summary>
-    public class VisibilitySceneNode : SceneNode
+    public class VisibilitySceneNode : WireframeSceneNode
     {
         private readonly record struct ClusterDrawRange(int Start, int Count, ushort ClusterId);
 
-        private readonly Shader shader;
-        private readonly int vao;
-        private readonly int totalVertexCount;
         private readonly ClusterDrawRange[] clusterDrawRanges;
 
         /// <summary>
         /// Initializes a new <see cref="VisibilitySceneNode"/> from the given voxel visibility data.
         /// </summary>
-        public VisibilitySceneNode(Scene scene, IWorldVisibility voxelVisibility) : base(scene)
+        public VisibilitySceneNode(Scene scene, IWorldVisibility voxelVisibility)
+            : this(scene, voxelVisibility, BuildClusterLines(voxelVisibility))
         {
-            shader = Scene.RendererContext.ShaderLoader.LoadShader("default");
+        }
 
+        private VisibilitySceneNode(Scene scene, IWorldVisibility voxelVisibility, (List<SimpleVertex> Vertices, ClusterDrawRange[] Ranges) lines)
+            : base(scene, lines.Vertices, nameof(VisibilitySceneNode))
+        {
+            clusterDrawRanges = lines.Ranges;
+            LocalBoundingBox = new AABB(voxelVisibility.MinBounds, voxelVisibility.MaxBounds);
+        }
+
+        private static (List<SimpleVertex> Vertices, ClusterDrawRange[] Ranges) BuildClusterLines(IWorldVisibility voxelVisibility)
+        {
             var vertices = new List<SimpleVertex>();
             var ranges = new List<ClusterDrawRange>();
 
             foreach (var (clusterId, children) in voxelVisibility.BuildClusterChildBounds())
             {
                 var start = vertices.Count;
-                var color = GetClusterColor(clusterId);
+                var color = GetIdColor(clusterId);
 
                 foreach (var (min, max) in children)
                 {
@@ -43,58 +47,27 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
             }
 
-            clusterDrawRanges = [.. ranges];
-            totalVertexCount = vertices.Count;
-
-            var vboHandle = GraphicsDevice.CreateBuffer<SimpleVertex>(nameof(VisibilitySceneNode), CollectionsMarshal.AsSpan(vertices), BufferUsage.Static);
-
-            vao = SimpleVertex.InputLayout.CreateVertexArray(nameof(VisibilitySceneNode), vboHandle);
-
-            LocalBoundingBox = new AABB(voxelVisibility.MinBounds, voxelVisibility.MaxBounds);
+            return (vertices, [.. ranges]);
         }
 
         /// <inheritdoc/>
-        public override void Render(Scene.RenderContext context)
+        protected override void DrawLines(Scene.RenderContext context)
         {
-            if (totalVertexCount == 0 || context.RenderPass is not RenderPass.Translucent and not RenderPass.Outline)
-            {
-                return;
-            }
-
-            var renderShader = context.ReplacementShader ?? shader;
-            renderShader.Use();
-
-            using var _ = GraphicsContext.RenderState.Scope(depthWrite: false);
-
-            VertexArray.Bind(vao, renderShader);
-
             var pvs = context.View?.Pvs ?? default;
 
             if (pvs.IsEmpty)
             {
-                GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, totalVertexCount, 1, Id);
+                base.DrawLines(context);
+                return;
             }
-            else
+
+            foreach (var range in clusterDrawRanges)
             {
-                foreach (var range in clusterDrawRanges)
+                if (range.ClusterId < (uint)(pvs.Length * 8) && MathUtils.GetBit(pvs.Span, range.ClusterId))
                 {
-                    if (range.ClusterId < (uint)(pvs.Length * 8) && MathUtils.GetBit(pvs.Span, range.ClusterId))
-                    {
-                        GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, range.Start, range.Count, 1, Id);
-                    }
+                    DrawLines(range.Start, range.Count);
                 }
             }
-        }
-
-        private static Color32 GetClusterColor(ushort clusterId)
-        {
-            var h = XxHash32.HashToUInt32(MemoryMarshal.AsBytes(new ReadOnlySpan<ushort>(in clusterId)));
-
-            var r = (byte)(((h & 0x3FF) / 1023.0f * 0.6f + 0.2f) * 255);
-            var g = (byte)((((h >> 10) & 0x3FF) / 1023.0f * 0.6f + 0.2f) * 255);
-            var b = (byte)((((h >> 20) & 0x3FF) / 1023.0f * 0.6f + 0.2f) * 255);
-
-            return new Color32(r, g, b, 255);
         }
     }
 }

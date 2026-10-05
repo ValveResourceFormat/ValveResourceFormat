@@ -86,6 +86,12 @@ namespace ValveResourceFormat.Renderer.World
 
         /// <summary>The loaded navigation mesh, populated by <see cref="LoadNavigationMesh"/>.</summary>
         public NavMeshFile? NavMesh { get; set; }
+        /// <summary>The names of the navigation hulls in hull index order, populated by <see cref="LoadNavigationMesh"/>.</summary>
+        public string[] NavigationHullNames { get; set; } = [];
+        /// <summary>The loaded navigation space, null if it doesn't exist. Populated by <see cref="LoadNavigationSpace"/>.</summary>
+        public NavSpaceFile? NavSpace { get; set; }
+        /// <summary>The loaded navigation flow map, null if it doesn't exist. Populated by <see cref="LoadNavigationFlowMap"/>.</summary>
+        public NavFlowMapFile? NavFlowMap { get; set; }
         /// <summary>Baked bomb damage data for CS2, null if it doesn't exist. Populated by <see cref="LoadBombDamageData"/>.</summary>
         public BombDamage? BombDamage { get; set; }
 
@@ -259,8 +265,8 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Loads all world components: lighting, entities, world nodes, physics, visibility, bomb damage data, and navigation mesh.
-        /// Navigation mesh loading is parallelized with resource preloading when references are provided.
+        /// Loads all world components: lighting, entities, world nodes, physics, visibility, bomb damage data, navigation mesh, navigation space and navigation flow map.
+        /// Navigation file loading is parallelized with resource preloading when references are provided.
         /// </summary>
         /// <param name="mapResourceReferences">Optional external reference list from the map resource, used to preload assets in parallel.</param>
         public void Load(ResourceExtRefList? mapResourceReferences = null)
@@ -269,6 +275,8 @@ namespace ValveResourceFormat.Renderer.World
 
             // Non resource files not covered by ParallelPreloadResources
             var navMeshTask = ownsScene ? Task.Run(LoadNavigationMesh) : Task.CompletedTask;
+            var navSpaceTask = ownsScene ? Task.Run(LoadNavigationSpace) : Task.CompletedTask;
+            var navFlowMapTask = ownsScene ? Task.Run(LoadNavigationFlowMap) : Task.CompletedTask;
 
             ParallelPreloadResources(mapResourceReferences);
 
@@ -288,6 +296,8 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             navMeshTask.Wait();
+            navSpaceTask.Wait();
+            navFlowMapTask.Wait();
         }
 
         /// <summary>
@@ -957,12 +967,69 @@ namespace ValveResourceFormat.Renderer.World
                 {
                     NavMesh = new NavMeshFile();
                     NavMesh.Read(navFileStream);
+                    NavigationHullNames = NavHullNames.Read(RendererContext.FileLoader, NavMesh.GenerationParams?.HullPresetName);
                     RendererContext.Logger.LogInformation("Navigation mesh loaded from '{NavFilePath}'", navFilePath);
                 }
             }
             catch (Exception e)
             {
                 RendererContext.Logger.LogError(e, "Couldn't load navigation mesh from '{NavFilePath}'", navFilePath);
+            }
+        }
+
+        /// <summary>
+        /// Loads the navigation space for this world. Populates <see cref="NavSpace"/>.
+        /// Skips loading if <see cref="NavSpace"/> is already set.
+        /// </summary>
+        public void LoadNavigationSpace()
+        {
+            if (NavSpace is not null)
+            {
+                return;
+            }
+
+            var navSpaceFilePath = Path.ChangeExtension(MapName, ".navspace");
+            try
+            {
+                using var navSpaceFileStream = RendererContext.FileLoader.GetFileStream(navSpaceFilePath);
+                if (navSpaceFileStream != null)
+                {
+                    NavSpace = new NavSpaceFile();
+                    NavSpace.Read(navSpaceFileStream);
+                    RendererContext.Logger.LogInformation("Navigation space loaded from '{NavSpaceFilePath}'", navSpaceFilePath);
+                }
+            }
+            catch (Exception e)
+            {
+                RendererContext.Logger.LogError(e, "Couldn't load navigation space from '{NavSpaceFilePath}'", navSpaceFilePath);
+            }
+        }
+
+        /// <summary>
+        /// Loads the navigation flow map for this world. Populates <see cref="NavFlowMap"/>.
+        /// Skips loading if <see cref="NavFlowMap"/> is already set.
+        /// </summary>
+        public void LoadNavigationFlowMap()
+        {
+            if (NavFlowMap is not null)
+            {
+                return;
+            }
+
+            var navFlowMapFilePath = Path.ChangeExtension(MapName, ".navflowmap");
+            try
+            {
+                using var navFlowMapFileStream = RendererContext.FileLoader.GetFileStream(navFlowMapFilePath);
+                if (navFlowMapFileStream != null)
+                {
+                    NavFlowMap = new NavFlowMapFile();
+                    NavFlowMap.Read(navFlowMapFileStream);
+                    RendererContext.Logger.LogInformation("Navigation flow map loaded from '{NavFlowMapFilePath}'", navFlowMapFilePath);
+                }
+            }
+            catch (Exception e)
+            {
+                RendererContext.Logger.LogError(e, "Couldn't load navigation flow map from '{NavFlowMapFilePath}'", navFlowMapFilePath);
             }
         }
 
