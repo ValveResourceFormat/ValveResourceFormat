@@ -16,6 +16,7 @@ html xml
 jpg png
 lst vdf
 mp3 wav
+navspace nav
 nmclip anim
 nmgrph anmgrph
 nmskel skel
