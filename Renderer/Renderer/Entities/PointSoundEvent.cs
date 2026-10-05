@@ -93,7 +93,7 @@ public sealed class PointSoundEvent : BaseEntity
         var sourceEntityName = KeyValues.GetStringProperty("sourceentityname");
 
         if (string.IsNullOrEmpty(sourceEntityName)
-            || EntitySystem.FindByTargetName(sourceEntityName, Scene)?.RootNode is not { } sourceNode)
+            || EntitySystem.FindByTargetName(sourceEntityName)?.RootNode is not { } sourceNode)
         {
             return Transform.Translation;
         }

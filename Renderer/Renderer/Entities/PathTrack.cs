@@ -132,8 +132,7 @@ public class PathTrack : BaseEntity
     private static bool NamesMatch(string? a, string? b)
         => string.Equals(a ?? string.Empty, b ?? string.Empty, StringComparison.OrdinalIgnoreCase);
 
-    // Only in this entity's own spawn group: a 3D sky shares names with the map it is placed in
-    private BaseEntity? Find(string targetName) => EntitySystem.FindByTargetName(targetName, Scene);
+    private BaseEntity? Find(string targetName) => EntitySystem.FindByTargetName(targetName);
 
     private bool IsAlternatePathUsable => alternatePath is { IsRemoved: false };
 

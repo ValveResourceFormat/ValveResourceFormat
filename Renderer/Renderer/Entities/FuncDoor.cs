@@ -310,7 +310,7 @@ public class FuncDoor : BaseToggle
             return;
         }
 
-        foreach (var entity in EntitySystem.FindAllByTargetName(TargetName, Scene))
+        foreach (var entity in EntitySystem.FindAllByTargetName(TargetName))
         {
             if (entity != this && entity is FuncDoor { Wait: >= 0f } door)
             {

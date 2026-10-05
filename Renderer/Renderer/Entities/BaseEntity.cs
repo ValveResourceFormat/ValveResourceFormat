@@ -164,7 +164,7 @@ public abstract class BaseEntity
             parentName = parentName[..comma];
         }
 
-        foreach (var candidate in EntitySystem.FindAllByTargetName(parentName, Scene))
+        foreach (var candidate in EntitySystem.FindAllByTargetNameInWorldGroup(parentName, Scene))
         {
             if (candidate != this)
             {

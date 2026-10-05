@@ -186,7 +186,7 @@ public class PropDoorRotating : BaseToggle
         var slaveName = KeyValues.GetStringProperty("slavename");
         var searchName = string.IsNullOrEmpty(slaveName) ? TargetName : slaveName;
 
-        foreach (var entity in EntitySystem.FindAllByTargetName(searchName, Scene))
+        foreach (var entity in EntitySystem.FindAllByTargetName(searchName))
         {
             if (entity != this && entity is PropDoorRotating door && door.slaves.Count == 0)
             {

@@ -275,7 +275,7 @@ public class FuncTrackTrain : BaseModelEntity
     private void Find()
     {
         var target = KeyValues.GetStringProperty("target");
-        var found = string.IsNullOrEmpty(target) ? null : EntitySystem.FindByTargetName(target, Scene);
+        var found = string.IsNullOrEmpty(target) ? null : EntitySystem.FindByTargetName(target);
 
         if (found == null)
         {
@@ -446,7 +446,7 @@ public class FuncTrackTrain : BaseModelEntity
 
         track.Pass(this);
 
-        if (pathTarget != null && EntitySystem.FindByTargetName(pathTarget, Scene) == track)
+        if (pathTarget != null && EntitySystem.FindByTargetName(pathTarget) == track)
         {
             EntitySystem.TriggerOutput(this, "OnArrivedAtDestinationNode", track);
             pathTarget = null;
@@ -462,7 +462,7 @@ public class FuncTrackTrain : BaseModelEntity
             SpawnFlags |= (uint)SpawnFlag.NoUserControl;
         }
 
-        if (pathTarget != null && EntitySystem.FindByTargetName(pathTarget, Scene) == node)
+        if (pathTarget != null && EntitySystem.FindByTargetName(pathTarget) == node)
         {
             EntitySystem.TriggerOutput(this, "OnArrivedAtDestinationNode", node);
 
@@ -1035,7 +1035,7 @@ public class FuncTrackTrain : BaseModelEntity
     {
         pathTarget = NonEmpty(data.Parameter);
 
-        var destination = pathTarget != null ? EntitySystem.FindByTargetName(pathTarget, Scene) : null;
+        var destination = pathTarget != null ? EntitySystem.FindByTargetName(pathTarget) : null;
 
         if (CurrentPath is not { } currentPath || destination == null)
         {
@@ -1091,7 +1091,7 @@ public class FuncTrackTrain : BaseModelEntity
     {
         pathTarget = NonEmpty(data.Parameter);
 
-        if (pathTarget == null || EntitySystem.FindByTargetName(pathTarget, Scene) is not { } found)
+        if (pathTarget == null || EntitySystem.FindByTargetName(pathTarget) is not { } found)
         {
             return;
         }

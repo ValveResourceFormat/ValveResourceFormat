@@ -44,7 +44,7 @@ public sealed class LogicBranchListener : BaseEntity
                 continue;
             }
 
-            foreach (var entity in EntitySystem.FindAllByTargetName(name, Scene))
+            foreach (var entity in EntitySystem.FindAllByTargetName(name))
             {
                 if (entity is not LogicBranch branch)
                 {

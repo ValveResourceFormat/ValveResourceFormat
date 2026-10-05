@@ -77,7 +77,7 @@ public sealed class AmbientGeneric : BaseEntity
 
         if (!string.IsNullOrEmpty(sourceName))
         {
-            soundSource = EntitySystem.FindByTargetName(sourceName, Scene)?.RootNode;
+            soundSource = EntitySystem.FindByTargetName(sourceName)?.RootNode;
 
             if (soundSource == null)
             {

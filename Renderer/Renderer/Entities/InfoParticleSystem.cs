@@ -96,8 +96,7 @@ public class InfoParticleSystem : BaseEntity
         }
         else
         {
-            // Only in this entity's own spawn group: a 3D sky shares names with the map it is placed in
-            target = EntitySystem.FindAllByTargetName(targetName, Scene).FirstOrDefault();
+            target = EntitySystem.FindByTargetName(targetName);
         }
 
         if (target == null)

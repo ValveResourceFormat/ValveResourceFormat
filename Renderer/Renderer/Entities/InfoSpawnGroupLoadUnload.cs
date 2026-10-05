@@ -90,20 +90,7 @@ public sealed class InfoSpawnGroupLoadUnload : BaseEntity
         EntitySystem.TriggerOutput(this, "OnSpawnGroupUnloadFinished", data.Activator);
     }
 
-    // Compiled landmark names carry a [PR#] prefix that the keyvalue leaves out
+    // The first entity of that name, which has to be a landmark
     private BaseEntity? FindLandmark()
-    {
-        foreach (var pattern in (ReadOnlySpan<string>)[Landmark, "[PR#]" + Landmark])
-        {
-            foreach (var candidate in EntitySystem.FindAllByTargetName(pattern, Scene))
-            {
-                if (candidate.Classname == "info_spawngroup_landmark")
-                {
-                    return candidate;
-                }
-            }
-        }
-
-        return null;
-    }
+        => EntitySystem.FindByTargetName(Landmark) is { Classname: "info_spawngroup_landmark" } landmark ? landmark : null;
 }

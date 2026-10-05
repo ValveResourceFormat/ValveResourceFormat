@@ -841,7 +841,7 @@ public sealed class EntitySystem
             : nameFixup.Apply(connection.OverrideParam);
 
     /// <summary>
-    /// Finds every entity whose targetname matches.
+    /// Finds every entity whose targetname matches, in any world group, as the engine's name lookups do.
     /// </summary>
     public IEnumerable<BaseEntity> FindAllByTargetName(string pattern)
     {
@@ -854,11 +854,22 @@ public sealed class EntitySystem
         }
     }
 
+    /// <summary>Finds the first entity whose targetname matches, in any world group.</summary>
+    public BaseEntity? FindByTargetName(string pattern)
+    {
+        foreach (var entity in FindAllByTargetName(pattern))
+        {
+            return entity;
+        }
+
+        return null;
+    }
+
     /// <summary>
-    /// Finds every entity in the world group of <paramref name="scene"/> whose targetname matches. A 3D sky
-    /// reuses names from the map it is placed in, so names in entity keyvalues must be looked up this way.
+    /// Finds every entity in the world group of <paramref name="scene"/> whose targetname matches. Only
+    /// <c>parentname</c> is looked up this way; every other name an entity refers to is found in any world group.
     /// </summary>
-    public IEnumerable<BaseEntity> FindAllByTargetName(string pattern, Scene scene)
+    public IEnumerable<BaseEntity> FindAllByTargetNameInWorldGroup(string pattern, Scene scene)
     {
         ArgumentNullException.ThrowIfNull(scene);
 
@@ -869,17 +880,6 @@ public sealed class EntitySystem
                 yield return entity;
             }
         }
-    }
-
-    /// <summary>Finds the first entity in the world group of <paramref name="scene"/> whose targetname matches.</summary>
-    public BaseEntity? FindByTargetName(string pattern, Scene scene)
-    {
-        foreach (var entity in FindAllByTargetName(pattern, scene))
-        {
-            return entity;
-        }
-
-        return null;
     }
 
     private static bool Matches(BaseEntity entity, string pattern)

@@ -105,8 +105,7 @@ public sealed class EnvCubemapFog : BaseEntity
                     break;
                 }
 
-                // Only in this entity's own spawn group: a 3D sky shares names with the map it is placed in
-                if (EntitySystem.FindAllByTargetName(skyEntTargetName, Scene).OfType<EnvSky>().FirstOrDefault() is not { } sky)
+                if (EntitySystem.FindAllByTargetName(skyEntTargetName).OfType<EnvSky>().FirstOrDefault() is not { } sky)
                 {
                     EntitySystem.Logger.LogWarning("Disabling cubemap fog because failed to find env_sky of target name {SkyEntTargetName}", skyEntTargetName);
                     return;

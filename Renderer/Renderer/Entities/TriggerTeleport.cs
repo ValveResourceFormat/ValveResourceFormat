@@ -41,7 +41,7 @@ public sealed class TriggerTeleport : BaseTrigger
             return;
         }
 
-        if (EntitySystem.FindByTargetName(targetName, Scene) is not { } target)
+        if (EntitySystem.FindByTargetName(targetName) is not { } target)
         {
             EntitySystem.Logger.LogWarning("trigger_teleport '{TargetName}' target '{Target}' was not found", TargetName, targetName);
             return;

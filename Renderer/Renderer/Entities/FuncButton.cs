@@ -201,11 +201,7 @@ public sealed class FuncButton : BaseToggle
             return;
         }
 
-        foreach (var entity in EntitySystem.FindAllByTargetName(glowEntityName, Scene))
-        {
-            GlowEntity = entity;
-            break;
-        }
+        GlowEntity = EntitySystem.FindByTargetName(glowEntityName);
     }
 
     /// <summary>

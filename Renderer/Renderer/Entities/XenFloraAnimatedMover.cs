@@ -193,7 +193,6 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
         }
     }
 
-    // Only in this entity's own spawn group: a 3D sky shares names with the map it is placed in
     private BaseEntity? FindPathCorner(string? targetName)
     {
         if (string.IsNullOrEmpty(targetName))
@@ -201,7 +200,7 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
             return null;
         }
 
-        var candidate = EntitySystem.FindAllByTargetName(targetName, Scene).FirstOrDefault();
+        var candidate = EntitySystem.FindByTargetName(targetName);
 
         return candidate?.Classname.Equals("path_corner", StringComparison.OrdinalIgnoreCase) == true ? candidate : null;
     }

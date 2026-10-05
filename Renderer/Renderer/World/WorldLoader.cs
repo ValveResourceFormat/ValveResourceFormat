@@ -1140,7 +1140,7 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private BaseEntity? FindHelperLineEnd(string key, string name)
             => key.Equals("targetname", StringComparison.OrdinalIgnoreCase)
-                ? entitySystem.FindAllByTargetName(name, scene).FirstOrDefault()
+                ? entitySystem.FindAllByTargetNameInWorldGroup(name, scene).FirstOrDefault()
                 : null;
 
         /// <summary>
