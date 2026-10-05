@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 using ValvePak;
 using ValveResourceFormat.NavMesh;
 
@@ -99,6 +100,23 @@ namespace Tests.Formats
                 await Assert.That(navMeshFile.GenerationParams?.HullParams[0].Name).IsEqualTo("player");
                 await Assert.That(navMeshFile.GenerationParams?.HullParams[0].FlowMapEnabled).IsFalse();
                 await Assert.That(navMeshFile.GenerationParams?.HullParams[0].FlowMapNodeMaxRadius).IsEqualTo(400f);
+            }
+        }
+
+        [Test]
+        public async Task TestNavFlowMap()
+        {
+            var navFlowMapFile = new NavFlowMapFile();
+            navFlowMapFile.Read(TestFixtures.Path("dl_hideout.navflowmap"));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(navFlowMapFile.Version).IsEqualTo(1);
+                await Assert.That(navFlowMapFile.Hulls.Select(static hull => hull.HullIndex)).IsEquivalentTo([0, 1, 2], CollectionOrdering.Matching);
+                await Assert.That(navFlowMapFile.Hulls.Select(static hull => hull.Nodes.Length)).IsEquivalentTo([43, 51, 24], CollectionOrdering.Matching);
+                await Assert.That(navFlowMapFile.Hulls.Select(static hull => hull.Nodes.Sum(static node => node.AreaIds.Length))).IsEquivalentTo([1106, 1010, 561], CollectionOrdering.Matching);
+                await Assert.That(navFlowMapFile.Hulls.Select(static hull => hull.Nodes.Sum(static node => node.Connections.Length))).IsEquivalentTo([107, 122, 30], CollectionOrdering.Matching);
+                await Assert.That(navFlowMapFile.Hulls[0].Nodes.Select(static (node, index) => node.Index == index)).DoesNotContain(false);
             }
         }
     }
