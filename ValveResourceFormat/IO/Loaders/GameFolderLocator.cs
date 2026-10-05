@@ -48,7 +48,14 @@ namespace ValveResourceFormat.IO
                     else if (OperatingSystem.IsLinux())
                     {
                         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                        var paths = new[] { ".steam", ".steam/steam", ".steam/root", ".local/share/Steam" };
+                        string[] paths =
+                        [
+                            ".steam",
+                            ".steam/steam",
+                            ".steam/root",
+                            ".local/share/Steam",
+                            ".var/app/com.valvesoftware.Steam/.local/share/Steam",
+                        ];
 
                         steamPath = paths
                             .Select(path => Path.Join(home, path))
