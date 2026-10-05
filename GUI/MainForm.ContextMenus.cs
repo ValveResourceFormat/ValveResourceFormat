@@ -12,6 +12,7 @@ using GUI.Types.GLViewers;
 using GUI.Types.PackageViewer;
 using GUI.Utils;
 using ValvePak;
+using ValveResourceFormat.IO;
 
 namespace GUI
 {
@@ -142,6 +143,7 @@ namespace GUI
                 return;
             }
 
+            var packageLink = wantsFullPath ? GetVpkLinkPackagePath(context) : null;
             var sb = new StringBuilder();
 
             foreach (var selectedNode in selectedNodes)
@@ -151,29 +153,9 @@ namespace GUI
                     sb.AppendLine();
                 }
 
-                if (wantsFullPath)
+                if (packageLink != null)
                 {
-                    sb.Append("vpk:");
-
-                    var packageChain = new Stack<string>();
-
-                    for (var chainContext = context; chainContext != null; chainContext = chainContext.ParentGuiContext)
-                    {
-                        packageChain.Push(chainContext.FileName);
-                    }
-
-                    var firstSegment = true;
-
-                    foreach (var segment in packageChain)
-                    {
-                        if (!firstSegment)
-                        {
-                            sb.Append(':');
-                        }
-
-                        sb.Append(EscapeVpkLinkPath(segment.Replace('\\', '/')));
-                        firstSegment = false;
-                    }
+                    sb.Append(packageLink);
                 }
 
                 if (!selectedNode.IsFolder)
@@ -187,7 +169,7 @@ namespace GUI
                     if (packageEntry != null)
                     {
                         var entryPath = packageEntry.GetFullPath();
-                        sb.Append(wantsFullPath ? EscapeVpkLinkPath(entryPath) : entryPath);
+                        sb.Append(wantsFullPath ? VpkLink.EscapePath(entryPath) : entryPath);
                     }
                 }
                 else
@@ -219,7 +201,7 @@ namespace GUI
 
                     while (stack.TryPop(out var name))
                     {
-                        sb.Append(wantsFullPath ? EscapeVpkLinkPath(name) : name);
+                        sb.Append(wantsFullPath ? VpkLink.EscapePath(name) : name);
                         sb.Append(Package.DirectorySeparatorChar);
                     }
                 }
@@ -229,6 +211,28 @@ namespace GUI
             {
                 AppClipboard.SetText(sb.ToString());
             }
+        }
+
+        /// <summary>
+        /// Builds the <c>vpk:</c> link to the package, and the packages it is nested in.
+        /// The outermost package is relative to its Steam app when that resolves back to it, so the link works on other computers.
+        /// </summary>
+        private static string GetVpkLinkPackagePath(VrfGuiContext context)
+        {
+            var packageChain = new List<string>();
+
+            for (var chainContext = context; chainContext != null; chainContext = chainContext.ParentGuiContext)
+            {
+                packageChain.Add(chainContext.FileName);
+            }
+
+            packageChain.Reverse();
+
+            // The explorer has usually found the installed games already
+            var games = ExplorerControl.SteamGames.Count > 0 ? ExplorerControl.SteamGames : null;
+            packageChain[0] = GameFolderLocator.GetSteamAppPath(packageChain[0], games) ?? packageChain[0];
+
+            return string.Concat(VpkLink.Prefix, string.Join(':', packageChain.Select(static path => VpkLink.EscapePath(path.Replace('\\', '/')))));
         }
 
         private void OpenWithoutViewerToolStripMenuItem_Click(object sender, EventArgs e)

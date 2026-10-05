@@ -64,6 +64,8 @@ namespace CLI
         private bool Decompile;
         private TextureCodec TextureDecodeFlags = TextureCodec.Auto;
         private string[] FileFilter = [];
+        private string? LinkedFilePath; // The file inside of the package that a "vpk:" input link points to
+        private bool HasPathFilter => FileFilter.Length > 0 || LinkedFilePath != null;
         private bool ListResources;
         private string? GamePath;
         private string? GltfExportFormat;
@@ -107,7 +109,7 @@ namespace CLI
         /// <summary>
         /// Inspect, extract and decompile Source 2 files and VPK archives, see https://s2v.app/ValveResourceFormat/guides/command-line.html for examples.
         /// </summary>
-        /// <param name="input">-i, Input file or folder to be processed, multiple can be comma-separated (not with --output). With no other options, a summary of the input(s) is printed.</param>
+        /// <param name="input">-i, Input file or folder to be processed, multiple can be comma-separated (not with --output). Accepts paths relative to an installed Steam app such as "steam:730/game/csgo", and "vpk:" links copied in Source 2 Viewer. With no other options, a summary of the input(s) is printed.</param>
         /// <param name="recursive">If the input is a folder, also scan its subfolders.</param>
         /// <param name="recursive_vpk">If the input is a folder, also process files inside of VPK archives in it.</param>
         /// <param name="vpk_extensions">-e, File extension(s) filter, example: "vcss_c,vjs_c,vxml_c".</param>
@@ -134,7 +136,7 @@ namespace CLI
         /// <param name="tools_asset_info_short">Print only file paths for tools_asset_info files.</param>
         /// <param name="threads">If higher than 1, files are processed concurrently. Only used with --output or --test.</param>
         /// <param name="quiet">-q, When writing to --output, only print errors and a summary. With the shader options, only print their output.</param>
-        /// <param name="game">Path to a gameinfo.gi file, or the folder containing it, to load game search paths from. Useful when the input file is not located inside a game folder.</param>
+        /// <param name="game">Path to a gameinfo.gi file, or the folder containing it, to load game search paths from, such as "steam:730/game/csgo". Useful when the input file is not located inside a game folder.</param>
         /// <param name="test">Run every input file through all of the decompile code paths to find exceptions, and print how many files of each type and version were found. Use "-i steam" to scan all Steam libraries.</param>
         /// <param name="test_loader">When using --test, use GameFileLoader to load dependencies.</param>
         /// <param name="test_print_files">When using --test, print example file names for each type.</param>
@@ -193,6 +195,59 @@ namespace CLI
                 return 1;
             }
 
+            // A "vpk:" link copied from Source 2 Viewer, which can point to a file or folder inside of the package
+            if (VpkLink.IsVpkLink(input))
+            {
+                var (packagePaths, linkedPath) = VpkLink.Parse(input);
+
+                if (packagePaths.Count > 1)
+                {
+                    Console.Error.WriteLine("The vpk: link points into a VPK inside of a VPK, which is not supported.");
+                    return 1;
+                }
+
+                input = packagePaths.Count == 1 ? packagePaths[0] : linkedPath;
+
+                if (packagePaths.Count == 1 && linkedPath.Length > 0)
+                {
+                    if (vpk_filepath != null)
+                    {
+                        Console.Error.WriteLine("--vpk_filepath can not be used with a vpk: link that points inside of the package.");
+                        return 1;
+                    }
+
+                    // A folder is matched the same as --vpk_filepath, but a file has to match exactly
+                    if (linkedPath.EndsWith('/'))
+                    {
+                        vpk_filepath = linkedPath;
+                    }
+                    else
+                    {
+                        LinkedFilePath = FixPathSlashes(linkedPath);
+                    }
+                }
+            }
+
+            // Paths can be relative to a Steam app, such as "steam:730/game/csgo"
+            var inputs = input.Split(',');
+
+            for (var i = 0; i < inputs.Length; i++)
+            {
+                if (!GameFolderLocator.TryResolveSteamAppPath(inputs[i].Trim(), out inputs[i], out var inputError))
+                {
+                    Console.Error.WriteLine(inputError);
+                    return 1;
+                }
+            }
+
+            input = string.Join(',', inputs);
+
+            if (game != null && !GameFolderLocator.TryResolveSteamAppPath(game, out game, out var gameError))
+            {
+                Console.Error.WriteLine(gameError);
+                return 1;
+            }
+
             // Options that only make sense together with another one turn it on
             test |= test_loader || test_print_files || test_unique_deps || test_particles || test_vertex_attributes || test_gltf || test_entity_keys;
             decompile |= gltf_export_format != null || output == "-";
@@ -200,7 +255,7 @@ namespace CLI
             gltf_export_materials |= gltf_textures_adapt;
 
             var isSteamInput = input.Equals("steam", StringComparison.OrdinalIgnoreCase) && !Path.Exists(input);
-            var hasFilters = vpk_extensions != null || vpk_filepath != null;
+            var hasFilters = vpk_extensions != null || vpk_filepath != null || LinkedFilePath != null;
 
             InputFile = isSteamInput ? "steam" : Path.GetFullPath(input);
             OutputFile = output;
@@ -588,10 +643,12 @@ namespace CLI
                 Console.WriteLine($"--- Wrote {WrittenFiles} files");
             }
 
-            if (!AnyFileMatched && !CollectStats && (FileFilter.Length > 0 || ExtFilterList != null))
+            if (!AnyFileMatched && !CollectStats && (HasPathFilter || ExtFilterList != null))
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.Error.WriteLine("No files matched the given filters. --vpk_filepath matches the start of the path unless it contains * or ? wildcards, use --vpk_list to see all paths.");
+                Console.Error.WriteLine(LinkedFilePath != null
+                    ? $"The vpk: link points to \"{LinkedFilePath.Replace('\\', '/')}\", which does not exist in the package."
+                    : "No files matched the given filters. --vpk_filepath matches the start of the path unless it contains * or ? wildcards, use --vpk_list to see all paths.");
                 Console.ResetColor();
             }
 
@@ -1346,7 +1403,7 @@ namespace CLI
 
                     foreach (var entry in orderedEntries)
                     {
-                        var count = FileFilter.Length == 0 ? entry.Value.Count : FilteredEntries(entry.Value).Count();
+                        var count = HasPathFilter ? FilteredEntries(entry.Value).Count() : entry.Value.Count;
 
                         if (count > 0)
                         {
@@ -1833,6 +1890,11 @@ namespace CLI
 
         private bool IsExcludedVpkFilePath(string filePath)
         {
+            if (LinkedFilePath != null)
+            {
+                return !filePath.Equals(LinkedFilePath, StringComparison.OrdinalIgnoreCase);
+            }
+
             return FileFilter.Length > 0 && FileFilter.All(filter => !IsVpkFilePathMatch(filter, filePath));
         }
 

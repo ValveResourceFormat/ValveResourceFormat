@@ -143,45 +143,40 @@ namespace GUI
             mainLogo.Image = Themer.SvgToBitmap(AppIcons.ExtensionSVGS["Logo"], mainLogo.Width, mainLogo.Height);
         }
 
-        /// <summary>
-        /// Escapes a package or inner file path for a <c>vpk:</c> link, so that
-        /// <see cref="OpenCommandLineArgFiles"/> reads it back unchanged.
-        /// </summary>
-        public static string EscapeVpkLinkPath(string path) => path.Replace("%", "%25", StringComparison.Ordinal);
-
         public void OpenCommandLineArgFiles(string[] args)
         {
             for (var i = 0; i < args.Length; i++)
             {
                 var file = args[i];
+                List<string> packagePaths = [];
+                var innerFile = file;
 
-                // Handle vpk: protocol
-                if (file.StartsWith("vpk:", StringComparison.InvariantCulture))
+                if (VpkLink.IsVpkLink(file))
                 {
-                    file = Uri.UnescapeDataString(file[4..]);
-
-                    // Every ".vpk:" separates a package from the path inside it, so nested packages
-                    // can be addressed as "outer_dir.vpk:maps/inner.vpk:models/file.vmdl_c"
-                    var packagePaths = new List<string>();
-                    var innerFile = file;
-                    int separator;
-
-                    while ((separator = innerFile.IndexOf(".vpk:", StringComparison.OrdinalIgnoreCase)) != -1)
-                    {
-                        packagePaths.Add(innerFile[..(separator + 4)]);
-                        innerFile = innerFile[(separator + 5)..];
-                    }
+                    (packagePaths, innerFile) = VpkLink.Parse(file);
 
                     if (packagePaths.Count == 0)
                     {
                         Log.Error(nameof(MainForm), $"For vpk: protocol to work, specify a file path inside of the package, for example: \"vpk:C:/path/pak01_dir.vpk:inner/file.vmdl_c\"");
-
-                        OpenFile(file);
-                        continue;
+                        file = innerFile;
                     }
+                }
 
+                if (packagePaths.Count > 0)
+                {
                     file = packagePaths[0];
+                }
 
+                // Paths can be relative to a Steam app, such as "steam:730/game/csgo/pak01_dir.vpk"
+                if (!GameFolderLocator.TryResolveSteamAppPath(file, out file, out var steamAppPathError))
+                {
+                    Log.Error(nameof(MainForm), steamAppPathError);
+                    mainTabs.OpenTab("Console");
+                    continue;
+                }
+
+                if (packagePaths.Count > 0)
+                {
                     if (!File.Exists(file))
                     {
                         var dirFile = string.Concat(file.AsSpan(0, file.Length - 4), "_dir.vpk");

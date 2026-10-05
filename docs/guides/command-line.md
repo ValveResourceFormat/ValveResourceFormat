@@ -9,7 +9,7 @@ The binary name is `Source2Viewer-CLI`.
 | Option                       | Description                                                                                                                                                                                                                                                                                                      |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Input**                    |                                                                                                                                                                                                                                                                                                                  |
-| `--input` (or `-i`)          | Input file or folder to be processed, multiple can be comma-separated (not with `--output`). With no other options, a summary of the input(s) is printed.                                                                                                                                                        |
+| `--input` (or `-i`)          | Input file or folder to be processed, multiple can be comma-separated (not with `--output`). Accepts paths relative to an installed Steam app such as `"steam:730/game/csgo"`, and `"vpk:"` links copied in Source 2 Viewer. With no other options, a summary of the input(s) is printed.                        |
 | `--recursive`                | If the input is a folder, also scan its subfolders.                                                                                                                                                                                                                                                              |
 | `--recursive_vpk`            | If the input is a folder, also process files inside of VPK archives in it.                                                                                                                                                                                                                                       |
 | `--vpk_extensions` (or `-e`) | File extension(s) filter, example: `"vcss_c,vjs_c,vxml_c"`.                                                                                                                                                                                                                                                      |
@@ -39,7 +39,7 @@ The binary name is `Source2Viewer-CLI`.
 | **Other**                    |                                                                                                                                                                                                                                                                                                                  |
 | `--threads`                  | If higher than 1, files are processed concurrently. Only used with `--output` or `--test`.                                                                                                                                                                                                                       |
 | `--quiet` (or `-q`)          | When writing to `--output`, only print errors and a summary. With the shader options, only print their output.                                                                                                                                                                                                   |
-| `--game`                     | Path to a `gameinfo.gi` file, or the folder containing it, to load game search paths from. Useful when the input file is not located inside a game folder.                                                                                                                                                       |
+| `--game`                     | Path to a `gameinfo.gi` file, or the folder containing it, to load game search paths from, such as `"steam:730/game/csgo"`. Useful when the input file is not located inside a game folder.                                                                                                                      |
 | `--version`                  | Show version information.                                                                                                                                                                                                                                                                                        |
 | `--help`                     | Show help information.                                                                                                                                                                                                                                                                                           |
 
@@ -52,6 +52,7 @@ The exit code is `0` on success, `1` for invalid arguments, and `2` when any fil
 ### Good to know
 
 - Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_verify`, `--block` (or `--all`), `--test`, and the shader options can be used at a time.
+- Paths starting with `steam:<appid>/` are relative to the installation folder of that Steam app, so `-i steam:730/game/csgo/pak01_dir.vpk` works on any computer with Counter-Strike 2 installed. "Copy full path" in Source 2 Viewer copies `vpk:` links in this form, which can be passed to `--input` to process the file or folder they point to.
 - Pass the `_dir.vpk` of a multi-chunk package (`pak01_dir.vpk`), not one of the numbered `pak01_000.vpk` chunks.
 - Use `--vpk_list` to find the exact path of a file, then filter on it with `--vpk_filepath`. The filter matches the start of the path, so `models/chicken/` works but `chicken` does not, use `*chicken*` instead.
 - For VPK input, `--output` without `--vpk_decompile` writes the compiled files as they are stored. A single compiled file on disk is decompiled whenever `--output` is given.
@@ -118,6 +119,14 @@ Or decompile the entities of every map:
 
 ```powershell
 ./Source2Viewer-CLI.exe -i "<game>/maps" --recursive_vpk --vpk_extensions "vents_c" -d -o "entities" --quiet
+```
+
+### Print a file copied from Source 2 Viewer
+
+Use "Copy full path" on a file in Source 2 Viewer, and pass the copied link as the input:
+
+```powershell
+./Source2Viewer-CLI.exe -i "vpk:steam:730/game/csgo/pak01_dir.vpk:scripts/items/items_game.txt" -o -
 ```
 
 ### Decompile a specific file

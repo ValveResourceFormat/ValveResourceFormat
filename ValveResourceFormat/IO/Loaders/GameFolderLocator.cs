@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using Microsoft.Win32;
@@ -166,6 +168,113 @@ namespace ValveResourceFormat.IO
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Prefix of portable paths relative to the installation folder of a Steam app, such as <c>steam:730/game/csgo/pak01_dir.vpk</c>.
+        /// </summary>
+        public const string SteamAppPathPrefix = "steam:";
+
+        private static StringComparison PathComparison => OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+        /// <summary>
+        /// Whether the path is relative to a Steam app, see <see cref="SteamAppPathPrefix"/>.
+        /// </summary>
+        public static bool IsSteamAppPath(string path) => path.StartsWith(SteamAppPathPrefix, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Resolves a <c>steam:&lt;appid&gt;/&lt;path&gt;</c> path to the full path inside of the installation folder of that Steam app,
+        /// other paths are returned unchanged.
+        /// </summary>
+        /// <param name="path">Path to resolve.</param>
+        /// <param name="resolvedPath">The resolved path, or <paramref name="path"/> if it is not relative to a Steam app or could not be resolved.</param>
+        /// <param name="error">Why the path could not be resolved, such as the app not being installed.</param>
+        public static bool TryResolveSteamAppPath(string path, out string resolvedPath, [NotNullWhen(false)] out string? error)
+        {
+            resolvedPath = path;
+            error = null;
+
+            if (!IsSteamAppPath(path))
+            {
+                return true;
+            }
+
+            var rest = path.AsSpan(SteamAppPathPrefix.Length);
+            var separator = rest.IndexOfAny('/', '\\');
+            var appIdText = separator < 0 ? rest : rest[..separator];
+            var relativePath = separator < 0 ? [] : rest[(separator + 1)..];
+
+            if (!int.TryParse(appIdText, NumberStyles.None, CultureInfo.InvariantCulture, out var appId))
+            {
+                error = $"\"{path}\" does not start with a Steam app id, for example \"{SteamAppPathPrefix}730/game/csgo/pak01_dir.vpk\".";
+                return false;
+            }
+
+            var game = FindSteamGameByAppId(appId);
+
+            if (game == null)
+            {
+                // Source 2 apps keep their content in a "game" folder
+                var installedApps = FindAllSteamGames()
+                    .Where(static game => Directory.Exists(Path.Join(game.GamePath, "game")))
+                    .OrderBy(static game => game.AppID)
+                    .Select(static game => $"{game.AppID} ({game.AppName})");
+
+                error = $"Steam app {appId} is not installed. Installed Source 2 apps: {string.Join(", ", installedApps)}.";
+                return false;
+            }
+
+            var fullPath = Path.GetFullPath(Path.Join(game.Value.GamePath, relativePath));
+
+            if (!IsInsideFolder(fullPath, game.Value.GamePath))
+            {
+                error = $"\"{path}\" points outside of the folder of Steam app {appId}.";
+                return false;
+            }
+
+            resolvedPath = fullPath;
+            return true;
+        }
+
+        /// <summary>
+        /// Converts a full path inside of an installed Steam app to a portable <c>steam:&lt;appid&gt;/&lt;path&gt;</c> path,
+        /// which resolves back to the same file on any computer that has the app installed.
+        /// </summary>
+        /// <param name="fullPath">Path to convert.</param>
+        /// <param name="games">Installed apps, as returned by <see cref="FindAllSteamGames"/>. Found when not given.</param>
+        /// <returns>The portable path, or <c>null</c> if the path is not inside of an installed app.</returns>
+        public static string? GetSteamAppPath(string fullPath, IReadOnlyList<SteamLibraryGameInfo>? games = null)
+        {
+            games ??= FindAllSteamGames();
+            fullPath = Path.GetFullPath(fullPath);
+
+            SteamLibraryGameInfo? match = null;
+
+            // Resolving only finds the first manifest of an app, so a stale one in another library can not be linked to
+            foreach (var game in games.DistinctBy(static game => game.AppID))
+            {
+                if (IsInsideFolder(fullPath, game.GamePath) && (match == null || game.AppID < match.Value.AppID))
+                {
+                    match = game;
+                }
+            }
+
+            if (match == null)
+            {
+                return null;
+            }
+
+            var relativePath = fullPath.AsSpan(Math.Min(match.Value.GamePath.Length, fullPath.Length));
+
+            return $"{SteamAppPathPrefix}{match.Value.AppID}/{relativePath}".Replace('\\', '/');
+        }
+
+        /// <param name="path">Full path.</param>
+        /// <param name="folder">Full path of the folder, ending with a separator.</param>
+        private static bool IsInsideFolder(string path, string folder)
+        {
+            return path.StartsWith(folder, PathComparison)
+                || path.AsSpan().Equals(Path.TrimEndingDirectorySeparator(folder.AsSpan()), PathComparison);
         }
 
         private static SteamLibraryGameInfo? GetGameInfoFromAppManifestFile(string steamPath, string appManifestPath)
