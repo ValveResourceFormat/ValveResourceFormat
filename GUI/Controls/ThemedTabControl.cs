@@ -476,13 +476,14 @@ namespace GUI.Controls
 
         protected virtual void DrawStrip(Graphics g, int stripHeight)
         {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-
+            // The buffer starts out black, an antialiased fill would leave its edge rows half covered.
             using (var bgBrush = new SolidBrush(BackColor))
             {
                 g.FillRectangle(bgBrush, new Rectangle(0, 0, Width, stripHeight));
             }
+
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
             for (var i = 0; i < TabCount; i++)
             {
