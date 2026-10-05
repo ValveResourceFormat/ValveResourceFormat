@@ -2,6 +2,8 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using GUI.Types.PackageViewer;
+using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.Choreo;
@@ -12,7 +14,7 @@ namespace GUI.Controls
     class ChoreoViewer : TextControl
     {
         private readonly ChoreoSceneFileData choreoDataList;
-        private readonly ListView fileListView;
+        private readonly BetterListView fileListView;
 
         public ChoreoViewer(Resource resource)
         {
@@ -22,7 +24,7 @@ namespace GUI.Controls
 
             var fileName = Path.GetFileNameWithoutExtension(resource.FileName) + ".vcdlist";
 
-            fileListView = new ListView
+            fileListView = new BetterListView
             {
                 View = View.Details,
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
@@ -33,11 +35,12 @@ namespace GUI.Controls
             };
             fileListView.ItemSelectionChanged += FileListView_ItemSelectionChanged;
 
-            fileListView.Columns.Add("Name", 250);
+            // The first column stretches to fill the list
+            fileListView.Columns.Add("Name");
             fileListView.Columns.Add("Version");
-            fileListView.Columns.Add("Duration (s)", 90);
-            fileListView.Columns.Add("Sound duration (s)", 130);
-            fileListView.Columns.Add("Has sounds", 90);
+            fileListView.Columns.Add("Duration (s)");
+            fileListView.Columns.Add("Sound duration (s)");
+            fileListView.Columns.Add("Has sounds");
 
             AddListItem(null, fileName, choreoDataList.Version, null);
             for (var i = 0; i < choreoDataList.Scenes.Length; i++)
@@ -46,6 +49,7 @@ namespace GUI.Controls
                 AddListItem(i, scene.Name ?? string.Empty, scene.Version, scene);
             }
 
+            Themer.ThemeControl(fileListView);
             AddControl(fileListView);
         }
 

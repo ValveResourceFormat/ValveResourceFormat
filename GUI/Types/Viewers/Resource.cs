@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -362,16 +361,41 @@ namespace GUI.Types.Viewers
 
             resTabs.Disposed += OnTabDisposed;
 
-            List<RawBinary>? binaryBuffers = null;
             var loadedResource = resource;
+            var blocksByType = new Dictionary<BlockType, List<(int Index, Block Block)>>();
 
-            foreach (var block in resource.Blocks)
+            for (var blockIndex = 0; blockIndex < resource.Blocks.Count; blockIndex++)
             {
-                // They are just binary blobs, and the actual layout of them is stored in CTRL, so the tabs are not useful here
-                if (block is RawBinary rawBlock && block.Type is BlockType.MVTX or BlockType.MIDX or BlockType.MADJ)
+                var block = resource.Blocks[blockIndex];
+
+                if (!blocksByType.TryGetValue(block.Type, out var blocksOfType))
                 {
-                    binaryBuffers ??= [];
-                    binaryBuffers.Add(rawBlock);
+                    blocksOfType = [];
+                    blocksByType[block.Type] = blocksOfType;
+                }
+
+                blocksOfType.Add((blockIndex, block));
+            }
+
+            for (var blockIndex = 0; blockIndex < resource.Blocks.Count; blockIndex++)
+            {
+                var block = resource.Blocks[blockIndex];
+                var blocksOfType = blocksByType[block.Type];
+
+                // Models repeat their per mesh blocks, so these get a single tab listing them all
+                if (blocksOfType.Count > 1)
+                {
+                    if (blocksOfType[0].Index == blockIndex)
+                    {
+                        var listTab = new ThemedTabPage($"{block.Type} ({blocksOfType.Count})");
+                        resTabs.TabPages.Add(listTab);
+
+                        PopulateWhenShown(listTab, () =>
+                        {
+                            listTab.Controls.Add(new RepeatedBlocksViewer(blocksOfType, GetBlockNames(loadedResource), (selectedBlock, container) => PopulateBlockView(loadedResource, selectedBlock, container)));
+                        });
+                    }
+
                     continue;
                 }
 
@@ -434,39 +458,12 @@ namespace GUI.Types.Viewers
                 var blockTab = new ThemedTabPage(block.Type.ToString());
                 resTabs.TabPages.Add(blockTab);
 
-                PopulateWhenShown(blockTab, () =>
-                {
-                    try
-                    {
-                        AddTextViewControl(loadedResource, block, blockTab);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error(nameof(Resource), e.ToString());
-                        AddByteViewControl(loadedResource, block, blockTab);
-                    }
-                });
+                PopulateWhenShown(blockTab, () => PopulateBlockView(loadedResource, block, blockTab));
 
                 if (block.Type == BlockType.DATA && selectData)
                 {
                     resTabs.SelectTab(blockTab);
                 }
-            }
-
-            if (binaryBuffers != null)
-            {
-                var blockTab = new ThemedTabPage("Buffers");
-                resTabs.TabPages.Add(blockTab);
-
-                var text = new StringBuilder();
-
-                foreach (var block in binaryBuffers)
-                {
-                    text.AppendLine(CultureInfo.InvariantCulture, $"{block.Type} - {block.Size} bytes");
-                }
-
-                var textBox = CodeTextBox.Create(text.ToString());
-                blockTab.Controls.Add(textBox);
             }
 
             try
@@ -984,7 +981,78 @@ namespace GUI.Types.Viewers
             return treeView;
         }
 
-        private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
+        // Both before and after the MVTX MIDX update
+        private static readonly string[] EmbeddedMeshBlockKeys =
+        [
+            "data_block", "vbib_block", "morph_block", "tools_vb_block",
+            "m_nDataBlock", "m_nMorphBlock", "m_nVBIBBlock", "m_nToolsVBBlock",
+        ];
+
+        private static readonly string[] EmbeddedMeshBufferKeys = ["m_vertexBuffers", "m_indexBuffers", "m_toolsBuffers"];
+
+        /// <summary>
+        /// Names the blocks a model's embedded meshes are stored in after the mesh, so the repeated
+        /// blocks can be told apart.
+        /// </summary>
+        private static Dictionary<int, string> GetBlockNames(ValveResourceFormat.Resource resource)
+        {
+            var names = new Dictionary<int, string>();
+
+            if (resource.GetBlockByType(BlockType.CTRL) is not BinaryKV3 ctrl || ctrl.Data.Root.GetArray("embedded_meshes") is not { } embeddedMeshes)
+            {
+                return names;
+            }
+
+            foreach (var embeddedMesh in embeddedMeshes)
+            {
+                var name = embeddedMesh.GetStringProperty("m_Name") ?? embeddedMesh.GetStringProperty("name");
+
+                foreach (var key in EmbeddedMeshBlockKeys)
+                {
+                    AddName(embeddedMesh.GetIntegerProperty(key, -1), name);
+                }
+
+                foreach (var key in EmbeddedMeshBufferKeys)
+                {
+                    foreach (var buffer in embeddedMesh.GetArray(key) ?? [])
+                    {
+                        AddName(buffer.GetIntegerProperty("m_nBlockIndex", -1), name);
+                    }
+                }
+            }
+
+            return names;
+
+            void AddName(long blockIndex, string name)
+            {
+                if (blockIndex >= 0)
+                {
+                    names.TryAdd((int)blockIndex, name);
+                }
+            }
+        }
+
+        private void PopulateBlockView(ValveResourceFormat.Resource resource, Block block, Control container)
+        {
+            // Mesh buffers are compressed binary blobs whose layout is described in CTRL
+            if (block.Type is BlockType.MVTX or BlockType.MIDX or BlockType.MADJ or BlockType.MSLT)
+            {
+                AddByteViewControl(resource, block, container);
+                return;
+            }
+
+            try
+            {
+                AddTextViewControl(resource, block, container);
+            }
+            catch (Exception e)
+            {
+                Log.Error(nameof(Resource), e.ToString());
+                AddByteViewControl(resource, block, container);
+            }
+        }
+
+        private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, Control blockTab)
         {
             Debug.Assert(resource.Reader != null);
 
@@ -1012,7 +1080,7 @@ namespace GUI.Types.Viewers
             }));
         }
 
-        private void AddTextViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
+        private void AddTextViewControl(ValveResourceFormat.Resource resource, Block block, Control blockTab)
         {
             if (resource.ResourceType == ResourceType.SboxShader && block is SboxShader shaderBlock)
             {
@@ -1047,7 +1115,7 @@ namespace GUI.Types.Viewers
             AddTextViewControl(resource.ResourceType, block, blockTab);
         }
 
-        private static void AddTextViewControl(ResourceType resourceType, Block block, TabPage blockTab)
+        private static void AddTextViewControl(ResourceType resourceType, Block block, Control blockTab)
         {
             if (block.Size > MaxKeyValuesBlockSizeForText && TryGetKvDataBlock(block, out var root, out var header))
             {
@@ -1070,7 +1138,7 @@ namespace GUI.Types.Viewers
             ViewerContentPresenter.Present(blockTab, content);
         }
 
-        private static void AddTooLargeForTextControl(Block block, KVDocument document, TabPage blockTab)
+        private static void AddTooLargeForTextControl(Block block, KVDocument document, Control blockTab)
         {
             var message = CodeTextBox.Create(
                 $"The {block.Type} block is {block.Size:N0} bytes, which is too large to display as text.{Environment.NewLine}Save it as a text file instead.",
