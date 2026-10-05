@@ -81,6 +81,12 @@ static class ViewerFactory
             await viewer.LoadAsync(stream).ConfigureAwait(false);
             return viewer;
         }
+        else if (NavSpaceView.IsAccepted(magic))
+        {
+            var viewer = new NavSpaceView(vrfGuiContext);
+            await viewer.LoadAsync(stream).ConfigureAwait(false);
+            return viewer;
+        }
         else if (BinaryKeyValues3.IsAccepted(magic))
         {
             var viewer = new BinaryKeyValues3(vrfGuiContext);
