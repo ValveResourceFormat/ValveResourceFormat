@@ -111,7 +111,7 @@ namespace CLI
         /// <param name="all">-a, Print the content of each resource block in the file.</param>
         /// <param name="block">-b, Print the content of specific block(s), example: "DATA" or "RERL,RED2".</param>
         /// <param name="threads">If higher than 1, files will be processed concurrently.</param>
-        /// <param name="quiet">-q, When writing to --output, only print errors and a summary.</param>
+        /// <param name="quiet">-q, When writing to --output, only print errors and a summary. With the shader options, only print their output.</param>
         /// <param name="vpk_dir">Print a list of files in given VPK and information about them.</param>
         /// <param name="vpk_verify">Verify checksums and signatures.</param>
         /// <param name="vpk_cache">Use cached VPK manifest to keep track of updates. Only changed files will be written to disk.</param>
@@ -128,6 +128,8 @@ namespace CLI
         /// <param name="gltf_export_extras">Export additional Mesh properties into glTF extras</param>
         /// <param name="gltf_compose_additive">Compose additive animations over the bind pose instead of exporting their delta tracks.</param>
         /// <param name="tools_asset_info_short">Whether to print only file paths for tools_asset_info files.</param>
+        /// <param name="shader_list_combos">List every compiled variant of a shader with its combo values and bytecode hash. For a material, only the variants of its shader that the material selects.</param>
+        /// <param name="shader_combo">Decompile the shader variant matching these combo values, example: "S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4". A bare name means "=1", omitted combos stay at their minimum. For a material, the static combos it selects are used.</param>
         /// <param name="stats">Collect stats on all input files and then print them. Use "-i steam" to scan all Steam libraries.</param>
         /// <param name="stats_with_loader">When using --stats, use GameFileLoader to load dependencies.</param>
         /// <param name="stats_print_files">When using --stats, print example file names for each stat.</param>
@@ -165,6 +167,9 @@ namespace CLI
             bool gltf_compose_additive = false,
             bool tools_asset_info_short = false,
 
+            bool shader_list_combos = false,
+            string? shader_combo = default,
+
             bool stats = false,
             bool stats_with_loader = false,
             bool stats_print_files = false,
@@ -201,6 +206,8 @@ namespace CLI
             GltfExportExtras = gltf_export_extras;
             GltfComposeAdditive = gltf_compose_additive;
             ToolsAssetInfoShort = tools_asset_info_short;
+            ShaderListCombos = shader_list_combos;
+            ShaderCombo = shader_combo;
 
             CollectStats = stats;
             StatsWithLoader = stats_with_loader;
@@ -269,9 +276,15 @@ namespace CLI
                 return 1;
             }
 
-            if (Quiet && OutputFile == null)
+            if (HasShaderOptions && (OutputFile != null || CollectStats))
             {
-                Console.Error.WriteLine("--quiet is only supported with --output.");
+                Console.Error.WriteLine("The shader options only print to the console, do not use them with --output or --stats.");
+                return 1;
+            }
+
+            if (Quiet && OutputFile == null && !HasShaderOptions)
+            {
+                Console.Error.WriteLine("--quiet is only supported with --output or the shader options.");
                 return 1;
             }
 
@@ -479,6 +492,14 @@ namespace CLI
 
             Console.SetOut(Stdout);
 
+            lock (ShaderFileLoaders)
+            {
+                foreach (var loader in ShaderFileLoaders.Values)
+                {
+                    loader.Dispose();
+                }
+            }
+
             if (OutputFile != null)
             {
                 Console.WriteLine($"--- Wrote {WrittenFiles} files");
@@ -657,6 +678,13 @@ namespace CLI
 
             var pathExtension = Path.GetExtension(path);
 
+            // Newer shaders are stored as resources, parse them directly instead of as a generic resource
+            if (HasShaderOptions && pathExtension == ".vcs")
+            {
+                ParseVCS(path, stream, originalPath);
+                return;
+            }
+
             switch (magic)
             {
                 case VfxProgramData.MAGIC: ParseVCS(path, stream, originalPath); return;
@@ -727,6 +755,12 @@ namespace CLI
             try
             {
                 resource.Read(stream);
+
+                if (HasShaderOptions && resource.DataBlock is Material material)
+                {
+                    ProcessMaterialShaderOptions(material, originalPath ?? Path.GetDirectoryName(path)!);
+                    return;
+                }
 
                 var extension = FileExtract.GetExtension(resource);
 
@@ -875,6 +909,12 @@ namespace CLI
             try
             {
                 shader.Read(path, stream);
+
+                if (HasShaderOptions)
+                {
+                    ProcessShaderOptions(shader);
+                    return;
+                }
 
                 using var output = new IndentedTextWriter();
 
@@ -1051,7 +1091,7 @@ namespace CLI
         private void ParseVPK(string path, Stream stream)
         {
             // When processing the files inside of the package, they are counted and print their own header instead
-            var processVpkFiles = OutputFile == null && !VerifyVPKChecksums && !ListResources && (CollectStats || ShouldPrintBlockContents);
+            var processVpkFiles = OutputFile == null && !VerifyVPKChecksums && !ListResources && (CollectStats || ShouldPrintBlockContents || HasShaderOptions);
 
             if (!processVpkFiles)
             {
@@ -1905,6 +1945,15 @@ namespace CLI
                 }
 
                 Console.ResetColor();
+            }
+        }
+
+        private void ReportError(string message)
+        {
+            lock (ConsoleWriterLock)
+            {
+                FailedFiles++;
+                Console.Error.WriteLine(message);
             }
         }
 

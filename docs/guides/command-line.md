@@ -32,10 +32,12 @@ The binary name is `Source2Viewer-CLI`.
 | `--gltf_animation_list`      | Comma-separated list of animations to include in glTF export, example: "idle,dropped". Requires `--gltf_export_animations`. By default includes all animations.                                                                                                                                            |
 | `--gltf_textures_adapt`      | Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).                                                                                                                                                                                                                        |
 | `--gltf_export_extras`       | Export additional Mesh properties into glTF extras                                                                                                                                                                                                                                                         |
+| `--shader_list_combos`       | List every compiled variant of a shader with its combo values and bytecode hash. For a material, only the variants of its shader that the material selects.                                                                                                                                                |
+| `--shader_combo`             | Decompile the shader variant matching these combo values, example: "S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4". A bare name means "=1", omitted combos stay at their minimum. For a material, the static combos it selects are used.                                                                           |
 | `--tools_asset_info_short`   | Whether to print only file paths for tools_asset_info files.                                                                                                                                                                                                                                               |
 | **Other**                    |                                                                                                                                                                                                                                                                                                            |
 | `--threads`                  | If higher than 1, files will be processed concurrently.                                                                                                                                                                                                                                                    |
-| `--quiet` (or `-q`)          | When writing to `--output`, only print errors and a summary.                                                                                                                                                                                                                                               |
+| `--quiet` (or `-q`)          | When writing to `--output`, only print errors and a summary. With the shader options, only print their output.                                                                                                                                                                                             |
 | `--game`                     | Path to a `gameinfo.gi` file to load game search paths from. Useful when the input file is not located inside a game folder.                                                                                                                                                                               |
 | `--version`                  | Show version information.                                                                                                                                                                                                                                                                                  |
 | `--help`                     | Show help information.                                                                                                                                                                                                                                                                                     |
@@ -151,6 +153,21 @@ Or a single shader:
 
 ```powershell
 ./Source2Viewer-CLI.exe -i "<game>/shaders_vulkan_dir.vpk" --vpk_filepath "shaders/vfx/csgo_environment_vulkan_" -d -o "shaders"
+```
+
+### Decompile one variant of a shader
+
+A shader is compiled once per combination of its static (`S_`) and dynamic (`D_`) combos. List the variants that exist, then decompile one of them:
+
+```powershell
+./Source2Viewer-CLI.exe -i "<game>/shaders_vulkan_dir.vpk" -f "shaders/vfx/csgo_environment_vulkan_60_vs.vcs" --shader_list_combos
+./Source2Viewer-CLI.exe -i "<game>/shaders_vulkan_dir.vpk" -f "shaders/vfx/csgo_environment_vulkan_60_vs.vcs" --shader_combo "S_DETAIL_NORMAL,D_COMPRESSED_NORMALS_AND_TANGENTS"
+```
+
+Pass a material together with one of these options to decompile the variants of its shader that the material uses. Without them, materials are processed as usual. Dynamic combos can still be set with `--shader_combo`, or left empty:
+
+```powershell
+./Source2Viewer-CLI.exe -i "<game>/pak01_dir.vpk" -f "materials/models/chicken/chick_yellow.vmat_c" --shader_combo ""
 ```
 
 ## Argument Stability
