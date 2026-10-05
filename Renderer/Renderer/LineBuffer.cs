@@ -53,6 +53,16 @@ namespace ValveResourceFormat.Renderer
             GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, VertexCount, 1, objectId);
         }
 
+        /// <summary>Binds the vertex array for a series of <see cref="DrawRange"/> calls.</summary>
+        public void Bind() => VertexArray.Bind(vao, Shader);
+
+        /// <summary>Draws a range of the uploaded vertices. Call <see cref="Bind"/> first.</summary>
+        /// <param name="start">First vertex to draw.</param>
+        /// <param name="count">Number of vertices to draw, two per segment.</param>
+        /// <param name="objectId">Object id used as instancing base for picking.</param>
+        public static void DrawRange(int start, int count, uint objectId = 0)
+            => GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, start, count, 1, objectId);
+
         /// <summary>Deletes the GL objects.</summary>
         public void Delete()
         {
