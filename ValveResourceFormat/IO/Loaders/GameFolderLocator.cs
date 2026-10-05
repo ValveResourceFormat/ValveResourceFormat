@@ -90,7 +90,7 @@ namespace ValveResourceFormat.IO
                 libraryFoldersKv = kvDeserializer.Deserialize(libraryFoldersStream, KVSerializerOptions.DefaultOptions);
             }
 
-            var steamPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { steamPath };
+            var steamPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { Path.GetFullPath(Path.Join(steamPath, "steamapps")) };
 
             foreach (var child in libraryFoldersKv.Children)
             {
