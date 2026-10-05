@@ -6,7 +6,7 @@ The project folders are:
 
 - **ValveResourceFormat/**: Core parsing library published to NuGet
 - **GUI/**: WinForms viewer application
-- **CLI/**: Command-line decompiler and file viewer
+- **CLI/**: Command-line decompiler and file viewer, usage in `docs/guides/command-line.md`
 - **Renderer/**: OpenGL rendering engine for Source 2 assets.
     - Shaders use the `.slang` extension (`.frag.slang`, `.vert.slang`) with GLSL syntax, and must only contain ASCII characters.
     - After changing shaders, run `dotnet run --project Misc/ShaderValidator -- <name filter>` to compile them and their combos on a real GL context. `complex` has combinatorially many combos and is far too slow to validate interactively, so iterate against a smaller shader.

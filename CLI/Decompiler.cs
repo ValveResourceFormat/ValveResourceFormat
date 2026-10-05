@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.IO.Enumeration;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -36,6 +37,10 @@ namespace CLI
         private readonly StringBuilder ConsoleOutputBuilder = new(1024);
         private int CurrentFile;
         private int TotalFiles;
+        private int FailedFiles;
+        private int WrittenFiles;
+        private bool LoggedExceptions;
+        private bool AnyFileMatched;
 
         // Options
         private string InputFile = string.Empty; // Should be non empty by the time input args are validated
@@ -43,9 +48,11 @@ namespace CLI
         private bool RecursiveSearch;
         private bool RecursiveSearchArchives;
         private bool PrintAllBlocks;
-        private string? BlockToPrint;
-        private bool ShouldPrintBlockContents => PrintAllBlocks || !string.IsNullOrEmpty(BlockToPrint);
+        private HashSet<string> BlocksToPrint = [];
+        private bool ShouldPrintBlockContents => PrintAllBlocks || BlocksToPrint.Count > 0;
         private int MaxParallelismThreads;
+        private bool Quiet;
+        private TextWriter Stdout = Console.Out;
         private bool OutputVPKDir;
         private bool VerifyVPKChecksums;
         private bool CachedManifest;
@@ -95,20 +102,21 @@ namespace CLI
         /// <summary>
         /// A test bed command line interface for the VRF library.
         /// </summary>
-        /// <param name="input">-i, Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.</param>
+        /// <param name="input">-i, Input file or folder to be processed, multiple can be comma-separated. With no additional arguments, a summary of the input(s) will be displayed.</param>
         /// <param name="output">-o, Output path to write to. Treated as a folder when it is an existing folder, ends with a path separator, or has no file extension, otherwise it names the file to write.</param>
-        /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files.</param>
+        /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files, requires --output.</param>
         /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto", "ForceLDR".</param>
         /// <param name="recursive">If specified and given input is a folder, all sub directories will be scanned too.</param>
-        /// <param name="recursive_vpk">If specified along with --recursive, will also recurse into VPK archives.</param>
+        /// <param name="recursive_vpk">If given input is a folder, also process files inside of VPK archives in it (and in sub directories with --recursive).</param>
         /// <param name="all">-a, Print the content of each resource block in the file.</param>
-        /// <param name="block">-b, Print the content of a specific block, example: DATA, RERL, REDI, NTRO.</param>
+        /// <param name="block">-b, Print the content of specific block(s), example: "DATA" or "RERL,RED2".</param>
         /// <param name="threads">If higher than 1, files will be processed concurrently.</param>
+        /// <param name="quiet">-q, When writing to --output, only print errors and a summary.</param>
         /// <param name="vpk_dir">Print a list of files in given VPK and information about them.</param>
         /// <param name="vpk_verify">Verify checksums and signatures.</param>
         /// <param name="vpk_cache">Use cached VPK manifest to keep track of updates. Only changed files will be written to disk.</param>
         /// <param name="vpk_extensions">-e, File extension(s) filter, example: "vcss_c,vjs_c,vxml_c".</param>
-        /// <param name="vpk_filepath">-f, File path filter, example: "panorama/,sounds/" or "scripts/items/items_game.txt".</param>
+        /// <param name="vpk_filepath">-f, File path prefix filter, or a full path pattern with * and ? wildcards, example: "panorama/,sounds/" or "*/entities/*".</param>
         /// <param name="vpk_list">-l, Lists all resources in given VPK. File extension and path filters apply.</param>
         /// <param name="game">Path to a gameinfo.gi file to load search paths from.</param>
         /// <param name="gltf_export_format">Exports meshes/models in given glTF format. Must be either "gltf" or "glb".</param>
@@ -138,6 +146,7 @@ namespace CLI
             bool all = false,
             string? block = default,
             int threads = 1,
+            bool quiet = false,
             bool vpk_dir = false,
             bool vpk_verify = false,
             bool vpk_cache = false,
@@ -174,8 +183,9 @@ namespace CLI
             RecursiveSearch = recursive;
             RecursiveSearchArchives = recursive_vpk;
             PrintAllBlocks = all;
-            BlockToPrint = block;
+            BlocksToPrint = block?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
             MaxParallelismThreads = threads;
+            Quiet = quiet;
             OutputVPKDir = vpk_dir;
             VerifyVPKChecksums = vpk_verify;
             CachedManifest = vpk_cache;
@@ -225,7 +235,8 @@ namespace CLI
 
             if (vpk_extensions != null)
             {
-                ExtFilterList = vpk_extensions.Split(',');
+                // Extensions are matched without the leading dot
+                ExtFilterList = [.. vpk_extensions.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(ext => ext.TrimStart('.'))];
             }
 
             if (GltfExportFormat is not "gltf" and not "glb" and not null)
@@ -249,6 +260,24 @@ namespace CLI
             if (ListResources && OutputFile != null)
             {
                 Console.Error.WriteLine("Do not use --vpk_list with --output.");
+                return 1;
+            }
+
+            if (ShouldPrintBlockContents && OutputFile != null)
+            {
+                Console.Error.WriteLine("Do not use --block or --all with --output, blocks are only printed to the console.");
+                return 1;
+            }
+
+            if (Quiet && OutputFile == null)
+            {
+                Console.Error.WriteLine("--quiet is only supported with --output.");
+                return 1;
+            }
+
+            if (Decompile && OutputFile == null)
+            {
+                Console.Error.WriteLine("--vpk_decompile requires --output, decompiled files are only written to disk. Use --block DATA to print the data instead.");
                 return 1;
             }
 
@@ -359,17 +388,29 @@ namespace CLI
                     return 1;
                 }
             }
-            else if (CollectStats && !string.IsNullOrEmpty(InputFile)) // TODO: Support multiple paths for non --stats too
+            else if (InputFile.Contains(',', StringComparison.Ordinal))
             {
-                var splitPaths = InputFile.Split(',');
+                if (OutputFile != null)
+                {
+                    Console.Error.WriteLine("Multiple inputs are not supported with --output.");
+                    return 1;
+                }
 
                 IsInputFolder = true;
 
-                foreach (var path in splitPaths)
+                foreach (var splitPath in InputFile.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
                 {
+                    var path = Path.GetFullPath(splitPath);
+
+                    if (File.Exists(path))
+                    {
+                        paths.Add(path);
+                        continue;
+                    }
+
                     if (!Directory.Exists(path))
                     {
-                        Console.Error.WriteLine($"Folder \"{path}\" does not exist.");
+                        Console.Error.WriteLine($"Input \"{path}\" is not a file or a folder.");
                         return 1;
                     }
 
@@ -391,7 +432,15 @@ namespace CLI
             CurrentFile = 0;
             TotalFiles = paths.Count;
 
-            ProgressReporter = new Progress<string>(progress => Console.WriteLine($"--- {progress}"));
+            ProgressReporter = Quiet ? null : new Progress<string>(progress => Console.WriteLine($"--- {progress}"));
+
+            // Library code also writes to the console, so silence all of stdout while processing
+            Stdout = Console.Out;
+
+            if (Quiet)
+            {
+                Console.SetOut(TextWriter.Null);
+            }
 
             if (MaxParallelismThreads > 1)
             {
@@ -426,6 +475,20 @@ namespace CLI
                 {
                     ProcessFile(path);
                 }
+            }
+
+            Console.SetOut(Stdout);
+
+            if (OutputFile != null)
+            {
+                Console.WriteLine($"--- Wrote {WrittenFiles} files");
+            }
+
+            if (!AnyFileMatched && !CollectStats && (FileFilter.Length > 0 || ExtFilterList != null))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Error.WriteLine("No files matched the given filters. --vpk_filepath matches the start of the path unless it contains * or ? wildcards, use --vpk_list to see all paths.");
+                Console.ResetColor();
             }
 
             if (CollectStats)
@@ -466,6 +529,14 @@ namespace CLI
                 Console.WriteLine($"Wrote {unknownEntityKeys.Count} unknown entity keys to unknown_keys.txt");
             }
 
+            if (FailedFiles > 0)
+            {
+                var exceptionsFileName = CollectStats ? "exceptions.<extension>.txt" : "exceptions.txt";
+                var exceptionsHint = LoggedExceptions ? $", see \"{Path.Combine(Environment.CurrentDirectory, exceptionsFileName)}\"" : string.Empty;
+                Console.Error.WriteLine($"{FailedFiles} file(s) failed to process{exceptionsHint}.");
+                return 2;
+            }
+
             return 0;
         }
 
@@ -490,22 +561,16 @@ namespace CLI
 
                     return SupportedFileNamesRegex().IsMatch(s);
                 })
+                .Where(s => FileFilter.Length == 0 || !IsExcludedVpkFilePath(FixPathSlashes(Path.GetRelativePath(path, s))))
                 .ToList();
+
+            var vpkRegex = VpkArchiveIndexRegex();
+            var vpks = Directory
+                .EnumerateFiles(path, "*.vpk", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
+                .Where(s => !vpkRegex.IsMatch(s));
 
             if (RecursiveSearchArchives)
             {
-                if (!RecursiveSearch)
-                {
-                    Console.Error.WriteLine("Option --recursive_vpk must be specified with --recursive.");
-
-                    return null;
-                }
-
-                var vpkRegex = VpkArchiveIndexRegex();
-                var vpks = Directory
-                    .EnumerateFiles(path, "*.vpk", SearchOption.AllDirectories)
-                    .Where(s => !vpkRegex.IsMatch(s));
-
                 paths.AddRange(vpks);
             }
 
@@ -513,7 +578,11 @@ namespace CLI
             {
                 Console.Error.WriteLine($"Unable to find any \"_c\" compiled files in \"{path}\" folder.");
 
-                if (!RecursiveSearch)
+                if (!RecursiveSearchArchives && vpks.Any())
+                {
+                    Console.Error.WriteLine("The folder contains VPK files, specify --recursive_vpk to process the files inside of them.");
+                }
+                else if (!RecursiveSearch)
                 {
                     Console.Error.WriteLine("Perhaps you should specify --recursive option to scan the input folder recursively.");
                 }
@@ -524,13 +593,7 @@ namespace CLI
             return paths;
         }
 
-        private void ProcessFile(string path, IFileLoader? fileLoader = null)
-        {
-            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
-            ProcessFile(path, fs, null, fileLoader);
-        }
-
-        private void ProcessFile(string path, Stream stream, string? originalPath = null, IFileLoader? fileLoader = null)
+        private void PrintFileHeader(string path, string? originalPath)
         {
             lock (ConsoleWriterLock)
             {
@@ -552,25 +615,26 @@ namespace CLI
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.Write($"[{CurrentFile}/{TotalFiles}] ");
 
-                    if (originalPath != null)
+                    if (originalPath != null && originalPath != InputFile)
                     {
-                        if (IsInputFolder && originalPath.StartsWith(InputFile, StringComparison.Ordinal))
-                        {
-                            Console.Write(originalPath[InputFile.Length..]);
-                            Console.Write(" -> ");
-                        }
-                        else if (originalPath != InputFile)
-                        {
-                            Console.Write(originalPath);
-                            Console.Write(" -> ");
-                        }
+                        Console.Write(GetDisplayPath(originalPath));
+                        Console.Write(" -> ");
                     }
 
                     Console.WriteLine(path);
                     Console.ResetColor();
                 }
             }
+        }
 
+        private void ProcessFile(string path, IFileLoader? fileLoader = null)
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
+            ProcessFile(path, fs, null, fileLoader);
+        }
+
+        private void ProcessFile(string path, Stream stream, string? originalPath = null, IFileLoader? fileLoader = null)
+        {
             Span<byte> magicData = stackalloc byte[4];
 
             if (stream.Length >= magicData.Length)
@@ -581,9 +645,20 @@ namespace CLI
 
             var magic = BitConverter.ToUInt32(magicData);
 
+            // Packages count and print themselves, because they may expand into the files inside of them
+            if (magic == Package.MAGIC)
+            {
+                ParseVPK(path, stream);
+                return;
+            }
+
+            AnyFileMatched = true;
+            PrintFileHeader(path, originalPath);
+
+            var pathExtension = Path.GetExtension(path);
+
             switch (magic)
             {
-                case Package.MAGIC: ParseVPK(path, stream); return;
                 case VfxProgramData.MAGIC: ParseVCS(path, stream, originalPath); return;
                 case NavMeshFile.MAGIC: ParseNAV(path, stream, originalPath); return;
                 case ToolsAssetInfo.MAGIC2:
@@ -598,8 +673,6 @@ namespace CLI
                 ParseKV3(path, stream);
                 return;
             }
-
-            var pathExtension = Path.GetExtension(path);
 
             const uint Source1Vcs = 0x06;
             if (CollectStats && pathExtension == ".vcs" && magic == Source1Vcs)
@@ -685,6 +758,9 @@ namespace CLI
                         Directory.CreateDirectory(Path.GetDirectoryName(outFilePath)!);
 
                         CreateGltfExporter(outputFileLoader).Export(resource, outFilePath);
+                        Interlocked.Increment(ref WrittenFiles);
+
+                        Console.WriteLine("--- Dump written to \"{0}\"", outFilePath);
                         return;
                     }
 
@@ -761,7 +837,7 @@ namespace CLI
 
                 foreach (var block in resource.Blocks)
                 {
-                    if (!PrintAllBlocks && BlockToPrint != block.Type.ToString())
+                    if (!PrintAllBlocks && !BlocksToPrint.Contains(block.Type.ToString()))
                     {
                         continue;
                     }
@@ -974,6 +1050,14 @@ namespace CLI
 
         private void ParseVPK(string path, Stream stream)
         {
+            // When processing the files inside of the package, they are counted and print their own header instead
+            var processVpkFiles = OutputFile == null && !VerifyVPKChecksums && !ListResources && (CollectStats || ShouldPrintBlockContents);
+
+            if (!processVpkFiles)
+            {
+                PrintFileHeader(path, null);
+            }
+
             using var package = new Package();
             package.SetFileName(path);
 
@@ -1013,10 +1097,10 @@ namespace CLI
                 return;
             }
 
+            Debug.Assert(package.Entries != null);
+
             if (OutputFile == null)
             {
-                Debug.Assert(package.Entries != null);
-
                 var orderedEntries = package.Entries.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key).ToList();
 
                 if (ExtFilterList != null)
@@ -1041,20 +1125,16 @@ namespace CLI
                     var listEntries = orderedEntries.SelectMany(x => x.Value).ToList();
                     listEntries.Sort((a, b) => string.CompareOrdinal(a.GetFullPath(), b.GetFullPath()));
 
+                    // When listing multiple packages, prefix each entry with the package it came from
+                    var packagePrefix = IsInputFolder ? $"{GetDisplayPath(path)} -> " : string.Empty;
+
                     foreach (var (entry, _) in FilteredEntries(listEntries))
                     {
-                        Console.WriteLine($"{entry.GetFullPath()} CRC:{entry.CRC32:x10} size:{entry.TotalLength}");
+                        Console.WriteLine($"{packagePrefix}{entry.GetFullPath()} CRC:{entry.CRC32:x10} size:{entry.TotalLength}");
                     }
 
                     return;
                 }
-
-                if (!CollectStats)
-                {
-                    Console.WriteLine("--- Files in package:");
-                }
-
-                var processVpkFiles = CollectStats || ShouldPrintBlockContents;
 
                 if (processVpkFiles)
                 {
@@ -1068,7 +1148,8 @@ namespace CLI
                         }
                     }
 
-                    Interlocked.Add(ref TotalFiles, queue.Count);
+                    // The package itself was counted as one of the files to process
+                    Interlocked.Add(ref TotalFiles, queue.Count - 1);
 
                     if (MaxParallelismThreads > 1)
                     {
@@ -1103,9 +1184,17 @@ namespace CLI
                 }
                 else
                 {
+                    Console.WriteLine("--- Files in package:");
+
                     foreach (var entry in orderedEntries)
                     {
-                        Console.WriteLine($"\t{entry.Key}: {entry.Value.Count} files");
+                        var count = FileFilter.Length == 0 ? entry.Value.Count : FilteredEntries(entry.Value).Count();
+
+                        if (count > 0)
+                        {
+                            AnyFileMatched = true;
+                            Console.WriteLine($"\t{entry.Key}: {count} files");
+                        }
                     }
                 }
             }
@@ -1267,7 +1356,7 @@ namespace CLI
             }
 
             var gltfExporter = CreateGltfExporter(fileLoader);
-            var highestShaderModelFeatures = type == "vcs" ? GetHighestShaderModelFeatures(entries) : null;
+            var shaderFilesToDecompile = type == "vcs" ? GetShaderFilesToDecompile(entries) : null;
 
             foreach (var (file, filePath) in FilteredEntries(entries))
             {
@@ -1330,15 +1419,11 @@ namespace CLI
                         // VCS files require multiple files to be decompiled together
                         if (isVcsFile)
                         {
-                            // Only parse the highest SM of features files
-                            if (!highestShaderModelFeatures!.Contains(filePath))
+                            // The whole shader is decompiled once, from the highest shader model that was matched
+                            if (!shaderFilesToDecompile!.Contains(filePath))
                             {
-                                Console.WriteLine("--- Skipped (not highest shader model) \"{0}\"", filePath);
                                 continue;
                             }
-
-                            var collection = ShaderCollection.GetShaderCollection(filePath, package);
-                            contentFile = new ShaderExtract(collection).ToContentFile();
 
                             // Remove the last part from the file name ("_features", ...)
                             var fileName = Path.GetFileNameWithoutExtension(filePath);
@@ -1346,6 +1431,9 @@ namespace CLI
                             var directory = Path.GetDirectoryName(filePath);
 
                             outputFile = Path.Combine(directory ?? string.Empty, string.Concat(newFileNameBase, ".vfx"));
+
+                            var collection = ShaderCollection.GetShaderCollection(filePath, package);
+                            contentFile = new ShaderExtract(collection).ToContentFile();
                         }
                         else
                         {
@@ -1372,6 +1460,7 @@ namespace CLI
                                 Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
 
                                 gltfExporter.Export(resource, outputFile);
+                                Interlocked.Increment(ref WrittenFiles);
 
                                 Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
 
@@ -1425,8 +1514,6 @@ namespace CLI
 
         private GltfModelExporter CreateGltfExporter(IFileLoader fileLoader)
         {
-            Debug.Assert(ProgressReporter != null);
-
             var gltfModelExporter = new GltfModelExporter(fileLoader)
             {
                 ExportAnimations = GltfExportAnimations,
@@ -1443,9 +1530,12 @@ namespace CLI
             return gltfModelExporter;
         }
 
-        private HashSet<string> GetHighestShaderModelFeatures(IEnumerable<PackageEntry> entries)
+        /// <summary>
+        /// Picks one file per shader to decompile it from, out of the highest shader model among the matched files.
+        /// </summary>
+        private HashSet<string> GetShaderFilesToDecompile(IEnumerable<PackageEntry> entries)
         {
-            var highestByShader = new Dictionary<string, (string FilePath, VcsShaderModelType ShaderModel)>();
+            var highestByShader = new Dictionary<(string ShaderName, VcsPlatformType Platform), (string FilePath, VcsShaderModelType ShaderModel)>();
 
             foreach (var (entry, filePath) in FilteredEntries(entries))
             {
@@ -1454,15 +1544,11 @@ namespace CLI
                     continue;
                 }
 
-                var (shaderName, programType, _, shaderModel) = ShaderUtilHelpers.ComputeVCSFileName(filePath);
-                if (programType != VcsProgramType.Features)
-                {
-                    continue;
-                }
+                var (shaderName, _, platformType, shaderModel) = ShaderUtilHelpers.ComputeVCSFileName(filePath);
 
-                if (!highestByShader.TryGetValue(shaderName, out var existing) || shaderModel > existing.ShaderModel)
+                if (!highestByShader.TryGetValue((shaderName, platformType), out var existing) || shaderModel > existing.ShaderModel)
                 {
-                    highestByShader[shaderName] = (filePath, shaderModel);
+                    highestByShader[(shaderName, platformType)] = (filePath, shaderModel);
                 }
             }
 
@@ -1512,11 +1598,12 @@ namespace CLI
             }
         }
 
-        private static void DumpFile(string path, ReadOnlySpan<byte> data)
+        private void DumpFile(string path, ReadOnlySpan<byte> data)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
             File.WriteAllBytes(path, data.ToArray());
+            Interlocked.Increment(ref WrittenFiles);
 
             Console.WriteLine("--- Dump written to \"{0}\"", path);
         }
@@ -1532,13 +1619,31 @@ namespace CLI
                     continue;
                 }
 
+                AnyFileMatched = true;
                 yield return (entry, filePath);
             }
         }
 
         private bool IsExcludedVpkFilePath(string filePath)
         {
-            return FileFilter.Length > 0 && FileFilter.All(filter => !filePath.StartsWith(filter, StringComparison.Ordinal));
+            return FileFilter.Length > 0 && FileFilter.All(filter => !IsVpkFilePathMatch(filter, filePath));
+        }
+
+        private static bool IsVpkFilePathMatch(string filter, string filePath)
+        {
+            // Filters with wildcards match the full path, otherwise they match the start of the path
+            if (filter.AsSpan().ContainsAny('*', '?'))
+            {
+                // Backslash is an escape character in simple expressions
+                return FileSystemName.MatchesSimpleExpression(filter.Replace('\\', '/'), filePath.Replace('\\', '/'), ignoreCase: true);
+            }
+
+            return filePath.StartsWith(filter, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private string GetDisplayPath(string path)
+        {
+            return IsInputFolder && path.StartsWith(InputFile, StringComparison.Ordinal) ? path[InputFile.Length..] : path;
         }
 
         private bool ShouldUseOutputAsDirectory(Package package)
@@ -1557,7 +1662,7 @@ namespace CLI
                 .ToArray();
 
             return filteredEntries.Length != 1
-                || !filteredEntries[0].FilePath.Equals(FileFilter[0], StringComparison.Ordinal);
+                || !filteredEntries[0].FilePath.Equals(FileFilter[0], StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -1770,7 +1875,6 @@ namespace CLI
                 {
                     ExportMaterials = false,
                     ExportExtras = GltfExportExtras,
-                    ProgressReporter = new Progress<string>(progress => { }),
                 };
                 gltfModelExporter.Export(resource, null); // Filename passed as null which tells exporter to write gltf to a null stream
             }
@@ -1782,6 +1886,9 @@ namespace CLI
 
             lock (ConsoleWriterLock)
             {
+                FailedFiles++;
+                LoggedExceptions = true;
+
                 Console.ForegroundColor = ConsoleColor.Cyan;
 
                 if (parentPath == null)
