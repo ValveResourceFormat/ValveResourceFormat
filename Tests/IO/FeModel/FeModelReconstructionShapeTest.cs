@@ -1,14 +1,13 @@
-using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+using static Tests.IO.FeModelBuilder;
+using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
-namespace Tests
+namespace Tests.IO
 {
     /// <summary>Recovering planarized collision shapes from their compiled planes.</summary>
-    public class ClothFeModelShapeTest : ClothTestFixtures
+    public class FeModelReconstructionShapeTest
     {
         /// <summary>
         /// Six planarized planes around a sphere recover its centre (1, 2, 3) and radius 4.
@@ -16,35 +15,7 @@ namespace Tests
         [Test]
         public async Task PlanarizedSphereRecoversItsCentreAndRadius()
         {
-            var cloth = SyntheticCloth.Model(
-                ["bone", "n0", "n1", "n2", "n3", "n4", "n5"], staticNodes: 0, parents: [-1, 0, 0, 0, 0, 0, 0],
-                poses: [new(0f, 0f, 0f), new(7f, 2f, 3f), new(-5f, 2f, 3f), new(1f, 8f, 3f), new(1f, -4f, 3f), new(1f, 2f, 9f),
-                    new(1f, 2f, -3f)],
-                body: $$"""
-                    m_CollisionPlanes =
-                    [
-                        {{Plane(1, "1.0, 0.0, 0.0", 5f)}}
-                        {{Plane(2, "-1.0, 0.0, 0.0", 3f)}}
-                        {{Plane(3, "0.0, 1.0, 0.0", 6f)}}
-                        {{Plane(4, "0.0, -1.0, 0.0", 2f)}}
-                        {{Plane(5, "0.0, 0.0, 1.0", 7f)}}
-                        {{Plane(6, "0.0, 0.0, -1.0", 1f)}}
-                    ]
-                    m_VertexMapValues = [ 255, 255, 255, 255, 255, 255 ]
-                    m_VertexMaps =
-                    [
-                        {
-                            sName = "belt"
-                            nNameHash = 1
-                            nVertexBase = 1
-                            nVertexCount = 6
-                            nMapOffset = 0
-                            nScaleSourceNode = -1
-                            flVolumetricSolveStrength = 0.0
-                            vCenterOfMass = [ 0.0, 0.0, 0.0 ]
-                        },
-                    ]
-                    """);
+            var cloth = PlanarizedGroup(SpherePlanes);
 
             var shapes = cloth.BuildPlanarizeCapsules();
 
@@ -64,9 +35,13 @@ namespace Tests
             }
         }
 
-        private static string Plane(int node, string normal, float offset)
-            => $"{{ nCtrlParent = 0 nChildNode = {node} flStickiness = 0.0 flStrength = 0.0 "
-                + $"m_Plane = {{ m_vNormal = [ {normal} ] m_flOffset = {SyntheticCloth.Num(offset)} }} }},";
+        /// <summary>The six planes touching a sphere of radius 4 at (1, 2, 3), each through its node on an axis.</summary>
+        private static (Vector3 Node, Vector3 Normal, float Offset)[] SpherePlanes =>
+        [
+            (new Vector3(7f, 2f, 3f), Vector3.UnitX, 5f), (new Vector3(-5f, 2f, 3f), -Vector3.UnitX, 3f),
+            (new Vector3(1f, 8f, 3f), Vector3.UnitY, 6f), (new Vector3(1f, -4f, 3f), -Vector3.UnitY, 2f),
+            (new Vector3(1f, 2f, 9f), Vector3.UnitZ, 7f), (new Vector3(1f, 2f, -3f), -Vector3.UnitZ, 1f),
+        ];
 
         /// <summary>
         /// A planarized shape whose end caps coincide gets a 0.01 axis pointing away from the nodes it owns: here along
@@ -75,33 +50,7 @@ namespace Tests
         [Test]
         public async Task APlanarizedEndCapIsGivenAShortAxisAwayFromItsNodes()
         {
-            var cloth = SyntheticCloth.Model(
-                ["bone", "n0", "n1", "n2", "n3", "n4"], staticNodes: 0, parents: [-1, 0, 0, 0, 0, 0],
-                poses: [new(0f, 0f, 0f), new(7f, 2f, 3f), new(-5f, 2f, 3f), new(1f, 8f, 3f), new(1f, -4f, 3f), new(1f, 2f, 9f)],
-                body: $$"""
-                    m_CollisionPlanes =
-                    [
-                        {{Plane(1, "1.0, 0.0, 0.0", 5f)}}
-                        {{Plane(2, "-1.0, 0.0, 0.0", 3f)}}
-                        {{Plane(3, "0.0, 1.0, 0.0", 6f)}}
-                        {{Plane(4, "0.0, -1.0, 0.0", 2f)}}
-                        {{Plane(5, "0.0, 0.0, 1.0", 7f)}}
-                    ]
-                    m_VertexMapValues = [ 255, 255, 255, 255, 255 ]
-                    m_VertexMaps =
-                    [
-                        {
-                            sName = "belt"
-                            nNameHash = 1
-                            nVertexBase = 1
-                            nVertexCount = 5
-                            nMapOffset = 0
-                            nScaleSourceNode = -1
-                            flVolumetricSolveStrength = 0.0
-                            vCenterOfMass = [ 0.0, 0.0, 0.0 ]
-                        },
-                    ]
-                    """);
+            var cloth = PlanarizedGroup(SpherePlanes[..5]);
 
             var shapes = cloth.BuildPlanarizeCapsules();
 
@@ -137,12 +86,7 @@ namespace Tests
                 var normal = Vector3.Normalize(node - contact);
                 return (node, normal, Vector3.Dot(normal, contact));
             })]);
-            var sphere = PlanarizedGroup(
-            [
-                (new Vector3(7f, 2f, 3f), Vector3.UnitX, 5f), (new Vector3(-5f, 2f, 3f), -Vector3.UnitX, 3f),
-                (new Vector3(1f, 8f, 3f), Vector3.UnitY, 6f), (new Vector3(1f, -4f, 3f), -Vector3.UnitY, 2f),
-                (new Vector3(1f, 2f, 9f), Vector3.UnitZ, 7f), (new Vector3(1f, 2f, -3f), -Vector3.UnitZ, 1f),
-            ]);
+            var sphere = PlanarizedGroup(SpherePlanes);
 
             var boxes = box.BuildPlanarizeBoxes();
 
@@ -163,41 +107,19 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction PlanarizedGroup(IReadOnlyList<(Vector3 Node, Vector3 Normal, float Offset)> planes)
+        /// <summary>
+        /// A free bone with one free node per plane in <paramref name="planes"/>, every node planarized onto the bone and
+        /// selected by the vertex map <c>belt</c>.
+        /// </summary>
+        private static ClothReconstruction PlanarizedGroup((Vector3 Node, Vector3 Normal, float Offset)[] planes) => new FeModelBuilder
         {
-            var count = planes.Count;
-            var names = string.Join(", ", Enumerable.Range(0, count).Select(static i => $"\"n{i}\""));
-            var poses = string.Concat(planes.Select(static p => SyntheticCloth.Pose(p.Node.X, p.Node.Y, p.Node.Z)));
-            var records = string.Concat(planes.Select(static (p, i) => Plane(i + 1,
-                $"{SyntheticCloth.Num(p.Normal.X)}, {SyntheticCloth.Num(p.Normal.Y)}, {SyntheticCloth.Num(p.Normal.Z)}",
-                p.Offset)));
-
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "bone", {{names}} ]
-                    m_SkelParents = [ -1, {{string.Join(", ", Enumerable.Repeat("0", count))}} ]
-                    m_nNodeCount = {{count + 1}}
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ {{string.Join(", ", Enumerable.Repeat("1.0", count + 1))}} ]
-                    m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} {{poses}} ]
-                    m_CollisionPlanes = [ {{records}} ]
-                    m_VertexMapValues = [ {{string.Join(", ", Enumerable.Repeat("255", count))}} ]
-                    m_VertexMaps =
-                    [
-                        {
-                            sName = "belt"
-                            nNameHash = 1
-                            nVertexBase = 1
-                            nVertexCount = {{count}}
-                            nMapOffset = 0
-                            nScaleSourceNode = -1
-                            flVolumetricSolveStrength = 0.0
-                            vCenterOfMass = [ 0.0, 0.0, 0.0 ]
-                        },
-                    ]
-                }
-                """);
-        }
+            Names = ["bone", .. planes.Select(static (_, i) => $"n{i}")],
+            Parents = [-1, .. planes.Select(static _ => 0)],
+            Positions = [Vector3.Zero, .. planes.Select(static plane => plane.Node)],
+            CollisionPlanes = [.. planes.Select(static (plane, i) => new FeCollisionPlane(0, i + 1, new RnPlane(plane.Normal, plane.Offset), 0f, 0f))],
+            VertexMapValues = [.. planes.Select(static _ => (byte)255)],
+            VertexMaps = [VertexMap("belt", 1, 0, 1, planes.Length)],
+        }.Reconstruct();
 
         /// <summary>
         /// A planarized box turned in its parent's frame is recovered in its own axes, also from one edge and a corner
@@ -293,16 +215,11 @@ namespace Tests
                 (-22.147f, -21.075f, 8f, [-5.004f, -2.502f, 0f, 2.502f, 5.004f]),
             ];
 
-            var names = new StringBuilder("\"spine_2\"");
-            var poses = new StringBuilder(SyntheticCloth.Pose(0f, 0f, 0f));
-            var radii = new List<string>();
-            var planes = new StringBuilder();
-            var node = 0;
+            var nodes = new List<(Vector3 Node, float Radius, Vector3 Normal, float Offset)>();
             foreach (var (x, y, nodeRadius, heights) in columns)
             {
                 foreach (var z in heights)
                 {
-                    node++;
                     var point = new Vector3(x, y, z);
                     var centre = new Vector3(0f, 0f, Math.Clamp(z, -4f, 4f));
                     var normal = Vector3.Normalize(point - centre);
@@ -312,28 +229,28 @@ namespace Tests
                         offset = Vector3.Dot(normal, point);
                     }
 
-                    names.Append(CultureInfo.InvariantCulture, $", \"v{node}\"");
-                    poses.Append(SyntheticCloth.Pose(x, y, z));
-                    radii.Add(SyntheticCloth.Num(nodeRadius));
-                    planes.Append(CultureInfo.InvariantCulture,
-                        $"{{ nCtrlParent = 0 nChildNode = {node} m_Plane = {{ m_vNormal = [ {SyntheticCloth.Num(normal.X)}, {SyntheticCloth.Num(normal.Y)}, {SyntheticCloth.Num(normal.Z)} ] m_flOffset = {SyntheticCloth.Num(offset)} }} flStrength = 1.0 }},");
+                    nodes.Add((point, nodeRadius, normal, offset));
                 }
             }
 
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ {{names}} ]
-                    m_nNodeCount = {{node + 1}}
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0{{string.Concat(Enumerable.Repeat(", 1.0", node))}} ]
-                    m_NodeCollisionRadii = [ {{string.Join(", ", radii)}} ]
-                    m_InitPose = [ {{poses}} ]
-                    m_CollisionPlanes = [ {{planes}} ]
-                    m_VertexMaps = [ {{VertexMapEntry("vmap0", 4164734239, 0, 1, node)}} ]
-                    m_VertexMapValues = [ {{string.Join(", ", Enumerable.Repeat("255", node))}} ]
-                }
-                """);
+            return RadiusPlanarizedGroup("spine_2", nodes);
         }
+
+        /// <summary>
+        /// A static bone with one free node per entry in <paramref name="nodes"/>, each with its collision radius and its
+        /// plane, all selected by the vertex map <c>vmap0</c>.
+        /// </summary>
+        private static ClothReconstruction RadiusPlanarizedGroup(string bone, List<(Vector3 Node, float Radius, Vector3 Normal, float Offset)> nodes)
+            => new FeModelBuilder
+            {
+                Names = [bone, .. nodes.Select(static (_, i) => $"v{i + 1}")],
+                StaticNodes = 1,
+                NodeCollisionRadii = [.. nodes.Select(static node => node.Radius)],
+                Positions = [Vector3.Zero, .. nodes.Select(static node => node.Node)],
+                CollisionPlanes = [.. nodes.Select(static (node, i) => new FeCollisionPlane(0, i + 1, new RnPlane(node.Normal, node.Offset), 1f, 0f))],
+                VertexMaps = [VertexMap("vmap0", 4164734239, 0, 1, nodes.Count)],
+                VertexMapValues = [.. nodes.Select(static _ => (byte)255)],
+            }.Reconstruct();
 
         /// <summary>
         /// A planarized box is recovered with planes drawn through nodes that reach or sit inside it; the clear planes
@@ -370,10 +287,7 @@ namespace Tests
 
         private static ClothReconstruction PlanarizedBoxGroup((Vector3 Node, float Radius)[] nodes, Vector3 half)
         {
-            var names = new StringBuilder("\"bone\"");
-            var poses = new StringBuilder(SyntheticCloth.Pose(0f, 0f, 0f));
-            List<string> radii = [];
-            var planes = new StringBuilder();
+            var planes = new List<(Vector3 Node, float Radius, Vector3 Normal, float Offset)>();
             for (var i = 0; i < nodes.Length; i++)
             {
                 var (node, radius) = nodes[i];
@@ -394,26 +308,10 @@ namespace Tests
                     offset = reach < radius ? Vector3.Dot(normal, node) : Vector3.Dot(normal, contact) + radius;
                 }
 
-                names.Append(CultureInfo.InvariantCulture, $", \"v{i + 1}\"");
-                poses.Append(SyntheticCloth.Pose(node.X, node.Y, node.Z));
-                radii.Add(SyntheticCloth.Num(radius));
-                planes.Append(CultureInfo.InvariantCulture,
-                    $"{{ nCtrlParent = 0 nChildNode = {i + 1} m_Plane = {{ m_vNormal = [ {SyntheticCloth.Num(normal.X)}, {SyntheticCloth.Num(normal.Y)}, {SyntheticCloth.Num(normal.Z)} ] m_flOffset = {SyntheticCloth.Num(offset)} }} flStrength = 1.0 }},");
+                planes.Add((node, radius, normal, offset));
             }
 
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ {{names}} ]
-                    m_nNodeCount = {{nodes.Length + 1}}
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0{{string.Concat(Enumerable.Repeat(", 1.0", nodes.Length))}} ]
-                    m_NodeCollisionRadii = [ {{string.Join(", ", radii)}} ]
-                    m_InitPose = [ {{poses}} ]
-                    m_CollisionPlanes = [ {{planes}} ]
-                    m_VertexMaps = [ {{VertexMapEntry("vmap0", 4164734239, 0, 1, nodes.Length)}} ]
-                    m_VertexMapValues = [ {{string.Join(", ", Enumerable.Repeat("255", nodes.Length))}} ]
-                }
-                """);
+            return RadiusPlanarizedGroup("bone", planes);
         }
 
         /// <summary>
@@ -449,13 +347,17 @@ namespace Tests
         [Test]
         public async Task ABoxRigidWithoutASizeIsSkipped()
         {
-            var cloth = SyntheticCloth.Model(["bone_0"], staticNodes: 1, poses: [Vector3.Zero], body: """
-                m_BoxRigids =
+            var cloth = new FeModelBuilder
+            {
+                Names = ["bone_0"],
+                StaticNodes = 1,
+                Positions = [Vector3.Zero],
+                BoxRigids =
                 [
-                    { tmFrame2 = [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] nNode = 0 },
-                    { tmFrame2 = [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] vSize = [ 1.0, 2.0, 3.0 ] nNode = 0 },
-                ]
-                """);
+                    new FeBoxRigid(FeTransform.Identity, 0, 0, null, -1, 0, null),
+                    new FeBoxRigid(FeTransform.Identity, 0, 0, new Vector3(1f, 2f, 3f), -1, 0, null),
+                ],
+            }.Reconstruct();
 
             using (Assert.Multiple())
             {

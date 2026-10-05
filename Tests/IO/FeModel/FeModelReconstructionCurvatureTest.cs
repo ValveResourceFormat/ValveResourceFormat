@@ -1,11 +1,13 @@
+using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+using static Tests.IO.FeModelBuilder;
+using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
-namespace Tests
+namespace Tests.IO
 {
     /// <summary>Reading bends, stiff hinges and ring curvature off a compiled FeModel.</summary>
-    public class ClothFeModelCurvatureTest
+    public class FeModelReconstructionCurvatureTest
     {
         /// <summary>
         /// A ring bend rod carries <c>flMinDist = flMaxDist * sin(add_curvature * pi / 2)</c>: minimum 2.3344536 at
@@ -14,7 +16,7 @@ namespace Tests
         [Test]
         public async Task ChainRingCurvatureInvertsTheHalfSineLaw()
         {
-            var cloth = RingCurvatureModel(SyntheticCloth.BandedRod(1, 2, 2.3344536f, 10f, 1f));
+            var cloth = RingCurvatureModel(Rod(1, 2, 2.3344536f, 10f));
 
             await Assert.That(cloth.ChainRingCurvature).IsEqualTo(0.15f).Within(1e-4f);
         }
@@ -25,19 +27,26 @@ namespace Tests
         [Test]
         public async Task ChainRingCurvatureRefusesADisagreeingRing()
         {
-            var cloth = RingCurvatureModel(
-                SyntheticCloth.BandedRod(1, 2, 2.3344536f, 10f, 1f)
-                + SyntheticCloth.BandedRod(2, 3, 5.8778525f, 10f, 1f));
+            var cloth = RingCurvatureModel(Rod(1, 2, 2.3344536f, 10f), Rod(2, 3, 5.8778525f, 10f));
 
             await Assert.That(cloth.ChainRingCurvature).IsEqualTo(0f);
         }
 
-        private static ClothReconstruction RingCurvatureModel(string rods) => SyntheticCloth.Model(
-            ["j", "$ccj_0", "$ccj_1", "$ccj_2"], staticNodes: 0, parents: [-1, 0, 0, 0],
-            poses: [new(0f, 0f, 0f), new(0f, 1f, 0f), new(0f, 0f, 1f), new(0f, -1f, 0f)],
-            body: $$"""
-                m_Rods = [ {{rods}} ]
-                """);
+        private static ClothReconstruction RingCurvatureModel(params FeRodConstraint[] rods) => new FeModelBuilder
+        {
+            Names = ["j", "$ccj_0", "$ccj_1", "$ccj_2"],
+            Parents = [-1, 0, 0, 0],
+            Positions = [new(0f, 0f, 0f), new(0f, 1f, 0f), new(0f, 0f, 1f), new(0f, -1f, 0f)],
+            Rods = rods,
+        }.Reconstruct();
+
+        /// <summary>A mid node above the line between its two ends, all free, with no bend.</summary>
+        private static FeModelBuilder ThreeNodeBend => new()
+        {
+            Names = ["mid", "end0", "end1"],
+            Parents = [-1, 0, 0],
+            Positions = [new(0f, 1f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
+        };
 
         /// <summary>
         /// A stiff hinge's bend weights are <c>stiffness * [-1, 0.5, 0.5]</c> at equal inverse masses, and its height
@@ -46,7 +55,7 @@ namespace Tests
         [Test]
         public async Task StiffHingeInvertsTheKelagerWeightSpread()
         {
-            var hinge = KelagerModel("-1.0, 0.5, 0.5", 0.8164966f).GetStiffHinge(1);
+            var hinge = KelagerModel([-1f, 0.5f, 0.5f], 0.8164966f).GetStiffHinge(1);
 
             await Assert.That(hinge).IsNotNull();
 
@@ -64,7 +73,7 @@ namespace Tests
         [Test]
         public async Task StiffHingeReadsAFullMotionBiasOffAZeroedMidWeight()
         {
-            var hinge = KelagerModel("0.0, 1.5, 0.0", 0.8164966f).GetStiffHinge(1);
+            var hinge = KelagerModel([0f, 1.5f, 0f], 0.8164966f).GetStiffHinge(1);
 
             await Assert.That(hinge).IsNotNull();
 
@@ -81,20 +90,13 @@ namespace Tests
         [Test]
         public async Task StiffHingeRecoversNoAngleBelowTheRestHeight()
         {
-            var hinge = KelagerModel("-1.0, 0.5, 0.5", 0.5f).GetStiffHinge(1);
+            var hinge = KelagerModel([-1f, 0.5f, 0.5f], 0.5f).GetStiffHinge(1);
 
             await Assert.That(hinge!.Value.Angle).IsEqualTo(0f);
         }
 
-        private static ClothReconstruction KelagerModel(string weights, float height) => SyntheticCloth.Model(
-            ["mid", "end0", "end1"], staticNodes: 0, parents: [-1, 0, 0],
-            poses: [new(0f, 1f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
-            body: $$"""
-                m_KelagerBends =
-                [
-                    { nNode = [ 0, 1, 2 ] flWeight = [ {{weights}} ] flHeight0 = {{SyntheticCloth.Num(height)}} },
-                ]
-                """);
+        private static ClothReconstruction KelagerModel(float[] weights, float height)
+            => (ThreeNodeBend with { KelagerBends = [KelagerBend(0, 1, 2, height, weights)] }).Reconstruct();
 
         /// <summary>
         /// With <c>rigid_edge_hinges</c> the curvature is read off the ring bends' heights: none means zero, a folded
@@ -105,33 +107,34 @@ namespace Tests
         {
             using (Assert.Multiple())
             {
-                await Assert.That(RigidSheet(bends: "").RigidHingeCurvature).IsEqualTo(0f);
-                await Assert.That(RigidSheet(bends: Bend(4.714045f)).RigidHingeCurvature)
+                await Assert.That(RigidSheet().RigidHingeCurvature).IsEqualTo(0f);
+                await Assert.That(RigidSheet(4.714045f).RigidHingeCurvature)
                     .IsEqualTo(0.5f).Within(0.001f);
-                await Assert.That(RigidSheet(bends: Bend(6.666667f)).RigidHingeCurvature)
+                await Assert.That(RigidSheet(6.666667f).RigidHingeCurvature)
                     .IsEqualTo(0f).Within(0.001f);
-                await Assert.That(RigidSheet(bends: Bend(0.1f)).RigidHingeCurvature).IsEqualTo(1f);
-                await Assert.That(RigidSheet(bends: Bend(0f)).RigidHingeCurvature).IsEqualTo(1f);
-                await Assert.That(RigidSheet(bends: Bend(4.714045f) + Bend(6.666667f)).RigidHingeCurvature)
+                await Assert.That(RigidSheet(0.1f).RigidHingeCurvature).IsEqualTo(1f);
+                await Assert.That(RigidSheet(0f).RigidHingeCurvature).IsEqualTo(1f);
+                await Assert.That(RigidSheet(4.714045f, 6.666667f).RigidHingeCurvature)
                     .IsEqualTo(1f);
             }
         }
 
-        private static string Bend(float height)
-            => $"{{ nNode = [ 1, 2, 3 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {SyntheticCloth.Num(height)} }},";
-
         /// <summary>
         /// A sheet marked rigid-hinged by its axial edges, whose one hub (node 1) sits between two ring
         /// members (nodes 2 and 3) ten units away on opposite sides, so the hub's own rest distance from
-        /// their centroid is zero and every fold it can record still tracks the angle.
+        /// their centroid is zero and every fold it can record still tracks the angle. Each of <paramref name="heights"/>
+        /// is one bend over the hub.
         /// </summary>
-        private static ClothReconstruction RigidSheet(string bends) => SyntheticCloth.Model(
-            ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"], staticNodes: 1,
-            poses: [new(0f, 0f, 0f), new(0f, 0f, 0f), new(10f, 0f, 0f), new(-10f, 0f, 0f)],
-            body: $$"""
-                m_AxialEdges = [ { nNode = [ 1, 2, 3, 3, 2, 1 ] }, ]
-                m_KelagerBends = [ {{bends}} ]
-                """);
+        private static ClothReconstruction RigidSheet(params float[] heights) => new FeModelBuilder
+        {
+            Names = ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"],
+            StaticNodes = 1,
+            Positions = [new(0f, 0f, 0f), new(0f, 0f, 0f), new(10f, 0f, 0f), new(-10f, 0f, 0f)],
+            AxialEdges = [RigidHingeEdge],
+            KelagerBends = [.. heights.Select(static height => KelagerBend(1, 2, 3, height, [-1f, 0.5f, 0.5f]))],
+        }.Reconstruct();
+
+        private static FeAxialEdgeBend RigidHingeEdge => new(0f, 0f, 0f, [], [1, 2, 3, 3, 2, 1]);
 
         /// <summary>
         /// Rigid-hinge hubs folding by different angles read a <c>cloth_bend_stiffness</c> paint per hub and a
@@ -156,20 +159,21 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction ThreeHubRigidSheet(float firstHeight, float secondHeight) => SyntheticCloth.Model(
-            ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8"],
-                staticNodes: 1,
-            poses: [new(0f, 0f, 0f), new(0f, 0f, 0f), new(10f, 0f, 0f), new(-10f, 0f, 0f), new(0f, 0f, -20f), new(10f, 0f, -20f),
+        private static ClothReconstruction ThreeHubRigidSheet(float firstHeight, float secondHeight) => new FeModelBuilder
+        {
+            Names = ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7",
+                "$cloth_m0p8"],
+            StaticNodes = 1,
+            Positions = [new(0f, 0f, 0f), new(0f, 0f, 0f), new(10f, 0f, 0f), new(-10f, 0f, 0f), new(0f, 0f, -20f), new(10f, 0f, -20f),
                 new(-10f, 0f, -20f), new(0f, 0f, -40f), new(10f, 0f, -40f), new(-10f, 0f, -40f)],
-            body: $$"""
-                m_AxialEdges = [ { nNode = [ 1, 2, 3, 3, 2, 1 ] }, ]
-                m_KelagerBends =
-                [
-                    { nNode = [ 1, 2, 3 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {{SyntheticCloth.Num(firstHeight)}} },
-                    { nNode = [ 4, 5, 6 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {{SyntheticCloth.Num(secondHeight)}} },
-                    { nNode = [ 7, 8, 9 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = 0.0 },
-                ]
-                """);
+            AxialEdges = [RigidHingeEdge],
+            KelagerBends =
+            [
+                KelagerBend(1, 2, 3, firstHeight, [-1f, 0.5f, 0.5f]),
+                KelagerBend(4, 5, 6, secondHeight, [-1f, 0.5f, 0.5f]),
+                KelagerBend(7, 8, 9, 0f, [-1f, 0.5f, 0.5f]),
+            ],
+        }.Reconstruct();
 
         /// <summary>
         /// A Kelager bend whose hub lies between its ends is a chain ring bend, not a stiff hinge; one bending its
@@ -178,18 +182,17 @@ namespace Tests
         [Test]
         public async Task ARingBendOverAJointIsNotAStiffHingeOnItsParent()
         {
-            static ClothReconstruction Model(string bendNodes) => SyntheticCloth.Model(
-                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -8.5f), new(0f, 0f, -17f)],
-                body: $$"""
-                    m_KelagerBends =
-                    [
-                        { nNode = [ {{bendNodes}} ] flWeight = [ -1.0, 0.0, 0.9 ] flHeight0 = 4.0 nReserved = 0 },
-                    ]
-                    """);
+            static ClothReconstruction Model(int[] bendNodes) => new FeModelBuilder
+            {
+                Names = ["root", "j1", "j2"],
+                StaticNodes = 1,
+                Parents = [-1, 0, 1],
+                Positions = [new(0f, 0f, 0f), new(0f, 0f, -8.5f), new(0f, 0f, -17f)],
+                KelagerBends = [new FeKelagerBend([-1f, 0f, 0.9f], 4f, bendNodes, 0)],
+            }.Reconstruct();
 
-            var ring = Model("1, 0, 2");
-            var hinge = Model("1, 2, 0");
+            var ring = Model([1, 0, 2]);
+            var hinge = Model([1, 2, 0]);
 
             using (Assert.Multiple())
             {
@@ -209,8 +212,8 @@ namespace Tests
         [Test]
         public async Task AStiffHingeStiffnessIsTheBendWeightsLinearCombination()
         {
-            var biased = BiasedKelagerModel("-0.5, 0.25, 0.25").GetStiffHinge(1);
-            var unbiased = BiasedKelagerModel("-0.4615385, 0.1153846, 0.4615385").GetStiffHinge(1);
+            var biased = BiasedKelagerModel([-0.5f, 0.25f, 0.25f]).GetStiffHinge(1);
+            var unbiased = BiasedKelagerModel([-0.4615385f, 0.1153846f, 0.4615385f]).GetStiffHinge(1);
 
             using (Assert.Multiple())
             {
@@ -226,15 +229,11 @@ namespace Tests
         }
 
         /// <summary>One bend over three nodes of unequal inverse mass.</summary>
-        private static ClothReconstruction BiasedKelagerModel(string weights) => SyntheticCloth.Model(
-            ["mid", "end0", "end1"], staticNodes: 0, parents: [-1, 0, 0], invMasses: "2.0, 1.0, 4.0",
-            poses: [new(0f, 1f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
-            body: $$"""
-                m_KelagerBends =
-                [
-                    { nNode = [ 0, 1, 2 ] flWeight = [ {{weights}} ] flHeight0 = 0.8164966 },
-                ]
-                """);
+        private static ClothReconstruction BiasedKelagerModel(float[] weights) => (ThreeNodeBend with
+        {
+            InvMasses = [2f, 1f, 4f],
+            KelagerBends = [KelagerBend(0, 1, 2, 0.8164966f, weights)],
+        }).Reconstruct();
 
         /// <summary>
         /// A bend height on the 0.001 floor recovers a zero angle; a height above it recovers its angle, at the same
@@ -257,15 +256,11 @@ namespace Tests
         }
 
         /// <summary>One bend over three collinear nodes.</summary>
-        private static ClothReconstruction FlatKelagerModel(float height) => SyntheticCloth.Model(
-            ["mid", "end0", "end1"], staticNodes: 0, parents: [-1, 0, 0],
-            poses: [new(0f, 0f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
-            body: $$"""
-                m_KelagerBends =
-                [
-                    { nNode = [ 0, 1, 2 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {{SyntheticCloth.Num(height)}} },
-                ]
-                """);
+        private static ClothReconstruction FlatKelagerModel(float height) => (ThreeNodeBend with
+        {
+            Positions = [new(0f, 0f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
+            KelagerBends = [KelagerBend(0, 1, 2, height, [-1f, 0.5f, 0.5f])],
+        }).Reconstruct();
 
         /// <summary>
         /// A joint bent twice states each declaration's own angle by rank; a joint bent once has no rank 1.
@@ -288,15 +283,15 @@ namespace Tests
         }
 
         /// <summary>One joint bent once, or twice at a wider second angle.</summary>
-        private static ClothReconstruction TwiceBentKelagerModel(float first, float? second) => SyntheticCloth.Model(
-            ["mid", "joint", "end1"], staticNodes: 0, parents: [-1, 0, 0],
-            poses: [new(0f, 0.2f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
-            body: $$"""
-                m_KelagerBends =
-                [
-                    { nNode = [ 0, 1, 2 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {{SyntheticCloth.Num(first)}} },
-                    {{(second is { } h ? $"{{ nNode = [ 0, 1, 2 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {SyntheticCloth.Num(h)} }}," : string.Empty)}}
-                ]
-                """);
+        private static ClothReconstruction TwiceBentKelagerModel(float first, float? second) => (ThreeNodeBend with
+        {
+            Names = ["mid", "joint", "end1"],
+            Positions = [new(0f, 0.2f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
+            KelagerBends =
+            [
+                KelagerBend(0, 1, 2, first, [-1f, 0.5f, 0.5f]),
+                .. second is { } height ? [KelagerBend(0, 1, 2, height, [-1f, 0.5f, 0.5f])] : Array.Empty<FeKelagerBend>(),
+            ],
+        }).Reconstruct();
     }
 }

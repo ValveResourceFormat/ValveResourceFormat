@@ -5,11 +5,12 @@ using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
+using static Tests.IO.FeModelBuilder;
 
-namespace Tests
+namespace Tests.IO
 {
     /// <summary>Declaring cloth effects, stiff hinges and anti-tunnel constructs.</summary>
-    public class ClothExtractEffectTest : ClothTestFixtures
+    public class FeModelExtractEffectTest : FeModelTestModels
     {
         /// <summary>
         /// Anti-tunnel probes are declared in the order of their target slices in <c>m_AntiTunnelTargetNodes</c>, here
@@ -60,32 +61,30 @@ namespace Tests
             => [.. children.ElementAt(index).Value.GetSubCollection("data").GetSubCollection("nodes").Select(static n => n.Key)];
 
         /// <summary>Two probes whose target slices are laid out in the reverse of the probe order.</summary>
-        private static ClothReconstruction SwappedAntiTunnelProbes() => SyntheticCloth.Model(
-            ["root", "a", "b", "c", "body", "tip"], staticNodes: 1, parents: [-1, 0, 0, 0, 0, 0],
-            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 4f, -30f), new(0f, 8f, -30f)],
-            body: """
-                m_AntiTunnelTargetNodes = [ 1, 2, 3, 4 ]
-                m_AntiTunnelProbes =
-                [
-                    { flWeight = 1.0 nFlags = 1 nProbeNode = 5 nCount = 1 nBegin = 3
-                      flActivationDistance = 1.0 flCurvatureRadius = 0.0 flBias = 0.0 },
-                    { flWeight = 1.0 nFlags = 0 nProbeNode = 4 nCount = 3 nBegin = 0
-                      flActivationDistance = 1.0 flCurvatureRadius = 0.0 flBias = 0.0 },
-                ]
-                """);
+        private static ClothReconstruction SwappedAntiTunnelProbes() => (ProbedColumn with
+        {
+            Names = [.. ProbedColumn.Names, "tip"],
+            Parents = [.. ProbedColumn.Parents!, 0],
+            Positions = [.. ProbedColumn.Positions!, new(0f, 8f, -30f)],
+            AntiTunnelTargetNodes = [1, 2, 3, 4],
+            AntiTunnelProbes = [new(1f, 1, 5, 1, 3, 1f, 0f, 0f), new(1f, 0, 4, 3, 0, 1f, 0f, 0f)],
+        }).Reconstruct();
 
         /// <summary>One probe whose target slice is not in ascending node order.</summary>
-        private static ClothReconstruction ShuffledAntiTunnelTargets() => SyntheticCloth.Model(
-            ["root", "a", "b", "c", "body"], staticNodes: 1, parents: [-1, 0, 0, 0, 0],
-            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 4f, -30f)],
-            body: """
-                m_AntiTunnelTargetNodes = [ 3, 1, 2 ]
-                m_AntiTunnelProbes =
-                [
-                    { flWeight = 1.0 nFlags = 0 nProbeNode = 4 nCount = 3 nBegin = 0
-                      flActivationDistance = 1.0 flCurvatureRadius = 0.0 flBias = 0.0 },
-                ]
-                """);
+        private static ClothReconstruction ShuffledAntiTunnelTargets() => (ProbedColumn with
+        {
+            AntiTunnelTargetNodes = [3, 1, 2],
+            AntiTunnelProbes = [new(1f, 0, 4, 3, 0, 1f, 0f, 0f)],
+        }).Reconstruct();
+
+        /// <summary>A static root over a column of a, b and c, with a body node beside c.</summary>
+        private static FeModelBuilder ProbedColumn => new()
+        {
+            Names = ["root", "a", "b", "c", "body"],
+            StaticNodes = 1,
+            Parents = [-1, 0, 0, 0, 0],
+            Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 4f, -30f)],
+        };
 
         /// <summary>
         /// An effect declares <c>cloth_effect_version</c> from its <c>Version</c> parameter, and none without it.
@@ -93,8 +92,8 @@ namespace Tests
         [Test]
         public async Task AClothEffectVersionIsItsVersionParameter()
         {
-            var versioned = ClothWindEffect("Version = 2");
-            var unversioned = ClothWindEffect(string.Empty);
+            var versioned = ClothWindEffect(2);
+            var unversioned = ClothWindEffect(null);
             var maps = new HashSet<string>();
             var node = ClothExtract.MakeClothEffect(versioned, versioned.Fe.Effects.First(), maps);
             var plain = ClothExtract.MakeClothEffect(unversioned, unversioned.Fe.Effects.First(), maps);
@@ -106,31 +105,26 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction ClothWindEffect(string version) => SyntheticCloth.Parse($$"""
+        private static ClothReconstruction ClothWindEffect(int? version)
+        {
+            var parameters = Object(("Strength", Floats(70.400002f, 0f, 0f)), ("AirToCloth", 0.249439f), ("LocalSpace", 0f),
+                ("Choppiness", 1f), ("Vortices", KVObject.Array([Object(("MaxSpeed", 123.200005f), ("MaxCell", 32f))])));
+            if (version is { } v)
             {
-                m_nNodeCount = 1
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0 ]
-                m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} ]
-                m_Effects =
-                [
-                    {
-                        sName = "wind0"
-                        nNameHash = 1456486
-                        nType = 1
-                        m_Params =
-                        {
-                            Strength = [ 70.400002, 0.0, 0.0 ]
-                            AirToCloth = 0.249439
-                            LocalSpace = 0.0
-                            Choppiness = 1.0
-                            Vortices = [ { MaxSpeed = 123.200005 MaxCell = 32.0 } ]
-                            {{version}}
-                        }
-                    },
-                ]
+                parameters["Version"] = v;
             }
-            """);
+
+            return (LoneStaticNode with { Effects = [Effect("wind0", 1456486, 1, parameters)] }).Reconstruct();
+        }
+
+        /// <summary>One unnamed static node at the origin.</summary>
+        private static FeModelBuilder LoneStaticNode => new()
+        {
+            NodeCount = 1,
+            StaticNodes = 1,
+            InvMasses = [0f],
+            Positions = [Vector3.Zero],
+        };
 
         /// <summary>
         /// A stiffen effect declares its <c>BoneOverlay</c> parameter beside <c>Stiffness</c>, and none without it.
@@ -138,8 +132,8 @@ namespace Tests
         [Test]
         public async Task AStiffenEffectsBoneOverlayIsItsOwnParameter()
         {
-            var overlaid = ClothStiffenEffect("BoneOverlay = 0.5");
-            var plain = ClothStiffenEffect(string.Empty);
+            var overlaid = ClothStiffenEffect(0.5f);
+            var plain = ClothStiffenEffect(null);
             var maps = new HashSet<string>();
             var node = ClothExtract.MakeClothEffect(overlaid, overlaid.Fe.Effects.First(), maps);
             var bare = ClothExtract.MakeClothEffect(plain, plain.Fe.Effects.First(), maps);
@@ -152,27 +146,16 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction ClothStiffenEffect(string overlay) => SyntheticCloth.Parse($$"""
+        private static ClothReconstruction ClothStiffenEffect(float? overlay)
+        {
+            var parameters = Object(("Stiffness", 2f));
+            if (overlay is { } boneOverlay)
             {
-                m_nNodeCount = 1
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0 ]
-                m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} ]
-                m_Effects =
-                [
-                    {
-                        sName = "stiffen0"
-                        nNameHash = 1
-                        nType = 3
-                        m_Params =
-                        {
-                            Stiffness = 2.0
-                            {{overlay}}
-                        }
-                    },
-                ]
+                parameters["BoneOverlay"] = boneOverlay;
             }
-            """);
+
+            return (LoneStaticNode with { Effects = [Effect("stiffen0", 1, 3, parameters)] }).Reconstruct();
+        }
 
         /// <summary>
         /// An effect recording a <c>Node</c> is declared under the static ClothNode rooted on that bone, with its
@@ -181,16 +164,14 @@ namespace Tests
         [Test]
         public async Task AnEffectRecordingANodeIsDeclaredUnderThatStaticClothNode()
         {
-            var cloth = SyntheticCloth.Model(
-                ["spine_2", "coattail_0_L"], staticNodes: 2, parents: [-1, 0],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f)],
-                body: """
-                    m_Effects =
-                    [
-                        { sName = "gravity0" nNameHash = 1 nType = 4 m_Params = { Node = 0 Strength = [ 0.353553, 0.353553, -0.0 ] } },
-                        { sName = "gravity1" nNameHash = 2 nType = 4 m_Params = { Strength = [ 0.0, 0.0, -2.0 ] } },
-                    ]
-                    """);
+            var cloth = new FeModelBuilder
+            {
+                Names = ["spine_2", "coattail_0_L"],
+                StaticNodes = 2,
+                Parents = [-1, 0],
+                Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f)],
+                Effects = [Gravity("gravity0", 1, 0, 0.353553f, 0.353553f, -0f), Gravity("gravity1", 2, null, 0f, 0f, -2f)],
+            }.Reconstruct();
             var (folder, folderChildren) = KVHelpers.MakeListNode("Folder");
             folderChildren.Add(EffectParentNode("spine_2", isStatic: true));
             var softbodyChildren = KVObject.Array();
@@ -224,20 +205,22 @@ namespace Tests
         [Test]
         public async Task AnEffectWhoseNodeHasNoStaticClothNodeGetsABareStaticOne()
         {
-            var cloth = SyntheticCloth.Model(
-                ["spine_2", "coattail_0_L", "coattail_1_L", "$cccoattail_1_L_0"], staticNodes: 2, parents: [-1, 0, 1, 2],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 2f, -20f)],
-                body: """
-                    m_Effects =
-                    [
-                        { sName = "gravity_root" nNameHash = 1 nType = 4 m_Params = { Node = 1 Strength = [ 1.0, 0.0, 0.0 ] } },
-                        { sName = "gravity_root2" nNameHash = 2 nType = 4 m_Params = { Node = 1 Strength = [ 0.0, 1.0, 0.0 ] } },
-                        { sName = "gravity_joint" nNameHash = 3 nType = 4 m_Params = { Node = 2 Strength = [ 0.0, 0.0, 1.0 ] } },
-                        { sName = "gravity_static" nNameHash = 4 nType = 4 m_Params = { Node = 0 Strength = [ 1.0, 0.0, 0.0 ] } },
-                        { sName = "gravity_top" nNameHash = 5 nType = 4 m_Params = { Strength = [ 1.0, 0.0, 0.0 ] } },
-                        { sName = "gravity_generated" nNameHash = 6 nType = 4 m_Params = { Node = 3 Strength = [ 1.0, 0.0, 0.0 ] } },
-                    ]
-                    """);
+            var cloth = new FeModelBuilder
+            {
+                Names = ["spine_2", "coattail_0_L", "coattail_1_L", "$cccoattail_1_L_0"],
+                StaticNodes = 2,
+                Parents = [-1, 0, 1, 2],
+                Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 2f, -20f)],
+                Effects =
+                [
+                    Gravity("gravity_root", 1, 1, 1f, 0f, 0f),
+                    Gravity("gravity_root2", 2, 1, 0f, 1f, 0f),
+                    Gravity("gravity_joint", 3, 2, 0f, 0f, 1f),
+                    Gravity("gravity_static", 4, 0, 1f, 0f, 0f),
+                    Gravity("gravity_top", 5, null, 1f, 0f, 0f),
+                    Gravity("gravity_generated", 6, 3, 1f, 0f, 0f),
+                ],
+            }.Reconstruct();
             var softbodyChildren = KVObject.Array();
             softbodyChildren.Add(EffectParentNode("spine_2", isStatic: true));
             softbodyChildren.Add(EffectParentNode("coattail_1_L", isStatic: false));
@@ -275,18 +258,20 @@ namespace Tests
         [Test]
         public async Task AChainModelWithAntiTunnelBytecodeDeclaresItsColliderGroup()
         {
-            static ClothReconstruction Model(string bytecode) => SyntheticCloth.Model(
-                ["spine_2", "coattail_0_L", "coattail_1_L"], staticNodes: 2, parents: [-1, -1, 1],
-                poses: [new(0f, 0f, 0f), new(0f, 5f, 0f), new(0f, 5f, -8f)],
-                body: $$"""
-                    m_AntiTunnelBytecode = [ {{bytecode}} ]
-                    """);
+            static ClothReconstruction Model(params uint[] bytecode) => new FeModelBuilder
+            {
+                Names = ["spine_2", "coattail_0_L", "coattail_1_L"],
+                StaticNodes = 2,
+                Parents = [-1, -1, 1],
+                Positions = [new(0f, 0f, 0f), new(0f, 5f, 0f), new(0f, 5f, -8f)],
+                AntiTunnelBytecode = bytecode,
+            }.Reconstruct();
 
             var withBytecode = KVObject.Array();
-            ClothExtract.AddClothAntiTunnelGroup(withBytecode, Model("131072, 805306368, 2, 131073, 196609"), ["spine_2_clothCapsule"],
+            ClothExtract.AddClothAntiTunnelGroup(withBytecode, Model(131072, 805306368, 2, 131073, 196609), ["spine_2_clothCapsule"],
                 ["coattail_0_L", "coattail_0_L"]);
             var withoutBytecode = KVObject.Array();
-            ClothExtract.AddClothAntiTunnelGroup(withoutBytecode, Model(string.Empty), ["spine_2_clothCapsule"], ["coattail_0_L"]);
+            ClothExtract.AddClothAntiTunnelGroup(withoutBytecode, Model(), ["spine_2_clothCapsule"], ["coattail_0_L"]);
 
             var groups = withBytecode.Select(static child => child.Value).ToArray();
 
@@ -307,19 +292,22 @@ namespace Tests
         [Test]
         public async Task ABendOverFreeClothNodesComesBackAsAStiffHinge()
         {
-            var cloth = SyntheticCloth.Model(
-                ["spine_2", "$cloth_node_hinge_n0", "$cloth_node_hinge_n1", "$cloth_node_hinge_n2", "coattail_0_L", "coattail_1_L", "coattail_2_L"],
-                    staticNodes: 3, parents: [-1, 0, 0, 0, -1, 4, 5], invMasses: "0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0",
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -4f), new(0f, 0f, -8f), new(0f, 0f, -12f), new(0f, 5f, 0f), new(0f, 5f, -8f),
+            var cloth = new FeModelBuilder
+            {
+                Names = ["spine_2", "$cloth_node_hinge_n0", "$cloth_node_hinge_n1", "$cloth_node_hinge_n2", "coattail_0_L", "coattail_1_L",
+                    "coattail_2_L"],
+                StaticNodes = 3,
+                InvMasses = [0f, 0f, 0f, 1f, 0f, 1f, 1f],
+                Parents = [-1, 0, 0, 0, -1, 4, 5],
+                Positions = [new(0f, 0f, 0f), new(0f, 0f, -4f), new(0f, 0f, -8f), new(0f, 0f, -12f), new(0f, 5f, 0f), new(0f, 5f, -8f),
                     new(0f, 5f, -16f)],
-                body: """
-                    m_KelagerBends =
-                    [
-                        { flWeight = [ -0.0, 1.0, 2.0 ] flHeight0 = 1.652419 nNode = [ 1, 2, 3 ] nReserved = 0 },
-                        { flWeight = [ -0.0, 1.0, 2.0 ] flHeight0 = 2.981424 nNode = [ 1, 2, 3 ] nReserved = 0 },
-                        { flWeight = [ -2.0, 1.0, 1.0 ] flHeight0 = 0.5 nNode = [ 5, 4, 6 ] nReserved = 0 },
-                    ]
-                    """);
+                KelagerBends =
+                [
+                    KelagerBend(1, 2, 3, 1.652419f, [-0f, 1f, 2f]),
+                    KelagerBend(1, 2, 3, 2.981424f, [-0f, 1f, 2f]),
+                    KelagerBend(5, 4, 6, 0.5f, [-2f, 1f, 1f]),
+                ],
+            }.Reconstruct();
 
             var softbodyChildren = KVObject.Array();
             ClothExtract.AddClothStiffHinges(softbodyChildren, cloth);
@@ -345,8 +333,8 @@ namespace Tests
         [Test]
         public async Task AWindEffectsLocalSpaceIsItsLocalSpaceParameter()
         {
-            var local = WindInLocalSpace("0.469");
-            var world = WindInLocalSpace("0.0");
+            var local = WindInLocalSpace(0.469f);
+            var world = WindInLocalSpace(0f);
             var maps = new HashSet<string>();
             var node = ClothExtract.MakeClothEffect(local, local.Fe.Effects.First(), maps);
             var plain = ClothExtract.MakeClothEffect(world, world.Fe.Effects.First(), maps);
@@ -358,30 +346,15 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction WindInLocalSpace(string localSpace) => SyntheticCloth.Parse($$"""
-            {
-                m_nNodeCount = 1
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0 ]
-                m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} ]
-                m_Effects =
-                [
-                    {
-                        sName = "ClothEffectWind"
-                        nNameHash = 2353092209
-                        nType = 1
-                        m_Params =
-                        {
-                            Strength = [ -281.600006, 0.0, 0.0 ]
-                            AirToCloth = 0.5
-                            LocalSpace = {{localSpace}}
-                            Choppiness = 8.0
-                            Vortices = [ { MaxSpeed = 211.199997 MaxCell = 1658.880005 } ]
-                        }
-                    },
-                ]
-            }
-            """);
+        private static ClothReconstruction WindInLocalSpace(float localSpace) => (LoneStaticNode with
+        {
+            Effects =
+            [
+                Effect("ClothEffectWind", 2353092209, 1, Object(("Strength", Floats(-281.600006f, 0f, 0f)), ("AirToCloth", 0.5f),
+                    ("LocalSpace", localSpace), ("Choppiness", 8f),
+                    ("Vortices", KVObject.Array([Object(("MaxSpeed", 211.199997f), ("MaxCell", 1658.880005f))])))),
+            ],
+        }).Reconstruct();
 
         /// <summary>
         /// An effect names a selection the document declares in a <c>ClothVertexMap</c> or a joint's <c>vertex_map</c>;
@@ -434,33 +407,16 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction StiffenOnSelection() => SyntheticCloth.Parse($$"""
-            {
-                m_nNodeCount = 2
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                ]
-                m_VertexMaps = [ {{VertexMapEntry("sail_vm", 7, 0, 1, 1)}} ]
-                m_VertexMapValues = [ 255 ]
-                m_Effects =
-                [
-                    {
-                        sName = "stiffen0"
-                        nNameHash = 1
-                        nType = 3
-                        m_Params =
-                        {
-                            Stiffness = 1.0
-                            VertexMap = 7
-                        }
-                    },
-                ]
-            }
-            """);
+        private static ClothReconstruction StiffenOnSelection() => new FeModelBuilder
+        {
+            NodeCount = 2,
+            StaticNodes = 1,
+            InvMasses = [0f, 1f],
+            Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f)],
+            VertexMaps = [VertexMap("sail_vm", 7, 0, 1, 1)],
+            VertexMapValues = [255],
+            Effects = [Effect("stiffen0", 1, 3, Object(("Stiffness", 1f), ("VertexMap", 7)))],
+        }.Reconstruct();
 
         /// <summary>
         /// Vortices compiled at zero speed read <c>time_multiplier</c> 0 with a positive vortex speed; moving vortices
@@ -469,8 +425,8 @@ namespace Tests
         [Test]
         public async Task VorticesCompiledAtZeroSpeedAreAZeroTimeMultiplier()
         {
-            var moving = WindVortexEffect("[ 70.400002, 0.0, 0.0 ]", "1.0", "123.200005");
-            var stilled = WindVortexEffect("[ -0.0, -0.0, -0.0 ]", "0.0", "0.0");
+            var moving = WindVortexEffect(new(70.400002f, 0f, 0f), 1f, 123.200005f);
+            var stilled = WindVortexEffect(new(-0f, -0f, -0f), 0f, 0f);
             var maps = new HashSet<string>();
             var movingNode = ClothExtract.MakeClothEffect(moving, moving.Fe.Effects.First(), maps)!;
             var stilledNode = ClothExtract.MakeClothEffect(stilled, stilled.Fe.Effects.First(), maps)!;
@@ -486,28 +442,15 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction WindVortexEffect(string strength, string choppiness, string maxSpeed) => SyntheticCloth.Parse($$"""
-            {
-                m_nNodeCount = 1
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0 ]
-                m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} ]
-                m_Effects =
-                [
-                    {
-                        sName = "wind0"
-                        nNameHash = 1456486
-                        nType = 1
-                        m_Params =
-                        {
-                            Strength = {{strength}}
-                            AirToCloth = 0.249439
-                            Choppiness = {{choppiness}}
-                            Vortices = [ { MaxSpeed = {{maxSpeed}} MaxCell = 80.0 }, { MaxSpeed = {{maxSpeed}} MaxCell = 80.0 } ]
-                        }
-                    },
-                ]
-            }
-            """);
+        private static ClothReconstruction WindVortexEffect(Vector3 strength, float choppiness, float maxSpeed) => (LoneStaticNode with
+        {
+            Effects =
+            [
+                Effect("wind0", 1456486, 1, Object(("Strength", Floats(strength.X, strength.Y, strength.Z)), ("AirToCloth", 0.249439f),
+                    ("Choppiness", choppiness),
+                    ("Vortices", KVObject.Array([Object(("MaxSpeed", maxSpeed), ("MaxCell", 80f)),
+                        Object(("MaxSpeed", maxSpeed), ("MaxCell", 80f))])))),
+            ],
+        }).Reconstruct();
     }
 }

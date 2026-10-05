@@ -10,7 +10,7 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace Tests;
+namespace Tests.IO;
 
 /// <summary>
 /// Decompiles models from Source 2 games and validates that the decompiled source recompiles

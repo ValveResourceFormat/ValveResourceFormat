@@ -1,14 +1,13 @@
-using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+using static Tests.IO.FeModelBuilder;
+using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
-namespace Tests
+namespace Tests.IO
 {
     /// <summary>Reading node masses, mass paints and goal integrators off a compiled FeModel.</summary>
-    public class ClothFeModelNodeTest : ClothTestFixtures
+    public class FeModelReconstructionNodeTest : FeModelTestModels
     {
         /// <summary>
         /// Every element credits both ends of each corner pair with 4 per unit of rest length, times the squared
@@ -17,12 +16,13 @@ namespace Tests
         [Test]
         public async Task ElementMassCreditsFourPerUnitOfEachCornerPair()
         {
-            var cloth = SyntheticCloth.Model(
-                ["v0", "v1", "v2", "v3"], staticNodes: 0, invMasses: "0.009259259, 0.009259259, 0.009259259, 0.009259259",
-                poses: [new(0f, 0f, 0f), new(3f, 0f, 0f), new(3f, 4f, 0f), new(0f, 4f, 0f)],
-                body: """
-                    m_Quads = [ { nNode = [ 0, 1, 2, 3 ] } ]
-                    """);
+            var cloth = new FeModelBuilder
+            {
+                Names = ["v0", "v1", "v2", "v3"],
+                InvMasses = [0.009259259f, 0.009259259f, 0.009259259f, 0.009259259f],
+                Positions = [new(0f, 0f, 0f), new(3f, 0f, 0f), new(3f, 4f, 0f), new(0f, 4f, 0f)],
+                Quads = [Quad(0, 1, 2, 3)],
+            }.Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -42,7 +42,7 @@ namespace Tests
         [Test]
         public async Task RodMassCreditsEightPerUnitOfLength()
         {
-            var cloth = RodMassModel(SyntheticCloth.RigidRod(0, 1, 3f, 1f));
+            var cloth = RodMassModel(RigidRod(0, 1, 3f));
 
             using (Assert.Multiple())
             {
@@ -58,17 +58,19 @@ namespace Tests
         [Test]
         public async Task AnUnboundedRodDoesNotWeigh()
         {
-            var cloth = RodMassModel(SyntheticCloth.BandedRod(0, 1, 3f, ClothReconstruction.UnboundedRodDistance, 1f));
+            var cloth = RodMassModel(Rod(0, 1, 3f, ClothReconstruction.UnboundedRodDistance));
 
             await Assert.That(cloth.RecoverMassMultiplier(0)).IsNull();
         }
 
-        private static ClothReconstruction RodMassModel(string rod) => SyntheticCloth.Model(
-            ["a", "b"], staticNodes: 0, parents: [-1, -1], invMasses: "0.018518519, 0.018518519",
-            poses: [new(0f, 0f, 0f), new(3f, 0f, 0f)],
-            body: $$"""
-                m_Rods = [ {{rod}} ]
-                """);
+        private static ClothReconstruction RodMassModel(FeRodConstraint rod) => new FeModelBuilder
+        {
+            Names = ["a", "b"],
+            Parents = [-1, -1],
+            InvMasses = [0.018518519f, 0.018518519f],
+            Positions = [new(0f, 0f, 0f), new(3f, 0f, 0f)],
+            Rods = [rod],
+        }.Reconstruct();
 
         /// <summary>
         /// A volume-solved selection credits each covered node 12 per unit of its members' summed extent: 72 for extent
@@ -77,25 +79,14 @@ namespace Tests
         [Test]
         public async Task VolumetricSelectionCreditsTwelvePerUnitOfExtent()
         {
-            var cloth = SyntheticCloth.Model(
-                ["a", "b"], staticNodes: 0, invMasses: "0.006172839, 0.006172839",
-                poses: [new(0f, 0f, 0f), new(1f, 2f, 3f)],
-                body: """
-                    m_VertexMapValues = [ 255, 255 ]
-                    m_VertexMaps =
-                    [
-                        {
-                            sName = "body"
-                            nNameHash = 1
-                            nVertexBase = 0
-                            nVertexCount = 2
-                            nMapOffset = 0
-                            nScaleSourceNode = -1
-                            flVolumetricSolveStrength = 1.0
-                            vCenterOfMass = [ 0.0, 0.0, 0.0 ]
-                        },
-                    ]
-                    """);
+            var cloth = new FeModelBuilder
+            {
+                Names = ["a", "b"],
+                InvMasses = [0.006172839f, 0.006172839f],
+                Positions = [new(0f, 0f, 0f), new(1f, 2f, 3f)],
+                VertexMapValues = [255, 255],
+                VertexMaps = [VertexMap("body", 1, 0, 0, 2, 1f)],
+            }.Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -152,12 +143,12 @@ namespace Tests
         {
             using (Assert.Multiple())
             {
-                await Assert.That(BiasedGoals(bias: 0.02f, flags: "128").GoalStrengthBias)
+                await Assert.That(BiasedGoals(bias: 0.02f, flags: 128).GoalStrengthBias)
                     .IsEqualTo(0.02f).Within(0.0001f);
-                await Assert.That(BiasedGoals(bias: 0f, flags: "128").GoalStrengthBias).IsEqualTo(0f);
-                await Assert.That(BiasedGoals(bias: 0.02f, flags: "1024").GoalStrengthBias).IsEqualTo(0f);
+                await Assert.That(BiasedGoals(bias: 0f, flags: 128).GoalStrengthBias).IsEqualTo(0f);
+                await Assert.That(BiasedGoals(bias: 0.02f, flags: 1024).GoalStrengthBias).IsEqualTo(0f);
 
-                var biased = BiasedGoals(bias: 0.02f, flags: "128");
+                var biased = BiasedGoals(bias: 0.02f, flags: 128);
                 await Assert.That(biased.GoalStrengthPaint(0.140608f)).IsEqualTo(0.5f).Within(0.0005f);
                 await Assert.That(biased.GoalStrengthPaint(1f)).IsEqualTo(1f);
                 await Assert.That(biased.GoalDampingPaint(1f, 0f))
@@ -170,34 +161,29 @@ namespace Tests
         /// <c>g^3</c>, with <paramref name="flags"/> as the dynamic band's own mode word (128 = goal
         /// damped, 1024 = raw).
         /// </summary>
-        private static ClothReconstruction BiasedGoals(float bias, string flags)
+        private static ClothReconstruction BiasedGoals(float bias, uint flags)
         {
-            var poses = new System.Text.StringBuilder();
-            var integrators = new System.Text.StringBuilder();
-            poses.Append(SyntheticCloth.Pose(0f, 0f, 0f));
-            integrators.Append("{ flPointDamping = 0.0 flAnimationForceAttraction = 0.0 "
-                + "flAnimationVertexAttraction = 0.0 flGravity = 360.0 },");
-            var strengths = new[] { 0.5f, 0.4f, 0.3f, 0.35f, 0.5f, 0.4f, 0.3f, 0.35f, 0.45f, 0.25f };
-            for (var i = 0; i < strengths.Length; i++)
-            {
-                var g = strengths[i];
-                var force = (g + bias) * (g + bias) * (g + bias);
-                poses.Append(SyntheticCloth.Pose(0f, 0f, -1f * (i + 1)));
-                integrators.Append(CultureInfo.InvariantCulture, $"{{ flPointDamping = 0.0 flAnimationForceAttraction = {SyntheticCloth.Num(force)} "
-                    + $"flAnimationVertexAttraction = {SyntheticCloth.Num(g * g * g)} flGravity = 360.0 }},");
-            }
-
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_nNodeCount = 11
-                    m_nStaticNodes = 1
-                    m_nDynamicNodeFlags = {{flags}}
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose = [ {{poses}} ]
-                    m_NodeIntegrator = [ {{integrators}} ]
-                }
-                """);
+            float[] strengths = [0.5f, 0.4f, 0.3f, 0.35f, 0.5f, 0.4f, 0.3f, 0.35f, 0.45f, 0.25f];
+            return GoalNodes(flags, [.. strengths.Select(g => ((g + bias) * (g + bias) * (g + bias), g * g * g))]);
         }
+
+        /// <summary>
+        /// A static node above a column of goal nodes, one per entry of <paramref name="attractions"/> as its force and
+        /// vertex attraction, under the dynamic mode word <paramref name="flags"/>.
+        /// </summary>
+        private static ClothReconstruction GoalNodes(uint flags, (float Force, float Vertex)[] attractions) => new FeModelBuilder
+        {
+            NodeCount = attractions.Length + 1,
+            StaticNodes = 1,
+            DynamicNodeFlags = flags,
+            InvMasses = [0f, .. attractions.Select(static _ => 1f)],
+            Positions = [Vector3.Zero, .. attractions.Select(static (_, i) => new Vector3(0f, 0f, -1f * (i + 1)))],
+            NodeIntegrator =
+            [
+                new FeNodeIntegrator(0f, 0f, 0f, 360f),
+                .. attractions.Select(static goal => new FeNodeIntegrator(0f, goal.Force, goal.Vertex, 360f)),
+            ],
+        }.Reconstruct();
 
         /// <summary>
         /// On a three-wide ring whose sides each carry one rod, the chain's geometric masses match the shipped ones and
@@ -218,7 +204,78 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction RingThreeWideChain() => SyntheticCloth.Load("cloth_chain_three_wide_ring.kv3");
+        /// <summary>
+        /// A coattail of four joints, each with a three-node ring, the first joint and its ring static, held by one rod
+        /// per ring side.
+        /// </summary>
+        private static ClothReconstruction RingThreeWideChain() => new FeModelBuilder
+        {
+            Names = ["$cccoattail_0_L_0", "$cccoattail_0_L_1", "$cccoattail_0_L_2", "coattail_0_L", "$cccoattail_1_L_0", "$cccoattail_1_L_1",
+                "$cccoattail_1_L_2", "$cccoattail_2_L_0", "$cccoattail_2_L_1", "$cccoattail_2_L_2", "$cccoattail_end_L_0", "$cccoattail_end_L_1",
+                "$cccoattail_end_L_2", "coattail_1_L", "coattail_2_L", "coattail_end_L"],
+            StaticNodes = 4,
+            InvMasses = [0f, 0f, 0f, 0f, 0.00207f, 0.002057f, 0.002057f, 0.002061f, 0.002061f, 0.002061f, 0.0037f, 0.0037f, 0.0037f, 1f, 1f, 1f],
+            Poses =
+            [
+                Pose(-10.723646f, 4.561181f, 66.092773f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-7.534945f, 5.381207f, 65.015862f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-8.487852f, 2.057984f, 65.235313f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-8.915481f, 4.000124f, 65.447983f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-13.473376f, 4.824905f, 58.146507f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-10.330053f, 5.649839f, 56.946922f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-11.282963f, 2.326618f, 57.166382f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-16.587204f, 5.195801f, 50.242416f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-13.441967f, 6.02051f, 49.047699f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-14.394877f, 2.697287f, 49.267155f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-19.686529f, 5.562407f, 42.336063f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-16.541292f, 6.387115f, 41.141346f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-17.494204f, 3.063893f, 41.360802f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-11.695464f, 4.267121f, 57.419937f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-14.808016f, 4.637866f, 49.519089f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-17.907341f, 5.004471f, 41.612736f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+            ],
+            Parents = [3, 3, 3, -1, 13, 13, 13, 14, 14, 14, 15, 15, 15, 3, 13, 14],
+            SourceElems = [0, 0, 0, 9, 9, 7, 10, 12, 8, 9, 12, 11, 7, 8, 11, 10, 6, 4, 7, 9, 5, 6, 9, 8, 4, 5, 8, 7, 2, 0, 4, 6, 1, 2, 6, 5, 0, 1, 5, 4],
+            Rods =
+            [
+                RigidRod(0, 4, 8.412711f, 1f, 0f),
+                RigidRod(0, 5, 9.218822f, 1f, 0f),
+                RigidRod(0, 6, 9.218816f, 1f, 0f),
+                RigidRod(1, 4, 9.097388f, 1f, 0f),
+                RigidRod(1, 5, 8.54357f, 1f, 0f),
+                RigidRod(1, 6, 9.219137f, 1f, 0f),
+                RigidRod(2, 4, 9.097388f, 1f, 0f),
+                RigidRod(2, 5, 9.219141f, 1f, 0f),
+                RigidRod(2, 6, 8.543563f, 1f, 0f),
+                RigidRod(4, 5, 3.464102f),
+                RigidRod(6, 4, 3.464101f),
+                RigidRod(4, 7, 8.503419f),
+                RigidRod(4, 8, 9.177078f),
+                RigidRod(4, 9, 9.177081f),
+                RigidRod(5, 6, 3.464102f),
+                RigidRod(5, 7, 9.181965f),
+                RigidRod(5, 8, 8.498184f),
+                RigidRod(5, 9, 9.177101f),
+                RigidRod(6, 7, 9.181965f),
+                RigidRod(6, 8, 9.177099f),
+                RigidRod(6, 9, 8.498188f),
+                RigidRod(7, 8, 3.464103f),
+                RigidRod(9, 7, 3.464102f),
+                RigidRod(7, 10, 8.500037f),
+                RigidRod(7, 11, 9.178824f),
+                RigidRod(7, 12, 9.178822f),
+                RigidRod(8, 9, 3.464103f),
+                RigidRod(8, 10, 9.178805f),
+                RigidRod(8, 11, 8.500037f),
+                RigidRod(8, 12, 9.178812f),
+                RigidRod(9, 10, 9.178808f),
+                RigidRod(9, 11, 9.178818f),
+                RigidRod(9, 12, 8.500038f),
+                RigidRod(10, 11, 3.464103f),
+                RigidRod(12, 10, 3.464102f),
+                RigidRod(11, 12, 3.464102f),
+            ],
+        }.Reconstruct();
 
         /// <summary>
         /// An <c>explicit_masses</c> chain is read off its mass-proportional rod weights: the mass 0.5 joint reads 0.5
@@ -227,10 +284,8 @@ namespace Tests
         [Test]
         public async Task AnExplicitMassChainIsReadOffItsMassProportionalRodWeights()
         {
-            var explicitChain = SyntheticCloth.Parse(ExplicitMassChainText);
-            var flatChain = SyntheticCloth.Parse(ExplicitMassChainText
-                .Replace("flWeight0 = 0.333333", "flWeight0 = 0.5", StringComparison.Ordinal)
-                .Replace("flWeight0 = 0.666667", "flWeight0 = 0.5", StringComparison.Ordinal));
+            var explicitChain = ExplicitMassChain.Reconstruct();
+            var flatChain = FlatWeighted(ExplicitMassChain).Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -250,8 +305,8 @@ namespace Tests
         [Test]
         public async Task ExplicitMassesAreReadPastASpanAMotionBiasMoves()
         {
-            var biased = SyntheticCloth.Parse(ExplicitBiasedChainText);
-            var flat = SyntheticCloth.Parse(ExplicitBiasedChainText.Replace("flWeight0 = 0.333333", "flWeight0 = 0.5", StringComparison.Ordinal));
+            var biased = ExplicitBiasedChain.Reconstruct();
+            var flat = FlatWeighted(ExplicitBiasedChain).Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -261,7 +316,38 @@ namespace Tests
             }
         }
 
-        private static string ExplicitBiasedChainText => SyntheticCloth.Fixture("cloth_chain_explicit_mass_bias.kv3");
+        /// <summary>
+        /// <see cref="FeModelTestModels.Coattail"/> with explicit masses 1, 0.5 and 1 down the chain, the first span's rods
+        /// flattened by a motion bias.
+        /// </summary>
+        private static FeModelBuilder ExplicitBiasedChain => Coattail with
+        {
+            InvMasses = [0f, 0f, 1f, 1f, 0.5f, 0.5f, 1f, 1f],
+            Rods =
+            [
+                RigidRod(0, 2, 8.499948f, 1f, 0f),
+                RigidRod(0, 3, 8.646747f, 1f, 0f),
+                RigidRod(1, 2, 8.732066f, 1f, 0f),
+                RigidRod(1, 3, 8.412711f, 1f, 0f),
+                RigidRod(2, 3, 2f),
+                RigidRod(2, 4, 8.499931f),
+                RigidRod(2, 5, 8.735466f),
+                RigidRod(3, 4, 8.732044f),
+                RigidRod(3, 5, 8.503419f),
+                RigidRod(4, 6, 8.500037f, 1f, 0.333333f),
+                RigidRod(4, 7, 8.732154f, 1f, 0.333333f),
+                RigidRod(5, 6, 8.732168f, 1f, 0.333333f),
+                RigidRod(5, 7, 8.500037f, 1f, 0.333333f),
+                RigidRod(4, 5, 2.000001f),
+                RigidRod(6, 7, 2.000001f),
+            ],
+        };
+
+        /// <summary><paramref name="chain"/> with every mass-proportional rod weight of 1/3 or 2/3 flattened to 0.5.</summary>
+        private static FeModelBuilder FlatWeighted(FeModelBuilder chain) => chain with
+        {
+            Rods = [.. chain.Rods!.Select(static rod => rod.Weight0 is 0.333333f or 0.666667f ? rod with { Weight0 = 0.5f } : rod)],
+        };
 
         /// <summary>
         /// Under damping, <c>goal_strength_bias</c> is the largest cube-root gap three nodes share, and a
@@ -283,33 +369,13 @@ namespace Tests
 
         private static ClothReconstruction DampedBiasedGoals(float bias, int undamped)
         {
-            var poses = new System.Text.StringBuilder();
-            var integrators = new System.Text.StringBuilder();
-            poses.Append(SyntheticCloth.Pose(0f, 0f, 0f));
-            integrators.Append("{ flPointDamping = 0.0 flAnimationForceAttraction = 0.0 "
-                + "flAnimationVertexAttraction = 0.0 flGravity = 360.0 },");
-            var strengths = new[] { 0.3f, 0.4f, 0.5f, 0.35f, 0.45f, 0.55f, 0.6f, 0.38f, 0.48f, 0.58f };
-            var dampedGaps = new[] { 0.05f, 0.08f, 0.11f, 0.14f, 0.17f, 0.2f, 0.23f, 0.02f, 0.035f, 0.065f };
-            for (var i = 0; i < strengths.Length; i++)
+            float[] strengths = [0.3f, 0.4f, 0.5f, 0.35f, 0.45f, 0.55f, 0.6f, 0.38f, 0.48f, 0.58f];
+            float[] dampedGaps = [0.05f, 0.08f, 0.11f, 0.14f, 0.17f, 0.2f, 0.23f, 0.02f, 0.035f, 0.065f];
+            return GoalNodes(128, [.. strengths.Select((g, i) =>
             {
-                var g = strengths[i];
-                var force = (g + bias) * (g + bias) * (g + bias);
                 var vertexRoot = i < undamped ? g : g + bias - dampedGaps[i];
-                poses.Append(SyntheticCloth.Pose(0f, 0f, -1f * (i + 1)));
-                integrators.Append(CultureInfo.InvariantCulture, $"{{ flPointDamping = 0.0 flAnimationForceAttraction = {SyntheticCloth.Num(force)} "
-                    + $"flAnimationVertexAttraction = {SyntheticCloth.Num(vertexRoot * vertexRoot * vertexRoot)} flGravity = 360.0 }},");
-            }
-
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_nNodeCount = 11
-                    m_nStaticNodes = 1
-                    m_nDynamicNodeFlags = 128
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose = [ {{poses}} ]
-                    m_NodeIntegrator = [ {{integrators}} ]
-                }
-                """);
+                return ((g + bias) * (g + bias) * (g + bias), vertexRoot * vertexRoot * vertexRoot);
+            })]);
         }
 
         /// <summary>
@@ -405,37 +471,21 @@ namespace Tests
                 }
             }
 
-            var rods = new StringBuilder();
+            var rods = new List<FeRodConstraint>();
             var geometric = new float[9];
             foreach (var (a, b, diagonal) in built)
             {
                 var length = diagonal ? MathF.Sqrt(200f) : 10f;
-                rods.Append(diagonal
-                    ? SyntheticCloth.BandedRod(a, b, length * 0.75f, length, 0.125f)
-                    : SyntheticCloth.RigidRod(a, b, length, 1f));
+                rods.Add(diagonal ? Rod(a, b, length * 0.75f, length, 0.5f, 0.125f) : RigidRod(a, b, length));
                 geometric[a] += 8f * length;
                 geometric[b] += 8f * length;
             }
 
-            var poses = new StringBuilder();
-            for (var node = 0; node < 9; node++)
+            return (ThreeByThreeSheet with
             {
-                poses.Append(SyntheticCloth.Pose((node % 3) * 10f, 0f, -(node / 3) * 10f));
-            }
-
-            var invMasses = geometric.Select(static mass => SyntheticCloth.Num(1f / (mass + MathF.E)));
-
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ {{string.Join(", ", Enumerable.Range(0, 9).Select(static node => $"\"$cloth_m0p{node}\""))}} ]
-                    m_nNodeCount = 9
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ {{string.Join(", ", invMasses)}} ]
-                    m_InitPose = [ {{poses}} ]
-                    m_SourceElems = [ 0, 0, 0, 4, 0, 1, 4, 3, 1, 2, 5, 4, 3, 4, 7, 6, 4, 5, 8, 7 ]
-                    m_Rods = [ {{rods}} ]
-                }
-                """);
+                InvMasses = [.. geometric.Select(static mass => 1f / (mass + MathF.E))],
+                Rods = [.. rods],
+            }).Reconstruct();
         }
 
         /// <summary>
@@ -447,33 +497,15 @@ namespace Tests
         {
             static ClothReconstruction Sheeted(params float[] multipliers) => Chain(true, multipliers);
 
-            static ClothReconstruction Chain(bool sheet, params float[] multipliers) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1", "j2", "j3", "j4", {{(sheet ? "\"$cloth_m0p0\"" : "\"spare\"")}} ]
-                    m_SkelParents = [ -1, 0, 1, 2, 3, -1 ]
-                    m_nNodeCount = 6
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, {{string.Join(", ", multipliers.Select((m, i) =>
-                        (1f / ((i == multipliers.Length - 1 ? 24f : 48f) * m * m))
-                            .ToString("R", System.Globalization.CultureInfo.InvariantCulture)))}}, 0.5 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(3f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(6f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(9f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(12f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 20f, 0f)}}
-                    ]
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 1, 3f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 3f, 1f)}}
-                        {{SyntheticCloth.RigidRod(2, 3, 3f, 1f)}}
-                        {{SyntheticCloth.RigidRod(3, 4, 3f, 1f)}}
-                    ]
-                }
-                """);
+            static ClothReconstruction Chain(bool sheet, params float[] multipliers) => new FeModelBuilder
+            {
+                Names = ["root", "j1", "j2", "j3", "j4", sheet ? "$cloth_m0p0" : "spare"],
+                StaticNodes = 1,
+                Parents = [-1, 0, 1, 2, 3, -1],
+                InvMasses = [0f, .. multipliers.Select((m, i) => 1f / ((i == multipliers.Length - 1 ? 24f : 48f) * m * m)), 0.5f],
+                Positions = [new(0f, 0f, 0f), new(3f, 0f, 0f), new(6f, 0f, 0f), new(9f, 0f, 0f), new(12f, 0f, 0f), new(0f, 20f, 0f)],
+                Rods = [RigidRod(0, 1, 3f), RigidRod(1, 2, 3f), RigidRod(2, 3, 3f), RigidRod(3, 4, 3f)],
+            }.Reconstruct();
 
             static float Default(ClothReconstruction cloth)
                 => cloth.RecoverChainMassDefault(cloth.BuildBoneChains()[0]);
@@ -514,10 +546,8 @@ namespace Tests
         [Test]
         public async Task AnExplicitMassOfOneIsAValueAndNotTheWeighedNothingSentinel()
         {
-            var explicitChain = SyntheticCloth.Parse(ExplicitMassChainText);
-            var geometric = SyntheticCloth.Parse(ExplicitMassChainText
-                .Replace("flWeight0 = 0.333333", "flWeight0 = 0.5", StringComparison.Ordinal)
-                .Replace("flWeight0 = 0.666667", "flWeight0 = 0.5", StringComparison.Ordinal));
+            var explicitChain = ExplicitMassChain.Reconstruct();
+            var geometric = FlatWeighted(ExplicitMassChain).Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -553,30 +583,16 @@ namespace Tests
         /// <see cref="FoldedChainModel"/> with unequal fold-pair masses: declared, a-c weighs at 0.5; folded, it carries
         /// the mass ratio.
         /// </summary>
-        private static ClothReconstruction FoldedPairMassModel(bool folded) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "a", "b", "c" ]
-                m_SkelParents = [ -1, 0, 0, 2 ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 1
-                m_NodeInvMasses = {{(folded ? "[ 0.0, 0.0559017, 0.02421412, 0.03952847 ]" : "[ 0.0, 0.02139819, 0.02421412, 0.01846971 ]")}}
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-1f, 0f, -2f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -2f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, -5f)}}
-                ]
-                m_SourceElems = [ 0, 0, 2, 0, 0, 1, 2, 0, 2, 3 ]
-                m_Rods =
-                [
-                    {{SyntheticCloth.RigidRod(0, 1, 2.236068f, 1f)}}
-                    {{SyntheticCloth.RigidRod(0, 2, 2f, 1f)}}
-                    {{SyntheticCloth.RigidRod(2, 3, 3.1622777f, 1f)}}
-                    { nNode = [ 1, 3 ] flMinDist = 2.0 flMaxDist = 3.6055512 flWeight0 = {{(folded ? "0.585786" : "0.5")}} flRelaxationFactor = 1.0 },
-                ]
-            }
-            """);
+        private static ClothReconstruction FoldedPairMassModel(bool folded) => new FeModelBuilder
+        {
+            Names = ["root", "a", "b", "c"],
+            StaticNodes = 1,
+            Parents = [-1, 0, 0, 2],
+            InvMasses = folded ? [0f, 0.0559017f, 0.02421412f, 0.03952847f] : [0f, 0.02139819f, 0.02421412f, 0.01846971f],
+            Positions = [new(0f, 0f, 0f), new(-1f, 0f, -2f), new(0f, 0f, -2f), new(1f, 0f, -5f)],
+            SourceElems = [0, 0, 2, 0, 0, 1, 2, 0, 2, 3],
+            Rods = [RigidRod(0, 1, 2.236068f), RigidRod(0, 2, 2f), RigidRod(2, 3, 3.1622777f), Rod(1, 3, 2f, 3.6055512f, folded ? 0.585786f : 0.5f)],
+        }.Reconstruct();
 
         /// <summary>
         /// A ring rod folded across a compiled quad weighs nothing in the mass pass, so the ring reads a multiplier of
@@ -601,31 +617,18 @@ namespace Tests
         /// A static root ring over an end ring turned half a turn, linked by two quads; <paramref name="compiledQuad"/>
         /// adds a compiled quad and <paramref name="swapped"/> leaves the end ring unturned.
         /// </summary>
-        private static ClothReconstruction RingLinkQuads(bool compiledQuad, bool swapped = false) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "$ccroot_0", "$ccroot_1", "end", "$ccend_0", "$ccend_1" ]
-                m_SkelParents = [ -1, 0, 0, 0, 3, 3 ]
-                m_nNodeCount = 6
-                m_nStaticNodes = 3
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, {{(compiledQuad ? "0.0023670762, 0.0023670762" : "0.003125, 0.003125")}} ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(5f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-5f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(swapped ? 10f : -10f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(swapped ? -10f : 10f, 0f, -20f)}}
-                ]
-                m_Quads = [ {{(compiledQuad ? (swapped ? "{ nNode = [ 2, 1, 4, 5 ] }" : "{ nNode = [ 2, 1, 5, 4 ] }") : string.Empty)}} ]
-                m_SourceElems = [ 0, 0, 0, 2, 2, 1, 4, 5, 1, 2, 5, 4 ]
-                m_Rods =
-                [
-                    {{SyntheticCloth.BandedRod(5, 4, 20f, 44.72136f, 1f)}}
-                    {{SyntheticCloth.RigidRod(4, 5, 20f, 1f)}}
-                ]
-            }
-            """);
+        private static ClothReconstruction RingLinkQuads(bool compiledQuad, bool swapped = false) => new FeModelBuilder
+        {
+            Names = ["root", "$ccroot_0", "$ccroot_1", "end", "$ccend_0", "$ccend_1"],
+            StaticNodes = 3,
+            Parents = [-1, 0, 0, 0, 3, 3],
+            InvMasses = compiledQuad ? [0f, 0f, 0f, 1f, 0.0023670762f, 0.0023670762f] : [0f, 0f, 0f, 1f, 0.003125f, 0.003125f],
+            Positions = [new(0f, 0f, 0f), new(5f, 0f, 0f), new(-5f, 0f, 0f), new(0f, 0f, -20f), new(swapped ? 10f : -10f, 0f, -20f),
+                new(swapped ? -10f : 10f, 0f, -20f)],
+            Quads = compiledQuad ? [swapped ? Quad(2, 1, 4, 5) : Quad(2, 1, 5, 4)] : [],
+            SourceElems = [0, 0, 0, 2, 2, 1, 4, 5, 1, 2, 5, 4],
+            Rods = [Rod(5, 4, 20f, 44.72136f), RigidRod(4, 5, 20f)],
+        }.Reconstruct();
 
         /// <summary>
         /// A bone cloud's folds are read in the compiler's fold walk, so folds built after the mass pass neither weigh
@@ -656,44 +659,35 @@ namespace Tests
         /// </summary>
         private static ClothReconstruction BoneCloud(bool afterMass)
         {
-            var inv = afterMass
-                ? new[] { "0.0", "0.00446724811", "0.00380154087", "0.00380154087", "0.00392823592" }
-                : ["0.0", "0.00308050977", "0.00269810419", "0.00380154087", "0.0026542513"];
-            var folds = afterMass ? new[] { "0.540254216", "0.491804741", "0.532101317" } : ["0.5", "0.5", "0.5"];
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "head", "hair_01", "ear_L_01", "ear_R_01", "muzzle_01" ]
-                    m_SkelParents = [ -1, 0, 0, 0, 0 ]
-                    m_nNodeCount = 5
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ {{string.Join(", ", inv)}} ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, 10f)}}
-                        {{SyntheticCloth.Pose(5f, 0f, 8f)}}
-                        {{SyntheticCloth.Pose(-5f, 0f, 8f)}}
-                        {{SyntheticCloth.Pose(0f, 6f, 6f)}}
-                    ]
-                    m_SourceElems = [ 0, 0, 6, 0, 3, 2, 0, 3, 1, 0, 3, 4, 0, 2, 1, 0, 2, 4, 0, 1, 4, 0 ]
-                    m_Rods =
-                    [
-                        { nNode = [ 0, 1 ] flMinDist = 10.0 flMaxDist = 10.0 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                        { nNode = [ 0, 2 ] flMinDist = 9.43398113 flMaxDist = 9.43398113 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                        { nNode = [ 0, 3 ] flMinDist = 9.43398113 flMaxDist = 9.43398113 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                        { nNode = [ 0, 4 ] flMinDist = 8.48528137 flMaxDist = 8.48528137 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                        {{SyntheticCloth.RigidRod(1, 2, 5.38516481f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 3, 5.38516481f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 4, 7.21110255f, 1f)}}
-                        {{SyntheticCloth.RigidRod(2, 3, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(2, 4, 8.06225775f, 1f)}}
-                        {{SyntheticCloth.RigidRod(3, 4, 8.06225775f, 1f)}}
-                        { nNode = [ 1, 2 ] flMinDist = 2.6925824 flMaxDist = 5.38516481 flWeight0 = {{folds[0]}} flRelaxationFactor = 1.0 },
-                        { nNode = [ 2, 4 ] flMinDist = 4.03112887 flMaxDist = 8.06225775 flWeight0 = {{folds[1]}} flRelaxationFactor = 1.0 },
-                        { nNode = [ 1, 4 ] flMinDist = 3.60555128 flMaxDist = 7.21110255 flWeight0 = {{folds[2]}} flRelaxationFactor = 1.0 },
-                    ]
-                }
-                """);
+            float[] inv = afterMass
+                ? [0f, 0.00446724811f, 0.00380154087f, 0.00380154087f, 0.00392823592f]
+                : [0f, 0.00308050977f, 0.00269810419f, 0.00380154087f, 0.0026542513f];
+            float[] folds = afterMass ? [0.540254216f, 0.491804741f, 0.532101317f] : [0.5f, 0.5f, 0.5f];
+            return new FeModelBuilder
+            {
+                Names = ["head", "hair_01", "ear_L_01", "ear_R_01", "muzzle_01"],
+                StaticNodes = 1,
+                Parents = [-1, 0, 0, 0, 0],
+                InvMasses = inv,
+                Positions = [new(0f, 0f, 0f), new(0f, 0f, 10f), new(5f, 0f, 8f), new(-5f, 0f, 8f), new(0f, 6f, 6f)],
+                SourceElems = [0, 0, 6, 0, 3, 2, 0, 3, 1, 0, 3, 4, 0, 2, 1, 0, 2, 4, 0, 1, 4, 0],
+                Rods =
+                [
+                    RigidRod(0, 1, 10f, 1f, 0f),
+                    RigidRod(0, 2, 9.43398113f, 1f, 0f),
+                    RigidRod(0, 3, 9.43398113f, 1f, 0f),
+                    RigidRod(0, 4, 8.48528137f, 1f, 0f),
+                    RigidRod(1, 2, 5.38516481f),
+                    RigidRod(1, 3, 5.38516481f),
+                    RigidRod(1, 4, 7.21110255f),
+                    RigidRod(2, 3, 10f),
+                    RigidRod(2, 4, 8.06225775f),
+                    RigidRod(3, 4, 8.06225775f),
+                    Rod(1, 2, 2.6925824f, 5.38516481f, folds[0]),
+                    Rod(2, 4, 4.03112887f, 8.06225775f, folds[1]),
+                    Rod(1, 4, 3.60555128f, 7.21110255f, folds[2]),
+                ],
+            }.Reconstruct();
         }
 
         /// <summary>
@@ -734,29 +728,21 @@ namespace Tests
         {
             var count = rodFace ? 7 : 4;
             float[] geometric = [100f, 100f, 100f, 100f, 560f, 640f, 720f];
-            var invMasses = Enumerable.Range(0, count).Select(node =>
-                SyntheticCloth.Num(1f / (geometric[node] + MathF.Exp(paint[node]))));
             Vector3[] poses = [new(-20f, 0f, 0f), new(0f, -10f, 0f), new(20f, 0f, 0f), new(0f, 10f, 0f),
                 new(0f, 0f, 50f), new(30f, 0f, 50f), new(0f, 40f, 50f)];
-            return SyntheticCloth.Model(
-                [.. Enumerable.Range(0, count).Select(static node => $"$cloth_m0p{node}")], 0, poses[..count],
-                parents ? [.. Enumerable.Repeat(-1, count)] : null,
-                string.Join(", ", invMasses),
-                rodFace
-                    ? $$"""
-                        m_Quads = [ { nNode = [ 0, 1, 2, 3 ] } ]
-                        m_SourceElems = [ 0, 0, 1, 1, 4, 5, 6, 0, 1, 2, 3 ]
-                        m_Rods =
-                        [
-                            {{SyntheticCloth.RigidRod(4, 5, 30f, 1f)}}
-                            {{SyntheticCloth.RigidRod(4, 6, 40f, 1f)}}
-                            {{SyntheticCloth.RigidRod(5, 6, 50f, 1f)}}
-                        ]
-                        """
-                    : """
-                        m_Quads = [ { nNode = [ 0, 1, 2, 3 ] } ]
-                        m_SourceElems = [ 0, 0, 0, 0 ]
-                        """);
+            var sheet = new FeModelBuilder
+            {
+                Names = [.. Enumerable.Range(0, count).Select(static node => $"$cloth_m0p{node}")],
+                Parents = parents ? [.. Enumerable.Repeat(-1, count)] : null,
+                InvMasses = [.. Enumerable.Range(0, count).Select(node => 1f / (geometric[node] + MathF.Exp(paint[node])))],
+                Positions = poses[..count],
+                Quads = [Quad(0, 1, 2, 3)],
+                SourceElems = [0, 0, 0, 0],
+            };
+
+            return (rodFace
+                ? sheet with { SourceElems = [0, 0, 1, 1, 4, 5, 6, 0, 1, 2, 3], Rods = [RigidRod(4, 5, 30f), RigidRod(4, 6, 40f), RigidRod(5, 6, 50f)] }
+                : sheet).Reconstruct();
         }
 
         /// <summary>
@@ -768,26 +754,23 @@ namespace Tests
         {
             float[] authored = [2f, 1f, 0.5f, -30f, 1.2f, 0.7f, 0.3f, 0f];
             float[] rodMass = [0f, 0f, 8f * (60f + 80.62258f), 0f, 8f * (60f + 22.36068f), 8f * (22.36068f + 80.62258f), 0f, 0f];
-            var invMasses = authored.Select((value, node) => node == 7
-                ? "0.0"
-                : SyntheticCloth.Num(1f / (100f + rodMass[node] + MathF.Exp(value))));
             float FaceWeight(int a, int b) => MathF.Exp(authored[b]) / (MathF.Exp(authored[a]) + MathF.Exp(authored[b]));
 
-            var sheet = SyntheticCloth.Model(
-                [.. Enumerable.Range(0, 8).Select(static node => $"$cloth_m0p{node}")], 0,
-                [new(-20f, 0f, 0f), new(0f, -10f, 0f), new(20f, 0f, 0f), new(0f, 10f, 0f),
+            var sheet = new FeModelBuilder
+            {
+                Names = [.. Enumerable.Range(0, 8).Select(static node => $"$cloth_m0p{node}")],
+                InvMasses = [.. authored.Select((value, node) => node == 7 ? 0f : 1f / (100f + rodMass[node] + MathF.Exp(value)))],
+                Positions = [new(-20f, 0f, 0f), new(0f, -10f, 0f), new(20f, 0f, 0f), new(0f, 10f, 0f),
                     new(80f, 0f, 0f), new(100f, -10f, 0f), new(120f, 0f, 0f), new(100f, 10f, 0f)],
-                invMasses: string.Join(", ", invMasses),
-                body: $$"""
-                    m_Quads = [ { nNode = [ 0, 1, 2, 3 ] }, { nNode = [ 4, 5, 6, 7 ] } ]
-                    m_SourceElems = [ 0, 0, 1, 0, 2, 4, 5 ]
-                    m_Rods =
-                    [
-                        { nNode = [ 2, 4 ] flMinDist = 60.0 flMaxDist = 60.0 flWeight0 = {{SyntheticCloth.Num(FaceWeight(2, 4))}} flRelaxationFactor = 1.0 },
-                        { nNode = [ 4, 5 ] flMinDist = 22.36068 flMaxDist = 22.36068 flWeight0 = {{SyntheticCloth.Num(FaceWeight(4, 5))}} flRelaxationFactor = 1.0 },
-                        { nNode = [ 2, 5 ] flMinDist = 80.62258 flMaxDist = 80.62258 flWeight0 = {{SyntheticCloth.Num(FaceWeight(2, 5))}} flRelaxationFactor = 1.0 },
-                    ]
-                    """);
+                Quads = [Quad(0, 1, 2, 3), Quad(4, 5, 6, 7)],
+                SourceElems = [0, 0, 1, 0, 2, 4, 5],
+                Rods =
+                [
+                    RigidRod(2, 4, 60f, 1f, FaceWeight(2, 4)),
+                    RigidRod(4, 5, 22.36068f, 1f, FaceWeight(4, 5)),
+                    RigidRod(2, 5, 80.62258f, 1f, FaceWeight(2, 5)),
+                ],
+            }.Reconstruct();
             var proxy = sheet.BuildProxyMeshes()[0];
             var paint = sheet.RecoverMassPaint(proxy);
             float PaintOf(int node)
@@ -813,7 +796,7 @@ namespace Tests
         [Test]
         public async Task AJointWithoutAnInverseMassReadsNoMass()
         {
-            var cloth = SyntheticCloth.Model(["root", "joint"], staticNodes: 1, invMasses: "0.0");
+            var cloth = new FeModelBuilder { Names = ["root", "joint"], StaticNodes = 1, InvMasses = [0f] }.Reconstruct();
 
             await Assert.That(cloth.RecoverJointMassMultiplier(1)).IsNull();
         }

@@ -3,11 +3,13 @@ using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+using static Tests.IO.FeModelBuilder;
+using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
-namespace Tests
+namespace Tests.IO
 {
     /// <summary>Reconstructing bone chains from a compiled FeModel: joints, rings, links, locks and the chain version evidence.</summary>
-    public class ClothFeModelChainTest : ClothTestFixtures
+    public class FeModelReconstructionChainTest : FeModelTestModels
     {
         /// <summary>
         /// Chains are ordered by the lowest simulated node their joints occupy, not by their root.
@@ -15,16 +17,14 @@ namespace Tests
         [Test]
         public async Task ChainsAreOrderedByTheirLowestSimulatedNode()
         {
-            var cloth = SyntheticCloth.Model(
-                ["rootA", "rootB", "jB", "jA"], staticNodes: 2, parents: [-1, -1, 1, 0],
-                poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(10f, 0f, -5f), new(0f, 0f, -5f)],
-                body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 3, 5f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 5f, 1f)}}
-                    ]
-                    """);
+            var cloth = new FeModelBuilder
+            {
+                Names = ["rootA", "rootB", "jB", "jA"],
+                StaticNodes = 2,
+                Parents = [-1, -1, 1, 0],
+                Positions = [new(0f, 0f, 0f), new(10f, 0f, 0f), new(10f, 0f, -5f), new(0f, 0f, -5f)],
+                Rods = [RigidRod(0, 3, 5f), RigidRod(1, 2, 5f)],
+            }.Reconstruct();
 
             var chains = cloth.BuildBoneChains();
 
@@ -46,10 +46,8 @@ namespace Tests
         [Test]
         public async Task ARingSuffixRestartSplitsOneBoneIntoTwoDeclarations()
         {
-            var split = RingDeclarationModel(
-                "\"$ccroot_0\", \"$ccroot_1\", \"$ccroot_0\", \"$ccroot_1\"").BuildBoneChains();
-            var single = RingDeclarationModel(
-                "\"$ccroot_0\", \"$ccroot_1\", \"$ccroot_2\", \"$ccroot_3\"").BuildBoneChains();
+            var split = RingDeclarationModel("$ccroot_0", "$ccroot_1", "$ccroot_0", "$ccroot_1").BuildBoneChains();
+            var single = RingDeclarationModel("$ccroot_0", "$ccroot_1", "$ccroot_2", "$ccroot_3").BuildBoneChains();
 
             using (Assert.Multiple())
             {
@@ -72,10 +70,8 @@ namespace Tests
         [Test]
         public async Task EachDeclarationOfABoneCarriesItsOwnRingNodes()
         {
-            var split = RingDeclarationModel(
-                "\"$ccroot_0\", \"$ccroot_1\", \"$ccroot_0\", \"$ccroot_1\"").BuildBoneChains();
-            var single = RingDeclarationModel(
-                "\"$ccroot_0\", \"$ccroot_1\", \"$ccroot_2\", \"$ccroot_3\"").BuildBoneChains();
+            var split = RingDeclarationModel("$ccroot_0", "$ccroot_1", "$ccroot_0", "$ccroot_1").BuildBoneChains();
+            var single = RingDeclarationModel("$ccroot_0", "$ccroot_1", "$ccroot_2", "$ccroot_3").BuildBoneChains();
 
             using (Assert.Multiple())
             {
@@ -85,23 +81,13 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction RingDeclarationModel(string ringNames) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", {{ringNames}} ]
-                m_SkelParents = [ -1, 0, 0, 0, 0 ]
-                m_nNodeCount = 5
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 2f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, -2f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 2f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -2f)}}
-                ]
-            }
-            """);
+        private static ClothReconstruction RingDeclarationModel(params string[] ringNames) => new FeModelBuilder
+        {
+            Names = ["root", .. ringNames],
+            StaticNodes = 1,
+            Parents = [-1, 0, 0, 0, 0],
+            Positions = [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, -2f, 0f), new(0f, 0f, 2f), new(0f, 0f, -2f)],
+        }.Reconstruct();
 
         /// <summary>
         /// A chain joint's node base tells the version-1 bulk grade (reaching the parent's ring) from the version-2
@@ -110,8 +96,8 @@ namespace Tests
         [Test]
         public async Task AChainJointBasisNamingTheParentRingWasBulkGraded()
         {
-            var bulk = OneWideRope("nNode = 3 nNodeX0 = 5 nNodeX1 = 2 nNodeY0 = 6 nNodeY1 = 1");
-            var preset = OneWideRope("nNode = 3 nNodeX0 = 5 nNodeX1 = 4 nNodeY0 = 6 nNodeY1 = 3");
+            var bulk = OneWideRope(NodeBase(3, 5, 2, 6, 1)).Reconstruct();
+            var preset = OneWideRope(NodeBase(3, 5, 4, 6, 3)).Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -126,12 +112,10 @@ namespace Tests
         [Test]
         public async Task ALeafJointBasisDecidesNoChainVersion()
         {
-            var leaf = OneWideRope("nNode = 5 nNodeX0 = 5 nNodeX1 = 2 nNodeY0 = 6 nNodeY1 = 3");
+            var leaf = OneWideRope(NodeBase(5, 5, 2, 6, 3)).Reconstruct();
 
             await Assert.That(leaf.ChainBasesAreBulkGraded(leaf.BuildBoneChains()[0])).IsNull();
         }
-
-        private static ClothReconstruction OneWideRope(string nodeBase) => SyntheticCloth.Parse(OneWideRopeDocument(nodeBase));
 
         /// <summary>
         /// A twisted joint's hint left at {joint, twist end, 0, 0} reads as version 0; a graded hint does not.
@@ -139,10 +123,8 @@ namespace Tests
         [Test]
         public async Task AnUngradedTwistHintSaysTheChainCompiledAtVersionZero()
         {
-            var ungraded = TwistedRope("nNodeX0 = 2 nNodeX1 = 1 nNodeY0 = 0 nNodeY1 = 0",
-                "nNodeX0 = 3 nNodeX1 = 2 nNodeY0 = 0 nNodeY1 = 0");
-            var graded = TwistedRope("nNodeX0 = 3 nNodeX1 = 1 nNodeY0 = 3 nNodeY1 = 3",
-                "nNodeX0 = 3 nNodeX1 = 2 nNodeY0 = 3 nNodeY1 = 3");
+            var ungraded = TwistedRope(new FeNodeWindBase(2, 1, 0, 0), new FeNodeWindBase(3, 2, 0, 0));
+            var graded = TwistedRope(new FeNodeWindBase(3, 1, 3, 3), new FeNodeWindBase(3, 2, 3, 3));
 
             using (Assert.Multiple())
             {
@@ -151,22 +133,15 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction TwistedRope(string hint2, string hint3) => SyntheticCloth.Model(
-            ["root", "j1", "j2", "j3"], staticNodes: 2, parents: [-1, 0, 1, 2],
-            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f)],
-            body: $$"""
-                m_Twists =
-                [
-                    { nNodeOrient = 2 nNodeEnd = 1 flTwistRelax = 0.618 },
-                    { nNodeOrient = 2 nNodeEnd = 3 flTwistRelax = 0.382 },
-                    { nNodeOrient = 3 nNodeEnd = 2 flTwistRelax = 0.618 },
-                ]
-                m_DynNodeWindBases =
-                [
-                    { {{hint2}} },
-                    { {{hint3}} },
-                ]
-                """);
+        private static ClothReconstruction TwistedRope(FeNodeWindBase hint2, FeNodeWindBase hint3) => new FeModelBuilder
+        {
+            Names = ["root", "j1", "j2", "j3"],
+            StaticNodes = 2,
+            Parents = [-1, 0, 1, 2],
+            Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f)],
+            Twists = [Twist(2, 1, 0.618f, 0f), Twist(2, 3, 0.382f, 0f), Twist(3, 2, 0.618f, 0f)],
+            DynNodeWindBases = [hint2, hint3],
+        }.Reconstruct();
 
         /// <summary>
         /// A stretchless chain's top link is read off the bend rod spanning its second joint, rooting the chain at that
@@ -175,9 +150,8 @@ namespace Tests
         [Test]
         public async Task ASpanningBendRodRootsAStretchlessChainAtTheParentItSpansTo()
         {
-            var spanned = StretchlessChain(SyntheticCloth.RigidRod(0, 2, 20f, 1f)
-                + SyntheticCloth.RigidRod(1, 3, 20f, 1f)).BuildBoneChains();
-            var unspanned = StretchlessChain(SyntheticCloth.RigidRod(1, 3, 20f, 1f)).BuildBoneChains();
+            var spanned = StretchlessChain(RigidRod(0, 2, 20f), RigidRod(1, 3, 20f)).Reconstruct().BuildBoneChains();
+            var unspanned = StretchlessChain(RigidRod(1, 3, 20f)).Reconstruct().BuildBoneChains();
 
             using (Assert.Multiple())
             {
@@ -196,10 +170,10 @@ namespace Tests
         [Test]
         public async Task AThinChainTipWithoutAReverseOffsetWasStagedAtVersionZero()
         {
-            var versionZero = SyntheticCloth.Parse(ThinTipChain(tipRecord: false));
-            var versionOne = SyntheticCloth.Parse(ThinTipChain(tipRecord: true));
-            var stagedLeaf = SyntheticCloth.Parse(WithWideLeaf(ThinTipChain(tipRecord: false), leafRecord: true));
-            var unstagedLeaf = SyntheticCloth.Parse(WithWideLeaf(ThinTipChain(tipRecord: false), leafRecord: false));
+            var versionZero = ThinTipChain(tipRecord: false).Reconstruct();
+            var versionOne = ThinTipChain(tipRecord: true).Reconstruct();
+            var stagedLeaf = WithWideLeaf(ThinTipChain(tipRecord: false), leafRecord: true).Reconstruct();
+            var unstagedLeaf = WithWideLeaf(ThinTipChain(tipRecord: false), leafRecord: false).Reconstruct();
             var chainZero = versionZero.BuildBoneChains();
             var chainOne = versionOne.BuildBoneChains();
             var chainStaged = stagedLeaf.BuildBoneChains();
@@ -216,37 +190,36 @@ namespace Tests
             }
         }
 
-        private static string WithWideLeaf(string text, bool leafRecord) => text
-            .Replace("\"$cccoattail_end_L_0\" ]",
-                "\"$cccoattail_end_L_0\", \"coattail_side_L\", \"$cccoattail_side_L_0\", \"$cccoattail_side_L_1\" ]",
-                StringComparison.Ordinal)
-            .Replace("m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]", "m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6, 4, 8, 8 ]",
-                StringComparison.Ordinal)
-            .Replace("m_nNodeCount = 8", "m_nNodeCount = 11", StringComparison.Ordinal)
-            .Replace("2.0, 2.0, 1.0, 1.0 ]", "2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]", StringComparison.Ordinal)
-            .Replace("-19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],",
-                "-19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ], "
-                + SyntheticCloth.Pose(-14.8f, 13.0f, 45.0f) + " " + SyntheticCloth.Pose(-14.8f, 15.0f, 45.0f)
-                + " " + SyntheticCloth.Pose(-14.8f, 11.0f, 45.0f), StringComparison.Ordinal)
-            .Replace("{ nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },",
-                "{ nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, "
-                + SyntheticCloth.RigidRod(4, 8, 9.0f, 1f) + " " + SyntheticCloth.RigidRod(8, 9, 2f, 1f) + " "
-                + SyntheticCloth.RigidRod(8, 10, 2f, 1f) + " " + SyntheticCloth.RigidRod(9, 10, 4f, 1f),
-                StringComparison.Ordinal)
-            .Replace("nBoneCtrl = 4 nTargetNode = 6 },",
-                "nBoneCtrl = 4 nTargetNode = 6 }," + (leafRecord ? " { vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 8 nTargetNode = 9 }," : ""),
-                StringComparison.Ordinal);
+        /// <summary>
+        /// <paramref name="chain"/> with a two-ring side leaf under its third joint, staged by a reverse offset when
+        /// <paramref name="leafRecord"/>.
+        /// </summary>
+        private static FeModelBuilder WithWideLeaf(FeModelBuilder chain, bool leafRecord) => chain with
+        {
+            Names = [.. chain.Names, "coattail_side_L", "$cccoattail_side_L_0", "$cccoattail_side_L_1"],
+            Parents = [.. chain.Parents!, 4, 8, 8],
+            InvMasses = [.. chain.InvMasses!, 1f, 1f, 1f],
+            Poses = [.. chain.Poses!, Pose(-14.8f, 13f, 45f), Pose(-14.8f, 15f, 45f), Pose(-14.8f, 11f, 45f)],
+            Rods = [.. chain.Rods!, RigidRod(4, 8, 9f), RigidRod(8, 9, 2f), RigidRod(8, 10, 2f), RigidRod(9, 10, 4f)],
+            ReverseOffsets = leafRecord
+                ? [.. chain.ReverseOffsets![..2], ReverseOffset(8, 9, 0f, 2f, 0f), .. chain.ReverseOffsets[2..]]
+                : chain.ReverseOffsets,
+        };
 
-        private static string ThinTipChain(bool tipRecord) => ExplicitMassChainText.Replace("m_Rods =", $$"""
-            m_LockToGoal = [ 0 ]
-                m_ReverseOffsets =
-                [
-                    { vOffset = [ 8.49993, 0.00006, 0.000001 ] nBoneCtrl = 2 nTargetNode = 4 },
-                    { vOffset = [ 8.500038, -0.000026, 0.000008 ] nBoneCtrl = 4 nTargetNode = 6 },
-                    {{(tipRecord ? "{ vOffset = [ -0.000001, 2.000001, -0.000001 ] nBoneCtrl = 6 nTargetNode = 7 }," : "")}}
-                ]
-                m_Rods =
-            """, StringComparison.Ordinal);
+        /// <summary>
+        /// <see cref="FeModelTestModels.ExplicitMassChain"/> locked to its goal at the root, with reverse offsets on its
+        /// first two links and, when <paramref name="tipRecord"/>, on its tip ring.
+        /// </summary>
+        private static FeModelBuilder ThinTipChain(bool tipRecord) => ExplicitMassChain with
+        {
+            LockToGoal = [0],
+            ReverseOffsets =
+            [
+                ReverseOffset(2, 4, 8.49993f, 0.00006f, 0.000001f),
+                ReverseOffset(4, 6, 8.500038f, -0.000026f, 0.000008f),
+                .. tipRecord ? [ReverseOffset(6, 7, -0.000001f, 2.000001f, -0.000001f)] : Array.Empty<FeNodeReverseOffset>(),
+            ],
+        };
 
         /// <summary>
         /// A static joint's parent lock reads as <c>lock_translation</c> only where the fit pass could not have written
@@ -256,11 +229,11 @@ namespace Tests
         [Test]
         public async Task AStaticJointsFitGroupParentLockIsNotLockTranslation()
         {
-            var free = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: false, wideLeafGrouped: true));
-            var fitted = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: false, wideLeafGrouped: true,
-                rootFitsFirstJoint: true));
-            var locked = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: false, wideLeafGrouped: true,
-                rootRotationLocked: true));
+            var free = TwoVersionTree(rootRingFirst: true, thinTipGrouped: false, wideLeafGrouped: true).Reconstruct();
+            var fitted = TwoVersionTree(rootRingFirst: true, thinTipGrouped: false, wideLeafGrouped: true,
+                rootFitsFirstJoint: true).Reconstruct();
+            var locked = TwoVersionTree(rootRingFirst: true, thinTipGrouped: false, wideLeafGrouped: true,
+                rootRotationLocked: true).Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -279,8 +252,8 @@ namespace Tests
         [Test]
         public async Task ATwoRingLeafHoldsTwoFitTableEntries()
         {
-            var ungrouped = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: true, wideLeafGrouped: false));
-            var grouped = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: true, wideLeafGrouped: true));
+            var ungrouped = TwoVersionTree(rootRingFirst: true, thinTipGrouped: true, wideLeafGrouped: false).Reconstruct();
+            var grouped = TwoVersionTree(rootRingFirst: true, thinTipGrouped: true, wideLeafGrouped: true).Reconstruct();
 
             static BoneChainJoint[] WideJoints(ClothReconstruction cloth) =>
             [
@@ -302,7 +275,7 @@ namespace Tests
         [Test]
         public async Task AParentFitHoldingAFitJointsOneWideEntryIsLockTranslation()
         {
-            var model = SyntheticCloth.Parse(OneWideEntryTree());
+            var model = OneWideEntryTree();
 
             using (Assert.Multiple())
             {
@@ -312,7 +285,11 @@ namespace Tests
             }
         }
 
-        private static string OneWideEntryTree()
+        /// <summary>
+        /// A static root over static arms a0 and b0, each with two free joints below, held to the root by a parent lock;
+        /// the root's fit holds a0, a1 and b0, a0's its own arm and b0's its own.
+        /// </summary>
+        private static ClothReconstruction OneWideEntryTree()
         {
             List<(string Name, string? Parent, Vector3 Position)> nodes =
             [
@@ -323,35 +300,27 @@ namespace Tests
             var names = nodes.ConvertAll(static node => node.Name);
             int At(string name) => names.IndexOf(name);
 
-            var fits = new List<string>();
-            var weights = new List<string>();
+            var fits = new List<FeFitMatrix>();
+            var weights = new List<FeFitWeight>();
             foreach (var group in "root:a0 a1 b0|a0:a0 a1 a2|b0:b0 b1 b2".Split('|'))
             {
                 var (owner, members) = (group.Split(':')[0], group.Split(':')[1]);
-                weights.AddRange(members.Split(' ').Select(member => "{ flWeight = 1.0 nNode = " + At(member) + " nDummy = 0 },"));
-                fits.Add("{ bone = [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] vCenter = [ 0.0, 0.0, 0.0 ] nEnd = " + weights.Count
-                    + " nNode = " + At(owner) + " nBeginDynamic = " + weights.Count + " },");
+                weights.AddRange(members.Split(' ').Select(member => FitWeight(At(member))));
+                fits.Add(FitMatrix(At(owner), weights.Count, weights.Count));
             }
 
-            return $$"""
-                {
-                    m_CtrlName = [ {{string.Join(", ", names.Select(static name => '"' + name + '"'))}} ]
-                    m_SkelParents = [ {{string.Join(", ", nodes.Select(node => node.Parent is null ? -1 : At(node.Parent)))}} ]
-                    m_nNodeCount = {{nodes.Count}}
-                    m_nStaticNodes = 3
-                    m_nRotLockStaticNodes = 0
-                    m_NodeInvMasses = [ {{string.Join(", ", nodes.Select(static (_, i) => i < 3 ? "0.0" : "1.0"))}} ]
-                    m_InitPose = [ {{string.Concat(nodes.Select(static node => SyntheticCloth.Pose(node.Position.X, node.Position.Y, node.Position.Z)))}} ]
-                    m_LockToGoal = [ 0 ]
-                    m_LockToParent =
-                    [
-                        { vOffset = [ 10.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = {{At("a0")}} },
-                        { vOffset = [ -10.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = {{At("b0")}} },
-                    ]
-                    m_FitMatrices = [ {{string.Join(" ", fits)}} ]
-                    m_FitWeights = [ {{string.Join(" ", weights)}} ]
-                }
-                """;
+            return new FeModelBuilder
+            {
+                Names = [.. names],
+                StaticNodes = 3,
+                RotLockStaticNodes = 0,
+                Parents = [.. nodes.Select(node => node.Parent is null ? -1 : At(node.Parent))],
+                Positions = [.. nodes.Select(static node => node.Position)],
+                LockToGoal = [0],
+                LockToParent = [Offset(0, At("a0"), 10f, 0f, 0f), Offset(0, At("b0"), -10f, 0f, 0f)],
+                FitMatrices = [.. fits],
+                FitWeights = [.. weights],
+            }.Reconstruct();
         }
 
         /// <summary>
@@ -361,11 +330,10 @@ namespace Tests
         [Test]
         public async Task AJointBasisNamingTheParentRingIsBulkGradedWithoutItsScan()
         {
-            const string ParentRingEntry = "nNode = 3 nNodeX0 = 2 nNodeX1 = 1 nNodeY0 = 5 nNodeY1 = 6";
-            var unpredicted = OneWideRope(ParentRingEntry);
-            var unparented = SyntheticCloth.Parse(OneWideRopeDocument(ParentRingEntry).Replace(
-                "m_SkelParents = [ -1, 0, 1, 1, 3, 3, 5 ]", string.Empty, StringComparison.Ordinal));
-            var inside = OneWideRope("nNode = 3 nNodeX0 = 3 nNodeX1 = 6 nNodeY0 = 4 nNodeY1 = 5");
+            var parentRingEntry = OneWideRope(NodeBase(3, 2, 1, 5, 6));
+            var unpredicted = parentRingEntry.Reconstruct();
+            var unparented = (parentRingEntry with { Parents = null }).Reconstruct();
+            var inside = OneWideRope(NodeBase(3, 3, 6, 4, 5)).Reconstruct();
 
             var unparentedChain = new BoneChain { RootBone = "j1", ExtrudeSides = 1 };
             unparentedChain.Joints.Add(new BoneChainJoint { Node = 1, Name = "j1", ParentNode = -1, InvMass = 1f, ExtrudeSides = 1, RingNodes = [2] });
@@ -448,22 +416,18 @@ namespace Tests
 
             var names = nodes.ConvertAll(static node => node.Name);
             int At(string name) => names.IndexOf(name);
-            var statics = At("kid");
 
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ {{string.Join(", ", names.Select(static name => '"' + name + '"'))}} ]
-                    m_SkelParents = [ {{string.Join(", ", nodes.Select(node => node.Parent is null ? -1 : At(node.Parent)))}} ]
-                    m_nNodeCount = {{nodes.Count}}
-                    m_nStaticNodes = {{statics}}
-                    m_nRotLockStaticNodes = 0
-                    m_NodeInvMasses = [ {{string.Join(", ", nodes.Select((_, i) => i < statics ? "0.0" : "1.0"))}} ]
-                    m_InitPose = [ {{string.Concat(nodes.Select(static node => SyntheticCloth.Pose(node.Position.X, node.Position.Y, node.Position.Z)))}} ]
-                    m_LockToGoal = [ 0 ]
-                    m_LockToParent = [ { vOffset = [ 10.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = {{At("tip")}} } ]
-                    m_NodeBases = [ { nNode = {{At("tip")}} nNodeX0 = {{At("tip")}} nNodeX1 = {{At("kid")}} nNodeY0 = 0 nNodeY1 = {{At("kid")}} } ]
-                }
-                """);
+            return new FeModelBuilder
+            {
+                Names = [.. names],
+                StaticNodes = At("kid"),
+                RotLockStaticNodes = 0,
+                Parents = [.. nodes.Select(node => node.Parent is null ? -1 : At(node.Parent))],
+                Positions = [.. nodes.Select(static node => node.Position)],
+                LockToGoal = [0],
+                LockToParent = [Offset(0, At("tip"), 10f, 0f, 0f)],
+                NodeBases = [NodeBase(At("tip"), At("tip"), At("kid"), 0, At("kid"))],
+            }.Reconstruct();
         }
 
         /// <summary>
@@ -473,12 +437,9 @@ namespace Tests
         [Test]
         public async Task AReverseOffsetIsReadOverTheChainsOwnRingsWithoutSkeletonParents()
         {
-            const string JointBase = "nNode = 3 nNodeX0 = 2 nNodeX1 = 1 nNodeY0 = 5 nNodeY1 = 6";
-            const string Offset = "m_ReverseOffsets = [ { vOffset = [ 0.0, 0.0, 0.0 ] nBoneCtrl = 3 nTargetNode = 4 } ]\n                m_SourceElems";
-            var parentedDocument = OneWideRopeDocument(JointBase).Replace("m_SourceElems", Offset, StringComparison.Ordinal);
-            var parented = SyntheticCloth.Parse(parentedDocument);
-            var unparented = SyntheticCloth.Parse(parentedDocument.Replace(
-                "m_SkelParents = [ -1, 0, 1, 1, 3, 3, 5 ]", string.Empty, StringComparison.Ordinal));
+            var parentedRope = OneWideRope(NodeBase(3, 2, 1, 5, 6)) with { ReverseOffsets = [ReverseOffset(3, 4, 0f, 0f, 0f)] };
+            var parented = parentedRope.Reconstruct();
+            var unparented = (parentedRope with { Parents = null }).Reconstruct();
 
             var unparentedChain = new BoneChain { RootBone = "j1", ExtrudeSides = 1 };
             unparentedChain.Joints.Add(new BoneChainJoint { Node = 1, Name = "j1", ParentNode = -1, InvMass = 1f, ExtrudeSides = 1, RingNodes = [2] });
@@ -525,25 +486,17 @@ namespace Tests
         /// </summary>
         private static ClothReconstruction OldEraTube(bool compiledParents, bool kFace)
         {
-            var parents = compiledParents ? "m_SkelParents = [ -1, 0, 0, 2, 2, 4, 2, 6 ]" : string.Empty;
-            var faces = kFace ? "0, 0, 0, 3, 0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6" : "0, 0, 0, 2, 0, 1, 3, 2, 2, 3, 5, 4";
-            var model = SyntheticCloth.Model(
-                ["j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0", "k", "$cck_0"], staticNodes: 0,
-                poses: [new(0f, 0f, 0f), new(3f, 0f, 0f), new(0f, 0f, -10f), new(3f, 0f, -10f), new(0f, 0f, -20f),
+            var model = new FeModelBuilder
+            {
+                Names = ["j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0", "k", "$cck_0"],
+                Positions = [new(0f, 0f, 0f), new(3f, 0f, 0f), new(0f, 0f, -10f), new(3f, 0f, -10f), new(0f, 0f, -20f),
                     new(3f, 0f, -20f), new(0f, 0f, -30f), new(3f, 0f, -30f)],
-                body: $$"""
-                    {{parents}}
-                    m_CtrlOffsets =
-                    [
-                        { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = 1 },
-                        { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 3 },
-                        { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 4 nCtrlChild = 5 },
-                        { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 6 nCtrlChild = 7 },
-                    ]
-                    m_Rods = [ {{SyntheticCloth.RigidRod(1, 3, 10f, 1f)}} {{SyntheticCloth.RigidRod(3, 5, 10f, 1f)}} {{SyntheticCloth.RigidRod(3, 7, 20f, 1f)}} ]
-                    m_SourceElems = [ {{faces}} ]
-                    """);
-            return SyntheticCloth.WithSkeleton(model,
+                Parents = compiledParents ? [-1, 0, 0, 2, 2, 4, 2, 6] : null,
+                CtrlOffsets = [Offset(0, 1, 3f, 0f, 0f), Offset(2, 3, 3f, 0f, 0f), Offset(4, 5, 3f, 0f, 0f), Offset(6, 7, 3f, 0f, 0f)],
+                Rods = [RigidRod(1, 3, 10f), RigidRod(3, 5, 10f), RigidRod(3, 7, 20f)],
+                SourceElems = kFace ? [0, 0, 0, 3, 0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6] : [0, 0, 0, 2, 0, 1, 3, 2, 2, 3, 5, 4],
+            }.Reconstruct();
+            return WithSkeleton(model,
                 new Dictionary<string, string?> { ["j1"] = null, ["j2"] = "j1", ["j3"] = "j2", ["k"] = "j2" });
         }
 
@@ -554,8 +507,8 @@ namespace Tests
         [Test]
         public async Task ARopeWithNoRodsBetweenItsJointsIsAChainWithNoStretchSpring()
         {
-            var roped = SyntheticCloth.Parse(RodlessTail("m_nRopeCount = 1\n                m_Ropes = [ 4, 0, 1, 2 ]"));
-            var unroped = SyntheticCloth.Parse(RodlessTail(string.Empty));
+            var roped = (RodlessTail with { RopeCount = 1, Ropes = [4, 0, 1, 2] }).Reconstruct();
+            var unroped = RodlessTail.Reconstruct();
 
             var chain = roped.BuildBoneChains().Find(static chain => chain.Joints.Count == 3);
 
@@ -568,12 +521,14 @@ namespace Tests
             }
         }
 
-        private static string RodlessTail(string ropes) => SyntheticCloth.Document(
-            ["tail_0", "tail_1", "tail_2"], staticNodes: 1, parents: [-1, 0, 1],
-            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f)],
-            body: $$"""
-                {{ropes}}
-                """);
+        /// <summary>A static tail bone with two free bones after it and no rod between them.</summary>
+        private static FeModelBuilder RodlessTail => new()
+        {
+            Names = ["tail_0", "tail_1", "tail_2"],
+            StaticNodes = 1,
+            Parents = [-1, 0, 1],
+            Positions = [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f)],
+        };
 
         /// <summary>
         /// Raw-integrator flags with no goal bit, a follow link or a legacy stretch force mark an imported cloth;
@@ -582,44 +537,30 @@ namespace Tests
         [Test]
         public async Task AnFxTableWithNoPairedColumnIsAnImportedCloth()
         {
-            const string NoFields = "";
-            const string Follow = "m_FollowNodes = [ { nParentNode = 0 nChildNode = 1 flWeight = 0.1 } ]";
-            const string Legacy = "m_LegacyStretchForce = [ 0.0, 1.0, 1.0 ]";
-
             using (Assert.Multiple())
             {
-                await Assert.That(FxTable(0xF00, 0x2F10, NoFields).IsImportedCloth).IsTrue();
-                await Assert.That(FxTable(0x880, 0x2880, Follow).IsImportedCloth).IsTrue();
-                await Assert.That(FxTable(0x880, 0x2880, Legacy).IsImportedCloth).IsTrue();
-                await Assert.That(FxTable(0x880, 0x2880, NoFields).IsImportedCloth).IsFalse();
-                await Assert.That(FxTable(0x200, 0x2080, NoFields).IsImportedCloth).IsFalse();
-                await Assert.That(FxTable(0xF00, 0x2F10, NoFields, "$cloth_m0p2").IsImportedCloth).IsFalse();
+                await Assert.That(FxTable(0xF00, 0x2F10).Reconstruct().IsImportedCloth).IsTrue();
+                await Assert.That((FxTable(0x880, 0x2880) with { FollowNodes = [new FeFollowNode(0, 1, 0.1f)] }).Reconstruct().IsImportedCloth).IsTrue();
+                await Assert.That((FxTable(0x880, 0x2880) with { LegacyStretchForce = [0f, 1f, 1f] }).Reconstruct().IsImportedCloth).IsTrue();
+                await Assert.That(FxTable(0x880, 0x2880).Reconstruct().IsImportedCloth).IsFalse();
+                await Assert.That(FxTable(0x200, 0x2080).Reconstruct().IsImportedCloth).IsFalse();
+                await Assert.That(FxTable(0xF00, 0x2F10, "$cloth_m0p2").Reconstruct().IsImportedCloth).IsFalse();
             }
         }
 
-        private static ClothReconstruction FxTable(uint staticFlags, uint dynamicFlags, string fields, string tip = "tail_2")
-            => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "tail_0", "tail_1", "{{tip}}" ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 1
-                m_nStaticNodeFlags = {{staticFlags}}
-                m_nDynamicNodeFlags = {{dynamicFlags}}
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -8.5f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -17f)}}
-                ]
-                m_Rods =
-                [
-                    {{SyntheticCloth.BandedRod(0, 1, 0.425f, 8.5f, 1f)}}
-                    {{SyntheticCloth.BandedRod(1, 2, 0.425f, 8.5f, 1f)}}
-                ]
-                {{fields}}
-            }
-            """);
+        /// <summary>
+        /// A static tail bone over two free nodes, the last named <paramref name="tip"/>, linked by banded rods, under the
+        /// given static and dynamic mode words.
+        /// </summary>
+        private static FeModelBuilder FxTable(uint staticFlags, uint dynamicFlags, string tip = "tail_2") => new()
+        {
+            Names = ["tail_0", "tail_1", tip],
+            StaticNodes = 1,
+            StaticNodeFlags = staticFlags,
+            DynamicNodeFlags = dynamicFlags,
+            Positions = [new(0f, 0f, 0f), new(0f, 0f, -8.5f), new(0f, 0f, -17f)],
+            Rods = [Rod(0, 1, 0.425f, 8.5f), Rod(1, 2, 0.425f, 8.5f)],
+        };
 
         /// <summary>
         /// Paired columns beside a ringed chain are an imported strip the chain reconstruction skips; without the ring
@@ -644,36 +585,19 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction StripBesideChain(bool ringed) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "strip_r0c0", "strip_r0c1", "strip_r1c0", "strip_r1c1", "hat", "hat_end"{{(ringed ? ", \"$cchat_end_0\"" : string.Empty)}} ]
-                m_SkelParents = [ -1, 0, 0, 2, -1, 4{{(ringed ? ", 5" : string.Empty)}} ]
-                m_nNodeCount = {{(ringed ? 7 : 6)}}
-                m_nStaticNodes = 3
-                m_nStaticNodeFlags = 3840
-                m_nDynamicNodeFlags = 12048
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0{{(ringed ? ", 1.0" : string.Empty)}} ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, -20f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -8f)}}
-                    {{SyntheticCloth.Pose(0f, -20f, -8f)}}
-                    {{SyntheticCloth.Pose(40f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(40f, 0f, -8f)}}
-                    {{(ringed ? SyntheticCloth.Pose(40f, 2f, -8f) : string.Empty)}}
-                ]
-                m_CtrlOsOffsets = [ { nCtrlParent = 0 nCtrlChild = 1 }, { nCtrlParent = 2 nCtrlChild = 3 } ]
-                m_CtrlOffsets = [ {{(ringed ? "{ vOffset = [ 0.0, 2.0, 0.0 ] nCtrlParent = 5 nCtrlChild = 6 }" : string.Empty)}} ]
-                m_Rods =
-                [
-                    {{SyntheticCloth.BandedRod(0, 2, 0.4f, 8f, 1f)}}
-                    {{SyntheticCloth.BandedRod(1, 3, 0.4f, 8f, 1f)}}
-                    {{SyntheticCloth.BandedRod(2, 3, 1f, 20f, 1f)}}
-                    {{SyntheticCloth.RigidRod(4, 5, 8f, 1f)}}
-                ]
-            }
-            """);
+        private static ClothReconstruction StripBesideChain(bool ringed) => new FeModelBuilder
+        {
+            Names = ["strip_r0c0", "strip_r0c1", "strip_r1c0", "strip_r1c1", "hat", "hat_end", .. ringed ? ["$cchat_end_0"] : Array.Empty<string>()],
+            StaticNodes = 3,
+            StaticNodeFlags = 3840,
+            DynamicNodeFlags = 12048,
+            Parents = [-1, 0, 0, 2, -1, 4, .. ringed ? [5] : Array.Empty<int>()],
+            Positions = [new(0f, 0f, 0f), new(0f, -20f, 0f), new(0f, 0f, -8f), new(0f, -20f, -8f), new(40f, 0f, 0f), new(40f, 0f, -8f),
+                .. ringed ? [new Vector3(40f, 2f, -8f)] : Array.Empty<Vector3>()],
+            CtrlOsOffsets = [new FeCtrlOsOffset(0, 1), new FeCtrlOsOffset(2, 3)],
+            CtrlOffsets = ringed ? [Offset(5, 6, 0f, 2f, 0f)] : [],
+            Rods = [Rod(0, 2, 0.4f, 8f), Rod(1, 3, 0.4f, 8f), Rod(2, 3, 1f, 20f), RigidRod(4, 5, 8f)],
+        }.Reconstruct();
 
         /// <summary>
         /// A hinge ring perpendicular to its child ring tilts the recovered hinge vector along the quad's diagonals,
@@ -682,9 +606,9 @@ namespace Tests
         [Test]
         public async Task ATiedHingeFanQuadTiltsTheHingeVectorAlongItsDiagonals()
         {
-            var forward = HingeFan("[ 1, 0, 3, 4 ]", 20f);
-            var swapped = HingeFan("[ 1, 0, 4, 3 ]", 20f);
-            var untied = HingeFan("[ 1, 0, 3, 4 ]", 22f);
+            var forward = (HatHinge(20f) with { Quads = [Quad(1, 0, 3, 4)] }).Reconstruct();
+            var swapped = (HatHinge(20f) with { Quads = [Quad(1, 0, 4, 3)] }).Reconstruct();
+            var untied = (HatHinge(22f) with { Quads = [Quad(1, 0, 3, 4)] }).Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -694,22 +618,26 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction HingeFan(string quad, float upperChildOffset) => SyntheticCloth.Model(
-            ["$cchat_0", "$cchat_1", "hat", "$cchat_end_0", "$cchat_end_1", "hat_end"], staticNodes: 3,
-                parents: [2, 2, -1, 5, 5, 2],
-            poses: [new(0f, -10f, 0f), new(0f, 10f, 0f), new(0f, 0f, 0f), new(8f, 0f, -20f), new(8f, 0f, upperChildOffset),
-                new(8f, 0f, 0f)],
-            body: $$"""
-                m_CtrlOffsets =
-                [
-                    { vOffset = [ 0.0, -10.0, 0.000001 ] nCtrlParent = 2 nCtrlChild = 0 },
-                    { vOffset = [ 0.0, 10.0, -0.000001 ] nCtrlParent = 2 nCtrlChild = 1 },
-                    { vOffset = [ 0.0, 0.0, -20.0 ] nCtrlParent = 5 nCtrlChild = 3 },
-                    { vOffset = [ 0.0, 0.0, {{SyntheticCloth.Num(upperChildOffset)}} ] nCtrlParent = 5 nCtrlChild = 4 },
-                ]
-                m_Quads = [ { nNode = {{quad}} } ]
-                m_Rods = [ {{SyntheticCloth.RigidRod(3, 4, 40f, 1f)}} ]
-                """);
+        /// <summary>
+        /// A static "hat" with a two-node ring over a free "hat_end" whose two-node ring reaches
+        /// <paramref name="upperChildOffset"/> up, its ring held by one rod and fanned over by the hat's ring.
+        /// </summary>
+        private static FeModelBuilder HatHinge(float upperChildOffset) => new()
+        {
+            Names = ["$cchat_0", "$cchat_1", "hat", "$cchat_end_0", "$cchat_end_1", "hat_end"],
+            StaticNodes = 3,
+            Parents = [2, 2, -1, 5, 5, 2],
+            Positions = [new(0f, -10f, 0f), new(0f, 10f, 0f), new(0f, 0f, 0f), new(8f, 0f, -20f), new(8f, 0f, upperChildOffset), new(8f, 0f, 0f)],
+            CtrlOffsets =
+            [
+                Offset(2, 0, 0f, -10f, 0.000001f),
+                Offset(2, 1, 0f, 10f, -0.000001f),
+                Offset(5, 3, 0f, 0f, -20f),
+                Offset(5, 4, 0f, 0f, upperChildOffset),
+            ],
+            Quads = [Quad(1, 0, 3, 4)],
+            Rods = [RigidRod(3, 4, 40f)],
+        };
 
         /// <summary>
         /// A position-driven joint in a one-sided ring chain is not restated by its parent rod; one inside a two-sided
@@ -718,9 +646,9 @@ namespace Tests
         [Test]
         public async Task AParentRodBesideAOneSidedRingIsNotARestatement()
         {
-            var oneSided = SyntheticCloth.Load("cloth_chain_extrude_one_side.kv3");
+            var oneSided = OneSidedRingChain.Reconstruct();
 
-            var twoSided = SyntheticCloth.Load("cloth_chain_extrude_two_sides.kv3");
+            var twoSided = TwoSidedRingChain.Reconstruct();
 
             static string[] Restated(ClothReconstruction cloth)
                 => [.. cloth.BuildBoneChains().SelectMany(static chain => chain.Joints).Where(static joint => joint.Restated).Select(static joint => joint.Name)];
@@ -731,6 +659,91 @@ namespace Tests
                 await Assert.That(Restated(twoSided)).IsNotEmpty();
             }
         }
+
+        /// <summary>
+        /// <see cref="FeModelTestModels.Coattail"/> with every joint after the static first position-driven, its tip ring
+        /// staged by a reverse offset.
+        /// </summary>
+        private static FeModelBuilder OneSidedRingChain => Coattail with
+        {
+            FirstPositionDrivenNode = 2,
+            InvMasses = [0f, 0f, 0.003428f, 0.003444f, 0.003428f, 0.003427f, 0.0065f, 0.0065f],
+            Rods =
+            [
+                RigidRod(0, 2, 8.499948f, 1f, 0f),
+                RigidRod(0, 3, 8.646747f, 1f, 0f),
+                RigidRod(1, 2, 8.732066f, 1f, 0f),
+                RigidRod(1, 3, 8.412711f, 1f, 0f),
+                RigidRod(2, 3, 2f),
+                RigidRod(2, 4, 8.499931f),
+                RigidRod(2, 5, 8.735466f),
+                RigidRod(3, 4, 8.732044f),
+                RigidRod(3, 5, 8.503419f),
+                RigidRod(4, 5, 2.000001f),
+                RigidRod(4, 6, 8.500037f),
+                RigidRod(4, 7, 8.732154f),
+                RigidRod(5, 6, 8.732168f),
+                RigidRod(5, 7, 8.500037f),
+                RigidRod(6, 7, 2.000001f),
+            ],
+            ReverseOffsets = [ReverseOffset(6, 7, -0.000001f, 2.000001f, -0.000001f)],
+        };
+
+        /// <summary>
+        /// A coattail of four joints, each with a two-node ring, the first joint and its ring static and the joints
+        /// position-driven after their rings.
+        /// </summary>
+        private static FeModelBuilder TwoSidedRingChain => new()
+        {
+            Names = ["coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_1_L_0", "$cccoattail_1_L_1", "$cccoattail_2_L_0", "$cccoattail_2_L_1",
+                "$cccoattail_end_L_0", "$cccoattail_end_L_1", "coattail_1_L", "coattail_2_L", "coattail_end_L"],
+            StaticNodes = 2,
+            FirstPositionDrivenNode = 8,
+            InvMasses = [0f, 0f, 0.003209f, 0.003111f, 0.003141f, 0.003142f, 0.005709f, 0.005709f, 1f, 1f, 1f],
+            Poses =
+            [
+                Pose(-8.915481f, 4.000124f, 65.447983f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-10.723646f, 4.561181f, 66.092773f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-13.473376f, 4.824905f, 58.146507f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-9.917552f, 3.709337f, 56.693367f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-16.587204f, 5.195801f, 50.242416f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-13.028829f, 4.079931f, 48.795761f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-19.686529f, 5.562407f, 42.336063f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-16.128153f, 4.446536f, 40.889408f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-11.695464f, 4.267121f, 57.419937f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-14.808016f, 4.637866f, 49.519089f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-17.907341f, 5.004471f, 41.612736f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+            ],
+            Parents = [-1, 0, 8, 8, 9, 9, 10, 10, 0, 8, 9],
+            SourceElems = [0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2],
+            Rods =
+            [
+                RigidRod(0, 2, 8.646747f, 1f, 0f),
+                RigidRod(0, 3, 8.816575f, 1f, 0f),
+                RigidRod(1, 2, 8.412711f, 1f, 0f),
+                RigidRod(1, 3, 9.472289f, 1f, 0f),
+                RigidRod(2, 3, 4f),
+                RigidRod(2, 4, 8.503419f),
+                RigidRod(2, 5, 9.390903f),
+                RigidRod(3, 4, 9.397265f),
+                RigidRod(3, 5, 8.496444f),
+                RigidRod(4, 5, 4.000001f),
+                RigidRod(4, 6, 8.500037f),
+                RigidRod(4, 7, 9.394195f),
+                RigidRod(5, 6, 9.394169f),
+                RigidRod(5, 7, 8.500037f),
+                RigidRod(6, 7, 4.000002f),
+                RigidRod(0, 8, 8.499948f, 1f, 0f),
+                RigidRod(8, 9, 8.499931f),
+                RigidRod(9, 10, 8.500037f),
+            ],
+            ReverseOffsets =
+            [
+                ReverseOffset(8, 5, 8.496444f, -1.999937f, 0.000001f),
+                ReverseOffset(9, 5, 0.000001f, -2f, 0f),
+                ReverseOffset(10, 6, -0.000001f, 2.000001f, -0.000001f),
+            ],
+        };
 
         /// <summary>
         /// Goal-locked ringless static roots under one bone are one chain under that bone with a
@@ -773,43 +786,18 @@ namespace Tests
         /// </summary>
         private static ClothReconstruction SiblingHubs(bool locked, bool rings)
         {
-            var names = rings
-                ? "\"hub\", \"r1\", \"r2\", \"c1\", \"c2\", \"$ccr1_0\", \"$ccr2_0\""
-                : "\"hub\", \"r1\", \"r2\", \"c1\", \"c2\"";
-            var model = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ {{names}} ]
-                    m_SkelParents = [ -1, -1, -1, 1, 2{{(rings ? ", 1, 2" : string.Empty)}} ]
-                    m_nNodeCount = {{(rings ? 7 : 5)}}
-                    m_nStaticNodes = 3
-                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0{{(rings ? ", 1.0, 1.0" : string.Empty)}} ]
-                    m_LockToGoal = [ {{(locked ? "1, 2" : string.Empty)}} ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(-5f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(5f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(-5f, 0f, -20f)}}
-                        {{SyntheticCloth.Pose(5f, 0f, -20f)}}
-                        {{(rings ? SyntheticCloth.Pose(-2f, 0f, -10f) + SyntheticCloth.Pose(8f, 0f, -10f) : string.Empty)}}
-                    ]
-                    {{(rings
-                        ? """
-                          m_CtrlOffsets =
-                          [
-                              { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 1 nCtrlChild = 5 },
-                              { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 6 },
-                          ]
-                          """
-                        : string.Empty)}}
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(1, 3, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(2, 4, 10f, 1f)}}
-                    ]
-                }
-                """);
-            return SyntheticCloth.WithSkeleton(model, new Dictionary<string, string?>
+            var model = new FeModelBuilder
+            {
+                Names = ["hub", "r1", "r2", "c1", "c2", .. rings ? ["$ccr1_0", "$ccr2_0"] : Array.Empty<string>()],
+                StaticNodes = 3,
+                Parents = [-1, -1, -1, 1, 2, .. rings ? [1, 2] : Array.Empty<int>()],
+                LockToGoal = locked ? [1, 2] : [],
+                Positions = [new(0f, 0f, 0f), new(-5f, 0f, -10f), new(5f, 0f, -10f), new(-5f, 0f, -20f), new(5f, 0f, -20f),
+                    .. rings ? [new Vector3(-2f, 0f, -10f), new Vector3(8f, 0f, -10f)] : Array.Empty<Vector3>()],
+                CtrlOffsets = rings ? [Offset(1, 5, 3f, 0f, 0f), Offset(2, 6, 3f, 0f, 0f)] : null,
+                Rods = [RigidRod(1, 3, 10f), RigidRod(2, 4, 10f)],
+            }.Reconstruct();
+            return WithSkeleton(model, new Dictionary<string, string?>
             {
                 ["hub"] = null,
                 ["r1"] = "hub",
@@ -827,8 +815,7 @@ namespace Tests
         [Test]
         public async Task ALeafsUngradedHintStatesNoVersion()
         {
-            var model = TwistedRope("nNodeX0 = 2 nNodeX1 = 1 nNodeY0 = 0 nNodeY1 = 0",
-                "nNodeX0 = 3 nNodeX1 = 2 nNodeY0 = 0 nNodeY1 = 0");
+            var model = TwistedRope(new FeNodeWindBase(2, 1, 0, 0), new FeNodeWindBase(3, 2, 0, 0));
 
             var interior = new BoneChain { RootBone = "j1" };
             interior.Joints.Add(new BoneChainJoint { Node = 1, Name = "j1", ParentNode = -1 });
@@ -881,37 +868,18 @@ namespace Tests
         /// The hinge fan of "hat" over "hat_end" with switchable limits and anchor; node 6 is a sheet vertex the fan
         /// never names.
         /// </summary>
-        private static ClothReconstruction HingeFanGate(bool limits, bool anchor) => SyntheticCloth.Parse($$"""
+        private static ClothReconstruction HingeFanGate(bool limits, bool anchor)
+        {
+            var hat = HatHinge(20f);
+            return (hat with
             {
-                m_CtrlName = [ "$cchat_0", "$cchat_1", "hat", "$cchat_end_0", "$cchat_end_1", "hat_end",
-                               "$cloth_m0p0"{{(anchor ? ", \"$ha_hat\"" : string.Empty)}} ]
-                m_SkelParents = [ 2, 2, -1, 5, 5, 2, -1{{(anchor ? ", -1" : string.Empty)}} ]
-                m_nNodeCount = {{(anchor ? 8 : 7)}}
-                m_nStaticNodes = 3
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0{{(anchor ? ", 0.0" : string.Empty)}} ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, -10f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 10f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(8f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(8f, 0f, 20f)}}
-                    {{SyntheticCloth.Pose(8f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(16f, 0f, 0f)}}
-                    {{(anchor ? SyntheticCloth.Pose(0f, 0f, 0f) : string.Empty)}}
-                ]
-                m_CtrlOffsets =
-                [
-                    { vOffset = [ 0.0, -10.0, 0.000001 ] nCtrlParent = 2 nCtrlChild = 0 },
-                    { vOffset = [ 0.0, 10.0, -0.000001 ] nCtrlParent = 2 nCtrlChild = 1 },
-                    { vOffset = [ 0.0, 0.0, -20.0 ] nCtrlParent = 5 nCtrlChild = 3 },
-                    { vOffset = [ 0.0, 0.0, 20.0 ] nCtrlParent = 5 nCtrlChild = 4 },
-                ]
-                m_Quads = [ { nNode = [ 1, 0, 3, 4 ] } ]
-                m_Rods = [ {{SyntheticCloth.RigidRod(3, 4, 40f, 1f)}} ]
-                {{(limits ? "m_HingeLimits = [ { nNode = [ 0, 1, 2, 5, 2, 5 ] flAngleCenter = 0.0 flAngleExtents = 0.785398 } ]" : string.Empty)}}
-            }
-            """);
+                Names = [.. hat.Names, "$cloth_m0p0", .. anchor ? ["$ha_hat"] : Array.Empty<string>()],
+                Parents = [.. hat.Parents!, -1, .. anchor ? [-1] : Array.Empty<int>()],
+                InvMasses = [0f, 0f, 0f, 1f, 1f, 1f, 1f, .. anchor ? [0f] : Array.Empty<float>()],
+                Positions = [.. hat.Positions!, new(16f, 0f, 0f), .. anchor ? [Vector3.Zero] : Array.Empty<Vector3>()],
+                HingeLimits = limits ? [new FeHingeLimit([0, 1, 2, 5, 2, 5], 0, 0f, 0f, 0f, 0.785398f)] : null,
+            }).Reconstruct();
+        }
 
         /// <summary>
         /// A hinge over a ringless child fanning over a triangle is a rigid hinge link, as a quad is; a triangle over
@@ -920,10 +888,10 @@ namespace Tests
         [Test]
         public async Task AHingeOverARinglessChildFansOutOverATriangleAndIsStillARigidHingeLink()
         {
-            var fan = HingeTriGate(tris: "[ { nNode = [ 2, 1, 4 ] } ]", quads: string.Empty);
-            var authoredOverBones = HingeTriGate(tris: "[ { nNode = [ 3, 4, 5 ] } ]", quads: string.Empty);
-            var noSurface = HingeTriGate(tris: string.Empty, quads: string.Empty);
-            var quad = HingeTriGate(tris: string.Empty, quads: "[ { nNode = [ 2, 1, 4, 5 ] } ]");
+            var fan = (HingeTriGate with { Tris = [Tri(2, 1, 4)] }).Reconstruct();
+            var authoredOverBones = (HingeTriGate with { Tris = [Tri(3, 4, 5)] }).Reconstruct();
+            var noSurface = HingeTriGate.Reconstruct();
+            var quad = (HingeTriGate with { Quads = [Quad(2, 1, 4, 5)] }).Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -948,20 +916,16 @@ namespace Tests
         /// <summary>
         /// A limited hinge on the chain root "hat" over a ringless "hat_end", so its fan is a triangle.
         /// </summary>
-        private static ClothReconstruction HingeTriGate(string tris, string quads) => SyntheticCloth.Model(
-            ["$ha_hat", "$cchat_0", "$cchat_1", "hat", "hat_end", "hat_tip"], staticNodes: 4, parents: [3, 3, 3, -1, 3, 4],
-            poses: [new(0f, 0f, 0f), new(0f, -10f, 0f), new(0f, 10f, 0f), new(0f, 0f, 0f), new(8f, 0f, 0f), new(16f, 0f, 0f)],
-            body: $$"""
-                m_CtrlOffsets =
-                [
-                    { vOffset = [ 0.0, -10.0, 0.000001 ] nCtrlParent = 3 nCtrlChild = 1 },
-                    { vOffset = [ 0.0, 10.0, -0.000001 ] nCtrlParent = 3 nCtrlChild = 2 },
-                ]
-                m_Rods = [ {{SyntheticCloth.RigidRod(4, 5, 8f, 1f)}} ]
-                {{(quads.Length > 0 ? "m_Quads = " + quads : string.Empty)}}
-                {{(tris.Length > 0 ? "m_Tris = " + tris : string.Empty)}}
-                m_HingeLimits = [ { nNode = [ 1, 2, 3, 4, 3, 4 ] flAngleCenter = 0.0 flAngleExtents = 0.785398 } ]
-                """);
+        private static FeModelBuilder HingeTriGate => new()
+        {
+            Names = ["$ha_hat", "$cchat_0", "$cchat_1", "hat", "hat_end", "hat_tip"],
+            StaticNodes = 4,
+            Parents = [3, 3, 3, -1, 3, 4],
+            Positions = [new(0f, 0f, 0f), new(0f, -10f, 0f), new(0f, 10f, 0f), new(0f, 0f, 0f), new(8f, 0f, 0f), new(16f, 0f, 0f)],
+            CtrlOffsets = [Offset(3, 1, 0f, -10f, 0.000001f), Offset(3, 2, 0f, 10f, -0.000001f)],
+            Rods = [RigidRod(4, 5, 8f)],
+            HingeLimits = [new FeHingeLimit([1, 2, 3, 4, 3, 4], 0, 0f, 0f, 0f, 0.785398f)],
+        };
 
         /// <summary>
         /// A twist between two bones links them into a chain with or without <c>m_SkelParents</c>; without twists the
@@ -985,11 +949,14 @@ namespace Tests
         /// <summary>
         /// A static w0 over w1 and w2 with no rods; <paramref name="twisted"/> adds four twist entries.
         /// </summary>
-        private static ClothReconstruction TwistedRun(bool skelParents, bool twisted) => SyntheticCloth.Model(
-            ["w0", "w1", "w2"], staticNodes: 1, poses: [new(0f, 0f, 0f), new(-8.5f, 0f, 0f), new(-17f, 0f, 0f)], body: $$"""
-                {{(skelParents ? "m_SkelParents = [ -1, 0, 1 ]" : string.Empty)}}
-                m_Twists = [ {{(twisted ? "{ nNodeOrient = 0 nNodeEnd = 1 flTwistRelax = 0.0 flSwingRelax = 1.0 }, { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = 0.618 flSwingRelax = 0.0 }, { nNodeOrient = 1 nNodeEnd = 2 flTwistRelax = 0.382 flSwingRelax = 0.5 }, { nNodeOrient = 2 nNodeEnd = 1 flTwistRelax = 0.618 flSwingRelax = 1.0 }" : string.Empty)}} ]
-                """);
+        private static ClothReconstruction TwistedRun(bool skelParents, bool twisted) => new FeModelBuilder
+        {
+            Names = ["w0", "w1", "w2"],
+            StaticNodes = 1,
+            Positions = [new(0f, 0f, 0f), new(-8.5f, 0f, 0f), new(-17f, 0f, 0f)],
+            Parents = skelParents ? [-1, 0, 1] : null,
+            Twists = twisted ? [Twist(0, 1, 0f, 1f), Twist(1, 0, 0.618f, 0f), Twist(1, 2, 0.382f, 0.5f), Twist(2, 1, 0.618f, 1f)] : [],
+        }.Reconstruct();
 
         /// <summary>
         /// <c>TwistRecords</c> and <c>NodeBaseRecords</c> keep every record in array order with its swing relaxation,
@@ -998,23 +965,15 @@ namespace Tests
         [Test]
         public async Task EveryTwistAndNodeBaseRecordIsKept()
         {
-            var cloth = SyntheticCloth.Model(
-                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
-                body: """
-                    m_Twists =
-                    [
-                        { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = 0.618 flSwingRelax = 0.0 },
-                        { nNodeOrient = 1 nNodeEnd = 2 flTwistRelax = 0.382 flSwingRelax = 1.0 },
-                        { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = 0.2163 flSwingRelax = 0.5 },
-                    ]
-                    m_NodeBases =
-                    [
-                        { nNode = 1 nNodeX0 = 1 nNodeX1 = 2 nNodeY0 = 0 nNodeY1 = 2 },
-                        { nNode = 1 nNodeX0 = 1 nNodeX1 = 0 nNodeY0 = 2 nNodeY1 = 0 },
-                        { nNode = 2 nNodeX0 = 2 nNodeX1 = 1 nNodeY0 = 0 nNodeY1 = 1 },
-                    ]
-                    """);
+            var cloth = new FeModelBuilder
+            {
+                Names = ["root", "j1", "j2"],
+                StaticNodes = 1,
+                Parents = [-1, 0, 1],
+                Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+                Twists = [Twist(1, 0, 0.618f, 0f), Twist(1, 2, 0.382f, 1f), Twist(1, 0, 0.2163f, 0.5f)],
+                NodeBases = [NodeBase(1, 1, 2, 0, 2), NodeBase(1, 1, 0, 2, 0), NodeBase(2, 2, 1, 0, 1)],
+            }.Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -1044,32 +1003,18 @@ namespace Tests
         [Test]
         public async Task ARopeRunPastAnEndEffectorCentreIsNoChainLink()
         {
-            static bool Joined(bool centre) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "w0", "w1", "w2", "k1", {{(centre ? "\"$ccw2_Ctr\"" : "\"k2\"")}} ]
-                    m_SkelParents = [ -1, 0, 1, 2, {{(centre ? "2" : "-1")}} ]
-                    m_nNodeCount = 5
-                    m_nStaticNodes = 1
-                    m_nFirstPositionDrivenNode = 5
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                        {{SyntheticCloth.Pose(0f, 5f, -20f)}}
-                    ]
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
-                    ]
-                    m_nRopeCount = 1
-                    m_Ropes = [ 3, 2, 3 ]
-                }
-                """).BuildBoneChains().Exists(chain => chain.Joints.Exists(static j => j.Name == "w2")
-                    && chain.Joints.Exists(static j => j.Name == "k1"));
+            static bool Joined(bool centre) => new FeModelBuilder
+            {
+                Names = ["w0", "w1", "w2", "k1", centre ? "$ccw2_Ctr" : "k2"],
+                StaticNodes = 1,
+                FirstPositionDrivenNode = 5,
+                Parents = [-1, 0, 1, 2, centre ? 2 : -1],
+                Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 5f, -20f)],
+                Rods = [RigidRod(0, 1, 10f), RigidRod(1, 2, 10f)],
+                RopeCount = 1,
+                Ropes = [3, 2, 3],
+            }.Reconstruct().BuildBoneChains().Exists(chain => chain.Joints.Exists(static j => j.Name == "w2")
+                && chain.Joints.Exists(static j => j.Name == "k1"));
 
             using (Assert.Multiple())
             {
@@ -1143,11 +1088,14 @@ namespace Tests
         public async Task AVeryDeepChainIsWalkedInPreOrder()
         {
             const int Depth = 10_000;
-            var rods = string.Join('\n', Enumerable.Range(1, Depth - 1).Select(static node => SyntheticCloth.RigidRod(node - 1, node, 1f, 1f)));
-            var cloth = SyntheticCloth.Model([.. Enumerable.Range(0, Depth).Select(static node => $"bone{node}")], staticNodes: 1,
-                parents: [.. Enumerable.Range(-1, Depth)],
-                poses: [.. Enumerable.Range(0, Depth).Select(static node => new Vector3(0f, 0f, -node))],
-                body: $"m_Rods = [ {rods} ]");
+            var cloth = new FeModelBuilder
+            {
+                Names = [.. Enumerable.Range(0, Depth).Select(static node => $"bone{node}")],
+                StaticNodes = 1,
+                Parents = [.. Enumerable.Range(-1, Depth)],
+                Positions = [.. Enumerable.Range(0, Depth).Select(static node => new Vector3(0f, 0f, -node))],
+                Rods = [.. Enumerable.Range(1, Depth - 1).Select(static node => RigidRod(node - 1, node, 1f))],
+            }.Reconstruct();
 
             var chains = cloth.BuildBoneChains();
 

@@ -7,11 +7,13 @@ using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
+using static Tests.IO.FeModelBuilder;
+using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
-namespace Tests
+namespace Tests.IO
 {
     /// <summary>Declaring springs, clusters and the rods a chain or sheet does not regenerate.</summary>
-    public class ClothExtractRodTest : ClothTestFixtures
+    public class FeModelExtractRodTest : FeModelTestModels
     {
         /// <summary>
         /// A banded rod beside a chain's rigid span is re-declared as a two-member cluster at half its band per member;
@@ -47,17 +49,10 @@ namespace Tests
 
         private static readonly string[] ClusterTieControlClasses = ["ClothSpring", "ClothSpring"];
 
-        private static ClothReconstruction ClusterTieChain(int ties) => SyntheticCloth.Model(
-            ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
-            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
-            body: $$"""
-                m_Rods =
-                [
-                    {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                    {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
-                    {{string.Concat(Enumerable.Repeat(SyntheticCloth.BandedRod(1, 2, 12f, 48f, 1f), ties))}}
-                ]
-                """);
+        private static ClothReconstruction ClusterTieChain(int ties) => (ThreeJointRope with
+        {
+            Rods = [.. ThreeJointRope.Rods!, .. Enumerable.Repeat(Rod(1, 2, 12f, 48f), ties)],
+        }).Reconstruct();
 
         /// <summary>
         /// A rod from a free node to a chain joint is re-declared as a <c>ClothSpring</c> where a two-corner source
@@ -66,18 +61,16 @@ namespace Tests
         [Test]
         public async Task ASpringFromAFreeNodeToAChainJointIsDeclared()
         {
-            static ClothReconstruction Model(string sourceElems) => SyntheticCloth.Model(
-                ["coattail_0_L", "coattail_0_R", "coattail_1_R"], staticNodes: 2, parents: [-1, -1, 1],
-                    invMasses: "0.0, 0.0, 0.006141",
-                poses: [new(4f, 0f, 60f), new(-4f, 0f, 60f), new(-4f, 0f, 51.5f)],
-                body: $$"""
-                    m_SourceElems = [ {{sourceElems}} ]
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 2, 11.854138f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 8.5f, 1f)}}
-                    ]
-                    """);
+            static ClothReconstruction Model(params int[] sourceElems) => new FeModelBuilder
+            {
+                Names = ["coattail_0_L", "coattail_0_R", "coattail_1_R"],
+                StaticNodes = 2,
+                InvMasses = [0f, 0f, 0.006141f],
+                Parents = [-1, -1, 1],
+                Positions = [new(4f, 0f, 60f), new(-4f, 0f, 60f), new(-4f, 0f, 51.5f)],
+                SourceElems = sourceElems,
+                Rods = [RigidRod(0, 2, 11.854138f), RigidRod(1, 2, 8.5f)],
+            }.Reconstruct();
 
             static string[] Ties(ClothReconstruction cloth, HashSet<int>? chainJoints)
             {
@@ -92,8 +85,8 @@ namespace Tests
                             .Select(static joint => joint.GetStringProperty("joint_name"))))];
             }
 
-            var recorded = Model("0, 1, 0, 0, 0, 2");
-            var unrecorded = Model("0, 0, 0, 0");
+            var recorded = Model(0, 1, 0, 0, 0, 2);
+            var unrecorded = Model(0, 0, 0, 0);
 
             using (Assert.Multiple())
             {
@@ -109,7 +102,7 @@ namespace Tests
         [Test]
         public async Task AFreeNodesSpringToAChainJointNamesTheJoint()
         {
-            var cloth = FreeNodeSprungToJoint;
+            var cloth = FreeNodeSprungToJoint.Reconstruct();
             var joints = cloth.BuildBoneChains().SelectMany(static chain => chain.Joints).Select(static joint => joint.Node).ToHashSet();
 
             var withJoints = KVObject.Array();
@@ -130,8 +123,6 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction FreeNodeSprungToJoint => SyntheticCloth.Load("cloth_chain_free_node_spring.kv3");
-
         /// <summary>
         /// A banded rod between two joints' ring nodes is declared as a two-member <c>ClothSelfCollisionCluster</c>
         /// whose name has no <c>$</c>; the band closed onto the rest length or between one joint's rings declares
@@ -140,21 +131,15 @@ namespace Tests
         [Test]
         public async Task ARingRingClusterTieIsItsTwoMemberClusterUnderANameWithoutADollar()
         {
-            var tiedModel = SyntheticCloth.Parse(RingClusterTieText);
+            var tiedModel = RingClusterTie(Rod(2, 4, 12f, 48f));
             var tied = KVObject.Array();
             ClothExtract.AddClothChainSurplusRods(tied, tiedModel, tiedModel.BuildBoneChains());
 
-            var restBandModel = SyntheticCloth.Parse(RingClusterTieText.Replace(
-                "{ nNode = [ 2, 4 ] flMaxDist = 48.0 flMinDist = 12.0",
-                "{ nNode = [ 2, 4 ] flMaxDist = 8.503419 flMinDist = 8.4",
-                StringComparison.Ordinal));
+            var restBandModel = RingClusterTie(Rod(2, 4, 8.4f, 8.503419f));
             var restBand = KVObject.Array();
             ClothExtract.AddClothChainSurplusRods(restBand, restBandModel, restBandModel.BuildBoneChains());
 
-            var sameJointModel = SyntheticCloth.Parse(RingClusterTieText.Replace(
-                "{ nNode = [ 2, 4 ] flMaxDist = 48.0 flMinDist = 12.0",
-                "{ nNode = [ 2, 3 ] flMaxDist = 48.0 flMinDist = 12.0",
-                StringComparison.Ordinal));
+            var sameJointModel = RingClusterTie(Rod(2, 3, 12f, 48f));
             var sameJoint = KVObject.Array();
             ClothExtract.AddClothChainSurplusRods(sameJoint, sameJointModel, sameJointModel.BuildBoneChains());
 
@@ -191,7 +176,51 @@ namespace Tests
 
         private static readonly float[] RingClusterTieStrays = [24f, 24f];
 
-        private static string RingClusterTieText => SyntheticCloth.Fixture("cloth_chain_ring_cluster_tie.kv3");
+        /// <summary>
+        /// A coattail of four joints, the static first with a one-node ring and the rest with two-node rings, its rigid rods
+        /// followed by <paramref name="tie"/>.
+        /// </summary>
+        private static ClothReconstruction RingClusterTie(FeRodConstraint tie) => new FeModelBuilder
+        {
+            Names = ["coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_1_L_0", "$cccoattail_1_L_1", "$cccoattail_2_L_0", "$cccoattail_2_L_1",
+                "$cccoattail_end_L_0", "$cccoattail_end_L_1", "coattail_1_L", "coattail_2_L", "coattail_end_L"],
+            StaticNodes = 2,
+            InvMasses = [0f, 0f, 0.002634f, 0.003111f, 0.002588f, 0.003142f, 0.005709f, 0.005709f, 1f, 1f, 1f],
+            Parents = [-1, 0, 8, 8, 9, 9, 10, 10, 0, 8, 9],
+            Poses =
+            [
+                Pose(-8.915481f, 4.000124f, 65.447983f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-10.723646f, 4.561181f, 66.092773f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-13.473376f, 4.824905f, 58.146507f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-9.917552f, 3.709337f, 56.693367f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-16.587204f, 5.195801f, 50.242416f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-13.028829f, 4.079931f, 48.795761f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-19.686529f, 5.562407f, 42.336063f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-16.128153f, 4.446536f, 40.889408f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-11.695464f, 4.267121f, 57.419937f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-14.808016f, 4.637866f, 49.519089f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-17.907341f, 5.004471f, 41.612736f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+            ],
+            Rods =
+            [
+                RigidRod(0, 2, 8.646747f, 1f, 0f),
+                RigidRod(0, 3, 8.816575f, 1f, 0f),
+                RigidRod(1, 2, 8.412711f, 1f, 0f),
+                RigidRod(1, 3, 9.472289f, 1f, 0f),
+                RigidRod(2, 3, 4f),
+                RigidRod(2, 4, 8.503419f),
+                RigidRod(2, 5, 9.390903f),
+                RigidRod(3, 4, 9.397265f),
+                RigidRod(3, 5, 8.496444f),
+                RigidRod(4, 5, 4.000001f),
+                RigidRod(4, 6, 8.500037f),
+                RigidRod(4, 7, 9.394195f),
+                RigidRod(5, 6, 9.394169f),
+                RigidRod(5, 7, 8.500037f),
+                RigidRod(6, 7, 4.000002f),
+                tie,
+            ],
+        }.Reconstruct();
 
         /// <summary>
         /// A <c>ClothSelfCollisionCluster</c>'s member table states its members, version 0 and its own <c>attrs</c>
@@ -233,9 +262,9 @@ namespace Tests
         [Test]
         public async Task AnUnrecordedOffRestSurplusRodIsAClusterNotASpring()
         {
-            var tieModel = CrossChainTieModel(12f, 48f, string.Empty);
-            var recorded = CrossChainTieModel(12f, 48f, "0, 1, 0, 0, 2, 3");
-            var rest = CrossChainTieModel(20f, 20f, string.Empty);
+            var tieModel = CrossChainTieModel(12f, 48f);
+            var recorded = CrossChainTieModel(12f, 48f, 0, 1, 0, 0, 2, 3);
+            var rest = CrossChainTieModel(20f, 20f);
 
             using (Assert.Multiple())
             {
@@ -273,18 +302,15 @@ namespace Tests
         /// <summary>
         /// Two one-joint chains 20 apart with a banded rod between their joints and the given source elements.
         /// </summary>
-        private static ClothReconstruction CrossChainTieModel(float min, float max, string sourceElems) => SyntheticCloth.Model(
-            ["rootA", "rootB", "a1", "b1"], staticNodes: 2, parents: [-1, -1, 0, 1],
-            poses: [new(0f, 0f, 0f), new(20f, 0f, 0f), new(0f, 0f, -10f), new(20f, 0f, -10f)],
-            body: $$"""
-                m_Rods =
-                [
-                    {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
-                    {{SyntheticCloth.RigidRod(1, 3, 10f, 1f)}}
-                    {{SyntheticCloth.BandedRod(2, 3, min, max, 1f)}}
-                ]
-                m_SourceElems = [ {{sourceElems}} ]
-                """);
+        private static ClothReconstruction CrossChainTieModel(float min, float max, params int[] sourceElems) => new FeModelBuilder
+        {
+            Names = ["rootA", "rootB", "a1", "b1"],
+            StaticNodes = 2,
+            Parents = [-1, -1, 0, 1],
+            Positions = [new(0f, 0f, 0f), new(20f, 0f, 0f), new(0f, 0f, -10f), new(20f, 0f, -10f)],
+            Rods = [RigidRod(0, 2, 10f), RigidRod(1, 3, 10f), Rod(2, 3, min, max)],
+            SourceElems = sourceElems,
+        }.Reconstruct();
 
         /// <summary>
         /// Fold-weighted rods on a face-kept sheet read as <c>add_stiffness_rods</c> and are derived; even-split rods
@@ -293,8 +319,8 @@ namespace Tests
         [Test]
         public async Task AFaceKeptSheetsFoldsAreTheSwitchsAndNoSprings()
         {
-            var folded = FoldedSheetModel(0.666667f);
-            var declared = FoldedSheetModel(0.5f);
+            var folded = FoldedSheetModel(0.666667f).Reconstruct();
+            var declared = FoldedSheetModel(0.5f).Reconstruct();
 
             static (bool Switch, HashSet<(int, int)> Derived) Read(ClothReconstruction cloth)
             {
@@ -323,7 +349,7 @@ namespace Tests
         [Test]
         public async Task AFaceKeptSheetFoldsInTheCornerOrderTheCompilerMeetsItsFacesIn()
         {
-            var sheet = FaceKeptSheetCorner;
+            var sheet = FaceKeptSheetCorner.Reconstruct();
             var proxies = sheet.BuildProxyMeshes().Select(static (proxy, i) => new ClothExtract.ClothProxyFile($"p{i}.dmx", $"p{i}", proxy)).ToList();
             var rods = ClothExtract.ClothRodsFromSurface(sheet, proxies);
             var (derived, bend) = (rods.Derived, rods.GeneratesBendRods);
@@ -337,7 +363,36 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction FaceKeptSheetCorner => SyntheticCloth.Load("cloth_sheet_face_kept_corner.kv3");
+        /// <summary>A face-kept sheet of four quads around node 7 under three static nodes, with six banded rods.</summary>
+        private static FeModelBuilder FaceKeptSheetCorner => new()
+        {
+            Names = ["$cloth_m2p42", "$cloth_m2p45", "$cloth_m2p49", "$cloth_m2p46", "$cloth_m2p47", "$cloth_m2p48", "$cloth_m2p50", "$cloth_m2p51",
+                "$cloth_m2p52"],
+            StaticNodes = 3,
+            InvMasses = [0f, 0f, 0f, 0.004359f, 0.004359f, 0.002214f, 0.003712f, 0.001881f, 0.003712f],
+            Positions =
+            [
+                new(-27.650145f, 10.560019f, 205.05894f),
+                new(-27.650145f, -10.560019f, 205.05894f),
+                new(-27.33801f, 0f, 195.58267f),
+                new(-43.832478f, 6.48951f, 203.6097f),
+                new(-43.832478f, -6.48951f, 203.6097f),
+                new(-43.35944f, 0f, 198.29076f),
+                new(-35.769325f, 8.53872f, 204.58925f),
+                new(-35.299297f, 0f, 197.24841f),
+                new(-35.769325f, -8.53872f, 204.58925f),
+            ],
+            Rods =
+            [
+                Rod(0, 3, 3.35389f, 16.753178f, 0f),
+                Rod(2, 5, 2.432684f, 16.255886f, 0f),
+                Rod(2, 4, 10.834126f, 19.47035f, 0f),
+                Rod(1, 5, 11.755301f, 20.102926f, 0f),
+                Rod(6, 8, 0f, 22.364f),
+                Rod(3, 4, 0f, 16.776804f),
+            ],
+            Quads = [Quad(2, 0, 6, 7), Quad(1, 2, 7, 8), Quad(4, 8, 7, 5), Quad(3, 5, 7, 6)],
+        };
 
         /// <summary>
         /// A clique of equal bands over two chains' ring nodes is declared as one cluster of all its members at half
@@ -346,7 +401,7 @@ namespace Tests
         [Test]
         public async Task AClusterCliqueAcrossTwoChainsRingsIsOneCluster()
         {
-            var model = ClusterCliqueRings;
+            var model = ClusterCliqueRings.Reconstruct();
             var across = KVObject.Array();
             var covered = ClothExtract.AddRingClusterCliques(across, model, new Dictionary<int, int> { [2] = 0, [3] = 0, [4] = 1, [5] = 1 });
             var single = KVObject.Array();
@@ -367,21 +422,15 @@ namespace Tests
         private static readonly string[] ClusterCliqueMembers = ["$cca_0:4:8|$cca_1:4:8|$ccb_0:4:8|$ccb_1:4:8"];
 
         /// <summary>Joints a and b with two ring nodes each and the six 8 / 16 bands of a four-member cluster.</summary>
-        private static ClothReconstruction ClusterCliqueRings => SyntheticCloth.Model(
-            ["a", "b", "$cca_0", "$cca_1", "$ccb_0", "$ccb_1"], staticNodes: 2, parents: [-1, -1, 0, 0, 1, 1],
-                invMasses: "0.0, 0.0, 0.01, 0.01, 0.01, 0.01",
-            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(0f, 3f, -5f), new(0f, -3f, -5f), new(10f, 3f, -5f), new(10f, -3f, -5f)],
-            body: $$"""
-                m_Rods =
-                [
-                    {{SyntheticCloth.BandedRod(2, 3, 8f, 16f, 1f)}}
-                    {{SyntheticCloth.BandedRod(2, 4, 8f, 16f, 1f)}}
-                    {{SyntheticCloth.BandedRod(2, 5, 8f, 16f, 1f)}}
-                    {{SyntheticCloth.BandedRod(3, 4, 8f, 16f, 1f)}}
-                    {{SyntheticCloth.BandedRod(3, 5, 8f, 16f, 1f)}}
-                    {{SyntheticCloth.BandedRod(4, 5, 8f, 16f, 1f)}}
-                ]
-                """);
+        private static FeModelBuilder ClusterCliqueRings => new()
+        {
+            Names = ["a", "b", "$cca_0", "$cca_1", "$ccb_0", "$ccb_1"],
+            StaticNodes = 2,
+            InvMasses = [0f, 0f, 0.01f, 0.01f, 0.01f, 0.01f],
+            Parents = [-1, -1, 0, 0, 1, 1],
+            Positions = [new(0f, 0f, 0f), new(10f, 0f, 0f), new(0f, 3f, -5f), new(0f, -3f, -5f), new(10f, 3f, -5f), new(10f, -3f, -5f)],
+            Rods = [Rod(2, 3, 8f, 16f), Rod(2, 4, 8f, 16f), Rod(2, 5, 8f, 16f), Rod(3, 4, 8f, 16f), Rod(3, 5, 8f, 16f), Rod(4, 5, 8f, 16f)],
+        };
 
         /// <summary>
         /// A second rigid copy of a span with no two-corner source element is an unrecorded span copy; a recorded
@@ -390,19 +439,12 @@ namespace Tests
         [Test]
         public async Task ASecondRigidSpanCopyWithNoSourceElementIsAClusterRod()
         {
-            static ClothReconstruction Pair(string rods, string sourceElems, string skelParents = "m_SkelParents = [ -1, 0 ]") => SyntheticCloth.Model(
-                ["a", "b"], staticNodes: 1, poses: [new(0f, 0f, 0f), new(10f, 0f, 0f)], body: $$"""
-                    m_Rods = [ {{rods}} ]
-                    {{sourceElems}}
-                    {{skelParents}}
-                    """);
-
-            var rigid = SyntheticCloth.RigidRod(0, 1, 10f, 1f);
-            var doubled = Pair(rigid + rigid, string.Empty);
-            var sprung = Pair(rigid + rigid, "m_SourceElems = [ 0, 1, 0, 0, 0, 1 ]");
-            var banded = Pair(rigid + SyntheticCloth.BandedRod(0, 1, 8f, 10f, 1f), string.Empty);
-            var single = Pair(rigid, string.Empty);
-            var unparented = Pair(rigid + rigid, string.Empty, string.Empty);
+            var rigid = RigidRod(0, 1, 10f);
+            var doubled = (RodPair with { Rods = [rigid, rigid] }).Reconstruct();
+            var sprung = (RodPair with { Rods = [rigid, rigid], SourceElems = [0, 1, 0, 0, 0, 1] }).Reconstruct();
+            var banded = (RodPair with { Rods = [rigid, Rod(0, 1, 8f, 10f)] }).Reconstruct();
+            var single = (RodPair with { Rods = [rigid] }).Reconstruct();
+            var unparented = (RodPair with { Rods = [rigid, rigid], Parents = null }).Reconstruct();
 
             static bool SpanCopy(ClothReconstruction cloth, int rod)
                 => ClothExtract.IsUnrecordedSpanCopy(cloth, cloth.Index.Rods[rod], ClothExtract.RodCountsByPair(cloth).Entries);
@@ -417,6 +459,15 @@ namespace Tests
                 await Assert.That(SpanCopy(doubled, 1)).IsTrue();
             }
         }
+
+        /// <summary>A static node and its child 10 away.</summary>
+        private static FeModelBuilder RodPair => new()
+        {
+            Names = ["a", "b"],
+            StaticNodes = 1,
+            Parents = [-1, 0],
+            Positions = [new(0f, 0f, 0f), new(10f, 0f, 0f)],
+        };
 
         /// <summary>
         /// A fold-weighted record beside a cluster band leaves the clique one cluster; the same records on unfolded
@@ -447,24 +498,12 @@ namespace Tests
         /// <see cref="ClusterCliqueRings"/> with unequal ring masses and a fold-weighted record on each ring pair;
         /// <paramref name="faces"/> adds the quads that fold them.
         /// </summary>
-        private static ClothReconstruction FoldedClusterClique(bool faces) => SyntheticCloth.Model(
-            ["a", "b", "$cca_0", "$cca_1", "$ccb_0", "$ccb_1"], staticNodes: 2, parents: [-1, -1, 0, 0, 1, 1],
-                invMasses: "0.0, 0.0, 0.01, 0.02, 0.01, 0.02",
-            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(0f, 3f, -5f), new(0f, -3f, -5f), new(10f, 3f, -5f), new(10f, -3f, -5f)],
-            body: $$"""
-                m_Quads = [ {{(faces ? "{ nNode = [ 0, 1, 4, 2 ] }, { nNode = [ 1, 0, 3, 5 ] }" : string.Empty)}} ]
-                m_Rods =
-                [
-                    {{SyntheticCloth.BandedRod(2, 3, 8f, 16f, 1f)}}
-                    {{SyntheticCloth.BandedRod(2, 4, 8f, 16f, 1f)}}
-                    {{SyntheticCloth.BandedRod(2, 5, 8f, 16f, 1f)}}
-                    {{SyntheticCloth.BandedRod(3, 4, 8f, 16f, 1f)}}
-                    {{SyntheticCloth.BandedRod(3, 5, 8f, 16f, 1f)}}
-                    {{SyntheticCloth.BandedRod(4, 5, 8f, 16f, 1f)}}
-                    { nNode = [ 2, 3 ] flMinDist = 1.0 flMaxDist = 12.0 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 5 ] flMinDist = 1.0 flMaxDist = 12.0 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                ]
-                """);
+        private static ClothReconstruction FoldedClusterClique(bool faces) => (ClusterCliqueRings with
+        {
+            InvMasses = [0f, 0f, 0.01f, 0.02f, 0.01f, 0.02f],
+            Quads = faces ? [Quad(0, 1, 4, 2), Quad(1, 0, 3, 5)] : [],
+            Rods = [.. ClusterCliqueRings.Rods!, Rod(2, 3, 1f, 12f, 0.333333f), Rod(4, 5, 1f, 12f, 0.333333f)],
+        }).Reconstruct();
 
         /// <summary>
         /// On the proxy sheet route an authored <c>ClothSpring</c> between two chain joints is re-declared; the model
@@ -480,8 +519,8 @@ namespace Tests
                 return new ModelExtract(resource, new NullFileLoader()).ToValveModel();
             }
 
-            var sprung = Extract("cloth_sheet_chain_spring.vmdl_c");
-            var plain = Extract("cloth_sheet_chain_nospring.vmdl_c");
+            var sprung = Extract("FeModel/sheet_chain_spring.vmdl_c");
+            var plain = Extract("FeModel/sheet_chain_nospring.vmdl_c");
 
             using (Assert.Multiple())
             {

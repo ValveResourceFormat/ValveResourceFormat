@@ -1,14 +1,26 @@
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+using static Tests.IO.FeModelBuilder;
+using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
-namespace Tests
+namespace Tests.IO
 {
     /// <summary>Reading a chain joint's springs, iterations, suspenders, twists and clusters off the compiled rods.</summary>
-    public class ClothFeModelRodTest : ClothTestFixtures
+    public class FeModelReconstructionRodTest : FeModelTestModels
     {
+        /// <summary>
+        /// A static root over <paramref name="joints"/> - 1 free joints j1, j2, ... hanging <paramref name="spacing"/>
+        /// apart down -Z, each parented to the one above, with no constraints.
+        /// </summary>
+        private static FeModelBuilder StraightChain(int joints, float spacing = 10f) => new()
+        {
+            Names = ["root", .. Enumerable.Range(1, joints - 1).Select(static joint => $"j{joint}")],
+            StaticNodes = 1,
+            Parents = [.. Enumerable.Range(-1, joints)],
+            Positions = [.. Enumerable.Range(0, joints).Select(joint => new Vector3(0f, 0f, -spacing * joint))],
+        };
+
         /// <summary>
         /// A chain rod's relaxation is the slider scaled by <c>exp(-default_stretch)</c>, which the reading divides
         /// back out: 0.5 * exp(-0.985) = 0.18672.
@@ -16,17 +28,11 @@ namespace Tests
         [Test]
         public async Task ChainRodRelaxationDividesOutTheDefaultStretch()
         {
-            var cloth = SyntheticCloth.Model(
-                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
-                body: $$"""
-                    m_flDefaultSurfaceStretch = 0.985
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 0.18672f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 10f, 0.18672f)}}
-                    ]
-                    """);
+            var cloth = (StraightChain(3) with
+            {
+                DefaultSurfaceStretch = 0.985f,
+                Rods = [RigidRod(0, 1, 10f, 0.18672f), RigidRod(1, 2, 10f, 0.18672f)],
+            }).Reconstruct();
 
             var chains = cloth.BuildBoneChains();
             await Assert.That(chains.Count).IsEqualTo(1);
@@ -46,10 +52,7 @@ namespace Tests
         [Test]
         public async Task ChainRodRelaxationIsVerbatimWithoutDefaultStretch()
         {
-            var cloth = SyntheticCloth.Model(
-                ["root", "j1"], staticNodes: 1, parents: [-1, 0], poses: [new(0f, 0f, 0f), new(0f, 0f, -10f)], body: $$"""
-                    m_Rods = [ {{SyntheticCloth.RigidRod(0, 1, 10f, 0.8f)}} ]
-                    """);
+            var cloth = (StraightChain(2) with { Rods = [RigidRod(0, 1, 10f, 0.8f)] }).Reconstruct();
 
             var joint = cloth.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
 
@@ -64,14 +67,7 @@ namespace Tests
         [Test]
         public async Task GetUngeneratedRodsKeepsTheChainRodAndReturnsTheBandedCopy()
         {
-            var cloth = SyntheticCloth.Model(
-                ["root", "j1"], staticNodes: 1, parents: [-1, 0], poses: [new(0f, 0f, 0f), new(0f, 0f, -3f)], body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.BandedRod(0, 1, 1f, 5f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 1, 3f, 0.6f)}}
-                    ]
-                    """);
+            var cloth = (StraightChain(2, 3f) with { Rods = [Rod(0, 1, 1f, 5f), RigidRod(0, 1, 3f, 0.6f)] }).Reconstruct();
 
             var chains = cloth.BuildBoneChains();
             var surplus = cloth.GetUngeneratedRods(chains);
@@ -110,13 +106,13 @@ namespace Tests
             await Assert.That(cloth.GetAuthoredTwistRelax(1, 0, -1)).IsEqualTo(0.5f).Within(1e-4f);
         }
 
-        private static ClothReconstruction TwistModel(int orient, int end, float relax) => SyntheticCloth.Model(
-            ["root", "j1", "$ccj1_0"], staticNodes: 1, parents: [-1, 0, 1], body: $$"""
-                m_Twists =
-                [
-                    { nNodeOrient = {{orient}} nNodeEnd = {{end}} flTwistRelax = {{SyntheticCloth.Num(relax)}} },
-                ]
-                """);
+        private static ClothReconstruction TwistModel(int orient, int end, float relax) => new FeModelBuilder
+        {
+            Names = ["root", "j1", "$ccj1_0"],
+            StaticNodes = 1,
+            Parents = [-1, 0, 1],
+            Twists = [Twist(orient, end, relax, 0f)],
+        }.Reconstruct();
 
         /// <summary>
         /// Three rigid copies of a joint's parent span read two extra iterations.
@@ -124,15 +120,7 @@ namespace Tests
         [Test]
         public async Task ExtraIterationsCountsTheRigidCopiesOfASpan()
         {
-            var cloth = SyntheticCloth.Model(
-                ["root", "j1"], staticNodes: 1, parents: [-1, 0], poses: [new(0f, 0f, 0f), new(0f, 0f, -3f)], body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 1, 3f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 1, 3f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 1, 3f, 1f)}}
-                    ]
-                    """);
+            var cloth = (StraightChain(2, 3f) with { Rods = [RigidRod(0, 1, 3f), RigidRod(0, 1, 3f), RigidRod(0, 1, 3f)] }).Reconstruct();
 
             var joint = cloth.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
 
@@ -149,15 +137,7 @@ namespace Tests
         [Test]
         public async Task ExtraIterationsCountsIdenticalSlackCopiesOfASpan()
         {
-            var cloth = SyntheticCloth.Model(
-                ["root", "j1"], staticNodes: 1, parents: [-1, 0], poses: [new(0f, 0f, 0f), new(0f, 0f, -3f)], body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.BandedRod(0, 1, 0f, 3f, 1f)}}
-                        {{SyntheticCloth.BandedRod(0, 1, 0f, 3f, 1f)}}
-                        {{SyntheticCloth.BandedRod(0, 1, 0f, 3f, 1f)}}
-                    ]
-                    """);
+            var cloth = (StraightChain(2, 3f) with { Rods = [Rod(0, 1, 0f, 3f), Rod(0, 1, 0f, 3f), Rod(0, 1, 0f, 3f)] }).Reconstruct();
 
             var joint = cloth.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
 
@@ -174,13 +154,7 @@ namespace Tests
         [Test]
         public async Task ChainJointAntishrinkIsTheSlackItsOwnSpanKeeps()
         {
-            var cloth = SyntheticCloth.Model(
-                ["root", "j1"], staticNodes: 1, parents: [-1, 0], poses: [new(0f, 0f, 0f), new(0f, 0f, -3f)], body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.BandedRod(0, 1, 0.75f, 3f, 1f)}}
-                    ]
-                    """);
+            var cloth = (StraightChain(2, 3f) with { Rods = [Rod(0, 1, 0.75f, 3f)] }).Reconstruct();
 
             var joint = cloth.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
 
@@ -193,14 +167,7 @@ namespace Tests
         [Test]
         public async Task SlackRodsThatDisagreeAreNotExtraIterations()
         {
-            var cloth = SyntheticCloth.Model(
-                ["root", "j1"], staticNodes: 1, parents: [-1, 0], poses: [new(0f, 0f, 0f), new(0f, 0f, -3f)], body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.BandedRod(0, 1, 0f, 3f, 1f)}}
-                        {{SyntheticCloth.BandedRod(0, 1, 1f, 3f, 1f)}}
-                    ]
-                    """);
+            var cloth = (StraightChain(2, 3f) with { Rods = [Rod(0, 1, 0f, 3f), Rod(0, 1, 1f, 3f)] }).Reconstruct();
 
             var joint = cloth.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
 
@@ -217,14 +184,8 @@ namespace Tests
         [Test]
         public async Task ChildSiblingSpringIsTheRodBetweenTwoChildrenOfOneJoint()
         {
-            var joint = SiblingChain($"""
-                {SyntheticCloth.RigidRod(0, 1, 3f, 1f)}
-                {SyntheticCloth.RigidRod(0, 2, 3f, 1f)}
-                {SyntheticCloth.RigidRod(0, 3, 3f, 1f)}
-                {SyntheticCloth.RigidRod(1, 2, 3f, 0.5f)}
-                {SyntheticCloth.RigidRod(1, 3, 3f, 0.5f)}
-                {SyntheticCloth.RigidRod(2, 3, 3f, 0.5f)}
-                """);
+            var joint = SiblingChain(RigidRod(0, 1, 3f), RigidRod(0, 2, 3f), RigidRod(0, 3, 3f), RigidRod(1, 2, 3f, 0.5f),
+                RigidRod(1, 3, 3f, 0.5f), RigidRod(2, 3, 3f, 0.5f));
 
             await Assert.That(joint!.ChildSiblingSpring).IsEqualTo(0.5f);
         }
@@ -235,25 +196,19 @@ namespace Tests
         [Test]
         public async Task AnIncompleteSiblingSetIsNotAChildSiblingSpring()
         {
-            var joint = SiblingChain($"""
-                {SyntheticCloth.RigidRod(0, 1, 3f, 1f)}
-                {SyntheticCloth.RigidRod(0, 2, 3f, 1f)}
-                {SyntheticCloth.RigidRod(0, 3, 3f, 1f)}
-                {SyntheticCloth.RigidRod(1, 2, 3f, 0.5f)}
-                """);
+            var joint = SiblingChain(RigidRod(0, 1, 3f), RigidRod(0, 2, 3f), RigidRod(0, 3, 3f), RigidRod(1, 2, 3f, 0.5f));
 
             await Assert.That(joint!.ChildSiblingSpring).IsEqualTo(0f);
         }
 
-        private static BoneChainJoint? SiblingChain(string rods) => SyntheticCloth.Model(
-            ["root", "j1", "j2", "j3"], staticNodes: 1, parents: [-1, 0, 0, 0],
-            poses: [new(0f, 0f, 0f), new(3f, 0f, 0f), new(0f, 3f, 0f), new(0f, 0f, 3f)],
-            body: $$"""
-                m_Rods =
-                [
-                    {{rods}}
-                ]
-                """).BuildBoneChains()[0].Joints.Find(j => j.Name == "root");
+        private static BoneChainJoint? SiblingChain(params FeRodConstraint[] rods) => new FeModelBuilder
+        {
+            Names = ["root", "j1", "j2", "j3"],
+            StaticNodes = 1,
+            Parents = [-1, 0, 0, 0],
+            Positions = [new(0f, 0f, 0f), new(3f, 0f, 0f), new(0f, 3f, 0f), new(0f, 0f, 3f)],
+            Rods = rods,
+        }.Reconstruct().BuildBoneChains()[0].Joints.Find(j => j.Name == "root");
 
         /// <summary>
         /// Rods joining a node to itself or missing an endpoint are dropped at parse.
@@ -261,14 +216,11 @@ namespace Tests
         [Test]
         public async Task SelfRodsAndDegenerateRodsAreDropped()
         {
-            var cloth = SyntheticCloth.Model(["a", "b", "c", "d"], staticNodes: 0, body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(3, 3, 1f, 1f)}}
-                        { nNode = [ 2 ] flMinDist = 1.0 flMaxDist = 1.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                        {{SyntheticCloth.RigidRod(0, 1, 2f, 1f)}}
-                    ]
-                    """);
+            var cloth = new FeModelBuilder
+            {
+                Names = ["a", "b", "c", "d"],
+                Rods = [RigidRod(3, 3, 1f), new FeRodConstraint([2], 1f, 1f, 0.5f, 1f), RigidRod(0, 1, 2f)],
+            }.Reconstruct();
 
             await Assert.That(cloth.Index.Rods.Length).IsEqualTo(1);
 
@@ -287,35 +239,19 @@ namespace Tests
         [Test]
         public async Task AChainRootCountsItsIterationsOnItsOnlyChildsSpan()
         {
-            var oneChild = SyntheticCloth.Model(
-                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
-                body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
-                    ]
-                    """);
+            var oneChild = (StraightChain(3) with
+            {
+                Rods = [RigidRod(0, 1, 10f), RigidRod(0, 1, 10f), RigidRod(0, 1, 10f), RigidRod(1, 2, 10f), RigidRod(1, 2, 10f), RigidRod(1, 2, 10f)],
+            }).Reconstruct();
 
-            var twoChildren = SyntheticCloth.Model(
-                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 0],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, 0f)],
-                body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
-                    ]
-                    """);
+            var twoChildren = new FeModelBuilder
+            {
+                Names = ["root", "j1", "j2"],
+                StaticNodes = 1,
+                Parents = [-1, 0, 0],
+                Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, 0f)],
+                Rods = [RigidRod(0, 1, 10f), RigidRod(0, 1, 10f), RigidRod(0, 1, 10f), RigidRod(0, 2, 10f), RigidRod(0, 2, 10f), RigidRod(0, 2, 10f)],
+            }.Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -333,20 +269,18 @@ namespace Tests
         [Test]
         public async Task ASuspenderCompanionIsTheSurplusRodOnTheRootSpan()
         {
-            var cloth = SyntheticCloth.Model(
-                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
-                body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 2, 20f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 2, 20f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 2, 20f, 0.35f)}}
-                    ]
-                    """);
+            var cloth = (StraightChain(3) with
+            {
+                Rods =
+                [
+                    RigidRod(0, 1, 10f),
+                    RigidRod(1, 2, 10f),
+                    RigidRod(1, 2, 10f),
+                    RigidRod(0, 2, 20f),
+                    RigidRod(0, 2, 20f),
+                    RigidRod(0, 2, 20f, 0.35f),
+                ],
+            }).Reconstruct();
 
             var joint = cloth.BuildBoneChains()[0].Joints.Find(static j => j.Name == "j2");
 
@@ -384,21 +318,19 @@ namespace Tests
             await Assert.That(cloth.GetUngeneratedRods(cloth.BuildBoneChains())).IsEmpty();
         }
 
-        private static ClothReconstruction LongChainWithSuspender() => SyntheticCloth.Model(
-            ["root", "j1", "j2", "j3", "j4"], staticNodes: 1, parents: [-1, 0, 1, 2, 3],
-            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 0f, -40f)],
-            body: $$"""
-                m_Rods =
-                [
-                    {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                    {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
-                    {{SyntheticCloth.RigidRod(2, 3, 10f, 1f)}}
-                    {{SyntheticCloth.RigidRod(3, 4, 10f, 1f)}}
-                    {{SyntheticCloth.RigidRod(3, 4, 10f, 1f)}}
-                    {{SyntheticCloth.RigidRod(0, 4, 40f, 0.42f)}}
-                    {{SyntheticCloth.RigidRod(0, 4, 40f, 0.42f)}}
-                ]
-                """);
+        private static ClothReconstruction LongChainWithSuspender() => (StraightChain(5) with
+        {
+            Rods =
+            [
+                RigidRod(0, 1, 10f),
+                RigidRod(1, 2, 10f),
+                RigidRod(2, 3, 10f),
+                RigidRod(3, 4, 10f),
+                RigidRod(3, 4, 10f),
+                RigidRod(0, 4, 40f, 0.42f),
+                RigidRod(0, 4, 40f, 0.42f),
+            ],
+        }).Reconstruct();
 
         /// <summary>
         /// A two-corner source element between two chain joints is re-declared as a spring with the rod's fields, and
@@ -407,7 +339,7 @@ namespace Tests
         [Test]
         public async Task ASourceElementBetweenTwoChainJointsIsAnAuthoredSpring()
         {
-            var cloth = SpringedChain(string.Empty);
+            var cloth = SpringedChain.Reconstruct();
             var chains = cloth.BuildBoneChains();
             var springs = cloth.GetAuthoredSourceSprings(chains);
 
@@ -427,10 +359,7 @@ namespace Tests
         [Test]
         public async Task ARopedChainKeepsItsOwnSpanWhereTheCompileWroteNoNodeBase()
         {
-            var cloth = SpringedChain("""
-                m_nRopeCount = 1
-                m_Ropes = [ 4, 0, 1, 2 ]
-                """);
+            var cloth = (SpringedChain with { RopeCount = 1, Ropes = [4, 0, 1, 2] }).Reconstruct();
             var chains = cloth.BuildBoneChains();
 
             using (Assert.Multiple())
@@ -441,18 +370,12 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction SpringedChain(string ropes) => SyntheticCloth.Model(
-            ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
-            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
-            body: $$"""
-                m_SourceElems = [ 0, 1, 0, 0, 1, 2 ]
-                m_Rods =
-                [
-                    {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                    {{SyntheticCloth.RigidRod(1, 2, 10f, 0.5f)}}
-                ]
-                {{ropes}}
-                """);
+        /// <summary><see cref="StraightChain"/> of three with a two-corner source element over j1 and j2.</summary>
+        private static FeModelBuilder SpringedChain => StraightChain(3) with
+        {
+            SourceElems = [0, 1, 0, 0, 1, 2],
+            Rods = [RigidRod(0, 1, 10f), RigidRod(1, 2, 10f, 0.5f)],
+        };
 
         /// <summary>
         /// A chain root whose ring pair carries a rigid rod at 0.6 beside a banded surface rod at 1.0 reads its
@@ -481,16 +404,14 @@ namespace Tests
         /// A chain root with a two-node ring whose pair carries a rigid rod at 0.6 beside a banded rod at <paramref
         /// name="surfaceRelaxation"/>.
         /// </summary>
-        private static ClothReconstruction RingWithASurfaceRod(float surfaceRelaxation) => SyntheticCloth.Model(
-            ["root", "$ccroot_0", "$ccroot_1"], staticNodes: 1, parents: [-1, 0, 0],
-            poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, -2f, 0f)],
-            body: $$"""
-                m_Rods =
-                [
-                    {{SyntheticCloth.RigidRod(1, 2, 4f, 0.6f)}}
-                    {{SyntheticCloth.BandedRod(1, 2, 1f, 8f, surfaceRelaxation)}}
-                ]
-                """);
+        private static ClothReconstruction RingWithASurfaceRod(float surfaceRelaxation) => new FeModelBuilder
+        {
+            Names = ["root", "$ccroot_0", "$ccroot_1"],
+            StaticNodes = 1,
+            Parents = [-1, 0, 0],
+            Positions = [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, -2f, 0f)],
+            Rods = [RigidRod(1, 2, 4f, 0.6f), Rod(1, 2, 1f, 8f, 0.5f, surfaceRelaxation)],
+        }.Reconstruct();
 
         [Test]
         public async Task MotionBiasIsReadOffTheJointsOwnSpanRod()
@@ -498,22 +419,14 @@ namespace Tests
             var joint = new BoneChainJoint { Node = 2, Name = "j2", ParentNode = 1, InvMass = 1f };
             using (Assert.Multiple())
             {
-                await Assert.That(BiasedRope("0.5").GetMotionBias(joint)).IsNull();
-                await Assert.That(BiasedRope("0.333333").GetMotionBias(joint)!.Value).IsEqualTo(0.5f).Within(1e-3f);
-                await Assert.That(BiasedRope("0.666667").GetMotionBias(joint)!.Value).IsEqualTo(-0.5f).Within(1e-3f);
-                await Assert.That(BiasedRope("0.0").GetMotionBias(joint)!.Value).IsEqualTo(1f).Within(1e-3f);
+                await Assert.That(BiasedRope(0.5f).GetMotionBias(joint)).IsNull();
+                await Assert.That(BiasedRope(0.333333f).GetMotionBias(joint)!.Value).IsEqualTo(0.5f).Within(1e-3f);
+                await Assert.That(BiasedRope(0.666667f).GetMotionBias(joint)!.Value).IsEqualTo(-0.5f).Within(1e-3f);
+                await Assert.That(BiasedRope(0f).GetMotionBias(joint)!.Value).IsEqualTo(1f).Within(1e-3f);
             }
         }
 
-        private static ClothReconstruction BiasedRope(string weight) => SyntheticCloth.Model(
-            ["root", "j1", "j2", "j3"], staticNodes: 1, parents: [-1, 0, 1, 2],
-            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f)],
-            body: $$"""
-                m_Rods =
-                [
-                    { nNode = [ 1, 2 ] flMaxDist = 10.0 flMinDist = 10.0 flWeight0 = {{weight}} flRelaxationFactor = 1.0 },
-                ]
-                """);
+        private static ClothReconstruction BiasedRope(float weight) => (StraightChain(4) with { Rods = [RigidRod(1, 2, 10f, 1f, weight)] }).Reconstruct();
 
         /// <summary>
         /// A span with one pair carrying an extra rod reads <c>extra_iterations</c> off the count every pair reaches.
@@ -537,25 +450,24 @@ namespace Tests
         /// </summary>
         private static ClothReconstruction RingSpanChain(int surplus)
         {
-            var rods = new System.Text.StringBuilder();
+            var rods = new List<FeRodConstraint>();
             foreach (var (a, b) in new[] { (1, 4), (1, 5), (2, 4), (2, 5) })
             {
                 var copies = 3 + (a == 1 && b == 4 ? surplus : 0);
                 for (var i = 0; i < copies; i++)
                 {
-                    rods.Append(SyntheticCloth.RigidRod(a, b, 4f, 1f));
+                    rods.Add(RigidRod(a, b, 4f));
                 }
             }
 
-            return SyntheticCloth.Model(
-                ["root", "$ccroot_0", "$ccroot_1", "j1", "$ccj1_0", "$ccj1_1"], staticNodes: 1, parents: [-1, 0, 0, 0, 3, 3],
-                poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, -2f, 0f), new(0f, 0f, -4f), new(0f, 2f, -4f), new(0f, -2f, -4f)],
-                body: $$"""
-                    m_Rods =
-                    [
-                        {{rods}}
-                    ]
-                    """);
+            return new FeModelBuilder
+            {
+                Names = ["root", "$ccroot_0", "$ccroot_1", "j1", "$ccj1_0", "$ccj1_1"],
+                StaticNodes = 1,
+                Parents = [-1, 0, 0, 0, 3, 3],
+                Positions = [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, -2f, 0f), new(0f, 0f, -4f), new(0f, 2f, -4f), new(0f, -2f, -4f)],
+                Rods = [.. rods],
+            }.Reconstruct();
         }
 
         /// <summary>
@@ -564,8 +476,8 @@ namespace Tests
         [Test]
         public async Task ACompleteBandedRodCliqueIsReadBackAsASelfCollisionCluster()
         {
-            var clique = ClusterCloth(4);
-            var triangle = ClusterCloth(3);
+            var clique = ClusterCloth(4).Reconstruct();
+            var triangle = ClusterCloth(3).Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -586,8 +498,7 @@ namespace Tests
         public async Task AChainWhoseSpansACollisionClusterOwnsRecoversAZeroStretchSlider()
         {
             var clustered = ClusteredChain().BuildBoneChains()[0].Joints;
-            var plain = StretchlessChain(SyntheticCloth.RigidRod(0, 2, 20f, 1f)
-                + SyntheticCloth.RigidRod(1, 3, 20f, 1f)).BuildBoneChains()[0].Joints;
+            var plain = StretchlessChain(RigidRod(0, 2, 20f), RigidRod(1, 3, 20f)).Reconstruct().BuildBoneChains()[0].Joints;
 
             using (Assert.Multiple())
             {
@@ -601,64 +512,33 @@ namespace Tests
 
         private static ClothReconstruction ClusteredChain()
         {
-            var rods = new StringBuilder();
-            for (var a = 1; a <= 4; a++)
-            {
-                for (var b = a + 1; b <= 4; b++)
-                {
-                    rods.Append(SyntheticCloth.BandedRod(a, b, 2f, 10f, 1f));
-                }
-            }
-
-            rods.Append(SyntheticCloth.RigidRod(0, 2, 20f, 1f));
-            rods.Append(SyntheticCloth.RigidRod(1, 3, 20f, 1f));
-            rods.Append(SyntheticCloth.RigidRod(2, 4, 20f, 1f));
-            return SyntheticCloth.Model(
-                ["j0", "j1", "j2", "j3", "j4"], staticNodes: 0, parents: [-1, 0, 1, 2, 3],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 0f, -40f)],
-                body: $$"""
-                    m_nFirstPositionDrivenNode = 5
-                    m_Rods =
-                    [
-                        {{rods}}
-                    ]
-                    """);
+            var cluster = ClusterCloth(4);
+            return (cluster with { Rods = [.. cluster.Rods!, RigidRod(0, 2, 20f), RigidRod(1, 3, 20f), RigidRod(2, 4, 20f)] }).Reconstruct();
         }
 
-        private static ClothReconstruction ClusterCloth(int members)
+        /// <summary>
+        /// A free chain of <paramref name="members"/> joints below j0, every node position-driven, its joints joined
+        /// pairwise by rods banded 2 to 10.
+        /// </summary>
+        private static FeModelBuilder ClusterCloth(int members)
         {
-            var names = string.Join(", ", Enumerable.Range(0, members + 1).Select(i => $"\"j{i}\""));
-            var parents = string.Join(", ", Enumerable.Range(-1, members + 1));
-            var poses = string.Concat(Enumerable.Range(0, members + 1)
-                .Select(i => SyntheticCloth.Pose(0f, 0f, -10f * i) + "\n                    "));
-            var masses = string.Join(", ", Enumerable.Range(0, members + 1).Select(static _ => "1.0"));
-            var rods = new StringBuilder();
+            var rods = new List<FeRodConstraint>();
             for (var a = 1; a <= members; a++)
             {
                 for (var b = a + 1; b <= members; b++)
                 {
-                    rods.Append(SyntheticCloth.BandedRod(a, b, 2f, 10f, 1f));
+                    rods.Add(Rod(a, b, 2f, 10f));
                 }
             }
 
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ {{names}} ]
-                    m_SkelParents = [ {{parents}} ]
-                    m_nNodeCount = {{members + 1}}
-                    m_nStaticNodes = 0
-                    m_nFirstPositionDrivenNode = {{members + 1}}
-                    m_NodeInvMasses = [ {{masses}} ]
-                    m_InitPose =
-                    [
-                        {{poses}}
-                    ]
-                    m_Rods =
-                    [
-                        {{rods}}
-                    ]
-                }
-                """);
+            return new FeModelBuilder
+            {
+                Names = [.. Enumerable.Range(0, members + 1).Select(static i => $"j{i}")],
+                Parents = [.. Enumerable.Range(-1, members + 1)],
+                FirstPositionDrivenNode = members + 1,
+                Positions = [.. Enumerable.Range(0, members + 1).Select(static i => new Vector3(0f, 0f, -10f * i))],
+                Rods = [.. rods],
+            };
         }
 
         /// <summary>
@@ -676,20 +556,18 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction SuspendedRope() => SyntheticCloth.Model(
-            ["root", "j1", "j2", "j3"], staticNodes: 1, parents: [-1, 0, 1, 2],
-            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f)],
-            body: $$"""
-                m_Rods =
-                [
-                    {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                    {{SyntheticCloth.RigidRod(0, 1, 10f, 0.5f)}}
-                    {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
-                    {{SyntheticCloth.RigidRod(2, 3, 10f, 1f)}}
-                    {{SyntheticCloth.RigidRod(0, 2, 20f, 0.5f)}}
-                    {{SyntheticCloth.RigidRod(0, 3, 30f, 0.5f)}}
-                ]
-                """);
+        private static ClothReconstruction SuspendedRope() => (StraightChain(4) with
+        {
+            Rods =
+            [
+                RigidRod(0, 1, 10f),
+                RigidRod(0, 1, 10f, 0.5f),
+                RigidRod(1, 2, 10f),
+                RigidRod(2, 3, 10f),
+                RigidRod(0, 2, 20f, 0.5f),
+                RigidRod(0, 3, 30f, 0.5f),
+            ],
+        }).Reconstruct();
 
         /// <summary>
         /// A three-member cluster is read off a shared 12 to 48 band no pair rests at; the same triangle banded at a
@@ -698,10 +576,8 @@ namespace Tests
         [Test]
         public async Task AThreeMemberClusterIsReadOffABandNoPairRestsAt()
         {
-            var cluster = SyntheticCloth.Parse(ThreeMemberClusterText).SelfCollisionClusters;
-            var surface = SyntheticCloth.Parse(ThreeMemberClusterText
-                .Replace("flMinDist = 12.0 flMaxDist = 48.0", "flMinDist = 2.0 flMaxDist = 8.5", StringComparison.Ordinal))
-                .SelfCollisionClusters;
+            var cluster = ThreeMemberCluster().Reconstruct().SelfCollisionClusters;
+            var surface = ThreeMemberCluster(bandMin: 2f, bandMax: 8.5f).Reconstruct().SelfCollisionClusters;
 
             using (Assert.Multiple())
             {
@@ -720,14 +596,8 @@ namespace Tests
         [Test]
         public async Task AClusterMembersStiffnessIsReadOffTheProductsItsPairRodsCarry()
         {
-            const string Band = "flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 1.0";
-            var uniform = SyntheticCloth.Parse(ThreeMemberClusterText
-                .Replace(Band, "flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 0.25", StringComparison.Ordinal))
-                .SelfCollisionClusters;
-            var mixed = SyntheticCloth.Parse(ThreeMemberClusterText
-                .Replace("{ nNode = [ 2, 4 ] " + Band, "{ nNode = [ 2, 4 ] flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 0.25", StringComparison.Ordinal)
-                .Replace(Band, "flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 0.5", StringComparison.Ordinal))
-                .SelfCollisionClusters;
+            var uniform = ThreeMemberCluster(firstRelaxation: 0.25f, otherRelaxation: 0.25f).Reconstruct().SelfCollisionClusters;
+            var mixed = ThreeMemberCluster(firstRelaxation: 0.25f, otherRelaxation: 0.5f).Reconstruct().SelfCollisionClusters;
 
             using (Assert.Multiple())
             {
@@ -740,7 +610,37 @@ namespace Tests
             }
         }
 
-        private static string ThreeMemberClusterText => SyntheticCloth.Fixture("cloth_chain_three_member_cluster.kv3");
+        /// <summary>
+        /// <see cref="FeModelTestModels.Coattail"/> whose joints j1, j2 and the tip are joined pairwise by rods banded
+        /// <paramref name="bandMin"/> to <paramref name="bandMax"/>, the j1-j2 band at <paramref name="firstRelaxation"/>
+        /// and the others at <paramref name="otherRelaxation"/>.
+        /// </summary>
+        private static FeModelBuilder ThreeMemberCluster(float bandMin = 12f, float bandMax = 48f, float firstRelaxation = 1f,
+            float otherRelaxation = 1f) => Coattail with
+            {
+                InvMasses = [0f, 0f, 0.002017f, 0.003444f, 0.002338f, 0.003427f, 0.002794f, 0.0065f],
+                Rods =
+            [
+                RigidRod(0, 2, 8.499948f, 1f, 0f),
+                RigidRod(0, 3, 8.646747f, 1f, 0f),
+                RigidRod(1, 2, 8.732066f, 1f, 0f),
+                RigidRod(1, 3, 8.412711f, 1f, 0f),
+                RigidRod(2, 3, 2f),
+                Rod(2, 4, bandMin, bandMax, 0.5f, firstRelaxation),
+                RigidRod(2, 5, 8.735466f),
+                Rod(2, 6, bandMin, bandMax, 0.5f, otherRelaxation),
+                RigidRod(3, 4, 8.732044f),
+                RigidRod(3, 5, 8.503419f),
+                RigidRod(4, 5, 2.000001f),
+                RigidRod(6, 4, 8.500037f),
+                RigidRod(4, 7, 8.732154f),
+                RigidRod(6, 5, 8.732168f),
+                RigidRod(5, 7, 8.500037f),
+                RigidRod(6, 7, 2.000001f),
+                RigidRod(2, 4, 8.499931f),
+                Rod(6, 4, bandMin, bandMax, 0.5f, otherRelaxation),
+            ],
+            };
 
         /// <summary>
         /// A joint's <c>motion_bias</c> is read off its span weights whatever its ends weigh: 1/3 reads 0.5 and 2/3
@@ -749,19 +649,42 @@ namespace Tests
         [Test]
         public async Task AJointsMotionBiasIsReadOffItsSpanWhateverItsEndsWeigh()
         {
-            var positive = SyntheticCloth.Parse(BiasedChainText).BuildBoneChains()[0].Joints.First(static joint => joint.Node == 6);
-            var negativeModel = SyntheticCloth.Parse(BiasedChainText
-                .Replace("flWeight0 = 0.333333", "flWeight0 = 0.666667", StringComparison.Ordinal));
+            var positive = BiasedChain(0.333333f).Reconstruct().BuildBoneChains()[0].Joints.First(static joint => joint.Node == 6);
+            var negativeModel = BiasedChain(0.666667f).Reconstruct();
             var negative = negativeModel.BuildBoneChains()[0].Joints.First(static joint => joint.Node == 6);
 
             using (Assert.Multiple())
             {
-                await Assert.That(SyntheticCloth.Parse(BiasedChainText).GetMotionBias(positive)!.Value).IsEqualTo(0.5f).Within(1e-3f);
+                await Assert.That(BiasedChain(0.333333f).Reconstruct().GetMotionBias(positive)!.Value).IsEqualTo(0.5f).Within(1e-3f);
                 await Assert.That(negativeModel.GetMotionBias(negative)!.Value).IsEqualTo(-0.5f).Within(1e-3f);
             }
         }
 
-        private static string BiasedChainText => SyntheticCloth.Fixture("cloth_chain_motion_bias.kv3");
+        /// <summary>
+        /// <see cref="FeModelTestModels.Coattail"/> whose rods from j1 down weigh their upper end <paramref name="weight"/>.
+        /// </summary>
+        private static FeModelBuilder BiasedChain(float weight) => Coattail with
+        {
+            InvMasses = [0f, 0f, 0.003428f, 0.003444f, 0.003428f, 0.003427f, 0.0065f, 0.0065f],
+            Rods =
+            [
+                RigidRod(0, 2, 8.499948f, 1f, 0f),
+                RigidRod(0, 3, 8.646747f, 1f, 0f),
+                RigidRod(1, 2, 8.732066f, 1f, 0f),
+                RigidRod(1, 3, 8.412711f, 1f, 0f),
+                RigidRod(2, 4, 8.499931f, 1f, weight),
+                RigidRod(2, 5, 8.735466f, 1f, weight),
+                RigidRod(3, 4, 8.732044f, 1f, weight),
+                RigidRod(3, 5, 8.503419f, 1f, weight),
+                RigidRod(2, 3, 2f),
+                RigidRod(4, 6, 8.500037f, 1f, weight),
+                RigidRod(4, 7, 8.732154f, 1f, weight),
+                RigidRod(5, 6, 8.732168f, 1f, weight),
+                RigidRod(5, 7, 8.500037f, 1f, weight),
+                RigidRod(4, 5, 2.000001f),
+                RigidRod(6, 7, 2.000001f),
+            ],
+        };
 
         /// <summary>
         /// A joint with no rod on its span and none on its ring reads <c>stretch_spring</c> 0; putting its ring rod
@@ -770,11 +693,9 @@ namespace Tests
         [Test]
         public async Task AJointsZeroStretchSpringIsReadOffItsRodlessSpanAndRing()
         {
-            var joints = SyntheticCloth.Parse(AlternatingStretchText).BuildBoneChains()[0].Joints;
-            var ringed = SyntheticCloth.Parse(AlternatingStretchText.Replace(
-                "{ nNode = [ 5, 6 ]",
-                "{ nNode = [ 3, 4 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },\n{ nNode = [ 5, 6 ]",
-                StringComparison.Ordinal)).BuildBoneChains()[0].Joints;
+            var joints = AlternatingStretch.Reconstruct().BuildBoneChains()[0].Joints;
+            var ringed = (AlternatingStretch with { Rods = [.. AlternatingStretch.Rods![..4], RigidRod(3, 4, 2f), .. AlternatingStretch.Rods[4..]] })
+                .Reconstruct().BuildBoneChains()[0].Joints;
 
             using (Assert.Multiple())
             {
@@ -785,7 +706,30 @@ namespace Tests
             }
         }
 
-        private static string AlternatingStretchText => SyntheticCloth.Fixture("cloth_chain_alternating_stretch.kv3");
+        /// <summary>
+        /// A coattail whose first joint and both its rings are static, held by the rods of its second span alone.
+        /// </summary>
+        private static FeModelBuilder AlternatingStretch => new()
+        {
+            Names = ["coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_end_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L",
+                "$cccoattail_2_L_0", "coattail_end_L"],
+            StaticNodes = 3,
+            InvMasses = [0f, 0f, 0f, 0.007253f, 0.007252f, 0.0065f, 0.006497f, 1f],
+            Poses =
+            [
+                Pose(-8.915481f, 4.000124f, 65.447983f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-10.723646f, 4.561181f, 66.092773f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-19.686529f, 5.562407f, 42.336063f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-11.695464f, 4.267121f, 57.419937f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-13.473376f, 4.824905f, 58.146507f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-14.808016f, 4.637866f, 49.519089f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-16.587204f, 5.195801f, 50.242416f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-17.907341f, 5.004471f, 41.612736f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+            ],
+            Parents = [-1, 0, 7, 0, 3, 3, 5, 5],
+            SourceElems = [0, 0, 0, 2, 4, 3, 5, 6, 3, 4, 6, 5],
+            Rods = [RigidRod(5, 3, 8.499931f), RigidRod(6, 3, 8.735466f), RigidRod(5, 4, 8.732044f), RigidRod(6, 4, 8.503419f), RigidRod(5, 6, 2.000001f)],
+        };
 
         /// <summary>
         /// A joint's <c>animated_length</c> is read off the rods it and its children move into <c>m_SimdRodsAnim</c>;
@@ -794,12 +738,10 @@ namespace Tests
         [Test]
         public async Task AJointsAnimatedLengthIsReadOffTheRodsItAndItsChildrenLose()
         {
-            var joints = SyntheticCloth.Parse(AnimatedJointTwoText).BuildBoneChains()[0].Joints;
-            var tipBased = SyntheticCloth.Parse(AnimatedEveryJointText.Replace(
-                "m_Rods =",
-                "m_NodeBases = [ { nNode = 7 nNodeX0 = 7 nNodeX1 = 3 nNodeY0 = 4 nNodeY1 = 6 } ]\nm_Rods =",
-                StringComparison.Ordinal)).BuildBoneChains()[0].Joints.First(static joint => joint.Name == "coattail_end_L");
-            var tipFree = SyntheticCloth.Parse(AnimatedEveryJointText).BuildBoneChains()[0].Joints
+            var joints = AnimatedJointTwo().Reconstruct().BuildBoneChains()[0].Joints;
+            var tipBased = (AnimatedEveryJoint with { NodeBases = [TipBase] }).Reconstruct().BuildBoneChains()[0].Joints
+                .First(static joint => joint.Name == "coattail_end_L");
+            var tipFree = AnimatedEveryJoint.Reconstruct().BuildBoneChains()[0].Joints
                 .First(static joint => joint.Name == "coattail_end_L");
 
             using (Assert.Multiple())
@@ -814,9 +756,83 @@ namespace Tests
             }
         }
 
-        private static string AnimatedJointTwoText => SyntheticCloth.Fixture("cloth_chain_animated_joint.kv3");
+        /// <summary>
+        /// A coattail whose second joint's span and its children's rods are animated, the second joint's ring and the
+        /// joints below weighing their upper end <paramref name="childWeight"/>.
+        /// </summary>
+        private static FeModelBuilder AnimatedJointTwo(float childWeight = 0.5f) => new()
+        {
+            Names = ["coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_2_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_end_L",
+                "$cccoattail_end_L_0", "coattail_2_L"],
+            StaticNodes = 3,
+            InvMasses = [0f, 0f, 0f, 0.0065f, 0.006558f, 0.0625f, 0.0625f, 1f],
+            Poses =
+            [
+                Pose(-8.915481f, 4.000124f, 65.447983f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-10.723646f, 4.561181f, 66.092773f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-16.587204f, 5.195801f, 50.242416f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-11.695464f, 4.267121f, 57.419937f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-13.473376f, 4.824905f, 58.146507f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-17.907341f, 5.004471f, 41.612736f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-19.686529f, 5.562407f, 42.336063f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-14.808016f, 4.637866f, 49.519089f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+            ],
+            Parents = [-1, 0, 7, 0, 3, 7, 5, 3],
+            SourceElems = [0, 0, 0, 6, 2, 7, 5, 6, 7, 2, 6, 5, 4, 3, 7, 2, 3, 4, 2, 7, 1, 0, 3, 4, 0, 1, 4, 3],
+            Rods =
+            [
+                RigidRod(0, 3, 8.499948f, 1f, 0f),
+                RigidRod(0, 4, 8.646747f, 1f, 0f),
+                RigidRod(1, 3, 8.732066f, 1f, 0f),
+                RigidRod(1, 4, 8.412711f, 1f, 0f),
+                RigidRod(3, 4, 2f),
+                RigidRod(5, 6, 2.000001f),
+            ],
+            SimdRodsAnim =
+            [
+                new FeSimdRodConstraintAnim([[2, 2, 2, 2], [7, 7, 7, 7]], [0f, 0f, 0f, 0f], [1f, 1f, 1f, 1f]),
+                new FeSimdRodConstraintAnim([[3, 2, 2, 2], [7, 4, 4, 4]], [0.5f, 0f, 0f, 0f], [1f, 1f, 1f, 1f]),
+                new FeSimdRodConstraintAnim([[4, 2, 2, 2], [7, 3, 3, 3]], [0.5f, 0f, 0f, 0f], [1f, 1f, 1f, 1f]),
+                new FeSimdRodConstraintAnim([[5, 2, 2, 2], [7, 6, 6, 6]], [childWeight, 0f, 0f, 0f], [1f, 1f, 1f, 1f]),
+                new FeSimdRodConstraintAnim([[6, 2, 2, 2], [7, 5, 5, 5]], [childWeight, 0f, 0f, 0f], [1f, 1f, 1f, 1f]),
+            ],
+        };
 
-        private static string AnimatedEveryJointText => SyntheticCloth.Fixture("cloth_chain_animated_every_joint.kv3");
+        /// <summary>
+        /// A coattail whose rings are all static and every joint span is animated, with no plain rods.
+        /// </summary>
+        private static FeModelBuilder AnimatedEveryJoint => new()
+        {
+            Names = ["coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_1_L_0", "$cccoattail_2_L_0", "$cccoattail_end_L_0", "coattail_1_L",
+                "coattail_2_L", "coattail_end_L"],
+            StaticNodes = 5,
+            Poses =
+            [
+                Pose(-8.915481f, 4.000124f, 65.447983f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-10.723646f, 4.561181f, 66.092773f, 0.337553f, -0.646323f, -0.495776f, -0.471731f),
+                Pose(-13.473376f, 4.824905f, 58.146507f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-16.587204f, 5.195801f, 50.242416f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-19.686529f, 5.562407f, 42.336063f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-11.695464f, 4.267121f, 57.419937f, -0.323373f, 0.653533f, 0.505948f, 0.460804f),
+                Pose(-14.808016f, 4.637866f, 49.519089f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+                Pose(-17.907341f, 5.004471f, 41.612736f, -0.323943f, 0.653251f, 0.505547f, 0.461245f),
+            ],
+            Parents = [-1, 0, 5, 6, 7, 0, 5, 6],
+            SourceElems = [0, 0, 0, 6, 3, 6, 7, 4, 6, 3, 4, 7, 2, 5, 6, 3, 5, 2, 3, 6, 1, 0, 5, 2, 0, 1, 2, 5],
+            Rods = [],
+            SimdRodsAnim =
+            [
+                new FeSimdRodConstraintAnim([[2, 0, 4, 4], [6, 5, 7, 7]], [0f, 0f, 0f, 0f], [1f, 1f, 1f, 1f]),
+                new FeSimdRodConstraintAnim([[3, 1, 4, 4], [6, 5, 7, 7]], [0f, 0f, 0f, 0f], [1f, 1f, 1f, 1f]),
+                new FeSimdRodConstraintAnim([[4, 3, 2, 2], [6, 7, 5, 5]], [0f, 0f, 0f, 0f], [1f, 1f, 1f, 1f]),
+                new FeSimdRodConstraintAnim([[6, 4, 4, 4], [5, 7, 7, 7]], [0.5f, 0f, 0f, 0f], [1f, 1f, 1f, 1f]),
+                new FeSimdRodConstraintAnim([[7, 3, 3, 3], [6, 5, 5, 5]], [0.5f, 0f, 0f, 0f], [1f, 1f, 1f, 1f]),
+            ],
+        };
+
+        private static FeNodeBase TipBase => NodeBase(7, 7, 3, 4, 6);
+
+        private static FeNodeBase[] InnerBases => [NodeBase(5, 3, 0, 1, 6), NodeBase(6, 5, 4, 7, 2)];
 
         /// <summary>
         /// A suspender on a joint next to the root is read off the root span's copies even where every span is
@@ -825,7 +841,7 @@ namespace Tests
         [Test]
         public async Task ARootAdjacentSuspenderIsReadWhereEverySpanIsRepeated()
         {
-            var coattail = SyntheticCloth.Parse(RepeatedSuspenderChainText).BuildBoneChains()[0].Joints
+            var coattail = RepeatedSuspenderChain().BuildBoneChains()[0].Joints
                 .First(static joint => joint.Name == "coattail_1_L");
 
             using (Assert.Multiple())
@@ -835,7 +851,66 @@ namespace Tests
             }
         }
 
-        private static string RepeatedSuspenderChainText => SyntheticCloth.Fixture("cloth_chain_repeated_suspender.kv3");
+        /// <summary>
+        /// <see cref="FeModelTestModels.Coattail"/> whose rods are written three times over, the suspenders at 0.5, with
+        /// further copies of the root span.
+        /// </summary>
+        private static ClothReconstruction RepeatedSuspenderChain()
+        {
+            FeRodConstraint[] declaration =
+            [
+                RigidRod(0, 4, 16.995832f, 0.5f, 0f),
+                RigidRod(0, 5, 17.073202f, 0.5f, 0f),
+                RigidRod(0, 6, 25.49473f, 0.5f, 0f),
+                RigidRod(0, 7, 25.546371f, 0.5f, 0f),
+                RigidRod(1, 2, 8.732066f, 1f, 0f),
+                RigidRod(1, 3, 8.412711f, 1f, 0f),
+                RigidRod(1, 4, 17.06971f, 0.5f, 0f),
+                RigidRod(1, 5, 16.912064f, 0.5f, 0f),
+                RigidRod(1, 6, 25.516155f, 0.5f, 0f),
+                RigidRod(1, 7, 25.410963f, 0.5f, 0f),
+                RigidRod(2, 3, 2f),
+                RigidRod(4, 2, 8.499931f),
+                RigidRod(5, 2, 8.735466f),
+                RigidRod(4, 3, 8.732044f),
+                RigidRod(5, 3, 8.503419f),
+                RigidRod(4, 5, 2.000001f),
+                RigidRod(6, 4, 8.500037f),
+                RigidRod(7, 4, 8.732154f),
+                RigidRod(6, 5, 8.732168f),
+                RigidRod(7, 5, 8.500037f),
+                RigidRod(6, 7, 2.000001f),
+            ];
+
+            return (Coattail with
+            {
+                InvMasses = [0f, 0f, 0.000776f, 0.000781f, 0.000591f, 0.000591f, 0.000593f, 0.000594f],
+                Rods =
+                [
+                    RigidRod(0, 2, 8.499948f, 0.5f, 0f),
+                    RigidRod(0, 3, 8.646747f, 0.5f, 0f),
+                    .. declaration,
+                    RigidRod(0, 2, 8.499948f, 1f, 0f),
+                    RigidRod(0, 3, 8.646747f, 1f, 0f),
+                    .. declaration,
+                    RigidRod(0, 2, 8.499948f, 1f, 0f),
+                    RigidRod(0, 3, 8.646747f, 0.5f, 0f),
+                    .. declaration,
+                    RigidRod(0, 2, 8.499948f, 1f, 0f),
+                    RigidRod(0, 3, 8.646747f, 1f, 0f),
+                    RigidRod(1, 2, 8.732066f, 0.5f, 0f),
+                    RigidRod(1, 3, 8.412711f, 0.5f, 0f),
+                    RigidRod(0, 2, 8.499948f, 0.5f, 0f),
+                    RigidRod(0, 3, 8.646747f, 1f, 0f),
+                    RigidRod(1, 2, 8.732066f, 0.5f, 0f),
+                    RigidRod(1, 3, 8.412711f, 0.5f, 0f),
+                    RigidRod(0, 2, 8.499948f, 0.5f, 0f),
+                    RigidRod(0, 3, 8.646747f, 0.5f, 0f),
+                    RigidRod(1, 2, 8.732066f, 0.5f, 0f),
+                    RigidRod(1, 3, 8.412711f, 0.5f, 0f),
+                ],
+            }).Reconstruct();
+        }
 
         /// <summary>
         /// Under version 1 a joint cut off from its children reads as animated where it keeps a node base, and as a
@@ -844,13 +919,8 @@ namespace Tests
         [Test]
         public async Task AnAnimatedLengthJointIsReadOffTheNodeBaseItKeeps()
         {
-            const string InnerBases = "{ nNode = 5 nNodeX0 = 3 nNodeX1 = 0 nNodeY0 = 1 nNodeY1 = 6 }, "
-                + "{ nNode = 6 nNodeX0 = 5 nNodeX1 = 4 nNodeY0 = 7 nNodeY1 = 2 }";
-            var based = SyntheticCloth.Parse(AnimatedEveryJointText.Replace("m_Rods =",
-                "m_NodeBases = [ " + InnerBases + ", { nNode = 7 nNodeX0 = 7 nNodeX1 = 3 nNodeY0 = 4 nNodeY1 = 6 } ]\nm_Rods =",
-                StringComparison.Ordinal)).BuildBoneChains()[0].Joints;
-            var tipFree = SyntheticCloth.Parse(AnimatedEveryJointText.Replace("m_Rods =",
-                "m_NodeBases = [ " + InnerBases + " ]\nm_Rods =", StringComparison.Ordinal)).BuildBoneChains()[0].Joints;
+            var based = (AnimatedEveryJoint with { NodeBases = [.. InnerBases, TipBase] }).Reconstruct().BuildBoneChains()[0].Joints;
+            var tipFree = (AnimatedEveryJoint with { NodeBases = InnerBases }).Reconstruct().BuildBoneChains()[0].Joints;
 
             using (Assert.Multiple())
             {
@@ -868,7 +938,7 @@ namespace Tests
         [Test]
         public async Task ASuspenderAtTheChainsOwnRelaxationIsReadOffItsRingCopies()
         {
-            var coattail = SyntheticCloth.Parse(SuspenderAtNaturalRelaxationText).BuildBoneChains()[0].Joints
+            var coattail = SuspenderAtNaturalRelaxation.Reconstruct().BuildBoneChains()[0].Joints
                 .First(static joint => joint.Name == "coattail_1_L");
 
             using (Assert.Multiple())
@@ -885,8 +955,8 @@ namespace Tests
         [Test]
         public async Task ARelaxlessTwistLinkIsTheStaticEndsOwnTwist()
         {
-            var rootAuthored = TwistPair("0.0", "0.0");
-            var childAuthored = TwistPair("0.0", "0.309");
+            var rootAuthored = TwistPair(0f, 0f).Reconstruct();
+            var childAuthored = TwistPair(0f, 0.309f).Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -903,12 +973,8 @@ namespace Tests
         [Test]
         public async Task AJointWithNoAnimatedRodDeclaresNoStretchInstead()
         {
-            const string Bases = "m_NodeBases = [ { nNode = 5 nNodeX0 = 3 nNodeX1 = 0 nNodeY0 = 1 nNodeY1 = 6 }, "
-                + "{ nNode = 6 nNodeX0 = 5 nNodeX1 = 4 nNodeY0 = 7 nNodeY1 = 2 } ]\nm_Rods =";
-            var control = SyntheticCloth.Parse(AnimatedEveryJointText
-                .Replace("m_Rods =", Bases, StringComparison.Ordinal)).BuildBoneChains()[0].Joints;
-            var rodless = SyntheticCloth.Parse(WithoutAnimatedRods(AnimatedEveryJointText)
-                .Replace("m_Rods =", Bases, StringComparison.Ordinal)).BuildBoneChains()[0].Joints;
+            var control = (AnimatedEveryJoint with { NodeBases = InnerBases }).Reconstruct().BuildBoneChains()[0].Joints;
+            var rodless = (AnimatedEveryJoint with { NodeBases = InnerBases, SimdRodsAnim = null }).Reconstruct().BuildBoneChains()[0].Joints;
 
             using (Assert.Multiple())
             {
@@ -918,10 +984,6 @@ namespace Tests
                     .IsEqualTo(0f);
             }
         }
-
-        private static string WithoutAnimatedRods(string text)
-            => text[..text.IndexOf("m_SimdRodsAnim", StringComparison.Ordinal)]
-                + text[text.IndexOf("m_Rods =", StringComparison.Ordinal)..];
 
         /// <summary>
         /// A source spring's rod copies are its <c>extra_iterations</c> and leave no surplus rod, and the spring keeps
@@ -943,17 +1005,11 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction SpringCopies(int copies) => SyntheticCloth.Model(
-            ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
-            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
-            body: $$"""
-                m_SourceElems = [ 0, 1, 0, 0, 2, 1 ]
-                m_Rods =
-                [
-                    {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                    {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(1, 2, 10f, 0.5f), copies))}}
-                ]
-                """);
+        private static ClothReconstruction SpringCopies(int copies) => (StraightChain(3) with
+        {
+            SourceElems = [0, 1, 0, 0, 2, 1],
+            Rods = [RigidRod(0, 1, 10f), .. Enumerable.Repeat(RigidRod(1, 2, 10f, 0.5f), copies)],
+        }).Reconstruct();
 
         /// <summary>
         /// A <c>motion_bias</c> under an animated parent is read off the <c>m_SimdRodsAnim</c> weights of its span: 2/3
@@ -962,10 +1018,8 @@ namespace Tests
         [Test]
         public async Task AMotionBiasIsReadOffTheAnimatedRodsOfItsSpan()
         {
-            var biased = SyntheticCloth.Parse(AnimatedJointTwoText
-                .Replace("[ 7, 6, 6, 6 ] ] f4Weight0 = [ 0.5,", "[ 7, 6, 6, 6 ] ] f4Weight0 = [ 0.666667,", StringComparison.Ordinal)
-                .Replace("[ 7, 5, 5, 5 ] ] f4Weight0 = [ 0.5,", "[ 7, 5, 5, 5 ] ] f4Weight0 = [ 0.666667,", StringComparison.Ordinal));
-            var unbiased = SyntheticCloth.Parse(AnimatedJointTwoText);
+            var biased = AnimatedJointTwo(childWeight: 0.666667f).Reconstruct();
+            var unbiased = AnimatedJointTwo().Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -986,20 +1040,12 @@ namespace Tests
         {
             static BoneChainJoint Tip(bool companionFirst)
             {
-                var bend = SyntheticCloth.RigidRod(0, 2, 20f, 1f);
-                var companion = SyntheticCloth.RigidRod(0, 2, 20f, 0.21f);
-                var cloth = SyntheticCloth.Model(
-                    ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
-                    poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
-                    body: $$"""
-                        m_Rods =
-                        [
-                            {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                            {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
-                            {{(companionFirst ? companion : bend)}}
-                            {{(companionFirst ? bend : companion)}}
-                        ]
-                        """);
+                var bend = RigidRod(0, 2, 20f);
+                var companion = RigidRod(0, 2, 20f, 0.21f);
+                var cloth = (StraightChain(3) with
+                {
+                    Rods = [RigidRod(0, 1, 10f, 1f), RigidRod(1, 2, 10f, 1f), companionFirst ? companion : bend, companionFirst ? bend : companion],
+                }).Reconstruct();
                 return cloth.BuildBoneChains()[0].Joints.Find(static joint => joint.Name == "j2")!;
             }
 
@@ -1026,20 +1072,12 @@ namespace Tests
         {
             static BoneChainJoint Tip(bool companionFirst)
             {
-                var bend = SyntheticCloth.RigidRod(0, 2, 20f, 1f);
-                var companion = SyntheticCloth.RigidRod(0, 2, 20f, 0.2f);
-                var cloth = SyntheticCloth.Model(
-                    ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
-                    poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
-                    body: $$"""
-                        m_Rods =
-                        [
-                            {{SyntheticCloth.RigidRod(0, 1, 10f, 0.9f)}}
-                            {{SyntheticCloth.RigidRod(1, 2, 10f, 0.9f)}}
-                            {{(companionFirst ? companion : bend)}}
-                            {{(companionFirst ? bend : companion)}}
-                        ]
-                        """);
+                var bend = RigidRod(0, 2, 20f);
+                var companion = RigidRod(0, 2, 20f, 0.2f);
+                var cloth = (StraightChain(3) with
+                {
+                    Rods = [RigidRod(0, 1, 10f, 0.9f), RigidRod(1, 2, 10f, 0.9f), companionFirst ? companion : bend, companionFirst ? bend : companion],
+                }).Reconstruct();
                 return cloth.BuildBoneChains()[0].Joints.Find(static joint => joint.Name == "j2")!;
             }
 
@@ -1063,36 +1101,13 @@ namespace Tests
         [Test]
         public async Task AForeignRodOnOnePairDoesNotRefuteTheSiblingSpring()
         {
-            var shared = SiblingChain($"""
-                {SyntheticCloth.RigidRod(0, 1, 3f, 1f)}
-                {SyntheticCloth.RigidRod(0, 2, 3f, 1f)}
-                {SyntheticCloth.RigidRod(0, 3, 3f, 1f)}
-                {SyntheticCloth.RigidRod(1, 2, 3f, 0.5f)}
-                {SyntheticCloth.RigidRod(1, 2, 3f, 0.9f)}
-                {SyntheticCloth.RigidRod(1, 3, 3f, 0.5f)}
-                {SyntheticCloth.RigidRod(2, 3, 3f, 0.5f)}
-                """);
+            FeRodConstraint[] spokes = [RigidRod(0, 1, 3f), RigidRod(0, 2, 3f), RigidRod(0, 3, 3f)];
+            var shared = SiblingChain([.. spokes, RigidRod(1, 2, 3f, 0.5f), RigidRod(1, 2, 3f, 0.9f), RigidRod(1, 3, 3f, 0.5f), RigidRod(2, 3, 3f, 0.5f)]);
 
-            var disjoint = SiblingChain($"""
-                {SyntheticCloth.RigidRod(0, 1, 3f, 1f)}
-                {SyntheticCloth.RigidRod(0, 2, 3f, 1f)}
-                {SyntheticCloth.RigidRod(0, 3, 3f, 1f)}
-                {SyntheticCloth.RigidRod(1, 2, 3f, 0.9f)}
-                {SyntheticCloth.RigidRod(1, 3, 3f, 0.5f)}
-                {SyntheticCloth.RigidRod(2, 3, 3f, 0.5f)}
-                """);
+            var disjoint = SiblingChain([.. spokes, RigidRod(1, 2, 3f, 0.9f), RigidRod(1, 3, 3f, 0.5f), RigidRod(2, 3, 3f, 0.5f)]);
 
-            var ambiguous = SiblingChain($"""
-                {SyntheticCloth.RigidRod(0, 1, 3f, 1f)}
-                {SyntheticCloth.RigidRod(0, 2, 3f, 1f)}
-                {SyntheticCloth.RigidRod(0, 3, 3f, 1f)}
-                {SyntheticCloth.RigidRod(1, 2, 3f, 0.5f)}
-                {SyntheticCloth.RigidRod(1, 2, 3f, 0.9f)}
-                {SyntheticCloth.RigidRod(1, 3, 3f, 0.5f)}
-                {SyntheticCloth.RigidRod(1, 3, 3f, 0.9f)}
-                {SyntheticCloth.RigidRod(2, 3, 3f, 0.5f)}
-                {SyntheticCloth.RigidRod(2, 3, 3f, 0.9f)}
-                """);
+            var ambiguous = SiblingChain([.. spokes, RigidRod(1, 2, 3f, 0.5f), RigidRod(1, 2, 3f, 0.9f), RigidRod(1, 3, 3f, 0.5f),
+                RigidRod(1, 3, 3f, 0.9f), RigidRod(2, 3, 3f, 0.5f), RigidRod(2, 3, 3f, 0.9f)]);
 
             using (Assert.Multiple())
             {
@@ -1109,20 +1124,22 @@ namespace Tests
         [Test]
         public async Task ARootReadsItsIterationsFromItsChildrensSiblingRods()
         {
-            static ClothReconstruction Fan(int copies, int extraOnOnePair) => SyntheticCloth.Model(
-                ["root", "c1", "c2", "c3"], staticNodes: 1, parents: [-1, 0, 0, 0],
-                poses: [new(0f, 0f, 0f), new(-10f, 0f, -10f), new(0f, 0f, -10f), new(10f, 0f, -10f)],
-                body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 1, 14.142136f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(0, 3, 14.142136f, 1f)}}
-                        {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(1, 2, 10f, 0.5f), copies))}}
-                        {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(1, 3, 20f, 0.5f), copies + extraOnOnePair))}}
-                        {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(2, 3, 10f, 0.5f), copies))}}
-                    ]
-                    """);
+            static ClothReconstruction Fan(int copies, int extraOnOnePair) => new FeModelBuilder
+            {
+                Names = ["root", "c1", "c2", "c3"],
+                StaticNodes = 1,
+                Parents = [-1, 0, 0, 0],
+                Positions = [new(0f, 0f, 0f), new(-10f, 0f, -10f), new(0f, 0f, -10f), new(10f, 0f, -10f)],
+                Rods =
+                [
+                    RigidRod(0, 1, 14.142136f),
+                    RigidRod(0, 2, 10f),
+                    RigidRod(0, 3, 14.142136f),
+                    .. Enumerable.Repeat(RigidRod(1, 2, 10f, 0.5f), copies),
+                    .. Enumerable.Repeat(RigidRod(1, 3, 20f, 0.5f), copies + extraOnOnePair),
+                    .. Enumerable.Repeat(RigidRod(2, 3, 10f, 0.5f), copies),
+                ],
+            }.Reconstruct();
 
             static int Iterations(ClothReconstruction cloth)
                 => cloth.BuildBoneChains()[0].Joints.Find(static joint => joint.Name == "root")!.ExtraIterations;
@@ -1142,39 +1159,38 @@ namespace Tests
         [Test]
         public async Task AJointWhoseSpanCarriesNoRodStillReadsItsSiblingRods()
         {
-            static ClothReconstruction Rodless(int siblings, bool twoChildren = true) => SyntheticCloth.Model(
-                ["root", "p", "j", "c1", "c2", "sibling_of_j"], staticNodes: 3, parents: [-1, 0, 1, 2, 2, 1],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(-10f, 0f, -30f), new(10f, 0f, -30f),
-                    new(30f, 0f, -20f)],
-                body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(1, 5, 30f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 3, 22.36068f, 1f)}}
-                        {{SyntheticCloth.RigidRod(2, 3, 14.142136f, 1f)}}
-                        {{(twoChildren ? SyntheticCloth.RigidRod(2, 4, 14.142136f, 1f) : string.Empty)}}
-                        {{(twoChildren
-                            ? string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(3, 4, 20f, 0.5f), siblings))
-                            : string.Empty)}}
-                    ]
-                    """);
+            static ClothReconstruction Rodless(int siblings, bool twoChildren = true) => new FeModelBuilder
+            {
+                Names = ["root", "p", "j", "c1", "c2", "sibling_of_j"],
+                StaticNodes = 3,
+                Parents = [-1, 0, 1, 2, 2, 1],
+                Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(-10f, 0f, -30f), new(10f, 0f, -30f), new(30f, 0f, -20f)],
+                Rods =
+                [
+                    RigidRod(1, 5, 30f),
+                    RigidRod(1, 3, 22.36068f),
+                    RigidRod(2, 3, 14.142136f),
+                    .. twoChildren ? [RigidRod(2, 4, 14.142136f), .. Enumerable.Repeat(RigidRod(3, 4, 20f, 0.5f), siblings)] : Array.Empty<FeRodConstraint>(),
+                ],
+            }.Reconstruct();
 
-            static ClothReconstruction Spanned(int spanRods, int bendRods, int siblings) => SyntheticCloth.Model(
-                ["root", "p1", "p2", "j", "c1", "c2"], staticNodes: 1, parents: [-1, 0, 1, 2, 3, 3],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(-10f, 0f, -40f),
-                    new(10f, 0f, -40f)],
-                body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
-                        {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(2, 3, 10f, 1f), spanRods))}}
-                        {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(1, 3, 20f, 1f), bendRods))}}
-                        {{SyntheticCloth.RigidRod(3, 4, 14.142136f, 1f)}}
-                        {{SyntheticCloth.RigidRod(3, 5, 14.142136f, 1f)}}
-                        {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(4, 5, 20f, 0.5f), siblings))}}
-                    ]
-                    """);
+            static ClothReconstruction Spanned(int spanRods, int bendRods, int siblings) => new FeModelBuilder
+            {
+                Names = ["root", "p1", "p2", "j", "c1", "c2"],
+                StaticNodes = 1,
+                Parents = [-1, 0, 1, 2, 3, 3],
+                Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(-10f, 0f, -40f), new(10f, 0f, -40f)],
+                Rods =
+                [
+                    RigidRod(0, 1, 10f),
+                    RigidRod(1, 2, 10f),
+                    .. Enumerable.Repeat(RigidRod(2, 3, 10f), spanRods),
+                    .. Enumerable.Repeat(RigidRod(1, 3, 20f), bendRods),
+                    RigidRod(3, 4, 14.142136f),
+                    RigidRod(3, 5, 14.142136f),
+                    .. Enumerable.Repeat(RigidRod(4, 5, 20f, 0.5f), siblings),
+                ],
+            }.Reconstruct();
 
             static int Iterations(ClothReconstruction cloth)
             {
@@ -1236,40 +1252,35 @@ namespace Tests
         /// Four chain joints with one-node rings, rods between consecutive extrusions and a two-corner source element on
         /// (j1, j2); <paramref name="secondRodOnThePair"/> doubles that pair's rod.
         /// </summary>
-        private static ClothReconstruction SpringOverASpan(bool secondRodOnThePair) => SyntheticCloth.Model(
-            ["j0", "$ccj0_0", "j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0"], staticNodes: 2,
-                parents: [-1, 0, 0, 2, 2, 4, 4, 6],
-            poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f), new(0f, 0f, -16f), new(0f, 2f, -16f),
+        private static ClothReconstruction SpringOverASpan(bool secondRodOnThePair) => new FeModelBuilder
+        {
+            Names = ["j0", "$ccj0_0", "j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0"],
+            StaticNodes = 2,
+            Parents = [-1, 0, 0, 2, 2, 4, 4, 6],
+            Positions = [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f), new(0f, 0f, -16f), new(0f, 2f, -16f),
                 new(0f, 0f, -24f), new(0f, 2f, -24f)],
-            body: $$"""
-                m_CtrlOffsets =
-                [
-                    { vOffset = [ 0.0, 2.0, 0.0 ] nCtrlParent = 0 nCtrlChild = 1 },
-                    { vOffset = [ 0.0, 2.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 3 },
-                    { vOffset = [ 0.0, 2.0, 0.0 ] nCtrlParent = 4 nCtrlChild = 5 },
-                    { vOffset = [ 0.0, 2.0, 0.0 ] nCtrlParent = 6 nCtrlChild = 7 },
-                ]
-                m_SourceElems = [ 0, 1, 0, 0, 2, 4 ]
-                m_Rods =
-                [
-                    {{SyntheticCloth.RigidRod(0, 2, 8f, 1f)}}
-                    {{SyntheticCloth.RigidRod(0, 3, 8.246211f, 1f)}}
-                    {{SyntheticCloth.RigidRod(1, 2, 8.246211f, 1f)}}
-                    {{SyntheticCloth.RigidRod(1, 3, 8f, 1f)}}
-                    {{SyntheticCloth.RigidRod(2, 3, 2f, 1f)}}
-                    {{SyntheticCloth.RigidRod(2, 4, 8f, 1f)}}
-                    {{SyntheticCloth.RigidRod(2, 5, 8.246211f, 1f)}}
-                    {{SyntheticCloth.RigidRod(3, 4, 8.246211f, 1f)}}
-                    {{SyntheticCloth.RigidRod(3, 5, 8f, 1f)}}
-                    {{SyntheticCloth.RigidRod(4, 5, 2f, 1f)}}
-                    {{SyntheticCloth.RigidRod(4, 6, 8f, 1f)}}
-                    {{SyntheticCloth.RigidRod(4, 7, 8.246211f, 1f)}}
-                    {{SyntheticCloth.RigidRod(5, 6, 8.246211f, 1f)}}
-                    {{SyntheticCloth.RigidRod(5, 7, 8f, 1f)}}
-                    {{SyntheticCloth.RigidRod(6, 7, 2f, 1f)}}
-                    {{(secondRodOnThePair ? SyntheticCloth.RigidRod(2, 4, 8f, 1f) : string.Empty)}}
-                ]
-                """);
+            CtrlOffsets = [Offset(0, 1, 0f, 2f, 0f), Offset(2, 3, 0f, 2f, 0f), Offset(4, 5, 0f, 2f, 0f), Offset(6, 7, 0f, 2f, 0f)],
+            SourceElems = [0, 1, 0, 0, 2, 4],
+            Rods =
+            [
+                RigidRod(0, 2, 8f),
+                RigidRod(0, 3, 8.246211f),
+                RigidRod(1, 2, 8.246211f),
+                RigidRod(1, 3, 8f),
+                RigidRod(2, 3, 2f),
+                RigidRod(2, 4, 8f),
+                RigidRod(2, 5, 8.246211f),
+                RigidRod(3, 4, 8.246211f),
+                RigidRod(3, 5, 8f),
+                RigidRod(4, 5, 2f),
+                RigidRod(4, 6, 8f),
+                RigidRod(4, 7, 8.246211f),
+                RigidRod(5, 6, 8.246211f),
+                RigidRod(5, 7, 8f),
+                RigidRod(6, 7, 2f),
+                .. secondRodOnThePair ? [RigidRod(2, 4, 8f)] : Array.Empty<FeRodConstraint>(),
+            ],
+        }.Reconstruct();
 
         /// <summary>
         /// A fold-weighted rod between chain joints reads as <c>add_stiffness_rods</c> and is no surplus; the
@@ -1300,19 +1311,16 @@ namespace Tests
         /// A static root over joints a, b and c, two triangles folding across root-b, and a banded rod a-c at <paramref
         /// name="weight"/>; without <paramref name="fanPair"/> nothing folds onto a-c.
         /// </summary>
-        private static ClothReconstruction FoldedChainModel(float weight, bool fanPair) => SyntheticCloth.Model(
-            ["root", "a", "b", "c"], staticNodes: 1, parents: [-1, 0, 0, 2], invMasses: "0.0, 1.0, 1.0, 0.5",
-            poses: [new(0f, 0f, 0f), new(-1f, 0f, -2f), new(0f, 0f, -2f), new(1f, 0f, -4f)],
-            body: $$"""
-                m_SourceElems = {{(fanPair ? "[ 0, 0, 2, 0, 0, 1, 2, 0, 2, 3 ]" : "[ 0, 0, 2, 0, 0, 1, 2, 0, 3, 1 ]")}}
-                m_Rods =
-                [
-                    {{SyntheticCloth.RigidRod(0, 1, 2.236068f, 1f)}}
-                    {{SyntheticCloth.RigidRod(0, 2, 2f, 1f)}}
-                    {{SyntheticCloth.RigidRod(2, 3, 2.236068f, 1f)}}
-                    { nNode = [ 1, 3 ] flMinDist = 1.5 flMaxDist = 2.828427 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
-                ]
-                """);
+        private static ClothReconstruction FoldedChainModel(float weight, bool fanPair) => new FeModelBuilder
+        {
+            Names = ["root", "a", "b", "c"],
+            StaticNodes = 1,
+            Parents = [-1, 0, 0, 2],
+            InvMasses = [0f, 1f, 1f, 0.5f],
+            Positions = [new(0f, 0f, 0f), new(-1f, 0f, -2f), new(0f, 0f, -2f), new(1f, 0f, -4f)],
+            SourceElems = fanPair ? [0, 0, 2, 0, 0, 1, 2, 0, 2, 3] : [0, 0, 2, 0, 0, 1, 2, 0, 3, 1],
+            Rods = [RigidRod(0, 1, 2.236068f), RigidRod(0, 2, 2f), RigidRod(2, 3, 2.236068f), Rod(1, 3, 1.5f, 2.828427f, weight)],
+        }.Reconstruct();
 
         /// <summary>
         /// A centre-only end effector's bend and torsion spans run from the joint's own node, reading 0.6 and 0.8; its
@@ -1321,22 +1329,24 @@ namespace Tests
         [Test]
         public async Task ACentreOnlyEndEffectorsSpansRunFromTheJointsOwnNode()
         {
-            var cloth = SyntheticCloth.Model(
-                ["root", "j1", "j2", "tip", "$cctip_Ctr"], staticNodes: 1, parents: [-1, 0, 1, 2, 3],
-                poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f), new(40f, 0f, 0f)],
-                body: $$"""
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 0.6f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 10f, 0.6f)}}
-                        {{SyntheticCloth.RigidRod(2, 3, 10f, 0.6f)}}
-                        {{SyntheticCloth.RigidRod(1, 3, 20f, 0.6f)}}
-                        {{SyntheticCloth.RigidRod(0, 3, 30f, 0.8f)}}
-                        {{SyntheticCloth.RigidRod(3, 4, 10f, 0.6f)}}
-                        {{SyntheticCloth.RigidRod(2, 4, 20f, 0.6f)}}
-                        {{SyntheticCloth.RigidRod(1, 4, 30f, 0.8f)}}
-                    ]
-                    """);
+            var cloth = new FeModelBuilder
+            {
+                Names = ["root", "j1", "j2", "tip", "$cctip_Ctr"],
+                StaticNodes = 1,
+                Parents = [-1, 0, 1, 2, 3],
+                Positions = [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f), new(40f, 0f, 0f)],
+                Rods =
+                [
+                    RigidRod(0, 1, 10f, 0.6f),
+                    RigidRod(1, 2, 10f, 0.6f),
+                    RigidRod(2, 3, 10f, 0.6f),
+                    RigidRod(1, 3, 20f, 0.6f),
+                    RigidRod(0, 3, 30f, 0.8f),
+                    RigidRod(3, 4, 10f, 0.6f),
+                    RigidRod(2, 4, 20f, 0.6f),
+                    RigidRod(1, 4, 30f, 0.8f),
+                ],
+            }.Reconstruct();
 
             var tip = cloth.BuildBoneChains().SelectMany(chain => chain.Joints).FirstOrDefault(joint => joint.Name == "tip");
 
@@ -1356,25 +1366,27 @@ namespace Tests
         [Test]
         public async Task ABendSpanThatIsOnlyASurfaceFoldIsNoBendSpring()
         {
-            static bool Bends(float weight) => SyntheticCloth.Model(
-                ["L0", "R0", "L1", "R1", "L2", "R2", "L3", "R3"], staticNodes: 2, parents: [-1, -1, 0, 1, 2, 3, 4, 5],
-                    invMasses: "0.0, 0.0, 0.02, 0.02, 0.015, 0.015, 0.01, 0.01",
-                poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f), new(0f, 0f, -20f),
-                    new(10f, 0f, -20f), new(0f, 0f, -30f), new(10f, 0f, -30f)],
-                body: $$"""
-                    m_Quads = [ { nNode = [ 4, 2, 3, 5 ] }, { nNode = [ 4, 6, 7, 5 ] } ]
-                    m_Rods =
-                    [
-                        { nNode = [ 0, 2 ] flMinDist = 10.0 flMaxDist = 10.0 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                        { nNode = [ 1, 3 ] flMinDist = 10.0 flMaxDist = 10.0 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                        {{SyntheticCloth.RigidRod(2, 4, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(3, 5, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(4, 6, 10f, 1f)}}
-                        {{SyntheticCloth.RigidRod(5, 7, 10f, 1f)}}
-                        { nNode = [ 2, 6 ] flMinDist = 12.0 flMaxDist = 20.0 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
-                        { nNode = [ 3, 7 ] flMinDist = 12.0 flMaxDist = 20.0 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
-                    ]
-                    """).BuildBoneChains().SelectMany(static chain => chain.Joints).Where(static joint => joint.Name == "L3")
+            static bool Bends(float weight) => new FeModelBuilder
+            {
+                Names = ["L0", "R0", "L1", "R1", "L2", "R2", "L3", "R3"],
+                StaticNodes = 2,
+                Parents = [-1, -1, 0, 1, 2, 3, 4, 5],
+                InvMasses = [0f, 0f, 0.02f, 0.02f, 0.015f, 0.015f, 0.01f, 0.01f],
+                Positions = [new(0f, 0f, 0f), new(10f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f), new(0f, 0f, -20f), new(10f, 0f, -20f),
+                    new(0f, 0f, -30f), new(10f, 0f, -30f)],
+                Quads = [Quad(4, 2, 3, 5), Quad(4, 6, 7, 5)],
+                Rods =
+                [
+                    RigidRod(0, 2, 10f, 1f, 0f),
+                    RigidRod(1, 3, 10f, 1f, 0f),
+                    RigidRod(2, 4, 10f),
+                    RigidRod(3, 5, 10f),
+                    RigidRod(4, 6, 10f),
+                    RigidRod(5, 7, 10f),
+                    Rod(2, 6, 12f, 20f, weight),
+                    Rod(3, 7, 12f, 20f, weight),
+                ],
+            }.Reconstruct().BuildBoneChains().SelectMany(static chain => chain.Joints).Where(static joint => joint.Name == "L3")
                 .Select(static joint => joint.BendSpring).DefaultIfEmpty(false).First();
 
             using (Assert.Multiple())
@@ -1405,27 +1417,26 @@ namespace Tests
         /// </summary>
         private static BoneChainJoint RingJoint(int ownCopies)
         {
-            var rods = new StringBuilder();
-            rods.Append(SyntheticCloth.RigidRod(1, 2, 10f, 1f));
+            var rods = new List<FeRodConstraint> { RigidRod(1, 2, 10f) };
             for (var copy = 0; copy < ownCopies; copy++)
             {
-                rods.Append(SyntheticCloth.RigidRod(4, 5, 10f, 1f));
+                rods.Add(RigidRod(4, 5, 10f));
             }
 
             foreach (var (a, b, length) in (ReadOnlySpan<(int, int, float)>)[(1, 4, 20f), (2, 5, 20f), (1, 5, 22.36068f), (2, 4, 22.36068f)])
             {
-                rods.Append(SyntheticCloth.RigidRod(a, b, length, 1f)).Append(SyntheticCloth.RigidRod(a, b, length, 1f));
+                rods.Add(RigidRod(a, b, length));
+                rods.Add(RigidRod(a, b, length));
             }
 
-            return SyntheticCloth.Model(
-                ["root", "$ccroot_0", "$ccroot_1", "j1", "$ccj1_0", "$ccj1_1"], staticNodes: 3, parents: [-1, 0, 0, 0, 3, 3],
-                poses: [new(0f, 0f, 0f), new(5f, 0f, 0f), new(-5f, 0f, 0f), new(0f, 0f, -20f), new(5f, 0f, -20f), new(-5f, 0f, -20f)],
-                body: $$"""
-                    m_Rods =
-                    [
-                        {{rods}}
-                    ]
-                    """).BuildBoneChains()[0].Joints.Find(static joint => joint.Name == "j1")!;
+            return new FeModelBuilder
+            {
+                Names = ["root", "$ccroot_0", "$ccroot_1", "j1", "$ccj1_0", "$ccj1_1"],
+                StaticNodes = 3,
+                Parents = [-1, 0, 0, 0, 3, 3],
+                Positions = [new(0f, 0f, 0f), new(5f, 0f, 0f), new(-5f, 0f, 0f), new(0f, 0f, -20f), new(5f, 0f, -20f), new(-5f, 0f, -20f)],
+                Rods = [.. rods],
+            }.Reconstruct().BuildBoneChains()[0].Joints.Find(static joint => joint.Name == "j1")!;
         }
 
         /// <summary>
@@ -1434,7 +1445,7 @@ namespace Tests
         [Test]
         public async Task AChainListingAJointTwiceStillMatchesItsRods()
         {
-            var cloth = StretchlessChain(SyntheticCloth.RigidRod(0, 1, 10f, 1f));
+            var cloth = StretchlessChain(RigidRod(0, 1, 10f)).Reconstruct();
             var chain = new BoneChain { RootBone = "j0" };
             chain.Joints.Add(new BoneChainJoint { Node = 0, Name = "j0", ParentNode = -1 });
             chain.Joints.Add(new BoneChainJoint { Node = 1, Name = "j1", ParentNode = 0, StretchStiffness = 1f });
@@ -1450,22 +1461,20 @@ namespace Tests
         [Test]
         public async Task ASuspenderUnderDefaultStretchReadsTheAuthoredValue()
         {
-            var cloth = SyntheticCloth.Model(
-                ["root", "j1", "j2", "j3"], staticNodes: 1, parents: [-1, 0, 1, 2],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f)],
-                body: $$"""
-                    m_flDefaultSurfaceStretch = 0.5
-                    m_flDefaultThreadStretch = 0.5
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 0.60653066f)}}
-                        {{SyntheticCloth.RigidRod(0, 1, 10f, 0.30326533f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 10f, 0.60653066f)}}
-                        {{SyntheticCloth.RigidRod(2, 3, 10f, 0.60653066f)}}
-                        {{SyntheticCloth.RigidRod(0, 2, 20f, 0.30326533f)}}
-                        {{SyntheticCloth.RigidRod(0, 3, 30f, 0.30326533f)}}
-                    ]
-                    """);
+            var cloth = (StraightChain(4) with
+            {
+                DefaultSurfaceStretch = 0.5f,
+                DefaultThreadStretch = 0.5f,
+                Rods =
+                [
+                    RigidRod(0, 1, 10f, 0.60653066f),
+                    RigidRod(0, 1, 10f, 0.30326533f),
+                    RigidRod(1, 2, 10f, 0.60653066f),
+                    RigidRod(2, 3, 10f, 0.60653066f),
+                    RigidRod(0, 2, 20f, 0.30326533f),
+                    RigidRod(0, 3, 30f, 0.30326533f),
+                ],
+            }).Reconstruct();
             var chains = cloth.BuildBoneChains();
             var joint = chains[0].Joints[1];
 

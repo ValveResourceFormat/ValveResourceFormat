@@ -2,14 +2,17 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
+using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+using static Tests.IO.FeModelBuilder;
+using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
-namespace Tests
+namespace Tests.IO
 {
-    public class ClothFeModelTest
+    public class FeModelTest
     {
         /// <summary>
         /// A rope cloth: eight control nodes in two columns, four pinned, no surface elements and no <c>m_SkelParents</c>.
@@ -273,18 +276,12 @@ namespace Tests
         [Test]
         public async Task MalformedCountsAndShortVectorsReadAsEmpty()
         {
-            var cloth = SyntheticCloth.Parse("""
-                {
-                m_CtrlName = [ "a", "b" ]
-                m_nNodeCount = -3
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0 ]
-                m_InitPose = [ [ 1.0, 2.0 ], [ 0.0, 0.0, 5.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] ]
-                m_VertexMapValues = [ 255 ]
-                m_VertexMaps = [ { sName = "m" nNameHash = 1 nVertexBase = 0 nVertexCount = -1 nMapOffset = 0 vCenterOfMass = [ 0.0 ] flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 }, ]
-                m_LockToParent = [ { vOffset = [ 1.0 ] nCtrlParent = 0 nCtrlChild = 1 }, ]
-                }
-                """);
+            var data = new FeModelBuilder { Names = ["a", "b"], NodeCount = -3, StaticNodes = 1, VertexMapValues = [255] }.ToKV();
+            data["m_InitPose"] = KVObject.Array([Floats(1f, 2f), Floats(0f, 0f, 5f, 1f, 0f, 0f, 0f, 1f)]);
+            data["m_VertexMaps"] = KVObject.Array([Object(("sName", "m"), ("nNameHash", 1), ("nVertexBase", 0), ("nVertexCount", -1),
+                ("nMapOffset", 0), ("vCenterOfMass", Floats(0f)), ("flVolumetricSolveStrength", 0f), ("nScaleSourceNode", -1))]);
+            data["m_LockToParent"] = KVObject.Array([Object(("vOffset", Floats(1f)), ("nCtrlParent", 0), ("nCtrlChild", 1))]);
+            var cloth = new ClothReconstruction(new FeModel(data));
 
             using (Assert.Multiple())
             {
@@ -301,11 +298,7 @@ namespace Tests
         [Test]
         public async Task ATwistWithANegativeNodeLeavesTheRopeParents()
         {
-            var cloth = SyntheticCloth.Model(["a", "b"], staticNodes: 1, body: """
-                m_nRopeCount = 1
-                m_Ropes = [ 3, 0, 1 ]
-                m_Twists = [ { nNodeOrient = -1 nNodeEnd = 1 flTwistRelax = 0.0 flSwingRelax = 0.0 }, ]
-                """);
+            var cloth = (TwoNodes with { RopeCount = 1, Ropes = [3, 0, 1], Twists = [Twist(-1, 1, 0f, 0f)] }).Reconstruct();
 
             await Assert.That(cloth.SkelParents).IsEquivalentTo([-1, 0], CollectionOrdering.Matching);
         }
@@ -314,11 +307,7 @@ namespace Tests
         [Test]
         public async Task AFollowNodeThatClosesARopeCycleIsNotAdopted()
         {
-            var cloth = SyntheticCloth.Model(["a", "b"], staticNodes: 1, body: """
-                m_nRopeCount = 1
-                m_Ropes = [ 3, 0, 1 ]
-                m_FollowNodes = [ { nParentNode = 1 nChildNode = 0 flWeight = 1.0 }, ]
-                """);
+            var cloth = (TwoNodes with { RopeCount = 1, Ropes = [3, 0, 1], FollowNodes = [new FeFollowNode(1, 0, 1f)] }).Reconstruct();
 
             await Assert.That(cloth.SkelParents).IsEquivalentTo([-1, 0], CollectionOrdering.Matching);
         }
@@ -327,7 +316,9 @@ namespace Tests
         [Test]
         public async Task ANegativeUnsignedEntryKeepsItsBits()
         {
-            var fe = SyntheticCloth.Model(["a", "b"], staticNodes: 1, body: "m_VertexSetNames = [ -1, 7 ]").Fe;
+            var data = TwoNodes.ToKV();
+            data["m_VertexSetNames"] = Ints(-1, 7);
+            var fe = new FeModel(data);
 
             await Assert.That(fe.VertexSetNames).IsEquivalentTo([uint.MaxValue, 7u], CollectionOrdering.Matching);
         }
@@ -336,10 +327,13 @@ namespace Tests
         [Test]
         public async Task LocalForceAndRotationAreIndexedByDynamicNode()
         {
-            var index = SyntheticCloth.Model(["a", "b", "c"], staticNodes: 1, body: """
-                m_LocalForce = [ 0.25, 0.5 ]
-                m_LocalRotation = [ 0.75, 1.0 ]
-                """).Index;
+            var index = new FeModelBuilder
+            {
+                Names = ["a", "b", "c"],
+                StaticNodes = 1,
+                LocalForces = [0.25f, 0.5f],
+                LocalRotations = [0.75f, 1f],
+            }.Reconstruct().Index;
 
             using (Assert.Multiple())
             {
@@ -355,10 +349,10 @@ namespace Tests
         [Test]
         public async Task AVertexMapWithoutAScaleSourceNodeReadsMinusOne()
         {
-            var fe = SyntheticCloth.Model(["a", "b"], staticNodes: 1, body: """
-                m_VertexMaps = [ { sName = "vm" nNameHash = 5 nVertexBase = 1 nVertexCount = 1 nMapOffset = 0 }, ]
-                m_VertexMapValues = [ 255 ]
-                """).Fe;
+            var data = (TwoNodes with { VertexMapValues = [255] }).ToKV();
+            data["m_VertexMaps"] = KVObject.Array([Object(("sName", "vm"), ("nNameHash", 5), ("nVertexBase", 1), ("nVertexCount", 1),
+                ("nMapOffset", 0))]);
+            var fe = new FeModel(data);
 
             await Assert.That(fe.VertexMaps[0].ScaleSourceNode).IsEqualTo(-1);
         }
@@ -370,13 +364,15 @@ namespace Tests
         [Test]
         public async Task UnsignedFieldsKeepTheirBitsWhateverTheStoredSign()
         {
-            var fe = SyntheticCloth.Model(["a", "b"], staticNodes: 1, body: """
-                m_nDynamicNodeFlags = -1
-                m_Effects = [ { sName = "wind" nNameHash = -2 nType = 1 }, ]
-                m_VertexMaps = [ { sName = "vm" nNameHash = 3000000000 nVertexBase = 1 nVertexCount = 0 nMapOffset = 0 }, ]
-                m_JiggleBones = [ { m_nNode = 4294967295 m_nJiggleParent = 4294967295 m_jiggleBone = { m_nFlags = -1 } }, ]
-                m_BoneMergeLinks = [ { m_nParentHash = -3 m_nChildNode = 1 }, ]
-                """).Fe;
+            var data = TwoNodes.ToKV();
+            data["m_nDynamicNodeFlags"] = -1;
+            data["m_Effects"] = KVObject.Array([Object(("sName", "wind"), ("nNameHash", -2), ("nType", 1))]);
+            data["m_VertexMaps"] = KVObject.Array([Object(("sName", "vm"), ("nNameHash", 3000000000L), ("nVertexBase", 1), ("nVertexCount", 0),
+                ("nMapOffset", 0))]);
+            data["m_JiggleBones"] = KVObject.Array([Object(("m_nNode", 4294967295L), ("m_nJiggleParent", 4294967295L),
+                ("m_jiggleBone", Object(("m_nFlags", -1))))]);
+            data["m_BoneMergeLinks"] = KVObject.Array([Object(("m_nParentHash", -3), ("m_nChildNode", 1))]);
+            var fe = new FeModel(data);
 
             using (Assert.Multiple())
             {
@@ -397,18 +393,19 @@ namespace Tests
         [Test]
         public async Task SimdNodesAndCollisionPlanesKeepTheirLayoutAcrossEras()
         {
-            var cloth = SyntheticCloth.Model(["a", "b", "c"], staticNodes: 1, body: """
-                m_SimdRodsAnim =
-                [
-                    { nNode = [ [ 0, 1, 1, 1 ], [ 2, 2, 2, 2 ] ] f4Weight0 = [ 0.25, 0.5, 0.5, 0.5 ] },
-                    { nNode = [ 0, 1, 1, 1, 2, 2, 2, 2 ] },
-                ]
-                m_CollisionPlanes =
-                [
-                    { nCtrlParent = 0 nChildNode = 1 m_Plane = { m_vNormal = [ 0.0, 0.0, 1.0 ] m_flOffset = 2.0 } flStrength = 0.5 },
-                    { nCtrlParent = 0 nChildNode = 2 flStickiness = 0.75 },
-                ]
-                """);
+            var data = new FeModelBuilder { Names = ["a", "b", "c"], StaticNodes = 1 }.ToKV();
+            data["m_SimdRodsAnim"] = KVObject.Array(
+            [
+                Object(("nNode", KVObject.Array([Ints(0, 1, 1, 1), Ints(2, 2, 2, 2)])), ("f4Weight0", Floats(0.25f, 0.5f, 0.5f, 0.5f))),
+                Object(("nNode", Ints(0, 1, 1, 1, 2, 2, 2, 2))),
+            ]);
+            data["m_CollisionPlanes"] = KVObject.Array(
+            [
+                Object(("nCtrlParent", 0), ("nChildNode", 1), ("m_Plane", Object(("m_vNormal", Floats(0f, 0f, 1f)), ("m_flOffset", 2f))),
+                    ("flStrength", 0.5f)),
+                Object(("nCtrlParent", 0), ("nChildNode", 2), ("flStickiness", 0.75f)),
+            ]);
+            var cloth = new ClothReconstruction(new FeModel(data));
 
             using (Assert.Multiple())
             {
@@ -430,13 +427,13 @@ namespace Tests
         [Test]
         public async Task SevenAndEightFloatInitPosesReadAlike()
         {
-            var fe = SyntheticCloth.Model(["a", "b"], staticNodes: 1, body: """
-                m_InitPose =
-                [
-                    [ 1.0, 2.0, 3.0, 0.0, 0.0, 0.70710677, 0.70710677 ],
-                    [ 1.0, 2.0, 3.0, 0.5, 0.0, 0.0, 0.70710677, 0.70710677 ],
-                ]
-                """).Fe;
+            var data = TwoNodes.ToKV();
+            data["m_InitPose"] = KVObject.Array(
+            [
+                Floats(1f, 2f, 3f, 0f, 0f, 0.70710677f, 0.70710677f),
+                Floats(1f, 2f, 3f, 0.5f, 0f, 0f, 0.70710677f, 0.70710677f),
+            ]);
+            var fe = new FeModel(data);
 
             using (Assert.Multiple())
             {
@@ -448,5 +445,8 @@ namespace Tests
                 await Assert.That(fe.InitPose[0].Orientation.W).IsEqualTo(0.70710677f);
             }
         }
+
+        /// <summary>Two nodes, the first static.</summary>
+        private static FeModelBuilder TwoNodes => new() { Names = ["a", "b"], StaticNodes = 1 };
     }
 }

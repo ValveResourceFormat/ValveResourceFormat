@@ -1,14 +1,16 @@
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
+using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+using static Tests.IO.FeModelBuilder;
+using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
-namespace Tests
+namespace Tests.IO
 {
     /// <summary>Reconstructing proxy sheets: faces, paints, selections and skin weights.</summary>
-    public class ClothFeModelSheetTest : ClothTestFixtures
+    public class FeModelReconstructionSheetTest : FeModelTestModels
     {
         /// <summary>
         /// A solve-element quad too bent to keep whole gets a split rod across its longer diagonal.
@@ -69,22 +71,12 @@ namespace Tests
         [Test]
         public async Task VertexMapNamesCarryAPartialMembershipWeight()
         {
-            var cloth = SyntheticCloth.Model(["a", "b"], staticNodes: 0, body: """
-                    m_VertexMapValues = [ 255, 128 ]
-                    m_VertexMaps =
-                    [
-                        {
-                            sName = "skirt"
-                            nNameHash = 1
-                            nVertexBase = 0
-                            nVertexCount = 2
-                            nMapOffset = 0
-                            nScaleSourceNode = -1
-                            flVolumetricSolveStrength = 0.0
-                            vCenterOfMass = [ 0.0, 0.0, 0.0 ]
-                        },
-                    ]
-                    """);
+            var cloth = new FeModelBuilder
+            {
+                Names = ["a", "b"],
+                VertexMapValues = [255, 128],
+                VertexMaps = [VertexMap("skirt", 1, 0, 0, 2)],
+            }.Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -139,7 +131,7 @@ namespace Tests
         [Test]
         public async Task ASheetVertexWithASkeletonAnchorKeepsTheSynthesisedPaint()
         {
-            var cloth = DeferredOffsetSheet(skelParents: "[ -1, 0, 0, 0, 1, 1, 1, 1 ]");
+            var cloth = DeferredOffsetSheet(skelParents: [-1, 0, 0, 0, 1, 1, 1, 1]);
             var influences = cloth.BuildProxyMeshes()[0].SkinInfluences[3];
 
             using (Assert.Multiple())
@@ -153,67 +145,27 @@ namespace Tests
         /// <summary>
         /// A sheet whose fitless $cloth_m0p3 carries a soft offset onto a bone no other vertex anchors.
         /// </summary>
-        private static ClothReconstruction DeferredOffsetSheet(string? skelParents) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "bone_a", "bone_b", "bone_c",
-                               "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3" ]
-                {{(skelParents is null ? "" : "m_SkelParents = " + skelParents)}}
-                m_nNodeCount = 8
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                    {{SyntheticCloth.Pose(0f, 4f, -10f)}}
-                    {{SyntheticCloth.Pose(4f, 4f, -10f)}}
-                    {{SyntheticCloth.Pose(4f, 4f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 4f, -20f)}}
-                ]
-                m_Tris = [ { nNode = [ 4, 5, 6 ] }, { nNode = [ 4, 6, 7 ] } ]
-                m_CtrlOffsets =
-                [
-                    { vOffset = [ 0.0, 4.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 4 },
-                    { vOffset = [ 4.0, 4.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 5 },
-                    { vOffset = [ 4.0, 4.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 6 },
-                    { vOffset = [ 0.0, 4.0, 0.0 ] nCtrlParent = 1 nCtrlChild = 7 },
-                ]
-                m_CtrlSoftOffsets =
-                [
-                    { nCtrlParent = 3 nCtrlChild = 7 vOffset = [ 0.0, 4.0, 0.0 ] flAlpha = 0.7 },
-                ]
-                m_FitMatrices =
-                [
-                    { bone = [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] vCenter = [ 0.0, 0.0, 0.0 ]
-                      nEnd = 3 nNode = 2 nBeginDynamic = 0 },
-                ]
-                m_FitWeights =
-                [
-                    { flWeight = 0.5 nNode = 4 nDummy = 0 },
-                    { flWeight = 0.5 nNode = 5 nDummy = 0 },
-                    { flWeight = 0.5 nNode = 6 nDummy = 0 },
-                ]
-            }
-            """);
+        private static ClothReconstruction DeferredOffsetSheet(int[]? skelParents) => new FeModelBuilder
+        {
+            Names = ["root", "bone_a", "bone_b", "bone_c", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"],
+            Parents = skelParents,
+            StaticNodes = 1,
+            Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 4f, -10f), new(4f, 4f, -10f),
+                new(4f, 4f, -20f), new(0f, 4f, -20f)],
+            Tris = [Tri(4, 5, 6), Tri(4, 6, 7)],
+            CtrlOffsets = [Offset(2, 4, 0f, 4f, 0f), Offset(2, 5, 4f, 4f, 0f), Offset(2, 6, 4f, 4f, 0f), Offset(1, 7, 0f, 4f, 0f)],
+            CtrlSoftOffsets = [new FeCtrlSoftOffset(3, 7, new Vector3(0f, 4f, 0f), 0.7f)],
+            FitMatrices = [FitMatrix(2, 3, 0, bone: Pose(1f, 0f, 0f))],
+            FitWeights = [FitWeight(4, 0.5f), FitWeight(5, 0.5f), FitWeight(6, 0.5f)],
+        }.Reconstruct();
 
-        private static ClothReconstruction FaceOverNode(string third) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "bone_a", "bone_b", "{{third}}" ]
-                m_SkelParents = [ -1, -1, -1 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(4f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 3f, 0f)}}
-                ]
-                m_Tris = [ { nNode = [ 0, 1, 2 ] } ]
-            }
-            """);
+        private static ClothReconstruction FaceOverNode(string third) => new FeModelBuilder
+        {
+            Names = ["bone_a", "bone_b", third],
+            Parents = [-1, -1, -1],
+            Positions = [new(0f, 0f, 0f), new(4f, 0f, 0f), new(0f, 3f, 0f)],
+            Tris = [Tri(0, 1, 2)],
+        }.Reconstruct();
 
         /// <summary>
         /// A pinned sheet vertex whose soft offset ties its anchor with another bone keeps both influences, the anchor
@@ -236,50 +188,19 @@ namespace Tests
         /// <summary>
         /// A sheet whose pinned $cloth_m0p0 has no fit weight and one soft offset at 0.5, tying bone_a and bone_c.
         /// </summary>
-        private static ClothReconstruction TiedPinSheet() => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m0p0", "root", "bone_a", "bone_b", "bone_c",
-                               "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3" ]
-                m_SkelParents = [ 2, -1, 1, 1, 1, 3, 3, 3 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 4f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                    {{SyntheticCloth.Pose(4f, 4f, -10f)}}
-                    {{SyntheticCloth.Pose(4f, 4f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 4f, -20f)}}
-                ]
-                m_Tris = [ { nNode = [ 0, 5, 6 ] }, { nNode = [ 0, 6, 7 ] } ]
-                m_CtrlOffsets =
-                [
-                    { vOffset = [ 0.0, 4.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 0 },
-                    { vOffset = [ 4.0, 4.0, 0.0 ] nCtrlParent = 3 nCtrlChild = 5 },
-                    { vOffset = [ 4.0, 4.0, 0.0 ] nCtrlParent = 3 nCtrlChild = 6 },
-                    { vOffset = [ 0.0, 4.0, 0.0 ] nCtrlParent = 3 nCtrlChild = 7 },
-                ]
-                m_CtrlSoftOffsets =
-                [
-                    { nCtrlParent = 4 nCtrlChild = 0 vOffset = [ 0.0, 4.0, 0.0 ] flAlpha = 0.5 },
-                ]
-                m_FitMatrices =
-                [
-                    { bone = [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] vCenter = [ 0.0, 0.0, 0.0 ]
-                      nEnd = 3 nNode = 3 nBeginDynamic = 0 },
-                ]
-                m_FitWeights =
-                [
-                    { flWeight = 0.5 nNode = 5 nDummy = 0 },
-                    { flWeight = 0.5 nNode = 6 nDummy = 0 },
-                    { flWeight = 0.5 nNode = 7 nDummy = 0 },
-                ]
-            }
-            """);
+        private static ClothReconstruction TiedPinSheet() => new FeModelBuilder
+        {
+            Names = ["$cloth_m0p0", "root", "bone_a", "bone_b", "bone_c", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"],
+            Parents = [2, -1, 1, 1, 1, 3, 3, 3],
+            StaticNodes = 2,
+            Positions = [new(0f, 4f, -10f), new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(4f, 4f, -10f),
+                new(4f, 4f, -20f), new(0f, 4f, -20f)],
+            Tris = [Tri(0, 5, 6), Tri(0, 6, 7)],
+            CtrlOffsets = [Offset(2, 0, 0f, 4f, 0f), Offset(3, 5, 4f, 4f, 0f), Offset(3, 6, 4f, 4f, 0f), Offset(3, 7, 0f, 4f, 0f)],
+            CtrlSoftOffsets = [new FeCtrlSoftOffset(4, 0, new Vector3(0f, 4f, 0f), 0.5f)],
+            FitMatrices = [FitMatrix(3, 3, 0, bone: Pose(1f, 0f, 0f))],
+            FitWeights = [FitWeight(5, 0.5f), FitWeight(6, 0.5f), FitWeight(7, 0.5f)],
+        }.Reconstruct();
 
         /// <summary>
         /// A selection covering the union of a sheet's exported islands is still the sheet's container.
@@ -287,7 +208,7 @@ namespace Tests
         [Test]
         public async Task ASelectionOverSeveralExportedProxiesIsStillTheSheetsContainer()
         {
-            var model = SplitSheet();
+            var model = WeightedSheet(255, 255, 255, 255);
             var islands = new[] { Island([0, 1]), Island([2, 3]) };
 
             using (Assert.Multiple())
@@ -298,24 +219,7 @@ namespace Tests
             }
         }
 
-        private static ProxyMesh Island(int[] nodes) => SyntheticCloth.Proxy(nodes, [.. nodes.Select(static _ => 1f)], []);
-
-        private static ClothReconstruction SplitSheet() => SyntheticCloth.Parse("""
-            {
-                m_CtrlName = [ "v0", "v1", "v2", "v3" ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 0
-                m_VertexMaps =
-                [
-                    { sName = "sheet" nNameHash = 1 nColor = 0 nFlags = 0 nVertexBase = 0
-                      nVertexCount = 4 nMapOffset = 0 nNodeListOffset = 0
-                      vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = 0.0
-                      nScaleSourceNode = -1 },
-                ]
-                m_VertexMapValues = [ 255, 255, 255, 255 ]
-                m_VertexSetNames = [  ]
-            }
-            """);
+        private static ProxyMesh Island(int[] nodes) => Proxy(nodes, [.. nodes.Select(static _ => 1f)], []);
 
         /// <summary>
         /// A selection whose covered nodes share one partial value carries it as the container weight; full coverage or
@@ -326,29 +230,22 @@ namespace Tests
         {
             using (Assert.Multiple())
             {
-                await Assert.That(WeightedSheet("128, 128, 128, 128").UniformVertexMapWeight("sheet")!.Value)
+                await Assert.That(WeightedSheet(128, 128, 128, 128).UniformVertexMapWeight("sheet")!.Value)
                     .IsEqualTo(128f / 255f).Within(1e-4f);
-                await Assert.That(WeightedSheet("255, 255, 255, 255").UniformVertexMapWeight("sheet")).IsNull();
-                await Assert.That(WeightedSheet("128, 255, 128, 255").UniformVertexMapWeight("sheet")).IsNull();
+                await Assert.That(WeightedSheet(255, 255, 255, 255).UniformVertexMapWeight("sheet")).IsNull();
+                await Assert.That(WeightedSheet(128, 255, 128, 255).UniformVertexMapWeight("sheet")).IsNull();
             }
         }
 
-        private static ClothReconstruction WeightedSheet(string values) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "v0", "v1", "v2", "v3" ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 0
-                m_VertexMaps =
-                [
-                    { sName = "sheet" nNameHash = 1 nColor = 0 nFlags = 0 nVertexBase = 0
-                      nVertexCount = 4 nMapOffset = 0 nNodeListOffset = 0
-                      vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = 0.0
-                      nScaleSourceNode = -1 },
-                ]
-                m_VertexMapValues = [ {{values}} ]
-                m_VertexSetNames = [  ]
-            }
-            """);
+        /// <summary>Four poseless free nodes all in the selection "sheet" at <paramref name="values"/>.</summary>
+        private static ClothReconstruction WeightedSheet(params byte[] values) => new FeModelBuilder
+        {
+            Names = ["v0", "v1", "v2", "v3"],
+            InvMasses = [],
+            VertexMaps = [VertexMap("sheet", 1, 0, 0, 4)],
+            VertexMapValues = values,
+            VertexSetNames = [],
+        }.Reconstruct();
 
         /// <summary>
         /// A quad over declared cloth nodes in a model with no sheet node is an authored <c>ClothQuad</c>; beside a
@@ -359,26 +256,19 @@ namespace Tests
         {
             using (Assert.Multiple())
             {
-                await Assert.That(QuadOverBones("").GetAuthoredElementFaces().Count).IsEqualTo(1);
-                await Assert.That(QuadOverBones(", \"$cloth_m0p0\"").GetAuthoredElementFaces().Count).IsEqualTo(0);
+                await Assert.That(QuadOverBones().GetAuthoredElementFaces().Count).IsEqualTo(1);
+                await Assert.That(QuadOverBones("$cloth_m0p0").GetAuthoredElementFaces().Count).IsEqualTo(0);
             }
         }
 
-        private static ClothReconstruction QuadOverBones(string extraName) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "a", "b", "c", "d"{{extraName}} ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 0
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(3f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(3f, 4f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 4f, 0f)}}
-                ]
-                m_Quads = [ { nNode = [ 0, 1, 2, 3 ] } ]
-            }
-            """);
+        private static ClothReconstruction QuadOverBones(params string[] extraNames) => new FeModelBuilder
+        {
+            Names = ["a", "b", "c", "d", .. extraNames],
+            NodeCount = 4,
+            InvMasses = [],
+            Positions = [new(0f, 0f, 0f), new(3f, 0f, 0f), new(3f, 4f, 0f), new(0f, 4f, 0f)],
+            Quads = [Quad(0, 1, 2, 3)],
+        }.Reconstruct();
 
         /// <summary>
         /// Selections over the same nodes at the same weights are aliases of one container; other weights and
@@ -387,28 +277,22 @@ namespace Tests
         [Test]
         public async Task SelectionsOverTheSameNodesAndWeightsAreAliasesOfOneContainer()
         {
-            var cloth = SyntheticCloth.Parse($$"""
-                {
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    ]
-                    m_VertexMaps =
-                    [
-                        {{VertexMapEntry("alias0", 1548087834, 0, 1, 2)}}
-                        {{VertexMapEntry("alias1", 2540411548, 0, 1, 2)}}
-                        {{VertexMapEntry("half", 7, 2, 1, 2)}}
-                        {{VertexMapEntry("painted", 99, 0, 1, 2)}}
-                    ]
-                    m_VertexMapValues = [ 255, 255, 255, 128 ]
-                    m_VertexSetNames = [ 99 ]
-                }
-                """);
+            var cloth = new FeModelBuilder
+            {
+                NodeCount = 3,
+                StaticNodes = 1,
+                InvMasses = [0f, 1f, 1f],
+                Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+                VertexMaps =
+                [
+                    VertexMap("alias0", 1548087834, 0, 1, 2),
+                    VertexMap("alias1", 2540411548, 0, 1, 2),
+                    VertexMap("half", 7, 2, 1, 2),
+                    VertexMap("painted", 99, 0, 1, 2),
+                ],
+                VertexMapValues = [255, 255, 255, 128],
+                VertexSetNames = [99],
+            }.Reconstruct();
 
             using (Assert.Multiple())
             {
@@ -431,22 +315,15 @@ namespace Tests
         {
             const string ModelFileName = "chain_extrude_sides_1";
             var modelHash = ValveResourceFormat.Utils.StringToken.Get(ModelFileName);
-            string Body(string maps) => SyntheticCloth.Document(
-                ["root", "a", "b", "jiggle"], staticNodes: 1, parents: [-1, 0, 1, 0],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -5f), new(0f, 0f, -10f), new(5f, 0f, 0f)],
-                body: $$"""
-                    m_VertexSetNames = [ 0, {{modelHash}} ]
-                    m_DynNodeVertexSet = [ 1, 1, 0 ]
-                    {{maps}}
-                    """);
+            var body = JiggleSets(modelHash);
             static string[] Names(ClothReconstruction cloth) => [.. cloth.VertexMaps.Select(static map => map.Name)];
 
-            var defaultSet = SyntheticCloth.Parse(Body(string.Empty));
+            var defaultSet = body.Reconstruct();
             var rebuilt = Names(defaultSet);
             defaultSet.DropModelNameVertexSet(ModelFileName);
-            var otherModel = SyntheticCloth.Parse(Body(string.Empty));
+            var otherModel = body.Reconstruct();
             otherModel.DropModelNameVertexSet("another_model");
-            var shipped = SyntheticCloth.Parse(Body($$"""m_VertexMapValues = [ 255, 255 ] m_VertexMaps = [ { sName = "chain" nNameHash = {{modelHash}} nVertexBase = 1 nVertexCount = 2 nMapOffset = 0 vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 }, ]"""));
+            var shipped = (body with { VertexMapValues = [255, 255], VertexMaps = [VertexMap("chain", modelHash, 0, 1, 2)] }).Reconstruct();
             shipped.DropModelNameVertexSet(ModelFileName);
 
             using (Assert.Multiple())
@@ -465,19 +342,12 @@ namespace Tests
         [Test]
         public async Task TheUnnamedJiggleBoneVertexSetIsNotRedeclared()
         {
-            static string Body(string maps) => SyntheticCloth.Document(
-                ["root", "a", "b", "jiggle"], staticNodes: 1, parents: [-1, 0, 1, 0],
-                poses: [new(0f, 0f, 0f), new(0f, 0f, -5f), new(0f, 0f, -10f), new(5f, 0f, 0f)],
-                body: $$"""
-                    m_VertexSetNames = [ 0, 91207372 ]
-                    m_DynNodeVertexSet = [ 1, 1, 0 ]
-                    {{maps}}
-                    """);
+            var body = JiggleSets(91207372);
             static string[] Names(ClothReconstruction cloth) => [.. cloth.VertexMaps.Select(static map => map.Name)];
 
-            var rebuilt = SyntheticCloth.Parse(Body(string.Empty));
+            var rebuilt = body.Reconstruct();
             rebuilt.DropUnnamedVertexSet();
-            var shipped = SyntheticCloth.Parse(Body("""m_VertexMapValues = [ 255 ] m_VertexMaps = [ { sName = "jiggles" nNameHash = 0 nVertexBase = 3 nVertexCount = 1 nMapOffset = 0 vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 }, ]"""));
+            var shipped = (body with { VertexMapValues = [255], VertexMaps = [VertexMap("jiggles", 0, 0, 3, 1)] }).Reconstruct();
             shipped.DropUnnamedVertexSet();
 
             using (Assert.Multiple())
@@ -488,21 +358,37 @@ namespace Tests
         }
 
         /// <summary>
+        /// A static root over a two-joint chain and a jiggle bone, the chain's joints in the vertex set
+        /// <paramref name="secondSet"/> and the jiggle bone in the set hashed 0.
+        /// </summary>
+        private static FeModelBuilder JiggleSets(uint secondSet) => new()
+        {
+            Names = ["root", "a", "b", "jiggle"],
+            StaticNodes = 1,
+            Parents = [-1, 0, 1, 0],
+            Positions = [new(0f, 0f, 0f), new(0f, 0f, -5f), new(0f, 0f, -10f), new(5f, 0f, 0f)],
+            VertexSetNames = [0, secondSet],
+            DynNodeVertexSet = [1, 1, 0],
+        };
+
+        /// <summary>
         /// A nearly planar quad whose diagonal ships as a rigid rod reads <c>quad_bend_tolerance</c> 0; without the
         /// rod, or bent past the default, it reads 0.05.
         /// </summary>
         [Test]
         public async Task TheQuadBendToleranceIsReadOffTheSplit()
         {
-            static ClothReconstruction Model(float bend, string rods) => SyntheticCloth.Model(
-                ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"], staticNodes: 1, parents: [-1, 0, 0, 0, 0],
-                poses: [new(0f, 0f, 10f), new(0f, 0f, 0f), new(2f, 0f, bend), new(2f, 3f, 0f), new(0f, 3f, 0f)],
-                body: $$"""
-                    m_Tris = [ { nNode = [ 1, 2, 3 ] }, { nNode = [ 1, 3, 4 ] } ]
-                    m_Rods = [ {{rods}} ]
-                    """);
+            static ClothReconstruction Model(float bend, params FeRodConstraint[] rods) => new FeModelBuilder
+            {
+                Names = ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"],
+                StaticNodes = 1,
+                Parents = [-1, 0, 0, 0, 0],
+                Positions = [new(0f, 0f, 10f), new(0f, 0f, 0f), new(2f, 0f, bend), new(2f, 3f, 0f), new(0f, 3f, 0f)],
+                Tris = [Tri(1, 2, 3), Tri(1, 3, 4)],
+                Rods = rods,
+            }.Reconstruct();
 
-            var rod = SyntheticCloth.RigidRod(2, 4, 3.6056f, 1f);
+            var rod = RigidRod(2, 4, 3.6056f);
             var nearlyPlanar = Model(0.01f, rod);
             List<int[]> faces = [[1, 2, 3, 4]];
             (int, int)[] splitRod = [(2, 4)];
@@ -510,7 +396,7 @@ namespace Tests
             using (Assert.Multiple())
             {
                 await Assert.That(nearlyPlanar.QuadBendTolerance).IsEqualTo(0f);
-                await Assert.That(Model(0.01f, string.Empty).QuadBendTolerance).IsEqualTo(0.05f);
+                await Assert.That(Model(0.01f).QuadBendTolerance).IsEqualTo(0.05f);
                 await Assert.That(Model(1f, rod).QuadBendTolerance).IsEqualTo(0.05f);
                 await Assert.That(ClothReconstruction.BentQuadRodsFromFaces(faces, nearlyPlanar.Index.InitPosePositions, static node => node == 0, 0f))
                     .IsEquivalentTo(splitRod);
@@ -530,15 +416,12 @@ namespace Tests
             static string Order(List<int[]> faces) => string.Join(" | ", faces.Select(static face => string.Join(",", face)));
             static List<int[]> Choose(List<int[]> faces, IReadOnlyList<int> nodes, ClothReconstruction pins)
                 => pins.ChooseFaceDeclarationOrder(faces, faces.Count, nodes);
-            static ClothReconstruction Pinned(int nodes, int pinned) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ {{string.Join(", ", Enumerable.Range(0, nodes).Select(static node => $"\"n{node}\""))}} ]
-                    m_nNodeCount = {{nodes}}
-                    m_nStaticNodes = {{pinned}}
-                    m_nRotLockStaticNodes = 13
-                    m_NodeInvMasses = [ {{string.Join(", ", Enumerable.Range(0, nodes).Select(node => node < pinned ? "0.0" : "1.0"))}} ]
-                }
-                """);
+            static ClothReconstruction Pinned(int nodes, int pinned) => new FeModelBuilder
+            {
+                Names = [.. Enumerable.Range(0, nodes).Select(static node => $"n{node}")],
+                StaticNodes = pinned,
+                RotLockStaticNodes = 13,
+            }.Reconstruct();
             var gridPins = Pinned(28, 13);
 
             List<int[]> lanes =
@@ -585,22 +468,22 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction StretchQuad(float edge, float diagonal) => SyntheticCloth.Model(
-            ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"], staticNodes: 0,
-            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(10f, 0f, -10f), new(0f, 0f, -10f)],
-            body: $$"""
-                m_flDefaultSurfaceStretch = 0.0
-                m_SourceElems = [ 0, 0, 0, 1, 0, 1, 2, 3 ]
-                m_Rods =
-                [
-                    { nNode = [ 0, 1 ] flMaxDist = 10.0 flMinDist = 7.5 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(edge)}} },
-                    { nNode = [ 1, 2 ] flMaxDist = 10.0 flMinDist = 7.5 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(edge)}} },
-                    { nNode = [ 2, 3 ] flMaxDist = 10.0 flMinDist = 7.5 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(edge)}} },
-                    { nNode = [ 0, 3 ] flMaxDist = 10.0 flMinDist = 7.5 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(edge)}} },
-                    { nNode = [ 0, 2 ] flMaxDist = 14.142136 flMinDist = 10.606602 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(diagonal)}} },
-                    { nNode = [ 1, 3 ] flMaxDist = 14.142136 flMinDist = 10.606602 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(diagonal)}} },
-                ]
-                """);
+        private static ClothReconstruction StretchQuad(float edge, float diagonal) => new FeModelBuilder
+        {
+            Names = ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"],
+            Positions = [new(0f, 0f, 0f), new(10f, 0f, 0f), new(10f, 0f, -10f), new(0f, 0f, -10f)],
+            DefaultSurfaceStretch = 0f,
+            SourceElems = [0, 0, 0, 1, 0, 1, 2, 3],
+            Rods =
+            [
+                Rod(0, 1, 7.5f, 10f, 0.5f, edge),
+                Rod(1, 2, 7.5f, 10f, 0.5f, edge),
+                Rod(2, 3, 7.5f, 10f, 0.5f, edge),
+                Rod(0, 3, 7.5f, 10f, 0.5f, edge),
+                Rod(0, 2, 10.606602f, 14.142136f, 0.5f, diagonal),
+                Rod(1, 3, 10.606602f, 14.142136f, 0.5f, diagonal),
+            ],
+        }.Reconstruct();
 
         /// <summary>
         /// Fully dynamic quads are rotated to the corner whose mass sums reproduce the shipped inverse masses; masses
@@ -684,38 +567,17 @@ namespace Tests
         private static ClothReconstruction StretchedSheet(float[] rowPaint)
         {
             const float ShearFactor = 0.5f;
-            var rods = new StringBuilder();
-            void Rod(int a, int b)
+            var rods = new List<FeRodConstraint>();
+            foreach (var (a, b) in (ReadOnlySpan<(int, int)>)[(0, 1), (1, 2), (3, 4), (4, 5), (6, 7), (7, 8), (0, 3), (1, 4), (2, 5), (3, 6), (4, 7), (5, 8),
+                (0, 4), (1, 3), (1, 5), (2, 4), (3, 7), (4, 6), (4, 8), (5, 7)])
             {
                 var edge = a / 3 == b / 3 || a % 3 == b % 3;
                 var rest = edge ? 10f : MathF.Sqrt(200f);
                 var open = 1f - (0.5f * (rowPaint[a / 3] + rowPaint[b / 3]));
-                rods.Append(SyntheticCloth.BandedRod(a, b, rest * 0.5f, rest, (edge ? 1f : ShearFactor) * open * open * open));
+                rods.Add(Rod(a, b, rest * 0.5f, rest, 0.5f, (edge ? 1f : ShearFactor) * open * open * open));
             }
 
-            foreach (var (a, b) in (ReadOnlySpan<(int, int)>)[(0, 1), (1, 2), (3, 4), (4, 5), (6, 7), (7, 8), (0, 3), (1, 4), (2, 5), (3, 6), (4, 7), (5, 8),
-                (0, 4), (1, 3), (1, 5), (2, 4), (3, 7), (4, 6), (4, 8), (5, 7)])
-            {
-                Rod(a, b);
-            }
-
-            var poses = new StringBuilder();
-            for (var node = 0; node < 9; node++)
-            {
-                poses.Append(SyntheticCloth.Pose((node % 3) * 10f, 0f, -(node / 3) * 10f));
-            }
-
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ {{string.Join(", ", Enumerable.Range(0, 9).Select(static node => $"\"$cloth_m0p{node}\""))}} ]
-                    m_nNodeCount = 9
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ {{string.Join(", ", Enumerable.Repeat("1.0", 9))}} ]
-                    m_InitPose = [ {{poses}} ]
-                    m_SourceElems = [ 0, 0, 0, 4, 0, 1, 4, 3, 1, 2, 5, 4, 3, 4, 7, 6, 4, 5, 8, 7 ]
-                    m_Rods = [ {{rods}} ]
-                }
-                """);
+            return (ThreeByThreeSheet with { Rods = [.. rods] }).Reconstruct();
         }
 
         /// <summary>
@@ -743,42 +605,26 @@ namespace Tests
 
         private static ClothReconstruction ShearedSheet(bool leftEdges)
         {
-            var rods = new StringBuilder();
+            var rods = new List<FeRodConstraint>();
             foreach (var (a, b) in (ReadOnlySpan<(int, int)>)[(1, 2), (4, 5), (7, 8), (1, 4), (2, 5), (4, 7), (5, 8)])
             {
-                rods.Append(SyntheticCloth.RigidRod(a, b, 10f, 1f));
+                rods.Add(RigidRod(a, b, 10f));
             }
 
             if (leftEdges)
             {
                 foreach (var (a, b) in (ReadOnlySpan<(int, int)>)[(0, 1), (3, 4), (6, 7), (0, 3), (3, 6)])
                 {
-                    rods.Append(SyntheticCloth.RigidRod(a, b, 10f, 1f));
+                    rods.Add(RigidRod(a, b, 10f));
                 }
             }
 
             foreach (var (a, b) in (ReadOnlySpan<(int, int)>)[(1, 5), (2, 4), (4, 8), (5, 7)])
             {
-                rods.Append(SyntheticCloth.BandedRod(a, b, MathF.Sqrt(200f) * 0.75f, MathF.Sqrt(200f), 0.125f));
+                rods.Add(Rod(a, b, MathF.Sqrt(200f) * 0.75f, MathF.Sqrt(200f), 0.5f, 0.125f));
             }
 
-            var poses = new StringBuilder();
-            for (var node = 0; node < 9; node++)
-            {
-                poses.Append(SyntheticCloth.Pose((node % 3) * 10f, 0f, -(node / 3) * 10f));
-            }
-
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ {{string.Join(", ", Enumerable.Range(0, 9).Select(static node => $"\"$cloth_m0p{node}\""))}} ]
-                    m_nNodeCount = 9
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ {{string.Join(", ", Enumerable.Repeat("1.0", 9))}} ]
-                    m_InitPose = [ {{poses}} ]
-                    m_SourceElems = [ 0, 0, 0, 4, 0, 1, 4, 3, 1, 2, 5, 4, 3, 4, 7, 6, 4, 5, 8, 7 ]
-                    m_Rods = [ {{rods}} ]
-                }
-                """);
+            return (ThreeByThreeSheet with { Rods = [.. rods] }).Reconstruct();
         }
 
         /// <summary>
@@ -788,36 +634,17 @@ namespace Tests
         [Test]
         public async Task ASheetTheOriginalDidNotBackSolveKeepsItsAuthoredProxyPaint()
         {
-            var oneBackSolving = TwoProxySheets("""
-                m_FitMatrices =
-                [
-                    { nEnd = 2 nNode = 6 nBeginDynamic = 0 },
-                    { nEnd = 4 nNode = 7 nBeginDynamic = 0 },
-                ]
-                m_FitWeights =
-                [
-                    { flWeight = 0.75 nNode = 2 nDummy = 0 },
-                    { flWeight = 0.5 nNode = 3 nDummy = 0 },
-                    { flWeight = 0.25 nNode = 2 nDummy = 0 },
-                    { flWeight = 0.5 nNode = 3 nDummy = 0 },
-                ]
-                """);
-            var bothBackSolving = TwoProxySheets("""
-                m_FitMatrices =
-                [
-                    { nEnd = 3 nNode = 6 nBeginDynamic = 0 },
-                    { nEnd = 5 nNode = 7 nBeginDynamic = 0 },
-                ]
-                m_FitWeights =
-                [
-                    { flWeight = 0.75 nNode = 2 nDummy = 0 },
-                    { flWeight = 0.5 nNode = 3 nDummy = 0 },
-                    { flWeight = 0.6 nNode = 5 nDummy = 0 },
-                    { flWeight = 0.25 nNode = 2 nDummy = 0 },
-                    { flWeight = 0.5 nNode = 3 nDummy = 0 },
-                ]
-                """);
-            var noFits = TwoProxySheets("");
+            var oneBackSolving = (TwoProxySheets with
+            {
+                FitMatrices = [FitMatrix(6, 2, 0), FitMatrix(7, 4, 0)],
+                FitWeights = [FitWeight(2, 0.75f), FitWeight(3, 0.5f), FitWeight(2, 0.25f), FitWeight(3, 0.5f)],
+            }).Reconstruct();
+            var bothBackSolving = (TwoProxySheets with
+            {
+                FitMatrices = [FitMatrix(6, 3, 0), FitMatrix(7, 5, 0)],
+                FitWeights = [FitWeight(2, 0.75f), FitWeight(3, 0.5f), FitWeight(5, 0.6f), FitWeight(2, 0.25f), FitWeight(3, 0.5f)],
+            }).Reconstruct();
+            var noFits = TwoProxySheets.Reconstruct();
 
             const int Mesh1Vertex = 4;
             var recovered = oneBackSolving.RecoveredSkinWeights.GetValueOrDefault(Mesh1Vertex, []);
@@ -890,43 +717,36 @@ namespace Tests
         /// Three <c>m_VertexMaps</c> records: "ghost" named over no vertex, "real" over two, and an unnamed one over
         /// none.
         /// </summary>
-        private static ClothReconstruction SelectionsOverNoVertex => SyntheticCloth.Model(
-            ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"], staticNodes: 2, parents: [-1, 0, 0, 0],
-            poses: [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 0f, -8f), new(1f, 0f, -16f)],
-            body: """
-                m_VertexMapValues = [ 255, 255 ]
-                m_VertexMaps =
-                [
-                    { sName = "ghost" nNameHash = 2018973841 nVertexBase = 0 nVertexCount = 0 nMapOffset = 0 nNodeListOffset = 0 nNodeListCount = 0 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
-                    { sName = "real" nNameHash = 2081852616 nVertexBase = 2 nVertexCount = 2 nMapOffset = 0 nNodeListOffset = 0 nNodeListCount = 2 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
-                    { sName = "" nNameHash = 0 nVertexBase = 0 nVertexCount = 0 nMapOffset = 0 nNodeListOffset = 0 nNodeListCount = 0 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
-                ]
-                """);
+        private static ClothReconstruction SelectionsOverNoVertex => new FeModelBuilder
+        {
+            Names = ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"],
+            StaticNodes = 2,
+            Parents = [-1, 0, 0, 0],
+            Positions = [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 0f, -8f), new(1f, 0f, -16f)],
+            VertexMapValues = [255, 255],
+            VertexMaps =
+            [
+                VertexMap("ghost", 2018973841, 0, 0, 0),
+                new FeVertexMapDesc("real", 2081852616, 0, 0, 2, 2, 0, 0, Vector3.Zero, 0f, -1, 2),
+                VertexMap(string.Empty, 0, 0, 0, 0),
+            ],
+        }.Reconstruct();
 
         /// <summary>
         /// Two proxy sheets over a two-bone chain: mesh 0's vertices are fit targets, and mesh 1's vertex 4 has a
-        /// two-bone paint and no fit entry. <paramref name="fits"/> holds the fit arrays.
+        /// two-bone paint and no fit entry. No fit arrays are set.
         /// </summary>
-        private static ClothReconstruction TwoProxySheets(string fits) => SyntheticCloth.Model(
-            ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m1p1", "$cloth_m1p2", "bone_1", "bone_2"],
-                staticNodes: 2, parents: [-1, 0, 6, 7, 6, 6, 0, 6],
-            poses: [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 0f, -8f), new(1f, 0f, -16f), new(-1f, 0f, -8f), new(-1f, 0f, -16f),
+        private static FeModelBuilder TwoProxySheets => new()
+        {
+            Names = ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m1p1", "$cloth_m1p2", "bone_1", "bone_2"],
+            StaticNodes = 2,
+            FirstPositionDrivenNode = 6,
+            Parents = [-1, 0, 6, 7, 6, 6, 0, 6],
+            Positions = [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 0f, -8f), new(1f, 0f, -16f), new(-1f, 0f, -8f), new(-1f, 0f, -16f),
                 new(0f, 0f, -8f), new(0f, 0f, -16f)],
-            body: $$"""
-                m_nFirstPositionDrivenNode = 6
-                m_CtrlOffsets =
-                [
-                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 6 nCtrlChild = 2 },
-                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 7 nCtrlChild = 3 },
-                    { vOffset = [ -1.0, 0.0, 0.0 ] nCtrlParent = 6 nCtrlChild = 4 },
-                    { vOffset = [ -1.0, 0.0, -8.0 ] nCtrlParent = 6 nCtrlChild = 5 },
-                ]
-                m_CtrlSoftOffsets =
-                [
-                    { nCtrlParent = 7 nCtrlChild = 4 vOffset = [ -1.0, 0.0, 8.0 ] flAlpha = 0.75 },
-                ]
-                {{fits}}
-                """);
+            CtrlOffsets = [Offset(6, 2, 1f, 0f, 0f), Offset(7, 3, 1f, 0f, 0f), Offset(6, 4, -1f, 0f, 0f), Offset(6, 5, -1f, 0f, -8f)],
+            CtrlSoftOffsets = [new FeCtrlSoftOffset(7, 4, new Vector3(-1f, 0f, 8f), 0.75f)],
+        };
 
         /// <summary>
         /// A recorded set member its selection weighs 0 is painted at <see cref="ClothReconstruction.SubQuantumMembershipWeight"/>,
@@ -936,8 +756,8 @@ namespace Tests
         [Test]
         public async Task ASetMemberItsSelectionWeighsZeroIsPaintedBelowAQuantum()
         {
-            var recorded = SubQuantumMembers("m_DynNodeVertexSet = [ 0, 0, 0, 1 ]").BuildProxyMeshes()[0];
-            var unrecorded = SubQuantumMembers("").BuildProxyMeshes()[0];
+            var recorded = SubQuantumMembers(recorded: true).BuildProxyMeshes()[0];
+            var unrecorded = SubQuantumMembers(recorded: false).BuildProxyMeshes()[0];
 
             static float Weight(ProxyMesh proxy, string map, int node)
                 => Array.Find(proxy.VertexMaps, m => m.Name == map).Weights[Array.IndexOf(proxy.NodeIndices, node)];
@@ -962,28 +782,25 @@ namespace Tests
 
         /// <summary>
         /// A two-row sheet with selections "qb" (255 / 0 / 128 over nodes 4-6) and "qz" (0 / 255 over nodes 5-6);
-        /// <paramref name="sets"/> holds <c>m_DynNodeVertexSet</c>.
+        /// <paramref name="recorded"/> records node 6 in the second vertex set.
         /// </summary>
-        private static ClothReconstruction SubQuantumMembers(string sets) => SyntheticCloth.Model(
-            ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5"], staticNodes: 3,
-                parents: [-1, 0, 0, 0, 0, 0, 0],
-            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(4f, 0f, -10f), new(0f, 0f, -20f), new(4f, 0f, -20f),
-                new(0f, 0f, -30f), new(4f, 0f, -30f)],
-            body: $$"""
-                m_Tris =
-                [
-                    { nNode = [ 1, 2, 4 ] }, { nNode = [ 1, 4, 3 ] },
-                    { nNode = [ 3, 4, 6 ] }, { nNode = [ 3, 6, 5 ] },
-                ]
-                m_VertexSetNames = [ 3919779763, 51193340 ]
-                {{sets}}
-                m_VertexMapValues = [ 255, 0, 128, 0, 255 ]
-                m_VertexMaps =
-                [
-                    { sName = "qb" nNameHash = 3919779763 nVertexBase = 4 nVertexCount = 3 nMapOffset = 0 nNodeListOffset = 0 nNodeListCount = 2 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
-                    { sName = "qz" nNameHash = 51193340 nVertexBase = 5 nVertexCount = 2 nMapOffset = 3 nNodeListOffset = 2 nNodeListCount = 1 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
-                ]
-                """);
+        private static ClothReconstruction SubQuantumMembers(bool recorded) => new FeModelBuilder
+        {
+            Names = ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5"],
+            StaticNodes = 3,
+            Parents = [-1, 0, 0, 0, 0, 0, 0],
+            Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f), new(4f, 0f, -10f), new(0f, 0f, -20f), new(4f, 0f, -20f), new(0f, 0f, -30f),
+                new(4f, 0f, -30f)],
+            Tris = [Tri(1, 2, 4), Tri(1, 4, 3), Tri(3, 4, 6), Tri(3, 6, 5)],
+            VertexSetNames = [3919779763, 51193340],
+            DynNodeVertexSet = recorded ? [0, 0, 0, 1] : null,
+            VertexMapValues = [255, 0, 128, 0, 255],
+            VertexMaps =
+            [
+                new FeVertexMapDesc("qb", 3919779763, 0, 0, 4, 3, 0, 0, Vector3.Zero, 0f, -1, 2),
+                new FeVertexMapDesc("qz", 51193340, 0, 0, 5, 2, 3, 2, Vector3.Zero, 0f, -1, 1),
+            ],
+        }.Reconstruct();
 
         /// <summary>
         /// <c>RegistersVertexSet</c> is true only for hashes in <c>m_VertexSetNames</c>, not for a selection's own
@@ -992,7 +809,7 @@ namespace Tests
         [Test]
         public async Task ASelectionTheModelRegistersNoSetForIsNotPainted()
         {
-            var cloth = SyntheticCloth.Parse(UnregisteredSelectionText);
+            var cloth = UnregisteredSelection();
 
             using (Assert.Multiple())
             {
@@ -1003,14 +820,22 @@ namespace Tests
             }
         }
 
-        private static string UnregisteredSelectionText => SyntheticCloth.Document(
-            ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"], staticNodes: 1, body: """
-                m_VertexSetNames = [ 3027761651 ]
-                m_VertexMaps =
-                [
-                    { m_Name = "coat_clothVertMap" m_nNameHash = 4042757229 m_nVertexBase = 1 m_nVertexCount = 3 m_Weights = [ 255, 255, 0 ] },
-                ]
-                """);
+        /// <summary>
+        /// A static root over three sheet vertices, registering one vertex set and carrying one selection record in a
+        /// layout whose keys the reader does not know.
+        /// </summary>
+        private static ClothReconstruction UnregisteredSelection()
+        {
+            var data = new FeModelBuilder
+            {
+                Names = ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"],
+                StaticNodes = 1,
+                VertexSetNames = [3027761651],
+            }.ToKV();
+            data["m_VertexMaps"] = KVObject.Array([Object(("m_Name", "coat_clothVertMap"), ("m_nNameHash", 4042757229L), ("m_nVertexBase", 1),
+                ("m_nVertexCount", 3), ("m_Weights", Ints(255, 255, 0)))]);
+            return new ClothReconstruction(new FeModel(data));
+        }
 
         /// <summary>
         /// A proxy sheet fit over a bone outside the position-driven suffix reads as
@@ -1019,9 +844,9 @@ namespace Tests
         [Test]
         public async Task ASheetFittingAnUndrivenBoneStatesDriveMeshesAlone()
         {
-            var undriven = SheetFitOverTipBone("m_nFirstPositionDrivenNode = 8");
-            var driven = SheetFitOverTipBone("m_nFirstPositionDrivenNode = 7");
-            var unbounded = SheetFitOverTipBone("");
+            var undriven = SheetFitOverTipBone(8).Reconstruct();
+            var driven = SheetFitOverTipBone(7).Reconstruct();
+            var unbounded = SheetFitOverTipBone(null).Reconstruct();
 
             static ProxyMesh Sheet(ClothReconstruction cloth, int mesh)
                 => cloth.BuildProxyMeshes().First(proxy => Array.Exists(proxy.NodeIndices,
@@ -1051,8 +876,8 @@ namespace Tests
         [Test]
         public async Task AFitlessVertexOnABackSolvedBoneKeepsItsPaintWhereAnotherVertexPaintsIt()
         {
-            var backSolved = FitlessOnPaintedBone("{ vOffset = [ 0.0, 0.0, 0.0 ] nBoneCtrl = 6 nTargetNode = 4 }");
-            var unmarked = FitlessOnPaintedBone(string.Empty);
+            var backSolved = FitlessOnPaintedBone(ReverseOffset(6, 4, 0f, 0f, 0f));
+            var unmarked = FitlessOnPaintedBone();
 
             const int Fitless = 4;
             var recovered = backSolved.RecoveredSkinWeights.GetValueOrDefault(Fitless, []);
@@ -1072,34 +897,25 @@ namespace Tests
         /// A sheet fit on bone_3 whose vertex 4 has no fit row and paints bone_2 0.6 and bone_1 0.4; <paramref
         /// name="reverseOffsets"/> holds <c>m_ReverseOffsets</c>.
         /// </summary>
-        private static ClothReconstruction FitlessOnPaintedBone(string reverseOffsets) => SyntheticCloth.Model(
-            ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "bone_1", "bone_2", "bone_3"], staticNodes: 2,
-                parents: [-1, 0, 5, 7, 6, 0, 5, 6],
-            poses: [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 0f, -8f), new(1f, 0f, -24f), new(1f, 0f, -16f), new(0f, 0f, -8f),
+        private static ClothReconstruction FitlessOnPaintedBone(params FeNodeReverseOffset[] reverseOffsets) => new FeModelBuilder
+        {
+            Names = ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "bone_1", "bone_2", "bone_3"],
+            StaticNodes = 2,
+            FirstPositionDrivenNode = 5,
+            Parents = [-1, 0, 5, 7, 6, 0, 5, 6],
+            Positions = [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 0f, -8f), new(1f, 0f, -24f), new(1f, 0f, -16f), new(0f, 0f, -8f),
                 new(0f, 0f, -16f), new(0f, 0f, -24f)],
-            body: $$"""
-                m_nFirstPositionDrivenNode = 5
-                m_CtrlOffsets =
-                [
-                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = 1 },
-                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 5 nCtrlChild = 2 },
-                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 7 nCtrlChild = 3 },
-                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 6 nCtrlChild = 4 },
-                ]
-                m_CtrlSoftOffsets =
-                [
-                    { nCtrlParent = 7 nCtrlChild = 2 vOffset = [ 1.0, 0.0, 16.0 ] flAlpha = 0.5 },
-                    { nCtrlParent = 6 nCtrlChild = 3 vOffset = [ 1.0, 0.0, -8.0 ] flAlpha = 0.9 },
-                    { nCtrlParent = 5 nCtrlChild = 4 vOffset = [ 1.0, 0.0, -8.0 ] flAlpha = 0.6 },
-                ]
-                m_FitMatrices = [ { nEnd = 2 nNode = 7 nBeginDynamic = 0 } ]
-                m_FitWeights =
-                [
-                    { flWeight = 0.5 nNode = 2 nDummy = 0 },
-                    { flWeight = 0.9 nNode = 3 nDummy = 0 },
-                ]
-                m_ReverseOffsets = [ {{reverseOffsets}} ]
-                """);
+            CtrlOffsets = [Offset(0, 1, 1f, 0f, 0f), Offset(5, 2, 1f, 0f, 0f), Offset(7, 3, 1f, 0f, 0f), Offset(6, 4, 1f, 0f, 0f)],
+            CtrlSoftOffsets =
+            [
+                new FeCtrlSoftOffset(7, 2, new Vector3(1f, 0f, 16f), 0.5f),
+                new FeCtrlSoftOffset(6, 3, new Vector3(1f, 0f, -8f), 0.9f),
+                new FeCtrlSoftOffset(5, 4, new Vector3(1f, 0f, -8f), 0.6f),
+            ],
+            FitMatrices = [FitMatrix(7, 2, 0)],
+            FitWeights = [FitWeight(2, 0.5f), FitWeight(3, 0.9f)],
+            ReverseOffsets = reverseOffsets,
+        }.Reconstruct();
 
         /// <summary>
         /// A full-slot vertex paints its unrecorded fit remainder on the nearest static ancestor it does not already
@@ -1125,28 +941,29 @@ namespace Tests
         /// <summary>
         /// A vertex anchored on hair with eight soft slots and a fit row on dyn at 0.98 of its expansion.
         /// </summary>
-        private static ClothReconstruction FullSlotRemainder() => SyntheticCloth.Model(
-            ["root", "spine", "neck", "hair", "s1", "s2", "s3", "s4", "s5", "s6", "dyn", "$cloth_m0p0"], staticNodes: 10,
-                parents: [-1, 0, 1, 2, 0, 0, 0, 0, 0, 0, 3, -1],
-            poses: [new(0f, 0f, 0f), new(0f, 0f, 10f), new(0f, 0f, 20f), new(0f, 0f, 30f), new(2f, 0f, 0f), new(4f, 0f, 0f),
+        private static ClothReconstruction FullSlotRemainder() => new FeModelBuilder
+        {
+            Names = ["root", "spine", "neck", "hair", "s1", "s2", "s3", "s4", "s5", "s6", "dyn", "$cloth_m0p0"],
+            StaticNodes = 10,
+            FirstPositionDrivenNode = 10,
+            Parents = [-1, 0, 1, 2, 0, 0, 0, 0, 0, 0, 3, -1],
+            Positions = [new(0f, 0f, 0f), new(0f, 0f, 10f), new(0f, 0f, 20f), new(0f, 0f, 30f), new(2f, 0f, 0f), new(4f, 0f, 0f),
                 new(6f, 0f, 0f), new(8f, 0f, 0f), new(10f, 0f, 0f), new(12f, 0f, 0f), new(0f, 0f, 35f), new(1f, 0f, 32f)],
-            body: """
-                m_nFirstPositionDrivenNode = 10
-                m_CtrlOffsets = [ { vOffset = [ 1.0, 0.0, 2.0 ] nCtrlParent = 3 nCtrlChild = 11 } ]
-                m_CtrlSoftOffsets =
-                [
-                    { nCtrlParent = 10 nCtrlChild = 11 vOffset = [ 1.0, 0.0, -3.0 ] flAlpha = 0.5 },
-                    { nCtrlParent = 2 nCtrlChild = 11 vOffset = [ 1.0, 0.0, 12.0 ] flAlpha = 0.9 },
-                    { nCtrlParent = 4 nCtrlChild = 11 vOffset = [ -1.0, 0.0, 32.0 ] flAlpha = 0.9 },
-                    { nCtrlParent = 5 nCtrlChild = 11 vOffset = [ -3.0, 0.0, 32.0 ] flAlpha = 0.9 },
-                    { nCtrlParent = 6 nCtrlChild = 11 vOffset = [ -5.0, 0.0, 32.0 ] flAlpha = 0.9 },
-                    { nCtrlParent = 7 nCtrlChild = 11 vOffset = [ -7.0, 0.0, 32.0 ] flAlpha = 0.9 },
-                    { nCtrlParent = 8 nCtrlChild = 11 vOffset = [ -9.0, 0.0, 32.0 ] flAlpha = 0.9 },
-                    { nCtrlParent = 9 nCtrlChild = 11 vOffset = [ -11.0, 0.0, 32.0 ] flAlpha = 0.9 },
-                ]
-                m_FitMatrices = [ { nEnd = 1 nNode = 10 nBeginDynamic = 0 } ]
-                m_FitWeights = [ { flWeight = 0.2343655 nNode = 11 nDummy = 0 } ]
-                """);
+            CtrlOffsets = [Offset(3, 11, 1f, 0f, 2f)],
+            CtrlSoftOffsets =
+            [
+                new FeCtrlSoftOffset(10, 11, new Vector3(1f, 0f, -3f), 0.5f),
+                new FeCtrlSoftOffset(2, 11, new Vector3(1f, 0f, 12f), 0.9f),
+                new FeCtrlSoftOffset(4, 11, new Vector3(-1f, 0f, 32f), 0.9f),
+                new FeCtrlSoftOffset(5, 11, new Vector3(-3f, 0f, 32f), 0.9f),
+                new FeCtrlSoftOffset(6, 11, new Vector3(-5f, 0f, 32f), 0.9f),
+                new FeCtrlSoftOffset(7, 11, new Vector3(-7f, 0f, 32f), 0.9f),
+                new FeCtrlSoftOffset(8, 11, new Vector3(-9f, 0f, 32f), 0.9f),
+                new FeCtrlSoftOffset(9, 11, new Vector3(-11f, 0f, 32f), 0.9f),
+            ],
+            FitMatrices = [FitMatrix(10, 1, 0)],
+            FitWeights = [FitWeight(11, 0.2343655f)],
+        }.Reconstruct();
 
         /// <summary>
         /// A fitless vertex keeps its recorded paint when its only simulated influence is a small weight on a bone with
@@ -1173,24 +990,18 @@ namespace Tests
         /// A sheet whose vertex 3 has no fit row and paints bone_1 0.96 and bone_2 0.04; <paramref name="boneOwnsFit"/>
         /// gives bone_2 its own fit matrix.
         /// </summary>
-        private static ClothReconstruction FitlessOnFitBone(bool boneOwnsFit) => SyntheticCloth.Model(
-            ["bone_0", "bone_1", "$cloth_m0p0", "$cloth_m0p1", "bone_2", "bone_3"], staticNodes: 2, parents: [-1, 0, 5, 1, 1, 4],
-            poses: [new(0f, 0f, 0f), new(0f, 0f, -8f), new(1f, 0f, -24f), new(1f, 0f, -10f), new(0f, 0f, -16f), new(0f, 0f, -24f)],
-            body: $$"""
-                m_nFirstPositionDrivenNode = 4
-                m_CtrlOffsets =
-                [
-                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 5 nCtrlChild = 2 },
-                    { vOffset = [ 1.0, 0.0, -2.0 ] nCtrlParent = 1 nCtrlChild = 3 },
-                ]
-                m_CtrlSoftOffsets =
-                [
-                    { nCtrlParent = 4 nCtrlChild = 2 vOffset = [ 1.0, 0.0, -8.0 ] flAlpha = 0.7 },
-                    { nCtrlParent = 4 nCtrlChild = 3 vOffset = [ 1.0, 0.0, 6.0 ] flAlpha = 0.96 },
-                ]
-                m_FitMatrices = [ { nEnd = 1 nNode = 5 nBeginDynamic = 0 }{{(boneOwnsFit ? ", { nEnd = 2 nNode = 4 nBeginDynamic = 0 }" : string.Empty)}} ]
-                m_FitWeights = [ { flWeight = 0.7 nNode = 2 nDummy = 0 }{{(boneOwnsFit ? ", { flWeight = 0.3 nNode = 2 nDummy = 0 }" : string.Empty)}} ]
-                """);
+        private static ClothReconstruction FitlessOnFitBone(bool boneOwnsFit) => new FeModelBuilder
+        {
+            Names = ["bone_0", "bone_1", "$cloth_m0p0", "$cloth_m0p1", "bone_2", "bone_3"],
+            StaticNodes = 2,
+            FirstPositionDrivenNode = 4,
+            Parents = [-1, 0, 5, 1, 1, 4],
+            Positions = [new(0f, 0f, 0f), new(0f, 0f, -8f), new(1f, 0f, -24f), new(1f, 0f, -10f), new(0f, 0f, -16f), new(0f, 0f, -24f)],
+            CtrlOffsets = [Offset(5, 2, 1f, 0f, 0f), Offset(1, 3, 1f, 0f, -2f)],
+            CtrlSoftOffsets = [new FeCtrlSoftOffset(4, 2, new Vector3(1f, 0f, -8f), 0.7f), new FeCtrlSoftOffset(4, 3, new Vector3(1f, 0f, 6f), 0.96f)],
+            FitMatrices = [FitMatrix(5, 1, 0), .. boneOwnsFit ? [FitMatrix(4, 2, 0)] : Array.Empty<FeFitMatrix>()],
+            FitWeights = [FitWeight(2, 0.7f), .. boneOwnsFit ? [FitWeight(2, 0.3f)] : Array.Empty<FeFitWeight>()],
+        }.Reconstruct();
 
         /// <summary>
         /// A proxy vertex whose slot is not a number, or lies beyond any mesh a cloth can hold, leaves its sheet unpadded.
@@ -1198,10 +1009,12 @@ namespace Tests
         [Test]
         public async Task AnUnreadableProxySlotLeavesTheSheetUnpadded()
         {
-            static ClothReconstruction Sheet(string lastSlot) => SyntheticCloth.Model(
-                ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", $"$cloth_m0p{lastSlot}"], staticNodes: 0,
-                poses: [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 1f, 0f), new(0f, 1f, 0f)],
-                body: "m_Quads = [ { nNode = [ 0, 1, 2, 3 ] } ]");
+            static ClothReconstruction Sheet(string lastSlot) => new FeModelBuilder
+            {
+                Names = ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", $"$cloth_m0p{lastSlot}"],
+                Positions = [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 1f, 0f), new(0f, 1f, 0f)],
+                Quads = [Quad(0, 1, 2, 3)],
+            }.Reconstruct();
 
             var unnumbered = Sheet("foo").BuildProxyMeshes();
             var huge = Sheet("2000000000").BuildProxyMeshes();
@@ -1221,22 +1034,14 @@ namespace Tests
         [Test]
         public async Task ASheetCornerWithoutAControlNameStaysOutOfTheSheet()
         {
-            var cloth = SyntheticCloth.Parse("""
-                {
-                    m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2" ]
-                    m_nNodeCount = 4
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                        [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                        [ 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                        [ 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                    ]
-                    m_Quads = [ { nNode = [ 0, 1, 2, 3 ] } ]
-                }
-                """);
+            var cloth = new FeModelBuilder
+            {
+                Names = ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"],
+                NodeCount = 4,
+                InvMasses = [1f, 1f, 1f, 1f],
+                Positions = [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 1f, 0f), new(0f, 1f, 0f)],
+                Quads = [Quad(0, 1, 2, 3)],
+            }.Reconstruct();
 
             var meshes = cloth.BuildProxyMeshes();
 
@@ -1249,11 +1054,13 @@ namespace Tests
         [Test]
         public async Task ASheetOverCyclicParentsSkinsEachBoneOnce()
         {
-            var cloth = SyntheticCloth.Model(
-                ["a", "b", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"], staticNodes: 0,
-                parents: [1, 0, 0, 0, 0, 0],
-                poses: [new(0f, 0f, 10f), new(0f, 0f, 20f), new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 1f, 0f), new(0f, 1f, 0f)],
-                body: "m_Quads = [ { nNode = [ 2, 3, 4, 5 ] } ]");
+            var cloth = new FeModelBuilder
+            {
+                Names = ["a", "b", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"],
+                Parents = [1, 0, 0, 0, 0, 0],
+                Positions = [new(0f, 0f, 10f), new(0f, 0f, 20f), new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 1f, 0f), new(0f, 1f, 0f)],
+                Quads = [Quad(2, 3, 4, 5)],
+            }.Reconstruct();
 
             var influences = cloth.BuildProxyMeshes().SelectMany(static mesh => mesh.SkinInfluences).ToList();
 
@@ -1271,11 +1078,13 @@ namespace Tests
         [Test]
         public async Task ASoftOffsetToANegativeParentIsSkipped()
         {
-            var cloth = SyntheticCloth.Model(["bone_0", "$cloth_m0p0"], staticNodes: 1,
-                body: """
-                    m_CtrlOffsets = [ { vOffset = [ 0.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = 1 } ]
-                    m_CtrlSoftOffsets = [ { nCtrlParent = -1 nCtrlChild = 1 vOffset = [ 0.0, 0.0, 0.0 ] flAlpha = 0.5 } ]
-                    """);
+            var cloth = new FeModelBuilder
+            {
+                Names = ["bone_0", "$cloth_m0p0"],
+                StaticNodes = 1,
+                CtrlOffsets = [Offset(0, 1, 0f, 0f, 0f)],
+                CtrlSoftOffsets = [new FeCtrlSoftOffset(-1, 1, Vector3.Zero, 0.5f)],
+            }.Reconstruct();
 
             await Assert.That(cloth.RecoveredSkinWeights[1].Select(static influence => influence.Bone)).IsEquivalentTo(["bone_0"]);
         }
@@ -1286,16 +1095,13 @@ namespace Tests
         [Test]
         public async Task NegativeSourceElementCountsGiveARodsOnlySheetNoAuthoredFaces()
         {
-            var cloth = SyntheticCloth.Model(["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"], staticNodes: 0,
-                poses: [new(0f, 0f, 0f), new(1f, 0f, 0f), new(0f, 1f, 0f)],
-                body: $$"""
-                    m_SourceElems = [ -10, 0, 1, 0 ]
-                    m_Rods =
-                    [
-                        {{SyntheticCloth.RigidRod(0, 1, 1f, 1f)}}
-                        {{SyntheticCloth.RigidRod(1, 2, 1.4142135f, 1f)}}
-                    ]
-                    """);
+            var cloth = new FeModelBuilder
+            {
+                Names = ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"],
+                Positions = [new(0f, 0f, 0f), new(1f, 0f, 0f), new(0f, 1f, 0f)],
+                SourceElems = [-10, 0, 1, 0],
+                Rods = [RigidRod(0, 1, 1f), RigidRod(1, 2, 1.4142135f)],
+            }.Reconstruct();
 
             var meshes = cloth.BuildProxyMeshes();
 
@@ -1313,19 +1119,21 @@ namespace Tests
         [Test]
         public async Task AFitRemainderFindsNoAnchorOnACycleOfBoundStaticBones()
         {
-            var softOffsets = string.Join(",\n",
+            var cloth = new FeModelBuilder
+            {
+                Names = ["s0", "s1", "b", "$cloth_m0p0"],
+                StaticNodes = 2,
+                Parents = [1, 0, 0, 2],
+                CtrlOffsets = [Offset(2, 3, 0f, 0f, 0f)],
+                CtrlSoftOffsets =
                 [
-                    "{ nCtrlParent = 0 nCtrlChild = 3 vOffset = [ 0.0, 0.0, 0.0 ] flAlpha = 0.5 }",
-                    "{ nCtrlParent = 1 nCtrlChild = 3 vOffset = [ 0.0, 0.0, 0.0 ] flAlpha = 0.5 }",
-                    .. Enumerable.Repeat("{ nCtrlParent = 0 nCtrlChild = 3 vOffset = [ 0.0, 0.0, 0.0 ] flAlpha = 1.0 }", 6),
-                ]);
-            var cloth = SyntheticCloth.Model(["s0", "s1", "b", "$cloth_m0p0"], staticNodes: 2, parents: [1, 0, 0, 2],
-                body: $$"""
-                    m_CtrlOffsets = [ { vOffset = [ 0.0, 0.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 3 } ]
-                    m_CtrlSoftOffsets = [ {{softOffsets}} ]
-                    m_FitMatrices = [ { nEnd = 1 nNode = 2 nBeginDynamic = 0 } ]
-                    m_FitWeights = [ { flWeight = 0.2 nNode = 3 nDummy = 0 } ]
-                    """);
+                    new FeCtrlSoftOffset(0, 3, Vector3.Zero, 0.5f),
+                    new FeCtrlSoftOffset(1, 3, Vector3.Zero, 0.5f),
+                    .. Enumerable.Repeat(new FeCtrlSoftOffset(0, 3, Vector3.Zero, 1f), 6),
+                ],
+                FitMatrices = [FitMatrix(2, 1, 0)],
+                FitWeights = [FitWeight(3, 0.2f)],
+            }.Reconstruct();
 
             await Assert.That(cloth.RecoveredSkinWeights[3].Select(static influence => influence.Bone))
                 .IsEquivalentTo(["b", "s0", "s1"]);

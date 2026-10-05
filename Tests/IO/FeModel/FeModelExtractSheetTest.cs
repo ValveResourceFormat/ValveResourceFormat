@@ -5,11 +5,13 @@ using TUnit.Assertions.Enums;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+using static Tests.IO.FeModelBuilder;
+using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody.FeModel;
 
-namespace Tests
+namespace Tests.IO
 {
     /// <summary>Declaring proxy sheet paints, flags and bend stiffness.</summary>
-    public class ClothExtractSheetTest : ClothTestFixtures
+    public class FeModelExtractSheetTest : FeModelTestModels
     {
         /// <summary>
         /// <c>flex_cloth_borders</c> holds only where the pins a face frees carry node bases; a face with one simulated
@@ -18,21 +20,22 @@ namespace Tests
         [Test]
         public async Task FlexClothBordersNeedsItsFreedPinsToCarryNodeBases()
         {
-            static ClothReconstruction Model(string bases) => SyntheticCloth.Model(
-                ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"], staticNodes: 2, parents: [-1, -1, 0, 1],
-                poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)],
-                body: $$"""
-                    m_nRotLockStaticNodes = 0
-                    m_NodeBases = [ {{bases}} ]
-                    """);
-            static string Base(int node)
-                => $"{{ nNode = {node} nDummy = [ 0, 0, 0 ] nNodeX0 = 2 nNodeX1 = 3 nNodeY0 = 0 nNodeY1 = 1 qAdjust = [ 0.0, 0.0, 0.0, 1.0 ] }},";
-            static ProxyMesh Sheet(List<int[]> faces) => SyntheticCloth.Proxy([0, 1, 2, 3], [0f, 0f, 1f, 1f], faces,
+            static ClothReconstruction Model(params FeNodeBase[] bases) => new FeModelBuilder
+            {
+                Names = SheetNodes(4),
+                StaticNodes = 2,
+                RotLockStaticNodes = 0,
+                Parents = [-1, -1, 0, 1],
+                Positions = [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)],
+                NodeBases = bases,
+            }.Reconstruct();
+            static FeNodeBase Base(int node) => new(node, [0, 0, 0], 2, 3, 0, 1, Quaternion.Identity);
+            static ProxyMesh Sheet(List<int[]> faces) => Proxy([0, 1, 2, 3], [0f, 0f, 1f, 1f], faces,
                 [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)]);
 
             var quad = Sheet([[0, 1, 3, 2]]);
-            var painted = Model(string.Empty);
-            var flexed = Model(Base(0) + Base(1) + Base(2) + Base(3));
+            var painted = Model();
+            var flexed = Model(Base(0), Base(1), Base(2), Base(3));
 
             using (Assert.Multiple())
             {
@@ -71,20 +74,22 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction FoldStrip(float firstHingeMinDist, float secondHingeMinDist) => SyntheticCloth.Model(
-            ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7"],
-                staticNodes: 0,
-            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f),
+        private static ClothReconstruction FoldStrip(float firstHingeMinDist, float secondHingeMinDist) => new FeModelBuilder
+        {
+            Names = SheetNodes(8),
+            Positions = [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f),
                 new(20f, 0f, -10f), new(30f, 0f, -10f)],
-            body: $$"""
-                m_Rods =
-                [
-                    { nNode = [ 0, 2 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(firstHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 6 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(firstHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(secondHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 7 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(secondHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-                """);
+            Rods =
+            [
+                Rod(0, 2, firstHingeMinDist, 20f),
+                Rod(4, 6, firstHingeMinDist, 20f),
+                Rod(1, 3, secondHingeMinDist, 20f),
+                Rod(5, 7, secondHingeMinDist, 20f),
+            ],
+        }.Reconstruct();
+
+        /// <summary>The names of <paramref name="count"/> proxy sheet nodes, <c>$cloth_m0p0</c> onwards.</summary>
+        private static string[] SheetNodes(int count) => [.. Enumerable.Range(0, count).Select(static node => $"$cloth_m0p{node}")];
 
         /// <summary>
         /// A bend rod several hinges generate states the most folded one, so each hinge taken at its largest reading
@@ -112,27 +117,31 @@ namespace Tests
 
         private static HashSet<(int, int)> HingeGridNetwork => [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
 
-        private static ClothReconstruction LeastFoldedHingeGrid => SyntheticCloth.Model(
-            ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11"],
-                staticNodes: 0,
-            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f),
+        private static ClothReconstruction LeastFoldedHingeGrid => (HingeGrid with
+        {
+            Rods =
+            [
+                Rod(0, 2, 3.901806f, 20f),
+                Rod(1, 3, 3.901806f, 20f),
+                Rod(4, 6, 3.901806f, 20f),
+                Rod(5, 7, 3.901806f, 20f),
+                Rod(8, 10, 11.111405f, 20f),
+                Rod(9, 11, 11.111405f, 20f),
+                Rod(0, 8, 7.653669f, 20f),
+                Rod(1, 9, 7.653669f, 20f),
+                Rod(2, 10, 7.653669f, 20f),
+                Rod(3, 11, 7.653669f, 20f),
+            ],
+        }).Reconstruct();
+
+        /// <summary>A flat 4x3 grid of nodes 10 apart.</summary>
+        private static FeModelBuilder HingeGrid => new()
+        {
+            Names = SheetNodes(12),
+            Positions = [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f),
                 new(20f, 0f, -10f), new(30f, 0f, -10f), new(0f, 0f, -20f), new(10f, 0f, -20f), new(20f, 0f, -20f),
                 new(30f, 0f, -20f)],
-            body: """
-                m_Rods =
-                [
-                    { nNode = [ 0, 2 ] flMaxDist = 20.0 flMinDist = 3.901806 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMaxDist = 20.0 flMinDist = 3.901806 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 6 ] flMaxDist = 20.0 flMinDist = 3.901806 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 7 ] flMaxDist = 20.0 flMinDist = 3.901806 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 8, 10 ] flMaxDist = 20.0 flMinDist = 11.111405 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 9, 11 ] flMaxDist = 20.0 flMinDist = 11.111405 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 8 ] flMaxDist = 20.0 flMinDist = 7.653669 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 9 ] flMaxDist = 20.0 flMinDist = 7.653669 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 10 ] flMaxDist = 20.0 flMinDist = 7.653669 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 11 ] flMaxDist = 20.0 flMinDist = 7.653669 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-                """);
+        };
 
         /// <summary>
         /// Solving each bend rod over every hinge that generates it keeps the model-wide <c>add_curvature</c> 0.25
@@ -145,9 +154,9 @@ namespace Tests
                 [9, 13, 14, 10], [10, 14, 15, 11], [12, 16, 17, 13], [13, 17, 18, 14], [14, 18, 19, 15]];
             HashSet<(int, int)> network = [(0, 2), (1, 3), (1, 9), (2, 10), (3, 11), (4, 6), (5, 7), (5, 13), (6, 14), (7, 15), (8, 10),
                 (9, 11), (9, 17), (10, 18), (11, 19), (12, 14), (13, 15), (16, 18), (17, 19)];
-            var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(SyntheticCloth.Load("cloth_sheet_bent_painted.kv3"), faces, network, 0.25f,
+            var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(BentPaintedSheet, faces, network, 0.25f,
                 keepsCurvature: false);
-            var (plain, plainCurvature) = ClothExtract.ClothBendStiffnessOverFold(SyntheticCloth.Load("cloth_sheet_bent_plain.kv3"), faces, network, 0.25f,
+            var (plain, plainCurvature) = ClothExtract.ClothBendStiffnessOverFold(BentPlainSheet, faces, network, 0.25f,
                 keepsCurvature: false);
 
             using (Assert.Multiple())
@@ -161,6 +170,66 @@ namespace Tests
                 await Assert.That(plainCurvature).IsEqualTo(0.25f);
             }
         }
+
+        private static ClothReconstruction BentPaintedSheet => BentSheet([15.707473f, 15.697754f, 15.774404f, 15.697739f, 15.707446f],
+            [3.1739345f, 3.1739397f, 3.3121321f]).Reconstruct();
+
+        private static ClothReconstruction BentPlainSheet => BentSheet([6.5320888f, 6.5086966f, 6.9404755f, 6.508693f, 6.532084f],
+            [1.740971f, 1.7409755f, 1.7736652f]).Reconstruct();
+
+        /// <summary>
+        /// A bent sheet of five strips of four nodes whose rods (0, 2), (4, 6), (8, 10), (12, 14) and (16, 18) have the minimum
+        /// lengths <paramref name="longMins"/> and whose rods (17, 9), (9, 1) and (13, 5) have <paramref name="crossMins"/>.
+        /// </summary>
+        private static FeModelBuilder BentSheet(float[] longMins, float[] crossMins) => new()
+        {
+            Names = SheetNodes(20),
+            Positions =
+            [
+                new(-8.915558f, -3.9999907f, 65.448204f),
+                new(-11.695556f, -4.2669907f, 57.420155f),
+                new(-14.808141f, -4.6377454f, 49.519295f),
+                new(-17.90746f, -5.004356f, 41.613026f),
+                new(-8.91556f, -1.9999869f, 65.4482f),
+                new(-11.695561f, -2.1334882f, 57.42015f),
+                new(-14.808148f, -2.3188667f, 49.519295f),
+                new(-17.907467f, -2.502173f, 41.61303f),
+                new(-8.915562f, 1.680851E-05f, 65.44819f),
+                new(-12.695568f, 1.4543533E-05f, 57.42015f),
+                new(-14.808155f, 1.1920929E-05f, 49.5193f),
+                new(-17.907475f, 9.775162E-06f, 41.613037f),
+                new(-8.915564f, 2.0000205f, 65.44818f),
+                new(-11.695574f, 2.1335173f, 57.420147f),
+                new(-14.808163f, 2.3188906f, 49.519302f),
+                new(-17.907482f, 2.5021925f, 41.61304f),
+                new(-8.9155655f, 4.0000243f, 65.44817f),
+                new(-11.69558f, 4.2670197f, 57.420143f),
+                new(-14.80817f, 4.637769f, 49.519302f),
+                new(-17.907492f, 5.0043755f, 41.61305f),
+            ],
+            Rods =
+            [
+                Rod(0, 2, longMins[0], 16.999594f),
+                Rod(4, 6, longMins[1], 16.990614f),
+                Rod(8, 10, longMins[2], 17.040838f),
+                Rod(12, 14, longMins[3], 16.990597f),
+                Rod(16, 18, longMins[4], 16.999565f),
+                Rod(1, 3, 6.5411534f, 16.99991f),
+                Rod(17, 19, 6.5411453f, 16.999882f),
+                Rod(9, 11, 6.3860846f, 16.670456f),
+                Rod(5, 7, 6.509907f, 16.987907f),
+                Rod(13, 15, 6.5099025f, 16.987896f),
+                Rod(17, 9, crossMins[0], 4.4786596f),
+                Rod(9, 1, crossMins[1], 4.4786654f),
+                Rod(13, 5, crossMins[2], 4.684062f),
+                Rod(18, 10, 1.7772001f, 4.637758f),
+                Rod(10, 2, 1.7772f, 4.637758f),
+                Rod(14, 6, 1.7747929f, 4.6377573f),
+                Rod(19, 11, 1.917685f, 5.004366f),
+                Rod(11, 3, 1.9176855f, 5.004366f),
+                Rod(15, 7, 1.9150877f, 5.0043654f),
+            ],
+        };
 
         /// <summary>
         /// A bend rod held at its rest span bounds every hinge that generates it from below, and the solved paint meets
@@ -184,7 +253,55 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction CorrugatedSheet => SyntheticCloth.Load("cloth_sheet_corrugated.kv3");
+        private static ClothReconstruction CorrugatedSheet => new FeModelBuilder
+        {
+            Names = SheetNodes(20),
+            Positions =
+            [
+                new(-8.915558f, 8.00001f, 65.448204f),
+                new(-6.91556f, 10.000013f, 65.4482f),
+                new(-8.915562f, 12.000017f, 65.44819f),
+                new(-6.9155636f, 14.000021f, 65.44818f),
+                new(-8.9155655f, 16.000025f, 65.44817f),
+                new(-5.6955614f, 9.866512f, 57.42015f),
+                new(-7.6955557f, 7.7330093f, 57.420155f),
+                new(-7.695568f, 12.000014f, 57.42015f),
+                new(-5.695574f, 14.133517f, 57.420147f),
+                new(-7.6955795f, 16.26702f, 57.420143f),
+                new(-12.808148f, 9.681133f, 49.519295f),
+                new(-14.808141f, 7.3622546f, 49.519295f),
+                new(-14.808155f, 12.000011f, 49.5193f),
+                new(-12.808163f, 14.318891f, 49.519302f),
+                new(-14.80817f, 16.63777f, 49.519302f),
+                new(-11.907467f, 9.497828f, 41.61303f),
+                new(-13.907459f, 6.995644f, 41.613026f),
+                new(-13.9074745f, 12.00001f, 41.613037f),
+                new(-11.907482f, 14.5021925f, 41.61304f),
+                new(-13.907492f, 17.004375f, 41.61305f),
+            ],
+            Rods =
+            [
+                Rod(0, 11, 16.995865f, 17.985956f),
+                Rod(1, 10, 16.986883f, 17.995607f),
+                Rod(2, 12, 16.983881f, 17.987026f),
+                Rod(3, 13, 16.986866f, 17.995596f),
+                Rod(4, 14, 16.995836f, 17.985922f),
+                Rod(5, 15, 16.987902f, 17.972176f),
+                Rod(8, 18, 16.987888f, 17.972157f),
+                Rod(6, 16, 16.999905f, 17.989737f),
+                Rod(9, 19, 16.999876f, 17.989702f),
+                Rod(7, 17, 16.983892f, 17.96188f),
+                Rod(9, 7, 4.267005f, 5.8177505f),
+                Rod(7, 6, 4.267005f, 5.8177505f),
+                Rod(8, 5, 4.267005f, 5.8177466f),
+                Rod(14, 12, 4.6377583f, 6.1076894f),
+                Rod(12, 11, 4.637757f, 6.107687f),
+                Rod(13, 10, 4.6377573f, 6.1076837f),
+                Rod(19, 17, 5.004366f, 6.39052f),
+                Rod(17, 16, 5.0043654f, 6.3905187f),
+                Rod(18, 15, 5.004365f, 6.3905153f),
+            ],
+        }.Reconstruct();
 
         /// <summary>
         /// A bend rod is read only through the hinge its element pairing builds it from: at its own fold it writes no
@@ -212,17 +329,14 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction PairedHingeSheet(float minDist) => SyntheticCloth.Model(
-            ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5"], staticNodes: 0,
-            poses: [new(-1.7257074f, 20.404041f, 46.822933f), new(-1.7570662f, 20.385893f, 46.739212f),
+        private static ClothReconstruction PairedHingeSheet(float minDist) => new FeModelBuilder
+        {
+            Names = SheetNodes(6),
+            Positions = [new(-1.7257074f, 20.404041f, 46.822933f), new(-1.7570662f, 20.385893f, 46.739212f),
                 new(-2.2579334f, 20.29848f, 47.05001f), new(-2.1855373f, 20.323782f, 47.10828f),
                 new(-2.3192735f, 20.206625f, 47.622124f), new(-2.404188f, 20.17036f, 47.61194f)],
-            body: $$"""
-                m_Rods =
-                [
-                    { nNode = [ 0, 5 ] flMaxDist = 1.0688722 flMinDist = {{SyntheticCloth.Num(minDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-                """);
+            Rods = [Rod(0, 5, minDist, 1.0688722f)],
+        }.Reconstruct();
 
         /// <summary>
         /// A sheet paints <c>cloth_collision_layer</c> streams only for the layers some vertex's tree mask clears, 0 on
@@ -231,12 +345,9 @@ namespace Tests
         [Test]
         public async Task ASheetStatesTheCollisionLayersItsCompiledMasksClear()
         {
-            var cleared = ClothExtract.ClothCollisionLayerPaints(SyntheticCloth.Parse(LayerMaskText("65533")),
-                [1, 2, 3], 3).ToList();
-            var whole = ClothExtract.ClothCollisionLayerPaints(SyntheticCloth.Parse(LayerMaskText("65535")),
-                [1, 2, 3], 3).ToList();
-            var lowFour = ClothExtract.ClothCollisionLayerPaints(SyntheticCloth.Parse(LayerMaskText("65520")),
-                [1, 2, 3], 3).ToList();
+            var cleared = ClothExtract.ClothCollisionLayerPaints(LayerMasked(65533), [1, 2, 3], 3).ToList();
+            var whole = ClothExtract.ClothCollisionLayerPaints(LayerMasked(65535), [1, 2, 3], 3).ToList();
+            var lowFour = ClothExtract.ClothCollisionLayerPaints(LayerMasked(65520), [1, 2, 3], 3).ToList();
 
             using (Assert.Multiple())
             {
@@ -253,12 +364,14 @@ namespace Tests
 
         private static readonly int[] LowFourLayers = [0, 1, 2, 3];
 
-        private static string LayerMaskText(string firstMask) => SyntheticCloth.Document(
-            ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"], staticNodes: 1,
-            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f)],
-            body: $$"""
-                m_TreeCollisionMasks = [ {{firstMask}}, 65535, 65535, 65535, 65535 ]
-                """);
+        /// <summary>A static root and a three-node sheet whose first tree collision mask is <paramref name="firstMask"/>.</summary>
+        private static ClothReconstruction LayerMasked(int firstMask) => new FeModelBuilder
+        {
+            Names = ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"],
+            StaticNodes = 1,
+            Positions = [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f)],
+            TreeCollisionMasks = [firstMask, 65535, 65535, 65535, 65535],
+        }.Reconstruct();
 
         /// <summary>
         /// A sheet simulating a rotation-locked static node paints <c>cloth_anchor_free_rotate</c> with or without
@@ -267,7 +380,7 @@ namespace Tests
         [Test]
         public async Task ASheetPaintsTheRotationLockNoFlagCanState()
         {
-            var cloth = SheetFitOverTipBone("m_nFirstPositionDrivenNode = 8");
+            var cloth = SheetFitOverTipBone(8).Reconstruct();
             var sheet = cloth.BuildProxyMeshes().First(proxy => Array.Exists(proxy.NodeIndices,
                 node => cloth.Fe.CtrlName[node].StartsWith("$cloth_m1p", StringComparison.Ordinal)));
 
@@ -295,7 +408,7 @@ namespace Tests
 
         /// <summary><paramref name="sheet"/>'s faces over the given nodes and <c>cloth_enable</c> pattern.</summary>
         private static ProxyMesh RotationSheet(ProxyMesh sheet, int[] nodes, float[] enable)
-            => SyntheticCloth.Proxy(nodes, enable, sheet.Faces);
+            => Proxy(nodes, enable, sheet.Faces);
 
         /// <summary>
         /// A sheet with fewer face corners than vertex slots gets all-pinned filler triangles until every slot has a
@@ -332,7 +445,7 @@ namespace Tests
 
         /// <summary>A sheet with only a <c>cloth_enable</c> pattern and faces.</summary>
         private static ProxyMesh CornerSheet(float[] enable, List<int[]> faces)
-            => SyntheticCloth.Proxy([.. Enumerable.Range(0, enable.Length)], enable, faces);
+            => Proxy([.. Enumerable.Range(0, enable.Length)], enable, faces);
 
         private static readonly string[] SecondDeclarationRunMembers =
             ["coattail_1_L", "coattail_2_L", "coattail_end_L"];
@@ -373,8 +486,8 @@ namespace Tests
                 return simulate;
             }
 
-            var redeclared = Extract("cloth_sheet_redeclared_run.vmdl_c");
-            var single = Extract("cloth_sheet_single_run.vmdl_c");
+            var redeclared = Extract("FeModel/sheet_redeclared_run.vmdl_c");
+            var single = Extract("FeModel/sheet_single_run.vmdl_c");
             var members = SecondDeclarationRunMembers;
             var simulating = SecondDeclarationRunSimulating;
 
@@ -399,26 +512,26 @@ namespace Tests
         [Test]
         public async Task ABackSolvedSheetTakesFlexClothBordersFromItsPinsOwnNodeBases()
         {
-            static ClothReconstruction Model(string bases)
+            static ClothReconstruction Model(params FeNodeBase[] bases)
             {
-                var model = SyntheticCloth.Model(
-                    ["anchor", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"], staticNodes: 3,
-                        parents: [-1, 0, 0, 0, 0],
-                    poses: [new(0f, 0f, 0f), new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)],
-                    body: $$"""
-                        m_nRotLockStaticNodes = 1
-                        m_NodeBases = [ {{bases}} ]
-                        """);
-                return SyntheticCloth.WithSkeleton(model, new Dictionary<string, string?> { ["anchor"] = "spine" });
+                var model = new FeModelBuilder
+                {
+                    Names = ["anchor", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"],
+                    StaticNodes = 3,
+                    RotLockStaticNodes = 1,
+                    Parents = [-1, 0, 0, 0, 0],
+                    Positions = [new(0f, 0f, 0f), new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)],
+                    NodeBases = bases,
+                }.Reconstruct();
+                return WithSkeleton(model, new Dictionary<string, string?> { ["anchor"] = "spine" });
             }
-            static string Base(int node)
-                => $"{{ nNode = {node} nDummy = [ 0, 0, 0 ] nNodeX0 = 3 nNodeX1 = 4 nNodeY0 = 1 nNodeY1 = 2 qAdjust = [ 0.0, 0.0, 0.0, 1.0 ] }},";
-            static ProxyMesh Sheet(List<int[]> faces) => SyntheticCloth.Proxy([1, 2, 3, 4], [0f, 0f, 1f, 1f], faces,
+            static FeNodeBase Base(int node) => new(node, [0, 0, 0], 3, 4, 1, 2, Quaternion.Identity);
+            static ProxyMesh Sheet(List<int[]> faces) => Proxy([1, 2, 3, 4], [0f, 0f, 1f, 1f], faces,
                 [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)]);
 
             var quad = Sheet([[0, 1, 3, 2]]);
-            var flexed = Model(Base(1) + Base(2));
-            var painted = Model(string.Empty);
+            var flexed = Model(Base(1), Base(2));
+            var painted = Model();
             var unreached = Sheet([[0, 1, 2]]);
 
             using (Assert.Multiple())
@@ -470,27 +583,22 @@ namespace Tests
         /// whose rod (8, 10) sits at <paramref name="lowerHingeMinDist"/>. At its rest span of 20 that rod is capped and
         /// bounds its hinge from below; short of it the hinge states a fold of its own instead.
         /// </summary>
-        private static ClothReconstruction CappedAgainstFlatHingeGrid(float lowerHingeMinDist) => SyntheticCloth.Model(
-            ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11"],
-                staticNodes: 0,
-            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f),
-                new(20f, 0f, -10f), new(30f, 0f, -10f), new(0f, 0f, -20f), new(10f, 0f, -20f), new(20f, 0f, -20f),
-                new(30f, 0f, -20f)],
-            body: $$"""
-                m_Rods =
-                [
-                    { nNode = [ 0, 2 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 6 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 7 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 8, 10 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(lowerHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 9, 11 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 8 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 9 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 10 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 11 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-                """);
+        private static ClothReconstruction CappedAgainstFlatHingeGrid(float lowerHingeMinDist) => (HingeGrid with
+        {
+            Rods =
+            [
+                Rod(0, 2, 0f, 20f),
+                Rod(1, 3, 0f, 20f),
+                Rod(4, 6, 0f, 20f),
+                Rod(5, 7, 0f, 20f),
+                Rod(8, 10, lowerHingeMinDist, 20f),
+                Rod(9, 11, 0f, 20f),
+                Rod(0, 8, 0f, 20f),
+                Rod(1, 9, 0f, 20f),
+                Rod(2, 10, 0f, 20f),
+                Rod(3, 11, 0f, 20f),
+            ],
+        }).Reconstruct();
 
         /// <summary>
         /// The paint solve holds only the hinges that set each rod, so every capped network rod folds back to its
@@ -574,7 +682,72 @@ namespace Tests
             return misses;
         }
 
-        private static ClothReconstruction PaintSolveSheet => SyntheticCloth.Load("cloth_sheet_paint_solve.kv3");
+        private static ClothReconstruction PaintSolveSheet => new FeModelBuilder
+        {
+            Names = SheetNodes(29),
+            Positions =
+            [
+                new(96.23977f, -21.352524f, 193.65706f),
+                new(101.10704f, -12.243159f, 155.27309f),
+                new(96.23977f, 21.352524f, 193.65706f),
+                new(101.10704f, 12.243159f, 155.27309f),
+                new(-86.62791f, 7.855209f, 90.85877f),
+                new(-86.62791f, -7.855209f, 90.85877f),
+                new(101.527275f, -8.785593f, 187.25053f),
+                new(98.7905f, -17.215473f, 177.5718f),
+                new(104.68011f, -4.0255046f, 154.1219f),
+                new(101.48694f, -12.619385f, 162.70032f),
+                new(101.527275f, 8.785593f, 187.25053f),
+                new(98.7905f, 17.215473f, 177.5718f),
+                new(104.68011f, 4.0255046f, 154.1219f),
+                new(101.48694f, 12.619385f, 162.70032f),
+                new(-98.67452f, 10.1297655f, 73.70374f),
+                new(-98.67452f, -10.1297655f, 73.70374f),
+                new(102.20527f, 8.774978E-30f, 177.97769f),
+                new(102.544426f, -10.05127f, 165.99724f),
+                new(104.51593f, 7.777337E-30f, 157.74313f),
+                new(102.544426f, 10.05127f, 165.99724f),
+                new(-113.71193f, 13.470117f, 59.25505f),
+                new(-113.71193f, -13.470117f, 59.25505f),
+                new(-132.6082f, 15.324176f, 50.38886f),
+                new(-132.6082f, -15.324176f, 50.38886f),
+                new(-153.33545f, 11.337616f, 49.07927f),
+                new(-153.33545f, -11.337616f, 49.07927f),
+                new(-173.14297f, 5.5178976f, 55.008205f),
+                new(-173.14297f, -5.5178976f, 55.008205f),
+                new(-190.56068f, -2.4031326E-15f, 66.387886f),
+            ],
+            Rods =
+            [
+                Rod(0, 16, 27.154373f, 27.351889f),
+                Rod(0, 17, 30.5374f, 30.538563f),
+                Rod(1, 17, 11.039832f, 11.044836f),
+                Rod(1, 18, 12.946683f, 13.106691f),
+                Rod(2, 16, 27.154373f, 27.351889f),
+                Rod(2, 19, 30.5374f, 30.538563f),
+                Rod(3, 18, 12.946683f, 13.106691f),
+                Rod(3, 19, 11.039832f, 11.044836f),
+                Rod(4, 20, 41.998413f, 42.191517f),
+                Rod(5, 21, 41.998413f, 42.191517f),
+                Rod(9, 16, 19.828339f, 19.952848f),
+                Rod(13, 16, 19.828339f, 19.95285f),
+                Rod(8, 16, 24.319298f, 24.320848f),
+                Rod(12, 16, 24.319298f, 24.320848f),
+                Rod(7, 18, 26.876177f, 26.927683f),
+                Rod(11, 18, 26.876177f, 26.927685f),
+                Rod(6, 18, 30.932272f, 30.959124f),
+                Rod(10, 18, 30.932272f, 30.959124f),
+                Rod(14, 22, 41.497715f, 42.048958f),
+                Rod(15, 23, 41.497715f, 42.048958f),
+                Rod(20, 24, 40.964832f, 41.69606f),
+                Rod(21, 25, 40.964832f, 41.69606f),
+                Rod(19, 17, 20.10254f, 20.206247f),
+                Rod(22, 26, 41.95914f, 42.588764f),
+                Rod(23, 27, 41.95914f, 42.588764f),
+                Rod(24, 28, 35.4227f, 43.00294f),
+                Rod(25, 28, 35.422703f, 43.002945f),
+            ],
+        }.Reconstruct();
 
         /// <summary>
         /// A face-kept sheet whose folds are regenerated states no bend paint; with declared pairs it states 0.2.
@@ -588,9 +761,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(Read(FoldedSheetModel(0.5f))).IsEqualTo(0.2f);
+                await Assert.That(Read(FoldedSheetModel(0.5f).Reconstruct())).IsEqualTo(0.2f);
 
-                await Assert.That(Read(FoldedSheetModel(0.666667f))).IsNull();
+                await Assert.That(Read(FoldedSheetModel(0.666667f).Reconstruct())).IsNull();
             }
         }
 
@@ -629,7 +802,48 @@ namespace Tests
         private static HashSet<(int, int)> CoveringPaintNetwork =>
             [(0, 8), (1, 6), (2, 7), (3, 5), (3, 10), (4, 9), (5, 11), (6, 13), (7, 8), (7, 12), (8, 14), (9, 15), (10, 11), (10, 15), (11, 15), (12, 14)];
 
-        private static ClothReconstruction CoveringPaintSheet => SyntheticCloth.Load("cloth_sheet_covering_paint.kv3");
+        private static ClothReconstruction CoveringPaintSheet => new FeModelBuilder
+        {
+            Names = SheetNodes(16),
+            Positions =
+            [
+                new(-10.815558f, 5.645328f, 132.523f),
+                new(-11.083033f, 2.5336894E-06f, 132.60832f),
+                new(-10.815558f, -5.645328f, 132.523f),
+                new(-16.881643f, -7.930124f, 122.44642f),
+                new(-20.313026f, 5.300744E-07f, 123.969406f),
+                new(-16.881643f, 7.930124f, 122.44642f),
+                new(-27.958843f, 4.2594985E-07f, 117.86752f),
+                new(-23.512804f, -12.685439f, 113.22655f),
+                new(-23.512804f, 12.685439f, 113.22655f),
+                new(-36.28462f, -3.9803567E-07f, 112.21493f),
+                new(-32.75763f, -13.32593f, 106.65457f),
+                new(-32.75763f, 13.32593f, 106.65457f),
+                new(-42.748714f, -7.3693547f, 103.30281f),
+                new(-44.183052f, -1.4517694E-06f, 106.34426f),
+                new(-42.748714f, 7.3693547f, 103.30281f),
+                new(-51.528694f, 3.4769377E-07f, 99.68677f),
+            ],
+            Rods =
+            [
+                Rod(0, 8, 23.581099f, 24.224367f),
+                Rod(1, 6, 21.832897f, 22.42169f),
+                Rod(2, 7, 23.581099f, 24.224367f),
+                Rod(3, 10, 20.917269f, 23.07899f),
+                Rod(5, 11, 20.91727f, 23.07899f),
+                Rod(4, 9, 17.894537f, 19.84255f),
+                Rod(5, 3, 15.860248f, 17.301552f),
+                Rod(7, 12, 13.51877f, 22.288712f),
+                Rod(8, 14, 13.51877f, 22.288712f),
+                Rod(6, 13, 11.3243475f, 19.903667f),
+                Rod(8, 7, 21.56542f, 28.417582f),
+                Rod(9, 15, 7.7820816f, 19.751091f),
+                Rod(10, 15, 15.032627f, 24.094904f),
+                Rod(11, 15, 15.032627f, 24.094902f),
+                Rod(11, 10, 13.903145f, 29.725107f),
+                Rod(14, 12, 6.154204f, 16.146252f),
+            ],
+        }.Reconstruct();
 
         /// <summary>
         /// A settled paint missing rods by more than 1e-4 of the span is replaced, so every rod folds back under the
@@ -656,6 +870,227 @@ namespace Tests
             }
         }
 
-        private static ClothReconstruction SettledPaintSheet => SyntheticCloth.Load("cloth_sheet_settled_paint.kv3");
+        private static ClothReconstruction SettledPaintSheet => new FeModelBuilder
+        {
+            Names = SheetNodes(86),
+            Positions =
+            [
+                new(-15.095473f, -19.140547f, 130.98946f),
+                new(-17.029062f, -12.326554f, 131.71419f),
+                new(-17.029062f, 12.326554f, 131.71419f),
+                new(-15.095473f, 19.140547f, 130.98946f),
+                new(-16.927298f, -5f, 134.21313f),
+                new(-16.927298f, 5f, 134.21313f),
+                new(-15.453802f, -18.726608f, 126.14155f),
+                new(-17.38739f, -11.912616f, 126.86628f),
+                new(-15.453802f, 18.726608f, 126.14155f),
+                new(-17.38739f, 11.912616f, 126.86628f),
+                new(-17.417427f, 4.288621f, 127.515175f),
+                new(-17.4238f, -4.352967f, 127.44563f),
+                new(-15.442624f, -18.550873f, 117.500336f),
+                new(-17.620644f, -11.585511f, 118.80725f),
+                new(-15.442624f, 18.550873f, 117.500336f),
+                new(-17.620644f, 11.585511f, 118.80725f),
+                new(-18.058758f, 4.3145194f, 120.048f),
+                new(-18.06181f, -4.330307f, 120.03876f),
+                new(-16.281216f, -18.380278f, 108.942444f),
+                new(-19.581396f, -11.001704f, 110.337555f),
+                new(-16.281216f, 18.380278f, 108.942444f),
+                new(-19.581396f, 11.001704f, 110.337555f),
+                new(-19.63091f, 4.0465436f, 111.76572f),
+                new(-19.641083f, -4.1034117f, 111.743225f),
+                new(-21.097715f, -11.253855f, 102.12577f),
+                new(-17.58324f, -18.773373f, 100.43261f),
+                new(-17.58324f, 18.773373f, 100.43261f),
+                new(-21.097715f, 11.253855f, 102.12577f),
+                new(-21.508125f, 4.0544286f, 103.74217f),
+                new(-21.514303f, -4.125722f, 103.70929f),
+                new(-18.874908f, -19.943903f, 91.99936f),
+                new(-22.518084f, -12.08624f, 93.964714f),
+                new(-18.874908f, 19.943903f, 91.99936f),
+                new(-22.518509f, 12.07997f, 93.96892f),
+                new(-23.65737f, 4.197114f, 95.702576f),
+                new(-23.654007f, -4.2468295f, 95.6693f),
+                new(-24.871672f, -13.537416f, 86.23957f),
+                new(-20.354761f, -21.892418f, 83.729774f),
+                new(-20.354761f, 21.892418f, 83.729774f),
+                new(-24.875015f, 13.527921f, 86.250404f),
+                new(-26.215334f, 4.523812f, 88.192955f),
+                new(-26.202063f, -4.5583467f, 88.1507f),
+                new(-27.697893f, -14.868223f, 78.120155f),
+                new(-21.908436f, -24.482763f, 75.63206f),
+                new(-21.908436f, 24.482763f, 75.63206f),
+                new(-27.698162f, 14.867822f, 78.12089f),
+                new(-28.945234f, 4.8091106f, 80.239655f),
+                new(-28.93305f, -4.827322f, 80.20618f),
+                new(-23.630163f, -27.454828f, 67.684265f),
+                new(-30.370392f, -16.224058f, 70.444695f),
+                new(-23.630163f, 27.454828f, 67.684265f),
+                new(-30.371344f, 16.222658f, 70.44734f),
+                new(-32.783222f, 5.254915f, 72.88018f),
+                new(-32.779633f, -5.2601976f, 72.870125f),
+                new(-33.26719f, -18.109873f, 63.249275f),
+                new(-25.921503f, -30.499273f, 59.90693f),
+                new(-25.921503f, 30.499273f, 59.90693f),
+                new(-33.270027f, 18.116179f, 63.259033f),
+                new(-36.39569f, 5.5990515f, 65.964874f),
+                new(-36.38238f, -5.5659337f, 65.91849f),
+                new(-36.907703f, -19.78023f, 56.44651f),
+                new(-29.05777f, -33.431023f, 52.421375f),
+                new(-29.05777f, 33.431023f, 52.421375f),
+                new(-36.908386f, 19.781742f, 56.44885f),
+                new(-40.283592f, 6.2215867f, 59.182056f),
+                new(-39.54406f, -5.9728603f, 58.647816f),
+                new(-33.607037f, -36.344795f, 45.724716f),
+                new(-44.630447f, -22.514893f, 50.455086f),
+                new(-33.607037f, 36.344795f, 45.724716f),
+                new(-44.630447f, 22.514893f, 50.455086f),
+                new(-44.325043f, 6.7631593f, 51.686f),
+                new(-44.29262f, -6.6636477f, 51.62983f),
+                new(-50.80507f, -24.826012f, 45.327374f),
+                new(-39.55794f, -39.334583f, 40.263012f),
+                new(-39.55794f, 39.334583f, 40.263012f),
+                new(-50.80507f, 24.826012f, 45.327374f),
+                new(-48.623943f, 4.972157f, 45.63817f),
+                new(-48.623943f, -4.9717803f, 45.638012f),
+                new(-50.9665f, 11.740841f, 44.881863f),
+                new(-53.694984f, 13.968832f, 41.172085f),
+                new(-50.9665f, -11.740841f, 44.881863f),
+                new(-53.694984f, -13.968832f, 41.172085f),
+                new(-51.661655f, 4.015462f, 39.88339f),
+                new(-54.638794f, 2.6906853f, 32.051174f),
+                new(-54.638794f, -2.6906853f, 32.051174f),
+                new(-51.632256f, -4.109575f, 39.997013f),
+            ],
+            Rods =
+            [
+                Rod(0, 12, 13.506465f, 13.511056f),
+                Rod(1, 13, 12.941721f, 12.943155f),
+                Rod(2, 15, 12.941721f, 12.943155f),
+                Rod(3, 14, 13.506465f, 13.511056f),
+                Rod(4, 17, 14.23547f, 14.235754f),
+                Rod(5, 16, 14.226778f, 14.22706f),
+                Rod(10, 8, 14.6355095f, 14.771625f),
+                Rod(11, 6, 14.566506f, 14.701759f),
+                Rod(6, 18, 17.222477f, 17.241678f),
+                Rod(8, 20, 17.222477f, 17.241678f),
+                Rod(7, 19, 16.698568f, 16.766262f),
+                Rod(9, 21, 16.698568f, 16.766262f),
+                Rod(7, 10, 16.214254f, 16.214476f),
+                Rod(9, 11, 16.275938f, 16.27614f),
+                Rod(10, 22, 15.906085f, 15.92668f),
+                Rod(11, 23, 15.8601465f, 15.880789f),
+                Rod(16, 14, 14.6972275f, 14.799914f),
+                Rod(17, 12, 14.68088f, 14.783166f),
+                Rod(13, 16, 15.954383f, 15.970775f),
+                Rod(15, 17, 15.969486f, 15.985617f),
+                Rod(15, 27, 17.043186f, 17.043236f),
+                Rod(13, 24, 17.043186f, 17.043236f),
+                Rod(14, 26, 17.202879f, 17.215567f),
+                Rod(12, 25, 17.202879f, 17.215565f),
+                Rod(17, 29, 16.691708f, 16.695202f),
+                Rod(16, 28, 16.668705f, 16.672426f),
+                Rod(22, 20, 14.988238f, 15.2781515f),
+                Rod(23, 18, 14.931911f, 15.218898f),
+                Rod(21, 33, 16.664474f, 16.66601f),
+                Rod(19, 31, 16.668955f, 16.670488f),
+                Rod(21, 23, 15.170497f, 15.174184f),
+                Rod(20, 32, 17.211632f, 17.215261f),
+                Rod(18, 30, 17.211632f, 17.215261f),
+                Rod(19, 22, 15.115948f, 15.120086f),
+                Rod(22, 34, 16.560783f, 16.562822f),
+                Rod(23, 35, 16.5679f, 16.569895f),
+                Rod(28, 26, 15.588626f, 15.844732f),
+                Rod(29, 25, 15.515913f, 15.769419f),
+                Rod(24, 36, 16.48723f, 16.530216f),
+                Rod(27, 39, 16.476244f, 16.519558f),
+                Rod(26, 38, 17.206646f, 17.225016f),
+                Rod(25, 37, 17.206646f, 17.22502f),
+                Rod(29, 41, 16.247787f, 16.26424f),
+                Rod(28, 40, 16.245552f, 16.262007f),
+                Rod(24, 28, 15.398854f, 15.423134f),
+                Rod(27, 29, 15.466495f, 15.490952f),
+                Rod(34, 32, 16.868525f, 17.034456f),
+                Rod(35, 30, 16.813873f, 16.979628f),
+                Rod(31, 42, 16.795053f, 16.901127f),
+                Rod(33, 45, 16.799227f, 16.90526f),
+                Rod(32, 44, 17.161642f, 17.259474f),
+                Rod(30, 43, 17.161573f, 17.259474f),
+                Rod(35, 47, 16.244411f, 16.349758f),
+                Rod(34, 46, 16.248133f, 16.353544f),
+                Rod(33, 35, 16.454332f, 16.532751f),
+                Rod(31, 34, 16.415413f, 16.491009f),
+                Rod(40, 38, 18.866234f, 19.12972f),
+                Rod(41, 37, 18.82035f, 19.085712f),
+                Rod(36, 49, 16.616133f, 16.939163f),
+                Rod(37, 48, 17.00754f, 17.299665f),
+                Rod(38, 50, 17.007551f, 17.299664f),
+                Rod(39, 51, 16.624199f, 16.947311f),
+                Rod(41, 53, 16.365307f, 16.698957f),
+                Rod(40, 52, 16.390566f, 16.724844f),
+                Rod(36, 40, 18.087948f, 18.31071f),
+                Rod(39, 41, 18.11267f, 18.335766f),
+                Rod(46, 44, 21.39624f, 21.79924f),
+                Rod(47, 43, 21.368298f, 21.774797f),
+                Rod(43, 55, 16.790268f, 17.316538f),
+                Rod(44, 56, 16.79033f, 17.316536f),
+                Rod(42, 54, 15.670904f, 16.219826f),
+                Rod(45, 57, 15.665446f, 16.214092f),
+                Rod(45, 47, 19.68747f, 19.92954f),
+                Rod(42, 46, 19.668507f, 19.910376f),
+                Rod(47, 59, 15.551066f, 16.130024f),
+                Rod(46, 58, 15.543045f, 16.121496f),
+                Rod(53, 48, 23.889105f, 24.80634f),
+                Rod(52, 50, 23.896862f, 24.813835f),
+                Rod(49, 60, 15.178283f, 15.864326f),
+                Rod(51, 63, 15.178635f, 15.864528f),
+                Rod(50, 62, 16.593784f, 17.279312f),
+                Rod(48, 61, 16.593584f, 17.27933f),
+                Rod(52, 64, 14.940874f, 15.6499605f),
+                Rod(53, 65, 15.058713f, 15.774211f),
+                Rod(49, 52, 21.093855f, 21.977966f),
+                Rod(51, 53, 21.099783f, 21.983469f),
+                Rod(54, 67, 17.137953f, 17.984236f),
+                Rod(57, 69, 17.14258f, 17.989162f),
+                Rod(59, 55, 26.91018f, 27.94628f),
+                Rod(58, 56, 26.893541f, 27.927618f),
+                Rod(54, 58, 23.373707f, 24.349617f),
+                Rod(57, 59, 23.356167f, 24.331064f),
+                Rod(55, 66, 16.443f, 17.2088f),
+                Rod(56, 68, 16.443022f, 17.208788f),
+                Rod(58, 70, 15.586753f, 16.375494f),
+                Rod(59, 71, 15.648998f, 16.439903f),
+                Rod(65, 77, 15.127306f, 15.898323f),
+                Rod(64, 76, 15.212775f, 15.985682f),
+                Rod(62, 74, 16.346193f, 17.181273f),
+                Rod(61, 73, 16.346193f, 17.181273f),
+                Rod(60, 72, 17.612371f, 18.500582f),
+                Rod(63, 75, 17.61281f, 18.501034f),
+                Rod(64, 62, 28.905521f, 30.360897f),
+                Rod(65, 61, 28.867134f, 30.316704f),
+                Rod(60, 64, 25.186462f, 26.455357f),
+                Rod(63, 65, 25.183352f, 26.453959f),
+                Rod(67, 85, 21.672626f, 22.71888f),
+                Rod(69, 82, 21.809128f, 22.864706f),
+                Rod(67, 70, 27.91113f, 29.306902f),
+                Rod(69, 71, 27.808922f, 29.20625f),
+                Rod(71, 85, 13.36168f, 14.021007f),
+                Rod(70, 82, 13.530628f, 14.195804f),
+                Rod(66, 80, 30.123344f, 31.626125f),
+                Rod(68, 78, 30.123344f, 31.626125f),
+                Rod(71, 66, 31.804646f, 33.396805f),
+                Rod(70, 68, 31.714428f, 33.30114f),
+                Rod(72, 84, 25.148506f, 26.42306f),
+                Rod(75, 83, 25.148504f, 26.42306f),
+                Rod(79, 74, 29.053463f, 30.99962f),
+                Rod(81, 73, 29.053463f, 30.99962f),
+                Rod(77, 84, 14.360423f, 15.0623455f),
+                Rod(76, 83, 14.349007f, 15.060103f),
+                Rod(80, 82, 15.946761f, 16.587448f),
+                Rod(78, 85, 15.9900255f, 16.644718f),
+                Rod(79, 84, 18.553465f, 19.094738f),
+                Rod(81, 83, 18.559027f, 19.094467f),
+            ],
+        }.Reconstruct();
     }
 }

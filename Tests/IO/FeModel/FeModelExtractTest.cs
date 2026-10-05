@@ -3,14 +3,14 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 
-namespace Tests
+namespace Tests.IO
 {
-    public class ClothExtractTest
+    public class FeModelExtractTest : FeModelTestModels
     {
         /// <summary>A chain cloth: one <c>ClothChain</c> of six joints, each over a three-node extrude ring.</summary>
         private const string ChainClothFixture = "sw_donkey_10th_anniversary_kv3_v3_zstd.vmdl_c";
@@ -226,7 +226,7 @@ namespace Tests
         [Test]
         public async Task ClothExtractionOffEmitsNoCloth()
         {
-            using var resource = LoadFixture("cloth_sheet_chain_spring.vmdl_c");
+            using var resource = LoadFixture("FeModel/sheet_chain_spring.vmdl_c");
             using var enabled = new ModelExtract(resource, new NullFileLoader()).ToContentFile();
             using var disabled = new ModelExtract(resource, new NullFileLoader()) { ReconstructSoftbody = false }.ToContentFile();
             var vmdl = Encoding.UTF8.GetString(disabled.Data!);
@@ -245,20 +245,11 @@ namespace Tests
         public async Task ClothThatFailsToReconstructIsSkipped()
         {
             var reports = new List<string>();
-            var phys = new KVPhysAggregateData("""
-                {
-                    m_parts = [ ]
-                    m_bindPose = [ ]
-                    m_surfacePropertyHashes = [ ]
-                    m_collisionAttributes = [ ]
-                    m_pFeModel =
-                    {
-                        m_CtrlName = [ "a", "b" ]
-                        m_nNodeCount = 2
-                        m_NodeInvMasses = [ "heavy", "light" ]
-                    }
-                }
-                """);
+            var feModel = KVObject.Collection();
+            feModel["m_CtrlName"] = KVObject.Array([new KVObject("a"), new KVObject("b")]);
+            feModel["m_nNodeCount"] = 2;
+            feModel["m_NodeInvMasses"] = KVObject.Array([new KVObject("heavy"), new KVObject("light")]);
+            var phys = new KVPhysAggregateData(feModel);
             var extract = new ModelExtract(phys, "models/broken.vmdl") { ProgressReporter = new SynchronousProgress(reports) };
             using var content = extract.ToContentFile();
             var vmdl = Encoding.UTF8.GetString(content.Data!);
@@ -277,15 +268,7 @@ namespace Tests
         public async Task PhysicsFileOnItsOwnEmitsItsCloth()
         {
             var reports = new List<string>();
-            var phys = new KVPhysAggregateData($$"""
-                {
-                    m_parts = [ ]
-                    m_bindPose = [ ]
-                    m_surfacePropertyHashes = [ ]
-                    m_collisionAttributes = [ ]
-                    m_pFeModel = {{SyntheticCloth.Fixture("cloth_chain_free_node_spring.kv3")}}
-                }
-                """);
+            var phys = new KVPhysAggregateData(FreeNodeSprungToJoint.ToKV());
             using var content = new ModelExtract(phys, "models/cloth.vmdl") { ProgressReporter = new SynchronousProgress(reports) }
                 .ToContentFile();
             var vmdl = Encoding.UTF8.GetString(content.Data!);
@@ -306,17 +289,17 @@ namespace Tests
         public async Task ClothWithOutOfRangeNodeCountsIsRefused()
         {
             var reports = new List<string>();
-            var phys = new KVPhysAggregateData($$"""
-                {
-                    m_parts = [ ]
-                    m_bindPose = [ ]
-                    m_surfacePropertyHashes = [ ]
-                    m_collisionAttributes = [ ]
-                    m_pFeModel = {{SyntheticCloth.Document(["root", "tip"], staticNodes: 5, poses: [Vector3.Zero, new(0f, 0f, -1f)],
-                        parents: [-1, 7], invMasses: "0.0, 1.0",
-                        body: $"m_nFirstPositionDrivenNode = -4\nm_nRotLockStaticNodes = 9\nm_Rods = [ {SyntheticCloth.RigidRod(0, 1, 1f, 1f)} ]")}}
-                }
-                """);
+            var phys = new KVPhysAggregateData(new FeModelBuilder
+            {
+                Names = ["root", "tip"],
+                StaticNodes = 5,
+                RotLockStaticNodes = 9,
+                FirstPositionDrivenNode = -4,
+                InvMasses = [0f, 1f],
+                Parents = [-1, 7],
+                Positions = [Vector3.Zero, new(0f, 0f, -1f)],
+                Rods = [FeModelBuilder.RigidRod(0, 1, 1f)],
+            }.ToKV());
             using var content = new ModelExtract(phys, "models/layout.vmdl") { ProgressReporter = new SynchronousProgress(reports) }
                 .ToContentFile();
             var vmdl = Encoding.UTF8.GetString(content.Data!);
@@ -332,12 +315,15 @@ namespace Tests
         private sealed class KVPhysAggregateData : PhysAggregateData
         {
             [SetsRequiredMembers]
-            public KVPhysAggregateData(string body)
+            public KVPhysAggregateData(KVObject feModel)
             {
-                const string Header = "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} "
-                    + "format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->\n";
-                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(Header + body));
-                Data = KVDocumentExtensions.ParseKV3(stream).Root;
+                var data = KVObject.Collection();
+                data["m_parts"] = KVObject.Array();
+                data["m_bindPose"] = KVObject.Array();
+                data["m_surfacePropertyHashes"] = KVObject.Array();
+                data["m_collisionAttributes"] = KVObject.Array();
+                data["m_pFeModel"] = feModel;
+                Data = data;
                 Resource = null!;
             }
         }
