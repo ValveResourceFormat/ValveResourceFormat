@@ -158,10 +158,11 @@ public sealed class EntitySystem
     /// <param name="parentTransform">Transform of whatever spawned it.</param>
     /// <param name="layerName">Visibility layer for its nodes.</param>
     /// <param name="intoScene">Scene the entity's nodes render into.</param>
+    /// <param name="nameFixup">What the spawning group puts in place of the markers in the entity's names.</param>
     /// <returns>The spawned entity, or <see langword="null"/> if the keyvalues name no classname.</returns>
-    public BaseEntity? CreateEntity(Entity data, Matrix4x4 parentTransform, string? layerName, Scene intoScene)
+    public BaseEntity? CreateEntity(Entity data, Matrix4x4 parentTransform, string? layerName, Scene intoScene, EntityNameFixup nameFixup)
     {
-        var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, parentTransform, layerName, intoScene));
+        var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, parentTransform, layerName, intoScene, nameFixup));
 
         if (entity == null)
         {
@@ -233,6 +234,12 @@ public sealed class EntitySystem
 
     /// <summary>Puts an entity built in code, rather than from map keyvalues, into the world.</summary>
     public void AddEntity(BaseEntity entity) => Add(entity);
+
+    // Numbers the placed maps that set their names apart, never reused while the game runs
+    private int nameFixupCount;
+
+    /// <summary>Gets the number for the next placed map that sets its names apart with a prefix of its own.</summary>
+    internal int NextNameFixupIndex() => ++nameFixupCount;
 
     /// <summary>Gets or sets the host that draws spawn groups loaded at runtime.</summary>
     public ISpawnGroupHost? SpawnGroupHost { get; set; }
@@ -795,8 +802,8 @@ public sealed class EntitySystem
                 continue;
             }
 
-            QueueInputByTarget(new EntityIOTarget(connection.TargetName, connection.TargetType),
-                connection.InputName, ConnectionParameter(connection, value), activator, caller ?? source, connection.Delay, connection);
+            QueueInputByTarget(ConnectionTarget(connection, source.NameFixup),
+                connection.InputName, ConnectionParameter(connection, source.NameFixup, value), activator, caller ?? source, connection.Delay, connection);
         }
     }
 
@@ -811,19 +818,27 @@ public sealed class EntitySystem
         ArgumentNullException.ThrowIfNull(connection);
 
         var source = entities.Find(entity => !entity.IsRemoved && entity.Data == connection.SourceEntity);
+        var nameFixup = source?.NameFixup ?? EntityNameFixup.None;
 
-        QueueInputByTarget(new EntityIOTarget(connection.TargetName, connection.TargetType),
-            connection.InputName, ConnectionParameter(connection, null), activator, source, 0f, null);
+        QueueInputByTarget(ConnectionTarget(connection, nameFixup),
+            connection.InputName, ConnectionParameter(connection, nameFixup, null), activator, source, 0f, null);
     }
 
     /// <summary>
-    /// The authored override wins over whatever the output reports, which is the precedence
-    /// CBaseEntityOutput::FireOutput uses: a parameter on the connection replaces the value.
+    /// The target of an authored connection, named as the source entity's spawn group names its entities.
     /// </summary>
-    private static string? ConnectionParameter(EntityLump.Connection connection, string? value)
+    internal static EntityIOTarget ConnectionTarget(EntityLump.Connection connection, EntityNameFixup nameFixup)
+        => new(nameFixup.Apply(connection.TargetName), connection.TargetType);
+
+    /// <summary>
+    /// The authored override wins over whatever the output reports, which is the precedence
+    /// CBaseEntityOutput::FireOutput uses: a parameter on the connection replaces the value. The override
+    /// gets the source entity's name fixup too.
+    /// </summary>
+    private static string? ConnectionParameter(EntityLump.Connection connection, EntityNameFixup nameFixup, string? value)
         => string.IsNullOrEmpty(connection.OverrideParam) || connection.OverrideParam == "(null)"
             ? value
-            : connection.OverrideParam;
+            : nameFixup.Apply(connection.OverrideParam);
 
     /// <summary>
     /// Finds every entity whose targetname matches.

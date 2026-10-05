@@ -2503,8 +2503,7 @@ public sealed partial class MapExtract
                 continue;
             }
 
-            var editString = ToEditString(value);
-            editString = RemoveTargetnamePrefix(editString);
+            var editString = ApplyNameFixup(ToEditString(value) ?? string.Empty, string.Empty, string.Empty);
 
             mapEntity.EntityProperties.Add(propertyKey, editString);
         }
@@ -2517,7 +2516,7 @@ public sealed partial class MapExtract
                 {
                     OutputName = connection.OutputName,
                     TargetType = (int)connection.TargetType,
-                    TargetName = RemoveTargetnamePrefix(connection.TargetName),
+                    TargetName = ApplyNameFixup(connection.TargetName, string.Empty, string.Empty),
                     InputName = connection.InputName,
                     OverrideParam = connection.OverrideParam,
                     Delay = connection.Delay,
@@ -2655,7 +2654,7 @@ public sealed partial class MapExtract
 
             case KVValueType.String:
                 // The compiler prefixes entity names used as literals, like it does targetnames
-                var text = RemoveTargetnamePrefix((string)value);
+                var text = ApplyNameFixup((string)value, string.Empty, string.Empty);
 
                 // TODO: Use value.Flag.SerializeFlagName() once ValveKeyValue with KVFlagExtensions is released
                 var specificType = value.Flag switch
@@ -2719,7 +2718,7 @@ public sealed partial class MapExtract
         return first.ValueType switch
         {
             KVValueType.Boolean => new Datamodel.BoolArray(items.Select(static item => (bool)item)),
-            KVValueType.String => new Datamodel.StringArray(items.Select(static item => RemoveTargetnamePrefix((string)item))),
+            KVValueType.String => new Datamodel.StringArray(items.Select(static item => ApplyNameFixup((string)item, string.Empty, string.Empty))),
             var type when IsKeyValues3Unsigned(type) => new Datamodel.UInt64Array(items.Select(static item => Convert.ToUInt64(item, CultureInfo.InvariantCulture))),
             var type when IsKeyValues3Float(type) => new Datamodel.FloatArray(items.Select(static item => Convert.ToSingle(item, CultureInfo.InvariantCulture))),
             var type when IsKeyValues3Signed(type) => new Datamodel.IntArray(items.Select(static item => unchecked((int)Convert.ToInt64(item, CultureInfo.InvariantCulture)))),

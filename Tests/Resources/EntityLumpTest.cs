@@ -18,6 +18,27 @@ namespace Tests.Resources
         }
 
         [Test]
+        [Arguments("[PR#]door", "", "", "door")]
+        [Arguments("[PR#]door", "1d_", "", "1d_door")]
+        [Arguments("door&0000", "", "_3", "door_3")]
+        [Arguments("[pr#]door&0000", "p_", "_3", "p_door_3")]
+        [Arguments("door&0000[PR#]", "p_", "_3", "door_3p_")]
+        [Arguments("[PR#]a[PR#]b", "p_", "", "p_a[PR#]b")]
+        [Arguments("[PR#]door", "&0000_", "_3", "&0000_door")]
+        public async Task ApplyNameFixupReplacesTheFirstOfEachMarker(string name, string parentFixup, string localFixup, string expected)
+        {
+            await Assert.That(EntityLump.ApplyNameFixup(name, parentFixup, localFixup)).IsEqualTo(expected);
+        }
+
+        [Test]
+        public async Task ApplyNameFixupReturnsTheSameNameWithoutMarkers()
+        {
+            const string Name = "door";
+
+            await Assert.That(ReferenceEquals(EntityLump.ApplyNameFixup(Name, "p_", "_3"), Name)).IsTrue();
+        }
+
+        [Test]
         public async Task ResolvesConnectionTargets()
         {
             using var resource = new Resource();

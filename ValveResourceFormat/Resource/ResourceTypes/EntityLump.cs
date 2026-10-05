@@ -32,9 +32,9 @@ namespace ValveResourceFormat.ResourceTypes
             /// </summary>
             public string? TargetName => this.GetStringProperty("targetname");
             /// <summary>
-            /// Gets the target name of the entity without the PR# prefix.
+            /// Gets the target name of the entity with its name fixup markers removed, as the map spawns it.
             /// </summary>
-            public string? FriendlyTargetName => RemoveTargetnamePrefix(this.GetStringProperty("targetname"));
+            public string? FriendlyTargetName => TargetName is { } targetName ? ApplyNameFixup(targetName, string.Empty, string.Empty) : null;
 
             /// <summary>
             /// Gets a Vector2 property value by name.
@@ -650,25 +650,56 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Return a string without [PR#] prefix.
+        /// The marker a compiled name carries where its spawn group's parent fixup goes, such as the prefix
+        /// that tells apart the instances of a prefab.
         /// </summary>
-        /// <param name="value">Entity targetname.</param>
-        /// <returns>Friendly targetname.</returns>
-        public static string RemoveTargetnamePrefix(string? value)
+        public const string ParentNameFixupMarker = "[PR#]";
+
+        /// <summary>
+        /// The marker a compiled name carries where its spawn group's local fixup goes, such as the suffix that
+        /// tells apart the entities each spawn of a template makes.
+        /// </summary>
+        public const string LocalNameFixupMarker = "&0000";
+
+        /// <summary>
+        /// Replaces the first <see cref="ParentNameFixupMarker"/> and the first <see cref="LocalNameFixupMarker"/>
+        /// in a compiled name, as the engine does to every name an entity is spawned with.
+        /// </summary>
+        /// <param name="name">A name as compiled, such as a targetname or a connection's target.</param>
+        /// <param name="parentFixup">What replaces <see cref="ParentNameFixupMarker"/>.</param>
+        /// <param name="localFixup">What replaces <see cref="LocalNameFixupMarker"/>.</param>
+        /// <returns>The name with its markers replaced, or <paramref name="name"/> when it has none.</returns>
+        public static string ApplyNameFixup(string name, string parentFixup, string localFixup)
         {
-            if (string.IsNullOrEmpty(value))
+            ArgumentNullException.ThrowIfNull(name);
+            ArgumentNullException.ThrowIfNull(parentFixup);
+            ArgumentNullException.ThrowIfNull(localFixup);
+
+            var parentAt = name.IndexOf(ParentNameFixupMarker, StringComparison.OrdinalIgnoreCase);
+            var localAt = name.IndexOf(LocalNameFixupMarker, StringComparison.OrdinalIgnoreCase);
+
+            // Both markers are found in the name as compiled, never in a fixup. Whichever comes later is
+            // replaced first, so the other is still where it was found.
+            if (parentAt > localAt)
             {
-                return string.Empty;
+                name = ReplaceAt(name, parentAt, ParentNameFixupMarker.Length, parentFixup);
+                parentAt = -1;
             }
 
-            const string Prefix = "[PR#]";
-
-            if (!value.StartsWith(Prefix, StringComparison.Ordinal))
+            if (localAt >= 0)
             {
-                return value;
+                name = ReplaceAt(name, localAt, LocalNameFixupMarker.Length, localFixup);
             }
 
-            return value[Prefix.Length..];
+            if (parentAt >= 0)
+            {
+                name = ReplaceAt(name, parentAt, ParentNameFixupMarker.Length, parentFixup);
+            }
+
+            return name;
+
+            static string ReplaceAt(string name, int at, int length, string replacement)
+                => string.Concat(name.AsSpan(0, at), replacement, name.AsSpan(at + length));
         }
 
         /// <summary>

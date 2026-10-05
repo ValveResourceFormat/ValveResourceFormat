@@ -186,10 +186,10 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
             visited[current] = path.Count;
             path.Add(new PathNode(
                 current.WorldOrigin,
-                current.Data?.GetFloatProperty("speed") ?? 0f,
-                current.Data?.GetFloatProperty("wait") ?? 0f));
+                current.SpawnData?.GetFloatProperty("speed") ?? 0f,
+                current.SpawnData?.GetFloatProperty("wait") ?? 0f));
 
-            current = FindPathCorner(current.Data?.GetStringProperty("target"));
+            current = FindPathCorner(current.SpawnData?.GetStringProperty("target"));
         }
     }
 

@@ -18,7 +18,8 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <param name="ParentTransform">Transform of the spawner (a template or spawn group placement, identity for map entities), applied to the authored origin and angles.</param>
 /// <param name="LayerName">Visibility layer for this entity and every node it creates.</param>
 /// <param name="Scene">The scene the entity's nodes render into.</param>
-public readonly record struct EntitySpawnInfo(Entity Data, Matrix4x4 ParentTransform, string? LayerName, Scene Scene);
+/// <param name="NameFixup">What the spawning group puts in place of the markers in the entity's names.</param>
+public readonly record struct EntitySpawnInfo(Entity Data, Matrix4x4 ParentTransform, string? LayerName, Scene Scene, EntityNameFixup NameFixup);
 
 /// <summary>
 /// The base of the simulated entity hierarchy, Source's <c>CBaseEntity</c>. It carries the origin and
@@ -57,16 +58,25 @@ public abstract class BaseEntity
 
     /// <summary>
     /// Gets the entity's keyvalues as authored in the map, or <see langword="null"/> for an entity created
-    /// at runtime rather than loaded from one. Use <see cref="KeyValues"/> from a class that only ever
-    /// comes from a map.
+    /// at runtime rather than loaded from one. Names in it still carry their fixup markers; read
+    /// <see cref="SpawnData"/> for the names the entity was spawned with.
     /// </summary>
     public Entity? Data { get; }
 
     /// <summary>
-    /// Gets the map keyvalues this entity was authored with. Throws for an entity created at runtime,
-    /// which has none; read <see cref="Data"/> instead in a class that can be either.
+    /// Gets the keyvalues the entity was spawned with: <see cref="Data"/> with <see cref="NameFixup"/>
+    /// applied to every name in it, or <see langword="null"/> for an entity created at runtime.
     /// </summary>
-    protected Entity KeyValues => Data
+    public Entity? SpawnData { get; }
+
+    /// <summary>Gets what the spawning group put in place of the markers in this entity's names.</summary>
+    public EntityNameFixup NameFixup { get; } = EntityNameFixup.None;
+
+    /// <summary>
+    /// Gets the keyvalues this entity was spawned with. Throws for an entity created at runtime, which has
+    /// none; read <see cref="SpawnData"/> instead in a class that can be either.
+    /// </summary>
+    protected Entity KeyValues => SpawnData
         ?? throw new InvalidOperationException($"'{Classname}' was created at runtime and has no map keyvalues");
 
     /// <summary>Gets the entity's <c>classname</c>.</summary>
@@ -132,14 +142,14 @@ public abstract class BaseEntity
     {
         IsMoveParentResolved = true;
 
-        var parentName = Data?.GetStringProperty("parentname");
+        var parentName = SpawnData?.GetStringProperty("parentname");
 
         if (string.IsNullOrEmpty(parentName))
         {
             return;
         }
 
-        var attachmentName = Data?.GetStringProperty("parentattachmentname");
+        var attachmentName = SpawnData?.GetStringProperty("parentattachmentname");
 
         // "name,attachment" addresses an attachment point as part of the parent
         var comma = parentName.IndexOf(',', StringComparison.Ordinal);
@@ -374,8 +384,10 @@ public abstract class BaseEntity
         EntitySystem = system;
         Scene = spawnInfo.Scene;
         Data = spawnInfo.Data;
+        NameFixup = spawnInfo.NameFixup;
+        SpawnData = NameFixup.Apply(spawnInfo.Data);
         SpawnTransform = spawnInfo.ParentTransform;
-        var data = spawnInfo.Data;
+        var data = SpawnData;
 
         Classname = data.GetStringProperty("classname") ?? string.Empty;
         TargetName = data.TargetName;
