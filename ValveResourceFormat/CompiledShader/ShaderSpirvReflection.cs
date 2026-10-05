@@ -292,28 +292,14 @@ public static partial class ShaderSpirvReflection
             return;
         }
 
-        static string FormatComboEntry(VfxCombo combo, int value)
-            => value != 1 ? $"{combo.Name}={value}" : combo.Name;
-
         if (program.StaticComboArray.Length > 0)
         {
-            var parts = new List<string>();
-            var configMapping = new ComboConfigMapping(program);
-            var state = configMapping.GetConfigState(staticCombo.StaticComboId);
+            var state = new ComboConfigMapping(program).GetConfigState(staticCombo.StaticComboId);
+            var staticCombos = ShaderUtilHelpers.FormatComboState(program.StaticComboArray, state);
 
-            for (var i = 0; i < state.Length; i++)
+            if (staticCombos.Length > 0)
             {
-                if (state[i] == 0)
-                {
-                    continue;
-                }
-
-                parts.Add(FormatComboEntry(program.StaticComboArray[i], state[i]));
-            }
-
-            if (parts.Count > 0)
-            {
-                buffer.WriteLine($"// Static combos: {string.Join(", ", parts)}");
+                buffer.WriteLine($"// Static combos: {staticCombos}");
             }
         }
 
@@ -322,22 +308,11 @@ public static partial class ShaderSpirvReflection
 
         if (dynamicComboId != 0)
         {
-            var parts = new List<string>();
-            var state = program.GetDynamicComboConfig(dynamicComboId);
+            var dynamicCombos = ShaderUtilHelpers.FormatComboState(program.DynamicComboArray, program.GetDynamicComboConfig(dynamicComboId));
 
-            for (var i = 0; i < state.Length; i++)
+            if (dynamicCombos.Length > 0)
             {
-                if (state[i] == 0)
-                {
-                    continue;
-                }
-
-                parts.Add(FormatComboEntry(program.DynamicComboArray[i], state[i]));
-            }
-
-            if (parts.Count > 0)
-            {
-                buffer.WriteLine($"// Dynamic combos: {string.Join(", ", parts)}");
+                buffer.WriteLine($"// Dynamic combos: {dynamicCombos}");
             }
         }
     }

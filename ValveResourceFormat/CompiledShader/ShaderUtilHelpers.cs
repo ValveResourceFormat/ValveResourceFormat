@@ -221,6 +221,29 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /// <summary>
+        /// Formats the enabled combos of a configuration state, for example <c>S_MODE_DEPTH, S_DETAIL=2</c>.
+        /// </summary>
+        /// <param name="combos">The static or dynamic combos of a program.</param>
+        /// <param name="state">The configuration state, one value per combo.</param>
+        /// <returns>The combos with a non-zero value, or an empty string when there are none.</returns>
+        public static string FormatComboState(VfxCombo[] combos, int[] state)
+        {
+            var parts = new List<string>();
+
+            for (var i = 0; i < state.Length; i++)
+            {
+                if (state[i] == 0)
+                {
+                    continue;
+                }
+
+                parts.Add(state[i] == 1 ? combos[i].Name : $"{combos[i].Name}={state[i].ToString(CultureInfo.InvariantCulture)}");
+            }
+
+            return string.Join(", ", parts);
+        }
+
+        /// <summary>
         /// Combines an integer array into a comma-separated string.
         /// </summary>
         /// <param name="values">The integer array to combine.</param>

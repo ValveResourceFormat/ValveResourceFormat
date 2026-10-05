@@ -123,7 +123,7 @@ namespace GUI.Types.Viewers
 
                     if (leadFeatureParams != null)
                     {
-                        leadStaticComboId = ShaderDataProvider.GetStaticConfiguration_ForFeatureState(shaderCollection.Features, program, leadFeatureParams).StaticComboId;
+                        leadStaticComboId = ShaderDataProvider.ResolveStaticConfiguration(shaderCollection.Features, program, leadFeatureParams).StaticComboId;
                     }
 
                     foreach (var staticComboEntry in program.StaticComboEntries)

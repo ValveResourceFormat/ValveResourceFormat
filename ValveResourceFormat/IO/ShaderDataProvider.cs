@@ -165,6 +165,33 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
+        /// Produce the static configuration that a material's feature state selects, reduced by the combo rules
+        /// when the configuration the features produce was not compiled.
+        /// </summary>
+        /// <param name="features">Features vcs file that contains the feature definitions.</param>
+        /// <param name="program">Stage for which the configuration will be generated.</param>
+        /// <param name="featureParams">Feature parameters have the 'F_' prefix.</param>
+        /// <param name="staticParams">Statics (not tied to a feature) that you want to override. Static parameters have the 'S_' prefix.</param>
+        /// <returns>The static configuration and its static combo identifier, which may still be missing from <paramref name="program"/> if reducing did not help.</returns>
+        public static (int[] StaticConfig, long StaticComboId) ResolveStaticConfiguration(
+            VfxProgramData features,
+            VfxProgramData program,
+            IDictionary<string, byte> featureParams,
+            IDictionary<string, byte>? staticParams = null)
+        {
+            var (staticConfig, staticComboId) = GetStaticConfiguration_ForFeatureState(features, program, featureParams, staticParams);
+
+            // The shader feature rules may not match the static rules, producing a configuration that was never compiled
+            if (!program.StaticComboEntries.ContainsKey(staticComboId) && TryReduceStaticConfiguration(program, staticConfig, out var reducedConfig))
+            {
+                staticConfig = reducedConfig;
+                staticComboId = new ComboConfigMapping(program).CalcComboIdFromValues(reducedConfig);
+            }
+
+            return (staticConfig, staticComboId);
+        }
+
+        /// <summary>
         /// Removes switches that would point to a non-existent static combo.
         /// </summary>
         /// <param name="program">The file that contains the combos and combo rules.</param>
@@ -344,28 +371,12 @@ namespace ValveResourceFormat.IO
                         staticState.Add(forcedStatic.Key, forcedStatic.Value);
                     }
 
-                    var staticConfig = GetStaticConfiguration_ForFeatureState(shader.Features!, shaderFile, featureState, staticState).StaticConfig;
+                    var (staticConfig, staticComboId) = ResolveStaticConfiguration(shader.Features!, shaderFile, featureState, staticState);
 
-                    var configMapping = new ComboConfigMapping(shaderFile);
-                    var staticComboId = configMapping.CalcComboIdFromValues(staticConfig);
-
-                    // It can happen that the shader feature rules don't match static rules, producing
-                    // materials with bad feature configuration. That or the material data is just bad/incompatible.
+                    // That or the material data is just bad/incompatible
                     if (!shaderFile.StaticComboEntries.ContainsKey(staticComboId))
                     {
-                        var reduced = TryReduceStaticConfiguration(shaderFile, staticConfig, out var reducedConfig);
-                        if (!reduced)
-                        {
-                            throw new NotImplementedException("Feature state points to a missing static combo, likely because constraint solver is not implemented.");
-                        }
-
-                        staticComboId = configMapping.CalcComboIdFromValues(reducedConfig);
-                        if (!shaderFile.StaticComboEntries.ContainsKey(staticComboId))
-                        {
-                            throw new InvalidOperationException("Constraint solver failed to produce a valid static combo.");
-                        }
-
-                        staticConfig = reducedConfig;
+                        throw new InvalidOperationException("Feature state points to a missing static combo, and the combo rules could not reduce it to a compiled one.");
                     }
 
                     shaderFile.StaticComboCache.EnsureMinimumCacheSize(staticConfig.Length);
