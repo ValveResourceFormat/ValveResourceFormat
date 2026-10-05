@@ -2056,7 +2056,7 @@ namespace CLI
                     break;
 
                 case ResourceType.Sound:
-                    if (resource.DataBlock is Sound soundData)
+                    if (resource.DataBlock is Sound { StreamingDataSize: > 0 } soundData)
                     {
                         info = soundData.SoundType.ToString();
                     }

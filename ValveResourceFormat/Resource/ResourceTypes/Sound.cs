@@ -196,6 +196,17 @@ namespace ValveResourceFormat.ResourceTypes
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
+            // Version 5 sounds have an empty DATA block and store their info in CTRL
+            if (ReadFromCtrl())
+            {
+                return;
+            }
+
+            if (Size == 0)
+            {
+                return;
+            }
+
             reader.BaseStream.Position = Offset;
 
             if (Resource.Version > 4)
@@ -289,13 +300,8 @@ namespace ValveResourceFormat.ResourceTypes
             ReadPhonemeStream(reader, sentenceOffset);
         }
 
-        /// <summary>
-        /// Constructs sound data from the control block.
-        /// </summary>
-        public bool ConstructFromCtrl()
+        private bool ReadFromCtrl()
         {
-            Offset = Resource.FileSize;
-
             if (Resource.GetBlockByType(BlockType.CTRL) is not BinaryKV3 obj)
             {
                 return false;
@@ -566,7 +572,7 @@ namespace ValveResourceFormat.ResourceTypes
             Debug.Assert(buffer.Length == StreamingDataSize);
             Debug.Assert(Reader != null);
 
-            Reader.BaseStream.Position = Offset + Size;
+            Reader.BaseStream.Position = Resource.FileSize;
             Reader.BaseStream.ReadExactly(buffer);
         }
 
@@ -624,7 +630,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             Debug.Assert(Reader != null);
-            Reader.BaseStream.Position = Offset + Size;
+            Reader.BaseStream.Position = Resource.FileSize;
             Reader.BaseStream.CopyTo(stream);
             Debug.Assert(stream.Length == totalSize);
 

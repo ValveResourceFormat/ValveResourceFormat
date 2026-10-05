@@ -48,6 +48,11 @@ namespace ValveResourceFormat.Blocks
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
+            if (Size == 0)
+            {
+                return;
+            }
+
             var kv3 = new BinaryKV3
             {
                 Offset = Offset,

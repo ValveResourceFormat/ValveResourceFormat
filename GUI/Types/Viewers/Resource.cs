@@ -777,15 +777,12 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.Sound:
-                    if (resource.ContainsBlockType(BlockType.DATA))
+                    if (resource.DataBlock is Sound { StreamingDataSize: > 0 } soundData)
                     {
                         var specialTabPage = new ThemedTabPage("SOUND");
                         var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
 
-                        if (resource.DataBlock is Sound soundData)
-                        {
-                            specialTabPage.Controls.Add(CreateSoundInfoLabel(soundData));
-                        }
+                        specialTabPage.Controls.Add(CreateSoundInfoLabel(soundData));
 
                         try
                         {

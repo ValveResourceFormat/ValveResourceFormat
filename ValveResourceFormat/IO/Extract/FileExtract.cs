@@ -226,7 +226,7 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Sound:
-                    if (resource.DataBlock is Sound soundData)
+                    if (resource.DataBlock is Sound { StreamingDataSize: > 0 } soundData)
                     {
                         using var soundStream = soundData.GetSoundStream();
                         soundStream.TryGetBuffer(out var buffer);
@@ -425,7 +425,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 case ResourceType.Sound:
-                    if (resource.DataBlock is Sound soundData)
+                    if (resource.DataBlock is Sound { StreamingDataSize: > 0 } soundData)
                     {
                         switch (soundData.SoundType)
                         {

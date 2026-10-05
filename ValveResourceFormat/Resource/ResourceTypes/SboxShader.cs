@@ -39,6 +39,11 @@ namespace ValveResourceFormat.ResourceTypes
         {
             ArgumentNullException.ThrowIfNull(Resource);
 
+            if (Size == 0)
+            {
+                return;
+            }
+
             reader.BaseStream.Position = Offset;
 
             const int ShaderFileCount = 9;

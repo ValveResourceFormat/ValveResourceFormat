@@ -19,6 +19,12 @@ namespace Tests.Resources
             "sbox_visualize_quad_overdraw.shader_c",
         ];
 
+        // With an empty RED2, only the file name can tell the resource type
+        private static readonly HashSet<string> FilesWithEmptyEditInfo =
+        [
+            "empty_red2.vts_c",
+        ];
+
         /// <summary>Verifies a fully parsed resource, and the text it dumps for each of its blocks.</summary>
         public static async Task Parsed(Resource resource, string file)
         {
@@ -51,13 +57,19 @@ namespace Tests.Resources
         {
             var dataBlock = resource.DataBlock;
 
+            await Assert.That(dataBlock).IsNotNull().Because(file);
+
             if (FilesWithEmptyDataBlocks.Contains(Path.GetFileName(file)))
             {
-                await Assert.That(dataBlock).IsNull().Because(file);
+                await Assert.That(dataBlock!.Size).IsEqualTo(0u).Because(file);
                 return;
             }
 
-            await Assert.That(dataBlock).IsNotNull().Because(file);
+            if (resource.FileName == null && FilesWithEmptyEditInfo.Contains(Path.GetFileName(file)))
+            {
+                return;
+            }
+
             await Assert.That(dataBlock).IsNotTypeOf<UnknownDataBlock>().Because(file);
         }
     }

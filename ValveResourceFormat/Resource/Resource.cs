@@ -221,11 +221,6 @@ namespace ValveResourceFormat
                 var size = Reader.ReadUInt32();
                 Block? block = null;
 
-                if (size == 0)
-                {
-                    continue;
-                }
-
                 // Peek data to detect VKV3
                 // Valve has deprecated NTRO as reported by resourceinfo.exe
                 // TODO: Find a better way without checking against resource type
@@ -255,15 +250,14 @@ namespace ValveResourceFormat
 
                 Blocks.Add(block);
 
-                if (block.Type is BlockType.NTRO)
+                if (IsReadEagerly(block.Type))
                 {
                     block.Read(Reader);
                 }
 
-                if (block.Type is BlockType.RED2 or BlockType.REDI)
+                if (block is ResourceEditInfo editInfo)
                 {
-                    block.Read(Reader);
-                    EditInfo = (ResourceEditInfo)block;
+                    EditInfo = editInfo;
 
                     // Try to determine resource type by looking at the compiler identifiers
                     // This must be done right after reading EditInfo because future DATA block
@@ -293,22 +287,9 @@ namespace ValveResourceFormat
 
             foreach (var block in Blocks)
             {
-                if (block.Type is not BlockType.REDI and not BlockType.RED2 and not BlockType.NTRO)
+                if (!IsReadEagerly(block.Type))
                 {
                     block.Read(Reader);
-                }
-            }
-
-            if (ResourceType == ResourceType.Sound && ContainsBlockType(BlockType.CTRL)) // Version >= 5, but other ctrl-type sounds have version 0
-            {
-                var block = new Sound
-                {
-                    Resource = this,
-                };
-
-                if (block.ConstructFromCtrl())
-                {
-                    Blocks.Add(block);
                 }
             }
 
@@ -540,6 +521,10 @@ namespace ValveResourceFormat
                 _ => ContainsBlockType(BlockType.NTRO) ? new NTRO() { Resource = this } : new UnknownDataBlock(ResourceType) { Resource = this },
             };
         }
+
+        // Other blocks may depend on these, so they are read as soon as they are found
+        private static bool IsReadEagerly(BlockType type)
+            => type is BlockType.NTRO or BlockType.CTRL or BlockType.REDI or BlockType.RED2;
 
         private static bool IsHandledResourceType(ResourceType type)
         {
