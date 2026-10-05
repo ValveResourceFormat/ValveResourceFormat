@@ -285,19 +285,13 @@ namespace GUI.Controls
                 // Find workshop content
                 try
                 {
-                    var workshopManifest = Path.Join(steamPath, "workshop", $"appworkshop_{appID}.acf");
+                    var workshopManifest = GameFolderLocator.ReadSteamKeyValues(Path.Join(steamPath, "workshop", $"appworkshop_{appID}.acf"));
 
-                    if (File.Exists(workshopManifest))
+                    if (workshopManifest != null && GameFolderLocator.GetChild(workshopManifest, "WorkshopItemsInstalled") is { } installedItems)
                     {
                         var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
-                        KVObject workshopInfo;
 
-                        using (var stream = File.OpenRead(workshopManifest))
-                        {
-                            workshopInfo = kvDeserializer.Deserialize(stream);
-                        }
-
-                        foreach (var item in workshopInfo["WorkshopItemsInstalled"].Children)
+                        foreach (var item in installedItems.Children)
                         {
                             var addonPath = Path.Join(steamPath, "workshop", "content", appID.ToString(CultureInfo.InvariantCulture), item.Key);
                             var publishDataPath = Path.Join(addonPath, "publish_data.txt");

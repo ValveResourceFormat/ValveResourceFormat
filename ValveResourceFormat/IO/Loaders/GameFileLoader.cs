@@ -1,6 +1,7 @@
 //#define DEBUG_FILE_LOAD
 
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Enumeration;
 using System.Threading;
@@ -1012,7 +1013,7 @@ namespace ValveResourceFormat.IO
 
             var appIdString = filePath[contentIndexEnd..slashAfterAppId];
 
-            if (!uint.TryParse(appIdString, out var appId))
+            if (!int.TryParse(appIdString, NumberStyles.None, CultureInfo.InvariantCulture, out var appId))
             {
                 return [];
             }
@@ -1021,34 +1022,12 @@ namespace ValveResourceFormat.IO
             Logger.LogDebug("Parsed appid {AppId} for workshop file {FilePath}", appId, filePath);
 #endif
 
-            var steamPath = filePath[..(contentIndex + "steamapps/".Length)];
-            var appManifestPath = Path.Join(steamPath, $"appmanifest_{appId}.acf");
+            var steamPath = filePath[..(contentIndex + "steamapps".Length)];
 
             WorkshopContentFolder = filePath[..slashAfterAppId];
 
-            // Load appmanifest to get the install directory for this appid
-            KVObject appManifestKv;
-
-            try
-            {
-                using var appManifestStream = File.OpenRead(appManifestPath);
-                appManifestKv = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(appManifestStream, KVSerializerOptions.DefaultOptions);
-            }
-            catch
-            {
-                return [];
-            }
-
-            var installDir = appManifestKv["installdir"].ToString();
-
-            if (installDir == null)
-            {
-                return [];
-            }
-
-            var gamePath = Path.Combine(steamPath, "common", installDir);
-
-            if (!Directory.Exists(gamePath))
+            // The app is usually installed in the same library as its workshop content, but it can be moved to another one
+            if ((GameFolderLocator.FindSteamGameInLibrary(steamPath, appId) ?? GameFolderLocator.FindSteamGameByAppId(appId)) is not { GamePath: var gamePath })
             {
                 return [];
             }
