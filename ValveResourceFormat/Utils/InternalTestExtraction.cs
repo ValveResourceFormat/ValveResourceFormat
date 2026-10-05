@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Utils
     {
         /// <summary>
         /// This method tries to run through all the code paths for a particular resource,
-        /// which allows us to quickly find exceptions when running --stats using Decompiler over an entire game folder,
+        /// which allows us to quickly find exceptions when running --test using the CLI over an entire game folder,
         /// and it is also used in tests to quickly verify resources.
         /// </summary>
         /// <param name="resource">The resource to test.</param>

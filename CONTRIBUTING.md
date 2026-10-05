@@ -67,7 +67,7 @@ To map them back to strings we have a big list of known key names which are hash
 The list is in [EntityLumpKnownKeys.cs](ValveResourceFormat/Utils/EntityLumpKnownKeys.cs) file.
 All keys must be lowercase, and the list is sorted alphabetically.
 
-CLI Decompiler can help collect unknown hashes by using `--stats --dump_unknown_entity_keys`.
+CLI Decompiler can help collect unknown hashes by using `--test --test_entity_keys`.
 When scanning `vents_c` files, a `unknown_keys.txt` file will be created.
 
 This file can be used with [MurmurHashMatcher](Misc/MurmurHashMatcher) utility which bruteforces game files and binaries to find strings.

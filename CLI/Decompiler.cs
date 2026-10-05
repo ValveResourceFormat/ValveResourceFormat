@@ -132,17 +132,17 @@ namespace CLI
         /// <param name="shader_list_combos">List every compiled variant of a shader with its combo values and bytecode hash. For a material, only the variants of its shader that the material selects.</param>
         /// <param name="shader_combo">Decompile the shader variant matching these combo values, example: "S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4". A bare name means "=1", omitted combos stay at their minimum. For a material, the static combos it selects are used.</param>
         /// <param name="tools_asset_info_short">Print only file paths for tools_asset_info files.</param>
-        /// <param name="threads">If higher than 1, files are processed concurrently. Only used with --output or --stats.</param>
+        /// <param name="threads">If higher than 1, files are processed concurrently. Only used with --output or --test.</param>
         /// <param name="quiet">-q, When writing to --output, only print errors and a summary. With the shader options, only print their output.</param>
         /// <param name="game">Path to a gameinfo.gi file, or the folder containing it, to load game search paths from. Useful when the input file is not located inside a game folder.</param>
-        /// <param name="stats">Collect stats on all input files and then print them. Use "-i steam" to scan all Steam libraries.</param>
-        /// <param name="stats_with_loader">When using --stats, use GameFileLoader to load dependencies.</param>
-        /// <param name="stats_print_files">When using --stats, print example file names for each stat.</param>
-        /// <param name="stats_unique_deps">When using --stats, print all unique dependencies that were found.</param>
-        /// <param name="stats_particles">When using --stats, collect particle operators, renderers, emitters, initializers.</param>
-        /// <param name="stats_vbib">When using --stats, collect vertex attributes.</param>
-        /// <param name="gltf_test">When using --stats, also test glTF export code path for every supported file.</param>
-        /// <param name="dump_unknown_entity_keys">When using --stats, save all unknown entity key hashes to unknown_keys.txt.</param>
+        /// <param name="test">Run every input file through all of the decompile code paths to find exceptions, and print how many files of each type and version were found. Use "-i steam" to scan all Steam libraries.</param>
+        /// <param name="test_loader">When using --test, use GameFileLoader to load dependencies.</param>
+        /// <param name="test_print_files">When using --test, print example file names for each type.</param>
+        /// <param name="test_unique_deps">When using --test, print all unique dependencies that were found.</param>
+        /// <param name="test_particles">When using --test, collect particle operators, renderers, emitters, initializers.</param>
+        /// <param name="test_vertex_attributes">When using --test, collect vertex attributes.</param>
+        /// <param name="test_gltf">When using --test, also test glTF export code path for every supported file.</param>
+        /// <param name="test_entity_keys">When using --test, save all unknown entity key hashes to unknown_keys.txt.</param>
         private int HandleArguments(
             string input,
             bool recursive = false,
@@ -176,14 +176,14 @@ namespace CLI
             bool quiet = false,
             [HideDefaultValue] string? game = default,
 
-            bool stats = false,
-            bool stats_with_loader = false,
-            bool stats_print_files = false,
-            bool stats_unique_deps = false,
-            bool stats_particles = false,
-            bool stats_vbib = false,
-            bool gltf_test = false,
-            bool dump_unknown_entity_keys = false
+            bool test = false,
+            bool test_loader = false,
+            bool test_print_files = false,
+            bool test_unique_deps = false,
+            bool test_particles = false,
+            bool test_vertex_attributes = false,
+            bool test_gltf = false,
+            bool test_entity_keys = false
         )
         {
             // When you modify the arguments, don't forget to update the command-line.md documentation file too.
@@ -194,7 +194,7 @@ namespace CLI
             }
 
             // Options that only make sense together with another one turn it on
-            stats |= stats_with_loader || stats_print_files || stats_unique_deps || stats_particles || stats_vbib || gltf_test || dump_unknown_entity_keys;
+            test |= test_loader || test_print_files || test_unique_deps || test_particles || test_vertex_attributes || test_gltf || test_entity_keys;
             decompile |= gltf_export_format != null || output == "-";
             gltf_export_animations |= gltf_animation_list != null;
             gltf_export_materials |= gltf_textures_adapt;
@@ -234,14 +234,14 @@ namespace CLI
             ShaderListCombos = shader_list_combos;
             ShaderCombo = shader_combo;
 
-            CollectStats = stats;
-            StatsWithLoader = stats_with_loader;
-            StatsPrintFilePaths = stats_print_files;
-            StatsPrintUniqueDependencies = stats_unique_deps;
-            StatsCollectParticles = stats_particles;
-            StatsCollectVBIB = stats_vbib;
-            GltfTest = gltf_test;
-            DumpUnknownEntityKeys = dump_unknown_entity_keys;
+            CollectStats = test;
+            StatsWithLoader = test_loader;
+            StatsPrintFilePaths = test_print_files;
+            StatsPrintUniqueDependencies = test_unique_deps;
+            StatsCollectParticles = test_particles;
+            StatsCollectVBIB = test_vertex_attributes;
+            GltfTest = test_gltf;
+            DumpUnknownEntityKeys = test_entity_keys;
 
             if (OutputFile == "-")
             {
@@ -307,7 +307,7 @@ namespace CLI
 
             if (modes.Count(mode => mode) > 1)
             {
-                Console.Error.WriteLine("Only one of --output, --vpk_list (or --vpk_dir), --vpk_verify, --block (or --all), --stats, and the shader options can be used at a time.");
+                Console.Error.WriteLine("Only one of --output, --vpk_list (or --vpk_dir), --vpk_verify, --block (or --all), --test, and the shader options can be used at a time.");
                 return 1;
             }
 
@@ -317,7 +317,7 @@ namespace CLI
 
             if (isSteamInput && !CollectStats)
             {
-                Console.Error.WriteLine("--input steam is only supported with --stats.");
+                Console.Error.WriteLine("--input steam is only supported with --test.");
                 return 1;
             }
 
@@ -397,7 +397,7 @@ namespace CLI
 
             if (StatsWithLoader && MaxParallelismThreads > 1)
             {
-                Console.Error.WriteLine("--threads does not currently work with --stats_with_loader.");
+                Console.Error.WriteLine("--threads does not currently work with --test_loader.");
                 return 1;
             }
 
@@ -1914,7 +1914,7 @@ namespace CLI
 
         /// <summary>
         /// This method tries to run through all the code paths for a particular resource,
-        /// which allows us to quickly find exceptions when running --stats over an entire game folder.
+        /// which allows us to quickly find exceptions when running --test over an entire game folder.
         /// </summary>
         private void TestAndCollectStats(Resource resource, string path, string? originalPath, IFileLoader? fileLoader = null)
         {

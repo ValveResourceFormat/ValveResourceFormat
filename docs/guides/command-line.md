@@ -37,13 +37,13 @@ The binary name is `Source2Viewer-CLI`.
 | `--shader_combo`             | Decompile the shader variant matching these combo values, example: `"S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4"`. A bare name means `=1`, omitted combos stay at their minimum. For a material, the static combos it selects are used.                                                                               |
 | `--tools_asset_info_short`   | Print only file paths for tools_asset_info files.                                                                                                                                                                                                                                                                |
 | **Other**                    |                                                                                                                                                                                                                                                                                                                  |
-| `--threads`                  | If higher than 1, files are processed concurrently. Only used with `--output` or `--stats`.                                                                                                                                                                                                                      |
+| `--threads`                  | If higher than 1, files are processed concurrently. Only used with `--output` or `--test`.                                                                                                                                                                                                                       |
 | `--quiet` (or `-q`)          | When writing to `--output`, only print errors and a summary. With the shader options, only print their output.                                                                                                                                                                                                   |
 | `--game`                     | Path to a `gameinfo.gi` file, or the folder containing it, to load game search paths from. Useful when the input file is not located inside a game folder.                                                                                                                                                       |
 | `--version`                  | Show version information.                                                                                                                                                                                                                                                                                        |
 | `--help`                     | Show help information.                                                                                                                                                                                                                                                                                           |
 
-There are also `--stats` related options (for collecting statistics and testing exports) primarily intended for VRF developers. You can pass `--input "steam"` to automatically scan all Steam library folders for Source 2 files. See the `--help` output for details.
+There are also `--test` and `--test_*` options for running every file through the decompile code paths, primarily intended for VRF developers. You can pass `--input "steam"` to automatically scan all Steam library folders for Source 2 files. See the `--help` output for details.
 
 ### Exit codes
 
@@ -51,7 +51,7 @@ The exit code is `0` on success, `1` for invalid arguments, and `2` when any fil
 
 ### Good to know
 
-- Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_verify`, `--block` (or `--all`), `--stats`, and the shader options can be used at a time.
+- Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_verify`, `--block` (or `--all`), `--test`, and the shader options can be used at a time.
 - Pass the `_dir.vpk` of a multi-chunk package (`pak01_dir.vpk`), not one of the numbered `pak01_000.vpk` chunks.
 - Use `--vpk_list` to find the exact path of a file, then filter on it with `--vpk_filepath`. The filter matches the start of the path, so `models/chicken/` works but `chicken` does not, use `*chicken*` instead.
 - For VPK input, `--output` without `--vpk_decompile` writes the compiled files as they are stored. A single compiled file on disk is decompiled whenever `--output` is given.
@@ -60,7 +60,7 @@ The exit code is `0` on success, `1` for invalid arguments, and `2` when any fil
 - References to other files (materials, meshes, textures) are resolved by finding `gameinfo.gi` in a parent folder of the input. A file copied out of the game folder will be missing them unless you pass `--game`.
 - `--block` output starts with a summary of the file (type, external references, block list) before the block contents.
 - Folder input does not look inside VPK files unless `--recursive_vpk` is given. This is the easiest way to process all maps of a game, for example `-i <game>/maps --recursive_vpk -e vents_c`.
-- VPKs inside other VPKs (such as 3D skybox prefabs inside map VPKs, or map VPKs inside workshop items) are only processed by `--stats`. Otherwise they are treated as regular files, so extract them first with `--vpk_extensions vpk --output <folder>` and run the CLI on the extracted files.
+- VPKs inside other VPKs (such as 3D skybox prefabs inside map VPKs, or map VPKs inside workshop items) are only processed by `--test`. Otherwise they are treated as regular files, so extract them first with `--vpk_extensions vpk --output <folder>` and run the CLI on the extracted files.
 - Compiled shaders are split into multiple files (`<name>_<platform>_<model>_features.vcs`, `_vs.vcs`, `_ps.vcs`, ...). Decompiling to `.vfx` only works from the shader VPK, which writes one `.vfx` per shader from the highest shader model among the matched files. A loose `.vcs` file only prints a summary.
 - Loading dependencies prints the game search paths it mounts and the files it fails to load to stderr. `--quiet` hides everything but the warnings.
 
@@ -140,10 +140,10 @@ Export a model with only specific animations included:
 ./Source2Viewer-CLI.exe -i "model.vmdl_c" -o "output.glb" -d --gltf_export_format glb --gltf_export_animations --gltf_animation_list "idle,walk,run"
 ```
 
-### Scan Steam libraries for statistics
+### Test all files in Steam libraries
 
 ```powershell
-./Source2Viewer-CLI.exe -i "steam" --stats --recursive --recursive_vpk --threads 8
+./Source2Viewer-CLI.exe -i "steam" --test --recursive --recursive_vpk --threads 8
 ```
 
 ### Decompile all shaders
