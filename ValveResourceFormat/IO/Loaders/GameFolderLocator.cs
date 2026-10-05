@@ -248,10 +248,30 @@ namespace ValveResourceFormat.IO
             games ??= FindAllSteamGames();
             fullPath = Path.GetFullPath(fullPath);
 
+            // Resolving only finds the first manifest of an app, so a stale one in another library can not be linked to
+            var game = FindSteamGameContainingPath(fullPath, games.DistinctBy(static installed => installed.AppID));
+
+            if (game == null)
+            {
+                return null;
+            }
+
+            var relativePath = fullPath.AsSpan(Math.Min(game.Value.GamePath.Length, fullPath.Length));
+
+            return $"{SteamAppPathPrefix}{game.Value.AppID}/{relativePath}".Replace('\\', '/');
+        }
+
+        /// <summary>
+        /// Finds the installed Steam app whose installation folder contains the path.
+        /// </summary>
+        /// <param name="fullPath">Full path to a file or folder.</param>
+        /// <param name="games">Installed apps, as returned by <see cref="FindAllSteamGames"/>.</param>
+        /// <returns>The app, the one with the lowest app id if several share the folder, or <c>null</c>.</returns>
+        public static SteamLibraryGameInfo? FindSteamGameContainingPath(string fullPath, IEnumerable<SteamLibraryGameInfo> games)
+        {
             SteamLibraryGameInfo? match = null;
 
-            // Resolving only finds the first manifest of an app, so a stale one in another library can not be linked to
-            foreach (var game in games.DistinctBy(static game => game.AppID))
+            foreach (var game in games)
             {
                 if (IsInsideFolder(fullPath, game.GamePath) && (match == null || game.AppID < match.Value.AppID))
                 {
@@ -259,14 +279,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            if (match == null)
-            {
-                return null;
-            }
-
-            var relativePath = fullPath.AsSpan(Math.Min(match.Value.GamePath.Length, fullPath.Length));
-
-            return $"{SteamAppPathPrefix}{match.Value.AppID}/{relativePath}".Replace('\\', '/');
+            return match;
         }
 
         /// <param name="path">Full path.</param>

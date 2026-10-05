@@ -709,17 +709,10 @@ namespace GUI
 
                 if (MemoryExtensions.Equals(extension, ".vpk", StringComparison.OrdinalIgnoreCase))
                 {
-                    foreach (var game in ExplorerControl.SteamGames)
+                    if (GameFolderLocator.FindSteamGameContainingPath(vrfGuiContext.FileName, ExplorerControl.SteamGames) is { } game
+                        && AppIcons.GameIcons.TryGetValue(game.AppID, out var imageIndexGame))
                     {
-                        if (vrfGuiContext.FileName.StartsWith(game.GamePath, StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (AppIcons.GameIcons.TryGetValue(game.AppID, out var imageIndexGame))
-                            {
-                                tab.ImageIndex = imageIndexGame;
-                            }
-
-                            break;
-                        }
+                        tab.ImageIndex = imageIndexGame;
                     }
                 }
 

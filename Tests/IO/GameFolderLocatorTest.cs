@@ -76,6 +76,10 @@ namespace Tests.IO
                 await Assert.That(GameFolderLocator.GetSteamAppPath(Path.Join(gamePath, "game", "dir", "pak01_dir.vpk"), games)).IsEqualTo("steam:123/game/dir/pak01_dir.vpk");
                 await Assert.That(GameFolderLocator.GetSteamAppPath(Path.Join(otherGamePath, "pak01_dir.vpk"), games)).IsEqualTo("steam:456/pak01_dir.vpk");
                 await Assert.That(GameFolderLocator.GetSteamAppPath(Path.Join(steamApps, "common", "Elsewhere", "pak01_dir.vpk"), games)).IsNull();
+
+                await Assert.That(GameFolderLocator.FindSteamGameContainingPath(Path.Join(otherGamePath, "pak01_dir.vpk"), games)?.AppID).IsEqualTo(456);
+                await Assert.That(GameFolderLocator.FindSteamGameContainingPath(Path.TrimEndingDirectorySeparator(gamePath), games)?.AppID).IsEqualTo(123);
+                await Assert.That(GameFolderLocator.FindSteamGameContainingPath(Path.Join(steamApps, "common", "Some Game Extra"), games)).IsNull();
             }
         }
     }

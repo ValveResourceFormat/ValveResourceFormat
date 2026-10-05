@@ -406,13 +406,9 @@ namespace GUI.Controls
             // to instantly load their icons before rendering the list
             foreach (var path in Settings.Config.RecentFiles.Concat(Settings.Config.BookmarkedFiles))
             {
-                foreach (var game in SteamGames)
+                if (GameFolderLocator.FindSteamGameContainingPath(path, SteamGames) is { } game)
                 {
-                    if (path.StartsWith(game.GamePath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        await GetOrLoadAppImage(game.AppID, libraryAssetsKv, libraryCachePath).ConfigureAwait(false);
-                        break;
-                    }
+                    await GetOrLoadAppImage(game.AppID, libraryAssetsKv, libraryCachePath).ConfigureAwait(false);
                 }
             }
 
@@ -618,21 +614,13 @@ namespace GUI.Controls
                     }
                 }
 
-                foreach (var game in SteamGames)
+                if (GameFolderLocator.FindSteamGameContainingPath(path, SteamGames) is { } game)
                 {
-                    if (path.StartsWith(game.GamePath, StringComparison.OrdinalIgnoreCase))
+                    pathDisplay = $"[{game.AppName}] {pathDisplay.AsSpan(Math.Min(game.GamePath.Length, pathDisplay.Length))}";
+
+                    if (isVpk && !AppIcons.GameIcons.TryGetValue(game.AppID, out imageIndexGame))
                     {
-                        pathDisplay = $"[{game.AppName}] {pathDisplay.AsSpan(game.GamePath.Length)}";
-
-                        if (isVpk)
-                        {
-                            if (!AppIcons.GameIcons.TryGetValue(game.AppID, out imageIndexGame))
-                            {
-                                imageIndexGame = -1;
-                            }
-                        }
-
-                        break;
+                        imageIndexGame = -1;
                     }
                 }
 
