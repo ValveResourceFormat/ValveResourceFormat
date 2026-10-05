@@ -47,6 +47,7 @@ namespace CLI
         // Options
         private string InputFile = string.Empty; // Should be non empty by the time input args are validated
         private string? OutputFile;
+        private bool OutputIsDirectory; // Otherwise the output path names the single file to write
         private bool RecursiveSearch;
         private bool RecursiveSearchArchives;
         private bool PrintAllBlocks;
@@ -61,7 +62,7 @@ namespace CLI
         private bool VerifyVPKChecksums;
         private bool CachedManifest;
         private bool Decompile;
-        private TextureCodec TextureDecodeFlags;
+        private TextureCodec TextureDecodeFlags = TextureCodec.Auto;
         private string[] FileFilter = [];
         private bool ListResources;
         private string? GamePath;
@@ -104,36 +105,36 @@ namespace CLI
         }
 
         /// <summary>
-        /// A test bed command line interface for the VRF library.
+        /// Inspect, extract and decompile Source 2 files and VPK archives, see https://s2v.app/ValveResourceFormat/guides/command-line.html for examples.
         /// </summary>
-        /// <param name="input">-i, Input file or folder to be processed, multiple can be comma-separated. With no additional arguments, a summary of the input(s) will be displayed.</param>
-        /// <param name="output">-o, Output path to write to. Treated as a folder when it is an existing folder, ends with a path separator, or has no file extension, otherwise it names the file to write. Use "-" to print decompiled files to the console instead.</param>
-        /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files, requires --output.</param>
-        /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto", "ForceLDR".</param>
-        /// <param name="recursive">If specified and given input is a folder, all sub directories will be scanned too.</param>
-        /// <param name="recursive_vpk">If given input is a folder, also process files inside of VPK archives in it (and in sub directories with --recursive).</param>
+        /// <param name="input">-i, Input file or folder to be processed, multiple can be comma-separated (not with --output). With no other options, a summary of the input(s) is printed.</param>
+        /// <param name="recursive">If the input is a folder, also scan its subfolders.</param>
+        /// <param name="recursive_vpk">If the input is a folder, also process files inside of VPK archives in it.</param>
+        /// <param name="vpk_extensions">-e, File extension(s) filter, example: "vcss_c,vjs_c,vxml_c".</param>
+        /// <param name="vpk_filepath">-f, File path filter(s), matching the start of the path inside the VPK or relative to the input folder (case-insensitive), or the full path when using * and ? wildcards. Example: "panorama/,sounds/" or "*/entities/*".</param>
+        /// <param name="vpk_cache">Use a cached VPK manifest to keep track of updates, only changed files are written to disk. Requires --output.</param>
+        /// <param name="vpk_verify">Verify checksums and signatures of the given VPK, or of every VPK in the given folder.</param>
+        /// <param name="output">-o, Output path to write to. Treated as a folder when it is an existing folder, ends with a path separator, or has no file extension, otherwise it names the file to write, which requires the input to be a single file or the filters to match one file. Use "-" to print decompiled files to the console instead.</param>
         /// <param name="all">-a, Print the content of each resource block in the file.</param>
         /// <param name="block">-b, Print the content of specific block(s), example: "DATA" or "RERL,RED2".</param>
-        /// <param name="threads">If higher than 1, files will be processed concurrently.</param>
-        /// <param name="quiet">-q, When writing to --output, only print errors and a summary. With the shader options, only print their output.</param>
-        /// <param name="vpk_dir">Print a list of files in given VPK and information about them.</param>
-        /// <param name="vpk_verify">Verify checksums and signatures.</param>
-        /// <param name="vpk_cache">Use cached VPK manifest to keep track of updates. Only changed files will be written to disk.</param>
-        /// <param name="vpk_extensions">-e, File extension(s) filter, example: "vcss_c,vjs_c,vxml_c".</param>
-        /// <param name="vpk_filepath">-f, File path prefix filter, or a full path pattern with * and ? wildcards, example: "panorama/,sounds/" or "*/entities/*".</param>
-        /// <param name="vpk_list">-l, Lists all resources in given VPK. File extension and path filters apply.</param>
-        /// <param name="game">Path to a gameinfo.gi file to load search paths from.</param>
-        /// <param name="gltf_export_format">Exports meshes/models in given glTF format. Must be either "gltf" or "glb".</param>
-        /// <param name="gltf_export_animations">Whether to export model animations during glTF exports.</param>
-        /// <param name="gltf_animation_list">Animations to include in the glTF, example "idle,dropped". By default will include all animations.</param>
-        /// <param name="gltf_mesh_list">Meshes to include in the glTF, example "mesh1,mesh2". By default will include all meshes.</param>
-        /// <param name="gltf_export_materials">Whether to export materials during glTF exports.</param>
-        /// <param name="gltf_textures_adapt">Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).</param>
-        /// <param name="gltf_export_extras">Export additional Mesh properties into glTF extras</param>
+        /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files. Requires --output.</param>
+        /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto" (default), "ForceLDR". Requires --output.</param>
+        /// <param name="vpk_list">-l, List all files in the given VPK or folder. File extension and path filters apply.</param>
+        /// <param name="vpk_dir">Same as --vpk_list, but also print the archive index, offset and metadata size of each file.</param>
+        /// <param name="gltf_export_format">Export meshes and models in the given glTF format, "gltf" or "glb". Implies --vpk_decompile.</param>
+        /// <param name="gltf_export_materials">Export materials during glTF exports.</param>
+        /// <param name="gltf_export_animations">Export model animations during glTF exports.</param>
+        /// <param name="gltf_mesh_list">Meshes to include in the glTF, example: "mesh1,mesh2". By default all meshes are included.</param>
+        /// <param name="gltf_animation_list">Animations to include in the glTF, example: "idle,dropped". Implies --gltf_export_animations. By default all animations are included.</param>
+        /// <param name="gltf_textures_adapt">Perform glTF spec adaptations on exported textures (e.g. split metallic map). Implies --gltf_export_materials.</param>
+        /// <param name="gltf_export_extras">Export additional mesh properties into glTF extras.</param>
         /// <param name="gltf_compose_additive">Compose additive animations over the bind pose instead of exporting their delta tracks.</param>
-        /// <param name="tools_asset_info_short">Whether to print only file paths for tools_asset_info files.</param>
         /// <param name="shader_list_combos">List every compiled variant of a shader with its combo values and bytecode hash. For a material, only the variants of its shader that the material selects.</param>
         /// <param name="shader_combo">Decompile the shader variant matching these combo values, example: "S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4". A bare name means "=1", omitted combos stay at their minimum. For a material, the static combos it selects are used.</param>
+        /// <param name="tools_asset_info_short">Print only file paths for tools_asset_info files.</param>
+        /// <param name="threads">If higher than 1, files are processed concurrently. Only used with --output or --stats.</param>
+        /// <param name="quiet">-q, When writing to --output, only print errors and a summary. With the shader options, only print their output.</param>
+        /// <param name="game">Path to a gameinfo.gi file, or the folder containing it, to load game search paths from. Useful when the input file is not located inside a game folder.</param>
         /// <param name="stats">Collect stats on all input files and then print them. Use "-i steam" to scan all Steam libraries.</param>
         /// <param name="stats_with_loader">When using --stats, use GameFileLoader to load dependencies.</param>
         /// <param name="stats_print_files">When using --stats, print example file names for each stat.</param>
@@ -144,35 +145,36 @@ namespace CLI
         /// <param name="dump_unknown_entity_keys">When using --stats, save all unknown entity key hashes to unknown_keys.txt.</param>
         private int HandleArguments(
             string input,
-            string? output = default,
-            bool decompile = false,
-            string texture_decode_flags = nameof(TextureCodec.Auto),
             bool recursive = false,
             bool recursive_vpk = false,
-            bool all = false,
-            string? block = default,
-            int threads = 1,
-            bool quiet = false,
-            bool vpk_dir = false,
-            bool vpk_verify = false,
+            [HideDefaultValue] string? vpk_extensions = default,
+            [HideDefaultValue] string? vpk_filepath = default,
             bool vpk_cache = false,
-            string? vpk_extensions = default,
-            string? vpk_filepath = default,
-            bool vpk_list = false,
-            string? game = default,
+            bool vpk_verify = false,
 
-            string? gltf_export_format = default,
-            bool gltf_export_animations = false,
-            string? gltf_animation_list = default,
-            string? gltf_mesh_list = default,
+            [HideDefaultValue] string? output = default,
+            bool all = false,
+            [HideDefaultValue] string? block = default,
+            bool decompile = false,
+            [HideDefaultValue] string? texture_decode_flags = default,
+            bool vpk_list = false,
+            bool vpk_dir = false,
+
+            [HideDefaultValue] string? gltf_export_format = default,
             bool gltf_export_materials = false,
+            bool gltf_export_animations = false,
+            [HideDefaultValue] string? gltf_mesh_list = default,
+            [HideDefaultValue] string? gltf_animation_list = default,
             bool gltf_textures_adapt = false,
             bool gltf_export_extras = false,
             bool gltf_compose_additive = false,
+            bool shader_list_combos = false,
+            [HideDefaultValue] string? shader_combo = default,
             bool tools_asset_info_short = false,
 
-            bool shader_list_combos = false,
-            string? shader_combo = default,
+            int threads = 1,
+            bool quiet = false,
+            [HideDefaultValue] string? game = default,
 
             bool stats = false,
             bool stats_with_loader = false,
@@ -185,10 +187,24 @@ namespace CLI
         )
         {
             // When you modify the arguments, don't forget to update the command-line.md documentation file too.
-            InputFile = stats && input.Equals("steam", StringComparison.OrdinalIgnoreCase) ? "steam" : Path.GetFullPath(input);
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                Console.Error.WriteLine("--input is empty.");
+                return 1;
+            }
+
+            // Options that only make sense together with another one turn it on
+            stats |= stats_with_loader || stats_print_files || stats_unique_deps || stats_particles || stats_vbib || gltf_test || dump_unknown_entity_keys;
+            decompile |= gltf_export_format != null || output == "-";
+            gltf_export_animations |= gltf_animation_list != null;
+            gltf_export_materials |= gltf_textures_adapt;
+
+            var isSteamInput = input.Equals("steam", StringComparison.OrdinalIgnoreCase) && !Path.Exists(input);
+            var hasFilters = vpk_extensions != null || vpk_filepath != null;
+
+            InputFile = isSteamInput ? "steam" : Path.GetFullPath(input);
             OutputFile = output;
             Decompile = decompile;
-            TextureDecodeFlags = Enum.Parse<TextureCodec>(texture_decode_flags, true);
             RecursiveSearch = recursive;
             RecursiveSearchArchives = recursive_vpk;
             PrintAllBlocks = all;
@@ -198,8 +214,13 @@ namespace CLI
             OutputVPKDir = vpk_dir;
             VerifyVPKChecksums = vpk_verify;
             CachedManifest = vpk_cache;
-            FileFilter = vpk_filepath?.Split(',') ?? [];
-            ListResources = vpk_list;
+            ListResources = vpk_list || vpk_dir;
+
+            // Paths inside of VPKs do not start with a slash
+            FileFilter = vpk_filepath?.Split(',').Select(filter => FixPathSlashes(filter.TrimStart('/', '\\'))).ToArray() ?? [];
+
+            // Extensions are matched without the leading dot
+            ExtFilterList = vpk_extensions?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(ext => ext.TrimStart('.')).ToArray();
 
             GltfExportFormat = gltf_export_format;
             GltfExportMaterials = gltf_export_materials;
@@ -233,10 +254,20 @@ namespace CLI
             {
                 OutputFile = Path.GetFullPath(OutputFile);
                 OutputFile = FixPathSlashes(OutputFile);
+
+                // A path that does not exist is a folder unless it has a file extension
+                OutputIsDirectory = OutputFile.EndsWith(Path.DirectorySeparatorChar)
+                    || Directory.Exists(OutputFile)
+                    || !Path.HasExtension(OutputFile);
             }
 
             if (game != null)
             {
+                if (Directory.Exists(game))
+                {
+                    game = Path.Join(game, "gameinfo.gi");
+                }
+
                 if (!File.Exists(game))
                 {
                     Console.Error.WriteLine($"Gameinfo file \"{game}\" does not exist.");
@@ -246,15 +277,24 @@ namespace CLI
                 GamePath = Path.GetFullPath(game);
             }
 
-            for (var i = 0; i < FileFilter.Length; i++)
+            if (texture_decode_flags != null)
             {
-                FileFilter[i] = FixPathSlashes(FileFilter[i]);
+                if (!Enum.TryParse(texture_decode_flags, ignoreCase: true, out TextureCodec decodeFlags))
+                {
+                    Console.Error.WriteLine($"Unknown texture decode flags \"{texture_decode_flags}\", use any of: {string.Join(", ", Enum.GetNames<TextureCodec>())}.");
+                    return 1;
+                }
+
+                TextureDecodeFlags = decodeFlags;
             }
 
-            if (vpk_extensions != null)
+            var blockNames = Enum.GetNames<BlockType>().Where(name => name != nameof(BlockType.Undefined)).ToArray();
+            var unknownBlock = BlocksToPrint.FirstOrDefault(name => !blockNames.Contains(name, StringComparer.OrdinalIgnoreCase));
+
+            if (unknownBlock != null)
             {
-                // Extensions are matched without the leading dot
-                ExtFilterList = [.. vpk_extensions.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(ext => ext.TrimStart('.'))];
+                Console.Error.WriteLine($"Unknown block \"{unknownBlock}\", use any of: {string.Join(", ", blockNames)}.");
+                return 1;
             }
 
             if (GltfExportFormat is not "gltf" and not "glb" and not null)
@@ -263,33 +303,82 @@ namespace CLI
                 return 1;
             }
 
-            if (!GltfExportAnimations && GltfAnimationFilter.Length > 0)
+            bool[] modes = [OutputFile != null, ListResources, VerifyVPKChecksums, ShouldPrintBlockContents, CollectStats, HasShaderOptions];
+
+            if (modes.Count(mode => mode) > 1)
             {
-                Console.Error.WriteLine("glTF animation filter is only valid when exporting animations.");
+                Console.Error.WriteLine("Only one of --output, --vpk_list (or --vpk_dir), --vpk_verify, --block (or --all), --stats, and the shader options can be used at a time.");
                 return 1;
             }
 
-            if (CollectStats && OutputFile != null)
+            // Input
+            var inputIsFolder = Directory.Exists(InputFile);
+            var inputIsFile = File.Exists(InputFile);
+
+            if (isSteamInput && !CollectStats)
             {
-                Console.Error.WriteLine("Do not use --stats with --output.");
+                Console.Error.WriteLine("--input steam is only supported with --stats.");
                 return 1;
             }
 
-            if (ListResources && OutputFile != null)
+            if (inputIsFile && RecursiveSearchArchives && !CollectStats)
             {
-                Console.Error.WriteLine("Do not use --vpk_list with --output.");
+                Console.Error.WriteLine("--recursive_vpk only applies to folders, VPKs inside of VPKs are not supported.");
                 return 1;
             }
 
-            if (ShouldPrintBlockContents && OutputFile != null)
+            if (hasFilters && VerifyVPKChecksums)
             {
-                Console.Error.WriteLine("Do not use --block or --all with --output, blocks are only printed to the console.");
+                Console.Error.WriteLine("--vpk_verify checks whole packages, --vpk_extensions and --vpk_filepath do not apply to it.");
                 return 1;
             }
 
-            if (HasShaderOptions && (OutputFile != null || CollectStats))
+            if (hasFilters && inputIsFile && !InputFile.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase))
             {
-                Console.Error.WriteLine("The shader options only print to the console, do not use them with --output or --stats.");
+                Console.Error.WriteLine("--vpk_extensions and --vpk_filepath only apply to folders and VPK files, not to a single file.");
+                return 1;
+            }
+
+            // Output
+            if (OutputFile != null && !inputIsFolder && !inputIsFile && InputFile.Contains(',', StringComparison.Ordinal))
+            {
+                Console.Error.WriteLine("Multiple inputs are not supported with --output.");
+                return 1;
+            }
+
+            if (OutputFile != null && inputIsFolder && File.Exists(OutputFile))
+            {
+                Console.Error.WriteLine("Output path is an existing file, but input is a folder.");
+                return 1;
+            }
+
+            if (OutputFile != null && inputIsFolder && !OutputIsDirectory)
+            {
+                Console.Error.WriteLine("Output path has a file extension, but input is a folder. End the output path with a path separator to write into a folder with that name.");
+                return 1;
+            }
+
+            if (OutputFile == null && Decompile)
+            {
+                Console.Error.WriteLine("--vpk_decompile requires --output. Use --output - to print the decompiled files instead.");
+                return 1;
+            }
+
+            if (OutputFile == null && texture_decode_flags != null)
+            {
+                Console.Error.WriteLine("--texture_decode_flags requires --output.");
+                return 1;
+            }
+
+            if (OutputFile == null && CachedManifest)
+            {
+                Console.Error.WriteLine("--vpk_cache requires --output.");
+                return 1;
+            }
+
+            if (OutputToConsole && (GltfExportFormat != null || CachedManifest))
+            {
+                Console.Error.WriteLine("--output - only prints decompiled files, use it without glTF exports or --vpk_cache.");
                 return 1;
             }
 
@@ -299,40 +388,32 @@ namespace CLI
                 return 1;
             }
 
-            if (Decompile && OutputFile == null)
+            // Type specific
+            if (GltfExportFormat == null && (GltfExportAnimations || GltfExportMaterials || GltfExportAdaptTextures || GltfExportExtras || GltfComposeAdditive || GltfMeshFilter.Length > 0))
             {
-                Console.Error.WriteLine("--vpk_decompile requires --output. Use --output - to print the decompiled files instead.");
+                Console.Error.WriteLine("The --gltf_* options require --gltf_export_format.");
                 return 1;
             }
 
-            if (OutputToConsole && (!Decompile || GltfExportFormat != null || CachedManifest))
+            if (StatsWithLoader && MaxParallelismThreads > 1)
             {
-                Console.Error.WriteLine("--output - only prints decompiled files, use it with --vpk_decompile and without glTF exports or --vpk_cache.");
+                Console.Error.WriteLine("--threads does not currently work with --stats_with_loader.");
                 return 1;
+            }
+
+            // The shader options only apply to shaders and materials, so skip everything else in folders and packages
+            if (HasShaderOptions && ExtFilterList == null)
+            {
+                ExtFilterList = ["vcs", "vmat_c"];
+            }
+
+            // Printing to the console is done one file at a time
+            if (OutputFile == null && !CollectStats)
+            {
+                MaxParallelismThreads = 1;
             }
 
             FileLoaderLogger = new StderrLogger(Quiet ? LogLevel.Warning : LogLevel.Information);
-
-            if (StatsWithLoader)
-            {
-                if (!CollectStats)
-                {
-                    Console.Error.WriteLine("--stats_with_loader requires --stats to be enabled.");
-                    return 1;
-                }
-
-                if (MaxParallelismThreads > 1)
-                {
-                    Console.WriteLine("--threads does not currently work with --stats_with_loader.");
-                    return 1;
-                }
-            }
-
-            if (!Decompile && (GltfExportFormat != null || GltfExportAnimations || GltfExportMaterials || GltfExportAdaptTextures || GltfExportExtras || GltfComposeAdditive))
-            {
-                Console.Error.WriteLine("Exporting to glTF requires specifying -d argument.");
-                return 1;
-            }
 
             return Execute();
         }
@@ -343,13 +424,6 @@ namespace CLI
 
             if (Directory.Exists(InputFile))
             {
-                if (OutputFile != null && File.Exists(OutputFile))
-                {
-                    Console.Error.WriteLine("Output path is an existing file, but input is a folder.");
-
-                    return 1;
-                }
-
                 // Make sure we always have a trailing slash for input folders
                 if (!InputFile.EndsWith(Path.DirectorySeparatorChar))
                 {
@@ -369,21 +443,6 @@ namespace CLI
             }
             else if (File.Exists(InputFile))
             {
-                if (RecursiveSearch)
-                {
-                    Console.Error.WriteLine("File passed in with --recursive option. Either pass in a folder or remove --recursive.");
-
-                    return 1;
-                }
-
-                // TODO: Support recursing vpks inside of vpk?
-                if (RecursiveSearchArchives && !CollectStats)
-                {
-                    Console.Error.WriteLine("File passed in with --recursive_vpk option, this is not supported.");
-
-                    return 1;
-                }
-
                 if (VpkArchiveIndexRegex().IsMatch(InputFile))
                 {
                     var fixedPackage = $"{InputFile.AsSpan()[..^8]}_dir.vpk";
@@ -404,6 +463,12 @@ namespace CLI
 
                 var steamPaths = GameFolderLocator.FindSteamLibraryFolderPaths();
 
+                if (steamPaths.Count == 0)
+                {
+                    Console.Error.WriteLine("Did not find any Steam libraries.");
+                    return 1;
+                }
+
                 foreach (var path in steamPaths)
                 {
                     var filesInPath = FindPathsToProcessInFolder(path);
@@ -413,21 +478,9 @@ namespace CLI
                         paths.AddRange(filesInPath);
                     }
                 }
-
-                if (paths.Count == 0)
-                {
-                    Console.Error.WriteLine("Did not find any Steam libraries.");
-                    return 1;
-                }
             }
             else if (InputFile.Contains(',', StringComparison.Ordinal))
             {
-                if (OutputFile != null)
-                {
-                    Console.Error.WriteLine("Multiple inputs are not supported with --output.");
-                    return 1;
-                }
-
                 IsInputFolder = true;
 
                 foreach (var splitPath in InputFile.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
@@ -458,6 +511,12 @@ namespace CLI
             {
                 Console.Error.WriteLine("Input \"{0}\" is not a file or a folder.", InputFile);
 
+                return 1;
+            }
+
+            // Folders without any files to process have already been reported
+            if (paths.Count == 0)
+            {
                 return 1;
             }
 
@@ -587,6 +646,24 @@ namespace CLI
 
         private List<string>? FindPathsToProcessInFolder(string path)
         {
+            var vpkRegex = VpkArchiveIndexRegex();
+            var vpks = Directory
+                .EnumerateFiles(path, "*.vpk", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
+                .Where(s => !vpkRegex.IsMatch(s));
+
+            if (VerifyVPKChecksums)
+            {
+                var packages = vpks.ToList();
+
+                if (packages.Count == 0)
+                {
+                    Console.Error.WriteLine($"Unable to find any VPK files in \"{path}\" folder.");
+                    return null;
+                }
+
+                return packages;
+            }
+
             var paths = Directory
                 .EnumerateFiles(path, "*.*", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
                 .Where(s =>
@@ -608,11 +685,6 @@ namespace CLI
                 })
                 .Where(s => FileFilter.Length == 0 || !IsExcludedVpkFilePath(FixPathSlashes(Path.GetRelativePath(path, s))))
                 .ToList();
-
-            var vpkRegex = VpkArchiveIndexRegex();
-            var vpks = Directory
-                .EnumerateFiles(path, "*.vpk", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
-                .Where(s => !vpkRegex.IsMatch(s));
 
             if (RecursiveSearchArchives)
             {
@@ -644,11 +716,7 @@ namespace CLI
             {
                 CurrentFile++;
 
-                if (ListResources)
-                {
-                    // do not print a header
-                }
-                else if (CollectStats && RecursiveSearch)
+                if (CollectStats && RecursiveSearch)
                 {
                     if (CurrentFile % 1000 == 0)
                     {
@@ -674,6 +742,14 @@ namespace CLI
 
         private void ProcessFile(string path, IFileLoader? fileLoader = null)
         {
+            // Packages in folders are found by their extension, so other files do not need to be opened to be listed
+            if (ListResources && !path.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase))
+            {
+                AnyFileMatched = true;
+                Console.WriteLine(GetDisplayPath(path));
+                return;
+            }
+
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
             ProcessFile(path, fs, null, fileLoader);
         }
@@ -698,15 +774,31 @@ namespace CLI
             }
 
             AnyFileMatched = true;
+
+            if (VerifyVPKChecksums)
+            {
+                ReportError($"\"{path}\" is not a VPK file, --vpk_verify only applies to those.");
+                return;
+            }
+
             PrintFileHeader(path, originalPath);
 
             var pathExtension = Path.GetExtension(path);
 
-            // Newer shaders are stored as resources, parse them directly instead of as a generic resource
-            if (HasShaderOptions && pathExtension == ".vcs")
+            if (HasShaderOptions)
             {
-                ParseVCS(path, stream, originalPath);
-                return;
+                // Newer shaders are stored as resources, parse them directly instead of as a generic resource
+                if (pathExtension == ".vcs")
+                {
+                    ParseVCS(path, stream, originalPath);
+                    return;
+                }
+
+                if (pathExtension != ".vmat_c")
+                {
+                    ReportError($"\"{path}\" is not a shader or a material, the shader options only apply to those.");
+                    return;
+                }
             }
 
             switch (magic)
@@ -752,7 +844,7 @@ namespace CLI
                     path = Path.ChangeExtension(path, extension);
 
                     var outFilePath = GetOutputPath(path);
-                    DumpContentFile(outFilePath, content, singleFileOutput: IsSingleFileOutput());
+                    DumpContentFile(outFilePath, content, singleFileOutput: !OutputIsDirectory);
                 }
                 else
                 {
@@ -835,7 +927,7 @@ namespace CLI
                         }
                     }
 
-                    DumpContentFile(outFilePath, contentFile, singleFileOutput: IsSingleFileOutput());
+                    DumpContentFile(outFilePath, contentFile, singleFileOutput: !OutputIsDirectory);
                     return;
                 }
             }
@@ -1117,7 +1209,7 @@ namespace CLI
             // When processing the files inside of the package, they are counted and print their own header instead
             var processVpkFiles = OutputFile == null && !VerifyVPKChecksums && !ListResources && (CollectStats || ShouldPrintBlockContents || HasShaderOptions);
 
-            if (!processVpkFiles)
+            if (!processVpkFiles && !ListResources)
             {
                 PrintFileHeader(path, null);
             }
@@ -1194,7 +1286,9 @@ namespace CLI
 
                     foreach (var (entry, _) in FilteredEntries(listEntries))
                     {
-                        Console.WriteLine($"{packagePrefix}{entry.GetFullPath()} CRC:{entry.CRC32:x10} size:{entry.TotalLength}");
+                        Console.WriteLine(OutputVPKDir
+                            ? $"{packagePrefix}{entry}"
+                            : $"{packagePrefix}{entry.GetFullPath()} CRC:{entry.CRC32:x10} size:{entry.TotalLength}");
                     }
 
                     return;
@@ -1264,6 +1358,12 @@ namespace CLI
             }
             else
             {
+                if (!OutputIsDirectory && MatchesMultipleFiles(package))
+                {
+                    ReportError("Output path has a file extension, but more than one file matched. Use --vpk_filepath to match exactly one file, or end the output path with a path separator to write into a folder with that name.");
+                    return;
+                }
+
                 Console.WriteLine("--- Dumping decompiled files...");
 
                 const string CachedManifestVersionPrefix = "// s2v_version=";
@@ -1316,13 +1416,9 @@ namespace CLI
 
                 using var fileLoader = CreateGameFileLoader(package, package.FileName);
 
-                Debug.Assert(package.Entries != null);
-
-                var useOutputAsDirectory = ShouldUseOutputAsDirectory(package);
-
                 foreach (var type in package.Entries)
                 {
-                    ProcessVPKEntries(path, package, fileLoader, type.Key, manifestData, useOutputAsDirectory);
+                    ProcessVPKEntries(path, package, fileLoader, type.Key, manifestData);
                 }
 
                 if (CachedManifest)
@@ -1339,17 +1435,6 @@ namespace CLI
                         }
 
                         file.WriteLine($"{hash.Value} {hash.Key}");
-                    }
-                }
-            }
-
-            if (OutputVPKDir)
-            {
-                foreach (var type in package.Entries)
-                {
-                    foreach (var file in type.Value)
-                    {
-                        Console.WriteLine(file);
                     }
                 }
             }
@@ -1400,14 +1485,11 @@ namespace CLI
         }
 
         private void ProcessVPKEntries(string parentPath, Package package,
-            IFileLoader fileLoader, string type, Dictionary<string, uint> manifestData, bool useOutputAsDirectory)
+            IFileLoader fileLoader, string type, Dictionary<string, uint> manifestData)
         {
-            if (ExtFilterList != null)
+            if (!MatchesExtensionFilter(type))
             {
-                if (!ExtFilterList.Contains(type))
-                {
-                    return;
-                }
+                return;
             }
 
             Debug.Assert(package.Entries != null);
@@ -1467,7 +1549,7 @@ namespace CLI
                                 outputFile = Path.Combine(parentPath, outputFile);
                             }
 
-                            outputFile = GetOutputPath(outputFile, useOutputAsDirectory);
+                            outputFile = GetOutputPath(outputFile);
 
                             DumpFile(outputFile, rawFileData.AsSpan()[..totalLength]);
                         }
@@ -1518,7 +1600,7 @@ namespace CLI
                                     outputFile = Path.Combine(parentPath, outputFile);
                                 }
 
-                                outputFile = GetOutputPath(outputFile, useOutputAsDirectory);
+                                outputFile = GetOutputPath(outputFile);
                                 outputFile = Path.ChangeExtension(outputFile, GltfExportFormat);
 
                                 Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
@@ -1546,9 +1628,9 @@ namespace CLI
                             outputFile = Path.Combine(parentPath, outputFile);
                         }
 
-                        outputFile = GetOutputPath(outputFile, useOutputAsDirectory);
+                        outputFile = GetOutputPath(outputFile);
 
-                        DumpContentFile(outputFile, contentFile, singleFileOutput: !useOutputAsDirectory);
+                        DumpContentFile(outputFile, contentFile, singleFileOutput: !OutputIsDirectory);
                     }
                 }
                 catch (Exception e)
@@ -1638,8 +1720,8 @@ namespace CLI
                 // directory we keep it; otherwise we flatten to the leaf name next to the parent file, which can
                 // collide on shared names. Resolving these relative to the parent's output path properly needs a
                 // bigger rework of the extract path handling (also in the GUI's PackageExporter).
-                var additionalPath = additionalFile.KeepFullPath && OutputFile != null && (IsInputFolder || IsOutputDirectory())
-                    ? Path.Combine(OutputFile, additionalFile.FileName)
+                var additionalPath = additionalFile.KeepFullPath && OutputIsDirectory
+                    ? Path.Combine(OutputFile!, additionalFile.FileName)
                     : Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName));
                 DumpContentFile(additionalPath, additionalFile);
             }
@@ -1771,41 +1853,38 @@ namespace CLI
             return IsInputFolder && path.StartsWith(InputFile, StringComparison.Ordinal) ? path[InputFile.Length..] : path;
         }
 
-        private bool ShouldUseOutputAsDirectory(Package package)
-        {
-            if (OutputFile == null || FileFilter.Length != 1 || IsOutputDirectory())
-            {
-                return true;
-            }
-
-            Debug.Assert(package.Entries != null);
-
-            var filteredEntries = package.Entries
-                .Where(entry => ExtFilterList == null || ExtFilterList.Contains(entry.Key))
-                .SelectMany(entry => FilteredEntries(entry.Value))
-                .Take(2)
-                .ToArray();
-
-            return filteredEntries.Length != 1
-                || !filteredEntries[0].FilePath.Equals(FileFilter[0], StringComparison.OrdinalIgnoreCase);
-        }
+        private bool MatchesExtensionFilter(string type) => ExtFilterList == null || ExtFilterList.Contains(type);
 
         /// <summary>
-        /// Whether the output path names a folder to write into, rather than the file to write.
-        /// A path that does not exist is a folder unless it has a file extension.
+        /// Whether more than one file would be written from the package, shaders are written once from all of their files.
         /// </summary>
-        private bool IsOutputDirectory()
+        private bool MatchesMultipleFiles(Package package)
         {
-            Debug.Assert(OutputFile != null);
+            Debug.Assert(package.Entries != null);
 
-            return OutputFile.EndsWith(Path.DirectorySeparatorChar)
-                || Directory.Exists(OutputFile)
-                || !Path.HasExtension(OutputFile);
+            var count = 0;
+
+            foreach (var (type, entries) in package.Entries)
+            {
+                if (!MatchesExtensionFilter(type))
+                {
+                    continue;
+                }
+
+                count += Decompile && type == "vcs"
+                    ? GetShaderFilesToDecompile(entries).Count
+                    : FilteredEntries(entries).Take(2).Count();
+
+                if (count > 1)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
-        private bool IsSingleFileOutput() => !IsInputFolder && !IsOutputDirectory();
-
-        private string GetOutputPath(string inputPath, bool useOutputAsDirectory = false)
+        private string GetOutputPath(string inputPath)
         {
             Debug.Assert(OutputFile != null);
 
@@ -1820,7 +1899,7 @@ namespace CLI
 
                 return Path.Combine(OutputFile, inputPath);
             }
-            else if (useOutputAsDirectory || IsOutputDirectory())
+            else if (OutputIsDirectory)
             {
                 if (Path.IsPathRooted(inputPath))
                 {
