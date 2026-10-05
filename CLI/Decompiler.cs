@@ -1030,6 +1030,7 @@ namespace CLI
             {
                 case VfxProgramData.MAGIC: ParseVCS(path, stream, originalPath, package); return;
                 case NavMeshFile.MAGIC: ParseNAV(path, stream, originalPath); return;
+                case NavSpaceFile.MAGIC: ParseNavSpace(path, stream, originalPath); return;
                 case ToolsAssetInfo.MAGIC2:
                 case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream, originalPath); return;
             }
@@ -1322,6 +1323,34 @@ namespace CLI
 
                     AddNonResourceStat($"NavMesh version {navMeshFile.Version}, subversion {navMeshFile.SubVersion}", path, originalPath);
                 }
+            }
+            catch (Exception e)
+            {
+                LogException(e, path, originalPath);
+            }
+        }
+
+        private void ParseNavSpace(string path, Stream stream, string? originalPath)
+        {
+            try
+            {
+                var navSpaceFile = new NavSpaceFile();
+                navSpaceFile.Read(stream);
+
+                if (!CollectStats)
+                {
+                    Console.WriteLine(navSpaceFile.ToString());
+                    return;
+                }
+
+                var id = $"NavSpace version {navSpaceFile.Version}";
+
+                if (originalPath != null)
+                {
+                    path = $"{originalPath} -> {path}";
+                }
+
+                AddStat(id, id, path);
             }
             catch (Exception e)
             {
@@ -2434,7 +2463,7 @@ namespace CLI
         }
 
         [GeneratedRegex(
-            @"(?:_c|\.vcs|\.nav|\.gnv|\.vfe|\.vfont|\.uifont)$|" +
+            @"(?:_c|\.vcs|\.nav|\.navspace|\.gnv|\.vfe|\.vfont|\.uifont)$|" +
             @"^(?:readonly_)?tools_asset_info\.bin$|" +
             @"^(?:subtitles|closecaption)_.*\.dat$"
         )]
