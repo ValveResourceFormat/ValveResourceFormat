@@ -33,7 +33,7 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Gets or sets the progress reporter for export operations.
         /// </summary>
-        public required IProgress<string> ProgressReporter { get; set; }
+        public IProgress<string>? ProgressReporter { get; set; }
 
         /// <summary>
         /// Gets the file loader for loading referenced resources.
