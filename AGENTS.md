@@ -1,32 +1,24 @@
 ## Project Overview
 
-ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source 2 resource formats. The solution file is `ValveResourceFormat.slnx`.
-
-The project folders are:
+ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source 2 resource formats. Solution: `ValveResourceFormat.slnx`. Targets the latest released .NET with nullable reference types enabled. CI builds Release, which enables `TreatWarningsAsErrors` and `AnalysisMode=All`, so finish with `dotnet build -c Release` and `dotnet format`.
 
 - **ValveResourceFormat/**: Core parsing library published to NuGet
-- **GUI/**: WinForms viewer application
+- **GUI/**: WinForms viewer
 - **CLI/**: Command-line decompiler and file viewer, usage in `docs/guides/command-line.md`
-- **Renderer/**: OpenGL rendering engine for Source 2 assets.
-    - Shaders use the `.slang` extension (`.frag.slang`, `.vert.slang`) with GLSL syntax, and must only contain ASCII characters.
-    - After changing shaders, run `dotnet run --project Misc/ShaderValidator -- <name filter>` to compile them and their combos on a real GL context. `complex` has combinatorially many combos and is far too slow to validate interactively, so iterate against a smaller shader.
-- **Tests/**: TUnit test suite for the ValveResourceFormat library, plus some headless Renderer logic tests in `Tests/Renderer/`.
-    - Run tests when changing code in `ValveResourceFormat/` or `Renderer/`. GUI and CLI are not covered.
-    - Tests are fast, run the whole suite with `dotnet test`. If it reports `Zero tests ran` (exit code 5), do a full `dotnet build` and retry.
-    - When a parsing change legitimately alters text output, run tests with `VRF_REGEN_FIXTURES=1` to rewrite the mismatching `Tests/Files/ValidOutput` dumps in the source tree.
+- **Renderer/**: OpenGL renderer
+    - Shaders are GLSL in `.slang` files (`.frag.slang`, `.vert.slang`) and must be ASCII only.
+    - After changing shaders, run `dotnet run --project Misc/ShaderValidator -- <name filter>` to compile all their combos on a real GL context. `complex` is too slow for this, so iterate on a smaller shader.
+- **Tests/**: TUnit suite for the library, plus headless Renderer logic tests in `Tests/Renderer/`. GUI and CLI are not covered.
+    - Run the full suite with `dotnet test` when changing `ValveResourceFormat/` or `Renderer/`. On `Zero tests ran` (exit code 5), do a full `dotnet build` and retry.
+    - When a parsing change legitimately alters text output, `VRF_REGEN_FIXTURES=1` rewrites the mismatching `Tests/Files/ValidOutput` dumps.
 - **Misc/**: Auxiliary tools (ShaderValidator, RenderTest, etc.) in their own solution `Misc/MiscVrfProjects.slnx`.
-    - Download CS2/Dota 2 workshop items for testing with `dotnet run --project Misc/WorkshopDownloader -- <ids, urls or search text>` (search lists ids, files go to `Misc/workshop/`).
-- **docs/**: VitePress documentation site. When changing what VRF can parse, decompile, or export, update the support matrix and limitation tables in `docs/guides/format-support.md` in the same change.
-
-**Target:** Latest released .NET. Use modern C# features. Nullable reference types enabled.
+    - `dotnet run --project Misc/WorkshopDownloader -- <ids, urls or search text>` downloads CS2/Dota 2 workshop items for testing into `Misc/workshop/` (search lists ids).
+- **docs/**: VitePress site. When changing what VRF can parse, decompile, or export, update the support matrix and limitation tables in `docs/guides/format-support.md` in the same change.
 
 ### Shader Pipeline
 
-- Each Source 2 `.vfx` shader name is mapped via `GetShaderFileByName()` to one of our shader files (e.g. `vr_complex.vfx` → `complex`, `csgo_environment_blend.vfx` → `csgo_environment`). Unmapped shaders fall back to `complex`.
-- During compilation, a `GameVfx_{vfxName}` define is set to 1 (e.g. `GameVfx_vr_complex`), activating shader-specific code paths via `#if` blocks. All other `GameVfx_` defines remain 0.
-- Texture names from materials are matched to shader uniforms. An alias system maps Source 2 texture names to our uniform names when they differ.
-- Material float/int/vector params are set as uniforms by iterating the shader's default values and overriding with material values.
-- Render mode defines (e.g. `renderMode_Illumination`) default to 0 and are overridden via static combos at compile time.
+- `GetShaderFileByName()` maps each `.vfx` name to one of our shaders (e.g. `csgo_environment_blend.vfx` -> `csgo_environment`), falling back to `complex`.
+- At compile time, `GameVfx_{vfxName}` (e.g. `GameVfx_vr_complex`) is defined as 1 to enable shader-specific `#if` paths; all other `GameVfx_` defines are 0.
 
 ### Transforms and Angles
 
@@ -39,49 +31,22 @@ All angle, quaternion and direction conversions live in `EntityTransformHelper`.
 
 ## Code Style
 
-Follow standard Microsoft C# conventions. Key rules:
+Standard Microsoft C# conventions, plus:
 
-### Formatting
-
-- 4 space indentation, no tabs, no trailing spaces
-- LF line endings for C# files, final newline required
-- Allman braces (opening brace on a new line)
-
-### Naming
-
-- PascalCase for types, methods, properties, and private fields
-- camelCase for parameters and locals, IPascalCase for interfaces
-- Namespaces loosely match folder structure
-
-### Language Use
-
-- Always use `var` for locals
-- Collection expressions: `[]` instead of `new List<>()`
-- Nullable annotations where appropriate (`string?`, `Resource?`)
-- No `this.` qualification unless disambiguating
+- PascalCase for private fields
+- Always `var` for locals
+- Modern C#: collection expressions (`[]`), switch expressions, pattern matching, null coalescing, throw expressions, string interpolation, using declarations
 - Expression bodies for properties, indexers, and accessors; block bodies for methods and constructors
-- Switch expressions, pattern matching, null coalescing, throw expressions, string interpolation
-- Using declarations rather than using statements when possible
-- `MathF` operations over `(float)Math` casts
-- Use the shared helpers in `MathUtils` instead of writing the formula inline, and add new general-purpose math there
+- No `this.` unless disambiguating
 - Prefer early returns
-- Sort usings with System namespaces first, then others alphabetically, and remove unused ones
-- `System`, `System.Numerics`, `System.Collections.Generic` are global usings (defined in Directory.Build.props)
+- `MathF` over `(float)Math` casts; use `MathUtils` helpers instead of inline formulas, and add new general-purpose math there
+- Usings: System first, then alphabetical, no unused ones. `System`, `System.Numerics` and `System.Collections.Generic` are global usings
 
 ### Comments and Documentation
 
-- Use `//` comments, and only for non-obvious logic, workarounds, and TODOs; explain "why", not "what"
+- `//` comments only for non-obvious logic, workarounds, and TODOs; explain "why", not "what"
 - Plain ASCII only: no em-dashes, curly quotes, ellipsis, or Unicode math symbols
-- Never mention where format knowledge came from (other codebases, tools, games' internals) in comments or commit messages
-- Comments must not narrate the change, this conversation, or session codenames; no decorative dividers
+- Never mention where format knowledge came from (other codebases, tools, game internals) in comments or commit messages
+- Don't narrate the change, this conversation, or session codenames; no decorative dividers
 - Leave existing comments alone if they are clear and correct
-- XML docs are required for public APIs in ValveResourceFormat and Renderer; keep them concise and use `<inheritdoc/>` on overrides that add nothing new
-
-## Before Committing Checklist
-
-Run these once when the work is done, not after every edit. While iterating, build only the project you changed.
-
-1. Run `dotnet build` and fix warnings and notices. CI builds Release, which enables `TreatWarningsAsErrors` and `AnalysisMode=All`, so build with `-c Release` to catch what Debug misses.
-2. Run `dotnet format` to fix formatting
-3. Run `dotnet test` to ensure all tests pass
-4. Remove any debug code, console logs, and commented code you added
+- Public APIs in ValveResourceFormat and Renderer require concise XML docs; use `<inheritdoc/>` on overrides that add nothing new
