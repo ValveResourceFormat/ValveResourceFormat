@@ -123,12 +123,46 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// The largest of the given values, compared with <see cref="MathF.Max(float, float)"/>.
+        /// </summary>
+        /// <param name="values">Values to compare; must not be empty.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Max(params ReadOnlySpan<float> values)
+        {
+            var result = values[0];
+
+            for (var i = 1; i < values.Length; i++)
+            {
+                result = MathF.Max(result, values[i]);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// The smallest of the given values, compared with <see cref="MathF.Min(float, float)"/>.
+        /// </summary>
+        /// <param name="values">Values to compare; must not be empty.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Min(params ReadOnlySpan<float> values)
+        {
+            var result = values[0];
+
+            for (var i = 1; i < values.Length; i++)
+            {
+                result = MathF.Min(result, values[i]);
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// The largest of a vector's three components.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float MaxComponent(this Vector3 v)
         {
-            return MathF.Max(v.X, MathF.Max(v.Y, v.Z));
+            return Max(v.X, v.Y, v.Z);
         }
 
         /// <summary>
@@ -137,7 +171,7 @@ namespace ValveResourceFormat.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float MinComponent(this Vector3 v)
         {
-            return MathF.Min(v.X, MathF.Min(v.Y, v.Z));
+            return Min(v.X, v.Y, v.Z);
         }
 
         /// <summary>
@@ -343,6 +377,6 @@ namespace ValveResourceFormat.Utils
         /// The largest per-axis scale baked into a transform.
         /// </summary>
         public static float MaxAxisScale(this Matrix4x4 m)
-            => MathF.Max(m.AxisScale(0), MathF.Max(m.AxisScale(1), m.AxisScale(2)));
+            => Max(m.AxisScale(0), m.AxisScale(1), m.AxisScale(2));
     }
 }

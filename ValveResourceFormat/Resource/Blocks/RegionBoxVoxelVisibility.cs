@@ -224,7 +224,7 @@ namespace ValveResourceFormat.Blocks
         private void BuildCoarseGrid()
         {
             var extent = MaxBounds - MinBounds;
-            var largestExtent = MathF.Max(extent.X, MathF.Max(extent.Y, extent.Z));
+            var largestExtent = extent.MaxComponent();
 
             if (ClusterCount <= CoarseGridMinClusters || largestExtent < CoarseGridMinExtent || Nodes.Length == 0)
             {
@@ -437,7 +437,7 @@ namespace ValveResourceFormat.Blocks
 
             var size = query.Size;
 
-            if (coarseGrid != null && MathF.Max(size.X, MathF.Max(size.Y, size.Z)) >= coarseCellSize)
+            if (coarseGrid != null && size.MaxComponent() >= coarseCellSize)
             {
                 QueryCoarseGrid(query, clusterBits);
             }

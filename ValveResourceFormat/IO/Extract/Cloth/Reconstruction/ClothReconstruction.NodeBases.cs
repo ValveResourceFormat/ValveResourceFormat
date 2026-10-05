@@ -429,7 +429,7 @@ namespace ValveResourceFormat.IO
             var both = NodeBaseResidual(adjust * new Quaternion(0f, 0f, 1f, 0f));
             var acrossX = NodeBaseResidual(adjust * new Quaternion(0f, 1f, 0f, 0f));
             var acrossY = NodeBaseResidual(adjust * new Quaternion(1f, 0f, 0f, 0f));
-            var residual = MathF.Min(MathF.Min(straight, both), MathF.Min(acrossX, acrossY));
+            var residual = MathUtils.Min(straight, both, acrossX, acrossY);
 
             if (straight < NodeBaseFoldResidual)
             {

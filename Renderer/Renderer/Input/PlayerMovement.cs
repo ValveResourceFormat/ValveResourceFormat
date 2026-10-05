@@ -2365,7 +2365,7 @@ public partial class PlayerMovement : IPlayerController
         var perpendicularSlack = (raw.Distance * approach) - SurfaceEpsilon;
 
         // Within this the hull counts as already flush: a resting contact, credited no travel
-        var positionScale = MathF.Max(MathF.Abs(from.X), MathF.Max(MathF.Abs(from.Y), MathF.Abs(from.Z)));
+        var positionScale = Vector3.Abs(from).MaxComponent();
         var flushTolerance = MathF.Min(SurfaceEpsilon / 16f, FlushContactTolerance * MathF.Max(1f, positionScale));
 
         var allowed = MathF.Abs(perpendicularSlack) <= flushTolerance ? 0f : perpendicularSlack / approach;

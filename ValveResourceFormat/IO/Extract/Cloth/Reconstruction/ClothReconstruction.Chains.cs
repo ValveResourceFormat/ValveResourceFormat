@@ -463,7 +463,7 @@ namespace ValveResourceFormat.IO
                 sumZ += MathF.Abs(local.Z);
             }
 
-            var scale = MathF.Max(sumX, MathF.Max(sumY, sumZ));
+            var scale = MathUtils.Max(sumX, sumY, sumZ);
             if (scale <= 1e-6f)
             {
                 return 'x';

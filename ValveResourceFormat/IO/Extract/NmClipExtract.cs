@@ -285,7 +285,7 @@ public class NmClipExtract
                     new Vector3(rotation.X, rotation.Y, rotation.Z).Length()
                 );
 
-                deviation = MathF.Max(deviation, MathF.Max(bone.Position.Length(), rotationDeviation));
+                deviation = MathUtils.Max(deviation, bone.Position.Length(), rotationDeviation);
             }
 
             if (deviation < smallestDeviation)
