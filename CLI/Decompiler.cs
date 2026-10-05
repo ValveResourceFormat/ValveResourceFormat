@@ -116,6 +116,8 @@ namespace CLI
         /// <param name="vpk_filepath">-f, File path filter(s), matching the start of the path inside the VPK or relative to the input folder (case-insensitive), or the full path when using * and ? wildcards. Example: "panorama/,sounds/" or "*/entities/*".</param>
         /// <param name="vpk_cache">Use a cached VPK manifest to keep track of updates, only changed files are written to disk. Requires --output.</param>
         /// <param name="vpk_verify">Verify checksums and signatures of the given VPK, or of every VPK in the given folder.</param>
+        /// <param name="vpk_create">Pack all files in the input folder and its subfolders into a VPK at the given path, example: "pak01_dir.vpk". File paths are lowercased, and file extension and path filters apply.</param>
+        /// <param name="vpk_create_chunk_size">When using --vpk_create, split file data into chunk files of this many megabytes (1 to 1024) next to the VPK, which must be named "*_dir.vpk". By default everything is written into a single file.</param>
         /// <param name="output">-o, Output path to write to. Treated as a folder when it is an existing folder, ends with a path separator, or has no file extension, otherwise it names the file to write, which requires the input to be a single file or the filters to match one file. Use "-" to print decompiled files to the console instead.</param>
         /// <param name="all">-a, Print the content of each resource block in the file.</param>
         /// <param name="block">-b, Print the content of specific block(s), example: "DATA" or "RERL,RED2".</param>
@@ -135,7 +137,7 @@ namespace CLI
         /// <param name="shader_combo">Decompile the shader variant matching these combo values, example: "S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4". A bare name means "=1", omitted combos stay at their minimum. For a material, the static combos it selects are used.</param>
         /// <param name="tools_asset_info_short">Print only file paths for tools_asset_info files.</param>
         /// <param name="threads">If higher than 1, files are processed concurrently. Only used with --output or --test.</param>
-        /// <param name="quiet">-q, When writing to --output, only print errors and a summary. With the shader options, only print their output.</param>
+        /// <param name="quiet">-q, When writing to --output or --vpk_create, only print errors and a summary. With the shader options, only print their output.</param>
         /// <param name="game">Path to a gameinfo.gi file, or the folder containing it, to load game search paths from, such as "steam:730/game/csgo". Useful when the input file is not located inside a game folder.</param>
         /// <param name="test">Run every input file through all of the decompile code paths to find exceptions, and print how many files of each type and version were found. Use "-i steam" to scan all Steam libraries.</param>
         /// <param name="test_loader">When using --test, use GameFileLoader to load dependencies.</param>
@@ -153,6 +155,8 @@ namespace CLI
             [HideDefaultValue] string? vpk_filepath = default,
             bool vpk_cache = false,
             bool vpk_verify = false,
+            [HideDefaultValue] string? vpk_create = default,
+            [HideDefaultValue] int vpk_create_chunk_size = 0,
 
             [HideDefaultValue] string? output = default,
             bool all = false,
@@ -269,6 +273,8 @@ namespace CLI
             OutputVPKDir = vpk_dir;
             VerifyVPKChecksums = vpk_verify;
             CachedManifest = vpk_cache;
+            VpkCreatePath = vpk_create;
+            VpkCreateChunkSize = vpk_create_chunk_size;
             ListResources = vpk_list || vpk_dir;
 
             // Paths inside of VPKs do not start with a slash
@@ -358,11 +364,30 @@ namespace CLI
                 return 1;
             }
 
-            bool[] modes = [OutputFile != null, ListResources, VerifyVPKChecksums, ShouldPrintBlockContents, CollectStats, HasShaderOptions];
+            if (VpkCreatePath != null && !VpkCreatePath.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.Error.WriteLine("--vpk_create must name a \".vpk\" file.");
+                return 1;
+            }
+
+            if (VpkCreateChunkSize is < 0 or > 1024)
+            {
+                Console.Error.WriteLine("--vpk_create_chunk_size must be between 1 and 1024 megabytes.");
+                return 1;
+            }
+
+            // Chunk files are named after the directory file
+            if (VpkCreateChunkSize > 0 && VpkCreatePath?.EndsWith("_dir.vpk", StringComparison.OrdinalIgnoreCase) == false)
+            {
+                Console.Error.WriteLine("--vpk_create must name a \"*_dir.vpk\" file when using --vpk_create_chunk_size.");
+                return 1;
+            }
+
+            bool[] modes = [OutputFile != null, ListResources, VerifyVPKChecksums, VpkCreatePath != null, ShouldPrintBlockContents, CollectStats, HasShaderOptions];
 
             if (modes.Count(mode => mode) > 1)
             {
-                Console.Error.WriteLine("Only one of --output, --vpk_list (or --vpk_dir), --vpk_verify, --block (or --all), --test, and the shader options can be used at a time.");
+                Console.Error.WriteLine("Only one of --output, --vpk_list (or --vpk_dir), --vpk_verify, --vpk_create, --block (or --all), --test, and the shader options can be used at a time.");
                 return 1;
             }
 
@@ -391,6 +416,18 @@ namespace CLI
             if (hasFilters && inputIsFile && !InputFile.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase))
             {
                 Console.Error.WriteLine("--vpk_extensions and --vpk_filepath only apply to folders and VPK files, not to a single file.");
+                return 1;
+            }
+
+            if (VpkCreatePath != null && !inputIsFolder)
+            {
+                Console.Error.WriteLine("--vpk_create requires --input to be a folder.");
+                return 1;
+            }
+
+            if (VpkCreatePath != null && RecursiveSearchArchives)
+            {
+                Console.Error.WriteLine("--recursive_vpk does not apply to --vpk_create, VPKs in the input folder are packed as they are.");
                 return 1;
             }
 
@@ -431,15 +468,21 @@ namespace CLI
                 return 1;
             }
 
+            if (VpkCreatePath == null && VpkCreateChunkSize != 0)
+            {
+                Console.Error.WriteLine("--vpk_create_chunk_size requires --vpk_create.");
+                return 1;
+            }
+
             if (OutputToConsole && (GltfExportFormat != null || CachedManifest))
             {
                 Console.Error.WriteLine("--output - only prints decompiled files, use it without glTF exports or --vpk_cache.");
                 return 1;
             }
 
-            if (Quiet && OutputFile == null && !HasShaderOptions)
+            if (Quiet && OutputFile == null && VpkCreatePath == null && !HasShaderOptions)
             {
-                Console.Error.WriteLine("--quiet is only supported with --output or the shader options.");
+                Console.Error.WriteLine("--quiet is only supported with --output, --vpk_create or the shader options.");
                 return 1;
             }
 
@@ -475,6 +518,11 @@ namespace CLI
 
         private int Execute()
         {
+            if (VpkCreatePath != null)
+            {
+                return CreateVpk();
+            }
+
             var paths = new List<string>();
 
             if (Directory.Exists(InputFile))

@@ -16,6 +16,8 @@ The binary name is `Source2Viewer-CLI`.
 | `--vpk_filepath` (or `-f`)   | File path filter(s), matching the start of the path inside the VPK or relative to the input folder (case-insensitive), or the full path when using `*` and `?` wildcards. Example: `"panorama/,sounds/"` or `"*/entities/*"`.                                                                                    |
 | `--vpk_cache`                | Use a cached VPK manifest to keep track of updates, only changed files are written to disk. Requires `--output`.                                                                                                                                                                                                 |
 | `--vpk_verify`               | Verify checksums and signatures of the given VPK, or of every VPK in the given folder.                                                                                                                                                                                                                           |
+| `--vpk_create`               | Pack all files in the input folder and its subfolders into a VPK at the given path, example: `"pak01_dir.vpk"`. File paths are lowercased, and file extension and path filters apply.                                                                                                                            |
+| `--vpk_create_chunk_size`    | When using `--vpk_create`, split file data into chunk files of this many megabytes (1 to 1024) next to the VPK, which must be named `"*_dir.vpk"`. By default everything is written into a single file.                                                                                                          |
 | **Output**                   |                                                                                                                                                                                                                                                                                                                  |
 | `--output` (or `-o`)         | Output path to write to. Treated as a folder when it is an existing folder, ends with a path separator, or has no file extension, otherwise it names the file to write, which requires the input to be a single file or the filters to match one file. Use `-` to print decompiled files to the console instead. |
 | `--all` (or `-a`)            | Print the content of each resource block in the file.                                                                                                                                                                                                                                                            |
@@ -38,7 +40,7 @@ The binary name is `Source2Viewer-CLI`.
 | `--tools_asset_info_short`   | Print only file paths for tools_asset_info files.                                                                                                                                                                                                                                                                |
 | **Other**                    |                                                                                                                                                                                                                                                                                                                  |
 | `--threads`                  | If higher than 1, files are processed concurrently. Only used with `--output` or `--test`.                                                                                                                                                                                                                       |
-| `--quiet` (or `-q`)          | When writing to `--output`, only print errors and a summary. With the shader options, only print their output.                                                                                                                                                                                                   |
+| `--quiet` (or `-q`)          | When writing to `--output` or `--vpk_create`, only print errors and a summary. With the shader options, only print their output.                                                                                                                                                                                 |
 | `--game`                     | Path to a `gameinfo.gi` file, or the folder containing it, to load game search paths from, such as `"steam:730/game/csgo"`. Useful when the input file is not located inside a game folder.                                                                                                                      |
 | `--version`                  | Show version information.                                                                                                                                                                                                                                                                                        |
 | `--help`                     | Show help information.                                                                                                                                                                                                                                                                                           |
@@ -51,7 +53,7 @@ The exit code is `0` on success, `1` for invalid arguments, and `2` when any fil
 
 ### Good to know
 
-- Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_verify`, `--block` (or `--all`), `--test`, and the shader options can be used at a time.
+- Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_verify`, `--vpk_create`, `--block` (or `--all`), `--test`, and the shader options can be used at a time.
 - Paths starting with `steam:<appid>/` are relative to the installation folder of that Steam app, so `-i steam:730/game/csgo/pak01_dir.vpk` works on any computer with Counter-Strike 2 installed. "Copy full path" in Source 2 Viewer copies `vpk:` links in this form, which can be passed to `--input` to process the file or folder they point to.
 - Pass the `_dir.vpk` of a multi-chunk package (`pak01_dir.vpk`), not one of the numbered `pak01_000.vpk` chunks.
 - Use `--vpk_list` to find the exact path of a file, then filter on it with `--vpk_filepath`. The filter matches the start of the path, so `models/chicken/` works but `chicken` does not, use `*chicken*` instead.
@@ -91,6 +93,20 @@ Export only the "panorama/layout" folder:
 
 ```powershell
 ./Source2Viewer-CLI.exe -i "core/pak01_dir.vpk" --output "pak01_exported" --vpk_filepath "panorama/layout"
+```
+
+### Create a VPK from a folder
+
+Pack compiled map files into a map VPK. The input folder contains the files at the paths they have inside of the VPK, such as `maps/de_example/world.vwrld_c`:
+
+```powershell
+./Source2Viewer-CLI.exe -i "de_example" --vpk_create "maps/de_example.vpk"
+```
+
+Large packages can be split into 100 MB chunk files (`pak01_000.vpk`, `pak01_001.vpk`, ...) next to the directory file:
+
+```powershell
+./Source2Viewer-CLI.exe -i "my_addon" --vpk_create "pak01_dir.vpk" --vpk_create_chunk_size 100
 ```
 
 ### Decompile and export Panorama files
