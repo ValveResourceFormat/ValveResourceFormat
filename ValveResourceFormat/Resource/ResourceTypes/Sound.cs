@@ -226,22 +226,31 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var bitpackedSoundInfo = reader.ReadUInt32();
                 var type = ExtractSub(bitpackedSoundInfo, 0, 2);
+                var bits = ExtractSub(bitpackedSoundInfo, 2, 5);
+                var waveFormat = (WaveAudioFormat)ExtractSub(bitpackedSoundInfo, 12, 2);
 
-                if (type > 2)
+                var soundFormat = (AudioFileType)type switch
                 {
-                    throw new InvalidDataException($"Unknown sound type in old vsnd version: {type}");
-                }
+                    AudioFileType.MP3 => AudioFormatV4.MP3,
+                    AudioFileType.WAV when waveFormat == WaveAudioFormat.ADPCM => AudioFormatV4.ADPCM,
+                    AudioFileType.WAV when bits == 8 => AudioFormatV4.PCM8,
+                    AudioFileType.WAV => AudioFormatV4.PCM16,
+                    AudioFileType.AAC => AudioFormatV4.PCM16, // The engine plays this type as 16-bit PCM
+                    _ => throw new InvalidDataException($"Unknown sound type in old vsnd version: {type}"),
+                };
 
-                SoundType = (AudioFileType)type;
-                Bits = ExtractSub(bitpackedSoundInfo, 2, 5);
+                SetSoundFormatBits(soundFormat);
                 Channels = ExtractSub(bitpackedSoundInfo, 7, 2);
-                SampleSize = ExtractSub(bitpackedSoundInfo, 9, 3);
-                AudioFormat = (WaveAudioFormat)ExtractSub(bitpackedSoundInfo, 12, 2);
-                SampleRate = ExtractSub(bitpackedSoundInfo, 14, 17);
+                SampleRate = ExtractSub(bitpackedSoundInfo, 14, 16);
             }
 
             LoopStart = reader.ReadInt32();
             SampleCount = reader.ReadUInt32();
+
+            if (Resource.Version < 3 && SoundType == AudioFileType.MP3)
+            {
+                LoopStart = -1;
+            }
             Duration = reader.ReadSingle();
 
             var sentencePosition = reader.BaseStream.Position;
@@ -257,30 +266,17 @@ namespace ValveResourceFormat.ResourceTypes
                 sentenceOffset = (uint)(sentencePosition + sentenceOffset);
             }
 
+            // An array the engine relocates but never reads
             if (Resource.Version >= 1)
             {
-                var d = reader.ReadUInt32();
-                if (d != 0)
-                {
-                    throw new UnexpectedMagicException("Unexpected", d, nameof(d));
-                }
-
-                var e = reader.ReadUInt32();
-                if (e != 0)
-                {
-                    throw new UnexpectedMagicException("Unexpected", e, nameof(e));
-                }
+                reader.ReadInt32(); // offset
+                reader.ReadInt32(); // count
             }
 
-            // v2 and v3 are the same?
-            // likely CAudioMorphData (m_morphData inside CAudioSentence)
+            // Pointer to CAudioMorphData, v3 adds no new fields
             if (Resource.Version >= 2)
             {
-                var f = reader.ReadUInt32();
-                if (f != 0)
-                {
-                    throw new UnexpectedMagicException("Unexpected", f, nameof(f));
-                }
+                reader.ReadInt32();
             }
 
             if (Resource.Version >= 4)
