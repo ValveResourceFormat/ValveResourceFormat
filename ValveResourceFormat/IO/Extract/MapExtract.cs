@@ -2130,7 +2130,7 @@ public sealed partial class MapExtract
     }
 
     internal static string GetAutoPhysicsMaterialName(string rootFolder, string surfaceProperty)
-        => NormalizePath(Path.Combine(rootFolder, "_vrf", "physics_surfaces", surfaceProperty + ".vmat"))!;
+        => NormalizePath(Path.Combine(rootFolder, "_vrf", "physics_surfaces", surfaceProperty.ToLowerInvariant() + ".vmat"))!;
 
     private string GetAndExportAutoPhysicsMaterialName(string surfaceProperty)
     {

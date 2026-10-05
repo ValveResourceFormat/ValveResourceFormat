@@ -284,6 +284,9 @@ namespace ValveResourceFormat.ResourceTypes
             return entity;
         }
 
+        // TODO: Keep the original casing once entity property lookups are case-insensitive, like the engine's hash compare
+        private static string ToPropertyKey(string name) => name.ToLowerInvariant();
+
         private static KVObject MakeColor32(byte[] bytes)
             => KVObject.Array(bytes.Select(b => (KVObject)(long)b));
 
@@ -301,11 +304,8 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var child in values.Children)
             {
-                // All entity property keys will be stored in lowercase
-                var lowercaseKey = child.Key.ToLowerInvariant();
-
-                var hash = StringToken.Store(lowercaseKey);
-                entity.Add(lowercaseKey, child.Value);
+                StringToken.Store(child.Key);
+                entity.Add(ToPropertyKey(child.Key), child.Value);
             }
         }
 
@@ -346,7 +346,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (keyName == null)
                 {
-                    keyName = StringToken.GetKnownString(keyHash);
+                    keyName = ToPropertyKey(StringToken.GetKnownString(keyHash));
                 }
                 else
                 {

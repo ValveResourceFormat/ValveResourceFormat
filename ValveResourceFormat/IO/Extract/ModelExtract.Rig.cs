@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
@@ -65,11 +66,17 @@ partial class ModelExtract
         }
     }
 
+    // Bone and attachment names as spelled in this model, the global string token table is only a fallback
+    private readonly Dictionary<uint, string> rigNames = [];
+
+    bool TryGetRigName(uint hash, [MaybeNullWhen(false)] out string name)
+        => rigNames.TryGetValue(hash, out name) || StringToken.InvertedTable.TryGetValue(hash, out name);
+
     KVObject? ProcessBoneConstraintTarget(KVObject target)
     {
         var isAttachment = target.GetBooleanProperty("m_bIsAttachment");
         var targetHash = target.GetUInt32Property("m_nBoneHash");
-        if (!StringToken.InvertedTable.TryGetValue(targetHash, out var targetName))
+        if (!TryGetRigName(targetHash, out var targetName))
         {
             ProgressReporter?.Report($"Skipping a bone constraint: no name for {(isAttachment ? "attachment" : "bone")} {targetHash}.");
             return null;
@@ -94,7 +101,7 @@ partial class ModelExtract
     KVObject? ProcessBoneConstraintSlave(KVObject slave)
     {
         var boneHash = slave.GetUInt32Property("m_nBoneHash");
-        if (!StringToken.InvertedTable.TryGetValue(boneHash, out var boneName))
+        if (!TryGetRigName(boneHash, out var boneName))
         {
             ProgressReporter?.Report($"Skipping a bone constraint: no name for bone {boneHash}.");
             return null;
@@ -127,7 +134,7 @@ partial class ModelExtract
 
             var constrainedBoneData = parentSlaves[0];
             var constrainedBoneHash = constrainedBoneData.GetUInt32Property("m_nBoneHash");
-            if (StringToken.InvertedTable.TryGetValue(constrainedBoneHash, out var constrainedBoneName))
+            if (TryGetRigName(constrainedBoneHash, out var constrainedBoneName))
             {
                 node.Add("constrained_bone", constrainedBoneName);
             }
@@ -213,7 +220,10 @@ partial class ModelExtract
             stringTokenKeys = stringTokenKeys.Concat(mesh.Attachments.Keys);
         }
 
-        StringToken.Store(stringTokenKeys);
+        foreach (var name in stringTokenKeys)
+        {
+            rigNames.TryAdd(StringToken.Store(name), name);
+        }
 
         var childrenKV = KVObject.Array();
 

@@ -158,17 +158,6 @@ namespace ValveResourceFormat.Utils
             return token;
         }
 
-        /// <summary>
-        /// Store a number of strings to the table of known string hashes, so they can later be retrieved using <see cref="GetKnownString"/>.
-        /// </summary>
-        public static void Store(IEnumerable<string> keys)
-        {
-            foreach (var key in keys)
-            {
-                Store(key);
-            }
-        }
-
         internal static Dictionary<uint, string> InitializeInverseLookup()
         {
             var inverseLookup = new Dictionary<uint, string>(EntityLumpKnownKeys.KnownKeys.Length);

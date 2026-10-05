@@ -193,6 +193,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private readonly Stack<uint> OffsetAtBranchExits = new();
         private readonly Dictionary<uint, string> LocalVariableNames = [];
 
+        // Names as spelled in this material, the global string token table is only a fallback
+        private readonly Dictionary<uint, string> TokenNames = [];
+
         /// <summary>
         /// Gets the list of render attributes used in the expression.
         /// </summary>
@@ -239,7 +242,10 @@ namespace ValveResourceFormat.Serialization.VfxEval
             EnumMapper = enumMapper;
             RenderAttributesUsed = renderAttributesUsed;
 
-            StringToken.Store(renderAttributesUsed);
+            foreach (var name in renderAttributesUsed)
+            {
+                TokenNames.TryAdd(StringToken.Store(name), name);
+            }
             ParseExpression(binaryBlob);
         }
 
@@ -462,10 +468,10 @@ namespace ValveResourceFormat.Serialization.VfxEval
             return exp;
         }
 
-        private static string ReadTokenName(BinaryReader dataReader, string unknownPrefix)
+        private string ReadTokenName(BinaryReader dataReader, string unknownPrefix)
         {
             var token = dataReader.ReadUInt32();
-            return StringToken.InvertedTable.GetValueOrDefault(token, $"{unknownPrefix}[{token:x08}]");
+            return TokenNames.GetValueOrDefault(token) ?? StringToken.InvertedTable.GetValueOrDefault(token) ?? $"{unknownPrefix}[{token:x08}]";
         }
 
         // A literal only names a value where an expression's value becomes the value of the whole
