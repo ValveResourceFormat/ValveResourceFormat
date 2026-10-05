@@ -1,12 +1,13 @@
 using System.IO;
+using System.IO.Hashing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using SkiaSharp;
 using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.ThirdParty;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace ValveResourceFormat.IO;
@@ -257,7 +258,7 @@ public partial class GltfModelExporter
             // Generate consistent file name for the ORM
             var ormTexturePaths = ormTextureInstructions.Keys.ToArray();
             Array.Sort(ormTexturePaths);
-            var ormHash = MurmurHash2.Hash(string.Join("|", ormTexturePaths), StringToken.MURMUR2SEED);
+            var ormHash = XxHash32.HashToUInt32(MemoryMarshal.AsBytes(string.Join("|", ormTexturePaths).AsSpan()));
             var ormFileName = Path.GetFileNameWithoutExtension(ormTexturePaths[0]) + $"_orm_{ormHash}.png";
 
             if (!ExportedTextures.TryGetValue(ormFileName, out var texture))

@@ -623,7 +623,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         private static ulong CalculateShaderCacheHash(string shaderName, Dictionary<string, byte> defines, IReadOnlyDictionary<string, byte> arguments)
         {
-            var hash = new XxHash3(StringToken.MURMUR2SEED);
+            var hash = new XxHash3();
             hash.Append(MemoryMarshal.AsBytes(shaderName.AsSpan()));
 
             var argsOrdered = SortAndFilterArguments(defines, arguments);

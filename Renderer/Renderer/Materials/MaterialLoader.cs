@@ -115,7 +115,7 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             Span<byte> valueSpan = stackalloc byte[1];
-            var hash = new XxHash3(StringToken.MURMUR2SEED);
+            var hash = new XxHash3();
             hash.Append(MemoryMarshal.AsBytes(name.AsSpan()));
 
             if (shaderArguments != null)

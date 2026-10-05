@@ -1,7 +1,8 @@
+using System.IO.Hashing;
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.Renderer.Shaders
 {
@@ -11,7 +12,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the shader name (typically a Source 2 <c>.vfx</c> shader name).</summary>
         public string Name { get; }
 
-        /// <summary>Gets the <see cref="MurmurHash2"/> hash of <see cref="Name"/>.</summary>
+        /// <summary>Gets a hash of <see cref="Name"/>, used to tell shaders apart in debug render modes.</summary>
         public uint NameHash { get; }
 
         /// <summary>Gets or sets the OpenGL program object handle.</summary>
@@ -210,7 +211,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         public Shader(string name, RendererContext rendererContext)
         {
             Name = name;
-            NameHash = MurmurHash2.Hash(Name, StringToken.MURMUR2SEED);
+            NameHash = XxHash32.HashToUInt32(MemoryMarshal.AsBytes(Name.AsSpan()));
             RendererContext = rendererContext;
             Default = new RenderMaterial(this);
             MaterialLoader = rendererContext.MaterialLoader;
