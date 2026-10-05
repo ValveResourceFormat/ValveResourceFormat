@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat.ResourceTypes;
@@ -14,9 +15,9 @@ namespace Tests.Utils
 
             foreach (var key in EntityLumpKnownKeys.KnownKeys)
             {
-                await Assert.That(key).IsEqualTo(key.ToLowerInvariant()).Because($"{nameof(EntityLumpKnownKeys)} keys must be in lowercase.");
-
                 var token = StringToken.Get(key);
+
+                await Assert.That(token).IsEqualTo(StringToken.Get(key.ToLowerInvariant())).Because($"{key} must hash the same as its lowercase form.");
 
                 if (seen.TryGetValue(token, out var collision))
                 {
@@ -25,6 +26,24 @@ namespace Tests.Utils
 
                 seen[token] = key;
             }
+        }
+
+        [Test]
+        public async Task EnsureKnownKeysAreSorted()
+        {
+            // Case is ignored so that changing the casing of a key never moves it
+            var comparer = CultureInfo.InvariantCulture.CompareInfo.GetStringComparer(CompareOptions.NumericOrdering | CompareOptions.IgnoreCase);
+            var keys = EntityLumpKnownKeys.KnownKeys;
+
+            for (var i = 1; i < keys.Length; i++)
+            {
+                if (comparer.Compare(keys[i - 1], keys[i]) >= 0)
+                {
+                    Fail.Test($"{nameof(EntityLumpKnownKeys)} must be sorted: \"{keys[i - 1]}\" should come after \"{keys[i]}\"");
+                }
+            }
+
+            await Assert.That(keys).IsNotEmpty();
         }
 
         [Test]

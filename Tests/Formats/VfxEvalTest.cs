@@ -459,7 +459,7 @@ namespace Tests.Formats
             var expectedResultWithFeatures = "F_B ? 1 : 0";
 
             var testInput2 = ParseString("1D 3C 13 92 A3 1E A4 06 1F 00 00");
-            var expectedResult2 = "SrgbGammaToLinear(MATERIAL_PARAM[a392133c].xyz)";
+            var expectedResult2 = "SrgbGammaToLinear(g_vSelfIllumTint.xyz)";
 
             using (Assert.Multiple())
             {
@@ -587,7 +587,7 @@ namespace Tests.Formats
             // parsing a shader registers its variable names, which is what resolves this one
             StringToken.Store("g_flReflectionsTintByBaseBlendToNone");
 
-            var expectedResult = "(FEAT[19] && exists($reflectionstintbybaseblendtonone)) ? ATTRIBUTE[1e52d0a1] : g_flReflectionsTintByBaseBlendToNone";
+            var expectedResult = "(FEAT[19] && exists($REFLECTIONSTINTBYBASEBLENDTONONE)) ? OnlyRenderIfStencil : g_flReflectionsTintByBaseBlendToNone";
             var vfxEval = new VfxEval(testInput, omitReturnStatement: true);
             await Assert.That(vfxEval.DynamicExpressionResult).IsEqualTo(expectedResult);
         }
@@ -601,10 +601,10 @@ namespace Tests.Formats
                 "00 51 00 1D 16 82 0D 28 06 1B 00 15 02 56 00 07 00 00 00 00 1D CF 75 4A D4 13 07 00 00 00 3F 09 01 " +
                 "09 02 14 09 02 09 01 13 06 1A 00 15 14 07 00 00 00 3F 13 08 03 09 02 09 01 09 03 1E 55 06 19 00 00");
             var expectedResult =
-                "v0 = MATERIAL_PARAM[ab322b37]*3.1415927/180;\n" +
-                "v1 = cos(v0)/MATERIAL_PARAM[c79af6d2];\n" +
-                "v2 = sin(v0)/MATERIAL_PARAM[c79af6d2];\n" +
-                "v3 = ((dot2(MATERIAL_PARAM[280d8216],MATERIAL_PARAM[280d8216])>1e-05) ? MATERIAL_PARAM[280d8216]*time() : 0)+MATERIAL_PARAM[d44a75cf]-.5*float2(v1-v2,v2+v1)+.5;\n" +
+                "v0 = g_flTexCoordRotate3*3.1415927/180;\n" +
+                "v1 = cos(v0)/g_flTexCoordScale3;\n" +
+                "v2 = sin(v0)/g_flTexCoordScale3;\n" +
+                "v3 = ((dot2(g_vTexCoordScroll3,g_vTexCoordScroll3)>1e-05) ? g_vTexCoordScroll3*time() : 0)+g_vTexCoordOffset3-.5*float2(v1-v2,v2+v1)+.5;\n" +
                 "float3(v2,v1,v3.y)";
             await Assert.That(new VfxEval(testInput, omitReturnStatement: true).DynamicExpressionResult).IsEqualTo(expectedResult);
         }
