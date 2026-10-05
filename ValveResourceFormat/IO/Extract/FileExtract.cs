@@ -124,6 +124,9 @@ namespace ValveResourceFormat.IO
         private readonly IFileLoader fileLoader;
 
         /// <inheritdoc/>
+        public GameInfo GameInfo => fileLoader.GameInfo;
+
+        /// <inheritdoc/>
         public Resource? LoadFile(string file)
         {
             var resource = fileLoader.LoadFile(file);

@@ -281,10 +281,16 @@ namespace ValveResourceFormat.IO
         public Func<string, Vector2?>? TextureSizeProvider { get; init; }
 
         /// <summary>
-        /// Texture size assumed for a projected face when <see cref="TextureSizeProvider"/> gives none: a texture
-        /// that repeats every 128 units at <see cref="PolygonMesh.DefaultTextureScale"/>, the usual Hammer world mapping.
+        /// Units one texel spans on a projected face, the game's <c>Hammer/DefaultTextureScale</c>.
         /// </summary>
-        public Vector2 DefaultProjectedTextureSize { get; init; } = new(128f / PolygonMesh.DefaultTextureScale);
+        public float DefaultTextureScale { get; init; } = PolygonMesh.DefaultTextureScale;
+
+        /// <summary>
+        /// Texture size assumed for a projected face when <see cref="TextureSizeProvider"/> gives none, or
+        /// <see langword="null"/> for a texture that repeats every 128 units at <see cref="DefaultTextureScale"/>,
+        /// the usual Hammer world mapping.
+        /// </summary>
+        public Vector2? DefaultProjectedTextureSize { get; init; }
 
         /// <summary>
         /// Writes everything added so far out as a Hammer mesh.
@@ -648,11 +654,11 @@ namespace ValveResourceFormat.IO
 
             // a face without texture coordinates gets Hammer's default world aligned projection, one with them gets
             // the projection parameters that reproduce them, for Hammer's texture tools
-            var textureSize = TextureSizeProvider?.Invoke(material) ?? DefaultProjectedTextureSize;
+            var textureSize = TextureSizeProvider?.Invoke(material) ?? DefaultProjectedTextureSize ?? new Vector2(128f / DefaultTextureScale);
 
             if (missingTexCoords)
             {
-                Mesh.TextureAlignToGrid(hFace, textureSize);
+                Mesh.TextureAlignToGrid(hFace, textureSize, DefaultTextureScale);
             }
             else
             {
