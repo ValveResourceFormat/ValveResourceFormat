@@ -19,7 +19,7 @@ namespace GUI.Types.GLViewers
 
         protected override void LoadScene()
         {
-            NavMeshSceneNode.AddNavNodesToScene(navMeshFile, Scene);
+            NavMeshSceneNode.AddNavNodesToScene(navMeshFile, Scene, NavHullNames.Read(Scene.RendererContext.FileLoader, navMeshFile.GenerationParams?.HullPresetName));
         }
     }
 }
