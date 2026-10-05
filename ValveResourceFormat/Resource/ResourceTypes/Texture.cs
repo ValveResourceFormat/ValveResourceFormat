@@ -279,6 +279,7 @@ namespace ValveResourceFormat.ResourceTypes
             VTexFormat.BGRA8888 => 4,
             VTexFormat.ATI1N => 8,
             VTexFormat.ATI2N => 16,
+            VTexFormat.R32_UINT => 4,
             _ => 1,
         };
 
@@ -383,8 +384,15 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public Vector4 RangeMax { get; private set; }
 
+        private enum MipCompressionMethod
+        {
+            None,
+            LZ4,
+            Zstd,
+        }
+
         private int[]? CompressedMips;
-        private bool IsActuallyCompressedMips;
+        private MipCompressionMethod MipCompression;
 
         /// <summary>
         /// Gets the baked radiance of each cube map in the array as an L2 spherical harmonic,
@@ -496,16 +504,17 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                     else if (type == VTexExtraData.COMPRESSED_MIP_SIZE)
                     {
-                        var int1 = reader.ReadUInt32(); // 1?
+                        var compressionMethod = reader.ReadUInt32();
                         var mipsOffset = reader.ReadUInt32();
                         var mips = reader.ReadUInt32();
 
-                        if (int1 != 1 && int1 != 0)
+                        MipCompression = compressionMethod switch
                         {
-                            throw new InvalidDataException($"int1 got: {int1}");
-                        }
-
-                        IsActuallyCompressedMips = int1 == 1; // TODO: Verify whether this int is the one that actually controls compression
+                            0 => MipCompressionMethod.None,
+                            1 => MipCompressionMethod.LZ4,
+                            2 => MipCompressionMethod.Zstd,
+                            _ => throw new UnexpectedMagicException("Unknown mip compression method", compressionMethod, nameof(compressionMethod)),
+                        };
 
                         CompressedMips = new int[mips];
 
@@ -547,14 +556,10 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 using var memoryStream = new MemoryStream(bytes);
                 using var reader = new BinaryReader(memoryStream);
-                var version = reader.ReadUInt32();
-
-                if (version != 8)
-                {
-                    throw new UnexpectedMagicException("Unknown version", version, nameof(version));
-                }
-
+                var sequencesOffset = reader.ReadInt32();
                 var numSequences = reader.ReadUInt32();
+
+                reader.BaseStream.Position = sequencesOffset;
 
                 var sequences = new SpritesheetData.Sequence[numSequences];
 
@@ -893,6 +898,8 @@ namespace ValveResourceFormat.ResourceTypes
                 VTexFormat.RGBA32323232F => new DecodeRGBA32323232F(),
                 VTexFormat.IA88 => new DecodeIA88(),
                 VTexFormat.BGRA8888 => new DecodeBGRA8888(),
+                VTexFormat.R8_UNORM => new DecodeR8(),
+                VTexFormat.R32_UINT => new DecodeR32UInt(),
                 _ => throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format))
             };
         }
@@ -1035,7 +1042,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Debug.Assert(Reader is not null);
 
-            if (!IsActuallyCompressedMips || CompressedMips == null)
+            if (MipCompression == MipCompressionMethod.None || CompressedMips == null)
             {
                 Reader.ReadExactly(output);
                 return;
@@ -1047,6 +1054,11 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 Reader.ReadExactly(output);
                 return;
+            }
+
+            if (MipCompression == MipCompressionMethod.Zstd)
+            {
+                throw new NotSupportedException("Zstd compressed texture mips are not supported.");
             }
 
             var buf = ArrayPool<byte>.Shared.Rent(compressedSize);
@@ -1151,7 +1163,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
 
-            if (IsActuallyCompressedMips && CompressedMips != null && CompressedMips[mipLevel] < uncompressedSize)
+            if (MipCompression == MipCompressionMethod.LZ4 && CompressedMips != null && CompressedMips[mipLevel] < uncompressedSize)
             {
                 // LZ4_DECOMPRESS_INPLACE_MARGIN from lz4.h
                 return uncompressedSize + (CompressedMips[mipLevel] >> 8) + 32;

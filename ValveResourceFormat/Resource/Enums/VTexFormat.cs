@@ -37,6 +37,9 @@ namespace ValveResourceFormat
         BGRA8888 = 28,
         WEBP_RGBA8888 = 29,
         WEBP_DXT5 = 30,
+        R32_UINT = 31,
+        A8 = 32,
+        R8_UNORM = 33,
 #pragma warning restore CS1591
     }
 }
