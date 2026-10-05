@@ -69,6 +69,19 @@ namespace ValveResourceFormat.Utils
             return str;
         }
 
+        /// <summary>
+        /// Reads a row major 3x4 matrix, three rotation rows each followed by a translation component.
+        /// </summary>
+        public static Matrix4x4 ReadMatrix3x4(this BinaryReader stream)
+        {
+            return Matrix4x4.Transpose(new Matrix4x4(
+                stream.ReadSingle(), stream.ReadSingle(), stream.ReadSingle(), stream.ReadSingle(),
+                stream.ReadSingle(), stream.ReadSingle(), stream.ReadSingle(), stream.ReadSingle(),
+                stream.ReadSingle(), stream.ReadSingle(), stream.ReadSingle(), stream.ReadSingle(),
+                0f, 0f, 0f, 1f
+            ));
+        }
+
         [SkipLocalsInit]
         private static string ReadNullTermUtf8String(BinaryReader stream)
         {

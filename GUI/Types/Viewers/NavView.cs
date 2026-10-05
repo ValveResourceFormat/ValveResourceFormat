@@ -73,21 +73,21 @@ namespace GUI.Types.Viewers
                 tabControl.Controls.Add(page);
             }
 
-            if (navMeshFile.KV3Unknown1 != null)
+            if (navMeshFile.MovableMeshSettings != null)
             {
-                var page = CreateKVTab("NAV UNKNOWN KV3 1", navMeshFile.KV3Unknown1);
+                var page = CreateKVTab("NAV MOVABLE MESH SETTINGS", navMeshFile.MovableMeshSettings);
                 tabControl.Controls.Add(page);
             }
 
-            if (navMeshFile.KV3Unknown2 != null)
+            if (navMeshFile.GameData != null)
             {
-                var page = CreateKVTab("NAV UNKNOWN KV3 2", navMeshFile.KV3Unknown2);
+                var page = CreateKVTab("NAV GAME DATA", navMeshFile.GameData);
                 tabControl.Controls.Add(page);
             }
 
-            if (navMeshFile.KV3Unknown3 != null)
+            if (navMeshFile.ExtraGenerationParams != null)
             {
-                var page = CreateKVTab("NAV UNKNOWN KV3 3", navMeshFile.KV3Unknown3);
+                var page = CreateKVTab("NAV EXTRA GEN PARAMS", navMeshFile.ExtraGenerationParams);
                 tabControl.Controls.Add(page);
             }
         }

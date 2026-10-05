@@ -1,5 +1,7 @@
 using System.IO;
 using System.Text;
+using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.NavMesh
 {
@@ -94,8 +96,11 @@ namespace ValveResourceFormat.NavMesh
         public NavMeshGenerationHullParams[] HullParams { get; set; } = [];
 
         /// <summary>
-        /// Gets or sets whether gravity follows the rotation of movable nav meshes.
+        /// Gets or sets whether gravity follows the rotation of movable nav meshes. Meaning unconfirmed.
         /// </summary>
+        /// <remarks>
+        /// The per movable mesh setting is <see cref="NavMeshFile.MovableMeshGravityFollowsRotation"/>.
+        /// </remarks>
         public bool GravityFollowsRotation { get; set; }
 
         /// <summary>
@@ -104,6 +109,13 @@ namespace ValveResourceFormat.NavMesh
         public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile)
         {
             NavGenVersion = binaryReader.ReadInt32();
+
+            // Older versions store hulls in a different layout
+            if (NavGenVersion < 6)
+            {
+                throw new UnexpectedMagicException("Unsupported nav generation version", NavGenVersion, nameof(NavGenVersion));
+            }
+
             UseProjectDefaults = binaryReader.ReadUInt32() != 0;
 
             //Tiles
@@ -139,7 +151,15 @@ namespace ValveResourceFormat.NavMesh
             }
 
             HullCount = binaryReader.ReadInt32();
+
+            // Count is ignored before v12, three hulls are always stored
+            if (NavGenVersion < 12)
+            {
+                HullCount = 3;
+            }
+
             HullParams = new NavMeshGenerationHullParams[HullCount];
+
             for (var i = 0; i < HullCount; i++)
             {
                 var hullParamsEntry = new NavMeshGenerationHullParams();
@@ -147,20 +167,38 @@ namespace ValveResourceFormat.NavMesh
                 HullParams[i] = hullParamsEntry;
             }
 
-            if (NavGenVersion <= 11)
+            if (NavGenVersion >= 10)
             {
-                //Version <=11 stores 3 hulls even if less are used (citadel start.nav)
-                var tempHullParams = new NavMeshGenerationHullParams();
-                for (var i = HullCount; i < 3; i++)
-                {
-                    tempHullParams.Read(binaryReader, this);
-                }
+                GravityFollowsRotation = binaryReader.ReadByte() != 0;
+            }
+        }
+
+        internal void ReadExtraHullParams(KVDocument data)
+        {
+            if (!data.Root.TryGetValue("NavGenParams", out var navGenParams) || navGenParams.ValueType != KVValueType.Collection)
+            {
+                return;
             }
 
-            if (NavGenVersion >= 12)
+            var hullParams = navGenParams.GetArray("HullParams");
+
+            if (hullParams == null || hullParams.Count != HullParams.Length)
             {
-                // The association of this value with the movable mesh gravity setting is probable, but not proven
-                GravityFollowsRotation = binaryReader.ReadByte() != 0;
+                return;
+            }
+
+            for (var i = 0; i < hullParams.Count; i++)
+            {
+                var hull = hullParams[i];
+
+                if (hull.ValueType != KVValueType.Collection)
+                {
+                    continue;
+                }
+
+                HullParams[i].Name = hull.GetStringProperty("Name");
+                HullParams[i].FlowMapEnabled = hull.GetBooleanProperty("FlowMap_Enabled");
+                HullParams[i].FlowMapNodeMaxRadius = hull.GetFloatProperty("FlowMap_NodeMaxRadius");
             }
         }
     }

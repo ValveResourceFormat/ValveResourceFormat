@@ -30,13 +30,7 @@ namespace ValveResourceFormat.NavMesh
             Mins = new Vector3(binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle());
             Maxs = new Vector3(binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle());
 
-            // Stored as a row major 3x4 matrix, three rotation rows each followed by a translation component
-            Transform = Matrix4x4.Transpose(new Matrix4x4(
-                binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle(),
-                binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle(),
-                binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle(), binaryReader.ReadSingle(),
-                0f, 0f, 0f, 1f
-            ));
+            Transform = binaryReader.ReadMatrix3x4();
         }
     }
 }

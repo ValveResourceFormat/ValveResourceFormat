@@ -94,7 +94,7 @@ namespace ValveResourceFormat.NavMesh
             TopBehindArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
             BottomArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
 
-            if (navMeshFile.Version >= 35)
+            if (navMeshFile.Version >= 33)
             {
                 BottomLeftArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
                 BottomRightArea = navMeshFile.GetArea(binaryReader.ReadUInt32());
