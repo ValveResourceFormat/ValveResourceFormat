@@ -367,7 +367,7 @@ public sealed class CS2Projectile : BaseEntity
         var trace = physics?.TraceAABB(from, to, HullHalfExtents, Rubikon.GrenadeCollisionName)
             ?? new Rubikon.TraceResult();
 
-        // The static world is the worldspawn, as the engine reports it
+        // The static world is the world entity, as the engine reports it
         if (trace.Hit)
         {
             trace.HitEntity = entities?.World;

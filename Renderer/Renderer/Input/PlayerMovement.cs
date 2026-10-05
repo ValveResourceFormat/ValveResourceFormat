@@ -1740,7 +1740,7 @@ public partial class PlayerMovement : IPlayerController
     }
 
     /// <summary>
-    /// Gets the entity the player stands on - a brush entity, or the worldspawn on the map itself -
+    /// Gets the entity the player stands on - a brush entity, or the world entity on the map itself -
     /// and null in the air. The engine's <c>m_hGroundEntity</c>, taken from the ground probe every frame.
     /// </summary>
     public Entities.BaseEntity? GroundEntity { get; private set; }
@@ -2427,7 +2427,7 @@ public partial class PlayerMovement : IPlayerController
             result.MinimizeWith(TraceStaticPlane(from, to, halfExtents, normal, plane.W, detectStartSolid));
         }
 
-        // The static world is the worldspawn, as the engine reports it, so standing on the map gives a
+        // The static world is the world entity, as the engine reports it, so standing on the map gives a
         // ground entity like standing on anything else
         if (result.Hit)
         {

@@ -111,8 +111,6 @@ namespace ValveResourceFormat.Renderer.World
         // What this spawn group puts in place of the markers in its entities' names
         private readonly EntityNameFixup nameFixup;
 
-        private bool IsNested => loadKind != LoadKind.Map;
-
         /// <summary>
         /// Loads a map by name, performing a full load of all world components.
         /// </summary>
@@ -301,6 +299,8 @@ namespace ValveResourceFormat.Renderer.World
         {
             ReportLoadingPhase("Loading entities…");
 
+            entitySystem.SpawnWorld(scene);
+
             foreach (var lumpName in World.GetEntityLumpNames())
             {
                 CancellationToken.ThrowIfCancellationRequested();
@@ -329,7 +329,7 @@ namespace ValveResourceFormat.Renderer.World
             // Every entity exists now, so the simulated ones can resolve each other by name. A nested
             // group loads part way through the outer map's own lump, so it leaves activation to that
             // load, which runs once everything - every spawn group - has spawned.
-            if (!IsNested)
+            if (loadKind == LoadKind.Map)
             {
                 entitySystem.Activate();
             }
@@ -607,10 +607,6 @@ namespace ValveResourceFormat.Renderer.World
 
                     switch (created)
                     {
-                        // A nested group carries a worldspawn of its own, which stays an ordinary inert entity
-                        case WorldEntity worldspawn when !IsNested:
-                            entitySystem.SetWorld(worldspawn);
-                            break;
 
                         case InfoWorldLayer { IsVisibleOnSpawn: true, WorldLayerName: { } worldLayerName }:
                             DefaultEnabledLayers.Add(worldLayerName);

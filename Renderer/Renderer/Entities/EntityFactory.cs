@@ -30,7 +30,6 @@ public static class EntityFactory
         EntityInputTable.Bind<GenericEntity>();
         EntityInputTable.Bind<GenericModelEntity>();
 
-        Register<WorldEntity>("worldspawn", static (system, spawnInfo) => new WorldEntity(system, spawnInfo));
         Register<InfoWorldLayer>("info_world_layer", static (system, spawnInfo) => new InfoWorldLayer(system, spawnInfo));
         Register<InfoVisibilityBox>("info_visibility_box", static (system, spawnInfo) => new InfoVisibilityBox(system, spawnInfo));
 
@@ -154,12 +153,16 @@ public static class EntityFactory
     /// that is not implemented spawns a <see cref="GenericModelEntity"/> when it has a model, and a
     /// <see cref="GenericEntity"/> when it does not.
     /// </summary>
-    /// <returns>The entity, or <see langword="null"/> when the keyvalues name no classname.</returns>
+    /// <returns>
+    /// The entity, or <see langword="null"/> when the keyvalues name no classname or a <c>worldspawn</c>.
+    /// </returns>
     public static BaseEntity? Create(EntitySystem system, EntitySpawnInfo spawnInfo)
     {
         var classname = spawnInfo.Data.GetStringProperty("classname");
 
-        if (classname == null)
+        // No entity class goes by worldspawn: its keyvalues are the map's world settings, and the world
+        // entity is the entity system's own
+        if (classname == null || classname.Equals("worldspawn", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }

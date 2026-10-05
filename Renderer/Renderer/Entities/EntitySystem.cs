@@ -97,8 +97,8 @@ public sealed class EntitySystem
     public PlayerEntity? Player { get; private set; }
 
     /// <summary>
-    /// Gets the <c>worldspawn</c> at the root of the entity hierarchy, once a map has supplied one.
-    /// A trace that hits the static world reports it as the entity it hit.
+    /// Gets the world entity at the root of the entity hierarchy, once a map has loaded. A trace that
+    /// hits the static world reports it as the entity it hit.
     /// </summary>
     public WorldEntity? World { get; private set; }
 
@@ -159,7 +159,9 @@ public sealed class EntitySystem
     /// <param name="layerName">Visibility layer for its nodes.</param>
     /// <param name="intoScene">Scene the entity's nodes render into.</param>
     /// <param name="nameFixup">What the spawning group puts in place of the markers in the entity's names.</param>
-    /// <returns>The spawned entity, or <see langword="null"/> if the keyvalues name no classname.</returns>
+    /// <returns>
+    /// The spawned entity, or <see langword="null"/> if the keyvalues name no classname or a <c>worldspawn</c>.
+    /// </returns>
     public BaseEntity? CreateEntity(Entity data, Matrix4x4 parentTransform, string? layerName, Scene intoScene, EntityNameFixup nameFixup)
     {
         var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, parentTransform, layerName, intoScene, nameFixup));
@@ -215,21 +217,19 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Takes a map's authored <c>worldspawn</c> as the root of the hierarchy, adopting everything spawned
-    /// before it. A spawn group placed inside another map carries one of its own, which stays an
-    /// ordinary inert entity, so only the outermost load calls this.
+    /// Creates the world entity when the first map loads, before any of its entities, so it owns all of
+    /// them. It stays until <see cref="Clear"/>, whatever spawn groups come and go.
     /// </summary>
-    internal void SetWorld(WorldEntity world)
+    internal void SpawnWorld(Scene scene)
     {
-        World = world;
-
-        foreach (var entity in entities)
+        if (World != null)
         {
-            if (entity.Owner == null && entity != world)
-            {
-                entity.Owner = world;
-            }
+            return;
         }
+
+        World = new WorldEntity(this, scene);
+        World.Spawn();
+        Add(World);
     }
 
     /// <summary>Puts an entity built in code, rather than from map keyvalues, into the world.</summary>

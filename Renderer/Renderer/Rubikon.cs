@@ -207,7 +207,7 @@ public class Rubikon
 
         /// <summary>
         /// Gets or sets the entity this hit belongs to, for sweeps that fold brush entities in: the
-        /// entity whose collider was struck, or the worldspawn for static world geometry, as the engine
+        /// entity whose collider was struck, or the world entity for static world geometry, as the engine
         /// reports it. Null when the sweep did not carry entity identity at all.
         /// </summary>
         public Entities.BaseEntity? HitEntity { get; set; }
