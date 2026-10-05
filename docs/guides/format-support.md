@@ -109,6 +109,7 @@ in the Dump column.
 | uifont (CS:GO/CS2 UI font package) | Embedded fonts decrypted and extracted exactly (CLI only)                                                                                                                                                     |
 | vfe (flex scene file)              | Text view; export to a `.txt` dump                                                                                                                                                                            |
 | nav (navigation mesh)              | 3D view; export to `.glb`                                                                                                                                                                                     |
+| navspace (navigation space)        | 3D view of the flight blocks, transitions and grid cells as layers; text info dump                                                                                                                            |
 | gnv (Dota grid navigation)         | Text info dump                                                                                                                                                                                                |
 | bvcd (binary choreo)               | Parsed as part of vcdlist                                                                                                                                                                                     |
 | DMX / KeyValues2                   | Normalized text dump                                                                                                                                                                                          |
@@ -414,6 +415,7 @@ signature as the byte sequence you see at the start of the file in a hex editor.
 | `0x414D5A4C` | `4C 5A 4D 41`       | `LZMA`    | LZMA compression marker (compiled shaders, choreo data)         |
 | `0x64637662` | `62 76 63 64`       | `bvcd`    | binary choreo scene                                             |
 | `0xFEEDFACE` | `CE FA ED FE`       | -         | navigation mesh                                                 |
+| `0xFACEFEED` | `ED FE CE FA`       | -         | navigation space                                                |
 | `0xFADEBEAD` | `AD BE DE FA`       | -         | grid navigation                                                 |
 | `0x31415926` | -                   | -         | murmurhash2 seed used by StringToken (not a file signature)     |
 | -            | `56 46 4F 4E 54 31` | `VFONT1`  | "encrypted" font file (signature is at the end of the file)     |
