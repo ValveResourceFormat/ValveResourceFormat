@@ -607,9 +607,16 @@ namespace ValveResourceFormat.Renderer.World
 
                     switch (created)
                     {
+                        case InfoWorldLayer worldLayer:
+                            worldLayer.LayerSpawner = SpawnWorldLayer;
 
-                        case InfoWorldLayer { IsVisibleOnSpawn: true, WorldLayerName: { } worldLayerName }:
-                            DefaultEnabledLayers.Add(worldLayerName);
+                            // The engine spawns the layer's entities right as the layer spawns
+                            if (worldLayer is { IsVisibleOnSpawn: true, WorldLayerName: { } worldLayerName })
+                            {
+                                DefaultEnabledLayers.Add(worldLayerName);
+                                worldLayer.SpawnLayerEntities();
+                            }
+
                             break;
 
                         case PointCamera camera:
@@ -664,6 +671,76 @@ namespace ValveResourceFormat.Renderer.World
                 CreateEntityConnectionLines(spawned);
                 CreateHelperLines(spawned);
             }
+        }
+
+        /// <summary>
+        /// Spawns the entity lump of an <c>info_world_layer</c>, which the map compiles as a child of its own
+        /// lump rather than listing it with the lumps that spawn when the map loads.
+        /// </summary>
+        private List<BaseEntity>? SpawnWorldLayer(InfoWorldLayer worldLayer)
+        {
+            // The layer names the world it belongs to.
+            // TODO: The engine finds any world loaded into the layer's world group by that name, such as a stage
+            // loaded by info_spawngroup_load_unload. Supporting it needs a registry of loaded worlds that keeps
+            // their loaders alive, and the layer's visibility toggled in the named world's scene too.
+            if (worldLayer.WorldName is not { } worldName
+                || !GetSpawnGroupMapName(worldName).Equals(MapName, StringComparison.OrdinalIgnoreCase))
+            {
+                RendererContext.Logger.LogWarning("info_world_layer '{TargetName}' names world '{WorldName}', not '{MapName}'", worldLayer.TargetName, worldLayer.WorldName, MapName);
+                return null;
+            }
+
+            if (worldLayer.WorldLayerName is not { } layerName || FindEntityLump(layerName) is not { } layerLump)
+            {
+                RendererContext.Logger.LogWarning("info_world_layer '{TargetName}' found no entity lump named '{LayerName}'", worldLayer.TargetName, worldLayer.WorldLayerName);
+                return null;
+            }
+
+            var firstSpawned = entitySystem.Entities.Count;
+
+            // The engine reuses the loaded world by name and spawns the layer's group with no world offset,
+            // so the layer stays where it was authored even when its map was placed elsewhere
+            LoadEntitiesFromLump(layerLump, "Entities", Matrix4x4.Identity, EntityNameFixup.None);
+
+            return [.. entitySystem.Entities.Skip(firstSpawned)];
+        }
+
+        private List<EntityLump>? worldEntityLumps;
+
+        /// <summary>
+        /// Finds a lump of this world by the name the lump gives itself, searching the world's lumps and
+        /// their child lumps depth first, so the first match in that order wins.
+        /// </summary>
+        private EntityLump? FindEntityLump(string name)
+        {
+            if (worldEntityLumps == null)
+            {
+                worldEntityLumps = [];
+
+                HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase);
+
+                void Add(string lumpName)
+                {
+                    if (!visited.Add(lumpName) || RendererContext.FileLoader.LoadFileCompiled(lumpName)?.DataBlock is not EntityLump lump)
+                    {
+                        return;
+                    }
+
+                    worldEntityLumps.Add(lump);
+
+                    foreach (var childName in lump.GetChildEntityNames())
+                    {
+                        Add(childName);
+                    }
+                }
+
+                foreach (var lumpName in World.GetEntityLumpNames().OfType<string>())
+                {
+                    Add(lumpName);
+                }
+            }
+
+            return worldEntityLumps.Find(lump => lump.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         }
 
         // Any class flagged ispointprefab places a map too, such as the CS2 team select and team intro stages
