@@ -86,6 +86,8 @@ namespace ValveResourceFormat.Renderer.World
 
         /// <summary>The loaded navigation mesh, populated by <see cref="LoadNavigationMesh"/>.</summary>
         public NavMeshFile? NavMesh { get; set; }
+        /// <summary>The names of the navigation hulls in hull index order, populated by <see cref="LoadNavigationMesh"/>.</summary>
+        public string[] NavigationHullNames { get; set; } = [];
         /// <summary>The loaded navigation space, null if it doesn't exist. Populated by <see cref="LoadNavigationSpace"/>.</summary>
         public NavSpaceFile? NavSpace { get; set; }
         /// <summary>The loaded navigation flow map, null if it doesn't exist. Populated by <see cref="LoadNavigationFlowMap"/>.</summary>
@@ -965,6 +967,7 @@ namespace ValveResourceFormat.Renderer.World
                 {
                     NavMesh = new NavMeshFile();
                     NavMesh.Read(navFileStream);
+                    NavigationHullNames = NavHullNames.Read(RendererContext.FileLoader, NavMesh.GenerationParams?.HullPresetName);
                     RendererContext.Logger.LogInformation("Navigation mesh loaded from '{NavFilePath}'", navFilePath);
                 }
             }

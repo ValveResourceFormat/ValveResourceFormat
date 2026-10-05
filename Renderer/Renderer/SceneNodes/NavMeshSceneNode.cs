@@ -132,7 +132,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <see cref="NavMeshFile"/> colored by the cluster they belong to, and lines between the centres of connected
         /// clusters.
         /// </summary>
-        public static void AddFlowMapNodesToScene(NavFlowMapFile? navFlowMapFile, NavMeshFile? navMeshFile, Scene scene)
+        /// <param name="navFlowMapFile">The flow map to draw.</param>
+        /// <param name="navMeshFile">The navigation mesh the flow map was built for.</param>
+        /// <param name="scene">The scene to add the nodes to.</param>
+        /// <param name="hullNames">Hull names from <see cref="NavHullNames.Read"/>, used in the layer names.</param>
+        public static void AddFlowMapNodesToScene(NavFlowMapFile? navFlowMapFile, NavMeshFile? navMeshFile, Scene scene, IReadOnlyList<string> hullNames)
         {
             if (navFlowMapFile == null || navMeshFile == null || scene == null)
             {
@@ -145,7 +149,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             foreach (var hull in navFlowMapFile.Hulls)
             {
-                var layerName = $"Navigation flow map (hull {hull.HullIndex})";
+                var layerName = $"Navigation flow map ({NavHullNames.GetName(hullNames, hull.HullIndex)})";
                 var minBounds = new Vector3(float.MaxValue);
                 var maxBounds = new Vector3(float.MinValue);
                 var connectionLines = new List<SimpleVertex>();
@@ -200,7 +204,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>
         /// Parses a <see cref="NavMeshFile"/> and adds a <see cref="NavMeshSceneNode"/> per hull and one for ladders to the scene.
         /// </summary>
-        public static void AddNavNodesToScene(NavMeshFile? navMeshFile, Scene scene)
+        /// <param name="navMeshFile">The navigation mesh to draw.</param>
+        /// <param name="scene">The scene to add the nodes to.</param>
+        /// <param name="hullNames">Hull names from <see cref="NavHullNames.Read"/>, used in the layer names.</param>
+        public static void AddNavNodesToScene(NavMeshFile? navMeshFile, Scene scene, IReadOnlyList<string> hullNames)
         {
             if (navMeshFile == null || scene == null)
             {
@@ -230,7 +237,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                     var sceneNode = new NavMeshSceneNode(scene, verts, triangleInds, lineInds)
                     {
-                        LayerName = $"Navigation mesh (hull {i})",
+                        LayerName = $"Navigation mesh ({NavHullNames.GetName(hullNames, i)})",
                         LocalBoundingBox = new AABB(minBounds, maxBounds),
                     };
                     scene.Add(sceneNode, false);
