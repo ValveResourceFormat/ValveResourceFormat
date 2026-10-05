@@ -170,7 +170,7 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                if (Renderer.EntitySystem.PhysicsWorld != null)
+                if (!Renderer.EntitySystem.PhysicsWorld.IsEmpty)
                 {
                     UiControl.AddCheckBox("Debug Physics Traces", showPhysicsTraces, v => showPhysicsTraces = v);
                 }
@@ -737,7 +737,7 @@ namespace GUI.Types.GLViewers
                     Scene.OcclusionDebug.Render();
                 }
 
-                if (showPhysicsTraces && Renderer.EntitySystem.PhysicsWorld != null)
+                if (showPhysicsTraces && !Renderer.EntitySystem.PhysicsWorld.IsEmpty)
                 {
                     physicsTraceRenderer ??= new PhysicsTraceDebugRenderer(Scene.RendererContext);
                     physicsTraceRenderer.Render(Renderer.EntitySystem.PhysicsWorld, Input, Renderer.Camera);

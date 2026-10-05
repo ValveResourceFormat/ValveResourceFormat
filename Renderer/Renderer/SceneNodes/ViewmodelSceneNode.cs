@@ -357,7 +357,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
-    private static Vector3? TraceKnifeSwing(Rubikon? physics, Vector3 from, Vector3 forward, float range)
+    private static Vector3? TraceKnifeSwing(PhysicsWorld? physics, Vector3 from, Vector3 forward, float range)
     {
         if (physics == null)
         {

@@ -48,20 +48,20 @@ namespace ValveResourceFormat.Renderer.Utils
         /// Finds a camera position orbiting <paramref name="center"/> that is not embedded in world
         /// geometry and has a clear line to the target.
         /// </summary>
-        /// <param name="physics">Physics world to probe against; when <see langword="null"/> the preferred position is returned as-is.</param>
+        /// <param name="physics">Physics world to probe against; when <see langword="null"/> or empty the preferred position is returned as-is.</param>
         /// <param name="center">World-space point the camera should look at.</param>
         /// <param name="distance">Orbit radius that frames the target.</param>
         /// <param name="boundsSize">Dimensions of what is being framed, which decide where the orbit
         /// starts and how far out the probes begin.</param>
         /// <returns>The chosen camera position, falling back to the preferred one when the target cannot be seen from anywhere.</returns>
-        public static Vector3 FindOrbitPosition(Rubikon? physics, Vector3 center, float distance, Vector3 boundsSize)
+        public static Vector3 FindOrbitPosition(PhysicsWorld? physics, Vector3 center, float distance, Vector3 boundsSize)
         {
             var preferredYaw = PreferredYaw(boundsSize);
             var preferred = center + PreferredDirection(boundsSize) * distance;
 
             var targetRadius = boundsSize.MaxComponent() * 0.5f;
 
-            if (physics == null)
+            if (physics is not { IsEmpty: false })
             {
                 return preferred;
             }
@@ -83,7 +83,7 @@ namespace ValveResourceFormat.Renderer.Utils
         /// candidate could see the target, in which case <paramref name="position"/> holds the best
         /// non-solid spot found, or <paramref name="fallback"/> when there was not even one of those.
         /// </summary>
-        private static bool TryFindOrbitPosition(Rubikon physics, Vector3 center, float distance, float targetRadius,
+        private static bool TryFindOrbitPosition(PhysicsWorld physics, Vector3 center, float distance, float targetRadius,
             float preferredYaw, Vector3 halfExtents, Vector3 fallback, out Vector3 position)
         {
             var padding = MathF.Max(halfExtents.X, halfExtents.Z);

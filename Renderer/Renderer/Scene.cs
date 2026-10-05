@@ -107,12 +107,6 @@ namespace ValveResourceFormat.Renderer
         public string? WorldGroup { get; init; }
 
         /// <summary>
-        /// Whether the entities drawn here take part in collision. A spawn group placed inside a map, such
-        /// as a 3D sky, is scenery: nothing can reach it, so its entities never build a collider.
-        /// </summary>
-        internal bool EntitiesCollide { get; set; } = true;
-
-        /// <summary>
         /// How large an editor marker is drawn here next to the entity it marks. A 3D sky is magnified by
         /// the camera it is drawn through, so its markers shrink to come back out at their normal size.
         /// </summary>

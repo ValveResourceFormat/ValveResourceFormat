@@ -146,7 +146,7 @@ public abstract class BaseModelEntity : BaseEntity
 
         if (EntityCollider.LoadPhysics(model, fileLoader) is { } physics)
         {
-            if (Scene.EntitiesCollide && BuildsCollider)
+            if (BuildsCollider)
             {
                 Collider = new EntityCollider(physics);
                 UpdateColliderTransform();

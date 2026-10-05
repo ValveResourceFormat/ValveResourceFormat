@@ -762,7 +762,7 @@ public class PropDoorRotating : BaseToggle
         foreach (var entity in EntitySystem.Entities)
         {
             if (entity == this || entity == ignore || entity == Owner || entity.MoveParent == this
-                || entity is WorldEntity or PlayerEntity || entity.Scene != Scene || !entity.IsCollidable)
+                || entity is WorldEntity or PlayerEntity || !entity.IsCollidable)
             {
                 continue;
             }

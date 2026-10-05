@@ -296,7 +296,7 @@ namespace GUI.Types.GLViewers
             {
                 if (phys.Parts.Length > 0)
                 {
-                    Renderer.EntitySystem.PhysicsWorld = new Rubikon(phys);
+                    Renderer.EntitySystem.PhysicsWorld.Add(Scene, new Rubikon(phys), Matrix4x4.Identity);
 
                     var isMapPhysics = Path.GetFileNameWithoutExtension(GuiContext.FileName)
                         .Equals("world_physics", StringComparison.OrdinalIgnoreCase);

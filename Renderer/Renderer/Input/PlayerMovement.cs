@@ -142,7 +142,7 @@ public partial class PlayerMovement : IPlayerController
     private bool HoldingShift => Input.Holding(TrackedKeys.Shift);
 
     private UserInput Input { get; }
-    private Rubikon? Physics => Input.PhysicsWorld;
+    private PhysicsWorld? Physics => Input.PhysicsWorld is { IsEmpty: false } physics ? physics : null;
 
     /// <summary>
     /// Gets or sets a value indicating whether traces also collide with

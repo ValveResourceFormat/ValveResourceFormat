@@ -414,10 +414,10 @@ namespace ValveResourceFormat.Renderer.World
                     scene.Add(physSceneNode, true);
                 }
 
-                // Only the player's world needs collision
-                if (phys.Parts.Length > 0 && !IsNested)
+                // Every spawn group adds its collision to the physics world of its world group, a 3D sky's included
+                if (phys.Parts.Length > 0)
                 {
-                    entitySystem.PhysicsWorld = new Rubikon(phys);
+                    entitySystem.GetPhysicsWorld(scene.WorldGroup).Add(scene, new Rubikon(phys), rootTransform);
                 }
             }
         }
@@ -680,12 +680,10 @@ namespace ValveResourceFormat.Renderer.World
             // Origin and angles only: a 3D sky is not scaled, the sky camera applies the scale instead
             var reference = skyboxReference.RigidTransform;
 
-            // Scenery: nothing can reach the sky, so its entities never build a collider. Compiled references
-            // always set worldgroupid; without one the sky would join the main world group.
+            // Without a world group of its own the sky joins the one of the map that placed it
             var skyScene = new Scene(RendererContext)
             {
-                EntitiesCollide = false,
-                WorldGroup = skyboxReference.Data.GetStringProperty("worldgroupid") is { Length: > 0 } worldGroup ? worldGroup : "skyboxWorldGroup0",
+                WorldGroup = skyboxReference.Data.GetStringProperty("worldgroupid") is { Length: > 0 } worldGroup ? worldGroup : scene.WorldGroup,
             };
 
             LoadingProgress?.Report("Loading 3D sky…");

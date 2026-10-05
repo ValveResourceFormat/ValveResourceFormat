@@ -39,7 +39,7 @@ public class UserInput
     /// <summary>Gets the internal camera whose location and angles are updated by input processing.</summary>
     public Camera Camera { get; }
     /// <summary>Gets or sets the physics world used for orbit-target and player-movement ray traces.</summary>
-    public Rubikon? PhysicsWorld { get; set; }
+    public PhysicsWorld? PhysicsWorld { get; set; }
 
     /// <summary>
     /// Gets or sets the entity world whose solid entities the player collides with, on top of

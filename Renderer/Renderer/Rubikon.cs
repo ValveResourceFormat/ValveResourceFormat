@@ -270,7 +270,7 @@ public class Rubikon
         }
     }
 
-    private static bool IsInvalidRay(Vector3 from, Vector3 to)
+    internal static bool IsInvalidRay(Vector3 from, Vector3 to)
     {
         return Vector3.DistanceSquared(from, to) < Epsilon * Epsilon;
     }

@@ -48,10 +48,34 @@ public sealed class EntitySystem
     public RendererContext RendererContext { get; }
 
     /// <summary>
-    /// Gets or sets the static collision every entity is simulated against. There is one, from the map
-    /// the player is in; a spawn group placed inside it, such as a 3D sky, brings no collision of its own.
+    /// Gets the physics world of the main world group, the one every trace is made against: the player's
+    /// movement, use, pushers and the rest. It holds the world physics of every spawn group loaded into
+    /// that group.
     /// </summary>
-    public Rubikon? PhysicsWorld { get; set; }
+    public PhysicsWorld PhysicsWorld { get; } = new();
+
+    // Every other world group has a physics world of its own, such as a 3D sky's, which nothing traces
+    private readonly Dictionary<string, PhysicsWorld> worldGroupPhysicsWorlds = [];
+
+    /// <summary>
+    /// Gets the physics world of a world group, creating it the first time it is asked for.
+    /// </summary>
+    /// <param name="worldGroup">The world group, or <see langword="null"/> for the main one.</param>
+    public PhysicsWorld GetPhysicsWorld(string? worldGroup)
+    {
+        if (worldGroup == null)
+        {
+            return PhysicsWorld;
+        }
+
+        if (!worldGroupPhysicsWorlds.TryGetValue(worldGroup, out var physicsWorld))
+        {
+            physicsWorld = new PhysicsWorld();
+            worldGroupPhysicsWorlds.Add(worldGroup, physicsWorld);
+        }
+
+        return physicsWorld;
+    }
 
     /// <summary>Gets the loader entities use to pull their models and physics.</summary>
     public IFileLoader FileLoader => RendererContext.FileLoader;
@@ -232,6 +256,15 @@ public sealed class EntitySystem
             }
         }
 
+        // Only the group's own collision; the world group keeps its physics world, as the engine's does
+        if (group.WorldGroup == null)
+        {
+            PhysicsWorld.Remove(group.Scene);
+        }
+        else if (worldGroupPhysicsWorlds.TryGetValue(group.WorldGroup, out var physicsWorld))
+        {
+            physicsWorld.Remove(group.Scene);
+        }
         SpawnGroupHost?.RemoveSpawnGroup(group);
     }
 
@@ -426,7 +459,7 @@ public sealed class EntitySystem
 
         foreach (var entity in impacted)
         {
-            if (!entity.IsRemoved && entity.Scene == player.Scene)
+            if (!entity.IsRemoved && entity.Scene.WorldGroup == player.Scene.WorldGroup)
             {
                 entity.Impact(player);
             }
@@ -450,6 +483,8 @@ public sealed class EntitySystem
         entities.Clear();
         parented.Clear();
         pendingSpawns.Clear();
+        PhysicsWorld.Clear();
+        worldGroupPhysicsWorlds.Clear();
         World = null;
         Player = null;
         activatedCount = 0;
@@ -645,12 +680,13 @@ public sealed class EntitySystem
     public BaseEntity? FindUseTarget(Vector3 from, Vector3 to)
     {
         // Seeded with the world, so a wall between the player and a button wins the trace
-        var nearest = PhysicsWorld?.TraceRay(from, to, Rubikon.Cs2PlayerCollisionFilter) ?? new Rubikon.TraceResult();
+        var nearest = PhysicsWorld.TraceRay(from, to, Rubikon.Cs2PlayerCollisionFilter);
         BaseEntity? target = null;
 
         foreach (var entity in entities)
         {
             if (entity.IsRemoved
+                || !entity.IsInQueryWorld
                 || (entity.ObjectCaps & EntityCapability.UsableMask) == 0
                 || entity.Collider is not { IsEmpty: false } collider)
             {

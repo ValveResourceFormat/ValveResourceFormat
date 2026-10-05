@@ -362,7 +362,7 @@ public sealed class CS2Projectile : BaseEntity
     }
 
     /// <summary>Sweeps the grenade hull through the world and the brush entities, backing the hit off the surface.</summary>
-    public static Rubikon.TraceResult SweepHull(Rubikon? physics, EntitySystem? entities, Vector3 from, Vector3 to)
+    public static Rubikon.TraceResult SweepHull(PhysicsWorld? physics, EntitySystem? entities, Vector3 from, Vector3 to)
     {
         var trace = physics?.TraceAABB(from, to, HullHalfExtents, Rubikon.GrenadeCollisionName)
             ?? new Rubikon.TraceResult();

@@ -336,8 +336,17 @@ public abstract class BaseEntity
         }
     } = true;
 
-    /// <summary>Gets whether the entity currently takes part in collision traces.</summary>
-    public bool IsCollidable => IsSolid && !IsTrigger && Collider is { IsEmpty: false } && !IsRemoved && !isCollisionSuspended;
+    /// <summary>
+    /// Gets whether the entity currently takes part in collision traces, which are only made in the main
+    /// world group's physics world.
+    /// </summary>
+    public bool IsCollidable => IsSolid && !IsTrigger && Collider is { IsEmpty: false } && !IsRemoved && !isCollisionSuspended && IsInQueryWorld;
+
+    /// <summary>
+    /// Gets whether the entity's collision is in the physics world of the main world group, the only one
+    /// traces are made against. A 3D sky's entities collide in a physics world of their own.
+    /// </summary>
+    internal bool IsInQueryWorld => Scene.WorldGroup == null;
 
     /// <summary>Gets the entities currently inside this one's volume.</summary>
     public IReadOnlyCollection<BaseEntity> TouchingEntities => touching;
@@ -840,7 +849,7 @@ public abstract class BaseEntity
     {
         if (EntitySystem.Player is not { IsRemoved: false } player
             || !player.Controller.IsActive
-            || Scene != player.Scene)
+            || Scene.WorldGroup != player.Scene.WorldGroup)
         {
             return null;
         }
