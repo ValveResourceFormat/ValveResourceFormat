@@ -3,9 +3,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// <summary>
     /// Scene node that renders a list of line segments.
     /// </summary>
-    public class LineSceneNode : SceneNode
+    public class LineSceneNode : WireframeSceneNode
     {
-        readonly LineBuffer lineBuffer;
+        private readonly SimpleVertex[] vertices;
 
         /// <summary>
         /// Renders a single line segment.
@@ -26,8 +26,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <param name="scene">The scene this node belongs to.</param>
         /// <param name="vertices">Pairs of vertices, one pair per line segment.</param>
         public LineSceneNode(Scene scene, SimpleVertex[] vertices)
-            : base(scene)
+            : base(scene, nameof(LineSceneNode))
         {
+            this.vertices = vertices;
+
             var boundsMin = vertices.Length > 0 ? vertices[0].Position : Vector3.Zero;
             var boundsMax = boundsMin;
             foreach (var vertex in vertices)
@@ -37,32 +39,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             LocalBoundingBox = new AABB(boundsMin, boundsMax);
-
-            lineBuffer = new LineBuffer(Scene.RendererContext, nameof(LineSceneNode));
-            lineBuffer.Upload(vertices);
         }
 
         /// <inheritdoc/>
-        public override void Delete()
-        {
-            lineBuffer.Delete();
-        }
+        protected override bool IsTranslucent => false;
 
         /// <inheritdoc/>
-        public override void Render(Scene.RenderContext context)
-        {
-            if (context.RenderPass is not RenderPass.Opaque and not RenderPass.Outline)
-            {
-                return;
-            }
-
-            var renderShader = context.ReplacementShader ?? lineBuffer.Shader;
-
-            using var _ = GraphicsContext.RenderState.Scope();
-
-            renderShader.Use();
-
-            lineBuffer.Draw(Id);
-        }
+        protected override List<SimpleVertex> BuildLines() => [.. vertices];
     }
 }
