@@ -329,6 +329,9 @@ namespace ValveResourceFormat.Renderer.World
             // Every entity exists now, so the simulated ones can resolve each other by name. A nested
             // group loads part way through the outer map's own lump, so it leaves activation to that
             // load, which runs once everything - every spawn group - has spawned.
+            // TODO: The engine spawns and activates each spawn group as a batch of its own, a 3D sky or
+            // prefab separately from the map that placed it, so neither finds the other's entities by
+            // name while it activates.
             if (loadKind == LoadKind.Map)
             {
                 entitySystem.Activate();
@@ -564,6 +567,10 @@ namespace ValveResourceFormat.Renderer.World
                 || cls == "env_cubemap_box"
                 || cls == "env_cubemap";
 
+            // TODO: The engine spawns nothing of a point_template when the map loads. ForceSpawn, its own or an
+            // env_entity_maker's, loads the template's lump as a spawn group placed at the spawner, with a
+            // numbered local name fixup unless spawnflag 2 keeps the names, and fires OnEntitySpawned;
+            // DeleteCreatedSpawnGroups unloads them. Here every template's entities spawn with the map instead.
             var traversed = EntityLumpTraversal.EnumerateEntities(
                 entityLump,
                 RendererContext.FileLoader,

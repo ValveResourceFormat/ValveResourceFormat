@@ -133,6 +133,10 @@ public class Renderer : ISpawnGroupHost
     public IReadOnlyList<SpawnGroup> SpawnGroups => spawnGroups;
 
     /// <summary>Gets the spawn group the 3D sky is drawn from, or <see langword="null"/>; the last one placed wins.</summary>
+    // TODO: The game draws the sky of the last skybox_reference to activate, through the first sky_camera in its
+    // world group. Without one it uses the sky_camera named by an ActivateSkybox input, else the newest sky_camera,
+    // even one in the main world group, so a map with only a sky_camera draws itself as its sky. Neither the
+    // fallback nor the ActivateSkybox input is handled here.
     public SpawnGroup? SkyGroup => spawnGroups.FindLast(static group => group.WorldGroup != null);
 
     /// <summary>Gets the main scene state in the main view, or <see langword="null"/> until the first update.</summary>
