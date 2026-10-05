@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
@@ -45,6 +46,30 @@ namespace Tests.Utils
             var addedHash = StringToken.Store(key);
             var inverseLookupKey = StringToken.GetKnownString(addedHash);
             await Assert.That(inverseLookupKey).IsEqualTo(key);
+        }
+
+        [Test]
+        [Arguments("", 0u)]
+        [Arguments("foo", 0x5DA24C1Au)]
+        [Arguments("Foo", 0x5DA24C1Au)]
+        [Arguments("targetname", 0x4137AF6Bu)]
+        [Arguments("TargetName", 0x4137AF6Bu)]
+        [Arguments("Äx", 0x7FF8CDE1u)]
+        [Arguments("äx", 0x83075362u)]
+        public async Task HashesLikeTheEngine(string key, uint expected)
+        {
+            // Only ASCII letters are case folded, everything else is hashed as UTF-8 bytes
+            await Assert.That(StringToken.Get(key)).IsEqualTo(expected);
+        }
+
+        [Test]
+        public async Task HashesLongStringsLikeShortOnes()
+        {
+            var key = string.Concat(Enumerable.Repeat("AbÄ", 200));
+            var lower = string.Concat(Enumerable.Repeat("abÄ", 200));
+
+            await Assert.That(StringToken.Get(key)).IsEqualTo(StringToken.Get(lower));
+            await Assert.That(StringToken.Get(key)).IsNotEqualTo(StringToken.Get(key.ToLowerInvariant()));
         }
 
         [Test]

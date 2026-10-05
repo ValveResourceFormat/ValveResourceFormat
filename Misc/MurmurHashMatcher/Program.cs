@@ -1,6 +1,7 @@
 using System.Buffers;
+using System.Collections.Frozen;
 using System.Globalization;
-using ValveResourceFormat.ThirdParty;
+using System.Text;
 using ValveResourceFormat.Utils;
 
 Console.Error.WriteLine($"Usage: ./program <path to folder to find strings in>");
@@ -26,13 +27,16 @@ if (alreadyKnown > 0)
     Console.WriteLine($"Removed {alreadyKnown} hashes already present in the known keys list");
 }
 
+// Only read from here on, millions of times during the scan.
+var scanKeys = unknownKeys.ToFrozenSet();
+
 if (File.Exists("strings.txt"))
 {
     Console.WriteLine($"Scanning strings.txt");
 
     foreach (var str in File.ReadAllLines("strings.txt"))
     {
-        CheckCandidate(str.ToLowerInvariant(), "strings.txt");
+        CheckCandidate(str, "strings.txt");
     }
 }
 
@@ -79,7 +83,7 @@ var scannedFiles = 0;
 Parallel.ForEach(files, ScanFile);
 
 // Hashes are not removed on a hit, so derive the misses by subtracting what we found.
-var foundHashes = foundKeys.Select(key => MurmurHash2.HashCaseSensitive(key, StringToken.MURMUR2SEED)).ToHashSet();
+var foundHashes = foundKeys.Select(key => StringToken.Get(key)).ToHashSet();
 var notFoundHashes = unknownKeys.Where(hash => !foundHashes.Contains(hash)).ToList();
 
 if (notFoundHashes.Count > 0)
@@ -133,14 +137,9 @@ void ScanFile(string file)
         for (var start = runStart; start < runEnd; start++)
         {
             var maxLength = Math.Min(window.Length, runEnd - start);
+            Ascii.ToUtf16(bytes.Slice(start, maxLength), window, out _);
 
             // Lengths up to 4 are already covered exhaustively by BruteForceShortKeys.
-            for (var n = 0; n < maxLength; n++)
-            {
-                var c = (char)bytes[start + n];
-                window[n] = c is >= 'A' and <= 'Z' ? (char)(c | 0x20) : c;
-            }
-
             for (var length = 5; length <= maxLength; length++)
             {
                 CheckCandidate(window[..length], file);
@@ -160,17 +159,15 @@ void ScanFile(string file)
 
 void CheckCandidate(ReadOnlySpan<char> candidate, string file)
 {
-    // Candidates are already lowercase, so skip the re-lowercasing Hash() does on every call.
-    var hash = MurmurHash2.HashCaseSensitive(candidate, StringToken.MURMUR2SEED);
+    var hash = StringToken.Get(candidate);
 
-    // unknownKeys is never modified during the parallel scan, so lock-free reads are safe.
     // We don't remove on a hit so that hash collisions surface every matching string.
-    if (!unknownKeys.Contains(hash))
+    if (!scanKeys.Contains(hash))
     {
         return;
     }
 
-    var str = new string(candidate);
+    var str = candidate.ToString().ToLowerInvariant();
 
     lock (foundKeys)
     {
