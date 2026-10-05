@@ -60,7 +60,7 @@ The exit code is `0` on success, `1` for invalid arguments, and `2` when any fil
 - Folder input does not look inside VPK files unless `--recursive_vpk` is given. This is the easiest way to process all maps of a game, for example `-i <game>/maps --recursive_vpk -e vents_c`.
 - VPKs inside other VPKs (such as 3D skybox prefabs inside map VPKs, or map VPKs inside workshop items) are only processed by `--stats`. Otherwise they are treated as regular files, so extract them first with `--vpk_extensions vpk --output <folder>` and run the CLI on the extracted files.
 - Compiled shaders are split into multiple files (`<name>_<platform>_<model>_features.vcs`, `_vs.vcs`, `_ps.vcs`, ...). Decompiling to `.vfx` only works from the shader VPK, which writes one `.vfx` per shader from the highest shader model among the matched files. A loose `.vcs` file only prints a summary.
-- Loading dependencies prints progress lines to stdout. When processing many files, use `--quiet` or redirect the output to a file.
+- Loading dependencies prints the game search paths it mounts and the files it fails to load to stderr. `--quiet` hides everything but the warnings.
 
 ### Cached VPK Manifest
 

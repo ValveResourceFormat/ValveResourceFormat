@@ -12,6 +12,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using ConsoleAppFramework;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
@@ -53,6 +55,7 @@ namespace CLI
         private int MaxParallelismThreads;
         private bool Quiet;
         private bool OutputToConsole;
+        private ILogger FileLoaderLogger = NullLogger.Instance;
         private TextWriter Stdout = Console.Out;
         private bool OutputVPKDir;
         private bool VerifyVPKChecksums;
@@ -307,6 +310,8 @@ namespace CLI
                 Console.Error.WriteLine("--output - only prints decompiled files, use it with --vpk_decompile and without glTF exports or --vpk_cache.");
                 return 1;
             }
+
+            FileLoaderLogger = new StderrLogger(Quiet ? LogLevel.Warning : LogLevel.Information);
 
             if (StatsWithLoader)
             {
@@ -1561,7 +1566,7 @@ namespace CLI
 
         private GameFileLoader CreateGameFileLoader(Package? package, string? path)
         {
-            var fileLoader = new GameFileLoader(package, path);
+            var fileLoader = new GameFileLoader(package, path, FileLoaderLogger);
 
             if (GamePath != null)
             {
