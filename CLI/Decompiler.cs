@@ -52,6 +52,7 @@ namespace CLI
         private bool ShouldPrintBlockContents => PrintAllBlocks || BlocksToPrint.Count > 0;
         private int MaxParallelismThreads;
         private bool Quiet;
+        private bool OutputToConsole;
         private TextWriter Stdout = Console.Out;
         private bool OutputVPKDir;
         private bool VerifyVPKChecksums;
@@ -103,7 +104,7 @@ namespace CLI
         /// A test bed command line interface for the VRF library.
         /// </summary>
         /// <param name="input">-i, Input file or folder to be processed, multiple can be comma-separated. With no additional arguments, a summary of the input(s) will be displayed.</param>
-        /// <param name="output">-o, Output path to write to. Treated as a folder when it is an existing folder, ends with a path separator, or has no file extension, otherwise it names the file to write.</param>
+        /// <param name="output">-o, Output path to write to. Treated as a folder when it is an existing folder, ends with a path separator, or has no file extension, otherwise it names the file to write. Use "-" to print decompiled files to the console instead.</param>
         /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files, requires --output.</param>
         /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto", "ForceLDR".</param>
         /// <param name="recursive">If specified and given input is a folder, all sub directories will be scanned too.</param>
@@ -218,6 +219,13 @@ namespace CLI
             GltfTest = gltf_test;
             DumpUnknownEntityKeys = dump_unknown_entity_keys;
 
+            if (OutputFile == "-")
+            {
+                // Output paths are still computed to name the printed files, relative to the working directory
+                OutputToConsole = true;
+                OutputFile = Environment.CurrentDirectory + Path.DirectorySeparatorChar;
+            }
+
             if (OutputFile != null)
             {
                 OutputFile = Path.GetFullPath(OutputFile);
@@ -290,7 +298,13 @@ namespace CLI
 
             if (Decompile && OutputFile == null)
             {
-                Console.Error.WriteLine("--vpk_decompile requires --output, decompiled files are only written to disk. Use --block DATA to print the data instead.");
+                Console.Error.WriteLine("--vpk_decompile requires --output. Use --output - to print the decompiled files instead.");
+                return 1;
+            }
+
+            if (OutputToConsole && (!Decompile || GltfExportFormat != null || CachedManifest))
+            {
+                Console.Error.WriteLine("--output - only prints decompiled files, use it with --vpk_decompile and without glTF exports or --vpk_cache.");
                 return 1;
             }
 
@@ -454,6 +468,11 @@ namespace CLI
             {
                 Console.SetOut(TextWriter.Null);
             }
+            else if (OutputToConsole)
+            {
+                // Keep stdout for the printed files only
+                Console.SetOut(Console.Error);
+            }
 
             if (MaxParallelismThreads > 1)
             {
@@ -500,7 +519,7 @@ namespace CLI
                 }
             }
 
-            if (OutputFile != null)
+            if (OutputFile != null && !OutputToConsole)
             {
                 Console.WriteLine($"--- Wrote {WrittenFiles} files");
             }
@@ -1597,6 +1616,12 @@ namespace CLI
 
         private void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true, bool singleFileOutput = false)
         {
+            if (OutputToConsole)
+            {
+                PrintContentFile(path, contentFile);
+                return;
+            }
+
             if (contentFile.Data != null)
             {
                 DumpFile(path, contentFile.Data);
@@ -1618,7 +1643,7 @@ namespace CLI
             {
                 if (singleFileOutput && contentFile.Data == null && contentFile.SubFiles.Count == 1)
                 {
-                    var data = contentFile.SubFiles[0].Extract?.Invoke();
+                    var data = GetMainFileData(contentFile);
                     if (data != null)
                     {
                         DumpFile(path, data);
@@ -1638,8 +1663,63 @@ namespace CLI
             }
         }
 
+        /// <summary>
+        /// Prints the main file of a decompiled resource, the files it would write alongside are skipped.
+        /// </summary>
+        private void PrintContentFile(string path, ContentFile contentFile)
+        {
+            var skippedFiles = contentFile.AdditionalFiles.Count + contentFile.SubFiles.Count;
+
+            if (contentFile.Data == null && contentFile.SubFiles.Count == 1)
+            {
+                skippedFiles--;
+            }
+
+            var data = GetMainFileData(contentFile);
+
+            if (data != null)
+            {
+                DumpFile(path, data);
+            }
+
+            if (skippedFiles > 0)
+            {
+                Console.Error.WriteLine($"--- Not printing {skippedFiles} additional files of \"{GetConsoleOutputPath(path)}\", use --output <folder> to write them");
+            }
+        }
+
+        /// <summary>
+        /// Gets the data of the file a resource decompiles to, which is a sub file for some types such as textures.
+        /// </summary>
+        private static byte[]? GetMainFileData(ContentFile contentFile)
+        {
+            if (contentFile.Data == null && contentFile.SubFiles.Count == 1)
+            {
+                return contentFile.SubFiles[0].Extract?.Invoke();
+            }
+
+            return contentFile.Data;
+        }
+
+        private string GetConsoleOutputPath(string path) => Path.GetRelativePath(OutputFile!, path).Replace('\\', '/');
+
         private void DumpFile(string path, ReadOnlySpan<byte> data)
         {
+            if (OutputToConsole)
+            {
+                lock (ConsoleWriterLock)
+                {
+                    Stdout.WriteLine($"--- {GetConsoleOutputPath(path)}");
+                    Stdout.Flush();
+
+                    using var stdout = Console.OpenStandardOutput();
+                    stdout.Write(data);
+                    stdout.Write("\n"u8);
+                }
+
+                return;
+            }
+
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
             File.WriteAllBytes(path, data.ToArray());
