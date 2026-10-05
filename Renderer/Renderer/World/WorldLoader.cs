@@ -743,9 +743,12 @@ namespace ValveResourceFormat.Renderer.World
             return worldEntityLumps.Find(lump => lump.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         }
 
-        // Any class flagged ispointprefab places a map too, such as the CS2 team select and team intro stages
+        // Any class flagged ispointprefab places a map too, such as the CS2 team select and team intro stages.
+        // A point_prefab with prefab_load_dynamic switched off places nothing.
         private static bool IsSpawnGroupPlacement(string classname, Entity entity)
-            => classname is "skybox_reference" or "point_prefab" || entity.GetBooleanProperty("ispointprefab");
+            => classname == "skybox_reference"
+            || (classname == "point_prefab" && entity.GetBooleanProperty("prefab_load_dynamic", defaultValue: true))
+            || entity.GetBooleanProperty("ispointprefab");
 
         private void LoadSkybox(BaseEntity skyboxReference)
         {
