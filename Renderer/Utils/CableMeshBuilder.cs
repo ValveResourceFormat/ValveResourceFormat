@@ -10,14 +10,14 @@ namespace ValveResourceFormat.Renderer.Utils
     /// tessellated into a tube by <see cref="Particles.Renderers.RenderCables"/> via
     /// <see cref="CableMeshBuilder.BuildTubeMesh"/>.
     /// </summary>
-    readonly struct RopeSample(Vector3 position, float radius, Vector3 color, float u, bool pinned)
+    readonly struct RopeSample(Vector3 position, float radius, Vector3 color, float v, bool pinned)
     {
         /// <summary>Initial, origin-relative spline position (no sag).</summary>
         public readonly Vector3 Position = position;
         public readonly float Radius = radius;
         public readonly Vector3 Color = color;
-        /// <summary>Texture coordinate along the length of the cable.</summary>
-        public readonly float U = u;
+        /// <summary>Texture coordinate along the length of the cable; U runs around it.</summary>
+        public readonly float V = v;
         /// <summary>True when this sample sits on a pinned path node (force_scale 0, immovable).</summary>
         public readonly bool Pinned = pinned;
     }
@@ -125,7 +125,7 @@ namespace ValveResourceFormat.Renderer.Utils
                 // The cap was reached before the whole spline was sampled. Pin the last sample so it holds its
                 // spline position, and leave the far terminal node off.
                 var lastSample = samples[^1];
-                samples[^1] = new RopeSample(lastSample.Position, lastSample.Radius, lastSample.Color, lastSample.U, true);
+                samples[^1] = new RopeSample(lastSample.Position, lastSample.Radius, lastSample.Color, lastSample.V, true);
             }
             else
             {
@@ -150,19 +150,20 @@ namespace ValveResourceFormat.Renderer.Utils
 
         /// <summary>
         /// Tessellates the round tube through <paramref name="positions"/> (index-aligned with
-        /// <paramref name="samples"/> for per-point radius/colour/U) into exactly-sized caller buffers:
+        /// <paramref name="samples"/> for per-point radius/colour/V) into exactly-sized caller buffers:
         /// <c>ringCount * (sides + 1)</c> vertices and <c>(ringCount - 1) * sides * 6</c> indices, with
-        /// <paramref name="sides"/> from <see cref="SideCount"/>. Returns false for degenerate input.
+        /// <paramref name="sides"/> from <see cref="SideCount"/>. Texture U runs around the tube, offset by
+        /// <paramref name="colorMapOffset"/>.X, and V along it, offset by .Y. Returns false for degenerate input.
         /// </summary>
         internal static bool BuildTubeMesh(ReadOnlySpan<Vector3> positions, ReadOnlySpan<RopeSample> samples,
-            int sides, float circumferenceRepeats, Span<CableVertex> vertices, Span<uint> indices)
+            int sides, float circumferenceRepeats, Vector2 colorMapOffset, Span<CableVertex> vertices, Span<uint> indices)
         {
             if (positions.Length < 2 || positions.Length != samples.Length)
             {
                 return false;
             }
 
-            BuildTubeGeometry(positions, samples, circumferenceRepeats, sides, vertices, indices);
+            BuildTubeGeometry(positions, samples, circumferenceRepeats, colorMapOffset, sides, vertices, indices);
             return true;
         }
 
@@ -213,14 +214,14 @@ namespace ValveResourceFormat.Renderer.Utils
         }
 
         private static void BuildTubeGeometry(ReadOnlySpan<Vector3> positions, ReadOnlySpan<RopeSample> samples,
-            float circumferenceRepeats, int sides, Span<CableVertex> vertices, Span<uint> indices)
+            float circumferenceRepeats, Vector2 colorMapOffset, int sides, Span<CableVertex> vertices, Span<uint> indices)
         {
             var ringCount = positions.Length;
             var previousNormal = Vector3.Zero;
 
             // Emit a duplicate seam vertex per ring (sides + 1): the extra vertex sits at the j == 0 position
-            // but carries v == CircumferenceRepeats, so the closing quad interpolates the texture forward to
-            // the full repeat instead of wrapping v back to 0.
+            // but carries u == CircumferenceRepeats, so the closing quad interpolates the texture forward to
+            // the full repeat instead of wrapping u back to 0.
             var vertsPerRing = sides + 1;
             var vertexCursor = 0;
 
@@ -238,8 +239,8 @@ namespace ValveResourceFormat.Renderer.Utils
                     var angle = MathF.Tau * j / sides;
                     var radial = (normal * MathF.Cos(angle)) + (bitangent * MathF.Sin(angle));
                     var pos = center + (radial * sample.Radius);
-                    var v = j / (float)sides * circumferenceRepeats;
-                    vertices[vertexCursor++] = new CableVertex(pos, Normalize(radial), new Vector2(sample.U, v), color);
+                    var uv = colorMapOffset + new Vector2(j / (float)sides * circumferenceRepeats, sample.V);
+                    vertices[vertexCursor++] = new CableVertex(pos, Normalize(radial), uv, color);
                 }
             }
 

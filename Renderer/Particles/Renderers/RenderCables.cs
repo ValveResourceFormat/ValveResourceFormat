@@ -29,6 +29,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly TextureRepetitionMode textureRepetitionMode;
         private readonly INumberProvider textureRepeatsPerSegment = new LiteralNumberProvider(1f);
         private readonly INumberProvider circumferenceRepeats = new LiteralNumberProvider(1f);
+        private readonly INumberProvider colorMapOffsetU = new LiteralNumberProvider(0f);
+        private readonly INumberProvider colorMapOffsetV = new LiteralNumberProvider(0f);
         private readonly float tessScale = 1f;
         private readonly int minTessellation = 1;
         private readonly int maxTessellation = 128;
@@ -63,6 +65,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             maxTessellation = parse.Int32("m_nMaxTesselation", maxTessellation);
             textureRepeatsPerSegment = parse.NumberProvider("m_flTextureRepeatsPerSegment", textureRepeatsPerSegment);
             circumferenceRepeats = parse.NumberProvider("m_flTextureRepeatsCircumference", circumferenceRepeats);
+            colorMapOffsetU = parse.NumberProvider("m_flColorMapOffsetU", colorMapOffsetU);
+            colorMapOffsetV = parse.NumberProvider("m_flColorMapOffsetV", colorMapOffsetV);
 
             var materialName = parse.Data.GetStringProperty("m_hMaterial", DefaultMaterialName);
             material = rendererContext.MaterialLoader.GetMaterial(materialName, CreateShaderArguments());
@@ -134,16 +138,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             colors.CopyTo(lastColors);
 
             var repeatsPerSegment = textureRepeatsPerSegment.NextNumber(systemState);
-            if (repeatsPerSegment == 0f)
-            {
-                repeatsPerSegment = 1f;
-            }
-
             var circumference = circumferenceRepeats.NextNumber(systemState);
-            if (circumference == 0f)
-            {
-                circumference = 1f;
-            }
+
+            // Only the fractional part of each offset is used, truncated toward zero.
+            var colorMapOffset = new Vector2(colorMapOffsetU.NextNumber(systemState) % 1f, colorMapOffsetV.NextNumber(systemState) % 1f);
 
             // In PATH mode the authored repeat count is spread over the whole cable instead of per segment.
             var repeats = textureRepetitionMode == TextureRepetitionMode.TEXTURE_REPETITION_PATH
@@ -165,7 +163,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             BuildRings(positions, chain, levels, repeats, ringPositions.Span, ringSamples.Span);
 
             if (!CableMeshBuilder.BuildTubeMesh(ringPositions.Span, ringSamples.Span,
-                sides, circumference, vertexBuffer.Span, indexBuffer.Span))
+                sides, circumference, colorMapOffset, vertexBuffer.Span, indexBuffer.Span))
             {
                 indexCount = 0;
                 return;
@@ -275,7 +273,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return total;
         }
 
-        // Expands each particle segment into 2^level rings, interpolating position/radius/colour/U.
+        // Expands each particle segment into 2^level rings, interpolating position/radius/colour/V.
         // Fills exactly TotalRings entries of the (pooled, possibly larger) output arrays.
         private static void BuildRings(ReadOnlySpan<Vector3> positions, ReadOnlySpan<(int Id, Vector3 Position, float Radius, Vector3 Color)> chain,
             ReadOnlySpan<int> levels, float repeats, Span<Vector3> ringPositions, Span<RopeSample> ringSamples)
@@ -291,7 +289,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var position = Vector3.Lerp(positions[i], positions[i + 1], t);
                     ringPositions[cursor] = position;
 
-                    // Particles are roughly evenly spaced, so index-based U tracks arc length.
+                    // Particles are roughly evenly spaced, so index-based V tracks arc length.
                     ringSamples[cursor] = new RopeSample(position,
                         float.Lerp(chain[i].Radius, chain[i + 1].Radius, t),
                         Vector3.Lerp(chain[i].Color, chain[i + 1].Color, t),
