@@ -380,24 +380,31 @@ namespace ValveResourceFormat.Utils
         /// <summary>
         /// Unpacks a quaternion stored in 32 bits: x in bits 0-10, y in bits 11-20 and z in bits 21-30, each
         /// mapped from [0, 1] to [-1, 1], with w rebuilt from unit length and negated when bit 31 is set.
+        /// The result is not normalized.
         /// </summary>
         /// <param name="packed">The packed quaternion.</param>
         public static Quaternion UnpackQuaternion32(uint packed)
         {
-            var x = 2f * ((packed & 0x7FF) * (1f / 2047f)) - 1f;
-            var y = 2f * (((packed >> 11) & 0x3FF) * (1f / 1023f)) - 1f;
-            var z = 2f * (((packed >> 21) & 0x3FF) * (1f / 1023f)) - 1f;
-            var xyz = new Vector3(x, y, z);
-            var lengthSquared = xyz.LengthSquared();
+            var x = (packed & 0x7FF) * (2f / 2047f) - 1f;
+            var y = ((packed >> 11) & 0x3FF) * (2f / 1023f) - 1f;
+            var z = ((packed >> 21) & 0x3FF) * (2f / 1023f) - 1f;
+            var w = MathF.Sqrt(1f - MathF.Min(0.999999f, x * x + y * y + z * z));
 
-            if (lengthSquared >= 1f)
-            {
-                return new Quaternion(xyz / MathF.Sqrt(lengthSquared), 0f);
-            }
+            return new Quaternion(x, y, z, (packed & 0x80000000) != 0 ? -w : w);
+        }
 
-            var w = MathF.Sqrt(1f - lengthSquared);
+        /// <summary>
+        /// Hashes one value with the single word xxHash32 variant common in shader code, seed 0.
+        /// </summary>
+        /// <param name="value">The value to hash.</param>
+        public static uint HashUInt32(uint value)
+        {
+            var hash = value + 374761393u;
+            hash = 668265263u * BitOperations.RotateLeft(hash, 17);
+            hash = 2246822519u * (hash ^ (hash >> 15));
+            hash = 3266489917u * (hash ^ (hash >> 13));
 
-            return new Quaternion(xyz, (packed & 0x80000000) != 0 ? -w : w);
+            return hash ^ (hash >> 16);
         }
     }
 }

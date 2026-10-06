@@ -212,12 +212,19 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var tile in clutter.Tiles)
             {
-                var instancesByTint = Enumerable.Range(tile.FirstInstance, tile.EndInstance - tile.FirstInstance)
+                var tileInstanceCount = tile.EndInstance - tile.FirstInstance;
+                var instancesByTint = Enumerable.Range(tile.FirstInstance, tileInstanceCount)
                     .GroupBy(instance => clutter.InstanceTints[instance]);
 
                 foreach (var instances in instancesByTint)
                 {
-                    var tileNode = new SceneClutterTile(scene, model, clutter.MaterialGroup, clutter.BeginCullSize, clutter.EndCullSize, maxInstanceScale)
+                    var tileInstances = instances
+                        .Select(instance => (
+                            clutter.GetInstanceTransform(instance) * root,
+                            SceneClutterTile.GetDensityThreshold(instance - tile.FirstInstance, tileInstanceCount, clutter.EndCullSize)))
+                        .ToArray();
+
+                    scene.Add(new SceneClutterTile(scene, model, clutter.MaterialGroup, maxInstanceScale, tileInstances)
                     {
                         LayerName = LayerNames[clutter.Layer],
                         Name = clutter.RenderableModel,
@@ -226,14 +233,7 @@ namespace ValveResourceFormat.Renderer.World
                         AnyFlags = clutter.Flags,
                         Tint = instances.Key / 255f,
                         LocalBoundingBox = tile.Bounds.Transform(root),
-                    };
-
-                    foreach (var instance in instances)
-                    {
-                        tileNode.InstanceTransforms.Add((clutter.GetInstanceTransform(instance) * root).To3x4());
-                    }
-
-                    scene.Add(tileNode, false);
+                    }, false);
                 }
             }
         }
