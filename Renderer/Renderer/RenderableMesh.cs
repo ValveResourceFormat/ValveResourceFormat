@@ -160,6 +160,21 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Maps each material of one material group to the material at the same index in another.</summary>
+        /// <param name="fromMaterials">Materials of the group currently applied.</param>
+        /// <param name="toMaterials">Materials of the group to switch to.</param>
+        internal static Dictionary<string, string> CreateMaterialGroupTable(string[] fromMaterials, string[] toMaterials)
+        {
+            var table = new Dictionary<string, string>(fromMaterials.Length);
+
+            foreach (var (from, to) in fromMaterials.Zip(toMaterials))
+            {
+                table[from] = to;
+            }
+
+            return table;
+        }
+
         /// <summary>Replaces materials on draw calls according to the provided name-to-name mapping.</summary>
         /// <param name="materialTable">Dictionary mapping original material names to replacement material names.</param>
         public void ReplaceMaterials(Dictionary<string, string> materialTable)

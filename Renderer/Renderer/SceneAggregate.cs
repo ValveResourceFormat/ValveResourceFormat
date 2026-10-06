@@ -141,32 +141,9 @@ namespace ValveResourceFormat.Renderer
             }
 
             var materialGroups = model.GetMaterialGroups().ToArray();
+            var group = materialGroups.FirstOrDefault(group => group.Name == materialGroup);
 
-            if (materialGroups.Length == 0)
-            {
-                return null;
-            }
-
-            var defaultMaterials = materialGroups[0].Materials;
-
-            foreach (var (name, materials) in materialGroups)
-            {
-                if (name != materialGroup)
-                {
-                    continue;
-                }
-
-                var table = new Dictionary<string, string>(defaultMaterials.Length);
-
-                foreach (var (active, replacement) in defaultMaterials.Zip(materials))
-                {
-                    table[active] = replacement;
-                }
-
-                return table;
-            }
-
-            return null;
+            return group.Materials == null ? null : RenderableMesh.CreateMaterialGroupTable(materialGroups[0].Materials, group.Materials);
         }
 
         /// <summary>Expands the aggregate's bounding box to cover the entire scene, preventing it from being frustum-culled.</summary>

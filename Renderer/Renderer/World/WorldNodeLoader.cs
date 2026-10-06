@@ -201,56 +201,32 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        /// <remarks>
-        /// Each tile becomes its own node so it can be culled and thinned on its own. Instances share one
-        /// tint per draw, so each distinct instance tint within a tile gets a node of its own.
-        /// </remarks>
         private void LoadClutter(Scene scene, ClutterSceneObject clutter, Matrix4x4 root)
         {
-            if (clutter.RenderableModel == null || clutter.InstanceCount == 0)
-            {
-                return;
-            }
-
             if (RendererContext.FileLoader.LoadFileCompiled(clutter.RenderableModel)?.DataBlock is not Model model)
             {
                 return;
             }
 
             var maxInstanceScale = clutter.InstanceScales.Max();
-            var instancesByTint = new Dictionary<Color32, List<int>>();
 
             foreach (var tile in clutter.Tiles)
             {
-                instancesByTint.Clear();
+                var instancesByTint = Enumerable.Range(tile.FirstInstance, tile.EndInstance - tile.FirstInstance)
+                    .GroupBy(instance => clutter.InstanceTints[instance]);
 
-                for (var i = tile.FirstInstance; i < tile.EndInstance; i++)
+                foreach (var instances in instancesByTint)
                 {
-                    var tint = clutter.InstanceTints[i];
-
-                    if (!instancesByTint.TryGetValue(tint, out var instances))
-                    {
-                        instances = [];
-                        instancesByTint[tint] = instances;
-                    }
-
-                    instances.Add(i);
-                }
-
-                foreach (var (tint, instances) in instancesByTint)
-                {
-                    var tileNode = new SceneClutterTile(scene, model, clutter, maxInstanceScale)
+                    var tileNode = new SceneClutterTile(scene, model, clutter.MaterialGroup, clutter.BeginCullSize, clutter.EndCullSize, maxInstanceScale)
                     {
                         LayerName = LayerNames[clutter.Layer],
                         Name = clutter.RenderableModel,
                         Flags = clutter.Flags,
                         AllFlags = clutter.Flags,
                         AnyFlags = clutter.Flags,
-                        Tint = new Vector3(tint.R, tint.G, tint.B) / 255f,
+                        Tint = instances.Key / 255f,
                         LocalBoundingBox = tile.Bounds.Transform(root),
                     };
-
-                    tileNode.InstanceTransforms.EnsureCapacity(instances.Count);
 
                     foreach (var instance in instances)
                     {
