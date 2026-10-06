@@ -141,7 +141,7 @@ public class PickingTexture : Framebuffer
         GL.Flush();
         GL.Finish();
 
-        height = Height - height; // flip y
+        height = Height - 1 - height; // flip y
         var pixelInfo = new PixelInfo();
 
         Debug.Assert(ColorFormat is not null);

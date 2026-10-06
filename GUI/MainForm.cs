@@ -478,17 +478,35 @@ namespace GUI
         private void CloseAndReOpenActiveTab()
         {
             var tab = mainTabs.SelectedTab;
-            if (tab is not null && tab.Tag is ExportData exportData)
+            if (tab is null || tab.Tag is not ExportData exportData)
             {
-                var (newFileContext, packageEntry) = exportData.VrfGuiContext.FindFileWithContext(
-                    exportData.PackageEntry?.GetFullPath() ?? exportData.VrfGuiContext.FileName
-                );
+                return;
+            }
 
-                if (newFileContext != null)
+            if (exportData.PackageEntry is { } packageEntry && exportData.VrfGuiContext.ParentGuiContext is { } packageContext)
+            {
+                var fileContext = new VrfGuiContext(packageEntry.GetFullPath(), packageContext);
+
+                try
                 {
-                    OpenFile(newFileContext, packageEntry);
-                    mainTabs.CloseTab(tab);
+                    OpenFile(fileContext, packageEntry);
+                    fileContext = null;
                 }
+                finally
+                {
+                    fileContext?.Dispose();
+                }
+
+                mainTabs.CloseTab(tab);
+                return;
+            }
+
+            var (newFileContext, newPackageEntry) = exportData.VrfGuiContext.FindFileWithContext(exportData.VrfGuiContext.FileName);
+
+            if (newFileContext != null)
+            {
+                OpenFile(newFileContext, newPackageEntry);
+                mainTabs.CloseTab(tab);
             }
         }
 

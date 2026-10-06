@@ -134,7 +134,7 @@ namespace GUI.Utils
             {
                 var lastLine = control.Lines.Count;
 
-                control.AppendText($"[{line.Time:HH:mm:ss.fff}] [{line.Component}] ", TextStyleTime);
+                control.AppendText(string.Create(CultureInfo.InvariantCulture, $"[{line.Time:HH:mm:ss.fff}] [{line.Component}] "), TextStyleTime);
                 control.AppendText(string.Concat(line.Message, Environment.NewLine), line.Style);
 
                 // Add fold for multi line strings
