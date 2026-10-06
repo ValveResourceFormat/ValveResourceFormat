@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.IO;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -92,7 +94,63 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
+            if (table.decalGroups.Count == 0)
+            {
+                table.LoadTextDecalGroups(fileLoader);
+            }
+
             return table;
+        }
+
+        // The same groups as text, each a list of materials and their weights
+        private void LoadTextDecalGroups(GameFileLoader fileLoader)
+        {
+            using var stream = fileLoader.GetFileStream("scripts/decals_subrect.txt");
+
+            if (stream == null)
+            {
+                return;
+            }
+
+            // The groups sit at the top level, and the format takes a single root
+            using var wrapped = new MemoryStream();
+            wrapped.Write("\"root\"\n{\n"u8);
+            stream.CopyTo(wrapped);
+            wrapped.Write("\n}\n"u8);
+            wrapped.Position = 0;
+
+            KVObject root;
+
+            try
+            {
+                root = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(wrapped);
+            }
+            catch (KeyValueException)
+            {
+                return;
+            }
+
+            foreach (var (groupName, group) in root)
+            {
+                if (group.ValueType != KVValueType.Collection)
+                {
+                    continue;
+                }
+
+                var options = new List<DecalOption>();
+
+                foreach (var (material, weight) in group)
+                {
+                    // Entries that name a sprite sheet sequence rather than a material are not supported
+                    if (material.EndsWith(".vmat", StringComparison.OrdinalIgnoreCase)
+                        && float.TryParse((string)weight, NumberStyles.Float, CultureInfo.InvariantCulture, out var probability))
+                    {
+                        options.Add(new DecalOption(material, probability));
+                    }
+                }
+
+                decalGroups[groupName] = [.. options];
+            }
         }
 
         public string? PickMaterial(string? groupName, Random random)

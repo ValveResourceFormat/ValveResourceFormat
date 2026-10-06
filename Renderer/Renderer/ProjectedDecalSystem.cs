@@ -148,7 +148,7 @@ namespace ValveResourceFormat.Renderer
         internal ReadOnlySpan<Matrix4x4> BoxTransforms => CollectionsMarshal.AsSpan(boxTransforms);
 
         /// <summary>Adds a decal.</summary>
-        /// <param name="materialPath">A <c>csgo_projected_decals</c> material.</param>
+        /// <param name="materialPath">A <c>csgo_projected_decals</c> or <c>vr_projected_decals</c> material.</param>
         /// <param name="boxTransform">Maps a unit cube centred on the origin to the decal box, see <see cref="CreateBoxTransform"/>.</param>
         /// <param name="tint">Linear color and opacity multiplier.</param>
         /// <param name="flipU">Whether to mirror the texture horizontally.</param>
@@ -361,7 +361,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Adds a decal picked from a decal group, turned at random on the surface.</summary>
-        /// <param name="groupName">A group in <c>scripts/decalgroups.vdata</c>.</param>
+        /// <param name="groupName">A group in <c>scripts/decalgroups.vdata</c> or <c>scripts/decals_subrect.txt</c>.</param>
         /// <param name="position">The position on the surface.</param>
         /// <param name="normal">The surface normal.</param>
         /// <param name="parent">The entity the surface belongs to, which the decal moves with, or null for the static world.</param>
@@ -492,6 +492,13 @@ namespace ValveResourceFormat.Renderer
                 return -1;
             }
 
+            if (data.ShaderName is not ("csgo_projected_decals.vfx" or "vr_projected_decals.vfx"))
+            {
+                scene.RendererContext.Logger.LogWarning("Projected decal material {Material} was skipped, its shader {Shader} is not supported",
+                    materialPath, data.ShaderName);
+                return -1;
+            }
+
             var intParams = data.IntParams;
             var floatParams = data.FloatParams;
 
@@ -523,7 +530,7 @@ namespace ValveResourceFormat.Renderer
                 flags |= MaterialFlags.CutoffAngle;
             }
 
-            if (intParams.GetValueOrDefault("F_SPECULAR_DIRECT") == 1)
+            if (intParams.GetValueOrDefault("F_SPECULAR_DIRECT") == 1 || intParams.GetValueOrDefault("F_SPECULAR") == 1)
             {
                 flags |= MaterialFlags.Specular;
             }
