@@ -746,7 +746,7 @@ namespace ValveResourceFormat.IO
                 {
                     var (p, q) = (cycle[j], cycle[(j + 1) % cycle.Length]);
                     var edge = UnorderedPair(p, q);
-                    if (RodsByPair.TryGetValue(edge, out var rods) && rods.Count == 1)
+                    if (RodsByPair.TryGetValue(edge, out var rods) && rods.Count == 1 && !IsSurfaceFold(rods[0]))
                     {
                         derived.Remove(edge);
                     }
@@ -773,7 +773,7 @@ namespace ValveResourceFormat.IO
                 => node >= 0 && node < Index.InitPosePositions.Length ? Index.InitPosePositions[node] : Vector3.Zero;
         }
 
-        /// <summary>Gets the solve elements in the corner order the compiler's fold walk meets them.</summary>
+        /// <summary>Gets the solve elements in the corner order the compiler's fold walk meets them, a triangle as its three corners.</summary>
         private List<int[]> FoldWalkSolveElements()
         {
             var rings = new Dictionary<string, Dictionary<int, int>>(StringComparer.Ordinal);
@@ -799,6 +799,12 @@ namespace ValveResourceFormat.IO
             for (var i = 0; i < elements.Count; i++)
             {
                 var quad = elements[i];
+                if (quad.Length == 4 && quad[2] == quad[3])
+                {
+                    elements[i] = quad[..3];
+                    continue;
+                }
+
                 if (quad.Length == 4 && quad.Distinct().Count() == 4 && quad.All(node => node >= 0 && node < Fe.CtrlName.Length)
                     && TwoWideRingOf(quad[0], quad[1]) is not null && TwoWideRingOf(quad[2], quad[3]) is { } far)
                 {

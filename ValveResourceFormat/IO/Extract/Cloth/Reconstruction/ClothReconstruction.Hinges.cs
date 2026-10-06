@@ -587,7 +587,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Gets whether a rod joins the rings of two different children of a rigid hinge joint (<c>child_sibling_spring</c>).
+        /// Gets whether a rod other than a self-collision cluster band or a surface fold joins the rings of two different
+        /// children of a rigid hinge joint (<c>child_sibling_spring</c>).
         /// </summary>
         internal bool SpringsHingeChildren(BoneChain chain, int joint)
         {
@@ -617,9 +618,11 @@ namespace ValveResourceFormat.IO
                 return false;
             }
 
-            foreach (var rod in Index.Rods)
+            var clusterRods = SelfCollisionClusterRods;
+            for (var i = 0; i < Index.Rods.Length; i++)
             {
-                if (childOfRing.TryGetValue(rod.NodeA, out var a)
+                var rod = Index.Rods[i];
+                if (!clusterRods.Contains(i) && !IsSurfaceFold(rod) && childOfRing.TryGetValue(rod.NodeA, out var a)
                     && childOfRing.TryGetValue(rod.NodeB, out var b) && a != b)
                 {
                     return true;
