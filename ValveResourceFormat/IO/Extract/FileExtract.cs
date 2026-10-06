@@ -355,6 +355,23 @@ namespace ValveResourceFormat.IO
         /// <param name="fileName">The file name for context.</param>
         public static ContentFile? ExtractNonResource(Stream stream, string fileName)
         {
+            // Fonts have no magic at the start of the file
+            var extension = Path.GetExtension(fileName);
+
+            if (extension.Equals(".vfont", StringComparison.OrdinalIgnoreCase))
+            {
+                return new ContentFile
+                {
+                    Data = new ValveFont.ValveFont().Read(stream),
+                    FileName = Path.ChangeExtension(fileName, ".ttf"),
+                };
+            }
+
+            if (extension.Equals(".uifont", StringComparison.OrdinalIgnoreCase))
+            {
+                return ExtractUIFont(stream, fileName);
+            }
+
             Span<byte> buffer = stackalloc byte[4];
             var read = stream.Read(buffer);
             stream.Seek(-read, SeekOrigin.Current);
@@ -370,8 +387,53 @@ namespace ValveResourceFormat.IO
                 FlexSceneFile.FlexSceneFile.MAGIC => new FlexSceneExtract(stream).ToContentFile(),
                 ClosedCaptions.ClosedCaptions.MAGIC => new ClosedCaptionsExtract(stream, fileName).ToContentFile(),
                 NavMesh.NavMeshFile.MAGIC => ExtractNavMesh(stream, fileName),
+                MapFormats.GridNavFile.MAGIC => ExtractGridNav(stream, fileName),
                 _ => null,
             };
+        }
+
+        private static ContentFile ExtractGridNav(Stream stream, string fileName)
+        {
+            var gridNav = new MapFormats.GridNavFile();
+            gridNav.Read(stream);
+
+            return new ContentFile
+            {
+                Data = Encoding.UTF8.GetBytes(gridNav.ToString()),
+                FileName = Path.ChangeExtension(fileName, ".txt"),
+            };
+        }
+
+        private static ContentFile ExtractUIFont(Stream stream, string fileName)
+        {
+            var data = new byte[stream.Length - stream.Position];
+            stream.ReadExactly(data);
+
+            var fontPackage = new ValveFont.UIFontFilePackage();
+            fontPackage.Read(data);
+
+            if (fontPackage.FontFiles.Count == 1)
+            {
+                var fontFile = fontPackage.FontFiles[0];
+
+                return new ContentFile
+                {
+                    Data = fontFile.OpenTypeFontData,
+                    FileName = Path.ChangeExtension(fileName, Path.GetExtension(fontFile.FileName)),
+                };
+            }
+
+            var contentFile = new ContentFile
+            {
+                FileName = fileName,
+            };
+
+            foreach (var fontFile in fontPackage.FontFiles)
+            {
+                contentFile.AddSubFile(fontFile.FileName, () => fontFile.OpenTypeFontData);
+            }
+
+            return contentFile;
         }
 
         private static ContentFile ExtractNavMesh(Stream stream, string fileName)

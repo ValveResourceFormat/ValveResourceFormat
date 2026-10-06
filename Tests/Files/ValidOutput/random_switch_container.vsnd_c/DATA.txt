@@ -1,0 +1,11 @@
+SoundType: None
+Sample Rate: 0
+Bits: 0
+SampleSize: 0
+SampleCount: 0
+Format: Unknown
+Channels: 0
+LoopStart: 0
+LoopEnd: 0
+Duration: 00:00:00 (0)
+StreamingDataSize: 0

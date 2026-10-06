@@ -81,6 +81,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public enum AudioFileType
         {
+            /// <summary>No audio data, such as containers that only reference other sounds.</summary>
+            None = -1,
             /// <summary>Advanced Audio Coding container.</summary>
             AAC = 0,
             /// <summary>Waveform Audio File Format container.</summary>
@@ -125,7 +127,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the audio file type.
         /// </summary>
         /// <value>The file type.</value>
-        public AudioFileType SoundType { get; private set; }
+        public AudioFileType SoundType { get; private set; } = AudioFileType.None;
 
         /// <summary>
         /// Gets the samples per second.
@@ -657,11 +659,20 @@ namespace ValveResourceFormat.ResourceTypes
             writer.WriteLine($"Format: {AudioFormat}");
             writer.WriteLine($"Channels: {Channels}");
 
-            var loopStart = TimeSpan.FromSeconds((double)LoopStart / SampleRate);
-            writer.WriteLine($"LoopStart: {LoopStart} ({loopStart})");
+            // Containers that only reference other sounds have a sample rate of zero
+            if (SampleRate > 0)
+            {
+                var loopStart = TimeSpan.FromSeconds((double)LoopStart / SampleRate);
+                writer.WriteLine($"LoopStart: {LoopStart} ({loopStart})");
 
-            var loopEnd = TimeSpan.FromSeconds((double)LoopEnd / SampleRate);
-            writer.WriteLine($"LoopEnd: {LoopEnd} ({loopEnd})");
+                var loopEnd = TimeSpan.FromSeconds((double)LoopEnd / SampleRate);
+                writer.WriteLine($"LoopEnd: {LoopEnd} ({loopEnd})");
+            }
+            else
+            {
+                writer.WriteLine($"LoopStart: {LoopStart}");
+                writer.WriteLine($"LoopEnd: {LoopEnd}");
+            }
 
             var duration = TimeSpan.FromSeconds(Duration);
             writer.WriteLine($"Duration: {duration} ({Duration})");
