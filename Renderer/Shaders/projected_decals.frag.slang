@@ -28,14 +28,21 @@ struct ProjectedDecal_t
     uint _padding;
 };
 
+// Where a decal finds one of its textures. A texture sits in the corner of an array layer sized for the
+// largest one, and the decal may use only a part of it, as when its texture is an atlas of many decals.
+struct DecalTexture_t
+{
+    vec2 Scale; // how much of the layer the decal's part covers
+    uint Layer; // the layer in the low 16 bits, then the last mip level the texture has in four
+    uint Offset; // where that part starts, in texels: x in the low 16 bits, y in the high
+};
+
 struct ProjectedDecalMaterial_t
 {
-    // Smaller textures sit in the corner of an array layer sized for the largest one:
-    // xy scale into their part of it, z is the layer
-    vec4 ColorScaleLayer;
-    vec4 NormalScaleLayer;
-    vec4 OcclusionScaleLayer;
-    vec4 HeightScaleLayer;
+    DecalTexture_t Color;
+    DecalTexture_t Normal;
+    DecalTexture_t Occlusion;
+    DecalTexture_t Height;
     vec4 Fade; // cutoff bias, cutoff scale, inverse depth fade, inverse alpha cutoff softness
     vec4 Parallax; // height scale, min steps, max steps, LOD threshold
     vec4 Emissive; // rgb tint, a additive amount
@@ -126,13 +133,40 @@ vec3 GetScenePosition(vec2 fragCoord)
     return GetWorldPositionFromDepthValue(ReadReceiverDepth(pixel), cameraRay);
 }
 
-vec4 SampleDecalTexture(sampler2DArray decalTexture, vec4 scaleLayer, vec2 texCoord, vec2 texCoordDdx, vec2 texCoordDdy)
+// The size in texels of the part of a texture a decal uses
+vec2 GetDecalTextureTexels(sampler2DArray textureArray, DecalTexture_t decalTexture)
 {
-    // Keep bilinear taps off the unused part of the layer
-    vec2 halfTexel = 0.5 / (scaleLayer.xy * vec2(textureSize(decalTexture, 0).xy));
+    return decalTexture.Scale * vec2(textureSize(textureArray, 0).xy);
+}
+
+vec4 SampleDecalTexture(sampler2DArray textureArray, DecalTexture_t decalTexture, vec2 texCoord, vec2 texCoordDdx, vec2 texCoordDdy)
+{
+    vec2 layerSize = vec2(textureSize(textureArray, 0).xy);
+    vec2 texels = decalTexture.Scale * layerSize;
+
+    vec2 texelsDdx = texCoordDdx * texels;
+    vec2 texelsDdy = texCoordDdy * texels;
+    float lod = 0.5 * log2(max(max(dot(texelsDdx, texelsDdx), dot(texelsDdy, texelsDdy)), 1e-8));
+
+    // The layer has more mip levels than the texture brought, and what lies past them is not the decal's
+    float lastMip = float((decalTexture.Layer >> 16u) & 0xFu);
+
+    if (lod > lastMip)
+    {
+        float shrink = exp2(lastMip - lod);
+        texCoordDdx *= shrink;
+        texCoordDdy *= shrink;
+        lod = lastMip;
+    }
+
+    // Keep the bilinear taps of the coarsest mip sampled inside the decal's part of the layer
+    vec2 halfTexel = min(0.5 * exp2(ceil(max(lod, 0.0))) / texels, vec2(0.5));
     texCoord = clamp(texCoord, halfTexel, 1.0 - halfTexel);
 
-    return textureGrad(decalTexture, vec3(texCoord * scaleLayer.xy, scaleLayer.z), texCoordDdx * scaleLayer.xy, texCoordDdy * scaleLayer.xy);
+    vec2 offset = vec2(decalTexture.Offset & 0xFFFFu, decalTexture.Offset >> 16u) / layerSize;
+    vec3 coords = vec3(offset + texCoord * decalTexture.Scale, float(decalTexture.Layer & 0xFFFFu));
+
+    return textureGrad(textureArray, coords, texCoordDdx * decalTexture.Scale, texCoordDdy * decalTexture.Scale);
 }
 
 vec4 UnpackDecalTint(uint tint)
@@ -148,7 +182,7 @@ vec2 ApplyParallax(ProjectedDecalMaterial_t material, vec2 texCoord, vec2 texCoo
     vec2 fullDdx = texCoordDdx * 2.0;
     vec2 fullDdy = texCoordDdy * 2.0;
 
-    vec2 textureTexels = material.ColorScaleLayer.xy * vec2(textureSize(uDecalColor, 0).xy);
+    vec2 textureTexels = GetDecalTextureTexels(uDecalColor, material.Color);
     vec2 texelsDdx = fullDdx * textureTexels;
     vec2 texelsDdy = fullDdy * textureTexels;
     vec2 texelFootprint = texelsDdx * texelsDdx + texelsDdy * texelsDdy;
@@ -179,7 +213,7 @@ vec2 ApplyParallax(ProjectedDecalMaterial_t material, vec2 texCoord, vec2 texCoo
 
     for (int i = 0; i < stepCount; i++)
     {
-        sampledHeight = SampleDecalTexture(uDecalHeight, material.HeightScaleLayer, currentTexCoord, fullDdx, fullDdy).x;
+        sampledHeight = SampleDecalTexture(uDecalHeight, material.Height, currentTexCoord, fullDdx, fullDdy).x;
 
         if (sampledHeight > layerHeight)
         {
@@ -360,16 +394,16 @@ void main()
                 vec3 facing = vec3(dot(geometricNormal, normalize(axisX)), dot(geometricNormal, normalize(axisY)), dot(geometricNormal, normalize(axisZ)));
                 vec3 weights = facing * facing;
 
-                color = SampleDecalTexture(uDecalColor, material.ColorScaleLayer, coords.zy, coordsDdx.zy, coordsDdy.zy) * weights.x
-                    + SampleDecalTexture(uDecalColor, material.ColorScaleLayer, vec2(coords.x, decalCoords.z), coordsDdx.xz, coordsDdy.xz) * weights.y
-                    + SampleDecalTexture(uDecalColor, material.ColorScaleLayer, coords.xy, coordsDdx.xy, coordsDdy.xy) * weights.z;
+                color = SampleDecalTexture(uDecalColor, material.Color, coords.zy, coordsDdx.zy, coordsDdy.zy) * weights.x
+                    + SampleDecalTexture(uDecalColor, material.Color, vec2(coords.x, decalCoords.z), coordsDdx.xz, coordsDdy.xz) * weights.y
+                    + SampleDecalTexture(uDecalColor, material.Color, coords.xy, coordsDdx.xy, coordsDdy.xy) * weights.z;
 
                 vec3 toFace = min(decalCoords, 1.0 - decalCoords);
                 color.a *= saturate(8.0 * min(toFace.x, min(toFace.y, toFace.z)));
             }
             else
             {
-                color = SampleDecalTexture(uDecalColor, material.ColorScaleLayer, texCoord, texCoordDdx, texCoordDdy);
+                color = SampleDecalTexture(uDecalColor, material.Color, texCoord, texCoordDdx, texCoordDdy);
             }
 
             float opacity = (material.Flags & DECAL_ALPHA_CUTOFF) != 0u
@@ -409,7 +443,7 @@ void main()
 
             if ((material.Flags & DECAL_NORMAL_MAP) != 0u)
             {
-                vec4 normalTexel = SampleDecalTexture(uDecalNormal, material.NormalScaleLayer, texCoord, texCoordDdx, texCoordDdy);
+                vec4 normalTexel = SampleDecalTexture(uDecalNormal, material.Normal, texCoord, texCoordDdx, texCoordDdy);
                 float octX = normalTexel.x + normalTexel.y - (256.0 / 255.0);
                 float octY = normalTexel.x - normalTexel.y;
                 vec3 normalTs = normalize(vec3(octX, octY, 1.0 - abs(octX) - abs(octY)));
@@ -423,7 +457,7 @@ void main()
             }
 
             vec2 occlusionMetalness = (material.Flags & DECAL_OCCLUSION_MAP) != 0u
-                ? SampleDecalTexture(uDecalOcclusion, material.OcclusionScaleLayer, texCoord, texCoordDdx, texCoordDdy).xy
+                ? SampleDecalTexture(uDecalOcclusion, material.Occlusion, texCoord, texCoordDdx, texCoordDdy).xy
                 : vec2(1.0, 0.0);
 
             bool isSpecular = (material.Flags & DECAL_SPECULAR) != 0u;

@@ -29,12 +29,6 @@ namespace ValveResourceFormat.Renderer
         private const float GrazingIncidenceVariance = 0.1f;
 
         // None of these are in the decal data, so they are chosen rather than known
-        private const float DefaultDecalDepth = 12f;
-
-        // Seconds a decal stays before it starts to fade, and how long the fade takes, unless its material says
-        private const float DefaultFadeStartTime = 30f;
-        private const float DefaultFadeDuration = 3f;
-        private const float DefaultDecalSize = 8f;
         private const float MinDecalSize = 0.5f;
 
         private const string KnifeDecalGroup = "ManhackCut";
@@ -67,15 +61,27 @@ namespace ValveResourceFormat.Renderer
             public uint Padding;
         }
 
+        // Matches DecalTexture_t, 16 bytes. Where a decal finds one of its textures in the array of its kind.
+        [StructLayout(LayoutKind.Sequential)]
+        private struct TextureGpu
+        {
+            // How much of the array layer the decal's part of the texture covers
+            public Vector2 Scale;
+            // The layer in the low 16 bits, then the last mip level the texture has in four
+            public uint Layer;
+            // Where that part starts in the layer, in texels: x in the low 16 bits, y in the high
+            public uint Offset;
+        }
+
         // Matches ProjectedDecalMaterial_t, 128 bytes. Derived parameters are evaluated here so the shader
         // only reads them.
         [StructLayout(LayoutKind.Sequential)]
         private struct MaterialGpu
         {
-            public Vector4 ColorScaleLayer;
-            public Vector4 NormalScaleLayer;
-            public Vector4 OcclusionScaleLayer;
-            public Vector4 HeightScaleLayer;
+            public TextureGpu Color;
+            public TextureGpu Normal;
+            public TextureGpu Occlusion;
+            public TextureGpu Height;
             public Vector4 Fade;
             public Vector4 Parallax;
             public Vector4 Emissive;
@@ -87,27 +93,15 @@ namespace ValveResourceFormat.Renderer
 
         private sealed class DecalMaterial
         {
-            public required Material Data { get; init; }
+            public required ProjectedDecalDefinition Definition { get; init; }
             public required MaterialGpu Parameters { get; init; }
             public required ProjectedDecalTextureArray.Layer Color { get; init; }
             public ProjectedDecalTextureArray.Layer? Normal { get; init; }
             public ProjectedDecalTextureArray.Layer? Occlusion { get; init; }
             public ProjectedDecalTextureArray.Layer? Height { get; init; }
-            public bool IsTriplanar { get; init; }
-            public float FadeStartTime { get; init; }
-            public float FadeDuration { get; init; }
         }
 
         private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform, float PlaceTime);
-
-        // BC7 mode 6 with every endpoint zero, which is transparent black
-        private static readonly byte[] Bc7ClearBlock = [0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-        // Occlusion 1 in red, metalness 0 in green
-        private static readonly byte[] OcclusionClearBlock = [0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-        // Height 1, level with the surface
-        private static readonly byte[] HeightClearBlock = [0xFF, 0xFF, 0, 0, 0, 0, 0, 0];
 
         private readonly Scene scene;
 
@@ -117,6 +111,15 @@ namespace ValveResourceFormat.Renderer
 
         private readonly List<DecalMaterial> materials = [];
         private readonly Dictionary<string, int> materialsByPath = new(StringComparer.OrdinalIgnoreCase);
+
+        // BC7 mode 6 with every endpoint zero, which is transparent black
+        private static readonly byte[] Bc7ClearBlock = [0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+        // Occlusion 1 in red, metalness 0 in green
+        private static readonly byte[] OcclusionClearBlock = [0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+        // Height 1, level with the surface
+        private static readonly byte[] HeightClearBlock = [0xFF, 0xFF, 0, 0, 0, 0, 0, 0];
 
         private readonly ProjectedDecalTextureArray colorArray = new("ProjectedDecalColor", VTexFormat.BC7, ImageFormat.BC7, srgb: true, Bc7ClearBlock);
         private readonly ProjectedDecalTextureArray normalArray = new("ProjectedDecalNormal", VTexFormat.BC7, ImageFormat.BC7, srgb: false, Bc7ClearBlock);
@@ -147,18 +150,147 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets each decal's box transform, in the order the cull batch and the decal pass index them.</summary>
         internal ReadOnlySpan<Matrix4x4> BoxTransforms => CollectionsMarshal.AsSpan(boxTransforms);
 
+        /// <summary>
+        /// Registers a kind of decal. Its textures are loaded here, and join every other decal's in the
+        /// one draw, whether they are files of their own or parts of an atlas. The color and normal
+        /// textures have to be BC7, the occlusion texture ATI2N and the height texture ATI1N.
+        /// </summary>
+        /// <param name="definition">What the decal looks like.</param>
+        /// <returns>A handle to add decals with, or -1 when the color texture could not be loaded.</returns>
+        public int Register(ProjectedDecalDefinition definition)
+        {
+            ArgumentNullException.ThrowIfNull(definition);
+
+            if (AddTexture(colorArray, definition.ColorTexture) is not { } color)
+            {
+                return -1;
+            }
+
+            var normal = AddTexture(normalArray, definition.NormalTexture);
+            var occlusion = AddTexture(occlusionArray, definition.OcclusionTexture);
+            var height = AddTexture(heightArray, definition.HeightTexture);
+
+            var flags = MaterialFlags.None;
+
+            if (definition.AlphaCutoff)
+            {
+                flags |= MaterialFlags.AlphaCutoff;
+            }
+
+            if (definition.Triplanar)
+            {
+                flags |= MaterialFlags.Triplanar;
+            }
+
+            if (definition.CutoffAngle != null)
+            {
+                flags |= MaterialFlags.CutoffAngle;
+            }
+
+            if (definition.Specular)
+            {
+                flags |= MaterialFlags.Specular;
+            }
+
+            if (normal != null)
+            {
+                flags |= MaterialFlags.NormalMap;
+            }
+
+            if (occlusion != null)
+            {
+                flags |= MaterialFlags.OcclusionMap;
+            }
+
+            if (height != null)
+            {
+                flags |= MaterialFlags.Parallax;
+            }
+
+            var cutoffAngle = definition.CutoffAngle ?? 60f;
+            var cutoffBias = MathF.Cos(float.DegreesToRadians(MathF.Min(180f, cutoffAngle + definition.CutoffAngleSoftness)));
+            var cutoffRange = MathF.Cos(float.DegreesToRadians(cutoffAngle)) - cutoffBias;
+
+            materials.Add(new DecalMaterial
+            {
+                Definition = definition,
+                Color = color,
+                Normal = normal,
+                Occlusion = occlusion,
+                Height = height,
+                Parameters = new MaterialGpu
+                {
+                    Fade = new Vector4(
+                        cutoffBias,
+                        1f / MathF.Max(cutoffRange, 1e-4f),
+                        1f / MathF.Max(definition.DepthFade, 1e-4f),
+                        1f / MathF.Max(definition.AlphaCutoffSoftness, 1e-4f)),
+                    Parallax = new Vector4(
+                        definition.HeightScale,
+                        definition.ParallaxMinSamples,
+                        definition.ParallaxMaxSamples,
+                        definition.ParallaxLodThreshold),
+                    Emissive = new Vector4(definition.EmissiveColor, definition.AdditiveAmount),
+                    Flags = (uint)definition.BlendMode | (uint)flags,
+                    Roughness = definition.Roughness,
+                },
+            });
+
+            materialsDirty = true;
+
+            return materials.Count - 1;
+        }
+
+        /// <summary>
+        /// Registers the decal a projected decal material describes, or finds it if it was registered before.
+        /// </summary>
+        /// <param name="materialPath">The material.</param>
+        /// <param name="sequenceName">A sequence of the material's sprite sheet, for a material that holds many decals in one.</param>
+        /// <returns>A handle to add decals with, or -1 when the material could not be loaded.</returns>
+        public int RegisterMaterial(string materialPath, string? sequenceName = null)
+        {
+            var key = string.IsNullOrEmpty(sequenceName) ? materialPath : $"{materialPath}:{sequenceName}";
+
+            if (materialsByPath.TryGetValue(key, out var index))
+            {
+                return index;
+            }
+
+            var definition = ProjectedDecalDefinition.FromMaterial(scene.RendererContext.FileLoader, materialPath, sequenceName);
+            index = definition == null ? -1 : Register(definition);
+
+            if (index < 0)
+            {
+                scene.RendererContext.Logger.LogWarning("Projected decal {Decal} could not be loaded", key);
+            }
+
+            materialsByPath[key] = index;
+
+            return index;
+        }
+
         /// <summary>Adds a decal.</summary>
-        /// <param name="materialPath">A <c>csgo_projected_decals</c> or <c>vr_projected_decals</c> material.</param>
+        /// <param name="materialPath">A projected decal material.</param>
         /// <param name="boxTransform">Maps a unit cube centred on the origin to the decal box, see <see cref="CreateBoxTransform"/>.</param>
         /// <param name="tint">Linear color and opacity multiplier.</param>
         /// <param name="flipU">Whether to mirror the texture horizontally.</param>
         /// <param name="parent">An entity the decal moves with, or null for the static world.</param>
         /// <returns>Whether the material could be loaded and the decal was added.</returns>
         public bool Add(string materialPath, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false, BaseEntity? parent = null)
-        {
-            var materialIndex = GetMaterialIndex(materialPath);
+            => Add(RegisterMaterial(materialPath), boxTransform, tint, flipU, parent);
 
-            if (materialIndex < 0)
+        /// <summary>Adds a decal.</summary>
+        /// <param name="decal">A handle from <see cref="Register"/> or <see cref="RegisterMaterial"/>.</param>
+        /// <param name="boxTransform">Maps a unit cube centred on the origin to the decal box, see <see cref="CreateBoxTransform"/>.</param>
+        /// <param name="tint">Linear color and opacity multiplier.</param>
+        /// <param name="flipU">Whether to mirror the texture horizontally.</param>
+        /// <param name="parent">An entity the decal moves with, or null for the static world.</param>
+        /// <returns>Whether the handle was valid and the decal was added.</returns>
+        public bool Add(int decal, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false, BaseEntity? parent = null)
+        {
+            var materialIndex = decal;
+
+            if ((uint)materialIndex >= (uint)materials.Count)
             {
                 return false;
             }
@@ -212,7 +344,7 @@ namespace ValveResourceFormat.Renderer
             for (var i = decals.Count - 1; i >= 0; i--)
             {
                 var decal = decals[i];
-                var material = materials[decal.MaterialIndex];
+                var material = materials[decal.MaterialIndex].Definition;
 
                 if (time - decal.PlaceTime >= material.FadeStartTime + material.FadeDuration)
                 {
@@ -262,7 +394,7 @@ namespace ValveResourceFormat.Renderer
         // Fading is the opacity of the decal itself, which alpha cutoff materials read as how far they have eroded
         private uint GetFadedTint(in ProjectedDecal decal)
         {
-            var material = materials[decal.MaterialIndex];
+            var material = materials[decal.MaterialIndex].Definition;
             var fadeTime = time - decal.PlaceTime - material.FadeStartTime;
             var tint = decal.Tint;
 
@@ -379,48 +511,60 @@ namespace ValveResourceFormat.Renderer
 
         private bool SpawnFromGroup(string? groupName, Vector3 position, Vector3 normal, Vector3 up, BaseEntity? parent, float sizeOverride = 0f)
         {
+            if (impactDecals?.PickOption(groupName, Random.Shared) is not { } option)
+            {
+                return false;
+            }
+
+            return Spawn(RegisterMaterial(option.Material, option.Sequence), position, normal, up, parent, sizeOverride);
+        }
+
+        /// <summary>
+        /// Adds a decal on a surface, at the size its definition gives, varied as much as the definition allows
+        /// and mirrored at random.
+        /// </summary>
+        /// <param name="decal">A handle from <see cref="Register"/> or <see cref="RegisterMaterial"/>.</param>
+        /// <param name="position">The position on the surface.</param>
+        /// <param name="normal">The surface normal.</param>
+        /// <param name="up">The direction of the texture's top edge, flattened onto the surface.</param>
+        /// <param name="parent">The entity the surface belongs to, which the decal moves with, or null for the static world.</param>
+        /// <param name="sizeOverride">The width and height of the decal, or zero for the size its definition gives.</param>
+        /// <returns>Whether the handle was valid and the decal was added.</returns>
+        public bool Spawn(int decal, Vector3 position, Vector3 normal, Vector3 up, BaseEntity? parent = null, float sizeOverride = 0f)
+        {
+            if ((uint)decal >= (uint)materials.Count)
+            {
+                return false;
+            }
+
             var random = Random.Shared;
-            var materialPath = impactDecals?.PickMaterial(groupName, random);
+            var definition = materials[decal].Definition;
 
-            if (materialPath == null)
-            {
-                return false;
-            }
+            var width = definition.Width;
+            var height = definition.Height;
+            var depth = definition.Depth;
 
-            var materialIndex = GetMaterialIndex(materialPath);
-
-            if (materialIndex < 0)
-            {
-                return false;
-            }
-
-            var attributes = materials[materialIndex].Data.FloatAttributes;
-
-            // Triplanar decals such as the explosion scorch carry no decal size, only how far their texture spans
-            var worldMapping = materials[materialIndex].Data.IntAttributes;
-            var defaultHeight = (float)worldMapping.GetValueOrDefault("WorldMappingHeight", worldMapping.GetValueOrDefault("WorldMappingWidth", (long)DefaultDecalSize));
-            var defaultWidth = (float)worldMapping.GetValueOrDefault("WorldMappingWidth", (long)defaultHeight);
-
-            var height = attributes.GetValueOrDefault("DecalWorldHeight", attributes.GetValueOrDefault("DecalWorldWidth", defaultHeight));
-            var width = attributes.GetValueOrDefault("DecalWorldWidth", attributes.ContainsKey("DecalWorldHeight") ? height : defaultWidth);
             if (sizeOverride > 0f)
             {
                 width = height = sizeOverride;
+
+                // A triplanar decal wraps around what is inside its box, so its depth follows its size
+                if (definition.Triplanar)
+                {
+                    depth = sizeOverride;
+                }
             }
 
-            // A triplanar decal wraps around what is inside its box, so it reaches as far out of the surface as along it
-            var depth = attributes.GetValueOrDefault("DecalDepth", materials[materialIndex].IsTriplanar ? width : DefaultDecalDepth);
-            var depthOffset = attributes.GetValueOrDefault("DecalDepthOffset");
-
             // Variances are in world units: a knife scuff 25 wide varies by 6, a bullet hole 5 wide by 0.5
-            var sizeOffset = Vary(attributes.GetValueOrDefault("DecalSizeVariance"));
+            var sizeOffset = Vary(definition.SizeVariance);
             width = MathF.Max(width + sizeOffset, MinDecalSize);
-            height = MathF.Max(height + sizeOffset + Vary(attributes.GetValueOrDefault("DecalHeightVariance")), MinDecalSize);
-            depth = MathF.Max(depth + Vary(attributes.GetValueOrDefault("DecalDepthVariance")), MinDecalSize);
+            height = MathF.Max(height + sizeOffset + Vary(definition.HeightVariance), MinDecalSize);
+            depth = MathF.Max(depth + Vary(definition.DepthVariance), MinDecalSize);
 
-            var transform = CreateBoxTransform(position + normal * depthOffset, normal, up, new Vector3(width, height, depth));
+            normal = Vector3.Normalize(normal);
+            var transform = CreateBoxTransform(position + normal * definition.DepthOffset, normal, up, new Vector3(width, height, depth));
 
-            return Add(materialPath, transform, Vector4.One, flipU: random.Next(2) == 0, parent);
+            return Add(decal, transform, Vector4.One, flipU: random.Next(2) == 0, parent);
 
             float Vary(float variance) => (random.NextSingle() * 2f - 1f) * variance;
         }
@@ -472,131 +616,9 @@ namespace ValveResourceFormat.Renderer
             return Vector3.Dot(normal, direction) > 0f ? -normal : normal;
         }
 
-        private int GetMaterialIndex(string materialPath)
+        private ProjectedDecalTextureArray.Layer? AddTexture(ProjectedDecalTextureArray array, string? path)
         {
-            if (!materialsByPath.TryGetValue(materialPath, out var index))
-            {
-                index = LoadMaterial(materialPath);
-                materialsByPath[materialPath] = index;
-            }
-
-            return index;
-        }
-
-        private int LoadMaterial(string materialPath)
-        {
-            using var resource = scene.RendererContext.FileLoader.LoadFileCompiled(materialPath);
-
-            if (resource?.DataBlock is not Material data)
-            {
-                return -1;
-            }
-
-            if (data.ShaderName is not ("csgo_projected_decals.vfx" or "vr_projected_decals.vfx"))
-            {
-                scene.RendererContext.Logger.LogWarning("Projected decal material {Material} was skipped, its shader {Shader} is not supported",
-                    materialPath, data.ShaderName);
-                return -1;
-            }
-
-            var intParams = data.IntParams;
-            var floatParams = data.FloatParams;
-
-            if (AddTexture(colorArray, data, "g_tColor") is not { } color)
-            {
-                return -1;
-            }
-
-            var normal = intParams.GetValueOrDefault("F_NORMAL_MAP") == 1 ? AddTexture(normalArray, data, "g_tNormal") : null;
-            var occlusion = AddTexture(occlusionArray, data, "g_tAmbientOcclusion");
-            var height = intParams.GetValueOrDefault("F_PARALLAX") == 1 ? AddTexture(heightArray, data, "g_tHeight") : null;
-
-            var flags = MaterialFlags.None;
-
-            if (intParams.GetValueOrDefault("F_ALPHA_MODE") == 1)
-            {
-                flags |= MaterialFlags.AlphaCutoff;
-            }
-
-            var isTriplanar = intParams.GetValueOrDefault("F_TRIPLANAR_MAPPING") == 1;
-
-            if (isTriplanar)
-            {
-                flags |= MaterialFlags.Triplanar;
-            }
-
-            if (intParams.GetValueOrDefault("F_CUTOFF_ANGLE") == 1)
-            {
-                flags |= MaterialFlags.CutoffAngle;
-            }
-
-            if (intParams.GetValueOrDefault("F_SPECULAR_DIRECT") == 1 || intParams.GetValueOrDefault("F_SPECULAR") == 1)
-            {
-                flags |= MaterialFlags.Specular;
-            }
-
-            if (normal != null)
-            {
-                flags |= MaterialFlags.NormalMap;
-            }
-
-            if (occlusion != null)
-            {
-                flags |= MaterialFlags.OcclusionMap;
-            }
-
-            if (height != null)
-            {
-                flags |= MaterialFlags.Parallax;
-            }
-
-            var blendMode = (uint)Math.Clamp(intParams.GetValueOrDefault("F_BLEND_MODE"), 0L, 3L);
-
-            var cutoffAngle = floatParams.GetValueOrDefault("g_flCutoffAngle", 60f);
-            var cutoffBias = MathF.Cos(float.DegreesToRadians(MathF.Min(180f, cutoffAngle + floatParams.GetValueOrDefault("g_flCutoffAngleSoftness", 5f))));
-            var cutoffRange = MathF.Cos(float.DegreesToRadians(cutoffAngle)) - cutoffBias;
-
-            var emissiveTint = data.VectorParams.GetValueOrDefault("g_vEmissiveTint", Vector4.One).AsVector3();
-            var emissiveScale = MathF.Pow(2f, floatParams.GetValueOrDefault("g_flEmissiveBrightness"));
-
-            materials.Add(new DecalMaterial
-            {
-                Data = data,
-                IsTriplanar = isTriplanar,
-                FadeStartTime = data.FloatAttributes.GetValueOrDefault("DecalFadeStartTime", DefaultFadeStartTime),
-                FadeDuration = data.FloatAttributes.GetValueOrDefault("DecalFadeDuration", DefaultFadeDuration),
-                Color = color,
-                Normal = normal,
-                Occlusion = occlusion,
-                Height = height,
-                Parameters = new MaterialGpu
-                {
-                    Fade = new Vector4(
-                        cutoffBias,
-                        1f / MathF.Max(cutoffRange, 1e-4f),
-                        1f / MathF.Max(floatParams.GetValueOrDefault("g_flDecalZAlphaScale", 0.01f), 1e-4f),
-                        1f / MathF.Max(floatParams.GetValueOrDefault("g_flAlphaCutoffSoftness", 0.1f), 1e-4f)),
-                    Parallax = new Vector4(
-                        floatParams.GetValueOrDefault("g_flHeightMapScale", 0.02f),
-                        intParams.GetValueOrDefault("g_nMinSamples", 8),
-                        intParams.GetValueOrDefault("g_nMaxSamples", 32),
-                        intParams.GetValueOrDefault("g_nLODThreshold", 4)),
-                    Emissive = new Vector4(
-                        ColorSpace.SrgbGammaToLinear(emissiveTint) * emissiveScale,
-                        floatParams.GetValueOrDefault("g_flAdditiveAmount", 1f)),
-                    Flags = blendMode | (uint)flags,
-                    Roughness = MathF.Max(0.01f, 1f - floatParams.GetValueOrDefault("g_flGlossiness", 0.5f)),
-                },
-            });
-
-            materialsDirty = true;
-
-            return materials.Count - 1;
-        }
-
-        private ProjectedDecalTextureArray.Layer? AddTexture(ProjectedDecalTextureArray array, Material data, string parameter)
-        {
-            if (!data.TextureParams.TryGetValue(parameter, out var path))
+            if (string.IsNullOrEmpty(path))
             {
                 return null;
             }
@@ -605,8 +627,8 @@ namespace ValveResourceFormat.Renderer
 
             if (layer == null)
             {
-                scene.RendererContext.Logger.LogWarning("Projected decal texture {Path} of {Material} was skipped, it is missing or not {Format}",
-                    path, data.Name, array.Format);
+                scene.RendererContext.Logger.LogWarning("Projected decal texture {Path} was skipped, it is missing or not {Format}",
+                    path, array.Format);
             }
 
             // A texture larger than the rest regrows its array, which changes every material's scale into it
@@ -615,14 +637,25 @@ namespace ValveResourceFormat.Renderer
             return layer;
         }
 
-        private static Vector4 GetScaleLayer(ProjectedDecalTextureArray.Layer? layer, ProjectedDecalTextureArray array)
+        private static TextureGpu GetTextureGpu(ProjectedDecalTextureArray.Layer? layer, ProjectedDecalTextureArray array, Vector4 rect)
         {
             if (layer is not { } found || array.Width == 0 || array.Height == 0)
             {
-                return new Vector4(1f, 1f, 0f, 0f);
+                return new TextureGpu { Scale = Vector2.One };
             }
 
-            return new Vector4((float)found.Width / array.Width, (float)found.Height / array.Height, found.Index, 0f);
+            // The texture sits in the corner of its layer, and the decal may use only a part of the texture.
+            // That part starts on a whole texel, which sixteen bits hold exactly for any size an array can be.
+            var offsetX = (uint)Math.Clamp(MathF.Round(rect.X * found.Width), 0f, ushort.MaxValue);
+            var offsetY = (uint)Math.Clamp(MathF.Round(rect.Y * found.Height), 0f, ushort.MaxValue);
+            var lastMip = (uint)Math.Clamp(found.MipCount - 1, 0, 15);
+
+            return new TextureGpu
+            {
+                Scale = new Vector2((rect.Z - rect.X) * found.Width / array.Width, (rect.W - rect.Y) * found.Height / array.Height),
+                Layer = (uint)found.Index | (lastMip << 16),
+                Offset = offsetX | (offsetY << 16),
+            };
         }
 
         private void UploadBuffers()
@@ -645,10 +678,12 @@ namespace ValveResourceFormat.Renderer
                     var material = materials[i];
                     var parameters = material.Parameters;
 
-                    parameters.ColorScaleLayer = GetScaleLayer(material.Color, colorArray);
-                    parameters.NormalScaleLayer = GetScaleLayer(material.Normal, normalArray);
-                    parameters.OcclusionScaleLayer = GetScaleLayer(material.Occlusion, occlusionArray);
-                    parameters.HeightScaleLayer = GetScaleLayer(material.Height, heightArray);
+                    var rect = material.Definition.TextureRect;
+
+                    parameters.Color = GetTextureGpu(material.Color, colorArray, rect);
+                    parameters.Normal = GetTextureGpu(material.Normal, normalArray, rect);
+                    parameters.Occlusion = GetTextureGpu(material.Occlusion, occlusionArray, rect);
+                    parameters.Height = GetTextureGpu(material.Height, heightArray, rect);
 
                     materialGpuData[i] = parameters;
                 }

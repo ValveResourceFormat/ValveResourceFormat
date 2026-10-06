@@ -15,8 +15,8 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     internal sealed class ProjectedDecalTextureArray
     {
-        /// <summary>A texture's place in the array.</summary>
-        public readonly record struct Layer(int Index, int Width, int Height);
+        /// <summary>A texture's place in the array, and how many mip levels it brought.</summary>
+        public readonly record struct Layer(int Index, int Width, int Height, int MipCount);
 
         private const int BlockSize = 4;
 
@@ -77,7 +77,7 @@ namespace ValveResourceFormat.Renderer
                 return null;
             }
 
-            var layer = new Layer(layerPaths.Count, data.Width, data.Height);
+            var layer = new Layer(layerPaths.Count, data.Width, data.Height, data.NumMipLevels);
             layerPaths.Add(path);
             layersByPath[path] = layer;
 

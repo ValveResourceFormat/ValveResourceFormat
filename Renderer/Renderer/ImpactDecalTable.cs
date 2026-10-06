@@ -12,7 +12,8 @@ namespace ValveResourceFormat.Renderer
     // impact decal group, and the group lists materials with relative probabilities
     internal sealed class ImpactDecalTable
     {
-        private readonly record struct DecalOption(string Material, float Probability);
+        // Sequence names the frame of the material's sprite sheet to use, for a material that holds many decals
+        public readonly record struct DecalOption(string Material, string? Sequence, float Probability);
 
         private readonly record struct SurfaceImpact(string? Decal, string? GrazingDecal);
 
@@ -85,7 +86,10 @@ namespace ValveResourceFormat.Renderer
                         {
                             if (option.GetStringProperty("m_hMaterial") is { Length: > 0 } material)
                             {
-                                options.Add(new DecalOption(material, option.GetFloatProperty("m_flProbability", 1f)));
+                                var sequence = option.GetStringProperty("m_sSequenceName");
+
+                                options.Add(new DecalOption(material, string.IsNullOrEmpty(sequence) ? null : sequence,
+                                    option.GetFloatProperty("m_flProbability", 1f)));
                             }
                         }
 
@@ -145,7 +149,7 @@ namespace ValveResourceFormat.Renderer
                     if (material.EndsWith(".vmat", StringComparison.OrdinalIgnoreCase)
                         && float.TryParse((string)weight, NumberStyles.Float, CultureInfo.InvariantCulture, out var probability))
                     {
-                        options.Add(new DecalOption(material, probability));
+                        options.Add(new DecalOption(material, null, probability));
                     }
                 }
 
@@ -153,7 +157,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public string? PickMaterial(string? groupName, Random random)
+        public DecalOption? PickOption(string? groupName, Random random)
         {
             if (string.IsNullOrEmpty(groupName) || !decalGroups.TryGetValue(groupName, out var options) || options.Length == 0)
             {
@@ -175,11 +179,11 @@ namespace ValveResourceFormat.Renderer
 
                 if (pick <= 0f)
                 {
-                    return option.Material;
+                    return option;
                 }
             }
 
-            return options[^1].Material;
+            return options[^1];
         }
 
         // A surface without its own impact entry inherits one through its base surface. An empty decal
