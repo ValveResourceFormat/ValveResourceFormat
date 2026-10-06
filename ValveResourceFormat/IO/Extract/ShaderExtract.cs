@@ -112,16 +112,6 @@ public sealed class ShaderExtract
     /// <summary>
     /// Initializes a new instance of the <see cref="ShaderExtract"/> class.
     /// </summary>
-    public ShaderExtract(Resource resource)
-        : this((SboxShader)resource.GetBlockByType(BlockType.SPRV)!)
-    { }
-
-    /// <inheritdoc cref="ShaderExtract(Resource)"/>
-    public ShaderExtract(SboxShader sboxShaderCollection)
-        : this(sboxShaderCollection.Shaders)
-    { }
-
-    /// <inheritdoc cref="ShaderExtract(Resource)"/>
     public ShaderExtract(ShaderCollection shaderCollection)
     {
         Shaders = shaderCollection;

@@ -16,7 +16,6 @@ namespace Tests.Resources
         [
             "dota.vmap_c",
             "empty_data.vjs_c",
-            "sbox_visualize_quad_overdraw.shader_c",
         ];
 
         // With an empty RED2, only the file name can tell the resource type

@@ -483,7 +483,6 @@ namespace ValveResourceFormat
                 BlockType.ASEQ => new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t") { Resource = this },
                 BlockType.AGRP => new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t") { Resource = this },
                 BlockType.PHYS => new PhysAggregateData(BlockType.PHYS) { Resource = this },
-                BlockType.SPRV => new SboxShader(BlockType.SPRV) { Resource = this },
                 _ => throw new ArgumentException($"Unrecognized block type '{Encoding.ASCII.GetString(BitConverter.GetBytes((uint)blockType))}'"),
             };
         }
@@ -511,7 +510,6 @@ namespace ValveResourceFormat
                 ResourceType.ResourceManifest => new ResourceManifest() { Resource = this },
                 ResourceType.ResponseRules => new ResponseRules() { Resource = this },
                 ResourceType.SboxManagedResource or ResourceType.ArtifactItem or ResourceType.DotaHeroList => new Plaintext() { Resource = this },
-                ResourceType.SboxShader => new SboxShader() { Resource = this },
                 ResourceType.SmartProp => new SmartProp() { Resource = this },
                 ResourceType.Sound => new Sound() { Resource = this },
                 ResourceType.SoundStackScript => new SoundStackScript() { Resource = this },

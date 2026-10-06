@@ -357,12 +357,6 @@ namespace ValveResourceFormat
         SboxManagedResource,
 
         /// <summary>
-        /// S&amp;box shader.
-        /// </summary>
-        [Extension("shader")]
-        SboxShader,
-
-        /// <summary>
         /// Compiled shader. Stored in shaders_{platform}_dir.vpk.
         /// </summary>
         [Extension("vcs")]

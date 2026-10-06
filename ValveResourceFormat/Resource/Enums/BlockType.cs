@@ -111,11 +111,6 @@ namespace ValveResourceFormat
         STAT = 'S' | ('T' << 8) | ('A' << 16) | ('T' << 24),
 
         /// <summary>
-        /// SPIR-V Shader. Contains compiled SPIR-V shader bytecode for S&amp;box.
-        /// </summary>
-        SPRV = 'S' | ('P' << 8) | ('R' << 16) | ('V' << 24),
-
-        /// <summary>
         /// File/Line/Column Information. Contains source location data (file, line, column) for compiled vdata files.
         /// </summary>
         FLCI = 'F' | ('L' << 8) | ('C' << 16) | ('I' << 24),

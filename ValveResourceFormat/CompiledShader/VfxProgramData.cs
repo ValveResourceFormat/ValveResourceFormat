@@ -83,11 +83,6 @@ namespace ValveResourceFormat.CompiledShader
         public VcsAdditionalFileFlags AdditionalFiles { get; private set; }
 
         /// <summary>
-        /// Gets whether this is an S&amp;box shader.
-        /// </summary>
-        public bool IsSbox { get; init; }
-
-        /// <summary>
         /// Gets the maximum variable source value; grows as values are added to <see cref="VfxVariableSourceType"/>.
         /// </summary>
         public int VariableSourceMax { get; private set; }
@@ -281,13 +276,6 @@ namespace ValveResourceFormat.CompiledShader
             if (VcsVersion < 63) // Version 63 added compute shaders
             {
                 programTypesCount -= 1;
-            }
-
-            if (IsSbox)
-            {
-                _ = DataReader.ReadInt32(); // ABI current version
-                Debug.Assert(VcsVersion == 65);
-                VcsVersion = 64;
             }
 
             // I guess the idea with this change is that they only store a flag for each shader type that is present

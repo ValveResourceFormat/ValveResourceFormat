@@ -1043,7 +1043,7 @@ namespace GUI.Types.Viewers
 
             try
             {
-                AddTextViewControl(resource, block, container);
+                AddTextViewControl(resource.ResourceType, block, container);
             }
             catch (Exception e)
             {
@@ -1078,41 +1078,6 @@ namespace GUI.Types.Viewers
             {
                 bv.SetBytes(input);
             }));
-        }
-
-        private void AddTextViewControl(ValveResourceFormat.Resource resource, Block block, Control blockTab)
-        {
-            if (resource.ResourceType == ResourceType.SboxShader && block is SboxShader shaderBlock)
-            {
-                var tabPage = new ThemedTabPage();
-                var viewer = new CompiledShader(vrfGuiContext);
-
-                try
-                {
-                    viewer.Create(
-                        tabPage,
-                        shaderBlock.Shaders,
-                        Path.GetFileNameWithoutExtension(resource.FileName.AsSpan()),
-                        ValveResourceFormat.CompiledShader.VcsProgramType.Features
-                    );
-
-                    foreach (Control control in tabPage.Controls)
-                    {
-                        blockTab.Controls.Add(control);
-                    }
-
-                    viewer = null;
-                }
-                finally
-                {
-                    viewer?.Dispose();
-                    tabPage.Dispose();
-                }
-
-                return;
-            }
-
-            AddTextViewControl(resource.ResourceType, block, blockTab);
         }
 
         private static void AddTextViewControl(ResourceType resourceType, Block block, Control blockTab)
