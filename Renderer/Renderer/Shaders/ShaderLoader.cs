@@ -545,6 +545,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             "environment_blend.vfx" or "environment_layer.vfx" or "environment_simple.vfx" => "environment_blend",
             "pbr.vfx" => "pbr",
             "citadel_overlay.vfx" => "citadel_overlay",
+            "cables.vfx" => "particle_cable",
 
             _ => "complex",
         };

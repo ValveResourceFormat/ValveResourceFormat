@@ -15,12 +15,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderCables">C_OP_RenderCables</seealso>
     internal class RenderCables : ParticleFunctionRenderer
     {
-        private const string ShaderName = "particle_cable";
+        private const string DefaultMaterialName = "particles/dev/dev_cables_preview_material.vmat";
 
-        private readonly Shader shader;
-        private readonly Shader? depthShader;
         private readonly RenderMaterial material;
-        private readonly bool ownsMaterial;
         private readonly int vaoHandle;
         private int vertexBufferHandle;
         private int indexBufferHandle;
@@ -59,8 +56,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public RenderCables(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
         {
-            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, CreateShaderArguments());
-
             roundness = parse.Int32("m_nRoundness", roundness);
             textureRepetitionMode = parse.Enum("m_nTextureRepetitionMode", textureRepetitionMode);
             tessScale = parse.Float("m_flTessScale", tessScale);
@@ -69,23 +64,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             textureRepeatsPerSegment = parse.NumberProvider("m_flTextureRepeatsPerSegment", textureRepeatsPerSegment);
             circumferenceRepeats = parse.NumberProvider("m_flTextureRepeatsCircumference", circumferenceRepeats);
 
-            var materialName = parse.Data.ContainsKey("m_hMaterial") ? parse.Data.GetStringProperty("m_hMaterial") : null;
-            ownsMaterial = materialName == null;
-            material = ownsMaterial
-                ? new RenderMaterial(shader)
-                : rendererContext.MaterialLoader.GetMaterial(materialName!, null);
-
-            // A cable without an authored colour texture uses a default white one, showing the vertex
-            // colour rather than the shader-default error checker.
-            if (!material.Textures.ContainsKey("g_tColor"))
-            {
-                material.Textures["g_tColor"] = rendererContext.MaterialLoader.GetDefaultColor();
-            }
+            var materialName = parse.Data.GetStringProperty("m_hMaterial", DefaultMaterialName);
+            material = rendererContext.MaterialLoader.GetMaterial(materialName, CreateShaderArguments());
 
             Pass = material.IsTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
-
-            depthShader = shader.DepthMode;
-            CanRenderDepth = Pass == RenderPass.Opaque && !OnlyRenderInEffectsWaterPass && depthShader != null;
+            CanRenderDepth = Pass == RenderPass.Opaque && !OnlyRenderInEffectsWaterPass && material.Shader.DepthMode != null;
 
             vaoHandle = SetupBuffers();
         }
@@ -196,13 +179,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
-            DrawTube(shader);
+            DrawTube(material.Shader);
         }
 
         /// <inheritdoc/>
         public override void RenderDepth(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
-            if (depthShader != null)
+            if (material.Shader.DepthMode is { } depthShader)
             {
                 DrawTube(depthShader);
             }
@@ -353,18 +336,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             material.PostRender();
         }
 
-        public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
+        public override IEnumerable<string> GetSupportedRenderModes() => material.Shader.RenderModes;
 
         public override void Delete()
         {
             VertexArray.Delete(vaoHandle);
             GL.DeleteBuffer(vertexBufferHandle);
             GL.DeleteBuffer(indexBufferHandle);
-
-            if (ownsMaterial)
-            {
-                material.Delete();
-            }
         }
     }
 }
