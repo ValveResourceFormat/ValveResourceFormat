@@ -732,9 +732,7 @@ namespace ValveResourceFormat.IO
 
             if (group == "Default")
             {
-                var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
-
-                var surfaceProperty = physicsSurfaceNames[desc.SurfacePropertyIndex];
+                var surfaceProperty = StringToken.GetKnownString(phys.SurfacePropertyHashes[desc.SurfacePropertyIndex]);
                 material = materialNameProvider.Invoke(surfaceProperty);
             }
 

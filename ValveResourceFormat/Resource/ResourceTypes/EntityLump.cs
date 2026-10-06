@@ -392,6 +392,8 @@ namespace ValveResourceFormat.ResourceTypes
             var builder = new StringBuilder();
             var unknownKeys = new Dictionary<uint, uint>();
 
+            using var valueStream = new MemoryStream();
+
             var index = 0;
             foreach (var entity in GetEntities())
             {
@@ -399,7 +401,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 foreach (var property in entity.Children)
                 {
-                    var value = StringifyValue(property.Value);
+                    var value = StringifyValue(property.Value, valueStream);
 
                     builder.AppendLine(CultureInfo.InvariantCulture, $"{property.Key,-30} {value}");
                 }
@@ -627,19 +629,22 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Stringified value.</returns>
         public static string StringifyValue(object? value)
         {
+            using var ms = new MemoryStream();
+            return StringifyValue(value, ms);
+        }
+
+        private static readonly KVSerializer ValueSerializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
+        private static readonly KVSerializerOptions ValueSerializerOptions = new() { SkipHeader = true };
+
+        private static string StringifyValue(object? value, MemoryStream ms)
+        {
             var valueStr = string.Empty;
 
             if (value is KVObject kvObject)
             {
-                using var ms = new MemoryStream();
-                var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
-                serializer.Serialize(ms, new KVDocument(null, null, kvObject), new KVSerializerOptions
-                {
-                    SkipHeader = true
-                });
-                ms.Position = 0;
-                using var reader = new StreamReader(ms);
-                valueStr = reader.ReadToEnd();
+                ms.SetLength(0);
+                ValueSerializer.Serialize(ms, new KVDocument(null, null, kvObject), ValueSerializerOptions);
+                valueStr = Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
             }
             else if (value is not null)
             {

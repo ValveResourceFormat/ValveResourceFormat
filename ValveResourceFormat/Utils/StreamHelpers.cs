@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Utils
                 data.Clear();
                 stream.Read(data);
 
-                if (encoding.GetString(data) == "\0")
+                if (!data.ContainsAnyExcept((byte)0))
                 {
                     break;
                 }

@@ -136,7 +136,7 @@ public abstract class ComponentData<T> : IEnumerable<T>, IDataStream where T : s
 
     void IDataStream.AllocateMultiple(int count)
     {
-        _list.Capacity += count;
+        _list.EnsureCapacity(_list.Count + count);
         for (var i = 0; i < count; i++)
         {
             _list.Add(default);
@@ -207,7 +207,7 @@ public class ComponentList<T> : IEnumerable<T>
     /// <param name="component">Component to copy into each slot.</param>
     public void AllocateMultiple(int count, T component)
     {
-        _list.Capacity += count;
+        _list.EnsureCapacity(_list.Count + count);
         for (var i = 0; i < count; i++)
         {
             _list.Add(component);

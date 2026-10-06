@@ -492,9 +492,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             using var ms = new MemoryStream();
             var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
             serializer.Serialize(ms, doc);
-            ms.Position = 0;
-            using var reader = new StreamReader(ms);
-            return reader.ReadToEnd();
+            return System.Text.Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
         }
 
         /// <summary>
