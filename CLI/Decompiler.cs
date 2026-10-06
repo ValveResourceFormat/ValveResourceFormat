@@ -24,7 +24,6 @@ using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.ToolsAssetInfo;
 using ValveResourceFormat.Utils;
-using ValveResourceFormat.ValveFont;
 
 namespace CLI
 {
@@ -142,12 +141,13 @@ namespace CLI
         /// <param name="quiet">-q, When writing to --output or --vpk_create, only print errors and a summary. With the shader options, only print their output.</param>
         /// <param name="game">Path to a gameinfo.gi file, or the folder containing it, to load game search paths from, such as "steam:730/game/csgo". Useful when the input file is not located inside a game folder.</param>
         /// <param name="test">Run every input file through all of the decompile code paths to find exceptions, and print how many files of each type and version were found. Use "-i steam" to scan all Steam libraries.</param>
-        /// <param name="test_loader">When using --test, use GameFileLoader to load dependencies.</param>
+        /// <param name="test_loader">When using --test, load dependencies from the game files, which exercises the code paths that need them, such as map and model extraction.</param>
         /// <param name="test_print_files">When using --test, print example file names for each type.</param>
         /// <param name="test_unique_deps">When using --test, print all unique dependencies that were found.</param>
         /// <param name="test_particles">When using --test, collect particle operators, renderers, emitters, initializers.</param>
         /// <param name="test_vertex_attributes">When using --test, collect vertex attributes.</param>
         /// <param name="test_gltf">When using --test, also test glTF export code path for every supported file.</param>
+        /// <param name="test_shaders">When using --test, also decompile a few variants of every shader program and reconstruct each shader once.</param>
         /// <param name="test_entity_keys">When using --test, save all unknown entity key hashes to unknown_keys.txt.</param>
         private int HandleArguments(
             string input,
@@ -192,6 +192,7 @@ namespace CLI
             bool test_particles = false,
             bool test_vertex_attributes = false,
             bool test_gltf = false,
+            bool test_shaders = false,
             bool test_entity_keys = false
         )
         {
@@ -256,7 +257,7 @@ namespace CLI
             }
 
             // Options that only make sense together with another one turn it on
-            test |= test_loader || test_print_files || test_unique_deps || test_particles || test_vertex_attributes || test_gltf || test_entity_keys;
+            test |= test_loader || test_print_files || test_unique_deps || test_particles || test_vertex_attributes || test_gltf || test_shaders || test_entity_keys;
             decompile |= gltf_export_format != null || output == "-";
             gltf_export_animations |= gltf_animation_list != null;
             gltf_export_materials |= gltf_textures_adapt;
@@ -306,6 +307,7 @@ namespace CLI
             StatsCollectParticles = test_particles;
             StatsCollectVBIB = test_vertex_attributes;
             GltfTest = test_gltf;
+            TestShaders = test_shaders;
             DumpUnknownEntityKeys = test_entity_keys;
 
             if (OutputFile == "-")
@@ -497,12 +499,6 @@ namespace CLI
                 return 1;
             }
 
-            if (StatsWithLoader && MaxParallelismThreads > 1)
-            {
-                Console.Error.WriteLine("--threads does not currently work with --test_loader.");
-                return 1;
-            }
-
             // The shader options only apply to shaders and materials, so skip everything else in folders and packages
             if (HasShaderOptions && ExtFilterList == null)
             {
@@ -630,6 +626,22 @@ namespace CLI
             CurrentFile = 0;
             TotalFiles = paths.Count;
 
+            if (StatsWithLoader)
+            {
+                foreach (var path in paths)
+                {
+                    var directory = Path.GetDirectoryName(path)!;
+
+                    if (!TestFileLoaders.TryGetValue(directory, out var testFileLoader))
+                    {
+                        testFileLoader = new TestFileLoader(new Lazy<GameFileLoader>(() => CreateTestFileLoader(path)));
+                        TestFileLoaders.Add(directory, testFileLoader);
+                    }
+
+                    testFileLoader.RemainingFiles++;
+                }
+            }
+
             ProgressReporter = Quiet ? null : new Progress<string>(progress => Console.WriteLine($"--- {progress}"));
 
             // Library code also writes to the console, so silence all of stdout while processing
@@ -649,6 +661,8 @@ namespace CLI
             {
                 Console.WriteLine("Will use {0} threads concurrently.", MaxParallelismThreads);
 
+                FreeFileProcessingSlots = MaxParallelismThreads;
+
                 var queue = new ConcurrentQueue<string>(paths);
                 var tasks = new List<Task>();
 
@@ -665,7 +679,7 @@ namespace CLI
                     {
                         while (queue.TryDequeue(out var path))
                         {
-                            ProcessFile(path);
+                            ProcessInputFile(path);
                         }
                     }));
                 }
@@ -676,7 +690,7 @@ namespace CLI
             {
                 foreach (var path in paths)
                 {
-                    ProcessFile(path);
+                    ProcessInputFile(path);
                 }
             }
 
@@ -790,7 +804,7 @@ namespace CLI
                         return false;
                     }
 
-                    return SupportedFileNamesRegex().IsMatch(s);
+                    return SupportedFileNamesRegex().IsMatch(Path.GetFileName(s));
                 })
                 .Where(s => FileFilter.Length == 0 || !IsExcludedVpkFilePath(FixPathSlashes(Path.GetRelativePath(path, s))))
                 .ToList();
@@ -849,6 +863,80 @@ namespace CLI
             }
         }
 
+        private sealed class TestFileLoader(Lazy<GameFileLoader> loader)
+        {
+            public Lazy<GameFileLoader> Loader { get; } = loader;
+            public int RemainingFiles;
+        }
+
+        /// <summary>
+        /// Loaders for --test_loader, shared by the input files in each folder since mounting the game files is slow.
+        /// A loader is disposed once all of the files in its folder have been processed, to not keep every game in memory.
+        /// </summary>
+        private readonly Dictionary<string, TestFileLoader> TestFileLoaders = [];
+
+        /// <summary>
+        /// Limits how many files are processed at once to the thread count, since packages that are processed
+        /// concurrently also process their files concurrently.
+        /// </summary>
+        private int FreeFileProcessingSlots = int.MaxValue;
+        private readonly object FileProcessingSlotsLock = new();
+
+        private void AcquireFileProcessingSlot()
+        {
+            lock (FileProcessingSlotsLock)
+            {
+                while (FreeFileProcessingSlots == 0)
+                {
+                    Monitor.Wait(FileProcessingSlotsLock);
+                }
+
+                FreeFileProcessingSlots--;
+            }
+        }
+
+        private void ReleaseFileProcessingSlot()
+        {
+            lock (FileProcessingSlotsLock)
+            {
+                FreeFileProcessingSlots++;
+                Monitor.Pulse(FileProcessingSlotsLock);
+            }
+        }
+
+        private GameFileLoader CreateTestFileLoader(string path)
+        {
+            var fileLoader = CreateGameFileLoader(null, path);
+
+            // String tokens are only populated by the game file loader, and packages wrap it
+            fileLoader.EnsureStringTokenGameKeys();
+
+            return fileLoader;
+        }
+
+        private void ProcessInputFile(string path)
+        {
+            if (!StatsWithLoader)
+            {
+                ProcessFile(path);
+                return;
+            }
+
+            var testFileLoader = TestFileLoaders[Path.GetDirectoryName(path)!];
+
+            try
+            {
+                ProcessFile(path, testFileLoader.Loader.Value);
+            }
+            finally
+            {
+                if (Interlocked.Decrement(ref testFileLoader.RemainingFiles) == 0 && testFileLoader.Loader.IsValueCreated)
+                {
+                    testFileLoader.Loader.Value.Dispose();
+                }
+            }
+        }
+
         private void ProcessFile(string path, IFileLoader? fileLoader = null)
         {
             // Packages in folders are found by their extension, so other files do not need to be opened to be listed
@@ -863,7 +951,7 @@ namespace CLI
             ProcessFile(path, fs, null, fileLoader);
         }
 
-        private void ProcessFile(string path, Stream stream, string? originalPath = null, IFileLoader? fileLoader = null)
+        private void ProcessFile(string path, Stream stream, string? originalPath = null, IFileLoader? fileLoader = null, Package? package = null)
         {
             Span<byte> magicData = stackalloc byte[4];
 
@@ -878,10 +966,24 @@ namespace CLI
             // Packages count and print themselves, because they may expand into the files inside of them
             if (magic == Package.MAGIC)
             {
-                ParseVPK(path, stream);
+                ParseVPK(path, stream, fileLoader);
                 return;
             }
 
+            AcquireFileProcessingSlot();
+
+            try
+            {
+                ProcessNonPackageFile(path, stream, magic, originalPath, fileLoader, package);
+            }
+            finally
+            {
+                ReleaseFileProcessingSlot();
+            }
+        }
+
+        private void ProcessNonPackageFile(string path, Stream stream, uint magic, string? originalPath, IFileLoader? fileLoader, Package? package)
+        {
             AnyFileMatched = true;
 
             if (VerifyVPKChecksums)
@@ -912,18 +1014,18 @@ namespace CLI
 
             switch (magic)
             {
-                case VfxProgramData.MAGIC: ParseVCS(path, stream, originalPath); return;
+                case VfxProgramData.MAGIC: ParseVCS(path, stream, originalPath, package); return;
                 case NavMeshFile.MAGIC: ParseNAV(path, stream, originalPath); return;
                 case ToolsAssetInfo.MAGIC2:
-                case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream); return;
+                case ToolsAssetInfo.MAGIC: ParseToolsAssetInfo(path, stream, originalPath); return;
             }
 
-            // Other types may be handled by FileExtract.TryExtractNonResource
+            // Other types may be handled by FileExtract.ExtractNonResource
             // TODO: Perhaps move nav into it too
 
             if (BinaryKV3.IsBinaryKV3(magic))
             {
-                ParseKV3(path, stream);
+                ParseKV3(path, stream, originalPath);
                 return;
             }
 
@@ -933,42 +1035,8 @@ namespace CLI
                 return;
             }
 
-            if (pathExtension == ".vfont")
+            if (TryParseNonResource(path, stream, originalPath))
             {
-                ParseVFont(path);
-
-                return;
-            }
-            else if (pathExtension == ".uifont")
-            {
-                ParseUIFont(path);
-
-                return;
-            }
-            else if (FileExtract.TryExtractNonResource(stream, path, out var content))
-            {
-                if (OutputFile != null)
-                {
-                    var extension = Path.GetExtension(content.FileName);
-                    path = Path.ChangeExtension(path, extension);
-
-                    var outFilePath = GetOutputPath(path);
-                    DumpContentFile(outFilePath, content, singleFileOutput: !OutputIsDirectory);
-                }
-                else
-                {
-                    if (content.Data != null)
-                    {
-                        var output = Encoding.UTF8.GetString(content.Data);
-
-                        if (!CollectStats)
-                        {
-                            Console.WriteLine(output);
-                        }
-                    }
-                }
-                content.Dispose();
-
                 return;
             }
 
@@ -1001,7 +1069,7 @@ namespace CLI
 
                 if (CollectStats)
                 {
-                    TestAndCollectStats(resource, path, originalPath, fileLoader);
+                    TestAndCollectStats(resource, path, originalPath, fileLoader, package);
                 }
 
                 if (OutputFile != null)
@@ -1127,7 +1195,7 @@ namespace CLI
             };
         }
 
-        private void ParseVCS(string path, Stream stream, string? originalPath)
+        private void ParseVCS(string path, Stream stream, string? originalPath, Package? package = null)
         {
             using var shader = new VfxProgramData();
 
@@ -1152,22 +1220,24 @@ namespace CLI
                 {
                     shader.PrintSummary(output);
 
+                    VfxStaticComboData? firstStaticCombo = null;
+                    VfxStaticComboData? lastStaticCombo = null;
+
                     foreach (var staticComboEntry in shader.StaticComboEntries)
                     {
-                        staticComboEntry.Value.Unserialize();
+                        lastStaticCombo = staticComboEntry.Value.Unserialize();
+                        firstStaticCombo ??= lastStaticCombo;
+                    }
+
+                    if (TestShaders)
+                    {
+                        TestShaderDecompilation(shader, path, package, firstStaticCombo, lastStaticCombo);
                     }
 
                     // Shader resources already store stats
                     if (shader.Resource == null)
                     {
-                        var id = $"Binary shader version {shader.VcsVersion}";
-
-                        if (originalPath != null)
-                        {
-                            path = $"{originalPath} -> {path}";
-                        }
-
-                        AddStat(id, id, path);
+                        AddNonResourceStat($"Binary shader version {shader.VcsVersion}", path, originalPath);
                     }
                 }
             }
@@ -1202,14 +1272,7 @@ namespace CLI
                 {
                     navMeshFile.ToString();
 
-                    var id = $"NavMesh version {navMeshFile.Version}, subversion {navMeshFile.SubVersion}";
-
-                    if (originalPath != null)
-                    {
-                        path = $"{originalPath} -> {path}";
-                    }
-
-                    AddStat(id, id, path);
+                    AddNonResourceStat($"NavMesh version {navMeshFile.Version}, subversion {navMeshFile.SubVersion}", path, originalPath);
                 }
             }
             catch (Exception e)
@@ -1243,54 +1306,66 @@ namespace CLI
             }
         }
 
-        private void ParseVFont(string path) // TODO: Accept Stream
+        private static string GetStatPath(string path, string? originalPath)
         {
-            var font = new ValveFont();
-
-            try
-            {
-                var output = font.Read(path);
-
-                if (OutputFile != null)
-                {
-                    path = Path.ChangeExtension(path, "ttf");
-                    path = GetOutputPath(path);
-
-                    DumpFile(path, output);
-                }
-            }
-            catch (Exception e)
-            {
-                LogException(e, path);
-            }
+            return originalPath != null ? $"{originalPath} -> {path}" : path;
         }
 
-        private void ParseUIFont(string path) // TODO: Accept Stream
+        private void AddNonResourceStat(string id, string path, string? originalPath)
         {
-            var fontPackage = new UIFontFilePackage();
+            AddStat(id, id, GetStatPath(path, originalPath));
+        }
 
+        /// <summary>
+        /// Handles files supported by <see cref="FileExtract.ExtractNonResource"/>, returns false if the file is not one of them.
+        /// </summary>
+        private bool TryParseNonResource(string path, Stream stream, string? originalPath)
+        {
             try
             {
-                fontPackage.Read(path);
+                using var content = FileExtract.ExtractNonResource(stream, path);
 
-                if (OutputFile != null)
+                if (content == null)
                 {
-                    var outputDirectory = Path.GetDirectoryName(path)!;
+                    return false;
+                }
 
-                    foreach (var fontFile in fontPackage.FontFiles)
+                if (CollectStats)
+                {
+                    foreach (var subFile in content.SubFiles)
                     {
-                        var outputPath = Path.Combine(outputDirectory, fontFile.FileName);
-                        DumpFile(outputPath, fontFile.OpenTypeFontData);
+                        subFile.Extract?.Invoke();
                     }
+
+                    AddNonResourceStat($"Non-resource {Path.GetExtension(path)} file", path, originalPath);
+                }
+                else if (OutputFile != null)
+                {
+                    DumpNonResourceContentFile(path, content);
+                }
+                else if (content.Data != null && Path.GetExtension(path) is not (".vfont" or ".uifont"))
+                {
+                    Console.WriteLine(Encoding.UTF8.GetString(content.Data));
                 }
             }
             catch (Exception e)
             {
-                LogException(e, path);
+                LogException(e, path, originalPath);
             }
+
+            return true;
         }
 
-        private void ParseKV3(string path, Stream stream)
+        /// <summary>
+        /// Writes a decoded non-resource file next to where the input would go, with the extension of what it was decoded to.
+        /// </summary>
+        private void DumpNonResourceContentFile(string path, ContentFile content)
+        {
+            path = Path.ChangeExtension(path, Path.GetExtension(content.FileName));
+            DumpContentFile(GetOutputPath(path), content, singleFileOutput: !OutputIsDirectory);
+        }
+
+        private void ParseKV3(string path, Stream stream, string? originalPath)
         {
             var kv3 = new BinaryKV3()
             {
@@ -1305,15 +1380,24 @@ namespace CLI
                     kv3.Read(binaryReader);
                 }
 
-                Console.WriteLine(kv3.ToString());
+                var text = kv3.ToString();
+
+                if (CollectStats)
+                {
+                    AddNonResourceStat("Binary KV3", path, originalPath);
+                }
+                else
+                {
+                    Console.WriteLine(text);
+                }
             }
             catch (Exception e)
             {
-                LogException(e, path);
+                LogException(e, path, originalPath);
             }
         }
 
-        private void ParseVPK(string path, Stream stream)
+        private void ParseVPK(string path, Stream stream, IFileLoader? parentFileLoader = null)
         {
             // When processing the files inside of the package, they are counted and print their own header instead
             var processVpkFiles = OutputFile == null && !VerifyVPKChecksums && !ListResources && (CollectStats || ShouldPrintBlockContents || HasShaderOptions);
@@ -1374,15 +1458,16 @@ namespace CLI
                 }
                 else if (CollectStats)
                 {
-                    orderedEntries = orderedEntries.Where(x =>
-                    {
-                        if (x.Key == "vpk")
+                    // Most supported files are matched by their extension, the others by their full name
+                    orderedEntries = orderedEntries
+                        .Select(x => x.Key switch
                         {
-                            return RecursiveSearchArchives;
-                        }
-
-                        return SupportedFileNamesRegex().IsMatch($".{x.Key}");
-                    }).ToList();
+                            "vpk" => KeyValuePair.Create(x.Key, RecursiveSearchArchives ? x.Value : []),
+                            _ when SupportedFileNamesRegex().IsMatch($".{x.Key}") => x,
+                            _ => KeyValuePair.Create(x.Key, x.Value.Where(entry => SupportedFileNamesRegex().IsMatch(entry.GetFileName())).ToList()),
+                        })
+                        .Where(x => x.Value.Count > 0)
+                        .ToList();
                 }
 
                 if (ListResources)
@@ -1418,6 +1503,38 @@ namespace CLI
                     // The package itself was counted as one of the files to process
                     Interlocked.Add(ref TotalFiles, queue.Count - 1);
 
+                    // Files in the package take priority over the game files, including for packages inside of this one
+                    var fileLoader = parentFileLoader != null ? new PackageFirstFileLoader(package, parentFileLoader) : null;
+
+                    Func<PackageEntry, Stream> openEntry = MaxParallelismThreads > 1
+                        ? entry => GameFileLoader.GetPackageEntryStream(package, entry)
+                        : entry =>
+                        {
+                            package.ReadEntry(entry, out var output);
+                            return new MemoryStream(output);
+                        };
+
+                    void ProcessPackageEntry(PackageEntry file)
+                    {
+                        Stream entryStream;
+
+                        // A damaged package can fail to read a single entry, which should not stop the others
+                        try
+                        {
+                            entryStream = openEntry(file);
+                        }
+                        catch (Exception e)
+                        {
+                            LogException(e, file.GetFullPath(), path);
+                            return;
+                        }
+
+                        using (entryStream)
+                        {
+                            ProcessFile(file.GetFullPath(), entryStream, path, fileLoader, package);
+                        }
+                    }
+
                     if (MaxParallelismThreads > 1)
                     {
                         var tasks = new List<Task>();
@@ -1428,8 +1545,7 @@ namespace CLI
                             {
                                 while (queue.TryDequeue(out var file))
                                 {
-                                    using var entryStream = GameFileLoader.GetPackageEntryStream(package, file);
-                                    ProcessFile(file.GetFullPath(), entryStream, path);
+                                    ProcessPackageEntry(file);
                                 }
                             }));
                         }
@@ -1438,14 +1554,9 @@ namespace CLI
                     }
                     else
                     {
-                        using var fileLoader = StatsWithLoader ? CreateGameFileLoader(package, package.FileName) : null;
-
                         while (queue.TryDequeue(out var file))
                         {
-                            package.ReadEntry(file, out var output);
-
-                            using var entryStream = new MemoryStream(output);
-                            ProcessFile(file.GetFullPath(), entryStream, path, fileLoader);
+                            ProcessPackageEntry(file);
                         }
                     }
                 }
@@ -1658,9 +1769,20 @@ namespace CLI
                                 outputFile = Path.Combine(parentPath, outputFile);
                             }
 
-                            outputFile = GetOutputPath(outputFile);
+                            if (Decompile)
+                            {
+                                using var nonResourceStream = new MemoryStream(rawFileData, 0, totalLength);
+                                contentFile = FileExtract.ExtractNonResource(nonResourceStream, filePath);
+                            }
 
-                            DumpFile(outputFile, rawFileData.AsSpan()[..totalLength]);
+                            if (contentFile != null)
+                            {
+                                DumpNonResourceContentFile(outputFile, contentFile);
+                            }
+                            else
+                            {
+                                DumpFile(GetOutputPath(outputFile), rawFileData.AsSpan()[..totalLength]);
+                            }
                         }
 
                         continue;
@@ -2030,12 +2152,9 @@ namespace CLI
         /// This method tries to run through all the code paths for a particular resource,
         /// which allows us to quickly find exceptions when running --test over an entire game folder.
         /// </summary>
-        private void TestAndCollectStats(Resource resource, string path, string? originalPath, IFileLoader? fileLoader = null)
+        private void TestAndCollectStats(Resource resource, string path, string? originalPath, IFileLoader? fileLoader, Package? package)
         {
-            if (originalPath != null)
-            {
-                path = $"{originalPath} -> {path}";
-            }
+            var statPath = GetStatPath(path, originalPath);
 
             // The rest of this code gathers various statistics
             var id = $"{resource.ResourceType}_{resource.Version}";
@@ -2044,7 +2163,7 @@ namespace CLI
             void AddStatLocal(string info)
             {
                 var key = string.IsNullOrEmpty(info) ? id : string.Concat(id, "_", info);
-                AddStat(key, info, path, resource);
+                AddStat(key, info, statPath, resource);
             }
 
             switch (resource.ResourceType)
@@ -2158,7 +2277,7 @@ namespace CLI
                 {
                     var stream = resource.Reader!.BaseStream;
                     stream.Seek(0, SeekOrigin.Begin);
-                    ParseVCS(path, stream, originalPath);
+                    ParseVCS(path, stream, originalPath, package);
                     break;
                 }
             }
@@ -2171,7 +2290,7 @@ namespace CLI
                 {
                     foreach (var dep in resource.EditInfo.SpecialDependencies)
                     {
-                        uniqueSpecialDependencies[$"{dep.CompilerIdentifier} \"{dep.String}\""] = path;
+                        uniqueSpecialDependencies[$"{dep.CompilerIdentifier} \"{dep.String}\""] = statPath;
                     }
                 }
             }
@@ -2187,7 +2306,9 @@ namespace CLI
 
             InternalTestExtraction.Test(resource, fileLoader);
 
-            if (GltfTest && GltfModelExporter.CanExport(resource) && resource.ResourceType != ResourceType.Map)
+            // Exporting a whole map is too slow to test, and animation clips need their skeleton to be loaded
+            if (GltfTest && GltfModelExporter.CanExport(resource) && resource.ResourceType != ResourceType.Map
+                && (fileLoader != null || resource.ResourceType != ResourceType.NmClip))
             {
                 var gltfModelExporter = new GltfModelExporter(fileLoader ?? new NullFileLoader())
                 {
@@ -2263,7 +2384,7 @@ namespace CLI
         }
 
         [GeneratedRegex(
-            @"(?:_c|\.vcs|\.nav|\.vfe|\.vfont|\.uifont)$|" +
+            @"(?:_c|\.vcs|\.nav|\.gnv|\.vfe|\.vfont|\.uifont)$|" +
             @"^(?:readonly_)?tools_asset_info\.bin$|" +
             @"^(?:subtitles|closecaption)_.*\.dat$"
         )]

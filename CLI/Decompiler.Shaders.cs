@@ -1,8 +1,11 @@
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using ValvePak;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 
 namespace CLI
 {
@@ -10,6 +13,7 @@ namespace CLI
     {
         private string? ShaderCombo;
         private bool ShaderListCombos;
+        private bool TestShaders;
         private bool HasShaderOptions => ShaderCombo != null || ShaderListCombos;
 
         // Materials in the same package share a loader, so their shaders are only loaded once
@@ -189,6 +193,73 @@ namespace CLI
 
             Stdout.WriteLine($"// Static combo 0x{staticComboId:x08}, dynamic combo 0x{dynamicComboId:x04}");
             Stdout.WriteLine(shaderFile.GetDecompiledFile());
+        }
+
+        /// <summary>
+        /// Decompiles the first and last variants of the program, since some shaders have far too many to decompile all of them,
+        /// and reconstructs the whole shader when given its features program.
+        /// </summary>
+        private static void TestShaderDecompilation(VfxProgramData program, string path, Package? package,
+            VfxStaticComboData? firstStaticCombo, VfxStaticComboData? lastStaticCombo)
+        {
+            if (firstStaticCombo != null)
+            {
+                TestStaticComboDecompilation(firstStaticCombo);
+            }
+
+            if (lastStaticCombo != null && lastStaticCombo != firstStaticCombo)
+            {
+                TestStaticComboDecompilation(lastStaticCombo);
+            }
+
+            if (program.VcsProgramType != VcsProgramType.Features)
+            {
+                return;
+            }
+
+            using var collection = ShaderCollection.GetShaderCollection(path, package);
+            using var contentFile = new ShaderExtract(collection).ToContentFile();
+
+            foreach (var subFile in contentFile.SubFiles)
+            {
+                subFile.Extract?.Invoke();
+            }
+        }
+
+        private static void TestStaticComboDecompilation(VfxStaticComboData staticCombo)
+        {
+            using var writer = new IndentedTextWriter();
+            _ = new PrintStaticComboSummary(staticCombo, writer);
+
+            var renderStates = staticCombo.DynamicComboRenderStates;
+
+            if (renderStates.Length == 0)
+            {
+                return;
+            }
+
+            TestShaderFileDecompilation(staticCombo, renderStates[0]);
+
+            if (renderStates.Length > 1)
+            {
+                TestShaderFileDecompilation(staticCombo, renderStates[^1]);
+            }
+        }
+
+        private static void TestShaderFileDecompilation(VfxStaticComboData staticCombo, VfxRenderStateInfo renderState)
+        {
+            var shaderFile = GetShaderFile(staticCombo, renderState);
+
+            // DXIL and DXBC can not be decompiled
+            if (shaderFile is VfxShaderFileGL glsl)
+            {
+                glsl.GetDecompiledFile();
+            }
+            else if (shaderFile is VfxShaderFileVulkan vulkan && !vulkan.IsEmpty() && ShaderUtilHelpers.IsSpirvCrossAvailable()
+                && !vulkan.TryGetDecompiledFile(out var errors))
+            {
+                throw new InvalidDataException($"SPIR-V reflection failed for every backend:{Environment.NewLine}{errors}");
+            }
         }
 
         private static VfxShaderFile? GetShaderFile(VfxStaticComboData staticCombo, VfxRenderStateInfo renderState)

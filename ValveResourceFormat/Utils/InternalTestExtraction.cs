@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.IO;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 
@@ -101,19 +100,24 @@ namespace ValveResourceFormat.Utils
                 }
             }
 
-            try
+            // Map extract requires the world resource, which a null file loader can not provide
+            if (resource.ResourceType == ResourceType.Map && fileLoader is null or NullFileLoader)
             {
-                // Test extraction code flow
-                using var contentFile = FileExtract.Extract(resource, fileLoader ?? new NullFileLoader());
+                return;
+            }
 
-                foreach (var contentSubFile in contentFile.SubFiles)
+            // Test extraction code flow
+            using var contentFile = FileExtract.Extract(resource, fileLoader ?? new NullFileLoader());
+
+            // Maps generate models and other files that do not exist on their own, so they are not tested otherwise
+            ContentFile[] filesToExtract = resource.ResourceType == ResourceType.Map ? [contentFile, .. contentFile.AdditionalFiles] : [contentFile];
+
+            foreach (var file in filesToExtract)
+            {
+                foreach (var contentSubFile in file.SubFiles)
                 {
                     contentSubFile.Extract?.Invoke();
                 }
-            }
-            catch (FileNotFoundException)
-            {
-                // ignore for now because we use null file loader, map extract throws
             }
         }
     }
