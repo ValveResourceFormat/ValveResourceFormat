@@ -169,14 +169,14 @@ namespace ValveResourceFormat.ResourceTypes
             ReadBuffer((int)version, reader);
         }
 
-        private static void DecompressLZ4(BinaryReader reader, Span<byte> output, int compressedSize)
+        internal static void DecompressLZ4(BinaryReader reader, Span<byte> output, int compressedSize)
         {
             var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
 
             try
             {
                 var input = inputBuf.AsSpan(0, compressedSize);
-                reader.Read(input);
+                reader.BaseStream.ReadExactly(input);
 
                 var written = LZ4Codec.Decode(input, output);
 
@@ -191,14 +191,14 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private static void DecompressZSTD(ZstdSharp.Decompressor zstdDecompressor, BinaryReader reader, Span<byte> output, int compressedSize)
+        internal static void DecompressZSTD(ZstdSharp.Decompressor zstdDecompressor, BinaryReader reader, Span<byte> output, int compressedSize)
         {
             var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
 
             try
             {
                 var input = inputBuf.AsSpan(0, compressedSize);
-                reader.Read(input);
+                reader.BaseStream.ReadExactly(input);
 
                 if (!zstdDecompressor.TryUnwrap(input, output, out var written) || output.Length != written)
                 {

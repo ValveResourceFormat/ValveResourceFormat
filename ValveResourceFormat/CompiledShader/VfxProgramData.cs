@@ -291,23 +291,15 @@ namespace ValveResourceFormat.CompiledShader
             {
                 AdditionalFiles = (VcsAdditionalFileFlags)DataReader.ReadUInt32();
 
-                if ((AdditionalFiles & VcsAdditionalFileFlags.HasMeshShader) != 0)
-                {
-                    programTypesCount += 3;
-                }
-                else if ((AdditionalFiles & VcsAdditionalFileFlags.HasRaytracing) != 0)
-                {
-                    programTypesCount += 2;
-                }
-                else if ((AdditionalFiles & VcsAdditionalFileFlags.HasPixelShaderRenderState) != 0)
-                {
-                    programTypesCount += 1;
-                }
+                const VcsAdditionalFileFlags KnownFlags = VcsAdditionalFileFlags.HasPixelShaderRenderState | VcsAdditionalFileFlags.HasRaytracing | VcsAdditionalFileFlags.HasMeshShader;
 
-                if (AdditionalFiles > VcsAdditionalFileFlags.HasMeshShader)
+                if ((AdditionalFiles & ~KnownFlags) != 0)
                 {
                     throw new UnexpectedMagicException("Unexpected additional files", (int)AdditionalFiles, nameof(AdditionalFiles));
                 }
+
+                // Optional program slots are appended in flag order, so the highest flag decides how many there are
+                programTypesCount += 32 - BitOperations.LeadingZeroCount((uint)AdditionalFiles);
             }
 
             UnserializeVfxProgramData(programTypesCount);

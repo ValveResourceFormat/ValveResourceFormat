@@ -1,7 +1,7 @@
-using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using ValveKeyValue;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -49,7 +49,7 @@ public class VfxStaticComboVcsEntry
 
         dataReader.BaseStream.Position = FileOffset;
 
-        using var pooledStream = GetUncompressedStaticComboDataStream(dataReader, ParentProgramData);
+        using var pooledStream = GetUncompressedStaticComboDataStream(dataReader);
         pooledStream.Position = 0;
         return new VfxStaticComboData(pooledStream, StaticComboId, ParentProgramData);
     }
@@ -57,49 +57,52 @@ public class VfxStaticComboVcsEntry
     /// <summary>
     /// Decompresses the static combo data stream.
     /// </summary>
-    internal static PooledMemoryStream GetUncompressedStaticComboDataStream(BinaryReader reader, VfxProgramData programData)
+    internal static PooledMemoryStream GetUncompressedStaticComboDataStream(BinaryReader reader)
     {
         var compressionTypeOrSize = reader.ReadInt32();
-        var uncompressedSize = 0;
 
-        if (programData.VcsVersion < 64 && programData.VcsProgramType == VcsProgramType.Features)
+        // Older files prefix each block with its size, followed by an LZMA stream, or by the raw body
+        // for features. Whether a given version uses this framing differs between engine builds.
+        if (compressionTypeOrSize >= 0)
         {
-            var uncompressedStream = new PooledMemoryStream(compressionTypeOrSize);
-            reader.Read(uncompressedStream.BufferSpan);
-            return uncompressedStream;
-        }
+            if (reader.ReadInt32() != LZMA_MAGIC)
+            {
+                reader.BaseStream.Position -= 4;
 
-        uncompressedSize = reader.ReadInt32();
+                var uncompressedStream = new PooledMemoryStream(compressionTypeOrSize);
+                reader.BaseStream.ReadExactly(uncompressedStream.BufferSpan);
+                return uncompressedStream;
+            }
 
-        if (uncompressedSize == LZMA_MAGIC)
-        {
-            // On PC v64 switched to using zstd, but on mobile builds they still kept the LZMA decompression.
-            Debug.Assert(programData.VcsVersion <= 64);
-
-            uncompressedSize = reader.ReadInt32();
+            var lzmaUncompressedSize = reader.ReadInt32();
             var lzmaCompressedSize = reader.ReadInt32();
 
             var lzmaDecoder = new SevenZip.Compression.LZMA.Decoder();
             lzmaDecoder.SetDecoderProperties(reader.ReadBytes(5));
 
-            var outStream = new PooledMemoryStream(uncompressedSize);
-            lzmaDecoder.Code(reader.BaseStream, outStream, lzmaCompressedSize, uncompressedSize, null);
+            var outStream = new PooledMemoryStream(lzmaUncompressedSize);
+            lzmaDecoder.Code(reader.BaseStream, outStream, lzmaCompressedSize, lzmaUncompressedSize, null);
             return outStream;
         }
 
-        var stream = new PooledMemoryStream(uncompressedSize);
-
-        var compressionType = -compressionTypeOrSize; // it's negative
+        var compressionType = -compressionTypeOrSize;
+        var uncompressedSize = reader.ReadInt32();
         var compressedSize = reader.ReadInt32();
+
+        var stream = new PooledMemoryStream(uncompressedSize);
 
         switch (compressionType)
         {
-            case 1:
-                throw new NotImplementedException("Uncompressed block");
+            case 1: // Uncompressed
+                if (compressedSize != uncompressedSize)
+                {
+                    throw new InvalidDataException($"Uncompressed static combo block has {compressedSize} bytes, expected {uncompressedSize}");
+                }
 
-            case 2:
-                throw new NotImplementedException("ZSTD compressed without dict");
+                reader.BaseStream.ReadExactly(stream.BufferSpan);
+                break;
 
+            case 2: // ZStd without dictionary
             case 3: // ZStd with dictionary 1
             case 5: // ZStd with dictionary 2
                 using (var zstdDecompressor = new ZstdSharp.Decompressor())
@@ -108,32 +111,21 @@ public class VfxStaticComboVcsEntry
                     {
                         3 => ZstdDictionary.GetDictionary_2bc2fa87(),
                         5 => ZstdDictionary.GetDictionary_255df362(),
-                        _ => throw new NotImplementedException(),
+                        _ => null,
                     };
 
-                    zstdDecompressor.LoadDictionary(dictionary);
-
-                    var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
-
-                    try
+                    if (dictionary != null)
                     {
-                        var input = inputBuf.AsSpan(0, compressedSize);
-                        reader.Read(input);
+                        zstdDecompressor.LoadDictionary(dictionary);
+                    }
 
-                        if (!zstdDecompressor.TryUnwrap(input, stream.BufferSpan, out var written) || uncompressedSize != written)
-                        {
-                            throw new InvalidDataException($"Failed to decompress ZSTD (expected {uncompressedSize} bytes, got {written} {stream.BufferSpan.Length})");
-                        }
-                    }
-                    finally
-                    {
-                        ArrayPool<byte>.Shared.Return(inputBuf);
-                    }
+                    BinaryKV3.DecompressZSTD(zstdDecompressor, reader, stream.BufferSpan, compressedSize);
                 }
                 break;
 
-            case 4:
-                throw new NotImplementedException("LZ4 compressed");
+            case 4: // Raw LZ4 block, not an LZ4 frame
+                BinaryKV3.DecompressLZ4(reader, stream.BufferSpan, compressedSize);
+                break;
 
             default:
                 throw new UnexpectedMagicException("Unknown compression", compressionType);

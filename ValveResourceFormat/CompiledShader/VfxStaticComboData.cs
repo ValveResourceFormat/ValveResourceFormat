@@ -50,8 +50,8 @@ namespace ValveResourceFormat.CompiledShader
         public bool GlobalsBDA { get; }
 
         /// <summary>
-        /// Gets whether the shader files were produced by the GLSL based compiler backends
-        /// (PCGL, MOBILE_GLES, and early Vulkan). False for D3D and current Vulkan files.
+        /// Gets whether the shader files were produced by the GLSL based compiler backends, as seen on
+        /// PCGL and MOBILE_GLES vertex and pixel shaders. Not set for their render state programs, D3D, or mobile Vulkan.
         /// </summary>
         public bool UsesGlslSources { get; }
 
@@ -141,7 +141,7 @@ namespace ValveResourceFormat.CompiledShader
 
                 programData.DataReader!.BaseStream.Position = finalOffset;
 
-                using var byteCodeStream = VfxStaticComboVcsEntry.GetUncompressedStaticComboDataStream(programData.DataReader, ParentProgramData);
+                using var byteCodeStream = VfxStaticComboVcsEntry.GetUncompressedStaticComboDataStream(programData.DataReader);
                 using var byteCodeReader = new BinaryReader(byteCodeStream, Encoding.UTF8, leaveOpen: true);
                 Debug.Assert(programData.DataReader.BaseStream.Position == finalOffset + blockSize);
 
@@ -225,7 +225,7 @@ namespace ValveResourceFormat.CompiledShader
             StaticComboId = staticComboId;
             using var dataReader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
 
-            if (programData.VcsVersion < 62) // not precise
+            if (programData.VcsVersion < 61)
             {
                 _ = dataReader.ReadUInt64(); // probably StaticComboId
             }
@@ -242,7 +242,7 @@ namespace ValveResourceFormat.CompiledShader
 
             if (ParentProgramData.VcsProgramType is VcsProgramType.Features or VcsProgramType.VertexShader)
             {
-                int vsInputSignatureIndexCount = dataReader.ReadInt16();
+                var vsInputSignatureIndexCount = ReadCount(dataReader);
                 VsInputSignatureIndices = new int[vsInputSignatureIndexCount];
                 for (var i = 0; i < vsInputSignatureIndexCount; i++)
                 {
@@ -260,7 +260,7 @@ namespace ValveResourceFormat.CompiledShader
                 }
             }
 
-            int dynamicComboVariablesCount = dataReader.ReadUInt16();
+            var dynamicComboVariablesCount = ReadCount(dataReader);
             DynamicComboVariables = new VfxVariableIndexArray[dynamicComboVariablesCount];
             for (var i = 0; i < dynamicComboVariablesCount; i++)
             {
@@ -268,7 +268,7 @@ namespace ValveResourceFormat.CompiledShader
                 DynamicComboVariables[i] = variableIndexArray;
             }
 
-            int constantBufferBindingCount = dataReader.ReadUInt16();
+            var constantBufferBindingCount = ReadCount(dataReader);
             ConstantBufferBindingSlots = new byte[constantBufferBindingCount];
             ConstantBufferBindingFlags = new byte[constantBufferBindingCount];
             for (var i = 0; i < constantBufferBindingCount; i++)
@@ -287,7 +287,7 @@ namespace ValveResourceFormat.CompiledShader
             var shaderFileCount = dataReader.ReadInt32();
             ShaderFiles = new VfxShaderFile[shaderFileCount];
 
-            if (programData.VcsVersion >= 60) // not present in v59, added by v62
+            if (programData.VcsVersion >= 62)
             {
                 UsesGlslSources = dataReader.ReadBoolean();
             }
@@ -348,6 +348,13 @@ namespace ValveResourceFormat.CompiledShader
             {
                 throw new ShaderParserException("End of file expected");
             }
+        }
+
+        // A count of 0xFFFF means the real count follows as 32 bits
+        private static int ReadCount(BinaryReader dataReader)
+        {
+            int count = dataReader.ReadUInt16();
+            return count == ushort.MaxValue ? dataReader.ReadInt32() : count;
         }
 
         private void ReadGlslSources(BinaryReader dataReader)

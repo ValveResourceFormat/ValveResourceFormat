@@ -52,9 +52,9 @@ public class VfxVariableDescription : ShaderDataBlock
 
     /// <summary>
     /// Gets the context state affected by this variable. Only stored since version 64,
-    /// so a zero value on older files means unknown rather than no affected state.
+    /// older files have -1, which the engine defaults it to.
     /// </summary>
-    public int ContextStateAffectedByVariable { get; }
+    public int ContextStateAffectedByVariable { get; } = -1;
 
     /// <summary>Gets the register offset. Only stored in KV3 resources; 0 for binary vcs files.</summary>
     public uint RegisterOffset { get; }
@@ -249,7 +249,7 @@ public class VfxVariableDescription : ShaderDataBlock
 
         SourceIndex = datareader.ReadInt32();
 
-        // check to see if this reads 'SBMS' (unknown what this is, instance found in v65 hero_pc_40_features.vcs file)
+        // 'SBMS' in place of the source index marks an expression block, followed by the real source index
         if (SourceIndex == 0x534D4253)
         {
             var dynExpLen = datareader.ReadInt32();
