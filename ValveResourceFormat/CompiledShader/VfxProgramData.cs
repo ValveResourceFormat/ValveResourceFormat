@@ -53,6 +53,11 @@ namespace ValveResourceFormat.CompiledShader
         public VcsPlatformType VcsPlatformType { get; private set; } = VcsPlatformType.Undetermined;
 
         /// <summary>
+        /// Gets whether this program targets mobile Vulkan, whose engine builds lay out bindings and blob metadata differently.
+        /// </summary>
+        internal bool IsMobileVulkan => VcsPlatformType is VcsPlatformType.ANDROID_VULKAN or VcsPlatformType.IOS_VULKAN;
+
+        /// <summary>
         /// Gets the VCS shader model type (e.g., 4.0, 5.0, 6.0).
         /// </summary>
         public VcsShaderModelType VcsShaderModelType { get; private set; } = VcsShaderModelType.Undetermined;

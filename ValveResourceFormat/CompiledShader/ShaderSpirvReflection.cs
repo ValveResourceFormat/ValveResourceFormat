@@ -19,41 +19,82 @@ namespace ValveResourceFormat.CompiledShader;
 public static partial class ShaderSpirvReflection
 {
     /// <summary>
-    /// Configuration for SPIR-V binding point offsets for a specific VCS version.
+    /// Gets the SPIR-V binding of register 0 of a register type, which the shader compiler adds to the HLSL register number.
+    /// Samplers, textures and unordered access views have their own ranges, anything else is in the constant buffer range.
+    /// Before version 69, descriptor set 0 gives each graphics stage its own block of bindings, while other sets
+    /// and compute shaders use one compact layout. From version 69 every stage and set uses that layout.
     /// </summary>
-    /// <param name="TextureStartingPoint">Starting binding point for regular textures.</param>
-    /// <param name="TextureIndexStartingPoint">Starting binding point for bindless texture arrays.</param>
-    /// <param name="SamplerStartingPoint">Starting binding point for samplers.</param>
-    /// <param name="StorageBufferStartingPoint">Starting binding point for storage buffers.</param>
-    /// <param name="VsGsBufferBindingOffset">Offset for vertex/geometry shader buffers. Zero if using buffer sets.</param>
-    public readonly record struct BindingPointConfiguration
-    (
-        int TextureStartingPoint,
-        int TextureIndexStartingPoint,
-        int SamplerStartingPoint,
-        int StorageBufferStartingPoint,
-        int VsGsBufferBindingOffset = 0
-    );
-
-    private static BindingPointConfiguration GetBindingConfiguration(int vcsVersion, VcsProgramType programType)
+    /// <remarks>
+    /// These constants are not stored in the shader files. They come from GetBindingStartOffsetHLSLToSPIRV in
+    /// rendersystemvulkan, a small function taking the shader stage, a VkDescriptorType and the descriptor set,
+    /// and returning these numbers (switch over descriptor types 0, 2/4, 3/7, 6/8, plus 1000150000 in newer builds).
+    /// Since version 69 it is VfxGetBindingStartOffsetHLSLToSPIRV, which takes the register type and returns 30, 14 or 158.
+    /// Mobile builds of rendersystemvulkan have their own copy with different constants.
+    /// </remarks>
+    private static uint GetBindingStartOffset(VfxProgramData program, uint set, VfxRegisterType registerType)
     {
-        if (vcsVersion >= 69)
+        uint? stage = program.VcsProgramType switch
         {
-            return new(TextureStartingPoint: 30, TextureIndexStartingPoint: 30, SamplerStartingPoint: 14, StorageBufferStartingPoint: 30);
-        }
+            VcsProgramType.PixelShader => 0,
+            VcsProgramType.VertexShader => 1,
+            VcsProgramType.GeometryShader => 2,
+            VcsProgramType.HullShader => 3,
+            VcsProgramType.DomainShader => 4,
+            _ => null,
+        };
 
-        if (vcsVersion <= 64)
+        if (program.VcsVersion >= 69 || set != 0 || stage is not { } stageIndex)
         {
-            return programType switch
+            if (program.IsMobileVulkan)
             {
-                VcsProgramType.PixelShader => new(TextureStartingPoint: 150, TextureIndexStartingPoint: 30, SamplerStartingPoint: 70, StorageBufferStartingPoint: 30),
-                VcsProgramType.VertexShader or VcsProgramType.GeometryShader =>
-                    new(TextureStartingPoint: 278, TextureIndexStartingPoint: 30, SamplerStartingPoint: 86, StorageBufferStartingPoint: 30, VsGsBufferBindingOffset: 14),
-                _ => new(TextureStartingPoint: 90, TextureIndexStartingPoint: 30, SamplerStartingPoint: 42, StorageBufferStartingPoint: 30, VsGsBufferBindingOffset: 14),
+                return registerType switch
+                {
+                    VfxRegisterType.SamplerState => 12,
+                    VfxRegisterType.Texture => 28,
+                    VfxRegisterType.Uav => 156,
+                    _ => 0,
+                };
+            }
+
+            return registerType switch
+            {
+                VfxRegisterType.SamplerState => 14,
+                VfxRegisterType.Texture => 30,
+                VfxRegisterType.Uav => 158,
+                _ => 0,
             };
         }
 
-        return new(TextureStartingPoint: 90, TextureIndexStartingPoint: 30, SamplerStartingPoint: 42, StorageBufferStartingPoint: 30, VsGsBufferBindingOffset: 14);
+        if (program.IsMobileVulkan)
+        {
+            return registerType switch
+            {
+                VfxRegisterType.SamplerState => 60 + 16 * stageIndex,
+                VfxRegisterType.Texture => 140 + 128 * stageIndex,
+                VfxRegisterType.Uav => 780 + 8 * stageIndex,
+                _ => 12 * stageIndex,
+            };
+        }
+
+        // Version 68 removed the hull and domain shader stages, which shrank the blocks
+        if (program.VcsVersion >= 68)
+        {
+            return registerType switch
+            {
+                VfxRegisterType.SamplerState => 42 + 16 * stageIndex,
+                VfxRegisterType.Texture => 90 + 128 * stageIndex,
+                VfxRegisterType.Uav => 474 + 8 * stageIndex,
+                _ => 14 * stageIndex,
+            };
+        }
+
+        return registerType switch
+        {
+            VfxRegisterType.SamplerState => 70 + 16 * stageIndex,
+            VfxRegisterType.Texture => 150 + 128 * stageIndex,
+            VfxRegisterType.Uav => 790 + 8 * stageIndex,
+            _ => 14 * stageIndex,
+        };
     }
 
     private readonly record struct AddressMode(RsTextureAddressMode? Value = null, bool IsDynamic = false)
@@ -231,6 +272,7 @@ public static partial class ShaderSpirvReflection
                 RenameResource(compiler, resources, SpirvResourceType.SeparateSamplers, vulkanSource);
 
                 RenameResource(compiler, resources, SpirvResourceType.StorageBuffer, vulkanSource);
+                RenameResource(compiler, resources, SpirvResourceType.StorageImage, vulkanSource);
                 RenameResource(compiler, resources, SpirvResourceType.UniformBuffer, vulkanSource);
 
                 RenameResource(compiler, resources, SpirvResourceType.StageInput, vulkanSource);
@@ -365,7 +407,6 @@ public static partial class ShaderSpirvReflection
         var dynamicComboIndex = renderState != null ? staticComboData.GetDynamicComboIndex(renderState.DynamicComboId) : -1;
         var writeSequence = staticComboData.DynamicComboVariables[Math.Max(dynamicComboIndex, 0)];
 
-        var bindingConfig = GetBindingConfiguration(program.VcsVersion, program.VcsProgramType);
         var hasBindlessResources =
             staticComboData.Attributes.FirstOrDefault(a => a.Name == "BindlessResources")?.ConstValue is true;
 
@@ -399,15 +440,16 @@ public static partial class ShaderSpirvReflection
             vsInputSignature = program.VsInputSignatures[vsInputSignatureIndex].Elements;
         }
 
-        // Fallback (set, binding) for the synthesized _Globals_ uniform buffer when VCS has no matching Cbuffer variable:
-        //   VCS 69+:  VS/GS/CS/MS at (set=0, binding=0); PS at (set=1, binding=0)
-        //   VCS <69:  VS/GS at (set=0, binding=VsGsBufferBindingOffset); PS/CS/MS at (set=0, binding=0)
-        var globalsBufferBinding = program.VcsProgramType is VcsProgramType.VertexShader or VcsProgramType.GeometryShader
-            ? (uint)bindingConfig.VsGsBufferBindingOffset
-            : 0u;
-        var globalsBufferSet = bindingConfig.VsGsBufferBindingOffset == 0 && program.VcsProgramType is VcsProgramType.PixelShader
-            ? 1u
-            : 0u;
+        // Fallback for the synthesized _Globals_ uniform buffer when VCS has no matching Cbuffer variable,
+        // it sits in register 0, in set 1 for pixel shaders since version 69 and in set 0 otherwise
+        var globalsBufferSet = 0u;
+
+        if (program.VcsVersion >= 69 && program.VcsProgramType is VcsProgramType.PixelShader)
+        {
+            globalsBufferSet = 1;
+        }
+
+        var globalsBufferBinding = GetBindingStartOffset(program, globalsBufferSet, VfxRegisterType.ConstantBuffer);
 
         foreach (var resource in reflectedResources)
         {
@@ -421,14 +463,14 @@ public static partial class ShaderSpirvReflection
 
             var name = resourceType switch
             {
-                SpirvResourceType.SeparateImage => GetNameForTexture(program, writeSequence, binding, set, imageVfxType, bindingConfig),
+                SpirvResourceType.SeparateImage => GetNameForTexture(program, writeSequence, binding, set, imageVfxType),
                 // We don't know the difference between `SamplerState` and `SamplerComparisonState`
                 // as `variable_is_depth_or_compare` requires `analyze_image_and_sampler_usage` to be called for full functionality;
                 // that function is private and the only other way to trigger it is to call compile twice.
                 SpirvResourceType.SeparateSamplers when set == bindlessSet => "g_bindless_Sampler",
-                SpirvResourceType.SeparateSamplers => GetNameForSampler(program, writeSequence, binding, set, bindingConfig),
+                SpirvResourceType.SeparateSamplers => GetNameForSampler(program, writeSequence, binding, set),
                 SpirvResourceType.StorageBuffer or SpirvResourceType.StorageImage => GetNameForStorageBuffer(program,
-                    writeSequence, binding, set, bindingConfig),
+                    writeSequence, binding, set),
                 SpirvResourceType.UniformBuffer => GetNameForUniformBuffer(program, writeSequence, binding, set)
                     ?? (binding == globalsBufferBinding && set == globalsBufferSet ? "_Globals_" : "undetermined"),
                 SpirvResourceType.StageInput when vertexLayout is not null
@@ -516,11 +558,12 @@ public static partial class ShaderSpirvReflection
     /// <param name="imageBinding">The image binding point.</param>
     /// <param name="set">The descriptor set index.</param>
     /// <param name="vfxType">The VFX variable type to match.</param>
-    /// <param name="config">The binding point configuration.</param>
     /// <returns>The texture variable name, or "undetermined" if not found.</returns>
     public static string GetNameForTexture(VfxProgramData program, VfxVariableIndexArray writeSequence,
-        uint imageBinding, uint set, VfxVariableType vfxType, BindingPointConfiguration config)
+        uint imageBinding, uint set, VfxVariableType vfxType)
     {
+        var startingPoint = GetBindingStartOffset(program, set, VfxRegisterType.Texture);
+
         foreach (var field in writeSequence.RenderState)
         {
             if (field.LayoutSet != set)
@@ -543,8 +586,6 @@ public static partial class ShaderSpirvReflection
 
             var isBindlessTextureArray = variable.Flags.HasFlag(VariableFlags.Bindless);
             Debug.Assert(variable.Flags.HasFlag(VariableFlags.Texture | VariableFlags.Sampler));
-
-            var startingPoint = isBindlessTextureArray ? config.TextureIndexStartingPoint : config.TextureStartingPoint;
 
             if (variable.VfxType is VfxVariableType.Sampler1D
                 or VfxVariableType.Sampler2D
@@ -577,11 +618,11 @@ public static partial class ShaderSpirvReflection
     /// <param name="writeSequence">The write sequence containing variable indices.</param>
     /// <param name="samplerBinding">The sampler binding point.</param>
     /// <param name="set">The descriptor set index.</param>
-    /// <param name="config">The binding point configuration.</param>
     /// <returns>A well-known sampler name or a concatenated sampler state description, or "undetermined" if no sampler is bound at the slot.</returns>
     public static string GetNameForSampler(VfxProgramData program, VfxVariableIndexArray writeSequence,
-        uint samplerBinding, uint set, BindingPointConfiguration config)
+        uint samplerBinding, uint set)
     {
+        var startingPoint = GetBindingStartOffset(program, set, VfxRegisterType.SamplerState);
         List<(string Name, string Value)> settings = [];
         var definition = new SamplerDefinition();
 
@@ -594,7 +635,7 @@ public static partial class ShaderSpirvReflection
 
             var param = program.VariableDescriptions[field.VariableIndex];
 
-            if (param.RegisterType is not VfxRegisterType.SamplerState || field.BindingSlot != samplerBinding - config.SamplerStartingPoint)
+            if (param.RegisterType is not VfxRegisterType.SamplerState || field.BindingSlot != samplerBinding - startingPoint)
             {
                 continue;
             }
@@ -639,10 +680,9 @@ public static partial class ShaderSpirvReflection
     /// <param name="writeSequence">The write sequence containing variable indices.</param>
     /// <param name="bufferBinding">The buffer binding point.</param>
     /// <param name="set">The descriptor set index.</param>
-    /// <param name="config">The binding point configuration.</param>
     /// <returns>The storage buffer variable name, or "undetermined" if not found.</returns>
     public static string GetNameForStorageBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
-        uint bufferBinding, uint set, BindingPointConfiguration config)
+        uint bufferBinding, uint set)
     {
         foreach (var field in writeSequence.RenderState)
         {
@@ -658,7 +698,10 @@ public static partial class ShaderSpirvReflection
                 continue;
             }
 
-            if (field.BindingSlot == bufferBinding - config.StorageBufferStartingPoint)
+            // Read-only resources are bound like textures, writable ones like unordered access views
+            var startingPoint = GetBindingStartOffset(program, set, param.RegisterType is VfxRegisterType.Uav ? VfxRegisterType.Uav : VfxRegisterType.Texture);
+
+            if (field.BindingSlot == bufferBinding - startingPoint)
             {
                 return param.Name;
             }
@@ -678,11 +721,13 @@ public static partial class ShaderSpirvReflection
     public static string? GetNameForUniformBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint binding, uint set)
     {
+        var startingPoint = GetBindingStartOffset(program, set, VfxRegisterType.ConstantBuffer);
+
         foreach (var field in writeSequence.RenderState)
         {
             var param = program.VariableDescriptions[field.VariableIndex];
 
-            if (param.VfxType is VfxVariableType.Cbuffer && field.BindingSlot == binding && field.LayoutSet == set)
+            if (param.VfxType is VfxVariableType.Cbuffer && field.BindingSlot == binding - startingPoint && field.LayoutSet == set)
             {
                 return param.Name;
             }

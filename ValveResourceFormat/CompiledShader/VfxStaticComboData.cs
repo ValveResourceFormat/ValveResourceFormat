@@ -384,11 +384,9 @@ namespace ValveResourceFormat.CompiledShader
 
         private void ReadVulkanSources(BinaryReader dataReader)
         {
-            var isMobile = ParentProgramData?.VcsPlatformType is VcsPlatformType.ANDROID_VULKAN or VcsPlatformType.IOS_VULKAN;
-
             for (var shaderFileId = 0; shaderFileId < ShaderFiles.Length; shaderFileId++)
             {
-                VfxShaderFileVulkan vulkanSource = new(dataReader, shaderFileId, this, isMobile);
+                VfxShaderFileVulkan vulkanSource = new(dataReader, shaderFileId, this);
                 ShaderFiles[shaderFileId] = vulkanSource;
             }
         }

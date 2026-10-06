@@ -111,9 +111,9 @@ layout(set = 0, binding = 94) uniform texture2D g_tMasks2;
 layout(set = 0, binding = 90) uniform texture2D g_tColor;
 layout(set = 0, binding = 95) uniform texture2D g_tDetail;
 layout(set = 1, binding = 32) uniform texture2D g_tShadowDepthTexture;
-layout(set = 1, binding = 17) uniform samplerShadow undetermined_1;
+layout(set = 1, binding = 17) uniform samplerShadow AddressU_Border_AddressV_Border_BorderColor_0_ComparisonFunc_LessEqual_Filter_ComparisonMinMagMipLinear;
 layout(set = 1, binding = 31) uniform texture2D g_tClouds;
-layout(set = 1, binding = 15) uniform sampler undetermined_2;
+layout(set = 1, binding = 15) uniform sampler Filter_MinMagMipLinear;
 layout(set = 1, binding = 38) uniform texture2D g_tGBufferDepth;
 
 layout(location = 2) in vec3 input_2;
@@ -233,7 +233,7 @@ void main()
                 }
                 if (_12887)
                 {
-                    _13014 = _13155 + textureLod(sampler2DShadow(g_tShadowDepthTexture, undetermined_1), vec3(_22613.xy, _19733), 0.0);
+                    _13014 = _13155 + textureLod(sampler2DShadow(g_tShadowDepthTexture, AddressU_Border_AddressV_Border_BorderColor_0_ComparisonFunc_LessEqual_Filter_ComparisonMinMagMipLinear), vec3(_22613.xy, _19733), 0.0);
                 }
                 else
                 {
@@ -257,7 +257,7 @@ void main()
             vec4 _22905;
             _22905.x = _10521.x;
             _22905.y = _10521.y;
-            _12501 = textureLod(sampler2DShadow(g_tShadowDepthTexture, undetermined_1), vec3(_22905.xy, saturate(-_10521.z)), 0.0);
+            _12501 = textureLod(sampler2DShadow(g_tShadowDepthTexture, AddressU_Border_AddressV_Border_BorderColor_0_ComparisonFunc_LessEqual_Filter_ComparisonMinMagMipLinear), vec3(_22905.xy, saturate(-_10521.z)), 0.0);
         }
         _21709 = _12501;
     }
@@ -269,7 +269,7 @@ void main()
     vec3 _13845 = _13110.xyz;
     float _17643 = dot(_13845, _13833.xyz);
     vec2 _21656 = (input_5.xyz + (undetermined._m0.xyz * input_5.y)).xy * (1.0 / undetermined._m9);
-    vec3 _21103 = (((vec3(fma(_17643, 0.5, 0.5) * _21709).xyz * undetermined._m1.xyz).xyz + (((undetermined._m4.xyz * saturate(dot(undetermined._m2.xyz, _18460))) * undetermined._m3) * _Globals_.g_flAmbientScale)).xyz + (((mix(undetermined._m12.xyz, undetermined._m5.xyz, vec3(fma(_8729, 0.5, 0.5))) * undetermined._m6) * max(1.0 - _21709, 1.0 - saturate(min(texture(sampler2D(g_tClouds, undetermined_2), (_21656 + undetermined._m7.xy).xy).x, texture(sampler2D(g_tClouds, undetermined_2), (_21656 + undetermined._m8.xy).xy).y)))) * _Globals_.g_flAmbientScale)).xyz * _19017.xyz;
+    vec3 _21103 = (((vec3(fma(_17643, 0.5, 0.5) * _21709).xyz * undetermined._m1.xyz).xyz + (((undetermined._m4.xyz * saturate(dot(undetermined._m2.xyz, _18460))) * undetermined._m3) * _Globals_.g_flAmbientScale)).xyz + (((mix(undetermined._m12.xyz, undetermined._m5.xyz, vec3(fma(_8729, 0.5, 0.5))) * undetermined._m6) * max(1.0 - _21709, 1.0 - saturate(min(texture(sampler2D(g_tClouds, Filter_MinMagMipLinear), (_21656 + undetermined._m7.xy).xy).x, texture(sampler2D(g_tClouds, Filter_MinMagMipLinear), (_21656 + undetermined._m8.xy).xy).y)))) * _Globals_.g_flAmbientScale)).xyz * _19017.xyz;
     vec4 _11665 = vec4(_21103, _13553 * input_4.w);
     vec3 _14166 = (((((vec3(saturate(_17643) * pow(max(0.001000000047497451305389404296875, saturate(dot(_13833.xyz, -reflect(_13353.xyz, _13845).xyz))), max(_19373.w, _Globals_.g_flSpecularExponentBlendToFull) * _Globals_.g_flSpecularExponent)).xyz * undetermined._m1.xyz).xyz * _Globals_.g_flSpecularScale).xyz * max(_19373.x, _Globals_.g_flSpecularBlendToFull)).xyz * mix(_19680.xyz, _Globals_.g_vSpecularColor.xyz, vec3(max(_19373.z, _Globals_.g_flReflectionsTintByBaseBlendToNone)))).xyz * max(_9136, _7433)).xyz;
     vec3 _15752 = _11665.xyz + _14166;

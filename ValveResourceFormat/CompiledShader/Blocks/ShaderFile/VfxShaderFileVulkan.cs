@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using System.Buffers.Binary;
 using System.Globalization;
 using System.IO;
 using Vortice.SpirvCross;
@@ -44,29 +44,35 @@ public class VfxShaderFileVulkan : VfxShaderFile
     public readonly record struct HiddenUAVCounter(byte AssociatedShaderStorageIndex, byte UAVHiddenCounterBinding);
 
     /// <summary>
+    /// Maps a specialization constant, identified by the <see cref="StringToken"/> of its variable name, to its SPIR-V constant id.
+    /// </summary>
+    public readonly record struct SpecializationConstant(uint NameToken, uint ConstantId, uint Unknown);
+
+    /// <summary>
     /// Vertex attribute slot for each vertex shader input location, packed as <c>(usage &lt;&lt; 4) | usageIndex</c>.
     /// The usage is a <see cref="D3DVertexUsage"/>, which together with the index identifies the
     /// <see cref="ResourceTypes.Material.InputSignatureElement"/> bound to that location.
     /// Slots the shader compiler optimized away are still listed, which is why locations are not always contiguous.
     /// </summary>
     public byte[]? AttribMap { get; }
-    public PerDescriptorSetBindingInfo? DefaultDescriptorSetBindingInfo { get; }
-    public ShaderStorageBufferBinding[]? ShaderStorageBufferBindings { get; }
-    public HiddenUAVCounter[]? HiddenUAVCounters { get; }
-    public int[]? ThreadGroupSize { get; }
+    public PerDescriptorSetBindingInfo? DefaultDescriptorSetBindingInfo { get; private set; }
+    public ShaderStorageBufferBinding[]? ShaderStorageBufferBindings { get; private set; }
+    public HiddenUAVCounter[]? HiddenUAVCounters { get; private set; }
+    public int[]? ThreadGroupSize { get; private set; }
     // Static descriptor set entries are kept as raw bytes because the per-entry layout differs by version
-    // (version 4+ = 72 bytes/entry, earlier = 64 bytes/entry).
-    public byte[]? StaticDescriptorSetBindingInfoData { get; }
-    public int PushConstantSize { get; }
-    public bool UseShaderStageName { get; }
-    public uint[]? DescriptorSetHashes { get; }
-    public uint[]? EntryPoints { get; }
-    public short RequiredSubgroupSize { get; }
+    // (version 4+ = 72 bytes/entry, mobile version 3 = 64 bytes/entry).
+    public byte[]? StaticDescriptorSetBindingInfoData { get; private set; }
+    public int PushConstantSize { get; private set; }
+    public bool UseShaderStageName { get; private set; }
+    public uint[]? DescriptorSetHashes { get; private set; }
+    public uint[]? EntryPoints { get; private set; }
+    public short RequiredSubgroupSize { get; private set; }
     /// <summary>
     /// Base scalar type of every vertex shader input location, one byte per entry of <see cref="AttribMap"/>.
     /// The known values are 4 for float and 2 for unsigned int. It is null for stages other than the vertex shader.
     /// </summary>
-    public byte[]? VertexInputScalarTypes { get; }
+    public byte[]? VertexInputScalarTypes { get; private set; }
+    public SpecializationConstant[]? SpecializationConstants { get; private set; }
 #pragma warning restore CS1591
 
     /// <summary>
@@ -81,10 +87,15 @@ public class VfxShaderFileVulkan : VfxShaderFile
         var end = datareader.BaseStream.Position + size;
         Unserialize(datareader);
 
-        // The bytecode is followed by the same metadata block the binary format has, of which only the attribute map is parsed.
+        // The bytecode is followed by the same metadata block the binary format has
         if (datareader.BaseStream.Position < end)
         {
             AttribMap = ReadAttribMap(datareader);
+
+            if (datareader.BaseStream.Position < end && false)
+            {
+                ReadMetadata(datareader, end);
+            }
         }
 
         datareader.BaseStream.Position = end;
@@ -104,124 +115,170 @@ public class VfxShaderFileVulkan : VfxShaderFile
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public VfxShaderFileVulkan(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent, bool isMobile)
+    public VfxShaderFileVulkan(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent)
         : base(datareader, shaderFileId, parent)
     {
+        var end = Start + 4 + Size;
+
         // CVfxShaderFile::Unserialize
         if (Size > 0)
         {
             Unserialize(datareader);
-
-            // Mobile has no metadata block, despite still being padded out to the same size.
-            if (!isMobile)
-            {
-                AttribMap = ReadAttribMap(datareader);
-            }
+            AttribMap = ReadAttribMap(datareader);
         }
 
-        if (Size > 0 && !isMobile && false)
+        if (Size > 0 && false)
         {
-            var bindingInfo = new PerDescriptorSetBindingInfo
-            {
-                NumActiveSamplers = datareader.ReadInt16(),
-                NumActiveUniformBuffers = datareader.ReadInt16(),
-                ActiveUniformBindingMask = datareader.ReadUInt16(),
-                ActiveSamplerBindingMask = Version >= 5 ? datareader.ReadUInt32() : datareader.ReadUInt64(),
-                NumActiveTextures = datareader.ReadInt16(),
-                ActiveTextureBindingMask = [datareader.ReadUInt64(), datareader.ReadUInt64()],
-                ActiveInputAttachmentsBindingMask = [datareader.ReadUInt64(), datareader.ReadUInt64()],
-                ActiveImageBindingMask = datareader.ReadUInt16(),
-                NumActiveUniformTexelBuffers = datareader.ReadInt16(),
-                ActiveUniformTexelBufferBindingMask = [datareader.ReadUInt64(), datareader.ReadUInt64()],
-            };
-            DefaultDescriptorSetBindingInfo = bindingInfo;
-
-            var ssboCount = datareader.ReadInt16();
-            if (ssboCount > 0)
-            {
-                ShaderStorageBufferBindings = new ShaderStorageBufferBinding[ssboCount];
-                for (var i = 0; i < ssboCount; i++)
-                {
-                    if (Version >= 4)
-                    {
-                        var packed = datareader.ReadUInt16();
-                        var descriptorSet = datareader.ReadUInt16();
-                        ShaderStorageBufferBindings[i] = new ShaderStorageBufferBinding(packed, descriptorSet);
-                    }
-                    else
-                    {
-                        ShaderStorageBufferBindings[i] = new ShaderStorageBufferBinding(datareader.ReadUInt16(), 0);
-                    }
-                }
-            }
-
-            var hiddenUAVCount = datareader.ReadInt16();
-            if (hiddenUAVCount > 0)
-            {
-                HiddenUAVCounters = new HiddenUAVCounter[hiddenUAVCount];
-                for (var i = 0; i < hiddenUAVCount; i++)
-                {
-                    HiddenUAVCounters[i] = new HiddenUAVCounter(datareader.ReadByte(), datareader.ReadByte());
-                }
-            }
-
-            ThreadGroupSize = [
-                datareader.ReadInt32(),
-                datareader.ReadInt32(),
-                datareader.ReadInt32(),
-            ];
-
-            var staticDescriptorSetCount = datareader.ReadInt16();
-            if (staticDescriptorSetCount > 0)
-            {
-                var bytesPerEntry = Version >= 4 ? 72 : 64;
-                StaticDescriptorSetBindingInfoData = datareader.ReadBytes(staticDescriptorSetCount * bytesPerEntry);
-            }
-
-            var pushConstantBitfield = datareader.ReadInt16();
-            PushConstantSize = pushConstantBitfield & 0xFFF;
-            UseShaderStageName = ((pushConstantBitfield >> 12) & 1) != 0;
-
-            if (Version >= 4)
-            {
-                bindingInfo.ActiveStorageTexelBufferBindingMask = datareader.ReadUInt16();
-
-                var descriptorSetHashCount = datareader.ReadInt16();
-                if (descriptorSetHashCount > 0)
-                {
-                    DescriptorSetHashes = new uint[descriptorSetHashCount];
-                    for (var i = 0; i < descriptorSetHashCount; i++)
-                    {
-                        DescriptorSetHashes[i] = datareader.ReadUInt32();
-                    }
-                }
-
-                var entryPointCount = datareader.ReadUInt32();
-                if (entryPointCount > 0)
-                {
-                    EntryPoints = new uint[entryPointCount];
-                    for (var i = 0; i < entryPointCount; i++)
-                    {
-                        EntryPoints[i] = datareader.ReadUInt32();
-                    }
-                }
-
-                RequiredSubgroupSize = datareader.ReadInt16();
-
-                var vertexInputScalarTypeCount = datareader.ReadByte();
-                if (vertexInputScalarTypeCount > 0)
-                {
-                    VertexInputScalarTypes = datareader.ReadBytes(vertexInputScalarTypeCount);
-                }
-            }
+            ReadMetadata(datareader, end);
         }
 
-        // Skip over the metadata that is not parsed yet.
-        var end = Start + 4 + Size;
-        Debug.Assert(datareader.BaseStream.Position <= end);
         datareader.BaseStream.Position = end;
 
         HashMD5 = new Guid(datareader.ReadBytes(16));
+    }
+
+    /// <summary>
+    /// Reads the binding metadata that follows the attribute map. Mobile blobs of version 3 are read like the mobile
+    /// engine does, newer versions like the latest desktop engine reader that accepts them. Desktop blobs of version 3
+    /// are skipped, because engine builds wrote different layouts under that version with nothing in the file to tell them apart.
+    /// Version 5 is skipped, because no engine reader reads it the way it was written.
+    /// </summary>
+    private void ReadMetadata(BinaryReader datareader, long end)
+    {
+        var isMobile = ParentCombo.ParentProgramData?.IsMobileVulkan is true;
+
+        if ((Version == 3 && !isMobile) || Version == 5)
+        {
+            return;
+        }
+
+        var data = new byte[end - datareader.BaseStream.Position];
+        datareader.BaseStream.ReadExactly(data);
+        var reader = new MetadataReader(data);
+
+        if (Version == 2)
+        {
+            DefaultDescriptorSetBindingInfo = new PerDescriptorSetBindingInfo
+            {
+                NumActiveSamplers = reader.ReadInt16(),
+                NumActiveUniformBuffers = reader.ReadInt16(),
+            };
+            return;
+        }
+
+        var bindingInfo = new PerDescriptorSetBindingInfo
+        {
+            NumActiveSamplers = reader.ReadInt16(),
+            NumActiveUniformBuffers = reader.ReadInt16(),
+            ActiveUniformBindingMask = reader.ReadUInt16(),
+            ActiveSamplerBindingMask = Version >= 6 ? reader.ReadUInt32() : reader.ReadUInt64(),
+            NumActiveTextures = reader.ReadInt16(),
+            ActiveTextureBindingMask = [reader.ReadUInt64(), reader.ReadUInt64()],
+            ActiveInputAttachmentsBindingMask = [reader.ReadUInt64(), reader.ReadUInt64()],
+            ActiveImageBindingMask = reader.ReadUInt16(),
+            NumActiveUniformTexelBuffers = reader.ReadInt16(),
+            ActiveUniformTexelBufferBindingMask = [reader.ReadUInt64(), reader.ReadUInt64()],
+        };
+        DefaultDescriptorSetBindingInfo = bindingInfo;
+
+        var ssboCount = reader.ReadUInt16();
+        ShaderStorageBufferBindings = new ShaderStorageBufferBinding[ssboCount];
+        for (var i = 0; i < ssboCount; i++)
+        {
+            var descriptorSet = Version >= 4 ? reader.ReadUInt16() : (ushort)0;
+            ShaderStorageBufferBindings[i] = new ShaderStorageBufferBinding(reader.ReadUInt16(), descriptorSet);
+        }
+
+        var hiddenUAVCount = reader.ReadUInt16();
+        HiddenUAVCounters = new HiddenUAVCounter[hiddenUAVCount];
+        for (var i = 0; i < hiddenUAVCount; i++)
+        {
+            HiddenUAVCounters[i] = new HiddenUAVCounter(reader.ReadByte(), reader.ReadByte());
+        }
+
+        ThreadGroupSize = [reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32()];
+
+        var staticDescriptorSetCount = reader.ReadUInt16();
+        StaticDescriptorSetBindingInfoData = reader.ReadBytes(staticDescriptorSetCount * (Version >= 4 ? 72 : 64));
+
+        var pushConstantBitfield = reader.ReadUInt16();
+
+        if (Version == 3)
+        {
+            PushConstantSize = pushConstantBitfield;
+            return;
+        }
+
+        PushConstantSize = pushConstantBitfield & 0xFFF;
+        UseShaderStageName = ((pushConstantBitfield >> 12) & 1) != 0;
+        bindingInfo.ActiveStorageTexelBufferBindingMask = reader.ReadUInt16();
+
+        DescriptorSetHashes = reader.ReadUInt32s(reader.ReadUInt16());
+        EntryPoints = reader.ReadUInt32s((int)reader.ReadUInt32());
+
+        RequiredSubgroupSize = reader.ReadInt16();
+        VertexInputScalarTypes = reader.ReadBytes(reader.ReadByte());
+
+        if (Version >= 6 && reader.HasRemaining)
+        {
+            var specializationConstantCount = reader.ReadUInt16();
+            SpecializationConstants = new SpecializationConstant[specializationConstantCount];
+            for (var i = 0; i < specializationConstantCount; i++)
+            {
+                SpecializationConstants[i] = new SpecializationConstant(reader.ReadUInt32(), reader.ReadUInt32(), reader.ReadUInt32());
+            }
+        }
+
+        if (Version >= 6 && reader.Overflowed)
+        {
+            throw new InvalidDataException("Vulkan shader metadata is truncated");
+        }
+    }
+
+    /// <summary>
+    /// Reads little endian values from the metadata, returning zeros past the end like the engine buffer does.
+    /// </summary>
+    private sealed class MetadataReader(byte[] data)
+    {
+        private int position;
+
+        public bool HasRemaining => position < data.Length;
+        public bool Overflowed { get; private set; }
+
+        private static readonly byte[] Zeros = new byte[8];
+
+        private ReadOnlySpan<byte> Take(int size)
+        {
+            if (position + size > data.Length)
+            {
+                Overflowed = true;
+                position = data.Length;
+                return size <= Zeros.Length ? Zeros.AsSpan(0, size) : new byte[size];
+            }
+
+            var span = data.AsSpan(position, size);
+            position += size;
+            return span;
+        }
+
+        public byte ReadByte() => Take(1)[0];
+        public short ReadInt16() => BinaryPrimitives.ReadInt16LittleEndian(Take(2));
+        public ushort ReadUInt16() => BinaryPrimitives.ReadUInt16LittleEndian(Take(2));
+        public int ReadInt32() => BinaryPrimitives.ReadInt32LittleEndian(Take(4));
+        public uint ReadUInt32() => BinaryPrimitives.ReadUInt32LittleEndian(Take(4));
+        public ulong ReadUInt64() => BinaryPrimitives.ReadUInt64LittleEndian(Take(8));
+        public byte[] ReadBytes(int size) => Take(size).ToArray();
+
+        public uint[] ReadUInt32s(int count)
+        {
+            var values = new uint[count];
+            for (var i = 0; i < count; i++)
+            {
+                values[i] = ReadUInt32();
+            }
+
+            return values;
+        }
     }
 
     private void Unserialize(BinaryReader datareader)

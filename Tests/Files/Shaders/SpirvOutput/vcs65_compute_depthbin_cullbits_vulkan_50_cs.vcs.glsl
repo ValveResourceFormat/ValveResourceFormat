@@ -24,7 +24,7 @@ cbuffer BinCullParams_t : register(b0, space0)
     anon_g_Items BinCullParams_t_1_g_Items[448] : packoffset(c3);
 };
 
-RWByteAddressBuffer undetermined : register(u158, space0);
+RWByteAddressBuffer g_CullBits : register(u158, space0);
 
 static uint3 gl_GlobalInvocationID;
 struct SPIRV_Cross_Input
@@ -56,7 +56,7 @@ void main_inner()
                     _10540 = _11175;
                 }
             }
-            undetermined.Store(((BinCullParams_t_1_g_Batches[_23131]._m0 + (gl_GlobalInvocationID.x * BinCullParams_t_1_g_Batches[_23131]._m1)) + _13686) * 4 + 0, _11175);
+            g_CullBits.Store(((BinCullParams_t_1_g_Batches[_23131]._m0 + (gl_GlobalInvocationID.x * BinCullParams_t_1_g_Batches[_23131]._m1)) + _13686) * 4 + 0, _11175);
         }
     }
 }

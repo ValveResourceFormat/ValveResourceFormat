@@ -13,7 +13,7 @@ cbuffer _Globals_ : register(b0, space0)
 };
 
 Texture2DMS<float4> g_tSrcDepth : register(t30, space0);
-RWTexture2D<float4> _4304 : register(u159, space0);
+RWTexture2D<float4> g_tOutDepthMIP1 : register(u159, space0);
 
 static uint3 gl_LocalInvocationID;
 static uint3 gl_GlobalInvocationID;
@@ -375,7 +375,7 @@ void MainCs_inner()
         _13039 = _18377;
         continue;
     }
-    _4304[gl_GlobalInvocationID.xy] = max(max(_5788[0], _5788[1]), max(_5788[2], _5788[3])).xxxx;
+    g_tOutDepthMIP1[gl_GlobalInvocationID.xy] = max(max(_5788[0], _5788[1]), max(_5788[2], _5788[3])).xxxx;
     GroupMemoryBarrierWithGroupSync();
     GroupMemoryBarrierWithGroupSync();
     GroupMemoryBarrierWithGroupSync();
