@@ -274,6 +274,7 @@ public static partial class ShaderSpirvReflection
                 RenameResource(compiler, resources, SpirvResourceType.StorageBuffer, vulkanSource);
                 RenameResource(compiler, resources, SpirvResourceType.StorageImage, vulkanSource);
                 RenameResource(compiler, resources, SpirvResourceType.UniformBuffer, vulkanSource);
+                RenameResource(compiler, resources, SpirvResourceType.PushConstant, vulkanSource);
 
                 RenameResource(compiler, resources, SpirvResourceType.StageInput, vulkanSource);
                 RenameResource(compiler, resources, SpirvResourceType.StageOutput, vulkanSource);
@@ -440,19 +441,31 @@ public static partial class ShaderSpirvReflection
             vsInputSignature = program.VsInputSignatures[vsInputSignatureIndex].Elements;
         }
 
-        // Fallback for the synthesized _Globals_ uniform buffer when VCS has no matching Cbuffer variable,
-        // it sits in register 0, in set 1 for pixel shaders since version 69 and in set 0 otherwise
-        var globalsBufferSet = 0u;
+        // The synthesized _Globals_ uniform buffer has no Cbuffer variable, each dynamic combo stores its slot and set instead
+        uint? globalsBufferSet = null;
+        uint? globalsBufferBinding = null;
+        var bindingIndex = Math.Max(dynamicComboIndex, 0);
 
-        if (program.VcsVersion >= 69 && program.VcsProgramType is VcsProgramType.PixelShader)
+        if (bindingIndex < staticComboData.ConstantBufferBindingSlots.Length
+            && staticComboData.ConstantBufferBindingSlots[bindingIndex] != byte.MaxValue)
         {
-            globalsBufferSet = 1;
+            globalsBufferSet = staticComboData.ConstantBufferBindingFlags[bindingIndex];
+            globalsBufferBinding = GetBindingStartOffset(program, globalsBufferSet.Value, VfxRegisterType.ConstantBuffer)
+                + staticComboData.ConstantBufferBindingSlots[bindingIndex];
         }
 
-        var globalsBufferBinding = GetBindingStartOffset(program, globalsBufferSet, VfxRegisterType.ConstantBuffer);
+        var pushConstantBufferName = writeSequence.Fields
+            .Select(field => program.VariableDescriptions[field.VariableIndex])
+            .FirstOrDefault(variable => variable.RegisterType is VfxRegisterType.PushConstantBuffer)?.Name;
 
         foreach (var resource in reflectedResources)
         {
+            // Some shaders keep their original names, which are better than anything matched by binding
+            if (!string.IsNullOrEmpty(SpirvCrossApi.spvc_compiler_get_name(compiler, resource.id)))
+            {
+                continue;
+            }
+
             var binding = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Binding);
             var set = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.DescriptorSet);
             var location = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Location);
@@ -463,6 +476,8 @@ public static partial class ShaderSpirvReflection
 
             var name = resourceType switch
             {
+                SpirvResourceType.SeparateImage when imageVfxType is VfxVariableType.Buffer
+                    => GetNameForStorageBuffer(program, writeSequence, binding, set),
                 SpirvResourceType.SeparateImage => GetNameForTexture(program, writeSequence, binding, set, imageVfxType),
                 // We don't know the difference between `SamplerState` and `SamplerComparisonState`
                 // as `variable_is_depth_or_compare` requires `analyze_image_and_sampler_usage` to be called for full functionality;
@@ -473,6 +488,8 @@ public static partial class ShaderSpirvReflection
                     writeSequence, binding, set),
                 SpirvResourceType.UniformBuffer => GetNameForUniformBuffer(program, writeSequence, binding, set)
                     ?? (binding == globalsBufferBinding && set == globalsBufferSet ? "_Globals_" : "undetermined"),
+                // Vulkan allows one push constant block per shader stage
+                SpirvResourceType.PushConstant => pushConstantBufferName ?? "undetermined",
                 SpirvResourceType.StageInput when vertexLayout is not null
                     => GetVertexInputName(vertexLayout, vsInputSignature, location),
                 SpirvResourceType.StageInput => GetStageAttributeName(location, input: true),
@@ -496,7 +513,7 @@ public static partial class ShaderSpirvReflection
 
             SpirvCrossApi.spvc_compiler_set_name(compiler, resource.id, name);
 
-            if (resourceType is SpirvResourceType.UniformBuffer)
+            if (resourceType is SpirvResourceType.UniformBuffer or SpirvResourceType.PushConstant)
             {
                 var bufferRanges = SpirvCrossApi.spvc_compiler_get_active_buffer_ranges(compiler, resource.id);
 
@@ -546,6 +563,7 @@ public static partial class ShaderSpirvReflection
             (SpvDim.Dim3D, true) => VfxVariableType.Sampler3DArray,
             (SpvDim.Cube, false) => VfxVariableType.SamplerCube,
             (SpvDim.Cube, true) => VfxVariableType.SamplerCubeArray,
+            (SpvDim.Buffer, _) => VfxVariableType.Buffer,
             _ => VfxVariableType.Void,
         };
     }
@@ -693,7 +711,7 @@ public static partial class ShaderSpirvReflection
 
             var param = program.VariableDescriptions[field.VariableIndex];
 
-            if (param.VfxType is < VfxVariableType.StructuredBuffer or > VfxVariableType.RWStructuredBufferWithCounter)
+            if (param.VfxType is not (VfxVariableType.Buffer or >= VfxVariableType.StructuredBuffer and <= VfxVariableType.RWStructuredBufferWithCounter))
             {
                 continue;
             }

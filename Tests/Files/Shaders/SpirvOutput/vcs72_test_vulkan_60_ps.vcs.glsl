@@ -30,10 +30,10 @@ struct _1048
 
 layout(set = 1) uniform _1048 ExternalTestCB1;
 
-layout(push_constant, std430) uniform _997_4179
+layout(push_constant, std430) uniform ExternalTestCB2
 {
     vec2 _m0;
-} _4179;
+} ExternalTestCB2_1;
 
 layout(set = 1, binding = 30) uniform texture2D g_tColor;
 layout(set = 1, binding = 14) uniform sampler Filter_MinMagMipLinear_MaxAniso_1_MipBias_0;
@@ -55,7 +55,7 @@ void main()
     _4360.y = _23713.y;
     vec4 _3300 = texture(sampler2D(g_tColor, Filter_MinMagMipLinear_MaxAniso_1_MipBias_0), _4360.xy);
     vec4 _20506 = _3300;
-    vec3 _14381 = _3300.xyz * ((ExternalTestCB1._m0 * _4179._m0.x) + _4179._m0.y);
+    vec3 _14381 = _3300.xyz * ((ExternalTestCB1._m0 * ExternalTestCB2_1._m0.x) + ExternalTestCB2_1._m0.y);
     _20506.x = _14381.x;
     _20506.y = _14381.y;
     _20506.z = _14381.z;

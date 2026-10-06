@@ -34,10 +34,10 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>Gets the variable write sequences, one per dynamic combo.</summary>
         public VfxVariableIndexArray[] DynamicComboVariables { get; } = [];
 
-        /// <summary>Gets the constant buffer binding slots.</summary>
+        /// <summary>Gets the register slot of the globals constant buffer per dynamic combo, 255 when it has none.</summary>
         public byte[] ConstantBufferBindingSlots { get; } = [];
 
-        /// <summary>Gets the constant buffer binding flags.</summary>
+        /// <summary>Gets the descriptor set (Vulkan) or start register of the globals constant buffer per dynamic combo.</summary>
         public byte[] ConstantBufferBindingFlags { get; } = [];
 
         /// <summary>Gets the constant buffer size.</summary>
