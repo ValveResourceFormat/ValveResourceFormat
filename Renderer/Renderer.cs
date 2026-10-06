@@ -835,6 +835,7 @@ public class Renderer : ISpawnGroupHost
 
             for (var j = states.Count - 1; j >= 0; j--)
             {
+                states[j].Scene.UpdateLightingBuffer();
                 UpdateViewGpuBuffers(views[i], states[j]);
             }
         }

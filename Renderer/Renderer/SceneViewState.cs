@@ -49,7 +49,8 @@ public sealed class SceneViewState : IDisposable
 
     private readonly List<SceneNode> cullResults = [];
     private int staticCullCount;
-    private int lastFrustum = -1;
+    private readonly Plane[] lastFrustumPlanes = new Plane[6];
+    private bool hasLastFrustum;
     private int lastOctreeVersion = -1;
 
     private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
@@ -109,12 +110,11 @@ public sealed class SceneViewState : IDisposable
     /// <returns>A list of visible scene nodes (valid until the next call to this method).</returns>
     public List<SceneNode> GetFrustumCullResults(Frustum frustum)
     {
-        var currentFrustum = frustum.GetHashCode();
-
         // Optimization: Do not clear static culled results from last frame if the frustum did not change
-        if (lastFrustum != currentFrustum || lastOctreeVersion != Scene.OctreeVersion)
+        if (!hasLastFrustum || !frustum.Planes.AsSpan().SequenceEqual(lastFrustumPlanes) || lastOctreeVersion != Scene.OctreeVersion)
         {
-            lastFrustum = currentFrustum;
+            frustum.Planes.CopyTo(lastFrustumPlanes, 0);
+            hasLastFrustum = true;
             lastOctreeVersion = Scene.OctreeVersion;
 
             cullResults.Clear();

@@ -21,6 +21,7 @@ public enum VisibilityBoxMode
 public sealed class VisibilityBox(VisibilityBoxMode mode, Vector3 size)
 {
     private readonly Vector4[] planes = new Vector4[6];
+    private readonly Vector3[] absNormals = new Vector3[6];
 
     /// <summary>Gets what the box hides.</summary>
     public VisibilityBoxMode Mode { get; } = mode;
@@ -60,6 +61,11 @@ public sealed class VisibilityBox(VisibilityBoxMode mode, Vector3 size)
             planes[axis + 3] = InwardPlane(direction, origin - direction * halfSize);
         }
 
+        for (var i = 0; i < planes.Length; i++)
+        {
+            absNormals[i] = Vector3.Abs(new Vector3(planes[i].X, planes[i].Y, planes[i].Z));
+        }
+
         IsEnabled = true;
     }
 
@@ -68,33 +74,35 @@ public sealed class VisibilityBox(VisibilityBoxMode mode, Vector3 size)
 
     private static Vector4 InwardPlane(Vector3 normal, Vector3 point) => new(normal, -Vector3.Dot(normal, point));
 
-    /// <summary>The smallest signed distance over the six planes of the box corner nearest (<paramref name="sign"/> -1) or farthest (+1) along each plane.</summary>
-    private float MinPlaneDistance(Vector3 center, Vector3 extents, float sign)
+    /// <summary>Whether the box corner nearest (<paramref name="sign"/> -1) or farthest (+1) along each of the six planes is on its inner side.</summary>
+    private bool IsInsideEveryPlane(Vector3 center, Vector3 extents, float sign)
     {
-        var distance = float.MaxValue;
-
-        foreach (var plane in planes)
+        for (var i = 0; i < planes.Length; i++)
         {
+            var plane = planes[i];
             var normal = new Vector3(plane.X, plane.Y, plane.Z);
-            var radius = Vector3.Dot(Vector3.Abs(normal), extents);
+            var radius = Vector3.Dot(absNormals[i], extents);
 
-            distance = MathF.Min(distance, Vector3.Dot(normal, center) + plane.W + sign * radius);
+            if (!(Vector3.Dot(normal, center) + plane.W + sign * radius >= 0f))
+            {
+                return false;
+            }
         }
 
-        return distance;
+        return true;
     }
 
     /// <summary>Whether a point is inside the box.</summary>
-    public bool Contains(Vector3 point) => MinPlaneDistance(point, Vector3.Zero, 0f) >= 0f;
+    public bool Contains(Vector3 point) => IsInsideEveryPlane(point, Vector3.Zero, 0f);
 
     /// <summary>Whether an axis aligned box lies entirely inside this one.</summary>
-    public bool Contains(in AABB bounds) => MinPlaneDistance(bounds.Center, bounds.Size * 0.5f, -1f) >= 0f;
+    public bool Contains(in AABB bounds) => IsInsideEveryPlane(bounds.Center, bounds.Size * 0.5f, -1f);
 
     /// <summary>
     /// Whether an axis aligned box reaches the inner side of every plane. Exact for a box along the world
     /// axes; for a rotated one it can also pass bounds just outside a corner or edge.
     /// </summary>
-    public bool Touches(in AABB bounds) => MinPlaneDistance(bounds.Center, bounds.Size * 0.5f, 1f) >= 0f;
+    public bool Touches(in AABB bounds) => IsInsideEveryPlane(bounds.Center, bounds.Size * 0.5f, 1f);
 }
 
 /// <summary>

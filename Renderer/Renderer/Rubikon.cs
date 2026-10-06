@@ -929,53 +929,54 @@ public class Rubikon
     }
 
     /// <summary>
-    /// Generates the 13 SAT axes for a box-triangle test: the triangle face normal (0), the
-    /// 9 cross products of triangle edges with the box axes (1-9), and the 3 box axes (10-12).
-    /// Returns <see langword="false"/> for axes that constrain nothing and should be skipped.
+    /// Generates the 13 SAT axes for a box-triangle test, in order: the triangle face normal, the
+    /// 9 cross products of triangle edges with the box axes, and the 3 box axes. Axes that constrain
+    /// nothing are left out.
     /// </summary>
-    /// <param name="axis">Axis index from 0 to 12.</param>
-    /// <param name="triangle">The three triangle vertices.</param>
-    /// <param name="skipDegenerateFace">Whether to also skip the face axis of a zero-area triangle
+    /// <param name="v0">The first triangle vertex.</param>
+    /// <param name="v1">The second triangle vertex.</param>
+    /// <param name="v2">The third triangle vertex.</param>
+    /// <param name="skipDegenerateFace">Whether to also leave out the face axis of a zero-area triangle
     /// (its edge and box axes still apply).</param>
-    /// <param name="axisVector">The generated, unnormalized axis.</param>
-    private static bool TryGetSatAxis(int axis, ReadOnlySpan<Vector3> triangle, bool skipDegenerateFace, out Vector3 axisVector)
+    /// <param name="axes">Receives the generated, unnormalized axes; at least 13 long.</param>
+    /// <returns>The number of axes written.</returns>
+    private static int GetSatAxes(Vector3 v0, Vector3 v1, Vector3 v2, bool skipDegenerateFace, Span<Vector3> axes)
     {
-        if (axis == 0)
-        {
-            axisVector = MathUtils.TriangleCross(triangle[0], triangle[1], triangle[2]);
+        var count = 0;
+        var face = MathUtils.TriangleCross(v0, v1, v2);
 
-            if (skipDegenerateFace && axisVector.LengthSquared() < Epsilon * Epsilon)
+        if (!(skipDegenerateFace && face.LengthSquared() < Epsilon * Epsilon))
+        {
+            axes[count++] = face;
+        }
+
+        AddEdgeAxes(v1 - v0, axes, ref count);
+        AddEdgeAxes(v2 - v1, axes, ref count);
+        AddEdgeAxes(v0 - v2, axes, ref count);
+
+        axes[count++] = Vector3.UnitX;
+        axes[count++] = Vector3.UnitY;
+        axes[count++] = Vector3.UnitZ;
+
+        return count;
+
+        static void AddEdgeAxes(Vector3 edge, Span<Vector3> axes, ref int count)
+        {
+            if (!(MathF.Abs(edge.Z) < Epsilon && MathF.Abs(edge.Y) < Epsilon))
             {
-                return false;
+                axes[count++] = new Vector3(0f, -edge.Z, edge.Y);
+            }
+
+            if (!(MathF.Abs(edge.X) < Epsilon && MathF.Abs(edge.Z) < Epsilon))
+            {
+                axes[count++] = new Vector3(edge.Z, 0f, -edge.X);
+            }
+
+            if (!(MathF.Abs(edge.Y) < Epsilon && MathF.Abs(edge.X) < Epsilon))
+            {
+                axes[count++] = new Vector3(-edge.Y, edge.X, 0f);
             }
         }
-        else if (axis < 10)
-        {
-            var localAxisIndex = axis - 1;
-
-            var triangleEdgeIndex = localAxisIndex / 3;
-            var boxAxisIndex = localAxisIndex % 3;
-
-            var edge = triangle[(triangleEdgeIndex + 1) % 3] - triangle[triangleEdgeIndex];
-
-            axisVector = edge;
-            axisVector[boxAxisIndex] = 0;
-            axisVector[(boxAxisIndex + 1) % 3] = -edge[(boxAxisIndex + 2) % 3];
-            axisVector[(boxAxisIndex + 2) % 3] = edge[(boxAxisIndex + 1) % 3];
-
-            if (Math.Abs(axisVector[(boxAxisIndex + 1) % 3]) < Epsilon && Math.Abs(axisVector[(boxAxisIndex + 2) % 3]) < Epsilon)
-            {
-                return false;
-            }
-        }
-        else
-        {
-            var localAxisIndex = axis - 10;
-            axisVector = Vector3.Zero;
-            axisVector[localAxisIndex] = 1;
-        }
-
-        return true;
     }
 
     /// <summary>
@@ -985,14 +986,11 @@ public class Rubikon
     private static bool TriangleOverlaps(Vector3 center, Vector3 halfExtents, Vector3 v0, Vector3 v1, Vector3 v2)
     {
         ReadOnlySpan<Vector3> triangle = [v0, v1, v2];
+        Span<Vector3> axes = stackalloc Vector3[13];
+        var axisCount = GetSatAxes(v0, v1, v2, skipDegenerateFace: true, axes);
 
-        for (var axis = 0; axis < 13; axis++)
+        foreach (var axisVector in axes[..axisCount])
         {
-            if (!TryGetSatAxis(axis, triangle, skipDegenerateFace: true, out var axisVector))
-            {
-                continue;
-            }
-
             // The separation test is scale-invariant: boxExtent and the projections both scale
             // with the axis length, so the axis does not need to be normalized
             var boxExtent = Vector3.Dot(Vector3.Abs(axisVector), halfExtents);
@@ -1153,7 +1151,7 @@ public class Rubikon
         return false;
     }
 
-    private static void RayIntersectsWithHull(RayTraceContext ray, PhysicsHullData hull, ref TraceResult closestHit)
+    private static void RayIntersectsWithHull(in RayTraceContext ray, PhysicsHullData hull, ref TraceResult closestHit)
     {
         // Skip hulls that cannot contain a hit closer than the best one found so far
         if (!RayIntersectsAABB(ray, hull.Min, hull.Max, out var entryDistance) || entryDistance > closestHit.Distance)
@@ -1172,7 +1170,7 @@ public class Rubikon
         }
     }
 
-    private static void AABBTraceHull(AABBTraceContext trace, PhysicsHullData hull, ref TraceResult closestHit)
+    private static void AABBTraceHull(in AABBTraceContext trace, PhysicsHullData hull, ref TraceResult closestHit)
     {
         // Expand hull AABB by trace half extents for conservative culling, and skip
         // hulls that cannot contain a hit closer than the best one found so far
@@ -1307,7 +1305,7 @@ public class Rubikon
         }
     }
 
-    private static bool RayIntersectsAABB(RayTraceContext ray, Vector3 min, Vector3 max, out float entryDistance)
+    private static bool RayIntersectsAABB(in RayTraceContext ray, Vector3 min, Vector3 max, out float entryDistance)
     {
         // Calculate intersection with AABB using slab method
         var t1 = (min - ray.Origin) * ray.InvDirection;
@@ -1326,7 +1324,7 @@ public class Rubikon
         return intersects;
     }
 
-    private static bool RayIntersectsTriangle(RayTraceContext ray, Vector3 v0, Vector3 v1, Vector3 v2, out (float Distance, Vector3 Normal) intersection)
+    private static bool RayIntersectsTriangle(in RayTraceContext ray, Vector3 v0, Vector3 v1, Vector3 v2, out (float Distance, Vector3 Normal) intersection)
     {
         // Möller-Trumbore ray-triangle intersection algorithm
         var edge1 = v1 - v0;
@@ -1413,7 +1411,7 @@ public class Rubikon
         }
     }
 
-    private static void AABBTraceTriangle13AxisSat(AABBTraceContext trace, Vector3 v0, Vector3 v1, Vector3 v2, ref TraceResult closestHit)
+    private static void AABBTraceTriangle13AxisSat(in AABBTraceContext trace, Vector3 v0, Vector3 v1, Vector3 v2, ref TraceResult closestHit)
     {
         var halfSweep = trace.Direction * (MathF.Min(trace.Length, closestHit.Distance) * 0.5f);
         var sweptHalfExtents = Vector3.Abs(halfSweep) + trace.HalfExtents + new Vector3(SurfaceEpsilon);
@@ -1430,14 +1428,12 @@ public class Rubikon
 
         float enter = float.NegativeInfinity, exit = float.PositiveInfinity;
 
-        for (var axis = 0; axis < 13; axis++)
-        {
-            if (!TryGetSatAxis(axis, triangle, skipDegenerateFace: false, out var axisVector))
-            {
-                continue;
-            }
+        Span<Vector3> axes = stackalloc Vector3[13];
+        var axisCount = GetSatAxes(v0, v1, v2, skipDegenerateFace: false, axes);
 
-            axisVector = Vector3.Normalize(axisVector);
+        foreach (var generatedAxis in axes[..axisCount])
+        {
+            var axisVector = Vector3.Normalize(generatedAxis);
             axisVector = Vector3.Dot(trace.Direction, axisVector) > 0 ? axisVector : -axisVector;
             // cosTheta >= 0 because axisVector was flipped toward the ray above.
             // The sweep advances the box projection by cosTheta * Length over the trace.

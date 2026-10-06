@@ -1210,12 +1210,14 @@ namespace ValveResourceFormat.Renderer
             lpvBuffer.Update();
         }
 
-        /// <summary>Updates the lighting buffer and binds the lighting and draw buffers to their reserved slots.</summary>
+        /// <summary>Uploads the lighting constants, which <see cref="SetSceneBuffers"/> binds.</summary>
+        internal void UpdateLightingBuffer() => lightingBuffer?.Update();
+
+        /// <summary>Binds the lighting and draw buffers to their reserved slots.</summary>
         public void SetSceneBuffers()
         {
             Debug.Assert(lightingBuffer is not null && envMapBuffer is not null && lpvBuffer is not null);
 
-            lightingBuffer.Update();
             lightingBuffer.BindBufferBase();
             envMapBuffer.BindBufferBase();
             lpvBuffer.BindBufferBase();
