@@ -122,12 +122,12 @@ See the [exporting models guide](./exporting-models.md) for the workflow.
 
 Decompiling produces a `.vmdl` plus DMX files for meshes, physics shapes, and animations,
 loadable in ModelDoc. Reconstructed: render meshes with all vertex streams, skeleton,
-attachments, bodygroups, LOD groups, hitbox sets, material groups (skins), static collision
-shapes, physics joints and body properties, bone constraints, IK chains and control rigs,
-face flexes, breakable pieces, cloth (chains, sheets, springs, collision shapes and effects
-rebuilt from the compiled `FeModel`), embedded sequences with events/layers/root motion,
-Animgraph 2 clips and references, and a wide range of game data blocks (prop_data, particle
-attachments, and many more) passed through verbatim.
+attachments with their camera previews, bodygroups, LOD groups, hitbox sets, material groups
+(skins), static collision shapes, physics joints and body properties, bone constraints, IK
+chains and control rigs, face flexes, breakable pieces, cloth (chains, sheets, springs,
+collision shapes and effects rebuilt from the compiled `FeModel`), embedded sequences with
+events/layers/root motion, Animgraph 2 clips and references, and a wide range of game data
+blocks (prop_data, particle attachments, and many more) passed through verbatim.
 
 Cloth decompiling is experimental. Most cloth recompiles to the same simulation, but not all of
 it does, so please report models whose cloth comes back wrong. A model whose cloth cannot be
@@ -145,6 +145,7 @@ What a recompiled model will be missing:
 | Blend sequences (blend spaces)            | Not implemented              | Multi-reference blend sequences collapse to their first referenced animation.                                                                                                                                                                                                                                                                                         |
 | Vertical root motion                      | Intentional                  | The Z component of root motion is zeroed on export, matching how the engine applies movement to the visible body.                                                                                                                                                                                                                                                     |
 | Extra skin materials                      | Not implemented              | If a material group lists more materials than the default group, the extras are silently dropped.                                                                                                                                                                                                                                                                     |
+| Attachment camera preview look            | Not in compiled files        | The `preview_scale` and `background_color` of an `Attachment Camera Preview` only affect the editor, so they come back at their defaults. A camera on an attachment that the compiled model does not have is dropped.                                                                                                                                                 |
 
 ### glTF Export
 

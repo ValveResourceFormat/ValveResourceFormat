@@ -176,6 +176,7 @@ partial class ModelExtract
 
             var mesh = RenderMeshesToExtract.First();
             var attachments = mesh.Mesh.Attachments;
+            var cameraPreviews = GetAttachmentCameraPreviews();
 
             foreach (var attachment in attachments.Values)
             {
@@ -190,27 +191,91 @@ partial class ModelExtract
                     ("weight", mainInfluence.Weight)
                 );
 
-                if (attachment.Length > 1)
-                {
-                    var children = KVObject.Array();
-                    for (var i = 0; i < attachment.Length - 1; i++)
-                    {
-                        var influence = attachment[i];
-                        var childNode = MakeNode("AttachmentInfluence",
-                            ("parent_bone", influence.Name),
-                            ("relative_origin", ToKVArray(influence.Offset)),
-                            ("relative_angles", ToKVArray(EntityTransformHelper.ToEulerAngles(influence.Rotation))),
-                            ("weight", influence.Weight)
-                        );
+                var children = KVObject.Array();
 
-                        children.Add(childNode);
+                for (var i = 0; i < attachment.Length - 1; i++)
+                {
+                    var influence = attachment[i];
+                    var childNode = MakeNode("AttachmentInfluence",
+                        ("parent_bone", influence.Name),
+                        ("relative_origin", ToKVArray(influence.Offset)),
+                        ("relative_angles", ToKVArray(EntityTransformHelper.ToEulerAngles(influence.Rotation))),
+                        ("weight", influence.Weight)
+                    );
+
+                    children.Add(childNode);
+                }
+
+                if (cameraPreviews.TryGetValue(attachment.Name, out var previews))
+                {
+                    foreach (var preview in previews)
+                    {
+                        children.Add(preview);
                     }
+                }
+
+                if (children.Count > 0)
+                {
                     node.Add("children", children);
                 }
 
                 lists.Attachments.Add(node);
             }
         }
+    }
+
+    private static readonly (string Compiled, string Node)[] CameraPreviewKeys =
+    [
+        ("fov", "fov"),
+        ("screen_width", "screen_width_for_aspect"),
+        ("screen_height", "screen_height_for_aspect"),
+    ];
+
+    /// <summary>
+    /// Rebuilds the <c>Attachment Camera Preview</c> nodes that compile into the model's <c>AttachmentCameraData</c>,
+    /// keyed by the name of the attachment each one sits under.
+    /// </summary>
+    private Dictionary<string, List<KVObject>> GetAttachmentCameraPreviews()
+    {
+        var previews = new Dictionary<string, List<KVObject>>();
+
+        if (model?.KeyValues.GetArray("AttachmentCameraData") is not { } cameras)
+        {
+            return previews;
+        }
+
+        foreach (var camera in cameras)
+        {
+            if (camera.GetStringProperty("attachment_name") is not { Length: > 0 } attachmentName)
+            {
+                continue;
+            }
+
+            var node = MakeNode("Attachment Camera Preview");
+
+            if (camera.GetStringProperty("camera_name") is { Length: > 0 } cameraName)
+            {
+                node.Add("name", cameraName);
+            }
+
+            foreach (var (compiledKey, nodeKey) in CameraPreviewKeys)
+            {
+                if (camera.TryGetValue(compiledKey, out var value))
+                {
+                    node.Add(nodeKey, value);
+                }
+            }
+
+            if (!previews.TryGetValue(attachmentName, out var list))
+            {
+                list = [];
+                previews.Add(attachmentName, list);
+            }
+
+            list.Add(node);
+        }
+
+        return previews;
     }
 
     private void AddMaterialGroupNodes(ModelDocLists lists)
