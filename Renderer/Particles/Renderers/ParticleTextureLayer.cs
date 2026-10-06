@@ -59,6 +59,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>One layer's resolved coordinate transform, in card space.</summary>
         public readonly record struct UvTransform(Vector2 Scale, Vector2 Offset, float Rotation, bool Clamp)
         {
+            /// <summary>The sine and cosine of <see cref="Rotation"/>.</summary>
+            public (float Sin, float Cos) RotationSinCos { get; } = MathF.SinCos(Rotation);
+
+            /// <summary>Where the card centre lands, the offset wrapped into the unit square.</summary>
+            public Vector2 WrappedOrigin { get; } = new(MathUtils.Fract(Offset.X + 0.5f), MathUtils.Fract(Offset.Y + 0.5f));
+
             /// <summary>The transform that leaves a coordinate where it is.</summary>
             public static UvTransform Identity { get; } = new(Vector2.One, Vector2.Zero, 0f, false);
         }
@@ -135,16 +141,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public static Vector2 PlaceCorner(Vector2 cardUv, in UvTransform transform, Vector2 rectMin, Vector2 rectMax)
         {
             var centred = cardUv - new Vector2(0.5f);
-            var (sin, cos) = MathF.SinCos(transform.Rotation);
+            var (sin, cos) = transform.RotationSinCos;
 
             var rotated = new Vector2(
                 (centred.X * cos) - (centred.Y * sin),
                 (centred.X * sin) + (centred.Y * cos));
 
-            var origin = transform.Offset + new Vector2(0.5f);
-            var wrapped = new Vector2(MathUtils.Fract(origin.X), MathUtils.Fract(origin.Y));
-
-            var placed = (rotated / transform.Scale) + wrapped;
+            var placed = (rotated / transform.Scale) + transform.WrappedOrigin;
 
             if (transform.Clamp)
             {

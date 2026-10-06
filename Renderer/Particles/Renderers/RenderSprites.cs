@@ -288,10 +288,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             _ => throw new ArgumentOutOfRangeException(nameof(corner)),
         };
 
-        // A quad orientation matrix from a base (right, up) pair with the particle roll folded in, matching the
+        // The quad's (right, up) axes from a base pair with the particle roll folded in, matching the
         // spritecard vertex shader. The axes are intentionally not re-normalized (some modes rely on that, e.g.
-        // SCREEN_Z foreshortens as the camera tilts). The face row is only the normal and does not affect corners.
-        private static Matrix4x4 QuadBasis(Vector3 baseRight, Vector3 baseUp, float roll, float yaw)
+        // SCREEN_Z foreshortens as the camera tilts).
+        private static (Vector3 Right, Vector3 Up) QuadBasis(Vector3 baseRight, Vector3 baseUp, float roll, float yaw)
         {
             var c = MathF.Cos(roll);
             var s = MathF.Sin(roll);
@@ -305,14 +305,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 right = Vector3.Transform(right, Matrix4x4.CreateFromAxisAngle(Vector3.Normalize(up), yaw));
             }
 
-            var face = Vector3.Cross(right, up);
-            face = MathUtils.SafeNormalize(face, Vector3.UnitZ, ParticleMath.MinimumLengthSquared);
-            return new Matrix4x4(
-                right.X, right.Y, right.Z, 0f,
-                up.X, up.Y, up.Z, 0f,
-                face.X, face.Y, face.Z, 0f,
-                0f, 0f, 0f, 1f);
+            return (right, up);
         }
+
+        private static (Vector3 Right, Vector3 Up) RotationBasis(Matrix4x4 rotation)
+            => (rotation.GetRow(0).AsVector3(), rotation.GetRow(1).AsVector3());
 
         // World-space camera forward (into the scene): the billboard maps local +Z to the toward-camera axis.
         private static Vector3 CameraForward(Matrix4x4 billboard)
@@ -320,25 +317,25 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         // SCREEN_ALIGNED: the plain camera billboard, built from the camera's own right and up axes. The
         // particle's pitch never enters, so a normal-setting operator cannot tilt the card out of plane.
-        private static Matrix4x4 ScreenAlignedBasis(Matrix4x4 billboard, float roll, float yaw)
+        private static (Vector3 Right, Vector3 Up) ScreenAlignedBasis(Matrix4x4 billboard, float roll, float yaw)
             => QuadBasis(
                 billboard.GetRow(0).AsVector3(),
                 billboard.GetRow(1).AsVector3(), roll, yaw);
 
         // SCREEN_Z_ALIGNED: up locked to world +Z, right = cross(worldZ, forward) left un-normalized, so the
         // sprite yaws about vertical to face the camera and foreshortens as the view tilts off-horizontal.
-        private static Matrix4x4 ScreenZAlignedBasis(Matrix4x4 billboard, float roll, float yaw)
+        private static (Vector3 Right, Vector3 Up) ScreenZAlignedBasis(Matrix4x4 billboard, float roll, float yaw)
             => QuadBasis(Vector3.Cross(Vector3.UnitZ, CameraForward(billboard)), Vector3.UnitZ, roll, yaw);
 
         // WORLD_Z_ALIGNED: the quad lies flat in the world XY plane (normal = +Z), rolling about vertical,
         // independent of the camera.
-        private static Matrix4x4 WorldZAlignedBasis(float roll, float yaw)
+        private static (Vector3 Right, Vector3 Up) WorldZAlignedBasis(float roll, float yaw)
             => QuadBasis(new Vector3(0f, -1f, 0f), new Vector3(1f, 0f, 0f), roll, yaw);
 
         // ALIGN_TO_PARTICLE_NORMAL: quad plane perpendicular to the particle normal, with the shader's canonical
         // tangent frame. The reference axis is world -Y once the normal tilts at all off horizontal, and world
         // +Z only while it is nearly horizontal; either choice stays clear of the normal.
-        private static Matrix4x4 ParticleNormalBasis(Vector3 normal, float roll, float yaw)
+        private static (Vector3 Right, Vector3 Up) ParticleNormalBasis(Vector3 normal, float roll, float yaw)
         {
             var reference = MathF.Abs(normal.Z) > 0.1f ? new Vector3(0f, -1f, 0f) : new Vector3(0f, 0f, 1f);
             var up = Vector3.Normalize(Vector3.Cross(normal, reference));
@@ -348,13 +345,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         // SCREENALIGN_TO_PARTICLE_NORMAL: the quad's right edge follows the particle normal while it turns toward
         // the camera about that normal. Falls back to a billboard when the normal points at the camera.
-        private static Matrix4x4 ScreenAlignToNormalBasis(Matrix4x4 billboard, Vector3 normal, float roll, float yaw)
+        private static (Vector3 Right, Vector3 Up) ScreenAlignToNormalBasis(Matrix4x4 billboard, Vector3 normal, float roll, float yaw)
         {
             var n = Vector3.Normalize(normal);
             var w = Vector3.Cross(n, CameraForward(billboard));
             if (w.LengthSquared() < ParticleMath.MinimumLengthSquared)
             {
-                return billboard;
+                return RotationBasis(billboard);
             }
 
             return QuadBasis(n, Vector3.Normalize(w), roll, yaw);
@@ -448,25 +445,25 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // roll and yaw and none of them read pitch; only FULL_3AXIS_ROTATION uses the full basis.
                     var roll = particle.Rotation.Z;
                     var yaw = particle.Rotation.X;
-                    var modelMatrix = orientationType switch
+                    var (right, up) = orientationType switch
                     {
-                        ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED => ScreenAlignedBasis(billboardMatrix, roll, yaw) * particle.GetTransformationMatrix(radiusScale),
-                        ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_Z_ALIGNED => ScreenZAlignedBasis(billboardMatrix, roll, yaw) * particle.GetTransformationMatrix(radiusScale),
-                        ParticleOrientation.PARTICLE_ORIENTATION_WORLD_Z_ALIGNED => WorldZAlignedBasis(roll, yaw) * particle.GetTransformationMatrix(radiusScale),
-                        ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL => ParticleNormalBasis(particle.Normal, roll, yaw) * particle.GetTransformationMatrix(radiusScale),
-                        ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL => ScreenAlignToNormalBasis(billboardMatrix, particle.Normal, roll, yaw) * particle.GetTransformationMatrix(radiusScale),
-                        _ => particle.GetRotationMatrix() * particle.GetTransformationMatrix(radiusScale),
+                        ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED => ScreenAlignedBasis(billboardMatrix, roll, yaw),
+                        ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_Z_ALIGNED => ScreenZAlignedBasis(billboardMatrix, roll, yaw),
+                        ParticleOrientation.PARTICLE_ORIENTATION_WORLD_Z_ALIGNED => WorldZAlignedBasis(roll, yaw),
+                        ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL => ParticleNormalBasis(particle.Normal, roll, yaw),
+                        ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL => ScreenAlignToNormalBasis(billboardMatrix, particle.Normal, roll, yaw),
+                        _ => RotationBasis(particle.GetRotationMatrix()),
                     };
 
-                    // The corner map is corner.x * row0 + corner.y * row1 + translation, so the first two
-                    // rows are already the card's axes with the radius folded in. Handing those over
-                    // replaces four Vector4.Transform calls here and three duplicate vertices.
-                    var right = modelMatrix.GetRow(0).AsVector3();
-                    var up = modelMatrix.GetRow(1).AsVector3();
+                    // The corner map is corner.x * right + corner.y * up + origin, so the card's axes carry
+                    // the radius. Handing those over replaces four Vector4.Transform calls here and three
+                    // duplicate vertices.
+                    right *= halfWidth;
+                    up *= halfWidth;
 
-                    // The centre offset shifts the corners before the model matrix scales them, so it is
+                    // The centre offset shifts the corners before the radius scales them, so it is
                     // measured in half-widths and folds into the origin along those same two axes.
-                    var origin = modelMatrix.Translation
+                    var origin = particle.Position
                         + (centerOffset.X * right)
                         + (centerOffset.Y * up);
 

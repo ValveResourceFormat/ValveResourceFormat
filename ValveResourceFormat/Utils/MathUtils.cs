@@ -125,35 +125,33 @@ namespace ValveResourceFormat.Utils
         /// <summary>
         /// The largest of the given values, compared with <see cref="MathF.Max(float, float)"/>.
         /// </summary>
-        /// <param name="values">Values to compare; must not be empty.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float Max(params ReadOnlySpan<float> values)
+        public static float Max(float a, float b, float c)
         {
-            var result = values[0];
+            return MathF.Max(MathF.Max(a, b), c);
+        }
 
-            for (var i = 1; i < values.Length; i++)
-            {
-                result = MathF.Max(result, values[i]);
-            }
-
-            return result;
+        /// <inheritdoc cref="Max(float, float, float)"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Max(float a, float b, float c, float d)
+        {
+            return MathF.Max(MathF.Max(a, b), MathF.Max(c, d));
         }
 
         /// <summary>
         /// The smallest of the given values, compared with <see cref="MathF.Min(float, float)"/>.
         /// </summary>
-        /// <param name="values">Values to compare; must not be empty.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float Min(params ReadOnlySpan<float> values)
+        public static float Min(float a, float b, float c)
         {
-            var result = values[0];
+            return MathF.Min(MathF.Min(a, b), c);
+        }
 
-            for (var i = 1; i < values.Length; i++)
-            {
-                result = MathF.Min(result, values[i]);
-            }
-
-            return result;
+        /// <inheritdoc cref="Min(float, float, float)"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Min(float a, float b, float c, float d)
+        {
+            return MathF.Min(MathF.Min(a, b), MathF.Min(c, d));
         }
 
         /// <summary>

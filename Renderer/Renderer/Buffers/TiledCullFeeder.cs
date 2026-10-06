@@ -926,7 +926,7 @@ public sealed class TiledCullFeeder
         var e = 2f * sy * (m12 - m11 - m01);
         var f = m00 + m11 + m22 + (2f * m01) - (2f * m02) - (2f * m12);
 
-        var scale = MathUtils.Max(MathF.Abs(a), MathF.Abs(b), MathF.Abs(cc), MathF.Abs(d), MathF.Abs(e), MathF.Abs(f));
+        var scale = MathF.Max(MathUtils.Max(MathF.Abs(a), MathF.Abs(b), MathF.Abs(cc)), MathUtils.Max(MathF.Abs(d), MathF.Abs(e), MathF.Abs(f)));
 
         if (scale <= 0f || !float.IsFinite(scale))
         {

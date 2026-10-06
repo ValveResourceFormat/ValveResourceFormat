@@ -70,7 +70,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var matrix = Matrix4x4.CreateFromQuaternion(Angle);
             if (Scale != 1f)
             {
-                matrix *= Matrix4x4.CreateScale(Scale);
+                matrix.X *= Scale;
+                matrix.Y *= Scale;
+                matrix.Z *= Scale;
             }
 
             matrix.Translation = Position;

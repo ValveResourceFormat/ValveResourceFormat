@@ -268,10 +268,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             if (frame != null)
             {
-                var frameBone = frame.Bones[bone.Index];
-                local = Matrix4x4.CreateScale(frameBone.Scale)
-                    * Matrix4x4.CreateFromQuaternion(frameBone.Angle)
-                    * Matrix4x4.CreateTranslation(frameBone.Position);
+                local = frame.Bones[bone.Index].ToMatrix();
             }
 
             world[bone.Index] = local * parentWorld;

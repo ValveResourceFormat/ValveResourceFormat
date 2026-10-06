@@ -22,9 +22,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             if (!string.IsNullOrEmpty(attachmentName))
             {
-                if (Attachments.ContainsKey(attachmentName))
+                if (Attachments.TryGetValue(attachmentName, out var attachment))
                 {
-                    return GetRigidTransform(GetAttachmentTransform(attachmentName));
+                    return GetRigidTransform(GetAttachmentTransform(attachment));
                 }
 
                 var boneIndex = AnimationController.Skeleton.GetBoneIndex(attachmentName);
@@ -84,8 +84,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return Transform;
             }
 
-            return GetAttachmentLocalTransform(attachment, AnimationController.FrameCache.Skeleton, AnimationController.Pose) * Transform;
+            return GetAttachmentTransform(attachment);
         }
+
+        private Matrix4x4 GetAttachmentTransform(Attachment attachment)
+            => GetAttachmentLocalTransform(attachment, AnimationController.FrameCache.Skeleton, AnimationController.Pose) * Transform;
 
         /// <summary>
         /// Computes the model-local transform of an attachment from the given bone pose.

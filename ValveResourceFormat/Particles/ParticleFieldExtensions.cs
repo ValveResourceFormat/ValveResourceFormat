@@ -291,16 +291,16 @@ namespace ValveResourceFormat.Particles
         }
 
         // Initial Scalars
-        public static float GetInitialScalar(this Particle particle, ParticleCollection particles, ParticleField field)
+        public static float GetInitialScalar(this in Particle particle, ParticleCollection particles, ParticleField field)
         {
-            var initialParticle = particles.Initial[particle.Index];
+            ref var initialParticle = ref particles.Initial[particle.Index];
             return initialParticle.GetScalar(field);
         }
 
         // Initial vector
-        public static Vector3 GetInitialVector(this Particle particle, ParticleCollection particles, ParticleField field)
+        public static Vector3 GetInitialVector(this in Particle particle, ParticleCollection particles, ParticleField field)
         {
-            var initialParticle = particles.Initial[particle.Index];
+            ref var initialParticle = ref particles.Initial[particle.Index];
             return initialParticle.GetVector(field);
         }
 
@@ -318,7 +318,13 @@ namespace ValveResourceFormat.Particles
         // Set methods, shared by a bunch of different operators and initializers.
         // The operator form: the particle has a spawn snapshot, so "initial" and "current" differ.
         public static float ModifyScalarBySetMethod(this ref Particle particle, ParticleCollection particles, ParticleField field, float value, ParticleSetMethod setMethod)
-            => ApplySetMethod(value, particle.GetInitialScalar(particles, field), particle.GetScalar(field), particles.CurrentFrameTime, setMethod);
+        {
+            var initial = ReadsInitialValue(setMethod) ? particle.GetInitialScalar(particles, field) : 0f;
+            return ApplySetMethod(value, initial, particle.GetScalar(field), particles.CurrentFrameTime, setMethod);
+        }
+
+        private static bool ReadsInitialValue(ParticleSetMethod setMethod)
+            => setMethod is ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE;
 
         /// <summary>
         /// The initializer-time form. There is no spawn snapshot yet - the collection's initial array
@@ -345,7 +351,10 @@ namespace ValveResourceFormat.Particles
             };
 
         public static Vector3 ModifyVectorBySetMethod(this ref Particle particle, ParticleCollection particles, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
-            => ApplySetMethod(value, particle.GetInitialVector(particles, field), particle.GetVector(field), particles.CurrentFrameTime, setMethod);
+        {
+            var initial = ReadsInitialValue(setMethod) ? particle.GetInitialVector(particles, field) : Vector3.Zero;
+            return ApplySetMethod(value, initial, particle.GetVector(field), particles.CurrentFrameTime, setMethod);
+        }
 
         /// <inheritdoc cref="ModifyScalarBySetMethodAtSpawn"/>
         public static Vector3 ModifyVectorBySetMethodAtSpawn(this ref Particle particle, ParticleCollection particles, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
