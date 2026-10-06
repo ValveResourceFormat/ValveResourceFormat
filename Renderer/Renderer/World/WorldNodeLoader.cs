@@ -202,7 +202,8 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <remarks>
-        /// Instances share one tint per draw, so each distinct instance tint gets an aggregate of its own.
+        /// Each tile becomes its own node so it can be culled and thinned on its own. Instances share one
+        /// tint per draw, so each distinct instance tint within a tile gets a node of its own.
         /// </remarks>
         private void LoadClutter(Scene scene, ClutterSceneObject clutter, Matrix4x4 root)
         {
@@ -216,50 +217,48 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
+            var maxInstanceScale = clutter.InstanceScales.Max();
             var instancesByTint = new Dictionary<Color32, List<int>>();
 
-            for (var i = 0; i < clutter.InstanceCount; i++)
+            foreach (var tile in clutter.Tiles)
             {
-                var tint = clutter.InstanceTints[i];
+                instancesByTint.Clear();
 
-                if (!instancesByTint.TryGetValue(tint, out var instances))
+                for (var i = tile.FirstInstance; i < tile.EndInstance; i++)
                 {
-                    instances = [];
-                    instancesByTint[tint] = instances;
+                    var tint = clutter.InstanceTints[i];
+
+                    if (!instancesByTint.TryGetValue(tint, out var instances))
+                    {
+                        instances = [];
+                        instancesByTint[tint] = instances;
+                    }
+
+                    instances.Add(i);
                 }
 
-                instances.Add(i);
-            }
-
-            foreach (var (tint, instances) in instancesByTint)
-            {
-                var aggregate = new SceneAggregate(scene, model, clutter.MaterialGroup)
+                foreach (var (tint, instances) in instancesByTint)
                 {
-                    LayerName = LayerNames[clutter.Layer],
-                    Name = clutter.RenderableModel,
-                    Flags = clutter.Flags,
-                    AllFlags = clutter.Flags,
-                    AnyFlags = clutter.Flags,
-                    Tint = new Vector3(tint.R, tint.G, tint.B) / 255f,
-                };
+                    var tileNode = new SceneClutterTile(scene, model, clutter, maxInstanceScale)
+                    {
+                        LayerName = LayerNames[clutter.Layer],
+                        Name = clutter.RenderableModel,
+                        Flags = clutter.Flags,
+                        AllFlags = clutter.Flags,
+                        AnyFlags = clutter.Flags,
+                        Tint = new Vector3(tint.R, tint.G, tint.B) / 255f,
+                        LocalBoundingBox = tile.Bounds.Transform(root),
+                    };
 
-                var meshBounds = aggregate.RenderMesh.BoundingBox;
-                AABB? bounds = null;
+                    tileNode.InstanceTransforms.EnsureCapacity(instances.Count);
 
-                aggregate.InstanceTransforms.EnsureCapacity(instances.Count);
+                    foreach (var instance in instances)
+                    {
+                        tileNode.InstanceTransforms.Add((clutter.GetInstanceTransform(instance) * root).To3x4());
+                    }
 
-                foreach (var instance in instances)
-                {
-                    var transform = clutter.GetInstanceTransform(instance) * root;
-                    var instanceBounds = meshBounds.Transform(transform);
-
-                    aggregate.InstanceTransforms.Add(transform.To3x4());
-                    bounds = bounds?.Union(instanceBounds) ?? instanceBounds;
+                    scene.Add(tileNode, false);
                 }
-
-                aggregate.LocalBoundingBox = bounds!.Value;
-
-                scene.Add(aggregate, false);
             }
         }
 

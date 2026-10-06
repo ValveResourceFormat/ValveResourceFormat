@@ -333,7 +333,7 @@ namespace ValveResourceFormat.Renderer
 
             if (request.Node is SceneAggregate { InstanceTransforms.Count: > 0 } aggregate)
             {
-                instanceCount = aggregate.InstanceTransforms.Count;
+                instanceCount = aggregate.VisibleInstanceCount;
             }
 
             PerfStats.Active.CountDrawCall(request.Node);

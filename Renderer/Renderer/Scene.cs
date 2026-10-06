@@ -1456,7 +1456,7 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    if (aggregate.InstanceTransforms.Count == 0)
+                    if (aggregate.VisibleInstanceCount == 0)
                     {
                         continue;
                     }

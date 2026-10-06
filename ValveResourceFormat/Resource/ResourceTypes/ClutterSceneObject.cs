@@ -47,6 +47,19 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>Gets the number of instances.</summary>
         public int InstanceCount => InstancePositions.Length;
 
+        /// <summary>Gets the tiles that split the instances into spatially grouped ranges.</summary>
+        public Tile[] Tiles { get; }
+
+        /// <summary>A contiguous range of instances with the world space bounds they cover.</summary>
+        /// <param name="FirstInstance">Index of the first instance in the tile.</param>
+        /// <param name="EndInstance">Index one past the last instance in the tile.</param>
+        /// <param name="Bounds">World space bounds of the tile's instances.</param>
+        public readonly record struct Tile(int FirstInstance, int EndInstance, AABB Bounds)
+        {
+            /// <summary>Gets the number of instances in the tile.</summary>
+            public int InstanceCount => EndInstance - FirstInstance;
+        }
+
         /// <summary>
         /// Reads a clutter scene object from its keyvalues.
         /// </summary>
@@ -93,6 +106,45 @@ namespace ValveResourceFormat.ResourceTypes
                     InstanceTints[i] = Color32.White;
                 }
             }
+
+            var tiles = data.GetArray("m_tiles") ?? [];
+
+            if (tiles.Count == 0)
+            {
+                Tiles = count > 0 ? [new Tile(0, count, Bounds)] : [];
+                return;
+            }
+
+            Tiles = new Tile[tiles.Count];
+
+            for (var i = 0; i < tiles.Count; i++)
+            {
+                var tile = tiles[i];
+                var tileBounds = tile.GetSubCollection("m_BoundsWs");
+                var first = Math.Clamp(tile.GetInt32Property("m_nFirstInstance"), 0, count);
+                var end = Math.Clamp(tile.GetInt32Property("m_nLastInstance"), first, count);
+
+                Tiles[i] = new Tile(first, end, new AABB(tileBounds.GetSubCollection("m_vMinBounds").ToVector3(), tileBounds.GetSubCollection("m_vMaxBounds").ToVector3()));
+            }
+        }
+
+        /// <summary>
+        /// Gets the fraction of a tile's instances to draw at a screen size, where the screen size is the
+        /// projected diameter of the largest instance at the tile's nearest point as a fraction of the screen width.
+        /// </summary>
+        /// <param name="screenSize">The tile's screen size.</param>
+        /// <returns>0 when the tile is culled, rising to 1 at <see cref="BeginCullSize"/> and above.</returns>
+        public float GetDensity(float screenSize)
+        {
+            var end = Math.Clamp(EndCullSize, 0f, 1f);
+            var full = Math.Clamp(BeginCullSize, end, 1f);
+
+            if (end > 1.01f * screenSize)
+            {
+                return 0f;
+            }
+
+            return MathUtils.RemapValClamped(screenSize, end, full, 0f, 1f);
         }
 
         /// <summary>
