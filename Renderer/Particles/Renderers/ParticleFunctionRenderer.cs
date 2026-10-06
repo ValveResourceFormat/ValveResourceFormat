@@ -330,6 +330,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         public virtual void SetTextureOverride(RenderTexture texture) { }
 
+        /// <summary>
+        /// Replaces the material this renderer draws with, for renderers that draw with one.
+        /// </summary>
+        public virtual void SetMaterialOverride(RenderMaterial material) { }
+
         public virtual void SetWireframe(bool wireframe) { }
         public virtual void SetRenderMode(string renderMode) { }
         public virtual IEnumerable<string> GetSupportedRenderModes() => [];

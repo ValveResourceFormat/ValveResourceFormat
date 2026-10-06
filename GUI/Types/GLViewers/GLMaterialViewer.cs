@@ -48,12 +48,18 @@ namespace GUI.Types.GLViewers
         {
             Quad,
             Sphere,
-            CustomModel
+            CustomModel,
+            Cable,
         }
 
+        // Cable shaders only draw particle cables, so their materials are previewed on this effect instead of a mesh
+        private const string CablePreviewEffect = "particles/dev/dev_cables_preview.vpcf";
+        private const float CableSettleTime = 1f;
+
         private PreviewObjectType currentPreviewObject = PreviewObjectType.Quad;
-        private readonly Dictionary<PreviewObjectType, MeshCollectionNode> previewObjects = [];
-        private MeshCollectionNode previewNode => previewObjects[currentPreviewObject];
+        private readonly Dictionary<PreviewObjectType, SceneNode> previewObjects = [];
+        private SceneNode previewNode => previewObjects[currentPreviewObject];
+        private float cableFrameDelay = -1f;
         private ShaderCollection? vcsShader;
 
         public GLMaterialViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Resource resource) : base(vrfGuiContext, rendererContext)
@@ -85,6 +91,28 @@ namespace GUI.Types.GLViewers
             renderMat.Shader.EnsureLoaded();
             renderMat.IsOverlay = false; // render without trying to overlay on empty space
 
+            if (renderMat.ShaderName == "cables.vfx" && GuiContext.LoadFileCompiled(CablePreviewEffect)?.DataBlock is ParticleSystem cablePreview)
+            {
+                // Without the endcap, which would decay the cable as soon as it has been emitted
+                var cableNode = new ParticleSceneNode(Scene, cablePreview, preview: true)
+                {
+                    PlaybackMode = ParticlePlaybackMode.Normal,
+                };
+                cableNode.SetMaterialOverride(renderMat);
+                Scene.Add(cableNode, true);
+                previewObjects[PreviewObjectType.Cable] = cableNode;
+                currentPreviewObject = PreviewObjectType.Cable;
+            }
+            else
+            {
+                AddMeshPreviews(renderMat);
+            }
+
+            vcsShader = GuiContext.LoadShader(renderMat.Material.ShaderName);
+        }
+
+        private void AddMeshPreviews(RenderMaterial renderMat)
+        {
             {
                 var planeMesh = MeshSceneNode.CreateMaterialPreviewQuad(Scene, renderMat, new Vector2(32));
                 planeMesh.Transform = Matrix4x4.CreateRotationZ(float.DegreesToRadians(90f));
@@ -125,29 +153,32 @@ namespace GUI.Types.GLViewers
 
                     Scene.Add(customModel, false);
                     previewObjects[PreviewObjectType.CustomModel] = customModel;
+                    currentPreviewObject = PreviewObjectType.CustomModel;
                 }
             }
-
-            vcsShader = GuiContext.LoadShader(renderMat.Material.ShaderName);
         }
 
-        private void CreateMaterialEditControls()
+        private void CreateMaterialEditControls(RenderMaterial loadedMaterial)
         {
             Debug.Assert(ParamsTable != null);
             Debug.Assert(UiControl != null);
 
-            var mesh = previewNode.RenderableMeshes[0];
-            var drawCall = mesh.DrawCallsOpaque.Concat(mesh.DrawCallsBlended).First();
+            // Mesh previews may draw with their own copy of the material, so edit that one
+            var previewMaterial = loadedMaterial;
+            if (previewNode is MeshCollectionNode meshNode)
+            {
+                var mesh = meshNode.RenderableMeshes[0];
+                previewMaterial = mesh.DrawCallsOpaque.Concat(mesh.DrawCallsBlended).First().Material;
+            }
 
             // Collect all parameters with their types and sort them together
             var allParams = new List<(string name, object value, ParamType type, VfxVariableDescription? vfx)>();
 
-            var materialParams = drawCall.Material;
-            var shaderParams = drawCall.Material.Shader.Default;
+            var shaderParams = previewMaterial.Shader.Default;
 
-            var allParameterNames = new HashSet<string>(materialParams.FloatParams.Keys);
-            allParameterNames.UnionWith(materialParams.IntParams.Keys);
-            allParameterNames.UnionWith(materialParams.VectorParams.Keys);
+            var allParameterNames = new HashSet<string>(previewMaterial.FloatParams.Keys);
+            allParameterNames.UnionWith(previewMaterial.IntParams.Keys);
+            allParameterNames.UnionWith(previewMaterial.VectorParams.Keys);
             allParameterNames.UnionWith(shaderParams.FloatParams.Keys);
             allParameterNames.UnionWith(shaderParams.IntParams.Keys);
             allParameterNames.UnionWith(shaderParams.VectorParams.Keys);
@@ -163,9 +194,9 @@ namespace GUI.Types.GLViewers
 
             foreach (var paramName in allParameterNames)
             {
-                var inMaterial = materialParams.FloatParams.ContainsKey(paramName) ||
-                    materialParams.IntParams.ContainsKey(paramName) ||
-                    materialParams.VectorParams.ContainsKey(paramName);
+                var inMaterial = previewMaterial.FloatParams.ContainsKey(paramName) ||
+                    previewMaterial.IntParams.ContainsKey(paramName) ||
+                    previewMaterial.VectorParams.ContainsKey(paramName);
                 var inShader = shaderParams.FloatParams.ContainsKey(paramName) ||
                     shaderParams.IntParams.ContainsKey(paramName) ||
                     shaderParams.VectorParams.ContainsKey(paramName);
@@ -184,21 +215,21 @@ namespace GUI.Types.GLViewers
                 }
 
                 // Handle float parameters
-                if (materialParams.FloatParams.ContainsKey(paramName) || shaderParams.FloatParams.ContainsKey(paramName))
+                if (previewMaterial.FloatParams.ContainsKey(paramName) || shaderParams.FloatParams.ContainsKey(paramName))
                 {
-                    var value = materialParams.FloatParams.GetValueOrDefault(paramName,
+                    var value = previewMaterial.FloatParams.GetValueOrDefault(paramName,
                         shaderParams.FloatParams.GetValueOrDefault(paramName));
                     allParams.Add((paramName, (value, parameterPresence), ParamType.Float, vfxDescription));
                     continue;
                 }
 
                 // Handle int/bool parameters
-                if (materialParams.IntParams.ContainsKey(paramName) || shaderParams.IntParams.ContainsKey(paramName))
+                if (previewMaterial.IntParams.ContainsKey(paramName) || shaderParams.IntParams.ContainsKey(paramName))
                 {
-                    var value = materialParams.IntParams.GetValueOrDefault(paramName,
+                    var value = previewMaterial.IntParams.GetValueOrDefault(paramName,
                         shaderParams.IntParams.GetValueOrDefault(paramName));
 
-                    if (drawCall.Material.Shader.IsBooleanParameter(paramName)
+                    if (previewMaterial.Shader.IsBooleanParameter(paramName)
                         || paramName.StartsWith("F_", StringComparison.OrdinalIgnoreCase) && value is 0 or 1)
                     {
                         var boolValue = Convert.ToBoolean(value);
@@ -213,11 +244,11 @@ namespace GUI.Types.GLViewers
                 }
 
                 // Handle vector parameters
-                if (materialParams.VectorParams.ContainsKey(paramName) || shaderParams.VectorParams.ContainsKey(paramName))
+                if (previewMaterial.VectorParams.ContainsKey(paramName) || shaderParams.VectorParams.ContainsKey(paramName))
                 {
-                    var value = materialParams.VectorParams.GetValueOrDefault(paramName,
+                    var value = previewMaterial.VectorParams.GetValueOrDefault(paramName,
                         shaderParams.VectorParams.GetValueOrDefault(paramName));
-                    var componentCount = drawCall.Material.Shader.GetRegisterSize(paramName);
+                    var componentCount = previewMaterial.Shader.GetRegisterSize(paramName);
 
                     if (vfxDescription?.UiType == UiType.Color)
                     {
@@ -290,7 +321,7 @@ namespace GUI.Types.GLViewers
                             floatVal,
                             range,
                             ParamType.Float,
-                            v => drawCall.Material.FloatParams[paramName] = (float)v,
+                            v => previewMaterial.FloatParams[paramName] = (float)v,
                             floatPresence != ParameterPresence.MaterialOnly);
                         break;
                     case ParamType.Int:
@@ -305,8 +336,8 @@ namespace GUI.Types.GLViewers
                             ParamType.Int,
                             v =>
                             {
-                                drawCall.Material.IntParams[paramName] = (int)v;
-                                drawCall.Material.LoadRenderState();
+                                previewMaterial.IntParams[paramName] = (int)v;
+                                previewMaterial.LoadRenderState();
                             },
                             intPresence != ParameterPresence.MaterialOnly);
                         break;
@@ -317,8 +348,8 @@ namespace GUI.Types.GLViewers
                             boolVal,
                             v =>
                             {
-                                drawCall.Material.IntParams[paramName] = v ? 1 : 0;
-                                drawCall.Material.LoadRenderState();
+                                previewMaterial.IntParams[paramName] = v ? 1 : 0;
+                                previewMaterial.LoadRenderState();
                             },
                             boolPresence != ParameterPresence.MaterialOnly);
                         break;
@@ -328,7 +359,7 @@ namespace GUI.Types.GLViewers
                             paramName,
                             count,
                             vector,
-                            v => drawCall.Material.VectorParams[paramName] = v,
+                            v => previewMaterial.VectorParams[paramName] = v,
                             vectorPresence != ParameterPresence.MaterialOnly);
                         break;
 
@@ -337,7 +368,7 @@ namespace GUI.Types.GLViewers
                         AddColorParameter(
                             paramName,
                             Vector4ToColor(colorVec),
-                            c => drawCall.Material.VectorParams[paramName] = ColorToVector4(c),
+                            c => previewMaterial.VectorParams[paramName] = ColorToVector4(c),
                             colorPresence != ParameterPresence.MaterialOnly);
                         break;
                 }
@@ -696,10 +727,39 @@ namespace GUI.Types.GLViewers
             Scene.UpdateBuffers();
         }
 
+        protected override void OnUpdate(float frameTime)
+        {
+            base.OnUpdate(frameTime);
+
+            // Framed once the cable has sagged, it starts out straight
+            if (cableFrameDelay < 0f)
+            {
+                return;
+            }
+
+            cableFrameDelay -= frameTime;
+
+            if (cableFrameDelay > 0f)
+            {
+                return;
+            }
+
+            cableFrameDelay = -1f;
+
+            // The preview cable runs along X, so look at it from the side
+            var bounds = previewNode.BoundingBox;
+            Input.Camera.FrameObjectFromAngle(bounds.Center, bounds.Size.X, bounds.Size.Y, bounds.Size.Z, float.DegreesToRadians(-90f), float.DegreesToRadians(15f));
+            Input.OrbitTarget = bounds.Center;
+        }
+
         protected override void OnFirstPaint()
         {
             Input.Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, float.DegreesToRadians(180f), 0);
-            if (renderMat != null && renderMat.IsCs2Water)
+            if (currentPreviewObject == PreviewObjectType.Cable)
+            {
+                cableFrameDelay = CableSettleTime;
+            }
+            else if (renderMat != null && renderMat.IsCs2Water)
             {
                 Input.Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, float.DegreesToRadians(90f));
             }
@@ -904,16 +964,10 @@ namespace GUI.Types.GLViewers
                     openShaderButton.Text = renderMat.Material.ShaderName;
                 }
 
-                var selectedIndex = (int)PreviewObjectType.Quad;
-                if (Resource.DataBlock is Material material && material.StringAttributes.ContainsKey("PreviewModel") && previewObjects.ContainsKey(PreviewObjectType.CustomModel))
-                {
-                    selectedIndex = (int)PreviewObjectType.CustomModel;
-                }
-
                 previewObjectComboBox.Items.AddRange([.. Enum.GetNames<PreviewObjectType>().Where(n => previewObjects.ContainsKey(Enum.Parse<PreviewObjectType>(n)))]);
-                previewObjectComboBox.SelectedIndex = selectedIndex;
+                previewObjectComboBox.SelectedItem = currentPreviewObject.ToString();
 
-                CreateMaterialEditControls();
+                CreateMaterialEditControls(renderMat);
             }
 
             base.AddUiControls();

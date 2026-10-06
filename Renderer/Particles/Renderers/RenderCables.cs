@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Utils;
@@ -17,7 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     {
         private const string DefaultMaterialName = "particles/dev/dev_cables_preview_material.vmat";
 
-        private readonly RenderMaterial material;
+        private RenderMaterial material;
         private readonly int vaoHandle;
         private int vertexBufferHandle;
         private int indexBufferHandle;
@@ -73,12 +74,20 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             colorMapOffsetV = parse.NumberProvider("m_flColorMapOffsetV", colorMapOffsetV);
 
             var materialName = parse.Data.GetStringProperty("m_hMaterial", DefaultMaterialName);
-            material = rendererContext.MaterialLoader.GetMaterial(materialName, CreateShaderArguments());
-
-            Pass = material.IsTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
-            CanRenderDepth = Pass == RenderPass.Opaque && !OnlyRenderInEffectsWaterPass && material.Shader.DepthMode != null;
+            UseMaterial(rendererContext.MaterialLoader.GetMaterial(materialName, CreateShaderArguments()));
 
             vaoHandle = SetupBuffers();
+        }
+
+        /// <inheritdoc/>
+        public override void SetMaterialOverride(RenderMaterial material) => UseMaterial(material);
+
+        [MemberNotNull(nameof(material))]
+        private void UseMaterial(RenderMaterial newMaterial)
+        {
+            material = newMaterial;
+            Pass = material.IsTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
+            CanRenderDepth = Pass == RenderPass.Opaque && !OnlyRenderInEffectsWaterPass && material.Shader.DepthMode != null;
         }
 
         private int SetupBuffers()

@@ -302,6 +302,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc cref="SetTextureOverride(string)"/>
         public void SetTextureOverride(RenderTexture texture) => particleRenderer.SetTextureOverride(texture);
 
+        /// <summary>
+        /// Replaces the material drawn by every renderer in this system and its children that draws with
+        /// one. Call before adding the node to the scene, as the material can change the passes it draws in.
+        /// </summary>
+        public void SetMaterialOverride(RenderMaterial material)
+        {
+            particleRenderer.SetMaterialOverride(material);
+            RenderPasses = particleRenderer.Passes;
+        }
+
         /// <summary>Gets the control point at the given index from the particle renderer.</summary>
         /// <param name="index">The index of the control point to retrieve.</param>
         /// <returns>The control point at the specified index.</returns>

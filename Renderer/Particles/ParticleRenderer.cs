@@ -29,9 +29,9 @@ namespace ValveResourceFormat.Renderer.Particles
 
         /// <summary>
         /// The passes this system draws in, unioned over its renderers and its children's. Fixed once
-        /// the system is built.
+        /// the system is built, unless its material is overridden.
         /// </summary>
-        public CustomRenderPasses Passes { get; }
+        public CustomRenderPasses Passes { get; private set; }
 
         /// <summary>
         /// Whether this system, or any system nested under it, soft-fades against the scene.
@@ -405,6 +405,25 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 childRenderer.SetTextureOverride(texture);
             }
+        }
+
+        /// <summary>
+        /// Replaces the material every renderer in this system and its children draws with, and collects
+        /// the passes again since the material decides them.
+        /// </summary>
+        public void SetMaterialOverride(RenderMaterial material)
+        {
+            foreach (var renderer in renderers)
+            {
+                renderer.SetMaterialOverride(material);
+            }
+
+            foreach (var childRenderer in childRenderers)
+            {
+                childRenderer.SetMaterialOverride(material);
+            }
+
+            Passes = CollectPasses();
         }
 
         // todo: set this when viewer checkbox is toggled
