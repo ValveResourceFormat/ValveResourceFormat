@@ -126,6 +126,7 @@ namespace CLI
         /// <param name="skip_softbody_reconstruction">Skip reconstructing soft-body (cloth) physics when decompiling models.</param>
         /// <param name="vpk_list">-l, List all files in the given VPK or folder. File extension and path filters apply.</param>
         /// <param name="vpk_dir">Same as --vpk_list, but also print the archive index, offset and metadata size of each file.</param>
+        /// <param name="kv_flatten">Print a KeyValues1 or KeyValues3 text file as one "path = value" line per value, for comparing two versions of a file with a line diff. Use "-i -" to read from stdin.</param>
         /// <param name="gltf_export_format">Export meshes and models in the given glTF format, "gltf" or "glb". Implies --vpk_decompile.</param>
         /// <param name="gltf_export_materials">Export materials during glTF exports.</param>
         /// <param name="gltf_export_animations">Export model animations during glTF exports.</param>
@@ -168,6 +169,7 @@ namespace CLI
             bool skip_softbody_reconstruction = false,
             bool vpk_list = false,
             bool vpk_dir = false,
+            bool kv_flatten = false,
 
             [HideDefaultValue] string? gltf_export_format = default,
             bool gltf_export_materials = false,
@@ -389,12 +391,23 @@ namespace CLI
                 return 1;
             }
 
-            bool[] modes = [OutputFile != null, ListResources, VerifyVPKChecksums, VpkCreatePath != null, ShouldPrintBlockContents, CollectStats, HasShaderOptions];
+            bool[] modes = [OutputFile != null, ListResources, VerifyVPKChecksums, VpkCreatePath != null, ShouldPrintBlockContents, CollectStats, HasShaderOptions, kv_flatten];
 
             if (modes.Count(mode => mode) > 1)
             {
-                Console.Error.WriteLine("Only one of --output, --vpk_list (or --vpk_dir), --vpk_verify, --vpk_create, --block (or --all), --test, and the shader options can be used at a time.");
+                Console.Error.WriteLine("Only one of --output, --vpk_list (or --vpk_dir), --vpk_verify, --vpk_create, --block (or --all), --test, --kv_flatten, and the shader options can be used at a time.");
                 return 1;
+            }
+
+            if (kv_flatten)
+            {
+                if (hasFilters || RecursiveSearch || RecursiveSearchArchives || Quiet)
+                {
+                    Console.Error.WriteLine("--kv_flatten only takes a single file as --input.");
+                    return 1;
+                }
+
+                return FlattenKeyValues(input == "-" ? null : InputFile);
             }
 
             // Input

@@ -27,6 +27,7 @@ The binary name is `Source2Viewer-CLI`.
 | `--skip_softbody_reconstruction` | Skip reconstructing soft-body (cloth) physics when decompiling models.                                                                                                                                                                                                                                       |
 | `--vpk_list` (or `-l`)       | List all files in the given VPK or folder. File extension and path filters apply.                                                                                                                                                                                                                                |
 | `--vpk_dir`                  | Same as `--vpk_list`, but also print the archive index, offset and metadata size of each file.                                                                                                                                                                                                                   |
+| `--kv_flatten`               | Print a KeyValues1 or KeyValues3 text file as one `path = value` line per value, for comparing two versions of a file with a line diff. Use `-i -` to read from stdin.                                                                                                                                         |
 | **Type specific export**     |                                                                                                                                                                                                                                                                                                                  |
 | `--gltf_export_format`       | Export meshes and models in the given glTF format, `"gltf"` or `"glb"`. Implies `--vpk_decompile`.                                                                                                                                                                                                               |
 | `--gltf_export_materials`    | Export materials during glTF exports.                                                                                                                                                                                                                                                                            |
@@ -54,7 +55,7 @@ The exit code is `0` on success, `1` for invalid arguments, and `2` when any fil
 
 ### Good to know
 
-- Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_verify`, `--vpk_create`, `--block` (or `--all`), `--test`, and the shader options can be used at a time.
+- Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_verify`, `--vpk_create`, `--block` (or `--all`), `--test`, `--kv_flatten`, and the shader options can be used at a time.
 - Paths starting with `steam:<appid>/` are relative to the installation folder of that Steam app, so `-i steam:730/game/csgo/pak01_dir.vpk` works on any computer with Counter-Strike 2 installed. "Copy full path" in Source 2 Viewer copies `vpk:` links in this form, which can be passed to `--input` to process the file or folder they point to.
 - Pass the `_dir.vpk` of a multi-chunk package (`pak01_dir.vpk`), not one of the numbered `pak01_000.vpk` chunks.
 - Use `--vpk_list` to find the exact path of a file, then filter on it with `--vpk_filepath`. The filter matches the start of the path, so `models/chicken/` works but `chicken` does not, use `*chicken*` instead.
@@ -144,6 +145,16 @@ Use "Copy full path" on a file in Source 2 Viewer, and pass the copied link as t
 
 ```powershell
 ./Source2Viewer-CLI.exe -i "vpk:steam:730/game/csgo/pak01_dir.vpk:scripts/items/items_game.txt" -o -
+```
+
+### Compare two versions of a KeyValues file
+
+`--kv_flatten` prints every value on its own line with its full path, such as `items["5316"].attributes["volatile container"].value = 1`, so a line diff shows each changed value with its context. Array elements are keyed by the first of their `m_strPropertyName`, `m_name`, `name`, `m_strName`, `m_Name` or `_class` members, otherwise by index. Repeated keys and array elements get a `#2`, `#3`, ... suffix, except for KeyValues1 blocks split into several with the same name, which are merged. KeyValues1 conditionals are evaluated for the current platform, and `#base`/`#include` lines are printed but not followed.
+
+```bash
+git show HEAD~1:scripts/abilities.vdata | ./Source2Viewer-CLI --kv_flatten -i - > old.txt
+./Source2Viewer-CLI --kv_flatten -i scripts/abilities.vdata > new.txt
+diff old.txt new.txt
 ```
 
 ### Decompile a specific file
