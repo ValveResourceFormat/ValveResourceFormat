@@ -280,6 +280,11 @@ public static partial class ShaderSpirvReflection
                 RenameResource(compiler, resources, SpirvResourceType.StageOutput, vulkanSource);
 
                 RenameSpecializationConstants(compiler, vulkanSource);
+
+                if (backend == Backend.HLSL)
+                {
+                    RemapVertexInputSemantics(compiler, resources, vulkanSource);
+                }
             }
 
             result = SpirvCrossApi.spvc_compiler_compile(compiler, out var compiledCode);
@@ -392,6 +397,36 @@ public static partial class ShaderSpirvReflection
         }
     }
 
+    // Without a remap, SPIRV-Cross gives every vertex input a TEXCOORD semantic
+    private static unsafe void RemapVertexInputSemantics(spvc_compiler compiler, spvc_resources resources, VfxShaderFileVulkan vulkanSource)
+    {
+        if (vulkanSource.ParentCombo?.ParentProgramData?.VcsProgramType is not VcsProgramType.VertexShader)
+        {
+            return;
+        }
+
+        foreach (var input in SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, SpirvResourceType.StageInput))
+        {
+            var location = SpirvCrossApi.spvc_compiler_get_decoration(compiler, input.id, SpvDecoration.Location);
+
+            if (!vulkanSource.TryGetInputSemantic(location, out var semanticName, out var semanticIndex))
+            {
+                continue;
+            }
+
+            fixed (byte* semantic = $"{semanticName}{semanticIndex}".GetUtf8Span())
+            {
+                var remap = new spvc_hlsl_vertex_attribute_remap
+                {
+                    location = location,
+                    semantic = semantic,
+                };
+
+                SpirvCrossApi.spvc_compiler_hlsl_add_vertex_attribute_remap(compiler, &remap, 1);
+            }
+        }
+    }
+
     private static void RenameResource(spvc_compiler compiler, spvc_resources resources, SpirvResourceType resourceType,
         VfxShaderFile shaderFile)
     {
@@ -496,9 +531,6 @@ public static partial class ShaderSpirvReflection
                 SpirvResourceType.StageOutput => GetStageAttributeName(location, input: false),
                 _ => string.Empty
             };
-
-            // todo: add d3d semantic to hlsl vs input
-            // spvc_compiler_hlsl_add_vertex_attribute_remap(location, semantic)
 
             if (string.IsNullOrEmpty(name))
             {

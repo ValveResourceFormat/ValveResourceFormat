@@ -43,8 +43,8 @@ static uint nInstanceIdx;
 
 struct VS_INPUT
 {
-    float3 vPositionOs : TEXCOORD0;
-    uint nInstanceIdx : TEXCOORD1;
+    float3 vPositionOs : POSITION0;
+    uint nInstanceIdx : TEXCOORD13;
 };
 
 struct PS_INPUT

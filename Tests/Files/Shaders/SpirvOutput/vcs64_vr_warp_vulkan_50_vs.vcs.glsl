@@ -13,10 +13,10 @@ static float2 output_2;
 
 struct VS_INPUT
 {
-    float2 vPositionPs : TEXCOORD0;
-    float2 vTexCoordR : TEXCOORD1;
-    float2 vTexCoordG : TEXCOORD2;
-    float2 vTexCoordB : TEXCOORD3;
+    float2 vPositionPs : POSITION0;
+    float2 vTexCoordR : TEXCOORD0;
+    float2 vTexCoordG : TEXCOORD1;
+    float2 vTexCoordB : TEXCOORD2;
 };
 
 struct PS_INPUT
