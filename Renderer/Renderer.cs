@@ -276,6 +276,7 @@ public class Renderer : ISpawnGroupHost
     private readonly WorldFogInfo skyFog = new();
 
     private readonly HashSet<Scene> scenesUpdated = [];
+    private readonly HashSet<Scene> scenesCulled = [];
     private readonly Dictionary<SpawnGroup, Entities.SkyCamera?> skyCameras = [];
     private readonly List<Scene> sunCasters = [];
 
@@ -972,6 +973,8 @@ public class Renderer : ISpawnGroupHost
     {
         LoadShaderTextures();
 
+        CullClutter(renderContext.Camera);
+
         // Render backfaces into shadow maps
         GL.FrontFace(FrontFaceDirection.Cw);
 
@@ -981,6 +984,24 @@ public class Renderer : ISpawnGroupHost
         GL.FrontFace(FrontFaceDirection.Ccw);
 
         RenderScenesWithView(renderContext);
+    }
+
+    /// <summary>Thins the clutter of every scene the views of this frame draw, as seen from each scene's own view.</summary>
+    private void CullClutter(Camera camera)
+    {
+        scenesCulled.Clear();
+
+        foreach (var view in CollectViews(camera))
+        {
+            foreach (var state in view.States)
+            {
+                if (scenesCulled.Add(state.Scene) && state.Scene is { ClutterCuller: { } culler, TransformBufferGpu: { } transforms })
+                {
+                    using var _ = new GLDebugGroup("Cull Clutter");
+                    culler.Cull(view.Camera, transforms);
+                }
+            }
+        }
     }
 
     /// <summary>

@@ -30,9 +30,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the per-instance transform matrices used for instanced drawing.</summary>
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
 
-        /// <summary>Gets how many of the first <see cref="InstanceTransforms"/> are drawn this frame.</summary>
-        public virtual int VisibleInstanceCount => InstanceTransforms.Count;
-
         /// <summary>Gets or sets whether this aggregate can use GPU indirect drawing.</summary>
         public bool CanDrawIndirect { get; set; }
 

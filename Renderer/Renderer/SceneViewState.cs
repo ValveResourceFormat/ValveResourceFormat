@@ -372,11 +372,6 @@ public sealed class SceneViewState : IDisposable
             {
                 if (aggregate.InstanceTransforms.Count > 0)
                 {
-                    if (aggregate.VisibleInstanceCount == 0)
-                    {
-                        continue;
-                    }
-
                     foreach (var call in aggregate.RenderMesh.DrawCallsOpaque)
                     {
                         Add(new MeshBatchRenderer.Request

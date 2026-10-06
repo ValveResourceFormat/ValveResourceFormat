@@ -208,33 +208,29 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
-            var maxInstanceScale = clutter.InstanceScales.Max();
+            var instancesByTint = clutter.Tiles
+                .SelectMany(tile => Enumerable.Range(tile.FirstInstance, tile.EndInstance - tile.FirstInstance).Select(instance => (Index: instance, Tile: tile)))
+                .GroupBy(instance => clutter.InstanceTints[instance.Index]);
 
-            foreach (var tile in clutter.Tiles)
+            foreach (var instances in instancesByTint)
             {
-                var tileInstanceCount = tile.EndInstance - tile.FirstInstance;
-                var instancesByTint = Enumerable.Range(tile.FirstInstance, tileInstanceCount)
-                    .GroupBy(instance => clutter.InstanceTints[instance]);
+                var sceneInstances = instances
+                    .Select(instance => new SceneClutter.Instance(
+                        clutter.GetInstanceTransform(instance.Index) * root,
+                        clutter.InstanceScales[instance.Index],
+                        instance.Index - instance.Tile.FirstInstance,
+                        instance.Tile.EndInstance - instance.Tile.FirstInstance))
+                    .ToArray();
 
-                foreach (var instances in instancesByTint)
+                scene.Add(new SceneClutter(scene, model, clutter.MaterialGroup, clutter.EndCullSize, sceneInstances)
                 {
-                    var tileInstances = instances
-                        .Select(instance => (
-                            clutter.GetInstanceTransform(instance) * root,
-                            SceneClutterTile.GetDensityThreshold(instance - tile.FirstInstance, tileInstanceCount, clutter.EndCullSize)))
-                        .ToArray();
-
-                    scene.Add(new SceneClutterTile(scene, model, clutter.MaterialGroup, maxInstanceScale, tileInstances)
-                    {
-                        LayerName = LayerNames[clutter.Layer],
-                        Name = clutter.RenderableModel,
-                        Flags = clutter.Flags,
-                        AllFlags = clutter.Flags,
-                        AnyFlags = clutter.Flags,
-                        Tint = instances.Key / 255f,
-                        LocalBoundingBox = tile.Bounds.Transform(root),
-                    }, false);
-                }
+                    LayerName = LayerNames[clutter.Layer],
+                    Name = clutter.RenderableModel,
+                    Flags = clutter.Flags,
+                    AllFlags = clutter.Flags,
+                    AnyFlags = clutter.Flags,
+                    Tint = instances.Key / 255f,
+                }, false);
             }
         }
 

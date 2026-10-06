@@ -175,6 +175,10 @@ namespace ValveResourceFormat.Renderer
 
         internal Shader? FrustumCullShader { get; private set; }
         internal Shader? CompactionShader { get; private set; }
+
+        /// <summary>Gets the GPU thinning of the scene's clutter, or <see langword="null"/> when it has none.</summary>
+        internal ClutterCuller? ClutterCuller { get; private set; }
+
         internal Shader? OutlineShader { get; private set; }
 
         internal LightBinner? ShadingLightBinner { get; set; }
@@ -752,6 +756,11 @@ namespace ValveResourceFormat.Renderer
                     WriteDrawEntries(meshNode);
                 }
             }
+
+            ClutterCuller?.Delete();
+            ClutterCuller = nodes.OfType<SceneClutter>().ToList() is { Count: > 0 } clutterNodes
+                ? new ClutterCuller(RendererContext, clutterNodes, instanceData)
+                : null;
 
             InstanceBufferGpu = Upload<InstanceDataStandard>(InstanceBufferGpu, instanceData.AsSpan(0, totalEntryCount),
                 ReservedBufferSlots.Instances, nameof(ReservedBufferSlots.Instances));
@@ -1456,7 +1465,7 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    if (aggregate.VisibleInstanceCount == 0)
+                    if (aggregate.InstanceTransforms.Count == 0)
                     {
                         continue;
                     }
@@ -2148,6 +2157,7 @@ namespace ValveResourceFormat.Renderer
                 LightingInfo.DisposeBarnLights();
 
                 DeleteIndirectDrawBuffers();
+                ClutterCuller?.Delete();
                 InstanceBufferGpu?.Delete();
                 ObjectBufferGpu?.Delete();
                 TransformBufferGpu?.Delete();
@@ -2159,6 +2169,7 @@ namespace ValveResourceFormat.Renderer
                 TransformBufferGpu = null;
                 ObjectLodGpu = null;
                 ActiveLodBitsGpu = null;
+                ClutterCuller = null;
             }
         }
     }

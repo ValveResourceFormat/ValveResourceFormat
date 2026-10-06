@@ -329,11 +329,18 @@ namespace ValveResourceFormat.Renderer
                 request.Node.Scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
             }
 
+            if (request.Node is SceneClutter clutter)
+            {
+                PerfStats.Active.CountDrawCall(request.Node);
+                clutter.Scene.ClutterCuller?.Draw(clutter, request.Call);
+                return;
+            }
+
             var instanceCount = 1;
 
             if (request.Node is SceneAggregate { InstanceTransforms.Count: > 0 } aggregate)
             {
-                instanceCount = aggregate.VisibleInstanceCount;
+                instanceCount = aggregate.InstanceTransforms.Count;
             }
 
             PerfStats.Active.CountDrawCall(request.Node);

@@ -45,11 +45,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>Gets the tiles that split the instances into spatially grouped ranges.</summary>
         public Tile[] Tiles { get; }
 
-        /// <summary>A contiguous range of instances with the world space bounds they cover.</summary>
+        /// <summary>A contiguous range of spatially grouped instances.</summary>
         /// <param name="FirstInstance">Index of the first instance in the tile.</param>
         /// <param name="EndInstance">Index one past the last instance in the tile.</param>
-        /// <param name="Bounds">World space bounds of the tile's instances.</param>
-        public readonly record struct Tile(int FirstInstance, int EndInstance, AABB Bounds);
+        public readonly record struct Tile(int FirstInstance, int EndInstance);
 
         /// <summary>
         /// Reads a clutter scene object from its keyvalues.
@@ -70,15 +69,7 @@ namespace ValveResourceFormat.ResourceTypes
             InstanceScales = data.GetFloatArray("m_instanceScales");
             InstanceOrientations = [.. data.GetIntegerArray("m_InstanceOrientations32").Select(static packed => MathUtils.UnpackQuaternion32(unchecked((uint)packed)))];
             InstanceTints = [.. data.GetArray("m_instanceTintSrgb").Select(static tint => tint.ToVector3())];
-            Tiles = [.. data.GetArray("m_tiles").Select(static tile =>
-            {
-                var bounds = tile.GetSubCollection("m_BoundsWs");
-
-                return new Tile(
-                    tile.GetInt32Property("m_nFirstInstance"),
-                    tile.GetInt32Property("m_nLastInstance"),
-                    new AABB(bounds.GetSubCollection("m_vMinBounds").ToVector3(), bounds.GetSubCollection("m_vMaxBounds").ToVector3()));
-            })];
+            Tiles = [.. data.GetArray("m_tiles").Select(static tile => new Tile(tile.GetInt32Property("m_nFirstInstance"), tile.GetInt32Property("m_nLastInstance")))];
         }
 
         /// <summary>

@@ -392,19 +392,5 @@ namespace ValveResourceFormat.Utils
 
             return new Quaternion(x, y, z, (packed & 0x80000000) != 0 ? -w : w);
         }
-
-        /// <summary>
-        /// Hashes one value with the single word xxHash32 variant common in shader code, seed 0.
-        /// </summary>
-        /// <param name="value">The value to hash.</param>
-        public static uint HashUInt32(uint value)
-        {
-            var hash = value + 374761393u;
-            hash = 668265263u * BitOperations.RotateLeft(hash, 17);
-            hash = 2246822519u * (hash ^ (hash >> 15));
-            hash = 3266489917u * (hash ^ (hash >> 13));
-
-            return hash ^ (hash >> 16);
-        }
     }
 }
