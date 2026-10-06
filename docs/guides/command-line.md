@@ -56,7 +56,7 @@ The exit code is `0` on success, `1` for invalid arguments, and `2` when any fil
 ### Good to know
 
 - Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_verify`, `--vpk_create`, `--block` (or `--all`), `--test`, `--kv_flatten`, and the shader options can be used at a time.
-- Paths starting with `steam:<appid>/` are relative to the installation folder of that Steam app, so `-i steam:730/game/csgo/pak01_dir.vpk` works on any computer with Counter-Strike 2 installed. "Copy full path" in Source 2 Viewer copies `vpk:` links in this form, which can be passed to `--input` to process the file or folder they point to.
+- Paths starting with `steam:<appid>/` are relative to the installation folder of that Steam app, so `-i steam:730/game/csgo/pak01_dir.vpk` works on any computer with Counter-Strike 2 installed. **Copy URL** in Source 2 Viewer copies `vpk:` links in this form, which can be passed to `--input` to process the file or folder they point to.
 - Pass the `_dir.vpk` of a multi-chunk package (`pak01_dir.vpk`), not one of the numbered `pak01_000.vpk` chunks.
 - Use `--vpk_list` to find the exact path of a file, then filter on it with `--vpk_filepath`. The filter matches the start of the path, so `models/chicken/` works but `chicken` does not, use `*chicken*` instead.
 - For VPK input, `--output` without `--vpk_decompile` writes the compiled files as they are stored. A single compiled file on disk is decompiled whenever `--output` is given.
@@ -141,7 +141,7 @@ Or decompile the entities of every map:
 
 ### Print a file copied from Source 2 Viewer
 
-Use "Copy full path" on a file in Source 2 Viewer, and pass the copied link as the input:
+Use **Copy URL** on a file in Source 2 Viewer, and pass the copied link as the input:
 
 ```powershell
 ./Source2Viewer-CLI.exe -i "vpk:steam:730/game/csgo/pak01_dir.vpk:scripts/items/items_game.txt" -o -
