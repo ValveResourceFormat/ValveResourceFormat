@@ -408,17 +408,10 @@ namespace ValveResourceFormat.CompiledShader
         /// Parses a dynamic expression from bytecode.
         /// </summary>
         /// <param name="bytecode">The dynamic expression bytecode.</param>
-        /// <returns>The parsed expression string, or an error message if parsing fails.</returns>
+        /// <returns>The parsed expression string.</returns>
         public static string ParseDynamicExpression(byte[] bytecode)
         {
-            try
-            {
-                return new VfxEval(bytecode, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR", StringComparison.InvariantCulture);
-            }
-            catch (Exception)
-            {
-                return "[error in dyn-exp]";
-            }
+            return new VfxEval(bytecode, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR", StringComparison.InvariantCulture);
         }
 
         // This must be in sync with VfxVariableType without gaps

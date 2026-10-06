@@ -387,8 +387,7 @@ public sealed class ShaderExtract
                 var renderState = staticCombo.DynamicComboRenderStates[i];
                 var dynamicConfigState = dynamicConfig.GetConfigState(renderState.DynamicComboId);
 
-                // VsInputSignatureIndices is one entry per dynamic combo, indexed positionally.
-                var vsInputId = staticCombo.VsInputSignatureIndices[i];
+                var vsInputId = staticCombo.GetVsInputSignatureIndex(renderState.DynamicComboId);
 
                 for (var j = 0; j < staticConfigState.Length; j++)
                 {
@@ -699,9 +698,10 @@ public sealed class ShaderExtract
                     variant0Source.Append(glsl.GetDecompiledFile());
                     variant0Source.AppendLine("// ---------  GLSL source end  --------- ");
                 }
-                else if (gpuSource is VfxShaderFileVulkan spirv && !spirv.IsEmpty() && ShaderUtilHelpers.IsSpirvCrossAvailable())
+                else if (gpuSource is VfxShaderFileVulkan spirv && !spirv.IsEmpty() && ShaderUtilHelpers.IsSpirvCrossAvailable()
+                    && spirv.TryGetDecompiledFile(out var decompiledSpirv))
                 {
-                    variant0Source.Append(spirv.GetDecompiledFile());
+                    variant0Source.Append(decompiledSpirv);
                     variant0Source.AppendLine("// ---------  SPIRV -> HLSL end  --------- ");
                 }
             }

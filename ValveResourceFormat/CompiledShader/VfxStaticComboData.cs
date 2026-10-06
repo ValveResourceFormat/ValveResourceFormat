@@ -25,7 +25,10 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>Gets the shader attributes.</summary>
         public VfxShaderAttribute[] Attributes { get; } = [];
 
-        /// <summary>Gets the vertex shader input signature indices, one entry per dynamic combo, indexing <see cref="VfxProgramData.VsInputSignatures"/>.</summary>
+        /// <summary>
+        /// Gets the vertex shader input signature indices, one entry per dynamic combo addressed with <see cref="GetDynamicComboIndex"/>,
+        /// indexing <see cref="VfxProgramData.VsInputSignatures"/>, or -1 for combos that were not compiled.
+        /// </summary>
         public int[] VsInputSignatureIndices { get; } = [];
 
         /// <summary>Gets the variable write sequences, one per dynamic combo.</summary>
@@ -65,7 +68,7 @@ namespace ValveResourceFormat.CompiledShader
 
         /// <summary>
         /// Gets the index to address the per dynamic combo arrays with (<see cref="DynamicComboVariables"/>,
-        /// <see cref="ConstantBufferBindingSlots"/>, <see cref="ConstantBufferBindingFlags"/>).
+        /// <see cref="ConstantBufferBindingSlots"/>, <see cref="ConstantBufferBindingFlags"/>, <see cref="VsInputSignatureIndices"/>).
         /// </summary>
         /// <param name="dynamicComboId">The dynamic combo id, as found on <see cref="VfxRenderStateInfo.DynamicComboId"/>.</param>
         /// <returns>The array index, or -1 when this combo is not present in this static combo.</returns>
@@ -77,6 +80,20 @@ namespace ValveResourceFormat.CompiledShader
             }
 
             return dynamicComboIdToIndex.TryGetValue(dynamicComboId, out var index) ? index : -1;
+        }
+
+        /// <summary>
+        /// Gets the index into <see cref="VfxProgramData.VsInputSignatures"/> that a dynamic combo of this vertex shader uses.
+        /// </summary>
+        /// <param name="dynamicComboId">The dynamic combo id, as found on <see cref="VfxRenderStateInfo.DynamicComboId"/>.</param>
+        /// <returns>The signature index, or -1 when the combo is not present or has no input signature.</returns>
+        public int GetVsInputSignatureIndex(long dynamicComboId)
+        {
+            var dynamicComboIndex = GetDynamicComboIndex(dynamicComboId);
+
+            return dynamicComboIndex >= 0 && dynamicComboIndex < VsInputSignatureIndices.Length
+                ? VsInputSignatureIndices[dynamicComboIndex]
+                : -1;
         }
 
         /// <summary>

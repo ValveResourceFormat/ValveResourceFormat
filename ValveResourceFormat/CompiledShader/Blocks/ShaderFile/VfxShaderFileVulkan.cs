@@ -271,8 +271,20 @@ public class VfxShaderFileVulkan : VfxShaderFile
     /// <inheritdoc/>
     /// <remarks>
     /// Decompiles SPIR-V bytecode to HLSL or GLSL using SPIRV-Cross reflection, attempting multiple backends until successful.
+    /// When every backend fails, the errors are returned as comments.
     /// </remarks>
     public override string GetDecompiledFile()
+    {
+        TryGetDecompiledFile(out var code);
+        return code;
+    }
+
+    /// <summary>
+    /// Decompiles SPIR-V bytecode to HLSL or GLSL using SPIRV-Cross reflection, attempting multiple backends until successful.
+    /// </summary>
+    /// <param name="code">The decompiled code, or the errors of each backend as comments when every backend failed.</param>
+    /// <returns><see langword="true"/> if a backend succeeded.</returns>
+    public bool TryGetDecompiledFile(out string code)
     {
         using var buffer = new StringWriter(CultureInfo.InvariantCulture);
 
@@ -280,16 +292,17 @@ public class VfxShaderFileVulkan : VfxShaderFile
         for (var i = 0; i < backendsToTry.Length; i++)
         {
             var backend = backendsToTry[i];
-            var success = ShaderSpirvReflection.ReflectSpirv(this, backend, out var code);
+            var success = ShaderSpirvReflection.ReflectSpirv(this, backend, out var backendCode);
             if (success)
             {
-                buffer.Write(code);
-                break;
+                buffer.Write(backendCode);
+                code = buffer.ToString();
+                return true;
             }
 
             buffer.WriteLine($"// SPIR-V reflection failed for backend {backend}:");
 
-            foreach (var line in code.AsSpan().EnumerateLines())
+            foreach (var line in backendCode.AsSpan().EnumerateLines())
             {
                 if (line.Length == 0)
                 {
@@ -308,6 +321,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
             }
         }
 
-        return buffer.ToString();
+        code = buffer.ToString();
+        return false;
     }
 }

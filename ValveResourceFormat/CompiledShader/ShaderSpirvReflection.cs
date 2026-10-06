@@ -360,11 +360,10 @@ public static partial class ShaderSpirvReflection
             return;
         }
 
-        // Arrays that are one entry per dynamic combo (such as VsInputSignatureIndices) are indexed by the position of the
-        // combo, which is only the same as its id when no combos were skipped, and never the same as the shader file id.
-        var dynamicComboIndex = Array.FindIndex(staticComboData.DynamicComboRenderStates, r => r.ShaderFileId == shaderFile.ShaderFileId);
-        var dynamicComboId = dynamicComboIndex >= 0 ? staticComboData.DynamicComboRenderStates[dynamicComboIndex].DynamicComboId : 0;
-        var writeSequence = staticComboData.DynamicComboVariables[Math.Max(staticComboData.GetDynamicComboIndex(dynamicComboId), 0)];
+        // The shader file id is not the dynamic combo id, look up the combo that uses this file
+        var renderState = Array.Find(staticComboData.DynamicComboRenderStates, r => r.ShaderFileId == shaderFile.ShaderFileId);
+        var dynamicComboIndex = renderState != null ? staticComboData.GetDynamicComboIndex(renderState.DynamicComboId) : -1;
+        var writeSequence = staticComboData.DynamicComboVariables[Math.Max(dynamicComboIndex, 0)];
 
         var bindingConfig = GetBindingConfiguration(program.VcsVersion, program.VcsProgramType);
         var hasBindlessResources =
@@ -394,9 +393,10 @@ public static partial class ShaderSpirvReflection
             ? vulkanSource
             : null;
 
-        if (vertexLayout is not null && dynamicComboIndex >= 0 && dynamicComboIndex < staticComboData.VsInputSignatureIndices.Length)
+        if (vertexLayout is not null && renderState != null
+            && staticComboData.GetVsInputSignatureIndex(renderState.DynamicComboId) is >= 0 and var vsInputSignatureIndex)
         {
-            vsInputSignature = program.VsInputSignatures[staticComboData.VsInputSignatureIndices[dynamicComboIndex]].Elements;
+            vsInputSignature = program.VsInputSignatures[vsInputSignatureIndex].Elements;
         }
 
         // Fallback (set, binding) for the synthesized _Globals_ uniform buffer when VCS has no matching Cbuffer variable:

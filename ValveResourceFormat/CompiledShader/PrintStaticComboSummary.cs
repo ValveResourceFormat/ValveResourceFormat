@@ -202,10 +202,7 @@ namespace ValveResourceFormat.CompiledShader
                 }
 
                 var sourceLink = $"{shaderFile.ShaderFileId:X2}";
-                // VsInputSignatureIndices is one entry per dynamic combo, indexed positionally.
-                var vsInputs = isVertexShader && renderStateIndex < StaticCombo.VsInputSignatureIndices.Length
-                    ? StaticCombo.VsInputSignatureIndices[renderStateIndex]
-                    : -1;
+                var vsInputs = isVertexShader ? StaticCombo.GetVsInputSignatureIndex(renderState.DynamicComboId) : -1;
                 var gpuInputText = vsInputs >= 0 ? $"VS[{vsInputs}]" : "[none]";
                 var bindSlotText = $"{StaticCombo.ConstantBufferBindingSlots[dynamicComboIndex]}";
                 var bindFlagText = $"{StaticCombo.ConstantBufferBindingFlags[dynamicComboIndex]}";

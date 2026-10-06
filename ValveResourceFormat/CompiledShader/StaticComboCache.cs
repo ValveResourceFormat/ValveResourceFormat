@@ -18,9 +18,12 @@ namespace ValveResourceFormat.CompiledShader
             get => maxCacheSize;
             set
             {
-                maxCacheSize = Math.Max(value, 1);
-                cache.EnsureCapacity(maxCacheSize);
-                Trim();
+                lock (Program)
+                {
+                    maxCacheSize = Math.Max(value, 1);
+                    cache.EnsureCapacity(maxCacheSize);
+                    Trim();
+                }
             }
         }
 
@@ -60,7 +63,14 @@ namespace ValveResourceFormat.CompiledShader
         /// </summary>
         public void EnsureMinimumCacheSize(int size)
         {
-            MaxCachedCombos = Math.Max(size, MaxCachedCombos);
+            lock (Program)
+            {
+                if (size > maxCacheSize)
+                {
+                    maxCacheSize = size;
+                    cache.EnsureCapacity(size);
+                }
+            }
         }
 
         private void Trim()
@@ -85,9 +95,12 @@ namespace ValveResourceFormat.CompiledShader
         /// </summary>
         public void Dispose()
         {
-            foreach (var staticCombo in cache.Values)
+            lock (Program)
             {
-                staticCombo.DetachFromProgram();
+                foreach (var staticCombo in cache.Values)
+                {
+                    staticCombo.DetachFromProgram();
+                }
             }
         }
     }

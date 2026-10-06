@@ -476,6 +476,7 @@ namespace Tests.Formats
 
         public static IEnumerable<(string, int, int)> SpirvReflectionTestCases()
         {
+            yield return ("vcs64_vr_warp_vulkan_50_vs.vcs", 0, 2); // Skipped dynamic combos, per combo arrays are indexed by combo id
             yield return ("vcs65_compute_depthbin_cullbits_vulkan_50_cs.vcs", 0, 0);
             yield return ("vcs68_tower_force_field_vulkan_40_vs.vcs", 0, 9);
             yield return ("vcs68_tower_force_field_vulkan_40_ps.vcs", 1, 1);

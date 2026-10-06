@@ -99,7 +99,7 @@ namespace ValveResourceFormat.ResourceTypes
                     shader.Dispose();
                 }
 
-                tempShaders.Clear();
+                throw;
             }
 
             foreach (var shader in tempShaders)
