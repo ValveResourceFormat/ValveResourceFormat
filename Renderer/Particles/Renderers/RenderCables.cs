@@ -284,32 +284,36 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return total;
         }
 
-        // Expands each particle segment into 2^level rings, interpolating position/radius/colour/V.
+        // Expands each particle segment into 2^level rings. Position and radius follow a Catmull-Rom spline
+        // through the particles, with the end particles repeated past both ends; colour and V are linear.
         // Fills exactly TotalRings entries of the (pooled, possibly larger) output arrays.
         private static void BuildRings(ReadOnlySpan<Vector3> positions, ReadOnlySpan<(int Id, Vector3 Position, float Radius, Vector3 Color)> chain,
             ReadOnlySpan<int> levels, float repeats, Span<Vector3> ringPositions, Span<RopeSample> ringSamples)
         {
             var cursor = 0;
+            var last = positions.Length - 1;
 
             for (var i = 0; i < levels.Length; i++)
             {
+                var before = Math.Max(i - 1, 0);
+                var after = Math.Min(i + 2, last);
+
                 var subdivisions = 1 << levels[i];
                 for (var s = 0; s < subdivisions; s++)
                 {
                     var t = s / (float)subdivisions;
-                    var position = Vector3.Lerp(positions[i], positions[i + 1], t);
+                    var position = CableMeshBuilder.CatmullRom(positions[before], positions[i], positions[i + 1], positions[after], t);
                     ringPositions[cursor] = position;
 
                     // Particles are roughly evenly spaced, so index-based V tracks arc length.
                     ringSamples[cursor] = new RopeSample(position,
-                        float.Lerp(chain[i].Radius, chain[i + 1].Radius, t),
+                        CableMeshBuilder.CatmullRom(chain[before].Radius, chain[i].Radius, chain[i + 1].Radius, chain[after].Radius, t),
                         Vector3.Lerp(chain[i].Color, chain[i + 1].Color, t),
                         (i + t) * repeats, false);
                     cursor++;
                 }
             }
 
-            var last = positions.Length - 1;
             ringPositions[cursor] = positions[last];
             ringSamples[cursor] = new RopeSample(positions[last], chain[last].Radius, chain[last].Color, last * repeats, false);
         }
