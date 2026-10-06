@@ -2974,14 +2974,7 @@ public class AnimationGraphExtract : IDisposable
                             }
                             else if (itemKey == "m_tags")
                             {
-                                try
-                                {
-                                    convertedItem.Add("m_tagSpans", ConvertTagSpansArray(item.GetArray("m_tags")));
-                                }
-                                catch
-                                {
-                                    convertedItem.Add("m_tagSpans", KVObject.Array());
-                                }
+                                convertedItem.Add("m_tagSpans", ConvertTagSpansArray(item.GetArray("m_tags")));
                             }
                             else if (itemKey == "m_vPos")
                             {
@@ -3008,14 +3001,7 @@ public class AnimationGraphExtract : IDisposable
                 }
                 if (key == "m_tags")
                 {
-                    try
-                    {
-                        node.Add("m_tagSpans", ConvertTagSpansArray(compiledNode.GetArray("m_tags")));
-                    }
-                    catch
-                    {
-                        node.Add("m_tagSpans", KVObject.Array());
-                    }
+                    node.Add("m_tagSpans", ConvertTagSpansArray(compiledNode.GetArray("m_tags")));
                     continue;
                 }
             }
@@ -3198,15 +3184,7 @@ public class AnimationGraphExtract : IDisposable
                         }
                         if (trigger.ContainsKey("m_tags"))
                         {
-                            try
-                            {
-                                var tagIndices = trigger.GetIntegerArray("m_tags");
-                                convertedItem.Add("m_tags", ConvertTagIndicesArray(tagIndices));
-                            }
-                            catch (InvalidCastException)
-                            {
-                                convertedItem.Add("m_tags", KVObject.Array());
-                            }
+                            convertedItem.Add("m_tags", ConvertTagIndicesArray(trigger.GetIntegerArray("m_tags")));
                         }
                         else
                         {
@@ -3267,27 +3245,12 @@ public class AnimationGraphExtract : IDisposable
                 }
                 else if (key == "m_tags")
                 {
-                    try
-                    {
-                        var tagIndices = compiledNode.GetIntegerArray("m_tags");
-                        node.Add("m_tagSpans", ConvertTagIndicesArray(tagIndices));
-                    }
-                    catch (InvalidCastException)
-                    {
-                        node.Add("m_tagSpans", KVObject.Array());
-                    }
+                    node.Add("m_tagSpans", ConvertTagIndicesArray(compiledNode.GetIntegerArray("m_tags")));
                     continue;
                 }
                 else if (key == "m_paramSpans")
                 {
-                    try
-                    {
-                        node.Add("m_paramSpans", ConvertParamSpans(compiledNode.GetSubCollection("m_paramSpans")));
-                    }
-                    catch
-                    {
-                        node.Add("m_paramSpans", KVObject.Array());
-                    }
+                    node.Add("m_paramSpans", ConvertParamSpans(compiledNode.GetSubCollection("m_paramSpans")));
                     continue;
                 }
             }
@@ -4102,57 +4065,27 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (className is "CSequence" or "CCycleControlClip" or "CBlend2D")
                 {
-                    try
-                    {
-                        node.Add("m_tagSpans", ConvertTagSpansArray(compiledNode.GetArray("m_tags")));
-                    }
-                    catch
-                    {
-                        node.Add("m_tagSpans", KVObject.Array());
-                    }
+                    node.Add("m_tagSpans", ConvertTagSpansArray(compiledNode.GetArray("m_tags")));
                     continue;
                 }
                 else if (className == "CSelector")
                 {
-                    try
-                    {
-                        var tagIndices = compiledNode.GetIntegerArray(key);
-                        node.Add(key, ConvertTagIndicesArray(tagIndices));
-                    }
-                    catch (InvalidCastException)
-                    {
-                        node.Add(key, KVObject.Array());
-                    }
+                    node.Add(key, ConvertTagIndicesArray(compiledNode.GetIntegerArray(key)));
                     continue;
                 }
                 else
                 {
-                    try
-                    {
-                        var tagIds = compiledNode.GetIntegerArray(key);
-                        node.Add(key, MakeArray(tagIds.Select(MakeNodeIdObjectValue)));
-                        continue;
-                    }
-                    catch (InvalidCastException)
-                    {
-                        continue;
-                    }
+                    node.Add(key, MakeArray(compiledNode.GetIntegerArray(key).Select(MakeNodeIdObjectValue)));
+                    continue;
                 }
             }
 
             if (key == "m_paramSpans")
             {
-                try
+                var compiledParamSpans = compiledNode.GetSubCollection("m_paramSpans");
+                if (compiledParamSpans?.ContainsKey("m_spans") == true)
                 {
-                    var compiledParamSpans = compiledNode.GetSubCollection("m_paramSpans");
-                    if (compiledParamSpans?.ContainsKey("m_spans") == true)
-                    {
-                        node.Add("m_paramSpans", ConvertParamSpans(compiledParamSpans));
-                    }
-                }
-                catch
-                {
-                    node.Add("m_paramSpans", KVObject.Array());
+                    node.Add("m_paramSpans", ConvertParamSpans(compiledParamSpans));
                 }
                 continue;
             }

@@ -215,7 +215,7 @@ public partial class ModelExtract
     }
 
     /// <summary>
-    /// Builds the cloth on first use. Cloth that fails to build is reported and left out.
+    /// Builds the cloth on first use.
     /// </summary>
     [MemberNotNull(nameof(cloth))]
     private void EnsureCloth()
@@ -226,16 +226,7 @@ public partial class ModelExtract
         }
 
         cloth = ReconstructSoftbody ? new ClothExtract(model, physAggregateData) : new ClothExtract(null, null);
-
-        try
-        {
-            cloth.Build(fileName, GetDmxFileName_ForCloth);
-        }
-        catch (Exception e)
-        {
-            ProgressReporter?.Report($"Skipping cloth of {ModelName}: {e.Message}");
-            cloth = new ClothExtract(null, null);
-        }
+        cloth.Build(fileName, GetDmxFileName_ForCloth);
     }
 
     /// <summary>

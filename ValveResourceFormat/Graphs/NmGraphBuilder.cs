@@ -189,31 +189,18 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
 
             var childNodeOutput = childNode.AddOutput(childOutputName ?? string.Empty, outputHue);
 
-            TryCreateChildren(childNode, nodeIdx);
+            CreateChildren(childNode, nodeIdx);
 
             return (childNode, childNodeOutput);
         }
 
-        // A malformed index anywhere in the tree costs its own subtree, never the whole graph.
-        void TryCreateChildren(Node node, int nodeIdx)
+        void CreateChildren(Node node, int nodeIdx)
         {
             if (node.NodeType == "Missing" || !IsValidNodeIndex(nodeIdx))
             {
                 return;
             }
 
-            try
-            {
-                CreateChildren(node, nodeIdx);
-            }
-            catch (Exception e) when (e is IndexOutOfRangeException or ArgumentOutOfRangeException)
-            {
-                ProgressReporter?.Report($"Error creating children for {node.Name} (idx = {nodeIdx}).");
-            }
-        }
-
-        void CreateChildren(Node node, int nodeIdx)
-        {
             var data = nodes[nodeIdx];
 
             if (node.NodeType == "StateMachine" && DrawStateMachines)
@@ -866,7 +853,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
         var rootOutput = root.AddOutput(string.Empty, PoseHue);
         document.Connect(rootOutput, finalPoseInput);
 
-        TryCreateChildren(root, rootNodeIdx);
+        CreateChildren(root, rootNodeIdx);
 
         // create some unreferenced nodes
         for (var i = 0; i < nodes.Count; i++)

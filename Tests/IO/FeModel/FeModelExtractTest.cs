@@ -240,29 +240,6 @@ namespace Tests.IO
             }
         }
 
-        /// <summary>A soft body that fails to reconstruct is reported and left out, and the rest of the model still extracts.</summary>
-        [Test]
-        public async Task ClothThatFailsToReconstructIsSkipped()
-        {
-            var reports = new List<string>();
-            var feModel = KVObject.Collection();
-            feModel["m_CtrlName"] = KVObject.Array([new KVObject("a"), new KVObject("b")]);
-            feModel["m_nNodeCount"] = 2;
-            feModel["m_NodeInvMasses"] = KVObject.Array([new KVObject("heavy"), new KVObject("light")]);
-            var phys = new KVPhysAggregateData(feModel);
-            var extract = new ModelExtract(phys, "models/broken.vmdl") { ProgressReporter = new SynchronousProgress(reports) };
-            using var content = extract.ToContentFile();
-            var vmdl = Encoding.UTF8.GetString(content.Data!);
-
-            using (Assert.Multiple())
-            {
-                await Assert.That(vmdl).Contains("_class = \"RootNode\"");
-                await Assert.That(vmdl).DoesNotContain("_class = \"Softbody\"");
-                await Assert.That(reports.Count).IsEqualTo(1);
-                await Assert.That(reports[0]).StartsWith("Skipping cloth of models/broken.vmdl: ");
-            }
-        }
-
         /// <summary>A physics file extracted on its own declares its cloth without a model skeleton.</summary>
         [Test]
         public async Task PhysicsFileOnItsOwnEmitsItsCloth()
@@ -281,14 +258,10 @@ namespace Tests.IO
             }
         }
 
-        /// <summary>
-        /// A soft body whose node counts and parents name nodes it does not have is refused before reconstruction, and the
-        /// rest of the model still extracts.
-        /// </summary>
+        /// <summary>A soft body whose node counts and parents name nodes it does not have is refused before reconstruction.</summary>
         [Test]
         public async Task ClothWithOutOfRangeNodeCountsIsRefused()
         {
-            var reports = new List<string>();
             var phys = new KVPhysAggregateData(new FeModelBuilder
             {
                 Names = ["root", "tip"],
@@ -300,16 +273,10 @@ namespace Tests.IO
                 Positions = [Vector3.Zero, new(0f, 0f, -1f)],
                 Rods = [FeModelBuilder.RigidRod(0, 1, 1f)],
             }.ToKV());
-            using var content = new ModelExtract(phys, "models/layout.vmdl") { ProgressReporter = new SynchronousProgress(reports) }
-                .ToContentFile();
-            var vmdl = Encoding.UTF8.GetString(content.Data!);
+            var extract = new ModelExtract(phys, "models/layout.vmdl");
 
-            using (Assert.Multiple())
-            {
-                await Assert.That(vmdl).Contains("_class = \"RootNode\"");
-                await Assert.That(vmdl).DoesNotContain("_class = \"Softbody\"");
-                await Assert.That(reports).IsEquivalentTo(["Skipping cloth of models/layout.vmdl: The cloth node counts or parents lie outside its nodes."]);
-            }
+            var exception = Assert.Throws<InvalidDataException>(() => extract.ToContentFile());
+            await Assert.That(exception.Message).IsEqualTo("The cloth node counts or parents lie outside its nodes.");
         }
 
         private sealed class KVPhysAggregateData : PhysAggregateData

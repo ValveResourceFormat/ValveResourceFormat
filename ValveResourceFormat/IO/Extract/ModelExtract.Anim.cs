@@ -81,19 +81,7 @@ partial class ModelExtract
             names.Add(anim.Name);
         }
 
-        List<SequenceAnimation> animations;
-
-        try
-        {
-            animations = [.. model.GetAnimationGroupAnimations(fileLoader)];
-        }
-        catch (Exception e)
-        {
-            ProgressReporter?.Report($"Skipping animation group animations: {e.Message}");
-            return;
-        }
-
-        foreach (var anim in animations)
+        foreach (var anim in model.GetAnimationGroupAnimations(fileLoader))
         {
             // Several groups can carry an animation of the same name, and the doc holds one node.
             if (!names.Add(anim.Name))
@@ -120,18 +108,10 @@ partial class ModelExtract
                 continue;
             }
 
-            try
-            {
-                var clipContent = new NmClipExtract(clip.Resource, fileLoader).ToContentFile();
-                clipContent.FileName = animation.Name;
-                clipContent.KeepFullPath = true;
-                vmdl.AdditionalFiles.Add(clipContent);
-            }
-            catch (Exception e)
-            {
-                // A single malformed clip shouldn't fail the whole model export.
-                ProgressReporter?.Report($"Skipping animation graph clip '{animation.Name}': {e.Message}");
-            }
+            var clipContent = new NmClipExtract(clip.Resource, fileLoader).ToContentFile();
+            clipContent.FileName = animation.Name;
+            clipContent.KeepFullPath = true;
+            vmdl.AdditionalFiles.Add(clipContent);
         }
     }
 
