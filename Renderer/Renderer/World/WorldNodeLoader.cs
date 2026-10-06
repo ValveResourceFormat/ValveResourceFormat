@@ -194,6 +194,73 @@ namespace ValveResourceFormat.Renderer.World
                     aggregate.LoadFragments(sceneObject, root, node);
                 }
             }
+
+            foreach (var clutterData in node.ClutterSceneObjects)
+            {
+                LoadClutter(scene, new ClutterSceneObject(clutterData), root);
+            }
+        }
+
+        /// <remarks>
+        /// Instances share one tint per draw, so each distinct instance tint gets an aggregate of its own.
+        /// </remarks>
+        private void LoadClutter(Scene scene, ClutterSceneObject clutter, Matrix4x4 root)
+        {
+            if (clutter.RenderableModel == null || clutter.InstanceCount == 0)
+            {
+                return;
+            }
+
+            if (RendererContext.FileLoader.LoadFileCompiled(clutter.RenderableModel)?.DataBlock is not Model model)
+            {
+                return;
+            }
+
+            var instancesByTint = new Dictionary<Color32, List<int>>();
+
+            for (var i = 0; i < clutter.InstanceCount; i++)
+            {
+                var tint = clutter.InstanceTints[i];
+
+                if (!instancesByTint.TryGetValue(tint, out var instances))
+                {
+                    instances = [];
+                    instancesByTint[tint] = instances;
+                }
+
+                instances.Add(i);
+            }
+
+            foreach (var (tint, instances) in instancesByTint)
+            {
+                var aggregate = new SceneAggregate(scene, model, clutter.MaterialGroup)
+                {
+                    LayerName = LayerNames[clutter.Layer],
+                    Name = clutter.RenderableModel,
+                    Flags = clutter.Flags,
+                    AllFlags = clutter.Flags,
+                    AnyFlags = clutter.Flags,
+                    Tint = new Vector3(tint.R, tint.G, tint.B) / 255f,
+                };
+
+                var meshBounds = aggregate.RenderMesh.BoundingBox;
+                AABB? bounds = null;
+
+                aggregate.InstanceTransforms.EnsureCapacity(instances.Count);
+
+                foreach (var instance in instances)
+                {
+                    var transform = clutter.GetInstanceTransform(instance) * root;
+                    var instanceBounds = meshBounds.Transform(transform);
+
+                    aggregate.InstanceTransforms.Add(transform.To3x4());
+                    bounds = bounds?.Union(instanceBounds) ?? instanceBounds;
+                }
+
+                aggregate.LocalBoundingBox = bounds!.Value;
+
+                scene.Add(aggregate, false);
+            }
         }
 
         private static (RenderableMesh? Mesh, DrawCall? DrawCall) FindDrawCall(ModelSceneNode modelNode, int subSceneObject, int drawCallIndex)

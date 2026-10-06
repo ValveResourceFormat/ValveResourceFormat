@@ -372,12 +372,15 @@ public sealed class SceneViewState : IDisposable
             {
                 if (aggregate.InstanceTransforms.Count > 0)
                 {
-                    Add(new MeshBatchRenderer.Request
+                    foreach (var call in aggregate.RenderMesh.DrawCallsOpaque)
                     {
-                        Mesh = aggregate.RenderMesh,
-                        Call = aggregate.RenderMesh.DrawCallsOpaque[0],
-                        Node = node,
-                    }, RenderPass.Opaque);
+                        Add(new MeshBatchRenderer.Request
+                        {
+                            Mesh = aggregate.RenderMesh,
+                            Call = call,
+                            Node = node,
+                        }, RenderPass.Opaque);
+                    }
                 }
                 else if (Scene.DrawMeshletsIndirect && aggregate.CanDrawIndirect)
                 {

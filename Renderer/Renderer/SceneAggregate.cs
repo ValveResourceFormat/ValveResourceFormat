@@ -90,15 +90,17 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Initializes the scene aggregate, loading or resolving the mesh from the model.</summary>
         /// <param name="scene">Owning scene.</param>
         /// <param name="model">Model resource providing the embedded or referenced mesh.</param>
-        public SceneAggregate(Scene scene, Model model)
+        /// <param name="materialGroup">Material group (skin) of the model to draw with, or <see langword="null"/> for the default.</param>
+        public SceneAggregate(Scene scene, Model model, string? materialGroup = null)
             : base(scene)
         {
             var embeddedMeshes = model.GetEmbeddedMeshes().ToList();
+            var materialTable = GetMaterialGroupTable(model, materialGroup);
 
             // TODO: Perhaps use ModelSceneNode.LoadMeshes
             if (embeddedMeshes.Count != 0)
             {
-                RenderMesh = new RenderableMesh(embeddedMeshes.First().Mesh, 0, Scene, model, isAggregate: true);
+                RenderMesh = new RenderableMesh(embeddedMeshes.First().Mesh, 0, Scene, model, materialTable, isAggregate: true);
 
                 if (embeddedMeshes.Count > 1)
                 {
@@ -122,10 +124,46 @@ namespace ValveResourceFormat.Renderer
                     throw new InvalidDataException($"Failed to load {refMesh.MeshName}");
                 }
 
-                RenderMesh = new RenderableMesh(meshData, refMesh.MeshIndex, Scene, model, isAggregate: true);
+                RenderMesh = new RenderableMesh(meshData, refMesh.MeshIndex, Scene, model, materialTable, isAggregate: true);
             }
 
             LocalBoundingBox = RenderMesh.BoundingBox;
+        }
+
+        private static Dictionary<string, string>? GetMaterialGroupTable(Model model, string? materialGroup)
+        {
+            if (string.IsNullOrEmpty(materialGroup))
+            {
+                return null;
+            }
+
+            var materialGroups = model.GetMaterialGroups().ToArray();
+
+            if (materialGroups.Length == 0)
+            {
+                return null;
+            }
+
+            var defaultMaterials = materialGroups[0].Materials;
+
+            foreach (var (name, materials) in materialGroups)
+            {
+                if (name != materialGroup)
+                {
+                    continue;
+                }
+
+                var table = new Dictionary<string, string>(defaultMaterials.Length);
+
+                foreach (var (active, replacement) in defaultMaterials.Zip(materials))
+                {
+                    table[active] = replacement;
+                }
+
+                return table;
+            }
+
+            return null;
         }
 
         /// <summary>Expands the aggregate's bounding box to cover the entire scene, preventing it from being frustum-culled.</summary>
