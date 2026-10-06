@@ -25,6 +25,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private const int MaxTessellationLevel = 7;
         private const int MaxTubeRings = 8192;
 
+        // A segment is sized for tessellation by its bounding sphere, whose diameter is the segment length
+        // scaled by this (the default r_particle_cables_culling_bounds_scale).
+        private const float SegmentBoundsScale = 1.2f;
+
         private readonly int roundness = 1;
         private readonly TextureRepetitionMode textureRepetitionMode;
         private readonly INumberProvider textureRepeatsPerSegment = new LiteralNumberProvider(1f);
@@ -120,7 +124,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 colors[i] = chain[i].Color;
             }
 
-            var levels = ComputeTessellationLevels(positions, chain, camera);
+            var levels = ComputeTessellationLevels(positions, camera);
 
             if (!GeometryChanged(positions, levels, radii, colors))
             {
@@ -197,12 +201,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             => DrawReplacement(replacement, objectId, vaoHandle, indexCount, DrawElementsType.UnsignedInt);
 
         /// <summary>
-        /// Per-segment length tessellation: the apparent on-screen radius scaled by m_flTessScale picks a
-        /// power-of-two subdivision count within [m_nMinTesselation, m_nMaxTesselation], bumped one or two
-        /// levels where adjacent segments bend sharply.
+        /// Per-segment length tessellation: the apparent on-screen size of the segment's bounding sphere scaled
+        /// by m_flTessScale picks a power-of-two subdivision count within [m_nMinTesselation, m_nMaxTesselation],
+        /// bumped one or two levels where adjacent segments bend sharply, then clamped between its neighbours.
         /// </summary>
-        private Span<int> ComputeTessellationLevels(ReadOnlySpan<Vector3> positions,
-            ReadOnlySpan<(int Id, Vector3 Position, float Radius, Vector3 Color)> chain, Camera camera)
+        private Span<int> ComputeTessellationLevels(ReadOnlySpan<Vector3> positions, Camera camera)
         {
             var segmentCount = positions.Length - 1;
             levelsScratch = EnsureCapacity(levelsScratch, segmentCount);
@@ -221,14 +224,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             for (var i = 0; i < segmentCount; i++)
             {
-                var radius = chain[i].Radius;
+                var boundsRadius = Vector3.Distance(positions[i], positions[i + 1]) * SegmentBoundsScale * 0.5f;
                 var midpoint = (positions[i] + positions[i + 1]) * 0.5f;
                 var distanceSquared = Vector3.DistanceSquared(midpoint, camera.Location);
 
-                // Apparent radius as a fraction of the viewport; full when the camera is inside the tube.
-                var size = distanceSquared <= radius * radius
+                // Apparent bounds radius as a fraction of the viewport; full when the camera is inside them.
+                var size = boundsRadius * boundsRadius > distanceSquared
                     ? 1f
-                    : MathUtils.Saturate(radius * camera.ProjectionMatrix.M22 / MathF.Sqrt(distanceSquared));
+                    : MathUtils.Saturate(boundsRadius * camera.ProjectionMatrix.M22 / MathF.Sqrt(distanceSquared));
 
                 var tess = size * tessScale * resolutionScale;
                 var subdivisions = Math.Clamp(MathUtils.Clamp((int)tess, minTessellation, maxTessellation), 1, 1 << MaxTessellationLevel);
@@ -248,6 +251,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 }
 
                 levels[i] = Math.Clamp(level, 0, MaxTessellationLevel);
+            }
+
+            // Clamped in place, so each segment already sees its filtered predecessor.
+            for (var i = 1; i < segmentCount - 1; i++)
+            {
+                var previous = levels[i - 1];
+                var next = levels[i + 1];
+                levels[i] = Math.Clamp(levels[i], Math.Min(previous, next), Math.Max(previous, next));
             }
 
             // Guard against pathological totals by stepping every level down together.
