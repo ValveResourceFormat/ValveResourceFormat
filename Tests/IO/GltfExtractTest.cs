@@ -204,6 +204,38 @@ namespace Tests.IO
             });
         }
 
+        [Test]
+        public async Task TestStandaloneMeshWithRepeatedBoneNameExportsRigged()
+        {
+            // Has a second "root" bone parented to the first one, which every other bone names as its parent
+            await WithExportedGlb("dcg_tower_dire_base_destruction.vmesh_c", async root =>
+            {
+                await Assert.That(root.LogicalSkins).IsNotEmpty();
+
+                var roots = root.LogicalSkins[0].Joints.Where(n => n.Name == "root").ToArray();
+
+                using (Assert.Multiple())
+                {
+                    await Assert.That(roots).Count().IsEqualTo(2);
+                    await Assert.That(roots[1].VisualParent).IsEqualTo(roots[0]);
+                }
+            });
+        }
+
+        [Test]
+        public async Task TestStandaloneMeshWithBoneHashesOnlyExportsUnrigged()
+        {
+            // Older render skeletons store bone hashes and bind poses, but no named bones to build joints from
+            await WithExportedGlb("blackin_bg_body_lod0.vmesh_c", async root =>
+            {
+                using (Assert.Multiple())
+                {
+                    await Assert.That(root.LogicalSkins).IsEmpty();
+                    await Assert.That(root.LogicalNodes.Where(n => n.Mesh != null)).IsNotEmpty();
+                }
+            });
+        }
+
         private static float WorldScale(Node node)
         {
             Matrix4x4.Decompose(node.WorldMatrix, out var scale, out _, out _);
@@ -328,6 +360,30 @@ namespace Tests.IO
                 await Assert.That(physicsNodes).IsNotEmpty();
                 await Assert.That(physicsNodes.All(node => node.Extras?["CollisionGroup"]?.GetValue<string>() == "default")).IsTrue();
             });
+        }
+
+        [Test]
+        public async Task TestPhysicsZeroLengthCapsuleHasUnitNormals()
+        {
+            // Has a capsule whose two ends are the same point
+            await WithExportedGlb("void_spirit_ar.vphys_c", async root =>
+            {
+                var normals = root.LogicalMeshes
+                    .SelectMany(mesh => mesh.Primitives)
+                    .SelectMany(primitive => primitive.GetVertexAccessor("NORMAL").AsVector3Array())
+                    .ToArray();
+
+                await Assert.That(normals).IsNotEmpty();
+                await Assert.That(normals.All(normal => MathF.Abs(normal.Length() - 1f) < 1e-4f)).IsTrue();
+            });
+        }
+
+        [Test]
+        public async Task TestPhysicsDegenerateTriangleHasUnitNormal()
+        {
+            var normal = GltfModelExporter.ComputeNormal(Vector3.Zero, Vector3.Zero, Vector3.UnitX);
+
+            await Assert.That(MathF.Abs(normal.Length() - 1f) < 1e-4f).IsTrue();
         }
     }
 }

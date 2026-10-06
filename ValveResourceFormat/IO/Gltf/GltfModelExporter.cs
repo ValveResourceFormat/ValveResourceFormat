@@ -40,7 +40,6 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public IFileLoader FileLoader { get; }
         private readonly ShaderDataProvider shaderDataProvider;
-        private readonly BasicShaderDataProvider shaderDataProviderFallback = new();
 
         /// <summary>
         /// Gets or sets a value indicating whether to export animations.

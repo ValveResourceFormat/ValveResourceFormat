@@ -213,12 +213,9 @@ public partial class GltfModelExporter
         return meshName;
     }
 
-    private static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)
-    {
-        var side1 = b - a;
-        var side2 = c - a;
-        return Vector3.Normalize(Vector3.Cross(side1, side2));
-    }
+    // Degenerate triangles have no direction, but glTF requires every normal to be unit length
+    internal static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)
+        => MathUtils.SafeNormalize(MathUtils.TriangleCross(a, b, c), Vector3.UnitZ, 1e-12f);
 
     /// <summary>
     /// Generates a procedural sphere mesh with proper normals and spherical UV coordinates.
@@ -294,8 +291,10 @@ public partial class GltfModelExporter
     /// </summary>
     private static void CreateCapsuleMesh(List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices, Vector3 start, Vector3 end, float radius)
     {
-        var direction = Vector3.Normalize(end - start);
         var length = Vector3.Distance(start, end);
+
+        // A capsule with both ends at the same point is a sphere, so any axis works
+        var direction = MathUtils.SafeNormalize(end - start, Vector3.UnitZ, 1e-12f);
         var center = (start + end) * 0.5f;
 
         // Find perpendicular vectors
@@ -326,11 +325,9 @@ public partial class GltfModelExporter
             for (var seg = 0; seg <= segments; seg++)
             {
                 var angle = seg * MathF.Tau / segments;
-                var x = MathF.Cos(angle) * radius;
-                var z = MathF.Sin(angle) * radius;
 
-                var normal = right * x + up * z;
-                normal = Vector3.Normalize(normal);
+                // Right and up are perpendicular unit vectors, so this is unit length even for a zero radius
+                var normal = right * MathF.Cos(angle) + up * MathF.Sin(angle);
 
                 // Generate cylindrical UV coordinates
                 var u = (float)seg / segments;

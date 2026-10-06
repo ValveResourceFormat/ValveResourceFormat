@@ -396,19 +396,7 @@ public partial class GltfModelExporter
 
         List<RemapInstruction> GetGltfChannels(VMaterial renderMaterial, string textureKey)
         {
-            List<(ChannelMapping Channel, string Name)>? inputImages = null;
-            try
-            {
-                inputImages = [.. shaderDataProvider.GetInputsForTexture(textureKey, renderMaterial)];
-            }
-            catch (Exception e)
-            {
-                // Shaders are complicated, so do not stop exporting if they throw
-                ProgressReporter?.Report($"Failed to get texture inputs for \"{textureKey}\": {e.Message}");
-                Console.Error.WriteLine(e.ToString());
-            }
-
-            inputImages ??= [.. shaderDataProviderFallback.GetInputsForTexture(textureKey, renderMaterial)];
+            List<(ChannelMapping Channel, string Name)> inputImages = [.. shaderDataProvider.GetInputsForTexture(textureKey, renderMaterial)];
             var remapInstructions = RemapValveChannelsToGltf(inputImages);
             return remapInstructions;
         }

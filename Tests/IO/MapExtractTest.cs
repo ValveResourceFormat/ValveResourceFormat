@@ -88,5 +88,22 @@ namespace Tests.IO
             await Assert.That(contentFile).IsNotNull();
             await Assert.That(contentFile.Data).IsNotNull();
         }
+
+        [Test]
+        public async Task TestMapExtractWithEmptyWorldPhysics()
+        {
+            // The world physics of this scene map has no parts
+            var vpkPath = TestFixtures.Path("play_searching.vpk");
+
+            using var package = new Package();
+            package.Read(vpkPath);
+
+            using var loader = new GameFileLoader(package, vpkPath);
+
+            using var worldResource = loader.LoadFile("maps/scenes/play_searching.vmap_c");
+
+            using var contentFile = new MapExtract(worldResource!, loader).ToContentFile();
+            await Assert.That(contentFile.Data).IsNotNull();
+        }
     }
 }

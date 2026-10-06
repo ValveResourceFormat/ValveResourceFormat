@@ -547,8 +547,9 @@ public sealed partial class MapExtract
 
         CreateSelectionSets(MapDocument.RootSelectionSet);
 
+        // Small scene maps can have world physics without any parts
         var phys = LoadWorldPhysics();
-        if (phys != null)
+        if (phys is { Parts.Length: > 0 })
         {
             var collisionAttributes = phys.CollisionAttributes;
             var worldPhysMeshes = phys.Parts[0].Shape.GetAllMeshes().Where(m => collisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
@@ -1165,6 +1166,11 @@ public sealed partial class MapExtract
         var faces = new List<(int TargetSet, Vector3[] Corners, Vector3 Normal, float Offset)>();
         var grid = new Dictionary<(int X, int Y, int Z), List<int>>();
 
+        // A face spanning many cells, such as a skybox backdrop, would need a list in each of them and can run out of
+        // memory, so those few faces are checked against every overlay triangle instead
+        const long MaxCellsPerFace = 4096;
+        var largeFaces = new List<int>();
+
         static (int X, int Y, int Z) Cell(Vector3 position)
             => ((int)MathF.Floor(position.X / CellSize), (int)MathF.Floor(position.Y / CellSize), (int)MathF.Floor(position.Z / CellSize));
 
@@ -1190,10 +1196,19 @@ public sealed partial class MapExtract
             }
 
             normal = Vector3.Normalize(normal);
+            var faceIndex = faces.Count;
             faces.Add((targetSet, corners, normal, Vector3.Dot(normal, corners[0])));
 
             var (minX, minY, minZ) = Cell(min - new Vector3(PlaneDistance));
             var (maxX, maxY, maxZ) = Cell(max + new Vector3(PlaneDistance));
+
+            var cellCount = ((long)maxX - minX + 1) * ((long)maxY - minY + 1) * ((long)maxZ - minZ + 1);
+
+            if (cellCount > MaxCellsPerFace)
+            {
+                largeFaces.Add(faceIndex);
+                return;
+            }
 
             for (var x = minX; x <= maxX; x++)
             {
@@ -1207,7 +1222,7 @@ public sealed partial class MapExtract
                             grid.Add((x, y, z), cellFaces);
                         }
 
-                        cellFaces.Add(faces.Count - 1);
+                        cellFaces.Add(faceIndex);
                     }
                 }
             }
@@ -1373,6 +1388,24 @@ public sealed partial class MapExtract
             }
         }
 
+        void MatchFace(int faceIndex, Vector3 centre, Vector3 triangleNormal, SortedSet<int> targets)
+        {
+            var (targetSet, corners, normal, offset) = faces[faceIndex];
+
+            if (targets.Contains(targetSets[targetSet][0])
+             || Vector3.Dot(normal, triangleNormal) < 0.9f
+             || MathF.Abs(Vector3.Dot(normal, centre) - offset) > PlaneDistance
+             || !PointInFace(centre, corners, normal, PlaneDistance))
+            {
+                return;
+            }
+
+            foreach (var nodeId in targetSets[targetSet])
+            {
+                targets.Add(nodeId);
+            }
+        }
+
         foreach (var (overlay, geometry) in OverlayReceivers)
         {
             var targets = new SortedSet<int>();
@@ -1389,29 +1422,24 @@ public sealed partial class MapExtract
                 var centre = (a + b + c) / 3f;
                 var triangleNormal = MathUtils.TriangleCross(a, b, c);
 
-                if (triangleNormal.LengthSquared() < 1e-10f || !grid.TryGetValue(Cell(centre), out var cellFaces))
+                if (triangleNormal.LengthSquared() < 1e-10f)
                 {
                     continue;
                 }
 
                 triangleNormal = Vector3.Normalize(triangleNormal);
 
-                foreach (var faceIndex in cellFaces)
+                if (grid.TryGetValue(Cell(centre), out var cellFaces))
                 {
-                    var (targetSet, corners, normal, offset) = faces[faceIndex];
-
-                    if (targets.Contains(targetSets[targetSet][0])
-                     || Vector3.Dot(normal, triangleNormal) < 0.9f
-                     || MathF.Abs(Vector3.Dot(normal, centre) - offset) > PlaneDistance
-                     || !PointInFace(centre, corners, normal, PlaneDistance))
+                    foreach (var faceIndex in cellFaces)
                     {
-                        continue;
+                        MatchFace(faceIndex, centre, triangleNormal, targets);
                     }
+                }
 
-                    foreach (var nodeId in targetSets[targetSet])
-                    {
-                        targets.Add(nodeId);
-                    }
+                foreach (var faceIndex in largeFaces)
+                {
+                    MatchFace(faceIndex, centre, triangleNormal, targets);
                 }
             }
 
@@ -2071,7 +2099,8 @@ public sealed partial class MapExtract
 
                 var instance = NewPropStatic(fragmentModelName);
 
-                if (aggregateHasTransforms)
+                // Only the fragments that have a transform take one, the others are placed as authored
+                if (aggregateHasTransforms && fragment.GetBooleanProperty("m_bHasTransform"))
                 {
                     var transform = fragmentTransforms[transformIndex++].ToMatrix4x4();
                     if (!Matrix4x4.Decompose(transform, out var scales, out var rotation, out var translation))

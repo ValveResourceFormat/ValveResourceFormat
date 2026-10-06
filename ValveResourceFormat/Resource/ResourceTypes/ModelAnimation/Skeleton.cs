@@ -120,20 +120,21 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Builds a skeleton from a mesh's own render skeleton, to skin a mesh that has no owning model.
         /// Bones are ordered as authored and parented by name; one naming an unknown parent is a root.
-        /// Returns <see langword="null"/> when the render skeleton has no bones.
+        /// Returns <see langword="null"/> when the render skeleton has no bones, or only bone hashes as in older files.
         /// </summary>
         public static Skeleton? FromRenderSkeleton(KVObject renderSkeleton)
         {
             var boneEntries = renderSkeleton.GetArray("m_bones");
-            if (boneEntries.Count == 0)
+            if (boneEntries is not { Count: > 0 })
             {
                 return null;
             }
 
+            // Names can repeat, such as a second "root" parented to the first, so a name refers to its first bone
             var nameToIndex = new Dictionary<string, int>(boneEntries.Count);
             for (var i = 0; i < boneEntries.Count; i++)
             {
-                nameToIndex[boneEntries[i].GetStringProperty("m_boneName")] = i;
+                nameToIndex.TryAdd(boneEntries[i].GetStringProperty("m_boneName"), i);
             }
 
             var modelSpaceBindPose = new Matrix4x4[boneEntries.Count];
@@ -146,7 +147,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 modelSpaceBindPose[i] = Matrix4x4.Invert(invBindPose, out var bindPose) ? bindPose : Matrix4x4.Identity;
 
                 var parentName = boneData.GetStringProperty("m_parentName");
-                boneParents[i] = !string.IsNullOrEmpty(parentName) && nameToIndex.TryGetValue(parentName, out var parentIndex)
+                boneParents[i] = !string.IsNullOrEmpty(parentName) && nameToIndex.TryGetValue(parentName, out var parentIndex) && parentIndex != i
                     ? parentIndex
                     : -1;
             }
