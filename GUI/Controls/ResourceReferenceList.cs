@@ -655,25 +655,18 @@ namespace GUI.Controls
 
         private bool FileExists(string name)
         {
-            var context = guiContext;
+            var compiled = guiContext.FindFile(name + GameFileLoader.CompiledFileSuffix, logNotFound: false);
 
-            while (context != null)
+            if (compiled.PathOnDisk != null || compiled.PackageEntry != null)
             {
-                var compiled = context.FindFile(name + GameFileLoader.CompiledFileSuffix, logNotFound: false);
+                return true;
+            }
 
-                if (compiled.PathOnDisk != null || compiled.PackageEntry != null)
-                {
-                    return true;
-                }
+            var uncompiled = guiContext.FindFile(name, logNotFound: false);
 
-                var uncompiled = context.FindFile(name, logNotFound: false);
-
-                if (uncompiled.PathOnDisk != null || uncompiled.PackageEntry != null)
-                {
-                    return true;
-                }
-
-                context = context.ParentGuiContext;
+            if (uncompiled.PathOnDisk != null || uncompiled.PackageEntry != null)
+            {
+                return true;
             }
 
             return Types.Viewers.Resource.TryFindMapPackage(guiContext, name, out _, out _);
