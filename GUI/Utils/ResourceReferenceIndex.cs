@@ -50,14 +50,17 @@ namespace GUI.Utils
             "vcss_c", "vjs_c", "vts_c", "vxml_c",
         };
 
-        private static readonly ConcurrentDictionary<string, PackageIndex> PackageIndexes = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, LazyIndex> Indexes = new(StringComparer.OrdinalIgnoreCase);
 
         private readonly Dictionary<string, Package> packages;
-        private PackageIndex[] packageIndexes = [];
+        private readonly string[] mapFolders;
+        private LazyIndex[] indexes = [];
+        private Task? build;
 
-        private ResourceReferenceIndex(Dictionary<string, Package> packages)
+        private ResourceReferenceIndex(Dictionary<string, Package> packages, string[] mapFolders)
         {
             this.packages = packages;
+            this.mapFolders = mapFolders;
         }
 
         /// <summary>
@@ -67,30 +70,60 @@ namespace GUI.Utils
         {
             var packages = CollectPackages(guiContext);
 
-            return packages.Count == 0 ? null : new ResourceReferenceIndex(packages);
-        }
-
-        public Task BuildAsync()
-        {
-            if (packageIndexes.Length == 0)
+            if (packages.Count == 0)
             {
-                packageIndexes = [.. packages.Select(static package => PackageIndexes.GetOrAdd(package.Key, static (_, package) => new PackageIndex(package), package.Value))];
+                return null;
             }
 
-            return Task.WhenAll(packageIndexes.Select(static index => index.BuildAsync()));
+            var mapFolders = packages.Keys
+                .Select(static package => Path.Combine(Path.GetDirectoryName(package)!, "maps"))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(Directory.Exists)
+                .ToArray();
+
+            return new ResourceReferenceIndex(packages, mapFolders);
+        }
+
+        /// <summary>
+        /// The number of packages and map folders this index searches.
+        /// </summary>
+        public int SearchedCount => packages.Count + mapFolders.Length;
+
+        /// <summary>
+        /// Indexes the packages, and the maps next to them once the packages are done.
+        /// </summary>
+        public Task BuildAsync()
+        {
+            if (build != null)
+            {
+                return build;
+            }
+
+            var packageIndexes = packages.Select(static package => Indexes.GetOrAdd(package.Key, static (_, package) => new LazyIndex(() => Build(package)), package.Value)).ToArray();
+            var mapIndexes = mapFolders.Select(static folder => Indexes.GetOrAdd(folder, static folder => new LazyIndex(() => BuildMaps(folder)))).ToArray();
+
+            indexes = [.. packageIndexes, .. mapIndexes];
+            build = Task.WhenAll(packageIndexes.Select(static index => index.BuildAsync()))
+                .ContinueWith(_ => Task.WhenAll(mapIndexes.Select(static index => index.BuildAsync())), TaskScheduler.Default)
+                .Unwrap();
+
+            return build;
         }
 
         /// <summary>
         /// A file that references the one looked up, and where it stores the reference.
         /// </summary>
-        public readonly record struct Referrer(string Name, ResourceReferenceKind Kinds);
+        /// <param name="Name">The referencing file.</param>
+        /// <param name="Kinds">Where the referencing file stores the reference.</param>
+        /// <param name="Package">The map package the referencing file is in, when it is not in a loaded package.</param>
+        public readonly record struct Referrer(string Name, ResourceReferenceKind Kinds, string? Package = null);
 
         public IReadOnlyList<Referrer> Find(string name)
         {
             var key = Normalize(name);
-            var found = new Dictionary<string, ResourceReferenceKind>(StringComparer.OrdinalIgnoreCase);
+            var found = new Dictionary<string, Referrer>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var index in packageIndexes)
+            foreach (var index in indexes)
             {
                 var build = index.BuildAsync();
 
@@ -98,12 +131,14 @@ namespace GUI.Utils
                 {
                     foreach (var referrer in referrers)
                     {
-                        found[referrer.Name] = found.GetValueOrDefault(referrer.Name) | referrer.Kinds;
+                        found[referrer.Name] = found.TryGetValue(referrer.Name, out var existing)
+                            ? existing with { Kinds = existing.Kinds | referrer.Kinds, Package = existing.Package ?? referrer.Package }
+                            : referrer;
                     }
                 }
             }
 
-            return [.. found.Select(static referrer => new Referrer(referrer.Key, referrer.Value)).OrderBy(static referrer => referrer.Name, StringComparer.OrdinalIgnoreCase)];
+            return [.. found.Values.OrderBy(static referrer => referrer.Name, StringComparer.OrdinalIgnoreCase)];
         }
 
         private static Dictionary<string, Package> CollectPackages(VrfGuiContext guiContext)
@@ -131,10 +166,10 @@ namespace GUI.Utils
             return packages;
         }
 
-        private sealed class PackageIndex(Package package)
+        private sealed class LazyIndex(Func<Dictionary<string, Referrer[]>> factory)
         {
             private readonly Lock buildLock = new();
-            private Package? package = package;
+            private Func<Dictionary<string, Referrer[]>>? factory = factory;
             private Task<Dictionary<string, Referrer[]>>? build;
 
             public Task<Dictionary<string, Referrer[]>> BuildAsync()
@@ -143,13 +178,110 @@ namespace GUI.Utils
                 {
                     if (build == null)
                     {
-                        var source = package!;
-                        package = null;
-                        build = Task.Run(() => Build(source));
+                        var source = factory!;
+                        factory = null;
+                        build = Task.Run(source);
                     }
 
                     return build;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Indexes the external reference list of the map in every map package in a maps folder. Maps ship as
+        /// packages of their own, which are not mounted.
+        /// </summary>
+        private static Dictionary<string, Referrer[]> BuildMaps(string folder)
+        {
+            var timer = Stopwatch.StartNew();
+            var found = new Dictionary<string, List<Referrer>>(StringComparer.OrdinalIgnoreCase);
+            var results = new ConcurrentBag<Dictionary<string, List<Referrer>>>();
+            var mapPackages = Directory.GetFiles(folder, "*.vpk", SearchOption.AllDirectories);
+
+            Parallel.ForEach(
+                mapPackages,
+                () => new Dictionary<string, List<Referrer>>(StringComparer.OrdinalIgnoreCase),
+                (path, _, local) =>
+                {
+                    IndexMapPackage(path, local);
+                    return local;
+                },
+                results.Add);
+
+            foreach (var local in results)
+            {
+                foreach (var (key, list) in local)
+                {
+                    if (found.TryGetValue(key, out var existing))
+                    {
+                        existing.AddRange(list);
+                    }
+                    else
+                    {
+                        found.Add(key, list);
+                    }
+                }
+            }
+
+            var referrers = new Dictionary<string, Referrer[]>(found.Count, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var (key, list) in found)
+            {
+                referrers.Add(key, [.. list]);
+            }
+
+            Log.Debug(nameof(ResourceReferenceIndex), $"Indexed {mapPackages.Length} map packages in {folder} referencing {referrers.Count} targets in {timer.Elapsed.TotalSeconds:F2}s");
+
+            return referrers;
+        }
+
+        private static void IndexMapPackage(string path, Dictionary<string, List<Referrer>> found)
+        {
+            var buffer = ArrayPool<byte>.Shared.Rent(HeaderSize);
+
+            try
+            {
+                using var package = new Package();
+                package.Read(path);
+
+                if (package.Entries == null || !package.Entries.TryGetValue("vmap_c", out var maps))
+                {
+                    return;
+                }
+
+                foreach (var entry in maps)
+                {
+                    var references = ReadReferencesThroughPackage(package, entry, buffer);
+
+                    if (references == null)
+                    {
+                        continue;
+                    }
+
+                    var referrer = new Referrer(Normalize(entry.GetFullPath()), ResourceReferenceKind.External, path);
+
+                    foreach (var reference in references)
+                    {
+                        var key = Normalize(reference.Name);
+
+                        if (!found.TryGetValue(key, out var list))
+                        {
+                            list = [];
+                            found.Add(key, list);
+                        }
+
+                        list.Add(referrer);
+                    }
+                }
+            }
+            catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException)
+            {
+                Log.Debug(nameof(ResourceReferenceIndex), $"Failed to index map package {path}: {e.Message}");
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
             }
         }
 

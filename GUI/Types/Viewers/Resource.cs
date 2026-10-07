@@ -929,7 +929,7 @@ namespace GUI.Types.Viewers
             return null;
         }
 
-        private static bool OpenFileInPackage(string packagePath, string innerFile)
+        public static bool OpenFileInPackage(string packagePath, string innerFile)
         {
             VrfGuiContext? packageContext = null;
 

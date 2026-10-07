@@ -53,6 +53,9 @@ namespace GUI.Controls
             public bool Filled { get; set; }
         }
 
+        /// <summary>A referrer that is only found in a map package, which opens through that package.</summary>
+        private sealed record PackagedReference(ResourceReference Reference, string Package);
+
         private const string UsedByKey = "\0UsedBy";
         private const string NotFoundNote = "\nNot found in the loaded files";
 
@@ -591,8 +594,10 @@ namespace GUI.Controls
                 {
                     ImageIndex = icon,
                     SelectedImageIndex = icon,
-                    Tag = reference,
-                    ToolTipText = $"{referrer.Name}\nReferences this file, found in its {KindNames(referrer.Kinds)}",
+                    Tag = referrer.Package == null ? reference : new PackagedReference(reference, referrer.Package),
+                    ToolTipText = referrer.Package == null
+                        ? $"{referrer.Name}\nReferences this file, found in its {KindNames(referrer.Kinds)}"
+                        : $"{referrer.Name}\nReferences this file, found in its {KindNames(referrer.Kinds)}\nIn map package {referrer.Package}",
                 };
 
                 usedByRows.Add(new Row
@@ -738,6 +743,16 @@ namespace GUI.Controls
 
         private void Open(TreeNode? node)
         {
+            if (node?.Tag is PackagedReference packaged)
+            {
+                if (!Types.Viewers.Resource.OpenFileInPackage(packaged.Package, packaged.Reference.Name + GameFileLoader.CompiledFileSuffix))
+                {
+                    MarkNotFound(node, Themer.CurrentThemeColors.Attention);
+                }
+
+                return;
+            }
+
             if (node?.Tag is not ResourceReference reference || Categorize(reference) != RowCategory.Reference)
             {
                 return;
