@@ -36,6 +36,14 @@ namespace ValveResourceFormat.ResourceTypes
                 : [];
 
         /// <summary>
+        /// Gets the decals placed with the map, each a box that projects a material onto what is inside it.
+        /// </summary>
+        public IReadOnlyList<KVObject> InfoOverlays
+            => Data.ContainsKey("m_infoOverlays")
+                ? Data.GetArray("m_infoOverlays")
+                : [];
+
+        /// <summary>
         /// Gets the clutter scene objects.
         /// </summary>
         public IReadOnlyList<KVObject> ClutterSceneObjects

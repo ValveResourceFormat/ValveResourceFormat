@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public sealed class ProjectedDecalSystem
     {
-        /// <summary>The most decals kept at once, one cull batch. Adding past it removes the oldest.</summary>
+        /// <summary>The most decals kept at once, one cull batch. Adding past it removes the oldest that is not permanent.</summary>
         public const int MaxDecals = 320;
 
         private const float GrazingIncidenceCutoff = 0.55f;
@@ -115,7 +115,10 @@ namespace ValveResourceFormat.Renderer
             public ProjectedDecalTextureArray.Layer? Height { get; init; }
         }
 
-        private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform, float PlaceTime);
+        private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform, float PlaceTime, bool IsPermanent);
+
+        // What a permanent decal gives as the time it was added: long enough ago that anything aging has settled
+        private const float PermanentPlaceTime = -1e9f;
 
         private readonly Scene scene;
 
@@ -282,9 +285,10 @@ namespace ValveResourceFormat.Renderer
         /// <param name="tint">Linear color and opacity multiplier.</param>
         /// <param name="flipU">Whether to mirror the texture horizontally.</param>
         /// <param name="parent">An entity the decal moves with, or null for the static world.</param>
+        /// <param name="permanent">Whether the decal neither fades nor makes way for newer ones, as one placed with a map.</param>
         /// <returns>Whether the material could be loaded and the decal was added.</returns>
-        public bool Add(string materialPath, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false, BaseEntity? parent = null)
-            => Add(RegisterMaterial(materialPath), boxTransform, tint, flipU, parent);
+        public bool Add(string materialPath, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false, BaseEntity? parent = null, bool permanent = false)
+            => Add(RegisterMaterial(materialPath), boxTransform, tint, flipU, parent, permanent);
 
         /// <summary>Adds a decal.</summary>
         /// <param name="decal">A handle from <see cref="Register"/> or <see cref="RegisterMaterial"/>.</param>
@@ -292,8 +296,9 @@ namespace ValveResourceFormat.Renderer
         /// <param name="tint">Linear color and opacity multiplier.</param>
         /// <param name="flipU">Whether to mirror the texture horizontally.</param>
         /// <param name="parent">An entity the decal moves with, or null for the static world.</param>
-        /// <returns>Whether the handle was valid and the decal was added.</returns>
-        public bool Add(int decal, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false, BaseEntity? parent = null)
+        /// <param name="permanent">Whether the decal neither fades nor makes way for newer ones, as one placed with a map.</param>
+        /// <returns>Whether the handle was valid and there was room for the decal.</returns>
+        public bool Add(int decal, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false, BaseEntity? parent = null, bool permanent = false)
         {
             var materialIndex = decal;
 
@@ -304,7 +309,14 @@ namespace ValveResourceFormat.Renderer
 
             if (decals.Count >= MaxDecals)
             {
-                RemoveDecalAt(0);
+                var oldest = decals.FindIndex(static existing => !existing.IsPermanent);
+
+                if (oldest < 0)
+                {
+                    return false;
+                }
+
+                RemoveDecalAt(oldest);
             }
 
             // The world never moves, so a decal on it has nothing to follow
@@ -331,7 +343,8 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            decals.Add(new ProjectedDecal(materialIndex, flipU ? FlagFlipU : 0, tint, parent, localTransform, time));
+            decals.Add(new ProjectedDecal(materialIndex, flipU ? FlagFlipU : 0, tint, parent, localTransform,
+                permanent ? PermanentPlaceTime : time, permanent));
             boxTransforms.Add(boxTransform);
             decalsDirty = true;
 
@@ -353,7 +366,7 @@ namespace ValveResourceFormat.Renderer
                 var decal = decals[i];
                 var material = materials[decal.MaterialIndex].Definition;
 
-                if (time - decal.PlaceTime >= material.FadeStartTime + material.FadeDuration)
+                if (!decal.IsPermanent && time - decal.PlaceTime >= material.FadeStartTime + material.FadeDuration)
                 {
                     RemoveDecalAt(i);
                     continue;
@@ -405,7 +418,7 @@ namespace ValveResourceFormat.Renderer
             var fadeTime = time - decal.PlaceTime - material.FadeStartTime;
             var tint = decal.Tint;
 
-            if (fadeTime > 0f)
+            if (fadeTime > 0f && !decal.IsPermanent)
             {
                 tint.W *= 1f - Math.Clamp(fadeTime / MathF.Max(material.FadeDuration, 1e-4f), 0f, 1f);
             }
