@@ -243,6 +243,80 @@ public sealed partial class MapExtract
     }
 
     /// <summary>
+    /// Builds the Hammer vertex paint of one placed model from the vertex streams its world node binds to it,
+    /// or <see langword="null"/> when none of them can be carried over.
+    /// </summary>
+    private CDmExtraVertexData? GetExtraVertexData(string modelName, WorldNode.ExtraVertexStreamOverride[] streamOverrides, VBIB streams)
+    {
+        if (streamOverrides.Length == 0)
+        {
+            return null;
+        }
+
+        using var modelResource = FileLoader.LoadFile(modelName + GameFileLoader.CompiledFileSuffix);
+
+        if (modelResource?.DataBlock is not Model model)
+        {
+            return null;
+        }
+
+        var extraVertexData = new CDmExtraVertexData();
+
+        foreach (var streamOverride in streamOverrides)
+        {
+            var stream = streams.VertexBuffers[streamOverride.BufferIndex];
+            var drawCall = model.GetEmbeddedMeshes()
+                .Where(mesh => mesh.MeshIndex == streamOverride.SubSceneObject)
+                .SelectMany(static mesh => mesh.Mesh.Data.GetArray("m_sceneObjects"))
+                .SelectMany(static meshSceneObject => meshSceneObject.GetArray("m_drawCalls"))
+                .ElementAtOrDefault(streamOverride.DrawCallIndex);
+
+            // Streams painted on an older version of the model no longer match its vertex count
+            if (drawCall is null || drawCall.GetInt32Property("m_nVertexCount") != stream.ElementCount
+                || Mesh.GetMaterialName(drawCall) is not { } materialName)
+            {
+                continue;
+            }
+
+            if (!ExtraVertexStreamInputSignatures.TryGetValue(materialName, out var inputSignature))
+            {
+                inputSignature = Material.LoadInputSignature(FileLoader, materialName);
+                ExtraVertexStreamInputSignatures.Add(materialName, inputSignature);
+            }
+
+            var extraStream = new CDmExtraVertexStream
+            {
+                MeshIndex = streamOverride.SubSceneObject,
+                DrawCallIndex = streamOverride.DrawCallIndex,
+            };
+
+            var indices = Enumerable.Range(0, (int)stream.ElementCount).ToArray();
+
+            foreach (var attribute in stream.InputLayoutFields)
+            {
+                // The material names what it reads from the slot the stream fills
+                var streamName = Material.FindD3DInputSignatureElement(inputSignature, attribute.SemanticName, attribute.SemanticIndex).Semantic;
+
+                if (string.IsNullOrEmpty(streamName))
+                {
+                    continue;
+                }
+
+                extraStream.VertexData.AddIndexedStream(streamName, VBIB.GetVector4AttributeArray(stream, attribute), indices);
+            }
+
+            if (extraStream.VertexData.VertexFormat.Count > 0)
+            {
+                extraVertexData.ExtraStreams.Add(extraStream);
+            }
+        }
+
+        return extraVertexData.ExtraStreams.Count > 0 ? extraVertexData : null;
+    }
+
+    private readonly Dictionary<string, Material.VsInputSignature> ExtraVertexStreamInputSignatures = [];
+
+    /// <summary>
     /// Extract a map from a resource. Accepted types include <see cref="ResourceType.Map"/>, <see cref="ResourceType.World"/>. TODO: <see cref="ResourceType.WorldNode"/> and <see cref="ResourceType.EntityLump"/>.
     /// </summary>
     public MapExtract(Resource resource, IFileLoader? fileLoader)
@@ -1851,7 +1925,10 @@ public sealed partial class MapExtract
             properties["disableinlowquality"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
         }
 
-        void ProcessSceneObject(KVObject sceneObject, int layerIndex, List<MapNode> layerNodes)
+        var extraVertexStreamOverrides = node.ExtraVertexStreamOverrides.ToLookup(static streamOverride => streamOverride.SceneObjectIndex);
+        var extraVertexStreams = node.GetExtraVertexStreams();
+
+        void ProcessSceneObject(KVObject sceneObject, int sceneObjectIndex, int layerIndex, List<MapNode> layerNodes)
         {
             var modelName = sceneObject.GetStringProperty("m_renderableModel");
             var meshName = sceneObject.GetStringProperty("m_renderable");
@@ -1987,6 +2064,11 @@ public sealed partial class MapExtract
             if (Path.GetFileName(modelName!).Contains("nomerge", StringComparison.Ordinal))
             {
                 propStatic.EntityProperties["disablemerging"] = StringBool(true);
+            }
+
+            if (GetExtraVertexData(modelName!, [.. extraVertexStreamOverrides[sceneObjectIndex]], extraVertexStreams) is { } extraVertexData)
+            {
+                propStatic["extra_vertex_data"] = extraVertexData;
             }
 
             StaticPropFinalize(propStatic, layerIndex, layerNodes, isEmbeddedModel);
@@ -2162,7 +2244,7 @@ public sealed partial class MapExtract
         {
             var sceneObject = sceneObjects[i];
             var layerIndex = (int)(sceneObjectLayerIndices?[i] ?? -1);
-            ProcessSceneObject(sceneObject, layerIndex, layerNodes);
+            ProcessSceneObject(sceneObject, i, layerIndex, layerNodes);
         }
 
         foreach (var aggregateSceneObject in node.AggregateSceneObjects)

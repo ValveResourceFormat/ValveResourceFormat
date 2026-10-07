@@ -522,6 +522,42 @@ public class CMapEntity : BaseEntity
 }
 
 /// <summary>
+/// Extra vertex streams for props.
+/// </summary>
+public class CDmExtraVertexData : DMElement
+{
+    /// <summary>
+    /// The painted streams, each a <see cref="CDmExtraVertexStream"/>.
+    /// </summary>
+    [DMProperty(name: "m_ExtraStreams")]
+    public Datamodel.ElementArray ExtraStreams { get; init; } = [];
+}
+
+/// <summary>
+/// Vertex data painted onto one draw call of a prop.
+/// </summary>
+public class CDmExtraVertexStream : DMElement
+{
+    /// <summary>
+    /// Index of the draw call within the mesh.
+    /// </summary>
+    [DMProperty(name: "m_nDrawCallIndex")]
+    public int DrawCallIndex { get; set; }
+
+    /// <summary>
+    /// Index of the mesh within the model.
+    /// </summary>
+    [DMProperty(name: "m_nMeshIndex")]
+    public int MeshIndex { get; set; }
+
+    /// <summary>
+    /// The painted values, one per vertex of the draw call.
+    /// </summary>
+    [DMProperty(name: "m_pVertexData")]
+    public DmxModel.DmeVertexData VertexData { get; init; } = [];
+}
+
+/// <summary>
 /// A path: an ordered chain of <see cref="CMapPathNode"/> children that Hammer edits as one spline,
 /// carrying the entity keys of the path class it was placed as. The map compiler flattens the chain
 /// into the entity's own <c>pathNodes</c> key and drops the children.
