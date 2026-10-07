@@ -1,4 +1,6 @@
+using System.Linq;
 using ValveKeyValue;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -40,6 +42,37 @@ namespace ValveResourceFormat.ResourceTypes
             => Data.ContainsKey("m_clutterSceneObjects")
                 ? Data.GetArray("m_clutterSceneObjects")
                 : [];
+
+        /// <summary>
+        /// A vertex buffer bound in addition to the geometry of one draw call of one of <see cref="SceneObjects"/>,
+        /// such as vertex paint on a placed prop.
+        /// </summary>
+        /// <param name="SceneObjectIndex">Index into <see cref="SceneObjects"/>.</param>
+        /// <param name="SubSceneObject">Index of the mesh within the scene object's model.</param>
+        /// <param name="DrawCallIndex">Index of the draw call within the mesh.</param>
+        /// <param name="BufferIndex">Index into <see cref="GetExtraVertexStreams"/>.</param>
+        public readonly record struct ExtraVertexStreamOverride(int SceneObjectIndex, int SubSceneObject, int DrawCallIndex, int BufferIndex);
+
+        /// <summary>
+        /// Gets the extra vertex streams bound to single draw calls of <see cref="SceneObjects"/>.
+        /// </summary>
+        public IEnumerable<ExtraVertexStreamOverride> ExtraVertexStreamOverrides
+            => (Data.GetArray("m_extraVertexStreamOverrides") ?? []).Select(static streamOverride => new ExtraVertexStreamOverride(
+                streamOverride.GetInt32Property("m_nSceneObjectIndex"),
+                streamOverride.GetInt32Property("m_nSubSceneObject"),
+                streamOverride.GetInt32Property("m_nDrawCallIndex"),
+                streamOverride.GetSubCollection("m_extraBufferBinding").GetInt32Property("m_hBuffer")));
+
+        /// <summary>
+        /// Reads the vertex buffers that <see cref="ExtraVertexStreamOverrides"/> bind.
+        /// </summary>
+        public VBIB GetExtraVertexStreams()
+        {
+            var streams = new VBIB { Resource = Resource };
+            streams.AddVertexBuffers(Data.GetArray("m_extraVertexStreams") ?? []);
+
+            return streams;
+        }
 
         /// <summary>
         /// Gets the visibility cluster ids that scene objects and aggregate fragments with precomputed

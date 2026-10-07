@@ -41,6 +41,14 @@ namespace ValveResourceFormat.Blocks
         /// </summary>
         internal void AddToolsBuffers(IEnumerable<OnDiskBufferData> buffers) => toolsBuffers.AddRange(buffers);
 
+        internal void AddVertexBuffers(IEnumerable<KVObject> buffers)
+        {
+            foreach (var buffer in buffers)
+            {
+                VertexBuffers.Add(BufferDataFromDATA(buffer, isVertex: true));
+            }
+        }
+
 #pragma warning disable CA1051 // Do not declare visible instance fields
         /// <summary>
         /// Represents buffer data stored on disk.

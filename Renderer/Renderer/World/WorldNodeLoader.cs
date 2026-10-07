@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -56,13 +57,16 @@ namespace ValveResourceFormat.Renderer.World
                 });
             }
 
-            var i = 0;
             var defaultLightingOrigin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
             var sceneObjectLayerIndices = node.SceneObjectLayerIndices;
+            var sceneObjects = node.SceneObjects;
+            var extraVertexStreams = new ExtraVertexStreams(RendererContext, node);
+
             // Output is WorldNode_t we need to iterate m_sceneObjects inside it
-            foreach (var sceneObject in node.SceneObjects)
+            for (var sceneObjectIndex = 0; sceneObjectIndex < sceneObjects.Count; sceneObjectIndex++)
             {
-                var layerIndex = (int)(sceneObjectLayerIndices?[i++] ?? -1);
+                var sceneObject = sceneObjects[sceneObjectIndex];
+                var layerIndex = (int)(sceneObjectLayerIndices?[sceneObjectIndex] ?? -1);
 
                 // m_vCubeMapOrigin in older files
                 var lightingOrigin = sceneObject.ContainsKey("m_vLightingOrigin") ? sceneObject.GetSubCollection("m_vLightingOrigin").ToVector3() : defaultLightingOrigin;
@@ -118,6 +122,7 @@ namespace ValveResourceFormat.Renderer.World
                         modelNode.SetOverrideLod(lodOverride);
                     }
 
+                    extraVertexStreams.Apply(modelNode, sceneObjectIndex);
                     scene.Add(modelNode, false);
                 }
 
@@ -176,6 +181,46 @@ namespace ValveResourceFormat.Renderer.World
 
                     scene.Add(aggregate, false);
                     aggregate.LoadFragments(sceneObject, root, node);
+                }
+            }
+        }
+
+        private sealed class ExtraVertexStreams
+        {
+            private readonly ILookup<int, WorldNode.ExtraVertexStreamOverride> OverridesBySceneObject;
+            private readonly VBIB Streams;
+            private readonly GPUMeshBuffers Buffers;
+
+            public ExtraVertexStreams(RendererContext rendererContext, WorldNode node)
+            {
+                OverridesBySceneObject = node.ExtraVertexStreamOverrides.ToLookup(static streamOverride => streamOverride.SceneObjectIndex);
+                Streams = node.GetExtraVertexStreams();
+                Buffers = rendererContext.MeshBufferCache.CreateVertexIndexBuffers($"{node.Resource.FileName} extra vertex streams", Streams);
+            }
+
+            public void Apply(ModelSceneNode modelNode, int sceneObjectIndex)
+            {
+                foreach (var streamOverride in OverridesBySceneObject[sceneObjectIndex])
+                {
+                    var stream = Streams.VertexBuffers[streamOverride.BufferIndex];
+                    var drawCall = modelNode.AllRenderableMeshes
+                        .Where(mesh => mesh.MeshIndex == streamOverride.SubSceneObject)
+                        .SelectMany(static mesh => mesh.DrawCalls)
+                        .FirstOrDefault(call => call.Index == streamOverride.DrawCallIndex);
+
+                    // Streams painted on an older version of the model no longer match its vertex count
+                    if (drawCall?.VertexCount != stream.ElementCount)
+                    {
+                        continue;
+                    }
+
+                    drawCall.AddVertexBuffer(new VertexDrawBuffer
+                    {
+                        Handle = Buffers.VertexBuffers[streamOverride.BufferIndex],
+                        BufferIndex = streamOverride.BufferIndex,
+                        ElementSizeInBytes = stream.ElementSizeInBytes,
+                        InputLayoutFields = stream.InputLayoutFields,
+                    });
                 }
             }
         }

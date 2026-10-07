@@ -259,6 +259,8 @@ namespace ValveResourceFormat.Renderer
             // we are not sure when there can be more than one scene object here.
 
             var vertexOffset = 0;
+            var drawCallIndex = 0;
+
             foreach (var sceneObject in sceneObjects)
             {
                 var i = 0;
@@ -269,6 +271,7 @@ namespace ValveResourceFormat.Renderer
 
                 foreach (var objectDrawCall in objectDrawCalls)
                 {
+                    var index = drawCallIndex++;
                     var materialName = Mesh.GetMaterialName(objectDrawCall);
 
                     if (materialName == null && Mesh.IsOccluder(objectDrawCall))
@@ -320,7 +323,7 @@ namespace ValveResourceFormat.Renderer
 
                     var material = renderContext.MaterialLoader.GetMaterial(materialName, shaderArguments);
 
-                    var drawCall = CreateDrawCall(objectDrawCall, material, vbib, gpuVbib);
+                    var drawCall = CreateDrawCall(objectDrawCall, index, material, vbib, gpuVbib);
                     if (i < objectDrawBounds.Count)
                     {
                         drawCall.DrawBounds = new AABB(
@@ -372,7 +375,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private DrawCall CreateDrawCall(KVObject objectDrawCall, RenderMaterial material, VBIB vbib, GPUMeshBuffers gpuVbib)
+        private DrawCall CreateDrawCall(KVObject objectDrawCall, int drawCallIndex, RenderMaterial material, VBIB vbib, GPUMeshBuffers gpuVbib)
         {
             var vertexBuffers = objectDrawCall.GetArray("m_vertexBuffers");
 
@@ -381,7 +384,8 @@ namespace ValveResourceFormat.Renderer
                 Material = material,
                 MeshBuffers = renderContext.MeshBufferCache,
                 MeshName = Name,
-                VertexBuffers = new VertexDrawBuffer[vertexBuffers.Count]
+                VertexBuffers = new VertexDrawBuffer[vertexBuffers.Count],
+                Index = drawCallIndex,
             };
 
             var primitiveType = objectDrawCall.GetEnumValue<RenderPrimitiveType>("m_nPrimitiveType");
