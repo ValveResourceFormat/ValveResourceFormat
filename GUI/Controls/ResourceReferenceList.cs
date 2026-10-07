@@ -54,6 +54,7 @@ namespace GUI.Controls
         }
 
         private const string UsedByKey = "\0UsedBy";
+        private const string NotFoundNote = "\nNot found in the loaded files";
 
         private readonly VrfGuiContext guiContext;
         private readonly string? selfName;
@@ -645,7 +646,11 @@ namespace GUI.Controls
         private static void MarkNotFound(TreeNode node, Color attention)
         {
             node.ForeColor = attention;
-            node.ToolTipText = string.Concat(node.ToolTipText, "\nNot found in the loaded files");
+
+            if (!node.ToolTipText.EndsWith(NotFoundNote, StringComparison.Ordinal))
+            {
+                node.ToolTipText = string.Concat(node.ToolTipText, NotFoundNote);
+            }
         }
 
         private bool FileExists(string name)
