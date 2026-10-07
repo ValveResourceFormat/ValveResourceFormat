@@ -730,6 +730,7 @@ public sealed partial class NmGraphExtract : IDisposable
             "ParameterizedClipSelector" => CreateParameterizedClipSelectorNode(nodeIndex, compiledNode),
             "ParameterizedAnimationClipSelector" => CreateParameterizedSelectorNode("CNmGraphDocParameterizedClipSelectorNode", "CNmGraphDocParameterizedClipSelectorNode::CData", nodeIndex, compiledNode),
             "Clip" => CreateClipNode(nodeIndex, compiledNode),
+            "TimeControlledClip" => CreateTimeControlledClipNode(nodeIndex, compiledNode),
             "AnimationPose" => CreateAnimationPoseNode(nodeIndex, compiledNode),
             "FloatComparison" => CreateFloatComparisonNode(nodeIndex, compiledNode),
             "FloatRangeComparison" => CreateFloatRangeComparisonNode(nodeIndex, compiledNode),
@@ -845,6 +846,11 @@ public sealed partial class NmGraphExtract : IDisposable
             case "CNmClipNode::CDefinition":
                 ConnectIfValid((int)compiledNode.GetInt64Property("m_nPlayInReverseValueNodeIdx"), node, 0, graphBuilder);
                 ConnectIfValid((int)compiledNode.GetInt64Property("m_nResetTimeValueNodeIdx"), node, 1, graphBuilder);
+                break;
+
+            case "CNmTimeControlledClipNode::CDefinition":
+                ConnectIfValid((int)compiledNode.GetInt64Property("m_nTimeValueNodeIdx"), node, 0, graphBuilder);
+                ConnectIfValid((int)compiledNode.GetInt64Property("m_nPlayInReverseValueNodeIdx", -1), node, 1, graphBuilder);
                 break;
 
             case "CNmAnimationPoseNode::CDefinition":
@@ -1202,6 +1208,27 @@ public sealed partial class NmGraphExtract : IDisposable
         node.Add("m_defaultResourceName", string.Empty);
         node.Add("m_bSampleRootMotion", compiledNode.GetRequiredBooleanProperty("m_bSampleRootMotion"));
         node.Add("m_bAllowLooping", compiledNode.GetRequiredBooleanProperty("m_bAllowLooping"));
+        node.Add("m_graphEvents", CloneArray("m_graphEvents", compiledNode));
+        return node;
+    }
+
+    private KVObject CreateTimeControlledClipNode(int nodeIndex, KVObject compiledNode)
+    {
+        var variationData = CreateTimeControlledClipVariationData(compiledNode, GetResourcePath);
+
+        var node = CreateBaseNode("CNmGraphDocTimeControlledClipNode", MakeGuid(), GetNodeName(nodeIndex));
+        node.Add("m_inputPins", MakePins([new PinDef("Time", "Float"), new PinDef("Play In Reverse", "Bool")]));
+        node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
+        node.Add("m_pDefaultVariationData", variationData);
+        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph =>
+        {
+            var variationNode = variationGraph.GetCompiledNode(nodeIndex);
+            return variationNode is not null && GetCompiledClassName(variationNode) == GetCompiledClassName(compiledNode)
+                ? CreateTimeControlledClipVariationData(variationNode, variationGraph.GetResourcePath)
+                : null;
+        }));
+        node.Add("m_defaultResourceName", string.Empty);
+        node.Add("m_bSampleRootMotion", compiledNode.GetBooleanProperty("m_bSampleRootMotion", true));
         node.Add("m_graphEvents", CloneArray("m_graphEvents", compiledNode));
         return node;
     }
@@ -1599,11 +1626,22 @@ public sealed partial class NmGraphExtract : IDisposable
         var optionLabels = optionNodeIndices.Select(GetNodeName).ToArray();
 
         var inputPins = new List<PinDef> { new("Target", "Target") };
-        inputPins.AddRange(optionLabels.Select(label => new PinDef(label, "Pose")));
+        inputPins.AddRange(optionLabels.Select(label => new PinDef(label, "Pose", IsDynamicPin: true)));
+
+        var variationData = CreateTargetSelectorVariationData(compiledNode);
 
         var node = CreateBaseNode("CNmGraphDocTargetSelectorNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
+        node.Add("m_pDefaultVariationData", variationData);
+        node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph =>
+        {
+            var variationNode = variationGraph.GetCompiledNode(nodeIndex);
+            return variationNode is not null && GetCompiledClassName(variationNode) == GetCompiledClassName(compiledNode)
+                ? CreateTargetSelectorVariationData(variationNode)
+                : null;
+        }));
+        node.Add("m_defaultResourceName", string.Empty);
         node.Add("m_optionLabels", CloneStringArray(optionLabels));
         node.Add("m_flOrientationScoreWeight", compiledNode.GetFloatProperty("m_flOrientationScoreWeight", 1.0f));
         node.Add("m_flPositionScoreWeight", compiledNode.GetFloatProperty("m_flPositionScoreWeight", 1.0f));
@@ -1976,6 +2014,8 @@ public sealed partial class NmGraphExtract : IDisposable
             ? (compiledNode.GetRequiredBooleanProperty("m_bIsOffsetRelativeToCharacter") ? "RelativeToCharacter" : "RelativeToOriginalRootMotion")
             : "RelativeToCharacter");
         node.Add("m_samplingMode", GetOptionalString(compiledNode, "m_samplingMode", "WorldSpace"));
+        node.Add("m_alignmentMode", GetOptionalString(compiledNode, "m_alignmentMode", "MovementDirection"));
+        node.Add("m_bWarpTranslation", compiledNode.GetBooleanProperty("m_bWarpTranslation"));
         return node;
     }
 

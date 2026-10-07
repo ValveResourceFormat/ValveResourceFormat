@@ -184,6 +184,14 @@ public sealed partial class NmGraphExtract
         return variationData;
     }
 
+    private static KVObject CreateTimeControlledClipVariationData(KVObject compiledNode, Func<int, string> getResourcePath)
+    {
+        var variationData = KVObject.Collection();
+        variationData.Add("_class", "CNmGraphDocTimeControlledClipNode::CData");
+        variationData.Add("m_clip", getResourcePath((int)compiledNode.GetInt64Property("m_nDataSlotIdx")));
+        return variationData;
+    }
+
     private static KVObject CreateAnimationPoseVariationData(KVObject compiledNode, Func<int, string> getResourcePath)
     {
         var variationData = KVObject.Collection();
@@ -260,6 +268,14 @@ public sealed partial class NmGraphExtract
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CNmGraphDocTargetWarpNode::CData");
+        variationData.Add("m_strAlignmentBoneName", GetOptionalString(compiledNode, "m_alignmentBoneID"));
+        return variationData;
+    }
+
+    private static KVObject CreateTargetSelectorVariationData(KVObject compiledNode)
+    {
+        var variationData = KVObject.Collection();
+        variationData.Add("_class", "CNmGraphDocTargetSelectorNode::CData");
         variationData.Add("m_strAlignmentBoneName", GetOptionalString(compiledNode, "m_alignmentBoneID"));
         return variationData;
     }
