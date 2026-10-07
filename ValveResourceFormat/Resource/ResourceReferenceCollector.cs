@@ -174,6 +174,10 @@ public static class ResourceReferenceCollector
                     WalkKeyValues(keyValues.Data, null, 0);
                     break;
 
+                case BinaryKV3 { Type: BlockType.FLCI } sourceLocations:
+                    CollectSourceFiles(sourceLocations.Data?.Root);
+                    break;
+
                 case BinaryKV3 kv3:
                     WalkKeyValues(kv3.Data?.Root, null, 0);
                     break;
@@ -189,6 +193,49 @@ public static class ResourceReferenceCollector
                 default:
                     break;
             }
+        }
+
+        private void CollectSourceFiles(KVObject? root)
+        {
+            if (root?["flc_file_list"] is not { IsArray: true } fileList)
+            {
+                return;
+            }
+
+            foreach (var file in fileList.Values)
+            {
+                if (file.ValueType == KVValueType.String)
+                {
+                    Add(ContentRelativeName(file.ToString(CultureInfo.InvariantCulture)), ResourceReferenceKind.InputDependency);
+                }
+            }
+        }
+
+        /// <remarks>
+        /// The block names its sources as "content/&lt;mod&gt;/&lt;path&gt;", at times below further build folders,
+        /// while the edit info names them relative to the mod folder.
+        /// </remarks>
+        private static string ContentRelativeName(string name)
+        {
+            const string ContentFolder = "content/";
+
+            var path = name.Replace('\\', '/');
+            var start = path.Length;
+
+            do
+            {
+                start = start == 0 ? -1 : path.LastIndexOf(ContentFolder, start - 1, StringComparison.OrdinalIgnoreCase);
+            }
+            while (start > 0 && path[start - 1] != '/');
+
+            if (start < 0)
+            {
+                return name;
+            }
+
+            var modEnd = path.IndexOf('/', start + ContentFolder.Length);
+
+            return modEnd < 0 ? name : path[(modEnd + 1)..];
         }
 
         private void WalkKeyValues(KVObject? node, string? key, int depth)

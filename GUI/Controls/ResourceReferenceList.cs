@@ -157,7 +157,7 @@ namespace GUI.Controls
                     extension = extension[1..];
                 }
 
-                var category = Categorize(reference.Kinds);
+                var category = Categorize(reference);
                 var typeName = TypeName(reference, extension);
                 var icon = AppIcons.GetImageIndexForExtension(extension);
 
@@ -226,16 +226,19 @@ namespace GUI.Controls
             _ => 0,
         };
 
-        private static RowCategory Categorize(ResourceReferenceKind kinds)
+        private static RowCategory Categorize(ResourceReference reference)
         {
             const ResourceReferenceKind ContentOnly = ResourceReferenceKind.InputDependency | ResourceReferenceKind.Related;
+
+            var kinds = reference.Kinds;
 
             if (kinds == ResourceReferenceKind.Subasset)
             {
                 return RowCategory.Subasset;
             }
 
-            if ((kinds & ~ContentOnly) == ResourceReferenceKind.None)
+            if ((kinds & ~ContentOnly) == ResourceReferenceKind.None
+                || (reference.Type == ResourceType.Unknown && kinds.HasFlag(ResourceReferenceKind.InputDependency)))
             {
                 return RowCategory.Content;
             }
@@ -562,7 +565,7 @@ namespace GUI.Controls
 
         private void Open(TreeNode? node)
         {
-            if (node?.Tag is not ResourceReference reference || Categorize(reference.Kinds) != RowCategory.Reference)
+            if (node?.Tag is not ResourceReference reference || Categorize(reference) != RowCategory.Reference)
             {
                 return;
             }
