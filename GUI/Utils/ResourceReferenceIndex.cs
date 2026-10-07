@@ -271,7 +271,17 @@ namespace GUI.Utils
 
                 RandomAccess.Read(handle, buffer.AsSpan(0, headerLength), entry.Offset);
 
-                if (!TryFindExternalReferenceBlock(buffer.AsSpan(0, headerLength), entry.TotalLength, out var offset, out var size))
+                var header = buffer.AsSpan(0, headerLength);
+                var tableLength = BlockTableLength(header);
+
+                if (tableLength > headerLength && tableLength <= entry.TotalLength)
+                {
+                    var table = new byte[tableLength];
+                    RandomAccess.Read(handle, table, entry.Offset);
+                    header = table;
+                }
+
+                if (!TryFindExternalReferenceBlock(header, entry.TotalLength, out var offset, out var size))
                 {
                     return null;
                 }
@@ -314,7 +324,18 @@ namespace GUI.Utils
 
                 stream.ReadExactly(buffer, 0, headerLength);
 
-                if (!TryFindExternalReferenceBlock(buffer.AsSpan(0, headerLength), (uint)stream.Length, out var offset, out var size))
+                var header = buffer.AsSpan(0, headerLength);
+                var tableLength = BlockTableLength(header);
+
+                if (tableLength > headerLength && tableLength <= stream.Length)
+                {
+                    var table = new byte[tableLength];
+                    stream.Position = 0;
+                    stream.ReadExactly(table);
+                    header = table;
+                }
+
+                if (!TryFindExternalReferenceBlock(header, (uint)stream.Length, out var offset, out var size))
                 {
                     return null;
                 }
@@ -341,6 +362,18 @@ namespace GUI.Utils
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Returns how many bytes from the start of the resource cover its block table.
+        /// </summary>
+        private static int BlockTableLength(ReadOnlySpan<byte> header)
+        {
+            var blockOffset = BitConverter.ToUInt32(header[8..]);
+            var blockCount = BitConverter.ToUInt32(header[12..]);
+            var length = 8L + blockOffset + (blockCount * 12L);
+
+            return length > int.MaxValue ? int.MaxValue : (int)length;
         }
 
         private static bool TryFindExternalReferenceBlock(ReadOnlySpan<byte> header, uint entryLength, out uint offset, out uint size)
