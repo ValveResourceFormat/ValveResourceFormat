@@ -182,6 +182,18 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// Omni2 lights: -1 or 3 = point, 0 = sphere, 1 = tube, 2 = tube with end caps.</summary>
     public int LuminaireShape { get; set; } = -1;
 
+    /// <summary>Gets or sets the fraction of the screen below which the light starts fading out, zero to never fade.</summary>
+    public float FadeSizeStart { get; set; }
+
+    /// <summary>Gets or sets the fraction of the screen at which the light has faded out.</summary>
+    public float FadeSizeEnd { get; set; }
+
+    /// <summary>Gets or sets the fraction of the screen below which the light's shadows start fading out, zero to never fade.</summary>
+    public float ShadowFadeSizeStart { get; set; }
+
+    /// <summary>Gets or sets the fraction of the screen at which the light's shadows have faded out.</summary>
+    public float ShadowFadeSizeEnd { get; set; }
+
     /// <summary>Gets or sets the minimum roughness clamped for specular highlight calculations.</summary>
     public float MinRoughness { get; set; } = 0.04f;
 
@@ -409,6 +421,11 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         if (light.IsLight2)
         {
+            light.FadeSizeStart = entity.GetFloatProperty("fade_size_start", 0.05f);
+            light.FadeSizeEnd = entity.GetFloatProperty("fade_size_end", 0.025f);
+            light.ShadowFadeSizeStart = entity.GetFloatProperty("shadowfade_size_start", 0.1f);
+            light.ShadowFadeSizeEnd = entity.GetFloatProperty("shadowfade_size_end", 0.05f);
+
             light.PrecomputedFieldsValid = entity.GetInt32Property("precomputedfieldsvalid") != 0;
             if (light.PrecomputedFieldsValid)
             {
@@ -845,6 +862,27 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         var avgCos = (MathF.Cos(outerRad) + MathF.Cos(innerRad)) * 0.5f;
         return MathF.Min(MathF.Tau * (1f - avgCos), 4f * MathF.PI);
+    }
+
+    /// <summary>
+    /// How much of the light, and of its shadows, is left after fading out with the fraction of the screen its bounds cover.
+    /// </summary>
+    /// <param name="cameraPosition">Position of the camera the light is seen from.</param>
+    /// <param name="tanHalfHorizontalFov">Tangent of half the camera's horizontal field of view.</param>
+    internal (float Light, float Shadow) ComputeScreenSizeFades(Vector3 cameraPosition, float tanHalfHorizontalFov)
+    {
+        var bounds = PrecomputedFieldsValid ? PrecomputedBounds : new AABB(Position, Range);
+        var diagonal = Vector3.Distance(bounds.Min, bounds.Max);
+        var distanceSq = Vector3.DistanceSquared(cameraPosition, bounds.Center);
+
+        // Covers the whole screen with the camera close enough to be inside the bounds
+        var screenSize = diagonal * diagonal > distanceSq
+            ? 1f
+            : MathUtils.Saturate(diagonal / (MathF.Sqrt(distanceSq) * tanHalfHorizontalFov));
+
+        float Fade(float start, float end) => 1f - MathUtils.Saturate((start - screenSize) / MathF.Max(1e-4f, start - end));
+
+        return (Fade(FadeSizeStart, FadeSizeEnd), Fade(ShadowFadeSizeStart, ShadowFadeSizeEnd));
     }
 
     /// <summary>Linear color an omni2 or rect light is lit with, which is also the radiance its visible geometry starts from.</summary>

@@ -706,6 +706,8 @@ namespace ValveResourceFormat.Renderer.World
             ShadowMapper.Bin(BarnLights, camera, atlasSize, BarnLightCookiePaths,
                 binner?.VisibilitySequence ?? 0);
 
+            var tanHalfHorizontalFov = MathF.Tan(camera.GetFOV() * 0.5f) * camera.AspectRatio;
+
             foreach (ref readonly var binned in ShadowMapper.BinnedLights)
             {
                 var light = binned.Light;
@@ -735,6 +737,14 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
+                // Lights and their shadows fade out as they get small on screen
+                var (lightFade, shadowFade) = light.ComputeScreenSizeFades(camera.Location, tanHalfHorizontalFov);
+
+                if (lightFade <= 0f)
+                {
+                    continue;
+                }
+
                 var anyFaceDropped = false;
                 var hasRangeCutoff = light.UsesOmni2Faces && light.FallOff > 0f;
 
@@ -760,8 +770,10 @@ namespace ValveResourceFormat.Renderer.World
                         }
 
                         data.BarnLightShadowOffsetScale = placement.OffsetScale;
-                        data.BarnLightShadowScale = 1.0f;
+                        data.BarnLightShadowScale = shadowFade;
                     }
+
+                    data.BarnLightColor_flCookie *= new Vector4(lightFade, lightFade, lightFade, 1f);
 
                     BinnedBarnLightFaceSlots[LightingData.NumBarnLights] = new BarnLightFaceSlot(light, faceIndex);
 
