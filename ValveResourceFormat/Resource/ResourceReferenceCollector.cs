@@ -373,6 +373,13 @@ public static class ResourceReferenceCollector
                 return false;
             }
 
+            // Format patterns such as "%s" and sentences that mention a file name are not names themselves
+            if (value.Contains('%', StringComparison.Ordinal) || value.Contains('"', StringComparison.Ordinal)
+                || (value.Contains(' ', StringComparison.Ordinal) && !value.AsSpan().ContainsAny('/', '\\')))
+            {
+                return false;
+            }
+
             if (PanoramaUrl.TryResolveResourceName(value, out var panoramaName))
             {
                 Add(panoramaName, ResourceReferenceKind.Data, key);
