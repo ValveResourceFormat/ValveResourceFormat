@@ -52,18 +52,18 @@ struct ProjectedDecalMaterial_t
     float _padding1;
 };
 
-const uint DECAL_FLIP_U = 1u;
-const uint DECAL_HIDDEN = 2u; // on an entity that is not drawn
+const uint DECAL_FLIP_U = 1u << 0;
+const uint DECAL_HIDDEN = 1u << 1; // on an entity that is not drawn
 
 const uint DECAL_BLEND_MODE_MASK = 3u; // 0 = translucent, 1 = mod2x, 2 = emissive, 3 = liquid
-const uint DECAL_ALPHA_CUTOFF = 4u;
-const uint DECAL_CUTOFF_ANGLE = 8u;
-const uint DECAL_NORMAL_MAP = 16u;
-const uint DECAL_PARALLAX = 32u;
-const uint DECAL_SPECULAR = 64u;
-const uint DECAL_OCCLUSION_MAP = 128u;
-const uint DECAL_TRIPLANAR = 256u;
-const uint DECAL_BLOOD_AGING = 512u;
+const uint DECAL_ALPHA_CUTOFF = 1u << 2;
+const uint DECAL_CUTOFF_ANGLE = 1u << 3;
+const uint DECAL_NORMAL_MAP = 1u << 4;
+const uint DECAL_PARALLAX = 1u << 5;
+const uint DECAL_SPECULAR = 1u << 6;
+const uint DECAL_OCCLUSION_MAP = 1u << 7;
+const uint DECAL_TRIPLANAR = 1u << 8;
+const uint DECAL_BLOOD_AGING = 1u << 9;
 
 layout(std430, binding = 6) readonly buffer ProjectedDecalBuffer
 {

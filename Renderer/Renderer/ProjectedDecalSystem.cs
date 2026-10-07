@@ -33,22 +33,22 @@ namespace ValveResourceFormat.Renderer
 
         private const string KnifeDecalGroup = "ManhackCut";
 
-        private const uint FlagFlipU = 1;
-        private const uint FlagHidden = 2;
+        private const uint FlagFlipU = 1 << 0;
+        private const uint FlagHidden = 1 << 1;
 
         // Matches the DECAL_ flags in projected_decals.frag.slang; the low two bits are the blend mode
         [Flags]
         private enum MaterialFlags : uint
         {
             None = 0,
-            AlphaCutoff = 4,
-            CutoffAngle = 8,
-            NormalMap = 16,
-            Parallax = 32,
-            Specular = 64,
-            OcclusionMap = 128,
-            Triplanar = 256,
-            BloodAging = 512,
+            AlphaCutoff = 1 << 2,
+            CutoffAngle = 1 << 3,
+            NormalMap = 1 << 4,
+            Parallax = 1 << 5,
+            Specular = 1 << 6,
+            OcclusionMap = 1 << 7,
+            Triplanar = 1 << 8,
+            BloodAging = 1 << 9,
         }
 
         private const string TriplanarFeature = "F_TRIPLANAR_MAPPING";
