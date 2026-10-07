@@ -67,6 +67,12 @@ namespace ValveResourceFormat.ResourceTypes
                     context.Strings[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
                 }
 
+                if (readStringTableOnly)
+                {
+                    stringTable = context.Strings;
+                    return;
+                }
+
                 var (rootType, rootFlag) = LegacyReadType(outRead);
                 var root = LegacyReadBinaryValue(context, rootType, rootFlag, outRead);
 

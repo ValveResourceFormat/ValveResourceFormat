@@ -88,6 +88,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public KV3BinaryCompressionMethod SerializationCompressionMethod { get; set; } = KV3BinaryCompressionMethod.Uncompressed;
 
+        private bool readStringTableOnly;
+        private string[]? stringTable;
+
         private class Buffers
         {
             public ArraySegment<byte> Bytes1;
@@ -167,6 +170,32 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             ReadBuffer((int)version, reader);
+        }
+
+        /// <summary>
+        /// Reads only the string table of a binary KV3 block, which holds every key name and string value
+        /// stored in it, without building <see cref="Data"/>.
+        /// </summary>
+        /// <param name="reader">The reader over the resource the block is in.</param>
+        /// <param name="resource">The resource the block belongs to.</param>
+        /// <param name="offset">The offset of the block in the resource.</param>
+        /// <param name="size">The size of the block.</param>
+        /// <returns>The strings, in the order the block stores them.</returns>
+        public static string[] ReadStringTable(BinaryReader reader, Resource resource, uint offset, uint size)
+        {
+            ArgumentNullException.ThrowIfNull(reader);
+
+            var block = new BinaryKV3
+            {
+                Resource = resource,
+                Offset = offset,
+                Size = size,
+                readStringTableOnly = true,
+            };
+
+            block.Read(reader);
+
+            return block.stringTable ?? [];
         }
 
         internal static void DecompressLZ4(BinaryReader reader, Span<byte> output, int compressedSize)
@@ -494,6 +523,12 @@ namespace ValveResourceFormat.ResourceTypes
                             bufferWithBinaryBlobSizes = buffer1Span[offset..];
                         }
                     }
+                }
+
+                if (readStringTableOnly)
+                {
+                    stringTable = context.Strings;
+                    return;
                 }
 
                 // Buffer 2
