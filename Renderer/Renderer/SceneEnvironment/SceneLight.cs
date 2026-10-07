@@ -133,6 +133,15 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// when the light uses its color as is.</summary>
     public float? ColorTemperature { get; set; }
 
+    /// <summary>Gets or sets the sRGB color of the sky an environment light fills shadows with.</summary>
+    public Vector3 SkyColor { get; set; } = Vector3.One;
+
+    /// <summary>Gets or sets the intensity of <see cref="SkyColor"/>.</summary>
+    public float SkyIntensity { get; set; } = 1.0f;
+
+    /// <summary>Gets or sets the sRGB color the ground bounces an environment light's sun and sky back up with.</summary>
+    public Vector3 SkyAmbientBounce { get; set; } = Vector3.One;
+
     /// <summary>Gets or sets the additional brightness scale multiplier.</summary>
     public float BrightnessScale { get; set; } = 1.0f;
 
@@ -325,6 +334,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             },
 
             BrightnessScale = entity.GetFloatProperty("brightnessscale", 1.0f),
+            SkyColor = entity.GetColor32Property("skycolor"),
+            SkyIntensity = entity.GetFloatProperty("skyintensity", 1.0f),
+            SkyAmbientBounce = entity.GetColor32Property("skyambientbounce"),
             Range = entity.GetFloatProperty("range", 512.0f),
             FallOff = entity.GetFloatProperty("skirt", 0.1f),
 

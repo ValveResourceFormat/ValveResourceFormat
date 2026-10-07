@@ -35,6 +35,9 @@ public class SceneLightProbe : SceneNode
     /// </summary>
     public int IndoorOutdoorLevel { get; init; }
 
+    /// <summary>Gets the distance in from each side of the box over which the volume fades out.</summary>
+    public Vector3 EdgeFadeDists { get; init; }
+
     /// <summary>Gets or sets the world-space size of each voxel cell in the probe grid.</summary>
     public float VoxelSize { get; set; }
 
@@ -144,7 +147,9 @@ public class SceneLightProbe : SceneNode
         {
             WorldToLocalVolumeNormalized = worldToLocal *
                 Matrix4x4.CreateTranslation(-LocalBoundingBox.Min) *
-                Matrix4x4.CreateScale(Vector3.One / LocalBoundingBox.Size)
+                Matrix4x4.CreateScale(Vector3.One / LocalBoundingBox.Size),
+
+            InvEdgeWidth = new Vector4(LocalBoundingBox.Size / Vector3.Max(EdgeFadeDists, new Vector3(SceneEnvMap.BoundsExtend)), 0),
         };
 
         if (isProbeAtlas)

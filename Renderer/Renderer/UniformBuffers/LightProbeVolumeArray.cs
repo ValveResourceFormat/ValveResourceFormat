@@ -18,6 +18,8 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Vector4 AtlasScale;
         /// <summary>Offset applied when sampling this volume from the probe atlas.</summary>
         public Vector4 AtlasOffset;
+        /// <summary>Reciprocal of the edge fade width on each axis, in normalized local volume space.</summary>
+        public Vector4 InvEdgeWidth;
     }
 
     /// <summary>
@@ -27,7 +29,7 @@ namespace ValveResourceFormat.Renderer.Buffers
     public class LightProbeVolumeArray
     {
         /// <summary>Maximum number of light probe volumes supported per scene.</summary>
-        public const int MAX_PROBES = 128;
+        public const int MAX_PROBES = 320;
 
         /// <summary>Array of light probe volume data entries.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_PROBES)]

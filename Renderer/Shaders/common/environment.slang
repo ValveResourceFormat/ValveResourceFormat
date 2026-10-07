@@ -34,7 +34,7 @@ struct EnvMapData
 };
 
 // Maximum number of environment maps supported
-#define MAX_ENVMAPS 144
+#define MAX_ENVMAPS 320
 
 layout(std140, binding = 2) uniform EnvMapArray
 {

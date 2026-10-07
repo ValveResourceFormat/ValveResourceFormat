@@ -21,6 +21,8 @@ layout(std140, binding = 1) uniform LightingConstants {
     vec4[MAX_LIGHTS] g_vLightFallOff;
 
     vec4 g_vEnvMapSizeConstants;
+
+    vec4 g_vAmbientLightingSH[3];    // per color channel, xyz: against the normal, w: constant
 };
 
 #endif

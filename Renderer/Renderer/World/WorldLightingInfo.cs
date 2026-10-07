@@ -605,6 +605,28 @@ namespace ValveResourceFormat.Renderer.World
         public void SetSunDirectionFromAngles(Vector3 angles)
         {
             LightingData.SunDirection = new Vector4(-EntityTransformHelper.EulerAnglesToForwardDirection(angles), 0f);
+            UpdateAmbientLighting();
+        }
+
+        private Vector3 skyLight;
+        private Vector3 skyAmbientBounce;
+
+        /// <summary>
+        /// Rebuilds the ambient lighting that fills in where no light probe volume reaches: the sky from
+        /// above, and the sun and sky the ground bounces back from below. It only varies with height.
+        /// </summary>
+        private void UpdateAmbientLighting()
+        {
+            var sunDown = -LightingData.SunDirection.Z;
+            var sunBounce = LightingData.SunColor.AsVector3() * skyAmbientBounce * 0.5f;
+            var skyBounce = skyLight * skyAmbientBounce * 0.5f;
+
+            var vertical = (skyLight * 0.5f) - skyBounce + (sunBounce * sunDown);
+            var constant = (skyLight * 0.5f) + skyBounce + (sunBounce * MathF.Abs(sunDown));
+
+            LightingData.AmbientLightingSHR = new Vector4(0f, 0f, vertical.X, constant.X);
+            LightingData.AmbientLightingSHG = new Vector4(0f, 0f, vertical.Y, constant.Y);
+            LightingData.AmbientLightingSHB = new Vector4(0f, 0f, vertical.Z, constant.Z);
         }
 
         /// <summary>
@@ -619,6 +641,10 @@ namespace ValveResourceFormat.Renderer.World
             LightingData.SunDirection = new Vector4(-envLight.Direction, 0f);
             LightingData.SunColor = new Vector4(premultipliedColor, envLight.RenderSpecular ? 1f : 0f);
             LightingData.SunLightBakedShadowMask = bakedShadowData;
+
+            skyLight = ColorSpace.SrgbGammaToLinear(envLight.SkyColor) * envLight.SkyIntensity;
+            skyAmbientBounce = ColorSpace.SrgbGammaToLinear(envLight.SkyAmbientBounce);
+            UpdateAmbientLighting();
 
             HasOwnSun = true;
             isSunBorrowed = false;
@@ -643,6 +669,9 @@ namespace ValveResourceFormat.Renderer.World
                 {
                     LightingData.SunDirection = Vector4.Zero;
                     LightingData.SunColor = Vector4.Zero;
+                    LightingData.AmbientLightingSHR = Vector4.Zero;
+                    LightingData.AmbientLightingSHG = Vector4.Zero;
+                    LightingData.AmbientLightingSHB = Vector4.Zero;
                     isSunBorrowed = false;
                 }
 
@@ -651,6 +680,9 @@ namespace ValveResourceFormat.Renderer.World
 
             LightingData.SunDirection = donor.LightingData.SunDirection;
             LightingData.SunColor = donor.LightingData.SunColor;
+            LightingData.AmbientLightingSHR = donor.LightingData.AmbientLightingSHR;
+            LightingData.AmbientLightingSHG = donor.LightingData.AmbientLightingSHG;
+            LightingData.AmbientLightingSHB = donor.LightingData.AmbientLightingSHB;
 
             // These lightmaps have no sun baked in, so nothing is in baked shadow
             LightingData.SunLightBakedShadowMask = new Vector4(-1f, 0f, 0f, 0f);

@@ -47,18 +47,17 @@ ParticleLight_t CalculateParticleLighting(vec3 positionWs, vec3 normalWs, float 
         return light;
     }
 
-    vec3 indirectCoords = CalculateProbeIndirectCoords(positionWs);
     light.Ambient = vec3(0.0);
 
     if (directionality < 1.0)
     {
         const vec3 diagonal = vec3(0.57735027);
-        light.Ambient = 0.5 * (SampleProbeAmbientCube(indirectCoords, diagonal) + SampleProbeAmbientCube(indirectCoords, -diagonal));
+        light.Ambient = 0.5 * (SampleLightProbeIrradiance(positionWs, diagonal) + SampleLightProbeIrradiance(positionWs, -diagonal));
     }
 
     if (directionality > 0.0)
     {
-        light.Ambient = mix(light.Ambient, SampleProbeAmbientCube(indirectCoords, normalWs), directionality);
+        light.Ambient = mix(light.Ambient, SampleLightProbeIrradiance(positionWs, normalWs), directionality);
     }
 
     vec4 bakedShadow = SampleProbeDirectLightShadows(positionWs);
