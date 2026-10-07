@@ -379,8 +379,18 @@ public static class ResourceReferenceCollector
                 return true;
             }
 
+            var extension = Path.GetExtension(value.AsSpan());
+
+            // Sound events can name a sound by its source file, which compiles to a .vsnd
+            if ((extension.Equals(".wav", StringComparison.OrdinalIgnoreCase) || extension.Equals(".mp3", StringComparison.OrdinalIgnoreCase))
+                && value.AsSpan().ContainsAny('/', '\\') && !value.AsSpan().ContainsAny(TextSeparators))
+            {
+                Add(string.Concat(value.AsSpan(0, value.Length - extension.Length), ".vsnd"), ResourceReferenceKind.Data, key);
+                return true;
+            }
+
             // Resource data is full of interned strings that are not file names, such as bone names
-            if (ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(value.AsSpan())) == ResourceType.Unknown)
+            if (ResourceTypeExtensions.DetermineByFileExtension(extension) == ResourceType.Unknown)
             {
                 return false;
             }
