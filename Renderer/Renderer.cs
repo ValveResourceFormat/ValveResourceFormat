@@ -841,7 +841,7 @@ public class Renderer : ISpawnGroupHost
         }
 
         // Before the binning, which wants decals on moving entities where the entity is drawn this frame
-        Scene.ProjectedDecals.Update(deltaTime);
+        Scene.ProjectedDecals.Update(Uptime);
 
         // Backwards, so the first scene of the main view is left bound
         for (var i = views.Length - 1; i >= 0; i--)

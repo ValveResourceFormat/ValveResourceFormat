@@ -25,7 +25,7 @@ struct ProjectedDecal_t
     uint MaterialIndex;
     uint Flags;
     uint Tint; // RGBA8, linear
-    uint _padding;
+    float PlaceTime; // g_flTime when the decal was added
 };
 
 // Where a decal finds one of its textures. A texture sits in the corner of an array layer sized for the
@@ -63,6 +63,7 @@ const uint DECAL_PARALLAX = 32u;
 const uint DECAL_SPECULAR = 64u;
 const uint DECAL_OCCLUSION_MAP = 128u;
 const uint DECAL_TRIPLANAR = 256u;
+const uint DECAL_BLOOD_AGING = 512u;
 
 layout(std430, binding = 6) readonly buffer ProjectedDecalBuffer
 {
@@ -167,6 +168,36 @@ vec4 SampleDecalTexture(sampler2DArray textureArray, DecalTexture_t decalTexture
     vec3 coords = vec3(offset + texCoord * decalTexture.Scale, float(decalTexture.Layer & 0xFFFFu));
 
     return textureGrad(textureArray, coords, texCoordDdx * decalTexture.Scale, texCoordDdy * decalTexture.Scale);
+}
+
+// Blood spreads from its centre as it lands, then dries from its thin edges inward until only the thickest
+// of it is left. Fading it out dries it the rest of the way. Returns the opacity, how dry the blood is, and
+// where its normal and occlusion are read, which sag toward the ground while it is wet.
+float AgeBlood(float age, float fadeOpacity, vec4 color, vec3 decalCoords, vec3 axisX, vec3 axisY, out vec2 agedCoord, out float dry)
+{
+    age = max(age, 0.0);
+
+    float alpha = color.a;
+    bool isAging = age < 10.0 || fadeOpacity < 0.98;
+
+    float thickness = saturate(color.r * alpha) * (1.0 - length(decalCoords - 0.5));
+    float sag = thickness * (isAging ? (saturate(sqrt(age * 0.1)) - 0.5) * -60.0 : -60.0);
+
+    vec3 aged = ((decalCoords + vec3(-axisX.z, axisY.z, 0.0) * sag) - 0.5) * (1.0 + sag * 0.02) + 0.5;
+    agedCoord = aged.xy;
+
+    if (!isAging)
+    {
+        dry = 1.0;
+        return pow2(saturate((alpha - 0.86) * 6.25));
+    }
+
+    float reveal = saturate(age * (1.0 / 0.12) + (pow(alpha, 0.2) - 1.0) * 24.0 - length(vec2(0.5) - aged.xy) * 2.0);
+    float revealed = mix(saturate((alpha - 1.0 + reveal) / (reveal + 0.01)), alpha, reveal);
+
+    dry = smoothstep(0.0, 1.0, saturate((age - 2.0) * 0.125 - alpha + 1.0)) * (1.0 + (1.0 - fadeOpacity) * 0.2);
+
+    return pow2(saturate((revealed - saturate(dry * 0.86)) / (1.01 - saturate(dry * 0.85))));
 }
 
 vec4 UnpackDecalTint(uint tint)
@@ -346,11 +377,13 @@ void main()
             vec2 texCoordDdy = vec2(dot(positionDdy, axisX), dot(positionDdy, -axisY)) * 0.5;
 
             bool isTriplanar = (material.Flags & DECAL_TRIPLANAR) != 0u;
+            bool isBloodAging = (material.Flags & DECAL_BLOOD_AGING) != 0u;
 
             // A triplanar decal has no single depth axis to fade along, it fades toward every box face instead
-            float fade = isTriplanar ? 1.0 : saturate(decalCoords.z * material.Fade.z);
+            // Aging blood fades by drying, along neither the depth nor the angle
+            float fade = isTriplanar || isBloodAging ? 1.0 : saturate(decalCoords.z * material.Fade.z);
 
-            if ((material.Flags & DECAL_CUTOFF_ANGLE) != 0u)
+            if ((material.Flags & DECAL_CUTOFF_ANGLE) != 0u && !isBloodAging)
             {
                 float cutoff = (dot(geometricNormal, normalize(axisZ)) - material.Fade.x) * material.Fade.y;
 
@@ -406,9 +439,28 @@ void main()
                 color = SampleDecalTexture(uDecalColor, material.Color, texCoord, texCoordDdx, texCoordDdy);
             }
 
-            float opacity = (material.Flags & DECAL_ALPHA_CUTOFF) != 0u
-                ? min((color.a * fade + tint.a - 1.0) * material.Fade.w, 1.0)
-                : tint.a * color.a * fade;
+            float opacity = 0.0;
+            float bloodDry = 0.0;
+
+            if (isBloodAging)
+            {
+                if (color.a < 1.0 / 255.0)
+                {
+                    continue;
+                }
+
+                vec2 agedCoord;
+                opacity = AgeBlood(g_flTime - decal.PlaceTime, tint.a, color, decalCoords, axisX, axisY, agedCoord, bloodDry);
+
+                // Only the color stays where it landed
+                texCoord = (decal.Flags & DECAL_FLIP_U) != 0u ? vec2(1.0 - agedCoord.x, agedCoord.y) : agedCoord;
+            }
+            else
+            {
+                opacity = (material.Flags & DECAL_ALPHA_CUTOFF) != 0u
+                    ? min((color.a * fade + tint.a - 1.0) * material.Fade.w, 1.0)
+                    : tint.a * color.a * fade;
+            }
 
             if (opacity < 1.0 / 255.0)
             {
@@ -454,6 +506,13 @@ void main()
 
                 layerNormal = normalize(tangent * normalTs.x - bitangent * normalTs.y + geometricNormal * normalTs.z);
                 layerRoughness = normalTexel.b;
+            }
+
+            if (isBloodAging)
+            {
+                // Thin blood lies flat on the surface, and all of it dulls as it dries
+                layerNormal = normalize(mix(geometricNormal, layerNormal, saturate((opacity - 0.75) * 4.0)));
+                layerRoughness = mix(layerRoughness, 0.6, bloodDry);
             }
 
             vec2 occlusionMetalness = (material.Flags & DECAL_OCCLUSION_MAP) != 0u

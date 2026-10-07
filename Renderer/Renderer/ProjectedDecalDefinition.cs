@@ -62,6 +62,12 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets whether the color is projected along all three box axes rather than only its depth.</summary>
         public bool Triplanar { get; init; }
 
+        /// <summary>
+        /// Gets whether the decal is blood that spreads as it lands and then dries, losing its thin parts.
+        /// Its fade then dries it away rather than making it transparent.
+        /// </summary>
+        public bool BloodAging { get; init; }
+
         /// <summary>Gets whether the decal has specular highlights.</summary>
         public bool Specular { get; init; }
 
@@ -177,6 +183,7 @@ namespace ValveResourceFormat.Renderer
                 AlphaCutoff = intParams.GetValueOrDefault("F_ALPHA_MODE") == 1,
                 AlphaCutoffSoftness = floatParams.GetValueOrDefault("g_flAlphaCutoffSoftness", 0.1f),
                 Triplanar = isTriplanar,
+                BloodAging = intParams.GetValueOrDefault("F_BLOOD_AGING") == 1,
                 Specular = intParams.GetValueOrDefault("F_SPECULAR_DIRECT") == 1 || intParams.GetValueOrDefault("F_SPECULAR") == 1,
                 CutoffAngle = intParams.GetValueOrDefault("F_CUTOFF_ANGLE") == 1 ? floatParams.GetValueOrDefault("g_flCutoffAngle", 60f) : null,
                 CutoffAngleSoftness = floatParams.GetValueOrDefault("g_flCutoffAngleSoftness", 5f),

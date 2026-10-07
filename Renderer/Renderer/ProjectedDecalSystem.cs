@@ -48,6 +48,7 @@ namespace ValveResourceFormat.Renderer
             Specular = 64,
             OcclusionMap = 128,
             Triplanar = 256,
+            BloodAging = 512,
         }
 
         // Matches ProjectedDecal_t, 64 bytes
@@ -58,7 +59,7 @@ namespace ValveResourceFormat.Renderer
             public uint MaterialIndex;
             public uint Flags;
             public uint Tint;
-            public uint Padding;
+            public float PlaceTime;
         }
 
         // Matches DecalTexture_t, 16 bytes. Where a decal finds one of its textures in the array of its kind.
@@ -180,6 +181,11 @@ namespace ValveResourceFormat.Renderer
             if (definition.Triplanar)
             {
                 flags |= MaterialFlags.Triplanar;
+            }
+
+            if (definition.BloodAging)
+            {
+                flags |= MaterialFlags.BloodAging;
             }
 
             if (definition.CutoffAngle != null)
@@ -336,10 +342,10 @@ namespace ValveResourceFormat.Renderer
         /// added on, hides them while their entity is not drawn, and drops them once it is removed.
         /// Call once a frame, before the cull batch reads <see cref="BoxTransforms"/>.
         /// </summary>
-        /// <param name="deltaTime">Seconds since the last call.</param>
-        public void Update(float deltaTime)
+        /// <param name="currentTime">The time the view constants carry this frame, which the decals age against.</param>
+        public void Update(float currentTime)
         {
-            time += deltaTime;
+            time = currentTime;
 
             for (var i = decals.Count - 1; i >= 0; i--)
             {
@@ -709,6 +715,7 @@ namespace ValveResourceFormat.Renderer
                         MaterialIndex = (uint)decal.MaterialIndex,
                         Flags = decal.Flags,
                         Tint = GetFadedTint(decal),
+                        PlaceTime = decal.PlaceTime,
                     };
                 }
 
