@@ -291,54 +291,7 @@ namespace GUI.Controls
 
         private static string ToolTip(ResourceReference reference, string typeName, RowCategory category)
         {
-            var kinds = new List<string>(2);
-
-            if (reference.Kinds.HasFlag(ResourceReferenceKind.External))
-            {
-                kinds.Add("external reference list");
-            }
-
-            if (reference.Kinds.HasFlag(ResourceReferenceKind.Child))
-            {
-                kinds.Add("child resource");
-            }
-
-            if (reference.Kinds.HasFlag(ResourceReferenceKind.Weak))
-            {
-                kinds.Add("weak reference");
-            }
-
-            if (reference.Kinds.HasFlag(ResourceReferenceKind.Related))
-            {
-                kinds.Add("related file");
-            }
-
-            if (reference.Kinds.HasFlag(ResourceReferenceKind.InputDependency))
-            {
-                kinds.Add("compiled from");
-            }
-
-            if (reference.Kinds.HasFlag(ResourceReferenceKind.Subasset))
-            {
-                kinds.Add("subasset");
-            }
-
-            if (reference.Kinds.HasFlag(ResourceReferenceKind.Data))
-            {
-                kinds.Add("resource data");
-            }
-
-            if (reference.Kinds.HasFlag(ResourceReferenceKind.PanoramaImage))
-            {
-                kinds.Add("image table");
-            }
-
-            if (reference.Kinds.HasFlag(ResourceReferenceKind.Manifest))
-            {
-                kinds.Add("manifest");
-            }
-
-            var tip = $"{reference.Name}\n{typeName}, found in: {string.Join(", ", kinds)}";
+            var tip = $"{reference.Name}\n{typeName}, found in: {KindNames(reference.Kinds)}";
 
             if (reference.Source != null)
             {
@@ -351,6 +304,58 @@ namespace GUI.Controls
                 RowCategory.Subasset => string.Concat(tip, "\nDefined inside another resource, it has no file of its own"),
                 _ => tip,
             };
+        }
+
+        private static string KindNames(ResourceReferenceKind kinds)
+        {
+            var names = new List<string>(2);
+
+            if (kinds.HasFlag(ResourceReferenceKind.External))
+            {
+                names.Add("external reference list");
+            }
+
+            if (kinds.HasFlag(ResourceReferenceKind.Child))
+            {
+                names.Add("child resource");
+            }
+
+            if (kinds.HasFlag(ResourceReferenceKind.Weak))
+            {
+                names.Add("weak reference");
+            }
+
+            if (kinds.HasFlag(ResourceReferenceKind.Related))
+            {
+                names.Add("related file");
+            }
+
+            if (kinds.HasFlag(ResourceReferenceKind.InputDependency))
+            {
+                names.Add("compiled from");
+            }
+
+            if (kinds.HasFlag(ResourceReferenceKind.Subasset))
+            {
+                names.Add("subasset");
+            }
+
+            if (kinds.HasFlag(ResourceReferenceKind.Data))
+            {
+                names.Add("resource data");
+            }
+
+            if (kinds.HasFlag(ResourceReferenceKind.PanoramaImage))
+            {
+                names.Add("image table");
+            }
+
+            if (kinds.HasFlag(ResourceReferenceKind.Manifest))
+            {
+                names.Add("manifest");
+            }
+
+            return string.Join(", ", names);
         }
 
         private void ApplyFilter()
@@ -573,8 +578,8 @@ namespace GUI.Controls
 
             foreach (var referrer in found.Take(MaxReferrers))
             {
-                var reference = ResourceReference.Create(referrer, ResourceReferenceKind.External);
-                var extension = Path.GetExtension(referrer.AsSpan());
+                var reference = ResourceReference.Create(referrer.Name, referrer.Kinds);
+                var extension = Path.GetExtension(referrer.Name.AsSpan());
 
                 if (extension.Length > 0)
                 {
@@ -582,12 +587,12 @@ namespace GUI.Controls
                 }
 
                 var icon = AppIcons.GetImageIndexForExtension(extension);
-                var node = new TreeNode(referrer)
+                var node = new TreeNode(referrer.Name)
                 {
                     ImageIndex = icon,
                     SelectedImageIndex = icon,
                     Tag = reference,
-                    ToolTipText = $"{referrer}\nReferences this file in its external reference list",
+                    ToolTipText = $"{referrer.Name}\nReferences this file, found in its {KindNames(referrer.Kinds)}",
                 };
 
                 usedByRows.Add(new Row
@@ -595,7 +600,7 @@ namespace GUI.Controls
                     Reference = reference,
                     Category = RowCategory.Reference,
                     Node = node,
-                    Search = referrer,
+                    Search = referrer.Name,
                 });
             }
 
