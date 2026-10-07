@@ -16,7 +16,7 @@ public static class PanoramaUrl
     /// <summary>
     /// Turns a panorama url such as <c>file://{images}/spellicons/marci_unleash.png</c> into the resource
     /// name it compiles to, such as <c>panorama/images/spellicons/marci_unleash_png.vtex</c>. An <c>s2r://</c> url
-    /// already names the compiled resource.
+    /// names the file by its full path instead.
     /// </summary>
     /// <param name="value">The url as it is stored in the resource.</param>
     /// <param name="resourceName">The resource name the url points at.</param>
@@ -39,7 +39,7 @@ public static class PanoramaUrl
                 return false;
             }
 
-            resourceName = name;
+            resourceName = CompiledName(name);
             return true;
         }
 
