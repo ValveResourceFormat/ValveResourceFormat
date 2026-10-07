@@ -359,6 +359,8 @@ namespace GUI.Controls
 
             UpdateTree(() =>
             {
+                tree.Nodes.Clear();
+
                 var roots = new List<TreeNode>(categories.Count + 1);
                 var usedByNode = CreateUsedByNode();
 
@@ -380,9 +382,8 @@ namespace GUI.Controls
                     roots.Add(CreateGroupNode(category.Name, $"{category.Name} ({matching.Count})", category.Icon, matching, expand));
                 }
 
-                tree.Nodes.Clear();
                 tree.Nodes.AddRange([.. roots]);
-                ExpandFilledGroups();
+                ExpandFilled(roots);
             });
         }
 
@@ -397,7 +398,7 @@ namespace GUI.Controls
                 if (usedByNode != null)
                 {
                     tree.Nodes.Insert(0, usedByNode);
-                    ExpandFilledGroups();
+                    ExpandFilled([usedByNode]);
                 }
             });
         }
@@ -446,9 +447,9 @@ namespace GUI.Controls
 
         private bool IsShown(TreeNode node) => node.TreeView == tree && (node.Parent == null || node.Parent.IsExpanded);
 
-        private void ExpandFilledGroups()
+        private static void ExpandFilled(List<TreeNode> nodes)
         {
-            foreach (TreeNode node in tree.Nodes)
+            foreach (var node in nodes)
             {
                 if (node.Tag is Group { Filled: true } && !node.IsExpanded)
                 {
@@ -488,6 +489,12 @@ namespace GUI.Controls
         private static void Fill(TreeNode node, Group group)
         {
             node.Nodes.Clear();
+
+            foreach (var child in group.Children)
+            {
+                child.Parent?.Nodes.Remove(child);
+            }
+
             node.Nodes.AddRange(group.Children);
             group.Filled = true;
         }
