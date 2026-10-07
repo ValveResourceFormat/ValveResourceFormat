@@ -45,14 +45,30 @@ namespace GUI.Controls
             public List<Row> Rows { get; } = [];
         }
 
+        /// <summary>A top level node, whose children are only added once it is first expanded.</summary>
+        private sealed class Group
+        {
+            public required string Key { get; init; }
+            public required TreeNode[] Children { get; init; }
+            public bool Filled { get; set; }
+        }
+
+        private const string UsedByKey = "\0UsedBy";
+
         private readonly VrfGuiContext guiContext;
         private readonly string? selfName;
+        private readonly ResourceReferenceIndex? usedByIndex;
         private readonly List<Row> usedByRows = [];
+        private int usedByCount;
         private bool usedByReady;
         private readonly TreeViewDoubleBuffered tree;
         private readonly ThemedTextBox filterBox;
+        private readonly System.Windows.Forms.Timer filterTimer = new() { Interval = 150 };
         private readonly List<Row> rows = [];
         private readonly List<Category> categories = [];
+        private readonly Dictionary<string, bool> expandedByUser = new(StringComparer.Ordinal);
+        private string appliedFilter = string.Empty;
+        private bool rebuilding;
         private int lookedUpRows = -1;
 
         public ResourceReferenceList(VrfGuiContext guiContext, IReadOnlyList<ResourceReference> references, string? selfName = null)
@@ -61,6 +77,7 @@ namespace GUI.Controls
 
             this.guiContext = guiContext;
             this.selfName = selfName;
+            usedByIndex = selfName == null ? null : ResourceReferenceIndex.ForContext(guiContext);
             Dock = DockStyle.Fill;
 
             tree = new TreeViewDoubleBuffered
@@ -74,6 +91,9 @@ namespace GUI.Controls
 
             tree.NodeMouseDoubleClick += OnNodeDoubleClick;
             tree.KeyDown += OnKeyDown;
+            tree.BeforeExpand += OnBeforeExpand;
+            tree.AfterExpand += OnExpandChanged;
+            tree.AfterCollapse += OnExpandChanged;
 
             filterBox = new ThemedTextBox
             {
@@ -83,6 +103,7 @@ namespace GUI.Controls
                 Multiline = false,
             };
             filterBox.TextChanged += OnFilterChanged;
+            filterTimer.Tick += OnFilterTimerTick;
 
             var filterPanel = new Panel
             {
@@ -121,7 +142,7 @@ namespace GUI.Controls
             lookedUpRows = 0;
             BeginInvoke(LookUpNextRows);
 
-            if (selfName != null)
+            if (usedByIndex != null)
             {
                 BeginInvoke(BuildUsedBy);
             }
@@ -133,8 +154,13 @@ namespace GUI.Controls
             {
                 tree.NodeMouseDoubleClick -= OnNodeDoubleClick;
                 tree.KeyDown -= OnKeyDown;
+                tree.BeforeExpand -= OnBeforeExpand;
+                tree.AfterExpand -= OnExpandChanged;
+                tree.AfterCollapse -= OnExpandChanged;
                 filterBox.TextChanged -= OnFilterChanged;
+                filterTimer.Tick -= OnFilterTimerTick;
 
+                filterTimer.Dispose();
                 tree.Dispose();
                 filterBox.Dispose();
             }
@@ -327,62 +353,174 @@ namespace GUI.Controls
 
         private void ApplyFilter()
         {
-            var filter = filterBox.Text;
+            filterTimer.Stop();
+            appliedFilter = filterBox.Text;
 
-            tree.BeginUpdate();
-            tree.Nodes.Clear();
-
-            if (selfName != null)
+            UpdateTree(() =>
             {
-                var matching = Matching(usedByRows, filter);
-                var usedByNode = new TreeNode(usedByReady ? $"Used by ({matching.Count})" : "Used by (indexing\u2026)")
-                {
-                    ImageIndex = AppIcons.Icons["Folder"],
-                    SelectedImageIndex = AppIcons.Icons["Folder"],
-                };
+                var roots = new List<TreeNode>(categories.Count + 1);
+                var usedByNode = CreateUsedByNode();
 
-                foreach (var row in matching)
+                if (usedByNode != null)
                 {
-                    usedByNode.Nodes.Add(row.Node);
+                    roots.Add(usedByNode);
                 }
 
-                tree.Nodes.Add(usedByNode);
-
-                if (filter.Length > 0 && matching.Count > 0)
+                foreach (var category in categories)
                 {
-                    usedByNode.Expand();
+                    var matching = Matching(category.Rows, appliedFilter);
+
+                    if (matching.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    var expand = appliedFilter.Length > 0 || expandedByUser.GetValueOrDefault(category.Name, !category.StartsCollapsed);
+                    roots.Add(CreateGroupNode(category.Name, $"{category.Name} ({matching.Count})", category.Icon, matching, expand));
+                }
+
+                tree.Nodes.Clear();
+                tree.Nodes.AddRange([.. roots]);
+                ExpandFilledGroups();
+            });
+        }
+
+        private void UpdateUsedByNode()
+        {
+            UpdateTree(() =>
+            {
+                tree.Nodes.RemoveByKey(UsedByKey);
+
+                var usedByNode = CreateUsedByNode();
+
+                if (usedByNode != null)
+                {
+                    tree.Nodes.Insert(0, usedByNode);
+                    ExpandFilledGroups();
+                }
+            });
+        }
+
+        private void UpdateTree(Action update)
+        {
+            var selected = tree.SelectedNode;
+            var selectedKey = (selected?.Tag as Group)?.Key;
+            var top = tree.TopNode;
+            var topKey = (top?.Tag as Group)?.Key;
+
+            rebuilding = true;
+
+            try
+            {
+                tree.BeginUpdate();
+
+                try
+                {
+                    update();
+                }
+                finally
+                {
+                    tree.EndUpdate();
+                }
+
+                var newSelected = selectedKey != null ? tree.Nodes[selectedKey] : selected;
+
+                if (newSelected != null && IsShown(newSelected))
+                {
+                    tree.SelectedNode = newSelected;
+                }
+
+                var newTop = topKey != null ? tree.Nodes[topKey] : top;
+
+                if (newTop != null && IsShown(newTop))
+                {
+                    tree.TopNode = newTop;
                 }
             }
-
-            foreach (var category in categories)
+            finally
             {
-                var matching = Matching(category.Rows, filter);
+                rebuilding = false;
+            }
+        }
 
-                if (matching.Count == 0)
+        private bool IsShown(TreeNode node) => node.TreeView == tree && (node.Parent == null || node.Parent.IsExpanded);
+
+        private void ExpandFilledGroups()
+        {
+            foreach (TreeNode node in tree.Nodes)
+            {
+                if (node.Tag is Group { Filled: true } && !node.IsExpanded)
                 {
-                    continue;
-                }
-
-                var categoryNode = new TreeNode($"{category.Name} ({matching.Count})")
-                {
-                    ImageIndex = category.Icon,
-                    SelectedImageIndex = category.Icon,
-                };
-
-                foreach (var row in matching)
-                {
-                    categoryNode.Nodes.Add(row.Node);
-                }
-
-                tree.Nodes.Add(categoryNode);
-
-                if (filter.Length > 0 || !category.StartsCollapsed)
-                {
-                    categoryNode.Expand();
+                    node.Expand();
                 }
             }
+        }
 
-            tree.EndUpdate();
+        private static TreeNode CreateGroupNode(string key, string text, int icon, List<Row> children, bool expand)
+        {
+            var group = new Group
+            {
+                Key = key,
+                Children = [.. children.Select(static row => row.Node)],
+            };
+
+            var node = new TreeNode(text)
+            {
+                Name = key,
+                ImageIndex = icon,
+                SelectedImageIndex = icon,
+                Tag = group,
+            };
+
+            if (expand)
+            {
+                Fill(node, group);
+            }
+            else
+            {
+                node.Nodes.Add(new TreeNode());
+            }
+
+            return node;
+        }
+
+        private static void Fill(TreeNode node, Group group)
+        {
+            node.Nodes.Clear();
+            node.Nodes.AddRange(group.Children);
+            group.Filled = true;
+        }
+
+        private TreeNode? CreateUsedByNode()
+        {
+            if (usedByIndex == null)
+            {
+                return null;
+            }
+
+            var folderIcon = AppIcons.Icons["Folder"];
+
+            if (!usedByReady)
+            {
+                return new TreeNode("Used by (indexing…)")
+                {
+                    Name = UsedByKey,
+                    ImageIndex = folderIcon,
+                    SelectedImageIndex = folderIcon,
+                };
+            }
+
+            var matching = Matching(usedByRows, appliedFilter);
+            var count = appliedFilter.Length == 0 ? usedByCount : matching.Count(static row => row.Category == RowCategory.Reference);
+
+            if (count == 0)
+            {
+                return null;
+            }
+
+            var expand = appliedFilter.Length > 0 || expandedByUser.GetValueOrDefault(UsedByKey);
+
+            return CreateGroupNode(UsedByKey, $"Used by ({count})", folderIcon, matching, expand);
         }
 
         private static List<Row> Matching(List<Row> rows, string filter)
@@ -394,16 +532,7 @@ namespace GUI.Controls
 
         private void BuildUsedBy()
         {
-            var index = ResourceReferenceIndex.ForContext(guiContext);
-
-            if (index == null || selfName == null)
-            {
-                usedByReady = true;
-                ApplyFilter();
-                return;
-            }
-
-            index.BuildAsync().ContinueWith(_ =>
+            usedByIndex?.BuildAsync().ContinueWith(_ =>
             {
                 if (IsDisposed || Disposing || !IsHandleCreated)
                 {
@@ -412,25 +541,25 @@ namespace GUI.Controls
 
                 try
                 {
-                    BeginInvoke(() => FillUsedBy(index));
+                    BeginInvoke(FillUsedBy);
                 }
-                catch (ObjectDisposedException)
+                catch (Exception e) when (e is ObjectDisposedException or InvalidOperationException)
                 {
                     // the tab was closed while the index was building
                 }
             }, TaskScheduler.Default);
         }
 
-        private void FillUsedBy(ResourceReferenceIndex index)
+        private void FillUsedBy()
         {
             const int MaxReferrers = 1000;
 
-            if (IsDisposed || Disposing || selfName == null)
+            if (IsDisposed || Disposing || selfName == null || usedByIndex == null)
             {
                 return;
             }
 
-            var found = index.Find(selfName);
+            var found = usedByIndex.Find(selfName);
             var dimmed = Themer.CurrentThemeColors.ContrastSoft;
 
             foreach (var referrer in found.Take(MaxReferrers))
@@ -477,8 +606,9 @@ namespace GUI.Controls
                 });
             }
 
+            usedByCount = found.Count;
             usedByReady = true;
-            ApplyFilter();
+            UpdateUsedByNode();
         }
 
         // Looking a reference up walks every mounted package, so this runs in chunks between UI messages
@@ -546,7 +676,39 @@ namespace GUI.Controls
 
         private void OnFilterChanged(object? sender, EventArgs e)
         {
+            filterTimer.Stop();
+
+            if (filterBox.Text != appliedFilter)
+            {
+                filterTimer.Start();
+            }
+        }
+
+        private void OnFilterTimerTick(object? sender, EventArgs e)
+        {
             ApplyFilter();
+        }
+
+        private void OnBeforeExpand(object? sender, TreeViewCancelEventArgs e)
+        {
+            if (e.Node?.Tag is not Group { Filled: false } group)
+            {
+                return;
+            }
+
+            tree.BeginUpdate();
+            Fill(e.Node, group);
+            tree.EndUpdate();
+        }
+
+        private void OnExpandChanged(object? sender, TreeViewEventArgs e)
+        {
+            if (rebuilding || appliedFilter.Length > 0 || e.Node is not { Parent: null, Tag: Group group })
+            {
+                return;
+            }
+
+            expandedByUser[group.Key] = e.Node.IsExpanded;
         }
 
         private void OnKeyDown(object? sender, KeyEventArgs e)
