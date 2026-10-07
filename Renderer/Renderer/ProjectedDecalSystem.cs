@@ -87,7 +87,7 @@ namespace ValveResourceFormat.Renderer
             public uint Offset;
         }
 
-        // Matches ProjectedDecalMaterial_t, 128 bytes. Derived parameters are evaluated here so the shader
+        // Matches ProjectedDecalMaterialData_t, 128 bytes. Derived parameters are evaluated here so the shader
         // only reads them.
         [StructLayout(LayoutKind.Sequential)]
         private struct MaterialGpu
