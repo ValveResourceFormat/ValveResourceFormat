@@ -52,18 +52,21 @@ struct ProjectedDecalMaterial_t
     float _padding1;
 };
 
+// What a decal carries of its own
 const uint DECAL_FLIP_U = 1u << 0;
 const uint DECAL_HIDDEN = 1u << 1; // on an entity that is not drawn
 
-const uint DECAL_BLEND_MODE_MASK = 3u; // 0 = translucent, 1 = mod2x, 2 = emissive, 3 = liquid
-const uint DECAL_ALPHA_CUTOFF = 1u << 2;
-const uint DECAL_CUTOFF_ANGLE = 1u << 3;
-const uint DECAL_NORMAL_MAP = 1u << 4;
-const uint DECAL_PARALLAX = 1u << 5;
-const uint DECAL_SPECULAR = 1u << 6;
+// The material's features, under the names its material gives them. The blend mode is a value in the low
+// two bits, the rest are switches.
+const uint F_BLEND_MODE = 3u; // 0 = translucent, 1 = mod2x, 2 = emissive, 3 = liquid
+const uint F_ALPHA_MODE = 1u << 2;
+const uint F_CUTOFF_ANGLE = 1u << 3;
+const uint F_NORMAL_MAP = 1u << 4;
+const uint F_PARALLAX = 1u << 5;
+const uint F_SPECULAR_DIRECT = 1u << 6;
 const uint DECAL_OCCLUSION_MAP = 1u << 7;
-const uint DECAL_TRIPLANAR = 1u << 8;
-const uint DECAL_BLOOD_AGING = 1u << 9;
+const uint F_TRIPLANAR_MAPPING = 1u << 8;
+const uint F_BLOOD_AGING = 1u << 9;
 
 layout(std430, binding = 6) readonly buffer ProjectedDecalBuffer
 {
@@ -345,7 +348,7 @@ void main()
 
             ProjectedDecalMaterial_t material = g_ProjectedDecalMaterials[decal.MaterialIndex];
 
-            uint blendMode = material.Flags & DECAL_BLEND_MODE_MASK;
+            uint blendMode = material.Flags & F_BLEND_MODE;
 
             vec3 boxPosition = (vec4(positionWs, 1.0) * decal.WorldToDecal) + 0.5;
             vec3 decalCoords = vec3(boxPosition.x, 1.0 - boxPosition.y, boxPosition.z);
@@ -376,14 +379,14 @@ void main()
             vec2 texCoordDdx = vec2(dot(positionDdx, axisX), dot(positionDdx, -axisY)) * 0.5;
             vec2 texCoordDdy = vec2(dot(positionDdy, axisX), dot(positionDdy, -axisY)) * 0.5;
 
-            bool isTriplanar = (material.Flags & DECAL_TRIPLANAR) != 0u;
-            bool isBloodAging = (material.Flags & DECAL_BLOOD_AGING) != 0u;
+            bool isTriplanar = (material.Flags & F_TRIPLANAR_MAPPING) != 0u;
+            bool isBloodAging = (material.Flags & F_BLOOD_AGING) != 0u;
 
             // A triplanar decal has no single depth axis to fade along, it fades toward every box face instead
             // Aging blood fades by drying, along neither the depth nor the angle
             float fade = isTriplanar || isBloodAging ? 1.0 : saturate(decalCoords.z * material.Fade.z);
 
-            if ((material.Flags & DECAL_CUTOFF_ANGLE) != 0u && !isBloodAging)
+            if ((material.Flags & F_CUTOFF_ANGLE) != 0u && !isBloodAging)
             {
                 float cutoff = (dot(geometricNormal, normalize(axisZ)) - material.Fade.x) * material.Fade.y;
 
@@ -398,7 +401,7 @@ void main()
 
             vec2 texCoord = decalCoords.xy;
 
-            if ((material.Flags & DECAL_PARALLAX) != 0u)
+            if ((material.Flags & F_PARALLAX) != 0u)
             {
                 texCoord = ApplyParallax(material, texCoord, texCoordDdx, texCoordDdy, positionWs, geometricNormal, axisX, axisY, axisZ);
             }
@@ -457,7 +460,7 @@ void main()
             }
             else
             {
-                opacity = (material.Flags & DECAL_ALPHA_CUTOFF) != 0u
+                opacity = (material.Flags & F_ALPHA_MODE) != 0u
                     ? min((color.a * fade + tint.a - 1.0) * material.Fade.w, 1.0)
                     : tint.a * color.a * fade;
             }
@@ -493,7 +496,7 @@ void main()
             vec3 layerNormal = geometricNormal;
             float layerRoughness = material.Roughness;
 
-            if ((material.Flags & DECAL_NORMAL_MAP) != 0u)
+            if ((material.Flags & F_NORMAL_MAP) != 0u)
             {
                 vec4 normalTexel = SampleDecalTexture(uDecalNormal, material.Normal, texCoord, texCoordDdx, texCoordDdy);
                 float octX = normalTexel.x + normalTexel.y - (256.0 / 255.0);
@@ -519,7 +522,7 @@ void main()
                 ? SampleDecalTexture(uDecalOcclusion, material.Occlusion, texCoord, texCoordDdx, texCoordDdy).xy
                 : vec2(1.0, 0.0);
 
-            bool isSpecular = (material.Flags & DECAL_SPECULAR) != 0u;
+            bool isSpecular = (material.Flags & F_SPECULAR_DIRECT) != 0u;
             vec3 layerDiffuse = isSpecular ? albedo * (1.0 - occlusionMetalness.y) : albedo;
             vec3 layerSpecular = isSpecular ? mix(vec3(0.04), albedo, occlusionMetalness.y) : vec3(0.0);
 

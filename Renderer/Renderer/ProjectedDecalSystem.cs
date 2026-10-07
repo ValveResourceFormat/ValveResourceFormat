@@ -36,7 +36,8 @@ namespace ValveResourceFormat.Renderer
         private const uint FlagFlipU = 1 << 0;
         private const uint FlagHidden = 1 << 1;
 
-        // Matches the DECAL_ flags in projected_decals.frag.slang; the low two bits are the blend mode
+        // Matches the feature flags in projected_decals.frag.slang, which go by the material's own names
+        // for them. The low two bits are the blend mode.
         [Flags]
         private enum MaterialFlags : uint
         {
