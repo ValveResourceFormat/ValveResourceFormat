@@ -373,9 +373,9 @@ public static class ResourceReferenceCollector
                 return false;
             }
 
-            // Format patterns such as "%s" and sentences that mention a file name are not names themselves
+            // Format patterns such as "%s", sentences and bare names such as material layer labels are not file names
             if (value.Contains('%', StringComparison.Ordinal) || value.Contains('"', StringComparison.Ordinal)
-                || (value.Contains(' ', StringComparison.Ordinal) && !value.AsSpan().ContainsAny('/', '\\')))
+                || !value.AsSpan().ContainsAny('/', '\\'))
             {
                 return false;
             }
