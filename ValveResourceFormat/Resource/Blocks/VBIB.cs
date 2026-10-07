@@ -889,6 +889,184 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <summary>
+        /// Returns a copy whose positions, normals and tangents are mapped per vertex. Normals are transformed by the
+        /// inverse transpose of the given linear map and tangents by the map itself, in their stored encoding.
+        /// Index buffers are shared with this instance.
+        /// </summary>
+        /// <param name="transform">Maps a position to its new position and the local linear map (row-vector) at that point.</param>
+        /// <returns>The transformed copy.</returns>
+        public VBIB TransformVertices(Func<Vector3, (Vector3 Position, Matrix4x4 Linear)> transform)
+        {
+            var copy = new VBIB { Resource = Resource };
+            copy.IndexBuffers.AddRange(IndexBuffers);
+
+            foreach (var buffer in VertexBuffers)
+            {
+                var position = Array.FindIndex(buffer.InputLayoutFields, static f => f.SemanticName == "POSITION" && f.Format == DXGI_FORMAT.R32G32B32_FLOAT);
+
+                if (position < 0)
+                {
+                    copy.VertexBuffers.Add(buffer);
+                    continue;
+                }
+
+                var data = (byte[])buffer.Data.Clone();
+                var stride = (int)buffer.ElementSizeInBytes;
+                var positionOffset = (int)buffer.InputLayoutFields[position].Offset;
+                var normalField = Array.Find(buffer.InputLayoutFields, static f => f.SemanticName == "NORMAL");
+                var tangentField = Array.Find(buffer.InputLayoutFields, static f => f.SemanticName == "TANGENT");
+
+                for (var i = 0; i < buffer.ElementCount; i++)
+                {
+                    var vertex = data.AsSpan(i * stride, stride);
+                    var (newPosition, linear) = transform(MemoryMarshal.Read<Vector3>(vertex[positionOffset..]));
+                    MemoryMarshal.Write(vertex[positionOffset..], in newPosition);
+
+                    var normalLinear = Matrix4x4.Invert(linear, out var inverse) ? Matrix4x4.Transpose(inverse) : linear;
+                    var handedness = linear.GetDeterminant() < 0f ? -1f : 1f;
+
+                    if (normalField.SemanticName != null)
+                    {
+                        TransformNormalField(vertex[(int)normalField.Offset..], normalField.Format, normalLinear, linear, handedness);
+                    }
+
+                    if (tangentField.SemanticName != null)
+                    {
+                        TransformTangentField(vertex[(int)tangentField.Offset..], tangentField.Format, linear, handedness);
+                    }
+                }
+
+                var transformed = buffer;
+                transformed.Data = data;
+                copy.VertexBuffers.Add(transformed);
+            }
+
+            return copy;
+        }
+
+        private static Vector3 TransformDirection(Vector3 direction, Matrix4x4 linear) => MathUtils.SafeNormalize(Vector3.TransformNormal(direction, linear));
+
+        private static void TransformNormalField(Span<byte> field, DXGI_FORMAT format, Matrix4x4 normalLinear, Matrix4x4 linear, float handedness)
+        {
+            switch (format)
+            {
+                case DXGI_FORMAT.R32G32B32_FLOAT:
+                case DXGI_FORMAT.R32G32B32A32_FLOAT:
+                {
+                    var normal = TransformDirection(MemoryMarshal.Read<Vector3>(field), normalLinear);
+                    MemoryMarshal.Write(field, in normal);
+                    break;
+                }
+
+                case DXGI_FORMAT.R32_UINT:
+                {
+                    var (normals, tangents) = DecompressNormalTangents2([MemoryMarshal.Read<uint>(field)]);
+                    var normal = TransformDirection(normals[0], normalLinear);
+                    var tangent = TransformDirection(new Vector3(tangents[0].X, tangents[0].Y, tangents[0].Z), linear);
+                    var packed = CompressNormalTangent2(normal, new Vector4(tangent, tangents[0].W * handedness));
+                    MemoryMarshal.Write(field, in packed);
+                    break;
+                }
+
+                case DXGI_FORMAT.R8G8B8A8_UNORM:
+                {
+                    var normal = TransformDirection(DecompressNormal(field[0], field[1]), normalLinear);
+                    var tangent = DecompressTangent(field[2], field[3]);
+                    var tangentDirection = TransformDirection(new Vector3(tangent.X, tangent.Y, tangent.Z), linear);
+
+                    (field[0], field[1]) = CompressNormal(normal, field[1] >= 128);
+                    (field[2], field[3]) = CompressNormal(tangentDirection, tangent.W * handedness > 0f);
+                    break;
+                }
+
+                default:
+                    break;
+            }
+        }
+
+        private static void TransformTangentField(Span<byte> field, DXGI_FORMAT format, Matrix4x4 linear, float handedness)
+        {
+            if (format == DXGI_FORMAT.R32G32B32A32_FLOAT)
+            {
+                var tangent = MemoryMarshal.Read<Vector4>(field);
+                var direction = TransformDirection(new Vector3(tangent.X, tangent.Y, tangent.Z), linear);
+                var result = new Vector4(direction, tangent.W * handedness);
+                MemoryMarshal.Write(field, in result);
+            }
+            else if (format == DXGI_FORMAT.R32G32B32_FLOAT)
+            {
+                var direction = TransformDirection(MemoryMarshal.Read<Vector3>(field), linear);
+                MemoryMarshal.Write(field, in direction);
+            }
+        }
+
+        /// <summary>
+        /// Inverse of <see cref="DecompressNormal"/>. The second byte keeps the half given by <paramref name="upperSecondHalf"/>,
+        /// which carries the tangent sign.
+        /// </summary>
+        private static (byte X, byte Y) CompressNormal(Vector3 normal, bool upperSecondHalf)
+        {
+            var length = MathF.Abs(normal.X) + MathF.Abs(normal.Y) + MathF.Abs(normal.Z);
+
+            if (length == 0f)
+            {
+                normal = Vector3.UnitZ;
+                length = 1f;
+            }
+
+            static int Fold(bool positive, int value) => positive ? value : -(value + 1);
+
+            var x = Math.Clamp((int)MathF.Round(MathF.Abs(normal.X) / length * 63f), 0, 63);
+            var y = Math.Clamp((int)MathF.Round(MathF.Abs(normal.Y) / length * 63f), 0, 63);
+
+            var x1 = Fold(normal.X >= 0f, x) + 64;
+            var y1 = Fold(normal.Y >= 0f, y) + 64;
+
+            return ((byte)(128 + Fold(normal.Z >= 0f, x1)), (byte)(128 + Fold(upperSecondHalf, y1)));
+        }
+
+        /// <summary>
+        /// Inverse of <see cref="DecompressNormalTangents2"/>: an octahedral normal, the tangent's angle around it and the bitangent sign.
+        /// </summary>
+        private static uint CompressNormalTangent2(Vector3 normal, Vector4 tangent)
+        {
+            var length = MathF.Abs(normal.X) + MathF.Abs(normal.Y) + MathF.Abs(normal.Z);
+            var p = length == 0f ? Vector2.Zero : new Vector2(normal.X, normal.Y) / length;
+
+            if (normal.Z < 0f)
+            {
+                p = new Vector2(
+                    (1f - MathF.Abs(p.Y)) * (p.X >= 0f ? 1f : -1f),
+                    (1f - MathF.Abs(p.X)) * (p.Y >= 0f ? 1f : -1f));
+            }
+
+            var xBits = (uint)Math.Clamp((int)MathF.Round((p.X * 0.5f + 0.5f) * 1023f), 0, 1023);
+            var yBits = (uint)Math.Clamp((int)MathF.Round((p.Y * 0.5f + 0.5f) * 1023f), 0, 1023);
+
+            var (decodedNormals, _) = DecompressNormalTangents2([(xBits << 12) | (yBits << 22)]);
+            var decoded = decodedNormals[0];
+            var tangentSign = decoded.Z >= 0f ? 1f : -1f;
+            var rcpTangentZ = 1f / (tangentSign + decoded.Z);
+            var unaligned = new Vector3(
+                -tangentSign * (decoded.X * decoded.X) * rcpTangentZ + 1f,
+                -tangentSign * (decoded.X * decoded.Y * rcpTangentZ),
+                -tangentSign * decoded.X);
+
+            var direction = new Vector3(tangent.X, tangent.Y, tangent.Z);
+            var angle = MathF.Atan2(Vector3.Dot(direction, Vector3.Cross(decoded, unaligned)), Vector3.Dot(direction, unaligned));
+
+            if (angle < 0f)
+            {
+                angle += MathF.Tau;
+            }
+
+            var tBits = (uint)((int)MathF.Round(angle / MathF.Tau * 2047f) & 0x7ff);
+            var signBit = tangent.W > 0f ? 1u : 0u;
+
+            return signBit | (tBits << 1) | (xBits << 12) | (yBits << 22);
+        }
+
         private static Vector3 DecompressNormal(float x, float y)
         {
             var outputNormal = Vector3.Zero;

@@ -2,6 +2,8 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
@@ -30,6 +32,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool HasMeshes => meshRenderers.Count > 0;
 
         private readonly List<RenderableMesh> meshRenderers = [];
+        private readonly Func<Mesh, VBIB>? replaceVertices;
+        private readonly List<string> replacedMeshNames = [];
+        private static int replacedMeshCounter;
 
         internal override List<RenderableMesh> AllRenderableMeshes => meshRenderers;
 
@@ -45,9 +50,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <param name="model">The model resource to render.</param>
         /// <param name="skin">The material group (skin) name to activate, or <see langword="null"/> for the default.</param>
         /// <param name="isWorldPreview">When <see langword="true"/>, only embedded animations are loaded.</param>
-        public ModelSceneNode(Scene scene, Model model, string? skin = null, bool isWorldPreview = false)
+        /// <param name="replaceVertices">
+        /// Optional replacement vertex buffers per mesh, for geometry baked by the caller. Replaced meshes get GPU buffers
+        /// of their own, freed with the node, and no morphs.
+        /// </param>
+        public ModelSceneNode(Scene scene, Model model, string? skin = null, bool isWorldPreview = false, Func<Mesh, VBIB>? replaceVertices = null)
             : base(scene)
         {
+            this.replaceVertices = replaceVertices;
             materialGroups = model.GetMaterialGroups().ToArray();
             meshGroups = model.MeshGroups;
             lod = new ModelLodSelector(model.LodInfo);
@@ -172,6 +182,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void Delete()
         {
+            foreach (var name in replacedMeshNames)
+            {
+                Scene.RendererContext.MeshBufferCache.DeleteVertexIndexBuffers(name);
+            }
+
             foreach (var mesh in meshRenderers)
             {
                 if (mesh.FlexStateManager is { } flexStateManager)
@@ -369,7 +384,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 embeddedMesh.Mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
                 model.SetExternalMorphData(embeddedMesh.Mesh.MorphData);
 
-                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
+                meshRenderers.Add(replaceVertices == null
+                    ? new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData)
+                    : CreateReplacedMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, model));
             }
 
             foreach (var refMesh in referenceMeshes)
@@ -383,10 +400,20 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
                 model.SetExternalMeshData(mesh);
 
-                meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable));
+                meshRenderers.Add(replaceVertices == null
+                    ? new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable)
+                    : CreateReplacedMesh(mesh, refMesh.MeshIndex, model));
             }
 
             SetActiveMeshGroups(model.MeshGroups.Defaults);
+        }
+
+        private RenderableMesh CreateReplacedMesh(Mesh mesh, int meshIndex, Model model)
+        {
+            var name = $"{mesh.Name}#replaced{Interlocked.Increment(ref replacedMeshCounter)}";
+            replacedMeshNames.Add(name);
+
+            return new RenderableMesh(mesh, meshIndex, Scene, model, materialTable, vertexBuffers: replaceVertices!(mesh), name: name);
         }
 
         /// <summary>Activates the animation with the given name, or stops animation if not found.</summary>

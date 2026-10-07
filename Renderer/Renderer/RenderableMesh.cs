@@ -69,14 +69,17 @@ namespace ValveResourceFormat.Renderer
         /// <param name="initialMaterialTable">Optional material name overrides.</param>
         /// <param name="morph">Optional morph data for facial animation.</param>
         /// <param name="isAggregate">When <see langword="true"/>, all draw calls go into the opaque bucket for aggregate rendering.</param>
+        /// <param name="vertexBuffers">Optional vertex buffers used instead of the mesh's own; bounds are taken from their positions.</param>
+        /// <param name="name">Optional name keying the GPU buffers instead of the mesh name.</param>
         public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model? model = null,
-            Dictionary<string, string>? initialMaterialTable = null, Morph? morph = null, bool isAggregate = false)
+            Dictionary<string, string>? initialMaterialTable = null, Morph? morph = null, bool isAggregate = false,
+            VBIB? vertexBuffers = null, string? name = null)
         {
             renderContext = scene.RendererContext;
 
-            Name = mesh.Name;
+            Name = name ?? mesh.Name;
 
-            var vbib = mesh.VBIB;
+            var vbib = vertexBuffers ?? mesh.VBIB;
 
             if (model != null)
             {
@@ -88,7 +91,7 @@ namespace ValveResourceFormat.Renderer
             Skinning = GetSkinning(vbib, BoneWeightCount);
 
             mesh.GetBounds();
-            BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
+            BoundingBox = vertexBuffers == null ? new AABB(mesh.MinBounds, mesh.MaxBounds) : GetPositionBounds(vertexBuffers);
             MeshIndex = meshIndex;
 
             var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
@@ -99,6 +102,31 @@ namespace ValveResourceFormat.Renderer
             {
                 FlexStateManager = new FlexStateManager(renderContext, morph);
             }
+        }
+
+        private static AABB GetPositionBounds(VBIB vbib)
+        {
+            var min = new Vector3(float.MaxValue);
+            var max = new Vector3(float.MinValue);
+
+            foreach (var buffer in vbib.VertexBuffers)
+            {
+                foreach (var field in buffer.InputLayoutFields)
+                {
+                    if (field.SemanticName != "POSITION" || field.Format != DXGI_FORMAT.R32G32B32_FLOAT)
+                    {
+                        continue;
+                    }
+
+                    foreach (var position in VBIB.GetVector3AttributeArray(buffer, field))
+                    {
+                        min = Vector3.Min(min, position);
+                        max = Vector3.Max(max, position);
+                    }
+                }
+            }
+
+            return min.X > max.X ? new AABB(Vector3.Zero, Vector3.Zero) : new AABB(min, max);
         }
 
         /// <summary>Returns the render mode names supported by the materials in this mesh, concatenated across draw calls (may contain duplicates).</summary>
