@@ -197,11 +197,11 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var clutterData in node.ClutterSceneObjects)
             {
-                LoadClutter(scene, new ClutterSceneObject(clutterData), root);
+                LoadClutter(scene, new WorldNode.ClutterSceneObject(clutterData), root);
             }
         }
 
-        private void LoadClutter(Scene scene, ClutterSceneObject clutter, Matrix4x4 root)
+        private void LoadClutter(Scene scene, WorldNode.ClutterSceneObject clutter, Matrix4x4 root)
         {
             if (RendererContext.FileLoader.LoadFileCompiled(clutter.RenderableModel)?.DataBlock is not Model model)
             {

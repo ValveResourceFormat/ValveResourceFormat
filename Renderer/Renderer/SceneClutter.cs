@@ -3,7 +3,7 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Instanced aggregate for the instances of a <see cref="ClutterSceneObject"/> that share a tint. A compute pass
+    /// Instanced aggregate for the instances of a <see cref="WorldNode.ClutterSceneObject"/> that share a tint. A compute pass
     /// picks the instances to draw each frame by their screen size.
     /// </summary>
     public sealed class SceneClutter : SceneAggregate

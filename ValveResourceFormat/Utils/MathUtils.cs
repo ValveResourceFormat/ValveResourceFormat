@@ -376,21 +376,5 @@ namespace ValveResourceFormat.Utils
         /// </summary>
         public static float MaxAxisScale(this Matrix4x4 m)
             => Max(m.AxisScale(0), m.AxisScale(1), m.AxisScale(2));
-
-        /// <summary>
-        /// Unpacks a quaternion stored in 32 bits: x in bits 0-10, y in bits 11-20 and z in bits 21-30, each
-        /// mapped from [0, 1] to [-1, 1], with w rebuilt from unit length and negated when bit 31 is set.
-        /// The result is not normalized.
-        /// </summary>
-        /// <param name="packed">The packed quaternion.</param>
-        public static Quaternion UnpackQuaternion32(uint packed)
-        {
-            var x = (packed & 0x7FF) * (2f / 2047f) - 1f;
-            var y = ((packed >> 11) & 0x3FF) * (2f / 1023f) - 1f;
-            var z = ((packed >> 21) & 0x3FF) * (2f / 1023f) - 1f;
-            var w = MathF.Sqrt(1f - MathF.Min(0.999999f, x * x + y * y + z * z));
-
-            return new Quaternion(x, y, z, (packed & 0x80000000) != 0 ? -w : w);
-        }
     }
 }
