@@ -58,7 +58,7 @@ void MainVs_inner()
     [unroll]
     for (int _1ident = 0; _1ident < 3; _1ident++)
     {
-        _25207._m0[_1ident] = asfloat(g_transformBuffer.Load4(_1ident * 16 + g_instanceBuffer.Load(nInstanceIdx * 32 + 4) * 48 + 0));
+        _25207._m0[_1ident] = g_transformBuffer.Load<float4>(_1ident * 16 + g_instanceBuffer.Load<uint>(nInstanceIdx * 32 + 4) * 48 + 0);
     }
     float4 _24787 = mul(float4x4(float4(PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[0].x, PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[1].x, PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[2].x, PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[3].x), float4(PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[0].y, PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[1].y, PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[2].y, PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[3].y), float4(PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[0].z, PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[1].z, PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[2].z, PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[3].z), float4(PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[0].w, PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[1].w, PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[2].w, PerViewConstantBuffer_t_1_g_matWorldToProjection._m0[3].w)), (float4(mul(float3x4(_25207._m0[0], _25207._m0[1], _25207._m0[2]), float4(vPositionOs.xyz, 1.0f)).xyz, 1.0f) + (PerViewConstantBuffer_t_1_g_vWorldToCameraOffset * 1.0f)).xyzw);
     _24787.y = -_24787.y;

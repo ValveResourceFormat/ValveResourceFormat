@@ -27,13 +27,13 @@ void MainMs_inner(inout gl_MeshPerVertexEXT gl_MeshVerticesEXT[4], inout uint3 g
 {
     SetMeshOutputCounts(4u, 2u);
     int _15567 = int(gl_GlobalInvocationID.x * 36u);
-    gl_MeshVerticesEXT[gl_GlobalInvocationID.x].output_0.x = asfloat(g_inputVB.Load(((_15567 + 12) / 4) * 4 + 0));
-    gl_MeshVerticesEXT[gl_GlobalInvocationID.x].output_0.y = asfloat(g_inputVB.Load(((_15567 + 16) / 4) * 4 + 0));
-    gl_MeshVerticesEXT[gl_GlobalInvocationID.x].output_0.z = asfloat(g_inputVB.Load(((_15567 + 20) / 4) * 4 + 0));
-    gl_MeshVerticesEXT[gl_GlobalInvocationID.x].output_1.x = asfloat(g_inputVB.Load(((_15567 + 28) / 4) * 4 + 0));
-    gl_MeshVerticesEXT[gl_GlobalInvocationID.x].output_1.y = asfloat(g_inputVB.Load(((_15567 + 32) / 4) * 4 + 0));
-    float4 _15926 = float4(asfloat(g_inputVB.Load((_15567 / 4) * 4 + 0)), _24362, asfloat(g_inputVB.Load(((_15567 + 8) / 4) * 4 + 0)), 1.0f);
-    _15926.y = asfloat(g_inputVB.Load(((_15567 + 4) / 4) * 4 + 0));
+    gl_MeshVerticesEXT[gl_GlobalInvocationID.x].output_0.x = g_inputVB.Load<float>(((_15567 + 12) / 4) * 4 + 0);
+    gl_MeshVerticesEXT[gl_GlobalInvocationID.x].output_0.y = g_inputVB.Load<float>(((_15567 + 16) / 4) * 4 + 0);
+    gl_MeshVerticesEXT[gl_GlobalInvocationID.x].output_0.z = g_inputVB.Load<float>(((_15567 + 20) / 4) * 4 + 0);
+    gl_MeshVerticesEXT[gl_GlobalInvocationID.x].output_1.x = g_inputVB.Load<float>(((_15567 + 28) / 4) * 4 + 0);
+    gl_MeshVerticesEXT[gl_GlobalInvocationID.x].output_1.y = g_inputVB.Load<float>(((_15567 + 32) / 4) * 4 + 0);
+    float4 _15926 = float4(g_inputVB.Load<float>((_15567 / 4) * 4 + 0), _24362, g_inputVB.Load<float>(((_15567 + 8) / 4) * 4 + 0), 1.0f);
+    _15926.y = g_inputVB.Load<float>(((_15567 + 4) / 4) * 4 + 0);
     gl_MeshVerticesEXT[gl_GlobalInvocationID.x].gl_Position = _15926;
     if (gl_GlobalInvocationID.x == 0u)
     {

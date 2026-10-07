@@ -248,7 +248,8 @@ public static partial class ShaderSpirvReflection
             }
             else if (backend == Backend.HLSL)
             {
-                SpirvCrossApi.spvc_compiler_options_set_uint(options, CompilerOption.HLSLShaderModel, 61);
+                SpirvCrossApi.spvc_compiler_options_set_uint(options, CompilerOption.HLSLShaderModel, 62);
+                SpirvCrossApi.spvc_compiler_options_set_bool(options, CompilerOption.HLSLEnable16bitTypes, SpirvCrossApi.SPVC_TRUE);
                 SpirvCrossApi.spvc_compiler_options_set_uint(options, CompilerOption.HLSLUseEntryPointName, 1);
             }
 
