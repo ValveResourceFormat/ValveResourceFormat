@@ -51,6 +51,18 @@ namespace ValveResourceFormat.Renderer
             BloodAging = 512,
         }
 
+        private const string TriplanarFeature = "F_TRIPLANAR_MAPPING";
+
+        // The material features that are no more than a switch in the shader
+        private static readonly (string Feature, MaterialFlags Flag)[] FeatureFlags =
+        [
+            ("F_ALPHA_MODE", MaterialFlags.AlphaCutoff),
+            (TriplanarFeature, MaterialFlags.Triplanar),
+            ("F_SPECULAR_DIRECT", MaterialFlags.Specular),
+            ("F_SPECULAR", MaterialFlags.Specular),
+            ("F_BLOOD_AGING", MaterialFlags.BloodAging),
+        ];
+
         // Matches ProjectedDecal_t, 64 bytes
         [StructLayout(LayoutKind.Sequential)]
         private struct DecalGpu
@@ -173,29 +185,17 @@ namespace ValveResourceFormat.Renderer
 
             var flags = MaterialFlags.None;
 
-            if (definition.AlphaCutoff)
+            foreach (var (feature, flag) in FeatureFlags)
             {
-                flags |= MaterialFlags.AlphaCutoff;
-            }
-
-            if (definition.Triplanar)
-            {
-                flags |= MaterialFlags.Triplanar;
-            }
-
-            if (definition.BloodAging)
-            {
-                flags |= MaterialFlags.BloodAging;
+                if (definition.Features.Contains(feature))
+                {
+                    flags |= flag;
+                }
             }
 
             if (definition.CutoffAngle != null)
             {
                 flags |= MaterialFlags.CutoffAngle;
-            }
-
-            if (definition.Specular)
-            {
-                flags |= MaterialFlags.Specular;
             }
 
             if (normal != null)
@@ -555,7 +555,7 @@ namespace ValveResourceFormat.Renderer
                 width = height = sizeOverride;
 
                 // A triplanar decal wraps around what is inside its box, so its depth follows its size
-                if (definition.Triplanar)
+                if (definition.Features.Contains(TriplanarFeature))
                 {
                     depth = sizeOverride;
                 }

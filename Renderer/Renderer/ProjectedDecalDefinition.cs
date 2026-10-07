@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+using System.Linq;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
@@ -53,23 +55,14 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets how the decal is blended.</summary>
         public ProjectedDecalBlendMode BlendMode { get; init; }
 
-        /// <summary>Gets whether alpha is a cutoff that the decal erodes along as it fades, rather than an opacity.</summary>
-        public bool AlphaCutoff { get; init; }
-
-        /// <summary>Gets the alpha range the cutoff edge is softened over.</summary>
-        public float AlphaCutoffSoftness { get; init; } = 0.1f;
-
-        /// <summary>Gets whether the color is projected along all three box axes rather than only its depth.</summary>
-        public bool Triplanar { get; init; }
-
         /// <summary>
-        /// Gets whether the decal is blood that spreads as it lands and then dries, losing its thin parts.
-        /// Its fade then dries it away rather than making it transparent.
+        /// Gets the shader features that are on, by the names decal materials give them, such as
+        /// <c>F_TRIPLANAR_MAPPING</c>. The decal shader decides what each does, and ignores those it lacks.
         /// </summary>
-        public bool BloodAging { get; init; }
+        public IReadOnlySet<string> Features { get; init; } = FrozenSet<string>.Empty;
 
-        /// <summary>Gets whether the decal has specular highlights.</summary>
-        public bool Specular { get; init; }
+        /// <summary>Gets the alpha range the cutoff edge is softened over, for a decal whose alpha is a cutoff.</summary>
+        public float AlphaCutoffSoftness { get; init; } = 0.1f;
 
         /// <summary>
         /// Gets the angle in degrees between the surface and the projection past which the decal is cut off,
@@ -180,11 +173,9 @@ namespace ValveResourceFormat.Renderer
                 OcclusionTexture = data.TextureParams.GetValueOrDefault("g_tAmbientOcclusion"),
                 HeightTexture = intParams.GetValueOrDefault("F_PARALLAX") == 1 ? data.TextureParams.GetValueOrDefault("g_tHeight") : null,
                 BlendMode = (ProjectedDecalBlendMode)Math.Clamp(intParams.GetValueOrDefault("F_BLEND_MODE"), 0L, 3L),
-                AlphaCutoff = intParams.GetValueOrDefault("F_ALPHA_MODE") == 1,
+                Features = intParams.Where(p => p.Value != 0 && p.Key.StartsWith("F_", StringComparison.Ordinal))
+                    .Select(p => p.Key).ToFrozenSet(StringComparer.Ordinal),
                 AlphaCutoffSoftness = floatParams.GetValueOrDefault("g_flAlphaCutoffSoftness", 0.1f),
-                Triplanar = isTriplanar,
-                BloodAging = intParams.GetValueOrDefault("F_BLOOD_AGING") == 1,
-                Specular = intParams.GetValueOrDefault("F_SPECULAR_DIRECT") == 1 || intParams.GetValueOrDefault("F_SPECULAR") == 1,
                 CutoffAngle = intParams.GetValueOrDefault("F_CUTOFF_ANGLE") == 1 ? floatParams.GetValueOrDefault("g_flCutoffAngle", 60f) : null,
                 CutoffAngleSoftness = floatParams.GetValueOrDefault("g_flCutoffAngleSoftness", 5f),
                 DepthFade = floatParams.GetValueOrDefault("g_flDecalZAlphaScale", 0.01f),
