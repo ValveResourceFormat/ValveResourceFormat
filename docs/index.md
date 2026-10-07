@@ -147,7 +147,7 @@ GCFScape was a popular utility created by Nem for extracting and browsing Valve 
 
 ### Contribute
 
-Source 2 Viewer is open-source and welcomes contributions! Whether you're a developer, designer, or documentation writer, check out the [Contributing Guide](https://github.com/ValveResourceFormat/ValveResourceFormat/blob/master/CONTRIBUTING.md).
+Source 2 Viewer is open-source and welcomes contributions! Whether you're a developer, designer, or documentation writer, check out the [Contributing Guide](https://github.com/ValveResourceFormat/ValveResourceFormat#contributing).
 
 ### Links
 

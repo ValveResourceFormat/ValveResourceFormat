@@ -12,7 +12,7 @@
   ·
   <a href="https://s2v.app/ValveResourceFormat/">Documentation</a>
   ·
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="#contributing">Contributing</a>
   ·
   <a href="https://discord.gg/s9QQ7Wg7r4">Discord</a>
 </p>
@@ -40,8 +40,8 @@ and the [API reference](https://s2v.app/ValveResourceFormat/api/ValveResourceFor
 This tool is based entirely on reverse engineering as Valve does not provide Source 2
 documentation or code, so not all formats are fully supported. If you are interested in
 helping, take a look at the [open issues](https://github.com/ValveResourceFormat/ValveResourceFormat/issues)
-and join our [Discord](https://discord.gg/s9QQ7Wg7r4). See [CONTRIBUTING.md](CONTRIBUTING.md)
-and [AGENTS.md](AGENTS.md) for more information, and
+and join our [Discord](https://discord.gg/s9QQ7Wg7r4). See [AGENTS.md](AGENTS.md) for project
+layout, code style and the checks to run before submitting, and
 [code coverage](https://app.codecov.io/gh/ValveResourceFormat/ValveResourceFormat) for where tests are missing.
 
 ## License
