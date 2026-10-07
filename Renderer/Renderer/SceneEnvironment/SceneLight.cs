@@ -178,7 +178,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the luminaire anisotropy for capsule-shaped area lights.</summary>
     public float LuminaireAnisotropy { get; set; }
 
-    /// <summary>Gets or sets the luminaire shape index (-1 = point, 0 = sphere, 1 = capsule, 2 = rect).</summary>
+    /// <summary>Gets or sets the luminaire shape index. Barn lights: 0 = point, 1 = disk, 2 = rectangle.
+    /// Omni2 lights: -1 or 3 = point, 0 = sphere, 1 = tube, 2 = tube with end caps.</summary>
     public int LuminaireShape { get; set; } = -1;
 
     /// <summary>Gets or sets the minimum roughness clamped for specular highlight calculations.</summary>
@@ -732,7 +733,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         var origin = light.Transform.Translation;
         var nearPlane = 1f;
         var orientationQ = Quaternion.CreateFromRotationMatrix(light.Transform);
-        var linearColor = ComputeOmni2Color(light);
+        var linearColor = light.ComputeOmni2Color();
 
         // custom point light hack
         const uint LitInsideNearPlaneFlag = 0x8000u;
@@ -846,11 +847,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         return MathF.Min(MathF.Tau * (1f - avgCos), 4f * MathF.PI);
     }
 
-    private static Vector3 ComputeOmni2Color(SceneLight light)
-    {
-        var colorIntensity = ComputeIntensity(light, 1f, 0f);
-        return ColorSpace.SrgbGammaToLinear(light.Color) * colorIntensity;
-    }
+    /// <summary>Linear color an omni2 or rect light is lit with, which is also the radiance its visible geometry starts from.</summary>
+    internal Vector3 ComputeOmni2Color()
+        => ColorSpace.SrgbGammaToLinear(Color) * ComputeIntensity(this, 1f, 0f);
 
     private static (float Offset, float Rate) ComputeDistanceFade(float range, float skirt)
     {

@@ -1,5 +1,7 @@
 using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -54,6 +56,12 @@ public sealed class LightEntity : BaseEntity
 
         // The light-store sweep after entity load picks the node up from the scene
         AddNode(light);
+
+        // Rect and omni2 lights can draw their luminaire as geometry
+        if (light.UsesOmni2Faces && KeyValues.GetBooleanProperty("showlight"))
+        {
+            AddNode(new LuminaireSceneNode(Scene, light));
+        }
 
         Apply();
     }
