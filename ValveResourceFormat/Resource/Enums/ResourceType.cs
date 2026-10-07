@@ -152,6 +152,18 @@ namespace ValveResourceFormat
         WorldVisibility,
 
         /// <summary>
+        /// World lighting with the global illumination method and irradiance volumes. Legacy, only found in older map compiles.
+        /// </summary>
+        [Extension("vwrlt")]
+        WorldLighting,
+
+        /// <summary>
+        /// World environment maps. Legacy, only found in older map compiles.
+        /// </summary>
+        [Extension("vwenvmap")]
+        WorldEnvironmentMaps,
+
+        /// <summary>
         /// Entity lump containing map entities.
         /// </summary>
         [Extension("vents")]

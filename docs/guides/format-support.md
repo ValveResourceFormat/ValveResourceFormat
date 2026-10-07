@@ -87,8 +87,10 @@ in the Dump column.
 | vtex     | Texture                    | image                         | yes     | `.png` / `.exr` (stored JPEG/PNG/WebP passes through as-is); `.mks` for sprite sheets; `.vtex` config for 2D |
 | vts      | Panorama TypeScript        | text                          | yes     | `.js` (compiled JS, byte-exact)                                                                              |
 | vvis     | World Visibility           | 3D                            | yes     | -                                                                                                            |
+| vwenvmap | World Environment Maps     | text                          | generic | - (legacy, only in older map compiles)                                                                       |
 | vwnod    | World Node                 | 3D                            | yes     | handled via vmap/glTF export                                                                                 |
 | vwrld    | World                      | 3D                            | yes     | `.vmap` (Hammer); glTF/GLB                                                                                   |
+| vwrlt    | World Lighting             | text                          | generic | - (legacy, only in older map compiles)                                                                       |
 | vxml     | Panorama Layout            | text                          | yes     | `.xml` (structural decompile)                                                                                |
 | econitem | Economy Item               | text                          | generic | KV3 text                                                                                                     |
 | herolist | Dota Hero List             | text                          | yes     | plaintext KV1 (verbatim)                                                                                     |
