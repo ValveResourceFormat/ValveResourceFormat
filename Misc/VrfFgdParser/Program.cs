@@ -25,6 +25,7 @@ var allEntities = new SortedDictionary<string, EntityInfo>();
 var allProperties = new HashSet<string>();
 var baseEntities = new Dictionary<string, EntityInfo>();
 var entityMaterials = new Dictionary<string, string>();
+var classHelpers = new Dictionary<string, HelperInfo>();
 
 foreach (var arg in pathsToCheck)
 {
@@ -114,6 +115,8 @@ void ParseFile(string file)
         {
             allProperties.Add(property.Name.ToLowerInvariant());
         }
+
+        ParseHelpers(_class);
 
         foreach (var behaviour in _class.Behaviours)
         {
@@ -297,9 +300,213 @@ void ParseFile(string file)
     }
 }
 
+// The shape helpers a class declares, positional or as a block of keys. Inherited ones are resolved on write.
+void ParseHelpers(GameDataClass _class)
+{
+    if (!classHelpers.TryGetValue(_class.Name, out var info))
+    {
+        info = new HelperInfo();
+        classHelpers[_class.Name] = info;
+    }
+
+    info.IsConcrete |= _class.ClassType != ClassType.BaseClass;
+
+    foreach (var baseClass in _class.BaseClasses)
+    {
+        AddUnique(info.Bases, baseClass);
+    }
+
+    foreach (var behaviour in _class.Behaviours)
+    {
+        var values = behaviour.Values;
+        var key = values.Count > 0 ? values[0].ToLowerInvariant() : null;
+        var key2 = values.Count > 1 ? values[1].ToLowerInvariant() : null;
+
+        switch (behaviour.Name)
+        {
+            case "sphere" when key != null && !float.TryParse(key, CultureInfo.InvariantCulture, out _):
+                AddHelper(info.Spheres, key, $"new(\"{key}\", {HelperColor(values, 1)})");
+                break;
+
+            case "sphere" when key == null && !HasDictionary(_class, "sphere"):
+                AddHelper(info.Spheres, "radius", "new(\"radius\", Color32.White)");
+                break;
+
+            case "leansphere" when key != null:
+                AddHelper(info.Spheres, key, $"new(\"{key}\", {HelperColor(values, 1)}, Lean: true)");
+                break;
+
+            case "vecline_local" when key != null:
+                AddHelper(info.OffsetLines, key, $"new(\"{key}\", {HelperColor(values, 1)})");
+                break;
+
+            case "box_oriented" or "box_world_aligned" or "wirebox" or "wirebox_local" when key2 != null:
+                var wire = behaviour.Name.StartsWith("wirebox", StringComparison.Ordinal) ? ", Wire: true" : string.Empty;
+                AddHelper(info.Boxes, $"{key}|{key2}", $"new(HammerEntity.BoxSpace.{BoxSpace(behaviour.Name)}, \"{key}\", \"{key2}\"{wire})");
+                break;
+
+            case "centered_box_oriented" when key != null:
+                AddHelper(info.Boxes, key, $"new(HammerEntity.BoxSpace.Oriented, SizeKey: \"{key}\")");
+                break;
+
+            case "drawangles" or "drawangles_local" when !HasDictionary(_class, behaviour.Name):
+                AddAngles(info, key, key2, behaviour.Name == "drawangles_local");
+                break;
+
+            case "barnlight" or "rectlight" or "omnilight" or "lightcone" or "volumetric_fog_controller":
+                info.Shapes.Add(behaviour.Name);
+                break;
+        }
+    }
+
+    foreach (var dict in _class.Dictionaries)
+    {
+        string? Get(string key) => dict.TryGetValue(key, out var value) ? Convert.ToString(value.Value, CultureInfo.InvariantCulture)?.ToLowerInvariant() : null;
+
+        switch (dict.Name)
+        {
+            case "sphere" or "leansphere":
+                var radius = Get("radius") ?? "radius";
+                var lean = dict.Name == "leansphere" ? ", Lean: true" : string.Empty;
+                var edgeFade = Get("edge_fade") is { } edgeFadeKey ? $", EdgeFadeKey: \"{edgeFadeKey}\"" : string.Empty;
+                AddHelper(info.Spheres, radius, $"new(\"{radius}\", {DictionaryColor(dict)}{lean}{edgeFade})");
+                break;
+
+            case "box_oriented" or "box_world_aligned":
+                var fields = new List<string> { $"HammerEntity.BoxSpace.{BoxSpace(dict.Name)}", $"\"{Get("box_min")}\"", $"\"{Get("box_max")}\"" };
+
+                if (Get("edge_fades") is { } edgeFades)
+                {
+                    fields.Add($"EdgeFadesKey: \"{edgeFades}\"");
+                }
+
+                if (Get("single_edge_fade") is { } singleEdgeFade)
+                {
+                    fields.Add($"EdgeFadeKey: \"{singleEdgeFade}\"");
+                }
+
+                AddHelper(info.Boxes, $"{Get("box_min")}|{Get("box_max")}", $"new({string.Join(", ", fields)})");
+                break;
+
+            case "centered_box_oriented":
+                AddHelper(info.Boxes, (Get("box_size") ?? string.Empty), $"new(HammerEntity.BoxSpace.Oriented, SizeKey: \"{Get("box_size")}\")");
+                break;
+
+            case "drawangles" or "drawangles_local":
+                AddAngles(info, Get("angles_key"), null, dict.Name == "drawangles_local");
+                break;
+        }
+    }
+}
+
+static bool HasDictionary(GameDataClass _class, string name) => _class.Dictionaries.Any(dict => dict.Name == name);
+
+static string BoxSpace(string helper) => helper switch
+{
+    "box_oriented" => "Oriented",
+    "box_world_aligned" or "wirebox_local" => "WorldAligned",
+    _ => "World",
+};
+
+// Positional helpers give the color as three numbers after the key, white when left out
+static string HelperColor(List<string> values, int start)
+{
+    if (values.Count < start + 3 || !values.Skip(start).Take(3).All(value => int.TryParse(value, out _)))
+    {
+        return "Color32.White";
+    }
+
+    return ConstructColor([.. values.Skip(start).Take(3)]);
+}
+
+static string DictionaryColor(GameDataDictionary dict)
+{
+    if (!dict.TryGetValue("color", out var color) || color.Value is string || color.Value is not System.Collections.IEnumerable components)
+    {
+        return "Color32.White";
+    }
+
+    return ConstructColor([.. components.Cast<object>().Select(component => Convert.ToString(component, CultureInfo.InvariantCulture)!)]);
+}
+
+static void AddAngles(HelperInfo info, string? key, string? isLocalKey, bool isLocal)
+{
+    // Games disagree on whether doors take local angles; keep the key that says so where any of them has it
+    var existing = info.Angles;
+    info.Angles = (key ?? existing?.Key, isLocalKey ?? existing?.IsLocalKey, isLocal || existing?.IsLocal == true);
+}
+
+// Keeps the longest form of a helper the games declare differently, such as a sphere one of them gives an edge fade
+static void AddHelper(List<(string Id, string Code)> list, string id, string code)
+{
+    var index = list.FindIndex(helper => helper.Id == id);
+
+    if (index < 0)
+    {
+        list.Add((id, code));
+    }
+    else if (code.Length > list[index].Code.Length)
+    {
+        list[index] = (id, code);
+    }
+}
+
+static void AddUnique(List<string> list, string value)
+{
+    if (!list.Contains(value))
+    {
+        list.Add(value);
+    }
+}
+
+HelperInfo ResolveHelpers(string name, HashSet<string>? seen = null)
+{
+    var resolved = new HelperInfo();
+    seen ??= [];
+
+    if (!seen.Add(name) || !classHelpers.TryGetValue(name, out var own))
+    {
+        return resolved;
+    }
+
+    var inherited = own.Bases.Select(baseClass => ResolveHelpers(baseClass, seen)).ToList();
+
+    // A class's own helpers of a kind replace the ones it inherits
+    foreach (var select in new Func<HelperInfo, List<(string Id, string Code)>>[] { static x => x.Spheres, static x => x.OffsetLines, static x => x.Boxes })
+    {
+        var sources = select(own).Count > 0 ? [own] : inherited;
+
+        foreach (var (id, code) in sources.SelectMany(select))
+        {
+            AddHelper(select(resolved), id, code);
+        }
+    }
+
+    foreach (var source in inherited.Prepend(own))
+    {
+        resolved.Shapes.UnionWith(source.Shapes);
+        resolved.Angles ??= source.Angles;
+    }
+
+    return resolved;
+}
+
 void WriteEntities()
 {
     Console.WriteLine($"Found {allEntities.Count} entities");
+
+    foreach (var (name, info) in classHelpers)
+    {
+        if (info.IsConcrete && !allEntities.ContainsKey(name))
+        {
+            var helpers = ResolveHelpers(name);
+
+            if (!helpers.IsEmpty)
+            {
+                allEntities[name] = new();
+            }
+        }
+    }
 
     var str = new StringBuilder();
 
@@ -352,6 +559,50 @@ void WriteEntities()
             fields.Add($"Lines = [{linesStr}]");
         }
 
+        var helpers = ResolveHelpers(icon.Key);
+
+        if (helpers.Shapes.Count > 0)
+        {
+            fields.Add($"Shapes = {string.Join(" | ", helpers.Shapes.Order().Select(static shape => "HammerEntity.Shape." + ShapeName(shape)))}");
+        }
+
+        if (helpers.Spheres.Count > 0)
+        {
+            fields.Add($"Spheres = [{string.Join(", ", helpers.Spheres.Select(static helper => helper.Code))}]");
+        }
+
+        if (helpers.Boxes.Count > 0)
+        {
+            fields.Add($"Boxes = [{string.Join(", ", helpers.Boxes.Select(static helper => helper.Code))}]");
+        }
+
+        if (helpers.OffsetLines.Count > 0)
+        {
+            fields.Add($"OffsetLines = [{string.Join(", ", helpers.OffsetLines.Select(static helper => helper.Code))}]");
+        }
+
+        if (helpers.Angles is var (key, isLocalKey, isLocal))
+        {
+            var angleFields = new List<string>();
+
+            if (key != null)
+            {
+                angleFields.Add($"\"{key}\"");
+            }
+
+            if (isLocalKey != null)
+            {
+                angleFields.Add($"IsLocalKey: \"{isLocalKey}\"");
+            }
+
+            if (isLocal)
+            {
+                angleFields.Add("IsLocal: true");
+            }
+
+            fields.Add($"Direction = new({string.Join(", ", angleFields)})");
+        }
+
         str.Append("            ");
         str.Append('"');
         str.Append(icon.Key);
@@ -397,10 +648,33 @@ void WriteMaterials()
     File.WriteAllText("entity_materials.txt", str.ToString());
 }
 
+static string ShapeName(string helper) => helper switch
+{
+    "barnlight" => "BarnLight",
+    "rectlight" => "RectLight",
+    "omnilight" => "OmniLight",
+    "lightcone" => "LightCone",
+    "volumetric_fog_controller" => "VolumetricFogController",
+    _ => throw new InvalidDataException(helper),
+};
+
 class EntityInfo
 {
     public HashSet<string> Icons = [];
     public bool IsStudio;
     public string? Color;
     public HashSet<string> Lines = [];
+}
+
+class HelperInfo
+{
+    public List<string> Bases = [];
+    public bool IsConcrete;
+    public List<(string Id, string Code)> Spheres = [];
+    public List<(string Id, string Code)> OffsetLines = [];
+    public List<(string Id, string Code)> Boxes = [];
+    public SortedSet<string> Shapes = [];
+    public (string? Key, string? IsLocalKey, bool IsLocal)? Angles;
+
+    public bool IsEmpty => Spheres.Count == 0 && OffsetLines.Count == 0 && Boxes.Count == 0 && Shapes.Count == 0 && Angles == null;
 }
