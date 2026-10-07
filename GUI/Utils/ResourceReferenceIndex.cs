@@ -25,8 +25,8 @@ namespace GUI.Utils
     /// </remarks>
     class ResourceReferenceIndex
     {
-        // Enough for the header and the block table of any resource
-        private const int HeaderSize = 4096;
+        // File size, header version, version, block table offset and block count
+        private const int ResourceHeaderSize = 16;
         private const ushort EntryInDirectoryFile = 0x7FFF;
 
         private const ResourceReferenceKind ShippedKinds = ResourceReferenceKind.External | ResourceReferenceKind.Child
@@ -238,8 +238,6 @@ namespace GUI.Utils
 
         private static void IndexMapPackage(string path, Dictionary<string, List<Referrer>> found)
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(HeaderSize);
-
             try
             {
                 using var package = new Package();
@@ -252,7 +250,7 @@ namespace GUI.Utils
 
                 foreach (var entry in maps)
                 {
-                    var references = ReadReferencesThroughPackage(package, entry, buffer);
+                    var references = ReadReferencesThroughPackage(package, entry);
 
                     if (references == null)
                     {
@@ -278,10 +276,6 @@ namespace GUI.Utils
             catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException)
             {
                 Log.Debug(nameof(ResourceReferenceIndex), $"Failed to index map package {path}: {e.Message}");
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
             }
         }
 
@@ -367,7 +361,6 @@ namespace GUI.Utils
         {
             var path = archiveIndex == EntryInDirectoryFile ? null : $"{package.FileName}_{archiveIndex:D3}.vpk";
             SafeFileHandle? handle = null;
-            var buffer = ArrayPool<byte>.Shared.Rent(HeaderSize);
             var indexed = 0;
 
             try
@@ -380,8 +373,8 @@ namespace GUI.Utils
                 foreach (var entry in entries)
                 {
                     var references = handle != null && entry.SmallData.Length == 0
-                        ? ReadReferences(entry, (offset, destination) => RandomAccess.Read(handle, destination, entry.Offset + offset), entry.TotalLength, buffer)
-                        : ReadReferencesThroughPackage(package, entry, buffer);
+                        ? ReadReferences(entry, (offset, destination) => RandomAccess.Read(handle, destination, entry.Offset + offset), entry.TotalLength)
+                        : ReadReferencesThroughPackage(package, entry);
 
                     if (references == null)
                     {
@@ -421,7 +414,6 @@ namespace GUI.Utils
             }
             finally
             {
-                ArrayPool<byte>.Shared.Return(buffer);
                 handle?.Dispose();
             }
 
@@ -431,7 +423,7 @@ namespace GUI.Utils
         private delegate void ReadAt(long offset, Span<byte> destination);
 
         // Entries kept in the directory file, or carrying preloaded bytes, are not a plain slice of an archive
-        private static List<ResourceReference>? ReadReferencesThroughPackage(Package package, PackageEntry entry, byte[] buffer)
+        private static List<ResourceReference>? ReadReferencesThroughPackage(Package package, PackageEntry entry)
         {
             try
             {
@@ -441,7 +433,7 @@ namespace GUI.Utils
                 {
                     stream.Position = offset;
                     stream.ReadExactly(destination);
-                }, stream.Length, buffer);
+                }, stream.Length);
             }
             catch (Exception)
             {
@@ -449,7 +441,7 @@ namespace GUI.Utils
             }
         }
 
-        private static List<ResourceReference>? ReadReferences(PackageEntry entry, ReadAt read, long length, byte[] buffer)
+        private static List<ResourceReference>? ReadReferences(PackageEntry entry, ReadAt read, long length)
         {
             try
             {
@@ -462,29 +454,38 @@ namespace GUI.Utils
                     return [.. ResourceReferenceCollector.CollectFromStream(stream, entry.GetFullPath())];
                 }
 
-                var headerLength = (int)Math.Min(HeaderSize, length);
-
-                if (headerLength < 16)
+                if (length < ResourceHeaderSize)
                 {
                     return null;
                 }
 
-                read(0, buffer.AsSpan(0, headerLength));
+                Span<byte> resourceHeader = stackalloc byte[ResourceHeaderSize];
+                read(0, resourceHeader);
 
-                ReadOnlySpan<byte> header = buffer.AsSpan(0, headerLength);
-                var tableLength = BlockTableLength(header);
+                var tableLength = BlockTableLength(resourceHeader);
 
-                if (tableLength > headerLength && tableLength <= length)
-                {
-                    var table = new byte[tableLength];
-                    read(0, table);
-                    header = table;
-                }
-
-                if (!TryFindBlock(header, length, BlockType.RERL, out var rerlOffset, out var rerlSize)
-                    || !TryFindBlock(header, length, BlockType.DATA, out var dataOffset, out var dataSize))
+                if (tableLength > length)
                 {
                     return null;
+                }
+
+                var table = ArrayPool<byte>.Shared.Rent((int)tableLength);
+                uint rerlOffset, rerlSize, dataOffset, dataSize;
+
+                try
+                {
+                    var header = table.AsSpan(0, (int)tableLength);
+                    read(0, header);
+
+                    if (!TryFindBlock(header, length, BlockType.RERL, out rerlOffset, out rerlSize)
+                        || !TryFindBlock(header, length, BlockType.DATA, out dataOffset, out dataSize))
+                    {
+                        return null;
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(table);
                 }
 
                 var references = new List<ResourceReference>();
@@ -547,15 +548,14 @@ namespace GUI.Utils
         }
 
         /// <summary>
-        /// Returns how many bytes from the start of the resource cover its block table.
+        /// Returns how many bytes from the start of the resource cover its header and block table.
         /// </summary>
-        private static int BlockTableLength(ReadOnlySpan<byte> header)
+        private static long BlockTableLength(ReadOnlySpan<byte> header)
         {
             var blockOffset = BitConverter.ToUInt32(header[8..]);
             var blockCount = BitConverter.ToUInt32(header[12..]);
-            var length = 8L + blockOffset + (blockCount * 12L);
 
-            return length > int.MaxValue ? int.MaxValue : (int)length;
+            return 8L + blockOffset + (blockCount * 12L);
         }
 
         /// <summary>
