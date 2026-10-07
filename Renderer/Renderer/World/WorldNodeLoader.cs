@@ -208,13 +208,11 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
-            var instanceGroups = clutter.Tiles
+            var instancesByTint = clutter.Tiles
                 .SelectMany(tile => Enumerable.Range(tile.FirstInstance, tile.EndInstance - tile.FirstInstance).Select(instance => (Index: instance, Tile: tile)))
-                .GroupBy(instance => (
-                    Tint: clutter.InstanceTints[instance.Index],
-                    LightProbe: scene.ChooseLightProbeVolume(Vector3.Transform(clutter.InstancePositions[instance.Index], root))));
+                .GroupBy(instance => clutter.InstanceTints[instance.Index]);
 
-            foreach (var instances in instanceGroups)
+            foreach (var instances in instancesByTint)
             {
                 var sceneInstances = instances
                     .Select(instance => new SceneClutter.Instance(
@@ -224,15 +222,14 @@ namespace ValveResourceFormat.Renderer.World
                         instance.Tile.EndInstance - instance.Tile.FirstInstance))
                     .ToArray();
 
-                scene.Add(new SceneClutter(scene, model, clutter.MaterialGroup, clutter.EndCullSize, sceneInstances)
+                scene.Add(new SceneClutter(scene, model, clutter.MaterialGroup, clutter.BeginCullSize, clutter.EndCullSize, sceneInstances)
                 {
                     LayerName = LayerNames[clutter.Layer],
                     Name = clutter.RenderableModel,
                     Flags = clutter.Flags,
                     AllFlags = clutter.Flags,
                     AnyFlags = clutter.Flags,
-                    Tint = instances.Key.Tint / 255f,
-                    LightProbeBinding = instances.Key.LightProbe,
+                    Tint = instances.Key / 255f,
                 }, false);
             }
         }

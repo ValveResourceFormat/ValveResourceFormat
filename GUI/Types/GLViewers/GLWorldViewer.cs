@@ -765,6 +765,27 @@ namespace GUI.Types.GLViewers
                     info.AddProperty("Final Tint", ToRenderColor(sceneFragment.DrawCall.TintColor * sceneFragment.TintAlpha));
                 }
             }
+            else if (sceneNode is SceneClutter clutter)
+            {
+                var drawCalls = clutter.RenderMesh.DrawCallsOpaque;
+                var tris = drawCalls.Sum(static drawCall => drawCall.IndexCount / 3);
+
+                info.AddProperty("Clutter Model", clutter.Name!, new LinkedFile(clutter.Name!));
+
+                foreach (var drawCall in drawCalls)
+                {
+                    var material = drawCall.Material.Material;
+                    info.AddProperty("Shader", material.ShaderName);
+                    info.AddProperty("Material", material.Name, new LinkedFile(material.Name));
+                }
+
+                info.AddProperty("Instances", $"{clutter.InstanceTransforms.Count}");
+                info.AddProperty("Triangles", $"{(long)tris * clutter.InstanceTransforms.Count}");
+                info.AddProperty("Triangles Per Instance", $"{tris}");
+                info.AddProperty("Instance Tint", ToRenderColor(clutter.TintAlpha));
+                info.AddProperty("Begin Cull Size", $"{clutter.BeginCullSize:G6}");
+                info.AddProperty("End Cull Size", $"{clutter.EndCullSize:G6}");
+            }
             else if (sceneNode is ModelSceneNode modelSceneNode)
             {
                 info.AddProperty("Model", modelSceneNode.Name!, new LinkedFile(modelSceneNode.Name!));
@@ -995,7 +1016,7 @@ namespace GUI.Types.GLViewers
                 // The inverse of a view matrix, so its third row is the camera's backward direction
                 var forward = -transform.GetRow(2).AsVector3();
 
-                if (viewerControl is GLSceneViewer sceneViewer)
+                if (viewerControl is GLSceneViewer sceneViewer && sceneNode is not SceneAggregate { InstanceTransforms.Count: > 0 })
                 {
                     sceneViewer.Input.Camera.CopyFrom(Renderer.Camera);
                     sceneViewer.Input.Camera.SetLocation(transform.Translation);

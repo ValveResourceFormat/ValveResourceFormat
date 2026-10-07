@@ -32,9 +32,9 @@ namespace ValveResourceFormat.Renderer
             public uint CommandCount;
             public float EndSize;
             public float NegativeHalfEndCullSize;
+            public float BeginSize;
             public uint Padding0;
             public uint Padding1;
-            public uint Padding2;
         }
 
         private readonly Shader Shader;
@@ -55,6 +55,8 @@ namespace ValveResourceFormat.Renderer
                 var node = nodes[batch];
                 var drawCalls = node.RenderMesh.DrawCallsOpaque;
 
+                var endSize = Math.Clamp(node.EndCullSize, 0f, 1f);
+
                 node.FirstCommand = commands.Count;
 
                 batches[batch] = new BatchGpu
@@ -62,8 +64,9 @@ namespace ValveResourceFormat.Renderer
                     TransformBase = instanceData[(int)node.Id].TransformIndex,
                     FirstCommand = (uint)commands.Count,
                     CommandCount = (uint)drawCalls.Count,
-                    EndSize = Math.Clamp(node.EndCullSize, 0f, 1f),
+                    EndSize = endSize,
                     NegativeHalfEndCullSize = -0.5f * node.EndCullSize,
+                    BeginSize = Math.Clamp(node.BeginCullSize, endSize, 1f),
                 };
 
                 foreach (var drawCall in drawCalls)

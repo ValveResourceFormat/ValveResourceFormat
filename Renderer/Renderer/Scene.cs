@@ -1804,7 +1804,19 @@ namespace ValveResourceFormat.Renderer
             }
 
             var isAtlas = LightingInfo.LightProbeType == LightProbeType.ProbeAtlas;
-            var sortedLightProbes = SelectBindableLightProbes();
+
+            static bool IsValid(SceneLightProbe probe, bool isAtlas) => isAtlas switch
+            {
+                true => probe is { Irradiance: not null, DirectLightShadows: not null },
+                false => true,
+            };
+
+            var sortedLightProbes = LightingInfo.LightProbes
+                .Where(probe => IsValid(probe, isAtlas))
+                .OrderByDescending(static lpv => lpv.IndoorOutdoorLevel)
+                .ThenBy(static lpv => lpv.AtlasSize.LengthSquared())
+                .Take(LightProbeVolumeArray.MAX_PROBES)
+                .ToList();
 
             var i = 0;
             foreach (var probe in sortedLightProbes)
@@ -1837,18 +1849,6 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private List<SceneLightProbe> SelectBindableLightProbes()
-        {
-            var isAtlas = LightingInfo.LightProbeType == LightProbeType.ProbeAtlas;
-
-            return [.. LightingInfo.LightProbes
-                .Where(probe => !isAtlas || probe is { Irradiance: not null, DirectLightShadows: not null })
-                .OrderByDescending(static lpv => lpv.IndoorOutdoorLevel)
-                .ThenBy(static lpv => lpv.AtlasSize.LengthSquared())
-                .ThenBy(static lpv => lpv.HandShake)
-                .Take(LightProbeVolumeArray.MAX_PROBES)];
-        }
-
         internal IReadOnlyList<SceneLightProbe> ProbeAtlasVolumes
             => LightingInfo.LightProbeType == LightProbeType.ProbeAtlas && boundLightProbes != null ? boundLightProbes : [];
 
@@ -1860,11 +1860,14 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Returns the best probe volume containing the given position, or <see langword="null"/> when
-        /// none does. Before <see cref="CalculateLightProbeBindings"/>, it picks from the volumes added so far.
+        /// none does.
         /// </summary>
         public SceneLightProbe? ChooseLightProbeVolume(Vector3 position)
         {
-            boundLightProbes ??= SelectBindableLightProbes();
+            if (boundLightProbes == null)
+            {
+                return null;
+            }
 
             SceneLightProbe? best = null;
             var bestPriority = int.MinValue;

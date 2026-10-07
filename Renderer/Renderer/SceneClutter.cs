@@ -17,7 +17,11 @@ namespace ValveResourceFormat.Renderer
 
         internal ClutterCuller.InstanceGpu[] CullInstances { get; }
 
-        internal float EndCullSize { get; }
+        /// <summary>Gets the screen size fraction below which instances start to fade out.</summary>
+        public float BeginCullSize { get; }
+
+        /// <summary>Gets the screen size fraction below which instances are no longer drawn.</summary>
+        public float EndCullSize { get; }
 
         internal int FirstCommand { get; set; }
 
@@ -25,13 +29,15 @@ namespace ValveResourceFormat.Renderer
         /// <param name="scene">Owning scene.</param>
         /// <param name="model">Model every instance draws.</param>
         /// <param name="materialGroup">Material group (skin) of the model, empty for the default.</param>
+        /// <param name="beginCullSize">The clutter object's begin cull size.</param>
         /// <param name="endCullSize">The clutter object's end cull size.</param>
         /// <param name="instances">The instances to draw.</param>
-        public SceneClutter(Scene scene, Model model, string materialGroup, float endCullSize, Instance[] instances)
+        public SceneClutter(Scene scene, Model model, string materialGroup, float beginCullSize, float endCullSize, Instance[] instances)
             : base(scene, model, materialGroup)
         {
             ArgumentNullException.ThrowIfNull(instances);
 
+            BeginCullSize = beginCullSize;
             EndCullSize = endCullSize;
 
             var meshBounds = RenderMesh.BoundingBox;

@@ -62,7 +62,10 @@ namespace ValveResourceFormat.ResourceTypes
             /// <summary>Gets the object type flags shared by all instances.</summary>
             public ObjectTypeFlags Flags { get; }
 
-            /// <summary>Gets the screen size fraction at and above which instances are drawn at full density.</summary>
+            /// <summary>
+            /// Gets the screen size fraction below which instances start to fade out, reaching fully faded at
+            /// <see cref="EndCullSize"/>. Which instances are dropped depends on <see cref="EndCullSize"/> alone.
+            /// </summary>
             public float BeginCullSize { get; }
 
             /// <summary>Gets the screen size fraction below which instances are no longer drawn.</summary>

@@ -22,9 +22,9 @@ struct ClutterBatch_t
     uint commandCount;
     float endSize;
     float negativeHalfEndCullSize;
+    float beginSize;
     uint padding0;
     uint padding1;
-    uint padding2;
 };
 
 layout(std430, binding = 1) writeonly buffer TransformBuffer
@@ -91,4 +91,6 @@ void main()
     }
 
     g_transformBuffer[batch.transformBase + slot] = instance.transform;
+
+    // todo write instance alpha
 }
