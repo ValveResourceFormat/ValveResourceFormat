@@ -223,12 +223,24 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // reused across renderers.
             var instanceFloats = instanceLayout.Stride / sizeof(float);
 
+            var sorted = SortsByDistance(blendMode) && particleBag.Count > 1;
+
             using (var vertexBuffer = new RentedBuffer<float>(particleBag.Count * instanceFloats))
+            using (var drawOrder = new RentedBuffer<ulong>(sorted ? particleBag.Count : 0))
             {
                 var instances = vertexBuffer.Span;
+                var current = particleBag.Current;
 
-                foreach (ref var particle in particleBag.Current)
+                var order = drawOrder.Span;
+
+                if (sorted)
                 {
+                    SortBackToFront(current, camera.Location, order);
+                }
+
+                for (var n = 0; n < current.Length; n++)
+                {
+                    ref var particle = ref current[sorted ? (int)(uint)order[n] : n];
                     var position = particle.Position;
                     var previousPosition = particle.GetVector(prevPositionSource);
                     // A particle that has not moved has no direction to run in, and the engine collapses

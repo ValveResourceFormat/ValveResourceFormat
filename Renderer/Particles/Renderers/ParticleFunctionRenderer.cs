@@ -67,6 +67,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         protected INumberProvider DepthBias { get; } = new LiteralNumberProvider(0f);
 
+        /// <summary>The order the particles are drawn in.</summary>
+        private ParticleSortingChoiceList SortMethod { get; }
+
         /// <summary>Whether this renderer draws only into the water effects map, never into the scene.</summary>
         public bool OnlyRenderInEffectsWaterPass { get; }
 
@@ -111,6 +114,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             OverbrightFactor = parse.NumberProvider("m_flOverbrightFactor", OverbrightFactor);
             AddSelfAmount = parse.NumberProvider("m_flAddSelfAmount", AddSelfAmount);
             DepthBias = parse.NumberProvider("m_flDepthBias", DepthBias);
+            SortMethod = parse.Enum("m_nSortMethod", SortMethod);
             DiffuseAmount = parse.NumberProvider("m_flDiffuseAmount", DiffuseAmount);
             SelfIllumAmount = parse.NumberProvider("m_flSelfIllumAmount", SelfIllumAmount);
             Desaturation = parse.NumberProvider("m_flDesaturation", Desaturation);
@@ -169,6 +173,34 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return renderState.Scope(blend: true, depthWrite: false, cullMode: RsCullMode.None,
                 srcBlend: mod2x ? RsBlendMode.DestColor : RsBlendMode.One,
                 dstBlend: mod2x ? RsBlendMode.SrcColor : RsBlendMode.InvSrcAlpha);
+        }
+
+        /// <summary>
+        /// Whether the particles are drawn farthest from the camera first rather than as stored, which
+        /// is oldest first.
+        /// </summary>
+        protected bool SortsByDistance(ParticleBlendMode blendMode)
+            // Additive and modulate cards composite to the same result in any order
+            => SortMethod == ParticleSortingChoiceList.PARTICLE_SORTING_NEAREST
+                && blendMode is not (ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD or ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X);
+
+        /// <summary>
+        /// Fills <paramref name="order"/> with one entry per particle, farthest from the camera first.
+        /// The low half of an entry is the particle's index.
+        /// </summary>
+        protected static void SortBackToFront(ReadOnlySpan<Particle> particles, Vector3 cameraPosition, Span<ulong> order)
+        {
+            for (var i = 0; i < order.Length; i++)
+            {
+                var distance = Vector3.DistanceSquared(particles[i].Position, cameraPosition);
+
+                // A distance is never negative, so its bits order as an integer, and inverting them
+                // puts the farthest first. The index below them keeps coincident particles in a
+                // steady order from frame to frame.
+                order[i] = ((ulong)~BitConverter.SingleToUInt32Bits(distance) << 32) | (uint)i;
+            }
+
+            order.Sort();
         }
 
         /// <summary>

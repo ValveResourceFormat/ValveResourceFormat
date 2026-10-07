@@ -383,12 +383,25 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // reused across renderers.
             var instanceFloats = instanceLayout.Stride / sizeof(float);
 
+            var sorted = SortsByDistance(blendMode) && particles.Count > 1;
+
             using (var vertexBuffer = new RentedBuffer<float>(particles.Count * instanceFloats))
+            using (var drawOrder = new RentedBuffer<ulong>(sorted ? particles.Count : 0))
             {
                 var instances = vertexBuffer.Span;
+                var current = particles.Current;
                 var i = 0;
-                foreach (ref var particle in particles.Current)
+
+                var order = drawOrder.Span;
+
+                if (sorted)
                 {
+                    SortBackToFront(current, camera.Location, order);
+                }
+
+                for (var n = 0; n < current.Length; n++)
+                {
+                    ref var particle = ref current[sorted ? (int)(uint)order[n] : n];
                     var radiusScale = RadiusScale.NextNumber(ref particle, systemState);
 
                     // Scales rgb and alpha alike, matching the shader's fade of the whole vertex colour.
