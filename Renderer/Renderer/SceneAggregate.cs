@@ -90,12 +90,19 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Initializes the scene aggregate, loading or resolving the mesh from the model.</summary>
         /// <param name="scene">Owning scene.</param>
         /// <param name="model">Model resource providing the embedded or referenced mesh.</param>
-        /// <param name="materialGroup">Material group (skin) of the model to draw with, or <see langword="null"/> for the default.</param>
-        public SceneAggregate(Scene scene, Model model, string? materialGroup = null)
+        public SceneAggregate(Scene scene, Model model)
+            : this(scene, model, materialTable: null)
+        {
+        }
+
+        /// <summary>Initializes the scene aggregate with replacements for the materials of its model.</summary>
+        /// <param name="scene">Owning scene.</param>
+        /// <param name="model">Model resource providing the embedded or referenced mesh.</param>
+        /// <param name="materialTable">Maps materials of the model to the ones drawn instead, or <see langword="null"/> to draw the model's own.</param>
+        protected SceneAggregate(Scene scene, Model model, Dictionary<string, string>? materialTable)
             : base(scene)
         {
             var embeddedMeshes = model.GetEmbeddedMeshes().ToList();
-            var materialTable = GetMaterialGroupTable(model, materialGroup);
 
             // TODO: Perhaps use ModelSceneNode.LoadMeshes
             if (embeddedMeshes.Count != 0)
@@ -128,19 +135,6 @@ namespace ValveResourceFormat.Renderer
             }
 
             LocalBoundingBox = RenderMesh.BoundingBox;
-        }
-
-        private static Dictionary<string, string>? GetMaterialGroupTable(Model model, string? materialGroup)
-        {
-            if (string.IsNullOrEmpty(materialGroup))
-            {
-                return null;
-            }
-
-            var materialGroups = model.GetMaterialGroups().ToArray();
-            var group = materialGroups.FirstOrDefault(group => group.Name == materialGroup);
-
-            return group.Materials == null ? null : RenderableMesh.CreateMaterialGroupTable(materialGroups[0].Materials, group.Materials);
         }
 
         /// <summary>Expands the aggregate's bounding box to cover the entire scene, preventing it from being frustum-culled.</summary>

@@ -259,7 +259,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 if (name == materialGroup.Name)
                 {
-                    materialTable = RenderableMesh.CreateMaterialGroupTable(activeMaterialGroup.Materials, materialGroup.Materials);
+                    materialTable.Clear();
+
+                    foreach (var (Active, Replacement) in activeMaterialGroup.Materials.Zip(materialGroup.Materials))
+                    {
+                        materialTable[Active] = Replacement;
+                    }
+
                     activeMaterialGroup = materialGroup;
 
                     foreach (var mesh in meshRenderers)

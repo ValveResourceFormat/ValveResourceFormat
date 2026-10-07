@@ -1,3 +1,4 @@
+using System.Linq;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
@@ -33,7 +34,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="endCullSize">The clutter object's end cull size.</param>
         /// <param name="instances">The instances to draw.</param>
         public SceneClutter(Scene scene, Model model, string materialGroup, float beginCullSize, float endCullSize, Instance[] instances)
-            : base(scene, model, materialGroup)
+            : base(scene, model, GetMaterialGroupTable(model, materialGroup))
         {
             ArgumentNullException.ThrowIfNull(instances);
 
@@ -66,6 +67,31 @@ namespace ValveResourceFormat.Renderer
             }
 
             LocalBoundingBox = bounds;
+        }
+
+        private static Dictionary<string, string>? GetMaterialGroupTable(Model model, string materialGroup)
+        {
+            if (string.IsNullOrEmpty(materialGroup))
+            {
+                return null;
+            }
+
+            var materialGroups = model.GetMaterialGroups().ToArray();
+            var group = materialGroups.FirstOrDefault(group => group.Name == materialGroup);
+
+            if (group.Materials == null)
+            {
+                return null;
+            }
+
+            var table = new Dictionary<string, string>(group.Materials.Length);
+
+            foreach (var (from, to) in materialGroups[0].Materials.Zip(group.Materials))
+            {
+                table[from] = to;
+            }
+
+            return table;
         }
     }
 }
