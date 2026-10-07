@@ -47,7 +47,7 @@ public sealed partial class MapExtract
     /// </summary>
     private readonly record struct OverlayGroup(string Material, int RenderOrder, Vector4 Tint, ObjectTypeFlags Flags);
 
-    private const ObjectTypeFlags OverlayFlags = ObjectTypeFlags.DisabledInLowQuality | ObjectTypeFlags.RenderToCubemaps | ObjectTypeFlags.RenderWithDynamic | ObjectTypeFlags.NoShadows;
+    private const ObjectTypeFlags OverlayFlags = ObjectTypeFlags.DisabledInLowQuality | ObjectTypeFlags.RenderToCubemaps | ObjectTypeFlags.RenderWithDynamic | ObjectTypeFlags.NoShadows | ObjectTypeFlags.NeedsDynamicShadows;
 
     // the projected geometry of every overlay of the map, one piece per compiled overlay mesh, welded together and
     // split into the overlays at the end
@@ -123,10 +123,17 @@ public sealed partial class MapExtract
     }
 
     /// <summary>
-    /// What one Hammer mesh builder collects: the draw calls of one material with one tint. Geometry only welds
-    /// within a material, and a Hammer mesh has a single tint.
+    /// What one Hammer mesh builder collects: the draw calls of one material with one tint and shadow mode. Geometry
+    /// only welds within a material, and a Hammer mesh has a single tint and shadow mode.
     /// </summary>
-    private readonly record struct HammerMeshGroup(string Material, Vector4 Tint);
+    private readonly record struct HammerMeshGroup(string Material, Vector4 Tint, int DisableShadows);
+
+    /// <summary>
+    /// Gets the Hammer <c>disableShadows</c> mode of geometry compiled with <paramref name="flags"/>. No shadows and
+    /// only baked shadows compile to the same flags, which read as only baked.
+    /// </summary>
+    private static int DisableShadowsFromFlags(ObjectTypeFlags flags)
+        => flags.HasFlag(ObjectTypeFlags.NoShadows) ? 3 : flags.HasFlag(ObjectTypeFlags.NeedsDynamicShadows) ? 2 : 0;
 
     // Builders for the hammer geometry of every world node. Filled while the world nodes are walked, welded and
     // split into meshes once all of them are in, so geometry connects across the aggregates the compiler split it into.
@@ -774,9 +781,10 @@ public sealed partial class MapExtract
     /// <param name="resource">Resource the model came from.</param>
     /// <param name="transform">Transform applied to the geometry.</param>
     /// <param name="drawCallTint">Tint (gamma space, 0-255, alpha in W) per draw call index, defaults to the draw call's own tint and alpha.</param>
-    /// <param name="builders">Builders to add to, created per material and tint as needed.</param>
+    /// <param name="drawCallShadows">Hammer <c>disableShadows</c> mode per draw call index, defaults to 0.</param>
+    /// <param name="builders">Builders to add to, created per material, tint and shadow mode as needed.</param>
     /// <returns>Number of draw calls added.</returns>
-    private int AddRenderMeshToBuilders(Model model, Resource resource, Matrix4x4 transform, Func<int, Vector4>? drawCallTint, Dictionary<HammerMeshGroup, HammerMeshBuilder> builders)
+    private int AddRenderMeshToBuilders(Model model, Resource resource, Matrix4x4 transform, Func<int, Vector4>? drawCallTint, Func<int, int>? drawCallShadows, Dictionary<HammerMeshGroup, HammerMeshBuilder> builders)
     {
         var modelExtract = new ModelExtract(resource, FileLoader);
         modelExtract.GrabMaterialInputSignatures(resource);
@@ -803,7 +811,7 @@ public sealed partial class MapExtract
 
                 var tint = drawCallTint?.Invoke(drawCallIndex) ?? GetDrawCallTint(drawCall);
                 var material = Mesh.GetMaterialName(drawCall) ?? string.Empty;
-                var group = new HammerMeshGroup(material, tint);
+                var group = new HammerMeshGroup(material, tint, drawCallShadows?.Invoke(drawCallIndex) ?? 0);
 
                 if (!builders.TryGetValue(group, out var builder))
                 {
@@ -850,6 +858,7 @@ public sealed partial class MapExtract
                     Name = $"{materialName}_{meshIndex++}",
                     MeshData = meshData,
                     TintColor = ConvertToColor32(group.Tint),
+                    DisableShadows = group.DisableShadows,
                 });
             }
 
@@ -874,7 +883,7 @@ public sealed partial class MapExtract
         }
 
         var builders = new Dictionary<HammerMeshGroup, HammerMeshBuilder>();
-        var drawCallCount = AddRenderMeshToBuilders(model, resource, transform ?? Matrix4x4.Identity, null, builders);
+        var drawCallCount = AddRenderMeshToBuilders(model, resource, transform ?? Matrix4x4.Identity, null, null, builders);
         var hammerMeshesToReturn = GenerateHammerMeshes(builders);
 
         var hammerMeshEntitySelectionSet = new CMapSelectionSet();
@@ -1092,7 +1101,7 @@ public sealed partial class MapExtract
                 overlay.DisabledInLowQuality = group.Flags.HasFlag(ObjectTypeFlags.DisabledInLowQuality);
                 overlay.RenderToCubemaps = group.Flags.HasFlag(ObjectTypeFlags.RenderToCubemaps);
                 overlay.RenderWithDynamic = group.Flags.HasFlag(ObjectTypeFlags.RenderWithDynamic);
-                overlay.DisableShadows = group.Flags.HasFlag(ObjectTypeFlags.NoShadows);
+                overlay.DisableShadows = DisableShadowsFromFlags(group.Flags);
 
                 MapDocument.World.Children.Add(overlay);
                 OverlaysSelectionSet?.ObjectSelection.SelectedObjects.Add(overlay);
@@ -2054,11 +2063,18 @@ public sealed partial class MapExtract
 
                 // the fragment tint multiplies the draw call tint, one fragment per draw call is expected here
                 var fragmentTints = new Dictionary<int, Vector4>();
+                var fragmentFlags = new Dictionary<int, ObjectTypeFlags>();
                 foreach (var fragment in aggregateMeshes)
                 {
+                    var drawCallIndex = fragment.GetInt32Property("m_nDrawCallIndex");
                     if (fragment.ContainsKey("m_vTintColor"))
                     {
-                        fragmentTints.TryAdd(fragment.GetInt32Property("m_nDrawCallIndex"), GetFragmentTint(fragment));
+                        fragmentTints.TryAdd(drawCallIndex, GetFragmentTint(fragment));
+                    }
+
+                    if (fragment.ContainsKey("m_objectFlags"))
+                    {
+                        fragmentFlags.TryAdd(drawCallIndex, fragment.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true));
                     }
                 }
 
@@ -2074,8 +2090,11 @@ public sealed partial class MapExtract
                     return tint;
                 }
 
+                int HammerMeshShadows(int drawCallIndex)
+                    => DisableShadowsFromFlags(fragmentFlags.GetValueOrDefault(drawCallIndex, allFlags));
+
                 // world geometry is welded across all aggregates, the meshes are made once every world node is in
-                WorldHammerMeshDrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, WorldHammerMeshBuilders);
+                WorldHammerMeshDrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, HammerMeshShadows, WorldHammerMeshBuilders);
 
                 return;
             }

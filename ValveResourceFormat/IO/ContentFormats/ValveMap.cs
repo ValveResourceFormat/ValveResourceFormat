@@ -723,9 +723,9 @@ public class CMapMesh : MapNode
     public bool RenderToCubemaps { get; set; } = true;
 
     /// <summary>
-    /// Whether the mesh casts no shadows.
+    /// Which shadows the mesh casts: 0 all, 1 none, 2 only realtime, 3 only baked.
     /// </summary>
-    public bool DisableShadows { get; set; }
+    public int DisableShadows { get; set; }
 
     /// <summary>
     /// Angle below which adjacent faces are shaded smooth, in degrees.
