@@ -119,7 +119,7 @@ partial class ModelExtract
             "CitadelUnitStatusSettings_t",
             "CitadelModelDamageNumberSettings_t",
             "CitadelModelParticleSettings_t",
-            "CitadelTaggedSoundSettings_t",
+            "TaggedSoundSettings_t",
             "CitadelModelSceneData_t",
             "CitadelMuzzleSettings_t",
             "CitadelTeamRelativeParticleSettings_t",
