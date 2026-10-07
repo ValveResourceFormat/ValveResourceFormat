@@ -194,6 +194,44 @@ namespace ValveResourceFormat.Renderer.World
                     aggregate.LoadFragments(sceneObject, root, node);
                 }
             }
+
+            foreach (var clutterData in node.ClutterSceneObjects)
+            {
+                LoadClutter(scene, new WorldNode.ClutterSceneObject(clutterData), root);
+            }
+        }
+
+        private void LoadClutter(Scene scene, WorldNode.ClutterSceneObject clutter, Matrix4x4 root)
+        {
+            if (RendererContext.FileLoader.LoadFileCompiled(clutter.RenderableModel)?.DataBlock is not Model model)
+            {
+                return;
+            }
+
+            var instancesByTint = clutter.Tiles
+                .SelectMany(tile => Enumerable.Range(tile.FirstInstance, tile.EndInstance - tile.FirstInstance).Select(instance => (Index: instance, Tile: tile)))
+                .GroupBy(instance => clutter.InstanceTints[instance.Index]);
+
+            foreach (var instances in instancesByTint)
+            {
+                var sceneInstances = instances
+                    .Select(instance => new SceneClutter.Instance(
+                        clutter.GetInstanceTransform(instance.Index) * root,
+                        clutter.InstanceScales[instance.Index],
+                        instance.Index - instance.Tile.FirstInstance,
+                        instance.Tile.EndInstance - instance.Tile.FirstInstance))
+                    .ToArray();
+
+                scene.Add(new SceneClutter(scene, model, clutter.MaterialGroup, clutter.BeginCullSize, clutter.EndCullSize, sceneInstances)
+                {
+                    LayerName = LayerNames[clutter.Layer],
+                    Name = clutter.RenderableModel,
+                    Flags = clutter.Flags,
+                    AllFlags = clutter.Flags,
+                    AnyFlags = clutter.Flags,
+                    Tint = instances.Key / 255f,
+                }, false);
+            }
         }
 
         private static (RenderableMesh? Mesh, DrawCall? DrawCall) FindDrawCall(ModelSceneNode modelNode, int subSceneObject, int drawCallIndex)

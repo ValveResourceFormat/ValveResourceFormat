@@ -66,7 +66,7 @@ bool FindLightProbeVolume(vec3 positionWs, out uint nVolume, out vec3 localCoord
 
 uint GetFragmentLPV(vec3 fragPosition)
 {
-    #if (S_SCENE_PROBE_TYPE == 2) && defined(ENABLE_LPV_BLENDING)
+    #if (S_SCENE_PROBE_TYPE == 2) && (defined(ENABLE_LPV_BLENDING) || (D_LPV_BLENDING == 1))
         uint nVolume;
         vec3 localCoords;
 

@@ -87,10 +87,12 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>Initializes the scene aggregate, loading or resolving the mesh from the model.</summary>
+        /// <summary>Initializes the scene aggregate with replacements for the materials of its model.</summary>
         /// <param name="scene">Owning scene.</param>
         /// <param name="model">Model resource providing the embedded or referenced mesh.</param>
-        public SceneAggregate(Scene scene, Model model)
+        /// <param name="materialTable">Maps materials of the model to the ones drawn instead, or <see langword="null"/> to draw the model's own.</param>
+        /// <param name="shaderArguments">Shader combos set on every draw call, or <see langword="null"/> for the scene's.</param>
+        public SceneAggregate(Scene scene, Model model, Dictionary<string, string>? materialTable = null, IReadOnlyDictionary<string, byte>? shaderArguments = null)
             : base(scene)
         {
             var embeddedMeshes = model.GetEmbeddedMeshes().ToList();
@@ -98,7 +100,7 @@ namespace ValveResourceFormat.Renderer
             // TODO: Perhaps use ModelSceneNode.LoadMeshes
             if (embeddedMeshes.Count != 0)
             {
-                RenderMesh = new RenderableMesh(embeddedMeshes.First().Mesh, 0, Scene, model, isAggregate: true);
+                RenderMesh = new RenderableMesh(embeddedMeshes.First().Mesh, 0, Scene, model, materialTable, isAggregate: true, shaderArguments: shaderArguments);
 
                 if (embeddedMeshes.Count > 1)
                 {
@@ -122,7 +124,7 @@ namespace ValveResourceFormat.Renderer
                     throw new InvalidDataException($"Failed to load {refMesh.MeshName}");
                 }
 
-                RenderMesh = new RenderableMesh(meshData, refMesh.MeshIndex, Scene, model, isAggregate: true);
+                RenderMesh = new RenderableMesh(meshData, refMesh.MeshIndex, Scene, model, materialTable, isAggregate: true, shaderArguments: shaderArguments);
             }
 
             LocalBoundingBox = RenderMesh.BoundingBox;
