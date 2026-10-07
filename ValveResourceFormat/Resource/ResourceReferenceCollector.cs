@@ -167,6 +167,14 @@ public static class ResourceReferenceCollector
 
                     break;
 
+                case SoundStackScript soundStackScript:
+                    foreach (var (name, script) in soundStackScript.SoundStackScriptValue)
+                    {
+                        CollectText(script, name);
+                    }
+
+                    break;
+
                 case ResponseRules responseRules:
                     foreach (var include in responseRules.Includes)
                     {
@@ -322,7 +330,12 @@ public static class ResourceReferenceCollector
                 return;
             }
 
-            AddDataName(node.ToString(CultureInfo.InvariantCulture), key);
+            var value = node.ToString(CultureInfo.InvariantCulture);
+
+            if (!AddDataName(value, key) && value.AsSpan().ContainsAny(TextSeparators))
+            {
+                CollectText(value, key);
+            }
         }
 
         /// <summary>
@@ -343,26 +356,27 @@ public static class ResourceReferenceCollector
             }
         }
 
-        private void AddDataName(string? value, string? key)
+        private bool AddDataName(string? value, string? key)
         {
             if (string.IsNullOrEmpty(value) || value.Length > MaxNameLength)
             {
-                return;
+                return false;
             }
 
             if (PanoramaUrl.TryResolveResourceName(value, out var panoramaName))
             {
                 Add(panoramaName, ResourceReferenceKind.Data, key);
-                return;
+                return true;
             }
 
             // Resource data is full of interned strings that are not file names, such as bone names
             if (ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(value.AsSpan())) == ResourceType.Unknown)
             {
-                return;
+                return false;
             }
 
             Add(value, ResourceReferenceKind.Data, key);
+            return true;
         }
 
         private void Add(string? name, ResourceReferenceKind kind, string? source = null, ulong id = 0)

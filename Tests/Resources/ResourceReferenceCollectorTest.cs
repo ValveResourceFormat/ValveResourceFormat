@@ -45,6 +45,17 @@ namespace Tests.Resources
         }
 
         [Test]
+        public async Task CollectsNamesInEmbeddedText()
+        {
+            using var resource = new Resource();
+            resource.Read(TestFixtures.Path("soundevents_dota.vsndevts_c"));
+
+            var references = ResourceReferenceCollector.Collect(resource);
+
+            await Assert.That(references).Contains(reference => reference.Name == "sounds/diagnostics/bell.vsnd" && reference.Source == "m_OperatorsKV");
+        }
+
+        [Test]
         public async Task SkipsOwnSourceFile()
         {
             using var stream = File.OpenRead(TestFixtures.Path("deadlock_tracked_stats_player_staging_kv3_v5.vdata_c"));
