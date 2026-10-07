@@ -18,10 +18,9 @@ namespace GUI.Utils
     /// resource can list the files that reference it.
     /// </summary>
     /// <remarks>
-    /// Entries are read straight out of their archive file rather than through a package entry stream,
-    /// because creating a memory mapped view per entry costs more than the parse does and serializes on
-    /// the package lock. Dota's content package indexes in 0.4 seconds this way against 6 seconds
-    /// through entry streams.
+    /// Each package is indexed once per process and shared by every context that can see it. Entries are
+    /// read straight out of their archive file, because a package entry stream maps a view per entry and
+    /// serializes on the package lock.
     /// </remarks>
     class ResourceReferenceIndex
     {
@@ -29,20 +28,17 @@ namespace GUI.Utils
         private const int HeaderSize = 4096;
         private const ushort EntryInDirectoryFile = 0x7FFF;
 
-        private static readonly ConcurrentDictionary<string, ResourceReferenceIndex> Indexes = new(StringComparer.Ordinal);
+        private static readonly ConcurrentDictionary<string, PackageIndex> PackageIndexes = new(StringComparer.OrdinalIgnoreCase);
 
-        private readonly List<Package> packages;
-        private readonly Dictionary<string, List<string>> referrers = new(StringComparer.OrdinalIgnoreCase);
-        private Task? build;
+        private readonly PackageIndex[] packageIndexes;
 
-        private ResourceReferenceIndex(List<Package> packages)
+        private ResourceReferenceIndex(PackageIndex[] packageIndexes)
         {
-            this.packages = packages;
+            this.packageIndexes = packageIndexes;
         }
 
         /// <summary>
-        /// Returns the index over the packages this context can see, building it at most once per set
-        /// of packages.
+        /// Returns the index over the packages this context can see, or <c>null</c> when it sees none.
         /// </summary>
         public static ResourceReferenceIndex? ForContext(VrfGuiContext guiContext)
         {
@@ -53,31 +49,32 @@ namespace GUI.Utils
                 return null;
             }
 
-            var key = string.Join('|', packages.Select(static package => package.FileName));
-
-            return Indexes.GetOrAdd(key, _ => new ResourceReferenceIndex(packages));
+            return new ResourceReferenceIndex([.. packages.Select(static package => PackageIndexes.GetOrAdd(package.Key, static (_, package) => new PackageIndex(package), package.Value))]);
         }
 
-        public Task BuildAsync()
-        {
-            lock (referrers)
-            {
-                build ??= Task.Run(Build);
-                return build;
-            }
-        }
+        public Task BuildAsync() => Task.WhenAll(packageIndexes.Select(static index => index.BuildAsync()));
 
         public IReadOnlyList<string> Find(string name)
         {
-            lock (referrers)
+            var key = Normalize(name);
+            var found = new List<string>();
+
+            foreach (var index in packageIndexes)
             {
-                return referrers.TryGetValue(Normalize(name), out var found) ? found : [];
+                var build = index.BuildAsync();
+
+                if (build.IsCompletedSuccessfully && build.Result.TryGetValue(key, out var referrers))
+                {
+                    found.AddRange(referrers);
+                }
             }
+
+            return [.. found.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)];
         }
 
-        private static List<Package> CollectPackages(VrfGuiContext guiContext)
+        private static Dictionary<string, Package> CollectPackages(VrfGuiContext guiContext)
         {
-            var packages = new List<Package>();
+            var packages = new Dictionary<string, Package>(StringComparer.OrdinalIgnoreCase);
 
             for (var context = guiContext; context != null; context = context.ParentGuiContext)
             {
@@ -91,47 +88,60 @@ namespace GUI.Utils
 
             void Add(Package? package)
             {
-                if (package?.FileName != null && !packages.Contains(package))
+                if (package?.FileName != null)
                 {
-                    packages.Add(package);
+                    packages.TryAdd(Path.GetFullPath(package.FileName), package);
                 }
             }
 
             return packages;
         }
 
-        private void Build()
+        private sealed class PackageIndex(Package package)
         {
-            var timer = Stopwatch.StartNew();
-            var found = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            var files = 0;
+            private readonly Lock buildLock = new();
+            private Package? package = package;
+            private Task<Dictionary<string, string[]>>? build;
 
-            foreach (var package in packages)
+            public Task<Dictionary<string, string[]>> BuildAsync()
             {
-                files += IndexPackage(package, found);
-            }
-
-            foreach (var list in found.Values)
-            {
-                list.Sort(StringComparer.OrdinalIgnoreCase);
-            }
-
-            lock (referrers)
-            {
-                foreach (var (key, list) in found)
+                lock (buildLock)
                 {
-                    referrers[key] = list;
+                    if (build == null)
+                    {
+                        var source = package!;
+                        package = null;
+                        build = Task.Run(() => Build(source));
+                    }
+
+                    return build;
                 }
             }
-
-            Log.Debug(nameof(ResourceReferenceIndex), $"Indexed {files} files referencing {found.Count} targets in {timer.Elapsed.TotalSeconds:F2}s");
         }
 
-        private static int IndexPackage(Package package, Dictionary<string, List<string>> found)
+        private static Dictionary<string, string[]> Build(Package package)
         {
+            var timer = Stopwatch.StartNew();
+            var (found, files) = IndexPackage(package);
+            var referrers = new Dictionary<string, string[]>(found.Count, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var (key, list) in found)
+            {
+                referrers.Add(key, [.. list.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)]);
+            }
+
+            Log.Debug(nameof(ResourceReferenceIndex), $"Indexed {files} files in {package.FileName} referencing {referrers.Count} targets in {timer.Elapsed.TotalSeconds:F2}s");
+
+            return referrers;
+        }
+
+        private static (Dictionary<string, List<string>> Found, int Files) IndexPackage(Package package)
+        {
+            var found = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
             if (package.Entries == null)
             {
-                return 0;
+                return (found, 0);
             }
 
             var byArchive = new Dictionary<ushort, List<PackageEntry>>();
@@ -183,7 +193,7 @@ namespace GUI.Utils
                 }
             }
 
-            return indexed;
+            return (found, indexed);
         }
 
         private static int IndexArchive(Package package, ushort archiveIndex, List<PackageEntry> entries,
