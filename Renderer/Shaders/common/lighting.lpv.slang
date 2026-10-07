@@ -66,7 +66,7 @@ bool FindLightProbeVolume(vec3 positionWs, out uint nVolume, out vec3 localCoord
 
 uint GetFragmentLPV(vec3 fragPosition)
 {
-    #if (S_SCENE_PROBE_TYPE == 3) || ((S_SCENE_PROBE_TYPE == 2) && defined(ENABLE_LPV_BLENDING))
+    #if (S_SCENE_PROBE_TYPE == 2) && (defined(ENABLE_LPV_BLENDING) || (D_LPV_BLENDING == 1))
         uint nVolume;
         vec3 localCoords;
 
@@ -84,7 +84,7 @@ vec3 CalculateProbeShadowCoords(vec3 fragPosition)
     uint nVolume = GetFragmentLPV(fragPosition);
     vec3 vLightProbeLocalPos = CalculateProbeSampleCoords(nVolume, fragPosition);
 
-    #if (S_SCENE_PROBE_TYPE >= 2)
+    #if (S_SCENE_PROBE_TYPE == 2)
         vLightProbeLocalPos = fma(saturate(vLightProbeLocalPos), g_LPV[nVolume].AtlasScale.xyz, g_LPV[nVolume].AtlasOffset.xyz);
     #endif
 
@@ -110,7 +110,7 @@ vec3 CalculateProbeIndirectCoords(vec3 fragPosition)
     #if (S_SCENE_PROBE_TYPE == 1)
         indirectCoords.z /= 6;
         // clamp(indirectCoords, lpv.Layer0TextureMin.xyz, lpv.Layer0TextureMax.xyz);
-    #elif (S_SCENE_PROBE_TYPE >= 2)
+    #elif (S_SCENE_PROBE_TYPE == 2)
         indirectCoords.z /= 6;
         indirectCoords = clamp(indirectCoords, lpv.BorderMin.xyz, lpv.BorderMax.xyz);
 

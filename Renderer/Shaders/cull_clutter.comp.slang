@@ -92,5 +92,10 @@ void main()
 
     g_transformBuffer[batch.transformBase + slot] = instance.transform;
 
+    // Opaque at the begin size and gone at the end size
+    float alpha = batch.beginSize > batch.endSize
+        ? 1.0 - clamp((density - batch.beginSize) / (batch.endSize - batch.beginSize), 0.0, 1.0)
+        : 1.0;
+
     // todo write instance alpha
 }

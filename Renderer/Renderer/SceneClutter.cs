@@ -1,5 +1,4 @@
 using System.Linq;
-using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
@@ -30,7 +29,7 @@ namespace ValveResourceFormat.Renderer
         // One node spans many light probe volumes, so each fragment looks up the one it stands in
         private static readonly Dictionary<string, byte> ShaderArguments = new()
         {
-            ["S_SCENE_PROBE_TYPE"] = (byte)LightProbeType.ProbeAtlasPerFragment,
+            ["D_LPV_BLENDING"] = 1,
         };
 
         /// <summary>Initializes a clutter node.</summary>
