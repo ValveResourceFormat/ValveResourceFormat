@@ -170,6 +170,10 @@ public static class ResourceReferenceCollector
 
                     break;
 
+                case EntityLump entityLump:
+                    CollectEntityLump(entityLump);
+                    break;
+
                 case KeyValuesOrNTRO keyValues:
                     WalkKeyValues(keyValues.Data, null, 0);
                     break;
@@ -192,6 +196,47 @@ public static class ResourceReferenceCollector
 
                 default:
                     break;
+            }
+        }
+
+        /// <remarks>
+        /// Entity key values can be stored as a binary blob per entity, which only the lump can decode.
+        /// </remarks>
+        private void CollectEntityLump(EntityLump entityLump)
+        {
+            const string EntityKeyValues = "m_entityKeyValues";
+
+            foreach (var (name, child) in entityLump.Data.Children)
+            {
+                if (name != EntityKeyValues)
+                {
+                    WalkKeyValues(child, name, 1);
+                }
+            }
+
+            List<EntityLump.Entity> entities;
+
+            try
+            {
+                entities = entityLump.GetEntities();
+            }
+            catch (Exception e) when (e is UnexpectedMagicException or InvalidDataException or EndOfStreamException)
+            {
+                WalkKeyValues(entityLump.Data[EntityKeyValues], EntityKeyValues, 1);
+                return;
+            }
+
+            foreach (var entity in entities)
+            {
+                foreach (var (name, value) in entity.Children)
+                {
+                    WalkKeyValues(value, name, 1);
+                }
+
+                foreach (var connection in entity.Connections ?? [])
+                {
+                    AddDataName(connection.OverrideParam, "m_overrideParam");
+                }
             }
         }
 

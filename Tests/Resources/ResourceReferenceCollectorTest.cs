@@ -23,6 +23,17 @@ namespace Tests.Resources
         }
 
         [Test]
+        public async Task CollectsBinaryEntityKeyValues()
+        {
+            using var resource = new Resource();
+            resource.Read(TestFixtures.Path("default_ents.vents_c"));
+
+            var references = ResourceReferenceCollector.Collect(resource);
+
+            await Assert.That(references).Contains(reference => reference.Name == "models/props_structures/radiant_tower002.vmdl" && reference.Source == "model");
+        }
+
+        [Test]
         public async Task SkipsOwnSourceFile()
         {
             using var stream = File.OpenRead(TestFixtures.Path("deadlock_tracked_stats_player_staging_kv3_v5.vdata_c"));
