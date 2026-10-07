@@ -572,6 +572,12 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             : ((int)MathF.Round(size * aspect), size);
     }
 
+    /// <summary>
+    /// The superellipse exponent a barn or rect light's shape value maps to, from a rectangle at zero to an ellipse at one.
+    /// Any rounding at all starts at an eighth, and values past one stay an ellipse.
+    /// </summary>
+    internal static float GetShapeExponent(float shape) => shape > 0f ? MathF.Min(shape, 1f) * 0.875f + 0.125f : 0f;
+
     /// <summary>Distance, in world units, in front of the luminaire at which a light reaches its <see cref="LinearBrightness"/>.</summary>
     private const float LinearBrightnessDistance = 100f;
 
@@ -689,7 +695,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         }
         else
         {
-            cookieParams = new Vector4(1f - light.SoftX, 1f - light.SoftY, light.Shape, 0f);
+            cookieParams = new Vector4(1f - light.SoftX, 1f - light.SoftY, GetShapeExponent(light.Shape), 0f);
         }
 
         var orientationQ = Quaternion.CreateFromRotationMatrix(light.Transform);
