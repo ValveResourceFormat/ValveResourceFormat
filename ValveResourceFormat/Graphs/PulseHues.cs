@@ -106,6 +106,7 @@ internal static class PulseHues
             or "CPulseCell_BooleanSwitchState" or "CPulseCell_CursorQueue"
             or "CPulseCell_FireCursors" or "CPulseCell_Inflow_Wait" or "CPulseCell_Inflow_Yield"
             or "CPulseCell_IntervalTimer" or "CPulseCell_LerpCameraSettings"
+            or "CPulseCell_ObservableSwitchState"
             or "CPulseCell_Outflow_ListenForAnimgraphTag"
             or "CPulseCell_Outflow_ListenForEntityOutput" or "CPulseCell_Outflow_PlayDynamicVCD"
             or "CPulseCell_Outflow_PlaySceneBase" or "CPulseCell_Outflow_PlaySequence"
