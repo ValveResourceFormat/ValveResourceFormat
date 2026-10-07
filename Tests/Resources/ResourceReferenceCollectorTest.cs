@@ -34,6 +34,17 @@ namespace Tests.Resources
         }
 
         [Test]
+        public async Task CollectsUrlsInPanoramaText()
+        {
+            using var resource = new Resource();
+            resource.Read(TestFixtures.Path("multiteam_flyout_scoreboard.vjs_c"));
+
+            var references = ResourceReferenceCollector.Collect(resource);
+
+            await Assert.That(references).Contains(reference => reference.Name == "panorama/layout/custom_game/multiteam_flyout_scoreboard_team.vxml");
+        }
+
+        [Test]
         public async Task SkipsOwnSourceFile()
         {
             using var stream = File.OpenRead(TestFixtures.Path("deadlock_tracked_stats_player_staging_kv3_v5.vdata_c"));

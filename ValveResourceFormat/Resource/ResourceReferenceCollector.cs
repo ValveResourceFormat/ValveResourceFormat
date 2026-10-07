@@ -1,5 +1,7 @@
+using System.Buffers;
 using System.Globalization;
 using System.IO;
+using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
@@ -44,6 +46,8 @@ public static class ResourceReferenceCollector
         private const int MaxDepth = 64;
         private const int MaxNodes = 1_000_000;
         private const int MaxNameLength = 512;
+
+        private static readonly SearchValues<char> TextSeparators = SearchValues.Create(" \t\r\n\"'`(),;=[]<>|+");
 
         private readonly List<Entry> entries = [];
         private readonly Dictionary<string, int> entryIndex = new(StringComparer.OrdinalIgnoreCase);
@@ -149,6 +153,7 @@ public static class ResourceReferenceCollector
                         Add(image.Name, ResourceReferenceKind.PanoramaImage, $"{image.Width}x{image.Height}");
                     }
 
+                    CollectText(Encoding.UTF8.GetString(panorama.Data), null);
                     break;
 
                 case ResourceManifest manifest:
@@ -318,6 +323,24 @@ public static class ResourceReferenceCollector
             }
 
             AddDataName(node.ToString(CultureInfo.InvariantCulture), key);
+        }
+
+        /// <summary>
+        /// Adds the file names written in source text, such as the urls of a panorama layout or the names a script passes around.
+        /// </summary>
+        private void CollectText(ReadOnlySpan<char> text, string? key)
+        {
+            while (!text.IsEmpty)
+            {
+                var end = text.IndexOfAny(TextSeparators);
+                var token = end < 0 ? text : text[..end];
+                text = end < 0 ? [] : text[(end + 1)..];
+
+                if (token.Length <= MaxNameLength && token.ContainsAny('/', '\\'))
+                {
+                    AddDataName(token.ToString(), key);
+                }
+            }
         }
 
         private void AddDataName(string? value, string? key)

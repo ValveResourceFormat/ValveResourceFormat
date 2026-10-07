@@ -4,17 +4,19 @@ using System.IO;
 namespace ValveResourceFormat.ResourceTypes;
 
 /// <summary>
-/// Resolves the <c>file://</c> urls panorama files use into compiled resource names.
+/// Resolves the <c>file://</c> and <c>s2r://</c> urls panorama files use into compiled resource names.
 /// </summary>
 public static class PanoramaUrl
 {
     private const string Scheme = "file://";
+    private const string ResourceScheme = "s2r://";
     private const string ImagesRoot = "{images}";
     private const string ResourcesRoot = "{resources}";
 
     /// <summary>
     /// Turns a panorama url such as <c>file://{images}/spellicons/marci_unleash.png</c> into the resource
-    /// name it compiles to, such as <c>panorama/images/spellicons/marci_unleash_png.vtex</c>.
+    /// name it compiles to, such as <c>panorama/images/spellicons/marci_unleash_png.vtex</c>. An <c>s2r://</c> url
+    /// already names the compiled resource.
     /// </summary>
     /// <param name="value">The url as it is stored in the resource.</param>
     /// <param name="resourceName">The resource name the url points at.</param>
@@ -23,7 +25,25 @@ public static class PanoramaUrl
     {
         resourceName = null;
 
-        if (string.IsNullOrEmpty(value) || !value.StartsWith(Scheme, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(value))
+        {
+            return false;
+        }
+
+        if (value.StartsWith(ResourceScheme, StringComparison.OrdinalIgnoreCase))
+        {
+            var name = value[ResourceScheme.Length..].Replace('\\', '/').TrimStart('/');
+
+            if (Path.GetExtension(name.AsSpan()).IsEmpty)
+            {
+                return false;
+            }
+
+            resourceName = name;
+            return true;
+        }
+
+        if (!value.StartsWith(Scheme, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -48,7 +68,7 @@ public static class PanoramaUrl
 
         path = path.TrimStart('/');
 
-        if (path.Length == 0)
+        if (Path.GetExtension(path.AsSpan()).IsEmpty)
         {
             return false;
         }
@@ -60,12 +80,6 @@ public static class PanoramaUrl
     private static string CompiledName(string path)
     {
         var extension = Path.GetExtension(path.AsSpan());
-
-        if (extension.IsEmpty)
-        {
-            return path;
-        }
-
         var withoutExtension = path[..^extension.Length];
         var compiled = extension[1..] switch
         {
