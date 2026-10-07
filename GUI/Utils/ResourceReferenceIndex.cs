@@ -1,9 +1,7 @@
-using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
@@ -25,8 +23,7 @@ namespace GUI.Utils
     /// </remarks>
     class ResourceReferenceIndex
     {
-        // File size, header version, version, block table offset and block count
-        private const int ResourceHeaderSize = 16;
+        private const int BufferSize = 4096;
         private const ushort EntryInDirectoryFile = 0x7FFF;
 
         private const ResourceReferenceKind ShippedKinds = ResourceReferenceKind.External | ResourceReferenceKind.Child
@@ -361,6 +358,7 @@ namespace GUI.Utils
         {
             var path = archiveIndex == EntryInDirectoryFile ? null : $"{package.FileName}_{archiveIndex:D3}.vpk";
             SafeFileHandle? handle = null;
+            ArchiveEntryStream? stream = null;
             var indexed = 0;
 
             try
@@ -368,13 +366,22 @@ namespace GUI.Utils
                 if (path != null && File.Exists(path))
                 {
                     handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, FileOptions.RandomAccess);
+                    stream = new ArchiveEntryStream(handle);
                 }
 
                 foreach (var entry in entries)
                 {
-                    var references = handle != null && entry.SmallData.Length == 0
-                        ? ReadReferences(entry, (offset, destination) => RandomAccess.Read(handle, destination, entry.Offset + offset), entry.TotalLength)
-                        : ReadReferencesThroughPackage(package, entry);
+                    List<ResourceReference>? references;
+
+                    if (stream != null && entry.SmallData.Length == 0)
+                    {
+                        stream.Open(entry);
+                        references = ReadReferences(entry, stream);
+                    }
+                    else
+                    {
+                        references = ReadReferencesThroughPackage(package, entry);
+                    }
 
                     if (references == null)
                     {
@@ -414,13 +421,12 @@ namespace GUI.Utils
             }
             finally
             {
+                stream?.Dispose();
                 handle?.Dispose();
             }
 
             return indexed;
         }
-
-        private delegate void ReadAt(long offset, Span<byte> destination);
 
         // Entries kept in the directory file, or carrying preloaded bytes, are not a plain slice of an archive
         private static List<ResourceReference>? ReadReferencesThroughPackage(Package package, PackageEntry entry)
@@ -428,12 +434,7 @@ namespace GUI.Utils
             try
             {
                 using var stream = GameFileLoader.GetPackageEntryStream(package, entry);
-
-                return ReadReferences(entry, (offset, destination) =>
-                {
-                    stream.Position = offset;
-                    stream.ReadExactly(destination);
-                }, stream.Length);
+                return ReadReferences(entry, stream);
             }
             catch (Exception)
             {
@@ -441,77 +442,31 @@ namespace GUI.Utils
             }
         }
 
-        private static List<ResourceReference>? ReadReferences(PackageEntry entry, ReadAt read, long length)
+        private static List<ResourceReference>? ReadReferences(PackageEntry entry, Stream stream)
         {
             try
             {
+                using var resource = new Resource { FileName = entry.GetFullPath() };
+                resource.Read(stream, leaveOpen: true, parsing: BlockParsing.Deferred);
+
                 if (FullyReadTypes.Contains(entry.TypeName))
                 {
-                    var bytes = new byte[length];
-                    read(0, bytes);
-
-                    using var stream = new MemoryStream(bytes, writable: false);
-                    return [.. ResourceReferenceCollector.CollectFromStream(stream, entry.GetFullPath())];
-                }
-
-                if (length < ResourceHeaderSize)
-                {
-                    return null;
-                }
-
-                Span<byte> resourceHeader = stackalloc byte[ResourceHeaderSize];
-                read(0, resourceHeader);
-
-                var tableLength = BlockTableLength(resourceHeader);
-
-                if (tableLength > length)
-                {
-                    return null;
-                }
-
-                var table = ArrayPool<byte>.Shared.Rent((int)tableLength);
-                uint rerlOffset, rerlSize, dataOffset, dataSize;
-
-                try
-                {
-                    var header = table.AsSpan(0, (int)tableLength);
-                    read(0, header);
-
-                    if (!TryFindBlock(header, length, BlockType.RERL, out rerlOffset, out rerlSize)
-                        || !TryFindBlock(header, length, BlockType.DATA, out dataOffset, out dataSize))
-                    {
-                        return null;
-                    }
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(table);
+                    return [.. ResourceReferenceCollector.Collect(resource)];
                 }
 
                 var references = new List<ResourceReference>();
 
-                if (rerlSize > 0)
+                if (resource.ExternalReferences is { } externalReferences)
                 {
-                    var block = ArrayPool<byte>.Shared.Rent((int)rerlSize);
-
-                    try
+                    foreach (var reference in externalReferences.ResourceRefInfoList)
                     {
-                        read(rerlOffset, block.AsSpan(0, (int)rerlSize));
-
-                        foreach (var name in ParseReferences(block.AsSpan(0, (int)rerlSize)))
-                        {
-                            references.Add(new ResourceReference(name, ResourceReferenceKind.External, ResourceType.Unknown, null, 0));
-                        }
-                    }
-                    finally
-                    {
-                        ArrayPool<byte>.Shared.Return(block);
+                        references.Add(new ResourceReference(reference.Name, ResourceReferenceKind.External, ResourceType.Unknown, null, reference.Id));
                     }
                 }
 
-                if (dataSize >= 4 && DataReferrerTypes.Contains(entry.TypeName))
+                if (DataReferrerTypes.Contains(entry.TypeName))
                 {
-                    references.AddRange(ReadDataNames(read, dataOffset, dataSize));
+                    references.AddRange(ReadDataNames(resource));
                 }
 
                 return references;
@@ -522,130 +477,110 @@ namespace GUI.Utils
             }
         }
 
-        private static IReadOnlyList<ResourceReference> ReadDataNames(ReadAt read, uint offset, uint size)
+        private static IReadOnlyList<ResourceReference> ReadDataNames(Resource resource)
         {
-            var block = ArrayPool<byte>.Shared.Rent((int)size);
+            var reader = resource.Reader!;
+            var data = resource.UnparsedBlocks.Find(static block => block.Type == BlockType.DATA);
 
-            try
-            {
-                read(offset, block.AsSpan(0, (int)size));
-
-                if (!BinaryKV3.IsBinaryKV3(BitConverter.ToUInt32(block)))
-                {
-                    return [];
-                }
-
-                using var stream = new MemoryStream(block, 0, (int)size, writable: false);
-                using var reader = new BinaryReader(stream);
-                using var resource = new Resource();
-
-                return ResourceReferenceCollector.CollectDataNames(BinaryKV3.ReadStringTable(reader, resource, 0, size));
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(block);
-            }
-        }
-
-        /// <summary>
-        /// Returns how many bytes from the start of the resource cover its header and block table.
-        /// </summary>
-        private static long BlockTableLength(ReadOnlySpan<byte> header)
-        {
-            var blockOffset = BitConverter.ToUInt32(header[8..]);
-            var blockCount = BitConverter.ToUInt32(header[12..]);
-
-            return 8L + blockOffset + (blockCount * 12L);
-        }
-
-        /// <summary>
-        /// Finds a block in the block table, returning a size of zero when the resource has none of that type.
-        /// </summary>
-        private static bool TryFindBlock(ReadOnlySpan<byte> header, long entryLength, BlockType type, out uint offset, out uint size)
-        {
-            offset = 0;
-            size = 0;
-
-            if (BitConverter.ToUInt16(header[4..]) != Resource.KnownHeaderVersion)
-            {
-                return false;
-            }
-
-            var blockOffset = BitConverter.ToUInt32(header[8..]);
-            var blockCount = BitConverter.ToUInt32(header[12..]);
-            var position = 8 + (int)blockOffset;
-
-            for (var i = 0; i < blockCount; i++)
-            {
-                if (position + 12 > header.Length)
-                {
-                    return false;
-                }
-
-                var blockType = (BlockType)BitConverter.ToUInt32(header[position..]);
-                var blockDataOffset = (uint)(position + 4) + BitConverter.ToUInt32(header[(position + 4)..]);
-                var blockSize = BitConverter.ToUInt32(header[(position + 8)..]);
-                position += 12;
-
-                if (blockType != type)
-                {
-                    continue;
-                }
-
-                if (blockDataOffset + blockSize > entryLength)
-                {
-                    return false;
-                }
-
-                offset = blockDataOffset;
-                size = blockSize;
-                return true;
-            }
-
-            return true;
-        }
-
-        // Same layout as ResourceExtRefList, read straight off the block bytes
-        private static List<string> ParseReferences(ReadOnlySpan<byte> block)
-        {
-            var offset = BitConverter.ToUInt32(block);
-            var count = BitConverter.ToUInt32(block[4..]);
-
-            if (count == 0)
+            if (data == null || data.Size < 4)
             {
                 return [];
             }
 
-            var names = new List<string>((int)count);
-            var position = (int)offset;
+            reader.BaseStream.Position = data.Offset;
 
-            for (var i = 0; i < count; i++)
+            if (!BinaryKV3.IsBinaryKV3(reader.ReadUInt32()))
             {
-                if (position + 16 > block.Length)
-                {
-                    break;
-                }
-
-                var stringOffset = BitConverter.ToInt32(block[(position + 8)..]);
-                var stringStart = position + 8 + stringOffset;
-
-                if (stringStart < 0 || stringStart >= block.Length)
-                {
-                    break;
-                }
-
-                var end = block[stringStart..].IndexOf((byte)0);
-
-                if (end < 0)
-                {
-                    break;
-                }
-
-                names.Add(Encoding.UTF8.GetString(block.Slice(stringStart, end)));
-                position += 16;
+                return [];
             }
 
-            return names;
+            return ResourceReferenceCollector.CollectDataNames(BinaryKV3.ReadStringTable(reader, resource, data.Offset, data.Size));
+        }
+
+        /// <summary>
+        /// A read only, buffered stream over the bytes of one entry in an archive file, which can be pointed at
+        /// the next entry of the same archive.
+        /// </summary>
+        private sealed class ArchiveEntryStream(SafeFileHandle handle) : Stream
+        {
+            private readonly byte[] buffer = new byte[BufferSize];
+            private long start;
+            private long length;
+            private long position;
+            private long bufferPosition;
+            private int bufferLength;
+
+            public void Open(PackageEntry entry)
+            {
+                start = entry.Offset;
+                length = entry.TotalLength;
+                position = 0;
+                bufferLength = 0;
+            }
+
+            public override bool CanRead => true;
+
+            public override bool CanSeek => true;
+
+            public override bool CanWrite => false;
+
+            public override long Length => length;
+
+            public override long Position
+            {
+                get => position;
+                set => position = value;
+            }
+
+            public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+
+            public override int Read(Span<byte> destination)
+            {
+                var count = (int)Math.Clamp(length - position, 0, destination.Length);
+
+                if (count == 0)
+                {
+                    return 0;
+                }
+
+                if (count >= BufferSize)
+                {
+                    count = RandomAccess.Read(handle, destination[..count], start + position);
+                    position += count;
+                    return count;
+                }
+
+                if (position < bufferPosition || position + count > bufferPosition + bufferLength)
+                {
+                    bufferPosition = position;
+                    bufferLength = RandomAccess.Read(handle, buffer.AsSpan(0, (int)Math.Min(BufferSize, length - position)), start + position);
+                    count = Math.Min(count, bufferLength);
+                }
+
+                buffer.AsSpan((int)(position - bufferPosition), count).CopyTo(destination);
+                position += count;
+                return count;
+            }
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                position = origin switch
+                {
+                    SeekOrigin.Begin => offset,
+                    SeekOrigin.Current => position + offset,
+                    _ => length + offset,
+                };
+
+                return position;
+            }
+
+            public override void Flush()
+            {
+            }
+
+            public override void SetLength(long value) => throw new NotSupportedException();
+
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         }
 
         private static string Normalize(string name)
