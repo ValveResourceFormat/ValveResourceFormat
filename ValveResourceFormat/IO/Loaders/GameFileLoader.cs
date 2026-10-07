@@ -468,7 +468,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var (key, searchPath) in fileSystem["SearchPaths"])
             {
-                if (key == "Game")
+                if (key is "Game" or "Game_NonTools")
                 {
                     folders.Add(Path.Combine(gameRoot, searchPath.ToString()!));
                 }
