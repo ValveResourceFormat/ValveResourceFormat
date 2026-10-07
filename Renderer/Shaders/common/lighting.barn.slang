@@ -163,6 +163,11 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
             continue;
         }
 
+#if BARN_LIGHT_AREA_LIGHTS == BARN_LIGHT_AREA_LIGHTS_DEADLOCK
+        // Deadlock applies the baked visibility twice
+        visibility *= visibility;
+#endif
+
         vec4 clipPos = barnLight.m_mBarnFrustum * vec4(mat.PositionWS, 1.0);
         vec3 ndc = clipPos.xyz / clipPos.w;
 
