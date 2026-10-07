@@ -30,11 +30,12 @@ namespace GUI.Utils
 
         private static readonly ConcurrentDictionary<string, PackageIndex> PackageIndexes = new(StringComparer.OrdinalIgnoreCase);
 
-        private readonly PackageIndex[] packageIndexes;
+        private readonly Dictionary<string, Package> packages;
+        private PackageIndex[] packageIndexes = [];
 
-        private ResourceReferenceIndex(PackageIndex[] packageIndexes)
+        private ResourceReferenceIndex(Dictionary<string, Package> packages)
         {
-            this.packageIndexes = packageIndexes;
+            this.packages = packages;
         }
 
         /// <summary>
@@ -44,15 +45,18 @@ namespace GUI.Utils
         {
             var packages = CollectPackages(guiContext);
 
-            if (packages.Count == 0)
-            {
-                return null;
-            }
-
-            return new ResourceReferenceIndex([.. packages.Select(static package => PackageIndexes.GetOrAdd(package.Key, static (_, package) => new PackageIndex(package), package.Value))]);
+            return packages.Count == 0 ? null : new ResourceReferenceIndex(packages);
         }
 
-        public Task BuildAsync() => Task.WhenAll(packageIndexes.Select(static index => index.BuildAsync()));
+        public Task BuildAsync()
+        {
+            if (packageIndexes.Length == 0)
+            {
+                packageIndexes = [.. packages.Select(static package => PackageIndexes.GetOrAdd(package.Key, static (_, package) => new PackageIndex(package), package.Value))];
+            }
+
+            return Task.WhenAll(packageIndexes.Select(static index => index.BuildAsync()));
+        }
 
         public IReadOnlyList<string> Find(string name)
         {
