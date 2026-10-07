@@ -331,7 +331,7 @@ Particle systems round-trip exactly: extraction re-emits the original stored KV3
 VRF's upgraded in-memory version, so decompiled `.vpcf` files match the compiled source
 (pre-KV3 NTRO-era files are re-encoded as KV3 text instead). The viewer simulates a large
 subset of particle functions and lists any unsupported functions per system in red instead
-of failing.
+of failing. Omni2 particle lights of the barn type are drawn as point lights.
 
 Particle snapshots (`vsnap`) preview and extract. Bone name streams survive, but skinning
 streams are written into the extracted `.vsnap` as empty streams: their values show in the

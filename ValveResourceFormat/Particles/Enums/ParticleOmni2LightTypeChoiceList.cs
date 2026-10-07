@@ -9,5 +9,7 @@ namespace ValveResourceFormat.Particles
         PARTICLE_OMNI2_LIGHT_TYPE_POINT = 0,
         /// <summary>Omni2 light with a sphere luminaire shape.</summary>
         PARTICLE_OMNI2_LIGHT_TYPE_SPHERE = 1,
+        /// <summary>Omni2 light with a barn door shape, not rendered yet and treated as a point light.</summary>
+        PARTICLE_OMNI2_LIGHT_TYPE_BARN = 2,
     }
 }
