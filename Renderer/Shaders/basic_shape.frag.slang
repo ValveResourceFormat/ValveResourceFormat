@@ -62,7 +62,7 @@ void main(void)
 
         vec3 lighting = CalculateFullbrightLighting(outputColor.rgb, normalWs, viewDir);
 
-        #if (D_BAKED_LIGHTING_FROM_PROBE == 1 && S_SCENE_PROBE_TYPE == 2)
+        #if (D_BAKED_LIGHTING_FROM_PROBE == 1 && S_SCENE_PROBE_TYPE >= 2)
             if (g_iRenderMode != renderMode_FullBright)
             {
                 ParticleLight_t light = CalculateParticleLighting(vtxPosWs, normalWs, 1.0);

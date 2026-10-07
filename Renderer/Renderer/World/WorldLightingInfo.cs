@@ -33,6 +33,8 @@ namespace ValveResourceFormat.Renderer.World
         IndividualProbes,
         /// <summary>All probe irradiance data is packed into a single atlas texture.</summary>
         ProbeAtlas,
+        /// <summary>Same as <see cref="ProbeAtlas"/> but without per node bindings.</summary>
+        ProbeAtlasPerFragment,
     }
 
     /// <summary>Which light face a binned barn light slot holds, so a cull bit read back later traces to
