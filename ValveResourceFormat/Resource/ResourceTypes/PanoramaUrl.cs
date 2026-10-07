@@ -88,6 +88,7 @@ public static class PanoramaUrl
             var e when e.Equals("js", StringComparison.OrdinalIgnoreCase) => ".vjs",
             var e when e.Equals("ts", StringComparison.OrdinalIgnoreCase) => ".vts",
             var e when e.Equals("svg", StringComparison.OrdinalIgnoreCase) => ".vsvg",
+            var e when e.Equals("webm", StringComparison.OrdinalIgnoreCase) => ".webm",
             _ => null,
         };
 
