@@ -19,6 +19,9 @@ public sealed class LightEntity : BaseEntity
 
     private SceneLight? light;
     private float brightnessScale = 1f;
+
+    /// <summary>Gets the light the entity casts, or <see langword="null"/> for a light class that is not rendered.</summary>
+    internal SceneLight? Light => light;
     private bool slotStored;
 
     /// <summary>Initializes a light entity from its keyvalues.</summary>

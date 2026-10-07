@@ -608,7 +608,7 @@ namespace GUI.Types.GLViewers
                     }
                     else
                     {
-                        SelectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
+                        SelectedNodeRenderer.SelectNode(node);
                         selectedAny = true;
                     }
 
@@ -636,7 +636,7 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(SelectedNodeRenderer != null);
 
-            SelectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
+            SelectedNodeRenderer.SelectNode(node);
             FocusCameraOnBounds(SelectionBounds(node));
             EnsureNodeVisible(node);
         }

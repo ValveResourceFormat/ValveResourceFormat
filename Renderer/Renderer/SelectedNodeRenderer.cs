@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Linq;
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
@@ -9,17 +10,25 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Renders selection outlines and debug information for selected scene nodes.
+    /// Renders selection outlines and debug information for selected scene nodes, over the final image so their colors
+    /// show as given: lines and faces solid where the scene does not hide them, and faint over it.
     /// </summary>
-    public class SelectedNodeRenderer : LineDebugRenderer
+    public class SelectedNodeRenderer
     {
-        private bool disableDepth;
         private bool debugCubeMaps;
         private bool debugLightProbes;
         private readonly List<SceneNode> selectedNodes = new(1);
-        private readonly List<SimpleVertex> vertices = new(48);
+        private readonly HelperVertices vertices = new();
+
+        private readonly LineBuffer lines;
+        private readonly LineBuffer overlayLines;
+        private readonly LineBuffer faces;
+        private readonly LineBuffer overlayFaces;
 
         private readonly Vector2 SelectedNodeNameOffset = new(0, -20);
+
+        // Opacity of the bounds over the scene, out of 255
+        private const byte HiddenLineAlpha = 32;
 
         /// <summary>Gets or sets optional debug text rendered in the top-left corner of the viewport.</summary>
         public string ScreenDebugText { get; set; } = string.Empty;
@@ -30,8 +39,13 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Initializes the selected node renderer and creates GPU resources.</summary>
         /// <param name="rendererContext">Renderer context for loading shaders.</param>
         public SelectedNodeRenderer(RendererContext rendererContext)
-            : base(rendererContext, nameof(SelectedNodeRenderer))
         {
+            const string Shader = "helper_lines";
+
+            lines = new LineBuffer(rendererContext, nameof(SelectedNodeRenderer), Shader);
+            overlayLines = new LineBuffer(rendererContext, nameof(SelectedNodeRenderer) + " overlay", Shader);
+            faces = new LineBuffer(rendererContext, nameof(SelectedNodeRenderer) + " faces", Shader);
+            overlayFaces = new LineBuffer(rendererContext, nameof(SelectedNodeRenderer) + " overlay faces", Shader);
         }
 
         /// <summary>Toggles selection of the given node, adding it if not selected or removing it if already selected.</summary>
@@ -62,10 +76,9 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>Clears the selection and selects a single node, optionally disabling depth testing for its overlay.</summary>
+        /// <summary>Clears the selection and selects a single node.</summary>
         /// <param name="node">Node to select, or <see langword="null"/> to clear the selection.</param>
-        /// <param name="forceDisableDepth">When <see langword="true"/>, the selection overlay is drawn without depth testing.</param>
-        public void SelectNode(SceneNode? node, bool forceDisableDepth = false)
+        public void SelectNode(SceneNode? node)
         {
             RemoveAllLightProbeDebugGrid();
 
@@ -74,17 +87,12 @@ namespace ValveResourceFormat.Renderer
 
             if (node == null)
             {
-                Clear();
+                ClearBuffers();
                 return;
             }
 
             selectedNodes.Add(node);
             node.IsSelected = true;
-
-            if (forceDisableDepth)
-            {
-                disableDepth = true;
-            }
         }
 
         /// <summary>Toggles the layer-enabled state of all currently selected nodes.</summary>
@@ -117,11 +125,12 @@ namespace ValveResourceFormat.Renderer
             return closestIndex;
         }
 
-        private static void AddBox(Camera camera, TextRenderer textRenderer, List<SimpleVertex> vertices, in Matrix4x4 transform, in AABB box, Color32 color, bool showSize = false)
-        {
-            // Adding a box will add many vertices, so ensure the required capacity for it up front
-            vertices.EnsureCapacity(vertices.Count + 2 * 12);
+        // Solid where seen, and faint over the scene
+        private void AddLine(Vector3 start, Vector3 end, Color32 color)
+            => vertices.AddLine(start, end, color with { A = HiddenLineAlpha }, HelperPasses.Both);
 
+        private void AddBox(Camera camera, TextRenderer textRenderer, in Matrix4x4 transform, in AABB box, Color32 color, bool showSize = false)
+        {
             ReadOnlySpan<Vector3> c =
             [
                 Vector3.Transform(new Vector3(box.Min.X, box.Min.Y, box.Min.Z), transform),
@@ -171,102 +180,11 @@ namespace ValveResourceFormat.Renderer
                         CenterHorizontal = true,
                     }, camera);
 
-                    ShapeSceneNode.AddLine(vertices, c[line.Start], c[line.End], axisColor);
+                    AddLine(c[line.Start], c[line.End], axisColor);
                     continue;
                 }
 
-                ShapeSceneNode.AddLine(vertices, c[line.Start], c[line.End], color);
-            }
-        }
-
-        private enum VolumeSpace
-        {
-            /// <summary>Relative to the entity's origin, rotated with its angles.</summary>
-            Oriented,
-
-            /// <summary>Relative to the entity's origin, along the world axes.</summary>
-            WorldAligned,
-
-            /// <summary>In world coordinates, independent of where the entity is.</summary>
-            World,
-        }
-
-        /// <summary>Gets the volume a box-shaped point entity covers, the box its Hammer helper draws.</summary>
-        /// <param name="classname">The entity's classname.</param>
-        /// <param name="entity">The entity keyvalues.</param>
-        /// <param name="bounds">The volume, in the space <paramref name="space"/> names.</param>
-        /// <param name="space">What the volume is relative to.</param>
-        /// <returns><see langword="true"/> when the class is a box volume.</returns>
-        private static bool TryGetVolumeBounds(string? classname, EntityLump.Entity entity, out AABB bounds, out VolumeSpace space)
-        {
-            space = VolumeSpace.Oriented;
-
-            switch (classname)
-            {
-                case "env_cubemap":
-                    var radius = entity.GetFloatProperty("influenceradius");
-                    bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
-                    return true;
-
-                case "info_visibility_box"
-                    or "info_cull_triangles":
-                    bounds = AABB.FromCenteredSize(entity.GetVector3Property("box_size"));
-                    return true;
-
-                case "env_combined_light_probe_volume"
-                    or "env_light_probe_volume"
-                    or "env_volumetric_fog_volume"
-                    or "env_wind_volume"
-                    or "steampal_kill_volume"
-                    or "env_cubemap_box"
-                    or "sky_camera_volume"
-                    or "env_shake_volume"
-                    or "point_deathcam_bounds"
-                    or "light_importance_volume"
-                    or "info_dynamic_shadow_hint_box"
-                    or "snd_event_alignedbox"
-                    or "snd_event_orientedbox"
-                    or "snd_event_box_helper"
-                    or "snd_opvar_set_wind_obb"
-                    or "citadel_snd_obb"
-                    or "citadel_snd_base_music_obb"
-                    or "citadel_snd_stack_field_obb":
-                    bounds = new AABB(entity.GetVector3Property("box_mins"), entity.GetVector3Property("box_maxs"));
-                    return true;
-
-                case "snd_opvar_set_obb"
-                    or "logic_npc_counter_obb":
-                    bounds = new AABB(entity.GetVector3Property("box_outer_mins"), entity.GetVector3Property("box_outer_maxs"));
-                    return true;
-
-                case "snd_sound_area_obb":
-                    bounds = new AABB(entity.GetVector3Property("areamin"), entity.GetVector3Property("areamax"));
-                    return true;
-
-                case "point_grabbable":
-                    bounds = new AABB(entity.GetVector3Property("limit_mins"), entity.GetVector3Property("limit_maxs"));
-                    return true;
-
-                case "env_volumetric_fog_controller"
-                    or "visibility_hint":
-                    space = VolumeSpace.WorldAligned;
-                    bounds = new AABB(entity.GetVector3Property("box_mins"), entity.GetVector3Property("box_maxs"));
-                    return true;
-
-                case "snd_opvar_set_aabb"
-                    or "logic_npc_counter_aabb":
-                    space = VolumeSpace.WorldAligned;
-                    bounds = new AABB(entity.GetVector3Property("box_outer_mins"), entity.GetVector3Property("box_outer_maxs"));
-                    return true;
-
-                case "world_bounds":
-                    space = VolumeSpace.World;
-                    bounds = new AABB(entity.GetVector3Property("min"), entity.GetVector3Property("max"));
-                    return true;
-
-                default:
-                    bounds = default;
-                    return false;
+                AddLine(c[line.Start], c[line.End], color);
             }
         }
 
@@ -275,8 +193,6 @@ namespace ValveResourceFormat.Renderer
         /// <param name="updateContext">Update context providing the text renderer.</param>
         public void Update(Scene.RenderContext renderContext, Scene.UpdateContext updateContext)
         {
-            disableDepth = selectedNodes.Count > 1;
-
             // Draw the debug text even when nothing is selected
             if (ScreenDebugText.Length > 0)
             {
@@ -292,7 +208,7 @@ namespace ValveResourceFormat.Renderer
             if (selectedNodes.Count == 0)
             {
                 // We don't need to reupload an empty array
-                Clear();
+                ClearBuffers();
                 return;
             }
 
@@ -303,11 +219,7 @@ namespace ValveResourceFormat.Renderer
                 // Drawn with the main camera, so 3D sky nodes are outlined where they appear in the world
                 var toWorld = node.Scene.ToViewerWorld;
                 var bounds = node.BoundingBox.Transform(toWorld);
-
-                if (node is not SimpleBoxSceneNode and not SpriteSceneNode)
-                {
-                    AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.Transform * toWorld, node.LocalBoundingBox, Color32.White, showSize: true);
-                }
+                var hasHelpers = false;
 
                 if (debugCubeMaps)
                 {
@@ -332,18 +244,18 @@ namespace ValveResourceFormat.Renderer
                     {
                         var envMapTransform = tiedEnvMap.Transform * toWorld;
 
-                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, envMapTransform, tiedEnvMap.LocalBoundingBox, new(0.7f, 0.0f, 1.0f, 1.0f));
+                        AddBox(renderContext.Camera, updateContext.TextRenderer, envMapTransform, tiedEnvMap.LocalBoundingBox, new(0.7f, 0.0f, 1.0f, 1.0f));
 
                         if (renderContext.Scene.LightingInfo.CubemapType is CubemapType.IndividualCubemaps && i == 0)
                         {
-                            ShapeSceneNode.AddLine(vertices, envMapTransform.Translation, bounds.Center, new(0.0f, 1.0f, 0.0f, 1.0f));
+                            AddLine(envMapTransform.Translation, bounds.Center, new(0.0f, 1.0f, 0.0f, 1.0f));
                             i++;
                             continue;
                         }
 
                         var fractionToTen = Math.Min((float)i / 10, 1.0f);
                         var color = new Color32(1.0f, fractionToTen, fractionToTen, 1.0f);
-                        ShapeSceneNode.AddLine(vertices, envMapTransform.Translation, bounds.Center, color);
+                        AddLine(envMapTransform.Translation, bounds.Center, color);
                         i++;
                     }
                 }
@@ -352,8 +264,8 @@ namespace ValveResourceFormat.Renderer
                 {
                     var probeTransform = node.LightProbeBinding.Transform * toWorld;
 
-                    AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, probeTransform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
-                    ShapeSceneNode.AddLine(vertices, probeTransform.Translation, bounds.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
+                    AddBox(renderContext.Camera, updateContext.TextRenderer, probeTransform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
+                    AddLine(probeTransform.Translation, bounds.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
 
                     node.LightProbeBinding.CreateDebugGridSpheres();
                 }
@@ -366,49 +278,17 @@ namespace ValveResourceFormat.Renderer
                         nodeName = classname;
                     }
 
-                    if (TryGetVolumeBounds(classname, node.EntityData, out var volumeBounds, out var volumeSpace))
-                    {
-                        var placement = node is SpriteSceneNode or SimpleBoxSceneNode
-                            ? node.EntityInstance?.RigidTransform ?? EntityTransformHelper.ToRigidTransformationMatrix(node.EntityData)
-                            : node.Transform;
+                    var placement = node.EntityInstance?.RigidTransform ?? (node is SpriteSceneNode or SimpleBoxSceneNode
+                        ? EntityTransformHelper.ToRigidTransformationMatrix(node.EntityData)
+                        : node.Transform);
 
-                        var volumeTransform = volumeSpace switch
-                        {
-                            VolumeSpace.Oriented => placement,
-                            VolumeSpace.WorldAligned => Matrix4x4.CreateTranslation(placement.Translation),
-                            _ => Matrix4x4.Identity,
-                        };
+                    hasHelpers = EntityHelperLines.TryAdd(vertices, classname, node.EntityData, node.EntityInstance, placement, toWorld);
+                }
 
-                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, volumeTransform * toWorld, volumeBounds, new(0.0f, 1.0f, 0.0f, 1.0f));
-
-                        disableDepth = true;
-                    }
-                    else if (classname is "light_barn" or "light_omni2")
-                    {
-                        var boundsMins = node.EntityData.GetStringProperty("precomputedboundsmins");
-                        var boundsMaxs = node.EntityData.GetStringProperty("precomputedboundsmaxs");
-                        var obbExtent = node.EntityData.GetStringProperty("precomputedobbextent");
-                        var obbOrigin = node.EntityData.GetStringProperty("precomputedobborigin");
-
-                        if (boundsMins != null && boundsMaxs != null && obbExtent != null && obbOrigin != null)
-                        {
-                            var precomputedBounds = new AABB(
-                                EntityTransformHelper.ParseVector3(boundsMins),
-                                EntityTransformHelper.ParseVector3(boundsMaxs)
-                            );
-
-                            var origin = Vector3.Transform(EntityTransformHelper.ParseVector3(obbExtent), toWorld);
-                            var extent = Vector3.Transform(EntityTransformHelper.ParseVector3(obbOrigin), toWorld);
-                            var lightPosition = Vector3.Transform(node.Transform.Translation, toWorld);
-
-                            AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, toWorld, precomputedBounds, new(0.0f, 1.0f, 0.0f, 1.0f));
-
-                            ShapeSceneNode.AddLine(vertices, lightPosition, origin, new(0.0f, 0.0f, 1.0f, 1.0f));
-                            ShapeSceneNode.AddLine(vertices, lightPosition, extent, new(1.0f, 1.0f, 0.0f, 1.0f));
-                        }
-
-                        disableDepth = true;
-                    }
+                // The helpers show the entity better than the bounds of its editor model
+                if (!(hasHelpers && node.LayerName == EditorEntityNode.LayerName) && node is not SimpleBoxSceneNode and not SpriteSceneNode)
+                {
+                    AddBox(renderContext.Camera, updateContext.TextRenderer, node.Transform * toWorld, node.LocalBoundingBox, Color32.White, showSize: true);
                 }
 
                 // draw node name above the bounding box
@@ -424,9 +304,20 @@ namespace ValveResourceFormat.Renderer
                 }, renderContext.Camera, fixedScale: false);
             }
 
-            Upload(vertices);
+            lines.Upload(vertices.Lines);
+            overlayLines.Upload(vertices.OverlayLines);
+            faces.Upload(vertices.Faces);
+            overlayFaces.Upload(vertices.OverlayFaces);
 
             vertices.Clear();
+        }
+
+        private void ClearBuffers()
+        {
+            lines.Clear();
+            overlayLines.Clear();
+            faces.Clear();
+            overlayFaces.Clear();
         }
 
         private void RemoveAllLightProbeDebugGrid()
@@ -437,10 +328,43 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>Renders the wireframe selection overlay for the current frame.</summary>
-        public void Render()
+        /// <summary>Renders the selection overlay over the final image, after post processing.</summary>
+        /// <param name="sceneDepth">The scene's resolved depth, to find what it hides.</param>
+        public void Render(RenderTexture sceneDepth)
         {
-            RenderLines(disableDepth);
+            if (lines.VertexCount == 0 && overlayLines.VertexCount == 0)
+            {
+                return;
+            }
+
+            var shader = lines.Shader;
+            shader.Use();
+            shader.SetTexture((int)ReservedTextureSlots.SceneDepth, "g_tSceneDepth", sceneDepth);
+
+            using var _ = GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false, blend: true);
+
+            shader.SetUniform("g_bDepthTest", false);
+            overlayFaces.Draw(0, overlayFaces.VertexCount, primitive: PrimitiveType.Triangles);
+
+            // Faces pull further towards the camera, so they still show where they lie on the scene's surfaces
+            shader.SetUniform("g_bDepthTest", true);
+            shader.SetUniform("g_flDepthTolerance", 0.004f);
+            faces.Draw(0, faces.VertexCount, primitive: PrimitiveType.Triangles);
+
+            shader.SetUniform("g_flDepthTolerance", 0.001f);
+            lines.Draw();
+
+            shader.SetUniform("g_bDepthTest", false);
+            overlayLines.Draw();
+        }
+
+        /// <summary>Deletes the GL objects.</summary>
+        public void Delete()
+        {
+            lines.Delete();
+            overlayLines.Delete();
+            faces.Delete();
+            overlayFaces.Delete();
         }
 
         /// <summary>Updates which debug overlays (cubemaps, light probes) are drawn based on the active render mode.</summary>

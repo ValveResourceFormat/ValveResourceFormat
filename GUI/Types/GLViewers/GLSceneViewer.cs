@@ -625,6 +625,12 @@ namespace GUI.Types.GLViewers
             Debug.Assert(GLDefaultFramebuffer != null);
 
             Renderer.PostprocessRender(MainFramebuffer, GLDefaultFramebuffer);
+
+            // Over the final image, so the selection keeps its colors whatever the exposure
+            if (SelectedNodeRenderer != null && Renderer.ResolvedSceneDepth != null)
+            {
+                SelectedNodeRenderer.Render(Renderer.ResolvedSceneDepth);
+            }
         }
 
         protected override void OnBufferSwapped(double blockedMs, double framePeriodMs)
@@ -673,7 +679,7 @@ namespace GUI.Types.GLViewers
             // this frame's position and last frame's facing
             UpdateSoundPlayer();
 
-            Renderer.ForceResolveSceneDepth = ShowBaseGrid;
+            Renderer.ForceResolveSceneDepth = ShowBaseGrid || SelectedNodeRenderer.HasSelectedNodes;
 
             var quadOverdrawThisFrame = false;
 
@@ -720,8 +726,6 @@ namespace GUI.Types.GLViewers
 
             using (new GLDebugGroup("Lines Render"))
             {
-                SelectedNodeRenderer.Render();
-
                 if (showStaticOctree && Scene.StaticOctree.DebugRenderer != null)
                 {
                     Scene.StaticOctree.DebugRenderer.Render();
