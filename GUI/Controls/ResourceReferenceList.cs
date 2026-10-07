@@ -576,10 +576,10 @@ namespace GUI.Controls
                 return;
             }
 
-            var found = usedByIndex.Find(selfName);
+            var found = FoldIntoModels(usedByIndex, usedByIndex.Find(selfName));
             var dimmed = Themer.CurrentThemeColors.ContrastSoft;
 
-            foreach (var referrer in found.Take(MaxReferrers))
+            foreach (var (referrer, through) in found.Take(MaxReferrers))
             {
                 var reference = ResourceReference.Create(referrer.Name, referrer.Kinds);
                 var extension = Path.GetExtension(referrer.Name.AsSpan());
@@ -595,9 +595,12 @@ namespace GUI.Controls
                     ImageIndex = icon,
                     SelectedImageIndex = icon,
                     Tag = referrer.Package == null ? reference : new PackagedReference(reference, referrer.Package),
-                    ToolTipText = referrer.Package == null
-                        ? $"{referrer.Name}\nReferences this file, found in its {KindNames(referrer.Kinds)}"
-                        : $"{referrer.Name}\nReferences this file, found in its {KindNames(referrer.Kinds)}\nIn map package {referrer.Package}",
+                    ToolTipText = (through, referrer.Package) switch
+                    {
+                        ({ } mesh, _) => $"{referrer.Name}\nUses this file through {mesh}",
+                        (_, { } package) => $"{referrer.Name}\nReferences this file, found in its {KindNames(referrer.Kinds)}\nIn map package {package}",
+                        _ => $"{referrer.Name}\nReferences this file, found in its {KindNames(referrer.Kinds)}",
+                    },
                 };
 
                 usedByRows.Add(new Row
@@ -644,6 +647,56 @@ namespace GUI.Controls
             usedByCount = found.Count;
             usedByReady = true;
             UpdateUsedByNode();
+        }
+
+        /// <summary>
+        /// Replaces meshes and animation groups, which only their models load, with the models that use them.
+        /// An intermediate that no model uses stays as it is.
+        /// </summary>
+        private static List<(ResourceReferenceIndex.Referrer Referrer, string? Through)> FoldIntoModels(ResourceReferenceIndex index, IReadOnlyList<ResourceReferenceIndex.Referrer> referrers)
+        {
+            static bool IsIntermediate(string name) => name.EndsWith(".vmesh", StringComparison.OrdinalIgnoreCase)
+                || name.EndsWith(".vagrp", StringComparison.OrdinalIgnoreCase);
+
+            var folded = new List<(ResourceReferenceIndex.Referrer Referrer, string? Through)>(referrers.Count);
+            var listed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var referrer in referrers)
+            {
+                if (!IsIntermediate(referrer.Name))
+                {
+                    listed.Add(referrer.Name);
+                    folded.Add((referrer, null));
+                }
+            }
+
+            foreach (var referrer in referrers)
+            {
+                if (!IsIntermediate(referrer.Name))
+                {
+                    continue;
+                }
+
+                var models = index.Find(referrer.Name).Where(static model => model.Name.EndsWith(".vmdl", StringComparison.OrdinalIgnoreCase)).ToList();
+
+                if (models.Count == 0)
+                {
+                    folded.Add((referrer, null));
+                    continue;
+                }
+
+                foreach (var model in models)
+                {
+                    if (listed.Add(model.Name))
+                    {
+                        folded.Add((model, referrer.Name));
+                    }
+                }
+            }
+
+            folded.Sort(static (a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.Referrer.Name, b.Referrer.Name));
+
+            return folded;
         }
 
         // Looking a reference up walks every mounted package, so this runs in chunks between UI messages
