@@ -79,6 +79,7 @@ namespace GUI.Controls
             this.guiContext = guiContext;
             this.selfName = selfName;
             usedByIndex = selfName == null ? null : ResourceReferenceIndex.ForContext(guiContext);
+            _ = usedByIndex?.BuildAsync();
             Dock = DockStyle.Fill;
 
             tree = new TreeViewDoubleBuffered
