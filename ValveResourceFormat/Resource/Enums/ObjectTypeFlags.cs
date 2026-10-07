@@ -66,5 +66,11 @@ namespace ValveResourceFormat
 
         /// <summary>Object has an aggregate ray-tracing proxy.</summary>
         HasAggregateRtproxy = 0x80000,
+
+        /// <summary>Object has emissive materials that contribute to global illumination.</summary>
+        HasEmissiveGi = 0x100000,
+
+        /// <summary>Object uses dynamic materials for ray tracing.</summary>
+        RtDynamicMaterials = 0x200000,
     }
 }
