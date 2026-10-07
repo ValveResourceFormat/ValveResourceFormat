@@ -1,13 +1,14 @@
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
 /// The light entities. Owns the <see cref="SceneLight"/> and steers it live: the real-time set (barn,
 /// rect, omni2) re-bins every frame so changes are plain property writes, while the slot-stored set
-/// (omni, spot, ortho, environment) re-stores the lighting uniforms on change. Light styles, color
-/// temperature and volumetric fog are not simulated.
+/// (omni, spot, ortho, environment) re-stores the lighting uniforms on change. Light styles and
+/// volumetric fog are not simulated.
 /// </summary>
 public sealed class LightEntity : BaseEntity
 {
@@ -109,11 +110,25 @@ public sealed class LightEntity : BaseEntity
     [EntityInput("SetBrightness")]
     private void InputSetBrightness(EntityInputData data)
     {
-        if (light != null)
+        if (light == null)
+        {
+            return;
+        }
+
+        // Barn, rect and omni2 lights take an exposure value, which can be negative. The lumens a baked
+        // light is stored with scale along with it.
+        if (light.IsLight2)
+        {
+            var linearBrightness = float.Exp2(data.Float(MathF.Log2(light.LinearBrightness)));
+            light.Brightness *= linearBrightness / light.LinearBrightness;
+            light.LinearBrightness = linearBrightness;
+        }
+        else
         {
             light.Brightness = MathF.Max(data.Float(light.Brightness), 0f);
-            Changed();
         }
+
+        Changed();
     }
 
     [EntityInput("SetBrightnessScale")]
@@ -128,10 +143,22 @@ public sealed class LightEntity : BaseEntity
     [EntityInput("SetColor")]
     private void InputSetColor(EntityInputData data)
     {
-        if (light != null && data.Parameter is { } parameter
+        // A light in color temperature mode keeps its color
+        if (light is { ColorTemperature: null } && data.Parameter is { } parameter
             && EntityTransformHelper.TryParseVector3(parameter, out var color))
         {
             light.Color = Vector3.Clamp(color / 255f, Vector3.Zero, Vector3.One);
+            Changed();
+        }
+    }
+
+    [EntityInput("SetColorTemperature")]
+    private void InputSetColorTemperature(EntityInputData data)
+    {
+        if (light is { ColorTemperature: { } colorTemperature })
+        {
+            light.ColorTemperature = data.Float(colorTemperature);
+            light.Color = ColorSpace.ColorTemperatureToSrgb(light.ColorTemperature.Value);
             Changed();
         }
     }

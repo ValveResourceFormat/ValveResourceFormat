@@ -1,5 +1,8 @@
 #version 460
 
+// Deadlock shaders, which shade rect lights as area lights (BARN_LIGHT_AREA_LIGHTS_DEADLOCK)
+#define BARN_LIGHT_AREA_LIGHTS 2
+
 #include "common/utils.slang"
 #include "common/features.slang"
 #include "environment_blend_features.slang"

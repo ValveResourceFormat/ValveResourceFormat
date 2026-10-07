@@ -48,9 +48,6 @@ namespace ValveResourceFormat.IO
             ".sbproj",
         ];
 
-        /// <summary>Gets the game declared by the nearest <c>gameinfo.gi</c>, or <see langword="null"/> when none was found.</summary>
-        public string? GameName { get; private set; }
-
         private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
         private readonly Lock CachedShadersLock = new();
         private readonly HashSet<string> CurrentGameSearchPaths = [];
@@ -448,9 +445,6 @@ namespace ValveResourceFormat.IO
 
             var gameName = gameInfo.TryGetValue("game", out var game) ? game.ToString() : null;
             Logger.LogInformation("Found \"{GameName}\" from \"{GameInfo}\"", gameName, gameinfoPath);
-
-            // The walk starts at the file being opened, so the first one found is the mod it belongs to.
-            GameName ??= gameName;
 
             var fileSystem = gameInfo["FileSystem"];
 

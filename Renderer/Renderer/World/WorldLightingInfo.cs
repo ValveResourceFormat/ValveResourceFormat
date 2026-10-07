@@ -84,11 +84,6 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Gets or sets whether barn, rect and omni lights take their intensity from <c>brightness_legacy</c>.
-        /// </summary>
-        public bool UsesLegacyBarnBrightness { get; set; }
-
-        /// <summary>
         /// Creates baked lighting combo args for an object, based on object and scene lighting state.
         /// </summary>
         public Dictionary<string, byte> CreateShaderArguments(bool hasLightmapUvs = false, bool hasVertexLighting = false)
@@ -741,6 +736,7 @@ namespace ValveResourceFormat.Renderer.World
                 }
 
                 var anyFaceDropped = false;
+                var hasRangeCutoff = light.UsesOmni2Faces && light.FallOff > 0f;
 
                 for (var faceIndex = 0; faceIndex < light.BarnFaces.Length; faceIndex++)
                 {
@@ -766,8 +762,6 @@ namespace ValveResourceFormat.Renderer.World
                         data.BarnLightShadowOffsetScale = placement.OffsetScale;
                         data.BarnLightShadowScale = 1.0f;
                     }
-
-                    var hasRangeCutoff = light.Entity == SceneLight.EntityType.Omni2 && light.FallOff > 0f;
 
                     BinnedBarnLightFaceSlots[LightingData.NumBarnLights] = new BarnLightFaceSlot(light, faceIndex);
 

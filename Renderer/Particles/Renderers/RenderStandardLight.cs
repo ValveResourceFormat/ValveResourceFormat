@@ -96,7 +96,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             const float IntensityScaleBarnPath = 3f;
 
             light.Color = color;
-            light.BrightnessLegacy = brightness * IntensityScaleBarnPath;
+            light.LinearBrightness = brightness * IntensityScaleBarnPath;
             light.BrightnessScale = 1f;
             light.Range = range;
             light.Position = particle.Position;

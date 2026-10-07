@@ -1,5 +1,7 @@
 #version 460
 
+#define BARN_LIGHT_CHEAP_WORLD_SHADING 1
+
 #include "common/utils.slang"
 #include "common/features.slang"
 #include "common/ViewConstants.slang"

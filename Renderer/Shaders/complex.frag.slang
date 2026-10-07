@@ -29,6 +29,10 @@
 #define GameVfx_vr_static_overlay 0
 #define GameVfx_vr_xen_foliage 0
 
+// Desk Job shaders shade rect lights as area lights (BARN_LIGHT_AREA_LIGHTS_DESK_JOB)
+#define BARN_LIGHT_AREA_LIGHTS (GameVfx_vr_complex || GameVfx_vr_simple || GameVfx_vr_glass)
+#define BARN_LIGHT_CHEAP_WORLD_SHADING (GameVfx_csgo_complex || GameVfx_csgo_lightmappedgeneric || GameVfx_csgo_vertexlitgeneric || GameVfx_csgo_foliage || GameVfx_csgo_simple || GameVfx_csgo_simple_2way_blend || GameVfx_csgo_glass)
+
 #include "common/utils.slang"
 #include "common/features.slang"
 #include "common/ViewConstants.slang"

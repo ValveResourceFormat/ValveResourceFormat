@@ -13,6 +13,7 @@ struct BarnLightConstants
     vec4 m_vBarnLightColor_flCookie;
     vec4 m_vBarnLightOrientationQ;
     vec3 m_vBarnLightAngleFade;
+    float m_flBarnLightLuminaireHalfWidth;
     vec4 m_vBarnLightShadowOffsetScale;
     vec4 m_vBarnLightCookieParameters;
     vec4 m_vBarnLightBakedShadowMask;
@@ -20,6 +21,7 @@ struct BarnLightConstants
     float m_fBarnLightShadowScale;
     // PathTraceIndex (short) is not used
     uint m_nPathTraceIndex_BarnLightFlags;
+    float m_flBarnLightLuminaireHalfHeight;
     mat3x4 m_mBarnIlluminationFromWorld;
 };
 
@@ -30,6 +32,64 @@ layout(std430, binding = 3) readonly buffer BarnLightBuffer {
 uint g_nBarnLightsIterated = 0u;
 
 const uint BARN_LIGHT_FLAG_LIT_INSIDE_NEAR_PLANE = 0x8000u;
+const uint BARN_LIGHT_FLAG_RECT_LUMINAIRE = 0x1000u;
+const uint BARN_LIGHT_FLAG_DISC_LUMINAIRE = 0x2000u;
+
+// The CS2 world shaders fade linearly and take one shadow tap, its model shaders and other games
+// use smoothstep fades and a 3x3 PCF. Shaders that stand in for CS2 world shaders define this first.
+#ifndef BARN_LIGHT_CHEAP_WORLD_SHADING
+#define BARN_LIGHT_CHEAP_WORLD_SHADING 0
+#endif
+
+// The other shaders light rect lights from their centre, while Desk Job (1) and Deadlock (2) shade them as
+// area lights, Deadlock keeping the angle fade on them
+#define BARN_LIGHT_AREA_LIGHTS_DESK_JOB 1
+#define BARN_LIGHT_AREA_LIGHTS_DEADLOCK 2
+
+#ifndef BARN_LIGHT_AREA_LIGHTS
+#define BARN_LIGHT_AREA_LIGHTS 0
+#endif
+
+// Stands in for the area light integral by lighting from the luminaire's closest point: it matches the
+// integral far from the luminaire and is capped by the luminaire's area close to it.
+float ComputeBarnAreaLightAttenuation(BarnLightConstants barnLight, vec3 forward, vec3 toCenter, out vec3 lightDir)
+{
+    vec3 axisY = QuaternionRotation(vec3(0, 1, 0), barnLight.m_vBarnLightOrientationQ);
+    vec3 axisZ = QuaternionRotation(vec3(0, 0, 1), barnLight.m_vBarnLightOrientationQ);
+
+    vec2 halfSize = max(vec2(barnLight.m_flBarnLightLuminaireHalfWidth, barnLight.m_flBarnLightLuminaireHalfHeight), vec2(0.001));
+    vec2 local = vec2(dot(-toCenter, axisY), dot(-toCenter, axisZ));
+    vec2 closest;
+    float area;
+
+    if ((barnLight.m_nPathTraceIndex_BarnLightFlags & BARN_LIGHT_FLAG_DISC_LUMINAIRE) != 0u)
+    {
+        vec2 unit = local / halfSize;
+        closest = (dot(unit, unit) > 1.0 ? normalize(unit) : unit) * halfSize;
+        area = PI * halfSize.x * halfSize.y;
+    }
+    else
+    {
+        closest = clamp(local, -halfSize, halfSize);
+        area = 4.0 * halfSize.x * halfSize.y;
+    }
+
+    vec3 toLight = toCenter + axisY * closest.x + axisZ * closest.y;
+
+    float distSq = max(length_squared(toLight), 0.0001);
+    lightDir = toLight * inversesqrt(distSq);
+    float cosEmit = saturate(-dot(forward, lightDir));
+    return cosEmit / max(distSq, area / PI);
+}
+
+float BarnLightFade(float x)
+{
+#if BARN_LIGHT_CHEAP_WORLD_SHADING
+    return saturate(x);
+#else
+    return smoothstep(0.0, 1.0, x);
+#endif
+}
 
 // Game uses Texture3D
 uniform sampler2DArray g_tLightCookieTexture; // ClampToBorder, reserved
@@ -123,11 +183,11 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
         float skirtFade = 1.0;
         if (barnLight.m_vBarnLightDistanceFade_vSkirt.z > 0.0)
         {
-            skirtFade = smoothstep(0.0, 1.0, ndc.z * barnLight.m_vBarnLightDistanceFade_vSkirt.z);
+            skirtFade = BarnLightFade(ndc.z * barnLight.m_vBarnLightDistanceFade_vSkirt.z);
         }
         if (barnLight.m_vBarnLightDistanceFade_vSkirt.w > 0.0)
         {
-            skirtFade *= smoothstep(0.0, 1.0, (1.0 - ndc.z) * barnLight.m_vBarnLightDistanceFade_vSkirt.w);
+            skirtFade *= BarnLightFade((1.0 - ndc.z) * barnLight.m_vBarnLightDistanceFade_vSkirt.w);
         }
 
         if (skirtFade == 0.0)
@@ -141,12 +201,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
         {
             vec3 toLight = barnLight.m_vBarnLightPosition.xyz - mat.PositionWS;
             float dist = length(toLight);
-
-            float invSqAtten = barnLight.m_vBarnLightPosition.w / max(dist * dist, barnLight.m_vBarnLightPosition.w);
-            float distFade = smoothstep(0.0, 1.0, barnLight.m_vBarnLightDistanceFade_vSkirt.x + barnLight.m_vBarnLightDistanceFade_vSkirt.y * dist);
-            attenuation = skirtFade * invSqAtten * distFade;
-
-            lightDir = normalize(toLight);
+            float distFade = BarnLightFade(barnLight.m_vBarnLightDistanceFade_vSkirt.x + barnLight.m_vBarnLightDistanceFade_vSkirt.y * dist);
 
             vec3 closestDir = toLight;
             if (barnLight.m_vBarnLightAngleFade.z > 0.0)
@@ -162,7 +217,25 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
             }
 
             vec3 entityForward = QuaternionRotation(vec3(1, 0, 0), barnLight.m_vBarnLightOrientationQ);
-            attenuation *= saturate(barnLight.m_vBarnLightAngleFade.x + barnLight.m_vBarnLightAngleFade.y * dot(entityForward, normalize(closestDir)));
+            float angleFade = saturate(barnLight.m_vBarnLightAngleFade.x + barnLight.m_vBarnLightAngleFade.y * dot(entityForward, normalize(closestDir)));
+
+#if BARN_LIGHT_AREA_LIGHTS
+            if ((barnLight.m_nPathTraceIndex_BarnLightFlags & (BARN_LIGHT_FLAG_RECT_LUMINAIRE | BARN_LIGHT_FLAG_DISC_LUMINAIRE)) != 0u)
+            {
+                attenuation = skirtFade * distFade * ComputeBarnAreaLightAttenuation(barnLight, entityForward, toLight, lightDir);
+#if BARN_LIGHT_AREA_LIGHTS == BARN_LIGHT_AREA_LIGHTS_DESK_JOB
+                angleFade = 1.0;
+#endif
+            }
+            else
+#endif
+            {
+                float invSqAtten = barnLight.m_vBarnLightPosition.w / max(dist * dist, barnLight.m_vBarnLightPosition.w);
+                attenuation = skirtFade * invSqAtten * distFade;
+                lightDir = toLight / dist;
+            }
+
+            attenuation *= angleFade;
         }
         else
         {
@@ -179,7 +252,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
             vec2 cookieUV = ndc.xy * vec2(-0.5, -0.5) + vec2(0.5);
             cookieUV = cookieUV * barnLight.m_vBarnLightCookieParameters.zw + barnLight.m_vBarnLightCookieParameters.xy;
             float layer = barnLight.m_vBarnLightColor_flCookie.w - 1.0;
-            vec3 cookieColor = texture(g_tLightCookieTexture, vec3(cookieUV, layer)).rgb;
+            vec3 cookieColor = textureLod(g_tLightCookieTexture, vec3(cookieUV, layer), 0.0).rgb;
             lightColor *= cookieColor;
         }
         else if (barnLight.m_vBarnLightColor_flCookie.w < 0.0)
@@ -192,7 +265,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
             cookieUV = cookieUV * barnLight.m_vBarnLightCookieParameters.zw + barnLight.m_vBarnLightCookieParameters.xy;
 
             float layer = -barnLight.m_vBarnLightColor_flCookie.w - 1.0;
-            vec3 cookieColor = texture(g_tLightCookieTextureWrap, vec3(cookieUV, layer)).rgb;
+            vec3 cookieColor = textureLod(g_tLightCookieTextureWrap, vec3(cookieUV, layer), 0.0).rgb;
             lightColor *= cookieColor;
         }
         else
@@ -247,8 +320,11 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
             const float g_flShadowCascadeReceiverDepthBias = -0.000015;
             float shadowRef = saturate(ndc.z + g_flShadowCascadeReceiverDepthBias);
 
-            //float shadow = ComputeBarnLightShadow(shadowUV, shadowRef);
+#if BARN_LIGHT_CHEAP_WORLD_SHADING
+            float shadow = ComputeBarnLightShadow(shadowUV, shadowRef);
+#else
             float shadow = ComputeBarnLightShadow_PCF_3x3_Gaussian(shadowUV, shadowRef, texelSize);
+#endif
 
             lightColor *= mix(1.0, shadow, barnLight.m_fBarnLightShadowScale);
         }
