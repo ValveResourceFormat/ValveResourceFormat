@@ -77,7 +77,7 @@ in the Dump column.
 | vrmap    | Resource Remap Table       | text                          | generic | -                                                                                                            |
 | vrr      | Response Rules             | text                          | yes     | original rules script (byte-exact)                                                                           |
 | vseq     | Sequence Group             | text                          | generic | -                                                                                                            |
-| vsmart   | Smart Prop                 | 3D (partial)                  | yes     | KV3 text                                                                                                     |
+| vsmart   | Smart Prop                 | 3D                            | yes     | KV3 text                                                                                                     |
 | vsnap    | Particle Snapshot          | 3D                            | yes     | `.vsnap`                                                                                                     |
 | vsnd     | Sound                      | audio                         | yes     | `.wav` / `.mp3` / `.aac` + phonemes `.txt` + `.vsnd` KV3 for newer sounds                                    |
 | vsndevts | Sound Event Script         | text                          | generic | KV3 text (lossless)                                                                                          |
@@ -372,10 +372,11 @@ interpreted.
 ## Per-Game Notes
 
 - **Counter-Strike 2**: weapon skin composite materials (`vcompmat`) only dump as KV3, with
-  no compositing preview. Smart props render partially (nested smart prop references are not
-  expanded, [#590](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/590)),
-  and very high-poly smart-prop-deformed meshes can decompile with missing faces
-  ([#874](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/874)).
+  no compositing preview. Smart props (`vsmart`) are evaluated like Hammer evaluates them,
+  with a fixed seed in place of Hammer's clock-seeded first placement; their traces never hit
+  and the per-material tints of Material Tint operations are not shown. Compiled maps need no evaluation, since the map compile bakes
+  smart props into props and entities. Very high-poly smart-prop-deformed meshes can decompile
+  with missing faces ([#874](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/874)).
 - **Half-Life: Alyx**: its custom per-mip roughness normal map packing has no preserving
   export path ([#936](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/936)).
   Model-rendering particle operators used by some HLA effects are not implemented in the
