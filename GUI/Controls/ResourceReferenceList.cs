@@ -69,6 +69,7 @@ namespace GUI.Controls
         private readonly ThemedTextBox filterBox;
         private readonly System.Windows.Forms.Timer filterTimer = new() { Interval = 150 };
         private readonly List<Row> rows = [];
+        private readonly List<Row> notFoundRows = [];
         private readonly List<Category> categories = [];
         private readonly Dictionary<string, bool> expandedByUser = new(StringComparer.Ordinal);
         private string appliedFilter = string.Empty;
@@ -722,12 +723,48 @@ namespace GUI.Controls
                 }
 
                 MarkNotFound(row.Node, attention);
+                notFoundRows.Add(row);
             }
 
             if (lookedUpRows < rows.Count)
             {
                 BeginInvoke(LookUpNextRows);
+                return;
             }
+
+            if (notFoundRows.Count > 0)
+            {
+                ExplainNotFound();
+            }
+        }
+
+        private void ExplainNotFound()
+        {
+            var reasons = new MissingReferenceReasons(guiContext);
+            var names = notFoundRows.Select(static row => row.Reference.Name).ToArray();
+
+            Task.Run(() => names.Select(reasons.Explain).ToArray()).ContinueWith(task =>
+            {
+                if (!task.IsCompletedSuccessfully || IsDisposed || Disposing || !IsHandleCreated)
+                {
+                    return;
+                }
+
+                try
+                {
+                    BeginInvoke(() =>
+                    {
+                        for (var i = 0; i < notFoundRows.Count; i++)
+                        {
+                            notFoundRows[i].Node.ToolTipText = string.Concat(notFoundRows[i].Node.ToolTipText, "\n", task.Result[i]);
+                        }
+                    });
+                }
+                catch (Exception e) when (e is ObjectDisposedException or InvalidOperationException)
+                {
+                    // the tab was closed while the reasons were worked out
+                }
+            }, TaskScheduler.Default);
         }
 
         private static void MarkNotFound(TreeNode node, Color attention)
