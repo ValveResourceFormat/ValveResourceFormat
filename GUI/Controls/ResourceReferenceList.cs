@@ -53,6 +53,11 @@ namespace GUI.Controls
             public bool Filled { get; set; }
         }
 
+        /// <summary>The last row of a folder that lists only its first rows, which lists all of them when opened.</summary>
+        private sealed record ShowAllRows(Group Group);
+
+        private const int MaxRowsShown = 500;
+
         /// <summary>A referrer that is only found in a map package, which opens through that package.</summary>
         private sealed record PackagedReference(ResourceReference Reference, string Package);
 
@@ -72,6 +77,7 @@ namespace GUI.Controls
         private readonly List<Row> notFoundRows = [];
         private readonly List<Category> categories = [];
         private readonly Dictionary<string, bool> expandedByUser = new(StringComparer.Ordinal);
+        private readonly HashSet<string> showingAllRows = new(StringComparer.Ordinal);
         private string appliedFilter = string.Empty;
         private bool rebuilding;
         private int lookedUpRows = -1;
@@ -457,6 +463,22 @@ namespace GUI.Controls
 
         private bool IsShown(TreeNode node) => node.TreeView == tree && (node.Parent == null || node.Parent.IsExpanded);
 
+        private void ShowAll(TreeNode moreNode, Group group)
+        {
+            var groupNode = moreNode.Parent;
+
+            if (groupNode == null)
+            {
+                return;
+            }
+
+            showingAllRows.Add(group.Key);
+
+            tree.BeginUpdate();
+            Fill(groupNode, group);
+            tree.EndUpdate();
+        }
+
         private static void ExpandFilled(List<TreeNode> nodes)
         {
             foreach (var node in nodes)
@@ -468,7 +490,7 @@ namespace GUI.Controls
             }
         }
 
-        private static TreeNode CreateGroupNode(string key, string text, int icon, List<Row> children, bool expand)
+        private TreeNode CreateGroupNode(string key, string text, int icon, List<Row> children, bool expand)
         {
             var group = new Group
             {
@@ -496,16 +518,30 @@ namespace GUI.Controls
             return node;
         }
 
-        private static void Fill(TreeNode node, Group group)
+        private void Fill(TreeNode node, Group group)
         {
             node.Nodes.Clear();
 
-            foreach (var child in group.Children)
+            var children = showingAllRows.Contains(group.Key) || group.Children.Length <= MaxRowsShown
+                ? group.Children
+                : group.Children[..MaxRowsShown];
+
+            foreach (var child in children)
             {
                 child.Parent?.Nodes.Remove(child);
             }
 
-            node.Nodes.AddRange(group.Children);
+            node.Nodes.AddRange(children);
+
+            if (children.Length < group.Children.Length)
+            {
+                node.Nodes.Add(new TreeNode($"{group.Children.Length - children.Length} more, double click to show all")
+                {
+                    ForeColor = Themer.CurrentThemeColors.ContrastSoft,
+                    Tag = new ShowAllRows(group),
+                });
+            }
+
             group.Filled = true;
         }
 
@@ -570,8 +606,6 @@ namespace GUI.Controls
 
         private void FillUsedBy()
         {
-            const int MaxReferrers = 1000;
-
             if (IsDisposed || Disposing || selfName == null || usedByIndex == null)
             {
                 return;
@@ -580,7 +614,7 @@ namespace GUI.Controls
             var found = FoldIntoModels(usedByIndex, usedByIndex.Find(selfName));
             var dimmed = Themer.CurrentThemeColors.ContrastSoft;
 
-            foreach (var (referrer, through) in found.Take(MaxReferrers))
+            foreach (var (referrer, through) in found)
             {
                 var reference = ResourceReference.Create(referrer.Name, referrer.Kinds);
                 var extension = Path.GetExtension(referrer.Name.AsSpan());
@@ -616,22 +650,6 @@ namespace GUI.Controls
             if (found.Count == 0)
             {
                 var node = new TreeNode($"Not referenced by any file in the {usedByIndex.SearchedCount} indexed packages and map folders")
-                {
-                    ForeColor = dimmed,
-                };
-
-                usedByRows.Add(new Row
-                {
-                    Reference = default,
-                    Category = RowCategory.Subasset,
-                    Node = node,
-                    Search = string.Empty,
-                });
-            }
-
-            if (found.Count > MaxReferrers)
-            {
-                var node = new TreeNode($"{found.Count - MaxReferrers} more not listed")
                 {
                     ForeColor = dimmed,
                 };
@@ -849,6 +867,12 @@ namespace GUI.Controls
 
         private void Open(TreeNode? node)
         {
+            if (node?.Tag is ShowAllRows more)
+            {
+                ShowAll(node, more.Group);
+                return;
+            }
+
             if (node?.Tag is PackagedReference packaged)
             {
                 if (!Types.Viewers.Resource.OpenFileInPackage(packaged.Package, packaged.Reference.Name + GameFileLoader.CompiledFileSuffix))
