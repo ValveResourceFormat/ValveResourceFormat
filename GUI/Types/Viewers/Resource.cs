@@ -990,7 +990,7 @@ namespace GUI.Types.Viewers
 
         private static void AddReferencesTab(VrfGuiContext vrfGuiContext, IReadOnlyList<ResourceReference> references, TabControl resTabs, string? selfName)
         {
-            if (references.Count == 0)
+            if (references.Count == 0 && (selfName == null || ResourceReferenceIndex.ForContext(vrfGuiContext) == null))
             {
                 return;
             }

@@ -530,7 +530,7 @@ namespace GUI.Controls
             var matching = Matching(usedByRows, appliedFilter);
             var count = appliedFilter.Length == 0 ? usedByCount : matching.Count(static row => row.Category == RowCategory.Reference);
 
-            if (count == 0)
+            if (matching.Count == 0)
             {
                 return null;
             }
@@ -606,6 +606,22 @@ namespace GUI.Controls
                     Category = RowCategory.Reference,
                     Node = node,
                     Search = referrer.Name,
+                });
+            }
+
+            if (found.Count == 0)
+            {
+                var node = new TreeNode($"Not referenced by any file in the {usedByIndex.SearchedCount} indexed packages and map folders")
+                {
+                    ForeColor = dimmed,
+                };
+
+                usedByRows.Add(new Row
+                {
+                    Reference = default,
+                    Category = RowCategory.Subasset,
+                    Node = node,
+                    Search = string.Empty,
                 });
             }
 
