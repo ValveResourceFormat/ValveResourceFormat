@@ -8,12 +8,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </summary>
 /// <remarks>
 /// The box is placed where the entity is when it is enabled, and stays there until it is disabled.
-/// Counter-Strike 2 has the camera-inside mode 2; the other games treat every nonzero mode as mode 1.
 /// </remarks>
 public sealed class InfoVisibilityBox : BaseEntity
 {
-    private const string CameraInsideModeGame = "Counter-Strike 2";
-
     /// <summary>Gets the volume this entity culls with.</summary>
     public VisibilityBox Box { get; private set; } = null!;
 
@@ -25,16 +22,11 @@ public sealed class InfoVisibilityBox : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
-        var cullMode = KeyValues.GetInt32Property("cull_mode");
-        var gameName = EntitySystem.RendererContext.FileLoader.GameName;
-        var hasCameraInsideMode = gameName == null || gameName == CameraInsideModeGame;
-
-        var mode = cullMode switch
+        var mode = KeyValues.GetInt32Property("cull_mode") switch
         {
-            0 => VisibilityBoxMode.Inside,
-            2 when hasCameraInsideMode => VisibilityBoxMode.OutsideWhenEyeInside,
-            1 or 2 => VisibilityBoxMode.Outside,
-            _ => hasCameraInsideMode ? VisibilityBoxMode.Inside : VisibilityBoxMode.Outside,
+            1 => VisibilityBoxMode.Outside,
+            2 => VisibilityBoxMode.OutsideWhenEyeInside,
+            _ => VisibilityBoxMode.Inside,
         };
 
         Box = new VisibilityBox(mode, KeyValues.GetVector3Property("box_size", new Vector3(128f)));
