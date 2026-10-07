@@ -61,6 +61,7 @@ namespace ValveResourceFormat.Renderer.World
             var sceneObjectLayerIndices = node.SceneObjectLayerIndices;
             var sceneObjects = node.SceneObjects;
             var extraVertexStreams = new ExtraVertexStreams(RendererContext, node);
+            var materialOverrides = node.MaterialOverrides.ToLookup(static materialOverride => materialOverride.SceneObjectIndex);
 
             // Output is WorldNode_t we need to iterate m_sceneObjects inside it
             for (var sceneObjectIndex = 0; sceneObjectIndex < sceneObjects.Count; sceneObjectIndex++)
@@ -120,6 +121,16 @@ namespace ValveResourceFormat.Renderer.World
                     if (lodOverride >= 0)
                     {
                         modelNode.SetOverrideLod(lodOverride);
+                    }
+
+                    foreach (var materialOverride in materialOverrides[sceneObjectIndex])
+                    {
+                        var (mesh, drawCall) = FindDrawCall(modelNode, materialOverride.SubSceneObject, materialOverride.DrawCallIndex);
+
+                        if (mesh != null && drawCall != null)
+                        {
+                            mesh.ReplaceMaterial(drawCall, materialOverride.Material);
+                        }
                     }
 
                     extraVertexStreams.Apply(modelNode, sceneObjectIndex);
@@ -185,6 +196,26 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
+        private static (RenderableMesh? Mesh, DrawCall? DrawCall) FindDrawCall(ModelSceneNode modelNode, int subSceneObject, int drawCallIndex)
+        {
+            foreach (var mesh in modelNode.AllRenderableMeshes)
+            {
+                if (mesh.MeshIndex != subSceneObject)
+                {
+                    continue;
+                }
+
+                var drawCall = mesh.DrawCalls.FirstOrDefault(call => call.Index == drawCallIndex);
+
+                if (drawCall != null)
+                {
+                    return (mesh, drawCall);
+                }
+            }
+
+            return (null, null);
+        }
+
         private sealed class ExtraVertexStreams
         {
             private readonly ILookup<int, WorldNode.ExtraVertexStreamOverride> OverridesBySceneObject;
@@ -203,10 +234,7 @@ namespace ValveResourceFormat.Renderer.World
                 foreach (var streamOverride in OverridesBySceneObject[sceneObjectIndex])
                 {
                     var stream = Streams.VertexBuffers[streamOverride.BufferIndex];
-                    var drawCall = modelNode.AllRenderableMeshes
-                        .Where(mesh => mesh.MeshIndex == streamOverride.SubSceneObject)
-                        .SelectMany(static mesh => mesh.DrawCalls)
-                        .FirstOrDefault(call => call.Index == streamOverride.DrawCallIndex);
+                    var (_, drawCall) = FindDrawCall(modelNode, streamOverride.SubSceneObject, streamOverride.DrawCallIndex);
 
                     // Streams painted on an older version of the model no longer match its vertex count
                     if (drawCall?.VertexCount != stream.ElementCount)

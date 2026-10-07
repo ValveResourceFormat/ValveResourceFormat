@@ -75,6 +75,25 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
+        /// A material that replaces the one of a single draw call of one of <see cref="SceneObjects"/>.
+        /// </summary>
+        /// <param name="SceneObjectIndex">Index into <see cref="SceneObjects"/>.</param>
+        /// <param name="SubSceneObject">Index of the mesh within the scene object's model.</param>
+        /// <param name="DrawCallIndex">Index of the draw call within the mesh.</param>
+        /// <param name="Material">Name of the replacement material.</param>
+        public readonly record struct MaterialOverride(int SceneObjectIndex, int SubSceneObject, int DrawCallIndex, string Material);
+
+        /// <summary>
+        /// Gets the materials that replace those of single draw calls of <see cref="SceneObjects"/>.
+        /// </summary>
+        public IEnumerable<MaterialOverride> MaterialOverrides
+            => (Data.GetArray("m_materialOverrides") ?? []).Select(static materialOverride => new MaterialOverride(
+                materialOverride.GetInt32Property("m_nSceneObjectIndex"),
+                materialOverride.GetInt32Property("m_nSubSceneObject"),
+                materialOverride.GetInt32Property("m_nDrawCallIndex"),
+                materialOverride.GetStringProperty("m_pMaterial")));
+
+        /// <summary>
         /// Gets the visibility cluster ids that scene objects and aggregate fragments with precomputed
         /// cluster membership index into.
         /// </summary>

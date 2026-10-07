@@ -172,13 +172,25 @@ namespace ValveResourceFormat.Renderer
 
                 if (materialTable.TryGetValue(materialName, out var replacementName))
                 {
-                    // Recycle non-material-derived shader arguments
-                    var staticParams = materialData.GetShaderArguments();
-                    var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
-
-                    drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(replacementName, dynamicParams));
+                    ReplaceMaterial(drawCall, replacementName);
                 }
             }
+        }
+
+        /// <summary>Replaces the material of a single draw call.</summary>
+        /// <param name="drawCall">One of <see cref="DrawCalls"/>.</param>
+        /// <param name="replacementName">Name of the replacement material.</param>
+        public void ReplaceMaterial(DrawCall drawCall, string replacementName)
+        {
+            ArgumentNullException.ThrowIfNull(drawCall);
+
+            var material = drawCall.Material;
+
+            // Recycle non-material-derived shader arguments
+            var staticParams = material.Material.GetShaderArguments();
+            var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
+
+            drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(replacementName, dynamicParams));
         }
 
         /// <summary>Replaces all draw call materials with a single material resource for use in the material viewer.</summary>

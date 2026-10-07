@@ -317,6 +317,38 @@ public sealed partial class MapExtract
     private readonly Dictionary<string, Material.VsInputSignature> ExtraVertexStreamInputSignatures = [];
 
     /// <summary>
+    /// The material that replaces every draw call of one placed model, which is all a prop can express in Hammer,
+    /// or <see langword="null"/> when its overrides differ or leave some draw calls alone.
+    /// </summary>
+    private string? GetWholeModelMaterialOverride(string modelName, WorldNode.MaterialOverride[] materialOverrides)
+    {
+        if (materialOverrides.Length == 0 || materialOverrides.Any(materialOverride => materialOverride.Material != materialOverrides[0].Material))
+        {
+            return null;
+        }
+
+        using var modelResource = FileLoader.LoadFile(modelName + GameFileLoader.CompiledFileSuffix);
+
+        if (modelResource?.DataBlock is not Model model)
+        {
+            return null;
+        }
+
+        var overriddenDrawCalls = materialOverrides
+            .Select(static materialOverride => (materialOverride.SubSceneObject, materialOverride.DrawCallIndex))
+            .Distinct()
+            .Count();
+
+        if (overriddenDrawCalls != EnumerateDrawCalls(model).Count())
+        {
+            // smart prop?
+            return null;
+        }
+
+        return materialOverrides[0].Material;
+    }
+
+    /// <summary>
     /// Extract a map from a resource. Accepted types include <see cref="ResourceType.Map"/>, <see cref="ResourceType.World"/>. TODO: <see cref="ResourceType.WorldNode"/> and <see cref="ResourceType.EntityLump"/>.
     /// </summary>
     public MapExtract(Resource resource, IFileLoader? fileLoader)
@@ -1927,6 +1959,7 @@ public sealed partial class MapExtract
 
         var extraVertexStreamOverrides = node.ExtraVertexStreamOverrides.ToLookup(static streamOverride => streamOverride.SceneObjectIndex);
         var extraVertexStreams = node.GetExtraVertexStreams();
+        var materialOverrides = node.MaterialOverrides.ToLookup(static materialOverride => materialOverride.SceneObjectIndex);
 
         void ProcessSceneObject(KVObject sceneObject, int sceneObjectIndex, int layerIndex, List<MapNode> layerNodes)
         {
@@ -2064,6 +2097,11 @@ public sealed partial class MapExtract
             if (Path.GetFileName(modelName!).Contains("nomerge", StringComparison.Ordinal))
             {
                 propStatic.EntityProperties["disablemerging"] = StringBool(true);
+            }
+
+            if (GetWholeModelMaterialOverride(modelName!, [.. materialOverrides[sceneObjectIndex]]) is { } materialOverride)
+            {
+                propStatic.EntityProperties["materialoverride"] = materialOverride;
             }
 
             if (GetExtraVertexData(modelName!, [.. extraVertexStreamOverrides[sceneObjectIndex]], extraVertexStreams) is { } extraVertexData)

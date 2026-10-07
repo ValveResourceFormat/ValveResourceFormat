@@ -181,7 +181,7 @@ Hammer. Reconstructed: all entities across every entity lump (including `point_t
 children, deduplicated) with full entity I/O connections, world render geometry welded back
 into editable per-material Hammer meshes (near-coplanar triangle pairs merged back into
 quads) with real
-per-face texture projection, static props with their original properties and vertex
+per-face texture projection, static props with their original properties, material overrides and vertex
 paint/vertex lighting buffers, aggregate props
 split back into individual entities, world layers, overlays, and per-surface-property
 physics geometry for collision that has no matching render mesh.
