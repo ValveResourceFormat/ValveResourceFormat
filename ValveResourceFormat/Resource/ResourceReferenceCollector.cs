@@ -187,6 +187,16 @@ public static class ResourceReferenceCollector
                     CollectEntityLump(entityLump);
                     break;
 
+                case World world:
+                    WalkKeyValues(world.Data, null, 0);
+
+                    foreach (var worldNode in world.GetWorldNodeNames())
+                    {
+                        Add(string.Concat(worldNode, ".vwnod"), ResourceReferenceKind.Data, "m_worldNodePrefix");
+                    }
+
+                    break;
+
                 case KeyValuesOrNTRO keyValues:
                     WalkKeyValues(keyValues.Data, null, 0);
                     break;

@@ -56,6 +56,17 @@ namespace Tests.Resources
         }
 
         [Test]
+        public async Task CollectsWorldNodes()
+        {
+            using var resource = new Resource();
+            resource.Read(TestFixtures.Path("world.vwrld_c"));
+
+            var references = ResourceReferenceCollector.Collect(resource);
+
+            await Assert.That(references).Contains(reference => reference.Name == "maps/dota/worldnodes/node000.vwnod");
+        }
+
+        [Test]
         public async Task SkipsOwnSourceFile()
         {
             using var stream = File.OpenRead(TestFixtures.Path("deadlock_tracked_stats_player_staging_kv3_v5.vdata_c"));
