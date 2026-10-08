@@ -1,6 +1,7 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
@@ -105,6 +106,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             OnlyRenderInEffectsWaterPass = parse.Boolean("m_bOnlyRenderInEffectsWaterPass", false);
             OnlyRenderInEffectsBloomPass = parse.Boolean("m_bOnlyRenderInEffectsBloomPass", false);
+
+            // Lighting is sampled once per particle unless the renderer asks for it per pixel
+            PerPixelLighting = parse.Data.GetStringProperty("m_nLightingMode") == "PARTICLE_LIGHTING_PER_PIXEL";
             RadiusScale = parse.NumberProvider("m_flRadiusScale", RadiusScale);
             AlphaScale = parse.NumberProvider("m_flAlphaScale", AlphaScale);
             ColorScale = parse.VectorProvider("m_vecColorScale", ColorScale);
@@ -215,6 +219,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uGammaCorrectVertexColors", GammaCorrectVertexColors);
             shader.SetUniform1("uDepthBias", DepthBias.NextNumber(systemState));
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
+            shader.SetUniform1("uPerPixelLighting", PerPixelLighting);
             shader.SetUniform1("g_tSceneDepth", (int)ReservedTextureSlots.SceneDepth);
 
             if (LitByProbes && OwnerNode != null)
@@ -230,6 +235,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>The pass this renderer draws in.</summary>
         public RenderPass Pass { get; protected set; } = RenderPass.Translucent;
+
+        /// <summary>Whether scene lighting is sampled at every pixel rather than once per particle.</summary>
+        protected bool PerPixelLighting { get; }
 
         /// <summary>
         /// The scene node the system this belongs to renders under, when it was created for one.

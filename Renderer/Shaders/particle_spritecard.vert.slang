@@ -136,6 +136,7 @@ out float vFrameBlendOut;
 out vec2 vCardUvOut;
 out vec4 vColor;
 out vec3 vFragPosition;
+out vec3 vLightingPosition;
 
 void main(void) {
 #if S_PARTICLE_INSTANCED
@@ -219,6 +220,14 @@ void main(void) {
     vFrameBlendOut = vFrameBlend;
     vCardUvOut = cardUv;
     vFragPosition = positionWs;
+
+#if S_PARTICLE_INSTANCED
+    // A card's corners all share its centre, so lighting sampled there is once per particle
+    vLightingPosition = vPOSITION;
+#else
+    // Ribbons have no centre of their own; each vertex samples where it is
+    vLightingPosition = positionWs;
+#endif
 #if (D_BAKED_LIGHTING_FROM_PROBE == 1)
     g_nObjectIndex = uObjectIndex;
 #endif

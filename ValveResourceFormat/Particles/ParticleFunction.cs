@@ -15,8 +15,9 @@ namespace ValveResourceFormat.Particles
         //bool NormalizeToStopTime; // normalize fade times to endcap
         private readonly float opTimeOffsetMin;
         private readonly float opTimeOffsetMax;
-        //int OpTimeOffsetSeed; // operator fade time offset seed
-        //int OpTimeScaleSeed; // operator fade time scale seed
+        // Seeds drawing a per-instance offset and scale of the time the fade curve reads; 0 disables each
+        private readonly int opTimeOffsetSeed;
+        private readonly int opTimeScaleSeed;
         private readonly float opTimeScaleMin = 1f;
         private readonly float opTimeScaleMax = 1f;
 
@@ -41,16 +42,18 @@ namespace ValveResourceFormat.Particles
             opTimeOffsetMax = parse.Float("m_flOpTimeOffsetMax", opTimeOffsetMax);
             opTimeScaleMin = parse.Float("m_flOpTimeScaleMin", opTimeScaleMin);
             opTimeScaleMax = parse.Float("m_flOpTimeScaleMax", opTimeScaleMax);
+            opTimeOffsetSeed = parse.Int32("m_nOpTimeOffsetSeed", opTimeOffsetSeed);
+            opTimeScaleSeed = parse.Int32("m_nOpTimeScaleSeed", opTimeScaleSeed);
 
+            // The time offset and scale ranges only apply under a seed, so without one they cannot
+            // change the curve however they are authored
             FadeCurveIsUnity =
                 OpStartFadeInTime == 0f &&
                 OpEndFadeInTime == 0f &&
                 OpStartFadeOutTime == 0f &&
                 OpEndFadeOutTime == 0f &&
-                opTimeOffsetMin == 0f &&
-                opTimeOffsetMax == 0f &&
-                opTimeScaleMin == 1f &&
-                opTimeScaleMax == 1f;
+                (opTimeOffsetSeed == 0 || (opTimeOffsetMin == 0f && opTimeOffsetMax == 0f)) &&
+                (opTimeScaleSeed == 0 || (opTimeScaleMin == 1f && opTimeScaleMax == 1f));
 
             StrengthFastPath = FadeCurveIsUnity
                 && opEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ALWAYS_ON
@@ -86,20 +89,19 @@ namespace ValveResourceFormat.Particles
 
             var time = systemState.Age;
 
-            /* TODO
-            if (OpTimeOffsetSeed) // allow per-instance-of-particle-system random phase control for operator strength.
+            // Each seed draws one value per system instance, so instances of an effect run their
+            // operator fades out of phase with each other while each stays steady over its life
+            if (opTimeOffsetSeed != 0)
             {
-                float flOffset = RandomFloat(OpTimeOffsetSeed, opTimeOffsetMin, opTimeOffsetMax);
-                time += flOffset;
+                time += Utils.ParticleRandom.ForSampleBetween(systemState.Random.Seed + opTimeOffsetSeed, opTimeOffsetMin, opTimeOffsetMax);
                 time = MathF.Max(0f, time);
             }
 
-            if (OpTimeScaleSeed && time > OpStartFadeInTime)
+            if (opTimeScaleSeed != 0 && time > OpStartFadeInTime)
             {
-                float timeScalar = 1.0 / MathF.Max(0.0001f, RandomFloat(OpTimeScaleSeed, opTimeScaleMin, opTimeScaleMax));
-                time = OpStartFadeInTime + timeScalar * (time - OpStartFadeInTime);
+                var timeScale = 1f / MathF.Max(0.0001f, Utils.ParticleRandom.ForSampleBetween(systemState.Random.Seed + opTimeScaleSeed, opTimeScaleMin, opTimeScaleMax));
+                time = OpStartFadeInTime + (timeScale * (time - OpStartFadeInTime));
             }
-            */
 
             if (OpFadeOscillatePeriod > 0.0)
             {
