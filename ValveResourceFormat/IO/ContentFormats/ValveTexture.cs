@@ -95,6 +95,43 @@ public class CDmeVtex : DMElement
 
         return vtex;
     }
+
+    /// <summary>
+    /// Creates a texture configuration whose input images all feed one output channel set, such as the slices of a cubemap array.
+    /// </summary>
+    /// <param name="fileNames">Input image file names, in output slice order.</param>
+    /// <param name="inputType">Type of each input image, e.g. "2D", "CUBE", "2DARRAY" or "3D".</param>
+    /// <param name="outputType">Type of texture to generate, e.g. "2D", "CUBE", "CUBEARRAY", "2DARRAY" or "3D".</param>
+    /// <param name="outputFormat">Image data format to generate.</param>
+    /// <param name="colorSpace">Color space of the input images and the output.</param>
+    /// <param name="mipAlgorithm">Mipmap generation algorithm, "None" for a single mip.</param>
+    public static CDmeVtex CreateTexture(IEnumerable<string> fileNames, string inputType, string outputType, string outputFormat, string colorSpace = "srgb", string mipAlgorithm = "Box")
+    {
+        var vtex = new CDmeVtex
+        {
+            OutputTypeString = outputType,
+            OutputFormat = outputFormat,
+        };
+
+        var output = new CDmeTextureOutputChannel
+        {
+            OutputColorSpace = colorSpace,
+        };
+        output.MipAlgorithm.Algorithm = mipAlgorithm;
+
+        var i = 0;
+        foreach (var fileName in fileNames)
+        {
+            var inputImageId = "InputTexture" + i++;
+            var input = new CDmeInputTexture { Name = inputImageId, FileName = fileName, TypeString = inputType, ColorSpace = colorSpace };
+            input.ImageProcessorArray.Add(new CDmeImageProcessor());
+            vtex.InputTextureArray.Add(input);
+            output.InputTextureArray.Add(inputImageId);
+        }
+
+        vtex.TextureOutputChannelArray.Add(output);
+        return vtex;
+    }
 }
 
 /// <summary>

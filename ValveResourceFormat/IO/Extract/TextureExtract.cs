@@ -88,6 +88,7 @@ public sealed class TextureExtract
     private readonly bool isSpriteSheet;
     private readonly bool isCubeMap;
     private readonly bool isArray;
+    private readonly bool isSliced;
 
     // Options
     /// <summary>
@@ -126,12 +127,15 @@ public sealed class TextureExtract
         isSpriteSheet = texture.ExtraData?.ContainsKey(VTexExtraData.SHEET) ?? false;
         isCubeMap = texture.Flags.HasFlag(VTexFlags.CUBE_TEXTURE);
         isArray = texture.Depth > 1;
+        isSliced = !isCubeMap && (isArray || texture.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE) || texture.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY));
     }
 
     /// <summary>
     /// The vtex content file. Input image(s) come as subfiles.
     /// </summary>
-    public ContentFile ToContentFile()
+    public ContentFile ToContentFile() => ToContentFile(!IgnoreVtexFile);
+
+    private ContentFile ToContentFile(bool writeVtex)
     {
         var rawImage = texture.ReadRawImageData();
         if (rawImage != null)
@@ -141,38 +145,34 @@ public sealed class TextureExtract
 
         Func<SKBitmap, byte[]> ImageEncode = ExportExr ? ToExrImage : ToPngImage;
 
-        if (isArray || isCubeMap)
+        if (isSliced || isCubeMap)
         {
             var contentFile = new ContentFile()
             {
                 FileName = fileName,
+                Data = writeVtex ? Encoding.UTF8.GetBytes(ToValveTexture()) : null,
             };
 
             for (uint depth = 0; depth < texture.Depth; depth++)
             {
-                var outTextureName = Path.GetFileNameWithoutExtension(fileName);
-
-                if (isArray)
-                {
-                    outTextureName += isCubeMap ? $"_f{depth:D2}" : $"_z{depth:D3}";
-                }
+                var currentDepth = depth;
 
                 if (!isCubeMap)
                 {
-                    var currentDepth = depth;
-
-                    contentFile.AddSubFile(outTextureName + ImageOutputExtension, () =>
+                    contentFile.AddSubFile(GetSliceImageFileName(depth), () =>
                     {
-                        return ImageEncode(texture.GenerateBitmap(depth: currentDepth, decodeFlags: DecodeFlags));
+                        using var bitmap = texture.GenerateBitmap(depth: currentDepth, decodeFlags: DecodeFlags);
+                        return ImageEncode(bitmap);
                     });
 
                     continue;
                 }
 
-                if (LatLongCombineCubemap && texture.IsHighDynamicRange)
+                var cubeName = GetCubeImageName(depth);
+
+                if (CombinesLatLong)
                 {
-                    var currentDepth = depth;
-                    contentFile.AddSubFile($"{outTextureName}{ImageOutputExtension}", () =>
+                    contentFile.AddSubFile(cubeName + ImageOutputExtension, () =>
                     {
                         var bitmaps = new SKBitmap[6];
                         var faces = new SKPixmap[6];
@@ -197,20 +197,27 @@ public sealed class TextureExtract
                         }
                     });
 
+                    continue;
                 }
-                else
-                {
-                    for (var face = 0; face < 6; face++)
-                    {
-                        var currentDepth = depth;
-                        var currentFace = face;
 
-                        contentFile.AddSubFile($"{outTextureName}_{CubemapNames[face]}{ImageOutputExtension}", () =>
-                        {
-                            using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace, decodeFlags: DecodeFlags);
-                            return ImageEncode(bitmap);
-                        });
-                    }
+                for (var face = 0; face < 6; face++)
+                {
+                    var currentFace = face;
+
+                    contentFile.AddSubFile($"{cubeName}_{CubemapNames[face]}{ImageOutputExtension}", () =>
+                    {
+                        using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace, decodeFlags: DecodeFlags);
+                        return ImageEncode(bitmap);
+                    });
+                }
+
+                if (writeVtex)
+                {
+                    contentFile.AddSubFile(cubeName + ImageOutputExtension, () =>
+                    {
+                        using var strip = GenerateCubemapStrip(currentDepth);
+                        return ImageEncode(strip);
+                    });
                 }
             }
 
@@ -221,7 +228,7 @@ public sealed class TextureExtract
 
         var vtex = new TextureContentFile()
         {
-            Data = IgnoreVtexFile ? null : Encoding.UTF8.GetBytes(ToValveTexture()),
+            Data = writeVtex ? Encoding.UTF8.GetBytes(ToValveTexture()) : null,
             Bitmap = bitmap,
             FileName = fileName!,
         };
@@ -250,11 +257,11 @@ public sealed class TextureExtract
     public ContentFile ToMaterialMaps(IEnumerable<MaterialExtract.UnpackInfo> mapsToUnpack)
     {
         // unpacking not supported in these scenarios
-        if (isCubeMap || isArray)
+        if (isCubeMap || isSliced)
         {
-            var vtexContent = ToContentFile();
+            var vtexContent = ToContentFile(writeVtex: false);
 
-            if (isCubeMap && LatLongCombineCubemap && ExportExr)
+            if (CombinesLatLong)
             {
                 // use the file name set in material properties
                 var firstUnpackInfo = mapsToUnpack.FirstOrDefault();
@@ -321,8 +328,58 @@ public sealed class TextureExtract
         return "png";
     }
 
+    private bool CombinesLatLong => isCubeMap && LatLongCombineCubemap && ExportExr;
+
+    /// <summary>
+    /// The texture name the cubemap and slice images are named after. The compiler loads an input whose name
+    /// contains "_z0" as a slice stack named up to the first such occurrence, so the name must not contain one.
+    /// </summary>
+    private string ImageBaseName => Path.GetFileNameWithoutExtension(fileName).Replace("_z0", "-z0", StringComparison.OrdinalIgnoreCase);
+
+    private string GetSliceImageFileName(uint depth)
+        => $"{ImageBaseName}_z{depth:D3}{ImageOutputExtension}";
+
+    private string GetCubeImageName(uint depth)
+        => isArray ? $"{ImageBaseName}_f{depth:D2}" : ImageBaseName;
+
     private string GetImageFileName()
         => Path.ChangeExtension(fileName, ImageOutputExtension);
+
+    private string ToVtexInputPath(string imageFileName)
+        => Path.Combine(Path.GetDirectoryName(fileName) ?? string.Empty, imageFileName).Replace(Path.DirectorySeparatorChar, '/');
+
+    /// <summary>
+    /// Lays the six faces of a cubemap side by side in compiled face order, the strip layout the compiler reads as a cubemap.
+    /// </summary>
+    private SKBitmap GenerateCubemapStrip(uint depth)
+    {
+        var faces = new SKBitmap[6];
+        try
+        {
+            for (var face = 0; face < 6; face++)
+            {
+                faces[face] = texture.GenerateBitmap(depth: depth, face: (Texture.CubemapFace)face, decodeFlags: DecodeFlags);
+            }
+
+            var faceInfo = faces[0].Info;
+            var strip = new SKBitmap(faceInfo.WithSize(faceInfo.Width * 6, faceInfo.Height));
+
+            for (var face = 0; face < 6; face++)
+            {
+                using var pixels = faces[face].PeekPixels();
+                pixels.ReadPixels(faceInfo, strip.GetPixels() + face * faceInfo.RowBytes, strip.RowBytes);
+            }
+
+            return strip;
+        }
+        finally
+        {
+            foreach (var face in faces)
+            {
+                face?.Dispose();
+            }
+        }
+    }
 
     private string GetMksFileName()
         => Path.ChangeExtension(fileName, "mks");
@@ -881,11 +938,8 @@ public sealed class TextureExtract
     /// <returns>A vtex configuration string in KeyValues2 format.</returns>
     public string ToValveTexture()
     {
-        var inputTextureFileName = GetInputFileNameForVtex();
-        var outputFormat = texture.Format.ToString();
-
+        var vtex = CreateVtex();
         using var datamodel = new Datamodel.Datamodel("vtex", 1);
-        var vtex = CDmeVtex.CreateTexture2D([(inputTextureFileName, "rgba", "Box")], outputFormat);
         vtex.Clamp = new Vector3(
             texture.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS) ? 1 : 0,
             texture.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPT) ? 1 : 0,
@@ -896,6 +950,28 @@ public sealed class TextureExtract
         using var stream = new MemoryStream();
         datamodel.Save(stream, "keyvalues2_noids", 1);
         return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private CDmeVtex CreateVtex()
+    {
+        var outputFormat = texture.Format.ToString();
+        var colorSpace = ExportExr ? "linear" : "srgb";
+        var mipAlgorithm = texture.NumMipLevels > 1 ? "Box" : "None";
+
+        if (isCubeMap)
+        {
+            var outputType = texture.Depth == 1 && texture.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY) ? "CUBEARRAY" : "CUBE";
+            var inputs = Enumerable.Range(0, texture.Depth).Select(depth => ToVtexInputPath(GetCubeImageName((uint)depth) + ImageOutputExtension));
+            return CDmeVtex.CreateTexture(inputs, "CUBE", outputType, outputFormat, colorSpace, mipAlgorithm);
+        }
+
+        if (isSliced)
+        {
+            var type = texture.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE) ? "3D" : "2DARRAY";
+            return CDmeVtex.CreateTexture([ToVtexInputPath(GetSliceImageFileName(0))], type, type, outputFormat, colorSpace, mipAlgorithm);
+        }
+
+        return CDmeVtex.CreateTexture([GetInputFileNameForVtex()], "2D", "2D", outputFormat, colorSpace, mipAlgorithm);
     }
 
     /// <summary>

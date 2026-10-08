@@ -38,64 +38,64 @@ in the Dump column.
 
 ### Resource Formats
 
-| Ext      | Name                       | View                          | Dump    | Decompiles / exports to                                                                                      |
-| -------- | -------------------------- | ----------------------------- | ------- | ------------------------------------------------------------------------------------------------------------ |
-| vagrp    | Animation Group            | text                          | generic | - (legacy, animation data now lives inside vmdl)                                                             |
-| valst    | Action List                | text                          | generic | -                                                                                                            |
-| vanim    | Animation                  | text                          | generic | - (legacy, animation data now lives inside vmdl)                                                             |
-| vanmgrph | Animation Graph            | graph                         | yes     | editable graph document                                                                                      |
-| vcd      | Choreo Scene               | text                          | generic | KV3 text (no dedicated parsing; vcdlist scenes are separate)                                                 |
-| vcdlist  | Choreo Scene File Data     | text                          | yes     | per-scene `.vcd` as KV3 text (see [Choreo](#choreo-captions-and-ui))                                         |
-| vcompmat | Composite Material         | text                          | generic | KV3 text (no compositing preview)                                                                            |
-| vcss     | Panorama Style             | text                          | yes     | `.css` (prettified minified text)                                                                            |
-| vdata    | Data                       | text (3D for CS2 bomb damage) | generic | KV3 text                                                                                                     |
-| vdpn     | Dota Patch Notes           | text                          | generic | KV3 text                                                                                                     |
-| vdsp     | DSP Presets                | text                          | generic | KV3 text                                                                                                     |
-| vdvn     | Dota Visual Novels         | text                          | generic | KV3 text                                                                                                     |
-| vents    | Entity Lump                | graph, text                   | yes     | entity dump; glTF/GLB; included in map exports                                                               |
-| vjs      | Panorama Script            | text                          | yes     | `.js` (byte-exact; see [Panorama](#choreo-captions-and-ui))                                                  |
-| vmap     | Map                        | 3D                            | yes     | `.vmap` (Hammer); glTF/GLB                                                                                   |
-| vmat     | Material                   | 3D                            | yes     | `.vmat` + unpacked texture inputs                                                                            |
-| vmdl     | Model                      | 3D                            | yes     | `.vmdl` + DMX; glTF/GLB                                                                                      |
-| vmesh    | Mesh                       | 3D                            | yes     | glTF/GLB; also handled via vmdl                                                                              |
-| vmix     | VMix (DSP graph)           | text                          | generic | KV3 text (graph is not interpreted)                                                                          |
-| vmks     | Sheet                      | text                          | generic | -                                                                                                            |
-| vmorf    | Morph Set                  | via model                     | yes     | used by vmdl/glTF export                                                                                     |
-| vnmclip  | NmClip (Animgraph 2 clip)  | 3D playback                   | yes     | clip document + DMX; glTF/GLB                                                                                |
-| vnmgraph | NmGraph (Animgraph 2)      | graph                         | generic | editable graph document                                                                                      |
-| vnmikrig | NmIKRig                    | text                          | generic | -                                                                                                            |
-| vnmskel  | NmSkeleton                 | 3D                            | generic | skeleton document + DMX; glTF/GLB                                                                            |
-| vnmvar   | NmGraph Variation          | text                          | generic | - (variations are carried by the base graph's document)                                                      |
-| vpcf     | Particle System            | 3D                            | yes     | `.vpcf` (exact round-trip for KV3-era files)                                                                 |
-| vpdi     | Panorama Dynamic Images    | text                          | yes     | - (manifest of referenced vtex/vsvg images; holds no pixel data)                                             |
-| vphys    | Physics Collision          | 3D                            | yes     | geometry into vmdl/vmap; glTF                                                                                |
-| vpost    | Postprocessing Settings    | LUT image; applied in 3D      | yes     | `.vpost` + LUT `.raw`                                                                                        |
-| vpram    | Processing Graph Instance  | text                          | generic | -                                                                                                            |
-| vpsf     | Particle Snapshot (legacy) | text                          | generic | -                                                                                                            |
-| vpulse   | Pulse Graph                | graph                         | generic | - (graph view only)                                                                                          |
-| vrman    | Resource Manifest          | text                          | yes     | KV3 text                                                                                                     |
-| vrmap    | Resource Remap Table       | text                          | generic | -                                                                                                            |
-| vrr      | Response Rules             | text                          | yes     | original rules script (byte-exact)                                                                           |
-| vseq     | Sequence Group             | text                          | generic | -                                                                                                            |
-| vsmart   | Smart Prop                 | 3D (partial)                  | yes     | KV3 text                                                                                                     |
-| vsnap    | Particle Snapshot          | 3D                            | yes     | `.vsnap`                                                                                                     |
-| vsnd     | Sound                      | audio                         | yes     | `.wav` / `.mp3` + phonemes `.txt` + `.vsnd` KV3 for newer sounds; sounds with no audio as `.vsnd` only       |
-| vsndevts | Sound Event Script         | text                          | generic | KV3 text (lossless)                                                                                          |
-| vsndstck | Sound Stack Script         | text                          | yes     | script text                                                                                                  |
-| vsurf    | Surface Properties         | text                          | generic | -                                                                                                            |
-| vsvg     | Panorama Vector Graphic    | image                         | yes     | `.svg` (byte-exact)                                                                                          |
-| vtex     | Texture                    | image                         | yes     | `.png` / `.exr` (stored JPEG/PNG/WebP passes through as-is); `.mks` for sprite sheets; `.vtex` config for 2D |
-| vts      | Panorama TypeScript        | text                          | yes     | `.js` (compiled JS, byte-exact)                                                                              |
-| vvis     | World Visibility           | 3D                            | yes     | -                                                                                                            |
-| vwenvmap | World Environment Maps     | text                          | generic | - (legacy, only in older map compiles)                                                                       |
-| vwnod    | World Node                 | 3D                            | yes     | handled via vmap/glTF export                                                                                 |
-| vwrld    | World                      | 3D                            | yes     | `.vmap` (Hammer); glTF/GLB                                                                                   |
-| vwrlt    | World Lighting             | text                          | generic | - (legacy, only in older map compiles)                                                                       |
-| vxml     | Panorama Layout            | text                          | yes     | `.xml` (structural decompile)                                                                                |
-| econitem | Economy Item               | text                          | generic | KV3 text                                                                                                     |
-| herolist | Dota Hero List             | text                          | yes     | plaintext KV1 (verbatim)                                                                                     |
-| item     | Artifact Item              | text                          | yes     | plaintext KV1 (verbatim)                                                                                     |
-| vdacdefs | DAC Game Defs Data         | text                          | generic | KV3 text (no ResourceType; unknown-file fallback)                                                            |
+| Ext      | Name                       | View                          | Dump    | Decompiles / exports to                                                                                |
+| -------- | -------------------------- | ----------------------------- | ------- | ------------------------------------------------------------------------------------------------------ |
+| vagrp    | Animation Group            | text                          | generic | - (legacy, animation data now lives inside vmdl)                                                       |
+| valst    | Action List                | text                          | generic | -                                                                                                      |
+| vanim    | Animation                  | text                          | generic | - (legacy, animation data now lives inside vmdl)                                                       |
+| vanmgrph | Animation Graph            | graph                         | yes     | editable graph document                                                                                |
+| vcd      | Choreo Scene               | text                          | generic | KV3 text (no dedicated parsing; vcdlist scenes are separate)                                           |
+| vcdlist  | Choreo Scene File Data     | text                          | yes     | per-scene `.vcd` as KV3 text (see [Choreo](#choreo-captions-and-ui))                                   |
+| vcompmat | Composite Material         | text                          | generic | KV3 text (no compositing preview)                                                                      |
+| vcss     | Panorama Style             | text                          | yes     | `.css` (prettified minified text)                                                                      |
+| vdata    | Data                       | text (3D for CS2 bomb damage) | generic | KV3 text                                                                                               |
+| vdpn     | Dota Patch Notes           | text                          | generic | KV3 text                                                                                               |
+| vdsp     | DSP Presets                | text                          | generic | KV3 text                                                                                               |
+| vdvn     | Dota Visual Novels         | text                          | generic | KV3 text                                                                                               |
+| vents    | Entity Lump                | graph, text                   | yes     | entity dump; glTF/GLB; included in map exports                                                         |
+| vjs      | Panorama Script            | text                          | yes     | `.js` (byte-exact; see [Panorama](#choreo-captions-and-ui))                                            |
+| vmap     | Map                        | 3D                            | yes     | `.vmap` (Hammer); glTF/GLB                                                                             |
+| vmat     | Material                   | 3D                            | yes     | `.vmat` + unpacked texture inputs                                                                      |
+| vmdl     | Model                      | 3D                            | yes     | `.vmdl` + DMX; glTF/GLB                                                                                |
+| vmesh    | Mesh                       | 3D                            | yes     | glTF/GLB; also handled via vmdl                                                                        |
+| vmix     | VMix (DSP graph)           | text                          | generic | KV3 text (graph is not interpreted)                                                                    |
+| vmks     | Sheet                      | text                          | generic | -                                                                                                      |
+| vmorf    | Morph Set                  | via model                     | yes     | used by vmdl/glTF export                                                                               |
+| vnmclip  | NmClip (Animgraph 2 clip)  | 3D playback                   | yes     | clip document + DMX; glTF/GLB                                                                          |
+| vnmgraph | NmGraph (Animgraph 2)      | graph                         | generic | editable graph document                                                                                |
+| vnmikrig | NmIKRig                    | text                          | generic | -                                                                                                      |
+| vnmskel  | NmSkeleton                 | 3D                            | generic | skeleton document + DMX; glTF/GLB                                                                      |
+| vnmvar   | NmGraph Variation          | text                          | generic | - (variations are carried by the base graph's document)                                                |
+| vpcf     | Particle System            | 3D                            | yes     | `.vpcf` (exact round-trip for KV3-era files)                                                           |
+| vpdi     | Panorama Dynamic Images    | text                          | yes     | - (manifest of referenced vtex/vsvg images; holds no pixel data)                                       |
+| vphys    | Physics Collision          | 3D                            | yes     | geometry into vmdl/vmap; glTF                                                                          |
+| vpost    | Postprocessing Settings    | LUT image; applied in 3D      | yes     | `.vpost` + LUT `.raw`                                                                                  |
+| vpram    | Processing Graph Instance  | text                          | generic | -                                                                                                      |
+| vpsf     | Particle Snapshot (legacy) | text                          | generic | -                                                                                                      |
+| vpulse   | Pulse Graph                | graph                         | generic | - (graph view only)                                                                                    |
+| vrman    | Resource Manifest          | text                          | yes     | KV3 text                                                                                               |
+| vrmap    | Resource Remap Table       | text                          | generic | -                                                                                                      |
+| vrr      | Response Rules             | text                          | yes     | original rules script (byte-exact)                                                                     |
+| vseq     | Sequence Group             | text                          | generic | -                                                                                                      |
+| vsmart   | Smart Prop                 | 3D (partial)                  | yes     | KV3 text                                                                                               |
+| vsnap    | Particle Snapshot          | 3D                            | yes     | `.vsnap`                                                                                               |
+| vsnd     | Sound                      | audio                         | yes     | `.wav` / `.mp3` + phonemes `.txt` + `.vsnd` KV3 for newer sounds; sounds with no audio as `.vsnd` only |
+| vsndevts | Sound Event Script         | text                          | generic | KV3 text (lossless)                                                                                    |
+| vsndstck | Sound Stack Script         | text                          | yes     | script text                                                                                            |
+| vsurf    | Surface Properties         | text                          | generic | -                                                                                                      |
+| vsvg     | Panorama Vector Graphic    | image                         | yes     | `.svg` (byte-exact)                                                                                    |
+| vtex     | Texture                    | image                         | yes     | `.png` / `.exr` (stored JPEG/PNG/WebP passes through as-is); `.mks` for sprite sheets; `.vtex` config  |
+| vts      | Panorama TypeScript        | text                          | yes     | `.js` (compiled JS, byte-exact)                                                                        |
+| vvis     | World Visibility           | 3D                            | yes     | -                                                                                                      |
+| vwenvmap | World Environment Maps     | text                          | generic | - (legacy, only in older map compiles)                                                                 |
+| vwnod    | World Node                 | 3D                            | yes     | handled via vmap/glTF export                                                                           |
+| vwrld    | World                      | 3D                            | yes     | `.vmap` (Hammer); glTF/GLB                                                                             |
+| vwrlt    | World Lighting             | text                          | generic | - (legacy, only in older map compiles)                                                                 |
+| vxml     | Panorama Layout            | text                          | yes     | `.xml` (structural decompile)                                                                          |
+| econitem | Economy Item               | text                          | generic | KV3 text                                                                                               |
+| herolist | Dota Hero List             | text                          | yes     | plaintext KV1 (verbatim)                                                                               |
+| item     | Artifact Item              | text                          | yes     | plaintext KV1 (verbatim)                                                                               |
+| vdacdefs | DAC Game Defs Data         | text                          | generic | KV3 text (no ResourceType; unknown-file fallback)                                                      |
 
 ### Other Formats
 
@@ -274,15 +274,15 @@ Compile-time transforms (YCoCg, hemi-octahedral normals, DXT5nm, normal Z-recons
 are reversed on export. LDR textures export as PNG and HDR as EXR, except textures that
 store a whole JPEG/PNG/WebP file, which are copied out byte-exact instead. Sprite sheets
 reconstruct a compilable `.mks` plus per-frame images; LDR cubemaps export one image per
-face, HDR cubemaps combine into a single equirectangular map; arrays and volumes export
-per slice.
+face plus a six-face strip, HDR cubemaps combine into a single equirectangular map; arrays
+and volumes export per slice. Every texture shape gets a reconstructed `.vtex` compile
+config.
 
-| What                                       | Why                   | Details                                                                                                                                                                                                                                                                                                                                             |
-| ------------------------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Original source images                     | Not in compiled files | Block compression (BC1-7, ETC2) is lossy at compile time; exports faithfully reflect the compiled data, not the artist's source.                                                                                                                                                                                                                    |
-| Mip chain                                  | Format limitation     | File extraction always uses the largest mip only; the texture viewer can save the mip, face, or slice it is currently showing, and per-mip access exists in the library API. HL:Alyx's per-mip roughness packing therefore has no single-file preserving export path. [#936](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/936) |
-| `.vtex` config for cubemaps/arrays/volumes | Not implemented       | Only flat 2D textures get a reconstructed `.vtex` compile config; other shapes extract images only. [#856](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/856)                                                                                                                                                                   |
-| Transform detection without edit info      | Not implemented       | Which compile-time transform to reverse is detected from the resource's edit info block; files stripped of it export still-encoded pixels without warning.                                                                                                                                                                                          |
+| What                                  | Why                   | Details                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Original source images                | Not in compiled files | Block compression (BC1-7, ETC2) is lossy at compile time; exports faithfully reflect the compiled data, not the artist's source.                                                                                                                                                                                                                    |
+| Mip chain                             | Format limitation     | File extraction always uses the largest mip only; the texture viewer can save the mip, face, or slice it is currently showing, and per-mip access exists in the library API. HL:Alyx's per-mip roughness packing therefore has no single-file preserving export path. [#936](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/936) |
+| Transform detection without edit info | Not implemented       | Which compile-time transform to reverse is detected from the resource's edit info block; files stripped of it export still-encoded pixels without warning.                                                                                                                                                                                          |
 
 ## Animation
 

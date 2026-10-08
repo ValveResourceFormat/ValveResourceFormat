@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using SkiaSharp;
 using ValveResourceFormat;
@@ -335,6 +336,46 @@ namespace Tests.Resources
                 await Assert.That(lines).Contains("name 2");
                 await Assert.That(lines[Array.IndexOf(lines, "sequence 0") + 1]).IsEqualTo("name embers_loop");
                 await Assert.That(lines[Array.IndexOf(lines, "sequence 0") + 2]).IsEqualTo("LOOP");
+            }
+        }
+
+        [Test]
+        public async Task CubemapVtexReadsFaceStrip()
+        {
+            using var resource = new Resource();
+            resource.Read(Path.Combine(TexturesDir, "cubemap.vtex_c"));
+
+            var extract = new TextureExtract(resource) { IgnoreVtexFile = false, LatLongCombineCubemap = false };
+            using var contentFile = extract.ToContentFile();
+            var vtex = Encoding.UTF8.GetString(contentFile.Data!);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vtex).Contains("\"m_outputTypeString\" \"string\" \"CUBE\"");
+                await Assert.That(vtex).Contains("\"m_typeString\" \"string\" \"CUBE\"");
+                await Assert.That(vtex).Contains("/cubemap.exr\"");
+                await Assert.That(vtex).Contains("\"m_outputColorSpace\" \"string\" \"linear\"");
+                await Assert.That(contentFile.SubFiles.Select(static subFile => subFile.FileName)).Contains("cubemap.exr");
+                await Assert.That(contentFile.SubFiles).Count().IsEqualTo(7);
+            }
+        }
+
+        [Test]
+        public async Task VolumeVtexReadsSliceStack()
+        {
+            using var resource = new Resource();
+            resource.Read(Path.Combine(TexturesDir, "RGBA8888_volume_qop_tcolorwarp3d.vtex_c"));
+
+            var extract = new TextureExtract(resource) { IgnoreVtexFile = false };
+            using var contentFile = extract.ToContentFile();
+            var vtex = Encoding.UTF8.GetString(contentFile.Data!);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(vtex).Contains("\"m_outputTypeString\" \"string\" \"3D\"");
+                await Assert.That(vtex).Contains("\"m_typeString\" \"string\" \"3D\"");
+                await Assert.That(vtex).Contains("/RGBA8888_volume_qop_tcolorwarp3d_z000.png\"");
+                await Assert.That(contentFile.SubFiles.Single().FileName).IsEqualTo("RGBA8888_volume_qop_tcolorwarp3d_z000.png");
             }
         }
 
