@@ -203,11 +203,10 @@ branches, and it is regenerated on recompile anyway.
 
 Not implemented yet:
 
-| What                         | Details                                                                                                                                                                                                                   |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Clutter                      | Procedural scatter objects such as compiled detail props are not decompiled; the viewer thins them per instance by screen size on the GPU, and instances pop instead of fading.                                           |
-| Physics spheres and capsules | Only physics hulls and meshes are turned into Hammer geometry.                                                                                                                                                            |
-| 3D skybox bundling           | `skybox_reference` keeps its properties, but the referenced skybox map is not decompiled and bundled automatically (same for glTF export, [#967](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/967)). |
+| What               | Details                                                                                                                                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clutter            | Procedural scatter objects such as compiled detail props are not decompiled; the viewer thins them per instance by screen size on the GPU, and instances pop instead of fading.                                           |
+| 3D skybox bundling | `skybox_reference` keeps its properties, but the referenced skybox map is not decompiled and bundled automatically (same for glTF export, [#967](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/967)). |
 
 For glTF map exports, additionally: only `light_environment` is exported as a light (point
 and spot lights are not), entities carrying no model at all (logic, cameras, point
@@ -302,7 +301,8 @@ apply constraints. `vnmikrig` files have no dedicated support beyond the generic
 
 All four collision shape types (sphere, capsule, hull, mesh) parse, render, and export to
 glTF as visualization geometry. Decompiled `.vmdl` files carry all four; `.vmap` decompiles
-carry only hulls and meshes. Hitboxes fully round-trip into decompiled models.
+rebuild spheres and capsules as convex hull meshes. Hitboxes fully round-trip into decompiled
+models.
 
 Joints (`m_joints`) with their friction motors, and their bodies' mass, inertia, damping, drag,
 center of mass and tags export into decompiled models. The `FeModel` cloth/softbody block is

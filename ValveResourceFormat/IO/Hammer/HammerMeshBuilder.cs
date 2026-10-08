@@ -210,6 +210,9 @@ namespace ValveResourceFormat.IO
     /// </remarks>
     public class HammerMeshBuilder
     {
+        private const int PhysShapeSegments = 16;
+        private const int PhysShapeHemisphereRings = 4;
+
         /// <summary>
         /// How an edge shades across its two faces.
         /// </summary>
@@ -725,16 +728,7 @@ namespace ValveResourceFormat.IO
         /// <param name="materialOverride">Material to use instead of the one the surface property picks.</param>
         public void AddPhysHull(HullDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, Matrix4x4 transform, string? materialOverride = null)
         {
-            var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
-            var tags = PhysAggregateData.GetInteractAsTags(attributes);
-            var group = attributes.GetStringProperty("m_CollisionGroupString");
-            var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new SurfaceTagCombo(group, tags));
-
-            if (group == "Default")
-            {
-                var surfaceProperty = StringToken.GetKnownString(phys.SurfacePropertyHashes[desc.SurfacePropertyIndex]);
-                material = materialNameProvider.Invoke(surfaceProperty);
-            }
+            var material = GetPhysShapeMaterial(desc.CollisionAttributeIndex, desc.SurfacePropertyIndex, phys, materialNameProvider, materialOverride);
 
             var hull = desc.Shape;
             var baseVertex = AddVertices(hull.GetVertexPositions(), transform);
@@ -761,6 +755,69 @@ namespace ValveResourceFormat.IO
 
                 AddFace(inds[..indexCount], material);
             }
+        }
+
+        /// <summary>
+        /// Adds a physics sphere as the faces of a convex polyhedron inscribed in it.
+        /// </summary>
+        /// <param name="desc">Sphere to add.</param>
+        /// <param name="phys">Physics data the sphere belongs to, read for its collision attributes.</param>
+        /// <param name="materialNameProvider">Maps a surface property to the material to use.</param>
+        /// <param name="transform">Transform applied to every position.</param>
+        /// <param name="materialOverride">Material to use instead of the one the surface property picks.</param>
+        public void AddPhysSphere(SphereDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, Matrix4x4 transform, string? materialOverride = null)
+        {
+            var sphere = desc.Shape;
+            var (positions, faces) = PhysicsShapeTessellation.Sphere(sphere.Center, sphere.Radius, PhysShapeSegments, PhysShapeHemisphereRings);
+
+            AddPolyhedron(positions, faces, GetPhysShapeMaterial(desc.CollisionAttributeIndex, desc.SurfacePropertyIndex, phys, materialNameProvider, materialOverride), transform);
+        }
+
+        /// <summary>
+        /// Adds a physics capsule as the faces of a convex polyhedron inscribed in it.
+        /// </summary>
+        /// <param name="desc">Capsule to add.</param>
+        /// <param name="phys">Physics data the capsule belongs to, read for its collision attributes.</param>
+        /// <param name="materialNameProvider">Maps a surface property to the material to use.</param>
+        /// <param name="transform">Transform applied to every position.</param>
+        /// <param name="materialOverride">Material to use instead of the one the surface property picks.</param>
+        public void AddPhysCapsule(CapsuleDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, Matrix4x4 transform, string? materialOverride = null)
+        {
+            var capsule = desc.Shape;
+            var (positions, faces) = PhysicsShapeTessellation.Capsule(capsule.Center[0], capsule.Center[1], capsule.Radius, PhysShapeSegments, PhysShapeHemisphereRings);
+
+            AddPolyhedron(positions, faces, GetPhysShapeMaterial(desc.CollisionAttributeIndex, desc.SurfacePropertyIndex, phys, materialNameProvider, materialOverride), transform);
+        }
+
+        private void AddPolyhedron(Vector3[] positions, List<int[]> faces, string material, Matrix4x4 transform)
+        {
+            var baseVertex = AddVertices(positions, transform);
+
+            Span<int> inds = stackalloc int[4];
+
+            foreach (var face in faces)
+            {
+                for (var i = 0; i < face.Length; i++)
+                {
+                    inds[i] = baseVertex + face[i];
+                }
+
+                AddFace(inds[..face.Length], material);
+            }
+        }
+
+        private static string GetPhysShapeMaterial(int collisionAttributeIndex, int surfacePropertyIndex, PhysAggregateData phys, Func<string, string> materialNameProvider,
+            string? materialOverride)
+        {
+            var attributes = phys.CollisionAttributes[collisionAttributeIndex];
+            var group = attributes.GetStringProperty("m_CollisionGroupString");
+
+            if (group == "Default")
+            {
+                return materialNameProvider.Invoke(StringToken.GetKnownString(phys.SurfacePropertyHashes[surfacePropertyIndex]));
+            }
+
+            return materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new SurfaceTagCombo(group, PhysAggregateData.GetInteractAsTags(attributes)));
         }
 
         /// <summary>

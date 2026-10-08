@@ -737,8 +737,6 @@ public sealed partial class MapExtract
             var worldPhysMeshes = phys.Parts[0].Shape.GetAllMeshes().Where(m => collisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
 
             PhysTriangleMatcher = new PhysicsTriangleMatcher(worldPhysMeshes.ToArray());
-
-            // TODO: physics spheres and capsules are ignored
         }
 
         foreach (var worldNodeName in WorldNodeNames)
@@ -1810,7 +1808,15 @@ public sealed partial class MapExtract
         for (var i = 0; i < phys.Parts.Length; i++)
         {
             var shape = phys.Parts[i].Shape;
-            var hulls = shape.GetAllHulls().ToArray();
+            Action<HammerMeshBuilder>[] hulls =
+            [
+                .. shape.GetAllHulls().Select(hull => (Action<HammerMeshBuilder>)(builder =>
+                    builder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, transform, materialOverride))),
+                .. shape.GetAllSpheres().Select(sphere => (Action<HammerMeshBuilder>)(builder =>
+                    builder.AddPhysSphere(sphere, phys, GetAndExportAutoPhysicsMaterialName, transform, materialOverride))),
+                .. shape.GetAllCapsules().Select(capsule => (Action<HammerMeshBuilder>)(builder =>
+                    builder.AddPhysCapsule(capsule, phys, GetAndExportAutoPhysicsMaterialName, transform, materialOverride))),
+            ];
             var meshes = shape.GetAllMeshes().ToArray();
 
             var hullsSelectionSet = new CMapSelectionSet
@@ -1833,10 +1839,10 @@ public sealed partial class MapExtract
                 SelectionSetName = "physics mesh entity " + entityClassname + " (reconstructed from " + meshes.Length + (meshes.Length > 1 ? " meshes)" : " mesh)")
             };
 
-            foreach (var hull in hulls)
+            foreach (var addHull in hulls)
             {
                 var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize };
-                hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, transform, materialOverride);
+                addHull(hammerMeshBuilder);
                 var meshData = hammerMeshBuilder.GenerateMesh();
 
                 if (meshData.FaceEdgeIndices.Count == 0)
