@@ -300,7 +300,7 @@ internal static class ParticleCapture
         using (var canvas = new SKCanvas(flipped))
         {
             canvas.Scale(1, -1, 0, size / 2f);
-            canvas.DrawBitmap(bitmap, 0, 0);
+            canvas.DrawBitmap(bitmap, new SKPoint(), SKSamplingOptions.Default);
         }
 
         using var stream = File.Create(file);

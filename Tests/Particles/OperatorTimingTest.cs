@@ -2,13 +2,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using ValveResourceFormat.Particles;
+using ValveResourceFormat.Particles.Operators;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace Tests.Particles
 {
     public class OperatorTimingTest
     {
-        private static ParticleFunction CreateOperator(string body)
+        private static ParticleFunctionOperator CreateOperator(string body)
         {
             var system = ParticleTestSystem.Parse($$"""{ _class = "CParticleSystemDefinition" m_Operators = [ { {{body}} } ] }""");
             var data = system.GetUpgradedData().GetArray("m_Operators")![0];
@@ -17,7 +18,7 @@ namespace Tests.Particles
             return function!;
         }
 
-        private static float[] Strengths(ParticleFunction function, int seed)
+        private static float[] Strengths(ParticleFunctionOperator function, int seed)
         {
             var state = new ParticleSystemState();
             state.Random.PinSeed(seed);

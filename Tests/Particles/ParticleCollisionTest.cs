@@ -11,17 +11,17 @@ namespace Tests.Particles
         {
             public bool HasGeometry => true;
 
-            public bool TraceRay(Vector3 from, Vector3 to, out ParticleTraceHit hit)
+            public bool TraceRay(Vector3 rayStart, Vector3 rayEnd, out ParticleTraceHit hit)
             {
                 hit = default;
 
-                if (from.Z < height || to.Z >= height)
+                if (rayStart.Z < height || rayEnd.Z >= height)
                 {
                     return false;
                 }
 
-                var fraction = (from.Z - height) / (from.Z - to.Z);
-                hit = new ParticleTraceHit(Vector3.Lerp(from, to, fraction), Vector3.UnitZ, fraction);
+                var fraction = (rayStart.Z - height) / (rayStart.Z - rayEnd.Z);
+                hit = new ParticleTraceHit(Vector3.Lerp(rayStart, rayEnd, fraction), Vector3.UnitZ, fraction);
                 return true;
             }
         }
