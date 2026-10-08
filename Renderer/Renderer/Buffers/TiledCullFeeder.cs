@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ValveResourceFormat.Renderer.Decals;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 
 namespace ValveResourceFormat.Renderer.Buffers;

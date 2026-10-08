@@ -6,16 +6,11 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.ResourceTypes;
 
-namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.Renderer.Decals
 {
-    /// <summary>
-    /// One kind of decal texture, such as every decal's colour, packed into an array texture so a single
-    /// draw can sample any decal. Layers are sized for the largest texture added, and a smaller texture
-    /// fills the corner of its layer, mip for mip, which the sampler reaches through a scale.
-    /// </summary>
+    // One array texture per kind of decal texture. A smaller texture fills the corner of its layer.
     internal sealed class ProjectedDecalTextureArray
     {
-        /// <summary>A texture's place in the array, and how many mip levels it brought.</summary>
         public readonly record struct Layer(int Index, int Width, int Height, int MipCount);
 
         private const int BlockSize = 4;
@@ -32,23 +27,14 @@ namespace ValveResourceFormat.Renderer
         private int capacity;
         private int levels;
 
-        /// <summary>Gets the only texture format this array accepts.</summary>
         public VTexFormat Format => format;
 
-        /// <summary>Gets the array texture, or null before anything was added.</summary>
         public RenderTexture? ArrayTexture { get; private set; }
 
-        /// <summary>Gets the layer width, the widest texture added.</summary>
         public int Width { get; private set; }
 
-        /// <summary>Gets the layer height, the tallest texture added.</summary>
         public int Height { get; private set; }
 
-        /// <param name="label">Label visible in graphics debuggers.</param>
-        /// <param name="format">The only texture format this array accepts.</param>
-        /// <param name="imageFormat">The GL image format matching <paramref name="format"/>.</param>
-        /// <param name="srgb">Whether the texels are sRGB encoded.</param>
-        /// <param name="clearBlock">One compressed block filling the unused part of a layer.</param>
         public ProjectedDecalTextureArray(string label, VTexFormat format, ImageFormat imageFormat, bool srgb, byte[] clearBlock)
         {
             this.label = label;
@@ -58,10 +44,6 @@ namespace ValveResourceFormat.Renderer
             this.clearBlock = clearBlock;
         }
 
-        /// <summary>
-        /// Adds a texture, or finds it if it was added before. Returns null when the texture cannot be
-        /// loaded or is not in this array's format.
-        /// </summary>
         public Layer? Add(GameFileLoader fileLoader, string path)
         {
             if (layersByPath.TryGetValue(path, out var existing))
@@ -103,7 +85,6 @@ namespace ValveResourceFormat.Renderer
             return layer;
         }
 
-        /// <summary>Creates a small empty array if there is none, so the sampler always has one bound.</summary>
         public void EnsureCreated()
         {
             if (ArrayTexture == null)
@@ -112,7 +93,6 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>Releases the array and forgets every texture added.</summary>
         public void Delete()
         {
             ArrayTexture?.Delete();
@@ -127,7 +107,7 @@ namespace ValveResourceFormat.Renderer
             layersByPath.Clear();
         }
 
-        // Growing means new storage, so every layer added so far is loaded and uploaded again
+        // Growing reallocates, so every layer is uploaded again
         private void Allocate(GameFileLoader? fileLoader, int width, int height, int layerCapacity, Texture? newestData)
         {
             ArrayTexture?.Delete();
@@ -177,7 +157,7 @@ namespace ValveResourceFormat.Renderer
 
             try
             {
-                // A smaller texture only covers the corner of its layer, so the rest is cleared first
+                // Clear what a smaller texture leaves uncovered
                 for (var level = 0; level < levels; level++)
                 {
                     var (levelWidth, levelHeight) = GetLevelSize(level);
@@ -224,7 +204,7 @@ namespace ValveResourceFormat.Renderer
                     Monitor.Exit(data);
                 }
 
-                // Levels past the texture's own chain repeat its smallest image
+                // Past its own mip chain, repeat the smallest image
                 if (smallestMip != null)
                 {
                     for (var level = smallestLevel + 1; level < levels; level++)
@@ -246,7 +226,7 @@ namespace ValveResourceFormat.Renderer
 
             var (levelWidth, levelHeight) = GetLevelSize(level);
 
-            // A compressed upload covers whole blocks unless it reaches the edge of the level
+            // Uploads cover whole blocks, except at the level edge
             var regionWidth = Math.Min(GetBlockCount(sourceWidth) * BlockSize, levelWidth);
             var regionHeight = Math.Min(GetBlockCount(sourceHeight) * BlockSize, levelHeight);
 
@@ -257,7 +237,7 @@ namespace ValveResourceFormat.Renderer
 
             var upload = source;
 
-            // An image repeated into a level smaller than itself keeps its top left blocks
+            // A repeated image larger than the level keeps its top left blocks
             if (regionBlocksX < sourceBlocksX || regionBlocksY < GetBlockCount(sourceHeight))
             {
                 for (var y = 0; y < regionBlocksY; y++)

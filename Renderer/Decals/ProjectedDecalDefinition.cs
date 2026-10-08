@@ -4,7 +4,7 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
-namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.Renderer.Decals
 {
     /// <summary>How a projected decal is blended over what is under it.</summary>
     public enum ProjectedDecalBlendMode

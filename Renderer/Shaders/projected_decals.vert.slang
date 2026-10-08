@@ -2,7 +2,6 @@
 
 #include "common/features.slang"
 
-// The shared lighting code reads these per vertex. A full screen pass has nothing to hand them.
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     out vec3 vLightmapUVScaled;
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)

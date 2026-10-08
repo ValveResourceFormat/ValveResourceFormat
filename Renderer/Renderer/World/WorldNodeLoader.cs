@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Renderer.Decals;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;

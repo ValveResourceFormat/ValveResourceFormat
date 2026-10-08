@@ -6,7 +6,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
-namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.Renderer.Decals
 {
     // Which decal materials a bullet leaves on each surface property: surface properties name an
     // impact decal group, and the group lists materials with relative probabilities

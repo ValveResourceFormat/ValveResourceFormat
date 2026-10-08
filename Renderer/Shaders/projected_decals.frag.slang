@@ -6,7 +6,6 @@
 // Set for the pass after the translucent layer, which decals the translucent surfaces in front of the opaque scene
 #define D_TRANSLUCENT_SCENE_DEPTH 0
 
-// The pass covers the whole screen, so the probe volume is found per pixel
 #define ENABLE_LPV_BLENDING
 
 // Dual source: the destination becomes outputColor + destination * outputMultiplier, one channel at a time,
@@ -14,8 +13,6 @@
 layout(location = 0, index = 0) out vec4 outputColor;
 layout(location = 0, index = 1) out vec4 outputMultiplier;
 
-// Not a varying: the shared lighting code reads the surface position from here, and this pass only
-// learns it from the depth buffer
 vec3 vFragPosition;
 
 struct ProjectedDecal_t
@@ -28,8 +25,6 @@ struct ProjectedDecal_t
     float PlaceTime;
 };
 
-// Where a decal finds one of its textures. A texture sits in the corner of an array layer sized for the
-// largest one, and the decal may use only a part of it, as when its texture is an atlas of many decals.
 struct DecalTexture_t
 {
     vec2 Scale; // how much of the layer the decal's part covers
@@ -66,13 +61,13 @@ struct ProjectedDecalMaterial_t
     vec4 Emissive; // rgb tint, a additive amount
     float Roughness;
 
+    bool HasOcclusionMap;
     uint F_BLEND_MODE; // 0 = translucent, 1 = mod2x, 2 = emissive, 3 = liquid
     bool F_ALPHA_MODE;
     bool F_CUTOFF_ANGLE;
     bool F_NORMAL_MAP;
     bool F_PARALLAX;
     bool F_SPECULAR_DIRECT;
-    bool HasOcclusionMap;
     bool F_TRIPLANAR_MAPPING;
     bool F_BLOOD_AGING;
 };
@@ -94,13 +89,13 @@ ProjectedDecalMaterial_t UnpackDecalMaterial(ProjectedDecalMaterialData_t data)
     material.Emissive = data.Emissive;
     material.Roughness = data.Roughness;
 
+    material.HasOcclusionMap = IsBitSet(data.Flags, 7u);
     material.F_BLEND_MODE = data.Flags & 3u;
     material.F_ALPHA_MODE = IsBitSet(data.Flags, 2u);
     material.F_CUTOFF_ANGLE = IsBitSet(data.Flags, 3u);
     material.F_NORMAL_MAP = IsBitSet(data.Flags, 4u);
     material.F_PARALLAX = IsBitSet(data.Flags, 5u);
     material.F_SPECULAR_DIRECT = IsBitSet(data.Flags, 6u);
-    material.HasOcclusionMap = IsBitSet(data.Flags, 7u);
     material.F_TRIPLANAR_MAPPING = IsBitSet(data.Flags, 8u);
     material.F_BLOOD_AGING = IsBitSet(data.Flags, 9u);
 
@@ -140,8 +135,6 @@ uniform sampler2DArray g_tDecalHeight;
 #include "common/fog.slang"
 #include "common/light_cull.slang"
 
-// The pass belongs to no scene node, so it answers for the object data the lighting code would look up.
-// Only pixels no probe volume contains read the volume from here.
 #define VRF_OBJECT_DATA_INCLUDE
 #include "common/instancing_base.slang"
 

@@ -13,7 +13,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
-namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.Renderer.Decals
 {
     /// <summary>
     /// Decals projected onto whatever the resolved scene depth holds inside their box, such as bullet
