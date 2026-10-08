@@ -297,6 +297,22 @@ namespace ValveResourceFormat.Particles
         /// <summary>How many particles the last prune removed from this system.</summary>
         internal int KilledLastPass => particleCollection.KilledLastPass;
 
+        /// <summary>Whether any initializer of this system writes <paramref name="field"/> on spawn.</summary>
+        public bool InitializesField(ParticleField field)
+        {
+            var mask = 1UL << (int)field;
+
+            foreach (var initializer in initializers)
+            {
+                if ((initializer.WrittenFields & mask) != 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// Pins the random seed of this system and every child below it, so the effect plays out the
         /// same way on every run and every replay, or releases them with null. Each child takes a seed
