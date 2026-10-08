@@ -25,7 +25,7 @@ struct ProjectedDecal_t
     uint MaterialIndex;
     uint Flags;
     uint Tint; // RGBA8, sRGB
-    float PlaceTime; // g_flTime when the decal was added
+    float PlaceTime;
 };
 
 // Where a decal finds one of its textures. A texture sits in the corner of an array layer sized for the
@@ -37,11 +37,9 @@ struct DecalTexture_t
     uint Offset; // where that part starts, in texels: x in the low 16 bits, y in the high
 };
 
-// What a decal carries of its own
 const uint DECAL_FLIP_U = 1u << 0;
 const uint DECAL_HIDDEN = 1u << 1; // on an entity that is not drawn
 
-// A material as the buffer holds it
 struct ProjectedDecalMaterialData_t
 {
     DecalTexture_t Color;
@@ -68,7 +66,6 @@ struct ProjectedDecalMaterial_t
     vec4 Emissive; // rgb tint, a additive amount
     float Roughness;
 
-    // Its features, under the names its material gives them
     uint F_BLEND_MODE; // 0 = translucent, 1 = mod2x, 2 = emissive, 3 = liquid
     bool F_ALPHA_MODE;
     bool F_CUTOFF_ANGLE;
@@ -85,7 +82,6 @@ bool IsBitSet(uint bits, uint bit)
     return (bits & (1u << bit)) != 0u;
 }
 
-// In the flags, the blend mode is the low two bits and each switch the next bit up, in the order above
 ProjectedDecalMaterial_t UnpackDecalMaterial(ProjectedDecalMaterialData_t data)
 {
     ProjectedDecalMaterial_t material;
@@ -121,15 +117,15 @@ layout(std430, binding = 7) readonly buffer ProjectedDecalMaterialBuffer
     ProjectedDecalMaterialData_t g_ProjectedDecalMaterials[];
 };
 
-uniform uint uDecalTileBase;
-uniform uint uDecalBinBase;
-uniform uint uDecalCullWords;
-uniform uint uDecalCount;
+uniform uint g_nDecalTileBase;
+uniform uint g_nDecalBinBase;
+uniform uint g_nDecalCullWords;
+uniform uint g_nDecalCount;
 
-uniform sampler2DArray uDecalColor;
-uniform sampler2DArray uDecalNormal; // rg = normal, b = roughness
-uniform sampler2DArray uDecalOcclusion; // r = occlusion, g = metalness
-uniform sampler2DArray uDecalHeight;
+uniform sampler2DArray g_tDecalColor;
+uniform sampler2DArray g_tDecalNormal; // rg = normal, b = roughness
+uniform sampler2DArray g_tDecalOcclusion; // r = occlusion, g = metalness
+uniform sampler2DArray g_tDecalHeight;
 
 #include "common/ViewConstants.slang"
 #include "common/LightingConstants.slang"
@@ -149,17 +145,16 @@ uniform sampler2DArray uDecalHeight;
 #define VRF_OBJECT_DATA_INCLUDE
 #include "common/instancing_base.slang"
 
-uniform uint uLightProbeIndex = 0u;
+uniform uint g_nLightProbeIndex;
 
 ObjectDataStandard GetObjectLightingData()
 {
-    return ObjectDataStandard(uLightProbeIndex, 0u, 0u, 0u, uvec4(0u));
+    return ObjectDataStandard(g_nLightProbeIndex, 0u, 0u, 0u, uvec4(0u));
 }
 
 // Must be last
 #include "common/lighting.slang"
 
-// The nearest surface this pass decals under a pixel
 float ReadReceiverDepth(ivec2 pixel)
 {
 #if (D_TRANSLUCENT_SCENE_DEPTH == 1)
@@ -169,18 +164,12 @@ float ReadReceiverDepth(ivec2 pixel)
 #endif
 }
 
-// The world position of that surface
 vec3 GetScenePosition(vec2 fragCoord)
 {
-    vec2 ndc = fragCoord * g_vInvViewportSize * 2.0 - 1.0;
-    vec4 viewRay = g_matProjectionToWorld * vec4(ndc, 1.0, 1.0);
-    vec3 cameraRay = transpose(mat3(g_matWorldToView)) * (viewRay.xyz / viewRay.w);
-
     ivec2 pixel = clamp(ivec2(fragCoord), ivec2(0), ivec2(g_vViewportSize) - 1);
-    return GetWorldPositionFromDepthValue(ReadReceiverDepth(pixel), cameraRay);
+    return GetWorldPositionFromDepthValue(ReadReceiverDepth(pixel), GetCameraRay(fragCoord));
 }
 
-// The size in texels of the part of a texture a decal uses
 vec2 GetDecalTextureTexels(sampler2DArray textureArray, DecalTexture_t decalTexture)
 {
     return decalTexture.Scale * vec2(textureSize(textureArray, 0).xy);
@@ -260,7 +249,7 @@ vec2 ApplyParallax(ProjectedDecalMaterial_t material, vec2 texCoord, vec2 texCoo
     vec2 fullDdx = texCoordDdx * 2.0;
     vec2 fullDdy = texCoordDdy * 2.0;
 
-    vec2 textureTexels = GetDecalTextureTexels(uDecalColor, material.Color);
+    vec2 textureTexels = GetDecalTextureTexels(g_tDecalColor, material.Color);
     vec2 texelsDdx = fullDdx * textureTexels;
     vec2 texelsDdy = fullDdy * textureTexels;
     vec2 texelFootprint = texelsDdx * texelsDdx + texelsDdy * texelsDdy;
@@ -291,7 +280,7 @@ vec2 ApplyParallax(ProjectedDecalMaterial_t material, vec2 texCoord, vec2 texCoo
 
     for (int i = 0; i < stepCount; i++)
     {
-        sampledHeight = SampleDecalTexture(uDecalHeight, material.Height, currentTexCoord, fullDdx, fullDdy).x;
+        sampledHeight = SampleDecalTexture(g_tDecalHeight, material.Height, currentTexCoord, fullDdx, fullDdy).x;
 
         if (sampledHeight > layerHeight)
         {
@@ -327,12 +316,12 @@ void main()
 
     // A tile no decal reaches ends here, before the depth is read
     uvec2 tile = min(uvec2(fragCoord) >> uvec2(g_nLightTileShift), uvec2(g_nLightTileCols, g_nLightTileRows) - 1u);
-    uint tileWord = uDecalTileBase + (((tile.y * g_nLightTileCols) + tile.x) * uDecalCullWords);
+    uint tileWord = g_nDecalTileBase + (((tile.y * g_nLightTileCols) + tile.x) * g_nDecalCullWords);
     uint tileBits = 0u;
 
-    for (uint word = 0u; word < uDecalCullWords; word++)
+    for (uint word = 0u; word < g_nDecalCullWords; word++)
     {
-        tileBits |= g_CullBits[tileWord + word] & GetCullLiveMask(word, uDecalCount);
+        tileBits |= g_CullBits[tileWord + word] & GetCullLiveMask(word, g_nDecalCount);
     }
 
     if (tileBits == 0u)
@@ -350,7 +339,7 @@ void main()
 #endif
 
     vec3 positionWs = GetScenePosition(fragCoord);
-    CullMasks_t masks = MakeCullMasks(GetCullLookupCached(positionWs), uDecalTileBase, uDecalBinBase, uDecalCullWords);
+    CullMasks_t masks = MakeCullMasks(GetCullLookupCached(positionWs), g_nDecalTileBase, g_nDecalBinBase, g_nDecalCullWords);
 
     // Position derivatives from whichever neighbour lies on the same surface, only once a decal needs them
     bool hasSurface = false;
@@ -374,9 +363,9 @@ void main()
     vec3 litWeight = vec3(0.0);
     vec3 emissiveColor = vec3(0.0);
 
-    for (uint word = 0u; word < uDecalCullWords; word++)
+    for (uint word = 0u; word < g_nDecalCullWords; word++)
     {
-        uint bits = GetCullMaskWord(masks, word) & GetCullLiveMask(word, uDecalCount);
+        uint bits = GetCullMaskWord(masks, word) & GetCullLiveMask(word, g_nDecalCount);
 
         while (bits != 0u)
         {
@@ -425,7 +414,6 @@ void main()
 
 
             // A triplanar decal has no single depth axis to fade along, it fades toward every box face instead
-            // Aging blood fades by drying, along neither the depth nor the angle
             float fade = material.F_TRIPLANAR_MAPPING || material.F_BLOOD_AGING ? 1.0 : saturate(decalCoords.z * material.Fade.z);
 
             if (material.F_CUTOFF_ANGLE && !material.F_BLOOD_AGING)
@@ -437,7 +425,6 @@ void main()
                     continue;
                 }
 
-                // Fading by angle replaces fading by depth
                 fade = min(cutoff, 1.0);
             }
 
@@ -472,16 +459,16 @@ void main()
                 vec3 facing = vec3(dot(geometricNormal, normalize(axisX)), dot(geometricNormal, normalize(axisY)), dot(geometricNormal, normalize(axisZ)));
                 vec3 weights = facing * facing;
 
-                color = SampleDecalTexture(uDecalColor, material.Color, coords.zy, coordsDdx.zy, coordsDdy.zy) * weights.x
-                    + SampleDecalTexture(uDecalColor, material.Color, vec2(coords.x, decalCoords.z), coordsDdx.xz, coordsDdy.xz) * weights.y
-                    + SampleDecalTexture(uDecalColor, material.Color, coords.xy, coordsDdx.xy, coordsDdy.xy) * weights.z;
+                color = SampleDecalTexture(g_tDecalColor, material.Color, coords.zy, coordsDdx.zy, coordsDdy.zy) * weights.x
+                    + SampleDecalTexture(g_tDecalColor, material.Color, vec2(coords.x, decalCoords.z), coordsDdx.xz, coordsDdy.xz) * weights.y
+                    + SampleDecalTexture(g_tDecalColor, material.Color, coords.xy, coordsDdx.xy, coordsDdy.xy) * weights.z;
 
                 vec3 toFace = min(decalCoords, 1.0 - decalCoords);
                 color.a *= saturate(8.0 * min(toFace.x, min(toFace.y, toFace.z)));
             }
             else
             {
-                color = SampleDecalTexture(uDecalColor, material.Color, texCoord, texCoordDdx, texCoordDdy);
+                color = SampleDecalTexture(g_tDecalColor, material.Color, texCoord, texCoordDdx, texCoordDdy);
             }
 
             float opacity = 0.0;
@@ -497,7 +484,6 @@ void main()
                 vec2 agedCoord;
                 opacity = AgeBlood(g_flTime - decal.PlaceTime, tint.a, color, decalCoords, axisX, axisY, agedCoord, bloodDry);
 
-                // Only the color stays where it landed
                 texCoord = (decal.Flags & DECAL_FLIP_U) != 0u ? vec2(1.0 - agedCoord.x, agedCoord.y) : agedCoord;
             }
             else
@@ -540,7 +526,7 @@ void main()
 
             if (material.F_NORMAL_MAP)
             {
-                vec4 normalTexel = SampleDecalTexture(uDecalNormal, material.Normal, texCoord, texCoordDdx, texCoordDdy);
+                vec4 normalTexel = SampleDecalTexture(g_tDecalNormal, material.Normal, texCoord, texCoordDdx, texCoordDdy);
                 float octX = normalTexel.x + normalTexel.y - (256.0 / 255.0);
                 float octY = normalTexel.x - normalTexel.y;
                 vec3 normalTs = normalize(vec3(octX, octY, 1.0 - abs(octX) - abs(octY)));
@@ -561,7 +547,7 @@ void main()
             }
 
             vec2 occlusionMetalness = material.HasOcclusionMap
-                ? SampleDecalTexture(uDecalOcclusion, material.Occlusion, texCoord, texCoordDdx, texCoordDdy).xy
+                ? SampleDecalTexture(g_tDecalOcclusion, material.Occlusion, texCoord, texCoordDdx, texCoordDdy).xy
                 : vec2(1.0, 0.0);
 
             vec3 layerDiffuse = material.F_SPECULAR_DIRECT ? albedo * (1.0 - occlusionMetalness.y) : albedo;

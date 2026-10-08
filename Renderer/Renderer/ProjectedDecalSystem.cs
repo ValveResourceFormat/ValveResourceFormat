@@ -815,15 +815,15 @@ namespace ValveResourceFormat.Renderer
             var passShader = shader.WithCombo("D_TRANSLUCENT_SCENE_DEPTH", translucentSurfaces ? (byte)1 : (byte)0);
 
             passShader.Use();
-            passShader.SetUniform1("uDecalTileBase", binner.DecalTileBase);
-            passShader.SetUniform1("uDecalBinBase", binner.DecalBinBase);
-            passShader.SetUniform1("uDecalCullWords", binner.DecalCullWords);
-            passShader.SetUniform1("uDecalCount", (uint)binner.DecalSlotCount);
+            passShader.SetUniform1("g_nDecalTileBase", binner.DecalTileBase);
+            passShader.SetUniform1("g_nDecalBinBase", binner.DecalBinBase);
+            passShader.SetUniform1("g_nDecalCullWords", binner.DecalCullWords);
+            passShader.SetUniform1("g_nDecalCount", (uint)binner.DecalSlotCount);
 
             // The global volume, for pixels no volume contains
             if (scene.ProbeAtlasVolumes is [.., var globalProbe])
             {
-                passShader.SetUniform1("uLightProbeIndex", (uint)globalProbe.ShaderIndex);
+                passShader.SetUniform1("g_nLightProbeIndex", (uint)globalProbe.ShaderIndex);
             }
 
             foreach (var (slot, _, texture) in context.Textures)
@@ -834,10 +834,10 @@ namespace ValveResourceFormat.Renderer
             scene.LightingInfo.BindLightmapTextures();
 
             var textureUnit = RenderMaterial.TextureUnitStart;
-            passShader.SetTexture(textureUnit++, "uDecalColor", colorArray.ArrayTexture);
-            passShader.SetTexture(textureUnit++, "uDecalNormal", normalArray.ArrayTexture);
-            passShader.SetTexture(textureUnit++, "uDecalOcclusion", occlusionArray.ArrayTexture);
-            passShader.SetTexture(textureUnit, "uDecalHeight", heightArray.ArrayTexture);
+            passShader.SetTexture(textureUnit++, "g_tDecalColor", colorArray.ArrayTexture);
+            passShader.SetTexture(textureUnit++, "g_tDecalNormal", normalArray.ArrayTexture);
+            passShader.SetTexture(textureUnit++, "g_tDecalOcclusion", occlusionArray.ArrayTexture);
+            passShader.SetTexture(textureUnit, "g_tDecalHeight", heightArray.ArrayTexture);
 
             decalBuffer?.BindBufferBase();
             materialBuffer?.BindBufferBase();

@@ -24,6 +24,16 @@ vec3 GetWorldPositionFromDepthValue(float flSceneDepth, vec3 vCameraRay)
     return (g_vCameraPositionWs.xyz + (vCameraRay * (1.0 / (invProjTerm * flPerspectiveCorrection))));
 }
 
+/// A vector from the camera toward a pixel, for a pass that has no world position of its own to take one from.
+/// vFragCoord: the pixel, in gl_FragCoord units.
+vec3 GetCameraRay(vec2 vFragCoord)
+{
+    vec2 vNdc = vFragCoord * g_vInvViewportSize * 2.0 - 1.0;
+    vec4 vViewRay = g_matProjectionToWorld * vec4(vNdc, 1.0, 1.0);
+
+    return transpose(mat3(g_matWorldToView)) * (vViewRay.xyz / vViewRay.w);
+}
+
 /// Reconstructs the world position the depth buffer holds under a pixel.
 /// vScreenPosition: the pixel to read, in gl_FragCoord units.
 vec3 GetWorldPositionFromDepth(ivec2 vScreenPosition, vec3 vCameraRay)
