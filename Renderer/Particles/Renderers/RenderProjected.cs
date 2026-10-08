@@ -59,9 +59,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             alpha2Field = parse.ParticleField("m_nAlpha2Field", alpha2Field);
         }
 
-        /// <summary>Whether any of the materials loaded as a projected decal, so a system that draws nothing can be reported.</summary>
-        public bool HasMaterials => materials.Length > 0;
-
         /// <inheritdoc/>
         public override void Act(ParticleCollection particles, ParticleSystemState systemState)
         {

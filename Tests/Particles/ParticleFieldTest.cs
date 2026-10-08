@@ -18,7 +18,7 @@ namespace Tests.Particles
         [Test]
         public async Task EveryValueFieldKeepsWhatIsWritten()
         {
-            var lost = new System.Collections.Generic.List<ParticleField>();
+            var lost = new List<ParticleField>();
 
             foreach (var field in Enum.GetValues<ParticleField>().Except(Unstored))
             {

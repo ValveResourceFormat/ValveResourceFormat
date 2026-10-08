@@ -265,9 +265,9 @@ namespace ValveResourceFormat.Particles
                 EndEarly = false
             };
 
-            Name = particleSystem.Resource?.FileName ?? "<unnamed>";
-
             snapshotControlPoint = PublishSnapshot(parse, particleSnapshot);
+
+            Name = particleSystem.Resource?.FileName ?? "<unnamed>";
 
             IReadOnlyList<KVObject> Functions(string key) => rootData.GetArray(key) ?? [];
 
@@ -311,23 +311,6 @@ namespace ValveResourceFormat.Particles
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Pins the random seed of this system and every child below it, so the effect plays out the
-        /// same way on every run and every replay, or releases them with null. Each child takes a seed
-        /// derived from its place in the tree, so siblings still differ from each other.
-        /// </summary>
-        public void SetRandomSeed(int? seed)
-        {
-            systemState.Random.PinSeed(seed);
-
-            for (var i = 0; i < childSimulations.Count; i++)
-            {
-                // Seeds are offsets into one shared table, so neighbouring seeds would replay the same
-                // sequence shifted by a slot; mixing them spreads siblings across the table
-                childSimulations[i].SetRandomSeed(seed.HasValue ? (int)(((uint)seed.Value * 0x9E3779B1u) ^ ((uint)(i + 1) * 0x85EBCA77u)) >>> 8 : null);
-            }
         }
 
         /// <summary>
@@ -424,18 +407,11 @@ namespace ValveResourceFormat.Particles
                         initializer.DefinitionIndex = definitionIndex;
                     }
 
-                    if (CollisionClasses.Contains(className))
-                    {
-                        collisionUsers.Add(className);
-                    }
-
                     target.Add(function);
                 }
                 else
                 {
                     logger.LogUniqueWarningFor([label, className], UnsupportedClassWarning, label, className, Name);
-                    ReportDiagnostic(ParticleDiagnosticSeverity.Warning, $"{label} {className}", "Not implemented",
-                        "Skipped, so whatever it does to the particles is missing", "None in the viewer; the effect is shown without it");
                 }
 
                 definitionIndex++;

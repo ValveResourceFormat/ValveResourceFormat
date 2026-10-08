@@ -109,43 +109,10 @@ namespace ValveResourceFormat.Renderer.Particles
                 if (renderer == null)
                 {
                     rendererContext.Logger.LogUniqueWarningFor(["renderer", rendererClass], UnsupportedClassWarning, "renderer", rendererClass, Simulation.Name);
-                    Simulation.ReportDiagnostic(ParticleDiagnosticSeverity.Warning, $"renderer {rendererClass}", "Not implemented",
-                        "Nothing this renderer draws is shown", "None in the viewer; the effect is shown without it");
                     continue;
                 }
 
-                ReportRendererProblems(renderer, rendererClass, parse);
                 renderers.Add(renderer);
-            }
-
-            if (rendererData.Count == 0)
-            {
-                Simulation.ReportDiagnostic(ParticleDiagnosticSeverity.Info, "renderers", "Has no renderer of its own",
-                    "Its particles are not drawn; they may only drive its children", "None needed if its children draw the effect");
-            }
-        }
-
-        /// <summary>Reports what a renderer that was built still cannot show as authored.</summary>
-        private void ReportRendererProblems(ParticleFunctionRenderer renderer, string rendererClass, ParticleDefinitionParser parse)
-        {
-            var component = $"renderer {rendererClass}";
-
-            switch (renderer)
-            {
-                case RenderModels { HasModels: false }:
-                    Simulation.ReportDiagnostic(ParticleDiagnosticSeverity.Error, component, "None of its models could be loaded",
-                        "No particle of this system is drawn", "Open the effect with the game's files loaded");
-                    break;
-
-                case RenderModels when parse.Boolean("m_bAnimated", false) || parse.Data.ContainsKey("m_SequenceName"):
-                    Simulation.ReportDiagnostic(ParticleDiagnosticSeverity.Info, component, "Model animation is not applied",
-                        "Models hold their bind pose", "None in the viewer");
-                    break;
-
-                case RenderProjected { HasMaterials: false }:
-                    Simulation.ReportDiagnostic(ParticleDiagnosticSeverity.Error, component, "None of its materials could be loaded as projected decals",
-                        "No particle of this system is drawn", "Open the effect with the game's files loaded");
-                    break;
             }
         }
 

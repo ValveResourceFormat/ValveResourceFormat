@@ -43,28 +43,14 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         private int queryCount;
 
-        /// <summary>A seed pinned for repeatable playback, which every reseed returns to.</summary>
-        private int? fixedSeed;
-
         /// <summary>
         /// Gives the system a fresh identity, as a newly created one would have. The engine has no
         /// equivalent: a restart there keeps the seed, and only a new collection draws another.
-        /// A pinned seed is kept, so a replay plays out exactly as the last one did.
         /// </summary>
         public void Reseed()
         {
-            Seed = fixedSeed ?? System.Random.Shared.Next() & 0xFFF;
+            Seed = System.Random.Shared.Next() & 0xFFF;
             queryCount = 0;
-        }
-
-        /// <summary>
-        /// Pins the seed so the system draws the same sequence on every run, or releases it again with
-        /// null. Takes effect immediately, restarting the draw count.
-        /// </summary>
-        public void PinSeed(int? seed)
-        {
-            fixedSeed = seed & 0xFFF;
-            Reseed();
         }
 
         /// <summary>Takes the next value from the table, in [0, 1).</summary>

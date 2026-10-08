@@ -36,9 +36,6 @@ namespace ValveResourceFormat.Particles.Emitters
         /// <summary>Gets whether the emitter has finished emitting and will produce no more particles.</summary>
         public abstract bool IsFinished { get; protected set; }
 
-        /// <summary>An input the emitter needs but does not have, described for the user, or null.</summary>
-        public virtual string? DescribeMissingInput(ParticleSystemState particleSystemState) => null;
-
         /// <summary>
         /// Narrows the frame to the part of it the emitter is active for. An emission duration of 0
         /// leaves the frame unclipped; the emitter then runs until stopped.

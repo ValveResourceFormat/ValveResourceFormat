@@ -103,8 +103,6 @@ namespace ValveResourceFormat.Particles
 
                 if (childResource == null)
                 {
-                    ReportDiagnostic(ParticleDiagnosticSeverity.Error, $"child {childName}", "Could not be loaded",
-                        "Everything the child system draws is missing", "Open the effect with the game's files loaded");
                     continue;
                 }
 
