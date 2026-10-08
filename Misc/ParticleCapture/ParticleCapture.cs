@@ -13,7 +13,9 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
+using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
 
 // Renders a particle system at fixed simulation times into PNG files and prints the state of every
@@ -21,7 +23,8 @@ using Vector3 = System.Numerics.Vector3;
 //
 // Usage: ParticleCapture audit <pak01_dir.vpk> <output.md>
 //        ParticleCapture <pak01_dir.vpk> <particles/x.vpcf> [--times 0.5,1,2] [--size 512] [--out dir]
-//        [--fps 60] [--seed n] [--camera x,y,z] [--target x,y,z] [--cp index=x,y,z]...
+//        [--fps 60] [--seed n] [--camera x,y,z] [--target x,y,z] [--cp index=x,y,z]... [--ground z]
+//        [--map maps/de_dust2.vpk --at x,y]  loads a map and drops the effect onto its ground at x,y
 internal static class ParticleCapture
 {
     public static int Main(string[] args)
@@ -45,6 +48,8 @@ internal static class ParticleCapture
         var fps = 60f;
         var seed = 1;
         float? ground = null;
+        string? mapPath = null;
+        Vector2? at = null;
         Vector3? camera = null;
         Vector3? target = null;
         var controlPoints = new List<(int Index, Vector3 Position)>();
@@ -63,6 +68,11 @@ internal static class ParticleCapture
                 case "--camera": camera = ParseVector(value); break;
                 case "--target": target = ParseVector(value); break;
                 case "--ground": ground = ParseFloat(value); break;
+                case "--map": mapPath = value; break;
+                case "--at":
+                    var xy = value.Split(',').Select(ParseFloat).ToArray();
+                    at = new Vector2(xy[0], xy[1]);
+                    break;
                 case "--cp":
                     var parts = value.Split('=');
                     controlPoints.Add((int.Parse(parts[0], CultureInfo.InvariantCulture), ParseVector(parts[1])));
@@ -90,9 +100,11 @@ internal static class ParticleCapture
 
         window.MakeCurrent();
 
+        // A map package resolves the game's own files through its search paths, so effects still load
+        var packagePath = mapPath ?? vpkPath;
         using var package = new Package();
-        package.Read(vpkPath);
-        using var fileLoader = new GameFileLoader(package, vpkPath);
+        package.Read(packagePath);
+        using var fileLoader = new GameFileLoader(package, packagePath);
         using var rendererContext = new RendererContext(fileLoader, logger);
 
         rendererContext.Device.CreateContext().Begin();
@@ -132,7 +144,34 @@ internal static class ParticleCapture
         }
 
         renderer.Scene.Add(node, true);
-        renderer.Scene.Initialize();
+
+        if (mapPath != null)
+        {
+            var map = WorldLoader.LoadMap(package.Entries!["vmap_c"][0].GetFullPath(), renderer.Scene, renderer.EntitySystem);
+
+            foreach (var spawnGroup in map.SpawnGroups)
+            {
+                renderer.AddSpawnGroup(spawnGroup);
+            }
+        }
+
+        foreach (var scene in renderer.Scenes)
+        {
+            scene.Initialize();
+        }
+
+        var origin = Vector3.Zero;
+
+        if (at is { } spot)
+        {
+            var trace = renderer.EntitySystem.PhysicsWorld.TraceRay(new Vector3(spot, 8192f), new Vector3(spot, -8192f), "default");
+            origin = trace.Hit ? trace.HitPosition : new Vector3(spot, 0f);
+            node.Transform = System.Numerics.Matrix4x4.CreateTranslation(origin);
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"placed at {origin}"));
+
+            camera ??= origin + new Vector3(260f, 60f, 170f);
+            target ??= origin;
+        }
         renderer.Camera.SetViewportSize(size, size);
         GL.Viewport(0, 0, size, size);
 
@@ -183,7 +222,7 @@ internal static class ParticleCapture
             SavePixels(file, size);
 
             var bright = CountLitPixels(file);
-            Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"t={elapsed:0.00}s lit_pixels={bright} -> {file}"));
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"t={elapsed:0.00}s lit_pixels={bright} decals={renderer.Scene.ProjectedDecals.Count} -> {file}"));
             PrintTree(node.ParticleSimulation, 1);
         }
 
@@ -222,16 +261,20 @@ internal static class ParticleCapture
     {
         var color = Vector3.Zero;
         var alpha = 0f;
+        var radius = 0f;
+        var center = Vector3.Zero;
 
         foreach (ref var particle in simulation.Particles.Current)
         {
             color += particle.Color;
             alpha += particle.Alpha;
+            radius += particle.Radius;
+            center += particle.Position;
         }
 
         var count = Math.Max(1, simulation.Particles.Count);
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"{new string(' ', depth * 2)}{Path.GetFileName(simulation.Name)}: {simulation.Particles.Count} live, mean color {color / count:F3} alpha {alpha / count:F3}"));
+            $"{new string(' ', depth * 2)}{Path.GetFileName(simulation.Name)}: {simulation.Particles.Count} live, mean color {color / count:F3} alpha {alpha / count:F3} radius {radius / count:F1} at {center / count:F0}"));
 
         foreach (var child in simulation.Children)
         {

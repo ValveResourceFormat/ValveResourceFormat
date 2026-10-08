@@ -439,6 +439,33 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <returns>The effect, or null when the game names none.</returns>
         public string? FindImpactEffect(uint surfacePropertyHash) => ImpactDecals.FindEffect(surfacePropertyHash);
 
+        /// <summary>
+        /// Moves and retints a decal added without a parent, if it is still there, for decals that follow
+        /// something other than an entity, such as a particle.
+        /// </summary>
+        /// <param name="handle">The handle the decal was added with.</param>
+        /// <param name="boxTransform">The new box, see <see cref="CreateBoxTransform"/>.</param>
+        /// <param name="tint">The new linear color and opacity multiplier.</param>
+        public void Move(ProjectedDecalHandle handle, Matrix4x4 boxTransform, Vector4 tint)
+        {
+            for (var i = 0; i < decals.Count; i++)
+            {
+                if (decals[i].Id != handle.Id)
+                {
+                    continue;
+                }
+
+                if (decals[i].Parent == null)
+                {
+                    decals[i] = decals[i] with { LocalTransform = boxTransform, Tint = tint };
+                    boxTransforms[i] = boxTransform;
+                    decalsDirty = true;
+                }
+
+                return;
+            }
+        }
+
         /// <summary>Removes a decal, if it is still there.</summary>
         /// <param name="handle">The handle the decal was added with.</param>
         public void Remove(ProjectedDecalHandle handle)
