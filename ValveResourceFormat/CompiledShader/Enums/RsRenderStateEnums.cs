@@ -41,10 +41,6 @@ public enum RsStencilOp : byte
 /// <summary>
 /// Specifies blend modes.
 /// </summary>
-/// <remarks>
-/// The names follow the blend mode strings in CS2's vfx_dx11.dll, sixteen of them to fill the four bits a
-/// render target gets. There is no inverse blend factor; the values past it are the dual source factors.
-/// </remarks>
 public enum RsBlendMode : byte
 {
     Zero = 0,
