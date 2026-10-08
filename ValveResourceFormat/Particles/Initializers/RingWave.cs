@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// <summary>Drops the vertical part of the outward speed, leaving the ring to spread flat.</summary>
         private readonly bool xyVelocityOnly;
 
-        private float orbitCount;
+        private uint orbitCount;
 
         public RingWave(ParticleDefinitionParser parse) : base(parse)
         {
@@ -53,13 +53,13 @@ namespace ValveResourceFormat.Particles.Initializers
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var thickness = this.thickness.NextNumber(ref particle, particleSystemState);
-            var particlesPerOrbit = this.particlesPerOrbit.NextInt(ref particle, particleSystemState);
+            var particlesPerOrbit = this.particlesPerOrbit.NextNumber(ref particle, particleSystemState);
 
             var thicknessOffset = particleSystemState.Random.NextInUnitBall(out _) * thickness;
 
             var radius = initialRadius.NextNumber(ref particle, particleSystemState);
 
-            var angle = GetNextAngle(particlesPerOrbit, particles.Capacity, particleSystemState);
+            var angle = GetNextAngle(particlesPerOrbit, particles.Count, particleSystemState);
             var radialDirection = new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0);
 
             var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
@@ -82,18 +82,19 @@ namespace ValveResourceFormat.Particles.Initializers
             return particle;
         }
 
-        private float GetNextAngle(int particlesPerOrbit, int maxParticles, ParticleSystemState particleSystemState)
+        private float GetNextAngle(float particlesPerOrbit, int activeParticles, ParticleSystemState particleSystemState)
         {
             if (evenDistribution)
             {
-                // -1 is the sentinel for using the collection's maximum particle count.
-                var perOrbit = Math.Max(1, particlesPerOrbit == -1 ? maxParticles : particlesPerOrbit);
+                // -1 spreads one orbit over the particles alive right now, so a continuously emitted
+                // ring stays closed instead of crawling around as an arc of the max particle count.
+                var perOrbit = particlesPerOrbit == -1f ? activeParticles : particlesPerOrbit;
 
-                var offset = orbitCount / perOrbit;
+                // The counter is never wrapped to the orbit, and counts before use, so the first
+                // particle is one step past angle zero.
+                orbitCount++;
 
-                orbitCount = (orbitCount + 1) % perOrbit;
-
-                return offset * MathF.Tau;
+                return orbitCount * (MathF.Tau / MathF.Max(1f, perOrbit));
             }
 
             return particleSystemState.Random.NextBetween(0f, MathF.Tau);
