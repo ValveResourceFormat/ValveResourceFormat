@@ -262,7 +262,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool IsPlaying { get; private set; } = true;
 
         /// <summary>Gets whether every emitter is done and every particle has expired.</summary>
-        public bool IsFinished => particleRenderer.IsFinished();
+        public bool IsFinished => !pendingRestart && particleRenderer.IsFinished();
 
         /// <summary>Switches the system on and replays it from its current transform.</summary>
         public void Play()

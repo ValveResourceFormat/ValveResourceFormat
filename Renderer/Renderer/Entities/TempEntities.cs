@@ -26,6 +26,9 @@ public sealed class TempEntities
     private readonly Dictionary<string, ParticleSystem?> particleSystems = [];
     private readonly List<ParticleSceneNode> particles = [];
 
+    // Finished effects stay in their scene, stopped, to play again: building one allocates its whole particle pool
+    private readonly Dictionary<(Scene Scene, string Name), Stack<ParticleSceneNode>> idleParticles = [];
+
     internal TempEntities(EntitySystem entitySystem)
     {
         this.entitySystem = entitySystem;
@@ -97,20 +100,29 @@ public sealed class TempEntities
             return null;
         }
 
-        var particle = new ParticleSceneNode(scene, particleSystem)
-        {
-            Name = particleName,
-            Transform = ControlPoint(origin, forward),
-            LayerName = Scene.ParticlesLayerName,
-        };
-
         // One that is never simulated never finishes, so the oldest makes way
         if (particles.Count >= MaxParticles)
         {
-            Remove(0);
+            Retire(0);
         }
 
-        scene.Add(particle, true);
+        if (idleParticles.TryGetValue((scene, particleName), out var idle) && idle.TryPop(out var particle))
+        {
+            particle.Transform = ControlPoint(origin, forward);
+            particle.Play();
+        }
+        else
+        {
+            particle = new ParticleSceneNode(scene, particleSystem)
+            {
+                Name = particleName,
+                Transform = ControlPoint(origin, forward),
+                LayerName = Scene.ParticlesLayerName,
+            };
+
+            scene.Add(particle, true);
+        }
+
         particles.Add(particle);
 
         return particle;
@@ -122,16 +134,23 @@ public sealed class TempEntities
         {
             if (particles[i].IsFinished)
             {
-                Remove(i);
+                Retire(i);
             }
         }
     }
 
-    private void Remove(int index)
+    private void Retire(int index)
     {
         var particle = particles[index];
+        var key = (particle.Scene, particle.Name!);
 
-        particle.Scene.Remove(particle, true);
+        if (!idleParticles.TryGetValue(key, out var idle))
+        {
+            idleParticles[key] = idle = [];
+        }
+
+        particle.Stop();
+        idle.Push(particle);
         particles.RemoveAt(index);
     }
 
@@ -139,6 +158,7 @@ public sealed class TempEntities
     internal void Clear()
     {
         particles.Clear();
+        idleParticles.Clear();
         particleSystems.Clear();
     }
 
