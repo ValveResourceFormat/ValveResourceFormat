@@ -1,4 +1,5 @@
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace ValveResourceFormat.Renderer.Editor.Picking;
 
@@ -66,6 +67,8 @@ public sealed class ScenePicker
     private readonly List<PickRequest> pendingRequests = [];
     private readonly List<PickRequest> frameRequests = [];
     private readonly List<PickResult> results = [];
+    private readonly List<PixelQuery> pendingQueries = [];
+    private readonly List<PixelQuery> frameQueries = [];
     private readonly Action<PickResult> onPicked;
 
     /// <summary>Gets the framebuffer the object id pass is drawn into.</summary>
@@ -80,7 +83,7 @@ public sealed class ScenePicker
         get
         {
             using var _ = requestLock.EnterScope();
-            return pendingRequests.Count > 0;
+            return pendingRequests.Count > 0 || pendingQueries.Count > 0;
         }
     }
 
@@ -106,6 +109,25 @@ public sealed class ScenePicker
         pendingRequests.Add(request);
     }
 
+    /// <summary>
+    /// Reads what is drawn at a point on the next frame, without handing a result to the viewer, so
+    /// nothing acts on it as it would on a click. Answered even while picking is disabled.
+    /// </summary>
+    /// <param name="x">X position in viewport pixels.</param>
+    /// <param name="y">Y position in viewport pixels, from the top.</param>
+    /// <returns>The node and mesh drawn at the point, and the window depth the object id pass left there, which is 0 where nothing was drawn.</returns>
+    public Task<(PickingTexture.PixelInfo Pixel, float Depth)> Query(int x, int y)
+    {
+        var query = new PixelQuery(x, y);
+
+        using (requestLock.EnterScope())
+        {
+            pendingQueries.Add(query);
+        }
+
+        return query.Done.Task;
+    }
+
     /// <summary>Resizes the picking framebuffer to the viewport.</summary>
     /// <param name="width">Viewport width in pixels.</param>
     /// <param name="height">Viewport height in pixels.</param>
@@ -122,9 +144,11 @@ public sealed class ScenePicker
         {
             frameRequests.AddRange(pendingRequests);
             pendingRequests.Clear();
+            frameQueries.AddRange(pendingQueries);
+            pendingQueries.Clear();
         }
 
-        if (frameRequests.Count == 0)
+        if (frameRequests.Count == 0 && frameQueries.Count == 0)
         {
             return;
         }
@@ -140,6 +164,13 @@ public sealed class ScenePicker
         }
 
         frameRequests.Clear();
+
+        foreach (var query in frameQueries)
+        {
+            query.Done.TrySetResult((Texture.ReadPixel(query.X, query.Y), Texture.ReadDepth(query.X, query.Y)));
+        }
+
+        frameQueries.Clear();
     }
 
     /// <summary>Hands the results read back by <see cref="Render"/> to the viewer, in the order they were requested.</summary>
@@ -158,9 +189,24 @@ public sealed class ScenePicker
         results.Clear();
     }
 
-    /// <summary>Deletes the picking framebuffer.</summary>
+    /// <summary>Deletes the picking framebuffer, and cancels the queries it has not answered.</summary>
     public void Delete()
     {
+        using (requestLock.EnterScope())
+        {
+            foreach (var query in pendingQueries)
+            {
+                query.Done.TrySetCanceled();
+            }
+
+            pendingQueries.Clear();
+        }
+
         Texture.Delete();
+    }
+
+    private sealed record PixelQuery(int X, int Y)
+    {
+        public TaskCompletionSource<(PickingTexture.PixelInfo Pixel, float Depth)> Done { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 }

@@ -16,57 +16,34 @@ internal static class Log
         console = control;
     }
 
-    private static void WriteToConsole(string component, string message)
-    {
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [{component}] {message}");
-    }
+    public static void Debug(string component, string message) => Write(Category.DEBUG, component, message);
 
-    public static void Debug(string component, string message)
+    public static void Info(string component, string message) => Write(Category.INFO, component, message);
+
+    public static void Warn(string component, string message) => Write(Category.WARN, component, message);
+
+    public static void Error(string component, string message) => Write(Category.ERROR, component, message);
+
+    private static void Write(Category category, string component, string message)
     {
+#if DEBUG
+        Automation.AutomationLog.Add(category, component, message);
+#endif
+
         if (console == null)
         {
-            WriteToConsole(component, message);
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [{component}] {message}");
             return;
         }
 
 #if DEBUG
-        System.Diagnostics.Debug.WriteLine($"[{component}] {message}");
+        if (category == Category.DEBUG)
+        {
+            System.Diagnostics.Debug.WriteLine($"[{component}] {message}");
+        }
 #endif
 
-        console.WriteLine(Category.DEBUG, component, message);
-    }
-
-    public static void Info(string component, string message)
-    {
-        if (console == null)
-        {
-            WriteToConsole(component, message);
-            return;
-        }
-
-        console.WriteLine(Category.INFO, component, message);
-    }
-
-    public static void Warn(string component, string message)
-    {
-        if (console == null)
-        {
-            WriteToConsole(component, message);
-            return;
-        }
-
-        console.WriteLine(Category.WARN, component, message);
-    }
-
-    public static void Error(string component, string message)
-    {
-        if (console == null)
-        {
-            WriteToConsole(component, message);
-            return;
-        }
-
-        console.WriteLine(Category.ERROR, component, message);
+        console.WriteLine(category, component, message);
     }
 
     public static void ClearConsole() => console?.ClearBuffer();

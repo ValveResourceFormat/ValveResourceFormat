@@ -20,13 +20,19 @@ static class ErrorReport
     private const string GenericHeading = "An error occurred";
 
     /// <summary>
-    /// Logs the exception and shows an error dialog. Can be called from any thread, and before the main window exists.
+    /// Logs the exception and shows an error dialog, or reports it to the agent when automation drives the viewer.
+    /// Can be called from any thread, and before the main window exists.
     /// </summary>
     /// <param name="exception">The exception to report.</param>
     /// <param name="context">What was being done when the exception happened, such as a file path.</param>
     public static void ShowError(Exception exception, string? context = null)
     {
         Log.Error(nameof(ErrorReport), context == null ? exception.ToString() : $"Failed on \"{context}\": {exception}");
+
+        if (Automation.Automation.TryReportUnhandledException(exception))
+        {
+            return;
+        }
 
         var report = new StringBuilder(512);
         AppendExceptionWithVersion(report, exception, context);

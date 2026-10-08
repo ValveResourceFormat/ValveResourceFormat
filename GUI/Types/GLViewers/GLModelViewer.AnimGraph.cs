@@ -30,6 +30,7 @@ namespace GUI.Types.GLViewers
             var controller = animationController;
 
             graphTimeScaleSlider = RendererControl.CreateRowSlider();
+            graphTimeScaleSlider.AccessibleName = "Graph Speed";
             graphTimeScaleSlider.Value = controller.FrametimeMultiplier;
             graphTimeScaleSlider.ValueChanged = timeScale => controller.FrametimeMultiplier = timeScale;
 
@@ -42,6 +43,7 @@ namespace GUI.Types.GLViewers
 
             graphPauseButton = RendererControl.CreateRowButton(string.Empty, () => SetGraphPaused(!controller.IsPaused));
             graphPauseButton.Image = graphPauseImage;
+            graphPauseButton.AccessibleName = "Graph Pause";
 
             var tickButton = RendererControl.CreateRowButton(string.Empty);
             tickButton.Image = graphTickImage;

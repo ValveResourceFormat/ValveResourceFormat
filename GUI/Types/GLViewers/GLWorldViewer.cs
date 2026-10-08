@@ -127,7 +127,7 @@ namespace GUI.Types.GLViewers
 
             UiControl.AddControl(exposureLabel);
 
-            var exposureSlider = UiControl.AddTrackBar((exposureAmount) =>
+            var exposureSlider = UiControl.AddTrackBar("Exposure", (exposureAmount) =>
             {
                 var exposure = exposureAmount * 10;
                 UpdateExposureText(exposure);
@@ -338,7 +338,9 @@ namespace GUI.Types.GLViewers
                     return;
                 }
 
-                SetEnabledLayers([.. worldLayers]);
+                // Layers that had no nodes when the list was filled, such as particles spawned later, stay as they were
+                var unlisted = LoadedWorld?.DefaultEnabledLayers.Where(layer => worldLayersComboBox!.FindStringExact(layer) < 0) ?? [];
+                SetEnabledLayers([.. worldLayers, .. unlisted]);
             });
             physicsGroupsComboBox = UiControl.AddMultiSelection("Physics Groups", null, (physicsGroups) =>
             {
@@ -712,24 +714,8 @@ namespace GUI.Types.GLViewers
             EnsureNodeVisible(node);
         }
 
-        private static AABB SelectionBounds(SceneNode node)
-        {
-            var bbox = node.BoundingBox;
-            var maxSpan = bbox.Size.MaxComponent();
-
-            // Empty or degenerate bounds (e.g. a particle system that finished playing)
-            // would put the camera inside the node or at a garbage position.
-            if (!float.IsFinite(maxSpan) || maxSpan < 1f)
-            {
-                bbox = PointBounds(node.Transform.Translation);
-            }
-
-            // Bounds of a 3D sky node are mapped to where the sky appears in the world
-            return bbox.Transform(node.Scene.ToViewerWorld);
-        }
-
         /// <summary>Bounds to focus on for an entity that has no scene node, from its authored origin.</summary>
-        private AABB EntityOriginBounds(EntityLump.Entity entity)
+        internal AABB EntityOriginBounds(EntityLump.Entity entity)
         {
             var origin = entity.GetVector3Property("origin");
 
@@ -741,27 +727,15 @@ namespace GUI.Types.GLViewers
             return PointBounds(origin);
         }
 
-        private static AABB PointBounds(Vector3 point) => new(point - new Vector3(32f), point + new Vector3(32f));
-
-        private void FocusCameraOnBounds(in AABB bbox)
+        /// <summary>Gets whether a node is an editor-only entity or tools material that the tools switches, or playing the world, hide.</summary>
+        internal bool IsHiddenAsTool(SceneNode node) => HasToolsVisibilityControls && node switch
         {
-            var center = bbox.Center;
+            PhysSceneNode { IsToolsMaterial: true } => !tools.ToolMaterialsVisible,
+            { LayerName: { } layer } => ToolsVisibility.IsToolEntityLayer(layer) && !tools.ToolEntitiesVisible,
+            _ => false,
+        };
 
-            var size = bbox.Size * 1.25f;
-
-            // Framed by what the bounds cover from where the camera will be: their longest axis would
-            // stand a cable or a trigger brush off by its own length. The floor keeps something player
-            // sized from filling the view with nothing around it to place it by.
-            var framing = Input.Camera.GetFramingDistance(size, -CameraPlacement.PreferredDirection(size));
-            var distance = Math.Max(framing, 192f);
-            var location = CameraPlacement.FindOrbitPosition(Renderer.EntitySystem.PhysicsWorld, center, distance, size);
-
-            Input.SaveCameraForTransition();
-            Input.Camera.SetLocation(location);
-            Input.Camera.LookAt(center);
-        }
-
-        private void EnsureNodeVisible(SceneNode node)
+        internal void EnsureNodeVisible(SceneNode node)
         {
             if (node.LayerName != null && ToolsVisibility.IsToolEntityLayer(node.LayerName) && !tools.ShowToolEntities)
             {
@@ -1032,8 +1006,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var scenes = Renderer.Scenes;
-            var sceneNode = pixelInfo.SceneIndex < scenes.Count ? scenes[(int)pixelInfo.SceneIndex].Find(pixelInfo.ObjectId) : null;
+            var sceneNode = Renderer.FindPickedNode(pixelInfo);
 
             if (sceneNode == null)
             {
