@@ -195,10 +195,7 @@ public class Renderer : ISpawnGroupHost
     /// </summary>
     public RenderTexture? ResolvedSceneDepth { get; private set; }
 
-    /// <summary>
-    /// Single sampled depth of the resolved scene with the surfaces of the translucent layers drawn over it,
-    /// read as <c>g_tTranslucentSceneDepth</c>. Filled by <see cref="RenderTranslucentSceneDepth"/>.
-    /// </summary>
+    /// <summary>Scene depth with the translucent surfaces drawn over it, read as <c>g_tTranslucentSceneDepth</c>.</summary>
     public Framebuffer? TranslucentDepthBuffer { get; private set; }
 
     /// <summary>Screen space map of ripple, silt and foam decals that the fancy water shader reads.</summary>
@@ -1185,7 +1182,7 @@ public class Renderer : ISpawnGroupHost
 
         using (new GLDebugGroup("Main Scene Translucent Render"))
         {
-            // Decals read the depth grabbed above, which only the main framebuffer gets
+            // Only the main framebuffer has its depth grabbed for decals to read
             var drawDecals = isStandardPass && !isWireframe && Scene.ProjectedDecals.Count > 0;
             var decalTranslucentSurfaces = drawDecals && RenderTranslucentSceneDepth(mainView, ref renderContext);
 
@@ -1197,7 +1194,6 @@ public class Renderer : ISpawnGroupHost
 
             RenderTranslucentLayer(mainView, ref renderContext);
 
-            // The surfaces these land on are only drawn in the layer above
             if (decalTranslucentSurfaces)
             {
                 DrawThrough(mainView, mainState, ref renderContext);
@@ -1599,11 +1595,7 @@ public class Renderer : ISpawnGroupHost
         waterEffectsMapIsNeutral = !hasDraws;
     }
 
-    /// <summary>
-    /// Draws the surfaces of the refract, water and translucent layers depth only over the resolved scene depth,
-    /// into <see cref="TranslucentDepthBuffer"/>. Needs the scene depth grabbed this frame.
-    /// </summary>
-    /// <returns>Whether there was any surface to draw.</returns>
+    // Returns whether there was any translucent surface to draw
     private bool RenderTranslucentSceneDepth(in SceneView view, ref Scene.RenderContext renderContext)
     {
         var hasDraws = false;
@@ -1632,7 +1624,7 @@ public class Renderer : ISpawnGroupHost
 
         TranslucentDepthBuffer.Bind(FramebufferTarget.Framebuffer);
 
-        // Seeded with the opaque depth, so that surfaces behind it stay hidden and readers can tell the two apart.
+        // Opaque depth first, so surfaces behind it stay hidden
         SeedDepthFromScene(Vector2.One);
 
         // Single sampled, so alpha tested surfaces have to discard rather than lean on coverage
@@ -1651,7 +1643,7 @@ public class Renderer : ISpawnGroupHost
         return true;
     }
 
-    // Fills the bound depth buffer with the resolved scene depth, taking the furthest depth of each block when downsampling
+    // Writes the furthest scene depth of each block into the bound depth buffer
     private void SeedDepthFromScene(Vector2 downsample)
     {
         Debug.Assert(ResolvedSceneDepth != null);
