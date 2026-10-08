@@ -56,7 +56,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// Which parts of the effect a playback cycle covers. Changing it takes effect at the next
         /// <see cref="Restart"/>.
         /// </summary>
-        public ParticlePlaybackMode PlaybackMode { get; set; }
+        public ParticlePlaybackMode PlaybackMode { get; set; } = ParticlePlaybackMode.Normal;
 
         private bool endCapPlayed;
 
