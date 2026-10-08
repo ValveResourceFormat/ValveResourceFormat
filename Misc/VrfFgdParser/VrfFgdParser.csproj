@@ -3,7 +3,7 @@
     <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Sledge.Formats.GameData" Version="1.1.7" />
+    <PackageReference Include="Sledge.Formats.GameData" Version="1.1.8" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\ValveResourceFormat\ValveResourceFormat.csproj" />
