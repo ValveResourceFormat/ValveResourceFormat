@@ -6,14 +6,18 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// Renders the particles of a system as one continuous ribbon threaded through them, textured
-    /// along its own arc length in world units.
+    /// Renders the particles of a system as a ribbon threaded through them, textured along its own
+    /// arc length in world units.
     /// </summary>
     /// <remarks>
     /// The chain is a Catmull-Rom spline whose control points are consecutive particles, subdivided
     /// per segment by a screen size driven tesselation level. Unlike a cable the ribbon is a flat
     /// strip rather than a tube, and it tiles its texture by world distance rather than stretching
     /// one copy over the whole run.
+    ///
+    /// <para>The ribbon breaks wherever the <c>m_nSplitField</c> value changes between neighbours,
+    /// and each piece splines only through its own particles. With <c>m_bSortBySegmentID</c> the
+    /// particles are first grouped by that value, in the order each value first appears.</para>
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderRopes">C_OP_RenderRopes</seealso>
     internal class RenderRopes : ParticleFunctionRenderer
@@ -63,6 +67,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private readonly bool reverseOrder;
         private readonly bool closedLoop;
+        private readonly ParticleField splitField = ParticleField.RopeSegmentId;
+        private readonly bool sortBySegmentId;
         private readonly bool drawAsOpaque;
 
         private readonly bool enableFadingAndClamping;
@@ -74,11 +80,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float endFadeDot = 2f;
 
         private RopeNode[] nodeScratch = [];
+        private long[] sortKeyScratch = [];
+        private readonly Dictionary<float, int> segmentRanks = [];
 
-        private struct RopeNode : IRopeChainEntry
+        private struct RopeNode
         {
-            public int SegmentId { get; init; }
-            public int Order { get; init; }
+            public float Segment;
             public Vector3 Position;
             public float Radius;
             public Vector3 Color;
@@ -140,6 +147,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             reverseOrder = parse.Boolean("m_bReverseOrder", reverseOrder);
             closedLoop = parse.Boolean("m_bClosedLoop", closedLoop);
+            splitField = parse.ParticleField("m_nSplitField", splitField);
+            sortBySegmentId = parse.Boolean("m_bSortBySegmentID", sortBySegmentId);
             drawAsOpaque = parse.Boolean("m_bDrawAsOpaque", drawAsOpaque);
 
             enableFadingAndClamping = parse.Boolean("m_bEnableFadingAndClamping", enableFadingAndClamping);
@@ -296,8 +305,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// Copies the live particles into the node scratch in walk order, applying the size clamp and
-        /// the distance fade that <c>m_bEnableFadingAndClamping</c> gates, then groups them by rope
-        /// segment so each segment draws as its own ribbon.
+        /// the distance fade that <c>m_bEnableFadingAndClamping</c> gates.
         /// </summary>
         private int CollectNodes(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
@@ -310,6 +318,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var startFadeSlope = startFadeSize.NextNumber(systemState);
             var endFadeSlope = endFadeSize.NextNumber(systemState);
+            var splits = splitField is >= 0 and not ParticleField.NoneDisabled;
 
             for (var i = 0; i < count; i++)
             {
@@ -334,8 +343,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 nodeScratch[i] = new RopeNode
                 {
-                    SegmentId = particle.RopeSegmentId,
-                    Order = i,
+                    Segment = splits ? particle.GetScalar(splitField) : 0f,
                     Position = particle.Position,
                     Radius = radius,
                     Color = particle.Color,
@@ -347,16 +355,46 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 };
             }
 
-            RopeSegmentRuns.Group(nodeScratch.AsSpan(0, count));
+            if (sortBySegmentId)
+            {
+                GroupBySegment(nodeScratch.AsSpan(0, count));
+            }
 
             return count;
         }
 
         /// <summary>
-        /// Builds the ribbons into the shared vertex buffer and returns how many quads were written.
+        /// Stably groups the nodes by segment, ordering the groups by where each segment first appears.
+        /// </summary>
+        private void GroupBySegment(Span<RopeNode> nodes)
+        {
+            if (sortKeyScratch.Length < nodes.Length)
+            {
+                sortKeyScratch = new long[nodes.Length];
+            }
+
+            var keys = sortKeyScratch.AsSpan(0, nodes.Length);
+            segmentRanks.Clear();
+
+            for (var i = 0; i < nodes.Length; i++)
+            {
+                if (!segmentRanks.TryGetValue(nodes[i].Segment, out var rank))
+                {
+                    rank = segmentRanks.Count;
+                    segmentRanks.Add(nodes[i].Segment, rank);
+                }
+
+                keys[i] = ((long)rank << 32) | (uint)i;
+            }
+
+            keys.Sort(nodes);
+        }
+
+        /// <summary>
+        /// Builds the ribbon into the shared vertex buffer and returns how many quads were written.
         /// V is raw world arc length measured between the particles themselves, so subdividing a
-        /// segment keeps the same V span as the straight chord it replaces. Each rope segment is a
-        /// ribbon of its own, with its own V run and closed or open ends.
+        /// segment keeps the same V span as the straight chord it replaces. A segment joining two
+        /// rope segments is not drawn, but its length still advances V.
         /// </summary>
         private int UpdateVertices(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
@@ -368,6 +406,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             var nodes = nodeScratch.AsSpan(0, nodeCount);
+            var segmentCount = closedLoop ? nodeCount : nodeCount - 1;
             var subdivisions = 1 << ComputeTessellationLevel(nodes, camera);
 
             var (scrollRate, vOffset, oneOverWorldSize) = ResolveTextureV(systemState);
@@ -382,81 +421,63 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 sheets[layer] = ResolveSheetFrame(particleBag, layers[layer].Texture);
             }
 
-            // A closed loop has as many segments as nodes, so nodeCount bounds every run's segments
-            var maxQuads = Math.Min(MaxQuads, nodeCount * subdivisions);
+            var maxQuads = Math.Min(MaxQuads, segmentCount * subdivisions);
             var quadCount = 0;
+            var arcLength = scrollRate * systemState.Age;
 
             using (var vertexBuffer = new RentedBuffer<SpritecardVertex>(maxQuads * 4))
             {
                 var vertices = vertexBuffer.Span;
+                var stripAxis = Vector3.Zero;
 
-                for (var start = 0; start < nodeCount && quadCount < maxQuads;)
+                for (var segment = 0; segment < segmentCount && quadCount < maxQuads; segment++)
                 {
-                    var end = RopeSegmentRuns.RunEnd<RopeNode>(nodes, start);
+                    ref readonly var n1 = ref nodes[ResolveIndex(segment, nodeCount)];
+                    ref readonly var n2 = ref nodes[ResolveIndex(segment + 1, nodeCount)];
 
-                    if (end - start >= 2)
+                    var vStart = arcLength;
+                    var vEnd = arcLength + Vector3.Distance(n1.Position, n2.Position);
+                    arcLength = vEnd;
+
+                    if (n1.Segment != n2.Segment)
                     {
-                        quadCount = AppendRibbon(nodes[start..end], subdivisions, quadCount, maxQuads, vertices,
-                            scrollRate * systemState.Age, oneOverWorldSize, vOffset, sheets, uvTransforms, viewAngleFadeActive, camera);
+                        stripAxis = Vector3.Zero;
+                        continue;
                     }
 
-                    start = end;
+                    ref readonly var before = ref nodes[ResolveIndex(segment - 1, nodeCount)];
+                    ref readonly var after = ref nodes[ResolveIndex(segment + 2, nodeCount)];
+                    ref readonly var n0 = ref before.Segment == n1.Segment ? ref before : ref n1;
+                    ref readonly var n3 = ref after.Segment == n2.Segment ? ref after : ref n2;
+
+                    if (useScalarForTextureCoordinate)
+                    {
+                        vStart = n1.ScalarCoordinate;
+                        vEnd = n2.ScalarCoordinate;
+                    }
+
+                    var previous = EvaluateSample(n0, n1, n2, n3, 0f, camera);
+                    AlignWidthAxis(ref previous, ref stripAxis);
+
+                    for (var step = 1; step <= subdivisions && quadCount < maxQuads; step++)
+                    {
+                        var t = step / (float)subdivisions;
+                        var current = EvaluateSample(n0, n1, n2, n3, t, camera);
+                        AlignWidthAxis(ref current, ref stripAxis);
+
+                        WriteQuad(vertices, quadCount, previous, current,
+                            MapV(float.Lerp(vStart, vEnd, (step - 1) / (float)subdivisions), oneOverWorldSize, vOffset),
+                            MapV(float.Lerp(vStart, vEnd, t), oneOverWorldSize, vOffset),
+                            sheets, uvTransforms, viewAngleFadeActive, camera);
+
+                        quadCount++;
+                        previous = current;
+                    }
                 }
 
                 if (quadCount > 0)
                 {
                     GL.NamedBufferData(vertexBufferHandle, quadCount * 4 * SpritecardVertex.InputLayout.Stride, vertexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
-                }
-            }
-
-            return quadCount;
-        }
-
-        /// <summary>
-        /// Writes one rope segment's ribbon after the <paramref name="quadCount"/> quads already in
-        /// <paramref name="vertices"/>, and returns the new quad count.
-        /// </summary>
-        private int AppendRibbon(ReadOnlySpan<RopeNode> nodes, int subdivisions, int quadCount, int maxQuads, Span<SpritecardVertex> vertices,
-            float arcLength, float oneOverWorldSize, float vOffset, ReadOnlySpan<SheetFrame> sheets,
-            ReadOnlySpan<ParticleTextureLayer.UvTransform> uvTransforms, bool viewAngleFadeActive, Camera camera)
-        {
-            var nodeCount = nodes.Length;
-            var segmentCount = closedLoop ? nodeCount : nodeCount - 1;
-            var stripAxis = Vector3.Zero;
-
-            for (var segment = 0; segment < segmentCount && quadCount < maxQuads; segment++)
-            {
-                ref readonly var n0 = ref nodes[ResolveIndex(segment - 1, nodeCount)];
-                ref readonly var n1 = ref nodes[ResolveIndex(segment, nodeCount)];
-                ref readonly var n2 = ref nodes[ResolveIndex(segment + 1, nodeCount)];
-                ref readonly var n3 = ref nodes[ResolveIndex(segment + 2, nodeCount)];
-
-                var vStart = arcLength;
-                var vEnd = arcLength + Vector3.Distance(n1.Position, n2.Position);
-                arcLength = vEnd;
-
-                if (useScalarForTextureCoordinate)
-                {
-                    vStart = n1.ScalarCoordinate;
-                    vEnd = n2.ScalarCoordinate;
-                }
-
-                var previous = EvaluateSample(n0, n1, n2, n3, 0f, camera);
-                AlignWidthAxis(ref previous, ref stripAxis);
-
-                for (var step = 1; step <= subdivisions && quadCount < maxQuads; step++)
-                {
-                    var t = step / (float)subdivisions;
-                    var current = EvaluateSample(n0, n1, n2, n3, t, camera);
-                    AlignWidthAxis(ref current, ref stripAxis);
-
-                    WriteQuad(vertices, quadCount, previous, current,
-                        MapV(float.Lerp(vStart, vEnd, (step - 1) / (float)subdivisions), oneOverWorldSize, vOffset),
-                        MapV(float.Lerp(vStart, vEnd, t), oneOverWorldSize, vOffset),
-                        sheets, uvTransforms, viewAngleFadeActive, camera);
-
-                    quadCount++;
-                    previous = current;
                 }
             }
 

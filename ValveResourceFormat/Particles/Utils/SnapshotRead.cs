@@ -62,13 +62,6 @@ namespace ValveResourceFormat.Particles.Utils
             return column;
         }
 
-        /// <summary>
-        /// The bound snapshot's column holding <paramref name="field"/>, for a reader that takes
-        /// a second attribute along with the one it was authored for.
-        /// </summary>
-        public IEnumerable? CompanionColumn(ParticleSystemState particleSystemState, ParticleField field)
-            => binding.ResolveAttribute(particleSystemState, field);
-
         /// <summary>How many rows the bound snapshot offers.</summary>
         public int RowCount(ParticleSystemState particleSystemState) => binding.Count(particleSystemState);
 

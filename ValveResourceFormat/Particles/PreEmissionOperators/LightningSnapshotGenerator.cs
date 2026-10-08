@@ -6,31 +6,24 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 {
     /// <summary>
     /// Builds a branching lightning bolt between two control points and publishes it as a snapshot on
-    /// a control point, for snapshot emitters and initializers to spawn one particle per bolt point.
+    /// a control point, for snapshot emitters and initializers to spawn one particle per bolt row.
     /// </summary>
     /// <remarks>
-    /// The bolt is a midpoint displacement: the span is halved <c>m_flSegments</c> times, each new
-    /// midpoint pushed sideways by up to the current offset, which shrinks by <c>m_flOffsetDecay</c>
-    /// per level. A new midpoint may split off a branch reaching as far as the rest of the span it
-    /// halves, itself a bolt with the recursion levels and offset left at that depth, so branches
-    /// split early are long and coarse and branches split late are short. The split chance, branch
-    /// reach and branch offset and twist are each scaled per recursion level when authored to.
+    /// The bolt is one flat list of rows. Each pass inserts a jittered midpoint between every pair of
+    /// connected neighbours, and a midpoint may split off a branch, which is appended to the end of
+    /// the list and subdivided by the passes that follow. Every run of connected rows is closed by
+    /// separator rows with zero radius and an <see cref="ParticleField.AlphaAlternate"/> of 0, so a
+    /// rope drawn through all of them in order draws the joins between runs at zero width.
     ///
-    /// <para>Every bolt and branch writes its points as one contiguous run tagged with its own
-    /// <see cref="ParticleField.RopeSegmentId"/>, so a rope or cable drawing the particles can keep
-    /// the branches apart instead of threading one strip through all of them.</para>
+    /// <para>The snapshot carries position, radius, the connected flag as alpha2 and a parametric
+    /// texture coordinate as scratch float. It is padded to the row count of the first bolt (or
+    /// <c>m_flDedicatedPool</c>) with separator rows at the end point, and capped at the system's
+    /// particle limit.</para>
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LightningSnapshotGenerator">C_OP_LightningSnapshotGenerator</seealso>
     class LightningSnapshotGenerator : ParticleFunctionPreEmissionOperator
     {
-        /// <summary>Deepest midpoint recursion honoured, 1025 points per bolt.</summary>
-        public const int MaxRecursionDepth = 10;
-
-        /// <summary>Deepest branch nesting honoured, so a high split rate cannot recurse without end.</summary>
-        public const int MaxBranchLevel = 4;
-
-        /// <summary>Row ceiling when no dedicated pool is authored, matching the particle pool ceiling.</summary>
-        public const int DefaultMaxRows = 20000;
+        private const float MaxSegments = 8f;
 
         private readonly int snapshotControlPoint;
         private readonly int startControlPoint;
@@ -54,8 +47,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         private readonly INumberProvider radiusEnd = new LiteralNumberProvider(0f);
         private readonly INumberProvider dedicatedPool = new LiteralNumberProvider(-1f);
 
-        private bool generated;
-        private float timeSinceGenerated;
+        private float nextGenerationTime;
+        private int poolSize = -1;
 
         public LightningSnapshotGenerator(ParticleDefinitionParser parse) : base(parse)
         {
@@ -83,224 +76,212 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
         public override void Reset()
         {
-            generated = false;
-            timeSinceGenerated = 0f;
-        }
-
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
-        {
-            // A non-positive rate keeps the first bolt for the life of the system
-            if (generated)
-            {
-                var rate = recalcRate.NextNumber(particleSystemState);
-                timeSinceGenerated += frameTime;
-
-                if (rate <= 0f || timeSinceGenerated < 1f / rate)
-                {
-                    return;
-                }
-            }
-
-            generated = true;
-            timeSinceGenerated = 0f;
-
-            var pool = dedicatedPool.NextNumber(particleSystemState);
-
-            var settings = new LightningSettings
-            {
-                Depth = Math.Clamp((int)MathF.Round(segments.NextNumber(particleSystemState)), 0, MaxRecursionDepth),
-                Offset = offset.NextNumber(particleSystemState),
-                OffsetDecay = offsetDecay.NextNumber(particleSystemState),
-                UvScale = uvScale.NextNumber(particleSystemState),
-                UvOffset = uvOffset.NextNumber(particleSystemState),
-                SplitRate = splitRate.NextNumber(particleSystemState),
-                RecursionSplitScale = recursionSplitScale.NextNumber(particleSystemState),
-                BranchDistanceScale = scaleBranchDistance ? branchDistanceScale.NextNumber(particleSystemState) : 1f,
-                BranchOffsetScale = scaleBranchOffset ? branchOffsetScale.NextNumber(particleSystemState) : 1f,
-                BranchTwist = branchTwist.NextNumber(particleSystemState),
-                BranchBehavior = branchBehavior,
-                RadiusStart = radiusStart.NextNumber(particleSystemState),
-                RadiusEnd = radiusEnd.NextNumber(particleSystemState),
-                MaxRows = pool > 0f ? Math.Min((int)pool, DefaultMaxRows) : DefaultMaxRows,
-            };
-
-            var start = particleSystemState.GetControlPoint(startControlPoint).Position;
-            var end = particleSystemState.GetControlPoint(endControlPoint).Position;
-
-            var snapshot = Build(start, end, settings, particleSystemState.Random.Next);
-            particleSystemState.Data?.SetControlPointSnapshot(snapshotControlPoint, snapshot);
-        }
-
-        /// <summary>The evaluated inputs of one bolt generation.</summary>
-        private readonly record struct LightningSettings
-        {
-            public int Depth { get; init; }
-            public float Offset { get; init; }
-            public float OffsetDecay { get; init; }
-            public float UvScale { get; init; }
-            public float UvOffset { get; init; }
-            public float SplitRate { get; init; }
-            public float RecursionSplitScale { get; init; }
-            public float BranchDistanceScale { get; init; }
-            public float BranchOffsetScale { get; init; }
-            public float BranchTwist { get; init; }
-            public ParticleLightningBranchBehavior BranchBehavior { get; init; }
-            public float RadiusStart { get; init; }
-            public float RadiusEnd { get; init; }
-            public int MaxRows { get; init; }
+            nextGenerationTime = 0f;
+            poolSize = -1;
         }
 
         /// <summary>
-        /// Builds the bolt from <paramref name="start"/> to <paramref name="end"/>. Every random draw
-        /// goes through <paramref name="random"/> in a fixed order, so the same sequence always gives
-        /// the same bolt. A bolt with coincident end points has nowhere to go and yields no rows.
+        /// Builds a new bolt once the system's age passes the next generation time. <c>m_flRecalcRate</c>
+        /// is the period until the next one, so 0 rebuilds every step and a negative rate keeps the first.
         /// </summary>
-        private static ParticleSnapshot Build(Vector3 start, Vector3 end, in LightningSettings settings, Func<float> random)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
         {
-            var builder = new BoltBuilder(settings, random);
-
-            if (Vector3.DistanceSquared(start, end) > ParticleMath.MinimumLengthSquared)
+            if (particleSystemState.Age <= nextGenerationTime)
             {
-                builder.AddBolt(start, end, settings.Depth, settings.Offset, settings.RadiusStart, settings.RadiusEnd, firstLevel: 0, branchLevel: 0);
+                return;
             }
 
-            return builder.ToSnapshot();
+            var period = recalcRate.NextNumber(particleSystemState);
+            nextGenerationTime = period >= 0f ? particleSystemState.Age + period : float.MaxValue;
+
+            var passes = segments.NextNumber(particleSystemState);
+            passes = passes >= 0f ? MathF.Min(MaxSegments, passes) : 0f;
+
+            var textureStart = uvOffset.NextNumber(particleSystemState);
+
+            var builder = new BoltBuilder(particleSystemState.Random)
+            {
+                Passes = passes,
+                Offset = offset.NextNumber(particleSystemState),
+                OffsetDecay = offsetDecay.NextNumber(particleSystemState),
+                SplitRate = Math.Clamp(splitRate.NextNumber(particleSystemState), 0f, 0.25f),
+                RecursionSplitScale = Math.Clamp(recursionSplitScale.NextNumber(particleSystemState), 0f, 10f),
+                ScaleBranchDistance = scaleBranchDistance,
+                BranchDistanceScale = Math.Clamp(branchDistanceScale.NextNumber(particleSystemState), 1e-4f, 100f),
+                ScaleBranchOffset = scaleBranchOffset,
+                BranchOffsetScale = Math.Clamp(branchOffsetScale.NextNumber(particleSystemState), 0f, 100f),
+                BranchTwist = branchTwist.NextNumber(particleSystemState),
+                BranchBehavior = branchBehavior,
+                TextureEnd = textureStart + uvScale.NextNumber(particleSystemState),
+                End = particleSystemState.GetControlPoint(endControlPoint).Position,
+            };
+
+            builder.Build(particleSystemState.GetControlPoint(startControlPoint).Position, textureStart,
+                radiusStart.NextNumber(particleSystemState), radiusEnd.NextNumber(particleSystemState));
+
+            if (poolSize < 0)
+            {
+                var dedicated = (int)dedicatedPool.NextNumber(particleSystemState);
+                poolSize = dedicated > 0 ? dedicated : builder.RowCount;
+            }
+
+            builder.PadTo(poolSize);
+
+            var capacity = particleSystemState.Data?.ParticleCapacity ?? builder.RowCount;
+            var snapshot = builder.ToSnapshot(Math.Min(builder.RowCount, capacity));
+            particleSystemState.Data?.SetControlPointSnapshot(snapshotControlPoint, snapshot);
         }
 
-        private sealed class BoltBuilder(LightningSettings settings, Func<float> random)
+        /// <summary>
+        /// One row of the bolt. <see cref="Generation"/> is 1 on the main bolt and one more on each
+        /// branch level, and -1 on separator rows.
+        /// </summary>
+        private readonly record struct BoltRow(Vector3 Position, float Radius, bool Connected, float TextureCoordinate, int Generation)
         {
-            private readonly List<Vector3> positions = [];
-            private readonly List<float> radii = [];
-            private readonly List<float> textureCoordinates = [];
-            private readonly List<int> segmentIds = [];
-            private int nextSegmentId;
+            public static BoltRow Separator(Vector3 position, float textureCoordinate) => new(position, 0f, false, textureCoordinate, -1);
+        }
 
-            private bool IsFull => positions.Count >= settings.MaxRows;
+        private sealed class BoltBuilder(ParticleRandom random)
+        {
+            private readonly List<BoltRow> rows = [];
 
-            public void AddBolt(Vector3 start, Vector3 end, int depth, float offset, float startRadius, float endRadius, int firstLevel, int branchLevel)
+            public float Passes { get; init; }
+            public float Offset { get; init; }
+            public float OffsetDecay { get; init; }
+            public float SplitRate { get; init; }
+            public float RecursionSplitScale { get; init; }
+            public bool ScaleBranchDistance { get; init; }
+            public float BranchDistanceScale { get; init; }
+            public bool ScaleBranchOffset { get; init; }
+            public float BranchOffsetScale { get; init; }
+            public float BranchTwist { get; init; }
+            public ParticleLightningBranchBehavior BranchBehavior { get; init; }
+            public float TextureEnd { get; init; }
+            public Vector3 End { get; init; }
+
+            public int RowCount => rows.Count;
+
+            public void Build(Vector3 start, float textureStart, float startRadius, float endRadius)
             {
-                // A run needs two rows to draw as a segment, a lone leftover row would only be a dot
-                if (settings.MaxRows - positions.Count < 2)
+                rows.Add(new BoltRow(start, startRadius, true, textureStart, 1));
+                rows.Add(new BoltRow(End, endRadius, true, TextureEnd, 1));
+                rows.Add(BoltRow.Separator(End, TextureEnd));
+                rows.Add(BoltRow.Separator(End, TextureEnd));
+
+                var offset = Offset;
+
+                for (var pass = 0; Passes > pass; pass++)
                 {
-                    return;
-                }
-
-                var axis = MathUtils.SafeNormalize(end - start, Vector3.UnitX, ParticleMath.MinimumLengthSquared);
-
-                var count = (1 << depth) + 1;
-                var points = new Vector3[count];
-                points[0] = start;
-                points[^1] = end;
-
-                var branches = new List<Branch>();
-                Displace(points, end, axis, offset, firstLevel, branchLevel, branches);
-
-                var segmentId = nextSegmentId++;
-                var arcLength = 0f;
-                var oneOverUvScale = MathF.Abs(settings.UvScale) > float.Epsilon ? 1f / settings.UvScale : 0f;
-
-                for (var i = 0; i < count && !IsFull; i++)
-                {
-                    if (i > 0)
+                    for (var i = 0; i + 1 < rows.Count; i++)
                     {
-                        arcLength += Vector3.Distance(points[i - 1], points[i]);
-                    }
-
-                    positions.Add(points[i]);
-                    radii.Add(float.Lerp(startRadius, endRadius, i / (float)(count - 1)));
-                    textureCoordinates.Add((arcLength * oneOverUvScale) + settings.UvOffset);
-                    segmentIds.Add(segmentId);
-                }
-
-                // Branches follow the whole parent run so every run stays contiguous
-                foreach (var branch in branches)
-                {
-                    var radius = float.Lerp(startRadius, endRadius, branch.Fraction);
-                    AddBolt(branch.Start, branch.End, branch.Depth, branch.Offset, radius, endRadius, branch.FirstLevel, branchLevel + 1);
-                }
-            }
-
-            /// <summary>A branch decided while subdividing, built once its parent run is written.</summary>
-            private readonly record struct Branch(Vector3 Start, Vector3 End, int Depth, float Offset, float Fraction, int FirstLevel);
-
-            /// <summary>
-            /// Fills the interior points by halving every span in turn, pushing each new midpoint off
-            /// the line by a random amount up to the offset, which decays once per level. Each new
-            /// midpoint rolls for a branch, collected into <paramref name="branches"/>.
-            /// </summary>
-            private void Displace(Vector3[] points, Vector3 end, Vector3 axis, float offset, int firstLevel, int branchLevel, List<Branch> branches)
-            {
-                var displacement = offset;
-                var canBranch = branchLevel < MaxBranchLevel && settings.SplitRate > 0f;
-                var level = firstLevel;
-
-                for (var step = points.Length - 1; step > 1; step /= 2, level++)
-                {
-                    var half = step / 2;
-                    var splitChance = settings.SplitRate * MathF.Pow(settings.RecursionSplitScale, level);
-
-                    for (var i = half; i < points.Length - 1; i += step)
-                    {
-                        var before = points[i - half];
-                        var after = points[i + half];
-                        var direction = MathUtils.SafeNormalize(after - before, axis, ParticleMath.MinimumLengthSquared);
-                        var push = ((random() * 2f) - 1f) * displacement;
-
-                        points[i] = ((before + after) * 0.5f) + (RandomPerpendicular(direction) * push);
-
-                        if (canBranch && random() < splitChance)
+                        if (!rows[i].Connected || !rows[i + 1].Connected)
                         {
-                            branches.Add(SplitBranch(points[i], after, end, direction, displacement * settings.OffsetDecay,
-                                BitOperations.Log2((uint)half), i / (float)(points.Length - 1), level));
+                            continue;
                         }
+
+                        Subdivide(i, offset);
+                        i++;
                     }
 
-                    displacement *= settings.OffsetDecay;
+                    offset *= OffsetDecay;
                 }
             }
 
             /// <summary>
-            /// Shapes a branch splitting off at <paramref name="origin"/>, a new midpoint whose span
-            /// runs on to <paramref name="spanEnd"/>. The branch reaches as far as that rest of the span,
-            /// with the recursion levels and offset left below this one.
+            /// Inserts a midpoint after row <paramref name="index"/>, pushed off the span by a random
+            /// point in a ball of half the jitter and by up to half the jitter along the span's cross
+            /// product with the row's position, then rolls for a branch splitting off it.
             /// </summary>
-            private Branch SplitBranch(Vector3 origin, Vector3 spanEnd, Vector3 boltEnd, Vector3 spanDirection, float offset, int depth, float fraction, int level)
+            private void Subdivide(int index, float offset)
             {
-                var heading = settings.BranchBehavior == ParticleLightningBranchBehavior.PARTICLE_LIGHTNING_BRANCH_ENDPOINT_DIR
-                    ? MathUtils.SafeNormalize(boltEnd - origin, spanDirection, ParticleMath.MinimumLengthSquared)
-                    : spanDirection;
+                var from = rows[index];
+                var to = rows[index + 1];
+                var generation = from.Generation;
 
-                // Twist tilts the branch off its heading by a random sideways vector
-                var offsetScale = MathF.Pow(settings.BranchOffsetScale, level + 1);
-                var twist = settings.BranchTwist * offsetScale;
-                heading = MathUtils.SafeNormalize(heading + (RandomPerpendicular(heading) * twist), heading, ParticleMath.MinimumLengthSquared);
+                var jitter = ScaleBranchDistance ? offset / (BranchDistanceScale * generation) : offset;
 
-                var reach = Vector3.Distance(origin, spanEnd) * MathF.Pow(settings.BranchDistanceScale, level + 1);
+                var direction = MathUtils.SafeNormalize(to.Position - from.Position, Vector3.UnitZ);
+                // Intentional: crossing with the row's world position makes the jitter depend on where the bolt is
+                var sideways = MathUtils.SafeNormalize(Vector3.Cross(direction, from.Position));
+                var wander = random.NextInUnitBall(out _);
+                var push = random.NextBetween(-jitter, jitter) / generation;
 
-                return new Branch(origin, origin + (heading * reach), Math.Max(1, depth), offset * offsetScale, fraction, level + 1);
+                var midpoint = ((from.Position + to.Position) * 0.5f) + (wander * (jitter * 0.5f)) + (sideways * (push * 0.5f));
+
+                rows.Insert(index + 1, new BoltRow(midpoint, (from.Radius + to.Radius) * 0.5f, true,
+                    (from.TextureCoordinate + to.TextureCoordinate) * 0.5f, generation));
+
+                var splitScale = RecursionSplitScale == 1f ? 1f : (1f - (generation / Passes)) * RecursionSplitScale;
+
+                if (SplitRate * splitScale / generation > random.Next())
+                {
+                    AddBranch(index, jitter);
+                }
             }
 
-            private Vector3 RandomPerpendicular(Vector3 direction)
+            /// <summary>
+            /// Appends a branch from the midpoint just inserted after row <paramref name="index"/>,
+            /// framed by separator rows, ending at zero radius halfway from the midpoint's texture
+            /// coordinate to the bolt's last one.
+            /// </summary>
+            private void AddBranch(int index, float jitter)
             {
-                var reference = MathF.Abs(direction.Z) < 0.99f ? Vector3.UnitZ : Vector3.UnitX;
-                var u = Vector3.Normalize(Vector3.Cross(direction, reference));
-                var v = Vector3.Cross(direction, u);
-                var (sin, cos) = MathF.SinCos(random() * MathF.Tau);
+                var origin = rows[index + 1];
+                var generation = origin.Generation + 1;
+                var offsetScale = ScaleBranchOffset ? generation * BranchOffsetScale : 1f;
 
-                return (u * cos) + (v * sin);
+                var wander = random.NextInUnitBall(out _);
+                var length = ((Vector3.Distance(origin.Position, End) * 0.1875f) + (Vector3.Distance(rows[0].Position, rows[1].Position) * 0.75f)) * 0.5f;
+                var direction = MathUtils.SafeNormalize(origin.Position - rows[index].Position);
+                var push = random.NextBetween(-jitter, jitter);
+
+                var branchEnd = BranchBehavior == ParticleLightningBranchBehavior.PARTICLE_LIGHTNING_BRANCH_ENDPOINT_DIR
+                    ? origin.Position + (Vector3.Lerp(MathUtils.SafeNormalize(End - origin.Position), direction, BranchTwist) * length) + (wander * (push * offsetScale))
+                    : origin.Position + (direction * length) + (wander * (BranchTwist * push * offsetScale));
+
+                var textureEnd = ((TextureEnd - origin.TextureCoordinate) * 0.5f) + origin.TextureCoordinate;
+
+                rows.Add(BoltRow.Separator(origin.Position, origin.TextureCoordinate));
+                rows.Add(BoltRow.Separator(origin.Position, origin.TextureCoordinate));
+                rows.Add(origin with { Generation = generation });
+                rows.Add(new BoltRow(branchEnd, 0f, true, textureEnd, generation));
+                rows.Add(BoltRow.Separator(branchEnd, textureEnd));
+                rows.Add(BoltRow.Separator(branchEnd, textureEnd));
             }
 
-            public ParticleSnapshot ToSnapshot()
+            public void PadTo(int count)
             {
+                while (rows.Count < count)
+                {
+                    rows.Add(BoltRow.Separator(End, 0f));
+                }
+            }
+
+            public ParticleSnapshot ToSnapshot(int count)
+            {
+                var positions = new Vector3[count];
+                var radii = new float[count];
+                var connected = new float[count];
+                var textureCoordinates = new float[count];
+
+                for (var i = 0; i < count; i++)
+                {
+                    var row = rows[i];
+                    positions[i] = row.Position;
+                    radii[i] = row.Radius;
+                    connected[i] = row.Connected ? 1f : 0f;
+                    textureCoordinates[i] = row.TextureCoordinate;
+                }
+
                 var columns = new Dictionary<(string Name, string Type), IEnumerable>
                 {
-                    [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.Position)!, "float3")] = positions.ToArray(),
-                    [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.Radius)!, "float")] = radii.ToArray(),
-                    [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.ScratchFloat)!, "float")] = textureCoordinates.ToArray(),
-                    [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.RopeSegmentId)!, "int")] = segmentIds.ToArray(),
+                    [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.Position)!, "float3")] = positions,
+                    [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.Radius)!, "float")] = radii,
+                    [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.AlphaAlternate)!, "float")] = connected,
+                    [(ParticleSnapshot.GetSnapshotAttributeName(ParticleField.ScratchFloat)!, "float")] = textureCoordinates,
                 };
 
-                return ParticleSnapshot.Create((uint)positions.Count, columns);
+                return ParticleSnapshot.Create((uint)count, columns);
             }
         }
     }
