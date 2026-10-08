@@ -70,11 +70,11 @@ namespace ValveResourceFormat.Renderer.PostProcess
         /// <summary>Gets or sets the final linear tonemap scalar passed to the post-process shader.</summary>
         public float TonemapScalar { get; set; }
         /// <summary>
-        /// Gets or sets this frame's effects bloom map, geometry drawn to show only as glow, or null when
+        /// Gets this frame's effects bloom map, geometry drawn to show only as glow, or null when
         /// nothing drew into it. It is bloomed even when no post process volume enables bloom, with the
         /// default settings and without blooming the scene itself.
         /// </summary>
-        public RenderTexture? EffectsBloom { get; set; }
+        public RenderTexture? EffectsBloom { get; internal set; }
 
         /// <summary>Gets the bloom renderer used for the multi-pass Gaussian bloom effect.</summary>
         public BloomRenderer Bloom { get; private set; }

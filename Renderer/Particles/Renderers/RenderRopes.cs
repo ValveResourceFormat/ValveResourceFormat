@@ -633,7 +633,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             ref var head = ref particleBag.Current[0];
-            var sequence = spriteSheetData.Sequences[head.SequenceNumber % spriteSheetData.Sequences.Length];
+            var sequence = spriteSheetData.Sequences[(uint)head.SequenceNumber < (uint)spriteSheetData.Sequences.Length ? head.SequenceNumber : 0];
 
             if (sequence.Frames.Length == 0)
             {

@@ -223,14 +223,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// The frames a layer's own sheet is showing, or null when it carries no sequence.
         /// </summary>
         /// <remarks>
-        /// The first layer plays the particle's sequence. The layers after it play the second sequence
-        /// when the system gives its particles one, which is how a sheet split into alpha-only and
-        /// color-only sequences pairs an alpha layer with a separately chosen color layer; otherwise
-        /// they follow the first layer, as companion sheets laid out like it do. A sequence number past
-        /// the end of the sheet wraps around it. A frame packing several images gives each layer the
-        /// image at its own index, the last one standing in for layers beyond them.
+        /// The first layer plays the particle's sequence and every layer after it the second sequence,
+        /// which is 0 unless something sets it. A sequence number outside the sheet plays sequence 0. A
+        /// frame packing several images gives each layer the image at its own index, the last one
+        /// standing in for layers beyond them.
         /// </remarks>
-        private LayerFrames? GetLayerFrames(int layer, ref Particle particle, bool layersUseSecondSequence)
+        private LayerFrames? GetLayerFrames(int layer, ref Particle particle)
         {
             var spriteSheetData = layers[layer].Texture.SpriteSheetData;
 
@@ -239,8 +237,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return null;
             }
 
-            var sequenceNumber = layer > 0 && layersUseSecondSequence ? particle.SecondSequenceNumber : particle.SequenceNumber;
-            var sequence = spriteSheetData.Sequences[(int)((uint)sequenceNumber % (uint)spriteSheetData.Sequences.Length)];
+            var sequenceNumber = layer > 0 ? particle.SecondSequenceNumber : particle.SequenceNumber;
+            var sequence = spriteSheetData.Sequences[(uint)sequenceNumber < (uint)spriteSheetData.Sequences.Length ? sequenceNumber : 0];
 
             if (sequence.Frames.Length == 0)
             {
@@ -373,8 +371,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Fills and uploads the quad buffer, returning the number of quads actually emitted.</summary>
         private int UpdateVertices(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
-            var layersUseSecondSequence = layers.Length > 1 && systemState.Data?.InitializesField(ParticleField.SecondSequenceNumber) == true;
-
             var billboardMatrix = camera.BillboardMatrix;
 
             // All four bounds are a radius per unit of camera distance
@@ -495,7 +491,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         + (centerOffset.X * right)
                         + (centerOffset.Y * up);
 
-                    var cardFrames = GetLayerFrames(0, ref particle, layersUseSecondSequence);
+                    var cardFrames = GetLayerFrames(0, ref particle);
                     var window = GetCardCropWindow(cardFrames);
                     var windowSize = window.Size;
 
@@ -527,7 +523,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     for (var layer = 1; layer < layers.Length; layer++)
                     {
-                        var (layerMin, layerMax, layerNextMin, layerNextMax) = GetLayerSheetUvs(GetLayerFrames(layer, ref particle, layersUseSecondSequence), window);
+                        var (layerMin, layerMax, layerNextMin, layerNextMax) = GetLayerSheetUvs(GetLayerFrames(layer, ref particle), window);
 
                         layerRects[(layer - 1) * 2] = Rect(layerMin, layerMax);
                         layerRects[((layer - 1) * 2) + 1] = Rect(layerNextMin, layerNextMax);

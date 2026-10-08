@@ -314,7 +314,9 @@ Particle systems round-trip exactly: extraction re-emits the original stored KV3
 VRF's upgraded in-memory version, so decompiled `.vpcf` files match the compiled source
 (pre-KV3 NTRO-era files are re-encoded as KV3 text instead). The viewer simulates a large
 subset of particle functions and lists any unsupported functions per system in red instead
-of failing. Omni2 particle lights of the barn type are drawn as point lights.
+of failing. Omni2 particle lights of the barn type are drawn as point lights. Particles drawn
+as models render in their bind pose, without animation or body groups. Particles drawn as
+projected decals use the scene's projected decal system.
 
 Particle snapshots (`vsnap`) preview and extract. Bone name streams survive, but skinning
 streams are written into the extracted `.vsnap` as empty streams: their values show in the
@@ -359,8 +361,6 @@ interpreted.
   ([#874](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/874)).
 - **Half-Life: Alyx**: its custom per-mip roughness normal map packing has no preserving
   export path ([#936](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/936)).
-  Model-rendering particle operators used by some HLA effects are not implemented in the
-  viewer ([#716](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/716)).
 - **Dota 2**: the uncompiled VGrass format found in map VPKs is entirely unparsed
   ([#83](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/83)). Hero list,
   patch notes and visual novel resources are text dumps only.

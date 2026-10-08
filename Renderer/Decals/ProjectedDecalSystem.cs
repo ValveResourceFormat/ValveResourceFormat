@@ -115,9 +115,9 @@ namespace ValveResourceFormat.Renderer.Decals
             public ProjectedDecalTextureArray.Layer? Height { get; init; }
         }
 
-        private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform, float PlaceTime, bool IsPermanent, uint Id);
+        private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform, float PlaceTime, bool IsPermanent, bool Ages, uint Id);
 
-        // What a permanent decal gives as the time it was added: long enough ago that anything aging has settled
+        // What a decal that does not age gives as the time it was added: long enough ago that anything aging has settled
         private const float PermanentPlaceTime = -1e9f;
 
         private readonly Scene scene;
@@ -301,6 +301,22 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <param name="permanent">Whether the decal neither fades nor makes way for newer ones, as one placed with a map.</param>
         /// <returns>A handle to the decal, which is not valid when the material handle was not or there was no room.</returns>
         public ProjectedDecalHandle Add(int decal, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false, BaseEntity? parent = null, bool permanent = false)
+            => AddDecal(decal, boxTransform, tint, flipU, parent, permanent, ages: !permanent);
+
+        /// <summary>
+        /// Adds a decal that the caller keeps placing and tinting with <see cref="Move"/>, such as one
+        /// following a particle. It does not fade with age, and makes way for newer decals like any
+        /// decal that is not permanent.
+        /// </summary>
+        /// <param name="decal">A handle from <see cref="Register"/> or <see cref="RegisterMaterial"/>.</param>
+        /// <param name="boxTransform">Maps a unit cube centred on the origin to the decal box, see <see cref="CreateBoxTransform"/>.</param>
+        /// <param name="tint">Linear color and opacity multiplier.</param>
+        /// <param name="flipU">Whether to mirror the texture horizontally.</param>
+        /// <returns>A handle to the decal, which is not valid when the material handle was not or there was no room.</returns>
+        public ProjectedDecalHandle AddFollowing(int decal, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false)
+            => AddDecal(decal, boxTransform, tint, flipU, parent: null, permanent: false, ages: false);
+
+        private ProjectedDecalHandle AddDecal(int decal, Matrix4x4 boxTransform, Vector4 tint, bool flipU, BaseEntity? parent, bool permanent, bool ages)
         {
             var materialIndex = decal;
 
@@ -346,7 +362,7 @@ namespace ValveResourceFormat.Renderer.Decals
             }
 
             decals.Add(new ProjectedDecal(materialIndex, flipU ? FlagFlipU : 0, tint, parent, localTransform,
-                permanent ? PermanentPlaceTime : time, permanent, ++nextDecalId));
+                ages ? time : PermanentPlaceTime, permanent, ages, ++nextDecalId));
             boxTransforms.Add(boxTransform);
             decalsDirty = true;
 
@@ -368,7 +384,7 @@ namespace ValveResourceFormat.Renderer.Decals
                 var decal = decals[i];
                 var material = materials[decal.MaterialIndex].Definition;
 
-                if (!decal.IsPermanent && time - decal.PlaceTime >= material.FadeStartTime + material.FadeDuration)
+                if (decal.Ages && time - decal.PlaceTime >= material.FadeStartTime + material.FadeDuration)
                 {
                     RemoveDecalAt(i);
                     continue;
@@ -420,7 +436,7 @@ namespace ValveResourceFormat.Renderer.Decals
             var fadeTime = time - decal.PlaceTime - material.FadeStartTime;
             var tint = decal.Tint;
 
-            if (fadeTime > 0f && !decal.IsPermanent)
+            if (fadeTime > 0f && decal.Ages)
             {
                 tint.W *= 1f - Math.Clamp(fadeTime / MathF.Max(material.FadeDuration, 1e-4f), 0f, 1f);
             }
@@ -440,42 +456,88 @@ namespace ValveResourceFormat.Renderer.Decals
         public string? FindImpactEffect(uint surfacePropertyHash) => ImpactDecals.FindEffect(surfacePropertyHash);
 
         /// <summary>
-        /// Moves and retints a decal added without a parent, if it is still there, for decals that follow
-        /// something other than an entity, such as a particle.
+        /// Moves and retints a decal added without a parent, for decals that follow something other
+        /// than an entity, such as a particle.
         /// </summary>
         /// <param name="handle">The handle the decal was added with.</param>
         /// <param name="boxTransform">The new box, see <see cref="CreateBoxTransform"/>.</param>
         /// <param name="tint">The new linear color and opacity multiplier.</param>
-        public void Move(ProjectedDecalHandle handle, Matrix4x4 boxTransform, Vector4 tint)
+        /// <returns>Whether the decal is still there; it is gone once it made way for newer ones.</returns>
+        public bool Move(ProjectedDecalHandle handle, Matrix4x4 boxTransform, Vector4 tint)
         {
-            for (var i = 0; i < decals.Count; i++)
+            var index = IndexOf(handle);
+
+            if (index < 0)
             {
-                if (decals[i].Id != handle.Id)
-                {
-                    continue;
-                }
-
-                if (decals[i].Parent == null)
-                {
-                    decals[i] = decals[i] with { LocalTransform = boxTransform, Tint = tint };
-                    boxTransforms[i] = boxTransform;
-                    decalsDirty = true;
-                }
-
-                return;
+                return false;
             }
+
+            var decal = decals[index];
+
+            if (decal.Parent != null)
+            {
+                return true;
+            }
+
+            if (boxTransforms[index] != boxTransform)
+            {
+                decals[index] = decal with { LocalTransform = boxTransform, Tint = tint };
+                boxTransforms[index] = boxTransform;
+                decalsDirty = true;
+            }
+            else if (decal.Tint != tint)
+            {
+                decals[index] = decal with { Tint = tint };
+
+                if (!decalsDirty)
+                {
+                    decalGpuData[index].Tint = GetFadedTint(decals[index]);
+                    tintsDirty = true;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>Removes a decal, if it is still there.</summary>
         /// <param name="handle">The handle the decal was added with.</param>
         public void Remove(ProjectedDecalHandle handle)
         {
-            var index = decals.FindIndex(decal => decal.Id == handle.Id);
+            var index = IndexOf(handle);
 
             if (index >= 0)
             {
                 RemoveDecalAt(index);
             }
+        }
+
+        // Decals are only ever appended, with rising ids, so the list stays in id order
+        private int IndexOf(ProjectedDecalHandle handle)
+        {
+            var low = 0;
+            var high = decals.Count - 1;
+
+            while (low <= high)
+            {
+                var middle = (low + high) >>> 1;
+                var id = decals[middle].Id;
+
+                if (id == handle.Id)
+                {
+                    return middle;
+                }
+
+                if (id < handle.Id)
+                {
+                    low = middle + 1;
+                }
+                else
+                {
+                    high = middle - 1;
+                }
+            }
+
+            return -1;
         }
 
         private void RemoveDecalAt(int index)

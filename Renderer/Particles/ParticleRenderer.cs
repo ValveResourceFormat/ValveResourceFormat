@@ -148,6 +148,11 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var renderer in renderers)
             {
+                if (!renderer.DrawsInPasses)
+                {
+                    continue;
+                }
+
                 if (renderer.OnlyRenderInEffectsBloomPass)
                 {
                     passes |= CustomRenderPasses.EffectsBloom;
@@ -187,17 +192,44 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
-        /// <summary>Finishes the step for this system's renderers and its children's, on one thread.</summary>
-        public void Act()
+        /// <summary>
+        /// Finishes the frame for this system's renderers and its children's, on one thread. A renderer
+        /// that does not draw this frame, out of draw distance or faded out, is hidden; the rest finish
+        /// the step when there was one.
+        /// </summary>
+        public void Act(Camera camera, bool stepped)
         {
+            var withinDrawDistance = IsWithinDrawDistance(camera);
+
             foreach (var renderer in renderers)
             {
-                renderer.Act(Simulation.Particles, Simulation.RenderState);
+                if (!withinDrawDistance || renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
+                {
+                    renderer.Hide();
+                }
+                else if (stepped)
+                {
+                    renderer.Act(Simulation.Particles, Simulation.RenderState);
+                }
             }
 
             foreach (var childRenderer in childRenderers)
             {
-                childRenderer.Act();
+                childRenderer.Act(camera, stepped);
+            }
+        }
+
+        /// <summary>Hides what this system's renderers and its children's placed in the scene.</summary>
+        public void Hide()
+        {
+            foreach (var renderer in renderers)
+            {
+                renderer.Hide();
+            }
+
+            foreach (var childRenderer in childRenderers)
+            {
+                childRenderer.Hide();
             }
         }
 

@@ -243,6 +243,9 @@ namespace ValveResourceFormat.Renderer
         private readonly ParallelDispatch simulationDispatch = new();
         private SimulationWork? simulationWork;
 
+        private readonly List<(SceneNode Node, bool Dynamic, bool Add)> pendingChanges = [];
+        private bool updating;
+
         private List<SceneNode> CulledShadowNodes { get; } = [];
         private readonly List<RenderableMesh> listWithSingleMesh = [null!];
 
@@ -326,16 +329,16 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Adds a node to the scene, placing it in either the static or dynamic partition.
+        /// Adds a node to the scene, placing it in either the static or dynamic partition. While the scene
+        /// is updating, such as from a node's own update, the node joins once the update is done.
         /// </summary>
         /// <param name="node">The node to add.</param>
         /// <param name="dynamic">When <see langword="true"/>, the node is placed in <see cref="DynamicOctree"/>; otherwise in <see cref="StaticOctree"/>.</param>
         public void Add(SceneNode node, bool dynamic)
         {
-            // A node updating can add others, such as a particle system's models; they join after the update
             if (updating)
             {
-                pendingAdditions.Add((node, dynamic));
+                pendingChanges.Add((node, dynamic, true));
                 return;
             }
 
@@ -354,12 +357,19 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Removes a node from the scene's static or dynamic partition.
+        /// Removes a node from the scene's static or dynamic partition. While the scene is updating, the
+        /// node leaves once the update is done.
         /// </summary>
         /// <param name="node">The node to remove.</param>
         /// <param name="dynamic">When <see langword="true"/>, removes from the dynamic partition; otherwise the static partition.</param>
         public void Remove(SceneNode node, bool dynamic)
         {
+            if (updating)
+            {
+                pendingChanges.Add((node, dynamic, false));
+                return;
+            }
+
             node.DetachFromParent();
 
             if (dynamic)
@@ -602,17 +612,20 @@ namespace ValveResourceFormat.Renderer
                 updating = false;
             }
 
-            foreach (var (node, dynamic) in pendingAdditions)
+            foreach (var (node, dynamic, add) in pendingChanges)
             {
-                Add(node, dynamic);
+                if (add)
+                {
+                    Add(node, dynamic);
+                }
+                else
+                {
+                    Remove(node, dynamic);
+                }
             }
 
-            pendingAdditions.Clear();
+            pendingChanges.Clear();
         }
-
-        // Nodes added while the scene is walking its node lists, held until the walk is done
-        private readonly List<(SceneNode Node, bool Dynamic)> pendingAdditions = [];
-        private bool updating;
 
         private void UpdateNodes(Scene.UpdateContext updateContext)
         {

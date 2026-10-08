@@ -70,15 +70,13 @@ void main() {
     vec2 uv = gl_FragCoord.xy * 4.0 / vec2(textureSize(inputTexture, 0));
 
     vec4 downsampledColor = DownsampleJimenez(uv);
-    vec3 thresholdedColor = ApplyThreshold(downsampledColor.rgb) * g_flSceneBloomWeight;
+    vec3 bloomColor = ApplyThreshold(downsampledColor.rgb) * g_flSceneBloomWeight * g_flBloomScale;
 
     if (g_bEffectsBloom)
     {
         // A bilinear tap at the output texel centre averages the effects texels it covers
-        thresholdedColor += textureLod(g_tEffectsBloom, uv, 0.0).rgb;
+        bloomColor += textureLod(g_tEffectsBloom, uv, 0.0).rgb;
     }
-
-    vec3 bloomColor = thresholdedColor * g_flBloomScale;
 
     outputColor = vec4(bloomColor, 1.0);
 }

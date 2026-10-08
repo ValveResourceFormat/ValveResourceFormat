@@ -1,7 +1,6 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
@@ -106,9 +105,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             OnlyRenderInEffectsWaterPass = parse.Boolean("m_bOnlyRenderInEffectsWaterPass", false);
             OnlyRenderInEffectsBloomPass = parse.Boolean("m_bOnlyRenderInEffectsBloomPass", false);
-
-            // Lighting is sampled once per particle unless the renderer asks for it per pixel
-            PerPixelLighting = parse.Data.GetStringProperty("m_nLightingMode") == "PARTICLE_LIGHTING_PER_PIXEL";
+            PerPixelLighting = parse.Enum("m_nLightingMode", ParticleLightingQuality.PARTICLE_LIGHTING_PER_PARTICLE)
+                == ParticleLightingQuality.PARTICLE_LIGHTING_PER_PIXEL;
             RadiusScale = parse.NumberProvider("m_flRadiusScale", RadiusScale);
             AlphaScale = parse.NumberProvider("m_flAlphaScale", AlphaScale);
             ColorScale = parse.VectorProvider("m_vecColorScale", ColorScale);
@@ -236,7 +234,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>The pass this renderer draws in.</summary>
         public RenderPass Pass { get; protected set; } = RenderPass.Translucent;
 
-        /// <summary>Whether scene lighting is sampled at every pixel rather than once per particle.</summary>
+        /// <summary>
+        /// Whether scene lighting is sampled at every pixel. Every other lighting mode samples each card
+        /// once, at its centre, and a rope at each of its vertices, still in the fragment shader.
+        /// </summary>
         protected bool PerPixelLighting { get; }
 
         /// <summary>
@@ -258,6 +259,21 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public virtual void Act(ParticleCollection particles, ParticleSystemState systemState)
         {
         }
+
+        /// <summary>
+        /// Called in place of <see cref="Act"/> while the system does not draw: hidden, on a disabled
+        /// layer, stopped, out of draw distance or faded out. Renderers that place nodes or decals in the
+        /// scene take them away here.
+        /// </summary>
+        public virtual void Hide()
+        {
+        }
+
+        /// <summary>
+        /// Whether this renderer draws in the passes of the node it belongs to. Renderers that draw
+        /// through scene nodes or decals of their own do not.
+        /// </summary>
+        public virtual bool DrawsInPasses => true;
 
         /// <summary>Uploads this renderer's vertex buffer. Called once a frame, before any pass draws.</summary>
         public virtual void UpdateBuffers(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
