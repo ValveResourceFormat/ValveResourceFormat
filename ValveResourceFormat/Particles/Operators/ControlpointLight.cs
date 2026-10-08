@@ -155,7 +155,7 @@ namespace ValveResourceFormat.Particles.Operators
         /// down to nothing between there and <paramref name="zeroDistance"/>. Without a usable 50%
         /// distance the light only ramps down to its 0% distance.
         /// </summary>
-        internal static float Attenuation(float distance, float fiftyDistance, float zeroDistance)
+        private static float Attenuation(float distance, float fiftyDistance, float zeroDistance)
         {
             if (zeroDistance > 0f && distance >= zeroDistance)
             {

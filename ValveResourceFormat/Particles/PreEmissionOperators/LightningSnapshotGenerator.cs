@@ -132,7 +132,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         }
 
         /// <summary>The evaluated inputs of one bolt generation.</summary>
-        internal readonly record struct LightningSettings
+        private readonly record struct LightningSettings
         {
             public int Depth { get; init; }
             public float Offset { get; init; }
@@ -155,7 +155,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         /// goes through <paramref name="random"/> in a fixed order, so the same sequence always gives
         /// the same bolt. A bolt with coincident end points has nowhere to go and yields no rows.
         /// </summary>
-        internal static ParticleSnapshot Build(Vector3 start, Vector3 end, in LightningSettings settings, Func<float> random)
+        private static ParticleSnapshot Build(Vector3 start, Vector3 end, in LightningSettings settings, Func<float> random)
         {
             var builder = new BoltBuilder(settings, random);
 

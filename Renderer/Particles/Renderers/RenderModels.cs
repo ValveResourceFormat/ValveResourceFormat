@@ -84,9 +84,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             Pass = RenderPass.Opaque;
         }
 
-        /// <summary>Whether any model of the list loaded, so a system that draws nothing can be reported.</summary>
-        public bool HasModels => models.Length > 0;
-
         /// <inheritdoc/>
         public override void Act(ParticleCollection particles, ParticleSystemState systemState)
         {
