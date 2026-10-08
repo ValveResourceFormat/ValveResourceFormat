@@ -275,6 +275,21 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public void Stop() => IsPlaying = false;
 
         private bool pendingRestart;
+        private bool isSeeded;
+
+        /// <summary>
+        /// Seeds each placed instance of an effect apart, the same way on every load, from its name and
+        /// where it first runs.
+        /// </summary>
+        private int PlacementSeed()
+        {
+            var position = Transform.Translation;
+
+            return unchecked((int)ValveResourceFormat.Utils.StringToken.Get(particleRenderer.Simulation.Name)
+                ^ ((int)MathF.Round(position.X) * 73856093)
+                ^ ((int)MathF.Round(position.Y) * 19349663)
+                ^ ((int)MathF.Round(position.Z) * 83492791));
+        }
 
         // Until a restart has run, what is alive is left over from the last time the system played
         private bool IsDrawable => IsPlaying && !pendingRestart;
@@ -604,6 +619,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private void Simulate(Scene.UpdateContext context)
         {
             var frameTime = context.Timestep * FrametimeMultiplier;
+
+            if (!isSeeded)
+            {
+                isSeeded = true;
+                particleRenderer.Simulation.SeedRandom(PlacementSeed());
+            }
 
             if (pendingRestart)
             {

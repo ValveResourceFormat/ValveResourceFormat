@@ -313,13 +313,18 @@ namespace ValveResourceFormat.Particles
             systemState.ParticleCount = 0;
             particlesEmitted = 0;
 
-            // A replay stands in for the effect playing again, so the system takes a fresh random
-            // identity along with a rewound clock; no particle survives it
-            systemState.Random.Reseed();
+            // A replay stands in for the effect playing again, with a rewound clock; no particle survives it
+            systemState.Random.Replay();
             systemState.Age = 0f;
             systemState.RewindControlPointChanges();
             targetDrawTime = 0f;
             previousSimTime = 1e23f;
+
+            // Movement scales its inertia by the ratio to the previous step, which must not reach
+            // back into the run that was cleared
+            currentFrameTime = maximumTimeStep;
+            particleCollection.CurrentFrameTime = 0f;
+            particleCollection.PreviousFrameTime = 0f;
 
             foreach (var childSimulation in childSimulations)
             {
