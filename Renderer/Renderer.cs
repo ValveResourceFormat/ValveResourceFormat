@@ -1812,7 +1812,12 @@ public class Renderer : ISpawnGroupHost
             scene.UpdateIndirectRenderingState();
         }
 
-        Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera, updateContext.Timestep);
+        // Volumes are entered by the player's origin, not the eyes
+        var postProcessPosition = EntitySystem.Player is { IsRemoved: false, Controller.IsActive: true } player
+            ? player.Controller.Position
+            : updateContext.Camera.Location;
+
+        Scene.PostProcessInfo.UpdatePostProcessing(postProcessPosition, updateContext.Timestep);
 
         LendSun(views[0]);
 
