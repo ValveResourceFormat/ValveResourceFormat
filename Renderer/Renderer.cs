@@ -1575,18 +1575,7 @@ public class Renderer : ISpawnGroupHost
 
         if (hasDraws)
         {
-            Debug.Assert(ResolvedSceneDepth != null);
-
-            using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: true,
-                depthFunc: RsComparison.Always, blend: false, colorWriteMask: RsColorWriteEnableBits.None))
-            {
-                // Furthest depth per block, so an occluder never reaches past its own silhouette.
-                depthDownsampleShader.Use();
-                depthDownsampleShader.SetTexture(0, "g_tSceneDepth", ResolvedSceneDepth);
-                depthDownsampleShader.SetUniform("g_vDownsampleFactor", new Vector2(downsampleX, downsampleY));
-                GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
-                GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-            }
+            SeedDepthFromScene(new Vector2(downsampleX, downsampleY));
 
             using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: false, depthFunc: RsComparison.CloserEqual))
             {
@@ -1650,17 +1639,7 @@ public class Renderer : ISpawnGroupHost
         TranslucentDepthBuffer.Bind(FramebufferTarget.Framebuffer);
 
         // Seeded with the opaque depth, so that surfaces behind it stay hidden and readers can tell the two apart.
-        // The full range keeps the sky and viewmodel depths from being clamped into the scene's.
-        using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: true,
-            depthFunc: RsComparison.Always, blend: false, colorWriteMask: RsColorWriteEnableBits.None))
-        using (GraphicsContext.RenderState.ScopeDynamic(depthRange: DepthRange.Full))
-        {
-            depthDownsampleShader.Use();
-            depthDownsampleShader.SetTexture(0, "g_tSceneDepth", ResolvedSceneDepth);
-            depthDownsampleShader.SetUniform("g_vDownsampleFactor", Vector2.One);
-            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-        }
+        SeedSceneDepth(Vector2.One);
 
         // Single sampled, so alpha tested surfaces have to discard rather than lean on coverage
         using (GraphicsContext.RenderState.Scope(multisampleEnable: false, depthTest: true, depthWrite: true,
@@ -1676,6 +1655,21 @@ public class Renderer : ISpawnGroupHost
         sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
 
         return true;
+    }
+
+    // Fills the bound depth buffer with the resolved scene depth, taking the furthest depth of each block when downsampling
+    private void SeedDepthFromScene(Vector2 downsample)
+    {
+        Debug.Assert(ResolvedSceneDepth != null);
+
+        using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: true, depthFunc: RsComparison.Always, blend: false, colorWriteMask: RsColorWriteEnableBits.None))
+        {
+            depthDownsampleShader.Use();
+            depthDownsampleShader.SetTexture(0, "g_tSceneDepth", ResolvedSceneDepth);
+            depthDownsampleShader.SetUniform("g_vDownsampleFactor", downsample);
+            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        }
     }
 
     private void EnsureResolvedTextureSize(int width, int height)
