@@ -22,12 +22,14 @@ namespace ValveResourceFormat.Particles.Utils
     class SnapshotBinding
     {
         private readonly int controlPoint;
+        private readonly string? subset;
         private readonly bool hasSubset;
 
         public SnapshotBinding(ParticleDefinitionParser parse, string controlPointKey = "m_nSnapshotControlPoint", int defaultControlPoint = -1)
         {
             controlPoint = parse.Int32(controlPointKey, defaultControlPoint);
-            hasSubset = !string.IsNullOrEmpty(parse.Data.GetStringProperty("m_strSnapshotSubset"));
+            subset = parse.Data.GetStringProperty("m_strSnapshotSubset");
+            hasSubset = !string.IsNullOrEmpty(subset);
         }
 
         /// <summary>
@@ -65,6 +67,25 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         public ParticleSnapshot? Resolve(ParticleSystemState particleSystemState)
             => IsBound ? particleSystemState.GetControlPointSnapshot(controlPoint) : null;
+
+        /// <summary>
+        /// Why the binding cannot be read, when a snapshot is authored but none is there to read, or null
+        /// when nothing is wrong.
+        /// </summary>
+        public string? DescribeProblem(ParticleSystemState particleSystemState)
+        {
+            if (!HasControlPoint)
+            {
+                return null;
+            }
+
+            if (hasSubset)
+            {
+                return $"Reads the snapshot subset '{subset}', which only the game registers while it runs";
+            }
+
+            return Resolve(particleSystemState) == null ? $"No snapshot on control point {controlPoint}" : null;
+        }
 
         /// <summary>How many rows the bound snapshot offers, or 0 when nothing is bound.</summary>
         public int Count(ParticleSystemState particleSystemState)

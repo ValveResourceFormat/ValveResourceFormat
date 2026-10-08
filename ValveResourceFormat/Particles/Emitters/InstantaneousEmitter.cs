@@ -62,6 +62,16 @@ namespace ValveResourceFormat.Particles.Emitters
             snapshotCursor = 0;
         }
 
+        public override string? DescribeMissingInput(ParticleSystemState particleSystemState)
+        {
+            if (initFromKilledParentParticles > 0f && particleSystemState.ParentSystem == null)
+            {
+                return "Emits only as a parent system's particles die, and it is running without a parent";
+            }
+
+            return snapshotBinding.DescribeProblem(particleSystemState);
+        }
+
         public override void Stop()
         {
             IsFinished = true;
