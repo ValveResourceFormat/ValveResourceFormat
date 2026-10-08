@@ -219,8 +219,8 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
-                var uvStart = overlay.ContainsKey("m_vUVStart") ? overlay.GetSubCollection("m_vUVStart").ToVector2() : Vector2.Zero;
-                var uvEnd = overlay.ContainsKey("m_vUVEnd") ? overlay.GetSubCollection("m_vUVEnd").ToVector2() : Vector2.One;
+                var uvStart = overlay.GetSubCollection("m_vUVStart").ToVector2();
+                var uvEnd = overlay.GetSubCollection("m_vUVEnd").ToVector2();
                 var uvMin = Vector2.Clamp(Vector2.Min(uvStart, uvEnd), Vector2.Zero, Vector2.One);
                 var uvMax = Vector2.Clamp(Vector2.Max(uvStart, uvEnd), Vector2.Zero, Vector2.One);
                 var rect = new Vector4(uvMin.X, uvMin.Y, uvMax.X, uvMax.Y);
@@ -240,7 +240,7 @@ namespace ValveResourceFormat.Renderer.World
                     cropped[(material, rect)] = decal;
                 }
 
-                var tint = overlay.ContainsKey("m_vTintColor") ? overlay.GetSubCollection("m_vTintColor").ToVector4() : Vector4.One;
+                var tint = overlay.GetSubCollection("m_vTintColor").ToVector4();
                 tint = new Vector4(ColorSpace.SrgbGammaToLinear(tint.AsVector3()), tint.W);
 
                 // The transform places a box a unit on each side, which its width, height and depth stretch
