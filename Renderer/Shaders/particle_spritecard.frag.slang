@@ -38,9 +38,6 @@ uniform float uAddSelfAmount = 1.0; // 1 + m_flAddSelfAmount
 uniform float uDiffuseAmount = 1.0; // m_flDiffuseAmount, scales the scene light
 uniform float uSelfIllumAmount = 0.0; // m_flSelfIllumAmount, added unlit
 uniform float uDesaturation = 0.0; // m_flDesaturation
-// m_bSaturateColorPreAlphaBlend, which defaults on. A good deal of shipped content turns it off to let
-// the brightness run past 1 into the blend.
-uniform bool uSaturateColorPreAlphaBlend = true;
 
 // m_bBlendFramesSeq0 / m_bMaxLuminanceBlendingSequence0. Gated on a uniform rather than on vFrameBlendOut
 // so that the second fetch sits in draw-uniform control flow.
@@ -410,13 +407,8 @@ void main(void) {
 
         finalColor = uOverbrightFactor * litColor;
 
-        if (uSaturateColorPreAlphaBlend)
-        {
-            finalColor = saturate(finalColor);
-        }
-
         // m_flAddSelfAmount arrives as 1 + amount; over an alpha blend the extra term lays the
-        // particle's own colour additively on top. Placed after the saturate to keep the overshoot.
+        // particle's own colour additively on top.
         finalColor *= uAddSelfAmount;
 
         bool isAdditive = uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_ADD;
