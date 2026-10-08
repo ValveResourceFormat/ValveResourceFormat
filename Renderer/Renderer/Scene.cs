@@ -332,6 +332,13 @@ namespace ValveResourceFormat.Renderer
         /// <param name="dynamic">When <see langword="true"/>, the node is placed in <see cref="DynamicOctree"/>; otherwise in <see cref="StaticOctree"/>.</param>
         public void Add(SceneNode node, bool dynamic)
         {
+            // A node updating can add others, such as a particle system's models; they join after the update
+            if (updating)
+            {
+                pendingAdditions.Add((node, dynamic));
+                return;
+            }
+
             ApplyLayerVisibility(node);
 
             if (dynamic)
@@ -583,6 +590,31 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="updateContext">Per-frame context data including camera and timestep.</param>
         public void Update(Scene.UpdateContext updateContext)
+        {
+            updating = true;
+
+            try
+            {
+                UpdateNodes(updateContext);
+            }
+            finally
+            {
+                updating = false;
+            }
+
+            foreach (var (node, dynamic) in pendingAdditions)
+            {
+                Add(node, dynamic);
+            }
+
+            pendingAdditions.Clear();
+        }
+
+        // Nodes added while the scene is walking its node lists, held until the walk is done
+        private readonly List<(SceneNode Node, bool Dynamic)> pendingAdditions = [];
+        private bool updating;
+
+        private void UpdateNodes(Scene.UpdateContext updateContext)
         {
             foreach (var node in staticNodes)
             {
