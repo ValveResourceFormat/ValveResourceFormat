@@ -261,6 +261,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Whether the system is switched on. A stopped system neither simulates nor draws.</summary>
         public bool IsPlaying { get; private set; } = true;
 
+        /// <summary>Gets whether every emitter is done and every particle has expired.</summary>
+        public bool IsFinished => !pendingRestart && particleRenderer.IsFinished();
+
         /// <summary>Switches the system on and replays it from its current transform.</summary>
         public void Play()
         {
@@ -272,6 +275,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public void Stop() => IsPlaying = false;
 
         private bool pendingRestart;
+
+        // Until a restart has run, what is alive is left over from the last time the system played
+        private bool IsDrawable => IsPlaying && !pendingRestart;
 
         /// <summary>Stops emission and leaves the particles already alive to finish their lives.</summary>
         public void StopEmission() => particleRenderer.Stop();
@@ -700,7 +706,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void UpdateBuffers(Camera camera)
         {
-            if (IsPlaying && LayerEnabled)
+            if (IsDrawable && LayerEnabled)
             {
                 particleRenderer.UpdateBuffers(camera);
             }
@@ -709,7 +715,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
-            if (!IsPlaying)
+            if (!IsDrawable)
             {
                 return;
             }

@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Renderer.Decals;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -278,7 +279,11 @@ namespace ValveResourceFormat.Renderer
             StaticOctree = new(sizeHint);
 
             LightingInfo = new(this);
+            ProjectedDecals = new(this);
         }
+
+        /// <summary>Gets the decals projected onto the scene's depth, such as bullet impacts.</summary>
+        public ProjectedDecalSystem ProjectedDecals { get; }
 
         /// <summary>
         /// Performs one-time GPU setup: builds acceleration structures, allocates buffers, computes light probe and environment map bindings, and loads internal shaders.
@@ -413,6 +418,7 @@ namespace ValveResourceFormat.Renderer
 
             Skybox2D?.Delete();
             Skybox2D = null;
+            ProjectedDecals.Clear();
         }
 
         /// <summary>
@@ -716,7 +722,7 @@ namespace ValveResourceFormat.Renderer
                         transformData.Add(instanceTransform);
                     }
                 }
-                else if (node.AdditionalFlags.HasFlag(SceneNodeFlags.PreTransformedVertices) || (neverChangesTransform && node.Transform.IsIdentity))
+                else if ((node.AdditionalFlags & SceneNodeFlags.PreTransformedVertices) != 0 || (neverChangesTransform && node.Transform.IsIdentity))
                 {
                     transformIndex = 0; // Reuse identity transform at index 0
                 }
@@ -2147,6 +2153,7 @@ namespace ValveResourceFormat.Renderer
         {
             if (disposing)
             {
+                ProjectedDecals.Delete();
                 FrustumBuffer?.Dispose();
                 Skybox2D?.Delete();
                 Skybox2D = null;

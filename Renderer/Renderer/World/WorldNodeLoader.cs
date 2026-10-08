@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Renderer.Decals;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -198,6 +199,55 @@ namespace ValveResourceFormat.Renderer.World
             foreach (var clutterData in node.ClutterSceneObjects)
             {
                 LoadClutter(scene, new WorldNode.ClutterSceneObject(clutterData), root);
+            }
+
+            LoadInfoOverlays(scene, root);
+        }
+
+        private void LoadInfoOverlays(Scene scene, Matrix4x4 root)
+        {
+            var decals = scene.ProjectedDecals;
+            Dictionary<(string Material, Vector4 Rect), int>? cropped = null;
+
+            // Decals draw in the order they are added
+            foreach (var overlay in node.InfoOverlays.OrderBy(static overlay => overlay.GetInt32Property("m_nRenderOrder")))
+            {
+                var material = overlay.GetStringProperty("m_pMaterial");
+                var size = new Vector3(overlay.GetFloatProperty("m_flWidth"), overlay.GetFloatProperty("m_flHeight"), overlay.GetFloatProperty("m_flDepth"));
+
+                if (string.IsNullOrEmpty(material) || size.X <= 0f || size.Y <= 0f || size.Z <= 0f)
+                {
+                    continue;
+                }
+
+                var uvStart = overlay.GetSubCollection("m_vUVStart").ToVector2();
+                var uvEnd = overlay.GetSubCollection("m_vUVEnd").ToVector2();
+                var uvMin = Vector2.Clamp(Vector2.Min(uvStart, uvEnd), Vector2.Zero, Vector2.One);
+                var uvMax = Vector2.Clamp(Vector2.Max(uvStart, uvEnd), Vector2.Zero, Vector2.One);
+                var rect = new Vector4(uvMin.X, uvMin.Y, uvMax.X, uvMax.Y);
+
+                int decal;
+
+                if (rect == new Vector4(0f, 0f, 1f, 1f))
+                {
+                    decal = decals.RegisterMaterial(material);
+                }
+                else if (cropped?.TryGetValue((material, rect), out decal) != true)
+                {
+                    var definition = ProjectedDecalDefinition.FromMaterial(RendererContext.FileLoader, material);
+                    decal = definition == null ? -1 : decals.Register(definition with { TextureRect = rect });
+
+                    cropped ??= [];
+                    cropped[(material, rect)] = decal;
+                }
+
+                var tint = overlay.GetSubCollection("m_vTintColor").ToVector4();
+                tint = new Vector4(ColorSpace.SrgbGammaToLinear(tint.AsVector3()), tint.W);
+
+                // The transform places a box a unit on each side, which its width, height and depth stretch
+                var box = Matrix4x4.CreateScale(size) * overlay.GetSubCollection("m_transform").ToMatrix4x4() * root;
+
+                decals.Add(decal, box, tint, permanent: true);
             }
         }
 

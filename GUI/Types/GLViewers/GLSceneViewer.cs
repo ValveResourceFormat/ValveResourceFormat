@@ -416,6 +416,9 @@ namespace GUI.Types.GLViewers
             Renderer.Camera.CopyFrom(Input.Camera);
             Renderer.Prewarming = true;
 
+            var decals = Scene.ProjectedDecals;
+            var prewarmDecal = decals.SpawnImpactDecal(Renderer.Camera.Location, Vector3.UnitZ, -Vector3.UnitZ, surfacePropertyHash: 0);
+
             try
             {
                 // A non-zero delta so that particles actually simulate
@@ -428,6 +431,8 @@ namespace GUI.Types.GLViewers
             }
             finally
             {
+                decals.Remove(prewarmDecal);
+
                 Renderer.DisableAllCulling = false;
                 Renderer.Prewarming = false;
             }

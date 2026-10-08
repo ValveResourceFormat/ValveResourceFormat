@@ -421,10 +421,8 @@ public sealed class SoundEventPlayer : IDisposable
 
     /// <summary>
     /// Reads and parses a loose KeyValues1 ("VDF") text file, or null when it does not exist or fails to
-    /// parse. The raw content is wrapped in a synthetic root object before parsing: soundscape scripts
-    /// author several sibling top-level blocks with no single enclosing key, which the deserializer
-    /// otherwise silently folds into (and loses the name of) the first block instead of treating as
-    /// siblings. Hand-authored script files do show up with encoding quirks or syntax errors, so a
+    /// parse. Soundscape scripts author several sibling top-level blocks with no single enclosing key.
+    /// Hand-authored script files do show up with encoding quirks or syntax errors, so a
     /// failure here is logged and skipped rather than allowed to take down the whole load.
     /// </summary>
     // Shared across all script files: creating a serializer spins up ValveKeyValue's reflection machinery
@@ -441,13 +439,7 @@ public sealed class SoundEventPlayer : IDisposable
 
         try
         {
-            using var wrapped = new MemoryStream();
-            wrapped.Write("\"__root\"\n{\n"u8);
-            stream.CopyTo(wrapped);
-            wrapped.Write("\n}\n"u8);
-            wrapped.Position = 0;
-
-            return KeyValues1Serializer.Deserialize(wrapped);
+            return KeyValues1Serializer.DeserializeWithoutRoot(stream);
         }
         catch (Exception ex)
         {

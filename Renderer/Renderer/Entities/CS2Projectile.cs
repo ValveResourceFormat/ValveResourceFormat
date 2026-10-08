@@ -39,6 +39,18 @@ public sealed class CS2Projectile : BaseEntity
 
     private const float SmokeEffectDuration = 17f;
     private const float ExplosionEffectDuration = 6f;
+
+    private const string ScorchDecalGroup = "Scorch";
+    private const float ScorchTraceBackOff = 2f;
+    private const float ScorchTraceDistance = 64f;
+    private const float ScorchDecalSize = 112f;
+
+    private static readonly Vector3[] ScorchTraceDirections =
+    [
+        -Vector3.UnitZ, Vector3.UnitZ,
+        Vector3.UnitX, -Vector3.UnitX,
+        Vector3.UnitY, -Vector3.UnitY,
+    ];
     private const float FireEffectDuration = 7f;
 
     private const float FireMaxDetonateSlopeDegrees = 30f;
@@ -300,6 +312,47 @@ public sealed class CS2Projectile : BaseEntity
             detonationEffect.Transform = Matrix4x4.CreateTranslation(WorldOrigin);
             detonationEffect.Visible = true;
             detonationEffect.Play();
+        }
+
+        if (Kind == GrenadeKind.Explosive)
+        {
+            SpawnScorchDecal();
+        }
+    }
+
+    // The nearest surface around the blast is scorched, a wall as readily as the floor. The decal is
+    // triplanar, so it also marks whatever else lies inside its box. One going off in the open leaves nothing.
+    private void SpawnScorchDecal()
+    {
+        Rubikon.TraceResult? nearest = null;
+        var nearestDistance = float.MaxValue;
+
+        foreach (var direction in ScorchTraceDirections)
+        {
+            // Backed off, so that a grenade resting on the surface does not start inside it
+            var from = WorldOrigin - direction * ScorchTraceBackOff;
+            var to = WorldOrigin + direction * ScorchTraceDistance;
+
+            var trace = EntitySystem.PhysicsWorld?.TraceRay(from, to, Rubikon.DecalGeometry) ?? new Rubikon.TraceResult();
+            EntitySystem.TraceRay(from, to, Rubikon.DecalGeometry, ref trace);
+
+            if (!trace.Hit)
+            {
+                continue;
+            }
+
+            var distance = Vector3.DistanceSquared(WorldOrigin, trace.HitPosition);
+
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = trace;
+            }
+        }
+
+        if (nearest is { } surface)
+        {
+            Scene.ProjectedDecals.SpawnGroupDecal(ScorchDecalGroup, surface.HitPosition, surface.HitNormal, surface.HitEntity, ScorchDecalSize);
         }
     }
 

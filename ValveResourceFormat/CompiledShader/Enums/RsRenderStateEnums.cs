@@ -55,7 +55,10 @@ public enum RsBlendMode : byte
     InvDestColor = 9,
     SrcAlphaSat = 10,
     BlendFactor = 11,
-    InvBlendFactor = 12,
+    Src1Color = 12,
+    InvSrc1Color = 13,
+    Src1Alpha = 14,
+    InvSrc1Alpha = 15,
 }
 
 /// <summary>

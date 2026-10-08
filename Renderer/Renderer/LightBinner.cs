@@ -69,9 +69,22 @@ public sealed class LightBinner(SceneViewState view) : IDisposable
     /// <summary>Gets the buffer holding this scene's per tile and per depth bin masks.</summary>
     public StorageBuffer? CullBits { get; private set; }
 
+    /// <summary>Gets the first word of the projected decal batch's tile region. Valid after <see cref="Update"/>.</summary>
+    public uint DecalTileBase => Feeder.TileBase(TiledCullFeeder.BatchDecals);
+
+    /// <summary>Gets the first word of the projected decal batch's depth bin region.</summary>
+    public uint DecalBinBase => Feeder.BinBase(TiledCullFeeder.BatchDecals);
+
+    /// <summary>Gets the mask words per tile and per depth bin of the projected decal batch.</summary>
+    public uint DecalCullWords => Feeder.Stride(TiledCullFeeder.BatchDecals);
+
+    /// <summary>Gets the projected decal slots the decal pass iterates.</summary>
+    public int DecalSlotCount => Feeder.SlotCount(TiledCullFeeder.BatchDecals);
+
     private bool CanCull => (view.Scene.LightingInfo.LightingData.NumBarnLights > 0
             || view.Scene.LightingInfo.EnvMaps.Count > 0
-            || view.Scene.ProbeAtlasVolumes.Count > 0)
+            || view.Scene.ProbeAtlasVolumes.Count > 0
+            || view.Scene.ProjectedDecals.Count > 0)
         && TileCullBitsShader != null
         && DepthBinCullBitsShader != null;
 
@@ -173,6 +186,7 @@ public sealed class LightBinner(SceneViewState view) : IDisposable
             Feeder.AddBarnLights(view.Scene.LightingInfo.BinnedBarnLightVolumes);
             Feeder.AddEnvMaps(view.Scene.LightingInfo.EnvMaps);
             Feeder.AddLightProbes(view.Scene.ProbeAtlasVolumes);
+            Feeder.AddDecals(view.Scene.ProjectedDecals.BoxTransforms);
         }
         else
         {
@@ -183,7 +197,8 @@ public sealed class LightBinner(SceneViewState view) : IDisposable
             Feeder.AddCounts(
                 view.Scene.LightingInfo.BinnedBarnLightVolumes.Length,
                 Math.Min(view.Scene.LightingInfo.EnvMaps.Count, EnvMapArray.MAX_ENVMAPS),
-                view.Scene.ProbeAtlasVolumes.Count);
+                view.Scene.ProbeAtlasVolumes.Count,
+                view.Scene.ProjectedDecals.Count);
         }
 
         Feeder.End();

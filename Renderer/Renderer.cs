@@ -195,6 +195,9 @@ public class Renderer : ISpawnGroupHost
     /// </summary>
     public RenderTexture? ResolvedSceneDepth { get; private set; }
 
+    /// <summary>Scene depth with the translucent surfaces drawn over it, read as <c>g_tTranslucentSceneDepth</c>.</summary>
+    public Framebuffer? TranslucentDepthBuffer { get; private set; }
+
     /// <summary>Screen space map of ripple, silt and foam decals that the fancy water shader reads.</summary>
     public Framebuffer? WaterEffectsBuffer { get; private set; }
 
@@ -629,6 +632,11 @@ public class Renderer : ISpawnGroupHost
         Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", ResolvedSceneColor));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", ResolvedSceneDepth));
 
+        TranslucentDepthBuffer = Framebuffer.Prepare(nameof(TranslucentDepthBuffer), 4, 4, 0, null, ImageFormat.D32);
+        TranslucentDepthBuffer.Initialize();
+        TranslucentDepthBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
+        Textures.Add(new(ReservedTextureSlots.TranslucentSceneDepth, "g_tTranslucentSceneDepth", TranslucentDepthBuffer.Depth!));
+
         // The game's own target is D24S8; nothing here needs the stencil.
         WaterEffectsBuffer = Framebuffer.Prepare(nameof(WaterEffectsBuffer), 4, 4, 0,
             ImageFormat.RGBA16161616, ImageFormat.D16);
@@ -828,6 +836,9 @@ public class Renderer : ISpawnGroupHost
                 }
             }
         }
+
+        // Before the binning, which wants decals on moving entities where the entity is drawn this frame
+        Scene.ProjectedDecals.Update(Uptime);
 
         // Backwards, so the first scene of the main view is left bound
         for (var i = views.Length - 1; i >= 0; i--)
@@ -1171,7 +1182,23 @@ public class Renderer : ISpawnGroupHost
 
         using (new GLDebugGroup("Main Scene Translucent Render"))
         {
+            // Only the main framebuffer has its depth grabbed for decals to read
+            var drawDecals = isStandardPass && !isWireframe && Scene.ProjectedDecals.Count > 0;
+            var decalTranslucentSurfaces = drawDecals && RenderTranslucentSceneDepth(mainView, ref renderContext);
+
+            if (drawDecals)
+            {
+                DrawThrough(mainView, mainState, ref renderContext);
+                Scene.ProjectedDecals.Render(renderContext);
+            }
+
             RenderTranslucentLayer(mainView, ref renderContext);
+
+            if (decalTranslucentSurfaces)
+            {
+                DrawThrough(mainView, mainState, ref renderContext);
+                Scene.ProjectedDecals.Render(renderContext, translucentSurfaces: true);
+            }
         }
 
         using (new GLDebugGroup("Viewmodel Translucent"))
@@ -1538,18 +1565,7 @@ public class Renderer : ISpawnGroupHost
 
         if (hasDraws)
         {
-            Debug.Assert(ResolvedSceneDepth != null);
-
-            using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: true,
-                depthFunc: RsComparison.Always, blend: false, colorWriteMask: RsColorWriteEnableBits.None))
-            {
-                // Furthest depth per block, so an occluder never reaches past its own silhouette.
-                depthDownsampleShader.Use();
-                depthDownsampleShader.SetTexture(0, "g_tSceneDepth", ResolvedSceneDepth);
-                depthDownsampleShader.SetUniform("g_vDownsampleFactor", new Vector2(downsampleX, downsampleY));
-                GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
-                GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-            }
+            SeedDepthFromScene(new Vector2(downsampleX, downsampleY));
 
             using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: false, depthFunc: RsComparison.CloserEqual))
             {
@@ -1577,6 +1593,69 @@ public class Renderer : ISpawnGroupHost
         sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
 
         waterEffectsMapIsNeutral = !hasDraws;
+    }
+
+    // Returns whether there was any translucent surface to draw
+    private bool RenderTranslucentSceneDepth(in SceneView view, ref Scene.RenderContext renderContext)
+    {
+        var hasDraws = false;
+
+        foreach (var state in view.States)
+        {
+            hasDraws |= state.HasTranslucentDepthDraws;
+        }
+
+        if (!hasDraws)
+        {
+            return false;
+        }
+
+        Debug.Assert(TranslucentDepthBuffer != null && ResolvedSceneDepth != null);
+
+        using var _ = new GLDebugGroup("Translucent Depth Prepass");
+
+        var sceneFramebuffer = renderContext.Framebuffer;
+
+        if (TranslucentDepthBuffer.Resize(sceneFramebuffer.Width, sceneFramebuffer.Height))
+        {
+            Textures.RemoveAll(static t => t.Slot == ReservedTextureSlots.TranslucentSceneDepth);
+            Textures.Add(new(ReservedTextureSlots.TranslucentSceneDepth, "g_tTranslucentSceneDepth", TranslucentDepthBuffer.Depth!));
+        }
+
+        TranslucentDepthBuffer.Bind(FramebufferTarget.Framebuffer);
+
+        // Opaque depth first, so surfaces behind it stay hidden
+        SeedDepthFromScene(Vector2.One);
+
+        // Single sampled, so alpha tested surfaces have to discard rather than lean on coverage
+        using (GraphicsContext.RenderState.Scope(multisampleEnable: false, depthTest: true, depthWrite: true,
+            depthFunc: RsComparison.Closer, blend: false, colorWriteMask: RsColorWriteEnableBits.None))
+        {
+            foreach (var state in view.States)
+            {
+                DrawThrough(view, state, ref renderContext);
+                state.RenderTranslucentDepthLayer(renderContext, depthOnlyShader);
+            }
+        }
+
+        sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
+
+        return true;
+    }
+
+    // Writes the furthest scene depth of each block into the bound depth buffer
+    private void SeedDepthFromScene(Vector2 downsample)
+    {
+        Debug.Assert(ResolvedSceneDepth != null);
+
+        using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: true, depthFunc: RsComparison.Always, blend: false, colorWriteMask: RsColorWriteEnableBits.None))
+        {
+            depthDownsampleShader.Use();
+            depthDownsampleShader.SetTexture(0, "g_tSceneDepth", ResolvedSceneDepth);
+            depthDownsampleShader.SetUniform("g_vDownsampleFactor", downsample);
+            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        }
     }
 
     private void EnsureResolvedTextureSize(int width, int height)
@@ -1666,6 +1745,7 @@ public class Renderer : ISpawnGroupHost
         PerfStats?.Dispose();
         ResolvedSceneColor?.Delete();
         ResolvedSceneDepth?.Delete();
+        TranslucentDepthBuffer?.Delete();
         OutlineMaskBuffer?.Delete();
         ShadowDepthBuffer?.Delete();
         BarnLightShadowBuffer?.Delete();

@@ -462,6 +462,24 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 (float)array[3], (float)array[7], (float)array[11], column4.W
             );
         }
+
+        /// <summary>
+        /// Deserializes KeyValues1 text that keeps several keys at its top level rather than a single root.
+        /// </summary>
+        /// <param name="serializer">A KeyValues1 text serializer.</param>
+        /// <param name="stream">The text to read.</param>
+        /// <returns>An object holding every top level key.</returns>
+        public static KVObject DeserializeWithoutRoot(this KVSerializer serializer, Stream stream)
+        {
+            // The format takes a single root, and would fold the other keys into the first
+            using var wrapped = new MemoryStream();
+            wrapped.Write("\"root\"\n{\n"u8);
+            stream.CopyTo(wrapped);
+            wrapped.Write("\n}\n"u8);
+            wrapped.Position = 0;
+
+            return serializer.Deserialize(wrapped);
+        }
     }
 
     /// <summary>

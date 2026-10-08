@@ -147,7 +147,11 @@ public sealed class EntitySystem
         ArgumentNullException.ThrowIfNull(context);
 
         RendererContext = context;
+        TempEntities = new TempEntities(this);
     }
+
+    /// <summary>Gets the effects that play once without an entity of their own, such as bullet impacts.</summary>
+    public TempEntities TempEntities { get; }
 
     /// <summary>
     /// Creates the entity for a map entity's keyvalues and puts it in the world. A classname the entity
@@ -498,6 +502,7 @@ public sealed class EntitySystem
         inputQueue.Clear();
         firedCounts.Clear();
         playerImpacts.Clear();
+        TempEntities.Clear();
         hasRemovedEntities = false;
         tickAccumulator = 0f;
         CurrentTime = 0f;
@@ -509,6 +514,8 @@ public sealed class EntitySystem
     /// </summary>
     public void Update(float frameTime)
     {
+        TempEntities.Update();
+
         if (entities.Count <= 1)
         {
             return;
@@ -678,6 +685,30 @@ public sealed class EntitySystem
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Traces a ray against every solid entity, narrowing <paramref name="result"/> to the nearest hit.
+    /// </summary>
+    /// <returns><see langword="true"/> when an entity produced the nearest hit.</returns>
+    public bool TraceRay(Vector3 from, Vector3 to, string collisionName, ref Rubikon.TraceResult result)
+    {
+        var hitEntity = false;
+
+        foreach (var entity in entities)
+        {
+            if (!entity.IsCollidable)
+            {
+                continue;
+            }
+
+            var entityTrace = entity.Collider!.TraceRay(from, to, collisionName);
+            entityTrace.HitEntity = entity;
+
+            hitEntity |= result.MinimizeWith(entityTrace);
+        }
+
+        return hitEntity;
     }
 
     /// <summary>
