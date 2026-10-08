@@ -124,12 +124,13 @@ See the [exporting models guide](./exporting-models.md) for the workflow.
 Decompiling produces a `.vmdl` plus DMX files for meshes, physics shapes, and animations,
 loadable in ModelDoc. Reconstructed: render meshes with all vertex streams, skeleton,
 attachments with their camera previews, bodygroups, LOD groups, hitbox sets, material groups
-(skins), static collision shapes, physics joints and body properties, bone constraints, IK
-chains and control rigs, face flexes, breakable pieces and break commands, weapon sticker and
-keychain markup, cloth (chains, sheets, springs, collision shapes and effects rebuilt from the
-compiled `FeModel`), embedded sequences with events/layers/root motion, Animgraph 2 clips and
-references, and a wide range of game data blocks (prop_data, particle attachments, and many
-more) passed through verbatim.
+(skins), hull and view bounds, the model archetype and primary entity, static collision shapes,
+physics joints and body properties, bone constraints, IK chains and control rigs, face flexes,
+breakable pieces and break commands, model configs, weapon sticker and keychain markup, cloth
+(chains, sheets, springs, collision shapes and effects rebuilt from the compiled `FeModel`),
+embedded sequences with events/layers/root motion, Animgraph 2 clips and references, and a wide
+range of game data blocks (prop_data, particle attachments, and many more) passed through
+verbatim.
 
 Cloth decompiling is experimental. Most cloth recompiles to the same simulation, but not all of
 it does, so please report models whose cloth comes back wrong. A model whose cloth cannot be
@@ -145,6 +146,7 @@ What a recompiled model will be missing:
 | Attachment camera preview look            | Not in compiled files        | The `preview_scale` and `background_color` of an `Attachment Camera Preview` only affect the editor, so they come back at their defaults. A camera on an attachment that the compiled model does not have is dropped.                                                                                                                                                 |
 | Legacy break piece fade distances         | Not authorable               | `fademindist` and `fademaxdist` on break pieces only come from Valve's legacy converter and have no ModelDoc key, so they are dropped. A legacy `inherit_owner_joints` comes back as `physics_joint_modification_type`.                                                                                                                                               |
 | Sticker, keychain and chicken data        | Compiler limitation          | Sticker markup, keychain markup and `chicken_metadata` are written as disabled nodes, because the public compiler fails any model that compiles them. Enable them in ModelDoc when compiling with tools that support it.                                                                                                                                              |
+| Distance fields                           | Compiler limitation          | Deadlock distance fields (`DSTF`) are not decompiled. Their ModelDoc nodes only load in a game whose ModelDoc enables them, and the CS2 compiler, the only public one that compiles Deadlock models, fails any model that has them.                                                                                                                                   |
 
 ### glTF Export
 
