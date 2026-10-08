@@ -69,6 +69,13 @@ namespace ValveResourceFormat.Renderer.PostProcess
         public float TargetExposure { get; private set; }
         /// <summary>Gets or sets the final linear tonemap scalar passed to the post-process shader.</summary>
         public float TonemapScalar { get; set; }
+        /// <summary>
+        /// Gets or sets this frame's effects bloom map, geometry drawn to show only as glow, or null when
+        /// nothing drew into it. It is bloomed even when no post process volume enables bloom, with the
+        /// default settings and without blooming the scene itself.
+        /// </summary>
+        public RenderTexture? EffectsBloom { get; set; }
+
         /// <summary>Gets the bloom renderer used for the multi-pass Gaussian bloom effect.</summary>
         public BloomRenderer Bloom { get; private set; }
         /// <summary>Gets the depth-of-field renderer.</summary>
@@ -281,11 +288,13 @@ namespace ValveResourceFormat.Renderer.PostProcess
             {
                 colorBufferDraw.Bind(FramebufferTarget.DrawFramebuffer);
 
-                var postProcessShader = State.HasBloom ? shaderPostProcessBloom : shaderPostProcess;
+                var runBloom = State.HasBloom || EffectsBloom != null;
+                var bloomSettings = State.HasBloom ? State.BloomSettings : new BloomSettings();
+                var postProcessShader = runBloom ? shaderPostProcessBloom : shaderPostProcess;
 
-                if (State.HasBloom)
+                if (runBloom)
                 {
-                    Bloom.Render(resolvedScene);
+                    Bloom.Render(resolvedScene, EffectsBloom, bloomSettings, sceneWeight: State.HasBloom ? 1f : 0f);
                 }
 
                 colorBufferDraw.Bind(FramebufferTarget.DrawFramebuffer);
@@ -299,12 +308,12 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 // Bound here too, in case post processing runs before the scene binds it.
                 postProcessShader.SetTexture((int)ReservedTextureSlots.BlueNoise, "g_tBlueNoise", BlueNoise);
 
-                if (State.HasBloom)
+                if (runBloom)
                 {
                     postProcessShader.SetTexture(4, "g_tBloom", Bloom.AccumulationResult);
                     // these seem to all be needed at once due to transitions between post process volumes, we don't do that yet
                     // NormalizedBloomStrengths seems to act as a blending factor "how much of each bloom mode do we have right now"
-                    var bloomStrengths = new Vector3(State.BloomSettings.AddBloomStrength, State.BloomSettings.ScreenBloomStrength, State.BloomSettings.BlurBloomStrength);
+                    var bloomStrengths = new Vector3(bloomSettings.AddBloomStrength, bloomSettings.ScreenBloomStrength, bloomSettings.BlurBloomStrength);
                     var normalizedStrenghts = Vector3.Normalize(bloomStrengths);
                     postProcessShader.SetUniform("g_vNormalizedBloomStrengths", normalizedStrenghts);
                     postProcessShader.SetUniform("g_vUnNormalizedBloomStrengths", bloomStrengths);

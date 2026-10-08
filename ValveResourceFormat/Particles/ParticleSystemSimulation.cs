@@ -298,6 +298,23 @@ namespace ValveResourceFormat.Particles
         internal int KilledLastPass => particleCollection.KilledLastPass;
 
         /// <summary>
+        /// Pins the random seed of this system and every child below it, so the effect plays out the
+        /// same way on every run and every replay, or releases them with null. Each child takes a seed
+        /// derived from its place in the tree, so siblings still differ from each other.
+        /// </summary>
+        public void SetRandomSeed(int? seed)
+        {
+            systemState.Random.PinSeed(seed);
+
+            for (var i = 0; i < childSimulations.Count; i++)
+            {
+                // Seeds are offsets into one shared table, so neighbouring seeds would replay the same
+                // sequence shifted by a slot; mixing them spreads siblings across the table
+                childSimulations[i].SetRandomSeed(seed.HasValue ? (int)(((uint)seed.Value * 0x9E3779B1u) ^ ((uint)(i + 1) * 0x85EBCA77u)) >>> 8 : null);
+            }
+        }
+
+        /// <summary>
         /// Sets the particle detail tier for this system; child systems inherit it.
         /// </summary>
         public void SetDetailLevel(ParticleDetailLevel level)

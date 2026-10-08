@@ -149,7 +149,7 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 if (renderer.OnlyRenderInEffectsBloomPass)
                 {
-                    // todo: add bloom effects pass
+                    passes |= CustomRenderPasses.EffectsBloom;
                     continue;
                 }
 
@@ -232,7 +232,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>
         /// Draws the renderers belonging to <paramref name="pass"/>.
         /// </summary>
-        public void Render(Camera camera, RenderPass pass, bool waterEffectsLayer = false)
+        public void Render(Camera camera, RenderPass pass, RenderLayer layer = RenderLayer.Scene)
         {
             foreach (var childRenderer in childRenderers)
             {
@@ -241,7 +241,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                childRenderer.Render(camera, pass, waterEffectsLayer);
+                childRenderer.Render(camera, pass, layer);
             }
 
             if (!IsWithinDrawDistance(camera) || Simulation.Particles.Count == 0)
@@ -255,7 +255,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var renderer in renderers)
             {
-                if (!InPass(renderer, pass, waterEffectsLayer) || renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
+                if (!InPass(renderer, pass, layer) || renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
                 {
                     continue;
                 }
@@ -279,15 +279,19 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Whether <paramref name="renderer"/> draws in <paramref name="pass"/>. The outline pass owns
-        /// no renderer of its own, so everything the system has draws in it.
+        /// Whether <paramref name="renderer"/> draws in <paramref name="pass"/> on <paramref name="layer"/>.
+        /// A bloom-only renderer draws in the effects bloom layer and nowhere else, whatever pass its
+        /// material would otherwise pick. The outline pass owns no renderer of its own, so everything
+        /// else the system has draws in it.
         /// </summary>
-        private static bool InPass(ParticleFunctionRenderer renderer, RenderPass pass, bool waterEffectsLayer)
+        private static bool InPass(ParticleFunctionRenderer renderer, RenderPass pass, RenderLayer layer)
         {
-            if (renderer.OnlyRenderInEffectsBloomPass)
+            if (renderer.OnlyRenderInEffectsBloomPass || layer == RenderLayer.Bloom)
             {
-                return false;
+                return renderer.OnlyRenderInEffectsBloomPass && layer == RenderLayer.Bloom && pass == RenderPass.Translucent;
             }
+
+            var waterEffectsLayer = layer == RenderLayer.WaterEffects;
 
             return pass switch
             {
@@ -322,7 +326,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var renderer in renderers)
             {
-                if (!renderer.CanRenderReplacement || !InPass(renderer, pass, false)
+                if (!renderer.CanRenderReplacement || !InPass(renderer, pass, RenderLayer.Scene)
                     || renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
                 {
                     continue;

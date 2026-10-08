@@ -29,6 +29,9 @@ public sealed class SceneViewState : IDisposable
     /// <summary>Gets whether anything is queued to draw into the water effects map this frame.</summary>
     public bool HasWaterEffects => waterEffectsRenderList.Count > 0;
 
+    /// <summary>Gets whether anything is queued to draw into the effects bloom map this frame.</summary>
+    public bool HasEffectsBloom => effectsBloomRenderList.Count > 0;
+
     /// <summary>Gets whether any water surface is queued to draw this frame.</summary>
     public bool HasWater => renderLists[RenderPass.Water].Count > 0;
 
@@ -73,6 +76,7 @@ public sealed class SceneViewState : IDisposable
 
     /// <summary>Translucent draws that go to the water effects map instead of the scene.</summary>
     private readonly List<MeshBatchRenderer.Request> waterEffectsRenderList = [];
+    private readonly List<MeshBatchRenderer.Request> effectsBloomRenderList = [];
 
     /// <summary>Visible nodes that draw themselves, listed once each however many passes they draw in.</summary>
     private readonly List<SceneNode> customBufferNodes = [];
@@ -284,6 +288,7 @@ public sealed class SceneViewState : IDisposable
         }
 
         waterEffectsRenderList.Clear();
+        effectsBloomRenderList.Clear();
         customBufferNodes.Clear();
         alphaTestAggregateDraws.Clear();
         alphaTestOpaqueDraws.Clear();
@@ -449,6 +454,11 @@ public sealed class SceneViewState : IDisposable
                 if ((customPasses & CustomRenderPasses.WaterEffects) != 0)
                 {
                     waterEffectsRenderList.Add(customRender);
+                }
+
+                if ((customPasses & CustomRenderPasses.EffectsBloom) != 0)
+                {
+                    effectsBloomRenderList.Add(customRender);
                 }
 
                 if (node.IsSelected)
@@ -868,6 +878,15 @@ public sealed class SceneViewState : IDisposable
         renderContext.RenderPass = RenderPass.Translucent;
         renderContext.Layer = RenderLayer.WaterEffects;
         MeshBatchRenderer.Render(waterEffectsRenderList, renderContext);
+    }
+
+    /// <summary>Renders the draw calls that fill the effects bloom map; the caller owns the render target.</summary>
+    /// <param name="renderContext">The render context for this pass.</param>
+    public void RenderEffectsBloomLayer(Scene.RenderContext renderContext)
+    {
+        renderContext.RenderPass = RenderPass.Translucent;
+        renderContext.Layer = RenderLayer.Bloom;
+        MeshBatchRenderer.Render(effectsBloomRenderList, renderContext);
     }
 
     /// <summary>Renders water draw calls collected during <see cref="CollectSceneDrawCalls"/>.</summary>
