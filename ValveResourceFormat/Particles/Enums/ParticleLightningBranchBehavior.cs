@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Particles
     {
         /// <summary>Continues along the direction of the parent segment it splits from.</summary>
         PARTICLE_LIGHTNING_BRANCH_CURRENT_DIR = 0,
-        /// <summary>Heads toward the parent bolt's end point.</summary>
+        /// <summary>Heads toward the end control point, blended back toward the parent segment by the branch twist.</summary>
         PARTICLE_LIGHTNING_BRANCH_ENDPOINT_DIR = 1,
     }
 }
