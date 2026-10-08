@@ -331,6 +331,11 @@ void main()
     }
 #endif
 
+    if (ReadReceiverDepth(ivec2(fragCoord)) < g_flViewportMinZ)
+    {
+        discard;
+    }
+
     vec3 positionWs = GetScenePosition(fragCoord);
     CullMasks_t masks = MakeCullMasks(GetCullLookupCached(positionWs), g_nDecalTileBase, g_nDecalBinBase, g_nDecalCullWords);
 
