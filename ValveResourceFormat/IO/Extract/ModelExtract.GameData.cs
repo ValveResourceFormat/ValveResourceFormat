@@ -272,7 +272,9 @@ partial class ModelExtract
     /// <remarks>
     /// <c>fademindist</c> and <c>fademaxdist</c> are only written by the legacy break converter and have no node key.
     /// A missing color or material group mode is written as <c>default</c>, because the compiler turns an absent one
-    /// into an inherit mode.
+    /// into an inherit mode. The legacy <c>ragdoll</c> key names the model of a ragdoll piece. The compiler upgrades a
+    /// document of this version by deriving <c>spawn_entity</c> from <c>is_ragdoll</c> and clearing
+    /// <c>ragdoll_applies_bind_pose_root</c>, so a ragdoll is written as <c>is_ragdoll</c>.
     /// </remarks>
     private static KVObject ConvertBreakPiece(KVObject breakPiece)
     {
@@ -300,7 +302,18 @@ partial class ModelExtract
                 case "inherit_owner_joints":
                     inheritOwnerJoints = value.ToBoolean(CultureInfo.InvariantCulture);
                     break;
-                case "fademindist" or "fademaxdist":
+                case "ragdoll":
+                    node["model"] = value;
+                    node["is_ragdoll"] = true;
+                    break;
+                case "spawn_entity":
+                    if (value.ToString(CultureInfo.InvariantCulture) == "ragdoll")
+                    {
+                        node["is_ragdoll"] = true;
+                    }
+
+                    break;
+                case "fademindist" or "fademaxdist" or "ragdoll_applies_bind_pose_root":
                     break;
                 default:
                     node[key] = value;
