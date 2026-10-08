@@ -518,6 +518,61 @@ partial class ModelExtract
         AddPoseParamNodes(lists, tables.PoseParams);
     }
 
+    private const string ClothStiffenEventClass = "AE_CL_CLOTH_STIFFEN";
+
+    /// <summary>
+    /// Whether <c>AE_CL_CLOTH_STIFFEN</c> events are written with <c>SpeedIn</c> and <c>SpeedOut</c> instead of
+    /// <c>Speed</c>. The ModelDoc upgrade from version 29 to 30 sets both from <c>Speed</c>, so a model with an
+    /// event whose speeds differ is written as version 30 and every other model as version 28.
+    /// </summary>
+    private bool writesClothStiffenSpeedInOut;
+
+    private static bool HasStiffenSpeedInOut(KVObject eventData)
+        => eventData.ContainsKey("SpeedIn") || eventData.ContainsKey("SpeedOut");
+
+    private static bool HasDistinctStiffenSpeeds(AnimationEvent animEvent)
+        => animEvent is { Name: ClothStiffenEventClass, EventData: { } eventData }
+            && HasStiffenSpeedInOut(eventData)
+            && eventData.GetFloatProperty("SpeedIn") != eventData.GetFloatProperty("SpeedOut");
+
+    /// <summary>
+    /// Returns the keys of a stiffen event in the form <see cref="writesClothStiffenSpeedInOut"/> selects.
+    /// A compiled <c>Speed</c> next to <c>SpeedIn</c> and <c>SpeedOut</c> is ignored.
+    /// </summary>
+    private KVObject GetClothStiffenEventKeys(KVObject eventData)
+    {
+        var hasSpeedInOut = HasStiffenSpeedInOut(eventData);
+
+        if (!hasSpeedInOut && !(writesClothStiffenSpeedInOut && eventData.ContainsKey("Speed")))
+        {
+            return eventData;
+        }
+
+        var speedIn = eventData.GetFloatProperty(hasSpeedInOut ? "SpeedIn" : "Speed");
+        var speedOut = eventData.GetFloatProperty(hasSpeedInOut ? "SpeedOut" : "Speed");
+        var keys = KVObject.ListCollection(eventData.Count);
+
+        foreach (var (name, value) in eventData.Children)
+        {
+            if (name is not ("Speed" or "SpeedIn" or "SpeedOut"))
+            {
+                keys.Add(name, value);
+            }
+        }
+
+        if (writesClothStiffenSpeedInOut)
+        {
+            keys.Add("SpeedIn", speedIn);
+            keys.Add("SpeedOut", speedOut);
+        }
+        else
+        {
+            keys.Add("Speed", speedIn);
+        }
+
+        return keys;
+    }
+
     private void AddAnimationNodes(ModelDocLists lists, SequenceTables tables)
     {
         if (AnimationsToExtract.Count > 0 || tables.BySequenceName.Count > 0)
@@ -651,6 +706,7 @@ partial class ModelExtract
             }
 
             var sequences = AnimationsToExtract.Where(x => HasOwnAnimFileNode(x.Anim));
+            writesClothStiffenSpeedInOut = AnimationsToExtract.Any(x => x.Anim.Events.Any(HasDistinctStiffenSpeeds));
             var aliases = AliasedSequences;
 
             foreach (var animation in sequences)
@@ -750,8 +806,11 @@ partial class ModelExtract
 
                     if (animEvent.EventData != null)
                     {
-                        animEventNode.Add("event_keys", animEvent.EventData);
+                        animEventNode.Add("event_keys", animEvent.Name == ClothStiffenEventClass
+                            ? GetClothStiffenEventKeys(animEvent.EventData)
+                            : animEvent.EventData);
                     }
+
                     childrenKV.Add(animEventNode);
                 }
 
