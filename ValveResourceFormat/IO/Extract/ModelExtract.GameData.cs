@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using ValveKeyValue;
@@ -30,6 +31,7 @@ partial class ModelExtract
 
         AddRigNodes(model, keyvalues, lists, rootNode);
         AddGameDataNodes(keyvalues, lists, GetMarkedUpPhysicsBodies());
+        AddStickerAndKeychainNodes(keyvalues, lists);
     }
 
     /// <summary>
@@ -131,6 +133,14 @@ partial class ModelExtract
             "CPhysicsBodyGameMarkupData",
             "electrical_interactions",
             "world_interactions",
+            "door_options",
+            "hand_pose_pair",
+            "keychain_inspect",
+            "muzzle_desc",
+            "unit_status_settings",
+            "cloth_ground_plane",
+            "CitadelUnitQuerySettings_t",
+            "CCitadelDropShadowData_t",
         };
 
         var genericDataClassesList = new (string ListKey, string Class)[] {
@@ -203,6 +213,11 @@ partial class ModelExtract
             }
         }
 
+        if (keyvalues.GetSubCollection("chicken_metadata") is { } chickenMetadata)
+        {
+            AddGenericGameData(lists.GameData, "chicken_metadata", chickenMetadata)?.Add("disabled", true);
+        }
+
         if (keyvalues.ContainsKey("LookAtList"))
         {
             var lookAtList = keyvalues.GetSubCollection("LookAtList");
@@ -235,10 +250,106 @@ partial class ModelExtract
         {
             foreach (var breakPiece in keyvalues.GetArray("break_list")!)
             {
-                var breakPieceFile = MakeNode("BreakPieceExternal", breakPiece);
-                lists.BreakPieces.Add(breakPieceFile);
+                lists.BreakPieces.Add(ConvertBreakPiece(breakPiece));
             }
         }
+
+        if (keyvalues.GetArray("break_command_list") is { } breakCommands)
+        {
+            foreach (var breakCommand in breakCommands)
+            {
+                if (ConvertBreakCommand(breakCommand) is { } breakCommandNode)
+                {
+                    lists.BreakPieces.Add(breakCommandNode);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds a <c>BreakPieceExternal</c> node from a compiled <c>break_list</c> entry.
+    /// </summary>
+    /// <remarks>
+    /// <c>fademindist</c> and <c>fademaxdist</c> are only written by the legacy break converter and have no node key.
+    /// A missing color or material group mode is written as <c>default</c>, because the compiler turns an absent one
+    /// into an inherit mode.
+    /// </remarks>
+    private static KVObject ConvertBreakPiece(KVObject breakPiece)
+    {
+        var node = MakeNode("BreakPieceExternal");
+        var inheritOwnerJoints = false;
+
+        foreach (var (key, value) in breakPiece)
+        {
+            switch (key)
+            {
+                case "piece_name":
+                    node["name"] = value;
+                    break;
+                case "collision_group_override":
+                    node["collision_group"] = value;
+                    break;
+                case "placementbone":
+                    node["placement_mode"] = "bone";
+                    node["placement_bone"] = value;
+                    break;
+                case "placementattachment":
+                    node["placement_mode"] = "attachment";
+                    node["placement_attach"] = value;
+                    break;
+                case "inherit_owner_joints":
+                    inheritOwnerJoints = value.ToBoolean(CultureInfo.InvariantCulture);
+                    break;
+                case "fademindist" or "fademaxdist":
+                    break;
+                default:
+                    node[key] = value;
+                    break;
+            }
+        }
+
+        if (inheritOwnerJoints && !node.ContainsKey("physics_joint_modification_type"))
+        {
+            node.Add("physics_joint_modification_type", "inherit_all_joints");
+        }
+
+        foreach (var mode in (ReadOnlySpan<string>)["render_color_mode", "material_group_mode"])
+        {
+            if (!node.ContainsKey(mode))
+            {
+                node.Add(mode, "default");
+            }
+        }
+
+        return node;
+    }
+
+    /// <summary>
+    /// Rebuilds a <c>BreakCommand</c> node from a compiled <c>break_command_list</c> entry, whose command name is the
+    /// node's game class and whose other keys pass through. Returns <see langword="null"/> for an entry without a
+    /// command name.
+    /// </summary>
+    private static KVObject? ConvertBreakCommand(KVObject breakCommand)
+    {
+        if (breakCommand.GetStringProperty("break_command") is not { } gameClass)
+        {
+            return null;
+        }
+
+        var gameKeys = KVObject.Collection();
+
+        foreach (var (key, value) in breakCommand)
+        {
+            if (key != "break_command")
+            {
+                gameKeys.Add(key, value);
+            }
+        }
+
+        return MakeNode("BreakCommand",
+            ("game_class", gameClass),
+            ("game_keys", gameKeys)
+        );
     }
 
     static KVObject? ConvertFeetSettings(KVObject feetSettings)
@@ -308,11 +419,11 @@ partial class ModelExtract
         return feetNode;
     }
 
-    static void AddGenericGameData(KVObject gameDataList, string genericDataClass, KVObject? genericData, string? dataKey = null)
+    static KVObject? AddGenericGameData(KVObject gameDataList, string genericDataClass, KVObject? genericData, string? dataKey = null)
     {
         if (genericData is null)
         {
-            return;
+            return null;
         }
 
         // Remove quotes from keys by rebuilding the object
@@ -346,5 +457,6 @@ partial class ModelExtract
         }
 
         gameDataList.Add(genericGameData);
+        return genericGameData;
     }
 }
