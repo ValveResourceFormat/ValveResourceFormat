@@ -804,15 +804,15 @@ namespace ValveResourceFormat.Renderer.Decals
             var passShader = shader.WithCombo("D_TRANSLUCENT_SCENE_DEPTH", translucentSurfaces ? (byte)1 : (byte)0);
 
             passShader.Use();
-            passShader.SetUniform1("g_nDecalTileBase", binner.DecalTileBase);
-            passShader.SetUniform1("g_nDecalBinBase", binner.DecalBinBase);
-            passShader.SetUniform1("g_nDecalCullWords", binner.DecalCullWords);
-            passShader.SetUniform1("g_nDecalCount", (uint)binner.DecalSlotCount);
+            passShader.SetUniform("g_nDecalTileBase", binner.DecalTileBase);
+            passShader.SetUniform("g_nDecalBinBase", binner.DecalBinBase);
+            passShader.SetUniform("g_nDecalCullWords", binner.DecalCullWords);
+            passShader.SetUniform("g_nDecalCount", (uint)binner.DecalSlotCount);
 
             // The global volume, for pixels no volume contains
             if (scene.ProbeAtlasVolumes is [.., var globalProbe])
             {
-                passShader.SetUniform1("g_nLightProbeIndex", (uint)globalProbe.ShaderIndex);
+                passShader.SetUniform("g_nLightProbeIndex", (uint)globalProbe.ShaderIndex);
             }
 
             foreach (var (slot, _, texture) in context.Textures)
