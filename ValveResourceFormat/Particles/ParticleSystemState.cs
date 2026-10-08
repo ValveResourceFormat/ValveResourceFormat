@@ -328,7 +328,7 @@ namespace ValveResourceFormat.Particles
         {
             foreach (var point in controlPoints.Values)
             {
-                point.RewindChange();
+                Rewind(point);
             }
 
             if (controlPointOverrides == null)
@@ -338,7 +338,13 @@ namespace ValveResourceFormat.Particles
 
             foreach (var point in controlPointOverrides.Values)
             {
+                Rewind(point);
+            }
+
+            static void Rewind(ControlPoint point)
+            {
                 point.RewindChange();
+                RecordStep(point, 0f);
             }
         }
 
