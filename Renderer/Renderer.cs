@@ -219,7 +219,7 @@ public class Renderer : ISpawnGroupHost
     public Framebuffer? EffectsBloomBuffer { get; private set; }
 
     /// <summary>Scene pixels per effects bloom texel along each axis.</summary>
-    public const int EffectsBloomDownsample = 2;
+    private const int EffectsBloomDownsample = 2;
 
     /// <summary>
     /// When set, forces <see cref="ResolvedSceneDepth"/> to be refreshed this frame even if no material

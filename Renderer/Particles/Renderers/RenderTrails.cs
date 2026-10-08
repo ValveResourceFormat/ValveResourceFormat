@@ -361,7 +361,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                         var spriteSheetData = layers[layer].Texture.SpriteSheetData;
                         var sequence = spriteSheetData != null && spriteSheetData.Sequences.Length > 0
-                            ? spriteSheetData.Sequences[particle.SequenceNumber % spriteSheetData.Sequences.Length]
+                            ? spriteSheetData.Sequences[(uint)particle.SequenceNumber < (uint)spriteSheetData.Sequences.Length ? particle.SequenceNumber : 0]
                             : null;
 
                         if (sequence is { Frames.Length: > 0 })

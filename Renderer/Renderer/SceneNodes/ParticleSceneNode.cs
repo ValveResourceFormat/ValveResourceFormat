@@ -517,6 +517,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     point.Rotation = EntityTransformHelper.EulerAnglesToQuaternion(angleOffset);
                 }
                 point.AttachType = attachType;
+
+                if (controlPoint == 0)
+                {
+                    previewOrigin = point.Position;
+                }
             }
         }
 
@@ -532,12 +537,20 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private Matrix4x4? seededTransform;
 
+        /// <summary>Where the preview configuration places control point 0 relative to the node.</summary>
+        private Vector3 previewOrigin;
+
         /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
             // Visible too: a layer toggle re-enabling a sleeping effect must not have it simulate unseen
             if (!IsPlaying || !LayerEnabled || !Visible)
             {
+                if (context.Phase == Scene.UpdatePhase.Act)
+                {
+                    particleRenderer.Hide();
+                }
+
                 return;
             }
 
@@ -552,7 +565,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     break;
 
                 case Scene.UpdatePhase.Act:
-                    Act();
+                    Act(context.Camera);
                     break;
             }
         }
@@ -573,8 +586,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
-        /// <summary>Seeds control point 0 from the node transform when that has changed from outside.
-        /// Between seeds the control point belongs to the simulation.</summary>
+        /// <summary>Seeds control point 0 from the node transform when that has changed from outside,
+        /// keeping any offset the preview configuration gives it. Between seeds the control point belongs
+        /// to the simulation.</summary>
         private void SeedControlPointFromTransform()
         {
             if (seededTransform == Transform)
@@ -583,7 +597,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             var controlPoint = particleRenderer.MainControlPoint;
-            controlPoint.Position = Transform.Translation;
+            controlPoint.Position = Vector3.Transform(previewOrigin, Transform);
 
             if (!Preview)
             {
@@ -663,17 +677,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private bool stepped;
 
         /// <summary>
-        /// Finishes the step, on the particles it left and where reaching past the effect is safe.
+        /// Finishes the step, on the particles it left and where reaching past the effect is safe, and
+        /// hides what renderers that do not draw this frame placed in the scene.
         /// </summary>
-        private void Act()
+        private void Act(Camera camera)
         {
-            if (!stepped)
-            {
-                return;
-            }
-
+            particleRenderer.Act(camera, stepped);
             stepped = false;
-            particleRenderer.Act();
         }
 
         // The node transform mirrors control point 0 after simulation, so movement applied by particle

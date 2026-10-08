@@ -327,22 +327,6 @@ namespace ValveResourceFormat.Particles
             }
         }
 
-        /// <summary>Whether any initializer of this system writes <paramref name="field"/> on spawn.</summary>
-        public bool InitializesField(ParticleField field)
-        {
-            var mask = 1UL << (int)field;
-
-            foreach (var initializer in initializers)
-            {
-                if ((initializer.WrittenFields & mask) != 0)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         /// <summary>
         /// Sets the particle detail tier for this system; child systems inherit it.
         /// </summary>
