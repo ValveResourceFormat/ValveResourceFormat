@@ -30,8 +30,10 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            // Verlet positions hold the previous step's displacement, so divide by that step's time
-            var perSecond = scale / MathF.Max(1e-20f, particles.PreviousFrameTime);
+            // Verlet positions hold the previous step's displacement, so divide by that step's time.
+            // The first step of a run has none, and its pair was made with this step's time.
+            var previousFrameTime = particles.PreviousFrameTime > 0f ? particles.PreviousFrameTime : frameTime;
+            var perSecond = scale / MathF.Max(1e-20f, previousFrameTime);
 
             foreach (ref var particle in particles.Current)
             {

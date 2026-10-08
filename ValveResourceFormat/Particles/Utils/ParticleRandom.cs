@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Particles.Utils
         /// by, giving each system instance its own sequence. Child systems hold their own value rather
         /// than reading the root's.
         /// </summary>
-        public int Seed { get; private set; } = System.Random.Shared.Next() & 0xFFF;
+        public int Seed { get; private set; }
 
         /// <summary>
         /// Displaces the per-particle draws of the operator currently running, so two operators
@@ -43,15 +43,35 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         private int queryCount;
 
-        /// <summary>
-        /// Gives the system a fresh identity, as a newly created one would have. The engine has no
-        /// equivalent: a restart there keeps the seed, and only a new collection draws another.
-        /// </summary>
-        public void Reseed()
+        /// <summary>The seed every <see cref="Replay"/> starts over from, or null to run on.</summary>
+        private int? pinnedSeed;
+
+        /// <summary>Takes <paramref name="seed"/> and starts the draws over from it.</summary>
+        public void Start(int seed)
         {
-            Seed = System.Random.Shared.Next() & 0xFFF;
+            Seed = seed & 0xFFF;
             queryCount = 0;
         }
+
+        /// <summary>
+        /// Called when the system plays again. As in the engine, it keeps its seed and the draws run on,
+        /// so each replay plays out differently but in the same order every time. A pinned seed starts
+        /// the draws over instead, so every replay plays out the same.
+        /// </summary>
+        public void Replay()
+        {
+            if (pinnedSeed is { } seed)
+            {
+                Start(seed);
+            }
+        }
+
+        /// <summary>
+        /// Fixes the seed every later <see cref="Replay"/> starts over from, or with null lets the draws
+        /// run on again. Not applied at once, because the particles alive now read their per-particle
+        /// slots through the current seed.
+        /// </summary>
+        public void Pin(int? seed) => pinnedSeed = seed & 0xFFF;
 
         /// <summary>Takes the next value from the table, in [0, 1).</summary>
         public float Next() => At(queryCount++ + Seed);
