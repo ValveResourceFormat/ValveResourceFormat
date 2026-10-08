@@ -1,4 +1,5 @@
 using System.Collections;
+using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.Particles.Utils
 {
@@ -19,7 +20,7 @@ namespace ValveResourceFormat.Particles.Utils
         // Advanced once per random draw, so a fixed seed still walks the table rather than repeating
         private int sampleCounter;
 
-        private bool columnResolved;
+        private ParticleSnapshot? columnSnapshot;
         private IEnumerable? column;
 
         /// <summary>The particle attribute the snapshot value is written to.</summary>
@@ -44,19 +45,29 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
-        /// The column to read, resolved on first use and null when the bound snapshot is missing or
-        /// carries no such column. A null column means the function has nothing to do.
+        /// The column to read, looked up again whenever the bound snapshot is replaced, and null when
+        /// the snapshot is missing or carries no such column. A null column means the function has
+        /// nothing to do.
         /// </summary>
         public IEnumerable? Column(ParticleSystemState particleSystemState)
         {
-            if (!columnResolved)
+            var snapshot = binding.Resolve(particleSystemState);
+
+            if (!ReferenceEquals(snapshot, columnSnapshot))
             {
-                columnResolved = true;
+                columnSnapshot = snapshot;
                 column = binding.ResolveAttribute(particleSystemState, AttributeToRead);
             }
 
             return column;
         }
+
+        /// <summary>
+        /// The bound snapshot's column holding <paramref name="field"/>, for a reader that takes
+        /// a second attribute along with the one it was authored for.
+        /// </summary>
+        public IEnumerable? CompanionColumn(ParticleSystemState particleSystemState, ParticleField field)
+            => binding.ResolveAttribute(particleSystemState, field);
 
         /// <summary>How many rows the bound snapshot offers.</summary>
         public int RowCount(ParticleSystemState particleSystemState) => binding.Count(particleSystemState);

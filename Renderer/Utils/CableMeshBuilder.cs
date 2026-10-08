@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Utils
     /// tessellated into a tube by <see cref="Particles.Renderers.RenderCables"/> via
     /// <see cref="CableMeshBuilder.BuildTubeMesh"/>.
     /// </summary>
-    readonly struct RopeSample(Vector3 position, float radius, Vector3 color, float v, bool pinned)
+    readonly struct RopeSample(Vector3 position, float radius, Vector3 color, float v, bool pinned, float alpha = 1f)
     {
         /// <summary>Initial, origin-relative spline position (no sag).</summary>
         public readonly Vector3 Position = position;
@@ -20,6 +20,8 @@ namespace ValveResourceFormat.Renderer.Utils
         public readonly float V = v;
         /// <summary>True when this sample sits on a pinned path node (force_scale 0, immovable).</summary>
         public readonly bool Pinned = pinned;
+        /// <summary>Opacity carried to the vertex color alpha, for materials that blend or alpha test.</summary>
+        public readonly float Alpha = alpha;
     }
 
     /// <summary>
@@ -229,7 +231,7 @@ namespace ValveResourceFormat.Renderer.Utils
             {
                 var sample = samples[i];
                 var center = positions[i];
-                var color = Color32.FromVector4Clamped(new Vector4(sample.Color, 1.0f));
+                var color = Color32.FromVector4Clamped(new Vector4(sample.Color, sample.Alpha));
 
                 var (normal, bitangent) = BuildFrame(positions, i, previousNormal);
                 previousNormal = normal;

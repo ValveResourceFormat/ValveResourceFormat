@@ -22,6 +22,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         internal IEnumerable<ParticleFunctionRenderer> Renderers => particleRenderer.EnumerateRenderers();
 
+        /// <summary>Gets the simulation this node draws, the root of its child system tree.</summary>
+        public ParticleSystemSimulation ParticleSimulation => particleRenderer.Simulation;
+
         /// <summary>
         /// Gets the preview model scene node loaded from particle preview state, if any.
         /// </summary>
