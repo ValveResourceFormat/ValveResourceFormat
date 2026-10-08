@@ -2,7 +2,7 @@ name: Issue Automation
 
 on:
   issues:
-    types: [labeled]
+    types: [opened]
 
 permissions:
   issues: write
@@ -11,7 +11,7 @@ permissions:
 jobs:
   check-bug:
     runs-on: ubuntu-latest
-    if: github.event.label.name == 'Bug'
+    if: contains(github.event.issue.labels.*.name, 'Bug')
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
