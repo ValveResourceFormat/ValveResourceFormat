@@ -24,7 +24,7 @@ struct ProjectedDecal_t
     mat3x4 WorldToDecal;
     uint MaterialIndex;
     uint Flags;
-    uint Tint; // RGBA8, linear
+    uint Tint; // RGBA8, sRGB
     float PlaceTime; // g_flTime when the decal was added
 };
 
@@ -248,7 +248,8 @@ float AgeBlood(float age, float fadeOpacity, vec4 color, vec3 decalCoords, vec3 
 
 vec4 UnpackDecalTint(uint tint)
 {
-    return vec4(uvec4(tint & 0xFFu, (tint >> 8u) & 0xFFu, (tint >> 16u) & 0xFFu, tint >> 24u)) / 255.0;
+    vec4 color = vec4(uvec4(tint & 0xFFu, (tint >> 8u) & 0xFFu, (tint >> 16u) & 0xFFu, tint >> 24u)) / 255.0;
+    return vec4(SrgbGammaToLinear(color.rgb), color.a);
 }
 
 // Gradients here come from the depth buffer rather than dFdx, which is undefined inside the decal loop

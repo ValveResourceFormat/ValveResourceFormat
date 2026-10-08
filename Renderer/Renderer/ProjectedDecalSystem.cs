@@ -423,7 +423,8 @@ namespace ValveResourceFormat.Renderer
                 tint.W *= 1f - Math.Clamp(fadeTime / MathF.Max(material.FadeDuration, 1e-4f), 0f, 1f);
             }
 
-            return Color32.FromVector4Clamped(tint).PackedValue;
+            // Eight bits of linear color would band in the darks
+            return Color32.FromVector4Clamped(new Vector4(ColorSpace.SrgbLinearToGamma(tint.AsVector3()), tint.W)).PackedValue;
         }
 
         private void RemoveDecalAt(int index)
