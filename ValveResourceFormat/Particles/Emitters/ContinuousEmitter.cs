@@ -47,6 +47,9 @@ namespace ValveResourceFormat.Particles.Emitters
             IsFinished = false;
         }
 
+        public override string? DescribeMissingInput(ParticleSystemState particleSystemState)
+            => snapshotBinding.DescribeProblem(particleSystemState);
+
         public override void Stop()
         {
             IsFinished = true;

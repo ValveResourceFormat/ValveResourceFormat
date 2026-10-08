@@ -1,5 +1,6 @@
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles.Utils;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles
 {
@@ -26,6 +27,12 @@ namespace ValveResourceFormat.Particles
         {
             var controlPoint = parse.Int32("m_nSnapshotControlPoint", 0);
             var snapshot = runtimeSnapshot ?? SnapshotBinding.LoadAuthored(parse, fileLoader);
+
+            if (snapshot == null && parse.Data.GetStringProperty("m_hSnapshot") is { Length: > 0 } authored)
+            {
+                ReportDiagnostic(ParticleDiagnosticSeverity.Error, $"snapshot {authored}", "Could not be loaded",
+                    "Functions reading the snapshot have nothing to read", "Open the effect with the game's files loaded");
+            }
 
             if (snapshot != null)
             {

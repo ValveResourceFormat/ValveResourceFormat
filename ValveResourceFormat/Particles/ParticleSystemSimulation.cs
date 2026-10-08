@@ -265,9 +265,9 @@ namespace ValveResourceFormat.Particles
                 EndEarly = false
             };
 
-            snapshotControlPoint = PublishSnapshot(parse, particleSnapshot);
-
             Name = particleSystem.Resource?.FileName ?? "<unnamed>";
+
+            snapshotControlPoint = PublishSnapshot(parse, particleSnapshot);
 
             IReadOnlyList<KVObject> Functions(string key) => rootData.GetArray(key) ?? [];
 
@@ -424,11 +424,18 @@ namespace ValveResourceFormat.Particles
                         initializer.DefinitionIndex = definitionIndex;
                     }
 
+                    if (CollisionClasses.Contains(className))
+                    {
+                        collisionUsers.Add(className);
+                    }
+
                     target.Add(function);
                 }
                 else
                 {
                     logger.LogUniqueWarningFor([label, className], UnsupportedClassWarning, label, className, Name);
+                    ReportDiagnostic(ParticleDiagnosticSeverity.Warning, $"{label} {className}", "Not implemented",
+                        "Skipped, so whatever it does to the particles is missing", "None in the viewer; the effect is shown without it");
                 }
 
                 definitionIndex++;

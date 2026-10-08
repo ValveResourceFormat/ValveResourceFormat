@@ -226,6 +226,14 @@ internal static class ParticleCapture
             PrintTree(node.ParticleSimulation, 1);
         }
 
+        foreach (var diagnostic in node.ParticleSimulation.CollectDiagnostics())
+        {
+            Console.WriteLine($"[{diagnostic.Severity}] {diagnostic.Path}: {diagnostic.Component}: {diagnostic.Problem} -> {diagnostic.Impact}");
+        }
+
+        var statistics = node.ParticleSimulation.CollectStatistics();
+        Console.WriteLine($"systems {statistics.Systems}, active {statistics.ActiveSystems}, with particles {statistics.SystemsWithParticles}, live {statistics.LiveParticles}, emitted {statistics.EmittedParticles}");
+
         return 0;
     }
 
