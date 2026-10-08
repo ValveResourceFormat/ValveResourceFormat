@@ -116,18 +116,11 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            // The groups sit at the top level, and the format takes a single root
-            using var wrapped = new MemoryStream();
-            wrapped.Write("\"root\"\n{\n"u8);
-            stream.CopyTo(wrapped);
-            wrapped.Write("\n}\n"u8);
-            wrapped.Position = 0;
-
             KVObject root;
 
             try
             {
-                root = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(wrapped);
+                root = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).DeserializeWithoutRoot(stream);
             }
             catch (KeyValueException)
             {
