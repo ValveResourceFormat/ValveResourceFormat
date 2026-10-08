@@ -90,6 +90,9 @@ namespace ValveResourceFormat.Particles
         /// <summary>The scene lighting</summary>
         public IParticleLighting Lighting { get; set; } = IParticleLighting.Unlit;
 
+        /// <summary>The world geometry the system's collision and ground placement trace against.</summary>
+        public IParticleCollision Collision { get; set; } = IParticleCollision.None;
+
         /// <summary>Whether the system stops at <see cref="EndTime"/> rather than running until it empties.</summary>
         public bool EndEarly { get; set; }
 

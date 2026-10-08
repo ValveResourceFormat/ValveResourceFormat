@@ -338,6 +338,7 @@ public class Renderer : ISpawnGroupHost
         };
         depthPyramid = new DepthPyramid(rendererContext);
 
+        Scene.PhysicsWorld = EntitySystem.PhysicsWorld;
         scenes.Add(Scene);
     }
 
@@ -347,6 +348,7 @@ public class Renderer : ISpawnGroupHost
         ArgumentNullException.ThrowIfNull(group);
 
         spawnGroups.Add(group);
+        group.Scene.PhysicsWorld ??= EntitySystem.GetPhysicsWorld(group.Scene.WorldGroup);
         scenes.Add(group.Scene);
     }
 

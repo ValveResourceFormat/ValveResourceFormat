@@ -44,6 +44,7 @@ internal static class ParticleCapture
         var outDir = "capture";
         var fps = 60f;
         var seed = 1;
+        float? ground = null;
         Vector3? camera = null;
         Vector3? target = null;
         var controlPoints = new List<(int Index, Vector3 Position)>();
@@ -61,6 +62,7 @@ internal static class ParticleCapture
                 case "--seed": seed = int.Parse(value, CultureInfo.InvariantCulture); break;
                 case "--camera": camera = ParseVector(value); break;
                 case "--target": target = ParseVector(value); break;
+                case "--ground": ground = ParseFloat(value); break;
                 case "--cp":
                     var parts = value.Split('=');
                     controlPoints.Add((int.Parse(parts[0], CultureInfo.InvariantCulture), ParseVector(parts[1])));
@@ -111,6 +113,7 @@ internal static class ParticleCapture
         renderer.LoadRendererResources();
 
         LoadLighting(renderer);
+        renderer.Scene.CollisionGroundPlane = ground;
 
         var resource = fileLoader.LoadFileCompiled(particlePath)
             ?? throw new FileNotFoundException($"Could not load {particlePath}");

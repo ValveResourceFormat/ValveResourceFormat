@@ -288,6 +288,18 @@ namespace ValveResourceFormat.Renderer
             ProjectedDecals = new(this);
         }
 
+        /// <summary>
+        /// Gets or sets the physics world holding this scene's collision, which particle systems in the
+        /// scene trace against. Null when the scene has no world of its own.
+        /// </summary>
+        public PhysicsWorld? PhysicsWorld { get; set; }
+
+        /// <summary>
+        /// Gets or sets the height of a horizontal ground plane particle systems collide with, standing in
+        /// for a world when there is none, as a preview's floor does. Null for no plane.
+        /// </summary>
+        public float? CollisionGroundPlane { get; set; }
+
         /// <summary>Gets the decals projected onto the scene's depth, such as bullet impacts.</summary>
         public ProjectedDecalSystem ProjectedDecals { get; }
 
