@@ -203,12 +203,11 @@ branches, and it is regenerated on recompile anyway.
 
 Not implemented yet:
 
-| What                         | Details                                                                                                                                                                                                                       |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| External reference meshes    | Models welded into Hammer geometry (world meshes and aggregates) use only their embedded meshes, so render meshes living in a separate `.vmesh_c` are dropped from that geometry. Props that reference models are unaffected. |
-| Clutter                      | Procedural scatter objects such as compiled detail props are not decompiled; the viewer thins them per instance by screen size on the GPU, and instances pop instead of fading.                                               |
-| Physics spheres and capsules | Only physics hulls and meshes are turned into Hammer geometry.                                                                                                                                                                |
-| 3D skybox bundling           | `skybox_reference` keeps its properties, but the referenced skybox map is not decompiled and bundled automatically (same for glTF export, [#967](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/967)).     |
+| What                         | Details                                                                                                                                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clutter                      | Procedural scatter objects such as compiled detail props are not decompiled; the viewer thins them per instance by screen size on the GPU, and instances pop instead of fading.                                           |
+| Physics spheres and capsules | Only physics hulls and meshes are turned into Hammer geometry.                                                                                                                                                            |
+| 3D skybox bundling           | `skybox_reference` keeps its properties, but the referenced skybox map is not decompiled and bundled automatically (same for glTF export, [#967](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/967)). |
 
 For glTF map exports, additionally: only `light_environment` is exported as a light (point
 and spot lights are not), entities carrying no model at all (logic, cameras, point
