@@ -22,15 +22,24 @@ jobs:
         run: |
           LABELS=""
 
-          # Detect Exporting issues
-          if echo "$ISSUE_BODY" | grep -qE 'ValveResourceFormat\.IO\.([A-Za-z]+Extract|GltfModelExporter|ContentFile)|GUI\.Types\.Exporter'; then
-            LABELS="$LABELS,Exporting"
-          fi
+          # Matches namespaces from stack traces and logs, keep in sync with .github/labeler.yml for PRs
+          add_label_if() {
+            if grep -qP "$2" <<< "${3-$ISSUE_BODY}"; then
+              LABELS="$LABELS,$1"
+            fi
+          }
 
-          # Detect Renderer issues
-          if echo "$ISSUE_BODY" | grep -qE 'ValveResourceFormat\.Renderer|GUI\.Types\.GLViewers|RendererContext|RenderLoop'; then
-            LABELS="$LABELS,Renderer"
-          fi
+          # First project frame of each exception and inner exception, where it was thrown.
+          # Parse errors often bubble up through viewer code, so the full trace would mislabel them as Renderer.
+          THROW_FRAMES=$(awk '/Exception[:(]|--->/ { want = 1 } want && /^[[:space:]]*at (ValveResourceFormat|GUI|CLI)\./ && !/ValveResourceFormat\.(Serialization|Utils)\./ { print; want = 0 }' <<< "$ISSUE_BODY")
+
+          add_label_if Exporting 'ValveResourceFormat\.IO\.((?!ShaderExtract)[A-Za-z]+Extract|GltfModelExporter|ContentFile|ContentFormats|Hammer)|GUI\.Types\.Exporter|GUI\.Forms\.(ExtractOutputTypesForm|SvgExportForm)'
+          add_label_if Renderer 'ValveResourceFormat\.Renderer\.(?!Audio\.|Sound\.)|GUI\.Types\.GLViewers|GUI\.Controls\.(GL|Renderer)|ThumbnailRenderers|ValveResourceFormat\.Particles' "$THROW_FRAMES"
+          add_label_if Animation 'ValveResourceFormat\.ResourceTypes\.(ModelAnimation|ModelFlex|Choreo|AnimGraph)|ValveResourceFormat\.IO\.(Nm[A-Za-z]+Extract|AnimationGraph|AnimationGroupLoader|ChoreoExtract|FlexSceneExtract)|ValveResourceFormat\.Renderer\.(Animation|BoneConstraintSolver|FlexStateManager)|ValveResourceFormat\.FlexSceneFile|GLAnimationViewer'
+          add_label_if Maps 'ValveResourceFormat\.IO\.(MapExtract|ContentFormats\.ValveMap|Hammer|GltfModelExporter\.(LoadWorldNodeModels|LoadEntityMeshes))|ValveResourceFormat\.Renderer\.(World|Entities)\.|ValveResourceFormat\.ResourceTypes\.(EntityLump|WorldNode|World)\b|GLWorldViewer'
+          add_label_if Particles 'ValveResourceFormat\.(Renderer\.)?Particles|ValveResourceFormat\.ResourceTypes\.ParticleSystem|GLParticleViewer|ThumbnailParticleRenderer'
+          add_label_if Shaders 'ValveResourceFormat\.CompiledShader|ValveResourceFormat\.IO\.ShaderExtract|Only VCS file versions'
+          add_label_if Audio 'ValveResourceFormat\.Renderer\.(Audio|Sound)\.|ValveResourceFormat\.ResourceTypes\.Sound|GUI\.Types\.(Viewers\.)?Audio\b|AudioPlaybackPanel'
 
           # Remove leading comma and add labels
           LABELS="${LABELS#,}"
@@ -60,7 +69,8 @@ jobs:
             exit 0
           fi
 
-          LATEST_BUILD=$(gh run list --branch master --status success --workflow build.yml --limit 1 --json number --jq '.[0].number')
+          # Fork PRs from a branch named master also match --branch, and the newest run is not always listed first
+          LATEST_BUILD=$(gh run list --branch master --event push --status success --workflow build.yml --limit 20 --json number --jq 'map(.number) | max // empty')
           echo "Latest build number: $LATEST_BUILD"
 
           if [ -z "$LATEST_BUILD" ]; then
