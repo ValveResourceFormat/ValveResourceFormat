@@ -41,6 +41,7 @@ internal static class ParticleAudit
 
         // List key -> class -> files using it
         var usage = Lists.ToDictionary(list => list.Key, _ => new Dictionary<string, int>());
+        var examples = new Dictionary<string, string>();
         var fullySupported = 0;
         var failed = 0;
 
@@ -86,6 +87,7 @@ internal static class ParticleAudit
                     if (seen.Add(className))
                     {
                         usage[key][className] = usage[key].GetValueOrDefault(className) + 1;
+                        examples.TryAdd(className, path);
                     }
                 }
             }
@@ -109,12 +111,12 @@ internal static class ParticleAudit
 
             report.AppendLine(CultureInfo.InvariantCulture, $"## {title} ({implemented} of {classes.Count} implemented)");
             report.AppendLine();
-            report.AppendLine("| Class | Files | Implemented |");
-            report.AppendLine("| --- | ---: | :---: |");
+            report.AppendLine("| Class | Files | Implemented | Example |");
+            report.AppendLine("| --- | ---: | :---: | --- |");
 
             foreach (var (className, files) in classes)
             {
-                report.AppendLine(CultureInfo.InvariantCulture, $"| `{className}` | {files} | {(isSupported(className) ? "yes" : "**no**")} |");
+                report.AppendLine(CultureInfo.InvariantCulture, $"| `{className}` | {files} | {(isSupported(className) ? "yes" : "**no**")} | `{examples[className]}` |");
             }
 
             report.AppendLine();

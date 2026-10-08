@@ -22,6 +22,7 @@ public static class ParticleRendererFactory
         "C_OP_RenderSound" => new RenderSound(definition),
         "C_OP_RenderStandardLight" => new RenderStandardLight(definition, rendererContext, scene),
         "C_OP_RenderOmni2Light" => new RenderOmni2Light(definition, rendererContext, scene),
+        "C_OP_RenderModels" => new RenderModels(definition, rendererContext, scene),
         _ => null,
     };
 
@@ -31,7 +32,7 @@ public static class ParticleRendererFactory
     public static bool IsSupported(string className) => className switch
     {
         "C_OP_RenderSprites" or "C_OP_RenderCables" or "C_OP_RenderRopes" or "C_OP_RenderTrails"
-            or "C_OP_RenderSound" or "C_OP_RenderStandardLight" or "C_OP_RenderOmni2Light" => true,
+            or "C_OP_RenderSound" or "C_OP_RenderStandardLight" or "C_OP_RenderOmni2Light" or "C_OP_RenderModels" => true,
         _ => false,
     };
 }
