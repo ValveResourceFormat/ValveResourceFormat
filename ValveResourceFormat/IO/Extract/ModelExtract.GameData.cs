@@ -71,14 +71,10 @@ partial class ModelExtract
             lists.NmSkeletons.Add(MakeNode("NmSkeletonReference", ("filename", skeletonRef)));
         }
 
-        var animGraph2Refs = model.AnimGraph2References;
-
-        for (var i = 0; i < animGraph2Refs.Count; i++)
+        foreach (var (identifier, graphPath) in model.AnimGraph2References)
         {
-            var (identifier, graphPath) = animGraph2Refs[i];
-
-            // The first reference is the model's default graph, which takes a node of its own.
-            lists.AnimGraph2.Add(i == 0
+            // The default graph is the reference without an identifier.
+            lists.AnimGraph2.Add(string.IsNullOrEmpty(identifier)
                 ? MakeNode("DefaultAnimGraph2", ("filename", graphPath))
                 : MakeNode("AnimGraph2", ("name", identifier), ("filename", graphPath)));
         }
