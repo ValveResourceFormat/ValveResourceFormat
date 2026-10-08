@@ -106,6 +106,9 @@ namespace ValveResourceFormat.Particles
                 ParticleField.ScratchFloat1 => particle.ScratchFloat1,
                 ParticleField.ScratchFloat2 => particle.ScratchFloat2,
                 ParticleField.ForceScale => particle.ForceScale,
+                ParticleField.GlowAlpha => particle.GlowAlpha,
+                ParticleField.ShaderExtraData1 => particle.ShaderExtraData1,
+                ParticleField.ShaderExtraData2 => particle.ShaderExtraData2,
                 _ => 0f,
             };
         }
@@ -113,6 +116,15 @@ namespace ValveResourceFormat.Particles
         {
             switch (field)
             {
+                case ParticleField.GlowAlpha:
+                    particle.GlowAlpha = value;
+                    break;
+                case ParticleField.ShaderExtraData1:
+                    particle.ShaderExtraData1 = value;
+                    break;
+                case ParticleField.ShaderExtraData2:
+                    particle.ShaderExtraData2 = value;
+                    break;
                 case ParticleField.Radius:
                     particle.Radius = value;
                     break;
@@ -218,6 +230,8 @@ namespace ValveResourceFormat.Particles
                 ParticleField.BoxMins => particle.BoxMins,
                 ParticleField.BoxMaxs => particle.BoxMaxs,
                 ParticleField.BoxAngles => particle.BoxAngles,
+                ParticleField.GlowRgb => particle.GlowRgb,
+                ParticleField.RopeSegmentData => particle.RopeSegmentData,
                 _ => Vector3.Zero,
             };
         }
@@ -255,6 +269,12 @@ namespace ValveResourceFormat.Particles
         {
             switch (field)
             {
+                case ParticleField.GlowRgb:
+                    particle.GlowRgb = value;
+                    break;
+                case ParticleField.RopeSegmentData:
+                    particle.RopeSegmentData = value;
+                    break;
                 case ParticleField.Color:
                     particle.Color = value;
                     break;
