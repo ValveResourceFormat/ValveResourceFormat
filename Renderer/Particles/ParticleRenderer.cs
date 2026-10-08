@@ -80,6 +80,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             simulation.RenderState.SequenceDurations = CollectSequenceDurations();
             simulation.RenderState.Lighting = scene.LightingInfo;
+            simulation.RenderState.Collision = new ParticleSceneCollision(scene);
 
             foreach (var childSimulation in simulation.Children)
             {

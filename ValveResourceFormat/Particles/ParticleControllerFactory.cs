@@ -78,6 +78,7 @@ namespace ValveResourceFormat.Particles
                 ["C_INIT_InitialVelocityNoise"] = initializerInfo => new InitialVelocityNoise(initializerInfo),
                 ["C_INIT_PointList"] = initializerInfo => new PointList(initializerInfo),
                 ["C_INIT_PositionOffset"] = initializerInfo => new PositionOffset(initializerInfo),
+                ["C_INIT_PositionPlaceOnGround"] = initializerInfo => new PositionPlaceOnGround(initializerInfo),
                 ["C_INIT_PositionWarp"] = initializerInfo => new PositionWarp(initializerInfo),
                 ["C_INIT_RandomColor"] = initializerInfo => new RandomColor(initializerInfo),
                 ["C_INIT_RandomSequence"] = initializerInfo => new RandomSequence(initializerInfo),
@@ -140,6 +141,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_LockToSavedSequentialPathV2"] = operatorInfo => new LockToSavedSequentialPathV2(operatorInfo),
                 ["C_OP_MaintainSequentialPath"] = operatorInfo => new MaintainSequentialPath(operatorInfo),
                 ["C_OP_MaxVelocity"] = operatorInfo => new MaxVelocity(operatorInfo),
+                ["C_OP_MovementPlaceOnGround"] = operatorInfo => new MovementPlaceOnGround(operatorInfo),
                 ["C_OP_MovementRotateParticleAroundAxis"] = operatorInfo => new MovementRotateParticleAroundAxis(operatorInfo),
                 ["C_OP_Noise"] = operatorInfo => new Noise(operatorInfo),
                 ["C_OP_RadiusDecay"] = operatorInfo => new RadiusDecay(operatorInfo),
@@ -213,6 +215,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_ConstrainDistance"] = constraintInfo => new ConstrainDistance(constraintInfo),
                 ["C_OP_PlanarConstraint"] = constraintInfo => new PlanarConstraint(constraintInfo),
                 ["C_OP_RopeSpringConstraint"] = constraintInfo => new RopeSpringConstraint(constraintInfo),
+                ["C_OP_WorldTraceConstraint"] = constraintInfo => new WorldTraceConstraint(constraintInfo),
             };
 
         /// <summary>
