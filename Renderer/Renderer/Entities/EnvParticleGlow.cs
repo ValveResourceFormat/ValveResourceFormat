@@ -36,4 +36,32 @@ public sealed class EnvParticleGlow : InfoParticleSystem
             Effect.SetTextureOverride(textureOverride);
         }
     }
+
+    [EntityInput("SetAlphaScale")]
+    private void InputSetAlphaScale(EntityInputData data) => SetGlowParameter(0, data.Float());
+
+    [EntityInput("SetScale")]
+    private void InputSetScale(EntityInputData data) => SetGlowParameter(1, data.Float());
+
+    [EntityInput("SetColorTint")]
+    private void InputSetColorTint(EntityInputData data)
+    {
+        if (Effect != null)
+        {
+            Effect.GetControlPoint(16).Position = data.Vector();
+        }
+    }
+
+    private void SetGlowParameter(int component, float value)
+    {
+        if (Effect == null)
+        {
+            return;
+        }
+
+        var controlPoint = Effect.GetControlPoint(17);
+        var parameters = controlPoint.Position;
+        parameters[component] = value;
+        controlPoint.Position = parameters;
+    }
 }
