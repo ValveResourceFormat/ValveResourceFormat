@@ -885,7 +885,13 @@ public sealed class TextureExtract
         var outputFormat = texture.Format.ToString();
 
         using var datamodel = new Datamodel.Datamodel("vtex", 1);
-        datamodel.Root = CDmeVtex.CreateTexture2D([(inputTextureFileName, "rgba", "Box")], outputFormat);
+        var vtex = CDmeVtex.CreateTexture2D([(inputTextureFileName, "rgba", "Box")], outputFormat);
+        vtex.Clamp = new Vector3(
+            texture.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPS) ? 1 : 0,
+            texture.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPT) ? 1 : 0,
+            texture.Flags.HasFlag(VTexFlags.SUGGEST_CLAMPU) ? 1 : 0);
+        vtex.NoLod = texture.Flags.HasFlag(VTexFlags.NO_LOD);
+        datamodel.Root = vtex;
 
         using var stream = new MemoryStream();
         datamodel.Save(stream, "keyvalues2_noids", 1);
