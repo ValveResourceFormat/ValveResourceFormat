@@ -310,7 +310,8 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>
         /// Gives this system its own control point at <paramref name="cp"/>, shadowing the one it would
-        /// otherwise read from its parent, and returns it.
+        /// otherwise read from its parent, and returns it. A new override starts as a copy of that point,
+        /// so a writer that only moves it keeps the orientation the system already had.
         /// </summary>
         /// <param name="cp">Control point index.</param>
         internal ControlPoint OverrideControlPoint(int cp)
@@ -319,7 +320,20 @@ namespace ValveResourceFormat.Particles
 
             if (!controlPointOverrides.TryGetValue(cp, out var point))
             {
-                point = new ControlPoint { Clock = this };
+                var inherited = GetControlPoint(cp);
+
+                point = new ControlPoint
+                {
+                    Position = inherited.Position,
+                    Orientation = inherited.Orientation,
+                    Rotation = inherited.Rotation,
+                    PositionPrevious = inherited.PositionPrevious,
+                    OrientationPrevious = inherited.OrientationPrevious,
+                    RotationPrevious = inherited.RotationPrevious,
+                    PreviousStepTime = inherited.PreviousStepTime,
+                    ChangeTime = inherited.ChangeTime,
+                    Clock = this,
+                };
                 controlPointOverrides.Add(cp, point);
             }
 

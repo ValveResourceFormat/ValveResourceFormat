@@ -2,7 +2,7 @@ namespace ValveResourceFormat.Particles.ForceGenerators;
 
 /// <summary>
 /// Accelerates particles by a vector given in a control point's local space, so it turns with the
-/// control point.
+/// control point. Without a control point the vector is applied as authored, in world space.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LocalAccelerationForce">C_OP_LocalAccelerationForce</seealso>
 class LocalAccelerationForce : ParticleFunctionForceGenerator
@@ -20,15 +20,17 @@ class LocalAccelerationForce : ParticleFunctionForceGenerator
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
     {
-        var force = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, acceleration.NextVector(particleSystemState));
+        var force = acceleration.NextVector(particleSystemState);
 
-        // A scale control point carries its multiplier in its first component
-        if (scaleControlPoint >= 0)
+        if (controlPoint >= 0)
         {
-            force *= particleSystemState.GetControlPoint(scaleControlPoint).Position.X;
-        }
+            if (scaleControlPoint >= 0)
+            {
+                force *= particleSystemState.GetControlPoint(scaleControlPoint).Position;
+            }
 
-        force *= strength;
+            force = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, force);
+        }
 
         foreach (ref var particle in particles.Current)
         {

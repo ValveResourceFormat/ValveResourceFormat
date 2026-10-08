@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles
 {
@@ -93,13 +94,13 @@ namespace ValveResourceFormat.Particles
             // operator fades out of phase with each other while each stays steady over its life
             if (opTimeOffsetSeed != 0)
             {
-                time += Utils.ParticleRandom.ForSampleBetween(systemState.Random.Seed + opTimeOffsetSeed, opTimeOffsetMin, opTimeOffsetMax);
+                time += ParticleRandom.ForSampleBetween(systemState.Random.Seed + opTimeOffsetSeed, opTimeOffsetMin, opTimeOffsetMax);
                 time = MathF.Max(0f, time);
             }
 
             if (opTimeScaleSeed != 0 && time > OpStartFadeInTime)
             {
-                var timeScale = 1f / MathF.Max(0.0001f, Utils.ParticleRandom.ForSampleBetween(systemState.Random.Seed + opTimeScaleSeed, opTimeScaleMin, opTimeScaleMax));
+                var timeScale = 1f / MathF.Max(0.0001f, ParticleRandom.ForSampleBetween(systemState.Random.Seed + opTimeScaleSeed, opTimeScaleMin, opTimeScaleMax));
                 time = OpStartFadeInTime + (timeScale * (time - OpStartFadeInTime));
             }
 
