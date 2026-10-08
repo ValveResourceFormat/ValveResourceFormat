@@ -15,6 +15,8 @@ Source 2 Viewer is portable and requires no installation. Just run the executabl
 
 The **Explorer** tab is the main way to browse game files. It opens by default on launch (this can be disabled in settings) and is accessible from the top bar. It automatically discovers all installed Steam games and their VPK archives, including workshop content. Click a game to expand it and browse its files.
 
+Files opened from a game folder load the textures, materials and other files they reference from that game. For files outside of a game folder, see [game search paths](./game-search-paths.md).
+
 The Explorer also shows:
 
 - **Recent files** at the top, so you can quickly reopen files you've worked with before
