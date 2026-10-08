@@ -1,4 +1,5 @@
 using ValveResourceFormat.Renderer.Entities;
+using ValveResourceFormat.Renderer.Gameplay;
 using ValveResourceFormat.Renderer.SceneNodes;
 
 namespace ValveResourceFormat.Renderer.Input;
@@ -343,10 +344,18 @@ public class UserInput
     {
         var finalCamera = GetInterpolatedCamera();
 
-        // The landing punch tilts the rendered view down without touching the stored aim.
-        var viewPunchPitch = float.DegreesToRadians(PlayerMovement.ViewPunchPitchDegrees);
+        // Landing and firing punch the rendered view without touching the stored aim.
+        var punch = PlayerMovement.ViewPunchDegrees;
 
-        renderCamera.SetLocationPitchYaw(finalCamera.Location, finalCamera.Pitch + viewPunchPitch, finalCamera.Yaw);
+        if (Viewmodel != null)
+        {
+            punch += Viewmodel.AimPunchServices.Sample(Renderer.Uptime) * AimPunchServices.ViewScale;
+        }
+
+        renderCamera.SetLocationPitchYaw(
+            finalCamera.Location,
+            finalCamera.Pitch + float.DegreesToRadians(punch.X),
+            finalCamera.Yaw + float.DegreesToRadians(punch.Y));
         renderCamera.ClampRotation();
 
         renderCamera.Roll = Camera.Roll;

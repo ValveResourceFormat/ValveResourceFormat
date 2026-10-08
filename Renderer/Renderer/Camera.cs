@@ -122,26 +122,39 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void RecalculateDirectionVectors()
         {
-            var (yawSin, yawCos) = MathF.SinCos(Yaw);
-            var (pitchSin, pitchCos) = MathF.SinCos(Pitch);
+            (Forward, Up, Right) = GetDirectionVectors(Pitch, Yaw, Roll);
+        }
 
-            Forward = new Vector3(yawCos * pitchCos, yawSin * pitchCos, -pitchSin);
-            Up = new Vector3(yawCos * pitchSin, yawSin * pitchSin, pitchCos);
+        /// <summary>
+        /// Computes the forward, up, and right vectors a camera with the given orientation would have.
+        /// </summary>
+        /// <param name="pitch">Pitch in radians.</param>
+        /// <param name="yaw">Yaw in radians.</param>
+        /// <param name="roll">Roll in radians.</param>
+        public static (Vector3 Forward, Vector3 Up, Vector3 Right) GetDirectionVectors(float pitch, float yaw, float roll)
+        {
+            var (yawSin, yawCos) = MathF.SinCos(yaw);
+            var (pitchSin, pitchCos) = MathF.SinCos(pitch);
+
+            var forward = new Vector3(yawCos * pitchCos, yawSin * pitchCos, -pitchSin);
+            var up = new Vector3(yawCos * pitchSin, yawSin * pitchSin, pitchCos);
 
             // Cross(Forward, Up) worked through by hand: it comes out as yaw shifted a quarter turn, with
             // no pitch term at all, so there is still a right to point along when looking straight down.
-            Right = new Vector3(yawSin, -yawCos, 0);
+            var right = new Vector3(yawSin, -yawCos, 0);
 
-            if (Roll != 0f)
+            if (roll != 0f)
             {
                 // Rolling turns Up and Right about Forward, which both are perpendicular to, so the
                 // rotation is just the pair leaning into each other
-                var (rollSin, rollCos) = MathF.SinCos(Roll);
-                var rolledUp = (Up * rollCos) + (Right * rollSin);
+                var (rollSin, rollCos) = MathF.SinCos(roll);
+                var rolledUp = (up * rollCos) + (right * rollSin);
 
-                Right = (Right * rollCos) - (Up * rollSin);
-                Up = rolledUp;
+                right = (right * rollCos) - (up * rollSin);
+                up = rolledUp;
             }
+
+            return (forward, up, right);
         }
 
         /// <summary>

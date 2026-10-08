@@ -1,6 +1,7 @@
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.Entities;
+using ValveResourceFormat.Renderer.Gameplay;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -21,6 +22,11 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// Viewmodel sway, trailing the arms behind the view as it turns.
     /// </summary>
     public ViewmodelLag Lag { get; } = new();
+
+    /// <summary>
+    /// The kick weapon recoil puts into the view and the weapon.
+    /// </summary>
+    public AimPunchServices AimPunchServices { get; } = new();
 
     /// <summary>
     /// The player arms.
@@ -79,6 +85,8 @@ public class ViewmodelSceneNode : ModelSceneNode
 
             CancelGrenadeThrow();
             deployTimeLeft = DeployDuration;
+            recoilIndex = 0f;
+            queuedFire = false;
             SetState(AnimationState.Draw);
         }
     } = KnifeItemIndex;
@@ -91,6 +99,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     private Matrix4x4 TargetTransform = Matrix4x4.Identity;
     private Matrix4x4 PlayerTransform = Matrix4x4.Identity;
     private float attackCooldown;
+    private bool queuedFire;
     private float alternateAttackCooldown;
     private Vector3 currentBob = Vector3.Zero;
 
@@ -332,12 +341,12 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             case 1:
                 Sound.Play(RifleAttackSound, volume: AttackSoundVolume);
-                SpawnBulletImpactDecal(input);
+                FireBullet(input);
                 return false;
 
             case 2:
                 Sound.Play(PistolAttackSound, volume: AttackSoundVolume);
-                SpawnBulletImpactDecal(input);
+                FireBullet(input);
                 return false;
 
             case KnifeItemIndex:
@@ -423,18 +432,74 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     private const float BulletRange = 8192f;
 
-    private void SpawnBulletImpactDecal(UserInput input)
+    // m_szTracerParticle from weapons.vdata
+    private const string RifleTracer = "particles/weapons/cs_weapon_fx/weapon_tracers_assrifle.vpcf";
+    private const string PistolTracer = "particles/weapons/cs_weapon_fx/weapon_tracers_pistol.vpcf";
+
+    // Ignores the tracer frequency
+    private string SelectedTracer => SelectedItemIndex == 1 ? RifleTracer : PistolTracer;
+
+    private Vector3 tracerStart;
+
+    private void FireBullet(UserInput input)
     {
         var camera = input.Camera;
-        var trace = TraceWorldAndEntities(input, camera.Location, camera.Location + camera.Forward * BulletRange);
 
-        if (!trace.Hit)
+        // Bullets leave along the aim plus the punch as it stood before this shot kicked it
+        var punch = AimPunchServices.Sample(shotTime) * AimPunchServices.BulletScale;
+        var (direction, _, _) = Camera.GetDirectionVectors(
+            camera.Pitch + float.DegreesToRadians(punch.X),
+            camera.Yaw + float.DegreesToRadians(punch.Y),
+            0f);
+
+        var end = camera.Location + direction * BulletRange;
+        var trace = TraceWorldAndEntities(input, camera.Location, end);
+
+        if (trace.Hit)
+        {
+            end = trace.HitPosition;
+
+            entitySystem.TempEntities.DispatchEffect("Impact",
+                new EffectData(Scene, trace.HitPosition, trace.HitNormal, direction, trace.SurfacePropertyHash, trace.HitEntity));
+        }
+
+        if (input.EntitySystem?.TraceWaterSurface(camera.Location, end, out var waterSurface) == true)
+        {
+            entitySystem.TempEntities.DispatchEffect("gunshotsplash",
+                new EffectData(Scene, waterSurface, Vector3.UnitZ, direction, Scale: float.Lerp(8f, 12f, Random.Shared.NextSingle())));
+        }
+
+        SpawnTracer(SelectedTracer, end);
+    }
+
+    private void SpawnTracer(string particleName, Vector3 end)
+    {
+        var particle = entitySystem.TempEntities.DispatchParticleEffect(particleName, Scene, tracerStart, Vector3.Normalize(end - tracerStart));
+
+        if (particle == null)
         {
             return;
         }
 
-        entitySystem.TempEntities.DispatchEffect("Impact",
-            new EffectData(Scene, trace.HitPosition, trace.HitNormal, camera.Forward, trace.SurfacePropertyHash, trace.HitEntity));
+        particle.SetControlPoint(1, Matrix4x4.CreateTranslation(end));
+
+        // Marks the tracer as fired by the viewer
+        particle.GetControlPoint(3).Position = Vector3.UnitX;
+    }
+
+    // The viewmodel is drawn with a narrower field of view than the world, so a point on it sits elsewhere
+    // in the world for the same place on screen
+    private Vector3 ViewmodelToWorld(Vector3 position, Camera camera)
+    {
+        var context = Scene.RendererContext;
+        var viewmodelFov = context.ViewmodelFieldOfView * context.FieldOfView / 90f;
+        var scale = MathF.Tan(float.DegreesToRadians(context.FieldOfView) * 0.5f)
+            / MathF.Tan(float.DegreesToRadians(viewmodelFov) * 0.5f);
+
+        var offset = position - camera.Location;
+        var forward = camera.Forward * Vector3.Dot(offset, camera.Forward);
+
+        return camera.Location + forward + (offset - forward) * scale;
     }
 
     // Brush and prop entities carry their own colliders, which move with them, so the world alone misses doors
@@ -717,11 +782,64 @@ public class ViewmodelSceneNode : ModelSceneNode
     private (float fire, float altFire) GetWeaponFireDelays()
         => SelectedItemIndex switch
         {
-            1 => (0.1f, 2f),
-            2 => (0.1f, 2f),
+            1 => (0.1f, 2f),  // m_flCycleTime, m4a1_silencer
+            2 => (0.17f, 2f), // m_flCycleTime, usp_silencer
             KnifeItemIndex => (0.4f, 1f),
             _ => (0.1f, 2f),
         };
+
+    private const float TickInterval = 1f / 64f;
+
+    // Both silenced weapons are held with the silencer on, which is their second mode
+    private const int SilencerOnMode = 1;
+
+    // m_nRecoilSeed, m_bIsFullAuto and the m_flRecoil* keys from weapons.vdata
+    private static readonly RecoilPattern RifleRecoil = new(38965, fullAuto: true, angle: [0f, 0f], angleVariance: [65f, 65f], magnitude: [25f, 21f], magnitudeVariance: [3f, 0f]);
+
+    private static readonly RecoilPattern PistolRecoil = new(5426, fullAuto: false, angle: [0f, 0f], angleVariance: [0f, 0f], magnitude: [29f, 23f], magnitudeVariance: [0f, 0f]);
+
+    private RecoilPattern? SelectedRecoil => SelectedItemIndex switch
+    {
+        1 => RifleRecoil,
+        2 => PistolRecoil,
+        _ => null,
+    };
+
+    // m_flRecoilIndex: how far into the pattern the spray is, which unwinds between shots
+    private float recoilIndex;
+    private float shotTime;
+    private float lastShotTime = float.NegativeInfinity;
+
+    private void Recoil(UserInput input, RecoilPattern pattern, float time)
+    {
+        var (angle, magnitude) = pattern[SilencerOnMode, (int)recoilIndex];
+
+        // The view punch has been decaying since the shot
+        var viewPunch = AimPunchServices.Kick(time, angle, magnitude);
+        input.PlayerMovement.AddViewPunch(viewPunch * MathF.Exp(-input.PlayerMovement.ViewPunchDecay * (uptime - time)));
+
+        recoilIndex++;
+        lastShotTime = time;
+    }
+
+    // Once a tick past the cycle time since the last shot, the recoil index falls to a hundredth of itself
+    // per second
+    private void DecayRecoilIndex(float time, float dt)
+    {
+        var (cycleTime, _) = GetWeaponFireDelays();
+
+        if (recoilIndex <= 0f || time <= lastShotTime + cycleTime + TickInterval)
+        {
+            return;
+        }
+
+        recoilIndex *= MathF.Pow(0.01f, dt);
+
+        if (recoilIndex <= 0.1f)
+        {
+            recoilIndex = 0f;
+        }
+    }
 
     /// <summary>
     /// Gets the running speed the equipped item allows, in world units per second.
@@ -1147,6 +1265,10 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
         previousUptime = uptime;
 
+        // Ends the frame it runs out below zero, by how long ago that was
+        attackCooldown = attackCooldown > 0f ? attackCooldown - dt : 0f;
+        alternateAttackCooldown = MathF.Max(0f, alternateAttackCooldown - dt);
+
         if (inAirExitTimer > 0f)
         {
             inAirExitTimer = MathF.Max(0f, inAirExitTimer - dt);
@@ -1158,9 +1280,8 @@ public class ViewmodelSceneNode : ModelSceneNode
             Scene.ActivateLayer(ViewmodelLayerName);
         }
 
-        UpdateTransforms(input, uptime);
-
         var camera = input.Camera;
+        camera.RecalculateDirectionVectors();
         var speed = input.Velocity.Length();
 
         if (Legs?.AnimationController is { } legsController && legsController.CurrentPlayer is { } legsPlayer)
@@ -1347,6 +1468,8 @@ public class ViewmodelSceneNode : ModelSceneNode
             jumpUptime = uptime;
         }
 
+        DecayRecoilIndex(uptime, dt);
+
         if (IsGrenadeSelected)
         {
             ProcessGrenadeInput(input, dt);
@@ -1355,15 +1478,30 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             var (fireDelay, altFireDelay) = GetWeaponFireDelays();
 
+            // A pistol click during the cycle time is held and fires as soon as the cycle is up
+            if (SelectedItemIndex == 2 && input.Pressed(TrackedKeys.MouseLeft))
+            {
+                queuedFire = true;
+            }
+
             var requestedFire = Deployed && (SelectedItemIndex == 2
-                ? input.Pressed(TrackedKeys.MouseLeft)
+                ? queuedFire
                 : input.Holding(TrackedKeys.MouseLeft));
 
             if (requestedFire && attackCooldown <= 0f)
             {
+                var late = SelectedRecoil != null && !input.Pressed(TrackedKeys.MouseLeft) ? attackCooldown : 0f;
+                shotTime = uptime + late;
+
+                queuedFire = false;
                 SetState(AnimationState.Attack);
                 var connected = PlayAttackSound(input, heavyKnifeAttack: false);
-                attackCooldown = fireDelay;
+                attackCooldown = late + fireDelay;
+
+                if (SelectedRecoil is { } recoil)
+                {
+                    Recoil(input, recoil, shotTime);
+                }
 
                 if (IsKnifeSelected)
                 {
@@ -1423,6 +1561,8 @@ public class ViewmodelSceneNode : ModelSceneNode
 
             SetState(AnimationState.LookAt);
         }
+
+        UpdateTransforms(input, uptime);
     }
 
     /// <summary>
@@ -1434,13 +1574,19 @@ public class ViewmodelSceneNode : ModelSceneNode
         var camera = input.Camera;
         camera.RecalculateDirectionVectors();
 
-        var forward = Vector3.Normalize(camera.Forward);
-        var worldUp = Vector3.UnitZ;
+        // The weapon follows the punched view and kicks further still
+        var punch = input.PlayerMovement.ViewPunchDegrees + AimPunchServices.Sample(uptime) * AimPunchServices.ViewmodelScale;
+        var (punchedForward, _, punchedRight) = Camera.GetDirectionVectors(
+            camera.Pitch + float.DegreesToRadians(punch.X),
+            camera.Yaw + float.DegreesToRadians(punch.Y),
+            camera.Roll);
+
+        var forward = Vector3.Normalize(punchedForward);
 
         // This is the +Y (left) axis rather than right, which is why the rows below come out cyclically
         // permuted; viewmodelOffsetRot is tuned against that frame, so leave it be. Taken from the camera
         // rather than as Cross(worldUp, forward), which is the same vector but collapses looking straight down.
-        var right = -camera.Right;
+        var right = -punchedRight;
         var up = Vector3.Cross(forward, right);
 
         var cameraRotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
@@ -1530,9 +1676,6 @@ public class ViewmodelSceneNode : ModelSceneNode
             Legs.UpdateHierarchy(context);
         }
 
-        attackCooldown = MathF.Max(0f, attackCooldown - context.Timestep);
-        alternateAttackCooldown = MathF.Max(0f, alternateAttackCooldown - context.Timestep);
-
         var activeAnimation = AnimationController.ActiveAnimation;
         if (activeAnimation != null)
         {
@@ -1607,11 +1750,12 @@ public class ViewmodelSceneNode : ModelSceneNode
 
                 UpdateMolotovFlame();
 
+                Matrix4x4.Decompose(item.GetAttachmentTransform(MuzzleFlashAttachment), out _, out var muzzleRotation, out var muzzlePosition);
+                tracerStart = ViewmodelToWorld(muzzlePosition, context.Camera);
+
                 // The effect's control point configuration drives control point 0 from the weapon's muzzle_flash attachment
                 if (muzzleFlashParticle != null)
                 {
-                    Matrix4x4.Decompose(item.GetAttachmentTransform(MuzzleFlashAttachment), out _, out var muzzleRotation, out var muzzlePosition);
-
                     muzzleFlashParticle.Transform = Matrix4x4.CreateFromQuaternion(muzzleRotation) * Matrix4x4.CreateTranslation(muzzlePosition);
                     muzzleFlashParticle.Update(context);
                 }

@@ -713,6 +713,69 @@ public sealed class EntitySystem
     }
 
     /// <summary>
+    /// Finds where a ray enters water that it is still under at its end.
+    /// </summary>
+    /// <param name="from">Where the ray starts, above the water.</param>
+    /// <param name="to">Where the ray ends.</param>
+    /// <param name="surface">The point on the water surface the ray goes in at.</param>
+    /// <returns><see langword="true"/> when the ray ends under water.</returns>
+    public bool TraceWaterSurface(Vector3 from, Vector3 to, out Vector3 surface)
+    {
+        surface = default;
+
+        var nearest = new Rubikon.TraceResult();
+
+        foreach (var entity in entities)
+        {
+            if (entity is FuncWater { IsRemoved: false, IsInQueryWorld: true, Collider: { IsEmpty: false } collider })
+            {
+                nearest.MinimizeWith(TraceWater(collider, from, to));
+            }
+        }
+
+        var direction = to - from;
+
+        // The first surface met has to face the ray, or the ray started under water
+        if (!nearest.Hit || Vector3.Dot(nearest.HitNormal, direction) >= 0f)
+        {
+            return false;
+        }
+
+        // Tested a little short of the end, which sits right on whatever stopped the ray
+        direction = Vector3.Normalize(direction);
+        var depth = Vector3.Distance(nearest.HitPosition, to);
+        var end = to - direction * MathF.Min(WaterSurfaceSkin, depth * 0.5f);
+        var inside = nearest.HitPosition + direction * MathF.Min(WaterSurfaceSkin, depth * 0.25f);
+
+        foreach (var entity in entities)
+        {
+            if (entity is FuncWater { IsRemoved: false, IsInQueryWorld: true, Collider: { IsEmpty: false } collider } && IsUnderWater(collider))
+            {
+                surface = nearest.HitPosition;
+                return true;
+            }
+        }
+
+        return false;
+
+        // A volume made of meshes has no inside to ask about, so there the ray must not come back out of it
+        bool IsUnderWater(EntityCollider collider)
+            => collider.ContainsPoint(end)
+                || (collider.Shape.Meshes.Length > 0 && TraceWater(collider, from, inside).Hit && !TraceWater(collider, inside, end).Hit);
+
+        // Not every water volume is tagged as water; some are plain untagged geometry
+        static Rubikon.TraceResult TraceWater(EntityCollider collider, Vector3 from, Vector3 to)
+        {
+            var trace = collider.TraceRay(from, to, Rubikon.WaterCollisionName);
+            trace.MinimizeWith(collider.TraceRay(from, to, Rubikon.DefaultGeometry));
+
+            return trace;
+        }
+    }
+
+    private const float WaterSurfaceSkin = 0.25f;
+
+    /// <summary>
     /// Finds the nearest usable entity along a ray, for the player's <c>+use</c>.
     /// </summary>
     /// <returns>The nearest usable entity in reach, or <see langword="null"/> when there is none.</returns>

@@ -429,6 +429,11 @@ namespace ValveResourceFormat.Renderer.Decals
             return Color32.FromVector4Clamped(new Vector4(ColorSpace.SrgbLinearToGamma(tint.AsVector3()), tint.W)).PackedValue;
         }
 
+        /// <summary>Finds the sound event a bullet makes on a surface.</summary>
+        /// <param name="surfacePropertyHash">The hash of the hit surface property, or zero for the default surface.</param>
+        /// <returns>The sound event, or null for a silent surface.</returns>
+        public string? FindBulletImpactSound(uint surfacePropertyHash) => ImpactDecals.FindBulletImpactSound(surfacePropertyHash);
+
         /// <summary>Finds the particle effect a bullet throws up from a surface.</summary>
         /// <param name="surfacePropertyHash">The hash of the hit surface property, or zero for the default surface.</param>
         /// <returns>The effect, or null when the game names none.</returns>

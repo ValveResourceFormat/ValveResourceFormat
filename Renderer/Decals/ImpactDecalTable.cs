@@ -18,6 +18,7 @@ namespace ValveResourceFormat.Renderer.Decals
         private readonly record struct SurfaceImpact(string? Decal, string? GrazingDecal, string? Effect);
 
         private readonly Dictionary<uint, string> surfaceNamesByHash = [];
+        private readonly Dictionary<uint, string> bulletImpactSounds = [];
         private readonly Dictionary<string, string> surfaceBases = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, SurfaceImpact> surfaceImpacts = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, DecalOption[]> decalGroups = new(StringComparer.OrdinalIgnoreCase);
@@ -52,7 +53,13 @@ namespace ValveResourceFormat.Renderer.Decals
                     continue;
                 }
 
-                surfaceNamesByHash[StringToken.Store(name)] = name;
+                var hash = StringToken.Store(name);
+                surfaceNamesByHash[hash] = name;
+
+                if (surface.GetSubCollection("audiosounds")?.GetStringProperty("bulletimpact") is { Length: > 0 } sound)
+                {
+                    bulletImpactSounds[hash] = sound;
+                }
 
                 if (surface.GetStringProperty("base") is { } baseName)
                 {
@@ -197,6 +204,12 @@ namespace ValveResourceFormat.Renderer.Decals
                 ? impact.GrazingDecal
                 : impact.Decal;
         }
+
+        // Every surface names its own sound, so there is no base surface to fall back to; some name none
+        public string? FindBulletImpactSound(uint surfacePropertyHash)
+            => bulletImpactSounds.GetValueOrDefault(surfaceNamesByHash.ContainsKey(surfacePropertyHash)
+                ? surfacePropertyHash
+                : StringToken.Store("default"));
 
         public string? FindEffect(uint surfacePropertyHash)
             => FindImpact(surfacePropertyHash, static impact => impact.Effect != null).Effect;

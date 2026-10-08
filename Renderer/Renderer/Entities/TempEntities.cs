@@ -11,8 +11,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <param name="Direction">The direction whatever caused it was travelling.</param>
 /// <param name="SurfacePropertyHash">The hash of the surface property that was hit, or zero for the default surface.</param>
 /// <param name="Entity">The entity that was hit, or null for the static world.</param>
+/// <param name="Scale">How big the effect is, for effects that come in sizes.</param>
 public readonly record struct EffectData(Scene Scene, Vector3 Origin, Vector3 Normal, Vector3 Direction,
-    uint SurfacePropertyHash = 0, BaseEntity? Entity = null);
+    uint SurfacePropertyHash = 0, BaseEntity? Entity = null, float Scale = 1f);
 
 /// <summary>
 /// Temporary entities: effects that are dispatched by name, play once and are gone, without an entity in
@@ -35,7 +36,7 @@ public sealed class TempEntities
     }
 
     /// <summary>Plays an effect.</summary>
-    /// <param name="effectName">The name the effect is dispatched by: <c>Impact</c> or <c>KnifeSlash</c>.</param>
+    /// <param name="effectName">The name the effect is dispatched by: <c>Impact</c>, <c>KnifeSlash</c> or <c>gunshotsplash</c>.</param>
     /// <param name="data">Where and how it happens.</param>
     public void DispatchEffect(string effectName, in EffectData data)
     {
@@ -47,6 +48,11 @@ public sealed class TempEntities
 
             case "KnifeSlash":
                 data.Scene.ProjectedDecals.SpawnKnifeDecal(data.Origin, data.Normal, data.Direction, data.SurfacePropertyHash, data.Entity);
+                ImpactParticle(data);
+                break;
+
+            case "gunshotsplash":
+                GunshotSplash(data);
                 break;
 
             default:
@@ -61,17 +67,52 @@ public sealed class TempEntities
 
         decals.SpawnImpactDecal(data.Origin, data.Normal, data.Direction, data.SurfacePropertyHash, data.Entity);
 
-        if (decals.FindImpactEffect(data.SurfacePropertyHash) is not { Length: > 0 } particleName)
+        if (decals.FindBulletImpactSound(data.SurfacePropertyHash) is { } sound)
+        {
+            Sound.Play(sound, data.Origin);
+        }
+
+        ImpactParticle(data);
+    }
+
+    private const string WaterSplashSound = "Physics.WaterSplash";
+
+    // The splash always goes straight up, whatever the surface normal
+    private void GunshotSplash(in EffectData data)
+    {
+        var particleName = data.Scale switch
+        {
+            < 4f => "particles/water_impact/water_splash_01.vpcf",
+            < 8f => "particles/water_impact/water_splash_02.vpcf",
+            _ => "particles/water_impact/water_splash_03.vpcf",
+        };
+
+        DispatchParticleEffect(particleName, data.Scene, data.Origin, Vector3.UnitZ);
+        Sound.Play(WaterSplashSound, data.Origin);
+    }
+
+    // The effect the hit surface throws up
+    private void ImpactParticle(in EffectData data)
+    {
+        if (data.Scene.ProjectedDecals.FindImpactEffect(data.SurfacePropertyHash) is not { Length: > 0 } particleName)
+        {
+            return;
+        }
+
+        if (DispatchParticleEffect(particleName, data.Scene, data.Origin, data.Normal) is not { } particle)
         {
             return;
         }
 
         var direction = Vector3.Normalize(data.Direction);
-        var particle = DispatchParticleEffect(particleName, data.Scene, data.Origin, data.Normal);
 
         // The surface normal, the direction the bullet bounces off in, and the way back to the shooter
-        particle?.SetControlPoint(1, ControlPoint(data.Origin, Vector3.Reflect(direction, data.Normal)));
-        particle?.SetControlPoint(2, ControlPoint(data.Origin, -direction));
+        particle.SetControlPoint(1, ControlPoint(data.Origin, Vector3.Reflect(direction, data.Normal)));
+        particle.SetControlPoint(2, ControlPoint(data.Origin, -direction));
+
+        // The effect scale, and the point just off the surface where effects sample the light that tints them
+        particle.GetControlPoint(3).Position = Vector3.One;
+        particle.GetControlPoint(4).Position = data.Origin + Vector3.One;
     }
 
     /// <summary>Plays a particle system once, removing it when it has finished.</summary>

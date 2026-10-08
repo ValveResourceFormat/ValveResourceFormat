@@ -34,6 +34,7 @@ public static class EntityFactory
         Register<InfoVisibilityBox>("info_visibility_box", static (system, spawnInfo) => new InfoVisibilityBox(system, spawnInfo));
 
         Register<FuncBrush>("func_brush", static (system, spawnInfo) => new FuncBrush(system, spawnInfo));
+        Register<FuncWater>("func_water", static (system, spawnInfo) => new FuncWater(system, spawnInfo));
         Register<FuncCombineBarrier>("func_combine_barrier", static (system, spawnInfo) => new FuncCombineBarrier(system, spawnInfo));
         Register<FuncButton>("func_button", static (system, spawnInfo) => new FuncButton(system, spawnInfo));
         Register<FuncDoor>("func_door", static (system, spawnInfo) => new FuncDoor(system, spawnInfo));

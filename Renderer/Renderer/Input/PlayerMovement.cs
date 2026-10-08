@@ -130,10 +130,16 @@ public partial class PlayerMovement : IPlayerController
     public float Stamina => Effects.Stamina;
 
     /// <summary>
-    /// Gets the downward view punch from the last landing, in degrees. This is additive on top of
-    /// the player's aim for rendering only, exactly like Source's m_viewPunchAngle.
+    /// Gets the view punch from landings and weapon fire, as (pitch, yaw) degrees. This is additive on top
+    /// of the player's aim for rendering only, exactly like Source's m_viewPunchAngle.
     /// </summary>
-    public float ViewPunchPitchDegrees => Effects.ViewPunchPitchDegrees;
+    public Vector2 ViewPunchDegrees => Effects.ViewPunchDegrees;
+
+    /// <summary>
+    /// Adds to the view punch, which then decays at <see cref="ViewPunchDecay"/>.
+    /// </summary>
+    /// <param name="degrees">Punch as (pitch, yaw) degrees.</param>
+    public void AddViewPunch(Vector2 degrees) => Effects.AddViewPunch(degrees);
 
     /// <summary>Gets whether the player is being simulated - the viewer's walk mode.</summary>
     public bool IsActive => Input.WalkMode;
@@ -2495,8 +2501,8 @@ public partial class PlayerMovement : IPlayerController
         /// <summary>Jump stamina from 0 to 1; landing drains it and jump impulses scale by it.</summary>
         public float Stamina { get; private set; } = 1f;
 
-        /// <summary>Downward view punch from landing, in degrees (Source's m_viewPunchAngle pitch).</summary>
-        public float ViewPunchPitchDegrees { get; private set; }
+        /// <summary>View punch as (pitch, yaw) degrees (Source's m_viewPunchAngle).</summary>
+        public Vector2 ViewPunchDegrees { get; private set; }
 
         /// <summary>Camera roll from a hard landing, in degrees.</summary>
         public float LandingRollDegrees { get; private set; }
@@ -2510,7 +2516,7 @@ public partial class PlayerMovement : IPlayerController
         public void Reset()
         {
             Stamina = 1f;
-            ViewPunchPitchDegrees = 0f;
+            ViewPunchDegrees = Vector2.Zero;
             LandingRollDegrees = 0f;
             StepOffset = 0f;
         }
@@ -2528,8 +2534,13 @@ public partial class PlayerMovement : IPlayerController
 
             if (audible)
             {
-                ViewPunchPitchDegrees = MathF.Max(MathF.Min(impactSpeed, PlayerFatalFallSpeed) * 0.001f, 0.75f);
+                ViewPunchDegrees = ViewPunchDegrees with { X = MathF.Max(MathF.Min(impactSpeed, PlayerFatalFallSpeed) * 0.001f, 0.75f) };
             }
+        }
+
+        public void AddViewPunch(Vector2 degrees)
+        {
+            ViewPunchDegrees += degrees;
         }
 
         /// <summary>
@@ -2537,7 +2548,7 @@ public partial class PlayerMovement : IPlayerController
         /// </summary>
         public void DecayViewPunch(float deltaTime, float decayRate)
         {
-            ViewPunchPitchDegrees *= MathF.Exp(-decayRate * deltaTime);
+            ViewPunchDegrees *= MathF.Exp(-decayRate * deltaTime);
         }
 
         /// <summary>
