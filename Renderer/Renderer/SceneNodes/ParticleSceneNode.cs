@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
@@ -21,6 +22,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool WantsSceneDepth { get; }
 
         internal IEnumerable<ParticleFunctionRenderer> Renderers => particleRenderer.EnumerateRenderers();
+
+        /// <summary>Gets the simulation this node draws, with its particles, control points and child systems.</summary>
+        public ParticleSystemSimulation ParticleSimulation => particleRenderer.Simulation;
+
+        /// <summary>
+        /// Gets the renderer classes of this system and its children that are not implemented, and so
+        /// draw nothing.
+        /// </summary>
+        public IEnumerable<string> SkippedRendererClasses => particleRenderer.EnumerateSkippedRendererClasses().Distinct();
 
         /// <summary>
         /// Gets the preview model scene node loaded from particle preview state, if any.

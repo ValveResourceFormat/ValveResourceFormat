@@ -28,8 +28,12 @@ namespace GUI
         internal ExplorerControl? explorerControl;
 
         private SearchForm? searchForm;
+
+        internal MainTabs Tabs => mainTabs;
+
 #pragma warning disable CA2213 // Disposed in OnFormClosing
         private Ipc.IpcWindow? ipcWindow;
+        private IDisposable? automationServer;
 #pragma warning restore CA2213
 
         static MainForm()
@@ -60,7 +64,14 @@ namespace GUI
             Themer.ApplyTheme(this);
 
 #if !SCREENSHOT_MODE
-            if (Settings.Config.WindowWidth > 0 && Settings.Config.WindowHeight > 0)
+            // Filling the screen rather than maximizing, because a maximized form is shown with
+            // SW_SHOWMAXIMIZED, which activates it whatever ShowWithoutActivation says
+            if (Automation.Automation.IsEnabled)
+            {
+                StartPosition = FormStartPosition.Manual;
+                Bounds = Screen.PrimaryScreen?.WorkingArea ?? Bounds;
+            }
+            else if (Settings.Config.WindowWidth > 0 && Settings.Config.WindowHeight > 0)
             {
                 StartPosition = FormStartPosition.Manual;
 
@@ -304,6 +315,9 @@ namespace GUI
             OnMainSelectedTabChanged(null, EventArgs.Empty);
         }
 
+        /// <summary>Automation renders and captures without focus, so it does not take the foreground.</summary>
+        protected override bool ShowWithoutActivation => Automation.Automation.IsEnabled;
+
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
@@ -327,7 +341,7 @@ namespace GUI
                     sizeof(Windows.Win32.Graphics.Dwm.DWM_WINDOW_CORNER_PREFERENCE));
             }
 #else
-            if (StartPosition == FormStartPosition.Manual)
+            if (StartPosition == FormStartPosition.Manual && !Automation.Automation.IsEnabled)
             {
                 var maximized = WindowState == FormWindowState.Maximized;
                 var placement = new WINDOWPLACEMENT
@@ -347,9 +361,15 @@ namespace GUI
             }
 #endif
 
+            automationServer = Automation.Automation.Start();
+
             NativeWindowFactory.WarmUpInBackground();
 
-            if (Settings.IsFirstStartup)
+            // Automation opens what it is told to and nothing else. The explorer also focuses its
+            // filter box on load, which would activate the window.
+            var forAutomation = Automation.Automation.IsEnabled;
+
+            if (Settings.IsFirstStartup && !forAutomation)
             {
                 OpenWelcome();
             }
@@ -357,22 +377,26 @@ namespace GUI
             {
                 OpenCommandLineArgFiles(Args);
             }
-            else if (Settings.Config.OpenExplorerOnStart != 0)
+            else if (Settings.Config.OpenExplorerOnStart != 0 && !forAutomation)
             {
                 OpenExplorer();
             }
 
-            ipcWindow = new(args => BeginInvoke(() =>
+            // A process for an agent keeps to itself, so files the user opens go to another window
+            if (!forAutomation)
             {
-                OpenCommandLineArgFiles(args);
-
-                if (WindowState == FormWindowState.Minimized)
+                ipcWindow = new(args => BeginInvoke(() =>
                 {
-                    WindowState = FormWindowState.Normal;
-                }
+                    OpenCommandLineArgFiles(args);
 
-                Activate();
-            }));
+                    if (WindowState == FormWindowState.Minimized)
+                    {
+                        WindowState = FormWindowState.Normal;
+                    }
+
+                    Activate();
+                }));
+            }
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -394,6 +418,7 @@ namespace GUI
 #endif
 
             ipcWindow?.Dispose();
+            automationServer?.Dispose();
 
             Settings.Save();
             base.OnFormClosing(e);
@@ -475,7 +500,7 @@ namespace GUI
         /// </summary>
         public void ShowSelectedTabKeybindings() => UpdateBottomPanelKeybindings();
 
-        private void CloseAndReOpenActiveTab()
+        internal void CloseAndReOpenActiveTab()
         {
             var tab = mainTabs.SelectedTab;
             if (tab is null || tab.Tag is not ExportData exportData)
@@ -691,14 +716,16 @@ namespace GUI
                 (_, _) => ResourceViewMode.Default,
             };
 
+            var exportData = new ExportData
+            {
+                PackageEntry = file,
+                VrfGuiContext = vrfGuiContext,
+            };
+
             var tabTemp = new ThemedTabPage(Path.GetFileName(vrfGuiContext.FileName))
             {
                 ToolTipText = vrfGuiContext.FileName,
-                Tag = new ExportData
-                {
-                    PackageEntry = file,
-                    VrfGuiContext = vrfGuiContext,
-                }
+                Tag = exportData,
             };
             var tab = tabTemp;
             tab.Disposed += OnTabDisposed;
@@ -710,12 +737,12 @@ namespace GUI
                 var oldTag = tab.Tag;
                 tab.Tag = null;
 
-                if (oldTag is ExportData exportData)
+                if (oldTag is ExportData oldExportData)
                 {
                     // Contents first: disposing them cancels loading and waits for it, and the context
                     // disposes the resources that loading is still reading until it does
-                    exportData.DisposableContents?.Dispose();
-                    exportData.VrfGuiContext.Dispose();
+                    oldExportData.DisposableContents?.Dispose();
+                    oldExportData.VrfGuiContext.Dispose();
                 }
             }
 
@@ -934,6 +961,10 @@ namespace GUI
                     // Revealing the viewer does not reliably deliver a paint to the underlying GL control, so tell
                     // the viewer to redraw now that it is visible.
                     createdViewer?.NotifyVisible();
+
+                    // A faulted load cancels this continuation's antecedent, so the reason is on
+                    // the load task itself.
+                    exportData.SetLoaded(taskLoad.Exception?.Flatten().InnerException);
                 });
             });
         }

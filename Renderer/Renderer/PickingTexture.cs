@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 
@@ -51,7 +53,7 @@ public class PickingTexture : Framebuffer
         /// <summary>Index into <see cref="Renderer.Scenes"/> of the scene holding the picked object.</summary>
         public uint SceneIndex;
 
-        /// <summary>Reserved padding field.</summary>
+        /// <summary>Fourth channel, which the picking pass leaves at zero, so a value here means no node was picked.</summary>
         public uint Unused2;
 #pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
     }
@@ -75,6 +77,12 @@ public class PickingTexture : Framebuffer
     private int CursorPositionY;
     private PickingIntent Intent;
     private PickingResponse? Response;
+    private PixelQuery? Query;
+
+    private sealed record PixelQuery(int X, int Y)
+    {
+        public TaskCompletionSource<(PixelInfo Pixel, float Depth)> Done { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    }
 
     // could share depth buffer with main framebuffer, but msaa doesn't match
     // private readonly Framebuffer depthSource;
@@ -105,10 +113,29 @@ public class PickingTexture : Framebuffer
     /// <param name="intent">The interaction intent for this pick request.</param>
     public void RequestNextFrame(int x, int y, PickingIntent intent)
     {
-        ActiveNextFrame = true;
         CursorPositionX = x;
         CursorPositionY = y;
         Intent = intent;
+
+        // Last, so the render thread never picks with the position of an earlier request
+        ActiveNextFrame = true;
+    }
+
+    /// <summary>
+    /// Reads the picking buffer at a position after the next frame renders, without raising
+    /// <see cref="OnPicked"/>, so nothing acts on it as it would on a click.
+    /// </summary>
+    /// <param name="x">X position in window coordinates.</param>
+    /// <param name="y">Y position in window coordinates.</param>
+    /// <returns>The pixel data, and the window depth the picking pass left there, which is 0 where nothing was drawn.</returns>
+    public Task<(PixelInfo Pixel, float Depth)> QueryNextFrame(int x, int y)
+    {
+        var query = new PixelQuery(x, y);
+
+        Interlocked.Exchange(ref Query, query)?.Done.TrySetCanceled();
+        RequestNextFrame(x, y, PickingIntent.Select);
+
+        return query.Done.Task;
     }
 
     /// <summary>Reads back the picking pixel if a request was pending and stores the response for the next event trigger.</summary>
@@ -117,13 +144,31 @@ public class PickingTexture : Framebuffer
         if (ActiveNextFrame)
         {
             ActiveNextFrame = false;
-            var pixelInfo = ReadPixelInfo(CursorPositionX, CursorPositionY);
+
+            // A query reads its own pixel, which a click made since may have replaced as the cursor position
+            if (Interlocked.Exchange(ref Query, null) is { } query)
+            {
+                query.Done.TrySetResult((ReadPixelInfo(query.X, query.Y), ReadDepth(query.X, query.Y)));
+                return;
+            }
+
             Response = new PickingResponse
             {
                 Intent = Intent,
-                PixelInfo = pixelInfo,
+                PixelInfo = ReadPixelInfo(CursorPositionX, CursorPositionY),
             };
         }
+    }
+
+    private float ReadDepth(int x, int y)
+    {
+        var depth = 0f;
+
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, FboHandle);
+        GL.ReadPixels(x, Height - 1 - y, 1, 1, PixelFormat.DepthComponent, PixelType.Float, ref depth);
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, 0);
+
+        return depth;
     }
 
     /// <summary>Fires <see cref="OnPicked"/> with the stored response if one is available.</summary>

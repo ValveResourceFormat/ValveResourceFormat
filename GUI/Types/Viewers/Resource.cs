@@ -47,6 +47,12 @@ namespace GUI.Types.Viewers
         private CodeTextBox? GLViewerError;
         private string? GLViewerTabName;
 
+        /// <summary>Why the 3D, texture or other special viewer failed, shown in its Viewer Error tab.</summary>
+        public Exception? ViewerException { get; private set; }
+
+        /// <summary>Why reconstructing the source file failed, shown in its Decompile Error tab.</summary>
+        public Exception? DecompileException { get; private set; }
+
         public static bool IsAccepted(uint magic)
         {
             return magic == ValveResourceFormat.Resource.KnownHeaderVersion;
@@ -87,6 +93,7 @@ namespace GUI.Types.Viewers
                 }
                 catch (Exception ex)
                 {
+                    ViewerException = ex;
                     GLViewerError = CodeTextBox.CreateFromException(ex, vrfGuiContext.FullPath);
                 }
             }
@@ -304,6 +311,7 @@ namespace GUI.Types.Viewers
                     }
                     catch (Exception ex)
                     {
+                        ViewerException = ex;
                         GLViewerError = CodeTextBox.CreateFromException(ex, vrfGuiContext.FullPath);
                     }
                 }
@@ -472,6 +480,7 @@ namespace GUI.Types.Viewers
             }
             catch (Exception ex)
             {
+                DecompileException = ex;
                 var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.FullPath);
 
                 var tabEx = new ThemedTabPage("Decompile Error");

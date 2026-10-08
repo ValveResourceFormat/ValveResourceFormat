@@ -66,7 +66,7 @@ namespace GUI.Types.GLViewers
         }
 
         // Render only the main scene nodes into a transparent framebuffer
-        protected override SKBitmap? ReadPixelsToBitmap()
+        protected internal override SKBitmap? ReadPixelsToBitmap()
         {
             if (MainFramebuffer is null)
             {

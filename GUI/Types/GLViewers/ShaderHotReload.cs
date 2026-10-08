@@ -16,6 +16,12 @@ internal class ShaderHotReload : IDisposable
 
     private static List<FileSystemWatcher> CreateWatchers()
     {
+        // Automation reloads on request, and a failed reload here would open a modal dialog
+        if (Automation.Automation.IsEnabled)
+        {
+            return [];
+        }
+
         var watchers = new List<FileSystemWatcher>(1 + ShaderRegistry.Directories.Length);
         var paths = new List<string>(watchers.Capacity);
         paths.AddRange(ShaderRegistry.Directories);

@@ -1,4 +1,5 @@
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace GUI.Types.GLViewers
@@ -149,7 +150,27 @@ namespace GUI.Types.GLViewers
                     continue;
                 }
 
-                if (DrawCurrentControl() is not { } presented)
+                bool? drawn;
+
+                try
+                {
+                    drawn = DrawCurrentControl();
+                }
+                catch (Exception e) when (Automation.Automation.IsEnabled)
+                {
+                    // The agent driving the viewer is told about it instead of the process going down
+                    Program.ShowError(e);
+
+                    if (currentGLControl is { } failed)
+                    {
+                        failed.EndFailedFrame();
+                        UnsetCurrentGLControl(failed);
+                    }
+
+                    continue;
+                }
+
+                if (drawn is not { } presented)
                 {
                     continue;
                 }
@@ -207,13 +228,113 @@ namespace GUI.Types.GLViewers
 
             var isPaused = !renderSignal.IsSet;
 
-            if (!isPaused && Form.ActiveForm == null)
+            if (!isPaused && Form.ActiveForm == null && !HasFrameRequests)
             {
                 isPaused = true;
                 renderSignal.Reset();
+
+                // A request made since the check above would otherwise sleep through the reset
+                if (HasFrameRequests)
+                {
+                    renderSignal.Set();
+                }
             }
 
-            return control.Draw(isPaused);
+            var frame = Interlocked.Increment(ref framesStarted);
+            var painted = control.PaintedFrames;
+            var presented = control.Draw(isPaused);
+
+            if (control.PaintedFrames != painted)
+            {
+                CountFrame(control, frame);
+            }
+
+            return presented;
+        }
+
+        private sealed class FrameRequest(GLBaseControl control, long after, int count)
+        {
+            public readonly GLBaseControl Control = control;
+
+            /// <summary>Frames up to this one had started before the request, so they do not count.</summary>
+            public readonly long After = after;
+            public int Remaining = count;
+            public readonly TaskCompletionSource Done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        private static readonly Lock frameRequestsLock = new();
+        private static readonly List<FrameRequest> frameRequests = [];
+        private static int frameRequestCount;
+        private static long framesStarted;
+
+        private static bool HasFrameRequests => Volatile.Read(ref frameRequestCount) > 0;
+
+        private static void CountFrame(GLBaseControl control, long frame)
+        {
+            if (!HasFrameRequests)
+            {
+                return;
+            }
+
+            using var _ = frameRequestsLock.EnterScope();
+
+            for (var i = frameRequests.Count - 1; i >= 0; i--)
+            {
+                var request = frameRequests[i];
+
+                if (request.Control == control && frame > request.After && --request.Remaining <= 0)
+                {
+                    request.Done.TrySetResult();
+                    frameRequests.RemoveAt(i);
+                }
+            }
+
+            frameRequestCount = frameRequests.Count;
+        }
+
+        /// <summary>
+        /// Draws <paramref name="count"/> more frames of <paramref name="control"/>, even while the app is
+        /// in the background. Only the current control draws, so frames of another do not count. Returns
+        /// false when they were not all drawn within <paramref name="timeout"/>.
+        /// </summary>
+        public static async Task<bool> DrawFrames(GLBaseControl control, int count, TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            if (count <= 0)
+            {
+                return true;
+            }
+
+            var request = new FrameRequest(control, Interlocked.Read(ref framesStarted), count);
+
+            using (frameRequestsLock.EnterScope())
+            {
+                frameRequests.Add(request);
+                frameRequestCount = frameRequests.Count;
+            }
+
+            // With no control the loop would spin on the signal; attaching one sets it anyway
+            if (currentGLControl != null)
+            {
+                renderSignal.Set();
+            }
+
+            try
+            {
+                await request.Done.Task.WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
+                return true;
+            }
+            catch (TimeoutException)
+            {
+                return false;
+            }
+            finally
+            {
+                using (frameRequestsLock.EnterScope())
+                {
+                    frameRequests.Remove(request);
+                    frameRequestCount = frameRequests.Count;
+                }
+            }
         }
     }
 }
