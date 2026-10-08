@@ -255,6 +255,11 @@ partial class ModelExtract
             ("name", shapeName)
         );
 
+        if (shapeDesc is HullDescriptor)
+        {
+            physicsShapeFile.Add("optimization_algorithm", "Exact");
+        }
+
         AddHitGroup(physicsShapeFile, shapeDesc);
         AddCollisionProperty(physicsShapeFile, shapeDesc.CollisionAttributeIndex);
 
