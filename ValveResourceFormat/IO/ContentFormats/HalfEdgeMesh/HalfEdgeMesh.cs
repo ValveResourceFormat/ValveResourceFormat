@@ -2496,13 +2496,13 @@ public partial class HalfEdgeMesh
         if (vertexPairA1 == vertexPairA2)
         {
             hOutNewVertexA = vertexPairA1;
-            return MergeVertices(vertexPairB1, vertexPairB2, out hOutNewVertexB);
+            return MergeVertices(vertexPairB1, vertexPairB2, hOpenHalfEdgeA, hOpenHalfEdgeB.NextEdge, out hOutNewVertexB, false);
         }
 
         if (vertexPairB1 == vertexPairB2)
         {
             hOutNewVertexB = vertexPairB1;
-            return MergeVertices(vertexPairA1, vertexPairA2, out hOutNewVertexA);
+            return MergeVertices(vertexPairA1, vertexPairA2, hOpenHalfEdgeA.NextEdge, hOpenHalfEdgeB, out hOutNewVertexA, false);
         }
 
         // Test to see if both pairs of vertices can be merged. Performing this check helps avoid the
