@@ -10,12 +10,30 @@
 // cables.vfx
 
 #define S_MODE_DEPTH 0
+#define F_SELF_ILLUM 0
+#define F_ALPHA_TEST 0
 
 uniform sampler2D g_tColor; // SrgbRead(true)
 
 uniform float g_flRoughness = 1.0;
 uniform float g_flDiffuseAmount = 1.0;
 uniform float g_flSelfIllumAmount = 0.0;
+
+// Scales the whole shaded result, letting a cable go past 1.0 into the HDR range and bloom
+uniform float g_flOverbrightness = 1.0;
+
+#if (F_ALPHA_TEST == 1)
+    uniform float g_flAlphaTestReference = 0.5;
+#endif
+
+#if (F_SELF_ILLUM == 1)
+    uniform sampler2D g_tSelfIllumMask;
+    uniform float g_flSelfIllumAlbedoFactor = 0.0;
+    uniform float g_flSelfIllumBrightness = 0.0;
+    uniform float g_flSelfIllumScale = 1.0;
+    uniform vec2 g_vSelfIllumScrollSpeed = vec2(0.0);
+    uniform vec3 g_vSelfIllumTint = vec3(1.0); // SrgbRead(true)
+#endif
 
 in vec3 vFragPosition;
 in vec3 vNormalOut;
@@ -24,11 +42,21 @@ in vec4 vColorOut;
 
 #if (S_MODE_DEPTH == 1)
 
+#if (F_ALPHA_TEST == 1)
+void main(void)
+{
+    if (texture(g_tColor, vTexCoordOut).a * vColorOut.a < g_flAlphaTestReference)
+    {
+        discard;
+    }
+}
+#else
 layout (early_fragment_tests) in;
 
 void main(void)
 {
 }
+#endif
 
 #else
 
@@ -41,7 +69,18 @@ out vec4 outputColor;
 void main(void)
 {
     vec3 normal = normalize(vNormalOut);
-    vec3 albedo = texture(g_tColor, vTexCoordOut).rgb * vColorOut.rgb;
+    vec4 colorTexture = texture(g_tColor, vTexCoordOut);
+    vec3 albedo = colorTexture.rgb * vColorOut.rgb;
+
+    // The particle's own alpha rides in the vertex colour and fades the cable with the texture's
+    float opacity = colorTexture.a * vColorOut.a;
+
+#if (F_ALPHA_TEST == 1)
+    if (opacity < g_flAlphaTestReference)
+    {
+        discard;
+    }
+#endif
 
     // The tube has no tangent-space textures, so any orthonormal tangent frame will do.
     vec3 tangent = normalize(cross(normal, abs(normal.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0)));
@@ -62,6 +101,14 @@ void main(void)
     vec3 specularLighting = lighting.SpecularDirect + lighting.SpecularIndirect;
     vec3 color = (mat.DiffuseColor * (diffuseLighting * g_flDiffuseAmount + g_flSelfIllumAmount)) + specularLighting;
 
+#if (F_SELF_ILLUM == 1)
+    float selfIllumMask = texture(g_tSelfIllumMask, vTexCoordOut + fract(g_vSelfIllumScrollSpeed * g_flTime)).r;
+    vec3 selfIllumScale = (exp2(g_flSelfIllumBrightness) * g_flSelfIllumScale) * g_vSelfIllumTint;
+    color += selfIllumScale * selfIllumMask * mix(vec3(1.0), albedo, g_flSelfIllumAlbedoFactor) * vColorOut.rgb;
+#endif
+
+    color *= g_flOverbrightness;
+
     if (g_iRenderMode == renderMode_FullBright)
     {
         color = albedo;
@@ -69,7 +116,7 @@ void main(void)
 
     ApplyFog(color, vFragPosition);
 
-    outputColor = vec4(color, 1.0);
+    outputColor = vec4(color, opacity);
 
     if (HandleMaterialRenderModes(outputColor, mat)
     || HandleLightingRenderModes(outputColor, mat, lighting)

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.SceneEnvironment;
 using Vector2i = OpenTK.Mathematics.Vector2i;
 
 namespace ValveResourceFormat.Renderer.PostProcess;
@@ -70,7 +71,11 @@ public class BloomRenderer
     /// <summary>
     /// Renders multi-pass bloom from the resolved scene color into <see cref="AccumulationResult"/>.
     /// </summary>
-    public void Render(RenderTexture input)
+    /// <param name="input">The resolved scene color, thresholded before it blooms.</param>
+    /// <param name="effectsBloom">Geometry drawn only to glow, bloomed whole without a threshold, or null.</param>
+    /// <param name="settings">The bloom settings to apply.</param>
+    /// <param name="sceneWeight">How much of the thresholded scene blooms: 0 blooms only <paramref name="effectsBloom"/>.</param>
+    public void Render(RenderTexture input, RenderTexture? effectsBloom, BloomSettings settings, float sceneWeight)
     {
         Debug.Assert(firstDownsampleBloomThreshold != null);
         Debug.Assert(downsample != null);
@@ -97,7 +102,6 @@ public class BloomRenderer
             return;
         }
 
-        var settings = PostProcessRenderer.State.BloomSettings;
         var tonemapScalar = PostProcessRenderer.TonemapScalar;
 
         Accumulation.Resize(maxBloomRes.X, maxBloomRes.Y);
@@ -118,6 +122,13 @@ public class BloomRenderer
             firstDownsampleBloomThreshold.SetUniform("g_flBloomScale", settings.BloomStrength);
             firstDownsampleBloomThreshold.SetUniform("g_flToneMapScalarLinear", tonemapScalar);
             firstDownsampleBloomThreshold.SetUniform("g_flThresholdParams", thresholdParams);
+            firstDownsampleBloomThreshold.SetUniform("g_flSceneBloomWeight", sceneWeight);
+            firstDownsampleBloomThreshold.SetUniform("g_bEffectsBloom", effectsBloom != null);
+
+            if (effectsBloom != null)
+            {
+                firstDownsampleBloomThreshold.SetTexture(1, "g_tEffectsBloom", effectsBloom);
+            }
 
             GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

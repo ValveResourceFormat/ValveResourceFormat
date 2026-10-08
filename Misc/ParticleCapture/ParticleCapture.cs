@@ -20,7 +20,7 @@ using Vector3 = System.Numerics.Vector3;
 // system in its tree, so effects can be compared between builds without the GUI.
 //
 // Usage: ParticleCapture <pak01_dir.vpk> <particles/x.vpcf> [--times 0.5,1,2] [--size 512] [--out dir]
-//        [--fps 60] [--camera x,y,z] [--target x,y,z] [--cp index=x,y,z]...
+//        [--fps 60] [--seed n] [--camera x,y,z] [--target x,y,z] [--cp index=x,y,z]...
 internal static class ParticleCapture
 {
     public static int Main(string[] args)
@@ -37,6 +37,7 @@ internal static class ParticleCapture
         var size = 512;
         var outDir = "capture";
         var fps = 60f;
+        var seed = 1;
         Vector3? camera = null;
         Vector3? target = null;
         var controlPoints = new List<(int Index, Vector3 Position)>();
@@ -51,6 +52,7 @@ internal static class ParticleCapture
                 case "--size": size = int.Parse(value, CultureInfo.InvariantCulture); break;
                 case "--out": outDir = value; break;
                 case "--fps": fps = ParseFloat(value); break;
+                case "--seed": seed = int.Parse(value, CultureInfo.InvariantCulture); break;
                 case "--camera": camera = ParseVector(value); break;
                 case "--target": target = ParseVector(value); break;
                 case "--cp":
@@ -112,6 +114,8 @@ internal static class ParticleCapture
             // A capture is a single pass through the effect, not the looping preview
             Loop = false,
         };
+
+        node.ParticleSimulation.SetRandomSeed(seed);
 
         foreach (var (index, position) in controlPoints)
         {

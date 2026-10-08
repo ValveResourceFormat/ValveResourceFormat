@@ -734,14 +734,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            particleRenderer.Render(context.Camera, context.RenderPass, context.Layer == RenderLayer.WaterEffects);
+            particleRenderer.Render(context.Camera, context.RenderPass, context.Layer);
         }
 
         /// <summary>Draws with a pass replacement shader, for picking and the selection outline.</summary>
         private void RenderReplacement(Scene.RenderContext context, Shader replacement)
         {
             if (!particleRenderer.CanRenderReplacement
-                || context.Layer == RenderLayer.WaterEffects
+                || context.Layer != RenderLayer.Scene
                 || context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline))
             {
                 return;

@@ -213,6 +213,15 @@ public class Renderer : ISpawnGroupHost
     private bool waterEffectsMapIsNeutral;
 
     /// <summary>
+    /// HDR target the effects bloom layer draws into, added into the bloom post process rather than
+    /// into the scene. Drawn at a reduced resolution, since bloom blurs it well below that anyway.
+    /// </summary>
+    public Framebuffer? EffectsBloomBuffer { get; private set; }
+
+    /// <summary>Scene pixels per effects bloom texel along each axis.</summary>
+    public const int EffectsBloomDownsample = 2;
+
+    /// <summary>
     /// When set, forces <see cref="ResolvedSceneDepth"/> to be refreshed this frame even if no material
     /// or occlusion pass requests it. Used by overlays (e.g. world-space text) that need the scene depth
     /// to occlude themselves against geometry. Must be set before <see cref="Render(Scene.RenderContext)"/>.
@@ -645,6 +654,12 @@ public class Renderer : ISpawnGroupHost
 
         WaterEffectsBuffer.SetColorSamplerState(TextureMinFilter.Linear, TextureMagFilter.Linear, RsTextureAddressMode.Border);
         SetupWaterEffectsTexture();
+
+        EffectsBloomBuffer = Framebuffer.Prepare(nameof(EffectsBloomBuffer), 4, 4, 0,
+            ImageFormat.RGBA16161616F, ImageFormat.D16);
+        EffectsBloomBuffer.Initialize();
+        EffectsBloomBuffer.ClearColor = new Color4(0f, 0f, 0f, 0f);
+        EffectsBloomBuffer.SetColorSamplerState(TextureMinFilter.Linear, TextureMagFilter.Linear, RsTextureAddressMode.Clamp);
 
         depthPyramid.LoadShaders();
         depthPyramid.EnsureSize(256, 256);
@@ -1130,7 +1145,7 @@ public class Renderer : ISpawnGroupHost
                     && !DisableAllCulling
                     && Uptime >= OcclusionCullWarmupSeconds;
 
-                copyDepth |= generateDepthPyramid || NeedsWaterEffectsMap(mainView);
+                copyDepth |= generateDepthPyramid || NeedsWaterEffectsMap(mainView) || NeedsEffectsBloomMap(mainView);
 
                 var depthPyramidValid = !DisableAllCulling && (generateDepthPyramid || LockedCullFrustum != null);
 
@@ -1214,6 +1229,11 @@ public class Renderer : ISpawnGroupHost
         }
 
         wireframeScope.Dispose();
+
+        if (isStandardPass)
+        {
+            RenderEffectsBloomMap(mainView, renderContext);
+        }
 
         if (isStandardPass && computeFramebufferLuminance)
         {
@@ -1529,6 +1549,73 @@ public class Renderer : ISpawnGroupHost
         return hasWater && hasWaterEffects;
     }
 
+    private static bool NeedsEffectsBloomMap(in SceneView view)
+    {
+        foreach (var state in view.States)
+        {
+            if (state.HasEffectsBloom)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Draws the effects bloom layer into <see cref="EffectsBloomBuffer"/>, occluded by the scene
+    /// depth grabbed after the opaque layer, and hands it to the post process. A frame with nothing
+    /// in the layer hands over nothing, so the bloom pass skips it.
+    /// </summary>
+    private void RenderEffectsBloomMap(in SceneView view, Scene.RenderContext renderContext)
+    {
+        Debug.Assert(EffectsBloomBuffer != null);
+
+        if (!NeedsEffectsBloomMap(view))
+        {
+            Postprocess.EffectsBloom = null;
+            return;
+        }
+
+        using var _ = new GLDebugGroup("Effects Bloom");
+
+        var width = Math.Max(1, MathUtils.DivideRoundUp(renderContext.Framebuffer.Width, EffectsBloomDownsample));
+        var height = Math.Max(1, MathUtils.DivideRoundUp(renderContext.Framebuffer.Height, EffectsBloomDownsample));
+
+        EffectsBloomBuffer.Resize(width, height);
+
+        var sceneFramebuffer = renderContext.Framebuffer;
+
+        GL.Viewport(0, 0, width, height);
+        EffectsBloomBuffer.BindAndClear();
+
+        renderContext.Framebuffer = EffectsBloomBuffer;
+
+        SeedDepthFromScene(new Vector2(EffectsBloomDownsample));
+
+        using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: false, depthFunc: RsComparison.CloserEqual))
+        {
+            foreach (var state in view.States)
+            {
+                if (!state.HasEffectsBloom)
+                {
+                    continue;
+                }
+
+                state.Scene.SetSceneBuffers();
+
+                renderContext.Scene = state.Scene;
+                renderContext.View = state;
+                state.RenderEffectsBloomLayer(renderContext);
+            }
+        }
+
+        GL.Viewport(0, 0, sceneFramebuffer.Width, sceneFramebuffer.Height);
+        sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
+
+        Postprocess.EffectsBloom = EffectsBloomBuffer.Color;
+    }
+
     // Must run before any water layer this frame
     private void RenderWaterEffectsMap(in SceneView view, Scene.RenderContext renderContext)
     {
@@ -1752,6 +1839,7 @@ public class Renderer : ISpawnGroupHost
         histogramBuffers[0]?.Delete();
         histogramBuffers[1]?.Delete();
         WaterEffectsBuffer?.Delete();
+        EffectsBloomBuffer?.Delete();
         Skybox2D?.Delete();
 
         if (BaseBackground != Skybox2D && BaseBackground != null)

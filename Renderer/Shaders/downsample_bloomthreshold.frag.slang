@@ -3,8 +3,14 @@
 uniform float g_flBloomScale;
 uniform float g_flToneMapScalarLinear;
 uniform vec2 g_flThresholdParams;
+uniform float g_flSceneBloomWeight = 1.0;
+uniform bool g_bEffectsBloom;
 
 layout(binding = 0) uniform sampler2D inputTexture;
+
+// Geometry drawn only to glow, at a lower resolution than the scene. It blooms whole, the threshold
+// exists to pick the bright parts out of the scene and this is all meant to glow.
+layout(binding = 1) uniform sampler2D g_tEffectsBloom;
 layout(location = 0) out vec4 outputColor;
 
 const vec3 LUMINANCE_WEIGHTS = vec3(0.3, 0.59, 0.11);
@@ -64,7 +70,14 @@ void main() {
     vec2 uv = gl_FragCoord.xy * 4.0 / vec2(textureSize(inputTexture, 0));
 
     vec4 downsampledColor = DownsampleJimenez(uv);
-    vec3 thresholdedColor = ApplyThreshold(downsampledColor.rgb);
+    vec3 thresholdedColor = ApplyThreshold(downsampledColor.rgb) * g_flSceneBloomWeight;
+
+    if (g_bEffectsBloom)
+    {
+        // A bilinear tap at the output texel centre averages the effects texels it covers
+        thresholdedColor += textureLod(g_tEffectsBloom, uv, 0.0).rgb;
+    }
+
     vec3 bloomColor = thresholdedColor * g_flBloomScale;
 
     outputColor = vec4(bloomColor, 1.0);

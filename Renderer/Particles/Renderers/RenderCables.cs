@@ -86,7 +86,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             material = newMaterial;
             Pass = material.IsTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
-            CanRenderDepth = Pass == RenderPass.Opaque && !OnlyRenderInEffectsWaterPass && material.Shader.DepthMode != null;
+
+            // The material can opt out of the depth pass, which is also the shadow pass
+            var castsShadows = !material.DoNotCastShadows && material.IntParams.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 0;
+            CanRenderDepth = Pass == RenderPass.Opaque && castsShadows && !OnlyRenderInEffectsWaterPass && material.Shader.DepthMode != null;
         }
 
         private int SetupBuffers()

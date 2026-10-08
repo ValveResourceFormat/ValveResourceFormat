@@ -66,6 +66,12 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Draws in <see cref="RenderPass.DepthOnly"/> too, and so casts a shadow.</summary>
         DepthOnly = 1 << 4,
 
+        /// <summary>
+        /// Draws in the translucent pass, into the effects bloom map that feeds the bloom post process
+        /// instead of the scene, so the geometry only shows as glow.
+        /// </summary>
+        EffectsBloom = 1 << 5,
+
         /// <summary>Draws in the opaque and translucent passes, the default for a node that draws itself.</summary>
         Default = Opaque | Translucent,
     }
