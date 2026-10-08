@@ -19,12 +19,18 @@ using Vector3 = System.Numerics.Vector3;
 // Renders a particle system at fixed simulation times into PNG files and prints the state of every
 // system in its tree, so effects can be compared between builds without the GUI.
 //
-// Usage: ParticleCapture <pak01_dir.vpk> <particles/x.vpcf> [--times 0.5,1,2] [--size 512] [--out dir]
+// Usage: ParticleCapture audit <pak01_dir.vpk> <output.md>
+//        ParticleCapture <pak01_dir.vpk> <particles/x.vpcf> [--times 0.5,1,2] [--size 512] [--out dir]
 //        [--fps 60] [--seed n] [--camera x,y,z] [--target x,y,z] [--cp index=x,y,z]...
 internal static class ParticleCapture
 {
     public static int Main(string[] args)
     {
+        if (args is ["audit", var auditVpk, var auditOutput])
+        {
+            return ParticleAudit.Run(auditVpk, auditOutput);
+        }
+
         if (args.Length < 2)
         {
             Console.Error.WriteLine("Usage: ParticleCapture <vpk> <particle path> [--times 0.5,1,2] [--size 512] [--out dir] [--fps 60] [--camera x,y,z] [--target x,y,z] [--cp i=x,y,z]");
