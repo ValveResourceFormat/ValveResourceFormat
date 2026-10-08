@@ -74,6 +74,7 @@ namespace ValveResourceFormat.Renderer.Particles
             this.rendererContext = rendererContext;
 
             simulation.Observer = this;
+            simulation.RenderState.Player = scene.ParticlePlayer;
 
             SetupRenderers(simulation.Definition.GetArray("m_Renderers") ?? [], scene);
 

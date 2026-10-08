@@ -209,6 +209,7 @@ public sealed class EntitySystem
         Player = new PlayerEntity(this, scene, controller);
         Player.Spawn();
         Add(Player);
+        scene.Player = Player;
 
         return Player;
     }

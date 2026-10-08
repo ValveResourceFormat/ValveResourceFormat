@@ -77,6 +77,9 @@ namespace ValveResourceFormat.Particles
         /// <summary>World-space position of the render camera, updated once per simulation step.</summary>
         public Vector3 CameraPosition { get; set; }
 
+        /// <summary>The local player, or null where there is none to find.</summary>
+        public IParticlePlayer? Player { get; set; }
+
         /// <summary>
         /// How long each sequence of the sheet the drawing layer animates this system's particles with
         /// runs, in frames, or null when nothing it draws with carries a sheet. Set by whatever draws

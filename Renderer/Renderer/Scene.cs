@@ -7,6 +7,7 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Decals;
 using ValveResourceFormat.Renderer.Entities;
+using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
@@ -94,6 +95,11 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Gets the world lighting information including light probes, environment maps, and dynamic lights.</summary>
         public WorldLightingInfo LightingInfo { get; }
+
+        /// <summary>Gets or sets the player in this scene, if there is one.</summary>
+        public PlayerEntity? Player { get; set; }
+
+        internal ParticleScenePlayer ParticlePlayer => field ??= new(this);
 
         /// <summary>Gets or sets the fog parameters for this scene.</summary>
         public WorldFogInfo FogInfo { get; set; } = new();
