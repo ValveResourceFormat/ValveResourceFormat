@@ -1960,10 +1960,6 @@ namespace CLI
 
             foreach (var additionalFile in contentFile.AdditionalFiles)
             {
-                // Additional files (animation-graph clips) carry their full resource path. With a real output
-                // directory we keep it; otherwise we flatten to the leaf name next to the parent file, which can
-                // collide on shared names. Resolving these relative to the parent's output path properly needs a
-                // bigger rework of the extract path handling (also in the GUI's PackageExporter).
                 var additionalPath = additionalFile.KeepFullPath && OutputIsDirectory
                     ? Path.Combine(OutputFile!, additionalFile.FileName)
                     : Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName));
@@ -2048,6 +2044,17 @@ namespace CLI
                     stdout.Write("\n"u8);
                 }
 
+                return;
+            }
+
+            path = Path.GetFullPath(path);
+            var outputRoot = OutputIsDirectory ? OutputFile! : Path.GetDirectoryName(OutputFile!)!;
+            var relativePath = Path.GetRelativePath(outputRoot, path);
+
+            if (relativePath is "." or ".." || Path.IsPathRooted(relativePath)
+                || relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            {
+                Console.Error.WriteLine($"Skipping \"{path}\", it is outside the output folder.");
                 return;
             }
 

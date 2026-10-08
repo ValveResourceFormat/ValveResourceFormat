@@ -630,12 +630,12 @@ public sealed partial class MapExtract
                 Root = additionalMap,
             };
 
-            var ms = new MemoryStream();
+            using var ms = new MemoryStream();
             additionalDatamodel.Save(ms, "binary", 9);
 
-            vmap.SubFiles.Add(new SubFile
+            vmap.AdditionalFiles.Add(new ContentFile
             {
-                Extract = ms.ToArray,
+                Data = ms.ToArray(),
                 FileName = GetMapOutputName(part++),
             });
         }
@@ -686,6 +686,11 @@ public sealed partial class MapExtract
 
         // Add these files so they can be filtered out in folder extract
         vmap.AdditionalFiles.AddRange(FolderExtractFilter.Select(r => new ContentFile { FileName = r }));
+
+        foreach (var additionalFile in vmap.AdditionalFiles)
+        {
+            additionalFile.KeepFullPath = true;
+        }
 
         return vmap;
     }

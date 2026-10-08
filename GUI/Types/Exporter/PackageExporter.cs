@@ -420,10 +420,6 @@ namespace GUI.Types.Exporter
                     outFilePath = Path.ChangeExtension(outFilePath, extension);
                 }
             }
-            else if (outExtension == ".vmap")
-            {
-                flatSubfiles = false;
-            }
 
             ContentFile? contentFile = null;
 
