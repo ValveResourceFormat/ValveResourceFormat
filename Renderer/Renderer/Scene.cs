@@ -722,7 +722,7 @@ namespace ValveResourceFormat.Renderer
                         transformData.Add(instanceTransform);
                     }
                 }
-                else if (node.AdditionalFlags.HasFlag(SceneNodeFlags.PreTransformedVertices) || (neverChangesTransform && node.Transform.IsIdentity))
+                else if ((node.AdditionalFlags & SceneNodeFlags.PreTransformedVertices) != 0 || (neverChangesTransform && node.Transform.IsIdentity))
                 {
                     transformIndex = 0; // Reuse identity transform at index 0
                 }
