@@ -1927,6 +1927,14 @@ public sealed partial class MapExtract
         return Datamodel.Color.FromBytes(color32);
     }
 
+    private static void SetPropertiesFromFlags(BaseEntity prop, ObjectTypeFlags objectFlags)
+    {
+        var properties = prop.EntityProperties;
+        properties["renderwithdynamic"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderWithDynamic));
+        properties["rendertocubemaps"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps));
+        properties["disableinlowquality"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
+    }
+
     private void HandleWorldNode(WorldNode node)
     {
         var layerNames = node.LayerNames;
@@ -2000,14 +2008,6 @@ public sealed partial class MapExtract
 
             entity.EntityProperties["rendercolor"] = $"{color32.R} {color32.G} {color32.B}";
             entity.EntityProperties["renderamt"] = color32.A.ToString(CultureInfo.InvariantCulture);
-        }
-
-        void SetPropertiesFromFlags(BaseEntity prop, ObjectTypeFlags objectFlags)
-        {
-            var properties = prop.EntityProperties;
-            properties["renderwithdynamic"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderWithDynamic));
-            properties["rendertocubemaps"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.RenderToCubemaps));
-            properties["disableinlowquality"] = StringBool(objectFlags.HasFlag(ObjectTypeFlags.DisabledInLowQuality));
         }
 
         var extraVertexStreamOverrides = node.ExtraVertexStreamOverrides.ToLookup(static streamOverride => streamOverride.SceneObjectIndex);
@@ -2349,9 +2349,20 @@ public sealed partial class MapExtract
             ProcessAggregate(aggregateSceneObject, layerIndex, layerNodes);
         }
 
+        var clutterGroups = new Dictionary<int, CMapGroup>();
+
         foreach (var clutterSceneObject in node.ClutterSceneObjects)
         {
-            // TODO: Clutter
+            var clutter = new WorldNode.ClutterSceneObject(clutterSceneObject);
+
+            if (!clutterGroups.TryGetValue(clutter.Layer, out var clutterGroup))
+            {
+                clutterGroup = new CMapGroup { Name = "clutter" };
+                GetWorldLayerNode(clutter.Layer, layerNodes).Children.Add(clutterGroup);
+                clutterGroups.Add(clutter.Layer, clutterGroup);
+            }
+
+            AddClutter(clutter, clutterGroup);
         }
     }
 

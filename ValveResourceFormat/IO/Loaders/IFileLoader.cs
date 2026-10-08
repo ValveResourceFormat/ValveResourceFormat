@@ -45,5 +45,12 @@ namespace ValveResourceFormat.IO
         /// <param name="file">Path to the file to read.</param>
         /// <returns>A readable stream, or null if not found.</returns>
         public Stream? GetFileStream(string file);
+
+        /// <summary>
+        /// Finds the files with a given name in any folder this loader searches.
+        /// </summary>
+        /// <param name="fileName">The file name with its extension and without a folder, such as <c>chair.vmdl_c</c>.</param>
+        /// <returns>The full path of each match, in search order. Loaders that cannot search return none.</returns>
+        public IEnumerable<string> FindFilesByName(string fileName) => [];
     }
 }
