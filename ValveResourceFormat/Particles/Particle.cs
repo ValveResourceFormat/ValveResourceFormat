@@ -192,6 +192,14 @@ namespace ValveResourceFormat.Particles
         public Vector3 ScratchVector { get; set; } = Vector3.Zero;
         /// <summary>Gets or sets a second general-purpose scratch vector.</summary>
         public Vector3 ScratchVector2 { get; set; } = Vector3.Zero;
+        /// <summary>Gets or sets the glow color attribute.</summary>
+        public Vector3 GlowRgb { get; set; } = Vector3.Zero;
+        /// <summary>Gets or sets the glow alpha attribute.</summary>
+        public float GlowAlpha { get; set; }
+        /// <summary>Gets or sets the first free value handed to the renderer's shader.</summary>
+        public float ShaderExtraData1 { get; set; }
+        /// <summary>Gets or sets the second free value handed to the renderer's shader.</summary>
+        public float ShaderExtraData2 { get; set; }
         /// <summary>Gets or sets the system time at which this particle was created.</summary>
         public float CreationTime { get; set; } // todo
 
