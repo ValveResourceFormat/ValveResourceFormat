@@ -44,6 +44,9 @@ uniform float uDesaturation = 0.0; // m_flDesaturation
 uniform bool uBlendFrames = true;
 uniform bool uMaxLuminanceFrameBlend = false;
 
+// m_nLightingMode: per pixel samples the scene light at each fragment, every other mode once per particle
+uniform bool uPerPixelLighting = false;
+
 uniform vec3 uHsvShift = vec3(0.0, 1.0, 1.0);
 uniform vec2 uAlphaRemapRange = vec2(1.0, 0.0);
 
@@ -93,6 +96,7 @@ in float vFrameBlendOut;
 in vec2 vCardUvOut;
 in vec4 vColor;
 in vec3 vFragPosition;
+in vec3 vLightingPosition;
 
 out vec4 fragColor;
 
@@ -398,10 +402,10 @@ void main(void) {
     {
         vec3 litColor = finalColor * uSelfIllumAmount;
 
-        // TODO: per-vertex m_nLightingMode
         if (uDiffuseAmount != 0.0)
         {
-            ParticleLight_t light = CalculateParticleLighting(vFragPosition, -g_vCameraDirWs, 0.0);
+            vec3 lightingPosition = uPerPixelLighting ? vFragPosition : vLightingPosition;
+            ParticleLight_t light = CalculateParticleLighting(lightingPosition, -g_vCameraDirWs, 0.0);
             litColor += finalColor * (light.Ambient + light.Direct) * uDiffuseAmount;
         }
 
