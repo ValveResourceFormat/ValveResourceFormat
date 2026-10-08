@@ -208,6 +208,14 @@ namespace GUI.Types.GLViewers
                     particleSceneNode.Restart();
                 });
 
+                UiControl.AddCheckBox("Collide With Floor", false, value =>
+                {
+                    Scene.CollisionGroundPlane = value ? 0f : null;
+
+                    using var lockedGl = MakeCurrent();
+                    particleSceneNode?.Restart();
+                });
+
                 UiControl.AddControl(restartButton);
                 UiControl.AddControl(pauseButton);
                 UiControl.AddControl(endCapButton);
