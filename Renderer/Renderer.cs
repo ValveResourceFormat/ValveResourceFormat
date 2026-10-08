@@ -1185,12 +1185,6 @@ public class Renderer : ISpawnGroupHost
 
         using (new GLDebugGroup("Main Scene Translucent Render"))
         {
-            if (Prewarming && isStandardPass)
-            {
-                DrawThrough(mainView, mainState, ref renderContext);
-                Scene.ProjectedDecals.Prewarm(renderContext);
-            }
-
             // Decals read the depth grabbed above, which only the main framebuffer gets
             var drawDecals = isStandardPass && !isWireframe && Scene.ProjectedDecals.Count > 0;
             var decalTranslucentSurfaces = drawDecals && RenderTranslucentSceneDepth(mainView, ref renderContext);
@@ -1639,7 +1633,7 @@ public class Renderer : ISpawnGroupHost
         TranslucentDepthBuffer.Bind(FramebufferTarget.Framebuffer);
 
         // Seeded with the opaque depth, so that surfaces behind it stay hidden and readers can tell the two apart.
-        SeedSceneDepth(Vector2.One);
+        SeedDepthFromScene(Vector2.One);
 
         // Single sampled, so alpha tested surfaces have to discard rather than lean on coverage
         using (GraphicsContext.RenderState.Scope(multisampleEnable: false, depthTest: true, depthWrite: true,

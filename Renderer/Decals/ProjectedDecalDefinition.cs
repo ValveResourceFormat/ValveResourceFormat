@@ -19,6 +19,14 @@ namespace ValveResourceFormat.Renderer.Decals
         Liquid,
     }
 
+    /// <summary>A decal placed with <see cref="ProjectedDecalSystem"/>, for removing it again.</summary>
+    /// <param name="Id">Identifies the decal, zero for none.</param>
+    public readonly record struct ProjectedDecalHandle(uint Id)
+    {
+        /// <summary>Gets whether a decal was placed.</summary>
+        public bool IsValid => Id != 0;
+    }
+
     /// <summary>
     /// What a projected decal looks like and how large it is. Register one with
     /// <see cref="ProjectedDecalSystem.Register"/>. Whether its textures are files of their own or parts of

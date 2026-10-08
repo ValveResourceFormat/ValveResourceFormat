@@ -115,7 +115,7 @@ namespace ValveResourceFormat.Renderer.Decals
             public ProjectedDecalTextureArray.Layer? Height { get; init; }
         }
 
-        private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform, float PlaceTime, bool IsPermanent);
+        private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform, float PlaceTime, bool IsPermanent, uint Id);
 
         // What a permanent decal gives as the time it was added: long enough ago that anything aging has settled
         private const float PermanentPlaceTime = -1e9f;
@@ -149,6 +149,7 @@ namespace ValveResourceFormat.Renderer.Decals
         private StorageBuffer? decalBuffer;
         private StorageBuffer? materialBuffer;
         private int materialBufferCapacity;
+        private uint nextDecalId;
         private bool decalsDirty;
         private bool tintsDirty;
         private float time;
@@ -287,8 +288,8 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <param name="flipU">Whether to mirror the texture horizontally.</param>
         /// <param name="parent">An entity the decal moves with, or null for the static world.</param>
         /// <param name="permanent">Whether the decal neither fades nor makes way for newer ones, as one placed with a map.</param>
-        /// <returns>Whether the material could be loaded and the decal was added.</returns>
-        public bool Add(string materialPath, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false, BaseEntity? parent = null, bool permanent = false)
+        /// <returns>A handle to the decal, which is not valid when the material could not be loaded or there was no room.</returns>
+        public ProjectedDecalHandle Add(string materialPath, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false, BaseEntity? parent = null, bool permanent = false)
             => Add(RegisterMaterial(materialPath), boxTransform, tint, flipU, parent, permanent);
 
         /// <summary>Adds a decal.</summary>
@@ -298,14 +299,14 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <param name="flipU">Whether to mirror the texture horizontally.</param>
         /// <param name="parent">An entity the decal moves with, or null for the static world.</param>
         /// <param name="permanent">Whether the decal neither fades nor makes way for newer ones, as one placed with a map.</param>
-        /// <returns>Whether the handle was valid and there was room for the decal.</returns>
-        public bool Add(int decal, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false, BaseEntity? parent = null, bool permanent = false)
+        /// <returns>A handle to the decal, which is not valid when the material handle was not or there was no room.</returns>
+        public ProjectedDecalHandle Add(int decal, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false, BaseEntity? parent = null, bool permanent = false)
         {
             var materialIndex = decal;
 
             if ((uint)materialIndex >= (uint)materials.Count)
             {
-                return false;
+                return default;
             }
 
             if (decals.Count >= MaxDecals)
@@ -314,7 +315,7 @@ namespace ValveResourceFormat.Renderer.Decals
 
                 if (oldest < 0)
                 {
-                    return false;
+                    return default;
                 }
 
                 RemoveDecalAt(oldest);
@@ -345,11 +346,11 @@ namespace ValveResourceFormat.Renderer.Decals
             }
 
             decals.Add(new ProjectedDecal(materialIndex, flipU ? FlagFlipU : 0, tint, parent, localTransform,
-                permanent ? PermanentPlaceTime : time, permanent));
+                permanent ? PermanentPlaceTime : time, permanent, ++nextDecalId));
             boxTransforms.Add(boxTransform);
             decalsDirty = true;
 
-            return true;
+            return new ProjectedDecalHandle(nextDecalId);
         }
 
         /// <summary>
@@ -428,6 +429,18 @@ namespace ValveResourceFormat.Renderer.Decals
             return Color32.FromVector4Clamped(new Vector4(ColorSpace.SrgbLinearToGamma(tint.AsVector3()), tint.W)).PackedValue;
         }
 
+        /// <summary>Removes a decal, if it is still there.</summary>
+        /// <param name="handle">The handle the decal was added with.</param>
+        public void Remove(ProjectedDecalHandle handle)
+        {
+            var index = decals.FindIndex(decal => decal.Id == handle.Id);
+
+            if (index >= 0)
+            {
+                RemoveDecalAt(index);
+            }
+        }
+
         private void RemoveDecalAt(int index)
         {
             if (decals[index].Parent != null)
@@ -462,8 +475,8 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <param name="direction">The direction the bullet travels.</param>
         /// <param name="surfacePropertyHash">The hash of the hit surface property, or zero for the default surface.</param>
         /// <param name="parent">The entity that was hit, which the decal moves with, or null for the static world.</param>
-        /// <returns>Whether a decal was added.</returns>
-        public bool SpawnImpactDecal(Vector3 position, Vector3 normal, Vector3 direction, uint surfacePropertyHash, BaseEntity? parent = null)
+        /// <returns>A handle to the decal, which is not valid when none was added.</returns>
+        public ProjectedDecalHandle SpawnImpactDecal(Vector3 position, Vector3 normal, Vector3 direction, uint surfacePropertyHash, BaseEntity? parent = null)
         {
             direction = Vector3.Normalize(direction);
             normal = FaceAgainst(normal, direction);
@@ -490,12 +503,12 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <param name="direction">The direction the knife swings toward.</param>
         /// <param name="surfacePropertyHash">The hash of the hit surface property, or zero for the default surface.</param>
         /// <param name="parent">The entity that was hit, which the decal moves with, or null for the static world.</param>
-        /// <returns>Whether a decal was added.</returns>
-        public bool SpawnKnifeDecal(Vector3 position, Vector3 normal, Vector3 direction, uint surfacePropertyHash, BaseEntity? parent = null)
+        /// <returns>A handle to the decal, which is not valid when none was added.</returns>
+        public ProjectedDecalHandle SpawnKnifeDecal(Vector3 position, Vector3 normal, Vector3 direction, uint surfacePropertyHash, BaseEntity? parent = null)
         {
             if (string.IsNullOrEmpty(ImpactDecals.FindDecalGroup(surfacePropertyHash, isGrazing: false)))
             {
-                return false;
+                return default;
             }
 
             direction = Vector3.Normalize(direction);
@@ -516,8 +529,8 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <param name="normal">The surface normal.</param>
         /// <param name="parent">The entity the surface belongs to, which the decal moves with, or null for the static world.</param>
         /// <param name="sizeOverride">The width and height of the decal, or zero for the size its material gives.</param>
-        /// <returns>Whether a decal was added.</returns>
-        public bool SpawnGroupDecal(string groupName, Vector3 position, Vector3 normal, BaseEntity? parent = null, float sizeOverride = 0f)
+        /// <returns>A handle to the decal, which is not valid when none was added.</returns>
+        public ProjectedDecalHandle SpawnGroupDecal(string groupName, Vector3 position, Vector3 normal, BaseEntity? parent = null, float sizeOverride = 0f)
         {
             normal = Vector3.Normalize(normal);
             var up = RotateAround(normal, GetOrthogonal(normal), Random.Shared.NextSingle() * MathF.Tau);
@@ -525,11 +538,11 @@ namespace ValveResourceFormat.Renderer.Decals
             return SpawnFromGroup(groupName, position, normal, up, parent, sizeOverride);
         }
 
-        private bool SpawnFromGroup(string? groupName, Vector3 position, Vector3 normal, Vector3 up, BaseEntity? parent, float sizeOverride = 0f)
+        private ProjectedDecalHandle SpawnFromGroup(string? groupName, Vector3 position, Vector3 normal, Vector3 up, BaseEntity? parent, float sizeOverride = 0f)
         {
             if (ImpactDecals.PickOption(groupName, Random.Shared) is not { } option)
             {
-                return false;
+                return default;
             }
 
             return Spawn(RegisterMaterial(option.Material, option.Sequence), position, normal, up, parent, sizeOverride);
@@ -545,12 +558,12 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <param name="up">The direction of the texture's top edge, flattened onto the surface.</param>
         /// <param name="parent">The entity the surface belongs to, which the decal moves with, or null for the static world.</param>
         /// <param name="sizeOverride">The width and height of the decal, or zero for the size its definition gives.</param>
-        /// <returns>Whether the handle was valid and the decal was added.</returns>
-        public bool Spawn(int decal, Vector3 position, Vector3 normal, Vector3 up, BaseEntity? parent = null, float sizeOverride = 0f)
+        /// <returns>A handle to the decal, which is not valid when none was added.</returns>
+        public ProjectedDecalHandle Spawn(int decal, Vector3 position, Vector3 normal, Vector3 up, BaseEntity? parent = null, float sizeOverride = 0f)
         {
             if ((uint)decal >= (uint)materials.Count)
             {
-                return false;
+                return default;
             }
 
             var random = Random.Shared;
@@ -767,23 +780,6 @@ namespace ValveResourceFormat.Renderer.Decals
             {
                 Draw(context, translucentSurfaces);
             }
-        }
-
-        /// <summary>
-        /// Loads the decal tables and draws both decal passes with no decals in them, so that the first
-        /// decal waits for neither a shader to compile nor the driver to specialize it. Does nothing in
-        /// a game without decal groups.
-        /// </summary>
-        /// <param name="context">The render context of the main scene, during the prewarm frame.</param>
-        public void Prewarm(Scene.RenderContext context)
-        {
-            if (!ImpactDecals.HasDecalGroups)
-            {
-                return;
-            }
-
-            Draw(context, translucentSurfaces: false);
-            Draw(context, translucentSurfaces: true);
         }
 
         private void Draw(Scene.RenderContext context, bool translucentSurfaces)
