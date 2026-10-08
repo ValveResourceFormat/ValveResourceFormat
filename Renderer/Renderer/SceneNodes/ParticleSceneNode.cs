@@ -261,6 +261,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Whether the system is switched on. A stopped system neither simulates nor draws.</summary>
         public bool IsPlaying { get; private set; } = true;
 
+        /// <summary>Gets whether every emitter is done and every particle has expired.</summary>
+        public bool IsFinished => particleRenderer.IsFinished();
+
         /// <summary>Switches the system on and replays it from its current transform.</summary>
         public void Play()
         {

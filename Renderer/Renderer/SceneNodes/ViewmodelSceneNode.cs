@@ -417,7 +417,8 @@ public class ViewmodelSceneNode : ModelSceneNode
             return;
         }
 
-        Scene.ProjectedDecals.SpawnKnifeDecal(surface.HitPosition, surface.HitNormal, input.Camera.Forward, surface.SurfacePropertyHash, surface.HitEntity);
+        entitySystem.TempEntities.DispatchEffect("KnifeSlash",
+            new EffectData(Scene, surface.HitPosition, surface.HitNormal, input.Camera.Forward, surface.SurfacePropertyHash, surface.HitEntity));
     }
 
     private const float BulletRange = 8192f;
@@ -432,7 +433,8 @@ public class ViewmodelSceneNode : ModelSceneNode
             return;
         }
 
-        Scene.ProjectedDecals.SpawnImpactDecal(trace.HitPosition, trace.HitNormal, camera.Forward, trace.SurfacePropertyHash, trace.HitEntity);
+        entitySystem.TempEntities.DispatchEffect("Impact",
+            new EffectData(Scene, trace.HitPosition, trace.HitNormal, camera.Forward, trace.SurfacePropertyHash, trace.HitEntity));
     }
 
     // Brush and prop entities carry their own colliders, which move with them, so the world alone misses doors

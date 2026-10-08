@@ -147,7 +147,11 @@ public sealed class EntitySystem
         ArgumentNullException.ThrowIfNull(context);
 
         RendererContext = context;
+        TempEntities = new TempEntities(this);
     }
+
+    /// <summary>Gets the effects that play once without an entity of their own, such as bullet impacts.</summary>
+    public TempEntities TempEntities { get; }
 
     /// <summary>
     /// Creates the entity for a map entity's keyvalues and puts it in the world. A classname the entity
@@ -498,6 +502,7 @@ public sealed class EntitySystem
         inputQueue.Clear();
         firedCounts.Clear();
         playerImpacts.Clear();
+        TempEntities.Clear();
         hasRemovedEntities = false;
         tickAccumulator = 0f;
         CurrentTime = 0f;
@@ -509,6 +514,8 @@ public sealed class EntitySystem
     /// </summary>
     public void Update(float frameTime)
     {
+        TempEntities.Update();
+
         if (entities.Count <= 1)
         {
             return;

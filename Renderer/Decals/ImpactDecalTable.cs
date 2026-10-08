@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Decals
         // Sequence names the frame of the material's sprite sheet to use, for a material that holds many decals
         public readonly record struct DecalOption(string Material, string? Sequence, float Probability);
 
-        private readonly record struct SurfaceImpact(string? Decal, string? GrazingDecal);
+        private readonly record struct SurfaceImpact(string? Decal, string? GrazingDecal, string? Effect);
 
         private readonly Dictionary<uint, string> surfaceNamesByHash = [];
         private readonly Dictionary<string, string> surfaceBases = new(StringComparer.OrdinalIgnoreCase);
@@ -76,7 +76,8 @@ namespace ValveResourceFormat.Renderer.Decals
                 {
                     surfaceImpacts[name] = new SurfaceImpact(
                         surface.GetStringProperty("impactDecalName"),
-                        surface.GetStringProperty("impactGrazingDecalName"));
+                        surface.GetStringProperty("impactGrazingDecalName"),
+                        surface.GetStringProperty("effect"));
                 }
             }
         }
@@ -187,25 +188,35 @@ namespace ValveResourceFormat.Renderer.Decals
             return options[^1];
         }
 
-        // A surface without its own impact entry inherits one through its base surface. An empty decal
-        // name, as on no_decal, means no decal at all.
+        // An empty decal name, as on no_decal, means no decal at all
         public string? FindDecalGroup(uint surfacePropertyHash, bool isGrazing)
+        {
+            var impact = FindImpact(surfacePropertyHash, static impact => impact.Decal != null);
+
+            return isGrazing && !string.IsNullOrEmpty(impact.GrazingDecal)
+                ? impact.GrazingDecal
+                : impact.Decal;
+        }
+
+        public string? FindEffect(uint surfacePropertyHash)
+            => FindImpact(surfacePropertyHash, static impact => impact.Effect != null).Effect;
+
+        // A surface without what is asked for inherits it through its base surface
+        private SurfaceImpact FindImpact(uint surfacePropertyHash, Func<SurfaceImpact, bool> has)
         {
             var name = surfaceNamesByHash.GetValueOrDefault(surfacePropertyHash, "default");
 
             for (var depth = 0; depth < 16 && name != null; depth++)
             {
-                if (surfaceImpacts.TryGetValue(name, out var impact) && impact.Decal != null)
+                if (surfaceImpacts.TryGetValue(name, out var impact) && has(impact))
                 {
-                    return isGrazing && !string.IsNullOrEmpty(impact.GrazingDecal)
-                        ? impact.GrazingDecal
-                        : impact.Decal;
+                    return impact;
                 }
 
                 name = surfaceBases.GetValueOrDefault(name);
             }
 
-            return surfaceImpacts.GetValueOrDefault("default").Decal;
+            return surfaceImpacts.GetValueOrDefault("default");
         }
     }
 }

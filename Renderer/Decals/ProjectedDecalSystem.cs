@@ -429,6 +429,11 @@ namespace ValveResourceFormat.Renderer.Decals
             return Color32.FromVector4Clamped(new Vector4(ColorSpace.SrgbLinearToGamma(tint.AsVector3()), tint.W)).PackedValue;
         }
 
+        /// <summary>Finds the particle effect a bullet throws up from a surface.</summary>
+        /// <param name="surfacePropertyHash">The hash of the hit surface property, or zero for the default surface.</param>
+        /// <returns>The effect, or null when the game names none.</returns>
+        public string? FindImpactEffect(uint surfacePropertyHash) => ImpactDecals.FindEffect(surfacePropertyHash);
+
         /// <summary>Removes a decal, if it is still there.</summary>
         /// <param name="handle">The handle the decal was added with.</param>
         public void Remove(ProjectedDecalHandle handle)
