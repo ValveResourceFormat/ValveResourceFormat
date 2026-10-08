@@ -211,7 +211,18 @@ internal static class ParticleCapture
 
     private static void PrintTree(ParticleSystemSimulation simulation, int depth)
     {
-        Console.WriteLine($"{new string(' ', depth * 2)}{Path.GetFileName(simulation.Name)}: {simulation.Particles.Count} live");
+        var color = Vector3.Zero;
+        var alpha = 0f;
+
+        foreach (ref var particle in simulation.Particles.Current)
+        {
+            color += particle.Color;
+            alpha += particle.Alpha;
+        }
+
+        var count = Math.Max(1, simulation.Particles.Count);
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"{new string(' ', depth * 2)}{Path.GetFileName(simulation.Name)}: {simulation.Particles.Count} live, mean color {color / count:F3} alpha {alpha / count:F3}"));
 
         foreach (var child in simulation.Children)
         {

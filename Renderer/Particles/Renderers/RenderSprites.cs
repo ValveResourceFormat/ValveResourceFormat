@@ -219,8 +219,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return (image.UncroppedMin + (window.Min * size), image.UncroppedMin + (window.Max * size));
         }
 
-        /// <summary>The frames a layer's own sheet is showing, or null when it carries no sequence.</summary>
-        private LayerFrames? GetLayerFrames(int layer, ref Particle particle)
+        /// <summary>
+        /// The frames a layer's own sheet is showing, or null when it carries no sequence.
+        /// </summary>
+        /// <remarks>
+        /// The first layer plays the particle's sequence. The layers after it play the second sequence
+        /// when the system gives its particles one, which is how a sheet split into alpha-only and
+        /// color-only sequences pairs an alpha layer with a separately chosen color layer; otherwise
+        /// they follow the first layer, as companion sheets laid out like it do. A sequence number past
+        /// the end of the sheet wraps around it. A frame packing several images gives each layer the
+        /// image at its own index, the last one standing in for layers beyond them.
+        /// </remarks>
+        private LayerFrames? GetLayerFrames(int layer, ref Particle particle, bool layersUseSecondSequence)
         {
             var spriteSheetData = layers[layer].Texture.SpriteSheetData;
 
@@ -229,7 +239,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return null;
             }
 
-            var sequence = spriteSheetData.Sequences[particle.SequenceNumber % spriteSheetData.Sequences.Length];
+            var sequenceNumber = layer > 0 && layersUseSecondSequence ? particle.SecondSequenceNumber : particle.SequenceNumber;
+            var sequence = spriteSheetData.Sequences[(int)((uint)sequenceNumber % (uint)spriteSheetData.Sequences.Length)];
 
             if (sequence.Frames.Length == 0)
             {
@@ -238,9 +249,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var (frame, nextFrame, blend) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
 
-            // TODO: Support more than one image per frame?
-            return new LayerFrames(sequence.Frames[frame].Images[0], sequence.Frames[nextFrame].Images[0], blend);
+            return new LayerFrames(LayerImage(sequence.Frames[frame], layer), LayerImage(sequence.Frames[nextFrame], layer), blend);
         }
+
+        private static Texture.SpritesheetData.Sequence.Frame.Image LayerImage(Texture.SpritesheetData.Sequence.Frame frame, int layer)
+            => frame.Images[Math.Min(layer, frame.Images.Length - 1)];
 
         /// <summary>
         /// The window the card shrinks to, covering the art of both frames it is blending so neither is
@@ -360,6 +373,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Fills and uploads the quad buffer, returning the number of quads actually emitted.</summary>
         private int UpdateVertices(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
+            var layersUseSecondSequence = layers.Length > 1 && systemState.Data?.InitializesField(ParticleField.SecondSequenceNumber) == true;
+
             var billboardMatrix = camera.BillboardMatrix;
 
             // All four bounds are a radius per unit of camera distance
@@ -480,7 +495,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         + (centerOffset.X * right)
                         + (centerOffset.Y * up);
 
-                    var cardFrames = GetLayerFrames(0, ref particle);
+                    var cardFrames = GetLayerFrames(0, ref particle, layersUseSecondSequence);
                     var window = GetCardCropWindow(cardFrames);
                     var windowSize = window.Size;
 
@@ -512,7 +527,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     for (var layer = 1; layer < layers.Length; layer++)
                     {
-                        var (layerMin, layerMax, layerNextMin, layerNextMax) = GetLayerSheetUvs(GetLayerFrames(layer, ref particle), window);
+                        var (layerMin, layerMax, layerNextMin, layerNextMax) = GetLayerSheetUvs(GetLayerFrames(layer, ref particle, layersUseSecondSequence), window);
 
                         layerRects[(layer - 1) * 2] = Rect(layerMin, layerMax);
                         layerRects[((layer - 1) * 2) + 1] = Rect(layerNextMin, layerNextMax);
