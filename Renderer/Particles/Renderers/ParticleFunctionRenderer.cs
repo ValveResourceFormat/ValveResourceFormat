@@ -46,9 +46,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Whether the vertex colour is decoded from gamma space in the shader.</summary>
         protected bool GammaCorrectVertexColors { get; } = true;
 
-        /// <summary>Whether the colour is clamped to 0-1 before the alpha blend rather than after.</summary>
-        protected bool SaturateColorPreAlphaBlend { get; } = true;
-
         /// <summary>Whether sheet frame blending keeps the brighter of the two frames per channel.</summary>
         protected bool MaxLuminanceFrameBlend { get; }
 
@@ -122,7 +119,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             SourceAlphaValueToMapToZero = parse.NumberProvider("m_flSourceAlphaValueToMapToZero", SourceAlphaValueToMapToZero);
             SourceAlphaValueToMapToOne = parse.NumberProvider("m_flSourceAlphaValueToMapToOne", SourceAlphaValueToMapToOne);
             GammaCorrectVertexColors = parse.Boolean("m_bGammaCorrectVertexColors", GammaCorrectVertexColors);
-            SaturateColorPreAlphaBlend = parse.Boolean("m_bSaturateColorPreAlphaBlend", SaturateColorPreAlphaBlend);
             MaxLuminanceFrameBlend = parse.Boolean("m_bMaxLuminanceBlendingSequence0", MaxLuminanceFrameBlend);
             CenterXOffset = parse.NumberProvider("m_flCenterXOffset", CenterXOffset);
             CenterYOffset = parse.NumberProvider("m_flCenterYOffset", CenterYOffset);
@@ -218,7 +214,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform3("uColorScale", ColorScale.NextVector(systemState));
             shader.SetUniform1("uGammaCorrectVertexColors", GammaCorrectVertexColors);
             shader.SetUniform1("uDepthBias", DepthBias.NextNumber(systemState));
-            shader.SetUniform1("uSaturateColorPreAlphaBlend", SaturateColorPreAlphaBlend);
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
             shader.SetUniform1("g_tSceneDepth", (int)ReservedTextureSlots.SceneDepth);
 
