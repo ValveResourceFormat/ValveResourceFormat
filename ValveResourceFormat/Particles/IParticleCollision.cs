@@ -11,12 +11,12 @@ public interface IParticleCollision
     /// <summary>Whether there is any geometry at all, so a function that needs it can say it went without.</summary>
     bool HasGeometry => false;
 
-    /// <summary>Traces a ray from <paramref name="from"/> to <paramref name="to"/> against the world.</summary>
-    /// <param name="from">Start of the ray.</param>
-    /// <param name="to">End of the ray.</param>
+    /// <summary>Traces a ray from <paramref name="rayStart"/> to <paramref name="rayEnd"/> against the world.</summary>
+    /// <param name="rayStart">Start of the ray.</param>
+    /// <param name="rayEnd">End of the ray.</param>
     /// <param name="hit">The nearest hit, when there is one.</param>
     /// <returns>Whether the ray hit anything.</returns>
-    bool TraceRay(Vector3 from, Vector3 to, out ParticleTraceHit hit)
+    bool TraceRay(Vector3 rayStart, Vector3 rayEnd, out ParticleTraceHit hit)
     {
         hit = default;
         return false;

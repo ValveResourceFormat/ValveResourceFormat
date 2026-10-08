@@ -61,7 +61,9 @@ namespace ValveResourceFormat.Particles
             void Add(ParticleDiagnosticSeverity severity, string component, string problem, string impact, string resolution)
                 => collected.Add(new ParticleDiagnostic(severity, Name, component, problem, impact, resolution) { Path = path });
 
-            if (parentState != null && !ShouldRunAsChildOf(parentState))
+            var running = parentState == null || ShouldRunAsChildOf(parentState);
+
+            if (parentState != null && !running)
             {
                 var reason = !childEnabled ? "is not among the children its parent picked to run"
                     : detailLevel > parentState.DetailLevel ? $"needs detail level {detailLevel} or higher"
@@ -71,15 +73,19 @@ namespace ValveResourceFormat.Particles
                 Add(ParticleDiagnosticSeverity.Info, "child system", $"Not running: it {reason}", "Draws nothing for now", "Raise the detail level, play the endcap or wait, as the reason says");
             }
 
+            // Inputs and emission are judged only once the system has run a step, since a waiting child
+            // has not yet had its pre-emission operators build what its emitters read
+            var simulated = running && hasStarted && systemState.Age > 0f;
+
             foreach (var emitter in emitters)
             {
-                if (emitter.DescribeMissingInput(systemState) is { } missing)
+                if (simulated && emitter.DescribeMissingInput(systemState) is { } missing)
                 {
                     Add(ParticleDiagnosticSeverity.Error, $"emitter {emitter.GetType().Name}", missing, "The emitter has nothing to emit from, so the system stays empty", "Supply the snapshot the game would bind, or load the effect from a map that does");
                 }
             }
 
-            if (hasStarted && systemState.Age > 0.5f && particlesEmitted == 0 && initialParticles == 0)
+            if (simulated && systemState.Age > 0.5f && particlesEmitted == 0 && initialParticles == 0)
             {
                 if (emitters.Count == 0)
                 {

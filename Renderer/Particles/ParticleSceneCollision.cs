@@ -13,11 +13,11 @@ internal sealed class ParticleSceneCollision(Scene scene) : IParticleCollision
     public bool HasGeometry => scene.PhysicsWorld is { IsEmpty: false } || scene.CollisionGroundPlane.HasValue;
 
     /// <inheritdoc/>
-    public bool TraceRay(Vector3 from, Vector3 to, out ParticleTraceHit hit)
+    public bool TraceRay(Vector3 rayStart, Vector3 rayEnd, out ParticleTraceHit hit)
     {
         hit = default;
 
-        var length = Vector3.Distance(from, to);
+        var length = Vector3.Distance(rayStart, rayEnd);
 
         if (length <= float.Epsilon)
         {
@@ -28,7 +28,7 @@ internal sealed class ParticleSceneCollision(Scene scene) : IParticleCollision
 
         if (scene.PhysicsWorld is { IsEmpty: false } physics)
         {
-            var result = physics.TraceRay(from, to, Rubikon.DefaultGeometry);
+            var result = physics.TraceRay(rayStart, rayEnd, Rubikon.DefaultGeometry);
 
             if (result.Hit)
             {
@@ -38,14 +38,14 @@ internal sealed class ParticleSceneCollision(Scene scene) : IParticleCollision
         }
 
         // The ground plane is one-sided: it stops what comes down onto it from above
-        if (scene.CollisionGroundPlane is { } height && from.Z >= height && to.Z < height)
+        if (scene.CollisionGroundPlane is { } height && rayStart.Z >= height && rayEnd.Z < height)
         {
-            var fraction = (from.Z - height) / (from.Z - to.Z);
+            var fraction = (rayStart.Z - height) / (rayStart.Z - rayEnd.Z);
 
             if (fraction * length < nearest)
             {
                 nearest = fraction * length;
-                hit = new ParticleTraceHit(Vector3.Lerp(from, to, fraction), Vector3.UnitZ, fraction);
+                hit = new ParticleTraceHit(Vector3.Lerp(rayStart, rayEnd, fraction), Vector3.UnitZ, fraction);
             }
         }
 
