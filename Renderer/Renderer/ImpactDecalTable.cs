@@ -24,86 +24,94 @@ namespace ValveResourceFormat.Renderer
 
         public bool HasDecalGroups => decalGroups.Count > 0;
 
-        public static ImpactDecalTable Load(GameFileLoader fileLoader)
+        public ImpactDecalTable(GameFileLoader fileLoader)
         {
-            var table = new ImpactDecalTable();
+            LoadSurfaceProperties(fileLoader);
+            LoadImpactEffects(fileLoader);
+            LoadDecalGroups(fileLoader);
 
-            using (var surfaceProperties = fileLoader.LoadFileCompiled("surfaceproperties/surfaceproperties.vsurf"))
+            if (decalGroups.Count == 0)
             {
-                if (surfaceProperties?.DataBlock is BinaryKV3 kv3)
+                LoadTextDecalGroups(fileLoader);
+            }
+        }
+
+        private void LoadSurfaceProperties(GameFileLoader fileLoader)
+        {
+            using var resource = fileLoader.LoadFileCompiled("surfaceproperties/surfaceproperties.vsurf");
+
+            if (resource?.DataBlock is not BinaryKV3 kv3)
+            {
+                return;
+            }
+
+            foreach (var surface in kv3.Data.Root.GetArray("SurfacePropertiesList") ?? [])
+            {
+                if (surface.GetStringProperty("surfacePropertyName") is not { } name)
                 {
-                    foreach (var surface in kv3.Data.Root.GetArray("SurfacePropertiesList") ?? [])
-                    {
-                        var name = surface.GetStringProperty("surfacePropertyName");
+                    continue;
+                }
 
-                        if (name == null)
-                        {
-                            continue;
-                        }
+                surfaceNamesByHash[StringToken.Store(name)] = name;
 
-                        table.surfaceNamesByHash[StringToken.Store(name)] = name;
-
-                        if (surface.GetStringProperty("base") is { } baseName)
-                        {
-                            table.surfaceBases[name] = baseName;
-                        }
-                    }
+                if (surface.GetStringProperty("base") is { } baseName)
+                {
+                    surfaceBases[name] = baseName;
                 }
             }
+        }
 
-            using (var stream = fileLoader.GetFileStream("scripts/surfaceproperties_impact_effects.txt"))
+        private void LoadImpactEffects(GameFileLoader fileLoader)
+        {
+            using var stream = fileLoader.GetFileStream("scripts/surfaceproperties_impact_effects.txt");
+
+            if (stream == null)
             {
-                if (stream != null)
-                {
-                    var impactEffects = KVDocumentExtensions.ParseKV3(stream).Root;
+                return;
+            }
 
-                    foreach (var surface in impactEffects.GetArray("SurfacePropertiesList") ?? [])
-                    {
-                        if (surface.GetStringProperty("surfacePropertyName") is { } name)
-                        {
-                            table.surfaceImpacts[name] = new SurfaceImpact(
-                                surface.GetStringProperty("impactDecalName"),
-                                surface.GetStringProperty("impactGrazingDecalName"));
-                        }
-                    }
+            foreach (var surface in KVDocumentExtensions.ParseKV3(stream).Root.GetArray("SurfacePropertiesList") ?? [])
+            {
+                if (surface.GetStringProperty("surfacePropertyName") is { } name)
+                {
+                    surfaceImpacts[name] = new SurfaceImpact(
+                        surface.GetStringProperty("impactDecalName"),
+                        surface.GetStringProperty("impactGrazingDecalName"));
                 }
             }
+        }
 
-            using (var groups = fileLoader.LoadFileCompiled("scripts/decalgroups.vdata"))
+        private void LoadDecalGroups(GameFileLoader fileLoader)
+        {
+            using var resource = fileLoader.LoadFileCompiled("scripts/decalgroups.vdata");
+
+            if (resource?.DataBlock is not BinaryKV3 kv3)
             {
-                if (groups?.DataBlock is BinaryKV3 kv3)
+                return;
+            }
+
+            foreach (var (groupName, group) in kv3.Data.Root)
+            {
+                if (group.ValueType != KVValueType.Collection)
                 {
-                    foreach (var (groupName, group) in kv3.Data.Root)
+                    continue;
+                }
+
+                var options = new List<DecalOption>();
+
+                foreach (var option in group.GetArray("m_vecOptions") ?? [])
+                {
+                    if (option.GetStringProperty("m_hMaterial") is { Length: > 0 } material)
                     {
-                        if (group.ValueType != KVValueType.Collection)
-                        {
-                            continue;
-                        }
+                        var sequence = option.GetStringProperty("m_sSequenceName");
 
-                        var options = new List<DecalOption>();
-
-                        foreach (var option in group.GetArray("m_vecOptions") ?? [])
-                        {
-                            if (option.GetStringProperty("m_hMaterial") is { Length: > 0 } material)
-                            {
-                                var sequence = option.GetStringProperty("m_sSequenceName");
-
-                                options.Add(new DecalOption(material, string.IsNullOrEmpty(sequence) ? null : sequence,
-                                    option.GetFloatProperty("m_flProbability", 1f)));
-                            }
-                        }
-
-                        table.decalGroups[groupName] = [.. options];
+                        options.Add(new DecalOption(material, string.IsNullOrEmpty(sequence) ? null : sequence,
+                            option.GetFloatProperty("m_flProbability", 1f)));
                     }
                 }
-            }
 
-            if (table.decalGroups.Count == 0)
-            {
-                table.LoadTextDecalGroups(fileLoader);
+                decalGroups[groupName] = [.. options];
             }
-
-            return table;
         }
 
         // The same groups as text, each a list of materials and their weights

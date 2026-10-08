@@ -166,25 +166,26 @@ namespace ValveResourceFormat.Renderer
             var emissiveTint = data.VectorParams.GetValueOrDefault("g_vEmissiveTint", Vector4.One).AsVector3();
             var emissiveScale = MathF.Pow(2f, floatParams.GetValueOrDefault("g_flEmissiveBrightness"));
 
-            var definition = new ProjectedDecalDefinition
+            var definition = new ProjectedDecalDefinition { ColorTexture = colorTexture };
+
+            definition = definition with
             {
-                ColorTexture = colorTexture,
                 NormalTexture = intParams.GetValueOrDefault("F_NORMAL_MAP") == 1 ? data.TextureParams.GetValueOrDefault("g_tNormal") : null,
                 OcclusionTexture = data.TextureParams.GetValueOrDefault("g_tAmbientOcclusion"),
                 HeightTexture = intParams.GetValueOrDefault("F_PARALLAX") == 1 ? data.TextureParams.GetValueOrDefault("g_tHeight") : null,
                 BlendMode = (ProjectedDecalBlendMode)Math.Clamp(intParams.GetValueOrDefault("F_BLEND_MODE"), 0L, 3L),
                 Features = intParams.Where(p => p.Value != 0 && p.Key.StartsWith("F_", StringComparison.Ordinal))
                     .Select(p => p.Key).ToFrozenSet(StringComparer.Ordinal),
-                AlphaCutoffSoftness = floatParams.GetValueOrDefault("g_flAlphaCutoffSoftness", 0.1f),
+                AlphaCutoffSoftness = floatParams.GetValueOrDefault("g_flAlphaCutoffSoftness", definition.AlphaCutoffSoftness),
                 CutoffAngle = intParams.GetValueOrDefault("F_CUTOFF_ANGLE") == 1 ? floatParams.GetValueOrDefault("g_flCutoffAngle", 60f) : null,
-                CutoffAngleSoftness = floatParams.GetValueOrDefault("g_flCutoffAngleSoftness", 5f),
-                DepthFade = floatParams.GetValueOrDefault("g_flDecalZAlphaScale", 0.01f),
-                HeightScale = floatParams.GetValueOrDefault("g_flHeightMapScale", 0.02f),
-                ParallaxMinSamples = (int)intParams.GetValueOrDefault("g_nMinSamples", 8),
-                ParallaxMaxSamples = (int)intParams.GetValueOrDefault("g_nMaxSamples", 32),
-                ParallaxLodThreshold = (int)intParams.GetValueOrDefault("g_nLODThreshold", 4),
+                CutoffAngleSoftness = floatParams.GetValueOrDefault("g_flCutoffAngleSoftness", definition.CutoffAngleSoftness),
+                DepthFade = floatParams.GetValueOrDefault("g_flDecalZAlphaScale", definition.DepthFade),
+                HeightScale = floatParams.GetValueOrDefault("g_flHeightMapScale", definition.HeightScale),
+                ParallaxMinSamples = (int)intParams.GetValueOrDefault("g_nMinSamples", definition.ParallaxMinSamples),
+                ParallaxMaxSamples = (int)intParams.GetValueOrDefault("g_nMaxSamples", definition.ParallaxMaxSamples),
+                ParallaxLodThreshold = (int)intParams.GetValueOrDefault("g_nLODThreshold", definition.ParallaxLodThreshold),
                 EmissiveColor = ColorSpace.SrgbGammaToLinear(emissiveTint) * emissiveScale,
-                AdditiveAmount = floatParams.GetValueOrDefault("g_flAdditiveAmount", 1f),
+                AdditiveAmount = floatParams.GetValueOrDefault("g_flAdditiveAmount", definition.AdditiveAmount),
                 Roughness = MathF.Max(0.01f, 1f - floatParams.GetValueOrDefault("g_flGlossiness", 0.5f)),
                 Width = width,
                 Height = height,
@@ -194,8 +195,8 @@ namespace ValveResourceFormat.Renderer
                 SizeVariance = attributes.GetValueOrDefault("DecalSizeVariance"),
                 HeightVariance = attributes.GetValueOrDefault("DecalHeightVariance"),
                 DepthVariance = attributes.GetValueOrDefault("DecalDepthVariance"),
-                FadeStartTime = attributes.GetValueOrDefault("DecalFadeStartTime", 30f),
-                FadeDuration = attributes.GetValueOrDefault("DecalFadeDuration", 3f),
+                FadeStartTime = attributes.GetValueOrDefault("DecalFadeStartTime", definition.FadeStartTime),
+                FadeDuration = attributes.GetValueOrDefault("DecalFadeDuration", definition.FadeDuration),
             };
 
             return string.IsNullOrEmpty(sequenceName)

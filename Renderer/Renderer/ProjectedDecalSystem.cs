@@ -144,6 +144,7 @@ namespace ValveResourceFormat.Renderer
         private readonly ProjectedDecalTextureArray heightArray = new("ProjectedDecalHeight", VTexFormat.ATI1N, ImageFormat.ATI1N, srgb: false, HeightClearBlock);
 
         private ImpactDecalTable? impactDecals;
+        private ImpactDecalTable ImpactDecals => impactDecals ??= new ImpactDecalTable(scene.RendererContext.FileLoader);
 
         private StorageBuffer? decalBuffer;
         private StorageBuffer? materialBuffer;
@@ -464,15 +465,13 @@ namespace ValveResourceFormat.Renderer
         /// <returns>Whether a decal was added.</returns>
         public bool SpawnImpactDecal(Vector3 position, Vector3 normal, Vector3 direction, uint surfacePropertyHash, BaseEntity? parent = null)
         {
-            impactDecals ??= ImpactDecalTable.Load(scene.RendererContext.FileLoader);
-
             direction = Vector3.Normalize(direction);
             normal = FaceAgainst(normal, direction);
 
             // Jittered per shot, so hits near the cutoff leave either mark
             var grazingCutoff = GrazingIncidenceCutoff + (Random.Shared.NextSingle() * 2f - 1f) * GrazingIncidenceVariance;
             var isGrazing = -Vector3.Dot(normal, direction) < grazingCutoff;
-            var groupName = impactDecals.FindDecalGroup(surfacePropertyHash, isGrazing);
+            var groupName = ImpactDecals.FindDecalGroup(surfacePropertyHash, isGrazing);
 
             // Grazing marks streak toward the bottom of their texture, so their top faces back along the shot
             var up = isGrazing
@@ -494,9 +493,7 @@ namespace ValveResourceFormat.Renderer
         /// <returns>Whether a decal was added.</returns>
         public bool SpawnKnifeDecal(Vector3 position, Vector3 normal, Vector3 direction, uint surfacePropertyHash, BaseEntity? parent = null)
         {
-            impactDecals ??= ImpactDecalTable.Load(scene.RendererContext.FileLoader);
-
-            if (string.IsNullOrEmpty(impactDecals.FindDecalGroup(surfacePropertyHash, isGrazing: false)))
+            if (string.IsNullOrEmpty(ImpactDecals.FindDecalGroup(surfacePropertyHash, isGrazing: false)))
             {
                 return false;
             }
@@ -522,8 +519,6 @@ namespace ValveResourceFormat.Renderer
         /// <returns>Whether a decal was added.</returns>
         public bool SpawnGroupDecal(string groupName, Vector3 position, Vector3 normal, BaseEntity? parent = null, float sizeOverride = 0f)
         {
-            impactDecals ??= ImpactDecalTable.Load(scene.RendererContext.FileLoader);
-
             normal = Vector3.Normalize(normal);
             var up = RotateAround(normal, GetOrthogonal(normal), Random.Shared.NextSingle() * MathF.Tau);
 
@@ -532,7 +527,7 @@ namespace ValveResourceFormat.Renderer
 
         private bool SpawnFromGroup(string? groupName, Vector3 position, Vector3 normal, Vector3 up, BaseEntity? parent, float sizeOverride = 0f)
         {
-            if (impactDecals?.PickOption(groupName, Random.Shared) is not { } option)
+            if (ImpactDecals.PickOption(groupName, Random.Shared) is not { } option)
             {
                 return false;
             }
@@ -782,9 +777,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="context">The render context of the main scene, during the prewarm frame.</param>
         public void Prewarm(Scene.RenderContext context)
         {
-            impactDecals ??= ImpactDecalTable.Load(scene.RendererContext.FileLoader);
-
-            if (!impactDecals.HasDecalGroups)
+            if (!ImpactDecals.HasDecalGroups)
             {
                 return;
             }
