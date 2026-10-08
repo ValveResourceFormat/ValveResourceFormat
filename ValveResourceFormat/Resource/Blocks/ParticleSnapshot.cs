@@ -73,6 +73,7 @@ namespace ValveResourceFormat.Blocks
             ParticleField.ManualAnimationFrame => "manual_animation_frame",
             ParticleField.ShaderExtraData1 => "shader_extra_data_1",
             ParticleField.ShaderExtraData2 => "shader_extra_data_2",
+            ParticleField.RopeSegmentId => "rope_segment_id",
             _ => null,
         };
 

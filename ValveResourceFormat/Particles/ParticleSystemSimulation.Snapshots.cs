@@ -36,6 +36,15 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
+        /// Publishes a snapshot built while the system runs, replacing whatever the control point held.
+        /// Readers resolve the control point again on their next use, so they pick up the new one.
+        /// </summary>
+        internal void SetControlPointSnapshot(int controlPoint, ParticleSnapshot snapshot)
+        {
+            controlPointSnapshots[controlPoint] = snapshot;
+        }
+
+        /// <summary>
         /// Gets the particle snapshot associated with the given control point, or null if none exists.
         /// </summary>
         internal ParticleSnapshot? GetControlPointSnapshot(int controlPoint)

@@ -27,6 +27,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_ChooseRandomChildrenInGroup"] = preEmissionOperatorInfo => new ChooseRandomChildrenInGroup(preEmissionOperatorInfo),
                 ["C_OP_DistanceBetweenCPsToCP"] = preEmissionOperatorInfo => new DistanceBetweenCPsToCP(preEmissionOperatorInfo),
                 ["C_OP_HSVShiftToCP"] = preEmissionOperatorInfo => new HSVShiftToCP(preEmissionOperatorInfo),
+                ["C_OP_LightningSnapshotGenerator"] = preEmissionOperatorInfo => new LightningSnapshotGenerator(preEmissionOperatorInfo),
                 ["C_OP_RampCPLinearRandom"] = preEmissionOperatorInfo => new RampCPLinearRandom(preEmissionOperatorInfo),
                 ["C_OP_RemapSpeedtoCP"] = preEmissionOperatorInfo => new RemapSpeedtoCP(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointPositions"] = preEmissionOperatorInfo => new SetControlPointPositions(preEmissionOperatorInfo),

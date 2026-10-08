@@ -41,25 +41,24 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly int maxTessellation = 128;
 
         // Cached tube so a settled/static cable is not re-tessellated every frame. The arrays are
-        // grow-only; only the first lastCount (lastCount - 1 for levels) entries are valid.
+        // grow-only; only the first lastCount entries are valid.
         private int indexCount;
         private int lastCount;
-        private Vector3[] lastPositions = [];
+        private CableNode[] lastNodes = [];
         private int[] lastLevels = [];
-        private float[] lastRadii = [];
-        private Vector3[] lastColors = [];
 
         // Per-frame scratch reused across frames so a settled cable allocates nothing. Grow-only,
-        // sliced to the live particle (or segment) count each frame.
-        private (int Id, Vector3 Position, float Radius, Vector3 Color)[] chainScratch = [];
+        // sliced to the live particle count each frame.
+        private CableNode[] chainScratch = [];
         private Vector3[] positionsScratch = [];
-        private float[] radiiScratch = [];
-        private Vector3[] colorsScratch = [];
         private int[] levelsScratch = [];
         private Vector3[] directionsScratch = [];
 
-        private static readonly Comparison<(int Id, Vector3 Position, float Radius, Vector3 Color)> ChainComparer =
-            static (a, b) => a.Id.CompareTo(b.Id);
+        /// <summary>
+        /// One particle of the chain. <see cref="Order"/> is the unique particle id, which orders the
+        /// particles along their rope however prune compaction has reshuffled their slots.
+        /// </summary>
+        private readonly record struct CableNode(int SegmentId, int Order, Vector3 Position, float Radius, Vector3 Color, float Alpha) : IRopeChainEntry;
 
         public RenderCables(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
         {
@@ -108,47 +107,54 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            // Order the live particles along the rope by particle id; prune compaction can reshuffle slots.
             var count = particles.Count;
             chainScratch = EnsureCapacity(chainScratch, count);
             var chain = chainScratch.AsSpan(0, count);
             var index = 0;
             foreach (ref var particle in particles.Current)
             {
-                chain[index++] = (particle.UniqueParticleId, particle.Position, particle.Radius, particle.Color);
+                chain[index++] = new CableNode(particle.RopeSegmentId, particle.UniqueParticleId, particle.Position, particle.Radius, particle.Color, particle.Alpha);
             }
 
-            chain.Sort(ChainComparer);
+            RopeSegmentRuns.Group(chain);
 
             positionsScratch = EnsureCapacity(positionsScratch, count);
-            radiiScratch = EnsureCapacity(radiiScratch, count);
-            colorsScratch = EnsureCapacity(colorsScratch, count);
             var positions = positionsScratch.AsSpan(0, count);
-            var radii = radiiScratch.AsSpan(0, count);
-            var colors = colorsScratch.AsSpan(0, count);
             for (var i = 0; i < count; i++)
             {
                 positions[i] = chain[i].Position;
-                radii[i] = chain[i].Radius;
-                colors[i] = chain[i].Color;
             }
 
-            var levels = ComputeTessellationLevels(positions, camera);
+            // A run of n particles has n - 1 segments; its last slot is left at 0 so the levels line up
+            // with the chain and every run reads its own slice.
+            levelsScratch = EnsureCapacity(levelsScratch, count);
+            var levels = levelsScratch.AsSpan(0, count);
 
-            if (!GeometryChanged(positions, levels, radii, colors))
+            for (var start = 0; start < count;)
+            {
+                var end = RopeSegmentRuns.RunEnd<CableNode>(chain, start);
+
+                if (end - start >= 2)
+                {
+                    ComputeTessellationLevels(positions[start..end], levels[start..(end - 1)], camera);
+                }
+
+                levels[end - 1] = 0;
+                start = end;
+            }
+
+            CapTotalRings(chain, levels);
+
+            if (!GeometryChanged(chain, levels))
             {
                 return;
             }
 
             lastCount = count;
-            lastPositions = EnsureCapacity(lastPositions, count);
-            lastLevels = EnsureCapacity(lastLevels, count - 1);
-            lastRadii = EnsureCapacity(lastRadii, count);
-            lastColors = EnsureCapacity(lastColors, count);
-            positions.CopyTo(lastPositions);
+            lastNodes = EnsureCapacity(lastNodes, count);
+            lastLevels = EnsureCapacity(lastLevels, count);
+            chain.CopyTo(lastNodes);
             levels.CopyTo(lastLevels);
-            radii.CopyTo(lastRadii);
-            colors.CopyTo(lastColors);
 
             var repeatsPerSegment = textureRepeatsPerSegment.NextNumber(systemState);
             var circumference = circumferenceRepeats.NextNumber(systemState);
@@ -156,30 +162,77 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // Only the fractional part of each offset is used, truncated toward zero.
             var colorMapOffset = new Vector2(colorMapOffsetU.NextNumber(systemState) % 1f, colorMapOffsetV.NextNumber(systemState) % 1f);
 
-            // In PATH mode the authored repeat count is spread over the whole cable instead of per segment.
-            var repeats = textureRepetitionMode == TextureRepetitionMode.TEXTURE_REPETITION_PATH
-                ? repeatsPerSegment / (chain.Length - 1)
-                : repeatsPerSegment;
-
             // Exact buffer sizes are known up front, so the transient build buffers are rented, filled by
             // index and returned; the rented arrays may be larger, so sizes are threaded through explicitly.
-            var ringCount = TotalRings(positions.Length, levels);
             var sides = CableMeshBuilder.SideCount(roundness);
+            var ringCount = TotalRings(chain, levels);
             var vertexCount = ringCount * (sides + 1);
-            var tubeIndexCount = (ringCount - 1) * sides * 6;
+            var tubeIndexCount = 0;
+
+            for (var start = 0; start < count;)
+            {
+                var end = RopeSegmentRuns.RunEnd<CableNode>(chain, start);
+
+                if (end - start >= 2)
+                {
+                    tubeIndexCount += (TotalRings(end - start, levels[start..(end - 1)]) - 1) * sides * 6;
+                }
+
+                start = end;
+            }
+
+            if (tubeIndexCount == 0)
+            {
+                indexCount = 0;
+                return;
+            }
 
             using var ringPositions = new RentedBuffer<Vector3>(ringCount);
             using var ringSamples = new RentedBuffer<RopeSample>(ringCount);
             using var vertexBuffer = new RentedBuffer<CableVertex>(vertexCount);
             using var indexBuffer = new RentedBuffer<uint>(tubeIndexCount);
 
-            BuildRings(positions, chain, levels, repeats, ringPositions.Span, ringSamples.Span);
+            var ringCursor = 0;
+            var indexCursor = 0;
 
-            if (!CableMeshBuilder.BuildTubeMesh(ringPositions.Span, ringSamples.Span,
-                sides, circumference, colorMapOffset, vertexBuffer.Span, indexBuffer.Span))
+            for (var start = 0; start < count;)
             {
-                indexCount = 0;
-                return;
+                var end = RopeSegmentRuns.RunEnd<CableNode>(chain, start);
+                var length = end - start;
+
+                if (length < 2)
+                {
+                    start = end;
+                    continue;
+                }
+
+                var runLevels = levels[start..(end - 1)];
+                var rings = TotalRings(length, runLevels);
+
+                // In PATH mode the authored repeat count is spread over the whole rope instead of per segment.
+                var repeats = textureRepetitionMode == TextureRepetitionMode.TEXTURE_REPETITION_PATH
+                    ? repeatsPerSegment / (length - 1)
+                    : repeatsPerSegment;
+
+                var runRingPositions = ringPositions.Span.Slice(ringCursor, rings);
+                var runRingSamples = ringSamples.Span.Slice(ringCursor, rings);
+                BuildRings(positions[start..end], chain[start..end], runLevels, repeats, runRingPositions, runRingSamples);
+
+                var vertexStart = ringCursor * (sides + 1);
+                var runIndices = indexBuffer.Span.Slice(indexCursor, (rings - 1) * sides * 6);
+
+                CableMeshBuilder.BuildTubeMesh(runRingPositions, runRingSamples, sides, circumference, colorMapOffset,
+                    vertexBuffer.Span.Slice(vertexStart, rings * (sides + 1)), runIndices);
+
+                // Each tube indexes its own vertices from zero; move them past the tubes before it.
+                for (var i = 0; i < runIndices.Length; i++)
+                {
+                    runIndices[i] += (uint)vertexStart;
+                }
+
+                ringCursor += rings;
+                indexCursor += runIndices.Length;
+                start = end;
             }
 
             var stride = CableVertex.InputLayout.Stride;
@@ -214,11 +267,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// by m_flTessScale picks a power-of-two subdivision count within [m_nMinTesselation, m_nMaxTesselation],
         /// bumped one or two levels where adjacent segments bend sharply, then clamped between its neighbours.
         /// </summary>
-        private Span<int> ComputeTessellationLevels(ReadOnlySpan<Vector3> positions, Camera camera)
+        private void ComputeTessellationLevels(ReadOnlySpan<Vector3> positions, Span<int> levels, Camera camera)
         {
             var segmentCount = positions.Length - 1;
-            levelsScratch = EnsureCapacity(levelsScratch, segmentCount);
-            var levels = levelsScratch.AsSpan(0, segmentCount);
 
             // Scaled against a 1920 reference resolution, in integer math.
             var resolutionScale = (int)camera.WindowSize.Y * 64 / 1920;
@@ -269,17 +320,38 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 var next = levels[i + 1];
                 levels[i] = Math.Clamp(levels[i], Math.Min(previous, next), Math.Max(previous, next));
             }
+        }
 
-            // Guard against pathological totals by stepping every level down together.
-            for (var pass = 0; pass < MaxTessellationLevel && TotalRings(positions.Length, levels) > MaxTubeRings; pass++)
+        // Guards against pathological totals by stepping every level of every run down together.
+        private static void CapTotalRings(ReadOnlySpan<CableNode> chain, Span<int> levels)
+        {
+            for (var pass = 0; pass < MaxTessellationLevel && TotalRings(chain, levels) > MaxTubeRings; pass++)
             {
-                for (var i = 0; i < segmentCount; i++)
+                for (var i = 0; i < levels.Length; i++)
                 {
                     levels[i] = Math.Max(0, levels[i] - 1);
                 }
             }
+        }
 
-            return levels;
+        // Rings over every run of the chain; a run too short to draw has none.
+        private static int TotalRings(ReadOnlySpan<CableNode> chain, ReadOnlySpan<int> levels)
+        {
+            var total = 0;
+
+            for (var start = 0; start < chain.Length;)
+            {
+                var end = RopeSegmentRuns.RunEnd(chain, start);
+
+                if (end - start >= 2)
+                {
+                    total += TotalRings(end - start, levels[start..(end - 1)]);
+                }
+
+                start = end;
+            }
+
+            return total;
         }
 
         private static int TotalRings(int nodeCount, ReadOnlySpan<int> levels)
@@ -296,7 +368,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         // Expands each particle segment into 2^level rings. Position and radius follow a Catmull-Rom spline
         // through the particles, with the end particles repeated past both ends; colour and V are linear.
         // Fills exactly TotalRings entries of the (pooled, possibly larger) output arrays.
-        private static void BuildRings(ReadOnlySpan<Vector3> positions, ReadOnlySpan<(int Id, Vector3 Position, float Radius, Vector3 Color)> chain,
+        private static void BuildRings(ReadOnlySpan<Vector3> positions, ReadOnlySpan<CableNode> chain,
             ReadOnlySpan<int> levels, float repeats, Span<Vector3> ringPositions, Span<RopeSample> ringSamples)
         {
             var cursor = 0;
@@ -318,23 +390,20 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     ringSamples[cursor] = new RopeSample(position,
                         CableMeshBuilder.CatmullRom(chain[before].Radius, chain[i].Radius, chain[i + 1].Radius, chain[after].Radius, t),
                         Vector3.Lerp(chain[i].Color, chain[i + 1].Color, t),
-                        (i + t) * repeats, false);
+                        (i + t) * repeats, false, float.Lerp(chain[i].Alpha, chain[i + 1].Alpha, t));
                     cursor++;
                 }
             }
 
             ringPositions[cursor] = positions[last];
-            ringSamples[cursor] = new RopeSample(positions[last], chain[last].Radius, chain[last].Color, last * repeats, false);
+            ringSamples[cursor] = new RopeSample(positions[last], chain[last].Radius, chain[last].Color, last * repeats, false, chain[last].Alpha);
         }
 
-        private bool GeometryChanged(ReadOnlySpan<Vector3> positions, ReadOnlySpan<int> levels, ReadOnlySpan<float> radii, ReadOnlySpan<Vector3> colors)
+        private bool GeometryChanged(ReadOnlySpan<CableNode> chain, ReadOnlySpan<int> levels)
         {
-            // The count check guards the slices below: when it passes, lastCount >= 2.
-            return positions.Length != lastCount
-                || !levels.SequenceEqual(lastLevels.AsSpan(0, lastCount - 1))
-                || !radii.SequenceEqual(lastRadii.AsSpan(0, lastCount))
-                || !colors.SequenceEqual(lastColors.AsSpan(0, lastCount))
-                || !positions.SequenceEqual(lastPositions.AsSpan(0, lastCount));
+            return chain.Length != lastCount
+                || !levels.SequenceEqual(lastLevels.AsSpan(0, lastCount))
+                || !chain.SequenceEqual(lastNodes.AsSpan(0, lastCount));
         }
 
         // Grow-only: reused buffers are sliced to the live count, so shrinking never reallocates.

@@ -24,9 +24,6 @@ namespace ValveResourceFormat.Particles.Utils
         private readonly int controlPoint;
         private readonly bool hasSubset;
 
-        private bool resolved;
-        private ParticleSnapshot? snapshot;
-
         public SnapshotBinding(ParticleDefinitionParser parse, string controlPointKey = "m_nSnapshotControlPoint", int defaultControlPoint = -1)
         {
             controlPoint = parse.Int32(controlPointKey, defaultControlPoint);
@@ -63,18 +60,11 @@ namespace ValveResourceFormat.Particles.Utils
 
         /// <summary>
         /// The bound snapshot, or null when none is authored, the control point carries none, or the
-        /// function authors a subset.
+        /// function authors a subset. Looked up on every call, since a snapshot generated at run time
+        /// can be replaced on its control point while the system runs.
         /// </summary>
         public ParticleSnapshot? Resolve(ParticleSystemState particleSystemState)
-        {
-            if (!resolved && IsBound)
-            {
-                snapshot = particleSystemState.GetControlPointSnapshot(controlPoint);
-                resolved = snapshot != null;
-            }
-
-            return snapshot;
-        }
+            => IsBound ? particleSystemState.GetControlPointSnapshot(controlPoint) : null;
 
         /// <summary>How many rows the bound snapshot offers, or 0 when nothing is bound.</summary>
         public int Count(ParticleSystemState particleSystemState)

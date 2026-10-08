@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenTK" Version="4.9.4" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
+    <ProjectReference Include="..\..\ValveResourceFormat\ValveResourceFormat.csproj" />
+    <ProjectReference Include="..\..\Renderer\Renderer.csproj" />
+    <None Include="..\..\GUI\Utils\industrial_sunset_puresky.vtex_c" CopyToOutputDirectory="PreserveNewest" Link="industrial_sunset_puresky.vtex_c" />
+  </ItemGroup>
+</Project>

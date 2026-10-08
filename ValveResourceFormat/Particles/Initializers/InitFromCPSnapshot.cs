@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         public override ulong WrittenFields => snapshot.AttributeToWrite == ParticleField.Position
-            ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious)
+            ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.RopeSegmentId)
             : FieldMask(snapshot.AttributeToWrite);
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
@@ -43,6 +43,16 @@ namespace ValveResourceFormat.Particles.Initializers
             // Particle.Velocity for the emit path's Verlet encoding.
             CPSnapshotSampler.WriteAttribute(ref particle, snapshot.AttributeToWrite, column, row, snapshot.LocalSpaceCP,
                 writePositionPrevious: true, atSpawn: true, 0f, particleSystemState, localSpaceAngles);
+
+            // A snapshot laid out as several separate runs (a branching bolt) tags each row with the
+            // run it belongs to. That is topology rather than a free attribute, so it travels with the
+            // position: without it a rope drawn through the particles joins every run into one strip.
+            if (snapshot.AttributeToWrite == ParticleField.Position
+                && snapshot.CompanionColumn(particleSystemState, ParticleField.RopeSegmentId) is int[] segments
+                && (uint)row < (uint)segments.Length)
+            {
+                particle.RopeSegmentId = segments[row];
+            }
 
             return particle;
         }
