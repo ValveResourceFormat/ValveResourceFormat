@@ -49,6 +49,7 @@ namespace ValveResourceFormat.Particles
             {
                 ["C_OP_InstantaneousEmitter"] = (emitterInfo) => new InstantaneousEmitter(emitterInfo),
                 ["C_OP_ContinuousEmitter"] = (emitterInfo) => new ContinuousEmitter(emitterInfo),
+                ["C_OP_MaintainEmitter"] = emitterInfo => new MaintainEmitter(emitterInfo),
                 ["C_OP_NoiseEmitter"] = (emitterInfo) => new NoiseEmitter(emitterInfo),
             };
 
@@ -80,6 +81,7 @@ namespace ValveResourceFormat.Particles
                 ["C_INIT_PositionWarp"] = initializerInfo => new PositionWarp(initializerInfo),
                 ["C_INIT_RandomColor"] = initializerInfo => new RandomColor(initializerInfo),
                 ["C_INIT_RandomSequence"] = initializerInfo => new RandomSequence(initializerInfo),
+                ["C_INIT_ScaleVelocity"] = initializerInfo => new ScaleVelocity(initializerInfo),
                 ["C_INIT_SequenceLifeTime"] = initializerInfo => new SequenceLifeTime(initializerInfo),
                 ["C_INIT_RandomSecondSequence"] = initializerInfo => new RandomSecondSequence(initializerInfo),
                 ["C_INIT_RandomVectorComponent"] = initializerInfo => new RandomVectorComponent(initializerInfo),
@@ -96,6 +98,7 @@ namespace ValveResourceFormat.Particles
                 ["C_INIT_RingWave"] = initializerInfo => new RingWave(initializerInfo),
                 ["C_INIT_VelocityFromCP"] = initializerInfo => new VelocityFromCP(initializerInfo),
                 ["C_INIT_InheritVelocity"] = initializerInfo => new InheritVelocity(initializerInfo),
+                ["C_INIT_VelocityFromNormal"] = initializerInfo => new VelocityFromNormal(initializerInfo),
                 ["C_INIT_VelocityRadialRandom"] = initializerInfo => new VelocityRadialRandom(initializerInfo),
                 ["C_INIT_VelocityRandom"] = initializerInfo => new VelocityRandom(initializerInfo),
             };
@@ -139,6 +142,8 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_MaxVelocity"] = operatorInfo => new MaxVelocity(operatorInfo),
                 ["C_OP_MovementRotateParticleAroundAxis"] = operatorInfo => new MovementRotateParticleAroundAxis(operatorInfo),
                 ["C_OP_Noise"] = operatorInfo => new Noise(operatorInfo),
+                ["C_OP_RadiusDecay"] = operatorInfo => new RadiusDecay(operatorInfo),
+                ["C_OP_RemapDotProductToScalar"] = operatorInfo => new RemapDotProductToScalar(operatorInfo),
                 ["C_OP_VectorNoise"] = operatorInfo => new VectorNoise(operatorInfo),
                 ["C_OP_NormalLock"] = operatorInfo => new NormalLock(operatorInfo),
                 ["C_OP_NormalizeVector"] = operatorInfo => new NormalizeVector(operatorInfo),
@@ -193,8 +198,10 @@ namespace ValveResourceFormat.Particles
             {
                 ["C_OP_AttractToControlPoint"] = forceGeneratorInfo => new AttractToControlPoint(forceGeneratorInfo),
                 ["C_OP_CurlNoiseForce"] = forceGeneratorInfo => new CurlNoiseForce(forceGeneratorInfo),
+                ["C_OP_LocalAccelerationForce"] = forceGeneratorInfo => new LocalAccelerationForce(forceGeneratorInfo),
                 ["C_OP_PerParticleForce"] = forceGeneratorInfo => new PerParticleForce(forceGeneratorInfo),
                 ["C_OP_RandomForce"] = forceGeneratorInfo => new RandomForce(forceGeneratorInfo),
+                ["C_OP_TimeVaryingForce"] = forceGeneratorInfo => new TimeVaryingForce(forceGeneratorInfo),
                 ["C_OP_TurbulenceForce"] = forceGeneratorInfo => new TurbulenceForce(forceGeneratorInfo),
                 ["C_OP_TwistAroundAxis"] = forceGeneratorInfo => new TwistAroundAxis(forceGeneratorInfo),
             };
@@ -204,6 +211,7 @@ namespace ValveResourceFormat.Particles
             = new()
             {
                 ["C_OP_ConstrainDistance"] = constraintInfo => new ConstrainDistance(constraintInfo),
+                ["C_OP_PlanarConstraint"] = constraintInfo => new PlanarConstraint(constraintInfo),
                 ["C_OP_RopeSpringConstraint"] = constraintInfo => new RopeSpringConstraint(constraintInfo),
             };
 
