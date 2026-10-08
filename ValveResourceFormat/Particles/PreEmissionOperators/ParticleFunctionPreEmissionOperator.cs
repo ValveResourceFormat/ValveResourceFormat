@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         /// <summary>
         /// Whether this operator only runs on the system's first simulated step instead of every frame.
         /// </summary>
-        public bool RunOnce { get; }
+        public bool RunOnce { get; protected init; }
 
         /// <summary>
         /// Whether this operator has already run. Only consulted when <see cref="RunOnce"/> is set,

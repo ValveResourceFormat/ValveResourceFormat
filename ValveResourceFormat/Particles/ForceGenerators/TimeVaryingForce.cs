@@ -23,9 +23,9 @@ class TimeVaryingForce : ParticleFunctionForceGenerator
     {
         foreach (ref var particle in particles.Current)
         {
-            var t = endLerpTime > startLerpTime
+            var t = endLerpTime != startLerpTime
                 ? MathUtils.Saturate((particle.Age - startLerpTime) / (endLerpTime - startLerpTime))
-                : particle.Age >= endLerpTime ? 1f : 0f;
+                : particle.Age > endLerpTime ? 1f : 0f;
 
             particle.ForceAccumulator += Vector3.Lerp(startingForce, endingForce, t) * strength;
         }

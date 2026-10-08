@@ -44,12 +44,16 @@ namespace ValveResourceFormat.Particles.Operators
             forward1 = MathUtils.SafeNormalize(forward1, Vector3.UnitX, ParticleMath.MinimumLengthSquared);
             forward2 = MathUtils.SafeNormalize(forward2, Vector3.UnitX, ParticleMath.MinimumLengthSquared);
 
+            var (rangeMin, rangeMax) = fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate
+                ? (MathUtils.Saturate(outputMin), MathUtils.Saturate(outputMax))
+                : (outputMin, outputMax);
+
             foreach (ref var particle in particles.Current)
             {
                 var first = useParticleVelocity
                     ? MathUtils.SafeNormalize(particle.Position - particle.PositionPrevious, Vector3.Zero, ParticleMath.MinimumLengthSquared)
                     : useParticleNormal
-                        ? MathUtils.SafeNormalize(particle.GetVector(ParticleField.Normal), Vector3.Zero, ParticleMath.MinimumLengthSquared)
+                        ? particle.Normal
                         : forward1;
 
                 var dot = Vector3.Dot(first, forward2);
@@ -59,10 +63,9 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                var remapped = MathUtils.RemapValClamped(dot, inputMin, inputMax, outputMin, outputMax);
-                var target = particle.ModifyScalarBySetMethod(particles, fieldOutput, remapped, setMethod);
+                var remapped = MathUtils.RemapValClamped(dot, inputMin, inputMax, rangeMin, rangeMax);
 
-                particle.SetScalar(fieldOutput, float.Lerp(particle.GetScalar(fieldOutput), target, strength));
+                particle.SetScalar(fieldOutput, particle.ModifyScalarBySetMethod(particles, fieldOutput, remapped, setMethod));
             }
         }
     }

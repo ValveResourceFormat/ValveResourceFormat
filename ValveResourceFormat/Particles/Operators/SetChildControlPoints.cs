@@ -11,22 +11,13 @@ namespace ValveResourceFormat.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetChildControlPoints">C_OP_SetChildControlPoints</seealso>
     class SetChildControlPoints : ParticleFunctionOperator
     {
-        /// <summary>How a control point placed on a particle is turned.</summary>
-        private enum OrientationType
-        {
-            PARTICLE_ORIENTATION_NONE = 0,
-            PARTICLE_ORIENTATION_VELOCITY = 1,
-            PARTICLE_ORIENTATION_NORMAL = 2,
-            PARTICLE_ORIENTATION_ROTATION = 4,
-        }
-
         private readonly int childGroupId;
         private readonly int firstControlPoint;
         private readonly int numControlPoints = 1;
         private readonly INumberProvider firstSourcePoint = new LiteralNumberProvider(0f);
         private readonly bool reverse;
         private readonly bool setOrientation;
-        private readonly OrientationType orientationType = OrientationType.PARTICLE_ORIENTATION_VELOCITY;
+        private readonly ParticleOrientationType orientationType = ParticleOrientationType.PARTICLE_ORIENTATION_VELOCITY;
 
         private readonly List<ParticleSystemState> matchingChildren = [];
 
@@ -91,18 +82,18 @@ namespace ValveResourceFormat.Particles.Operators
         {
             switch (orientationType)
             {
-                case OrientationType.PARTICLE_ORIENTATION_VELOCITY:
+                case ParticleOrientationType.PARTICLE_ORIENTATION_VELOCITY:
                     var velocity = particle.Position - particle.PositionPrevious;
                     return velocity.LengthSquared() > ParticleMath.MinimumLengthSquared
                         ? EntityTransformHelper.ForwardDirectionToQuaternion(Vector3.Normalize(velocity))
                         : null;
 
-                case OrientationType.PARTICLE_ORIENTATION_NORMAL:
+                case ParticleOrientationType.PARTICLE_ORIENTATION_NORMAL:
                     return particle.Normal.LengthSquared() > ParticleMath.MinimumLengthSquared
                         ? EntityTransformHelper.ForwardDirectionToQuaternion(Vector3.Normalize(particle.Normal))
                         : null;
 
-                case OrientationType.PARTICLE_ORIENTATION_ROTATION:
+                case ParticleOrientationType.PARTICLE_ORIENTATION_ROTATION:
                     // The particle holds yaw, pitch and roll in radians
                     var angles = particle.Rotation;
                     return EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(
