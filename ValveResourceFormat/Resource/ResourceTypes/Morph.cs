@@ -42,6 +42,12 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public bool HasMissingAtlas => loaded && Texture == null && AtlasPath.Length > 0;
 
+        /// <summary>
+        /// Gets whether the morph set holds any morph target data. A set without any still declares its flex
+        /// controllers and rules.
+        /// </summary>
+        public bool HasMorphTargets => GetMorphDatas().Count > 0;
+
         private bool loaded;
 
         /// <summary>

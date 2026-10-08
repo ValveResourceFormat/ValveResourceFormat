@@ -117,6 +117,8 @@ public partial class ModelExtract
             FileName = ModelName,
         };
 
+        var skipEmptyMorphSets = GetMorphSetForControlNodes() != null;
+
         foreach (var renderMesh in RenderMeshesToExtract)
         {
             if (fileLoader != null)
@@ -139,6 +141,7 @@ public partial class ModelExtract
                 BonePositions = Cloth.RestBonePositions,
                 ClothSurface = Cloth.RenderBindingSurface,
                 ReconstructCloth = ReconstructsCloth,
+                SkipEmptyMorphSet = skipEmptyMorphSets,
             };
 
             vmdl.AddSubFile(
