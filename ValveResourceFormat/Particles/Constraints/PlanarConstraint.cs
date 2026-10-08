@@ -5,6 +5,7 @@ namespace ValveResourceFormat.Particles.Constraints
     /// <summary>
     /// Keeps particles on the front side of a plane, pushing any that sink behind it back out until
     /// their radius rests on it. The plane is placed in a control point's frame unless authored global.
+    /// With a maximum distance, only particles closer than it to the plane's origin are held.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PlanarConstraint">C_OP_PlanarConstraint</seealso>
     class PlanarConstraint : ParticleFunctionConstraint
@@ -45,15 +46,13 @@ namespace ValveResourceFormat.Particles.Constraints
 
             normal = Vector3.Normalize(normal);
 
-            // Past this distance from the control point the plane no longer holds particles back
             var maxDistance = maximumDistanceToControlPoint.NextNumber(particleSystemState);
-            var controlPointPosition = particleSystemState.GetControlPoint(controlPoint).Position;
 
             var moved = false;
 
             foreach (ref var particle in particles.Current)
             {
-                if (maxDistance > 0f && Vector3.DistanceSquared(particle.Position, controlPointPosition) > maxDistance * maxDistance)
+                if (maxDistance > 0f && Vector3.DistanceSquared(particle.Position, origin) >= maxDistance * maxDistance)
                 {
                     continue;
                 }

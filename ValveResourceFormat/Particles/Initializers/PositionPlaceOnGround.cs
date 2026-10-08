@@ -1,12 +1,19 @@
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Drops a spawning particle onto the world by tracing from it along a direction, placing it on
-    /// what the trace hits, lifted back by an offset.
+    /// Drops a spawning particle onto the world by tracing from its attribute along a direction and moving
+    /// the attribute onto what the trace hits, pulled back along the trace by an offset. Moving the position
+    /// keeps the particle's velocity.
     /// </summary>
+    /// <remarks>
+    /// Follows CS2, whose gameinfo sets <c>Particles/ParticleTraceOffsetOnlyHit</c>: the offset applies
+    /// whether or not the trace hit, and <c>m_bOffsetonColOnly</c> only keeps the radius offset off a miss.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_PositionPlaceOnGround">C_INIT_PositionPlaceOnGround</seealso>
     class PositionPlaceOnGround : ParticleFunctionInitializer
     {
+        private const float StartBackoff = 0.1f;
+
         private readonly INumberProvider offset = new LiteralNumberProvider(0f);
         private readonly INumberProvider maxTraceLength = new LiteralNumberProvider(128f);
         private readonly IVectorProvider traceDirection = new LiteralVectorProvider(-Vector3.UnitZ);
@@ -17,6 +24,7 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly ParticleField groundNormalAttribute = ParticleField.Normal;
         private readonly bool offsetOnCollisionOnly;
         private readonly float offsetByRadiusFactor;
+        private readonly int preserveOffsetControlPoint = -1;
 
         public PositionPlaceOnGround(ParticleDefinitionParser parse) : base(parse)
         {
@@ -30,65 +38,90 @@ namespace ValveResourceFormat.Particles.Initializers
             groundNormalAttribute = parse.ParticleField("m_nGroundNormalAttribute", groundNormalAttribute);
             offsetOnCollisionOnly = parse.Boolean("m_bOffsetonColOnly", offsetOnCollisionOnly);
             offsetByRadiusFactor = parse.Float("m_flOffsetByRadiusFactor", offsetByRadiusFactor);
+            preserveOffsetControlPoint = parse.Int32("m_nPreserveOffsetCP", preserveOffsetControlPoint);
         }
 
-        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious)
-            | (attribute != ParticleField.Position ? FieldMask(attribute) : 0)
+        public override ulong WrittenFields => FieldMask(attribute) | FieldMask(ParticleField.LifeDuration)
+            | (attribute == ParticleField.Position ? FieldMask(ParticleField.PositionPrevious) : 0)
             | (setNormal ? FieldMask(groundNormalAttribute) : 0);
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var direction = MathUtils.SafeNormalize(traceDirection.NextVector(ref particle, particleSystemState), -Vector3.UnitZ, 1e-12f);
-            var start = particle.Position;
-            var end = start + (direction * maxTraceLength.NextNumber(ref particle, particleSystemState));
+            var collision = particleSystemState.Collision;
+            var direction = MathUtils.SafeNormalize(traceDirection.NextVector(ref particle, particleSystemState));
+            var value = particle.GetVector(attribute);
+            var pullBack = offset.NextNumber(ref particle, particleSystemState);
+            var length = maxTraceLength.NextNumber(ref particle, particleSystemState);
 
-            Vector3 placed;
-            var hitGround = particleSystemState.Collision.TraceRay(start, end, out var hit);
+            var start = value - (direction * StartBackoff);
+            var end = start + (direction * length);
+            var hitGround = collision.TraceRay(start, end, out var hit);
+            var fraction = hitGround ? hit.Fraction : 1f;
 
-            if (hitGround)
-            {
-                placed = hit.Position;
-
-                if (setNormal)
-                {
-                    particle.SetVector(groundNormalAttribute, hit.Normal);
-                }
-            }
-            else
+            if (!hitGround)
             {
                 switch (missBehavior)
                 {
+                    case ParticleTraceMissBehavior.PARTICLE_TRACE_MISS_BEHAVIOR_NONE:
+                        return particle;
                     case ParticleTraceMissBehavior.PARTICLE_TRACE_MISS_BEHAVIOR_KILL:
                         particle.Kill();
-                        return particle;
-                    case ParticleTraceMissBehavior.PARTICLE_TRACE_MISS_BEHAVIOR_TRACE_END:
-                        placed = end;
-                        break;
-                    default:
+                        SetGroundNormal(ref particle, hit.Normal);
                         return particle;
                 }
             }
 
-            // The offset lifts the particle back along the trace, away from the surface
-            if (hitGround || !offsetOnCollisionOnly)
+            var radiusOffset = Vector3.Zero;
+
+            if (offsetByRadiusFactor != 0f && (!offsetOnCollisionOnly || fraction != 1f))
             {
-                placed -= direction * (offset.NextNumber(ref particle, particleSystemState) + (particle.Radius * offsetByRadiusFactor));
+                var radius = particle.Radius;
+                var facing = Vector3.Dot(direction, hit.Normal);
+                var reach = MathF.Max(-facing * length, radius);
+
+                fraction = reach * fraction <= radius * 0.5f ? 0f : fraction - (radius * 0.5f / reach);
+
+                var away = MathUtils.SafeNormalize((MathUtils.SafeNormalize(Vector3.Reflect(direction, hit.Normal)) * 0.5f) + hit.Normal);
+                radiusOffset = away * radius * offsetByRadiusFactor;
+
+                var probeStart = hitGround ? hit.Position : end;
+
+                if (collision.TraceRay(probeStart, probeStart + (radiusOffset * 0.5f), out _))
+                {
+                    particle.Kill();
+                }
+
+                pullBack += radius * offsetByRadiusFactor;
             }
 
-            if (attribute != ParticleField.Position)
+            if (preserveOffsetControlPoint > -1)
             {
-                particle.SetVector(attribute, placed);
-                return particle;
+                pullBack += start.Z - particleSystemState.GetControlPoint(preserveOffsetControlPoint).Position.Z;
             }
+
+            var delta = (direction * ((length * fraction) - StartBackoff - pullBack)) + radiusOffset;
 
             if (!setPreviousOnly)
             {
-                particle.Position = placed;
+                particle.SetVector(attribute, value + delta);
+            }
+            else if (attribute == ParticleField.Position && particles.CurrentFrameTime > 0f)
+            {
+                // The previous position is rebuilt from the velocity once the initializers have run
+                particle.Velocity -= delta / particles.CurrentFrameTime;
             }
 
-            particle.PositionPrevious = placed;
+            SetGroundNormal(ref particle, hit.Normal);
 
             return particle;
+        }
+
+        private void SetGroundNormal(ref Particle particle, Vector3 normal)
+        {
+            if (setNormal)
+            {
+                particle.SetVector(groundNormalAttribute, normal);
+            }
         }
     }
 }
