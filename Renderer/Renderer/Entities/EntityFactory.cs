@@ -129,6 +129,9 @@ public static class EntityFactory
         Register<PointSoundEvent>("snd_event_point", static (system, spawnInfo) => new PointSoundEvent(system, spawnInfo));
         Register<EnvSoundscape>("snd_soundscape", static (system, spawnInfo) => new EnvSoundscape(system, spawnInfo));
         Register<AmbientGeneric>("ambient_generic", static (system, spawnInfo) => new AmbientGeneric(system, spawnInfo));
+
+        // other
+        Register<PointClientUIWorldPanel>("point_clientui_world_panel", static (system, spawnInfo) => new PointClientUIWorldPanel(system, spawnInfo));
     }
 
     /// <summary>
