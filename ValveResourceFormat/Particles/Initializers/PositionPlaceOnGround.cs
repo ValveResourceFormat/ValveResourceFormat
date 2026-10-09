@@ -55,8 +55,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var start = value - (direction * StartBackoff);
             var end = start + (direction * length);
-            var hitGround = collision.TraceRay(start, end, out var hit);
-            var fraction = hitGround ? hit.Fraction : 1f;
+            var hitGround = collision.TraceRay(start, end, out var hitPosition, out var hitNormal, out var fraction);
 
             if (!hitGround)
             {
@@ -75,17 +74,15 @@ namespace ValveResourceFormat.Particles.Initializers
             if (offsetByRadiusFactor != 0f && (!offsetOnCollisionOnly || hitGround))
             {
                 var radius = particle.Radius;
-                var facing = Vector3.Dot(direction, hit.Normal);
+                var facing = Vector3.Dot(direction, hitNormal);
                 var reach = MathF.Max(-facing * length, radius);
 
                 fraction = reach * fraction <= radius * 0.5f ? 0f : fraction - (radius * 0.5f / reach);
 
-                var away = MathUtils.SafeNormalize((MathUtils.SafeNormalize(Vector3.Reflect(direction, hit.Normal)) * 0.5f) + hit.Normal);
+                var away = MathUtils.SafeNormalize((MathUtils.SafeNormalize(Vector3.Reflect(direction, hitNormal)) * 0.5f) + hitNormal);
                 radiusOffset = away * radius * offsetByRadiusFactor;
 
-                var probeStart = hitGround ? hit.Position : end;
-
-                if (collision.TraceRay(probeStart, probeStart + (radiusOffset * 0.5f), out _))
+                if (collision.TraceRay(hitPosition, hitPosition + (radiusOffset * 0.5f), out _, out _, out _))
                 {
                     particle.Kill();
                 }
@@ -112,7 +109,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (setNormal)
             {
-                particle.SetVector(groundNormalAttribute, hit.Normal);
+                particle.SetVector(groundNormalAttribute, hitNormal);
             }
 
             return particle;

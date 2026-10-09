@@ -299,12 +299,6 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public PhysicsWorld? PhysicsWorld { get; set; }
 
-        /// <summary>
-        /// Gets or sets the height of a one-sided horizontal plane that particle systems in the scene
-        /// collide with on top of <see cref="PhysicsWorld"/>, or null for none.
-        /// </summary>
-        public float? CollisionGroundPlane { get; set; }
-
         /// <summary>Gets the collision every particle system in the scene traces against.</summary>
         internal ParticleSceneCollision ParticleCollision { get; }
 

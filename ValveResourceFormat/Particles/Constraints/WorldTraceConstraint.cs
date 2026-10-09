@@ -200,8 +200,7 @@ namespace ValveResourceFormat.Particles.Constraints
                 return planeSet.Intersect(start, end, out fraction, out normal);
             }
 
-            fraction = collision.TraceRay(start, end, out var hit) ? hit.Fraction : 1f;
-            normal = hit.Normal;
+            collision.TraceRay(start, end, out _, out normal, out fraction);
 
             return fraction < 1f;
         }
@@ -225,14 +224,14 @@ namespace ValveResourceFormat.Particles.Constraints
 
             var traceEnd = end + (direction * ConfirmationTraceExtension);
 
-            if (!collision.TraceRay(start, traceEnd, out var hit))
+            if (!collision.TraceRay(start, traceEnd, out var hitPosition, out var hitNormal, out var hitFraction))
             {
                 return false;
             }
 
-            planeSet.Add(hit.Position, hit.Normal);
+            planeSet.Add(hitPosition, hitNormal);
 
-            var confirmed = Vector3.Distance(start, traceEnd) * hit.Fraction / MathF.Sqrt(segmentLengthSquared);
+            var confirmed = Vector3.Distance(start, traceEnd) * hitFraction / MathF.Sqrt(segmentLengthSquared);
 
             if (confirmed >= 1f)
             {

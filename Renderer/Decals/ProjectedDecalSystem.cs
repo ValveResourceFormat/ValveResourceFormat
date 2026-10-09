@@ -116,7 +116,14 @@ namespace ValveResourceFormat.Renderer.Decals
             public ProjectedDecalTextureArray.Layer? Height { get; init; }
         }
 
-        private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform, float PlaceTime, bool IsPermanent, bool Ages, uint Id);
+        private enum DecalLifetime
+        {
+            Timed,
+            Following,
+            Permanent,
+        }
+
+        private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform, float PlaceTime, DecalLifetime Lifetime, uint Id);
 
         // What a decal that does not age gives as the time it was added: long enough ago that anything aging has settled
         private const float SettledPlaceTime = -1e9f;
@@ -302,7 +309,7 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <param name="permanent">Whether the decal neither fades nor makes way for newer ones, as one placed with a map.</param>
         /// <returns>A handle to the decal, which is not valid when the material handle was not or there was no room.</returns>
         public ProjectedDecalHandle Add(int decal, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false, BaseEntity? parent = null, bool permanent = false)
-            => AddDecal(decal, boxTransform, tint, flipU, parent, permanent, ages: !permanent);
+            => AddDecal(decal, boxTransform, tint, flipU, parent, permanent ? DecalLifetime.Permanent : DecalLifetime.Timed);
 
         /// <summary>
         /// Adds a decal that the caller keeps placing and tinting with <see cref="Move"/>, such as one
@@ -315,9 +322,9 @@ namespace ValveResourceFormat.Renderer.Decals
         /// <param name="flipU">Whether to mirror the texture horizontally.</param>
         /// <returns>A handle to the decal, which is not valid when the material handle was not or there was no room.</returns>
         public ProjectedDecalHandle AddFollowing(int decal, Matrix4x4 boxTransform, Vector4 tint, bool flipU = false)
-            => AddDecal(decal, boxTransform, tint, flipU, parent: null, permanent: false, ages: false);
+            => AddDecal(decal, boxTransform, tint, flipU, parent: null, DecalLifetime.Following);
 
-        private ProjectedDecalHandle AddDecal(int decal, Matrix4x4 boxTransform, Vector4 tint, bool flipU, BaseEntity? parent, bool permanent, bool ages)
+        private ProjectedDecalHandle AddDecal(int decal, Matrix4x4 boxTransform, Vector4 tint, bool flipU, BaseEntity? parent, DecalLifetime lifetime)
         {
             var materialIndex = decal;
 
@@ -328,7 +335,7 @@ namespace ValveResourceFormat.Renderer.Decals
 
             if (decals.Count >= MaxDecals)
             {
-                var oldest = decals.FindIndex(static existing => !existing.IsPermanent);
+                var oldest = decals.FindIndex(static existing => existing.Lifetime != DecalLifetime.Permanent);
 
                 if (oldest < 0)
                 {
@@ -363,7 +370,7 @@ namespace ValveResourceFormat.Renderer.Decals
             }
 
             decals.Add(new ProjectedDecal(materialIndex, flipU ? FlagFlipU : 0, tint, parent, localTransform,
-                ages ? time : SettledPlaceTime, permanent, ages, ++nextDecalId));
+                lifetime == DecalLifetime.Timed ? time : SettledPlaceTime, lifetime, ++nextDecalId));
             boxTransforms.Add(boxTransform);
             decalsDirty = true;
 
@@ -385,7 +392,7 @@ namespace ValveResourceFormat.Renderer.Decals
                 var decal = decals[i];
                 var material = materials[decal.MaterialIndex].Definition;
 
-                if (decal.Ages && time - decal.PlaceTime >= material.FadeStartTime + material.FadeDuration)
+                if (decal.Lifetime == DecalLifetime.Timed && time - decal.PlaceTime >= material.FadeStartTime + material.FadeDuration)
                 {
                     RemoveDecalAt(i);
                     continue;
@@ -437,7 +444,7 @@ namespace ValveResourceFormat.Renderer.Decals
             var fadeTime = time - decal.PlaceTime - material.FadeStartTime;
             var tint = decal.Tint;
 
-            if (fadeTime > 0f && decal.Ages)
+            if (fadeTime > 0f && decal.Lifetime == DecalLifetime.Timed)
             {
                 tint.W *= 1f - Math.Clamp(fadeTime / MathF.Max(material.FadeDuration, 1e-4f), 0f, 1f);
             }

@@ -1147,7 +1147,7 @@ public class Rubikon
             => kind == Kind.Everything || !SkipsCollision(collisionName, interactAs, interactExclude);
     }
 
-    private static bool SkipsCollision(string collisionName, string[] interactAs, string[] interactExclude)
+    internal static bool SkipsCollision(string collisionName, string[] interactAs, string[] interactExclude)
     {
         if (collisionName == DefaultGeometry)
         {

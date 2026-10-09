@@ -137,9 +137,9 @@ namespace ValveResourceFormat.Particles.Constraints
 
         private void Trace(IParticleCollision collision, int slot, Vector3 origin, Vector3 direction)
         {
-            if (collision.TraceRay(origin, origin + (direction * TraceLength), out var hit))
+            if (collision.TraceRay(origin, origin + (direction * TraceLength), out var position, out var normal, out _))
             {
-                Store(slot, hit.Position, hit.Normal);
+                Store(slot, position, normal);
             }
             else
             {

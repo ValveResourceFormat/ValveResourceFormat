@@ -301,7 +301,7 @@ namespace GUI.Types.GLViewers
                     var isMapPhysics = Path.GetFileNameWithoutExtension(GuiContext.FileName)
                         .Equals("world_physics", StringComparison.OrdinalIgnoreCase);
 
-                    Input.PlayerMovement.GridPlaneCollisionEnabled = !isMapPhysics;
+                    Renderer.EntitySystem.PhysicsWorld.GroundPlane = isMapPhysics ? null : 0f;
                 }
 
                 var physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys, null).ToList();

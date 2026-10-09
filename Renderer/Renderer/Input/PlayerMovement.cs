@@ -151,12 +151,6 @@ public partial class PlayerMovement : IPlayerController
     private PhysicsWorld? Physics => Input.PhysicsWorld is { IsEmpty: false } physics ? physics : null;
 
     /// <summary>
-    /// Gets or sets a value indicating whether traces also collide with
-    /// an infinite ground plane at Z=0.
-    /// </summary>
-    public bool GridPlaneCollisionEnabled { get; set; }
-
-    /// <summary>
     /// Test-only extra static collision half-spaces layered onto the traces, each a
     /// <see cref="Vector4"/> whose XYZ is the outward unit normal and W the plane offset d;
     /// the half-space n·x ≤ d is solid. Lets headless tests build walls and overhangs without
@@ -2422,15 +2416,10 @@ public partial class PlayerMovement : IPlayerController
             ? Physics.TraceAABB(from, to, halfExtents, "player", detectStartSolid)
             : TraceInfiniteGroundPlane(from, to, halfExtents, detectStartSolid);
 
-        if (Physics != null && GridPlaneCollisionEnabled)
-        {
-            result.MinimizeWith(TraceInfiniteGroundPlane(from, to, halfExtents, detectStartSolid));
-        }
-
         foreach (var plane in DebugCollisionPlanes)
         {
             var normal = plane.AsVector3();
-            result.MinimizeWith(TraceStaticPlane(from, to, halfExtents, normal, plane.W, detectStartSolid));
+            result.MinimizeWith(PhysicsWorld.TracePlane(from, to, halfExtents, normal, plane.W, detectStartSolid));
         }
 
         // The static world is the world entity, as the engine reports it, so standing on the map gives a
@@ -2447,47 +2436,10 @@ public partial class PlayerMovement : IPlayerController
     }
 
     /// <summary>
-    /// Swept-AABB trace against a static half-space (n·x ≤ d is solid, <paramref name="normal"/>
-    /// pointing out of the solid). Backs <see cref="TraceInfiniteGroundPlane"/> and the headless
-    /// collision tests' <see cref="DebugCollisionPlanes"/>.
-    /// </summary>
-    private static Rubikon.TraceResult TraceStaticPlane(Vector3 from, Vector3 to, Vector3 halfExtents, Vector3 normal, float planeOffset, bool detectStartSolid)
-    {
-        // Extent of the box toward the plane along the normal (support half-width)
-        var extent = MathF.Abs(normal.X) * halfExtents.X + MathF.Abs(normal.Y) * halfExtents.Y + MathF.Abs(normal.Z) * halfExtents.Z;
-
-        // Signed gap of the box's nearest face to the plane at each end (>0 outside the solid)
-        var gapFrom = Vector3.Dot(normal, from) - planeOffset - extent;
-        var gapTo = Vector3.Dot(normal, to) - planeOffset - extent;
-
-        if (gapFrom < 0f)
-        {
-            return new Rubikon.TraceResult(true, from, normal, 0f, -1) { StartSolid = detectStartSolid };
-        }
-
-        var closing = gapFrom - gapTo; // positive when the sweep moves toward the plane
-
-        if (closing <= 0f)
-        {
-            return new Rubikon.TraceResult(); // moving away or parallel while outside
-        }
-
-        var fraction = gapFrom / closing;
-
-        if (fraction > 1f)
-        {
-            return new Rubikon.TraceResult(); // the sweep ends before reaching the plane
-        }
-
-        var hitPosition = Vector3.Lerp(from, to, fraction);
-        return new Rubikon.TraceResult(true, hitPosition, normal, Vector3.Distance(from, hitPosition), -1);
-    }
-
-    /// <summary>
     /// Trace against an infinite ground plane at Z=0.
     /// </summary>
     private static Rubikon.TraceResult TraceInfiniteGroundPlane(Vector3 from, Vector3 to, Vector3 halfExtents, bool detectStartSolid)
-        => TraceStaticPlane(from, to, halfExtents, Vector3.UnitZ, 0f, detectStartSolid);
+        => PhysicsWorld.TracePlane(from, to, halfExtents, Vector3.UnitZ, 0f, detectStartSolid);
 
     /// <summary>
     /// Cosmetic view-feel state driven by the simulation: jump stamina, the landing

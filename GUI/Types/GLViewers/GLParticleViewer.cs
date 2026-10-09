@@ -209,7 +209,7 @@ namespace GUI.Types.GLViewers
 
                 UiControl.AddCheckBox("Collide With Floor", false, value =>
                 {
-                    Scene.CollisionGroundPlane = value ? 0f : null;
+                    Renderer.EntitySystem.PhysicsWorld.GroundPlane = value ? 0f : null;
 
                     using var lockedGl = MakeCurrent();
                     particleSceneNode?.Restart();

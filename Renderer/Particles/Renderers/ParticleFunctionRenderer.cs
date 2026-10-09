@@ -105,8 +105,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             OnlyRenderInEffectsWaterPass = parse.Boolean("m_bOnlyRenderInEffectsWaterPass", false);
             OnlyRenderInEffectsBloomPass = parse.Boolean("m_bOnlyRenderInEffectsBloomPass", false);
-            PerPixelLighting = parse.Enum("m_nLightingMode", ParticleLightingQuality.PARTICLE_LIGHTING_PER_PARTICLE)
-                == ParticleLightingQuality.PARTICLE_LIGHTING_PER_PIXEL;
+            LightingMode = parse.Enum("m_nLightingMode", LightingMode);
             RadiusScale = parse.NumberProvider("m_flRadiusScale", RadiusScale);
             AlphaScale = parse.NumberProvider("m_flAlphaScale", AlphaScale);
             ColorScale = parse.VectorProvider("m_vecColorScale", ColorScale);
@@ -219,7 +218,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uGammaCorrectVertexColors", GammaCorrectVertexColors);
             shader.SetUniform1("uDepthBias", DepthBias.NextNumber(systemState));
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
-            shader.SetUniform1("uPerPixelLighting", PerPixelLighting);
+            shader.SetUniform1("uLightingMode", (int)LightingMode);
             shader.SetUniform1("g_tSceneDepth", (int)ReservedTextureSlots.SceneDepth);
 
             if (LitByProbes && OwnerNode != null)
@@ -236,11 +235,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>The pass this renderer draws in.</summary>
         public RenderPass Pass { get; protected set; } = RenderPass.Translucent;
 
-        /// <summary>
-        /// Whether scene lighting is sampled at every pixel. Every other lighting mode samples each card
-        /// once, at its centre, and a rope at each of its vertices.
-        /// </summary>
-        protected bool PerPixelLighting { get; }
+        /// <summary>Where scene lighting is sampled.</summary>
+        protected ParticleLightingQuality LightingMode { get; } = ParticleLightingQuality.PARTICLE_LIGHTING_PER_PARTICLE;
 
         /// <summary>
         /// The scene node the system this belongs to renders under, when it was created for one.

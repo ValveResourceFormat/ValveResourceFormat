@@ -16,24 +16,22 @@ public interface IParticleCollision
     /// <summary>Traces a ray from <paramref name="rayStart"/> to <paramref name="rayEnd"/> against the world.</summary>
     /// <param name="rayStart">Start of the ray.</param>
     /// <param name="rayEnd">End of the ray.</param>
-    /// <param name="hit">The nearest hit, when there is one.</param>
+    /// <param name="position">The nearest hit point, or <paramref name="rayEnd"/> on a miss.</param>
+    /// <param name="normal">The surface normal at the hit point, facing the ray, or zero on a miss.</param>
+    /// <param name="fraction">How far along the ray the hit is, from 0 at its start to 1 at its end, which it is on a miss.</param>
     /// <returns>Whether the ray hit anything.</returns>
-    bool TraceRay(Vector3 rayStart, Vector3 rayEnd, out ParticleTraceHit hit);
+    bool TraceRay(Vector3 rayStart, Vector3 rayEnd, out Vector3 position, out Vector3 normal, out float fraction);
 
     private sealed class NoCollision : IParticleCollision
     {
         public bool HasGeometry => false;
 
-        public bool TraceRay(Vector3 rayStart, Vector3 rayEnd, out ParticleTraceHit hit)
+        public bool TraceRay(Vector3 rayStart, Vector3 rayEnd, out Vector3 position, out Vector3 normal, out float fraction)
         {
-            hit = default;
+            position = rayEnd;
+            normal = Vector3.Zero;
+            fraction = 1f;
             return false;
         }
     }
 }
-
-/// <summary>Where a particle trace hit the world.</summary>
-/// <param name="Position">The hit point.</param>
-/// <param name="Normal">The surface normal at the hit point, facing the ray.</param>
-/// <param name="Fraction">How far along the ray the hit is, from 0 at its start to 1 at its end.</param>
-public readonly record struct ParticleTraceHit(Vector3 Position, Vector3 Normal, float Fraction);

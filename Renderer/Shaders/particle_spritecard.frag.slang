@@ -44,7 +44,8 @@ uniform float uDesaturation = 0.0; // m_flDesaturation
 uniform bool uBlendFrames = true;
 uniform bool uMaxLuminanceFrameBlend = false;
 
-uniform bool uPerPixelLighting = false;
+#define PARTICLE_LIGHTING_PER_PIXEL (-1)
+uniform int uLightingMode = 0; // PARTICLE_LIGHTING_PER_PARTICLE
 
 uniform vec3 uHsvShift = vec3(0.0, 1.0, 1.0);
 uniform vec2 uAlphaRemapRange = vec2(1.0, 0.0);
@@ -403,7 +404,7 @@ void main(void) {
 
         if (uDiffuseAmount != 0.0)
         {
-            vec3 lightingPosition = uPerPixelLighting ? vFragPosition : vLightingPosition;
+            vec3 lightingPosition = uLightingMode == PARTICLE_LIGHTING_PER_PIXEL ? vFragPosition : vLightingPosition;
             ParticleLight_t light = CalculateParticleLighting(lightingPosition, -g_vCameraDirWs, 0.0);
             litColor += finalColor * (light.Ambient + light.Direct) * uDiffuseAmount;
         }

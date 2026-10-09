@@ -165,7 +165,7 @@ namespace ValveResourceFormat.Particles.Operators
                 {
                     var start = position - (direction * traceOffset);
                     var end = start + (direction * traceLength);
-                    var hitGround = collision.TraceRay(start, end, out var hit);
+                    var hitGround = collision.TraceRay(start, end, out var hitPosition, out var hitNormal, out _);
 
                     if (!hitGround && missBehavior == ParticleTraceMissBehavior.PARTICLE_TRACE_MISS_BEHAVIOR_NONE)
                     {
@@ -178,11 +178,11 @@ namespace ValveResourceFormat.Particles.Operators
                     }
                     else
                     {
-                        var target = (hitGround ? hit.Position : end) + (setNormal ? hit.Normal * lift : -direction * lift);
+                        var target = hitPosition + (setNormal ? hitNormal * lift : -direction * lift);
 
                         if (setNormal)
                         {
-                            particle.SetVector(ParticleField.Normal, hit.Normal);
+                            particle.SetVector(ParticleField.Normal, hitNormal);
                         }
 
                         if (!interpolates)
