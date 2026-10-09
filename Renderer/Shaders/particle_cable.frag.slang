@@ -70,7 +70,6 @@ void main(void)
     vec4 colorTexture = texture(g_tColor, vTexCoordOut);
     vec3 albedo = colorTexture.rgb * vColorOut.rgb;
 
-    // The particle's own alpha rides in the vertex colour and fades the cable with the texture's
     float opacity = colorTexture.a * vColorOut.a;
 
 #if (F_ALPHA_TEST == 1)

@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneNodes;

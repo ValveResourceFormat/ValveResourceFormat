@@ -64,9 +64,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             /// <summary>Where the card centre lands, the offset wrapped into the unit square.</summary>
             public Vector2 WrappedOrigin { get; } = new(MathUtils.Fract(Offset.X + 0.5f), MathUtils.Fract(Offset.Y + 0.5f));
-
-            /// <summary>The transform that leaves a coordinate where it is.</summary>
-            public static UvTransform Identity { get; } = new(Vector2.One, Vector2.Zero, 0f, false);
         }
 
         /// <summary>Binds the chain's textures and describes every layer to the shader.</summary>

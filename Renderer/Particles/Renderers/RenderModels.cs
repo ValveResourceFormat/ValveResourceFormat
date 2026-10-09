@@ -1,9 +1,9 @@
 using System.Linq;
 using ValveResourceFormat.Particles;
+using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
@@ -21,8 +21,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderModels">C_OP_RenderModels</seealso>
     internal class RenderModels : ParticleFunctionRenderer
     {
-        private const float MinScale = 1.1920929e-7f;
-
         private readonly Scene scene;
         private readonly (Model? Model, float Weight, string[] Skins)[] models;
         private readonly float totalWeight;
@@ -41,11 +39,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly INumberProvider rollScale = new LiteralNumberProvider(1f);
         private readonly ParticleField alpha2Field = ParticleField.AlphaAlternate;
 
-        // Keyed by unique id so each particle keeps its model; a particle no model was picked for has no node
-        private readonly Dictionary<int, (ModelSceneNode? Node, int Model, int Skin)> placed = [];
+        // A particle no model was picked for has no node
+        private readonly PlacedPerParticle<(ModelSceneNode? Node, int Model, int Skin)> placed = new();
         private readonly Stack<(ModelSceneNode Node, int Skin)>[] idle;
-        private readonly HashSet<int> seen = [];
-        private readonly List<int> gone = [];
 
         public RenderModels(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
         {
@@ -59,7 +55,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 {
                     var path = entry.GetStringProperty("m_model");
                     var model = string.IsNullOrEmpty(path) ? null : rendererContext.FileLoader.LoadFileCompiled(path)?.DataBlock as Model;
-                    _ = model?.GetEmbeddedMeshes();
 
                     var weight = entry.ContainsKey("m_flRelativeProbabilityOfSpawn") ? entry.GetFloatProperty("m_flRelativeProbabilityOfSpawn") : 1f;
                     list.Add((model, weight, model?.GetMaterialGroups().Select(static group => group.Name).ToArray() ?? []));
@@ -102,57 +97,43 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var roll = rollScale.NextNumber(systemState);
             var controlPointScale = modelScaleControlPoint >= 0 ? systemState.GetControlPoint(modelScaleControlPoint).Position : Vector3.One;
 
-            seen.Clear();
+            placed.BeginFrame();
 
             foreach (ref var particle in particles.Current)
             {
-                seen.Add(particle.UniqueParticleId);
-
                 if (!placed.TryGetValue(particle.UniqueParticleId, out var entry))
                 {
                     var model = PickModel(ref particle, systemState);
                     entry = model < 0 ? (null, model, 0) : TakeNode(model);
-                    placed.Add(particle.UniqueParticleId, entry);
                 }
 
-                if (entry.Node is not { } node)
+                if (entry.Node is { } node)
                 {
-                    continue;
+                    var skins = models[entry.Model].Skins;
+                    var skinIndex = (int)skin.NextNumber(ref particle, systemState);
+                    skinIndex = (uint)skinIndex < (uint)skins.Length ? skinIndex : 0;
+
+                    if (skinIndex != entry.Skin)
+                    {
+                        node.SetMaterialGroup(skins[skinIndex]);
+                        entry = entry with { Skin = skinIndex };
+                    }
+
+                    var scale = componentScale.NextVector(ref particle, systemState) * controlPointScale
+                        * (ignoreRadius ? 1f : particle.Radius * radiusScale);
+
+                    node.Transform = ParticleTransform(ref particle, systemState, scale, roll);
+                    node.Tint = suppressTint ? Vector3.One : particle.Color * colorScale;
+                    node.Alpha = particle.Alpha * particle.GetScalar(alpha2Field) * alphaScale;
+                    node.Visible = true;
                 }
 
-                var skins = models[entry.Model].Skins;
-                var skinIndex = (int)skin.NextNumber(ref particle, systemState);
-                skinIndex = (uint)skinIndex < (uint)skins.Length ? skinIndex : 0;
-
-                if (skinIndex != entry.Skin)
-                {
-                    node.SetMaterialGroup(skins[skinIndex]);
-                    placed[particle.UniqueParticleId] = entry with { Skin = skinIndex };
-                }
-
-                var scale = componentScale.NextVector(ref particle, systemState) * controlPointScale
-                    * (ignoreRadius ? 1f : particle.Radius * radiusScale);
-
-                node.Transform = ParticleTransform(ref particle, systemState, scale, roll);
-                node.Tint = suppressTint ? Vector3.One : particle.Color * colorScale;
-                node.Alpha = particle.Alpha * particle.GetScalar(alpha2Field) * alphaScale;
-                node.Visible = true;
+                placed.Keep(particle.UniqueParticleId, entry);
             }
 
-            gone.Clear();
-
-            foreach (var (id, entry) in placed)
+            foreach (var entry in placed.Sweep())
             {
-                if (!seen.Contains(id))
-                {
-                    Release(entry);
-                    gone.Add(id);
-                }
-            }
-
-            foreach (var id in gone)
-            {
-                placed.Remove(id);
+                Release(entry);
             }
         }
 
@@ -214,7 +195,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return (pooled.Node, model, pooled.Skin);
             }
 
-            var node = new ModelSceneNode(scene, models[model].Model!);
+            var node = new ModelSceneNode(scene, models[model].Model!, isWorldPreview: true);
             scene.Add(node, true);
 
             return (node, model, 0);
@@ -244,7 +225,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var turn = EntityTransformHelper.EulerAnglesToRotationMatrix(localRotation.NextVector(ref particle, systemState))
                 * EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(angles.Y, angles.X, angles.Z * roll));
 
-            var scaling = Matrix4x4.CreateScale(Vector3.Max(scale, new Vector3(MinScale)));
+            var scaling = Matrix4x4.CreateScale(Vector3.Max(scale, new Vector3(ParticleMath.FloatEpsilon)));
             var basis = ignoreNormal ? Matrix4x4.Identity : NormalBasis(particle.Normal, orientZ);
             var model = localScale ? scaling * turn * basis : turn * scaling * basis;
 

@@ -29,7 +29,9 @@ namespace ValveResourceFormat.Particles.Operators
                 return spinRateDegrees * strength;
             }
 
-            var decayed = spinRateDegrees * strength * MathF.Max(0f, 1f - (age / (lifetime * spinRateStopTime)));
+            var stopAge = lifetime * spinRateStopTime;
+            var remaining = stopAge != 0f ? MathF.Max(0f, 1f - (age / stopAge)) : 0f;
+            var decayed = spinRateDegrees * strength * remaining;
 
             return spinRateDegrees >= 0
                 ? MathF.Max(decayed, spinRateMinDegrees)

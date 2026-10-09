@@ -9,12 +9,6 @@ namespace ValveResourceFormat.Particles.Utils
     /// </summary>
     static class Noise
     {
-        /// <summary>
-        /// Samples the noise lattice. Operators that only vary one input sample the x=y=z diagonal,
-        /// which is what the engine does when no world noise control point is set.
-        /// </summary>
-        public static float ValueDiagonal(float t) => Value3D(t, t, t);
-
         /// <inheritdoc cref="Value3D(float, float, float)"/>
         public static float Value3D(Vector3 position) => Value3D(position.X, position.Y, position.Z);
 

@@ -1,5 +1,4 @@
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles
 {
@@ -26,15 +25,6 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         Matrix4x4 NextTransformAtTime(ref Particle particle, ParticleSystemState renderState, float time)
             => NextTransform(ref particle, renderState);
-
-        /// <summary>
-        /// Gets just the position component of the transform.
-        /// </summary>
-        Vector3 GetPosition(ref Particle particle, ParticleSystemState renderState)
-        {
-            var transform = NextTransform(ref particle, renderState);
-            return transform.Translation;
-        }
 
         /// <summary>
         /// Gets the orientation, meaning the forward direction, that this provider carries.

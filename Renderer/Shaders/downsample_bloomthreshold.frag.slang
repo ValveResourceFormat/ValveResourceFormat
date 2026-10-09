@@ -8,8 +8,7 @@ uniform bool g_bEffectsBloom;
 
 layout(binding = 0) uniform sampler2D inputTexture;
 
-// Geometry drawn only to glow, at a lower resolution than the scene. It blooms whole, the threshold
-// exists to pick the bright parts out of the scene and this is all meant to glow.
+// Geometry drawn only to glow, at a lower resolution than the scene, bloomed without the threshold
 layout(binding = 1) uniform sampler2D g_tEffectsBloom;
 layout(location = 0) out vec4 outputColor;
 

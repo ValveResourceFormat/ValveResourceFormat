@@ -63,8 +63,8 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
-        public ParticleRenderer(ParticleSystem particleSystem, RendererContext rendererContext, Scene scene, ParticleSnapshot? particleSnapshot = null)
-            : this(new ParticleSystemSimulation(particleSystem, rendererContext.FileLoader, rendererContext.Logger, particleSnapshot), rendererContext, scene)
+        public ParticleRenderer(ParticleSystem particleSystem, Scene scene, ParticleSnapshot? particleSnapshot = null)
+            : this(new ParticleSystemSimulation(particleSystem, scene.RendererContext.FileLoader, scene.RendererContext.Logger, particleSnapshot), scene.RendererContext, scene)
         {
         }
 
@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             simulation.RenderState.SequenceDurations = CollectSequenceDurations();
             simulation.RenderState.Lighting = scene.LightingInfo;
-            simulation.RenderState.Collision = new ParticleSceneCollision(scene);
+            simulation.RenderState.Collision = scene.ParticleCollision;
 
             foreach (var childSimulation in simulation.Children)
             {
@@ -464,20 +464,6 @@ namespace ValveResourceFormat.Renderer.Particles
             Passes = CollectPasses();
         }
 
-        // todo: set this when viewer checkbox is toggled
-        public void SetWireframe(bool isWireframe)
-        {
-            foreach (var renderer in renderers)
-            {
-                renderer.SetWireframe(isWireframe);
-            }
-
-            foreach (var childRenderer in childRenderers)
-            {
-                childRenderer.SetWireframe(isWireframe);
-            }
-        }
-
         public void Delete()
         {
             foreach (var renderer in renderers)
@@ -493,13 +479,12 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public AABB LocalBoundingBox => Simulation.LocalBoundingBox;
         public bool IsFinished() => Simulation.IsFinished();
-        public bool HasFinishedEmitting(bool emissionEndIsEnough, bool includeChildren) => Simulation.HasFinishedEmitting(emissionEndIsEnough, includeChildren);
-        public ControlPoint MainControlPoint { get => Simulation.MainControlPoint; set => Simulation.MainControlPoint = value; }
+        public bool HasFinishedEmitting() => Simulation.HasFinishedEmitting(emissionEndIsEnough: true, includeChildren: true);
+        public ControlPoint MainControlPoint => Simulation.MainControlPoint;
         public ControlPoint GetControlPoint(int cp) => Simulation.GetControlPoint(cp);
         public void SetCameraPosition(Vector3 position) => Simulation.SetCameraPosition(position);
         public void SetDetailLevel(ParticleDetailLevel level) => Simulation.SetDetailLevel(level);
         public void Update(float frameTime, float worldTime) => Simulation.Update(frameTime, worldTime);
-        public void Restart() => Simulation.Restart();
         public void Replay() => Simulation.Replay();
         public void Stop() => Simulation.Stop();
         public void PlayEndCap() => Simulation.PlayEndCap();

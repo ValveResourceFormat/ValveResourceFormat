@@ -1,5 +1,4 @@
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles.PreEmissionOperators
 {

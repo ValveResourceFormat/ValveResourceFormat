@@ -9,14 +9,13 @@ namespace ValveResourceFormat.Particles.Operators
     /// </summary>
     /// <remarks>
     /// Unlike <see cref="RemapTransformVisibilityToScalar"/> the output range is never clamped, not
-    /// even for color outputs. Visibility comes from the same always-fully-visible query, so the
-    /// schema's <c>m_flRadius</c> never influences the result.
+    /// even for color outputs. Visibility always reads as full, so the transform input and
+    /// <c>m_flRadius</c> have no effect.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapTransformVisibilityToVector">C_OP_RemapTransformVisibilityToVector</seealso>
     class RemapTransformVisibilityToVector : ParticleFunctionOperator
     {
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
-        private readonly ITransformProvider transformInput = new ControlPointTransformProvider();
         private readonly ParticleField outputField = ParticleField.Position;
         private readonly float inputMin;
         private readonly float inputMax = 1f;
@@ -26,7 +25,6 @@ namespace ValveResourceFormat.Particles.Operators
         public RemapTransformVisibilityToVector(ParticleDefinitionParser parse) : base(parse)
         {
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
-            transformInput = parse.TransformInput("m_TransformInput", transformInput);
             outputField = parse.ParticleField("m_nFieldOutput", outputField);
             inputMin = parse.Float("m_flInputMin", inputMin);
             inputMax = parse.Float("m_flInputMax", inputMax);
@@ -36,9 +34,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var visibility = RemapTransformVisibilityToScalar.QueryVisibility(transformInput.NextTransform(particleSystemState).Translation);
-
-            var fraction = MathUtils.RemapValClamped(visibility, inputMin, inputMax, 0f, 1f);
+            var fraction = MathUtils.RemapValClamped(RemapTransformVisibilityToScalar.FullyVisible, inputMin, inputMax, 0f, 1f);
             var value = Vector3.Lerp(outputMin, outputMax, fraction);
 
             foreach (ref var particle in particles.Current)

@@ -315,7 +315,7 @@ VRF's upgraded in-memory version, so decompiled `.vpcf` files match the compiled
 (pre-KV3 NTRO-era files are re-encoded as KV3 text instead). The viewer simulates a large
 subset of particle functions and lists any unsupported functions per system in red instead
 of failing. Omni2 particle lights of the barn type are drawn as point lights. Model particles
-render in bind pose only, without `m_bAnimated` or `m_bManualAnimFrame`
+render in bind pose with default body groups, without `m_bAnimated` or `m_bManualAnimFrame`
 ([#716](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/716)).
 
 Particle snapshots (`vsnap`) preview and extract. Bone name streams survive, but skinning

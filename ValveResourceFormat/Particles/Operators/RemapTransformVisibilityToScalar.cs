@@ -8,12 +8,14 @@ namespace ValveResourceFormat.Particles.Operators
     /// <remarks>
     /// <c>m_flOutputMin</c>/<c>m_flOutputMax</c> are clamped into [0, 1] at load time when the
     /// output field is alpha or alternate alpha, matching the engine mutating its stored fields.
+    /// Visibility always reads as full, so the transform input and <c>m_flRadius</c> have no effect.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapTransformVisibilityToScalar">C_OP_RemapTransformVisibilityToScalar</seealso>
     class RemapTransformVisibilityToScalar : ParticleFunctionOperator
     {
+        internal const float FullyVisible = 1f;
+
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
-        private readonly ITransformProvider transformInput = new ControlPointTransformProvider();
         private readonly ParticleField outputField = ParticleField.Radius;
         private readonly float inputMin;
         private readonly float inputMax = 1f;
@@ -23,7 +25,6 @@ namespace ValveResourceFormat.Particles.Operators
         public RemapTransformVisibilityToScalar(ParticleDefinitionParser parse) : base(parse)
         {
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
-            transformInput = parse.TransformInput("m_TransformInput", transformInput);
             outputField = parse.ParticleField("m_nFieldOutput", outputField);
             inputMin = parse.Float("m_flInputMin", inputMin);
             inputMax = parse.Float("m_flInputMax", inputMax);
@@ -39,9 +40,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var visibility = QueryVisibility(transformInput.NextTransform(particleSystemState).Translation);
-
-            var value = MathUtils.RemapValClamped(visibility, inputMin, inputMax, outputMin, outputMax);
+            var value = MathUtils.RemapValClamped(FullyVisible, inputMin, inputMax, outputMin, outputMax);
 
             foreach (ref var particle in particles.Current)
             {
@@ -50,12 +49,5 @@ namespace ValveResourceFormat.Particles.Operators
                 particle.SetScalar(outputField, current + ((final - current) * strength));
             }
         }
-
-        /// <summary>
-        /// Visibility of the transform's position. Valve's tools-side scene query is a stub that
-        /// always reports fully visible, and VRF matches it, so the queried position and the
-        /// schema's <c>m_flRadius</c> never influence the result.
-        /// </summary>
-        internal static float QueryVisibility(Vector3 transformPosition) => 1f;
     }
 }

@@ -26,9 +26,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         // The shared quad index buffer covers 65532 indices, six per quad
         private const int MaxQuads = 65532 / 6;
 
-        // Quad corners in ring order, matching the winding of the shared quad index buffer
         private readonly Shader shader;
-        private readonly RendererContext rendererContext;
         private readonly int vaoHandle;
         private readonly int vertexBufferHandle;
 
@@ -69,8 +67,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
         {
-            this.rendererContext = rendererContext;
-
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
 
             (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: OutputIsColor);
@@ -458,7 +454,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            using var _ = SpritecardStateScope(GraphicsContext.RenderState, blendMode);
+            using var _ = SpritecardStateScope(blendMode);
 
             shader.Use();
             VertexArray.Bind(vaoHandle, shader);

@@ -66,10 +66,6 @@ namespace ValveResourceFormat.Particles.Initializers
             var dimenY = (int)MathF.Ceiling(rawDimenY);
             var dimenZ = (int)MathF.Ceiling(rawDimenZ);
 
-            var sizeX = dimenX * spacingX;
-            var sizeY = dimenY * spacingY;
-            var sizeZ = dimenZ * spacingZ;
-
             // Slower but infinitely better and more stable code
 
             var totalCount = dimenX * dimenY * dimenZ;
@@ -102,20 +98,16 @@ namespace ValveResourceFormat.Particles.Initializers
             var found = false;
             var i = 0;
 
-            var hollowX = false;
-            var hollowY = false;
-            var hollowZ = false;
-
             // really slow but the cleanest way to do it
             for (var z = 0; z < dimenZ; z++)
             {
-                hollowZ = isHollow && HollowTest(z, dimenZ, hollowDimenZ);
+                var hollowZ = isHollow && HollowTest(z, dimenZ, hollowDimenZ);
                 for (var y = 0; y < dimenY; y++)
                 {
-                    hollowY = isHollow && HollowTest(y, dimenY, hollowDimenY);
+                    var hollowY = isHollow && HollowTest(y, dimenY, hollowDimenY);
                     for (var x = 0; x < dimenX; x++)
                     {
-                        hollowX = isHollow && HollowTest(x, dimenX, hollowDimenX);
+                        var hollowX = isHollow && HollowTest(x, dimenX, hollowDimenX);
 
                         if (hollowX && hollowY && hollowZ)
                         {

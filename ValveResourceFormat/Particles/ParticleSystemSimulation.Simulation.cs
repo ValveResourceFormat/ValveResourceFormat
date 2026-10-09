@@ -189,6 +189,36 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
+        /// Stops emission on the system and its children within the current frame, optionally starting
+        /// the endcap and dropping every live particle in the tree.
+        /// </summary>
+        internal void StopEmission(bool destroyImmediately, bool playEndCap)
+        {
+            Stop();
+
+            if (playEndCap)
+            {
+                PlayEndCap();
+            }
+
+            if (destroyImmediately)
+            {
+                DestroyParticles();
+            }
+        }
+
+        private void DestroyParticles()
+        {
+            particleCollection.Clear();
+            systemState.ParticleCount = 0;
+
+            foreach (var childSimulation in childSimulations)
+            {
+                childSimulation.DestroyParticles();
+            }
+        }
+
+        /// <summary>
         /// Starts the endcap on this system and everything below it, stamping each with its own age so
         /// a child's endcap timers run on the child's clock.
         /// </summary>
@@ -309,8 +339,7 @@ namespace ValveResourceFormat.Particles
 
         private void ClearParticles()
         {
-            particleCollection.Clear();
-            systemState.ParticleCount = 0;
+            DestroyParticles();
             particlesEmitted = 0;
 
             // A replay stands in for the effect playing again, so the system takes a fresh random

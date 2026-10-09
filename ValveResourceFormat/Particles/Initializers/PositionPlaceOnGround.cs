@@ -6,8 +6,8 @@ namespace ValveResourceFormat.Particles.Initializers
     /// keeps the particle's velocity.
     /// </summary>
     /// <remarks>
-    /// Follows CS2, whose gameinfo sets <c>Particles/ParticleTraceOffsetOnlyHit</c>: the offset applies
-    /// whether or not the trace hit, and <c>m_bOffsetonColOnly</c> only keeps the radius offset off a miss.
+    /// The offset applies whether or not the trace hit, and <c>m_bOffsetonColOnly</c> only keeps the
+    /// radius offset off a miss.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_PositionPlaceOnGround">C_INIT_PositionPlaceOnGround</seealso>
     class PositionPlaceOnGround : ParticleFunctionInitializer

@@ -287,18 +287,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return (uvMin, uvMax, nextMin, nextMax);
         }
 
-        // One corner of a uv rectangle, in the quad's winding order (top-left, bottom-left,
-        // bottom-right, top-right) with v increasing downward.
-        /// <summary>The card-space coordinate of one quad corner, before any layer transform.</summary>
-        internal static Vector2 CardUv(int corner) => corner switch
-        {
-            0 => new Vector2(0f, 1f),
-            1 => new Vector2(0f, 0f),
-            2 => new Vector2(1f, 0f),
-            3 => new Vector2(1f, 1f),
-            _ => throw new ArgumentOutOfRangeException(nameof(corner)),
-        };
-
         // The quad's (right, up) axes from a base pair with the particle roll folded in, matching the
         // spritecard vertex shader. The axes are intentionally not re-normalized (some modes rely on that, e.g.
         // SCREEN_Z foreshortens as the camera tilts).
@@ -559,7 +547,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            using var _ = SpritecardStateScope(GraphicsContext.RenderState, blendMode);
+            using var _ = SpritecardStateScope(blendMode);
 
             shader.Use();
             VertexArray.Bind(vaoHandle, shader);
