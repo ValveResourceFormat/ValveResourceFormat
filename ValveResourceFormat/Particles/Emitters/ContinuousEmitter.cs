@@ -26,9 +26,27 @@ namespace ValveResourceFormat.Particles.Emitters
         /// </summary>
         private readonly SnapshotBinding snapshotBinding;
 
+        /// <summary>
+        /// Scales the rate by the number of control points in use (the highest index plus one). Only
+        /// read below behavior version 2, and ignored when <see cref="scalePerParentParticle"/> is set.
+        /// </summary>
+        private readonly float emissionScale;
+
+        /// <summary>Scales the rate by the parent system's live particle count, or by itself for a system without a parent.</summary>
+        private readonly float scalePerParentParticle;
+
+        /// <summary>Most particles spawned per update when positive. The excess stays due for later updates.</summary>
+        private readonly int limitPerUpdate;
+
+        private readonly bool forceEmitOnFirstUpdate;
+        private readonly bool forceEmitOnLastUpdate;
+
         private Action<float>? particleEmitCallback;
 
         private EmissionAccumulator accumulator;
+
+        /// <summary>Whether a stop is waiting for the one last update that spawns at least one particle.</summary>
+        private bool finalEmitPending;
 
         public ContinuousEmitter(ParticleDefinitionParser parse) : base(parse)
         {
@@ -36,6 +54,16 @@ namespace ValveResourceFormat.Particles.Emitters
             startTime = parse.NumberProvider("m_flStartTime", startTime);
             emitRate = parse.NumberProvider("m_flEmitRate", emitRate);
             snapshotBinding = new SnapshotBinding(parse);
+
+            if (parse.BehaviorVersion < 2)
+            {
+                emissionScale = MathF.Max(0f, parse.Float("m_flEmissionScale", emissionScale));
+            }
+
+            scalePerParentParticle = parse.Float("m_flScalePerParentParticle", scalePerParentParticle);
+            limitPerUpdate = parse.Int32("m_nLimitPerUpdate", limitPerUpdate);
+            forceEmitOnFirstUpdate = parse.Boolean("m_bForceEmitOnFirstUpdate", forceEmitOnFirstUpdate);
+            forceEmitOnLastUpdate = parse.Boolean("m_bForceEmitOnLastUpdate", forceEmitOnLastUpdate);
         }
 
         protected override void OnStart(Action<float> particleEmitCallback)
@@ -45,10 +73,17 @@ namespace ValveResourceFormat.Particles.Emitters
             accumulator.Reset(initialCharge: 0d, flushEpsilon: 0.001f);
 
             IsFinished = false;
+            finalEmitPending = false;
         }
 
         public override void Stop()
         {
+            if (forceEmitOnLastUpdate && !IsFinished)
+            {
+                finalEmitPending = true;
+                return;
+            }
+
             IsFinished = true;
             particleEmitCallback = null;
         }
@@ -72,6 +107,19 @@ namespace ValveResourceFormat.Particles.Emitters
                 // rate changes over the emitter's lifetime.
                 var rate = emitRate.NextNumber(particleSystemState) * strength;
 
+                if (scalePerParentParticle > 0f)
+                {
+                    var parentCount = particleSystemState.ParentSystem is { } parentSystem
+                        ? parentSystem.Data?.CurrentParticles.Length ?? 0
+                        : 1;
+
+                    rate *= parentCount * scalePerParentParticle;
+                }
+                else if (emissionScale > 0f)
+                {
+                    rate *= (particleSystemState.HighestControlPoint + 1) * emissionScale;
+                }
+
                 if (snapshotBinding.IsBound)
                 {
                     rate *= snapshotBinding.Count(particleSystemState);
@@ -79,7 +127,18 @@ namespace ValveResourceFormat.Particles.Emitters
 
                 if (rate > 0f)
                 {
-                    accumulator.Charge(rate, windowStart, windowEnd, elapsed, particleEmitCallback);
+                    var isFirstUpdate = particleSystemState.Age - frameTime == 0f;
+                    var minimum = finalEmitPending || (forceEmitOnFirstUpdate && isFirstUpdate) ? 1 : 0;
+
+                    accumulator.Charge(rate, windowStart, windowEnd, elapsed, particleEmitCallback, minimum, limitPerUpdate);
+
+                    if (finalEmitPending)
+                    {
+                        finalEmitPending = false;
+                        IsFinished = true;
+                        particleEmitCallback = null;
+                        return;
+                    }
                 }
             }
 
