@@ -118,6 +118,12 @@ vec3 DecodeRGBM(vec4 color)
     return color.rgb * (color.a * MaxRange);
 }
 
+vec3 DecodeBakedLightRGBM(vec4 color)
+{
+    color.rgb = SrgbLinearToGamma(color.rgb);
+    return pow2(DecodeRGBM(color));
+}
+
 vec2 RotateVector2D(vec2 vectorInput, float rotation)
 {
     rotation = radians(rotation);

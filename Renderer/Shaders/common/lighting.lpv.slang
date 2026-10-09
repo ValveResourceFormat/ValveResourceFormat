@@ -164,7 +164,7 @@ vec3 CalculateProbeIndirectCoords(uint nVolume, vec3 fragPosition)
 vec3 DecodeProbeSample(vec4 value)
 {
     #if (S_LIGHTMAP_VERSION_MINOR == 0)
-        return DecodeRGBM(value);
+        return DecodeBakedLightRGBM(value);
     #endif
 
     return value.rgb;

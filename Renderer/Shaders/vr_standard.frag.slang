@@ -80,9 +80,25 @@ uniform sampler2D g_tTintMask;
 
 #if (F_METALNESS_TEXTURE == 1)
     uniform sampler2D g_tMetalnessReflectance;
+    uniform vec2 g_vMetalnessRange = vec2(0.0, 1.0);
 #else
     uniform float g_flMetalness = 0.0;
+
+    #if (F_SPECULAR == 1 && (translucent || alphatest))
+        uniform sampler2D g_tMetalnessReflectance2;
+    #endif
 #endif
+
+uniform vec2 g_vReflectanceRange = vec2(0.0, 1.0);
+
+#if (F_SPECULAR_CUBE_MAP == 1)
+    uniform float g_flCubeMapBrightness = 1.0;
+#endif
+
+float RemapToRange(float value, vec2 range)
+{
+    return mix(range.x, max(range.x, range.y), value);
+}
 
 #if (F_SCALE_NORMAL_MAP == 1)
     uniform float g_flNormalMapScaleFactor = 1.0;
@@ -196,25 +212,35 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         normalTexture = texture(g_tNormal2, texCoord);
     #endif
 
-    mat.NormalMap = DecodeDxt5Normal(normalTexture);
+    mat.NormalMap = DecodeHemiOctahedronNormal(normalTexture.ag);
 
-    mat.RoughnessTex.xy = normalTexture.bb;
+    mat.RoughnessTex.xy = normalTexture.rb;
 
-    vec3 F0 = vec3(0.04);
-    // When alphatest/translucent, color.a is opacity (from g_tColor), not reflectance.
-    // Reflectance is in g_tColor1.a which is only available in the non-alphatest path.
-    #if (F_SPECULAR == 1 && F_METALNESS_TEXTURE == 0 && !(translucent || alphatest))
-        F0 = color.aaa;
-    #endif
+    float reflectance = 0.0;
 
     #if (F_METALNESS_TEXTURE == 1)
-        vec3 metalnessReflectance = texture(g_tMetalnessReflectance, texCoord).rgb;
-        mat.Metalness = metalnessReflectance.r;
-        F0 = metalnessReflectance.ggg;
+        vec2 metalnessReflectance = texture(g_tMetalnessReflectance, texCoord).rg;
+        mat.Metalness = RemapToRange(metalnessReflectance.r, g_vMetalnessRange);
+        reflectance = metalnessReflectance.g;
+    #else
+        mat.Metalness = g_flMetalness;
+
+        // The color texture's alpha is the reflectance, unless it is needed for the opacity
+        #if (translucent || alphatest) && (F_SPECULAR == 1)
+            reflectance = texture(g_tMetalnessReflectance2, texCoord).r;
+        #else
+            reflectance = color.a;
+        #endif
+    #endif
+
+    #if (F_SPECULAR == 1)
+        reflectance = RemapToRange(reflectance, g_vReflectanceRange);
+    #else
+        reflectance = 0.0;
     #endif
 
     #if (F_HIGH_QUALITY_GLOSS == 1)
-        mat.RoughnessTex.xy = texture(g_tGloss, texCoord).ag;
+        mat.RoughnessTex.xy = min(mat.RoughnessTex.xy + texture(g_tGloss, texCoord).ag, vec2(1.0));
     #endif
 
     mat.Normal = calculateWorldNormal(mat.NormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
@@ -224,9 +250,10 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.AmbientNormal = mat.Normal;
     mat.AmbientGeometricNormal = mat.GeometricNormal;
 
-    mat.DiffuseColor = mat.Albedo - mat.Albedo * mat.Metalness;
+    // Reflectance is what takes energy from the diffuse, metalness only tints the specular
+    mat.DiffuseColor = mat.Albedo - mat.Albedo * reflectance;
 
-    mat.SpecularColor = mix(F0, mat.Albedo, mat.Metalness);
+    mat.SpecularColor = reflectance * mix(vec3(1.0), mat.Albedo, mat.Metalness);
 
     mat.DiffuseAO = vec3(mat.AmbientOcclusion);
     mat.SpecularAO = mat.AmbientOcclusion;
@@ -255,6 +282,13 @@ void main()
 
     lighting = CalculateLighting(mat);
     ApplyAmbientOcclusion(lighting, mat);
+
+    #if (F_SPECULAR == 0)
+        lighting.SpecularDirect = vec3(0.0);
+        lighting.SpecularIndirect = vec3(0.0);
+    #elif (F_SPECULAR_CUBE_MAP == 1)
+        lighting.SpecularIndirect *= g_flCubeMapBrightness * 1.1;
+    #endif
 
     vec3 diffuseLighting = lighting.DiffuseDirect + lighting.DiffuseIndirect;
     vec3 specularLighting = lighting.SpecularDirect + lighting.SpecularIndirect;
