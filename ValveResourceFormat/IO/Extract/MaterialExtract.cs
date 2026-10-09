@@ -186,11 +186,17 @@ public sealed class MaterialExtract
             }
 
             var isHdr = texture?.IsHighDynamicRange ?? false;
+            var fileName = OutTextureName(texturePath, keepOriginalExtension, isHdr, desiredSuffix);
+
+            if (texture != null && TextureExtract.IsSliced(texture))
+            {
+                fileName = TextureExtract.GetFirstSliceFileName(fileName, texture.Depth);
+            }
 
             yield return new UnpackInfo
             {
                 TextureType = newTextureType,
-                FileName = OutTextureName(texturePath, keepOriginalExtension, isHdr, desiredSuffix),
+                FileName = fileName,
                 Channel = channel,
             };
 

@@ -127,7 +127,7 @@ public sealed class TextureExtract
         isSpriteSheet = texture.ExtraData?.ContainsKey(VTexExtraData.SHEET) ?? false;
         isCubeMap = texture.Flags.HasFlag(VTexFlags.CUBE_TEXTURE);
         isArray = texture.Depth > 1;
-        isSliced = !isCubeMap && (isArray || texture.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE) || texture.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY));
+        isSliced = IsSliced(texture);
     }
 
     /// <summary>
@@ -256,8 +256,7 @@ public sealed class TextureExtract
     /// </summary>
     public ContentFile ToMaterialMaps(IEnumerable<MaterialExtract.UnpackInfo> mapsToUnpack)
     {
-        // unpacking not supported in these scenarios
-        if (isCubeMap || isSliced)
+        if (CombinesLatLong || (isCubeMap && isArray))
         {
             var vtexContent = ToContentFile(writeVtex: false);
 
@@ -273,6 +272,11 @@ public sealed class TextureExtract
             }
 
             return vtexContent;
+        }
+
+        if (isCubeMap || isSliced)
+        {
+            return ToLayeredMaterialMaps(mapsToUnpack);
         }
 
         var bitmap = texture.GenerateBitmap(decodeFlags: DecodeFlags);
@@ -303,6 +307,99 @@ public sealed class TextureExtract
         }
 
         return vtex;
+    }
+
+    /// <summary>
+    /// Writes a cubemap as one 6:1 strip and an array or volume texture as numbered slices, under the names the material uses.
+    /// </summary>
+    private ContentFile ToLayeredMaterialMaps(IEnumerable<MaterialExtract.UnpackInfo> mapsToUnpack)
+    {
+        var contentFile = new ContentFile
+        {
+            FileName = fileName,
+        };
+
+        var unpackInfos = ExportExr ? mapsToUnpack.Take(1) : mapsToUnpack;
+        var sliceCount = isCubeMap ? 1 : texture.Depth;
+
+        foreach (var unpackInfo in unpackInfos)
+        {
+            var channel = unpackInfo.Channel;
+
+            for (uint slice = 0; slice < sliceCount; slice++)
+            {
+                var currentSlice = slice;
+                var sliceFileName = isCubeMap ? unpackInfo.FileName : GetSliceFileName(unpackInfo.FileName, slice);
+
+                contentFile.AddSubFile(Path.GetFileName(sliceFileName), () =>
+                {
+                    using var bitmap = isCubeMap
+                        ? GenerateCubemapStrip(0)
+                        : texture.GenerateBitmap(depth: currentSlice, decodeFlags: DecodeFlags);
+
+                    return ExportExr ? ToExrImage(bitmap) : ToPngImageChannels(bitmap, channel);
+                });
+            }
+        }
+
+        return contentFile;
+    }
+
+    /// <summary>
+    /// Whether the texture is an array or volume texture that the compiler builds from a sequence of slice images.
+    /// </summary>
+    internal static bool IsSliced(Texture texture)
+        => !texture.Flags.HasFlag(VTexFlags.CUBE_TEXTURE)
+            && (texture.Depth > 1 || texture.Flags.HasFlag(VTexFlags.VOLUME_TEXTURE) || texture.Flags.HasFlag(VTexFlags.TEXTURE_ARRAY));
+
+    /// <summary>
+    /// Gets the name of the first image of a slice sequence. The compiler loads further slices by counting up the run of
+    /// zeros that follows the first "_z0" in the name when a '.' or '_' ends it, so a name without such a run gets "_z000".
+    /// </summary>
+    internal static string GetFirstSliceFileName(string fileName, uint sliceCount)
+    {
+        if (TryGetSliceNumberRange(fileName, out _, out var length)
+            && (sliceCount - 1).ToString(CultureInfo.InvariantCulture).Length <= length)
+        {
+            return fileName;
+        }
+
+        var name = Path.GetFileName(fileName);
+        var baseName = Path.GetFileNameWithoutExtension(name).Replace("_z0", "-z0", StringComparison.Ordinal);
+
+        return string.Concat(fileName.AsSpan(0, fileName.Length - name.Length), baseName, "_z000", Path.GetExtension(name));
+    }
+
+    private static string GetSliceFileName(string firstSliceFileName, uint slice)
+    {
+        if (!TryGetSliceNumberRange(firstSliceFileName, out var start, out var length))
+        {
+            return firstSliceFileName;
+        }
+
+        var number = slice.ToString(new string('0', length), CultureInfo.InvariantCulture);
+        return string.Concat(firstSliceFileName.AsSpan(0, start), number, firstSliceFileName.AsSpan(start + length));
+    }
+
+    private static bool TryGetSliceNumberRange(string fileName, out int start, out int length)
+    {
+        var nameStart = fileName.Length - Path.GetFileName(fileName.AsSpan()).Length;
+        var marker = fileName.IndexOf("_z0", nameStart, StringComparison.Ordinal);
+
+        start = marker + 2;
+        length = 0;
+
+        if (marker < 0)
+        {
+            return false;
+        }
+
+        while (start + length < fileName.Length && fileName[start + length] == '0')
+        {
+            length++;
+        }
+
+        return start + length < fileName.Length && fileName[start + length] is '.' or '_';
     }
 
     /// <summary>
