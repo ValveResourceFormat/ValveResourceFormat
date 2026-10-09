@@ -61,6 +61,9 @@ namespace ValveResourceFormat.Particles
         /// <summary>How long the system has been running, in seconds.</summary>
         public float Age { get; set; }
 
+        /// <summary>The system's <see cref="Age"/> when it last restarted, or 0 if it never has.</summary>
+        internal float RestartAge { get; set; }
+
         /// <summary>The system's <see cref="Age"/> when the frame being simulated began.</summary>
         internal float FrameStartAge { get; private set; }
 
