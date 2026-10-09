@@ -1,5 +1,4 @@
 using ValveResourceFormat.Particles.Utils;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles.ForceGenerators;
 

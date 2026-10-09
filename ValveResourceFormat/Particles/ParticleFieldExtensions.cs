@@ -199,22 +199,6 @@ namespace ValveResourceFormat.Particles
             }
         }
 
-        public static int GetScalarInt(this ref Particle particle, ParticleField field)
-        {
-            return field switch
-            {
-                ParticleField.SequenceNumber => particle.SequenceNumber,
-                ParticleField.SecondSequenceNumber => particle.SecondSequenceNumber,
-                ParticleField.ManualAnimationFrame => (int)particle.ManualAnimationFrame,
-                ParticleField.ParentParticleIndex => particle.ParentParticleIndex,
-                ParticleField.ParentParticleId => particle.ParentParticleId,
-                ParticleField.RopeSegmentId => particle.RopeSegmentId,
-                ParticleField.UserEventStates => particle.UserEventStates,
-                ParticleField.ParticleId => particle.ParticleId,
-                _ => 0,
-            };
-        }
-
         // Vector field
         public static Vector3 GetVector(this ref Particle particle, ParticleField field)
         {

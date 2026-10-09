@@ -3,9 +3,9 @@ using ValveResourceFormat.Particles;
 namespace ValveResourceFormat.Renderer.Particles;
 
 /// <summary>
-/// Particle collision against a scene: the physics of the world it belongs to, plus the optional
-/// ground plane a preview stands its effect on. Both are read at trace time, so geometry loaded after
-/// the effect is still collided with.
+/// Particle collision against a scene: the <see cref="Rubikon.DefaultGeometry"/> shapes of its
+/// <see cref="Scene.PhysicsWorld"/>, and its <see cref="Scene.CollisionGroundPlane"/>. Both are read at
+/// trace time, so geometry loaded after an effect is still collided with.
 /// </summary>
 internal sealed class ParticleSceneCollision(Scene scene) : IParticleCollision
 {
@@ -37,7 +37,6 @@ internal sealed class ParticleSceneCollision(Scene scene) : IParticleCollision
             }
         }
 
-        // The ground plane is one-sided: it stops what comes down onto it from above
         if (scene.CollisionGroundPlane is { } height && rayStart.Z >= height && rayEnd.Z < height)
         {
             var fraction = (rayStart.Z - height) / (rayStart.Z - rayEnd.Z);

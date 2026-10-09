@@ -14,15 +14,12 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         private readonly Dictionary<int, ParticleSnapshot> controlPointSnapshots = [];
 
-        /// <summary>The control point this system publishes its own snapshot to.</summary>
-        private readonly int snapshotControlPoint;
-
         /// <summary>
         /// Binds this system's snapshot to the control point it publishes on, preferring one handed in
         /// at construction (the cable node builds its rope points that way) over the authored
-        /// <c>m_hSnapshot</c> resource, and returns that control point.
+        /// <c>m_hSnapshot</c> resource.
         /// </summary>
-        private int PublishSnapshot(ParticleDefinitionParser parse, ParticleSnapshot? runtimeSnapshot)
+        private void PublishSnapshot(ParticleDefinitionParser parse, ParticleSnapshot? runtimeSnapshot)
         {
             var controlPoint = parse.Int32("m_nSnapshotControlPoint", 0);
             var snapshot = runtimeSnapshot ?? SnapshotBinding.LoadAuthored(parse, fileLoader);
@@ -31,8 +28,6 @@ namespace ValveResourceFormat.Particles
             {
                 controlPointSnapshots[controlPoint] = snapshot;
             }
-
-            return controlPoint;
         }
 
         /// <summary>

@@ -265,7 +265,7 @@ namespace ValveResourceFormat.Particles
                 EndEarly = false
             };
 
-            snapshotControlPoint = PublishSnapshot(parse, particleSnapshot);
+            PublishSnapshot(parse, particleSnapshot);
 
             Name = particleSystem.Resource?.FileName ?? "<unnamed>";
 
@@ -296,36 +296,6 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>How many particles the last prune removed from this system.</summary>
         internal int KilledLastPass => particleCollection.KilledLastPass;
-
-        /// <summary>
-        /// Stops emission on the system and its children within the current frame, optionally starting
-        /// the endcap and dropping every live particle in the tree.
-        /// </summary>
-        internal void StopEmission(bool destroyImmediately, bool playEndCap)
-        {
-            Stop();
-
-            if (playEndCap)
-            {
-                PlayEndCap();
-            }
-
-            if (destroyImmediately)
-            {
-                DestroyParticles();
-            }
-        }
-
-        private void DestroyParticles()
-        {
-            particleCollection.Clear();
-            systemState.ParticleCount = 0;
-
-            foreach (var childSimulation in childSimulations)
-            {
-                childSimulation.DestroyParticles();
-            }
-        }
 
         /// <summary>
         /// Sets the particle detail tier for this system; child systems inherit it.

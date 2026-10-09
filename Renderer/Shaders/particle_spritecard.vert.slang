@@ -222,10 +222,8 @@ void main(void) {
     vFragPosition = positionWs;
 
 #if S_PARTICLE_INSTANCED
-    // A card's corners all share its centre, so lighting sampled there is once per particle
     vLightingPosition = vPOSITION;
 #else
-    // Ribbons have no centre of their own; each vertex samples where it is
     vLightingPosition = positionWs;
 #endif
 #if (D_BAKED_LIGHTING_FROM_PROBE == 1)

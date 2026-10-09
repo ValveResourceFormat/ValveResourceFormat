@@ -22,9 +22,9 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             duration = parse.NumberProvider("m_flDuration", duration);
             destroy = parse.Boolean("m_bDestroyImmediately", destroy);
             playEndCap = parse.Boolean("m_bPlayEndCap", playEndCap);
-            // Intentional: m_bRunOnce is ignored
-            RunOnce = false;
         }
+
+        public override bool RunOnce => false;
 
         public override void Reset()
         {

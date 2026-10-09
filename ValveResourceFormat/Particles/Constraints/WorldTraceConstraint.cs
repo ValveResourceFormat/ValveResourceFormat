@@ -13,17 +13,13 @@ namespace ValveResourceFormat.Particles.Constraints
     /// around it for the other two, retraced when the control point moves or the retest rate elapses. The
     /// set is shared by the whole system hierarchy per mode. Particles collide with the one-sided infinite
     /// planes through those hits, and a fast enough contact is confirmed by a real trace, which also adds
-    /// its surface to the set. The confirmed fraction is measured from behind the particle but applied to
-    /// the step from its previous position, so a confirmed contact lies just below the plane and the
-    /// particle can fall through it, which is intentional.
+    /// its surface to the set.
     /// <see cref="ParticleCollisionMode.COLLISION_MODE_PER_PARTICLE_TRACE"/> traces each particle's
-    /// movement instead. The authored mode is used as at the highest collision
-    /// quality, so <c>m_nCollisionModeMin</c> has no effect.
+    /// movement instead. <c>m_nCollisionModeMin</c> has no effect.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_WorldTraceConstraint">C_OP_WorldTraceConstraint</seealso>
     class WorldTraceConstraint : ParticleFunctionConstraint
     {
-        private const float MinimumStepLengthSquared = 1.1920929e-7f;
         private const float ConfirmationTraceExtension = 64f;
         private const int ConfirmationBlockSize = 4;
 
@@ -111,7 +107,7 @@ namespace ValveResourceFormat.Particles.Constraints
                 var step = particle.Position - previous;
                 var stepLengthSquared = step.LengthSquared();
 
-                if (stepLengthSquared <= MinimumStepLengthSquared)
+                if (stepLengthSquared <= ParticleMath.FloatEpsilon)
                 {
                     continue;
                 }
@@ -136,7 +132,7 @@ namespace ValveResourceFormat.Particles.Constraints
 
                 var tooSlow = minimumSpeed >= 0f && stepLength < minimumSpeed * frameTime;
 
-                // Intentional: a confirmed contact can lie below the plane and fall through
+                // Source 2 bug: the contact is measured from behind the particle but applied from its previous position, so it can lie below the plane and let the particle fall through.
                 var contact = previous + (step * fraction);
 
                 if (killOnContact)
@@ -257,7 +253,7 @@ namespace ValveResourceFormat.Particles.Constraints
 
             if (scatter > 0f)
             {
-                reflected = MathUtils.SafeNormalize(reflected + (NextInUnitBall(particleSystemState.Random) * scatter));
+                reflected = MathUtils.SafeNormalize(reflected + (particleSystemState.Random.NextInUnitBallByRejection() * scatter));
             }
 
             if (decayBounce)
@@ -266,19 +262,6 @@ namespace ValveResourceFormat.Particles.Constraints
             }
 
             return (reflected * bounce) + (MathUtils.ProjectOntoPlane(step, normal) * slide);
-        }
-
-        private static Vector3 NextInUnitBall(ParticleRandom random)
-        {
-            Vector3 point;
-
-            do
-            {
-                point = random.NextBetweenPerComponent(-Vector3.One, Vector3.One);
-            }
-            while (point.LengthSquared() >= 1f);
-
-            return point;
         }
 
         /// <summary>

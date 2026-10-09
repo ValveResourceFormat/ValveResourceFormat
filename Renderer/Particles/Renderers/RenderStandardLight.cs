@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         internal SceneLight Light => light;
 
-        public RenderStandardLight(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene)
+        public RenderStandardLight(ParticleDefinitionParser parse, Scene scene)
             : base(parse)
         {
             this.scene = scene;

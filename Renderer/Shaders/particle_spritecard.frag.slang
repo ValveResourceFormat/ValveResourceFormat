@@ -44,7 +44,6 @@ uniform float uDesaturation = 0.0; // m_flDesaturation
 uniform bool uBlendFrames = true;
 uniform bool uMaxLuminanceFrameBlend = false;
 
-// m_nLightingMode: per pixel samples the scene light at each fragment, every other mode once per particle
 uniform bool uPerPixelLighting = false;
 
 uniform vec3 uHsvShift = vec3(0.0, 1.0, 1.0);

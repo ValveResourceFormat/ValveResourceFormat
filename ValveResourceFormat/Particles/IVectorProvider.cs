@@ -48,12 +48,6 @@ namespace ValveResourceFormat.Particles
             this.value = value / 255.0f;
         }
 
-        public LiteralColorVectorProvider(int[] value)
-        {
-            this.value = new Vector3(value[0], value[1], value[2]) / 255.0f;
-            // also, do linear to srgb
-        }
-
         public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => value;
     }
 

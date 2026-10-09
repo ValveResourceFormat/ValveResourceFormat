@@ -118,9 +118,7 @@ namespace ValveResourceFormat.Particles.Emitters
 
             for (var i = 0; i < numToEmit; i++)
             {
-                // Every particle is stamped at the start-time instant. A snapshot creation time pushes it
-                // later, so those particles are emitted with the burst and carry ages below zero until
-                // their own creation time comes round.
+                // A snapshot creation time delays the particle, which is emitted with the burst at a negative age.
                 var ageAtSpawn = elapsed - nextStartTime;
 
                 if (snapshotTimes != null && snapshotCursor < snapshotTimes.Length)

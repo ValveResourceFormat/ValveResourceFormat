@@ -50,11 +50,12 @@ namespace ValveResourceFormat.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                var first = useParticleVelocity
-                    ? MathUtils.SafeNormalize(particle.Position - particle.PositionPrevious, Vector3.Zero, ParticleMath.MinimumLengthSquared)
-                    : useParticleNormal
-                        ? particle.Normal
-                        : forward1;
+                var first = (useParticleVelocity, useParticleNormal) switch
+                {
+                    (true, _) => MathUtils.SafeNormalize(particle.Position - particle.PositionPrevious, Vector3.Zero, ParticleMath.MinimumLengthSquared),
+                    (_, true) => particle.Normal,
+                    _ => forward1,
+                };
 
                 var dot = Vector3.Dot(first, forward2);
 

@@ -20,12 +20,6 @@ namespace ValveResourceFormat.Particles.Utils
         public readonly Vector3 MidPointOffset = Vector3.Zero;
         public readonly Vector3 EndOffset = Vector3.Zero;
 
-        public ParticlePathParameters(int startControlPointNumber, int endControlPointNumber)
-        {
-            StartControlPointNumber = startControlPointNumber;
-            EndControlPointNumber = endControlPointNumber;
-        }
-
         public ParticlePathParameters(ParticleDefinitionParser parse)
         {
             var pathParams = parse.Data.GetSubCollection("m_PathParams");

@@ -86,7 +86,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         /// </summary>
         public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
         {
-            if (particleSystemState.Age <= nextGenerationTime)
+            if (particleSystemState.Data is not { } simulation || particleSystemState.Age <= nextGenerationTime)
             {
                 return;
             }
@@ -127,9 +127,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             builder.PadTo(poolSize);
 
-            var capacity = particleSystemState.Data?.ParticleCapacity ?? builder.RowCount;
-            var snapshot = builder.ToSnapshot(Math.Min(builder.RowCount, capacity));
-            particleSystemState.Data?.SetControlPointSnapshot(snapshotControlPoint, snapshot);
+            var snapshot = builder.ToSnapshot(Math.Min(builder.RowCount, simulation.ParticleCapacity));
+            simulation.SetControlPointSnapshot(snapshotControlPoint, snapshot);
         }
 
         /// <summary>
@@ -170,7 +169,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
                 var offset = Offset;
 
-                for (var pass = 0; Passes > pass; pass++)
+                for (var pass = 0; pass < Passes; pass++)
                 {
                     for (var i = 0; i + 1 < rows.Count; i++)
                     {
@@ -201,7 +200,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 var jitter = ScaleBranchDistance ? offset / (BranchDistanceScale * generation) : offset;
 
                 var direction = MathUtils.SafeNormalize(to.Position - from.Position, Vector3.UnitZ);
-                // Intentional: crossing with the row's world position makes the jitter depend on where the bolt is
+                // Source 2 bug: the span is crossed with the row's world position, so the jitter depends on where the bolt is.
                 var sideways = MathUtils.SafeNormalize(Vector3.Cross(direction, from.Position));
                 var wander = random.NextInUnitBall(out _);
                 var push = random.NextBetween(-jitter, jitter) / generation;

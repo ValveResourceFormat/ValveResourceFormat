@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
@@ -118,7 +119,7 @@ namespace ValveResourceFormat.Renderer.Decals
         private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform, float PlaceTime, bool IsPermanent, bool Ages, uint Id);
 
         // What a decal that does not age gives as the time it was added: long enough ago that anything aging has settled
-        private const float PermanentPlaceTime = -1e9f;
+        private const float SettledPlaceTime = -1e9f;
 
         private readonly Scene scene;
 
@@ -362,7 +363,7 @@ namespace ValveResourceFormat.Renderer.Decals
             }
 
             decals.Add(new ProjectedDecal(materialIndex, flipU ? FlagFlipU : 0, tint, parent, localTransform,
-                ages ? time : PermanentPlaceTime, permanent, ages, ++nextDecalId));
+                ages ? time : SettledPlaceTime, permanent, ages, ++nextDecalId));
             boxTransforms.Add(boxTransform);
             decalsDirty = true;
 
@@ -474,10 +475,7 @@ namespace ValveResourceFormat.Renderer.Decals
 
             var decal = decals[index];
 
-            if (decal.Parent != null)
-            {
-                return true;
-            }
+            Debug.Assert(decal.Parent == null, "A parented decal follows its parent and cannot be moved.");
 
             if (boxTransforms[index] != boxTransform)
             {

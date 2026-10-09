@@ -47,8 +47,6 @@ namespace ValveResourceFormat.Particles
             opTimeOffsetSeed = parse.Int32("m_nOpTimeOffsetSeed", opTimeOffsetSeed);
             opTimeScaleSeed = parse.Int32("m_nOpTimeScaleSeed", opTimeScaleSeed);
 
-            // The time offset and scale ranges only apply under a seed, so without one they cannot
-            // change the curve however they are authored
             FadeCurveIsUnity =
                 OpStartFadeInTime == 0f &&
                 OpEndFadeInTime == 0f &&
@@ -100,7 +98,7 @@ namespace ValveResourceFormat.Particles
         /// and stretched per system instance when the time offset and scale seeds are set. An
         /// oscillating fade instead takes the phase of the system age within the period, in [0, 1).
         /// </summary>
-        public float GetFunctionTime(ParticleSystemState systemState)
+        private float GetFunctionTime(ParticleSystemState systemState)
         {
             if (OpFadeOscillatePeriod > 0f)
             {
@@ -114,8 +112,6 @@ namespace ValveResourceFormat.Particles
                 time = MathF.Max(0f, time - systemState.EndCapStartAge);
             }
 
-            // Each seed draws one value per system instance, so instances of an effect run their
-            // operator fades out of phase with each other while each stays steady over its life
             if (opTimeOffsetSeed != 0)
             {
                 time += ParticleRandom.ForSampleBetween(systemState.Random.Seed + opTimeOffsetSeed, opTimeOffsetMin, opTimeOffsetMax);

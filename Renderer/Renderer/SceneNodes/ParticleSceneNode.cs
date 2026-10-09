@@ -74,7 +74,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public ParticleSceneNode(Scene scene, ParticleSystem particleSystem, ParticleSnapshot? particleSnapshot = null, bool preview = false, bool playedByEntity = false)
             : base(scene)
         {
-            particleRenderer = new ParticleRenderer(particleSystem, Scene.RendererContext, scene, particleSnapshot)
+            particleRenderer = new ParticleRenderer(particleSystem, scene, particleSnapshot)
             {
                 OwnerNode = this,
             };
@@ -660,7 +660,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             // The endcap starts where emission ends, so the particles it decays and freezes are still alive.
             if (PlaybackMode == ParticlePlaybackMode.NormalWithEndCap
                 && !endCapPlayed
-                && particleRenderer.HasFinishedEmitting(emissionEndIsEnough: true, includeChildren: true))
+                && particleRenderer.HasFinishedEmitting())
             {
                 PlayEndCap();
                 endCapPlayed = true;

@@ -49,7 +49,6 @@ namespace GUI.Types.GLViewers
         private ThemedButton? pauseButton;
         private ThemedButton? endCapButton;
         private float screenSize = SnapshotParticleSystem.DefaultScreenSize;
-        private bool ShowRenderBounds { get; set; }
 
         public GLParticleViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, ParticleSystem particleSystem, ParticleSnapshot? particleSnapshot = null)
             : base(vrfGuiContext, rendererContext, Frustum.CreateEmpty())
@@ -228,7 +227,7 @@ namespace GUI.Types.GLViewers
 
             using (UiControl.BeginGroup("Display"))
             {
-                UiControl.AddCheckBox("Show Render Bounds", ShowRenderBounds, value => SelectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
+                UiControl.AddCheckBox("Show Render Bounds", false, value => SelectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
 
                 // Only when the snapshot stores no radius, in which case the preview invents a size.
                 if (particleSnapshot != null && SnapshotParticleSystem.UsesConstantScreenSize(particleSnapshot))

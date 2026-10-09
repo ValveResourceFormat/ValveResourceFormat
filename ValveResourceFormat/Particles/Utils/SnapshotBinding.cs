@@ -60,8 +60,7 @@ namespace ValveResourceFormat.Particles.Utils
 
         /// <summary>
         /// The bound snapshot, or null when none is authored, the control point carries none, or the
-        /// function authors a subset. Looked up on every call, since a snapshot generated at run time
-        /// can be replaced on its control point while the system runs.
+        /// function authors a subset. Looked up on every call.
         /// </summary>
         public ParticleSnapshot? Resolve(ParticleSystemState particleSystemState)
             => IsBound ? particleSystemState.GetControlPointSnapshot(controlPoint) : null;

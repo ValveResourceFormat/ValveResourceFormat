@@ -2,8 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Utils;
-using ValveResourceFormat.Renderer.SceneEnvironment;
-using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
@@ -92,7 +90,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             material = newMaterial;
             Pass = material.IsTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
 
-            // The material can opt out of the depth pass, which is also the shadow pass
             var castsShadows = !material.DoNotCastShadows && material.IntParams.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 0;
             CanRenderDepth = Pass == RenderPass.Opaque && castsShadows && !OnlyRenderInEffectsWaterPass && material.Shader.DepthMode != null;
         }

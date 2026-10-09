@@ -82,6 +82,23 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
+        /// Takes three values per attempt as a point in the cube from -1 to 1 until one lands inside
+        /// the unit ball.
+        /// </summary>
+        public Vector3 NextInUnitBallByRejection()
+        {
+            Vector3 point;
+
+            do
+            {
+                point = NextBetweenPerComponent(-Vector3.One, Vector3.One);
+            }
+            while (point.LengthSquared() >= 1f);
+
+            return point;
+        }
+
+        /// <summary>
         /// Takes the next value, interpolated into [<paramref name="min"/>, <paramref name="max"/>].
         /// </summary>
         public float NextBetween(float min, float max) => Between(Next(), min, max);
@@ -132,20 +149,12 @@ namespace ValveResourceFormat.Particles.Utils
         public static float ForSampleBetween(int sampleId, float min, float max)
             => Between(At(sampleId), min, max);
 
-        /// <inheritdoc cref="ForSample(int)"/>
-        public static Vector3 ForSampleBetween(int sampleId, Vector3 min, Vector3 max)
-            => Between(At(sampleId), min, max);
-
         /// <summary>Reads three consecutive slots from <paramref name="sampleId"/>, one per component.</summary>
         public static Vector3 ForSampleBetweenPerComponent(int sampleId, Vector3 min, Vector3 max)
             => new(
                 ForSampleBetween(sampleId, min.X, max.X),
                 ForSampleBetween(sampleId + 1, min.Y, max.Y),
                 ForSampleBetween(sampleId + 2, min.Z, max.Z));
-
-        /// <inheritdoc cref="ForSample(int)"/>
-        public static float ForSampleWithExponentBetween(int sampleId, float exponent, float min, float max)
-            => Between(MathF.Pow(At(sampleId), exponent), min, max);
 
         /// <summary>
         /// Scales a drawn value into [<paramref name="min"/>, <paramref name="max"/>] the way the

@@ -159,8 +159,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// its own factors, while everything else composites premultiplied. Both faces are drawn,
         /// since a card or ribbon can turn either one toward the camera.
         /// </summary>
-        protected static RenderPassScope SpritecardStateScope(RenderStateTracker renderState, ParticleBlendMode blendMode, bool opaque = false)
+        protected static RenderPassScope SpritecardStateScope(ParticleBlendMode blendMode, bool opaque = false)
         {
+            var renderState = GraphicsContext.RenderState;
+
             if (opaque)
             {
                 return renderState.Scope(cullMode: RsCullMode.None);
@@ -236,7 +238,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// Whether scene lighting is sampled at every pixel. Every other lighting mode samples each card
-        /// once, at its centre, and a rope at each of its vertices, still in the fragment shader.
+        /// once, at its centre, and a rope at each of its vertices.
         /// </summary>
         protected bool PerPixelLighting { get; }
 
@@ -346,7 +348,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             var totalTime = sequence.EffectiveTotalTime;
-            var lastFrame = frameCount - 1;
 
             float passes;
 
@@ -386,7 +387,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         public virtual void SetMaterialOverride(RenderMaterial material) { }
 
-        public virtual void SetWireframe(bool wireframe) { }
         public virtual void SetRenderMode(string renderMode) { }
         public virtual IEnumerable<string> GetSupportedRenderModes() => [];
         public virtual void Delete() { }

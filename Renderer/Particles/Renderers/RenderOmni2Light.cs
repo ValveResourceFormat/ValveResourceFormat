@@ -19,17 +19,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly INumberProvider brightnessLumens = new LiteralNumberProvider(1000f);
         private readonly INumberProvider brightnessCandelas = new LiteralNumberProvider(1000f);
         private readonly bool castShadows;
-        private readonly bool fog;
-        private readonly INumberProvider fogScale = new LiteralNumberProvider(1f);
         private readonly INumberProvider luminaireRadius = new LiteralNumberProvider(1f);
         private readonly INumberProvider skirt = new LiteralNumberProvider(0.1f);
         private readonly INumberProvider range = new LiteralNumberProvider(512f);
         private readonly INumberProvider innerConeAngle = new LiteralNumberProvider(180f);
         private readonly INumberProvider outerConeAngle = new LiteralNumberProvider(180f);
         private readonly string? cookiePath;
-        private readonly bool sphericalCookie = true;
 
-        public RenderOmni2Light(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene)
+        public RenderOmni2Light(ParticleDefinitionParser parse, Scene scene)
             : base(parse)
         {
             this.scene = scene;
@@ -40,15 +37,22 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             brightnessLumens = parse.NumberProvider("m_flBrightnessLumens", brightnessLumens);
             brightnessCandelas = parse.NumberProvider("m_flBrightnessCandelas", brightnessCandelas);
             castShadows = parse.Boolean("m_bCastShadows", castShadows);
-            fog = parse.Boolean("m_bFog", fog);
-            fogScale = parse.NumberProvider("m_flFogScale", fogScale);
             luminaireRadius = parse.NumberProvider("m_flLuminaireRadius", luminaireRadius);
             skirt = parse.NumberProvider("m_flSkirt", skirt);
             range = parse.NumberProvider("m_flRange", range);
             innerConeAngle = parse.NumberProvider("m_flInnerConeAngle", innerConeAngle);
             outerConeAngle = parse.NumberProvider("m_flOuterConeAngle", outerConeAngle);
             cookiePath = parse.Data.GetStringProperty("m_hLightCookie") is { Length: > 0 } cookie ? cookie : null;
-            sphericalCookie = parse.Boolean("m_bSphericalCookie", sphericalCookie);
+        }
+
+        /// <inheritdoc/>
+        public override void Hide()
+        {
+            foreach (var light in lights)
+            {
+                light.IsDirty = light.IsDirty || light.BrightnessScale != 0f;
+                light.BrightnessScale = 0f;
+            }
         }
 
         // Every live particle is its own light. The pool only grows on the main thread, since the
