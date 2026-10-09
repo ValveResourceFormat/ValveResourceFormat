@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 // RotationSpeed is stored in radians per second by everything that writes it
-                particle.Rotation += particle.RotationSpeed * frameTime * strength;
+                particle.Rotation += particle.RotationSpeed * MathF.Min(frameTime, particle.Age) * strength;
             }
         }
     }

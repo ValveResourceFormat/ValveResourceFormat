@@ -260,9 +260,13 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     return new ControlPointDistanceNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_NOISE":
                     return new NoiseNumberProvider(parse);
+                case "PF_TYPE_PARTICLE_ROPE_SEGMENT":
+                    return new RopeSegmentNumberProvider(parse);
+                case "PF_TYPE_PARTICLE_ROPE_SEGMENT_NORMALIZED":
+                    return new RopeSegmentNormalizedNumberProvider(parse);
                 // KNOWN TYPES WE DON'T SUPPORT:
                 // PF_TYPE_NAMED_VALUE (needs game VData),
-                // PF_TYPE_PARTICLE_ROPE_SEGMENT_NORMALIZED, PF_TYPE_RANGE
+                // PF_TYPE_CLOSEST_CAMERA_DISTANCE, PF_TYPE_CONCURRENT_DEF_COUNT, PF_TYPE_RANGE
                 default:
                     if (type == null)
                     {
