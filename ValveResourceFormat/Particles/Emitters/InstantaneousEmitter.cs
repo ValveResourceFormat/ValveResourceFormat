@@ -31,12 +31,12 @@ namespace ValveResourceFormat.Particles.Emitters
         private bool snapshotResolved;
 
         /// <summary>
-        /// The snapshot's creation-time column, when it carries one. Its presence turns the burst into
-        /// a timed release rather than a single instant.
+        /// The snapshot's creation-time column, when it carries one. Each emitted particle is stamped
+        /// with the next element's time as an offset from the burst start.
         /// </summary>
         private float[]? snapshotTimes;
 
-        /// <summary>How far into the timed snapshot release the burst has got.</summary>
+        /// <summary>The snapshot element the next emitted particle takes its creation time from.</summary>
         private int snapshotCursor;
 
         public InstantaneousEmitter(ParticleDefinitionParser parse) : base(parse)
@@ -94,17 +94,7 @@ namespace ValveResourceFormat.Particles.Emitters
                 }
             }
 
-            if (snapshotTimes != null)
-            {
-                if (snapshotCursor >= snapshotTimes.Length)
-                {
-                    IsFinished = true;
-                    return;
-                }
-
-                remainingToEmit = CountDueSnapshotParticles(elapsed);
-            }
-            else if (initFromKilledParentParticles > 0f)
+            if (initFromKilledParentParticles > 0f)
             {
                 remainingToEmit = ResolveEmitCount(particleSystemState);
             }
@@ -128,13 +118,12 @@ namespace ValveResourceFormat.Particles.Emitters
 
             for (var i = 0; i < numToEmit; i++)
             {
-                // Every particle is stamped at the start-time instant, offset by its snapshot release time.
-                // An entry is due once the elapsed time alone reaches its release time, while the stamp also
-                // subtracts the start time, so a snapshot released under a non-zero start time carries ages
-                // below zero and the particles concerned outlive their authored lifetime.
+                // Every particle is stamped at the start-time instant. A snapshot creation time pushes it
+                // later, so those particles are emitted with the burst and carry ages below zero until
+                // their own creation time comes round.
                 var ageAtSpawn = elapsed - nextStartTime;
 
-                if (snapshotTimes != null)
+                if (snapshotTimes != null && snapshotCursor < snapshotTimes.Length)
                 {
                     ageAtSpawn -= snapshotTimes[snapshotCursor];
                     snapshotCursor++;
@@ -143,25 +132,10 @@ namespace ValveResourceFormat.Particles.Emitters
                 particleEmitCallback?.Invoke(ageAtSpawn);
             }
 
-            if (snapshotTimes == null && initFromKilledParentParticles <= 0f && remainingToEmit <= 0)
+            if (initFromKilledParentParticles <= 0f && remainingToEmit <= 0)
             {
                 IsFinished = true;
             }
-        }
-
-        /// <summary>
-        /// How many entries of a timed snapshot have come due but not yet been released.
-        /// </summary>
-        private int CountDueSnapshotParticles(float elapsed)
-        {
-            var due = 0;
-
-            while (snapshotCursor + due < snapshotTimes!.Length && snapshotTimes[snapshotCursor + due] <= elapsed)
-            {
-                due++;
-            }
-
-            return due;
         }
 
         /// <summary>
