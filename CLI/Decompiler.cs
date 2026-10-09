@@ -1960,7 +1960,7 @@ namespace CLI
 
             foreach (var additionalFile in contentFile.AdditionalFiles)
             {
-                var additionalPath = additionalFile.KeepFullPath && OutputIsDirectory
+                var additionalPath = OutputIsDirectory && !Path.IsPathRooted(additionalFile.FileName)
                     ? Path.Combine(OutputFile!, additionalFile.FileName)
                     : Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName));
                 DumpContentFile(additionalPath, additionalFile);
