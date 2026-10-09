@@ -43,6 +43,10 @@ namespace Tests.Particles
                         }
 
                         break;
+
+                    default:
+                        lost.Add(field);
+                        break;
                 }
             }
 

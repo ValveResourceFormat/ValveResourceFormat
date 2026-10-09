@@ -213,8 +213,8 @@ public class Renderer : ISpawnGroupHost
     private bool waterEffectsMapIsNeutral;
 
     /// <summary>
-    /// HDR target the effects bloom layer draws into, added into the bloom post process rather than
-    /// into the scene. Drawn at a reduced resolution, since bloom blurs it well below that anyway.
+    /// HDR target the effects bloom layer draws into at a reduced resolution, which the bloom post
+    /// process adds in rather than the scene.
     /// </summary>
     public Framebuffer? EffectsBloomBuffer { get; private set; }
 
@@ -788,12 +788,24 @@ public class Renderer : ISpawnGroupHost
 
         ViewBuffer.Data.SunShadowsEnabled = view.Sky == null;
 
-        state.LightBinner.SetPixelRemap(view.BinnedFor is { } binnedFor
-            ? view.Camera.GetPixelRemapTo(binnedFor, ViewBuffer.Data.ViewportSize)
-            : ViewConstants.PixelRemapIdentity);
+        state.LightBinner.SetPixelRemap(GetPixelRemap(view));
 
         ViewBuffer.BindBufferBase();
         ViewBuffer.Update();
+    }
+
+    private Vector4 GetPixelRemap(in SceneView view)
+        => view.BinnedFor is { } binnedFor
+            ? view.Camera.GetPixelRemapTo(binnedFor, ViewBuffer!.Data.ViewportSize)
+            : ViewConstants.PixelRemapIdentity;
+
+    private void SetViewportConstants(int width, int height, Vector2 sceneDepthFetchScale)
+    {
+        Debug.Assert(ViewBuffer != null);
+
+        ViewBuffer.Data.ViewportSize = new Vector2(width, height);
+        ViewBuffer.Data.InvViewportSize = Vector2.One / ViewBuffer.Data.ViewportSize;
+        ViewBuffer.Data.SceneDepthFetchScale = sceneDepthFetchScale;
     }
 
     private void UpdateViewGpuBuffers(in SceneView view, SceneViewState state)
@@ -1048,8 +1060,7 @@ public class Renderer : ISpawnGroupHost
         var (w, h) = (renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
 
         GL.Viewport(0, 0, w, h);
-        ViewBuffer.Data.ViewportSize = new Vector2(w, h);
-        ViewBuffer.Data.InvViewportSize = Vector2.One / ViewBuffer.Data.ViewportSize;
+        SetViewportConstants(w, h, Vector2.One);
 
         using var frameScope = GraphicsContext.RenderState.Scope(multisampleEnable: renderContext.Framebuffer.NumSamples > 1);
         renderContext.Framebuffer.BindAndClear();
@@ -1565,9 +1576,8 @@ public class Renderer : ISpawnGroupHost
     }
 
     /// <summary>
-    /// Draws the effects bloom layer into <see cref="EffectsBloomBuffer"/>, occluded by the scene
-    /// depth grabbed after the opaque layer, and hands it to the post process. A frame with nothing
-    /// in the layer hands over nothing, so the bloom pass skips it.
+    /// Draws the effects bloom layer into <see cref="EffectsBloomBuffer"/> and hands it to the post
+    /// process. A frame with nothing in the layer hands over nothing, so the bloom pass skips it.
     /// </summary>
     private void RenderEffectsBloomMap(in SceneView view, Scene.RenderContext renderContext)
     {
@@ -1581,39 +1591,11 @@ public class Renderer : ISpawnGroupHost
 
         using var _ = new GLDebugGroup("Effects Bloom");
 
-        var width = Math.Max(1, MathUtils.DivideRoundUp(renderContext.Framebuffer.Width, EffectsBloomDownsample));
-        var height = Math.Max(1, MathUtils.DivideRoundUp(renderContext.Framebuffer.Height, EffectsBloomDownsample));
+        EffectsBloomBuffer.Resize(
+            Math.Max(1, MathUtils.DivideRoundUp(renderContext.Framebuffer.Width, EffectsBloomDownsample)),
+            Math.Max(1, MathUtils.DivideRoundUp(renderContext.Framebuffer.Height, EffectsBloomDownsample)));
 
-        EffectsBloomBuffer.Resize(width, height);
-
-        var sceneFramebuffer = renderContext.Framebuffer;
-
-        GL.Viewport(0, 0, width, height);
-        EffectsBloomBuffer.BindAndClear();
-
-        renderContext.Framebuffer = EffectsBloomBuffer;
-
-        SeedDepthFromScene(new Vector2(EffectsBloomDownsample));
-
-        using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: false, depthFunc: RsComparison.CloserEqual))
-        {
-            foreach (var state in view.States)
-            {
-                if (!state.HasEffectsBloom)
-                {
-                    continue;
-                }
-
-                state.Scene.SetSceneBuffers();
-
-                renderContext.Scene = state.Scene;
-                renderContext.View = state;
-                state.RenderEffectsBloomLayer(renderContext);
-            }
-        }
-
-        GL.Viewport(0, 0, sceneFramebuffer.Width, sceneFramebuffer.Height);
-        sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
+        RenderReducedResolutionLayer(view, renderContext, EffectsBloomBuffer, new Vector2(EffectsBloomDownsample), RenderLayer.Bloom);
 
         Postprocess.EffectsBloom = EffectsBloomBuffer.Color;
     }
@@ -1621,7 +1603,7 @@ public class Renderer : ISpawnGroupHost
     // Must run before any water layer this frame
     private void RenderWaterEffectsMap(in SceneView view, Scene.RenderContext renderContext)
     {
-        Debug.Assert(WaterEffectsBuffer != null && ViewBuffer != null);
+        Debug.Assert(WaterEffectsBuffer != null);
 
         var hasDraws = NeedsWaterEffectsMap(view);
 
@@ -1641,47 +1623,90 @@ public class Renderer : ISpawnGroupHost
             SetupWaterEffectsTexture();
         }
 
-        var sceneFramebuffer = renderContext.Framebuffer;
-
-        GL.Viewport(0, 0, width, height);
-        WaterEffectsBuffer.BindAndClear();
-
-        renderContext.Framebuffer = WaterEffectsBuffer;
-
-        // Data rather than an image: fog would write its color into the ripple and foam channels.
-        Scene.FogInfo.SetFogUniforms(ViewBuffer.Data, viewerFogEnabled: false, FogSpace.World);
-        ViewBuffer.Update();
-
         if (hasDraws)
         {
-            SeedDepthFromScene(new Vector2(downsampleX, downsampleY));
-
-            using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: false, depthFunc: RsComparison.CloserEqual))
-            {
-                // Only the scene buffers switch, keeping the view constants set above
-                foreach (var state in view.States)
-                {
-                    if (!state.HasWaterEffects)
-                    {
-                        continue;
-                    }
-
-                    state.Scene.SetSceneBuffers();
-
-                    renderContext.Scene = state.Scene;
-                    renderContext.View = state;
-                    state.RenderWaterEffectsLayer(renderContext);
-                }
-            }
+            RenderReducedResolutionLayer(view, renderContext, WaterEffectsBuffer, new Vector2(downsampleX, downsampleY), RenderLayer.WaterEffects);
+        }
+        else
+        {
+            GL.Viewport(0, 0, width, height);
+            WaterEffectsBuffer.BindAndClear();
+            GL.Viewport(0, 0, renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+            renderContext.Framebuffer.Bind(FramebufferTarget.Framebuffer);
         }
 
-        Scene.SetFogConstants(ViewBuffer.Data);
+        waterEffectsMapIsNeutral = !hasDraws;
+    }
+
+    /// <summary>
+    /// Clears <paramref name="target"/> and draws the <paramref name="layer"/> draw calls of every scene in
+    /// <paramref name="view"/> into it, occluded by the scene depth. The target is smaller than the scene
+    /// framebuffer by <paramref name="downsample"/>, so the view constants and light binners are set for
+    /// its pixels while it draws. Leaves the scene framebuffer and <paramref name="view"/>'s first scene bound.
+    /// </summary>
+    private void RenderReducedResolutionLayer(in SceneView view, Scene.RenderContext renderContext, Framebuffer target, Vector2 downsample, RenderLayer layer)
+    {
+        Debug.Assert(ViewBuffer != null);
+
+        var sceneFramebuffer = renderContext.Framebuffer;
+        var viewRemap = GetPixelRemap(view);
+        var targetRemap = new Vector4(viewRemap.X * downsample.X, viewRemap.Y * downsample.Y, viewRemap.Z, viewRemap.W);
+
+        GL.Viewport(0, 0, target.Width, target.Height);
+        target.BindAndClear();
+
+        renderContext.Framebuffer = target;
+
+        SetViewportConstants(target.Width, target.Height, downsample);
+
+        if (layer == RenderLayer.WaterEffects)
+        {
+            // Data rather than an image: fog would write its color into the ripple and foam channels.
+            Scene.FogInfo.SetFogUniforms(ViewBuffer.Data, viewerFogEnabled: false, FogSpace.World);
+        }
+
         ViewBuffer.Update();
+
+        SeedDepthFromScene(downsample);
+
+        using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: false, depthFunc: RsComparison.CloserEqual))
+        {
+            foreach (var state in view.States)
+            {
+                if (layer == RenderLayer.Bloom ? !state.HasEffectsBloom : !state.HasWaterEffects)
+                {
+                    continue;
+                }
+
+                state.Scene.SetSceneBuffers();
+                state.LightBinner.SetPixelRemap(targetRemap);
+                state.LightBinner.Bind();
+
+                renderContext.Scene = state.Scene;
+                renderContext.View = state;
+
+                if (layer == RenderLayer.Bloom)
+                {
+                    state.RenderEffectsBloomLayer(renderContext);
+                }
+                else
+                {
+                    state.RenderWaterEffectsLayer(renderContext);
+                }
+
+                state.LightBinner.SetPixelRemap(viewRemap);
+            }
+        }
 
         GL.Viewport(0, 0, sceneFramebuffer.Width, sceneFramebuffer.Height);
         sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
 
-        waterEffectsMapIsNeutral = !hasDraws;
+        SetViewportConstants(sceneFramebuffer.Width, sceneFramebuffer.Height, Vector2.One);
+
+        var firstState = view.States[0];
+        BindView(view, firstState);
+        firstState.Scene.SetSceneBuffers();
+        firstState.LightBinner.Bind();
     }
 
     // Returns whether there was any translucent surface to draw

@@ -10,6 +10,8 @@ namespace ValveResourceFormat.Renderer.PostProcess
     /// </summary>
     public class PostProcessRenderer
     {
+        private static readonly BloomSettings DefaultBloomSettings = new();
+
         private readonly RendererContext RendererContext;
         private Shader? shaderMsaaResolve;
         private Shader? shaderDepthResolve;
@@ -289,7 +291,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 colorBufferDraw.Bind(FramebufferTarget.DrawFramebuffer);
 
                 var runBloom = State.HasBloom || EffectsBloom != null;
-                var bloomSettings = State.HasBloom ? State.BloomSettings : new BloomSettings();
+                var bloomSettings = State.HasBloom ? State.BloomSettings : DefaultBloomSettings;
                 var postProcessShader = runBloom ? shaderPostProcessBloom : shaderPostProcess;
 
                 if (runBloom)

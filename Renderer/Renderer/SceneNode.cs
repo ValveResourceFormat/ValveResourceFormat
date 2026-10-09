@@ -252,6 +252,11 @@ namespace ValveResourceFormat.Renderer
         /// <param name="context">The current update context.</param>
         public void UpdateHierarchy(Scene.UpdateContext context)
         {
+            if (Scene.IsPendingRemoval(this))
+            {
+                return;
+            }
+
             Update(context);
 
             foreach (var child in children)

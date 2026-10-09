@@ -131,15 +131,15 @@ namespace ValveResourceFormat.Particles.Emitters
                     var minimum = finalEmitPending || (forceEmitOnFirstUpdate && isFirstUpdate) ? 1 : 0;
 
                     accumulator.Charge(rate, windowStart, windowEnd, elapsed, particleEmitCallback, minimum, limitPerUpdate);
-
-                    if (finalEmitPending)
-                    {
-                        finalEmitPending = false;
-                        IsFinished = true;
-                        particleEmitCallback = null;
-                        return;
-                    }
                 }
+            }
+
+            if (finalEmitPending)
+            {
+                finalEmitPending = false;
+                IsFinished = true;
+                particleEmitCallback = null;
+                return;
             }
 
             if (nextEmissionDuration != 0f && elapsed > nextStartTime + nextEmissionDuration)

@@ -103,6 +103,15 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Puddle ripple direction in X, over 0 to 1 for a full turn.</summary>
         public Vector4 EnvWetnessRipple;
 
+        /// <summary>
+        /// Scene depth texels per pixel of the target being drawn: one, except in a pass drawn below the
+        /// scene's resolution.
+        /// </summary>
+        public Vector2 SceneDepthFetchScale = Vector2.One;
+
+        /// <summary>Padding to satisfy alignment requirements.</summary>
+        public Vector2 Padding1;
+
         /// <summary>Initializes a new <see cref="ViewConstants"/> with identity matrices and default values.</summary>
         public ViewConstants()
         {

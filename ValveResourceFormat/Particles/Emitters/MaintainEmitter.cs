@@ -112,6 +112,11 @@ namespace ValveResourceFormat.Particles.Emitters
                 rateBudget = budget - count;
             }
 
+            if (count <= 0)
+            {
+                return;
+            }
+
             var creationTime = MathF.Max(frameStart, startTime);
             var spacing = emitInstantaneously && emissionRate <= 0f ? 0f : (elapsed - creationTime) / count;
 

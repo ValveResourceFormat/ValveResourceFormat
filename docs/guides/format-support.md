@@ -314,9 +314,9 @@ Particle systems round-trip exactly: extraction re-emits the original stored KV3
 VRF's upgraded in-memory version, so decompiled `.vpcf` files match the compiled source
 (pre-KV3 NTRO-era files are re-encoded as KV3 text instead). The viewer simulates a large
 subset of particle functions and lists any unsupported functions per system in red instead
-of failing. Omni2 particle lights of the barn type are drawn as point lights. Particles drawn
-as models render in their bind pose, without animation or body groups. Particles drawn as
-projected decals use the scene's projected decal system.
+of failing. Omni2 particle lights of the barn type are drawn as point lights. Model particles
+render in bind pose only, without `m_bAnimated` or `m_bManualAnimFrame`
+([#716](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/716)).
 
 Particle snapshots (`vsnap`) preview and extract. Bone name streams survive, but skinning
 streams are written into the extracted `.vsnap` as empty streams: their values show in the

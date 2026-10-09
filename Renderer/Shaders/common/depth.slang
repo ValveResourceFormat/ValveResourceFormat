@@ -34,11 +34,13 @@ vec3 GetCameraRay(vec2 vFragCoord)
     return transpose(mat3(g_matWorldToView)) * (vViewRay.xyz / vViewRay.w);
 }
 
-/// Reconstructs the world position the depth buffer holds under a pixel.
-/// vScreenPosition: the pixel to read, in gl_FragCoord units.
+/// Reconstructs the world position the scene depth holds under a pixel.
+/// vScreenPosition: the pixel of the target being drawn, in gl_FragCoord units.
 vec3 GetWorldPositionFromDepth(ivec2 vScreenPosition, vec3 vCameraRay)
 {
-    return GetWorldPositionFromDepthValue(texelFetch(g_tSceneDepth, vScreenPosition, 0).x, vCameraRay);
+    ivec2 vDepthTexel = ivec2(vec2(vScreenPosition) * g_vSceneDepthFetchScale);
+
+    return GetWorldPositionFromDepthValue(texelFetch(g_tSceneDepth, vDepthTexel, 0).x, vCameraRay);
 }
 
 #endif

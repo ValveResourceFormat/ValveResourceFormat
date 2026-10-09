@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles.Constraints
@@ -28,15 +27,13 @@ namespace ValveResourceFormat.Particles.Constraints
         private const float ConfirmationTraceExtension = 64f;
         private const int ConfirmationBlockSize = 4;
 
-        private static readonly ConditionalWeakTable<ParticleSystemState, CollisionPlaneSet?[]> PlaneSets = new();
-
         private readonly int controlPoint;
         private readonly Vector3 controlPointOffset;
         private readonly ParticleCollisionMode collisionMode = ParticleCollisionMode.COLLISION_MODE_PER_PARTICLE_TRACE;
         private readonly float controlPointMovementTolerance = 5f;
         private readonly float retestRate = -1f;
         private readonly float confirmationSpeed = 24f;
-        private readonly float maxConfirmationTraces = 100f;
+        private readonly int maxConfirmationTraces;
         private readonly INumberProvider radiusScale = new LiteralNumberProvider(1f);
         private readonly INumberProvider bounceAmount = new LiteralNumberProvider(0f);
         private readonly INumberProvider slideAmount = new LiteralNumberProvider(0f);
@@ -57,10 +54,7 @@ namespace ValveResourceFormat.Particles.Constraints
             controlPointMovementTolerance = parse.Float("m_flCpMovementTolerance", controlPointMovementTolerance);
             retestRate = parse.Float("m_flRetestRate", retestRate);
             confirmationSpeed = parse.Float("m_flCollisionConfirmationSpeed", confirmationSpeed);
-
-            var maxTraces = parse.Float("m_nMaxTracesPerFrame", -1f);
-            maxConfirmationTraces = maxTraces == -1f ? maxConfirmationTraces : maxTraces;
-
+            maxConfirmationTraces = parse.Int32("m_nMaxTracesPerFrame", -1) switch { -1 => 100, var traces => traces };
             radiusScale = parse.NumberProvider("m_flRadiusScale", radiusScale);
             bounceAmount = parse.NumberProvider("m_flBounceAmount", bounceAmount);
             slideAmount = parse.NumberProvider("m_flSlideAmount", slideAmount);
@@ -160,6 +154,8 @@ namespace ValveResourceFormat.Particles.Constraints
                     particle.Kill();
                 }
 
+                var writeNormal = setNormal;
+
                 if (!killOnContact || bounceKilledParticles)
                 {
                     if (bounce > 0f || slide > 0f)
@@ -173,13 +169,13 @@ namespace ValveResourceFormat.Particles.Constraints
                         particle.Position = contact;
                     }
 
-                    if (stickField != ParticleField.NoneDisabled && !Stick(ref particle, frameTime, particleSystemState))
+                    if (stickField != ParticleField.NoneDisabled)
                     {
-                        continue;
+                        writeNormal = Stick(ref particle, frameTime, particleSystemState) && setNormal;
                     }
                 }
 
-                if (setNormal)
+                if (writeNormal)
                 {
                     particle.SetVector(ParticleField.Normal, normal);
                 }
@@ -190,15 +186,7 @@ namespace ValveResourceFormat.Particles.Constraints
 
         private CollisionPlaneSet RefreshPlaneSet(IParticleCollision collision, ParticleSystemState particleSystemState)
         {
-            var root = particleSystemState;
-
-            while (root.ParentSystem != null)
-            {
-                root = root.ParentSystem;
-            }
-
-            var setsByMode = PlaneSets.GetValue(root, static _ => new CollisionPlaneSet?[(int)ParticleCollisionMode.COLLISION_MODE_PER_PARTICLE_TRACE]);
-            var planeSet = setsByMode[(int)collisionMode] ??= new CollisionPlaneSet();
+            var planeSet = particleSystemState.CollisionPlaneSets[(int)collisionMode] ??= new CollisionPlaneSet();
 
             var lastRefresh = planeSet.LastRefreshTime;
             var force = lastRefresh == -1f || (retestRate >= 0f && particleSystemState.Age > retestRate + lastRefresh);
@@ -296,7 +284,7 @@ namespace ValveResourceFormat.Particles.Constraints
         /// <summary>
         /// Sticks the particle where it rests when it moves slower than the stop speed, or always when the
         /// stop speed is negative, by caching its position in the stick field, which holds it there on later
-        /// steps. Returns whether it stuck.
+        /// steps. Returns whether it stuck; with a stick field only particles that stick take the contact normal.
         /// </summary>
         private bool Stick(ref Particle particle, float frameTime, ParticleSystemState particleSystemState)
         {
@@ -309,161 +297,6 @@ namespace ValveResourceFormat.Particles.Constraints
 
             particle.SetVector(stickField, particle.Position);
             return true;
-        }
-
-        /// <summary>
-        /// The surfaces a plane set collision mode collides with: the hits of traces from a control point,
-        /// plus those found by confirmation traces.
-        /// </summary>
-        private sealed class CollisionPlaneSet
-        {
-            private const int MaxPlanes = 41;
-            private const int DirectionPlanes = 26;
-            private const float TraceLength = 1000f;
-
-            private readonly Vector3[] points = new Vector3[MaxPlanes];
-            private readonly Vector3[] normals = new Vector3[MaxPlanes];
-            private readonly bool[] valid = new bool[MaxPlanes];
-            private int count;
-            private int nextSlot;
-            private int retestSlot;
-            private Vector3 lastOrigin;
-
-            /// <summary>The system age at the last refresh, or -1 before the first.</summary>
-            public float LastRefreshTime { get; private set; } = -1f;
-
-            /// <summary>
-            /// Traces the set from <paramref name="origin"/>. The single downward trace is made only once.
-            /// The directional set is retraced in full when the origin has moved by
-            /// <paramref name="tolerance"/>, and a forced refresh of a full set retraces one direction.
-            /// </summary>
-            public void Refresh(IParticleCollision collision, ParticleCollisionMode mode, Vector3 origin, float tolerance, bool force, float time)
-            {
-                var traceDown = mode == ParticleCollisionMode.COLLISION_MODE_INITIAL_TRACE_DOWN;
-
-                if (traceDown && count != 0)
-                {
-                    return;
-                }
-
-                if (!force && Vector3.DistanceSquared(origin, lastOrigin) < tolerance * tolerance)
-                {
-                    return;
-                }
-
-                LastRefreshTime = time;
-                lastOrigin = origin;
-
-                if (traceDown)
-                {
-                    Trace(collision, 0, origin, -Vector3.UnitZ);
-                    count = nextSlot = 1;
-                    return;
-                }
-
-                if (force && nextSlot >= DirectionPlanes)
-                {
-                    // Intentional: a retest traces some slots in a different direction than they were filled with, dropping slot 13 and overwriting the first confirmed plane at slot 26
-                    var slot = retestSlot > DirectionPlanes ? 0 : retestSlot;
-                    retestSlot = slot + 1;
-                    Trace(collision, slot, origin, new Vector3((slot % 3) - 1, (slot / 3 % 3) - 1, (slot / 9 % 3) - 1));
-                    return;
-                }
-
-                var next = 0;
-
-                for (var x = -1; x <= 1; x++)
-                {
-                    for (var y = -1; y <= 1; y++)
-                    {
-                        Trace(collision, next++, origin, new Vector3(x, y, -1f));
-
-                        if (x != 0 || y != 0)
-                        {
-                            Trace(collision, next++, origin, new Vector3(x, y, 0f));
-                        }
-
-                        Trace(collision, next++, origin, new Vector3(x, y, 1f));
-                    }
-                }
-
-                count = nextSlot = next;
-            }
-
-            /// <summary>
-            /// Adds a surface found by a confirmation trace, filling the free slots first and then cycling
-            /// through those after the directional ones.
-            /// </summary>
-            public void Add(Vector3 point, Vector3 normal)
-            {
-                var slot = nextSlot++;
-
-                if (count < MaxPlanes)
-                {
-                    slot = count++;
-                }
-                else if (nextSlot >= MaxPlanes)
-                {
-                    slot = nextSlot = DirectionPlanes;
-                }
-
-                Store(slot, point, normal);
-            }
-
-            /// <summary>
-            /// Finds the nearest plane the segment crosses from its front side, as a fraction along the
-            /// segment. The normal is up when nothing is crossed.
-            /// </summary>
-            public bool Intersect(Vector3 start, Vector3 end, out float fraction, out Vector3 normal)
-            {
-                fraction = 2f;
-                normal = Vector3.UnitZ;
-
-                for (var i = 0; i < count; i++)
-                {
-                    if (!valid[i])
-                    {
-                        continue;
-                    }
-
-                    var startDistance = Vector3.Dot(start - points[i], normals[i]);
-                    var endDistance = Vector3.Dot(end - points[i], normals[i]);
-
-                    if (startDistance < 0f || endDistance >= 0f)
-                    {
-                        continue;
-                    }
-
-                    var crossing = startDistance / (startDistance - endDistance);
-
-                    if (crossing < fraction)
-                    {
-                        fraction = crossing;
-                        normal = normals[i];
-                    }
-                }
-
-                return fraction < 1f;
-            }
-
-            private void Trace(IParticleCollision collision, int slot, Vector3 origin, Vector3 direction)
-            {
-                if (collision.TraceRay(origin, origin + (direction * TraceLength), out var hit))
-                {
-                    Store(slot, hit.Position, hit.Normal);
-                }
-                else
-                {
-                    valid[slot] = false;
-                }
-            }
-
-            private void Store(int slot, Vector3 point, Vector3 normal)
-            {
-                points[slot] = point;
-                normals[slot] = normal;
-                valid[slot] = true;
-            }
         }
     }
 }

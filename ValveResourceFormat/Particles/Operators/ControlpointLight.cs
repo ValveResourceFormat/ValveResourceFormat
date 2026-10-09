@@ -112,7 +112,7 @@ namespace ValveResourceFormat.Particles.Operators
                     {
                         var fromSource = particle.Position - sources[i];
                         var normal = fromSource / MathF.Sqrt(MathF.Max(fromSource.LengthSquared(), ParticleMath.FloatEpsilon));
-                        intensity *= MathF.Max(0f, Vector3.Dot(normal, toLight / toLight.Length()));
+                        intensity *= MathF.Max(0f, Vector3.Dot(normal, MathUtils.SafeNormalize(toLight)));
                     }
 
                     lit += colors[i] * intensity;
