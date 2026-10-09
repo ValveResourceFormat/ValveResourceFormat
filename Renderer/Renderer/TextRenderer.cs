@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -57,13 +58,13 @@ namespace ValveResourceFormat.Renderer
             public ReadOnlySpan<char> Span => memory.Span;
 
             /// <summary>
-            /// Formats an interpolated string directly into a caller-owned buffer and wraps the written
-            /// slice, without allocating. Text that does not fit the buffer comes out empty.
+            /// Formats an interpolated string with the invariant culture directly into a caller-owned buffer
+            /// and wraps the written slice, without allocating. Text that does not fit the buffer comes out empty.
             /// </summary>
             public static TextMemory Format(Memory<char> destination, [InterpolatedStringHandlerArgument(nameof(destination))] ref FormatHandler handler)
                 => new(destination[..handler.GetWrittenLength(destination.Span)]);
 
-            /// <summary>Interpolated string handler for <see cref="Format"/>, forwarding to the buffer-writing BCL handler.</summary>
+            /// <summary>Interpolated string handler for <see cref="Format"/>, forwarding to the buffer-writing BCL handler with the invariant culture.</summary>
             [InterpolatedStringHandler]
             public ref struct FormatHandler
             {
@@ -72,7 +73,7 @@ namespace ValveResourceFormat.Renderer
                 /// <summary>Initializes the handler over the destination buffer. Called by the compiler.</summary>
                 public FormatHandler(int literalLength, int formattedCount, Memory<char> destination, out bool shouldAppend)
                 {
-                    inner = new MemoryExtensions.TryWriteInterpolatedStringHandler(literalLength, formattedCount, destination.Span, out shouldAppend);
+                    inner = new MemoryExtensions.TryWriteInterpolatedStringHandler(literalLength, formattedCount, destination.Span, CultureInfo.InvariantCulture, out shouldAppend);
                 }
 
                 /// <summary>Appends a literal segment.</summary>
@@ -105,13 +106,13 @@ namespace ValveResourceFormat.Renderer
                 /// <summary>Initializes the handler over a reusable text buffer. Called by the compiler.</summary>
                 public FormatHandler(int literalLength, int formattedCount, TextBuffer destination, out bool shouldAppend)
                 {
-                    inner = new MemoryExtensions.TryWriteInterpolatedStringHandler(literalLength, formattedCount, destination.Storage, out shouldAppend);
+                    inner = new MemoryExtensions.TryWriteInterpolatedStringHandler(literalLength, formattedCount, destination.Storage, CultureInfo.InvariantCulture, out shouldAppend);
                 }
 
                 /// <summary>Initializes the handler over an arena's free space. Called by the compiler.</summary>
                 public FormatHandler(int literalLength, int formattedCount, TextArena destination, out bool shouldAppend)
                 {
-                    inner = new MemoryExtensions.TryWriteInterpolatedStringHandler(literalLength, formattedCount, destination.FreeSpace, out shouldAppend);
+                    inner = new MemoryExtensions.TryWriteInterpolatedStringHandler(literalLength, formattedCount, destination.FreeSpace, CultureInfo.InvariantCulture, out shouldAppend);
                 }
 
                 internal int GetWrittenLength(Span<char> destination)

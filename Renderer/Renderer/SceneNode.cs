@@ -1,3 +1,4 @@
+using System.Globalization;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
@@ -155,7 +156,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Gets a human-readable debug name including type, name, id, and position.
         /// </summary>
-        public string DebugName => $"{GetType().Name.Replace("SceneNode", "", StringComparison.Ordinal)}{(string.IsNullOrEmpty(Name) ? "" : " ")}{Name} ({Id}) at {BoundingBox.Center.X:F2} {BoundingBox.Center.Y:F2} {BoundingBox.Center.Z:F2}";
+        public string DebugName => string.Create(CultureInfo.InvariantCulture, $"{GetType().Name.Replace("SceneNode", "", StringComparison.Ordinal)}{(string.IsNullOrEmpty(Name) ? "" : " ")}{Name} ({Id}) at {BoundingBox.Center.X:F2} {BoundingBox.Center.Y:F2} {BoundingBox.Center.Z:F2}");
 #endif
 
         /// <summary>

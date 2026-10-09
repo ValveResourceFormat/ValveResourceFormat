@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -1433,7 +1434,7 @@ public sealed partial class NmGraphExtract : IDisposable
     private KVObject CreateFloatSelectorNode(int nodeIndex, KVObject compiledNode)
     {
         var values = compiledNode.GetFloatArray("m_values")?.ToArray() ?? [];
-        var inputPins = values.Select(value => new PinDef($"Option ({value:0.00})", "Bool", IsDynamicPin: true)).ToArray();
+        var inputPins = values.Select(value => new PinDef(string.Create(CultureInfo.InvariantCulture, $"Option ({value:0.00})"), "Bool", IsDynamicPin: true)).ToArray();
 
         var options = KVObject.Array();
         for (var i = 0; i < values.Length; i++)
@@ -1758,7 +1759,7 @@ public sealed partial class NmGraphExtract : IDisposable
         {
             var label = GetNodeName(sourceNodeIndices[i]);
             var value = i < pointValues.Length ? pointValues[i] : 0.0f;
-            var pin = CreatePin($"{label} ({value:0.##})", "Pose", isDynamicPin: true);
+            var pin = CreatePin(string.Create(CultureInfo.InvariantCulture, $"{label} ({value:0.##})"), "Pose", isDynamicPin: true);
             inputPins.Add(new PinDef(pin.GetStringProperty("m_name"), "Pose", IsDynamicPin: true));
 
             var point = KVObject.Collection();
@@ -1791,7 +1792,7 @@ public sealed partial class NmGraphExtract : IDisposable
             var point = i < valueObjects.Length && valueObjects[i].IsArray ? valueObjects[i].ToVector2() : Vector2.Zero;
             var x = point.X;
             var y = point.Y;
-            inputPins.Add(new PinDef($"{label} ({x}, {y})", "Pose", IsDynamicPin: true));
+            inputPins.Add(new PinDef(string.Create(CultureInfo.InvariantCulture, $"{label} ({x}, {y})"), "Pose", IsDynamicPin: true));
         }
 
         var blendSpace = KVObject.Collection();
@@ -2668,7 +2669,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
         var averageLinearVelocity = GetClipAverageLinearVelocity(sourceNodeIndex);
         return averageLinearVelocity.HasValue
-            ? $"{fallbackLabel} ({averageLinearVelocity.Value:0.##})"
+            ? string.Create(CultureInfo.InvariantCulture, $"{fallbackLabel} ({averageLinearVelocity.Value:0.##})")
             : fallbackLabel;
     }
 

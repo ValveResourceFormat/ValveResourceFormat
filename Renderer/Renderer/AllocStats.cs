@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using System.Globalization;
 using System.Threading;
 
 namespace ValveResourceFormat.Renderer;
@@ -361,9 +362,9 @@ public class AllocStats
         {
             < 0 => destination.TryWrite($"0 B", out charsWritten), // a GC can shrink GetTotalMemory between snapshots
             < 1024 => destination.TryWrite($"{bytes} B", out charsWritten),
-            < 1024 * 1024 => destination.TryWrite($"{bytes / 1024.0:0.0} KB", out charsWritten),
-            < 1024 * 1024 * 1024 => destination.TryWrite($"{bytes / (1024.0 * 1024.0):0.0} MB", out charsWritten),
-            _ => destination.TryWrite($"{bytes / (1024.0 * 1024.0 * 1024.0):0.00} GB", out charsWritten),
+            < 1024 * 1024 => destination.TryWrite(CultureInfo.InvariantCulture, $"{bytes / 1024.0:0.0} KB", out charsWritten),
+            < 1024 * 1024 * 1024 => destination.TryWrite(CultureInfo.InvariantCulture, $"{bytes / (1024.0 * 1024.0):0.0} MB", out charsWritten),
+            _ => destination.TryWrite(CultureInfo.InvariantCulture, $"{bytes / (1024.0 * 1024.0 * 1024.0):0.00} GB", out charsWritten),
         };
 
         public string ToString(string? format, IFormatProvider? formatProvider) => ToString();
@@ -372,9 +373,9 @@ public class AllocStats
         {
             < 0 => "0 B",
             < 1024 => $"{bytes} B",
-            < 1024 * 1024 => $"{bytes / 1024.0:0.0} KB",
-            < 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024.0):0.0} MB",
-            _ => $"{bytes / (1024.0 * 1024.0 * 1024.0):0.00} GB",
+            < 1024 * 1024 => string.Create(CultureInfo.InvariantCulture, $"{bytes / 1024.0:0.0} KB"),
+            < 1024 * 1024 * 1024 => string.Create(CultureInfo.InvariantCulture, $"{bytes / (1024.0 * 1024.0):0.0} MB"),
+            _ => string.Create(CultureInfo.InvariantCulture, $"{bytes / (1024.0 * 1024.0 * 1024.0):0.00} GB"),
         };
     }
 

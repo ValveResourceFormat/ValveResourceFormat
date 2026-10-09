@@ -663,19 +663,19 @@ namespace ValveResourceFormat.ResourceTypes
             if (SampleRate > 0)
             {
                 var loopStart = TimeSpan.FromSeconds((double)LoopStart / SampleRate);
-                writer.WriteLine($"LoopStart: {LoopStart} ({loopStart})");
+                writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"LoopStart: {LoopStart} ({loopStart})"));
 
                 var loopEnd = TimeSpan.FromSeconds((double)LoopEnd / SampleRate);
-                writer.WriteLine($"LoopEnd: {LoopEnd} ({loopEnd})");
+                writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"LoopEnd: {LoopEnd} ({loopEnd})"));
             }
             else
             {
-                writer.WriteLine($"LoopStart: {LoopStart}");
-                writer.WriteLine($"LoopEnd: {LoopEnd}");
+                writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"LoopStart: {LoopStart}"));
+                writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"LoopEnd: {LoopEnd}"));
             }
 
             var duration = TimeSpan.FromSeconds(Duration);
-            writer.WriteLine($"Duration: {duration} ({Duration})");
+            writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Duration: {duration} ({Duration})"));
 
             writer.WriteLine($"StreamingDataSize: {StreamingDataSize}");
 
@@ -685,11 +685,11 @@ namespace ValveResourceFormat.ResourceTypes
                 writer.Indent++;
                 foreach (var phoneme in Sentence.RunTimePhonemes)
                 {
-                    writer.WriteLine($"PhonemeTag(StartTime={phoneme.StartTime}, EndTime={phoneme.EndTime}, PhonemeCode={phoneme.PhonemeCode})");
+                    writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"PhonemeTag(StartTime={phoneme.StartTime}, EndTime={phoneme.EndTime}, PhonemeCode={phoneme.PhonemeCode})"));
                 }
                 foreach (var sample in Sentence.EmphasisSamples)
                 {
-                    writer.WriteLine($"EmphasisSample(Time={sample.Time}, Value={sample.Value})");
+                    writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"EmphasisSample(Time={sample.Time}, Value={sample.Value})"));
                 }
                 writer.Indent--;
             }

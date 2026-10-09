@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Text;
 using ValveKeyValue;
@@ -110,7 +111,7 @@ public class VfxShaderAttribute
         }
         else
         {
-            return $"{Name,-40} 0x{Murmur32:x08}  {VfxType,-15} {VariableBinding,-3}  {ConstValue}";
+            return string.Create(CultureInfo.InvariantCulture, $"{Name,-40} 0x{Murmur32:x08}  {VfxType,-15} {VariableBinding,-3}  {ConstValue}");
         }
     }
 }

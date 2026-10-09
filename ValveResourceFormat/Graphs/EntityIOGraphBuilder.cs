@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -34,7 +35,7 @@ internal static class EntityIOGraphBuilder
 
         if (connection.Delay > 0f)
         {
-            parts.Add($"{connection.Delay:0.##}s");
+            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{connection.Delay:0.##}s"));
         }
 
         if (connection.TimesToFire == 1)

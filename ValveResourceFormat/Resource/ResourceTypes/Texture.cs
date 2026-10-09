@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -1427,7 +1428,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     if (RadianceCoefficients != null)
                     {
-                        writer.WriteLine("{0,-16}   [ {1} coefficients: {2} ]", string.Empty, RadianceCoefficients.Length, string.Join(", ", RadianceCoefficients));
+                        writer.WriteLine("{0,-16}   [ {1} coefficients: {2} ]", string.Empty, RadianceCoefficients.Length, string.Join(", ", RadianceCoefficients.Select(static value => value.ToString(CultureInfo.InvariantCulture))));
                     }
                 }
                 else if (b.Key == VTexExtraData.SHEET)

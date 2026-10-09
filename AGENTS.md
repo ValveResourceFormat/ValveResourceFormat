@@ -55,6 +55,7 @@ Standard Microsoft C# conventions, plus:
 - No `this.` unless disambiguating
 - Prefer early returns
 - `MathF` over `(float)Math` casts; use `MathUtils` helpers instead of inline formulas, and add new general-purpose math there
+- Format and parse numbers with `CultureInfo.InvariantCulture`, including interpolation (`string.Create(CultureInfo.InvariantCulture, $"...")`), concatenation and `string.Join`, which CA1305 does not catch
 - Usings: System first, then alphabetical, no unused ones. `System`, `System.Numerics` and `System.Collections.Generic` are global usings
 
 ### Comments and Documentation

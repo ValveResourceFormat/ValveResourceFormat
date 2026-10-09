@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace ValveResourceFormat.Utils
 {
     /// <summary>
@@ -173,7 +175,7 @@ namespace ValveResourceFormat.Utils
         /// <inheritdoc/>
         public override readonly string ToString()
         {
-            return $"AABB [({Min.X},{Min.Y},{Min.Z}) -> ({Max.X},{Max.Y},{Max.Z}))";
+            return string.Create(CultureInfo.InvariantCulture, $"AABB [({Min.X},{Min.Y},{Min.Z}) -> ({Max.X},{Max.Y},{Max.Z}))");
         }
 
         /// <inheritdoc/>

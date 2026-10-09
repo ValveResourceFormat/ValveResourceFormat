@@ -1,3 +1,4 @@
+using System.Globalization;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -77,7 +78,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// <remarks>
         /// Returns the event class name and its time window.
         /// </remarks>
-        public override string ToString() => $"{ClassName} @ {StartTime}s +{Duration}s";
+        public override string ToString() => string.Create(CultureInfo.InvariantCulture, $"{ClassName} @ {StartTime}s +{Duration}s");
     }
 
     /// <summary>

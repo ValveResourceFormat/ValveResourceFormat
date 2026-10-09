@@ -648,7 +648,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else if (value is not null)
             {
-                valueStr = value.ToString() ?? string.Empty;
+                valueStr = Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
             }
 
             return valueStr.Trim();

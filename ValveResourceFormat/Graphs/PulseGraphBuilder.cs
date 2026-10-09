@@ -1508,7 +1508,7 @@ internal sealed class PulseGraphBuilder
                     }
 
                     var timeFromPrevious = timelineEvent.GetFloatProperty("m_flTimeFromPrevious");
-                    var socketLabel = $"(Time from prev: {timeFromPrevious}s) | {eventOutflow.SourceOutflowName}";
+                    var socketLabel = string.Create(CultureInfo.InvariantCulture, $"(Time from prev: {timeFromPrevious}s) | {eventOutflow.SourceOutflowName}");
                     AddOutflowSocket(document, node, eventOutflow, socketLabel, chunkIndex, registerValues, maxInstructionIdx);
                     processedOutflowNames.Add(eventOutflow.SourceOutflowName);
                 }

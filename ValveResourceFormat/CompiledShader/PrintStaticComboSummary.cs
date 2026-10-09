@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
@@ -277,7 +278,7 @@ namespace ValveResourceFormat.CompiledShader
                         OutputWriter.WriteLine("// Rasterizer State");
                         OutputWriter.WriteLine($"{nameof(rs.FillMode)}: {rs.FillMode}, {nameof(rs.CullMode)}: {rs.CullMode}");
                         OutputWriter.WriteLine($"{nameof(rs.DepthClipEnable)}: {rs.DepthClipEnable}, {nameof(rs.MultisampleEnable)}: {rs.MultisampleEnable}");
-                        OutputWriter.WriteLine($"{nameof(rs.DepthBias)}: {rs.DepthBias}, {nameof(rs.DepthBiasClamp)}: {rs.DepthBiasClamp}, {nameof(rs.SlopeScaledDepthBias)}: {rs.SlopeScaledDepthBias}");
+                        OutputWriter.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{nameof(rs.DepthBias)}: {rs.DepthBias}, {nameof(rs.DepthBiasClamp)}: {rs.DepthBiasClamp}, {nameof(rs.SlopeScaledDepthBias)}: {rs.SlopeScaledDepthBias}"));
                     }
                     if (psRenderState.DepthStencilStateDesc is { } ds)
                     {

@@ -105,7 +105,7 @@ namespace GUI.Types.GLViewers
                 var loc = Renderer.Camera.Location;
                 var cameraAngles = Renderer.Camera.GetQAngle();
 
-                AppClipboard.SetText($"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {cameraAngles.X:F6} {cameraAngles.Y:F6} {cameraAngles.Z:F6}");
+                AppClipboard.SetText(string.Create(CultureInfo.InvariantCulture, $"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {cameraAngles.X:F6} {cameraAngles.Y:F6} {cameraAngles.Z:F6}"));
 
                 return;
             }

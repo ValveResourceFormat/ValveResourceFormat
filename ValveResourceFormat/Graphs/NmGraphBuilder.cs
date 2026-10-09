@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -360,7 +361,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                         var weight = weights[i];
                         var weightPercentage = weight / (float)totalWeight * 100;
 
-                        weightDesc = $"Weight: {weight} ({weightPercentage:F2}%)";
+                        weightDesc = string.Create(CultureInfo.InvariantCulture, $"Weight: {weight} ({weightPercentage:F2}%)");
                     }
 
                     CreateInputAndChild<Pose>(node, optionNodeIdx, $"Option {++i} {weightDesc}");
@@ -418,8 +419,8 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
 
                 if (node.NodeType is "FloatSwitch")
                 {
-                    if (trueNodeIdx == -1) { node.AddText($"True: {data.GetFloatProperty("m_flTrueValue"):f}"); }
-                    if (falseNodeIdx == -1) { node.AddText($"False: {data.GetFloatProperty("m_flFalseValue"):f}"); }
+                    if (trueNodeIdx == -1) { node.AddText(string.Create(CultureInfo.InvariantCulture, $"True: {data.GetFloatProperty("m_flTrueValue"):f}")); }
+                    if (falseNodeIdx == -1) { node.AddText(string.Create(CultureInfo.InvariantCulture, $"False: {data.GetFloatProperty("m_flFalseValue"):f}")); }
                 }
                 else if (node.NodeType is "IDSwitch")
                 {
@@ -428,7 +429,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                 }
                 else
                 {
-                    node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):F2}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):F2}"));
                     node.AddText($"Switch Dynamically: {data.GetBooleanProperty("m_bSwitchDynamically")}");
                 }
             }
@@ -574,7 +575,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                     CreateInputAndChild<Value>(node, inputValueNodeIdx, "Scale Value");
                 }
 
-                node.AddText($"Default Scale: {data.GetFloatProperty("m_flDefaultInputValue")}");
+                node.AddText(string.Create(CultureInfo.InvariantCulture, $"Default Scale: {data.GetFloatProperty("m_flDefaultInputValue")}"));
             }
             else if (node.NodeType is "Not" or "FloatCurve")
             {
@@ -587,8 +588,8 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                 CreateInputAndChild<Value>(node, data.GetInt32Property("m_nInputValueNodeIdx"), "Value");
                 var inputRange = data.GetSubCollection("m_inputRange");
                 var outputRange = data.GetSubCollection("m_outputRange");
-                node.AddText($"InputBegin: {inputRange.GetFloatProperty("m_flBegin")} InputEnd: {inputRange.GetFloatProperty("m_flEnd")}");
-                node.AddText($"OutputBegin: {outputRange.GetFloatProperty("m_flBegin")} OutputEnd: {outputRange.GetFloatProperty("m_flEnd")}");
+                node.AddText(string.Create(CultureInfo.InvariantCulture, $"InputBegin: {inputRange.GetFloatProperty("m_flBegin")} InputEnd: {inputRange.GetFloatProperty("m_flEnd")}"));
+                node.AddText(string.Create(CultureInfo.InvariantCulture, $"OutputBegin: {outputRange.GetFloatProperty("m_flBegin")} OutputEnd: {outputRange.GetFloatProperty("m_flEnd")}"));
             }
             else if (node.NodeType is "IDEventCondition")
             {
@@ -622,7 +623,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                 {
                     if (node.NodeType == "FloatMath")
                     {
-                        node.AddText($"{data.GetFloatProperty("m_flValueB"):f}");
+                        node.AddText(string.Create(CultureInfo.InvariantCulture, $"{data.GetFloatProperty("m_flValueB"):f}"));
                     }
                 }
             }
@@ -654,7 +655,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                     }
                     else
                     {
-                        node.AddText($"{data.GetFloatProperty("m_flComparisonValue"):f}");
+                        node.AddText(string.Create(CultureInfo.InvariantCulture, $"{data.GetFloatProperty("m_flComparisonValue"):f}"));
                     }
                 }
                 else if (node.NodeType is "FloatRangeComparison")
@@ -663,8 +664,8 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                     var inclusive = data.GetBooleanProperty("m_bIsInclusiveCheck");
 
                     node.AddText(inclusive
-                        ? $"{range.GetFloatProperty("m_flMin"):f} <= x <= {range.GetFloatProperty("m_flMax"):f}"
-                        : $"{range.GetFloatProperty("m_flMin"):f} < x < {range.GetFloatProperty("m_flMax"):f}");
+                        ? string.Create(CultureInfo.InvariantCulture, $"{range.GetFloatProperty("m_flMin"):f} <= x <= {range.GetFloatProperty("m_flMax"):f}")
+                        : string.Create(CultureInfo.InvariantCulture, $"{range.GetFloatProperty("m_flMin"):f} < x < {range.GetFloatProperty("m_flMax"):f}"));
                 }
                 else
                 {
@@ -707,7 +708,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                     {
                         node.AddText("Enabled: true");
                     }
-                    node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):f}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):f}"));
                     node.AddText($"Blend Mode: {data.GetStringProperty("m_blendMode")}");
                     node.AddText($"Worldspace: {data.GetBooleanProperty("m_bIsTargetInWorldSpace")}");
                 }
@@ -728,7 +729,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                         CreateInputAndChild<Value>(node, enabledNodeIdx, "Enabled");
                     }
 
-                    node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):F2}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):F2}"));
                     node.AddText($"Blend Mode: {data.GetStringProperty("m_blendMode")}");
                     node.AddText($"Worldspace: {data.GetBooleanProperty("m_bIsTargetInWorldSpace")}");
                 }
@@ -745,8 +746,8 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                     AddMaybeOptionalInput("Disable Hand IK", data.GetInt32Property("m_nDisableHandIKNodeIdx", -1));
                     AddMaybeOptionalInput("Crouch Weight", data.GetInt32Property("m_nCrouchWeightNodeIdx"));
 
-                    node.AddText($"Hand IK Blend In: {data.GetFloatProperty("m_flHandIKBlendInTimeSeconds"):F2}");
-                    node.AddText($"Action Blend Time: {data.GetFloatProperty("m_flActionBlendTimeSeconds"):F2}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Hand IK Blend In: {data.GetFloatProperty("m_flHandIKBlendInTimeSeconds"):F2}"));
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Action Blend Time: {data.GetFloatProperty("m_flActionBlendTimeSeconds"):F2}"));
                 }
                 else if (node.NodeType is "SnapWeapon")
                 {
@@ -781,7 +782,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                 else if (node.NodeType is "Clip")
                 {
                     node.AddSpace();
-                    node.AddText($"Speed: {data.GetFloatProperty("m_flSpeedMultiplier"):F2}x");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Speed: {data.GetFloatProperty("m_flSpeedMultiplier"):F2}x"));
                     node.AddText($"StartSyncEvent Offset: {data.GetInt32Property("m_nStartSyncEventOffset")}");
                     node.AddText($"Sample RootMotion: {data.GetBooleanProperty("m_bSampleRootMotion")}");
                     node.AddText($"Allow Looping: {data.GetBooleanProperty("m_bAllowLooping")}");
@@ -811,11 +812,11 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                     var timeRemapRange = data.GetSubCollection("m_inputTimeRemapRange");
                     var remapMin = timeRemapRange.GetFloatProperty("m_flMin");
                     var remapMax = timeRemapRange.GetFloatProperty("m_flMax");
-                    var remapMinDesc = remapMin == float.MaxValue ? "None" : $"{remapMin:f}";
-                    var remapMaxDesc = remapMax == float.MinValue ? "None" : $"{remapMax:f}";
+                    var remapMinDesc = remapMin == float.MaxValue ? "None" : string.Create(CultureInfo.InvariantCulture, $"{remapMin:f}");
+                    var remapMaxDesc = remapMax == float.MinValue ? "None" : string.Create(CultureInfo.InvariantCulture, $"{remapMax:f}");
 
                     node.AddText($"Remap: {remapMinDesc} - {remapMaxDesc}");
-                    node.AddText($"Const Time: {data.GetFloatProperty("m_flUserSpecifiedTime"):f}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Const Time: {data.GetFloatProperty("m_flUserSpecifiedTime"):f}"));
                     node.AddText($"Use frames: {data.GetBooleanProperty("m_bUseFramesAsInput")}");
                 }
 
@@ -895,7 +896,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
             }
         }
 
-        ProgressReporter?.Report($"Created {createdNodes.Count} nodes (out of {nodes.Count}) or {createdNodes.Count / (float)nodes.Count:P}.");
+        ProgressReporter?.Report(string.Create(CultureInfo.InvariantCulture, $"Created {createdNodes.Count} nodes (out of {nodes.Count}) or {createdNodes.Count / (float)nodes.Count:P}."));
     }
 
     private static string ValueKindLabel(AnimGraphValueKind kind) => kind switch

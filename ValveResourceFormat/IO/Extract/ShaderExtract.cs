@@ -1307,12 +1307,12 @@ public sealed class ShaderExtract
         {
             if (floatDefsCutOff <= intDefsCutOff)
             {
-                var defaults = string.Join(", ", param.FloatDefs[..^floatDefsCutOff]);
+                var defaults = string.Join(", ", param.FloatDefs[..^floatDefsCutOff].Select(static value => value.ToString(CultureInfo.InvariantCulture)));
                 annotations.Add($"{GetFuncName("Default", floatDefsCutOff)}({defaults});");
             }
             else
             {
-                var defaults = string.Join(", ", param.IntDefs[..^intDefsCutOff]);
+                var defaults = string.Join(", ", param.IntDefs[..^intDefsCutOff].Select(static value => value.ToString(CultureInfo.InvariantCulture)));
                 annotations.Add($"{GetFuncName("Default", intDefsCutOff)}({defaults});");
             }
         }
@@ -1336,14 +1336,14 @@ public sealed class ShaderExtract
         {
             if (floatRangeCutOff <= 3 && param.FloatMins[0] != -VfxVariableDescription.FloatInf)
             {
-                var mins = string.Join(", ", param.FloatMins[..^floatRangeCutOff]);
-                var maxs = string.Join(", ", param.FloatMaxs[..^floatRangeCutOff]);
+                var mins = string.Join(", ", param.FloatMins[..^floatRangeCutOff].Select(static value => value.ToString(CultureInfo.InvariantCulture)));
+                var maxs = string.Join(", ", param.FloatMaxs[..^floatRangeCutOff].Select(static value => value.ToString(CultureInfo.InvariantCulture)));
                 annotations.Add($"{GetFuncName("Range", floatRangeCutOff)}({mins}, {maxs});");
             }
             else
             {
-                var mins = string.Join(", ", param.IntMins[..^intRangeCutOff]);
-                var maxs = string.Join(", ", param.IntMaxs[..^intRangeCutOff]);
+                var mins = string.Join(", ", param.IntMins[..^intRangeCutOff].Select(static value => value.ToString(CultureInfo.InvariantCulture)));
+                var maxs = string.Join(", ", param.IntMaxs[..^intRangeCutOff].Select(static value => value.ToString(CultureInfo.InvariantCulture)));
                 annotations.Add($"{GetFuncName("Range", intRangeCutOff)}({mins}, {maxs});");
             }
         }
@@ -1352,7 +1352,7 @@ public sealed class ShaderExtract
 
         if (param.UiStep > 0f)
         {
-            annotations.Add($"UiStep({param.UiStep});");
+            annotations.Add(string.Create(CultureInfo.InvariantCulture, $"UiStep({param.UiStep});"));
         }
 
         if (param.UiType != UiType.None)
@@ -1422,7 +1422,7 @@ public sealed class ShaderExtract
             : string.Empty;
 
         var defaultValue = string.IsNullOrEmpty(param.DefaultInputTexture)
-            ? $"Default4({string.Join(", ", param.FloatDefs)})"
+            ? $"Default4({string.Join(", ", param.FloatDefs.Select(static value => value.ToString(CultureInfo.InvariantCulture)))})"
             : $"\"{param.DefaultInputTexture}\"";
 
         writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.MinPrecisionBits}, \"{param.InputProcessingCommand}\", \"{imageSuffix}\", \"{param.UiGroup}\", {defaultValue});");

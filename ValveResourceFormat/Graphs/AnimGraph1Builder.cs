@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
@@ -944,7 +945,7 @@ internal sealed class AnimGraph1Builder : IDisposable
         else if (paramObj.ContainsKey("m_fDefaultValue"))
         {
             var def = paramObj.GetFloatProperty("m_fDefaultValue");
-            result += $" (default: {def:F2})";
+            result += string.Create(CultureInfo.InvariantCulture, $" (default: {def:F2})");
         }
         else if (paramObj.ContainsKey("m_defaultValue"))
         {
@@ -1163,7 +1164,7 @@ internal sealed class AnimGraph1Builder : IDisposable
                                 var seqIdx = item.GetInt32Property("m_hSequence", -1);
                                 var seqDisplay = seqIdx >= 0 ? GetSequenceName(seqIdx) : "None";
                                 var pos = ParseVector2(item, "m_vPos");
-                                var label = $"Item {itemIdx} (Seq: {seqDisplay}) ({pos.x:F1}, {pos.y:F1})";
+                                var label = string.Create(CultureInfo.InvariantCulture, $"Item {itemIdx} (Seq: {seqDisplay}) ({pos.x:F1}, {pos.y:F1})");
                                 AddConnection(idx, label);
                             }
                         }
@@ -1243,7 +1244,7 @@ internal sealed class AnimGraph1Builder : IDisposable
                     {
                         var w = (weights != null && c < weights.Length) ? weights[c] : 1.0f;
                         var bt = (blendTimes != null && c < blendTimes.Length) ? blendTimes[c] : 0.0f;
-                        newConnections.Add((idx, $"Item {c} (W:{w:F2} BT:{bt:F2})"));
+                        newConnections.Add((idx, string.Create(CultureInfo.InvariantCulture, $"Item {c} (W:{w:F2} BT:{bt:F2})")));
                     }
                 }
                 connections = newConnections;
@@ -1329,7 +1330,7 @@ internal sealed class AnimGraph1Builder : IDisposable
     {
         var speedFunc = damping.GetStringProperty("m_speedFunction", "Unknown");
         var speedScale = damping.GetFloatProperty("m_fSpeedScale", 1.0f);
-        return $"{speedFunc} (scale {speedScale:F2})";
+        return string.Create(CultureInfo.InvariantCulture, $"{speedFunc} (scale {speedScale:F2})");
     }
 
     private Node CreateNode(GraphDocument document, KVObject compiledNode, int index)
@@ -1455,12 +1456,12 @@ internal sealed class AnimGraph1Builder : IDisposable
         {
             if (compiledNode.ContainsKey("m_duration"))
             {
-                node.AddText($"Duration: {compiledNode.GetFloatProperty("m_duration"):F2}");
+                node.AddText(string.Create(CultureInfo.InvariantCulture, $"Duration: {compiledNode.GetFloatProperty("m_duration"):F2}"));
             }
 
             if (compiledNode.ContainsKey("m_playbackSpeed"))
             {
-                node.AddText($"Speed: {compiledNode.GetFloatProperty("m_playbackSpeed"):F2}");
+                node.AddText(string.Create(CultureInfo.InvariantCulture, $"Speed: {compiledNode.GetFloatProperty("m_playbackSpeed"):F2}"));
             }
 
             if (compiledNode.ContainsKey("m_bLoop"))
@@ -1493,7 +1494,7 @@ internal sealed class AnimGraph1Builder : IDisposable
 
             if (compiledNode.ContainsKey("m_playbackSpeed"))
             {
-                node.AddText($"Playback Speed: {compiledNode.GetFloatProperty("m_playbackSpeed"):F2}");
+                node.AddText(string.Create(CultureInfo.InvariantCulture, $"Playback Speed: {compiledNode.GetFloatProperty("m_playbackSpeed"):F2}"));
             }
 
             if (compiledNode.ContainsKey("m_damping"))
@@ -1516,7 +1517,7 @@ internal sealed class AnimGraph1Builder : IDisposable
                     var seqDisplay = seqIdx >= 0 ? GetSequenceName(seqIdx) : "None";
                     var pos = ParseVector2(item, "m_vPos");
                     var dur = item.GetFloatProperty("m_flDuration");
-                    node.AddText($"  [{i}] Seq: {seqDisplay} ({pos.x:F1}, {pos.y:F1}) dur={dur:F2}s");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"  [{i}] Seq: {seqDisplay} ({pos.x:F1}, {pos.y:F1}) dur={dur:F2}s"));
                 }
             }
         }
@@ -1531,7 +1532,7 @@ internal sealed class AnimGraph1Builder : IDisposable
 
             if (compiledNode.ContainsKey("m_flRootMotionBlend"))
             {
-                node.AddText($"Root Motion Blend: {compiledNode.GetFloatProperty("m_flRootMotionBlend"):F2}");
+                node.AddText(string.Create(CultureInfo.InvariantCulture, $"Root Motion Blend: {compiledNode.GetFloatProperty("m_flRootMotionBlend"):F2}"));
             }
 
             if (compiledNode.ContainsKey("m_bUseBlendScale"))
@@ -1567,7 +1568,7 @@ internal sealed class AnimGraph1Builder : IDisposable
                 if (first.ContainsKey("m_blendDuration"))
                 {
                     var blend = first.GetSubCollection("m_blendDuration");
-                    node.AddText($"Blend Duration (first): {blend.GetFloatProperty("m_constValue"):F2}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Blend Duration (first): {blend.GetFloatProperty("m_constValue"):F2}"));
                 }
             }
         }
@@ -1671,12 +1672,12 @@ internal sealed class AnimGraph1Builder : IDisposable
 
                 if (settings.ContainsKey("m_flMaxYawAngle"))
                 {
-                    node.AddText($"Max Yaw Angle: {settings.GetFloatProperty("m_flMaxYawAngle"):F2}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Max Yaw Angle: {settings.GetFloatProperty("m_flMaxYawAngle"):F2}"));
                 }
 
                 if (settings.ContainsKey("m_flMaxPitchAngle"))
                 {
-                    node.AddText($"Max Pitch Angle: {settings.GetFloatProperty("m_flMaxPitchAngle"):F2}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Max Pitch Angle: {settings.GetFloatProperty("m_flMaxPitchAngle"):F2}"));
                 }
 
                 AddIndexedName(node, settings, "m_nBoneMaskIndex", "Bone Mask", GetWeightListName);
@@ -1693,12 +1694,12 @@ internal sealed class AnimGraph1Builder : IDisposable
 
                 if (settings.ContainsKey("m_flBiasAndClampYawOffset"))
                 {
-                    node.AddText($"Bias/Clamp Yaw Offset: {settings.GetFloatProperty("m_flBiasAndClampYawOffset"):F2}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Bias/Clamp Yaw Offset: {settings.GetFloatProperty("m_flBiasAndClampYawOffset"):F2}"));
                 }
 
                 if (settings.ContainsKey("m_flBiasAndClampPitchOffset"))
                 {
-                    node.AddText($"Bias/Clamp Pitch Offset: {settings.GetFloatProperty("m_flBiasAndClampPitchOffset"):F2}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Bias/Clamp Pitch Offset: {settings.GetFloatProperty("m_flBiasAndClampPitchOffset"):F2}"));
                 }
 
                 if (settings.ContainsKey("m_biasAndClampBlendCurve"))
@@ -1706,7 +1707,7 @@ internal sealed class AnimGraph1Builder : IDisposable
                     var curve = settings.GetSubCollection("m_biasAndClampBlendCurve");
                     var cp1 = curve.GetFloatProperty("m_flControlPoint1", 0f);
                     var cp2 = curve.GetFloatProperty("m_flControlPoint2", 1f);
-                    node.AddText($"Bias/Clamp Curve: ({cp1:F2}, {cp2:F2})");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Bias/Clamp Curve: ({cp1:F2}, {cp2:F2})"));
                 }
             }
         }
@@ -1762,17 +1763,17 @@ internal sealed class AnimGraph1Builder : IDisposable
 
                 if (poseData.ContainsKey("m_flBlendTime"))
                 {
-                    node.AddText($"Blend Time: {poseData.GetFloatProperty("m_flBlendTime"):F2}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Blend Time: {poseData.GetFloatProperty("m_flBlendTime"):F2}"));
                 }
 
                 if (poseData.ContainsKey("m_flLockBreakDistance"))
                 {
-                    node.AddText($"Lock Break Distance: {poseData.GetFloatProperty("m_flLockBreakDistance"):F2}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Lock Break Distance: {poseData.GetFloatProperty("m_flLockBreakDistance"):F2}"));
                 }
 
                 if (poseData.ContainsKey("m_flMaxLegTwist"))
                 {
-                    node.AddText($"Max Leg Twist: {poseData.GetFloatProperty("m_flMaxLegTwist"):F2}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Max Leg Twist: {poseData.GetFloatProperty("m_flMaxLegTwist"):F2}"));
                 }
 
                 AddIndexedName(node, poseData, "m_nHipBoneIndex", "Hip Bone", GetBoneName);
@@ -1830,17 +1831,17 @@ internal sealed class AnimGraph1Builder : IDisposable
 
                             if (foot.ContainsKey("m_flMaxIKLength"))
                             {
-                                footLines.Add($"Max IK Length: {foot.GetFloatProperty("m_flMaxIKLength"):F2}");
+                                footLines.Add(string.Create(CultureInfo.InvariantCulture, $"Max IK Length: {foot.GetFloatProperty("m_flMaxIKLength"):F2}"));
                             }
 
                             if (foot.ContainsKey("m_flMaxRotationLeft"))
                             {
-                                footLines.Add($"Max Rotation Left: {foot.GetFloatProperty("m_flMaxRotationLeft"):F2}");
+                                footLines.Add(string.Create(CultureInfo.InvariantCulture, $"Max Rotation Left: {foot.GetFloatProperty("m_flMaxRotationLeft"):F2}"));
                             }
 
                             if (foot.ContainsKey("m_flMaxRotationRight"))
                             {
-                                footLines.Add($"Max Rotation Right: {foot.GetFloatProperty("m_flMaxRotationRight"):F2}");
+                                footLines.Add(string.Create(CultureInfo.InvariantCulture, $"Max Rotation Right: {foot.GetFloatProperty("m_flMaxRotationRight"):F2}"));
                             }
 
                             node.AddText($"  [{i}] {string.Join(", ", footLines)}");
