@@ -16,7 +16,7 @@ namespace GUI.Types.GLViewers;
 
 internal abstract class GLBaseControl : IDisposable, IMessageFilter
 {
-    protected RendererControl? UiControl;
+    protected internal RendererControl? UiControl;
 
     protected OpenTK.Windowing.Desktop.NativeWindow? GLNativeWindow;
 
@@ -452,6 +452,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         }
 
         NativeWindowFactory.Destroy(GLNativeWindow);
+        GraphicsContext = null;
         RendererContext.Dispose();
     }
 
@@ -797,7 +798,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     private void OnGlControlPaint(object? sender, EventArgs e) => AttachToRenderLoop();
 
-    private void AttachToRenderLoop()
+    internal void AttachToRenderLoop()
     {
         if (!RenderLoopThread.IsCurrentGLControl(this))
         {
@@ -816,18 +817,15 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         if (this is GLSceneViewer viewer)
         {
-            RendererContext.FieldOfView = Settings.Config.FieldOfView;
             RendererContext.ViewmodelFieldOfView = Settings.Config.ViewmodelFieldOfView;
-            viewer.Renderer.Camera.FieldOfView = Settings.Config.FieldOfView;
-            viewer.Renderer.Camera.CreateProjectionMatrix();
-
-            // The input camera frames objects using its own field of view, so it follows the setting too
-            viewer.Input.Camera.FieldOfView = Settings.Config.FieldOfView;
-            viewer.Input.Camera.CreateProjectionMatrix();
+            viewer.SetFieldOfView(Settings.Config.FieldOfView);
         }
     }
 
     protected bool ShouldResize;
+
+    /// <summary>How many frames have been painted, presented or not.</summary>
+    public long PaintedFrames { get; private set; }
 
     protected bool SkipBufferSwap;
 
@@ -929,6 +927,15 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             };
             GLNativeWindow = NativeWindowFactory.Create(settings);
 
+            // Showing a GLFW window also focuses it, which takes the foreground when Windows allows it
+            if (Automation.Automation.IsEnabled)
+            {
+                unsafe
+                {
+                    OpenTK.Windowing.GraphicsLibraryFramework.GLFW.SetWindowAttrib(GLNativeWindow.WindowPtr, OpenTK.Windowing.GraphicsLibraryFramework.WindowAttribute.FocusOnShow, false);
+                }
+            }
+
             GLNativeWindow.Context.MakeNoneCurrent();
         });
 
@@ -996,6 +1003,12 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         );
 
         MainFramebuffer.Initialize();
+
+        // Every frame automation draws has to show full resolution textures, so captures are comparable
+        if (Automation.Automation.IsEnabled)
+        {
+            RendererContext.TextureStreaming.Mode = ValveResourceFormat.Renderer.Materials.TextureStreamingMode.Immediate;
+        }
 
         OnGLLoad();
 
@@ -1068,7 +1081,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         }
 
 #if DEBUG
-        if (type == DebugType.DebugTypeError && source != DebugSource.DebugSourceShaderCompiler)
+        // Without a debugger to catch it, breaking would stop an agent driving the viewer at a system dialog
+        if (type == DebugType.DebugTypeError && source != DebugSource.DebugSourceShaderCompiler && !Automation.Automation.IsEnabled)
         {
             Debugger.Break();
         }
@@ -1144,6 +1158,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         OnUpdate(frameTime);
 
         OnPaint(frameTime);
+        PaintedFrames++;
 
         if (SkipBufferSwap)
         {
@@ -1179,15 +1194,10 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         //
     }
 
-    public GLLockScope MakeCurrent()
-    {
-        if (GraphicsContext == null)
-        {
-            throw new InvalidOperationException("Cannot acquire GLLockScope without a valid GLNativeWindow.");
-        }
+    public GLLockScope MakeCurrent() => new(glLock, () => GraphicsContext ?? throw new InvalidOperationException("Cannot acquire GLLockScope without a valid GLNativeWindow."));
 
-        return new GLLockScope(glLock, GraphicsContext);
-    }
+    /// <summary>Releases the context that a frame which threw left current on the calling thread.</summary>
+    internal void EndFailedFrame() => GraphicsContext?.End();
 
     static bool loadedBindings;
     private static void LoadOpenGLBindings()
@@ -1196,7 +1206,11 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         GL.LoadBindings(provider);
     }
 
-    protected virtual SkiaSharp.SKBitmap? ReadPixelsToBitmap()
+    /// <summary>Captures what the viewer exports as an image, which by default is the frame the window shows.</summary>
+    protected internal virtual SkiaSharp.SKBitmap? ReadPixelsToBitmap() => ReadWindowPixels();
+
+    /// <summary>Reads back the frame as the window shows it.</summary>
+    internal SkiaSharp.SKBitmap? ReadWindowPixels()
     {
         if (GLDefaultFramebuffer is null)
         {

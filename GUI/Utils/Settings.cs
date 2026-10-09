@@ -154,18 +154,10 @@ namespace GUI.Utils
             {
                 Log.Error(nameof(Settings), $"Failed to parse '{SettingsFilePath}', is it corrupted?{Environment.NewLine}{e}");
 
-                try
+                // A run driven by automation keeps settings in memory and leaves the file alone
+                if (!Automation.Automation.IsEnabled)
                 {
-                    var corruptedPath = Path.ChangeExtension(SettingsFilePath, $".corrupted-{DateTimeOffset.Now.ToUnixTimeSeconds()}.txt");
-                    File.Move(SettingsFilePath, corruptedPath);
-
-                    Log.Error(nameof(Settings), $"Corrupted '{Path.GetFileName(SettingsFilePath)}' has been renamed to '{Path.GetFileName(corruptedPath)}'.");
-
-                    Save();
-                }
-                catch
-                {
-                    //
+                    SetAsideCorruptedFile();
                 }
             }
 
@@ -329,11 +321,34 @@ namespace GUI.Utils
             Config._VERSION_DO_NOT_MODIFY = SettingsFileCurrentVersion;
         }
 
+        private static void SetAsideCorruptedFile()
+        {
+            try
+            {
+                var corruptedPath = Path.ChangeExtension(SettingsFilePath, $".corrupted-{DateTimeOffset.Now.ToUnixTimeSeconds()}.txt");
+                File.Move(SettingsFilePath, corruptedPath);
+
+                Log.Error(nameof(Settings), $"Corrupted '{Path.GetFileName(SettingsFilePath)}' has been renamed to '{Path.GetFileName(corruptedPath)}'.");
+
+                Save();
+            }
+            catch
+            {
+                //
+            }
+        }
+
         /// <summary>
         /// Serializes the current <see cref="Config"/> to disk, writing atomically via a temp file.
+        /// A run driven by automation keeps every change in memory instead.
         /// </summary>
         public static void Save()
         {
+            if (Automation.Automation.IsEnabled)
+            {
+                return;
+            }
+
             var tempFile = Path.GetTempFileName();
 
             using (var stream = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None))
@@ -351,6 +366,11 @@ namespace GUI.Utils
         /// <param name="path">The absolute file path to record as recently opened.</param>
         public static void TrackRecentFile(string path)
         {
+            if (Automation.Automation.IsEnabled)
+            {
+                return;
+            }
+
             Config.RecentFiles.Remove(path);
             Config.RecentFiles.Add(path);
 

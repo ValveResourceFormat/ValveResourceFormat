@@ -12,6 +12,7 @@ using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.Utils;
 using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
@@ -24,7 +25,7 @@ namespace GUI.Types.GLViewers
         public ValveResourceFormat.Renderer.TextRenderer TextRenderer { get; protected set; }
         private readonly CrosshairRenderer crosshairRenderer;
 
-        protected PickingTexture? Picker { get; set; }
+        protected internal PickingTexture? Picker { get; protected set; }
 
         protected QuadOverdraw? QuadOverdrawRenderer { get; set; }
 
@@ -78,7 +79,7 @@ namespace GUI.Types.GLViewers
         private int renderModeCurrentIndex;
         private ComboBox? renderModeComboBox;
         private InfiniteGrid? baseGrid;
-        protected SelectedNodeRenderer? SelectedNodeRenderer;
+        protected internal SelectedNodeRenderer? SelectedNodeRenderer;
 
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
@@ -276,7 +277,56 @@ namespace GUI.Types.GLViewers
 
         protected abstract void LoadScene();
 
+        /// <summary>Collects the per frame counters even while the performance overlay does not show them.</summary>
+        internal bool CapturePerfStats { get; set; }
+
         protected abstract void OnPicked(object? sender, PickingTexture.PickingResponse pixelInfo);
+
+        /// <summary>Sets the field of view of the rendered camera, and of the input camera that frames objects with it.</summary>
+        internal void SetFieldOfView(float fieldOfView)
+        {
+            RendererContext.FieldOfView = fieldOfView;
+            Renderer.Camera.FieldOfView = fieldOfView;
+            Renderer.Camera.CreateProjectionMatrix();
+            Input.Camera.FieldOfView = fieldOfView;
+            Input.Camera.CreateProjectionMatrix();
+        }
+
+        internal static AABB SelectionBounds(SceneNode node)
+        {
+            var bbox = node.BoundingBox;
+            var maxSpan = bbox.Size.MaxComponent();
+
+            // Empty or degenerate bounds (e.g. a particle system that finished playing)
+            // would put the camera inside the node or at a garbage position.
+            if (!float.IsFinite(maxSpan) || maxSpan < 1f)
+            {
+                bbox = PointBounds(node.Transform.Translation);
+            }
+
+            // Bounds of a 3D sky node are mapped to where the sky appears in the world
+            return bbox.Transform(node.Scene.ToViewerWorld);
+        }
+
+        internal static AABB PointBounds(Vector3 point) => new(point - new Vector3(32f), point + new Vector3(32f));
+
+        internal void FocusCameraOnBounds(in AABB bbox)
+        {
+            var center = bbox.Center;
+
+            var size = bbox.Size * 1.25f;
+
+            // Framed by what the bounds cover from where the camera will be: their longest axis would
+            // stand a cable or a trigger brush off by its own length. The floor keeps something player
+            // sized from filling the view with nothing around it to place it by.
+            var framing = Input.Camera.GetFramingDistance(size, -CameraPlacement.PreferredDirection(size));
+            var distance = Math.Max(framing, 192f);
+            var location = CameraPlacement.FindOrbitPosition(Renderer.EntitySystem.PhysicsWorld, center, distance, size);
+
+            Input.SaveCameraForTransition();
+            Input.Camera.SetLocation(location);
+            Input.Camera.LookAt(center);
+        }
 
         protected override void OnResize(int w, int h)
         {
@@ -649,7 +699,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(Picker != null);
             Debug.Assert(SelectedNodeRenderer != null);
 
-            Renderer.PerfStats.Capture = perfDisplay == PerfDisplay.Stats;
+            Renderer.PerfStats.Capture = perfDisplay == PerfDisplay.Stats || CapturePerfStats;
             Renderer.PerfStats.Timings.Capture = perfDisplay == PerfDisplay.Timings;
             Renderer.PerfStats.Allocations.Capture = perfDisplay == PerfDisplay.Allocations;
 
@@ -666,10 +716,18 @@ namespace GUI.Types.GLViewers
 
             using (new GLDebugGroup("Update Loop"))
             {
+                var timestep = frameTime;
+
+#if DEBUG
+                // Automation can hold the simulation still or step it by exact amounts, and then holds
+                // the dither still too, so that identical frames are identical to the pixel
+                Renderer.Postprocess.AnimateDither = !Automation.AutomationClock.Advance(ref timestep);
+#endif
+
                 var updateContext = new Scene.UpdateContext
                 {
                     TextRenderer = TextRenderer,
-                    Timestep = frameTime,
+                    Timestep = timestep,
                     Camera = Renderer.Camera,
                 };
 

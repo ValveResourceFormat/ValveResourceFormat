@@ -1117,7 +1117,7 @@ namespace GUI.Types.GLViewers
         /// assumes. Rasterizes the whole graph, independent of the viewport and its zoom, at native
         /// size unless that would put the long edge past 8192 px.
         /// </summary>
-        protected override SKBitmap ReadPixelsToBitmap()
+        protected internal override SKBitmap ReadPixelsToBitmap()
         {
             var bounds = View.GetGraphBounds();
 

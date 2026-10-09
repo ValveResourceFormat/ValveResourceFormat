@@ -60,7 +60,9 @@ namespace GUI
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
-            if (args.Length > 0 && Ipc.TryForwardToExistingInstance(args))
+            Automation.Automation.TakeSwitch(ref args);
+
+            if (args.Length > 0 && !Automation.Automation.IsEnabled && Ipc.TryForwardToExistingInstance(args))
             {
                 return;
             }
@@ -120,11 +122,22 @@ namespace GUI
         private static void UnhandledException(object sender, UnhandledExceptionEventArgs ex)
         {
             ShowError((Exception)ex.ExceptionObject);
+
+            // The process would end here, and with it the report the agent driving the viewer reads
+            if (Automation.Automation.IsEnabled)
+            {
+                Thread.Sleep(Timeout.Infinite);
+            }
         }
 
         public static void ShowError(Exception exception)
         {
             Log.Error(nameof(Program), exception.ToString());
+
+            if (Automation.Automation.TryReportUnhandledException(exception))
+            {
+                return;
+            }
 
             if (exception is ValveResourceFormat.Renderer.Shaders.ShaderLoader.ShaderCompilerException)
             {

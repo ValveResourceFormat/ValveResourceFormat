@@ -433,6 +433,20 @@ public class UserInput
         TransitionEndTime = -1f;
     }
 
+    /// <summary>
+    /// Shows the camera where it is placed at once: cancels a transition that is running, and leaves
+    /// walk mode, which would otherwise move it back to the player.
+    /// </summary>
+    public void EndTransition()
+    {
+        WalkMode = false;
+        TransitionEndTime = -1f;
+
+        // Nothing is moving the mouse over the viewport, and without a tick the render camera would
+        // keep showing the pose the view was left at.
+        ForceUpdate = true;
+    }
+
     private void TransitionCamera(float transitionDuration = 1.5f)
     {
         StartingCamera = GetInterpolatedCamera();

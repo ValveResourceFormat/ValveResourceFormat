@@ -211,9 +211,10 @@ partial class RendererControl : UserControl
         return selectionControl;
     }
 
-    public GLViewerSliderControl AddTrackBar(Action<float> changeCallback, float defaultValue = 0f)
+    public GLViewerSliderControl AddTrackBar(string name, Action<float> changeCallback, float defaultValue = 0f)
     {
         var trackBar = new GLViewerSliderControl();
+        trackBar.Slider.AccessibleName = name;
         trackBar.Slider.Value = defaultValue;
         trackBar.Slider.ValueChanged = changeCallback;
 

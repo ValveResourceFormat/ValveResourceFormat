@@ -1626,6 +1626,14 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Gets whether the layers given to <see cref="SetEnabledLayers"/> let nodes of a layer be drawn. Internal layers
+        /// are switched one at a time instead, so they count as off.
+        /// </summary>
+        /// <param name="layerName">The layer name of a node.</param>
+        public bool IsLayerEnabled(string? layerName)
+            => enabledLayers == null || (layerName != null && !layerName.StartsWith("Internal -", StringComparison.Ordinal) && enabledLayers.Contains(layerName));
+
         private void ApplyLayerVisibility(SceneNode node)
         {
             if (enabledLayers == null)

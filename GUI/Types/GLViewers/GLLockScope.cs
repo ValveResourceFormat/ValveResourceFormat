@@ -10,12 +10,21 @@ public readonly ref struct GLLockScope
 #pragma warning restore CA2213 // Ref structs implicitly have Dispose method and do not implement the IDisposable interface
     private readonly GraphicsContext context;
 
-    public GLLockScope(Lock glLock, GraphicsContext context)
+    /// <param name="context">Gives the context once the lock is held, so that it cannot be disposed in between.</param>
+    public GLLockScope(Lock glLock, Func<GraphicsContext> context)
     {
         lockScope = glLock.EnterScope();
-        this.context = context;
 
-        context.Begin();
+        try
+        {
+            this.context = context();
+            this.context.Begin();
+        }
+        catch
+        {
+            lockScope.Dispose();
+            throw;
+        }
     }
 
     public readonly void Dispose()

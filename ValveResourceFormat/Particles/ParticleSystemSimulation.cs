@@ -12,6 +12,7 @@ using ValveResourceFormat.Particles.Operators;
 using ValveResourceFormat.Particles.PreEmissionOperators;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles
 {
@@ -281,6 +282,7 @@ namespace ValveResourceFormat.Particles
             SetupFunctions(Functions("m_PreEmissionOperators"), ParticleControllerFactory.TryCreatePreEmissionOperator, preEmissionOperators, "pre-emission operator");
 
             SetupChildParticles(Functions("m_Children"));
+            SeedRandom(unchecked((int)StringToken.Get(Name)));
 
             CalculateBounds();
         }
@@ -303,6 +305,42 @@ namespace ValveResourceFormat.Particles
         public void SetDetailLevel(ParticleDetailLevel level)
         {
             systemState.DetailLevel = level;
+        }
+
+        /// <summary>
+        /// Seeds this system and its children and starts their draws over. As the engine does with a
+        /// given seed, each child takes the seed 129 above the one before it, and this system the one
+        /// after its last child. The engine seeds a new system from the clock; here it is seeded from its
+        /// name, so instances of one effect play out alike unless each is seeded apart, such as from
+        /// where it is placed.
+        /// </summary>
+        /// <param name="seed">Any value, of which the low 12 bits are used.</param>
+        public void SeedRandom(int seed)
+        {
+            foreach (var child in childSimulations)
+            {
+                seed = unchecked(seed + 129);
+                child.SeedRandom(seed);
+            }
+
+            systemState.Random.Start(seed);
+        }
+
+        /// <summary>
+        /// Fixes the seed this system and its children start over from each time they replay, so every
+        /// replay plays out the same, with the children's seeds stepped as <see cref="SeedRandom"/> does.
+        /// Takes effect at the next replay.
+        /// </summary>
+        /// <param name="seed">The seed, or null to let each replay run on from the last as the engine does.</param>
+        public void PinRandomSeed(int? seed)
+        {
+            foreach (var child in childSimulations)
+            {
+                seed = unchecked(seed + 129);
+                child.PinRandomSeed(seed);
+            }
+
+            systemState.Random.Pin(seed);
         }
 
         /// <summary>The systems this one runs as children, in definition order.</summary>

@@ -29,7 +29,7 @@ namespace GUI.Types.GLViewers
 
         // Order matches the CS2 particle editor (PET): pre-emission first, then emit/init/operate,
         // forces, constraints, and renderers last.
-        private static readonly (string Title, string ListName, Func<string, bool> IsSupported)[] FunctionGroups =
+        internal static readonly (string Title, string ListName, Func<string, bool> IsSupported)[] FunctionGroups =
         [
             ("Pre-Emission Operators", "m_PreEmissionOperators", ParticleSupportInfo.IsPreEmissionOperatorSupported),
             ("Emitters", "m_Emitters", ParticleSupportInfo.IsEmitterSupported),
@@ -40,9 +40,9 @@ namespace GUI.Types.GLViewers
             ("Renderers", "m_Renderers", ParticleRendererFactory.IsSupported),
         ];
 
-        private readonly ParticleSystem particleSystem;
+        internal readonly ParticleSystem particleSystem;
         private readonly ParticleSnapshot? particleSnapshot;
-        private IReadOnlyDictionary<string, IReadOnlyList<ParticleUpgradeTrace.TracedFunction>>? functionLists;
+        internal IReadOnlyDictionary<string, IReadOnlyList<ParticleUpgradeTrace.TracedFunction>>? functionLists;
         private ParticleSceneNode? particleSceneNode;
         private GLViewerSliderControl? slowmodeTrackBar;
         private ThemedButton? restartButton;
@@ -212,7 +212,7 @@ namespace GUI.Types.GLViewers
                 UiControl.AddControl(pauseButton);
                 UiControl.AddControl(endCapButton);
 
-                slowmodeTrackBar = UiControl.AddTrackBar(value =>
+                slowmodeTrackBar = UiControl.AddTrackBar("Speed", value =>
                 {
                     particleSceneNode?.FrametimeMultiplier = value;
                 }, particleSceneNode?.FrametimeMultiplier ?? 1f);
