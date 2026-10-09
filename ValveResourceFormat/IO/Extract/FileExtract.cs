@@ -473,9 +473,10 @@ namespace ValveResourceFormat.IO
             {
                 case ResourceType.Texture:
                 {
-                    if (IsChildResource(resource))
+                    var texture = (Texture)resource.DataBlock!;
+
+                    if (IsChildResource(resource) || texture.IsRawAnyImage)
                     {
-                        var texture = (Texture)resource.DataBlock!;
                         return TextureExtract.GetImageOutputExtension(texture);
                     }
 
