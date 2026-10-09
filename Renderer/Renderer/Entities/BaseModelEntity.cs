@@ -209,4 +209,25 @@ public abstract class BaseModelEntity : BaseEntity
 
         node.Alpha = MathUtils.Saturate(alpha / 255f);
     }
+
+    /// <summary>
+    /// Lights the model as if it stood at the named entity, HL:A's <c>InputLightingOrigin</c>. The position is
+    /// taken once, so the model does not follow that entity around.
+    /// </summary>
+    [EntityInput("LightingOrigin")]
+    protected void InputLightingOrigin(EntityInputData data)
+    {
+        if (ModelNode is not { } node || string.IsNullOrEmpty(data.Parameter))
+        {
+            return;
+        }
+
+        if (EntitySystem.FindByTargetName(data.Parameter) is not { } origin)
+        {
+            return;
+        }
+
+        node.LightingOrigin = origin.WorldOrigin;
+        Scene.UpdateNodeEnvironmentMaps(node);
+    }
 }
