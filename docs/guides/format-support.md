@@ -152,9 +152,8 @@ What a recompiled model will be missing:
 
 Models and maps export to glTF 2.0 (`.glb`/`.gltf`) with meshes, up to 8 bone weights per
 vertex, morph targets, skeletal/additive/morph animations, PBR-approximated materials with
-ORM repacking, and collision shapes as a separate `<name>_physics` file. For a single
-model the physics file is only written when the collision data is embedded in the model; a
-model that references an external `.vphys_c` exports without one (map exports handle both).
+ORM repacking, and collision shapes as a separate `<name>_physics` file, whether the collision
+is embedded in the model or in a referenced `.vphys_c`.
 
 | What                       | Why               | Details                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -351,7 +351,7 @@ namespace ValveResourceFormat.IO
 
             WriteModelFile(exportedModel, fileName);
 
-            var phys = model.GetEmbeddedPhys();
+            var phys = GetModelPhysics(model);
             if (phys != null)
             {
                 string? physFileName = null;
@@ -365,6 +365,25 @@ namespace ValveResourceFormat.IO
 
                 ExportToFile(resourceName, physFileName, phys);
             }
+        }
+
+        /// <summary>
+        /// Gets a model's physics, embedded or from the first physics file it references.
+        /// </summary>
+        private PhysAggregateData? GetModelPhysics(VModel model)
+        {
+            if (model.GetEmbeddedPhys() is { } phys)
+            {
+                return phys;
+            }
+
+            if (model.GetReferencedPhysNames()?.FirstOrDefault() is not { } physicsPath)
+            {
+                return null;
+            }
+
+            using var physicsResource = FileLoader.LoadFileCompiled(physicsPath);
+            return physicsResource?.DataBlock as PhysAggregateData;
         }
 
         /// <summary>

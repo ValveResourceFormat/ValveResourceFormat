@@ -170,20 +170,7 @@ public partial class GltfModelExporter
             LoadModel(exportedModel, scene, model, Path.GetFileNameWithoutExtension(modelName),
                 transform, tintColor, skinName, entity);
 
-            var phys = model.GetEmbeddedPhys();
-            if (phys == null)
-            {
-                var refPhysicsPaths = model.GetReferencedPhysNames().ToArray();
-                if (refPhysicsPaths.Length != 0)
-                {
-                    var newResource = FileLoader.LoadFileCompiled(refPhysicsPaths.First());
-                    if (newResource?.DataBlock is PhysAggregateData physFile)
-                    {
-                        phys = physFile;
-                    }
-                }
-            }
-
+            var phys = GetModelPhysics(model);
             if (phys != null)
             {
                 PhysicsToExport.Add((phys, className, transform));
