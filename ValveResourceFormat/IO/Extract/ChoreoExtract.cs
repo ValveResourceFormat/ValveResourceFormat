@@ -47,7 +47,7 @@ public class ChoreoExtract
             var kv = scene.ToKeyValues();
 
             vcdlist.AddSubFile(
-                Path.GetFileName(scene.Name) ?? "choreo_scene.vcd",
+                scene.Name ?? "choreo_scene.vcd",
                 () => Encoding.UTF8.GetBytes(kv.ToKV3String())
             );
         }
