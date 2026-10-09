@@ -47,11 +47,28 @@ public class ChoreoExtract
             var kv = scene.ToKeyValues();
 
             vcdlist.AddSubFile(
-                scene.Name ?? "choreo_scene.vcd",
+                GetScenePath(scene.Name),
                 () => Encoding.UTF8.GetBytes(kv.ToKV3String())
             );
         }
 
         return vcdlist;
+    }
+
+    private static string GetScenePath(string? sceneName)
+    {
+        if (string.IsNullOrEmpty(sceneName))
+        {
+            return "choreo_scene.vcd";
+        }
+
+        var path = sceneName.Replace('\\', '/');
+
+        if (Path.IsPathRooted(path) || Array.IndexOf(path.Split('/'), "..") >= 0)
+        {
+            return Path.GetFileName(path);
+        }
+
+        return path;
     }
 }
