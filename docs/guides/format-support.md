@@ -183,7 +183,7 @@ quads) with real
 per-face texture projection, static props with their original properties, material overrides and vertex
 paint/vertex lighting buffers, aggregate props
 split back into individual entities, clutter (such as compiled detail props) as clutter instance static props,
-world layers, overlays, and per-surface-property
+world layers, overlays (also from merged overlay meshes), and per-surface-property
 physics geometry for collision that has no matching render mesh.
 
 Data that was already destroyed by the map compiler, and therefore cannot come back:
