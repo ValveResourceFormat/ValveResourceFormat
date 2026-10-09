@@ -23,6 +23,11 @@ internal sealed partial class ClothExtract
     {
         softbody.Add("motion_smooth_cdt", cloth.Fe.MotionSmoothCdt);
 
+        if (IsEmptyCloth(cloth))
+        {
+            softbody.Add("cloth_enable_empty_model", true);
+        }
+
         if ((cloth.Fe.DynamicNodeFlags & ClothFlagPerBoneScaleEnabled) != 0)
         {
             softbody.Add("cloth_per_bone_scale_enabled", true);

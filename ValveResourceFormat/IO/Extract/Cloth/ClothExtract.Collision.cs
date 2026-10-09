@@ -9,7 +9,16 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    /// <summary>Declares the cloth collision shapes and returns the names it gave them, in declaration order.</summary>
+    /// <summary>
+    /// The margin a signed distance field grows its mesh bounds by. The compiled grid does not keep it, and shipped
+    /// fields use this value.
+    /// </summary>
+    private const float ClothSdfMargin = 0.5f;
+
+    /// <summary>
+    /// Declares the cloth collision shapes and returns the names it gave them, in declaration order. Shapes go in
+    /// control node order, which a model with only static nodes numbers from the last declared shape backwards.
+    /// </summary>
     internal static List<string> AddClothCollisionShapes(KVObject softbodyChildren, ClothReconstruction cloth)
     {
         var names = new List<string>();
@@ -22,10 +31,24 @@ internal sealed partial class ClothExtract
                 .Select(s => (s.Priority, Node: ParentBoneNode(cloth, s.ParentBone), Shape: MakeClothShapeSphere(s))),
             shapes.Boxes
                 .Select(b => (b.Priority, Node: ParentBoneNode(cloth, b.ParentBone), Shape: MakeClothShapeBox(b))),
+            shapes.Sdfs
+                .Select(s => (s.Priority, Node: ParentBoneNode(cloth, s.ParentBone), Shape: MakeClothShapeSdf(s))),
         }
         .SelectMany(static entries => entries.GroupBy(static entry => entry.Priority)
             .Select(static group => group.Select(static entry => (entry.Node, entry.Shape)).ToList()))
         .ToArray();
+
+        var emptyCloth = IsEmptyCloth(cloth);
+
+        if (emptyCloth)
+        {
+            foreach (var kind in kinds)
+            {
+                kind.Reverse();
+            }
+        }
+
+        int MergeKey(int node) => emptyCloth && node != int.MaxValue ? -node : node;
 
         var taken = new int[kinds.Length];
         while (true)
@@ -34,7 +57,7 @@ internal sealed partial class ClothExtract
             for (var kind = 0; kind < kinds.Length; kind++)
             {
                 if (taken[kind] < kinds[kind].Count
-                    && (next < 0 || kinds[kind][taken[kind]].Node < kinds[next][taken[next]].Node))
+                    && (next < 0 || MergeKey(kinds[kind][taken[kind]].Node) < MergeKey(kinds[next][taken[next]].Node)))
                 {
                     next = kind;
                 }
@@ -175,7 +198,6 @@ internal sealed partial class ClothExtract
     {
         var node = MakeClothShape("ClothShapeBox", box.Planarize ? "_clothPlanarizedBox" : "_clothBox", box.ParentBone,
             box.CollisionMask, box.Priority, box.VertexMap, box.Inverted, box.Planarize);
-        node.Add("recenter_on_parent_bone", false);
         node.Add("origin", ToKVArray(box.Origin));
         node.Add("angles", ToKVArray(EntityTransformHelper.ToEulerAngles(box.Rotation)));
         node.Add("dimensions", ToKVArray(box.Size * 2f));
@@ -201,6 +223,19 @@ internal sealed partial class ClothExtract
         node.Add("center", ToKVArray(sphere.Center));
         return node;
     }
+
+    private static KVObject MakeClothShapeSdf(CollisionSdf sdf)
+    {
+        var node = MakeClothShape("ClothShapeSDF", "_clothSDF", sdf.ParentBone, sdf.CollisionMask, sdf.Priority,
+            sdf.VertexMap, sdf.Inverted, planarize: false);
+        node["bounciness"] = sdf.Bounciness;
+        node.Add("res_width", sdf.Resolution);
+        node.Add("margin", ClothSdfMargin);
+        return node;
+    }
+
+    /// <summary>Gets whether the cloth has no simulated nodes, only static nodes carrying collision shapes.</summary>
+    internal static bool IsEmptyCloth(ClothReconstruction cloth) => cloth.Fe.NodeCount > 0 && cloth.Fe.NodeCount == cloth.Fe.StaticNodes;
 
     /// <summary>The keys every cloth collision shape carries ahead of its geometry. A zero mask means all layers.</summary>
     private static KVObject MakeClothShape(string className, string nameSuffix, string? parentBone, int collisionMask,

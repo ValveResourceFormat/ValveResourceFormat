@@ -39,7 +39,7 @@ namespace ValveResourceFormat.IO
     /// <summary>Every collision shape recovered from the cloth, and the bones they hang off.</summary>
     internal sealed record ClothCollisionShapes(IReadOnlyList<CollisionCapsule> Capsules, IReadOnlyList<CollisionSphere> Spheres,
         IReadOnlyList<CollisionBox> Boxes, IReadOnlyList<CollisionCapsule> PlanarizedCapsules,
-        IReadOnlyList<CollisionBox> PlanarizedBoxes, IReadOnlySet<string> ParentBones);
+        IReadOnlyList<CollisionBox> PlanarizedBoxes, IReadOnlyList<CollisionSdf> Sdfs, IReadOnlySet<string> ParentBones);
 
     /// <summary>
     /// The authoring facts recovered from a compiled <see cref="FeModel"/> for one export, resolved against the model's
@@ -232,13 +232,15 @@ namespace ValveResourceFormat.IO
             var planarizedBoxes = BuildPlanarizeBoxes();
             var spheres = BuildCollisionSpheres();
             var boxes = BuildCollisionBoxes();
+            var sdfs = BuildCollisionSdfs();
             HashSet<string> parentBones = [.. capsules.Select(static c => c.ParentBone)
                 .Concat(planarizedCapsules.Select(static c => c.ParentBone))
                 .Concat(planarizedBoxes.Select(static b => b.ParentBone))
                 .Concat(spheres.Select(static s => s.ParentBone))
                 .Concat(boxes.Select(static b => b.ParentBone))
+                .Concat(sdfs.Select(static s => s.ParentBone))
                 .OfType<string>()];
-            return new ClothCollisionShapes(capsules, spheres, boxes, planarizedCapsules, planarizedBoxes, parentBones);
+            return new ClothCollisionShapes(capsules, spheres, boxes, planarizedCapsules, planarizedBoxes, sdfs, parentBones);
         }
 
         /// <summary>

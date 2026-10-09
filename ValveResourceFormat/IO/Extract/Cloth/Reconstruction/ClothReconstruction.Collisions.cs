@@ -65,6 +65,15 @@ namespace ValveResourceFormat.IO
         public required float Radius { get; init; }
     }
 
+    /// <summary>A cloth collision signed distance field recovered from <c>m_SDFRigids</c>.</summary>
+    internal sealed class CollisionSdf : CollisionShape
+    {
+        /// <summary>Gets the grid resolution along the field's longest axis.</summary>
+        public required int Resolution { get; init; }
+        /// <summary>Gets the bounciness of the field.</summary>
+        public required float Bounciness { get; init; }
+    }
+
     internal sealed partial class ClothReconstruction
     {
         private const uint RigidFlagInverted = 1;
@@ -126,6 +135,30 @@ namespace ValveResourceFormat.IO
 
         private string? RigidVertexMap(int index)
             => index >= 0 && index < VertexMaps.Count ? VertexMaps[index].Name : null;
+
+        /// <summary>
+        /// Reconstructs the cloth collision signed distance fields (<c>m_SDFRigids</c>). The compiler rebuilds each grid
+        /// from the meshes skinned to its bone, so only the settings are recovered.
+        /// </summary>
+        public List<CollisionSdf> BuildCollisionSdfs()
+        {
+            var result = new List<CollisionSdf>();
+
+            foreach (var rigid in Fe.SDFRigids)
+            {
+                result.Add(new CollisionSdf
+                {
+                    Resolution = Math.Max(rigid.Width, Math.Max(rigid.Height, rigid.Depth)),
+                    Bounciness = rigid.Bounciness,
+                    ParentBone = ResolveRigidBone(rigid.Node),
+                    CollisionMask = rigid.CollisionMask,
+                    VertexMap = RigidVertexMap(rigid.VertexMapIndex),
+                    Inverted = ((uint)rigid.Flags & RigidFlagInverted) != 0,
+                });
+            }
+
+            return result;
+        }
 
         /// <summary>Reconstructs the cloth collision capsules (<c>m_TaperedCapsuleRigids</c>).</summary>
         public List<CollisionCapsule> BuildCollisionCapsules()

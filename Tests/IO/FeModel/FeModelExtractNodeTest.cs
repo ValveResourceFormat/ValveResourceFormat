@@ -96,11 +96,13 @@ namespace Tests.IO
 
         private static readonly string[] ArrayOrderCapsules = ["pelvis_clothCapsule", "spine_2_clothCapsule"];
 
-        /// <summary>Three static bones, pelvis and spine_2 each parenting a capsule, with no priority groups.</summary>
+        /// <summary>
+        /// Two static bones, pelvis and spine_2, each parenting a capsule, and one cloth node, with no priority groups.
+        /// </summary>
         private static FeModelBuilder PriorityCapsules => new()
         {
             Names = ["spine_2", "pelvis", "coattail_0_L"],
-            StaticNodes = 3,
+            StaticNodes = 2,
             Parents = [-1, -1, -1],
             Positions = [new(0f, 0f, 40f), new(0f, 0f, 30f), new(-8f, 4f, 65f)],
             TaperedCapsuleRigids = [Capsule(1), Capsule(0)],
