@@ -1928,17 +1928,8 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            // Fall back to the global probe
-            var globalProbe = sortedLightProbes[^1];
-
             foreach (var node in AllNodes)
             {
-                if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
-                {
-                    node.LightProbeBinding = globalProbe;
-                    continue;
-                }
-
                 node.LightProbeBinding ??= ChooseLightProbeVolume(LightingPosition(node));
             }
         }
@@ -2182,8 +2173,8 @@ namespace ValveResourceFormat.Renderer
             // probe since the last call would keep it.
             node.ShaderEnvMapVisibility = default(SceneEnvMap.EnvMapVisibility128).Store(node.EnvMaps);
 
-            // all cubemaps visible
-            if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
+            // all cubemaps visible to the viewmodel
+            if ((node.RenderPasses & CustomRenderPasses.Viewmodel) != 0)
             {
                 node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(LightingInfo.EnvMaps);
             }

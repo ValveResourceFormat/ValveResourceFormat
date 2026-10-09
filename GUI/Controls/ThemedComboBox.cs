@@ -8,6 +8,8 @@ public class ThemedComboBoxItem
 {
     public string Text { get; set; } = string.Empty;
     public bool IsHeader { get; set; }
+
+    public override string ToString() => Text;
 }
 
 public class ThemedComboBox : ComboBox

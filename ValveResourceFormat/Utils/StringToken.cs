@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Utils
         /// <summary>
         /// Gets the inverted table for hash to string lookups.
         /// </summary>
-        public static readonly ConcurrentDictionary<uint, string> InvertedTable = new(InitializeInverseLookup());
+        public static ConcurrentDictionary<uint, string> InvertedTable => KnownKeysTable.Table;
 
         /// <summary>
         /// Computes the hash token for the given string, case insensitive like the engine.
@@ -169,6 +169,11 @@ namespace ValveResourceFormat.Utils
             }
 
             return inverseLookup;
+        }
+
+        private static class KnownKeysTable
+        {
+            public static readonly ConcurrentDictionary<uint, string> Table = new(InitializeInverseLookup());
         }
 
         // MurmurHash2 step for four little-endian bytes. Blocks are mixed strictly in order,
