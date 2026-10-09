@@ -2618,6 +2618,7 @@ public sealed partial class MapExtract
                 }
 
                 ExtractEntityModel(mapEntity, modelName, worldTransform);
+                mapEntity.EntityProperties.Remove("model");
 
                 ReadOnlySpan<char> entityIdFull = Path.GetFileNameWithoutExtension(modelName);
                 var nameCutoff = entityIdFull.Length;
