@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
                 // The field defaults to a varying uniform draw over [0, 1), so a block that omits its type is one.
                 pathParameter = block.IsCollection && !block.ContainsKey("m_nType")
-                    ? new RandomNumberProvider(parse.Nested(block), defaultMax: 1f, defaultMode: ParticleFloatRandomMode.PF_RANDOM_MODE_VARYING)
+                    ? new RandomNumberProvider(parse.Nested(block), defaultMode: ParticleFloatRandomMode.PF_RANDOM_MODE_VARYING)
                     : parse.NumberProvider("m_fT", new LiteralNumberProvider(0f));
             }
 

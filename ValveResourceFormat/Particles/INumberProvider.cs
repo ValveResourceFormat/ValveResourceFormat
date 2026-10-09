@@ -68,13 +68,12 @@ namespace ValveResourceFormat.Particles
 
         /// <param name="parse">The input block.</param>
         /// <param name="isBiased">Whether the draw goes through a bias curve.</param>
-        /// <param name="defaultMax">The upper end of the range when the block omits it.</param>
         /// <param name="defaultMode">The random mode when the block omits it.</param>
-        public RandomNumberProvider(ParticleDefinitionParser parse, bool isBiased = false, float defaultMax = 0f,
+        public RandomNumberProvider(ParticleDefinitionParser parse, bool isBiased = false,
             ParticleFloatRandomMode defaultMode = ParticleFloatRandomMode.PF_RANDOM_MODE_CONSTANT)
         {
             minRange = parse.Float("m_flRandomMin");
-            maxRange = parse.Float("m_flRandomMax", defaultMax);
+            maxRange = parse.Float("m_flRandomMax", 1f);
             hasRandomSignFlip = parse.Boolean("m_bHasRandomSignFlip", hasRandomSignFlip);
             randomMode = parse.Enum("m_nRandomMode", defaultMode);
 
@@ -279,6 +278,45 @@ namespace ValveResourceFormat.Particles
                 : Math.Max(renderState.ParticleCount, 1);
             return attributeMapping.ApplyMapping(particle.Index / (float)divisor);
         }
+
+        public float NextNumber(ParticleSystemState renderState) => 0f;
+    }
+
+    /// <summary>
+    /// PF_TYPE_PARTICLE_ROPE_SEGMENT. The segment position held in X of <see cref="Particle.RopeSegmentData"/>,
+    /// or its distance to the segment count in Z when the order is reversed.
+    /// </summary>
+    class RopeSegmentNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        private readonly bool reverseOrder;
+
+        public RopeSegmentNumberProvider(ParticleDefinitionParser parse)
+        {
+            attributeMapping = new AttributeMapping(parse);
+            reverseOrder = parse.Boolean("m_bReverseOrder");
+        }
+
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        {
+            var data = particle.RopeSegmentData;
+            return attributeMapping.ApplyMapping(reverseOrder ? data.Z - data.X : data.X);
+        }
+
+        public float NextNumber(ParticleSystemState renderState) => 0f;
+    }
+
+    /// <summary>PF_TYPE_PARTICLE_ROPE_SEGMENT_NORMALIZED. Y of <see cref="Particle.RopeSegmentData"/>.</summary>
+    class RopeSegmentNormalizedNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+
+        public RopeSegmentNormalizedNumberProvider(ParticleDefinitionParser parse)
+        {
+            attributeMapping = new AttributeMapping(parse);
+        }
+
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.RopeSegmentData.Y);
 
         public float NextNumber(ParticleSystemState renderState) => 0f;
     }
