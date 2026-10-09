@@ -279,7 +279,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     foreach (var element in Elements!)
                     {
-                        if (frustum.Intersects(element.BoundingBox) || (element.RenderPasses & CustomRenderPasses.Viewmodel) != 0)
+                        if (frustum.Intersects(element.BoundingBox))
                         {
                             results.Add(element);
                         }

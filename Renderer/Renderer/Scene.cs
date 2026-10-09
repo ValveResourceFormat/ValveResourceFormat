@@ -2050,7 +2050,11 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 StaticOctree.Query(envMap.BoundingBox, nodes);
-                DynamicOctree.Query(envMap.BoundingBox, nodes); // TODO: This should actually be done dynamically
+
+                if (LightingInfo.CubemapType != CubemapType.CubemapArray)
+                {
+                    DynamicOctree.Query(envMap.BoundingBox, nodes);
+                }
 
                 foreach (var node in nodes)
                 {
@@ -2169,15 +2173,9 @@ namespace ValveResourceFormat.Renderer
                 return aDistance.CompareTo(bDistance);
             });
 
-            // Rebuilt from scratch rather than added to: Store only sets bits, so a node that lost a
-            // probe since the last call would keep it.
-            node.ShaderEnvMapVisibility = default(SceneEnvMap.EnvMapVisibility128).Store(node.EnvMaps);
-
-            // all cubemaps visible to the viewmodel
-            if ((node.RenderPasses & CustomRenderPasses.Viewmodel) != 0)
-            {
-                node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(LightingInfo.EnvMaps);
-            }
+            node.ShaderEnvMapVisibility = node.EnvMaps.Count > 0
+                ? default(SceneEnvMap.EnvMapVisibility128).Store(node.EnvMaps)
+                : SceneEnvMap.EnvMapVisibility128.Full;
 
 #if DEBUG
             if (preComputed != default)
