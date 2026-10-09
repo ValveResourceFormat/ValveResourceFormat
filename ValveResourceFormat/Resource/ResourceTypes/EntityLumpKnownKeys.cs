@@ -6606,6 +6606,7 @@ class EntityLumpKnownKeys
         "shear",
         "shed_padlock_name",
         "sheetrock",
+        "SheetTexture",
         "shielddistance",
         "shieldradius",
         "shoes_color",
