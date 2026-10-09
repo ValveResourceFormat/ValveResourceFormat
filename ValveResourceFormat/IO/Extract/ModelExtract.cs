@@ -203,7 +203,7 @@ public partial class ModelExtract
     }
 
     /// <summary>
-    /// Gets whether cloth is reconstructed: it was requested, the model has some, and building it did not fail.
+    /// Gets whether cloth is reconstructed: it was requested and the model has some.
     /// </summary>
     private bool ReconstructsCloth
     {

@@ -28,7 +28,7 @@ covers what can be viewed, decompiled, and exported, and which data is lost on t
 **ValveResourceFormat (VRF)** is the library behind it, published to NuGet as
 [ValveResourceFormat](https://www.nuget.org/packages/ValveResourceFormat/) for parsing and
 exporting, and [ValveResourceFormat.Renderer](https://www.nuget.org/packages/ValveResourceFormat.Renderer/)
-for the OpenGL renderer. See the [getting started guide](https://s2v.app/ValveResourceFormat/guides/read-resource.html)
+for the OpenGL renderer. See the [reading resources guide](https://s2v.app/ValveResourceFormat/guides/read-resource.html)
 and the [API reference](https://s2v.app/ValveResourceFormat/api/ValveResourceFormat.html).
 
 <p align="center">

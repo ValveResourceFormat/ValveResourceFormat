@@ -31,7 +31,7 @@ Use this workflow when you want to view or render the map in Blender or other 3D
 
 1. Open the map's VPK file in Source 2 Viewer
 2. Navigate to the `.vmap_c` file
-3. Right-click and select **Decompile & Export**
+3. Right-click and select **Decompile & export**
 4. Choose **glTF** as the format (GLB is also available but has a 2 GB size limit)
 5. Select a save location and click Save
 
@@ -58,7 +58,7 @@ Map exports can be large. For a typical CS2 competitive map, expect the export t
 Use this workflow when you want to open the map in Hammer Editor for editing or study.
 
 1. Open the map file in Source 2 Viewer
-2. Right-click the `.vmap_c` file and select **Decompile & Export**
+2. Right-click the `.vmap_c` file and select **Decompile & export**
 3. Choose **vmap** as the file type
 4. Save to your Workshop Tools addon content directory (see folder structure below)
 5. Launch Hammer Editor through Workshop Tools and open the decompiled `.vmap`
@@ -75,7 +75,7 @@ Counter-Strike Global Offensive/content/csgo_addons/your_addon/
         └── <map dependencies>
 ```
 
-The `.vmap` file sits right next to its matching folder, both inside `maps/` in your addon content.
+The `.vmap` file sits right next to its matching folder, both inside `maps/` in your addon content. The file is saved as `<map>_d.vmap`; very large maps are split into additional `_d_autosplit_partN.vmap` files, which the main map references.
 
 ::: warning
 If a `maps/` folder was exported alongside your `.vmap` file, you may need to move the `.vmap` file inside that `maps/` folder. Exporting outside addon content may not work as expected.
@@ -118,6 +118,6 @@ See the [command-line utility guide](./command-line.md) for more options.
 
 ## Limitations
 
-- **glTF export** includes geometry, textures, and props but not lighting, game logic, or navigation meshes
+- **glTF export** includes geometry, textures, props and the sun, but not baked lighting, point or spot lights, game logic, or navigation meshes
 - **vmap decompilation** may produce maps that don't compile perfectly due to data loss in the decompilation process
 - Very large maps may take significant time and memory to export

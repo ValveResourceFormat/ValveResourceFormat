@@ -37,7 +37,7 @@ If the model has animations, they appear in a dropdown in the toolbar. Select an
 ## Exporting to glTF
 
 1. Open a `.vmdl_c` file in the viewer (or locate it in the file tree)
-2. Right-click the file (or its tab) and select **Decompile & Export**
+2. Right-click the file (or its tab) and select **Decompile & export**
 3. Choose a save location and filename
 4. Select the export format: **glTF** or **GLB**
 5. Click Save

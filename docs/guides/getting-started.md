@@ -20,7 +20,7 @@ Files opened from a game folder load the textures, materials and other files the
 The Explorer also shows:
 
 - **Recent files** at the top, so you can quickly reopen files you've worked with before
-- **Bookmarks** for files you've saved for later. Right-click any file and select bookmark to add it
+- **Bookmarks** for files you've saved for later. Right-click any file and choose **Add to Bookmarks** to add it
 
 ![Explorer showing detected Steam games](./images/getting-started-game-explorer.png)
 
@@ -79,11 +79,11 @@ Relevant keyboard shortcuts are shown at the bottom of each viewer.
 Right-click a file to access two export modes:
 
 - **Export as is** saves the raw compiled file without any conversion. Use this when you need the original Source 2 format.
-- **Decompile & export** converts files to standard editable formats. The output format can be chosen in the save dialog:
-    - Models → glTF (.gltf/.glb) or decompiled .vmdl
+- **Decompile & export** converts files to standard editable formats:
+    - Models → glTF (.gltf/.glb) or decompiled .vmdl, picked in the save dialog
     - Maps → glTF or decompiled .vmap (for Hammer Editor)
-    - Textures → PNG, JPG, or EXR (for HDR textures)
-    - Sounds → WAV or MP3
+    - Textures → PNG, or EXR for HDR textures. Textures stored as JPEG or WebP keep that format
+    - Sounds → WAV or MP3, matching the stored audio
     - Materials → .vmat
     - Physics (`.vphys_c`) and navigation meshes (`.nav`) → glTF
     - Other resources → Their decompiled text format
@@ -103,6 +103,6 @@ For large batch exports, consider using the [command-line utility](./command-lin
 
 ## Issues
 
-If you have questions or want to chat, join the Discord server.
+If you have questions or want to chat, join the [Discord server](https://discord.gg/s9QQ7Wg7r4).
 
 If you want to report a bug or request a feature, see the [reporting issues guide](./reporting-issues.md).
