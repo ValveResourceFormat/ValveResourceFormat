@@ -317,6 +317,7 @@ namespace ValveResourceFormat.Particles
             // identity along with a rewound clock; no particle survives it
             systemState.Random.Reseed();
             systemState.Age = 0f;
+            systemState.RestartAge = 0f;
             systemState.RewindControlPointChanges();
             targetDrawTime = 0f;
             previousSimTime = 1e23f;
@@ -338,6 +339,7 @@ namespace ValveResourceFormat.Particles
 
             systemState.EndEarly = false;
             systemState.ClearEndCap();
+            systemState.RestartAge = systemState.Age;
             simulatedFrames = 0;
             RearmSelf();
 
