@@ -109,11 +109,7 @@ namespace ValveResourceFormat.Particles.Operators
                 else if (lerpControlPoint > -1)
                 {
                     var moved = Vector3.Distance(particleSystemState.GetControlPoint(lerpControlPoint).Position, lastLerpPosition) / tolerance;
-
-                    if (moved >= 0f)
-                    {
-                        interpolation = MathF.Min(1f, moved);
-                    }
+                    interpolation = float.IsNaN(moved) ? 0f : MathUtils.Saturate(moved);
                 }
             }
             else if (!retrace)

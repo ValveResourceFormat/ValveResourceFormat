@@ -256,12 +256,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     var length = lengthScale * particle.TrailLength * difference.Length() * oneOverDt;
 
+                    // A particle drawn before its birth, with a negative age, gets the minimum length
                     length *= MathF.Min(1f, particle.Age / MathF.Max(lengthFadeInTime, 1e-9f));
-
-                    // The engine clamps the full extent of the trail, and it clamps unconditionally: an
-                    // effect that authors m_flLengthScale 0 alongside a minimum length is asking for a
-                    // fixed streak that does not track speed, so a zero raw length still draws.
-                    length = MathUtils.Clamp(length, minLength, maxLength);
+                    length = MathF.Max(minLength, MathF.Min(maxLength, length));
 
                     if (length == 0f)
                     {

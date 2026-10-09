@@ -292,8 +292,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 if (node != null)
                 {
-                    scene.Remove(node, true);
-                    node.Delete();
+                    RemoveNode(node);
                 }
             }
 
@@ -301,14 +300,22 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 foreach (var (node, _) in stack)
                 {
-                    scene.Remove(node, true);
-                    node.Delete();
+                    RemoveNode(node);
                 }
 
                 stack.Clear();
             }
 
             placed.Clear();
+        }
+
+        /// <summary>Takes a node out of the scene and deletes it, unless the scene no longer holds it, as when it deletes all of its nodes itself.</summary>
+        private void RemoveNode(ModelSceneNode node)
+        {
+            if (scene.Remove(node, true))
+            {
+                node.Delete();
+            }
         }
     }
 }

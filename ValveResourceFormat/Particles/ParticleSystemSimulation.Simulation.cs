@@ -556,26 +556,7 @@ namespace ValveResourceFormat.Particles
             // TODO: Is this the correct place for this because child particle renderers also check this
             if (systemState.EndEarly && systemState.Age > systemState.EndTime)
             {
-                if (systemState.RestartOnEnd)
-                {
-                    Restart();
-                }
-                else
-                {
-                    Stop();
-
-                    if (systemState.PlayEndCapOnEnd)
-                    {
-                        PlayEndCap();
-                    }
-
-                    // "Destroy immediately" drops the particles still alive; without it they are left
-                    // to finish their lifetimes and only emission stops.
-                    if (systemState.DestroyInstantlyOnEnd)
-                    {
-                        particleCollection.Clear();
-                    }
-                }
+                Restart();
             }
 
             systemState.ParticleCount = particleCollection.Count;

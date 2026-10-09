@@ -39,6 +39,9 @@ layout(std140, binding = 0) uniform ViewConstants
 
     vec4 g_vEnvWetness;
     vec4 g_vEnvWetnessRipple;
+
+    vec2 g_vSceneDepthFetchScale; // scene depth texels per pixel of the target being drawn
+    vec2 g_vViewConstantsPadding1;
 };
 
 bool blink()

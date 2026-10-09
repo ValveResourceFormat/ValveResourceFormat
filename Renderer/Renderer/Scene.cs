@@ -243,7 +243,8 @@ namespace ValveResourceFormat.Renderer
         private readonly ParallelDispatch simulationDispatch = new();
         private SimulationWork? simulationWork;
 
-        private readonly List<(SceneNode Node, bool Dynamic, bool Add)> pendingChanges = [];
+        private readonly List<(SceneNode Node, bool Dynamic)> pendingAdds = [];
+        private readonly Dictionary<SceneNode, bool> pendingRemovals = [];
         private bool updating;
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
@@ -289,6 +290,7 @@ namespace ValveResourceFormat.Renderer
 
             LightingInfo = new(this);
             ProjectedDecals = new(this);
+            ParticleCollision = new(this);
         }
 
         /// <summary>
@@ -298,10 +300,13 @@ namespace ValveResourceFormat.Renderer
         public PhysicsWorld? PhysicsWorld { get; set; }
 
         /// <summary>
-        /// Gets or sets the height of a horizontal ground plane particle systems collide with, standing in
-        /// for a world when there is none, as a preview's floor does. Null for no plane.
+        /// Gets or sets the height of a one-sided horizontal plane that particle systems in the scene
+        /// collide with on top of <see cref="PhysicsWorld"/>, or null for none.
         /// </summary>
         public float? CollisionGroundPlane { get; set; }
+
+        /// <summary>Gets the collision every particle system in the scene traces against.</summary>
+        internal ParticleSceneCollision ParticleCollision { get; }
 
         /// <summary>Gets the decals projected onto the scene's depth, such as bullet impacts.</summary>
         public ProjectedDecalSystem ProjectedDecals { get; }
@@ -329,16 +334,24 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Adds a node to the scene, placing it in either the static or dynamic partition. While the scene
-        /// is updating, such as from a node's own update, the node joins once the update is done.
+        /// Adds a node to the scene, placing it in either the static or dynamic partition.
         /// </summary>
+        /// <remarks>
+        /// Called while the scene is updating, such as from a node's own update, the node joins after the
+        /// update and is first updated and drawn on the next frame. Adding a node removed during the same
+        /// update keeps it in the scene instead.
+        /// </remarks>
         /// <param name="node">The node to add.</param>
         /// <param name="dynamic">When <see langword="true"/>, the node is placed in <see cref="DynamicOctree"/>; otherwise in <see cref="StaticOctree"/>.</param>
         public void Add(SceneNode node, bool dynamic)
         {
             if (updating)
             {
-                pendingChanges.Add((node, dynamic, true));
+                if (!pendingRemovals.Remove(node))
+                {
+                    pendingAdds.Add((node, dynamic));
+                }
+
                 return;
             }
 
@@ -357,32 +370,47 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Removes a node from the scene's static or dynamic partition. While the scene is updating, the
-        /// node leaves once the update is done.
+        /// Removes a node from the scene's static or dynamic partition.
         /// </summary>
+        /// <remarks>
+        /// Called while the scene is updating, the node is no longer updated from then on and leaves before
+        /// the frame draws, so it may be deleted right away.
+        /// </remarks>
         /// <param name="node">The node to remove.</param>
         /// <param name="dynamic">When <see langword="true"/>, removes from the dynamic partition; otherwise the static partition.</param>
-        public void Remove(SceneNode node, bool dynamic)
+        /// <returns>Whether the node was in the partition, or is leaving it when the scene is updating.</returns>
+        public bool Remove(SceneNode node, bool dynamic)
         {
             if (updating)
             {
-                pendingChanges.Add((node, dynamic, false));
-                return;
+                var pendingAdd = pendingAdds.FindIndex(pending => pending.Node == node);
+
+                if (pendingAdd >= 0)
+                {
+                    pendingAdds.RemoveAt(pendingAdd);
+                }
+                else
+                {
+                    pendingRemovals[node] = dynamic;
+                }
+
+                return true;
             }
 
             node.DetachFromParent();
 
             if (dynamic)
             {
-                dynamicNodes.Remove(node);
                 DynamicOctree.Dirty = true;
+                return dynamicNodes.Remove(node);
             }
-            else
-            {
-                staticNodes.Remove(node);
-                StaticOctree.Dirty = true;
-            }
+
+            StaticOctree.Dirty = true;
+            return staticNodes.Remove(node);
         }
+
+        /// <summary>Whether <paramref name="node"/> was removed during the update in progress, and so is no longer updated.</summary>
+        internal bool IsPendingRemoval(SceneNode node) => pendingRemovals.Count > 0 && pendingRemovals.ContainsKey(node);
 
         /// <summary>Indicates which spatial partition a scene node belongs to.</summary>
         public enum NodeType
@@ -434,19 +462,21 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Removes and deletes every node and the 2D sky, keeping shared materials and mesh buffers loaded.</summary>
+        /// <remarks>
+        /// The partitions are emptied before any node is deleted, so a node that removes and deletes nodes it
+        /// owns finds them already gone from the scene and leaves their deletion to it.
+        /// </remarks>
         public void DeleteNodes()
         {
-            foreach (var item in dynamicNodes)
-            {
-                item.Delete();
-            }
-            dynamicNodes.Clear();
+            SceneNode[] nodes = [.. dynamicNodes, .. staticNodes];
 
-            foreach (var item in staticNodes)
-            {
-                item.Delete();
-            }
+            dynamicNodes.Clear();
             staticNodes.Clear();
+
+            foreach (var node in nodes)
+            {
+                node.Delete();
+            }
 
             StaticOctree.Clear();
             DynamicOctree.Clear();
@@ -545,7 +575,7 @@ namespace ValveResourceFormat.Renderer
         /// The dynamic nodes are the work: the index picks one, so no filtered list is kept in step
         /// with the scene. Holds the list itself, not a copy, so running it allocates nothing.
         /// </summary>
-        private sealed class SimulationWork(List<SceneNode> nodes) : IParallelWork
+        private sealed class SimulationWork(Scene scene, List<SceneNode> nodes) : IParallelWork
         {
             public UpdateContext Context;
 
@@ -554,7 +584,7 @@ namespace ValveResourceFormat.Renderer
                 var node = nodes[index];
 
                 // Parented nodes are placed by their parent, but simulate here like every other one
-                if (node.Simulation == NodeSimulation.Parallel)
+                if (node.Simulation == NodeSimulation.Parallel && !scene.IsPendingRemoval(node))
                 {
                     node.Update(Context);
                 }
@@ -570,7 +600,7 @@ namespace ValveResourceFormat.Renderer
 
             if (parallelSimulation)
             {
-                simulationWork ??= new SimulationWork(dynamicNodes);
+                simulationWork ??= new SimulationWork(this, dynamicNodes);
                 simulationWork.Context = simulate;
 
                 // The dispatch publishes the context, and runs counts too small to fan out inline
@@ -581,7 +611,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in dynamicNodes)
             {
-                if (node.Simulation == NodeSimulation.None)
+                if (node.Simulation == NodeSimulation.None || IsPendingRemoval(node))
                 {
                     continue;
                 }
@@ -612,42 +642,12 @@ namespace ValveResourceFormat.Renderer
                 updating = false;
             }
 
-            foreach (var (node, dynamic, add) in pendingChanges)
+            foreach (var (node, dynamic) in pendingRemovals)
             {
-                if (add)
-                {
-                    Add(node, dynamic);
-                }
-                else
-                {
-                    Remove(node, dynamic);
-                }
+                Remove(node, dynamic);
             }
 
-            pendingChanges.Clear();
-        }
-
-        private void UpdateNodes(Scene.UpdateContext updateContext)
-        {
-            foreach (var node in staticNodes)
-            {
-                if (node.Parent == null)
-                {
-                    node.UpdateHierarchy(updateContext);
-                }
-            }
-
-            foreach (var node in dynamicNodes)
-            {
-                if (node.Parent != null)
-                {
-                    continue; // child nodes are updated by their parent
-                }
-
-                node.UpdateHierarchy(updateContext);
-            }
-
-            SimulateNodes(updateContext);
+            pendingRemovals.Clear();
 
             foreach (var node in dynamicNodes)
             {
@@ -671,6 +671,36 @@ namespace ValveResourceFormat.Renderer
             }
 
             UpdateActiveLodBits();
+
+            foreach (var (node, dynamic) in pendingAdds)
+            {
+                Add(node, dynamic);
+            }
+
+            pendingAdds.Clear();
+        }
+
+        private void UpdateNodes(Scene.UpdateContext updateContext)
+        {
+            foreach (var node in staticNodes)
+            {
+                if (node.Parent == null)
+                {
+                    node.UpdateHierarchy(updateContext);
+                }
+            }
+
+            foreach (var node in dynamicNodes)
+            {
+                if (node.Parent != null)
+                {
+                    continue; // child nodes are updated by their parent
+                }
+
+                node.UpdateHierarchy(updateContext);
+            }
+
+            SimulateNodes(updateContext);
         }
 
         /// <summary>Allocates GPU uniform and storage buffers for lighting, environment maps, light probes, frustum planes, and indirect draws.</summary>

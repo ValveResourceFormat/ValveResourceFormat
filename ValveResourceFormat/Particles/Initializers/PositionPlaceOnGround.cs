@@ -66,14 +66,13 @@ namespace ValveResourceFormat.Particles.Initializers
                         return particle;
                     case ParticleTraceMissBehavior.PARTICLE_TRACE_MISS_BEHAVIOR_KILL:
                         particle.Kill();
-                        SetGroundNormal(ref particle, hit.Normal);
                         return particle;
                 }
             }
 
             var radiusOffset = Vector3.Zero;
 
-            if (offsetByRadiusFactor != 0f && (!offsetOnCollisionOnly || fraction != 1f))
+            if (offsetByRadiusFactor != 0f && (!offsetOnCollisionOnly || hitGround))
             {
                 var radius = particle.Radius;
                 var facing = Vector3.Dot(direction, hit.Normal);
@@ -111,17 +110,12 @@ namespace ValveResourceFormat.Particles.Initializers
                 particle.Velocity -= delta / particles.CurrentFrameTime;
             }
 
-            SetGroundNormal(ref particle, hit.Normal);
-
-            return particle;
-        }
-
-        private void SetGroundNormal(ref Particle particle, Vector3 normal)
-        {
             if (setNormal)
             {
-                particle.SetVector(groundNormalAttribute, normal);
+                particle.SetVector(groundNormalAttribute, hit.Normal);
             }
+
+            return particle;
         }
     }
 }

@@ -100,11 +100,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 if (!tracked.SeenThisFrame)
                 {
-                    if (!suppressStopSoundEvent)
-                    {
-                        tracked.Handle.FadeOutAndStop(StopFadeFallbackSeconds);
-                    }
-
+                    StopSound(tracked);
                     sweepScratch.Add(particleId);
                 }
             }
@@ -112,6 +108,25 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             foreach (var particleId in sweepScratch)
             {
                 trackedSounds.Remove(particleId);
+            }
+        }
+
+        /// <summary>Stops every tracked sound, as when its particle dies.</summary>
+        public override void Hide()
+        {
+            foreach (var tracked in trackedSounds.Values)
+            {
+                StopSound(tracked);
+            }
+
+            trackedSounds.Clear();
+        }
+
+        private void StopSound(in TrackedSound tracked)
+        {
+            if (!suppressStopSoundEvent)
+            {
+                tracked.Handle.FadeOutAndStop(StopFadeFallbackSeconds);
             }
         }
 
