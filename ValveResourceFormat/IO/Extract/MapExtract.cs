@@ -455,7 +455,7 @@ public sealed partial class MapExtract
     private string? GetWorldPhysicsName()
     {
         var manifestFileName = Path.Combine(LumpFolder, "world_physics.vrman_c");
-        var manifestResource = FileLoader.LoadFile(manifestFileName);
+        using var manifestResource = FileLoader.LoadFile(manifestFileName);
 
         var manifest = (ResourceManifest?)manifestResource?.DataBlock;
 

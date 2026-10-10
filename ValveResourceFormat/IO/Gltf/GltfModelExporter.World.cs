@@ -53,7 +53,7 @@ public partial class GltfModelExporter
             {
                 continue;
             }
-            var entityLumpResource = FileLoader.LoadFileCompiled(lumpName);
+            using var entityLumpResource = FileLoader.LoadFileCompiled(lumpName);
             if (entityLumpResource == null)
             {
                 continue;

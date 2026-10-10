@@ -252,7 +252,7 @@ namespace ValveResourceFormat.IO
                     {
                         var lumpFolder = MapExtract.GetLumpFolderFromVmapRERL(resource.ExternalReferences);
                         var worldFile = Path.Combine(lumpFolder, "world.vwrld");
-                        var mapResource = FileLoader.LoadFileCompiled(worldFile) ?? throw new FileNotFoundException($"Failed to load \"{worldFile}\"");
+                        using var mapResource = FileLoader.LoadFileCompiled(worldFile) ?? throw new FileNotFoundException($"Failed to load \"{worldFile}\"");
                         ExportToFile(resource.FileName, targetPath, (VWorld)mapResource.DataBlock!);
                         break;
                     }
