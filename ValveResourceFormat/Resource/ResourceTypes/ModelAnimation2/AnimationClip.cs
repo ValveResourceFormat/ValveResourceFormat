@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -65,7 +66,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// <summary>
         /// Gets the compression settings for each animation track.
         /// </summary>
-        public TrackCompressionSetting[] TrackCompressionSettings { get; private set; } = [];
+        public TrackCompressionSetting[] TrackCompressionSettings => LazyInitializer.EnsureInitialized(ref trackCompressionSettings, ReadTrackCompressionSettings);
 
         /// <summary>
         /// Gets the offsets (in 16-bit / ushort units) into the compressed pose data for each frame.
@@ -98,7 +99,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// <summary>
         /// Gets the clip's named scalar channels (float curves), decoded per frame.
         /// </summary>
-        public AnimationFloatCurve[] FloatCurves { get; private set; } = [];
+        public AnimationFloatCurve[] FloatCurves => LazyInitializer.EnsureInitialized(ref floatCurves, ReadFloatCurves);
+
+        private KVObject? clipData;
+        private TrackCompressionSetting[]? trackCompressionSettings;
+        private AnimationFloatCurve[]? floatCurves;
+
+        private protected override bool ReadsListBackedObjects => true;
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
@@ -117,6 +124,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
         private void ReadClip(KVObject clipData)
         {
+            this.clipData = clipData;
             SkeletonName = clipData.GetStringProperty("m_skeleton");
             NumFrames = clipData.GetInt32Property("m_nNumFrames");
             Duration = clipData.GetFloatProperty("m_flDuration");
@@ -140,75 +148,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                 }
             }
 
-            var floatCurveIds = clipData.GetArray<string>("m_floatCurveIDs");
-            if (floatCurveIds is { Length: > 0 })
-            {
-                var curveDefs = clipData.GetArray("m_floatCurveDefs");
-                var curveData = clipData.GetIntegerArray("m_compressedFloatCurveData");
-                var curveOffsets = clipData.GetIntegerArray("m_compressedFloatCurveOffsets");
-
-                FloatCurves = new AnimationFloatCurve[floatCurveIds.Length];
-
-                // Dynamic curves are packed densely per frame in declaration order; static curves
-                // hold their range start and store no samples.
-                var dynamicRank = 0;
-                for (var c = 0; c < floatCurveIds.Length; c++)
-                {
-                    var def = curveDefs[c];
-                    var range = def.GetSubCollection("m_range");
-                    var rangeStart = range.GetFloatProperty("m_flRangeStart");
-                    var rangeLength = range.GetFloatProperty("m_flRangeLength");
-
-                    var values = new float[NumFrames];
-                    Array.Fill(values, rangeStart);
-
-                    if (!def.GetBooleanProperty("m_bIsStatic"))
-                    {
-                        var decodableFrames = Math.Min(NumFrames, curveOffsets.Length);
-                        for (var f = 0; f < decodableFrames; f++)
-                        {
-                            var sampleIndex = curveOffsets[f] + dynamicRank;
-                            if (sampleIndex < 0 || sampleIndex >= curveData.Length)
-                            {
-                                continue;
-                            }
-
-                            values[f] = DecodeFloat((ushort)curveData[sampleIndex], rangeStart, rangeLength);
-                        }
-
-                        dynamicRank++;
-                    }
-
-                    FloatCurves[c] = new AnimationFloatCurve(floatCurveIds[c], values);
-                }
-            }
-
             CompressedPoseData = clipData.GetArray<byte>("m_compressedPoseData");
-
-            var settings = clipData.GetArray("m_trackCompressionSettings");
-            TrackCompressionSettings = new TrackCompressionSetting[settings.Count];
-
-            var i = 0;
-            foreach (var setting in settings)
-            {
-                var rangeX = setting.GetSubCollection("m_translationRangeX");
-                var rangeY = setting.GetSubCollection("m_translationRangeY");
-                var rangeZ = setting.GetSubCollection("m_translationRangeZ");
-                var scaleRange = setting.GetSubCollection("m_scaleRange");
-                var constantRotation = setting.GetFloatArray("m_constantRotation");
-
-                TrackCompressionSettings[i++] = new TrackCompressionSetting
-                {
-                    TranslationRangeX = new QuantizationRange(rangeX.GetFloatProperty("m_flRangeStart"), rangeX.GetFloatProperty("m_flRangeLength")),
-                    TranslationRangeY = new QuantizationRange(rangeY.GetFloatProperty("m_flRangeStart"), rangeY.GetFloatProperty("m_flRangeLength")),
-                    TranslationRangeZ = new QuantizationRange(rangeZ.GetFloatProperty("m_flRangeStart"), rangeZ.GetFloatProperty("m_flRangeLength")),
-                    ScaleRange = new QuantizationRange(scaleRange.GetFloatProperty("m_flRangeStart"), scaleRange.GetFloatProperty("m_flRangeLength")),
-                    ConstantRotation = new Quaternion(constantRotation[0], constantRotation[1], constantRotation[2], constantRotation[3]),
-                    IsRotationStatic = setting.GetBooleanProperty("m_bIsRotationStatic"),
-                    IsTranslationStatic = setting.GetBooleanProperty("m_bIsTranslationStatic"),
-                    IsScaleStatic = setting.GetBooleanProperty("m_bIsScaleStatic"),
-                };
-            }
 
             var events = clipData.GetArray("m_events") ?? [];
             Events = new NmClipEvent[events.Count];
@@ -234,6 +174,87 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                 secondaryAnim.ReadClip(secondaryAnims[j]);
                 SecondaryAnimations[j] = secondaryAnim;
             }
+        }
+
+        private AnimationFloatCurve[] ReadFloatCurves()
+        {
+            var clipData = this.clipData!;
+            var floatCurveIds = clipData.GetArray<string>("m_floatCurveIDs");
+            if (floatCurveIds is not { Length: > 0 })
+            {
+                return [];
+            }
+
+            var curveDefs = clipData.GetArray("m_floatCurveDefs");
+            var curveData = clipData.GetIntegerArray("m_compressedFloatCurveData");
+            var curveOffsets = clipData.GetIntegerArray("m_compressedFloatCurveOffsets");
+
+            var curves = new AnimationFloatCurve[floatCurveIds.Length];
+
+            // Dynamic curves are packed densely per frame in declaration order; static curves
+            // hold their range start and store no samples.
+            var dynamicRank = 0;
+            for (var c = 0; c < floatCurveIds.Length; c++)
+            {
+                var def = curveDefs[c];
+                var range = def.GetSubCollection("m_range");
+                var rangeStart = range.GetFloatProperty("m_flRangeStart");
+                var rangeLength = range.GetFloatProperty("m_flRangeLength");
+
+                var values = new float[NumFrames];
+                Array.Fill(values, rangeStart);
+
+                if (!def.GetBooleanProperty("m_bIsStatic"))
+                {
+                    var decodableFrames = Math.Min(NumFrames, curveOffsets.Length);
+                    for (var f = 0; f < decodableFrames; f++)
+                    {
+                        var sampleIndex = curveOffsets[f] + dynamicRank;
+                        if (sampleIndex < 0 || sampleIndex >= curveData.Length)
+                        {
+                            continue;
+                        }
+
+                        values[f] = DecodeFloat((ushort)curveData[sampleIndex], rangeStart, rangeLength);
+                    }
+
+                    dynamicRank++;
+                }
+
+                curves[c] = new AnimationFloatCurve(floatCurveIds[c], values);
+            }
+
+            return curves;
+        }
+
+        private TrackCompressionSetting[] ReadTrackCompressionSettings()
+        {
+            var settings = clipData!.GetArray("m_trackCompressionSettings");
+            var trackSettings = new TrackCompressionSetting[settings.Count];
+
+            var i = 0;
+            foreach (var setting in settings)
+            {
+                var rangeX = setting.GetSubCollection("m_translationRangeX");
+                var rangeY = setting.GetSubCollection("m_translationRangeY");
+                var rangeZ = setting.GetSubCollection("m_translationRangeZ");
+                var scaleRange = setting.GetSubCollection("m_scaleRange");
+                var constantRotation = setting.GetFloatArray("m_constantRotation");
+
+                trackSettings[i++] = new TrackCompressionSetting
+                {
+                    TranslationRangeX = new QuantizationRange(rangeX.GetFloatProperty("m_flRangeStart"), rangeX.GetFloatProperty("m_flRangeLength")),
+                    TranslationRangeY = new QuantizationRange(rangeY.GetFloatProperty("m_flRangeStart"), rangeY.GetFloatProperty("m_flRangeLength")),
+                    TranslationRangeZ = new QuantizationRange(rangeZ.GetFloatProperty("m_flRangeStart"), rangeZ.GetFloatProperty("m_flRangeLength")),
+                    ScaleRange = new QuantizationRange(scaleRange.GetFloatProperty("m_flRangeStart"), scaleRange.GetFloatProperty("m_flRangeLength")),
+                    ConstantRotation = new Quaternion(constantRotation[0], constantRotation[1], constantRotation[2], constantRotation[3]),
+                    IsRotationStatic = setting.GetBooleanProperty("m_bIsRotationStatic"),
+                    IsTranslationStatic = setting.GetBooleanProperty("m_bIsTranslationStatic"),
+                    IsScaleStatic = setting.GetBooleanProperty("m_bIsScaleStatic"),
+                };
+            }
+
+            return trackSettings;
         }
 
         /// <summary>
