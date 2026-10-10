@@ -761,10 +761,13 @@ namespace GUI.Types.GLViewers
                 RequestVisibilityUpdate();
             }
 
-            if (node is PhysSceneNode { IsToolsMaterial: true } && !tools.ShowToolMaterials)
+            if (node is PhysSceneNode { IsToolsMaterial: true } && !(tools.ShowToolEntities && tools.ShowToolMaterials))
             {
+                tools.ShowToolEntities = true;
                 tools.ShowToolMaterials = true;
+                toolEntitiesButton?.Checked = true;
                 toolMaterialsButton?.Checked = true;
+                toolMaterialsButton?.Enabled = toolEntitiesButton?.Enabled == true;
                 RequestVisibilityUpdate();
             }
 
@@ -1210,7 +1213,7 @@ namespace GUI.Types.GLViewers
             {
                 foreach (var scene in Renderer.Scenes)
                 {
-                    scene.ShowToolsMaterials = tools.ShowToolMaterials;
+                    scene.ShowToolsMaterials = tools.ToolMaterialsVisible;
                 }
             }
 
@@ -1242,6 +1245,9 @@ namespace GUI.Types.GLViewers
             toolEntitiesButton = UiControl.AddToolbarToggle("Tool Entities", tools.ShowToolEntities, v =>
             {
                 tools.ShowToolEntities = v;
+
+                // Tools materials are hidden along with them
+                toolMaterialsButton?.Enabled = v;
                 RequestVisibilityUpdate();
             });
             toolMaterialsButton = UiControl.AddToolbarToggle("Tool Materials", tools.ShowToolMaterials, v =>
@@ -1267,7 +1273,24 @@ namespace GUI.Types.GLViewers
             playButton?.Enabled = state != SimulationState.Playing;
             pauseButton?.Enabled = state == SimulationState.Playing;
             stopButton?.Enabled = state != SimulationState.Stopped;
+
+            // Both are hidden while the world is played, whatever the switches say
+            toolEntitiesButton?.Enabled = state == SimulationState.Stopped;
+            toolMaterialsButton?.Enabled = state == SimulationState.Stopped && tools.ShowToolEntities;
         }
+
+        private void SetSimulationState(SimulationState state)
+        {
+            simulationState = state;
+            tools.IsPlaying = state != SimulationState.Stopped;
+        }
+
+        protected override (string Text, Color32 Color)? ModeLabel => world == null ? null : simulationState switch
+        {
+            SimulationState.Stopped => ("EDITOR MODE", new Color32(120, 180, 255)),
+            SimulationState.Paused => ("PLAY MODE (PAUSED)", new Color32(90, 220, 90)),
+            _ => ("PLAY MODE", new Color32(90, 220, 90)),
+        };
 
         protected override void OnUpdate(float frameTime)
         {
@@ -1276,37 +1299,53 @@ namespace GUI.Types.GLViewers
             base.OnUpdate(frameTime);
         }
 
-        // On the render thread, which owns the entity world and the scene
-        private void ApplySimulationRequest()
+        // Walking into a world at rest plays it
+        protected override void OnWalkModeEntered()
         {
-            var request = (SimulationRequest)Interlocked.Exchange(ref simulationRequest, (int)SimulationRequest.None);
+            if (simulationState == SimulationState.Stopped)
+            {
+                ApplySimulation(SimulationRequest.Play);
+            }
+        }
+
+        private void ApplySimulationRequest()
+            => ApplySimulation((SimulationRequest)Interlocked.Exchange(ref simulationRequest, (int)SimulationRequest.None));
+
+        // On the render thread, which owns the entity world and the scene
+        private void ApplySimulation(SimulationRequest request)
+        {
+            if (world == null)
+            {
+                return;
+            }
+
             var entitySystem = Renderer.EntitySystem;
 
             switch (request, simulationState)
             {
                 case (SimulationRequest.Play, SimulationState.Stopped):
+                    SetSimulationState(SimulationState.Playing);
                     ResetScene();
                     entitySystem.Enabled = true;
                     entitySystem.StartRound();
                     Input.SetWalkMode(true);
-                    simulationState = SimulationState.Playing;
                     break;
 
                 case (SimulationRequest.Play, SimulationState.Paused):
+                    SetSimulationState(SimulationState.Playing);
                     entitySystem.Enabled = true;
-                    simulationState = SimulationState.Playing;
                     break;
 
                 case (SimulationRequest.Pause, SimulationState.Playing):
+                    SetSimulationState(SimulationState.Paused);
                     entitySystem.Enabled = false;
-                    simulationState = SimulationState.Paused;
                     break;
 
                 case (SimulationRequest.Stop, SimulationState.Playing or SimulationState.Paused):
+                    SetSimulationState(SimulationState.Stopped);
                     entitySystem.Enabled = false;
                     Input.SetWalkMode(false);
                     ResetScene();
-                    simulationState = SimulationState.Stopped;
                     break;
 
                 default:

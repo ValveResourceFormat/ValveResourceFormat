@@ -16,10 +16,24 @@ public sealed class ToolsVisibility
     private static readonly FrozenSet<string> ToolEntityLayerNames =
         FrozenSet.Create(StringComparer.Ordinal, HammerEntityVisuals.MarkerLayerName, HammerEntityVisuals.ConnectionsLayerName, WorldLoader.TemplateLayerName);
 
-    /// <summary>Gets or sets whether entities that only exist in the editor are drawn.</summary>
+    /// <summary>Gets or sets whether entities that only exist in the editor are drawn, while the world is not played.</summary>
     public bool ShowToolEntities { get; set; } = true;
 
-    /// <summary>Gets or sets whether tools materials are drawn. Off until asked for.</summary>
+    /// <summary>
+    /// Gets or sets whether the world is being played, which hides the entities that only exist in the
+    /// editor so it looks as the player sees it.
+    /// </summary>
+    public bool IsPlaying { get; set; }
+
+    /// <summary>Gets whether editor-only entities end up drawn.</summary>
+    public bool ToolEntitiesVisible => ShowToolEntities && !IsPlaying;
+
+    /// <summary>Gets whether tools materials end up drawn. Hiding the editor-only entities hides them too.</summary>
+    public bool ToolMaterialsVisible => ToolEntitiesVisible && ShowToolMaterials;
+
+    /// <summary>
+    /// Gets or sets whether tools materials are drawn, while the editor-only entities are. Off until asked for.
+    /// </summary>
     public bool ShowToolMaterials { get; set; }
 
     /// <summary>Gets whether a layer only holds editor-only entities.</summary>
@@ -36,14 +50,14 @@ public sealed class ToolsVisibility
     {
         ArgumentNullException.ThrowIfNull(node);
 
-        return groupChosen && (!node.IsToolsMaterial || ShowToolMaterials);
+        return groupChosen && (!node.IsToolsMaterial || ToolMaterialsVisible);
     }
 
     /// <summary>The layers to enable out of those chosen, without the editor-only ones while they are hidden.</summary>
     /// <param name="chosenLayers">The layers chosen to be shown.</param>
     public HashSet<string> FilterLayers(IEnumerable<string> chosenLayers)
     {
-        return ShowToolEntities
+        return ToolEntitiesVisible
             ? [.. chosenLayers]
             : [.. chosenLayers.Where(static layer => !IsToolEntityLayer(layer))];
     }

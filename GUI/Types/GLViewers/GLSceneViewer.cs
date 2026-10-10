@@ -88,6 +88,9 @@ namespace GUI.Types.GLViewers
         /// <summary>Gets whether the viewer has its own switches for what of the tools is drawn.</summary>
         protected virtual bool HasToolsVisibilityControls => false;
 
+        /// <summary>Gets the mode shown at the top of the viewport and its colour, or <see langword="null"/> to show none.</summary>
+        protected virtual (string Text, Color32 Color)? ModeLabel => null;
+
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
         private ComboBox? renderModeComboBox;
@@ -659,6 +662,7 @@ namespace GUI.Types.GLViewers
                 if (!wasWalkMode && Input.WalkMode)
                 {
                     Selection.Clear();
+                    OnWalkModeEntered();
                 }
 
                 // Walk mode and mouse look aim with the mouse, so they hold the cursor. Leaving both,
@@ -915,6 +919,19 @@ namespace GUI.Types.GLViewers
                 crosshairRenderer.Render(Renderer.Camera);
             }
 
+            if (ModeLabel is { } modeLabel)
+            {
+                TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                {
+                    X = 0.5f,
+                    Y = 0.03f,
+                    Scale = 14f,
+                    Color = modeLabel.Color,
+                    Text = modeLabel.Text,
+                    CenterHorizontal = true,
+                }, Renderer.Camera);
+            }
+
             if (GrabbedMouse && ShowSpeed)
             {
                 TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
@@ -1122,6 +1139,11 @@ namespace GUI.Types.GLViewers
                 renderModeComboBox.SelectedIndex = selectedIndex;
                 renderModeComboBox.EndUpdate();
             }
+        }
+
+        /// <summary>Called on the render thread when the camera starts walking as the player.</summary>
+        protected virtual void OnWalkModeEntered()
+        {
         }
 
         /// <summary>Shows the chosen layers from the next frame.</summary>
