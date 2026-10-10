@@ -161,7 +161,7 @@ namespace ValveResourceFormat
         public void Read(string filename)
         {
             FileName = filename;
-            FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
             Read(FileStream);
         }

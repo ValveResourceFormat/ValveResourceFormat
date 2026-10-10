@@ -194,7 +194,7 @@ namespace ValveResourceFormat.CompiledShader
         /// <param name="filenamepath">The file to open and read.</param>
         public void Read(string filenamepath)
         {
-            var stream = new FileStream(filenamepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var stream = new FileStream(filenamepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
             try
             {
