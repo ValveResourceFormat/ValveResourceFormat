@@ -96,17 +96,22 @@ namespace Tests
         }
 
         [Test]
-        public async Task DependencyBlocksAlwaysParse()
+        [Arguments("alchemist.vmdl_c", BlockType.NTRO)]
+        [Arguments("box_creature_model.vmdl_c", BlockType.CTRL)]
+        public async Task DependencyBlocksParseOnFirstUse(string file, BlockType dependency)
         {
-            using var resource = Read("alchemist.vmdl_c");
+            using var fullResource = Read(file, BlockParsing.Runtime);
+            using var resource = Read(file);
+            var dependencyBlock = resource.UnparsedBlocks.First(block => block.Type == dependency);
 
             using (Assert.Multiple())
             {
                 await Assert.That(resource.ResourceType).IsEqualTo(ResourceType.Model);
-                await Assert.That(resource.UnparsedBlocks
-                    .Where(static block => block.Type is BlockType.NTRO or BlockType.CTRL)
-                    .All(static block => block.IsRead)).IsTrue();
+                await Assert.That(dependencyBlock.IsRead).IsFalse();
             }
+
+            await Assert.That(resource.DataBlock!.ToString()).IsEqualTo(fullResource.DataBlock!.ToString());
+            await Assert.That(resource.GetBlockByType(dependency)!.ToString()).IsEqualTo(fullResource.GetBlockByType(dependency)!.ToString());
         }
 
         [Test]

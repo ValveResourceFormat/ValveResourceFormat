@@ -272,13 +272,16 @@ namespace ValveResourceFormat
 
                 blocks.Items.Add(block);
 
-                if (block is ResourceEditInfo && ResourceType != ResourceType.Unknown && !IsParsedInRead(block.Type, parsing))
+                if (IsReadEagerly(block.Type))
                 {
-                    block.MarkDeferred();
-                }
-                else if (IsReadEagerly(block.Type))
-                {
-                    block.Read(Reader);
+                    if (IsParsedInRead(block.Type, parsing) || (block is ResourceEditInfo && ResourceType == ResourceType.Unknown))
+                    {
+                        block.Read(Reader);
+                    }
+                    else
+                    {
+                        block.MarkDeferred();
+                    }
                 }
 
                 if (block is ResourceEditInfo blockEditInfo)
@@ -556,7 +559,7 @@ namespace ValveResourceFormat
 
         // Other blocks may depend on these, so they are read as soon as they are found
         /// <summary>
-        /// Whether <see cref="Read(Stream, bool, BlockParsing)"/> parses a block that no other block depends on.
+        /// Whether <see cref="Read(Stream, bool, BlockParsing)"/> parses a block instead of leaving it for first access.
         /// </summary>
         private bool IsParsedInRead(BlockType type, BlockParsing parsing) => parsing switch
         {

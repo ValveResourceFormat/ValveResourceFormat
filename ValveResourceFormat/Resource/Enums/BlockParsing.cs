@@ -12,8 +12,8 @@ namespace ValveResourceFormat
         Runtime,
 
         /// <summary>
-        /// Only blocks that others depend on, such as the introspection manifest, parse in Read. Every other block
-        /// parses on first access, so a block that fails to parse throws there instead of in Read.
+        /// Blocks parse on first access, so a block that fails to parse throws there instead of in Read. Only the DATA
+        /// block of VData, which is specialized by its contents, and an edit info that determines the resource type parse in Read.
         /// </summary>
         Deferred,
     }
