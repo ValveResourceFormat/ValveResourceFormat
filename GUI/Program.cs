@@ -42,6 +42,12 @@ namespace GUI
             // Stop system DLLs (e.g. dinput8.dll requested by GLFW) from being hijacked by a copy next to the exe.
             PInvoke.SetDefaultDllDirectories(LOAD_LIBRARY_FLAGS.LOAD_LIBRARY_SEARCH_SYSTEM32);
 
+            if (args.Length == 3 && args[0] == UpdateInstaller.ElevatedInstallArgument)
+            {
+                Environment.ExitCode = UpdateInstaller.InstallElevated(args[1], args[2]);
+                return;
+            }
+
             AppDomain.CurrentDomain.UnhandledException += UnhandledException;
             Application.ThreadException += ThreadException;
 
