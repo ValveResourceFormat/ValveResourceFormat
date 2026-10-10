@@ -64,6 +64,7 @@ namespace GUI.Utils
 
         private int Children;
         private bool WantsToBeDisposed;
+        private bool Disposed;
         private readonly ConcurrentDictionary<string, Resource> CachedResources = [];
         private readonly ConcurrentQueue<RendererContext> rendererContexts = [];
 
@@ -202,7 +203,8 @@ namespace GUI.Utils
         [SuppressMessage("Usage", "CA2215:Dispose methods should call base class dispose", Justification = "Deferred to StopLoadingAndDispose, which waits for the loaders first")]
         protected override void Dispose(bool disposing)
         {
-            if (!disposing)
+            // A package tab's context is disposed by both its tree view and its tab
+            if (!disposing || Disposed)
             {
                 return;
             }
@@ -220,6 +222,7 @@ namespace GUI.Utils
 #if DEBUG
             Log.Debug(nameof(VrfGuiContext), $"#{ContextId} Dispose (total children: {TotalChildren}, has parent: {ParentGuiContext != null}, prev: {WantsToBeDisposed})");
 #endif
+            Disposed = true;
             ParentGuiContext?.RemoveChildren();
 
             StopLoadingAndDispose(disposing);
