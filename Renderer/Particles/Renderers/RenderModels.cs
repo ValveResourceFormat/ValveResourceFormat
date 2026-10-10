@@ -56,6 +56,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var path = entry.GetStringProperty("m_model");
                     var model = string.IsNullOrEmpty(path) ? null : rendererContext.FileLoader.LoadFileCompiled(path)?.DataBlock as Model;
 
+                    // Nodes are only created when particles spawn, by which point the loader may have closed the
+                    // model resource, so read the embedded mesh buffers while it is still open
+                    model?.GetEmbeddedMeshes();
+
                     var weight = entry.ContainsKey("m_flRelativeProbabilityOfSpawn") ? entry.GetFloatProperty("m_flRelativeProbabilityOfSpawn") : 1f;
                     list.Add((model, weight, model?.GetMaterialGroups().Select(static group => group.Name).ToArray() ?? []));
                 }
