@@ -1,8 +1,8 @@
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Editor.Entities;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
-using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
@@ -159,7 +159,7 @@ public sealed class SelectionVisuals
         }
 
         // The helpers show the entity better than the bounds of its editor model
-        if (!(hasHelpers && node.LayerName == EditorEntityNode.LayerName) && !node.IsPointMarker)
+        if (!(hasHelpers && node.LayerName == HammerEntityVisuals.MarkerLayerName) && !node.IsPointMarker)
         {
             BoxLines.AddWithSize(vertices, node.Transform * toWorld, node.LocalBoundingBox, Color32.White, camera, textRenderer);
         }

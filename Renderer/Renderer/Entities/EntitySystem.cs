@@ -85,6 +85,12 @@ public sealed class EntitySystem
     public PlayerEntity? Player { get; private set; }
 
     /// <summary>
+    /// Gets or sets what a tool draws for entities beyond what the game shows, or <see langword="null"/> to
+    /// draw only that. Set before a world is loaded, as entities build their nodes when they spawn.
+    /// </summary>
+    public IEntityToolVisuals? ToolVisuals { get; set; }
+
+    /// <summary>
     /// Gets the world entity at the root of the hierarchy, once a map has loaded. A trace that hits the
     /// static world reports it as the entity hit.
     /// </summary>

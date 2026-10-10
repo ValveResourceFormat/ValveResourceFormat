@@ -423,15 +423,15 @@ public abstract class BaseEntity
     /// Builds the node this entity is drawn as, or returns <see langword="null"/> for one that draws nothing.
     /// </summary>
     /// <remarks>
-    /// The default is the editor marker, <see cref="CreateEditorNode"/>. A class with real geometry
-    /// overrides this, so the marker is never built for it.
+    /// The default is the tool's stand-in, <see cref="CreateEditorNode"/>. A class with real geometry
+    /// overrides this, so the stand-in is never built for one that has geometry.
     /// </remarks>
     /// <returns>The node, or <see langword="null"/> to own none.</returns>
     protected virtual SceneNode? CreateRootNode() => CreateEditorNode();
 
     /// <summary>
-    /// Builds the editor marker: the icon of the entity's Hammer class, or a box in its colour.
-    /// <see langword="null"/> for an entity created at runtime, which has no Hammer class.
+    /// Builds the stand-in the tool draws this entity as, through <see cref="EntitySystem.ToolVisuals"/>.
+    /// <see langword="null"/> without one, and for an entity created at runtime, which was never authored.
     /// </summary>
     /// <param name="flags">Flags for the node.</param>
     /// <returns>The node, or <see langword="null"/>.</returns>
@@ -442,16 +442,7 @@ public abstract class BaseEntity
             return null;
         }
 
-        // On the editor-only layer, so it hides with the other markers rather than with the world, except a
-        // template and what it spawns, which are grouped together. An icon the Hammer class draws as a
-        // studio model stands in for real geometry, so it stays on the entity's own layer.
-        var layerName = LayerName == World.EditorEntityNode.TemplateLayerName
-            ? World.EditorEntityNode.TemplateLayerName
-            : HammerEntities.Get(Classname)?.Studio == true && LayerName != null
-                ? LayerName
-                : World.EditorEntityNode.LayerName;
-
-        return World.EditorEntityNode.Create(Scene, Data, Classname, Transform, RigidTransform, flags, layerName);
+        return EntitySystem.ToolVisuals?.CreateStandIn(this, flags);
     }
 
     /// <summary>

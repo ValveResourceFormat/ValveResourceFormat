@@ -1,13 +1,13 @@
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
-using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
-using static ValveResourceFormat.Renderer.Utils.HammerEntities;
+using static ValveResourceFormat.Editor.Entities.HammerEntities;
 
-namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.Editor.Entities
 {
     /// <summary>
     /// Where a helper line is drawn: solid where the scene does not hide it, and over the scene in its color's alpha.
