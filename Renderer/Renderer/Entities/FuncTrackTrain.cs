@@ -15,6 +15,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// simulated: driving it with the use key or train controls, the damage and shove it gives what blocks it
 /// (the player never blocks a train), and the pitch and volume its move sound takes from its speed.
 /// </remarks>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CFuncTrackTrain">CFuncTrackTrain</seealso>
 public class FuncTrackTrain : BaseModelEntity
 {
     /// <summary>What a <c>func_tracktrain</c>'s <c>spawnflags</c> mean.</summary>
@@ -47,6 +48,7 @@ public class FuncTrackTrain : BaseModelEntity
     }
 
     /// <summary>How the train turns along the track, the <c>orientationtype</c> keyvalue.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/TrainOrientationType_t">TrainOrientationType_t</seealso>
     public enum OrientationType
     {
         /// <summary>It never turns.</summary>
@@ -63,6 +65,7 @@ public class FuncTrackTrain : BaseModelEntity
     }
 
     /// <summary>How the train changes speed between nodes with speeds, the <c>velocitytype</c> keyvalue.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/TrainVelocityType_t">TrainVelocityType_t</seealso>
     public enum VelocityType
     {
         /// <summary>It keeps its speed.</summary>

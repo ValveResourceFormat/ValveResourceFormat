@@ -5,6 +5,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>One entry of m_vecTexturesInput: a texture plus how it folds into the layers below it.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/TextureGroup_t">TextureGroup_t</seealso>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/TextureControls_t">TextureControls_t</seealso>
     internal sealed class ParticleTextureLayer(RenderTexture texture)
     {
         /// <summary>The most layers any spritecard renderer composites.</summary>

@@ -12,11 +12,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     /// <summary>
     /// Represents a quantization range with a start value and length.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/NmCompressionSettings_t::QuantizationRange_t">NmCompressionSettings_t::QuantizationRange_t</seealso>
     public record struct QuantizationRange(float Start, float Length);
 
     /// <summary>
     /// Represents compression settings for an animation track.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/NmCompressionSettings_t">NmCompressionSettings_t</seealso>
     public record struct TrackCompressionSetting
     (
         QuantizationRange TranslationRangeX,
@@ -32,6 +34,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     /// <summary>
     /// Represents an animation clip with compressed pose data.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmClip">CNmClip</seealso>
     public class AnimationClip : BinaryKV3
     {
         /// <summary>

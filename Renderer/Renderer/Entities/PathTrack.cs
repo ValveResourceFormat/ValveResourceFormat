@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>path_track</c>. A node of the track a <see cref="FuncTrackTrain"/> runs
 /// along, linked to the next one by <c>target</c> and optionally branching to an <c>altpath</c>.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPathTrack">CPathTrack</seealso>
 public class PathTrack : BaseEntity
 {
     /// <summary>What a <c>path_track</c>'s <c>spawnflags</c> mean.</summary>
@@ -30,6 +31,7 @@ public class PathTrack : BaseEntity
     }
 
     /// <summary>How a train orients itself at this node, the <c>orientationtype</c> keyvalue.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/TrackOrientationType_t">TrackOrientationType_t</seealso>
     public enum Orientation
     {
         /// <summary>Same as <see cref="FacePath"/>.</summary>

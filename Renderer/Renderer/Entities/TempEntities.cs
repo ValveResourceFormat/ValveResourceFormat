@@ -12,6 +12,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <param name="SurfacePropertyHash">The hash of the surface property that was hit, or zero for the default surface.</param>
 /// <param name="Entity">The entity that was hit, or null for the static world.</param>
 /// <param name="Scale">How big the effect is, for effects that come in sizes.</param>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEffectData">CEffectData</seealso>
 public readonly record struct EffectData(Scene Scene, Vector3 Origin, Vector3 Normal, Vector3 Direction,
     uint SurfacePropertyHash = 0, BaseEntity? Entity = null, float Scale = 1f);
 

@@ -11,6 +11,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     /// <see cref="NmLegacyEvent"/>); other classes are represented by this base with their raw data available
     /// through <see cref="Data"/>. Consumers filter the event array for the types they are interested in.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmEvent">CNmEvent</seealso>
     public class NmClipEvent : IAnimationEvent
     {
         /// <summary>Gets the runtime class name, e.g. "CNmSoundEvent".</summary>
@@ -79,8 +80,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     }
 
     /// <summary>
-    /// A sound event fired during clip playback (CNmSoundEvent).
+    /// A sound event fired during clip playback.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmSoundEvent">CNmSoundEvent</seealso>
     public sealed class NmSoundEvent : NmClipEvent
     {
         /// <summary>Gets the name of the sound event to play.</summary>
@@ -116,8 +118,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     }
 
     /// <summary>
-    /// A named marker window used by game code and animation graph transitions (CNmIDEvent).
+    /// A named marker window used by game code and animation graph transitions.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmIDEvent">CNmIDEvent</seealso>
     public sealed class NmIDEvent : NmClipEvent
     {
         /// <summary>Gets the primary ID.</summary>
@@ -134,8 +137,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     }
 
     /// <summary>
-    /// A particle effect event (CNmParticleEvent), e.g. the C4 LED pulse on the viewmodel.
+    /// A particle effect event, e.g. the C4 LED pulse on the viewmodel.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmParticleEvent">CNmParticleEvent</seealso>
     public sealed class NmParticleEvent : NmClipEvent
     {
         /// <summary>Gets the operation, e.g. "Create" or "Create_CFG".</summary>
@@ -188,9 +192,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     }
 
     /// <summary>
-    /// A legacy animation event carried over from the old animation system (CNmLegacyEvent),
+    /// A legacy animation event carried over from the old animation system,
     /// e.g. "AE_CL_ENABLE_BODYGROUP".
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmLegacyEvent">CNmLegacyEvent</seealso>
     public sealed class NmLegacyEvent : NmClipEvent
     {
         /// <summary>Gets the legacy animation event class name.</summary>

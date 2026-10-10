@@ -3,6 +3,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary><c>info_map_parameters</c>. Sets the map-wide wetness and puddle ripple parameters of its scene.</summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CMapInfo">CMapInfo</seealso>
 public sealed class InfoMapParameters : BaseEntity
 {
     /// <summary>Initializes an <c>info_map_parameters</c> from its keyvalues.</summary>

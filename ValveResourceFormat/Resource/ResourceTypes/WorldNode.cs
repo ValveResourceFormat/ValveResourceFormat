@@ -97,6 +97,7 @@ namespace ValveResourceFormat.ResourceTypes
             /// <summary>A contiguous range of spatially grouped instances.</summary>
             /// <param name="FirstInstance">Index of the first instance in the tile.</param>
             /// <param name="EndInstance">Index one past the last instance in the tile.</param>
+            /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/ClutterTile_t">ClutterTile_t</seealso>
             public readonly record struct Tile(int FirstInstance, int EndInstance);
 
             /// <summary>
@@ -151,6 +152,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="SubSceneObject">Index of the mesh within the scene object's model.</param>
         /// <param name="DrawCallIndex">Index of the draw call within the mesh.</param>
         /// <param name="BufferIndex">Index into <see cref="GetExtraVertexStreams"/>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/ExtraVertexStreamOverride_t">ExtraVertexStreamOverride_t</seealso>
         public readonly record struct ExtraVertexStreamOverride(int SceneObjectIndex, int SubSceneObject, int DrawCallIndex, int BufferIndex);
 
         /// <summary>
@@ -181,6 +183,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="SubSceneObject">Index of the mesh within the scene object's model.</param>
         /// <param name="DrawCallIndex">Index of the draw call within the mesh.</param>
         /// <param name="Material">Name of the replacement material.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/MaterialOverride_t">MaterialOverride_t</seealso>
         public readonly record struct MaterialOverride(int SceneObjectIndex, int SubSceneObject, int DrawCallIndex, string Material);
 
         /// <summary>

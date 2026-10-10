@@ -3,6 +3,8 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>
 /// <c>env_light_probe_volume</c>, and <c>env_combined_light_probe_volume</c>, which also bakes a cubemap.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvLightProbeVolume">CEnvLightProbeVolume</seealso>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvCombinedLightProbeVolume">CEnvCombinedLightProbeVolume</seealso>
 public sealed class EnvLightProbeVolume : EnvLightingVolume
 {
     private readonly bool bakesCubemap;

@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>logic_branch_listener</c>. Watches up to sixteen <see cref="LogicBranch"/> entities and reports
 /// whether they are all true, all false, or a mix, each time that answer changes.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLogicBranchList">CLogicBranchList</seealso>
 public sealed class LogicBranchListener : BaseEntity
 {
     // The FGD's Branch01 to Branch16

@@ -69,6 +69,7 @@ namespace ValveResourceFormat.IO
         /// <param name="MaxDist">Maximum allowed distance.</param>
         /// <param name="Weight0">Share of <paramref name="NodeA"/> in the correction.</param>
         /// <param name="RelaxationFactor">Relaxation factor.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeRodConstraint_t">FeRodConstraint_t</seealso>
         internal readonly record struct Rod(int NodeA, int NodeB, float MinDist, float MaxDist, float Weight0, float RelaxationFactor)
         {
             /// <summary>Gets whether the rod's minimum and maximum distance differ by more than a relative 1e-4.</summary>
@@ -85,6 +86,7 @@ namespace ValveResourceFormat.IO
         /// <param name="NodeA">First node of the lane.</param>
         /// <param name="NodeB">Second node of the lane.</param>
         /// <param name="Weight0">Share of <paramref name="NodeA"/> in the correction, as in <see cref="Rod.Weight0"/>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSimdRodConstraintAnim_t">FeSimdRodConstraintAnim_t</seealso>
         internal readonly record struct AnimRod(int NodeA, int NodeB, float Weight0)
         {
             /// <summary>Gets the rod's two nodes, the lower first.</summary>
@@ -96,6 +98,7 @@ namespace ValveResourceFormat.IO
         /// <param name="NodeX1">Second control node of the local X axis.</param>
         /// <param name="NodeY0">First control node of the local Y axis.</param>
         /// <param name="NodeY1">Second control node of the local Y axis.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeNodeBase_t">FeNodeBase_t</seealso>
         internal readonly record struct NodeBasis(int NodeX0, int NodeX1, int NodeY0, int NodeY1);
 
         /// <summary>A three-node bend constraint (from <c>m_KelagerBends</c>).</summary>
@@ -106,6 +109,7 @@ namespace ValveResourceFormat.IO
         /// <param name="End0Weight">Solver share of <paramref name="End0"/>.</param>
         /// <param name="End1Weight">Solver share of <paramref name="End1"/>.</param>
         /// <param name="Height">Allowed distance from the bent node to the centroid of the three nodes.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeKelagerBend2_t">FeKelagerBend2_t</seealso>
         internal readonly record struct KelagerBend(int MidNode, int End0, int End1,
             float MidWeight, float End0Weight, float End1Weight, float Height);
 
@@ -118,6 +122,7 @@ namespace ValveResourceFormat.IO
         /// <param name="Weights">Membership weight of each covered node, 0 to 1, indexed from <paramref name="VertexBase"/>.</param>
         /// <param name="VolumetricSolveStrength">How strongly the selection is solved as a volume.</param>
         /// <param name="ScaleSourceNode">The control node whose scale the selection follows, or -1.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeVertexMapDesc_t">FeVertexMapDesc_t</seealso>
         internal readonly record struct VertexMap(string Name, uint NameHash, int VertexBase, int VertexCount,
             Vector3 CenterOfMass, float[] Weights, float VolumetricSolveStrength = 0f, int ScaleSourceNode = -1)
         {

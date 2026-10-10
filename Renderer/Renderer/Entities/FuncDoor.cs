@@ -6,6 +6,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>func_door</c>. A brush that slides open along its <c>movedir</c> and back again. Not simulated:
 /// sounds, the <c>master</c>, damage to whatever blocks it, and door groups.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseDoor">CBaseDoor</seealso>
 public class FuncDoor : BaseToggle
 {
     /// <summary>What a <c>func_door</c>'s <c>spawnflags</c> mean.</summary>

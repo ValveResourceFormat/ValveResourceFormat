@@ -6,11 +6,13 @@ namespace ValveResourceFormat.Particles
     /// <summary>
     /// Particle attribute remapping handler.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/CParticleFloatInput">CParticleFloatInput</seealso>
     class AttributeMapping
     {
         /// <summary>
         /// Input handling modes for attribute mapping operations.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/ParticleFloatInputMode_t">ParticleFloatInputMode_t</seealso>
         internal enum PfInputMode
         {
             /// <summary>Invalid input mode.</summary>
@@ -24,6 +26,7 @@ namespace ValveResourceFormat.Particles
         /// <summary>
         /// Attribute mapping transformation types.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/ParticleFloatMapType_t">ParticleFloatMapType_t</seealso>
         internal enum PfMapType
         {
             /// <summary>Invalid mapping type.</summary>
@@ -53,6 +56,7 @@ namespace ValveResourceFormat.Particles
         /// <summary>
         /// Rounding modes for <see cref="PfMapType.Round"/>.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/ParticleFloatRoundType_t">ParticleFloatRoundType_t</seealso>
         internal enum PfRoundType
         {
             /// <summary>Invalid rounding mode.</summary>

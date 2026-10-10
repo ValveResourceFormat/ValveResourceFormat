@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>logic_case</c>. Picks one of up to sixteen outputs, either by matching a value against the authored
 /// cases or at random.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLogicCase">CLogicCase</seealso>
 public sealed class LogicCase : BaseEntity
 {
     // The FGD's Case01 to Case16

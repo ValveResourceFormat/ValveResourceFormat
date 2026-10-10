@@ -19,6 +19,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Defines the six faces of a cubemap texture.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/hlvr/rendersystemdx11/CubeMapFace_t">CubeMapFace_t</seealso>
         public enum CubemapFace
         {
             /// <summary>Right face.</summary>

@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Particles.Emitters
     /// Base class for all particle emitters. Emitters are responsible for spawning new particles
     /// into a particle system over time.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CParticleFunctionEmitter">CParticleFunctionEmitter</seealso>
     abstract class ParticleFunctionEmitter : ParticleFunction
     {
         protected ParticleFunctionEmitter(ParticleDefinitionParser parse) : base(parse)

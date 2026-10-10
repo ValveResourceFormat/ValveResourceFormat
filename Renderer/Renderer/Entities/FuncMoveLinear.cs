@@ -9,6 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>func_movelinear</c>. A brush that moves <c>movedistance</c> along <c>movedir</c> on command, to either
 /// end or any fraction between. Damage to whatever blocks it is not simulated.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CFuncMoveLinear">CFuncMoveLinear</seealso>
 public class FuncMoveLinear : BaseToggle
 {
     /// <summary>What a <c>func_movelinear</c>'s <c>spawnflags</c> mean.</summary>
@@ -20,6 +21,7 @@ public class FuncMoveLinear : BaseToggle
     }
 
     /// <summary>Which point of the travel the map placed the brush at, the <c>authoredposition</c> keyvalue.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/MoveLinearAuthoredPos_t">MoveLinearAuthoredPos_t</seealso>
     public enum AuthoredPosition
     {
         /// <summary>At <c>startposition</c> of the way along, where it also spawns.</summary>

@@ -6,6 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Represents an animation fetch that specifies a local cycle pose parameter.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CSeqMultiFetch">CSeqMultiFetch</seealso>
     public struct AnimationFetch
     {
         private readonly float[] rowKeys;

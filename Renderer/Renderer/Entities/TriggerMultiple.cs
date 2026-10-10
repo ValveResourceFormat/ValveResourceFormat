@@ -11,6 +11,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// Fires on the touch, not the start of one, so something standing inside fires it each time the wait
 /// runs out.
 /// </remarks>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CTriggerMultiple">CTriggerMultiple</seealso>
 public class TriggerMultiple : BaseTrigger
 {
     private const float RemoveDelay = 0.1f;

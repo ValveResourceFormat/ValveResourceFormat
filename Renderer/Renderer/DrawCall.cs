@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// Single GPU draw operation with geometry, material, and render state.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CMaterialDrawDescriptor">CMaterialDrawDescriptor</seealso>
     public class DrawCall
     {
         /// <summary>Gets or sets the OpenGL primitive type for this draw call.</summary>
@@ -126,6 +127,7 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// Index buffer binding for draw calls.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CRenderBufferBinding">CRenderBufferBinding</seealso>
     public readonly struct IndexDrawBuffer
     {
         /// <summary>Gets the OpenGL buffer object handle.</summary>

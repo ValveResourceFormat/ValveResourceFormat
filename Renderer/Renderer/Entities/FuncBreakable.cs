@@ -3,6 +3,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary><c>func_breakable</c>. A solid brush that can be broken</summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBreakable">CBreakable</seealso>
 public sealed class FuncBreakable : BaseModelEntity
 {
     /// <summary>Gets the remaining strength; breaking happens at zero.</summary>

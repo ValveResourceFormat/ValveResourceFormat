@@ -6,6 +6,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment;
 /// <summary>
 /// Scene node representing cubemap-based volumetric fog.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvCubemapFog">CEnvCubemapFog</seealso>
 public class SceneCubemapFog(Scene scene) : SceneNode(scene)
 {
     /// <summary>Gets or sets the distance at which fog begins.</summary>

@@ -19,6 +19,7 @@ namespace ValveResourceFormat.Particles
     /// Runs a particle system (emitters, initializers, operators, forces, constraints, children) with no
     /// graphics backend. Drawing layers watch it through <see cref="Observer"/>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CParticleSystemDefinition">CParticleSystemDefinition</seealso>
     public partial class ParticleSystemSimulation
     {
         private readonly List<ParticleFunctionPreEmissionOperator> preEmissionOperators = [];

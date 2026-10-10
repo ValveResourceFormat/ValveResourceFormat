@@ -6,6 +6,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>sky_camera</c>. In a map loaded as another map's 3D sky, it is the point the sky is viewed from,
 /// and its scale is how much the sky is magnified.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CSkyCamera">CSkyCamera</seealso>
 public sealed class SkyCamera : PointCamera
 {
     /// <summary>Gets the sky magnification; a missing or non-positive <c>scale</c> means 1.</summary>

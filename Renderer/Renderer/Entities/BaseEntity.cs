@@ -29,6 +29,7 @@ public readonly record struct EntitySpawnInfo(Entity Data, Matrix4x4 ParentTrans
 /// depend on framerate. An entity is not a scene node; it owns <see cref="RootNode"/> and places it each
 /// frame.
 /// </remarks>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseEntity">CBaseEntity</seealso>
 public abstract class BaseEntity
 {
     /// <summary>Gets the scene that holds the nodes of this entity.</summary>

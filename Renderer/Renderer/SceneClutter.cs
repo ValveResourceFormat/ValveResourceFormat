@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer
     /// Instanced aggregate for the instances of a <see cref="WorldNode.ClutterSceneObject"/> that share a tint. A compute pass
     /// picks the instances to draw each frame by their screen size.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/ClutterSceneObject_t">ClutterSceneObject_t</seealso>
     public sealed class SceneClutter : SceneAggregate
     {
         /// <summary>One instance with its place in the compiled tile it belongs to.</summary>

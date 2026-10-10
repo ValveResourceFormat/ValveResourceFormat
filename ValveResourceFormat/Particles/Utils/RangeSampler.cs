@@ -10,6 +10,7 @@ namespace ValveResourceFormat.Particles.Utils
     /// spawn ordinal, spreading the particles out rather than letting them clump, and takes nothing
     /// from the shared table.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CRandomNumberGeneratorParameters">CRandomNumberGeneratorParameters</seealso>
     readonly struct RangeSampler
     {
         private readonly bool distributeEvenly;

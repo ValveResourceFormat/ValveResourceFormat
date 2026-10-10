@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment;
 /// <summary>
 /// Scene node for indirect lighting via light probe volumes.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvLightProbeVolume">CEnvLightProbeVolume</seealso>
 public class SceneLightProbe : SceneNode
 {
     /// <summary>Gets or sets the handshake value used to match this probe to scene nodes during precomputation.</summary>

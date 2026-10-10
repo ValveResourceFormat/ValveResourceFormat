@@ -6,6 +6,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>logic_timer</c>. Fires <c>OnTimer</c> on a repeating interval, either fixed or drawn from a range.
 /// As an oscillator it alternates <c>OnTimerLow</c> and <c>OnTimerHigh</c> instead.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CTimerEntity">CTimerEntity</seealso>
 public sealed class LogicTimer : BaseEntity
 {
     /// <summary>What a <c>logic_timer</c>'s <c>spawnflags</c> mean.</summary>

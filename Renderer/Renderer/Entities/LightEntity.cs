@@ -11,6 +11,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// re-binned every frame; slot-stored lights (omni, spot, ortho, environment) re-store the lighting
 /// uniforms on change. Light styles and volumetric fog are not simulated.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLightEntity">CLightEntity</seealso>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBarnLight">CBarnLight</seealso>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLightEnvironmentEntity">CLightEnvironmentEntity</seealso>
 public sealed class LightEntity : BaseEntity
 {
     /// <summary>Gets whether the light is on.</summary>

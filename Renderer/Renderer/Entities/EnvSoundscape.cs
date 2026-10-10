@@ -8,6 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// sound event ("enablesoundevent") or a scripted soundscape. The sound player picks which region is
 /// audible.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvSoundscape">CEnvSoundscape</seealso>
 public sealed class EnvSoundscape : BaseEntity
 {
     private SoundEventPlayer.Soundscape? region;

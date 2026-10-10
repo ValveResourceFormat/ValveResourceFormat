@@ -10,6 +10,7 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// Scene node for instanced rendering of aggregated world geometry.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/AggregateSceneObject_t">AggregateSceneObject_t</seealso>
     public class SceneAggregate : SceneNode
     {
         /// <summary>Gets the shared renderable mesh for all fragments in this aggregate.</summary>
@@ -44,6 +45,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="MaxObjectScale">Largest instance scale in the cluster, scales the projected size metric.</param>
         /// <param name="SwitchDistances">Ascending per-level thresholds, first entry 0, compared against a
         /// screen-size derived distance metric rather than raw world distance.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/AggregateLODSetup_t">AggregateLODSetup_t</seealso>
         public readonly record struct LodSetup(Vector3 Origin, float MaxObjectScale, float[] SwitchDistances);
 
         /// <summary>Gets the baked per-cluster LOD setups, empty when this aggregate has no LOD switching.</summary>
@@ -57,6 +59,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Single drawable fragment within an aggregate with independent bounds.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/AggregateMeshInfo_t">AggregateMeshInfo_t</seealso>
         public sealed class Fragment : SceneNode
         {
             /// <summary>Gets the aggregate that owns this fragment.</summary>

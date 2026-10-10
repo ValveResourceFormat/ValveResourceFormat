@@ -6,6 +6,7 @@ namespace ValveResourceFormat.Particles.ForceGenerators
     /// <see cref="Particle.ForceAccumulator"/>, then integrates it into velocity and clears it. They
     /// are built from the system's <c>m_ForceGenerators</c> block.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CParticleFunctionForce">CParticleFunctionForce</seealso>
     abstract class ParticleFunctionForceGenerator : ParticleFunction
     {
         protected ParticleFunctionForceGenerator(ParticleDefinitionParser parse) : base(parse)

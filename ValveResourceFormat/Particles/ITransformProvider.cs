@@ -5,6 +5,7 @@ namespace ValveResourceFormat.Particles
     /// <summary>
     /// Provides a transformation matrix that may be derived from a control point or other source.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/CParticleTransformInput">CParticleTransformInput</seealso>
     internal interface ITransformProvider
     {
         /// <summary>

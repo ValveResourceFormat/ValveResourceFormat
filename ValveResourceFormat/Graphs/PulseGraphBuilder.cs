@@ -9,6 +9,7 @@ namespace ValveResourceFormat.Graphs;
 /// Builds the node graph of a compiled Pulse graph: one card per cell, wired by the instruction
 /// flow and the register bindings between them.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/pulse_runtime_lib/CPulseGraphDef">CPulseGraphDef</seealso>
 internal sealed class PulseGraphBuilder
 {
     /// <summary>Receives diagnostics about cells the definition could not be read cleanly from.</summary>
@@ -41,6 +42,7 @@ internal sealed class PulseGraphBuilder
     private readonly KVObject graphDefinition;
 
     // Every serialized instruction code, in order. Typed variants such as ADD_INT only exist at runtime.
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/pulse_runtime_lib/PulseInstructionCode_t">PulseInstructionCode_t</seealso>
     enum InstructionCode
     {
         INVALID,
@@ -95,6 +97,7 @@ internal sealed class PulseGraphBuilder
 
     // The full value type set. A register names one of these, optionally with
     // a ":subtype" the parser strips. Drives socket/wire colour and is shown on variable nodes.
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/pulse_runtime_lib/PulseValueType_t">PulseValueType_t</seealso>
     enum PulseValueType
     {
         PVAL_INVALID,
@@ -170,6 +173,7 @@ internal sealed class PulseGraphBuilder
     // constant that is printed inline where it is read. The latest write wins.
     private readonly record struct RegisterValue(GraphSocket? Socket, KVObject? Constant);
 
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/pulse_runtime_lib/CPulse_OutflowConnection">CPulse_OutflowConnection</seealso>
     private sealed record PulseOutflowConnection(string SourceOutflowName, int DestChunk, int DestInstructionIdx, KVObject? OutflowRegisterMap)
     {
         public static PulseOutflowConnection? FromKV(KVObject obj)

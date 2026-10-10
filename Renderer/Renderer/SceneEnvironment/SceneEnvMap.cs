@@ -5,6 +5,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment;
 /// <summary>
 /// Environment map reflection probe with box or sphere projection.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvCubemap">CEnvCubemap</seealso>
 public class SceneEnvMap : SceneNode
 {
     /// <summary>

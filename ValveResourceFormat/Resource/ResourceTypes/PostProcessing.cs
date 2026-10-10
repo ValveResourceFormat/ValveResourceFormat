@@ -7,6 +7,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a post-processing resource.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/materialsystem2/PostProcessingResource_t">PostProcessingResource_t</seealso>
     public class PostProcessing : KeyValuesOrNTRO
     {
         /// <summary>

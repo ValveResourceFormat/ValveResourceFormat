@@ -13,6 +13,7 @@ namespace ValveResourceFormat.Renderer.Decals
     internal sealed class ImpactDecalTable
     {
         // Sequence names the frame of the material's sprite sheet to use, for a material that holds many decals
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/client/DecalGroupOption_t">DecalGroupOption_t</seealso>
         public readonly record struct DecalOption(string Material, string? Sequence, float Probability);
 
         private readonly record struct SurfaceImpact(string? Decal, string? GrazingDecal, string? Effect);

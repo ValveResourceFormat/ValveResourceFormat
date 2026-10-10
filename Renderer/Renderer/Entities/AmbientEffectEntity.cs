@@ -8,6 +8,8 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// fountains (<c>ambientfx</c>), and Artifact's board attachments (<c>ambienteffect</c>).
 /// </summary>
 /// <remarks>Damage and destroy effects are not played; they need game events.</remarks>
+/// <seealso href="https://s2v.app/SchemaExplorer/dota2/server/CDOTA_BaseNPC_Building">CDOTA_BaseNPC_Building</seealso>
+/// <seealso href="https://s2v.app/SchemaExplorer/dota2/server/CDOTA_MapTree">CDOTA_MapTree</seealso>
 public sealed class AmbientEffectEntity : BaseModelEntity
 {
     /// <summary>Gets the ambient effect, or <see langword="null"/> when the entity names none.</summary>

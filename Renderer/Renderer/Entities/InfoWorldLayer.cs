@@ -10,6 +10,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// Entities spawned by an input after load are not bound to the scene's cubemaps and light probes,
 /// which are only assigned when the scene is first initialized.
 /// </remarks>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CInfoWorldLayer">CInfoWorldLayer</seealso>
 public sealed class InfoWorldLayer : BaseEntity
 {
     /// <summary>Spawn flags for world layers.</summary>

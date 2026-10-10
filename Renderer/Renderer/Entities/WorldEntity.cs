@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// The root of the entity hierarchy, one per entity world. Created directly: the map's
 /// <c>worldspawn</c> keyvalues never spawn an entity.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CWorld">CWorld</seealso>
 public sealed class WorldEntity : BaseEntity
 {
     /// <summary>Initializes the world entity, which has no keyvalues.</summary>

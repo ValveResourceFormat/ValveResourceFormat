@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// Small group of triangles on a mesh used for low level culling
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CMeshletDescriptor">CMeshletDescriptor</seealso>
     [StructLayout(LayoutKind.Sequential, Pack = 16)]
     public readonly struct Meshlet
     {
@@ -14,6 +15,7 @@ namespace ValveResourceFormat.Renderer
         /// Packed axis-aligned bounding box stored as two 32-bit values.
         /// Each uint packs three 10-bit normalized components (x/y/z in 0..1023).
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/mathlib_extended/PackedAABB_t">PackedAABB_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public struct MeshletBounds
         {
@@ -31,6 +33,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Quantized cone used for backface/cone culling.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CDrawCullingData">CDrawCullingData</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public struct MeshletCone
         {

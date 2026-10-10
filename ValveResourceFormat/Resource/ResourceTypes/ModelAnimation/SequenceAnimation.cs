@@ -10,6 +10,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Represents a sequence-based model animation with frame data, events, and movement information.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimDesc">CAnimDesc</seealso>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CSeqS1SeqDesc">CSeqS1SeqDesc</seealso>
     public sealed class SequenceAnimation : Animation
     {
         /// <summary>

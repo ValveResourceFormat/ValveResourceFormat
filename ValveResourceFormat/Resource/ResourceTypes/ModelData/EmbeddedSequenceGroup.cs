@@ -11,6 +11,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     /// sequence group holding the bone masks, morph masks, pose parameters and faceposer folders its
     /// sequences are written against. Empty or null throughout for a model that carries none.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CSequenceGroupData">CSequenceGroupData</seealso>
     public sealed class EmbeddedSequenceGroup
     {
         /// <summary>

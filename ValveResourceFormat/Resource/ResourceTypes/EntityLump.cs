@@ -11,6 +11,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents an entity lump resource containing entity definitions and their properties.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/PermEntityLumpData_t">PermEntityLumpData_t</seealso>
     public class EntityLump : KeyValuesOrNTRO
     {
         /// <summary>
@@ -154,6 +155,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Represents a IO connection.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/EntityIOConnectionData_t">EntityIOConnectionData_t</seealso>
         public class Connection
         {
             /// <summary>

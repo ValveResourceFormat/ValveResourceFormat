@@ -6,6 +6,7 @@ namespace ValveResourceFormat.Particles.Initializers
     /// spherical distribution, and a local coordinate system speed adds a directional component to
     /// the velocity.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateWithinSphereTransform">C_INIT_CreateWithinSphereTransform</seealso>
     class CreateWithinSphere : ParticleFunctionInitializer
     {
         /// <summary>Transform the sphere is centred on, and whose rotation local coordinates use.</summary>

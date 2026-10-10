@@ -4,6 +4,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary><c>env_gradient_fog</c>. Sets the distance and height fog of its scene.</summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CGradientFog">CGradientFog</seealso>
 public sealed class EnvGradientFog : BaseEntity
 {
     /// <summary>Gets the fog this entity set, or <see langword="null"/> when it did not take effect.</summary>

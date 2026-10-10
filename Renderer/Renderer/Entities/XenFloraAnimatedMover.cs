@@ -9,6 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// HL:A's <c>xen_flora_animatedmover</c>: a creature that travels a chain of <c>path_corner</c> entities,
 /// optionally trailing <c>particle_effect</c>.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/hlvr/server/CXenFloraAnimatedMover">CXenFloraAnimatedMover</seealso>
 public sealed class XenFloraAnimatedMover : BaseModelEntity
 {
     /// <summary>A stop along the path, in the mover's own space.</summary>

@@ -5,6 +5,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>
 /// <c>func_door_rotating</c>: a <see cref="FuncDoor"/> that swings about one axis instead of sliding.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CRotDoor">CRotDoor</seealso>
 public class FuncDoorRotating : FuncDoor
 {
     /// <summary>What a <c>func_door_rotating</c>'s <c>spawnflags</c> mean beyond the door's own.</summary>

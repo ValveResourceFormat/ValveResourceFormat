@@ -8,6 +8,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes;
 /// </summary>
 internal sealed class WorldPanelSceneNode : ShapeSceneNode
 {
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/client/WorldTextPanelOrientation_t">WorldTextPanelOrientation_t</seealso>
     public enum PanelOrientation
     {
         Default = 0,

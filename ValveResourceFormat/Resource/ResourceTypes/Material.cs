@@ -12,6 +12,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a material resource containing shader parameters and texture references.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/materialsystem2/MaterialResourceData_t">MaterialResourceData_t</seealso>
     public class Material : KeyValuesOrNTRO
     {
         /// <summary>
@@ -291,6 +292,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Represents a single element in the vertex shader input signature.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/VsInputSignatureElement_t">VsInputSignatureElement_t</seealso>
         [DebuggerDisplay("{Name,nq} ({Semantic,nq})")]
         public readonly struct InputSignatureElement
         {

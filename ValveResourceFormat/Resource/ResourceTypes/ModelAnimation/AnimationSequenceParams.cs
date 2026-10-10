@@ -7,6 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// Contains sequence parameters for animation transitions.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimSequenceParams">CAnimSequenceParams</seealso>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CSeqTransition">CSeqTransition</seealso>
     public readonly struct AnimationSequenceParams
     {
         /// <summary>

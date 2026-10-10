@@ -6,6 +6,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>logic_relay</c>. Lets one trigger drive many outputs, and a map switch a branch of its wiring
 /// on and off from one entity.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLogicRelay">CLogicRelay</seealso>
 public sealed class LogicRelay : BaseEntity
 {
     /// <summary>

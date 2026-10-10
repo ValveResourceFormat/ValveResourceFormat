@@ -24,6 +24,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// 100% pitch during spin-up, which the sound player cannot do.
 /// </para>
 /// </remarks>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CFuncRotating">CFuncRotating</seealso>
 public sealed class FuncRotating : BaseModelEntity
 {
     /// <summary>A turning brush shoves the player rather than swallowing them.</summary>

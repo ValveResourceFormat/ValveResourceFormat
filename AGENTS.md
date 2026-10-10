@@ -63,6 +63,7 @@ Standard Microsoft C# conventions, plus:
 - `//` comments only for non-obvious logic, workarounds, and TODOs; explain "why", not "what"
 - Plain ASCII only: no em-dashes, curly quotes, ellipsis, or Unicode math symbols
 - Never mention where format knowledge came from (other codebases, tools, game internals) in comments or commit messages
+- A type that models a Source 2 schema class, enum or entity links it after its summary with `/// <seealso href="https://s2v.app/SchemaExplorer/<game>/<module>/<Name>"><Name></seealso>`. Prefer `cs2`; an entity class links the class its classname creates. This is the only way to name an engine type; check names and modules against `schemas/<game>.json` in the SchemaExplorer repo
 - Don't narrate the change, this conversation, or session codenames; no decorative dividers
 - Leave existing comments alone if they are clear and correct
 - Public APIs in ValveResourceFormat and Renderer require concise XML docs; use `<inheritdoc/>` on overrides that add nothing new

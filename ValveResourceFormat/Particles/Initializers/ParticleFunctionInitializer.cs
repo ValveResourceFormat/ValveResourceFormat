@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Particles.Initializers
     /// Base class for all particle initializers. Initializers run once when a particle is created
     /// and set the particle's initial attribute values.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CParticleFunctionInitializer">CParticleFunctionInitializer</seealso>
     abstract class ParticleFunctionInitializer : ParticleFunction
     {
         protected ParticleFunctionInitializer(ParticleDefinitionParser parse) : base(parse)

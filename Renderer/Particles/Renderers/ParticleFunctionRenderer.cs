@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <summary>
     /// Base class for particle renderers, which draw a particle collection each frame.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CBaseRendererSource2">CBaseRendererSource2</seealso>
     abstract class ParticleFunctionRenderer : ParticleFunction
     {
         /// <summary>Scales the radius every particle is drawn at.</summary>

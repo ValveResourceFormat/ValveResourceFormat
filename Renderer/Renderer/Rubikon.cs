@@ -31,6 +31,7 @@ public class Rubikon
     /// <summary>
     /// Triangle mesh collision data for ray tracing.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnMesh_t">RnMesh_t</seealso>
     public record PhysicsMeshData(
         string[] InteractAs,
         string[] InteractExclude,
@@ -58,6 +59,7 @@ public class Rubikon
     /// <summary>
     /// Convex hull collision data with vertices, edges, and planes.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnHull_t">RnHull_t</seealso>
     public record PhysicsHullData(
         string[] InteractAs,
         string[] InteractExclude,
@@ -74,6 +76,7 @@ public class Rubikon
     }
 
     /// <summary>Compound collision data: child shapes under the compound's own tree, whose leaves hold child shape ids.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnCompound_t">RnCompound_t</seealso>
     public record PhysicsCompoundData(
         string[] InteractAs,
         string[] InteractExclude,

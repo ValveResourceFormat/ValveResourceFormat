@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.Gameplay;
 /// stepped 128 times a second from the last shot, cached, and interpolated for whatever time is asked, so
 /// the punch is smooth at any frame rate.
 /// </remarks>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CCSPlayer_AimPunchServices">CCSPlayer_AimPunchServices</seealso>
 public sealed class AimPunchServices
 {
     /// <summary>Scale from the punch to where bullets go.</summary>

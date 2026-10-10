@@ -881,12 +881,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="NodeY0">First node of the local Y axis (<c>nNodeY0</c>).</param>
         /// <param name="NodeY1">Second node of the local Y axis (<c>nNodeY1</c>).</param>
         /// <param name="Adjust">Rotation applied to the derived basis (<c>qAdjust</c>).</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeNodeBase_t">FeNodeBase_t</seealso>
         public readonly record struct FeNodeBase(int Node, int[] Dummy, int NodeX0, int NodeX1, int NodeY0, int NodeY1, Quaternion Adjust);
 
         /// <summary>A surface quad.</summary>
         /// <param name="Nodes">The four corner nodes (<c>nNode</c>).</param>
         /// <param name="Slack"><c>flSlack</c>.</param>
         /// <param name="Shapes">The rest shape (<c>vShape</c>).</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeQuad_t">FeQuad_t</seealso>
         public readonly record struct FeQuad(int[] Nodes, float Slack, Vector4[] Shapes);
 
         /// <summary>A surface triangle.</summary>
@@ -895,6 +897,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="W2"><c>w2</c>.</param>
         /// <param name="V1x"><c>v1x</c>.</param>
         /// <param name="V2"><c>v2</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeTri_t">FeTri_t</seealso>
         public readonly record struct FeTri(int[] Nodes, float W1, float W2, float V1x, Vector2 V2);
 
         /// <summary>A distance constraint between two nodes.</summary>
@@ -903,6 +906,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="MinDist">Minimum allowed distance (<c>flMinDist</c>).</param>
         /// <param name="Weight0">Share of the first node in the correction (<c>flWeight0</c>).</param>
         /// <param name="RelaxationFactor"><c>flRelaxationFactor</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeRodConstraint_t">FeRodConstraint_t</seealso>
         public readonly record struct FeRodConstraint(int[] Nodes, float MaxDist, float MinDist, float Weight0, float RelaxationFactor);
 
         /// <summary>A twist constraint.</summary>
@@ -910,6 +914,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="NodeEnd">The node the twist is measured toward (<c>nNodeEnd</c>).</param>
         /// <param name="TwistRelax"><c>flTwistRelax</c>.</param>
         /// <param name="SwingRelax"><c>flSwingRelax</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeTwistConstraint_t">FeTwistConstraint_t</seealso>
         public readonly record struct FeTwistConstraint(int NodeOrient, int NodeEnd, float TwistRelax, float SwingRelax);
 
         /// <summary>A hinge angle limit.</summary>
@@ -919,16 +924,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Weight5">Blend of the arm nodes (<c>flWeight5</c>).</param>
         /// <param name="AngleCenter"><c>flAngleCenter</c>, in radians.</param>
         /// <param name="AngleExtents"><c>flAngleExtents</c>, in radians.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeHingeLimit_t">FeHingeLimit_t</seealso>
         public readonly record struct FeHingeLimit(int[] Nodes, uint Flags, float Weight4, float Weight5, float AngleCenter, float AngleExtents);
 
         /// <summary>A dynamic-to-kinematic node link.</summary>
         /// <param name="Parent"><c>m_nParent</c>.</param>
         /// <param name="Child"><c>m_nChild</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeDynKinLink_t">FeDynKinLink_t</seealso>
         public readonly record struct FeDynKinLink(int Parent, int Child);
 
         /// <summary>A bone-merge link.</summary>
         /// <param name="ParentHash"><c>m_nParentHash</c>.</param>
         /// <param name="ChildNode"><c>m_nChildNode</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeBoneMergeLink_t">FeBoneMergeLink_t</seealso>
         public readonly record struct FeBoneMergeLink(uint ParentHash, int ChildNode);
 
         /// <summary>A box a node pair may not stray out of.</summary>
@@ -936,6 +944,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Flags"><c>nFlags</c>.</param>
         /// <param name="Max"><c>vMax</c>.</param>
         /// <param name="Nodes"><c>nNode</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeNodeStrayBox_t">FeNodeStrayBox_t</seealso>
         public readonly record struct FeNodeStrayBox(Vector3 Min, uint Flags, Vector3 Max, int[] Nodes);
 
         /// <summary>An axial edge bend constraint.</summary>
@@ -944,23 +953,27 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Dist"><c>flDist</c>.</param>
         /// <param name="Weights"><c>flWeight</c>.</param>
         /// <param name="Nodes"><c>nNode</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeAxialEdgeBend_t">FeAxialEdgeBend_t</seealso>
         public readonly record struct FeAxialEdgeBend(float Te, float Tv, float Dist, float[] Weights, int[] Nodes);
 
         /// <summary>A child node held at an offset from its parent.</summary>
         /// <param name="Offset"><c>vOffset</c>.</param>
         /// <param name="CtrlParent"><c>nCtrlParent</c>.</param>
         /// <param name="CtrlChild"><c>nCtrlChild</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeCtrlOffset_t">FeCtrlOffset_t</seealso>
         public readonly record struct FeCtrlOffset(Vector3 Offset, int CtrlParent, int CtrlChild);
 
         /// <summary>An object-space-offset virtual node.</summary>
         /// <param name="CtrlParent"><c>nCtrlParent</c>.</param>
         /// <param name="CtrlChild"><c>nCtrlChild</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeCtrlOsOffset_t">FeCtrlOsOffset_t</seealso>
         public readonly record struct FeCtrlOsOffset(int CtrlParent, int CtrlChild);
 
         /// <summary>A node that follows another.</summary>
         /// <param name="ParentNode"><c>nParentNode</c>.</param>
         /// <param name="ChildNode"><c>nChildNode</c>.</param>
         /// <param name="Weight"><c>flWeight</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeFollowNode_t">FeFollowNode_t</seealso>
         public readonly record struct FeFollowNode(int ParentNode, int ChildNode, float Weight);
 
         /// <summary>A node's solver integrator parameters.</summary>
@@ -968,6 +981,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="AnimationForceAttraction"><c>flAnimationForceAttraction</c>.</param>
         /// <param name="AnimationVertexAttraction"><c>flAnimationVertexAttraction</c>.</param>
         /// <param name="Gravity"><c>flGravity</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeNodeIntegrator_t">FeNodeIntegrator_t</seealso>
         public readonly record struct FeNodeIntegrator(float PointDamping, float AnimationForceAttraction, float AnimationVertexAttraction, float Gravity);
 
         /// <summary>A damped spring between two nodes.</summary>
@@ -976,10 +990,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="SpringConstant"><c>flSpringConstant</c>.</param>
         /// <param name="SpringDamping"><c>flSpringDamping</c>.</param>
         /// <param name="NodeWeight0"><c>flNodeWeight0</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSpringIntegrator_t">FeSpringIntegrator_t</seealso>
         public readonly record struct FeSpringIntegrator(int[] Nodes, float SpringRestLength, float SpringConstant, float SpringDamping, float NodeWeight0);
 
         /// <summary>The children of a collision tree node.</summary>
         /// <param name="Children"><c>nChild</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeTreeChildren_t">FeTreeChildren_t</seealso>
         public readonly record struct FeTreeChildren(int[] Children);
 
         /// <summary>A bone fit to a range of <see cref="FeModel.FitWeights"/>.</summary>
@@ -989,24 +1005,28 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Node">The fit bone (<c>nNode</c>).</param>
         /// <param name="BeginDynamic"><c>nBeginDynamic</c>.</param>
         /// <param name="Ctrl"><c>nCtrl</c>, or null when absent (older files only).</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeFitMatrix_t">FeFitMatrix_t</seealso>
         public readonly record struct FeFitMatrix(FeTransform Bone, Vector3 Center, int End, int Node, int BeginDynamic, int? Ctrl);
 
         /// <summary>A node a fit is taken over.</summary>
         /// <param name="Weight"><c>flWeight</c>.</param>
         /// <param name="Node"><c>nNode</c>.</param>
         /// <param name="Dummy"><c>nDummy</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeFitWeight_t">FeFitWeight_t</seealso>
         public readonly record struct FeFitWeight(float Weight, int Node, int Dummy);
 
         /// <summary>A reverse offset from a bone to a target node.</summary>
         /// <param name="Offset"><c>vOffset</c>.</param>
         /// <param name="BoneCtrl"><c>nBoneCtrl</c>.</param>
         /// <param name="TargetNode"><c>nTargetNode</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeNodeReverseOffset_t">FeNodeReverseOffset_t</seealso>
         public readonly record struct FeNodeReverseOffset(Vector3 Offset, int BoneCtrl, int TargetNode);
 
         /// <summary>How far a node may stray from its animated position.</summary>
         /// <param name="Nodes"><c>nNode</c>.</param>
         /// <param name="MaxDist"><c>flMaxDist</c>.</param>
         /// <param name="RelaxationFactor"><c>flRelaxationFactor</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeAnimStrayRadius_t">FeAnimStrayRadius_t</seealso>
         public readonly record struct FeAnimStrayRadius(int[] Nodes, float MaxDist, float RelaxationFactor);
 
         /// <summary>A three-node bend constraint.</summary>
@@ -1014,6 +1034,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Height0">Allowed distance from the bent node to the centroid of the three nodes (<c>flHeight0</c>).</param>
         /// <param name="Nodes">The bent node, then the two nodes the bend measures against (<c>nNode</c>).</param>
         /// <param name="Reserved"><c>nReserved</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeKelagerBend2_t">FeKelagerBend2_t</seealso>
         public readonly record struct FeKelagerBend(float[] Weights, float Height0, int[] Nodes, int Reserved);
 
         /// <summary>A child node blended toward an offset from a parent.</summary>
@@ -1021,6 +1042,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="CtrlChild"><c>nCtrlChild</c>.</param>
         /// <param name="Offset"><c>vOffset</c>.</param>
         /// <param name="Alpha"><c>flAlpha</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeCtrlSoftOffset_t">FeCtrlSoftOffset_t</seealso>
         public readonly record struct FeCtrlSoftOffset(int CtrlParent, int CtrlChild, Vector3 Offset, float Alpha);
 
         /// <summary>A dynamic node's wind basis.</summary>
@@ -1028,6 +1050,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="NodeX1"><c>nNodeX1</c>.</param>
         /// <param name="NodeY0"><c>nNodeY0</c>.</param>
         /// <param name="NodeY1"><c>nNodeY1</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeNodeWindBase_t">FeNodeWindBase_t</seealso>
         public readonly record struct FeNodeWindBase(int NodeX0, int NodeX1, int NodeY0, int NodeY1);
 
         /// <summary>Four vectors in structure-of-arrays layout (<c>FourVectors</c>), one lane per vector.</summary>
@@ -1039,6 +1062,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>Four 2D vectors in structure-of-arrays layout (<c>FourVectors2D</c>), one lane per vector.</summary>
         /// <param name="X">The X lanes (<c>x</c>).</param>
         /// <param name="Y">The Y lanes (<c>y</c>).</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FourVectors2D">FourVectors2D</seealso>
         public readonly record struct FourVectors2D(float[] X, float[] Y);
 
         /// <summary>Four quaternions in structure-of-arrays layout (<c>FourQuaternions</c>), one lane per quaternion.</summary>
@@ -1046,6 +1070,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Y">The Y lanes.</param>
         /// <param name="Z">The Z lanes.</param>
         /// <param name="W">The W lanes.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/mathlib_extended/FourQuaternions">FourQuaternions</seealso>
         public readonly record struct FourQuaternions(float[] X, float[] Y, float[] Z, float[] W);
 
         /// <summary>Four node bases, one per lane.</summary>
@@ -1056,6 +1081,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="NodeY1"><c>nNodeY1</c>.</param>
         /// <param name="Dummy"><c>nDummy</c>.</param>
         /// <param name="Adjust"><c>qAdjust</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSimdNodeBase_t">FeSimdNodeBase_t</seealso>
         public readonly record struct FeSimdNodeBase(int[] Nodes, int[] NodeX0, int[] NodeX1, int[] NodeY0, int[] NodeY1, int[] Dummy,
             FourQuaternions Adjust);
 
@@ -1064,6 +1090,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Slack"><c>f4Slack</c>.</param>
         /// <param name="Shapes"><c>vShape</c>.</param>
         /// <param name="Weights"><c>f4Weights</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSimdQuad_t">FeSimdQuad_t</seealso>
         public readonly record struct FeSimdQuad(int[][] Nodes, float[] Slack, FourVectors[] Shapes, float[][] Weights);
 
         /// <summary>Four triangles, one per lane.</summary>
@@ -1072,6 +1099,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="W2"><c>w2</c>.</param>
         /// <param name="V1x"><c>v1x</c>.</param>
         /// <param name="V2"><c>v2</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSimdTri_t">FeSimdTri_t</seealso>
         public readonly record struct FeSimdTri(int[][] Nodes, float[] W1, float[] W2, float[] V1x, FourVectors2D V2);
 
         /// <summary>Four rods, one per lane.</summary>
@@ -1080,12 +1108,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="MinDist"><c>f4MinDist</c>.</param>
         /// <param name="Weight0"><c>f4Weight0</c>.</param>
         /// <param name="RelaxationFactor"><c>f4RelaxationFactor</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSimdRodConstraint_t">FeSimdRodConstraint_t</seealso>
         public readonly record struct FeSimdRodConstraint(int[][] Nodes, float[] MaxDist, float[] MinDist, float[] Weight0, float[] RelaxationFactor);
 
         /// <summary>Four animated-length rods, one per lane.</summary>
         /// <param name="Nodes">The end nodes as two rows of four lanes, indexed [end][lane] (<c>nNode</c>).</param>
         /// <param name="Weight0"><c>f4Weight0</c>.</param>
         /// <param name="RelaxationFactor"><c>f4RelaxationFactor</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSimdRodConstraintAnim_t">FeSimdRodConstraintAnim_t</seealso>
         public readonly record struct FeSimdRodConstraintAnim(int[][] Nodes, float[] Weight0, float[] RelaxationFactor);
 
         /// <summary>Four damped springs, one per lane.</summary>
@@ -1094,6 +1124,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="SpringConstant"><c>flSpringConstant</c>.</param>
         /// <param name="SpringDamping"><c>flSpringDamping</c>.</param>
         /// <param name="NodeWeight0"><c>flNodeWeight0</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSimdSpringIntegrator_t">FeSimdSpringIntegrator_t</seealso>
         public readonly record struct FeSimdSpringIntegrator(int[][] Nodes, float[] SpringRestLength, float[] SpringConstant,
             float[] SpringDamping, float[] NodeWeight0);
 
@@ -1101,11 +1132,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Nodes">The node pairs as two rows of four lanes, indexed [end][lane] (<c>nNode</c>).</param>
         /// <param name="MaxDist"><c>flMaxDist</c>.</param>
         /// <param name="RelaxationFactor"><c>flRelaxationFactor</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSimdAnimStrayRadius_t">FeSimdAnimStrayRadius_t</seealso>
         public readonly record struct FeSimdAnimStrayRadius(int[][] Nodes, float[] MaxDist, float[] RelaxationFactor);
 
         /// <summary>A plane.</summary>
         /// <param name="Normal"><c>m_vNormal</c>.</param>
         /// <param name="Offset"><c>m_flOffset</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnPlane_t">RnPlane_t</seealso>
         public readonly record struct RnPlane(Vector3 Normal, float Offset);
 
         /// <summary>
@@ -1117,6 +1150,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Plane"><c>m_Plane</c>.</param>
         /// <param name="Strength"><c>flStrength</c>.</param>
         /// <param name="Stickiness"><c>flStickiness</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeCollisionPlane_t">FeCollisionPlane_t</seealso>
         public readonly record struct FeCollisionPlane(int CtrlParent, int ChildNode, RnPlane Plane, float Strength, float Stickiness);
 
         /// <summary>The world and ground friction of a range of world-colliding nodes.</summary>
@@ -1124,6 +1158,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="GroundFriction"><c>flGroundFriction</c>.</param>
         /// <param name="ListBegin">The first index into <see cref="FeModel.WorldCollisionNodes"/> (<c>nListBegin</c>).</param>
         /// <param name="ListEnd">The exclusive end index into <see cref="FeModel.WorldCollisionNodes"/> (<c>nListEnd</c>).</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeWorldCollisionParams_t">FeWorldCollisionParams_t</seealso>
         public readonly record struct FeWorldCollisionParams(float WorldFriction, float GroundFriction, int ListBegin, int ListEnd);
 
         /// <summary>A tapered capsule stretched between two nodes.</summary>
@@ -1131,6 +1166,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="CollisionMask"><c>nCollisionMask</c>.</param>
         /// <param name="Dummy"><c>nDummy</c>.</param>
         /// <param name="Radii"><c>flRadius</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeTaperedCapsuleStretch_t">FeTaperedCapsuleStretch_t</seealso>
         public readonly record struct FeTaperedCapsuleStretch(int[] Nodes, int CollisionMask, int Dummy, float[] Radii);
 
         /// <summary>A tapered capsule collider on one node.</summary>
@@ -1140,6 +1176,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="VertexMapIndex"><c>nVertexMapIndex</c>, -1 when absent.</param>
         /// <param name="Flags"><c>nFlags</c>.</param>
         /// <param name="Stickiness"><c>flStickiness</c>, or null when absent (older files only).</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeTaperedCapsuleRigid_t">FeTaperedCapsuleRigid_t</seealso>
         public readonly record struct FeTaperedCapsuleRigid(Vector4[] Spheres, int Node, int CollisionMask, int VertexMapIndex, int Flags,
             float? Stickiness);
 
@@ -1150,6 +1187,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="VertexMapIndex"><c>nVertexMapIndex</c>, -1 when absent.</param>
         /// <param name="Flags"><c>nFlags</c>.</param>
         /// <param name="Stickiness"><c>flStickiness</c>, or null when absent (older files only).</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSphereRigid_t">FeSphereRigid_t</seealso>
         public readonly record struct FeSphereRigid(Vector4? Sphere, int Node, int CollisionMask, int VertexMapIndex, int Flags, float? Stickiness);
 
         /// <summary>A signed-distance-field collider on one node.</summary>
@@ -1164,6 +1202,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Width"><c>m_nWidth</c>.</param>
         /// <param name="Height"><c>m_nHeight</c>.</param>
         /// <param name="Depth"><c>m_nDepth</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSDFRigid_t">FeSDFRigid_t</seealso>
         public readonly record struct FeSDFRigid(Vector3 LocalMin, Vector3 LocalMax, float Bounciness, int Node, int CollisionMask,
             int VertexMapIndex, int Flags, float[] Distances, int Width, int Height, int Depth);
 
@@ -1175,6 +1214,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="VertexMapIndex"><c>nVertexMapIndex</c>, -1 when absent.</param>
         /// <param name="Flags"><c>nFlags</c>.</param>
         /// <param name="Stickiness"><c>flStickiness</c>, or null when absent (older files only).</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeBoxRigid_t">FeBoxRigid_t</seealso>
         public readonly record struct FeBoxRigid(FeTransform? Frame2, int Node, int CollisionMask, Vector3? Size, int VertexMapIndex, int Flags,
             float? Stickiness);
 
@@ -1188,6 +1228,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="SDFRigidIndex"><c>m_nSDFRigidIndex</c>.</param>
         /// <param name="CollisionPlaneIndex"><c>m_nCollisionPlaneIndex</c>.</param>
         /// <param name="CollisionSphereIndex"><c>m_nCollisionSphereIndex</c>, two indices, or null when absent (older files only).</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeRigidColliderIndices_t">FeRigidColliderIndices_t</seealso>
         public readonly record struct FeRigidColliderIndices(int TaperedCapsuleRigidIndex, int SphereRigidIndex,
             int BoxRigidIndex, int SDFRigidIndex, int CollisionPlaneIndex, int[]? CollisionSphereIndex);
 
@@ -1200,6 +1241,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="ActivationDistance"><c>flActivationDistance</c>.</param>
         /// <param name="CurvatureRadius"><c>flCurvatureRadius</c>.</param>
         /// <param name="Bias"><c>flBias</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeAntiTunnelProbe_t">FeAntiTunnelProbe_t</seealso>
         public readonly record struct FeAntiTunnelProbe(float Weight, uint Flags, int ProbeNode, int Count, int Begin,
             float ActivationDistance, float CurvatureRadius, float Bias);
 
@@ -1209,6 +1251,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="ParentReaction"><c>m_flParentReaction</c>.</param>
         /// <param name="Flags"><c>m_nFlags</c>.</param>
         /// <param name="EndIdx"><c>m_nEndIdx</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeModelSelfCollisionLayer_t">FeModelSelfCollisionLayer_t</seealso>
         public readonly record struct FeModelSelfCollisionLayer(string Name, int[] Nodes, float ParentReaction, uint Flags, uint[] EndIdx);
 
         /// <summary>A named cloth effect.</summary>
@@ -1216,6 +1259,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="NameHash"><c>nNameHash</c>.</param>
         /// <param name="Type"><c>nType</c>.</param>
         /// <param name="Params">The per-type parameter block (<c>m_Params</c>), or null when absent.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeEffectDesc_t">FeEffectDesc_t</seealso>
         public readonly record struct FeEffectDesc(string Name, uint NameHash, int Type, KVObject? Params);
 
         /// <summary>A jiggle bone's physical parameters.</summary>
@@ -1254,6 +1298,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Point0"><c>m_vPoint0</c>.</param>
         /// <param name="Point1"><c>m_vPoint1</c>.</param>
         /// <param name="CollisionMask"><c>m_nCollisionMask</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/CFeJiggleBone">CFeJiggleBone</seealso>
         public readonly record struct FeJiggleBone(
             uint Flags, float Length, float TipMass,
             float YawStiffness, float YawDamping, float PitchStiffness, float PitchDamping,
@@ -1273,6 +1318,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Node"><c>m_nNode</c>.</param>
         /// <param name="JiggleParent"><c>m_nJiggleParent</c>.</param>
         /// <param name="JiggleBone"><c>m_jiggleBone</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/CFeIndexedJiggleBone">CFeIndexedJiggleBone</seealso>
         public readonly record struct FeIndexedJiggleBone(int Node, int JiggleParent, FeJiggleBone JiggleBone);
 
         /// <summary>A named vertex selection.</summary>
@@ -1288,6 +1334,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="VolumetricSolveStrength"><c>flVolumetricSolveStrength</c>.</param>
         /// <param name="ScaleSourceNode">The node whose scale the selection follows, or -1 (<c>nScaleSourceNode</c>).</param>
         /// <param name="NodeListCount"><c>nNodeListCount</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeVertexMapDesc_t">FeVertexMapDesc_t</seealso>
         public readonly record struct FeVertexMapDesc(string Name, uint NameHash, uint Color, uint Flags, int VertexBase, int VertexCount,
             int MapOffset, int NodeListOffset, Vector3 CenterOfMass, float VolumetricSolveStrength, int ScaleSourceNode, int NodeListCount);
 
@@ -1300,6 +1347,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="GoalStrength"><c>m_GoalStrength</c>.</param>
         /// <param name="GoalDamping"><c>m_GoalDamping</c>.</param>
         /// <param name="Flags"><c>m_nFlags</c>.</param>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeMorphLayerDepr_t">FeMorphLayerDepr_t</seealso>
         public readonly record struct FeMorphLayer(string Name, uint NameHash, int[] Nodes, Vector3[] InitPos,
             float[] Gravity, float[] GoalStrength, float[] GoalDamping, uint Flags);
 

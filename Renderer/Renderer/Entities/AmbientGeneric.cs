@@ -8,6 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>ambient_generic</c>. Plays one sound, either looping from the moment the map starts or fired by
 /// entity I/O. The pitch controls, dynamic presets, and LFO modulation are not simulated.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CAmbientGeneric">CAmbientGeneric</seealso>
 public sealed class AmbientGeneric : BaseEntity
 {
     /// <summary>What an <c>ambient_generic</c>'s <c>spawnflags</c> mean.</summary>

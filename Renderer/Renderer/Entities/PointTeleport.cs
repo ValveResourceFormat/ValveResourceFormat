@@ -13,6 +13,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// the <c>ToCurrentPos</c> inputs use its current pose. Maps rely on that to park an entity out of sight
 /// and snap it into place later.
 /// </remarks>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPointTeleport">CPointTeleport</seealso>
 public sealed class PointTeleport : BaseEntity
 {
     /// <summary>What a <c>point_teleport</c>'s <c>spawnflags</c> mean.</summary>

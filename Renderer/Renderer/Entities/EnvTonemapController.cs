@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>env_tonemap_controller</c>. Overrides the exposure the post processing volumes set. The last one
 /// marked <c>master</c> is the one that applies, or the first one spawned when none is.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CTonemapController2">CTonemapController2</seealso>
 public sealed class EnvTonemapController : BaseEntity
 {
     /// <summary>Gets the controller built from this entity's keyvalues.</summary>

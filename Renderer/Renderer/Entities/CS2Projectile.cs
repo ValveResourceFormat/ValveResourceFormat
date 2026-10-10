@@ -8,6 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>
 /// A thrown CS2 grenade. Created at runtime by the viewmodel rather than from a map.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseCSGrenadeProjectile">CBaseCSGrenadeProjectile</seealso>
 public sealed class CS2Projectile : BaseEntity
 {
     /// <summary>Which grenade a projectile is.</summary>

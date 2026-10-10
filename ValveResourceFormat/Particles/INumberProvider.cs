@@ -5,6 +5,7 @@ namespace ValveResourceFormat.Particles
     /// <summary>
     /// Provides a scalar float value that may vary per particle or per frame.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/CParticleFloatInput">CParticleFloatInput</seealso>
     internal interface INumberProvider
     {
         /// <summary>

@@ -9,6 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>post_processing_volume</c>. A master volume applies everywhere, any other one while the camera
 /// is inside its model.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPostProcessingVolume">CPostProcessingVolume</seealso>
 public sealed class PostProcessingVolume : BaseModelEntity
 {
     /// <summary>Gets the post processing this entity registered.</summary>

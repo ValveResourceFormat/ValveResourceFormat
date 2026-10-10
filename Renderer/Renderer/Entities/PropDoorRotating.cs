@@ -12,6 +12,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// blocker are not simulated. Alyx's <c>prop_door_rotating_physics</c> is the same thing, with the VR hand
 /// swing acting as a use press.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPropDoorRotating">CPropDoorRotating</seealso>
 public class PropDoorRotating : BaseToggle
 {
     /// <summary>What a <c>prop_door_rotating</c>'s <c>spawnflags</c> mean.</summary>
@@ -35,6 +36,7 @@ public class PropDoorRotating : BaseToggle
     }
 
     /// <summary>How <c>opendir</c> constrains the swing.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/PropDoorRotatingOpenDirection_e">PropDoorRotatingOpenDirection_e</seealso>
     public enum OpenDirection
     {
         /// <summary>Away from whoever opens it.</summary>
@@ -48,6 +50,7 @@ public class PropDoorRotating : BaseToggle
     }
 
     /// <summary>Where a prop door is in its swing.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/client/DoorState_t">DoorState_t</seealso>
     public enum DoorState
     {
         /// <summary>At rest at its authored angle.</summary>

@@ -6,6 +6,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>env_particle_glow</c>: a particle system whose effect reads its tint from control point 16, and its
 /// alpha, scale and self-illumination scale from control point 17.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvParticleGlow">CEnvParticleGlow</seealso>
 public sealed class EnvParticleGlow : InfoParticleSystem
 {
     /// <summary>Initializes a glow from its keyvalues.</summary>

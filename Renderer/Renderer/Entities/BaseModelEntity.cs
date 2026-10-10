@@ -9,9 +9,11 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>
 /// An entity with something to draw.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseModelEntity">CBaseModelEntity</seealso>
 public abstract class BaseModelEntity : BaseEntity
 {
-    /// <summary>SolidType_t from CS2: https://s2v.app/SchemaExplorer/cs2/client/SolidType_t.</summary>
+    /// <summary>How an entity collides.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/client/SolidType_t">SolidType_t</seealso>
     public enum SolidType
     {
         /// <summary>Not solid.</summary>

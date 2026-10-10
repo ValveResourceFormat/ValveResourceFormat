@@ -4,6 +4,7 @@ using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles
 {
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CParticleFunction">CParticleFunction</seealso>
     abstract class ParticleFunction
     {
         private readonly INumberProvider opStrengthInput = new LiteralNumberProvider(1f);

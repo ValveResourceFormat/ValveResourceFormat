@@ -11,6 +11,8 @@ namespace ValveResourceFormat.Graphs;
 /// Builds the node graph of an AG1 animation graph from the compiled or editor schema: one card
 /// per node, wired by the child links it declares, plus parameter, tag and component hubs.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/animgraphlib/CAnimUpdateSharedData">CAnimUpdateSharedData</seealso>
+/// <seealso href="https://s2v.app/SchemaExplorer/hlvr/animationsystem/CAnimationGraph">CAnimationGraph</seealso>
 internal sealed class AnimGraph1Builder : IDisposable
 {
     /// <summary>Whether parameter feeds are drawn as wires instead of being named on the cards.</summary>

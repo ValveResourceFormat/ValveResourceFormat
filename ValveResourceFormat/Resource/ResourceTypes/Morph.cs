@@ -10,6 +10,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a morph (flex) resource containing vertex deformation data.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CMorphSetData">CMorphSetData</seealso>
     public class Morph : KeyValuesOrNTRO
     {
         /// <summary>
@@ -101,6 +102,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>Where a morph rect lands in the vertex grid, and its size in atlas pixels.</summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CMorphRectData">CMorphRectData</seealso>
         private readonly record struct RectPlacement(int XLeftDst, int YTopDst, int Width, int Height);
 
         private static RectPlacement GetRectPlacement(KVObject rect, int texWidth, int texHeight)

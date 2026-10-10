@@ -8,6 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>point_soundevent</c>. Plays a sound event, either the moment the map starts or whenever entity I/O
 /// tells it to.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CSoundEventEntity">CSoundEventEntity</seealso>
 public sealed class PointSoundEvent : BaseEntity
 {
     /// <summary>Gets the sound event this plays.</summary>

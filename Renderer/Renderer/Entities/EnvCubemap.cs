@@ -1,6 +1,8 @@
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary><c>env_cubemap</c>, a sphere of influence, and <c>env_cubemap_box</c>, a projected box.</summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvCubemap">CEnvCubemap</seealso>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvCubemapBox">CEnvCubemapBox</seealso>
 public sealed class EnvCubemap : EnvLightingVolume
 {
     /// <summary>Initializes a cubemap from its keyvalues.</summary>

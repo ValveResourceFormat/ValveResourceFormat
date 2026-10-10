@@ -33,6 +33,7 @@ namespace ValveResourceFormat.IO
     }
 
     /// <summary>A cloth collision capsule recovered from <c>m_TaperedCapsuleRigids</c>.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeTaperedCapsuleRigid_t">FeTaperedCapsuleRigid_t</seealso>
     internal sealed class CollisionCapsule : PlanarizableCollisionShape
     {
         /// <summary>Gets the first end-cap centre (bone-local).</summary>
@@ -46,6 +47,7 @@ namespace ValveResourceFormat.IO
     }
 
     /// <summary>A cloth collision box recovered from <c>m_BoxRigids</c>.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeBoxRigid_t">FeBoxRigid_t</seealso>
     internal sealed class CollisionBox : PlanarizableCollisionShape
     {
         /// <summary>Gets the box centre (bone-local).</summary>
@@ -57,6 +59,7 @@ namespace ValveResourceFormat.IO
     }
 
     /// <summary>A cloth collision sphere recovered from <c>m_SphereRigids</c>.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSphereRigid_t">FeSphereRigid_t</seealso>
     internal sealed class CollisionSphere : CollisionShape
     {
         /// <summary>Gets the sphere centre (bone-local).</summary>
@@ -66,6 +69,7 @@ namespace ValveResourceFormat.IO
     }
 
     /// <summary>A cloth collision signed distance field recovered from <c>m_SDFRigids</c>.</summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSDFRigid_t">FeSDFRigid_t</seealso>
     internal sealed class CollisionSdf : CollisionShape
     {
         /// <summary>Gets the grid resolution along the field's longest axis.</summary>

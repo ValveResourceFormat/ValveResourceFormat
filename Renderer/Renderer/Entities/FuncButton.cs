@@ -8,6 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// use, touch, damage or input. Not simulated: <c>master</c>, as nothing here can be one, and the spark
 /// effect, of which only the sound plays.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseButton">CBaseButton</seealso>
 public sealed class FuncButton : BaseToggle
 {
     /// <summary>What a <c>func_button</c>'s <c>spawnflags</c> mean.</summary>

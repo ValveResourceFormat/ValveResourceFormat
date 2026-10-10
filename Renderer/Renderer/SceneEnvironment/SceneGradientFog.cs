@@ -5,6 +5,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment;
 /// <summary>
 /// Scene node representing distance and height-based gradient fog.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CGradientFog">CGradientFog</seealso>
 public class SceneGradientFog(Scene scene) : SceneNode(scene)
 {
     /// <summary>Gets or sets the distance at which fog begins.</summary>

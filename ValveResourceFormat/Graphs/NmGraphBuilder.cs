@@ -10,6 +10,7 @@ namespace ValveResourceFormat.Graphs;
 /// Builds the node graph of a compiled AG2 animation graph (.vnmgraph): one card per node of the
 /// definition, wired by the pose and value pins the node constructors declare.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmGraphDefinition">CNmGraphDefinition</seealso>
 /// <param name="graphDefinition">The compiled graph definition to read.</param>
 internal sealed class NmGraphBuilder(KVObject graphDefinition)
 {

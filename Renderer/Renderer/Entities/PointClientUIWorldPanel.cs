@@ -8,6 +8,8 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>point_clientui_world_text_panel</c>, and HL:A's <c>point_clientui_world_movie_panel</c>.
 /// The panel's contents are not rendered, only the rectangle they would fill.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPointClientUIWorldPanel">CPointClientUIWorldPanel</seealso>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPointClientUIWorldTextPanel">CPointClientUIWorldTextPanel</seealso>
 public sealed class PointClientUIWorldPanel : BaseEntity
 {
     /// <summary>Initializes a world panel from its keyvalues.</summary>

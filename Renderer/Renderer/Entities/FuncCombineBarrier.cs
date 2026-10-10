@@ -13,6 +13,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// The effect places particles on the brush model with <c>C_INIT_CreateOnModel</c>, which is not
 /// implemented yet, so they gather at the barrier's centre.
 /// </remarks>
+/// <seealso href="https://s2v.app/SchemaExplorer/hlvr/server/CFuncCombineBarrier">CFuncCombineBarrier</seealso>
 public sealed class FuncCombineBarrier : FuncBrush
 {
     /// <summary>What the barrier stops.</summary>

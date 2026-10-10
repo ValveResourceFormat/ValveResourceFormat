@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// it, as its <c>cull_mode</c> says.
 /// </summary>
 /// <remarks>The box is placed where the entity is when enabled, and stays there until disabled.</remarks>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CInfoVisibilityBox">CInfoVisibilityBox</seealso>
 public sealed class InfoVisibilityBox : BaseEntity
 {
     /// <summary>Gets the volume this entity culls with.</summary>

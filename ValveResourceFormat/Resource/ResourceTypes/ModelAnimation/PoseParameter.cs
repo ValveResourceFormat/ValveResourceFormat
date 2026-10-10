@@ -10,6 +10,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <param name="Max">The value at which the parameter's range ends.</param>
     /// <param name="Looping">Whether the parameter wraps from <see cref="Max"/> back to
     /// <see cref="Min"/> instead of clamping. <see cref="Clamp"/> does not special-case it.</param>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CSeqPoseParamDesc">CSeqPoseParamDesc</seealso>
     public readonly record struct PoseParameter(string Name, float Min, float Max, bool Looping)
     {
         /// <summary>

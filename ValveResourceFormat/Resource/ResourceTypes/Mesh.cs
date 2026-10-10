@@ -12,6 +12,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a mesh resource containing geometry and vertex buffer data.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CRenderMesh">CRenderMesh</seealso>
     public class Mesh : KeyValuesOrNTRO
     {
         /// <summary>

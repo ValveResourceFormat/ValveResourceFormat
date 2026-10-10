@@ -2,9 +2,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     /// <summary>
     /// Specifies the type of data contained in an animation channel.
-    /// Derived from the <c>m_szChannelClass</c> and <c>m_szVariableName</c> fields of
-    /// <c>CAnimDataChannelDesc</c>.
+    /// Derived from the <c>m_szChannelClass</c> and <c>m_szVariableName</c> fields of the channel description.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimDataChannelDesc">CAnimDataChannelDesc</seealso>
     public enum AnimationChannelAttribute
     {
         /// <summary>Channel attribute is not recognized by VRF. The value an unset channel reads as.</summary>

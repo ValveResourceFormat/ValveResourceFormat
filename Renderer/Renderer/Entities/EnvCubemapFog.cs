@@ -9,6 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>env_cubemap_fog</c>: fog coloured from a cubemap texture, a sky material, or the material of a
 /// named <c>env_sky</c>.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvCubemapFog">CEnvCubemapFog</seealso>
 public sealed class EnvCubemapFog : BaseEntity
 {
     /// <summary>The <c>cubemapfogsource</c> values.</summary>

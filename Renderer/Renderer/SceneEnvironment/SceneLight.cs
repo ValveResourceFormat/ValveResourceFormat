@@ -7,6 +7,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment;
 /// <summary>
 ///     Scene node representing a light source with type, color, and attenuation.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLightComponent">CLightComponent</seealso>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBarnLight">CBarnLight</seealso>
 public class SceneLight(Scene scene) : SceneNode(scene)
 {
     /// <summary>

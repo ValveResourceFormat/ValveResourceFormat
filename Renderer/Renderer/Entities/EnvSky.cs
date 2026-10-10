@@ -9,6 +9,8 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// scene's <see cref="Scene.Skybox2D"/>, replacing an earlier one. <c>env_global_light</c> also adds a
 /// fixed dynamic sun.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CEnvSky">CEnvSky</seealso>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/client/C_GlobalLight">C_GlobalLight</seealso>
 public sealed class EnvSky : BaseEntity
 {
     private readonly bool isGlobalLight;

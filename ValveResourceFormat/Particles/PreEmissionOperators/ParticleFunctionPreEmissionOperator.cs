@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
     /// Base class for pre-emission operators, which run once per frame before particles are emitted
     /// and are used to modify particle system state such as control point positions and orientations.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CParticleFunctionPreEmission">CParticleFunctionPreEmission</seealso>
     abstract class ParticleFunctionPreEmissionOperator : ParticleFunction
     {
         /// <summary>

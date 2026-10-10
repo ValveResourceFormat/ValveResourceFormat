@@ -7,6 +7,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>A dynamic model.</summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CDynamicProp">CDynamicProp</seealso>
 public sealed class PropDynamic : BaseModelEntity
 {
     /// <summary>Spawn flags for dynamic props.</summary>

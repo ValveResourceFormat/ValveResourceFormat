@@ -6,6 +6,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>logic_branch</c>. Holds a boolean and, when tested, fires <c>OnTrue</c> or <c>OnFalse</c> by it.
 /// Every <see cref="LogicBranchListener"/> watching it hears when the value changes.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLogicBranch">CLogicBranch</seealso>
 public sealed class LogicBranch : BaseEntity
 {
     private readonly List<LogicBranchListener> listeners = [];

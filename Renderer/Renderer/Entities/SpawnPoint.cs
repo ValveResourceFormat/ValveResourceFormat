@@ -4,6 +4,8 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// A player spawn marker: <c>info_player_start</c> and the per-game and per-team variants, and CS2's
 /// <c>team_select</c>. The viewer starts its camera at the best one.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CInfoPlayerStart">CInfoPlayerStart</seealso>
+/// <seealso href="https://s2v.app/SchemaExplorer/deadlock/server/CInfoTeamSpawn">CInfoTeamSpawn</seealso>
 public sealed class SpawnPoint : BaseEntity
 {
     /// <summary>Spawn flags for <c>info_player_start</c>.</summary>

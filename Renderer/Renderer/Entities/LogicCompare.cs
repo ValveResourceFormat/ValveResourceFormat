@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>logic_compare</c>. Compares a held value against another on request. Every output carries the
 /// held value.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLogicCompare">CLogicCompare</seealso>
 public sealed class LogicCompare : BaseEntity
 {
     /// <summary>Gets the value that is compared, the <c>InitialValue</c> keyvalue until an input changes it.</summary>

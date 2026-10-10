@@ -12,6 +12,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// destination, usually an <c>info_teleport_destination</c>, is found in <see cref="Activate"/> once the
 /// whole map has loaded, and may be in another spawn group of the same world group.
 /// </remarks>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CTriggerTeleport">CTriggerTeleport</seealso>
 public sealed class TriggerTeleport : BaseTrigger
 {
     private (Vector3 Origin, Vector3 Angles)? destination;

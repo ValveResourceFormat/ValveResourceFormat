@@ -3,6 +3,7 @@ namespace ValveResourceFormat.Particles
     /// <summary>
     /// Particle Omni2 light type choice list.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/ParticleOmni2LightTypeChoiceList_t">ParticleOmni2LightTypeChoiceList_t</seealso>
     public enum ParticleOmni2LightTypeChoiceList
     {
         /// <summary>Omni2 light with a point luminaire shape.</summary>

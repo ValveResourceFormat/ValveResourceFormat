@@ -5,6 +5,7 @@ namespace ValveResourceFormat.Particles
     /// <summary>
     /// Provides a <see cref="Vector3"/> value that may vary per particle or per frame.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/CParticleVecInput">CParticleVecInput</seealso>
     internal interface IVectorProvider
     {
         /// <summary>

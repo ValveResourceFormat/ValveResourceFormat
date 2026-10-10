@@ -478,6 +478,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     /// <summary>
     /// Spatial volume that applies post-processing effects to the camera view.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CPostProcessingVolume">CPostProcessingVolume</seealso>
     public class ScenePostProcessVolume(Scene scene) : SceneNode(scene)
     {
         /// <summary>Gets the fade time in seconds when transitioning into this volume.</summary>

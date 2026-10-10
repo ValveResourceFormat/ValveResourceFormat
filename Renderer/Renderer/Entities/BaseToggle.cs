@@ -9,6 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// A travel gives the entity a constant velocity and a deadline, and the arrival snaps to the exact
 /// destination instead of wherever the last tick left it.
 /// </remarks>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBaseToggle">CBaseToggle</seealso>
 public abstract class BaseToggle : BaseModelEntity
 {
     /// <summary>Where a moving brush is in its travel.</summary>
