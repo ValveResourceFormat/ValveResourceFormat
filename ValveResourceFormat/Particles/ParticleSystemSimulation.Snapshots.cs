@@ -8,16 +8,15 @@ namespace ValveResourceFormat.Particles
     public partial class ParticleSystemSimulation
     {
         /// <summary>
-        /// The snapshot bound to each control point of this system. Only the system's own
-        /// <c>m_hSnapshot</c> or an injected runtime one lands here; a function reading a snapshot
-        /// looks it up through <see cref="ParticleSystemState"/>, which walks up to the parent.
+        /// The snapshot bound to each control point: the system's own <c>m_hSnapshot</c> or an injected
+        /// runtime one. Functions look it up through <see cref="ParticleSystemState"/>, which walks up
+        /// to the parent.
         /// </summary>
         private readonly Dictionary<int, ParticleSnapshot> controlPointSnapshots = [];
 
         /// <summary>
-        /// Binds this system's snapshot to the control point it publishes on, preferring one handed in
-        /// at construction (the cable node builds its rope points that way) over the authored
-        /// <c>m_hSnapshot</c> resource.
+        /// Binds the snapshot to its control point. A runtime snapshot handed in at construction (the cable
+        /// node's rope points) overrides the authored <c>m_hSnapshot</c>.
         /// </summary>
         private void PublishSnapshot(ParticleDefinitionParser parse, ParticleSnapshot? runtimeSnapshot)
         {
@@ -31,8 +30,7 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Publishes a snapshot built while the system runs, replacing whatever the control point held.
-        /// Readers resolve the control point again on their next use, so they pick up the new one.
+        /// Replaces the control point's snapshot with one built at runtime. Readers pick it up on next use.
         /// </summary>
         internal void SetControlPointSnapshot(int controlPoint, ParticleSnapshot snapshot)
         {

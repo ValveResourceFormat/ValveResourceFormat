@@ -7,17 +7,15 @@ namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
     /// The snapshot a particle function reads from, bound to a control point and optionally narrowed
-    /// to a named range of its rows by <c>m_strSnapshotSubset</c>. The binding resolves on first use
-    /// rather than at parse time, because control points carry no snapshot until the system runs.
+    /// to a named range of its rows by <c>m_strSnapshotSubset</c>. Resolved on first use, because
+    /// control points carry no snapshot until the system runs.
     ///
-    /// <para>The control point key differs by function: the emitters author
-    /// <c>m_nSnapshotControlPoint</c> and default to none, while the snapshot readers author
-    /// <c>m_nControlPointNumber</c> and default to control point 0.</para>
+    /// <para>Emitters author <c>m_nSnapshotControlPoint</c> (default none), while snapshot readers
+    /// author <c>m_nControlPointNumber</c> (default 0).</para>
     ///
-    /// <para>Subsets are named row ranges the game registers on a live snapshot through the particle
-    /// system manager. Nothing in a compiled <c>.vsnap</c> carries them, so a function that authors
-    /// one is reported as unbound rather than reading the whole table, which would always be too many
-    /// rows.</para>
+    /// <para>Subsets are row ranges the game registers on a live snapshot through the particle system
+    /// manager. A compiled <c>.vsnap</c> does not carry them, so a function that authors one is
+    /// unbound rather than reading the whole table, which would always be too many rows.</para>
     /// </summary>
     class SnapshotBinding
     {

@@ -35,9 +35,9 @@ internal sealed class CrossingRepair
     private readonly float[] maxX;
 
     /// <summary>
-    /// Vertical extent of each wire, kept alongside the horizontal one. Islands are packed in two
-    /// dimensions, so most pairs of wires are separated in y rather than in x; rejecting on y as
-    /// well as x is what actually discards the bulk of the pairs before the intersection test.
+    /// Vertical extent of each wire. Islands are packed in two dimensions, so most wire pairs are
+    /// separated in y, not x; rejecting on y as well as x discards most pairs before the
+    /// intersection test.
     /// </summary>
     private readonly float[] minY;
     private readonly float[] maxY;
@@ -430,10 +430,9 @@ internal sealed class CrossingRepair
             return false;
         }
 
-        // A slide moves this card by at most the slide limit, so anything outside its wires'
-        // bounding box grown by that much can never be crossed no matter which shift is chosen.
-        // Filtering once here instead of inside the per-shift loop is the difference between
-        // scanning every wire in the graph tens of times per card and scanning it once.
+        // A slide moves this card by at most the slide limit, so only wires inside the bounding box
+        // of its wires, grown by that much, can be crossed. Filtering here rather than per shift
+        // turns tens of passes over every wire into a single pass.
         var candidates = LocalCandidates(touching, options.CrossingSlideLimit);
 
         var originalY = positions[node].Y;

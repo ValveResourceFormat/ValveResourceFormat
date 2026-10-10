@@ -390,8 +390,7 @@ partial class GraphView
     }
 
     // Bezier with horizontal handles; handle length grows with horizontal distance and is damped
-    // when the endpoints are nearly level so straight runs stay straight. The fan reach pushes
-    // wires sharing one socket apart so they do not draw on top of each other.
+    // when the endpoints are nearly level so straight runs stay straight.
     private static void BuildWirePath(SKPathBuilder path, SKPoint from, SKPoint to)
     {
         var offset = GraphWireGeometry.HandleOffset(new Vector2(from.X, from.Y), new Vector2(to.X, to.Y));

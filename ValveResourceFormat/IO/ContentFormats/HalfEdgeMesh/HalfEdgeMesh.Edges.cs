@@ -282,7 +282,7 @@ partial class HalfEdgeMesh
     }
 
     /// <summary>
-    /// Collects the faces bordered by a set of half edges, along with the edges that border no face.
+    /// Collects the faces bordered by a set of half edges, along with a half edge bordering each face.
     /// </summary>
     public static void FindFacesConnectedToHalfEdges(
         IReadOnlyList<HalfEdgeHandle> pHalfEdgeList,
@@ -584,7 +584,7 @@ partial class HalfEdgeMesh
     }
 
     /// <summary>
-    /// Classifies how a set of edges is connected, and reports the edges forming the largest group.
+    /// Classifies how a set of edges is connected, and returns them in order when they form a loop or list.
     /// </summary>
     public static ComponentConnectivityType ClassifyEdgeListConnectivity(
         IReadOnlyList<HalfEdgeHandle> pEdgeList,

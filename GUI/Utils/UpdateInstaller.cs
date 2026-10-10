@@ -13,8 +13,8 @@ using Sigstore;
 namespace GUI.Utils;
 
 /// <summary>
-/// Downloads the build offered by <see cref="UpdateChecker"/>, verifies it against the manifest
-/// and against the build provenance attested by the CI, and swaps it in place of the running executable.
+/// Downloads the build offered by <see cref="UpdateChecker"/>, verifies it against the manifest and CI build provenance,
+/// and swaps it in for the running executable.
 /// </summary>
 static class UpdateInstaller
 {
@@ -191,8 +191,8 @@ static class UpdateInstaller
         Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
     }
 
-    // Hashes and counts what passes through on the way to the file, so the download is verified
-    // without reading it back from disk and the progress dialog is fed from the same stream.
+    // Hashes and counts bytes as they are written, so the file is verified and progress reported
+    // without reading it back.
     private sealed class HashingProgressStream(Stream inner, Action<long> onProgress) : Stream
     {
         private readonly IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -284,9 +284,8 @@ static class UpdateInstaller
         return (destination.BytesWritten, destination.GetHash());
     }
 
-    // The manifest server only tells us which file to fetch. Whether that file really came out of this
-    // repository's CI is proven by the provenance attestation GitHub stores for its hash, which is signed
-    // through Sigstore with the identity of the workflow run that produced it.
+    // The manifest only names the file. Its CI origin is proven by the provenance attestation GitHub stores for
+    // its hash, signed through Sigstore with the identity of the workflow run that produced it.
     private static async Task VerifyProvenanceAsync(HttpClient httpClient, string hash, CancellationToken cancellationToken)
     {
         var url = $"https://api.github.com/repositories/{RepositoryId}/attestations/sha256:{hash}?per_page=100&predicate_type={Uri.EscapeDataString(ProvenancePredicateType)}";

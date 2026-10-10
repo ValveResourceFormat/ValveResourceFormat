@@ -47,10 +47,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         public int ShaderCount => CachedShaders.Count;
 
         /// <summary>
-        /// Gets every reserved texture sampler declared by the shaders loaded so far. Read off the shader source, so
-        /// unlike a shader's own <see cref="Shader.ReservedTexturesUsed"/> it is known before the program links, and
-        /// it includes samplers behind a combo the linker went on to drop. Grow only, so a renderer can pick up what
-        /// was added since it last looked; see <see cref="MaterialLoader.ShaderTextures"/>.
+        /// Gets every reserved texture sampler declared by the loaded shaders. Read from the source, so it is known before
+        /// linking. Unlike <see cref="Shader.ReservedTexturesUsed"/>, it keeps samplers behind dropped combos. Only grows,
+        /// so a renderer can poll it for additions; see <see cref="MaterialLoader.ShaderTextures"/>.
         /// </summary>
         public HashSet<string> DeclaredReservedTextures { get; } = [];
 
@@ -280,8 +279,8 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                 var shaderProgram = GraphicsDevice.CreateProgram(shaderFileName);
 
-                // What the source declares is known before the program links, and the renderer needs it that
-                // early to have a texture bound by the first draw that samples it. Only ever grows.
+                // Known before linking, as the renderer binds textures before the first draw that samples them.
+                // Only grows.
                 DeclaredReservedTextures.UnionWith(parsedData.ReservedTextures);
 
                 var shader = new Shader(shaderName, RendererContext)
@@ -494,9 +493,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <see cref="ShaderRegistry"/> take priority over the built-in ones.
         /// </summary>
         /// <param name="shaderName">
-        /// A Source 2 shader name ending in <c>.vfx</c>, which is mapped to the renderer shader that best matches it and
-        /// falls back to <c>complex</c> when it is unknown. Any other name is the renderer shader file to load directly,
-        /// and must exist.
+        /// A Source 2 shader name ending in <c>.vfx</c>, mapped to the closest renderer shader, or <c>complex</c>
+        /// if unknown. Any other name is a renderer shader file to load directly, and must exist.
         /// </param>
         /// <returns>The renderer shader name without stage or extension (e.g. <c>complex</c>).</returns>
         public static string GetShaderFileByName(string shaderName)
@@ -509,8 +507,8 @@ namespace ValveResourceFormat.Renderer.Shaders
             // TODO: Consider naming renderer shaders with a .slang extension, so that they read as explicitly as .vfx names do
             if (!IsVfxShaderName(shaderName))
             {
-                // Not a Valve shader name, so it names a renderer shader file directly.
-                // Unknown names are not silently drawn with 'complex', loading them throws instead.
+                // Not a Valve name, so it is a renderer shader file.
+                // Unknown names throw instead of falling back to 'complex'.
                 return shaderName.StartsWith(VrfInternalShaderPrefix, StringComparison.Ordinal)
                     ? shaderName[VrfInternalShaderPrefix.Length..]
                     : shaderName;

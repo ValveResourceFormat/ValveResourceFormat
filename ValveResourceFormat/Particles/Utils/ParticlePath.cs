@@ -60,9 +60,8 @@ namespace ValveResourceFormat.Particles.Utils
     }
 
     /// <summary>
-    /// Evaluates path positions the way the engine does: three points (start, displaced midpoint,
-    /// end) form a quadratic Bezier, so the curve bends toward the midpoint without passing
-    /// through it.
+    /// Evaluates path positions: three points (start, displaced midpoint, end) form a quadratic
+    /// Bezier, so the curve bends toward the midpoint without passing through it.
     /// </summary>
     static class ParticlePath
     {

@@ -3,7 +3,7 @@ namespace ValveResourceFormat.Particles.Utils
     /// <summary>
     /// The engine's particle noise primitives. The default is a value-noise lattice whose corners come
     /// from a packed-index integer hash, trilinearly interpolated with unsmoothed weights, returning
-    /// [-1, 1]. The hash is a MurmurHash3 mixing round followed by the engine's own finalizer. The
+    /// [-1, 1]. The hash is a MurmurHash3 mixing round followed by a finalizer. The
     /// gradient and cellular primitives share the corner packing with a shorter hash chain; the curl
     /// primitive interpolates a table-driven vector lattice instead.
     /// </summary>

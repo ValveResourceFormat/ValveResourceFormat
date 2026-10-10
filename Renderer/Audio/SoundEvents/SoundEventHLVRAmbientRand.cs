@@ -9,9 +9,9 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// event has none (as when played unspatialized for a scripted soundscape's ambient bed).
 /// </summary>
 /// <remarks>
-/// Only the "01" slot has been observed in practice; if a real event ever authors "_02"/"_03" siblings
-/// (matching the numbered-slot convention <see cref="SoundEventHLVRMulti"/> uses for its children), this
-/// only needs a loop over these fields added, not a redesign.
+/// Only the "01" slot has been observed. If events author "_02"/"_03" siblings
+/// (numbered as in <see cref="SoundEventHLVRMulti"/>), only a loop over these fields is needed,
+/// not a redesign.
 /// </remarks>
 internal sealed class SoundEventHLVRAmbientRand : SoundEvent
 {

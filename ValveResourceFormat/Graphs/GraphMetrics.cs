@@ -83,7 +83,7 @@ internal static class GraphMetrics
 
     /// <summary>
     /// Measures one node into <paramref name="geometry"/> if its content changed since the last
-    /// measurement, filling in the presentation rows, the card size, the row baselines and the
+    /// measurement, filling in the presentation rows, the card size, the row centers and the
     /// socket pivots.
     /// </summary>
     /// <param name="node">The node to measure.</param>

@@ -70,8 +70,7 @@ public class NmSkeletonExtract
     }
 
     /// <summary>
-    /// Recovers the mesh the skeleton was authored from, an input dependency of the compiled skeleton
-    /// beside the skeleton document itself.
+    /// Finds the mesh the skeleton was authored from, an input dependency beside the skeleton document.
     /// </summary>
     private string? FindAuthoredSourceFile()
     {

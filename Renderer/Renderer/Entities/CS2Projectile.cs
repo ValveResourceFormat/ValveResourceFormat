@@ -6,8 +6,7 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// A thrown CS2 grenade. Created at runtime by the viewmodel rather than from a map, simulated on the
-/// entity tick, and drawn through the model and effect nodes it owns.
+/// A thrown CS2 grenade. Created at runtime by the viewmodel rather than from a map.
 /// </summary>
 public sealed class CS2Projectile : BaseEntity
 {
@@ -181,7 +180,7 @@ public sealed class CS2Projectile : BaseEntity
         _ => "hegrenade_projectile",
     };
 
-    // The single home of each kind's sounds and timing; the pre-cache list derives from it
+    // Each kind's sounds and timing; the pre-cache list derives from it
     private static (string BounceSound, string DetonateSound, float EffectDuration) ProfileFor(GrenadeKind kind) => kind switch
     {
         GrenadeKind.Smoke => ("SmokeGrenade.Bounce", "BaseSmokeEffect.Sound", SmokeEffectDuration),
@@ -263,8 +262,7 @@ public sealed class CS2Projectile : BaseEntity
             return;
         }
 
-        // Componentwise like Source 1's tumble, not TurnBody: the authored pitch/yaw rates spin about
-        // the world axes together
+        // Componentwise, not TurnBody: the authored pitch/yaw rates spin about the world axes together
         if (!onGround || Velocity != Vector3.Zero)
         {
             WorldAngles += AngularVelocity * tickInterval;
@@ -320,8 +318,8 @@ public sealed class CS2Projectile : BaseEntity
         }
     }
 
-    // The nearest surface around the blast is scorched, a wall as readily as the floor. The decal is
-    // triplanar, so it also marks whatever else lies inside its box. One going off in the open leaves nothing.
+    // Scorches the nearest surface in reach, wall or floor. The decal is triplanar, so it also marks
+    // anything else inside its box. Nothing in reach, nothing drawn.
     private void SpawnScorchDecal()
     {
         Rubikon.TraceResult? nearest = null;
@@ -420,7 +418,7 @@ public sealed class CS2Projectile : BaseEntity
         var trace = physics?.TraceAABB(from, to, HullHalfExtents, Rubikon.GrenadeCollisionName)
             ?? new Rubikon.TraceResult();
 
-        // The static world is the world entity, as the engine reports it
+        // The static world is reported as the world entity
         if (trace.Hit)
         {
             trace.HitEntity = entities?.World;

@@ -3,7 +3,6 @@ namespace ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 partial class HalfEdgeMesh
 {
     /// <summary>
-    /// <para> Untriangulation inspired by blender's "Triangles to Quads" operator </para> 
     /// <para> Joins pairs of adjacent triangles into quads by dissolving their shared edge, processing the candidates with the lowest quad error first </para> 
     /// <para> A pair is skipped when the angle between the triangle normals exceeds <paramref name="maxFaceAngleDegrees"/>, or if any of its corners deviates from
     /// 90 degrees by more than <paramref name="maxShapeAngleDegrees"/> </para> 
@@ -139,7 +138,7 @@ partial class HalfEdgeMesh
         return true;
     }
 
-    // gives a weight to a pair of triangles that join an edge to decide how good a join they would make, lower is better
+    // weight for joining a pair of triangles across an edge, lower is better
     private static float QuadCalcError(Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4)
     {
         const float HalfPi = MathF.PI / 2f;

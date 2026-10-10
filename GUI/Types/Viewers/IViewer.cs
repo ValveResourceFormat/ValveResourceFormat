@@ -11,8 +11,7 @@ namespace GUI.Types.Viewers
 
         /// <summary>
         /// UI agnostic description of the loaded content. Viewers that implement this instead
-        /// of overriding <see cref="Create"/> must not reference WinForms at all, which makes
-        /// them trivially portable to a different UI framework.
+        /// of overriding <see cref="Create"/> must not reference WinForms, so they stay portable.
         /// </summary>
         public ViewerContent? GetContent() => null;
 

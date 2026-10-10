@@ -1816,12 +1816,12 @@ public class ViewmodelSceneNode : ModelSceneNode
                 return Vector3.Zero;
             }
 
-            // AngleVectors of the yaw the view turned through over the window, measured against
-            // an unturned forward vector. Standing still leaves this at zero.
+            // Unturned forward minus the forward for the yaw turned through over the window.
+            // Standing still leaves this at zero.
             var deltaYaw = MathF.IEEERemainder(yaw - Sample(currentTime - SwayInterp), MathF.Tau);
             var (yawSin, yawCos) = MathF.SinCos(deltaYaw);
 
-            // Source composes this as forward*x + right*-y + up*z. Right is the negated left axis,
+            // Composed as forward*x + right*-y + up*z. Right is the negated left axis,
             // so in a (forward, left, up) basis the components carry over unchanged.
             return new Vector3(1f - yawCos, -yawSin, 0f) * SwayScale;
         }
@@ -1839,7 +1839,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         /// <summary>
         /// Linearly interpolates the recorded yaw at <paramref name="time"/>, holding at the
-        /// ends when it falls outside the history, as Source's CInterpolatedVar does.
+        /// ends when it falls outside the history.
         /// </summary>
         private float Sample(float time)
         {

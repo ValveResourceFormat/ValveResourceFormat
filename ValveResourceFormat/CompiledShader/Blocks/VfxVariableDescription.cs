@@ -51,8 +51,7 @@ public class VfxVariableDescription : ShaderDataBlock
     public VariableFlags Flags => (VariableFlags)((ContextStateAffectedByVariable >> 8) & 0xFF);
 
     /// <summary>
-    /// Gets the context state affected by this variable. Only stored since version 64,
-    /// older files have -1, which the engine defaults it to.
+    /// Gets the context state affected by this variable. Only stored since version 64, older files have -1.
     /// </summary>
     public int ContextStateAffectedByVariable { get; } = -1;
 
@@ -69,9 +68,8 @@ public class VfxVariableDescription : ShaderDataBlock
     public bool SrgbRead => (TypeSpecificBits & 0x01) == 1;
 
     /// <summary>
-    /// Gets bits whose meaning depends on the variable type, such as the external constant buffer ID
-    /// or the specialization constant ID.
-    /// It is -1 for variables that carry no type specific data.
+    /// Gets type-specific bits, such as the external constant buffer ID or specialization constant ID.
+    /// -1 when there is none.
     /// </summary>
     public int TypeSpecificBits { get; }
 
@@ -338,8 +336,7 @@ public class VfxVariableDescription : ShaderDataBlock
     /// </summary>
     public static IReadOnlyList<string> TypePrefixes { get; } = ["g_fl", "g_f", "g_v", "g_n", "g_b", "g_t"];
 
-    // Dynamic expressions refer to variables by the hash of their name, and some of them hash
-    // the name without the type prefix it is declared with.
+    // Dynamic expressions refer to variables by name hash; some hash the name without its type prefix.
     private static string RegisterName(string name)
     {
         StringToken.Store(name);

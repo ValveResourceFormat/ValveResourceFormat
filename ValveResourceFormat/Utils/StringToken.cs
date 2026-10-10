@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Utils
         public static ConcurrentDictionary<uint, string> InvertedTable => KnownKeysTable.Table;
 
         /// <summary>
-        /// Computes the hash token for the given string, case insensitive like the engine.
+        /// Computes the hash token for the given string, case insensitive.
         /// Only ASCII letters are case folded, the string is hashed as UTF-8.
         /// </summary>
         /// <param name="key">The string to hash.</param>
@@ -101,7 +101,7 @@ namespace ValveResourceFormat.Utils
             return MixTail(hash, tail, key.Length - i);
         }
 
-        // Non-ASCII chars are hashed as their UTF-8 bytes, with only the ASCII letters folded like the engine does
+        // Non-ASCII chars are hashed as UTF-8 bytes, only ASCII letters are folded
         private static uint GetNonAscii(ReadOnlySpan<char> key)
         {
             using var rented = new RentedBuffer<byte>(Encoding.UTF8.GetByteCount(key));
@@ -148,7 +148,7 @@ namespace ValveResourceFormat.Utils
         {
             var token = Get(key);
 
-            // Like the engine, the first spelling stored for a token wins, so known keys keep their casing.
+            // The first spelling stored for a token wins, so known keys keep their casing.
             // Checked first to only allocate the string for new tokens.
             if (!InvertedTable.ContainsKey(token))
             {

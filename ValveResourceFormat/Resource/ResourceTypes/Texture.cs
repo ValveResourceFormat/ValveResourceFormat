@@ -97,10 +97,9 @@ namespace ValveResourceFormat.ResourceTypes
                             return ToPixelRect(UncroppedMin, UncroppedMax, width, height);
                         }
 
-                        // The sheet compiler stores texel centers of the image it was built from: the min corner is
-                        // (x + 0.5) / dim and the max corner is (xLast + 0.5) / dim, where xLast is inclusive.
-                        // Flooring maps each corner back onto the texel it sits in, so the exclusive edge of the
-                        // rectangle is one texel past the max corner.
+                        // The sheet compiler stores texel centers: the min corner is (x + 0.5) / dim and the max
+                        // corner is (xLast + 0.5) / dim, with xLast inclusive. Flooring maps each corner back
+                        // onto its texel, so the exclusive edge is one texel past the max corner.
                         private static SKRectI ToPixelRect(Vector2 min, Vector2 max, int width, int height)
                         {
                             // Empty frames are stored as a degenerate rectangle
@@ -140,8 +139,7 @@ namespace ValveResourceFormat.ResourceTypes
                 public Frame[] Frames { get; set; } = [];
 
                 /// <summary>
-                /// Gets or sets the time this sequence spans in total. The frames divide it between
-                /// themselves by their display times.
+                /// Gets or sets the total time this sequence spans. Frames divide it by their display times.
                 /// </summary>
                 public float TotalTime { get; set; }
 
@@ -176,14 +174,13 @@ namespace ValveResourceFormat.ResourceTypes
                 public Dictionary<string, float> FloatParams { get; } = [];
 
                 /// <summary>
-                /// Gets the time this sequence spans for playback, standing in one second for a
-                /// sequence that carries no total of its own.
+                /// Gets the playback time span of this sequence, or one second when it has no total of its own.
                 /// </summary>
                 public float EffectiveTotalTime => TotalTime > 0f ? TotalTime : 1f;
 
                 /// <summary>
-                /// Gets a value indicating whether <see cref="Name"/> is a name the sheet was authored with.
-                /// A sequence that was never named carries the name of the element class it was built from.
+                /// Gets a value indicating whether <see cref="Name"/> was authored with the sheet.
+                /// Unnamed sequences carry the name of the element class they were built from.
                 /// </summary>
                 public bool IsNamed => Name.Length > 0
                     && !Name.StartsWith("CDme", StringComparison.Ordinal)

@@ -102,8 +102,7 @@ public class Timings
 
         if (cpuOnly)
         {
-            // No GPU query objects at all: this region issues no draw work, so the GPU column would
-            // only ever report the gap between whatever surrounds it.
+            // No GPU queries: the region issues no draw work, so a GPU time would only measure the gap around it.
             activeQueries[currentIndex] = new TimingQuery(Stopwatch.GetTimestamp(), false, name, depth, currentIndex, CpuOnly: true);
             return currentIndex;
         }
@@ -350,8 +349,7 @@ public class Timings
             return;
         }
 
-        // Off-frame work, listed apart from the totals above: it runs on other threads, so counting it
-        // into the frame would overstate what the frame actually costs.
+        // Off-frame work runs on other threads, so counting it in the totals would overstate the frame cost.
         yOffset += lineHeight;
 
         textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest

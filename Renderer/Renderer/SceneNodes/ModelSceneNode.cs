@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly (string Name, string[] Materials)[] materialGroups;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ModelSceneNode"/> class and loads its meshes and animations.
+        /// Loads the model's meshes and animations.
         /// </summary>
         /// <param name="scene">The scene this node belongs to.</param>
         /// <param name="model">The model resource to render.</param>

@@ -22,9 +22,8 @@ namespace ValveResourceFormat.Particles.Operators
         }
 
         /// <summary>
-        /// The fade duration for this particle, in normalized lifetime or seconds depending on
-        /// <see cref="proportional"/>. The duration is fixed by the particle, so it is the same on
-        /// every frame.
+        /// Fade duration for this particle, as a fraction of lifetime or in seconds per
+        /// <see cref="proportional"/>. Constant across frames.
         /// </summary>
         protected float GetFadeTime(ref Particle particle, ParticleSystemState particleSystemState)
             => fadeTimeMin == fadeTimeMax

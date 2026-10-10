@@ -6,23 +6,21 @@ using System.Reflection;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// The input handlers each entity class declares with <see cref="EntityInputAttribute"/>, Source's entity
-/// data description tables. Built once per class when the class registers with <see cref="EntityFactory"/>,
-/// so firing an input is a dictionary lookup and a delegate call rather than a chain of name comparisons.
+/// The <see cref="EntityInputAttribute"/> handlers of each entity class, built once when the class
+/// registers with <see cref="EntityFactory"/>, so firing an input is a dictionary lookup.
 /// </summary>
 /// <remarks>
-/// Concurrent because not every bind happens at startup: the player is never seen by the factory and binds
-/// as its world loads, and two worlds can load at once. A built table is frozen, so only publishing one
-/// needs guarding.
+/// Concurrent because not every bind happens at startup: the player never goes through the factory and
+/// binds as its world loads, and two worlds can load at once. Built tables are frozen, so only publishing
+/// one needs guarding.
 /// </remarks>
 internal static class EntityInputTable
 {
     private static readonly ConcurrentDictionary<Type, FrozenDictionary<string, Action<BaseEntity, EntityInputData>>> Tables = [];
 
     /// <summary>
-    /// Builds the input table for an entity class. The <see cref="DynamicallyAccessedMembersAttribute"/> is
-    /// what keeps the handlers alive under trimming: registering a class is also what declares that its
-    /// methods are reached by reflection.
+    /// Builds the input table for an entity class. <see cref="DynamicallyAccessedMembersAttribute"/> keeps
+    /// the handlers alive under trimming.
     /// </summary>
     /// <typeparam name="T">The entity class to scan.</typeparam>
     public static void Bind<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.NonPublicMethods)] T>()
@@ -33,14 +31,12 @@ internal static class EntityInputTable
             return;
         }
 
-        // Two threads reaching here for one class both build a table and one of them wins the publish
-        // below. The loser's copy is identical and thrown away, which is cheaper than holding a lock
-        // across the reflection.
+        // Racing threads may both build the table; the loser's copy is discarded, which is cheaper
+        // than holding a lock across the reflection
 
         var handlers = new Dictionary<string, Action<BaseEntity, EntityInputData>>(StringComparer.OrdinalIgnoreCase);
 
-        // Instance methods here include the protected ones inherited from BaseEntity, so an entity keeps
-        // every input its bases declared without restating them.
+        // Includes inherited protected methods, so each entity keeps its bases' inputs
         foreach (var method in typeof(T).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
         {
             var attribute = method.GetCustomAttribute<EntityInputAttribute>();
@@ -52,16 +48,14 @@ internal static class EntityInputTable
 
             var handler = method.CreateDelegate<Action<T, EntityInputData>>();
 
-            // Two handlers claiming one input name is a mistake worth failing on
+            // A duplicate input name is a mistake, so let Add throw
             handlers.Add(attribute.Name, (entity, data) => handler((T)entity, data));
         }
 
         Tables.TryAdd(typeof(T), handlers.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase));
     }
 
-    /// <summary>
-    /// Runs the handler an entity declared for an input.
-    /// </summary>
+    /// <summary>Runs the entity's handler for an input.</summary>
     /// <returns><see langword="true"/> when a handler ran.</returns>
     public static bool TryDispatch(BaseEntity entity, string inputName, EntityInputData data)
     {

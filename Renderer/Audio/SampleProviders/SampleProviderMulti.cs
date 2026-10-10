@@ -20,7 +20,7 @@ public class SampleProviderMulti : AudioSampleProvider
         evaluateFadeIn = EvaluateFadeIn;
     }
 
-    /// <summary>Adds a provider to the mix. Idempotent: providers get auto-removed when they run dry and re-added when they resume (e.g. retriggered child events), which must not create duplicates.</summary>
+    /// <summary>Adds a provider to the mix. Idempotent: providers auto-removed when they run dry are re-added when they resume (e.g. retriggered child events).</summary>
     public void AddProvider(IAudioSampleProvider provider)
     {
         lock (providers)
@@ -113,7 +113,7 @@ public class SampleProviderMulti : AudioSampleProvider
     /// <summary>
     /// Starts fading the mix in from silence over <paramref name="seconds"/>, eased rather than linear so
     /// a freshly started event (e.g. entering a soundscape with none previously active) doesn't jump
-    /// straight to full volume. Harmless to call more than once; only the first call takes effect.
+    /// straight to full volume. Harmless to call more than once; calls made while fading in are ignored.
     /// </summary>
     public void BeginFadeIn(float seconds, int sampleRate)
     {

@@ -1,6 +1,6 @@
 namespace ValveResourceFormat.Renderer.Entities;
 
-/// <summary><c>filter_activator_model</c>. A filter that filters by the model of the activator.</summary>
+/// <summary><c>filter_activator_model</c>. Filters by the activator's model.</summary>
 public sealed class FilterActivatorModel : BaseEntity
 {
     /// <summary>Initializes a <c>filter_activator_model</c>.</summary>

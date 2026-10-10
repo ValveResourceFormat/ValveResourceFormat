@@ -1,11 +1,9 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Remaps the visibility of a transform input's position into a vector output field: the
-    /// visibility becomes a single 0-1 fraction that lerps componentwise between
-    /// <c>m_vecOutputMin</c> and <c>m_vecOutputMax</c>, folded through the set method and lerped
-    /// toward by the operator strength. The remapped value is computed once per frame and is the
-    /// same for every particle.
+    /// Remaps transform visibility into a vector output field as a 0-1 fraction lerping componentwise
+    /// between <c>m_vecOutputMin</c> and <c>m_vecOutputMax</c>, folded through the set method and
+    /// lerped by strength. Computed once per frame, shared by all particles.
     /// </summary>
     /// <remarks>
     /// Unlike <see cref="RemapTransformVisibilityToScalar"/> the output range is never clamped, not

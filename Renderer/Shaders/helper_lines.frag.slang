@@ -8,8 +8,8 @@ uniform sampler2D g_tSceneDepth; // reserved, resolved scene depth (reverse-Z wi
 // Drawn only where the scene does not hide it, or over everything
 uniform bool g_bDepthTest;
 
-// How much farther than the scene a fragment can be and still show, as a fraction of the depth, so shapes lying on
-// the scene's surfaces are not hidden by them
+// Fraction of depth a fragment may lie behind the scene and still show, so shapes on the
+// scene's surfaces are not hidden
 uniform float g_flDepthTolerance;
 
 void main(void)

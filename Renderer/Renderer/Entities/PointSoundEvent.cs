@@ -37,8 +37,8 @@ public sealed class PointSoundEvent : BaseEntity
             return;
         }
 
-        // Left to the first tick rather than started here: entities activate while the rest of the map is
-        // still loading, and the map should not be audible before it is on screen.
+        // Starts on the first tick, not here: entities activate while the map is still loading and it
+        // should not be audible before it is on screen
         SetNextThink(EntitySystem.CurrentTime + EntitySystem.TickInterval);
     }
 
@@ -79,10 +79,8 @@ public sealed class PointSoundEvent : BaseEntity
     [EntityInput("StopSound")]
     private void InputStopSound(EntityInputData data) => StopSound();
 
-    /// <summary>
-    /// Where the sound emits from - the source entity's attachment or origin, falling back to this
-    /// entity's own - or null for a "to local player" event played flat on the listener.
-    /// </summary>
+    // The source entity's attachment or origin, else this entity's position;
+    // null plays flat on the listener (tolocalplayer)
     private Vector3? GetEmitPosition()
     {
         if (KeyValues.GetBooleanProperty("tolocalplayer"))

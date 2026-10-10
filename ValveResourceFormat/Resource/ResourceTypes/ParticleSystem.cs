@@ -20,8 +20,7 @@ namespace ValveResourceFormat.ResourceTypes
         private KV3ID? createdFormat;
 
         /// <summary>
-        /// The format the definition is stored in, or the one it was created as when it was built
-        /// in memory rather than loaded from a resource.
+        /// The stored format, or the format it was created with when built in memory.
         /// </summary>
         private KV3ID? SourceFormat => Format ?? createdFormat;
 
@@ -40,10 +39,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets the function entries traced through the conversion chain, reporting which entries
-        /// survive, under which class name, and which the chain removes. The trace carries the
-        /// upgraded tree it describes, so taking it before <see cref="GetUpgradedData"/> runs the
-        /// chain once for both; taking it afterwards runs the chain a second time.
+        /// Gets the function entries traced through the conversion chain: which survive, under which
+        /// class name, and which are removed. The trace carries the upgraded tree, so calling this
+        /// before <see cref="GetUpgradedData"/> runs the chain once for both, not twice.
         /// </summary>
         public IReadOnlyDictionary<string, IReadOnlyList<ParticleUpgradeTrace.TracedFunction>> GetUpgradeTrace()
         {

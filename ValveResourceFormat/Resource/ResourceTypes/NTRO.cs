@@ -68,10 +68,9 @@ namespace ValveResourceFormat.ResourceTypes
 
             ReadStructureFields(refStruct, startingOffset, structEntry);
 
-            // Valve doesn't print the base struct's type, so we can't just call ReadStructure *sigh*
-            // Inheritance can be arbitrarily deep, and every ancestor lays its fields out at offsets
-            // relative to the same object, so keep appending fields while walking up the chain.
-            // The depth limit guards against manifests with an inheritance cycle.
+            // The base struct type is not written out, so ReadStructure cannot be used for it.
+            // Ancestor fields use offsets from the same object, so keep appending up the chain.
+            // The depth limit guards against cycles.
             var baseStructId = refStruct.BaseStructId;
 
             for (var depth = 0; baseStructId != 0 && depth < 16; depth++)
@@ -126,7 +125,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     if (offset == 0)
                     {
-                        structEntry.Add(field.FieldName, KVObject.Null()); // :shrug:
+                        structEntry.Add(field.FieldName, KVObject.Null());
 
                         return;
                     }

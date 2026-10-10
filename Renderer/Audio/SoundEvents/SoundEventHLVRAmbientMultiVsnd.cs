@@ -88,12 +88,10 @@ internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
     }
 
     /// <summary>
-    /// Wraps each layer as an anonymous "hlvr_default_3d" child. The resolved start delay (own
-    /// <see cref="SoundEvent.DelayOverride"/>, e.g. a quad channel's phase stagger, falling back to this
-    /// definition's own authored delay) is baked directly into each synthetic child's "delay" property
-    /// rather than threaded through as a per-instance override: this method only ever runs once per
-    /// instance (cached on <see cref="SoundEventDefinition.ChildDefinitions"/>), matching every other
-    /// child-definition-resolving type here.
+    /// Wraps each layer as an anonymous "hlvr_default_3d" child. The start delay
+    /// (<see cref="SoundEvent.DelayOverride"/>, e.g. a quad channel's phase stagger, else the authored
+    /// delay) is baked into the "delay" property, not passed per instance, since this runs once per
+    /// instance (cached on <see cref="SoundEventDefinition.ChildDefinitions"/>).
     /// </summary>
     private SoundEventDefinition[] BuildLayerDefinitions(float delay)
     {

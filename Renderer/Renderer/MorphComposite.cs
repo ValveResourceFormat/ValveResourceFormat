@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     /// <remarks>
     /// The rect is the size of the morph set, laid out row by row at its width. Both of the atlas' fields hold it:
-    /// position/speed is accumulated into the left one and normal/wrinkle into the right, matching Valve's compositor.
+    /// position/speed is accumulated into the left one and normal/wrinkle into the right.
     /// Every active morph adds its weighted deltas on top of the others'.
     /// </remarks>
     public class MorphComposite

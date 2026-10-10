@@ -163,10 +163,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Creates particle nodes for the particle systems referenced by a model's keyvalues
-        /// (<c>particles_list</c>) and wires each one to the given model node according to the entry's
-        /// <c>attachment_type</c>. Follow types track the model or attachment point while it animates;
-        /// the other types are placed once at spawn. Entries with an unknown type are skipped.
+        /// Creates particle nodes for the systems in a model's <c>particles_list</c> and attaches each
+        /// per its <c>attachment_type</c>. Custom and world origin are placed once at spawn; the other
+        /// types track the model or its attachment point. Unknown types are skipped.
         /// </summary>
         /// <param name="scene">The scene the nodes belong to.</param>
         /// <param name="model">The model referencing the particle systems.</param>
@@ -228,8 +227,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return nodes;
         }
 
-        // Maps a ParticleAttachment_t kind onto the model's generic attach primitives: custom origin and
-        // world origin are placed once, every other kind tracks the model or its named attachment point.
+        // Custom and world origin are placed once, every other kind tracks the model or its named
+        // attachment point.
         private static void AttachOnModel(ModelSceneNode modelNode, SceneNode node, ParticleAttachment attachType, string attachmentName, Vector3 offset)
         {
             switch (attachType)
@@ -283,8 +282,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public void StopEmission() => particleRenderer.Stop();
 
         /// <summary>
-        /// Stops emission and plays the system's endcap, which is what the engine does when something
-        /// tells a running effect to end.
+        /// Stops emission and plays the endcap, as when something tells a running effect to end.
         /// </summary>
         public void PlayEndCap()
         {
@@ -700,9 +698,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             seededTransform = reflected;
         }
 
-        // The simulation runs in world space with bounds kept relative to control point 0, so the world
-        // box is exact and set directly; the local box is derived so consumers composing
-        // LocalBoundingBox with Transform still get a box containing the particles.
+        // The simulation runs in world space with bounds relative to control point 0, so the world box is exact.
+        // The local box is derived so consumers composing it with Transform still get a box containing the particles.
         private void UpdateBounds()
         {
             var worldBounds = particleRenderer.LocalBoundingBox.Translate(particleRenderer.MainControlPoint.Position);

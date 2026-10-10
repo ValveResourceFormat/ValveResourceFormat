@@ -5,9 +5,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>env_sky</c>, and Dota's <c>env_global_light</c>, which names the sky material too. Each sets its
-/// scene's <see cref="Scene.Skybox2D"/>, a later one replacing an earlier one. An <c>env_global_light</c>
-/// also adds a fixed dynamic sun.
+/// <c>env_sky</c>, and Dota's <c>env_global_light</c>, which names the sky material too. Each sets the
+/// scene's <see cref="Scene.Skybox2D"/>, replacing an earlier one. <c>env_global_light</c> also adds a
+/// fixed dynamic sun.
 /// </summary>
 public sealed class EnvSky : BaseEntity
 {

@@ -3,21 +3,20 @@ using ValveResourceFormat.Particles.Utils;
 namespace ValveResourceFormat.Particles.Constraints
 {
     /// <summary>
-    /// Holds the distance between consecutive particles near a rest length, making a chain of particles
-    /// behave like a rope. Combined with a gravity mover (<c>C_OP_BasicMovement</c>) and pinned endpoints
+    /// Keeps the distance between consecutive particles near a rest length, so a chain of particles acts
+    /// like a rope. With a gravity mover (<c>C_OP_BasicMovement</c>) and pinned endpoints
     /// (<see cref="ParticleField.ForceScale"/> 0), the chain settles under gravity into a catenary.
     ///
-    /// <para>This is a <b>soft</b> spring, not a hard distance clamp: a segment outside the
-    /// <c>[m_flMinDistance, m_flMaxDistance]</c> band (both multiplied by the rest length) is nudged toward
-    /// the band by <c>frameTime * m_flAdjustmentScale</c> of the error each pass. The gentle correction lets
-    /// the rope drape instead of snapping rigidly straight.</para>
+    /// <para>A <b>soft</b> spring, not a hard clamp: a segment outside the <c>[m_flMinDistance,
+    /// m_flMaxDistance]</c> band (both multiplied by the rest length) is nudged toward it by
+    /// <c>frameTime * m_flAdjustmentScale</c> of the error each pass, so the rope can drape.</para>
     ///
     /// <para>The per-segment rest length is <c>baseLength * m_flRestLength</c>. <c>baseLength</c> is
     /// <c>m_flInitialRestingLength</c> when non-negative, otherwise the spawn chain length divided by the
-    /// particle count (captured once). <c>m_flRestLength</c> is wired to the path_particle_rope
-    /// <c>slack</c> (control point 1, Y) and is a bare multiplier: for slack &lt; 1 the
-    /// rest length is shorter than the chord between the pinned nodes, so the rope is pulled taut and runs
-    /// roughly straight along the path with only a slight gravity droop; slack &gt; 1 lets it sag.</para>
+    /// particle count (captured once). <c>m_flRestLength</c> is the path_particle_rope <c>slack</c>
+    /// (control point 1, Y), a bare multiplier: for slack &lt; 1 the rest length is shorter than the chord
+    /// between the pinned nodes, so the rope is pulled taut and runs roughly straight with a slight gravity
+    /// droop; slack &gt; 1 lets it sag.</para>
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RopeSpringConstraint">C_OP_RopeSpringConstraint</seealso>
     class RopeSpringConstraint : ParticleFunctionConstraint
@@ -55,10 +54,8 @@ namespace ValveResourceFormat.Particles.Constraints
                 return true;
             }
 
-            // Rest segment length = spawn spacing * slack (a bare multiplier). slack < 1 holds the rope taut
-            // and roughly straight along the path; slack > 1 lets gravity sag it into a catenary. Resolved on
-            // the first pass before the large-step gate, so the rest length locks in from the spawn geometry
-            // regardless of the timestep.
+            // Rest segment length is spawn spacing * slack. Resolved before the large-step gate so it locks
+            // in from the spawn geometry regardless of the timestep.
             var rest = ResolveBaseLength(current, particleSystemState) * restLength.NextNumber(particleSystemState);
 
             // Skip the solve on large steps: a step over 0.1s over-corrects the rope

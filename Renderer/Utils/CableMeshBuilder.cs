@@ -221,9 +221,8 @@ namespace ValveResourceFormat.Renderer.Utils
             var ringCount = positions.Length;
             var previousNormal = Vector3.Zero;
 
-            // Emit a duplicate seam vertex per ring (sides + 1): the extra vertex sits at the j == 0 position
-            // but carries u == CircumferenceRepeats, so the closing quad interpolates the texture forward to
-            // the full repeat instead of wrapping u back to 0.
+            // The seam is duplicated per ring (sides + 1 vertices): the extra one sits at j == 0 but carries
+            // u == CircumferenceRepeats, so the closing quad interpolates to the full repeat instead of wrapping.
             var vertsPerRing = sides + 1;
             var vertexCursor = 0;
 
@@ -310,8 +309,7 @@ namespace ValveResourceFormat.Renderer.Utils
             indices[cursor++] = d;
         }
 
-        // Approximates the arc length of a cubic Bezier by summing a fixed set of straight chords. Used to
-        // pick the per-segment particle count (count = ceil(arcLength / spacing)).
+        // Approximates the arc length of a cubic Bezier by summing straight chords.
         private static float BezierArcLength(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3)
         {
             const int subdivisions = 16;

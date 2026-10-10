@@ -351,8 +351,8 @@ public partial class GltfModelExporter
 
         var vertexBuffers = drawCall.GetArray("m_vertexBuffers");
 
-        // Each vertex buffer names its TEXCOORDs/COLORs from 0 independently, so remap to a
-        // global counter here to avoid later buffers overwriting earlier ones on the primitive.
+        // Vertex buffers each number TEXCOORDs/COLORs from 0, so count globally or later buffers
+        // overwrite earlier ones.
         var texcoordCounter = 0;
         var colorCounter = 0;
 
@@ -557,9 +557,8 @@ public partial class GltfModelExporter
             {
                 transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
 
-                // A zero determinant means the transform collapses the fragment to nothing. Testing the
-                // diagonal instead would also match an honest rotation that maps every axis onto a
-                // different one, and throw the fragment away.
+                // A zero determinant collapses the fragment to nothing. Testing the diagonal
+                // would also drop honest axis-permuting rotations.
                 if (transform.GetDeterminant() == 0f)
                 {
                     ProgressReporter?.Report($"Skipping mesh: {meshName} because it has a scale of zero.");
@@ -604,9 +603,8 @@ public partial class GltfModelExporter
         var morphIndex = 0;
         var flexDesc = morph.GetFlexDescriptors();
 
-        // Morph deltas are mostly zero, so each target is written as a sparse accessor over one shared
-        // run of zeroes rather than a full copy of the mesh. A buffer view that several accessors read
-        // has to declare its stride.
+        // Morph deltas are mostly zero, so targets are sparse accessors over one shared zero run.
+        // A buffer view read by several accessors must declare its stride.
         var zeroes = model.CreateBufferView(3 * sizeof(float) * vertexCount, 3 * sizeof(float), BufferMode.ARRAY_BUFFER);
 
         foreach (var morphName in flexDesc)
@@ -633,8 +631,7 @@ public partial class GltfModelExporter
                     { "POSITION", CreateMorphAccessor(model, zeroes, deltas, morphName) }
                 };
 
-            // The normal bundle is optional, and a morph set that carries one only fills it for the
-            // targets that actually move normals.
+            // The normal bundle is optional and only fills targets that move normals.
             if (normalData.TryGetValue(morphName, out var normalDeltas))
             {
                 var normals = new Vector3[vertexCount];

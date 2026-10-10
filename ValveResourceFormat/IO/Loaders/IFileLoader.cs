@@ -8,9 +8,8 @@ namespace ValveResourceFormat.IO
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This interface is intended for loading compiled resources (such as models, textures, materials)
-    /// that need to be parsed as <see cref="Resource"/> objects. Implementations handle resource lookup
-    /// across VPK packages and loose files.
+    /// Loads compiled resources (models, textures, materials) as <see cref="Resource"/> objects.
+    /// Implementations resolve paths across VPK packages and loose files.
     /// </para>
     /// </remarks>
     public interface IFileLoader

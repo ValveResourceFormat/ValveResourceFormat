@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Particles
             => NextVector(ref Particle.Default, renderState);
     }
 
-    /// <summary>PVEC_TYPE_CLOSEST_CAMERA_POSITION. The single render camera is always the closest one.</summary>
+    /// <summary>The single render camera is always the closest one.</summary>
     class ClosestCameraPositionVectorProvider : IVectorProvider
     {
         public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => renderState.CameraPosition;
@@ -128,7 +128,6 @@ namespace ValveResourceFormat.Particles
         }
     }
 
-    // CP Delta: the difference between two control point positions.
     readonly struct CPDeltaVectorProvider : IVectorProvider
     {
         private readonly int cp;

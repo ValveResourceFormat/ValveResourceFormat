@@ -10,8 +10,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>The most layers any spritecard renderer composites.</summary>
         public const int MaxLayers = 5;
 
-        // Setting a GLSL array element needs its literal name, and this uploads every draw, so the
-        // names are built once rather than formatted per layer per frame.
+        // Uniform array elements need literal names, so they are built once, not per draw.
         private static readonly string[] TextureNames = ["uTexture", "uTextureLayer1", "uTextureLayer2", "uTextureLayer3", "uTextureLayer4"];
         private static readonly string[] ChannelNames = ["uLayerChannels[0]", "uLayerChannels[1]", "uLayerChannels[2]", "uLayerChannels[3]", "uLayerChannels[4]"];
         private static readonly string[] BlendModeNames = ["uLayerBlendMode[0]", "uLayerBlendMode[1]", "uLayerBlendMode[2]", "uLayerBlendMode[3]", "uLayerBlendMode[4]"];
@@ -102,9 +101,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Hands the layer uv controls to the shader, for the renderers that place their corners there
-        /// rather than on the CPU. One value per layer for the whole draw, which is what lets a card send
-        /// a sheet frame rectangle per particle instead of a placed coordinate per corner.
+        /// Hands the layer uv controls to the shader for renderers that place corners there rather than
+        /// on the CPU. One value per layer per draw lets a card send a sheet frame rectangle per particle,
+        /// not a placed coordinate per corner.
         /// </summary>
         /// <param name="shader">Shader being drawn with.</param>
         /// <param name="layers">The chain being composited.</param>
@@ -191,9 +190,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     continue;
                 }
 
-                // A normal map is not colour: compositing it into the chain would tint the card with a
-                // tangent-space basis. A motion vector sheet is not colour either, but it stays a layer --
-                // the shader reads its mode, takes flow from it and composites nothing.
+                // Normal maps are not colour and would tint the card with a tangent-space basis. Motion
+                // vector sheets stay layers: the shader reads their flow and composites nothing.
                 var textureType = textureInput.Enum("m_nTextureType", SpriteCardTextureType.SPRITECARD_TEXTURE_DIFFUSE);
                 var isMotionVectors = textureType == SpriteCardTextureType.SPRITECARD_TEXTURE_ANIMMOTIONVEC;
 

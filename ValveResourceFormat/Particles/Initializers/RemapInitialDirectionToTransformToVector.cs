@@ -9,8 +9,8 @@ namespace ValveResourceFormat.Particles.Initializers
     /// orientation is ignored.
     /// </summary>
     /// <remarks>
-    /// The rotation matrix is built without normalizing the axis, so the default zero axis with a
-    /// non-zero angle degrades to a uniform scale by the angle's cosine rather than a rotation.
+    /// The axis is not normalized, so the default zero axis with a non-zero angle scales uniformly
+    /// by the angle's cosine instead.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RemapInitialDirectionToTransformToVector">C_INIT_RemapInitialDirectionToTransformToVector</seealso>
     class RemapInitialDirectionToTransformToVector : ParticleFunctionInitializer
@@ -60,8 +60,8 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (normalize)
             {
-                // Z carries an epsilon before the length is taken, so a delta with no direction
-                // comes out pointing along the transform's third axis rather than staying at zero
+                // Z gets an epsilon before normalizing, so a zero delta points along the transform's
+                // third axis instead of staying zero
                 direction.Z += ParticleMath.FloatEpsilon;
 
                 direction = MathUtils.SafeNormalize(direction);

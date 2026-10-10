@@ -317,7 +317,7 @@ namespace ValveResourceFormat.Renderer.World
         private readonly float[] sunShadowHalfExtent = new float[SunCascadeCount];
         private bool sunShadowFitsDepthToCasters;
 
-        /// <summary>Recalculates <see cref="SunViewProjections"/> and <see cref="SunLightFrustums"/> to fit the current camera view. Cascade extents follow <see cref="SunCascadeExtentFractions"/>. The frustums get a generous depth range for caster culling; once a cascade's casters are collected, <see cref="FitSunLightDepthRange"/> tightens its rendered range around them.</summary>
+        /// <summary>Recalculates <see cref="SunViewProjections"/> and <see cref="SunLightFrustums"/> for the camera view, with extents from <see cref="SunCascadeExtentFractions"/>. Frustums get a generous depth range for caster culling, tightened by <see cref="FitSunLightDepthRange"/>.</summary>
         /// <param name="camera">The active camera used to position the sun shadow frustum.</param>
         /// <param name="shadowMapSize">The shadow map resolution used to compute coverage and texel snapping.</param>
         public void UpdateSunLightFrustum(Camera camera, float shadowMapSize = 512f)
@@ -405,7 +405,6 @@ namespace ValveResourceFormat.Renderer.World
                 // Stabilize shadow map by snapping eye position to texel-sized increments in world space
                 var texelWorldSize = (4.0f * bbox) / shadowMapSize;
 
-                // Project eye onto shadow camera's right/up axes and snap
                 var eyeOffsetX = Vector3.Dot(eye, right);
                 var eyeOffsetY = Vector3.Dot(eye, up);
                 var eyeOffsetZ = Vector3.Dot(eye, sunDir);
@@ -430,7 +429,7 @@ namespace ValveResourceFormat.Renderer.World
             SunCastDirection = sunDir;
         }
 
-        /// <summary>Tightens the depth range of a cascade's <see cref="SunViewProjections"/> entry around the collected shadow casters, given their extent along <see cref="SunCastDirection"/> in world units. A tight range shrinks the world-space size of the normalized shadow bias. Receivers outside the range clamp in the shader and still compare correctly against every caster, and since the fit derives from the same culled set that renders, it covers every rendered caster by construction. <see cref="SunLightFrustums"/> keeps the generous culling range.</summary>
+        /// <summary>Tightens a cascade's <see cref="SunViewProjections"/> depth range around its collected casters, given their extent along <see cref="SunCastDirection"/> in world units. A tight range shrinks the world-space size of the normalized shadow bias. Receivers outside the range clamp in the shader and still compare correctly against every caster. The fit derives from the same culled set that renders, so it covers every rendered caster. <see cref="SunLightFrustums"/> keeps the generous culling range.</summary>
         /// <param name="cascade">The cascade index to tighten.</param>
         /// <param name="casterMin">Smallest caster projection onto the cast direction, or <see cref="float.MaxValue"/> when no casters were collected.</param>
         /// <param name="casterMax">Largest caster projection onto the cast direction.</param>
@@ -631,8 +630,8 @@ namespace ValveResourceFormat.Renderer.World
 
         /// <summary>
         /// Stores the environment light into the dedicated sun uniforms, which work across all
-        /// lightmap versions like the HLVR sun fast path. The baked shadow data is the V2 one-hot
-        /// channel mask, or the sun's baked light index in X for V1.
+        /// lightmap versions. The baked shadow data is the V2 one-hot channel mask, or the sun's
+        /// baked light index in X for V1.
         /// </summary>
         private void StoreSunLight(SceneLight envLight, Vector4 bakedShadowData)
         {

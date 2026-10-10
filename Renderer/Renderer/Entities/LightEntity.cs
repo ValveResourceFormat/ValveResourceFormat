@@ -7,20 +7,19 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// The light entities. Owns the <see cref="SceneLight"/> and steers it live: the real-time set (barn,
-/// rect, omni2) re-bins every frame so changes are plain property writes, while the slot-stored set
-/// (omni, spot, ortho, environment) re-stores the lighting uniforms on change. Light styles and
-/// volumetric fog are not simulated.
+/// The light entities. Owns the <see cref="SceneLight"/>. Real-time lights (barn, rect, omni2) are
+/// re-binned every frame; slot-stored lights (omni, spot, ortho, environment) re-store the lighting
+/// uniforms on change. Light styles and volumetric fog are not simulated.
 /// </summary>
 public sealed class LightEntity : BaseEntity
 {
-    /// <summary>Gets whether the light is on. A light turned off costs nothing to render.</summary>
+    /// <summary>Gets whether the light is on.</summary>
     public bool IsEnabled { get; private set; }
 
     private SceneLight? light;
     private float brightnessScale = 1f;
 
-    /// <summary>Gets the light the entity casts, or <see langword="null"/> for a light class that is not rendered.</summary>
+    /// <summary>Gets the light, or <see langword="null"/> for a light class that is not rendered.</summary>
     internal SceneLight? Light => light;
     private bool slotStored;
 
@@ -50,9 +49,8 @@ public sealed class LightEntity : BaseEntity
         brightnessScale = light.BrightnessScale;
         slotStored = !SceneLight.IsRealTimeLight(light);
 
-        // On/off is a brightness scale of zero across every store, so the slots stay laid out the same
-        // whatever the light's state; Enabled itself would drop a stationary light from the store and
-        // leave its old slot data lit
+        // Off is a brightness scale of zero rather than Enabled = false, which would drop a stationary
+        // light from the store and leave its old slot data lit
         light.Enabled = true;
 
         light.PlaceAt(Transform);
@@ -69,7 +67,7 @@ public sealed class LightEntity : BaseEntity
         Apply();
     }
 
-    /// <summary>Moves the light with the entity; a teleport is the only movement a light has.</summary>
+    /// <summary>Moves the light with the entity; lights only move by teleport.</summary>
     public override void Teleport(Vector3 origin, Vector3? angles)
     {
         base.Teleport(origin, angles);
@@ -88,8 +86,7 @@ public sealed class LightEntity : BaseEntity
         Apply();
     }
 
-    // A dark light drops out of binning entirely (see SceneLight.IsVisible), the same off-switch the
-    // particle light renderers use, leaving the authored scale to come back with
+    // Zero brightness drops the light out of binning (see SceneLight.IsVisible); the authored scale is kept
     private void Apply()
     {
         if (light == null)
@@ -149,8 +146,7 @@ public sealed class LightEntity : BaseEntity
         Apply();
     }
 
-    // "255 200 100" on the usual 0-255 scale, to the 0-1 sRGB the light holds; an unparseable
-    // parameter leaves the color alone rather than setting it black
+    // "255 200 100" (0-255) to 0-1 sRGB; an unparseable parameter keeps the current color
     [EntityInput("SetColor")]
     private void InputSetColor(EntityInputData data)
     {

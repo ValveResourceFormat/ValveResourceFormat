@@ -8,9 +8,8 @@ using Node = ValveResourceFormat.Graphs.KVGraphNode;
 namespace ValveResourceFormat.Graphs;
 
 /// <summary>
-/// Builds the node graph of an AG1 animation graph, from either the compiled schema or the
-/// uncompiled editor one: one card per node, wired by the child links the node declares, with
-/// parameter, tag and component hubs beside them.
+/// Builds the node graph of an AG1 animation graph from the compiled or editor schema: one card
+/// per node, wired by the child links it declares, plus parameter, tag and component hubs.
 /// </summary>
 internal sealed class AnimGraph1Builder : IDisposable
 {
@@ -73,8 +72,7 @@ internal sealed class AnimGraph1Builder : IDisposable
     // rather than any category or data type colour.
     private static readonly GraphHue SubGraphHue = AnimGraphHues.HueOf(AnimGraphCategory.ExternalReference);
 
-    // Anim tag and component classes each render with a friendly label and a category hue;
-    // the two travel together, so one table carries both.
+    // Each anim tag and component class has a friendly label and a category hue, in one table.
     private static readonly Dictionary<string, (string Name, GraphHue Hue)> TagClasses = new(StringComparer.Ordinal)
     {
         ["CAudioAnimTag"] = ("Audio Tag", GraphHue.Orange),
@@ -183,8 +181,8 @@ internal sealed class AnimGraph1Builder : IDisposable
         "m_name",
     };
 
-    // Structural keys of a compiled node: they are already drawn as wires, sockets or their own
-    // rows, so the generic property dump leaves them out.
+    // Structural keys of a compiled node are already drawn as wires, sockets or rows, so the
+    // generic property dump skips them.
     private static readonly HashSet<string> CompiledStructureKeys = new(StringComparer.Ordinal)
     {
         "_class", "m_nodePath", "m_children", "m_tags", "m_paramSpans", "m_stateMachine", "m_stateData", "m_transitionData",
@@ -239,7 +237,6 @@ internal sealed class AnimGraph1Builder : IDisposable
         ["m_networkMode"] = "NetworkMode",
     };
 
-    // Properties to skip in generic display for specific classes
     private static readonly Dictionary<string, HashSet<string>> ClassPropertySkips = new(StringComparer.Ordinal)
     {
         ["CChoiceUpdateNode"] = new(StringComparer.Ordinal) { "m_weights", "m_blendTimes", "m_choiceMethod", "m_blendMethod", "m_choiceChangeMethod", "m_bCrossFade", "m_bResetChosen", "m_bDontResetSameSelection" },
@@ -312,8 +309,7 @@ internal sealed class AnimGraph1Builder : IDisposable
         document.Legend.Add(new("Client-simulated (body tint)", GraphHue.Purple, GraphLegendKind.BodyTint));
     }
 
-    // animgraph1 names a child by id, animgraph19 by connection; a node carries one vocabulary
-    // or the other, so both are tried against every node.
+    // animgraph1 names children by id, animgraph19 by connection; a node uses one, so try both.
     private static readonly (string Field, string Label)[] EditorChildFields =
     [
         ("m_childID", "child"),
@@ -337,9 +333,9 @@ internal sealed class AnimGraph1Builder : IDisposable
     };
 
     /// <summary>
-    /// Adds every node of a container to the view, recursing into the node manager a group
-    /// carries so the whole authored tree lands on one canvas, and records the group path and
-    /// the named outputs the connections in the container address.
+    /// Adds every node of a container, recursing into the node manager of groups so the whole
+    /// authored tree lands on one canvas. Records each node's group path and the named outputs
+    /// that connections address.
     /// </summary>
     private static void AddEditorNodes(
         GraphDocument document,
@@ -467,11 +463,10 @@ internal sealed class AnimGraph1Builder : IDisposable
         return ResolveNestedEditorNodes(root);
     }
 
-    // Builds the graph straight from the uncompiled editor schema. Nodes are a key/value list
-    // of id to node. animgraph1 (HLA, SteamVR Home) wires children by plain id fields, while
-    // animgraph19 (CS2) wires them through m_inputConnection { m_nodeID, m_outputID } and nests
-    // groups in a node manager of their own; both are read here and flattened onto one canvas,
-    // with each node stamped with the group path it was authored in.
+    // Builds the graph from the editor schema, a key/value list of id to node. animgraph1 (HLA,
+    // SteamVR Home) wires children by plain id fields; animgraph19 (CS2) wires them through
+    // m_inputConnection { m_nodeID, m_outputID } and nests groups in a node manager. Both are
+    // flattened onto one canvas, each node stamped with its authored group path.
     private void BuildEditorGraph(GraphDocument document)
     {
         var rootNodes = ResolveRootEditorNodes(animGraphData);
@@ -1222,8 +1217,8 @@ internal sealed class AnimGraph1Builder : IDisposable
                                 continue;
                             }
 
-                            // Compiled transitions keep their conditions in the state's script
-                            // rather than on the transition, so the wire carries no label.
+                            // Compiled transitions keep conditions in the state script,
+                            // so the wire has no label.
                             AnimGraphHues.ConnectTransition(document, srcNode, destNode);
                         }
                     }

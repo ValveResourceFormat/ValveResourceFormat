@@ -1,8 +1,7 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Lerps a vector particle attribute toward a target vector over a specified time window of
-    /// the particle's normalized lifetime age.
+    /// Lerps a vector attribute toward a target vector over a specified window of normalized lifetime.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LerpVector">C_OP_LerpVector</seealso>
     class LerpVector : ParticleFunctionOperator

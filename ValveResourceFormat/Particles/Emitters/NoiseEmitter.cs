@@ -86,7 +86,7 @@ namespace ValveResourceFormat.Particles.Emitters
                     ? Vector3.Zero
                     : (particleSystemState.GetControlPoint(worldNoisePoint).Position + offsetLoc) * worldNoiseScale;
 
-                // The engine's world time term ticks in milliseconds
+                // The world time term ticks in milliseconds
                 var sampleTime = ((elapsed + noiseOffset) * noiseScale.NextNumber(particleSystemState))
                     + (particleSystemState.WorldTime * 1000f * worldTimeScale);
                 var noise = Noise.Value3D(basePosition + new Vector3(sampleTime));

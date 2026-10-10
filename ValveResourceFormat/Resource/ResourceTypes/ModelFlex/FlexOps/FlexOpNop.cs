@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
 {
     /// <summary>
-    /// Flex operation the engine evaluator has no case for, so it leaves the stack untouched.
+    /// Flex operation with no implementation, so it leaves the stack untouched.
     /// </summary>
     internal class FlexOpNop : FlexOp
     {

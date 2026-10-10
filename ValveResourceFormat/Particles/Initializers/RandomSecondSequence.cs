@@ -1,8 +1,8 @@
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Initializes the particle second animation sequence to a random value between a min and max
-    /// sequence index, inclusive. One draw per particle whether or not the range is degenerate.
+    /// Sets the second sequence to a random index between min and max, inclusive. Always draws,
+    /// even when the range is degenerate.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomSecondSequence">C_INIT_RandomSecondSequence</seealso>
     class RandomSecondSequence : ParticleFunctionInitializer

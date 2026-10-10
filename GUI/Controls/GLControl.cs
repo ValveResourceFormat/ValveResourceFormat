@@ -175,8 +175,8 @@ public class GLControl : Control
     }
 
     /// <summary>
-    /// This private object is used as the reference for the <see cref="Load"/> handler in
-    /// the Events collection, and is only needed if you use the <see cref="Load"/> event.
+    /// Key for the <see cref="Load"/> handler in the Events collection, only needed
+    /// when the Load event is used.
     /// </summary>
     private static readonly object EVENT_LOAD = new();
 

@@ -4,7 +4,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
-/// <summary>What a dispatched effect is told about where and how it happens.</summary>
+/// <summary>Where and how a dispatched effect happens.</summary>
 /// <param name="Scene">The scene the effect shows in.</param>
 /// <param name="Origin">Where the effect happens.</param>
 /// <param name="Normal">The normal of the surface it happens on.</param>
@@ -16,8 +16,7 @@ public readonly record struct EffectData(Scene Scene, Vector3 Origin, Vector3 No
     uint SurfacePropertyHash = 0, BaseEntity? Entity = null, float Scale = 1f);
 
 /// <summary>
-/// Temporary entities: effects that are dispatched by name, play once and are gone, without an entity in
-/// the world to stand for them.
+/// Temporary entities: effects dispatched by name that play once and are gone, with no entity in the world.
 /// </summary>
 public sealed class TempEntities
 {
@@ -91,7 +90,6 @@ public sealed class TempEntities
         Sound.Play(WaterSplashSound, data.Origin);
     }
 
-    // The effect the hit surface throws up
     private void ImpactParticle(in EffectData data)
     {
         if (data.Scene.ProjectedDecals.FindImpactEffect(data.SurfacePropertyHash) is not { Length: > 0 } particleName)

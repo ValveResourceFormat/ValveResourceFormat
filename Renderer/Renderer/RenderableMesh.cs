@@ -103,7 +103,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>Returns the render mode names supported by the materials in this mesh, concatenated across draw calls (may contain duplicates).</summary>
+        /// <summary>Returns render mode names of all draw call materials, without deduplication.</summary>
         public IEnumerable<string> GetSupportedRenderModes()
             => DrawCalls
                 .SelectMany(static drawCall => drawCall.Material.Shader.RenderModes);
@@ -270,8 +270,7 @@ namespace ValveResourceFormat.Renderer
 
             var gpuVbib = renderContext.MeshBufferCache.CreateVertexIndexBuffers(Name, vbib);
 
-            // note: we are flattening the scene objects into one mesh
-            // we are not sure when there can be more than one scene object here.
+            // Scene objects are flattened into one mesh. Unsure when there can be more than one.
 
             var vertexOffset = 0;
             var drawCallIndex = 0;

@@ -20,7 +20,7 @@ internal class ShaderHotReload : IDisposable
         var paths = new List<string>(watchers.Capacity);
         paths.AddRange(ShaderRegistry.Directories);
 
-        // Only present when this assembly was built from the shader source files, rather than using the embedded copies
+        // Only set when built from shader source files, not the embedded copies
         if (ShaderParser.ShaderSourceDirectory != null)
         {
             paths.Add(ShaderParser.ShaderSourceDirectory);

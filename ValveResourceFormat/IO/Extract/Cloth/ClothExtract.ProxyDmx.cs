@@ -441,7 +441,6 @@ internal sealed partial class ClothExtract
         vertexData.AddStream("blendweights$0", blendWeights);
     }
 
-    /// <summary>Adds the <c>cloth</c> face set to the mesh of <paramref name="dag"/> and returns it.</summary>
     private static DmeFaceSet AddClothFaceSet(DmeDag dag)
     {
         var faceSet = new DmeFaceSet { Name = "cloth" };

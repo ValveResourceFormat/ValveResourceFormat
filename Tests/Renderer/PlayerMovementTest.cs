@@ -8,7 +8,7 @@ namespace Tests.Renderer
 {
     /// <summary>
     /// Movement verifiers. Drives the real UserInput/PlayerMovement pipeline headlessly
-    /// (no GL context, no physics world — traces fall back to the infinite ground plane)
+    /// (no GL context, no physics world; traces fall back to the infinite ground plane)
     /// and checks it against double-precision ground truth.
     ///
     /// The thresholds are regression locks set just above the best measured precision:
@@ -20,7 +20,7 @@ namespace Tests.Renderer
         private const float WishSpeed = 250f;             // RunSpeed, no walk/duck modifiers
         private const float AirAccelRate = 150f * WishSpeed;
 
-        // Rotations below PlayerMovement's tickless guard run the engine's discrete rule,
+        // Rotations below PlayerMovement's tickless guard run the discrete rule,
         // which deviates from the continuous model by design (bounded, non-accumulating)
         private const float TicklessMinTurn = 2e-4f;
 
@@ -218,7 +218,7 @@ namespace Tests.Renderer
         public async Task AirStrafeGainIsFramerateInvariant()
         {
             // Regression lock on the cross-fps end-speed spread per turn rate
-            const double SpreadLock = 6.5e-3; // best measured: 5.6e-3 at 360°/s
+            const double SpreadLock = 6.5e-3; // best measured: 5.6e-3 at 360 deg/s
 
             float[] framerates = [64f, 128f, 250f, 1000f];
             float[] turnRatesDegPerSec = [90f, 180f, 360f];
@@ -313,7 +313,7 @@ namespace Tests.Renderer
             // and leaves this O(dt^2) spread across the 0 -> 250 ramp. Wiring Accelerate up to the
             // closed forms that exist for those paths takes it to 3.05e-5, but the trapezoid is
             // the linear-velocity model that DistanceToTimeFraction inverts, so keeping it is what
-            // makes the collision-time conversion exact for the delta being swept — see the note
+            // makes the collision-time conversion exact for the delta being swept; see the note
             // on WalkMove. The spread here is the price of that consistency, not an unknown.
             //
             // Note the stop distance stays tight either way: FrictionDisplacement is already a
@@ -353,9 +353,9 @@ namespace Tests.Renderer
             await Assert.That(Spread(stopDistances)).IsLessThan(StopDistanceSpreadLock).Because("friction stop distance invariance regressed");
         }
 
-        // A single wall turned 45° in XY, so its normal is on neither axis. The player walks
-        // straight down +X into it and slides along (1,1)/√2, which puts motion on both axes and
-        // makes ClipVelocity's projection inexact — an axis-aligned wall zeroes the normal
+        // A single wall turned 45 deg in XY, so its normal is on neither axis. The player walks
+        // straight down +X into it and slides along (1,1)/sqrt(2), which puts motion on both axes and
+        // makes ClipVelocity's projection inexact; an axis-aligned wall zeroes the normal
         // component exactly and hides any drift off the SurfaceEpsilon standoff.
         private static readonly Vector3 WallNormal = Vector3.Normalize(new Vector3(-1, 1, 0));
         private const float WallContactX = 20f;
@@ -368,7 +368,7 @@ namespace Tests.Renderer
             => (WallNormal.X * position.X) + (WallNormal.Y * position.Y) - WallOffset - WallExtent;
 
         /// <summary>
-        /// One wall-slide run: settle, then walk straight down +X into the 45° wall for 3s.
+        /// One wall-slide run: settle, then walk straight down +X into the 45 deg wall for 3s.
         /// Returns the slide displacement on each axis, the resting gap and the end speed.
         /// </summary>
         private async Task<(double SlideX, double SlideY, double Gap, double EndSpeed)> RunWallSlide(float fps)
@@ -383,7 +383,7 @@ namespace Tests.Renderer
 
             var start = movement.Position;
 
-            // Straight down +X; the wall deflects the run onto the (1,1)/√2 diagonal
+            // Straight down +X; the wall deflects the run onto the (1,1)/sqrt(2) diagonal
             input.Camera.Yaw = 0f;
 
             for (var i = 0; i < (int)(3f * fps); i++)
@@ -396,11 +396,11 @@ namespace Tests.Renderer
         }
 
         /// <summary>
-        /// Walks straight down +X into a 45° wall across framerates and reports how far the player
-        /// slides along it, per axis. The slide runs on the (1,1)/√2 diagonal, so X and Y carry the
+        /// Walks straight down +X into a 45 deg wall across framerates and reports how far the player
+        /// slides along it, per axis. The slide runs on the (1,1)/sqrt(2) diagonal, so X and Y carry the
         /// dynamics jointly and neither is pinned; the perpendicular gap is the constrained
         /// direction and should hold at SurfaceEpsilon. Exercises GroundMove, and because the wall
-        /// normal is off-axis the velocity clip leaves a rounding residual every frame — the
+        /// normal is off-axis the velocity clip leaves a rounding residual every frame; the
         /// cross-fps spread per axis is the invariance signal.
         /// </summary>
         [Test]
@@ -461,7 +461,7 @@ namespace Tests.Renderer
 
         /// <summary>
         /// One surf run: drop onto an inclined plane whose face starts <see cref="SurfDropHeight"/>
-        /// units below the feet and hold A for 3 seconds, with the view yawed 10° right so the
+        /// units below the feet and hold A for 3 seconds, with the view yawed 10 deg right so the
         /// strafe converts into speed along the ramp instead of straight into it. The ramp is
         /// tilted about Y, so its downhill direction is -X and the wish input is nearly across it.
         /// Returns the horizontal travel, the end speed, how far the player descended and whether
@@ -473,7 +473,7 @@ namespace Tests.Renderer
             var movement = input.PlayerMovement;
             var dt = 1f / fps;
 
-            // Outward normal of a plane inclined by SurfSlopeDegrees, tilted about Y; solid is n·x <= d
+            // Outward normal of a plane inclined by SurfSlopeDegrees, tilted about Y; solid is dot(n, x) <= d
             var alpha = float.DegreesToRadians(SurfSlopeDegrees);
             var n = new Vector3(-MathF.Sin(alpha), 0f, MathF.Cos(alpha));
 
@@ -487,7 +487,7 @@ namespace Tests.Renderer
 
             movement.DebugCollisionPlanes.Add(new Vector4(n.X, n.Y, n.Z, d));
 
-            // 10° to the right of +X. Forward is (cos yaw, sin yaw); right is yaw - 90°, so
+            // 10 deg to the right of +X. Forward is (cos yaw, sin yaw); right is yaw - 90 deg, so
             // looking right is a negative yaw step.
             var yaw = float.DegreesToRadians(-10f);
             input.Camera.Yaw = yaw;
@@ -514,7 +514,7 @@ namespace Tests.Renderer
                 Vector3.Dot(wishdir, movement.Velocity));
         }
 
-        // Steep enough to actually surf: WalkableSlope is 0.7, so everything up to 45.573° counts
+        // Steep enough to actually surf: WalkableSlope is 0.7, so everything up to 45.573 deg counts
         // as standable ground and would be walked down through GroundMove instead. Past the
         // threshold the ramp never grounds the player and the run stays on AirMove/TryPlayerMove,
         // which is the path this locks. The grounded column is the guard on that staying true.
@@ -581,7 +581,7 @@ namespace Tests.Renderer
         }
 
         /// <summary>
-        /// One overhang-bounce run: settle, jump straight up into a 45° overhang, then fly until
+        /// One overhang-bounce run: settle, jump straight up into a 45 deg overhang, then fly until
         /// landing and slide out the remaining speed. Returns the total horizontal distance from
         /// launch to the resting position, and the apex height reached.
         /// </summary>
@@ -591,7 +591,7 @@ namespace Tests.Renderer
             var movement = input.PlayerMovement;
             var dt = 1f / fps;
 
-            // 45° overhang above the player: solid where n·x <= d, n pointing down and +x.
+            // 45 deg overhang above the player: solid where dot(n, x) <= d, n pointing down and +x.
             // Offset chosen so the plane is clear of the spawn/fall column (hull center ~72)
             // yet gets struck mid-jump (contact near hull center ~82, below the ~93 apex)
             var n = Vector3.Normalize(new Vector3(1, 0, -1));
@@ -644,7 +644,7 @@ namespace Tests.Renderer
         }
 
         /// <summary>
-        /// Jumps straight up into a 45° overhang across framerates and measures how far the
+        /// Jumps straight up into a 45 deg overhang across framerates and measures how far the
         /// deflection flings the player, from launch to where the post-landing slide comes to
         /// rest. Measuring at rest rather than on the landing frame keeps the result off the
         /// ground snap, which credits a whole frame of horizontal travel regardless of how much

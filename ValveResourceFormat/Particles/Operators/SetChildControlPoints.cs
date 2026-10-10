@@ -4,9 +4,8 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Places a run of control points on the child systems of a group at this system's particles, one
-    /// particle per control point, optionally turning them to match the particles too. Every child of
-    /// the group gets the same points, on its own copy of them.
+    /// Places a run of control points on each child of a group, one per particle of this system,
+    /// optionally turned to match the particle. Each child gets the same points, on its own copy.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetChildControlPoints">C_OP_SetChildControlPoints</seealso>
     class SetChildControlPoints : ParticleFunctionOperator

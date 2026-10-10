@@ -47,9 +47,9 @@ internal sealed class SpectralCueFilters
     private const float MinNotchDecibels = 0.1f;
     private const float MinShelfDecibels = 0.05f;
 
-    // Targets: written on the game thread from the spatializer, read on the mixing thread. Each is a
-    // single float, so the mixing thread can only ever see an old value, never half of a new one - which
-    // matters, because a biquad handed a torn set of coefficients can go unstable rather than just sound wrong.
+    // Targets: written by the spatializer on the game thread, read on the mixing thread.
+    // Each is one float, so readers see an old or new value, never a torn one. A biquad given
+    // torn coefficients can go unstable.
     private float targetNotchHz = ReferenceNotchHz;
     private float targetNotchDecibels;
     private float targetShelfDecibels;

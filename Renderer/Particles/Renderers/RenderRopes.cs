@@ -159,7 +159,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             startFadeDot = parse.Float("m_flStartFadeDot", startFadeDot);
             endFadeDot = parse.Float("m_flEndFadeDot", endFadeDot);
 
-            // Anything outside 0..4 becomes 5, which the engine's own shader folds back onto 4.
+            // Anything outside 0..4 becomes 4.
             if ((uint)orientationType > (uint)ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL)
             {
                 orientationType = ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
@@ -206,9 +206,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Picks one subdivision level for the whole collection from its projected size, as the engine
-        /// does. The ceiling is lowered to the measured value before the floor is applied, so a
-        /// ceiling above 128 or below 1 both leave the count pinned rather than following the floor.
+        /// Picks one subdivision level for the whole collection from its projected size. The ceiling
+        /// is lowered to the measured value before the floor is applied, so a ceiling above 128 or
+        /// below 1 both leave the count pinned rather than following the floor.
         /// </summary>
         private int ComputeTessellationLevel(ReadOnlySpan<RopeNode> nodes, Camera camera)
         {

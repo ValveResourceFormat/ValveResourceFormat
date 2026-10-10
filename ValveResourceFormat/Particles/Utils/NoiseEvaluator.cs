@@ -5,8 +5,7 @@ namespace ValveResourceFormat.Particles.Utils
     /// selected primitive over a scaled coordinate, a turbulence resample, a shaping modifier, and
     /// the output range. Turbulence overrides worley with fixed per-mode jitter and seed values, and
     /// its alternate mode swaps a worley input to a simplex resample and every other input to a
-    /// worley resample, exactly as the engine computes it. The octave sum is unweighted against
-    /// amplitude-falloff divisors, also engine behavior.
+    /// worley resample. The octave sum is unweighted against amplitude-falloff divisors.
     /// </summary>
     sealed class NoiseEvaluator
     {
@@ -131,9 +130,8 @@ namespace ValveResourceFormat.Particles.Utils
         };
 
         /// <summary>
-        /// The 2.5x gain the clumps modifier applies, summed one halving divisor at a time as the
-        /// engine does rather than as a single multiply, which lands a ulp away over a third of the
-        /// time.
+        /// The 2.5x gain the clumps modifier applies, summed one halving divisor at a time rather than
+        /// as a single multiply, which lands a ulp away over a third of the time.
         /// </summary>
         private static float Clumps(float value)
         {

@@ -35,7 +35,7 @@ namespace Tests.Resources
         ];
 
         /// <summary>
-        /// Checked against the engine's own AngleVectors formula rather than against the matrix the helper
+        /// Checked against the direct trigonometric formula rather than against the matrix the helper
         /// builds it from, which would only be comparing the implementation with itself.
         /// </summary>
         [Test]
@@ -389,8 +389,8 @@ namespace Tests.Resources
         }
 
         /// <summary>
-        /// The six axis directions, with the angles the engine reports for each. Yaw is given here in the
-        /// -180..180 form these helpers return, where the engine's own tests use the 0..360 one.
+        /// The six axis directions with their pitch and yaw. Yaw is given in the -180..180 form these
+        /// helpers return, rather than 0..360.
         /// </summary>
         [Test]
         public async Task ForwardDirectionToEulerAnglesMatchesEngineCardinals()
@@ -400,8 +400,8 @@ namespace Tests.Resources
                 (new Vector3(1f, 0f, 0f), 0f, 0f),      // forward
                 (new Vector3(-1f, 0f, 0f), 0f, 180f),   // backward
                 (new Vector3(0f, 1f, 0f), 0f, 90f),     // left
-                (new Vector3(0f, -1f, 0f), 0f, -90f),   // right, the engine's yaw 270
-                (new Vector3(0f, 0f, 1f), -90f, 0f),    // up, the engine's pitch 270
+                (new Vector3(0f, -1f, 0f), 0f, -90f),   // right, yaw 270 in 0..360 form
+                (new Vector3(0f, 0f, 1f), -90f, 0f),    // up, pitch 270 in 0..360 form
                 (new Vector3(0f, 0f, -1f), 90f, 0f),    // down
             ];
 
@@ -416,8 +416,7 @@ namespace Tests.Resources
         }
 
         /// <summary>
-        /// At the poles yaw and roll turn about the same axis, so the pair collapses into yaw alone. These
-        /// are the collapsed values the engine produces, which it in turn checks against other engines.
+        /// At the poles yaw and roll turn about the same axis, so the pair collapses into yaw alone.
         /// </summary>
         [Test]
         public async Task ToEulerAnglesCollapsesGimbalLockLikeTheEngine()

@@ -6,15 +6,14 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>func_tracktrain</c>, Source's <c>CFuncTrackTrain</c>. A brush that runs along a chain of
-/// <see cref="PathTrack"/> nodes, carrying and pushing whatever stands on it.
+/// <c>func_tracktrain</c>. A brush that runs along a chain of <see cref="PathTrack"/> nodes, carrying and
+/// pushing whatever stands on it.
 /// </summary>
 /// <remarks>
-/// Every tick it is moving, it looks 0.1 seconds of travel ahead along the path, passes the nodes in
-/// between, and sets its velocity toward that point and its angular velocity toward the orientation it
-/// should have; the pusher physics integrates both. Not simulated: driving it with the use key or train
-/// controls, the damage and shove it gives what blocks it (the player never blocks a train), and the
-/// pitch and volume its move sound takes from its speed.
+/// Every tick it moves, it looks 0.1 seconds of travel ahead along the path, passes the nodes in between,
+/// and aims its velocity at that point and its angular velocity at the orientation it should have. Not
+/// simulated: driving it with the use key or train controls, the damage and shove it gives what blocks it
+/// (the player never blocks a train), and the pitch and volume its move sound takes from its speed.
 /// </remarks>
 public class FuncTrackTrain : BaseModelEntity
 {
@@ -96,17 +95,17 @@ public class FuncTrackTrain : BaseModelEntity
     private float height;
     private float bank;
 
-    // The speed it had before it last stopped, which Resume goes back to
+    // Speed before the last stop, for Resume
     private float oldSpeed;
 
-    // Where it was and how it faced when it last passed a node, which orientation blends start from
+    // Pose at the last node passed, where orientation blends start
     private Vector3 positionPrevious;
     private Vector3 anglesPrevious;
 
     private OrientationType orientationType = OrientationType.AtPathTracks;
     private VelocityType velocityType;
 
-    // The node MoveToPathNode or TeleportToPathNode was told to stop at
+    // Destination of MoveToPathNode or TeleportToPathNode
     private string? pathTarget;
 
     private bool manualSpeedChanges;
@@ -126,12 +125,10 @@ public class FuncTrackTrain : BaseModelEntity
     private SoundHandle moveSound;
     private bool isMoveSoundStarted;
 
-    // Source schedules each think context on its own: Find runs once after activation, Next every tick
-    // while moving. -1 is never.
+    // Think contexts: Find runs once after activation, Next every tick while moving. -1 is never.
     private float findThinkTime = -1f;
     private float nextThinkTime = -1f;
 
-    // What MoveDone runs: DeadEnd once the train has glided to the end of the path
     private bool deadEndOnMoveDone;
 
     /// <summary>Initializes a <c>func_tracktrain</c> from its keyvalues.</summary>
@@ -253,9 +250,8 @@ public class FuncTrackTrain : BaseModelEntity
 
     /// <inheritdoc/>
     /// <remarks>
-    /// The engine only simulates a pusher while a move is pending, so once <see cref="BaseEntity.MoveDoneTime"/>
-    /// has passed the train stands still whatever velocity it was left with. <see cref="Next"/> keeps a move
-    /// pending for as long as it runs.
+    /// A pusher is only simulated while a move is pending, so once <see cref="BaseEntity.MoveDoneTime"/> has
+    /// passed the train stands still whatever velocity it was left with. <see cref="Next"/> keeps one pending.
     /// </remarks>
     protected override void PhysicsSimulate(float tickInterval)
     {
@@ -264,7 +260,7 @@ public class FuncTrackTrain : BaseModelEntity
             base.PhysicsSimulate(tickInterval);
         }
 
-        // The engine plays the move sound on the entity, so it travels with it
+        // The move sound travels with the train
         moveSound.Position = WorldOrigin;
     }
 
@@ -324,7 +320,6 @@ public class FuncTrackTrain : BaseModelEntity
         anglesPrevious = Angles;
     }
 
-    // The movement think, run every tick while the train moves
     private void Next()
     {
         if (Speed == 0f)
@@ -539,7 +534,6 @@ public class FuncTrackTrain : BaseModelEntity
         Velocity = Normalize(nextPosition - Origin) * MathF.Abs(Speed);
     }
 
-    // Turns toward the orientation of the node it last passed
     private void UpdateOrientationAtPathTracks()
     {
         if (CurrentPath is not { } currentPath)
@@ -563,7 +557,7 @@ public class FuncTrackTrain : BaseModelEntity
         DoUpdateOrientation(FixupAngles(WorldAngles), target);
     }
 
-    // Blends from how it faced passing the last node to the orientation of the next, by the distance covered since
+    // Blends toward the next node's orientation by the distance covered since the last node
     private void UpdateOrientationBlend(OrientationType type, PathTrack? next)
     {
         var from = FixupAngles(anglesPrevious);
@@ -602,7 +596,7 @@ public class FuncTrackTrain : BaseModelEntity
         DoUpdateOrientation(Angles, angles);
     }
 
-    // Mathlib's polynomial-corrected nlerp, which only approximates a slerp
+    // Polynomial-corrected nlerp, which only approximates a slerp
     private static Quaternion FastSlerp(Quaternion from, Quaternion to, float t)
     {
         var dot = Quaternion.Dot(from, to);
@@ -662,7 +656,7 @@ public class FuncTrackTrain : BaseModelEntity
         SetAbsAngularVelocity(new Vector3(rollRate, pitchRate, yawRate));
     }
 
-    // Angular velocity as the engine's (roll, pitch, yaw) rate vector in world space. AngularVelocity
+    // Angular velocity as a (roll, pitch, yaw) rate vector in world space. AngularVelocity
     // holds it reordered as a QAngle, in the frame of the move parent entity.
     private Vector3 GetAbsAngularVelocity()
     {
@@ -934,7 +928,7 @@ public class FuncTrackTrain : BaseModelEntity
         }
     }
 
-    // The engine's clamp: the low bound wins when the bounds cross, and NaN clamps low
+    // The low bound wins when the bounds cross, and NaN clamps low
     private static float ClampFloat(float value, float low, float high)
         => low <= value ? (value <= high ? value : high) : low;
 

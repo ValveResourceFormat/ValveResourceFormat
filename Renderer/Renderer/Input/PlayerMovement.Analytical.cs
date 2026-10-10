@@ -11,7 +11,7 @@ public partial class PlayerMovement
 
     /// <summary>
     /// Exact walking acceleration. The taper's zero-point sits 5k/a above the goal so
-    /// that the taper/friction balance A·(taperGoal - p)/5 = k·p lands exactly on the
+    /// that the taper/friction balance A*(taperGoal - p)/5 = k*p lands exactly on the
     /// goal speed: inside the band the wishdir component follows another scalar
     /// exponential, settling at the goal at rate k + A/5. The frame splits at the band
     /// entry (or at the goal, coming down from above, where the addspeed gate keeps
@@ -67,11 +67,11 @@ public partial class PlayerMovement
 
     /// <summary>
     /// No-prestrafe speed cap in closed form, framerate-independent. Under combined
-    /// friction and acceleration the velocity follows dv/dt = -k·v + A·wishdir, which
-    /// makes speed² a quadratic in u = e^(-kt); its smaller root is the exact moment the
+    /// friction and acceleration the velocity follows dv/dt = -k*v + A*wishdir, which
+    /// makes speed^2 a quadratic in u = e^(-kt); its smaller root is the exact moment the
     /// speed crosses the cap. From then on the trajectory rides the cap: the radial part
     /// of the acceleration is spent against the clamp while the tangential part rotates
-    /// the velocity toward wishdir as dφ/dt = -(A/C)·sin φ, i.e. tan(φ/2) decays
+    /// the velocity toward wishdir as dphi/dt = -(A/C)*sin phi, i.e. tan(phi/2) decays
     /// exponentially. Evaluating both phases analytically lands every framerate on the
     /// same end-of-frame velocity. Derivation: desmos.com/calculator/e93108decf
     /// </summary>
@@ -98,19 +98,19 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Solves a frame that starts at or below the cap: |v(t)|² is a quadratic in
+    /// Solves a frame that starts at or below the cap: |v(t)|^2 is a quadratic in
     /// u = e^(-kt), whose smaller root is the exact moment the speed reaches the cap
     /// (at a start exactly on the cap, that root self-selects between pinning and
     /// falling off, u = min(1, l/j)). From the crossing on, the tangential part of the
-    /// acceleration rotates the velocity toward wishdir as dφ/dt = -(A/C)·sin φ, i.e.
-    /// tan(φ/2) decays exponentially. Without a crossing, <paramref name="fallback"/> is
+    /// acceleration rotates the velocity toward wishdir as dphi/dt = -(A/C)*sin phi, i.e.
+    /// tan(phi/2) decays exponentially. Without a crossing, <paramref name="fallback"/> is
     /// kept, rescaled to the cap as a drift net.
     /// </summary>
     private static Vector3 RideCap(Vector3 vStart, Vector3 fallback, Vector3 wishdir, float cap, float time, float frictionRate, float accelMagnitude)
     {
         var equilibrium = wishdir * (accelMagnitude / frictionRate);
 
-        // |v(t)|² = j·u² + o·u + |equilibrium|², with u = e^(-kt) falling from 1
+        // |v(t)|^2 = j*u^2 + o*u + |equilibrium|^2, with u = e^(-kt) falling from 1
         var offset = vStart - equilibrium;
         var j = offset.LengthSquared();
         var o = 2f * Vector3.Dot(offset, equilibrium);
@@ -140,7 +140,7 @@ public partial class PlayerMovement
         var angle = MathF.Atan2(wishdir.X * atCross.Y - wishdir.Y * atCross.X, Vector3.Dot(wishdir, atCross));
 
         // Ride the cap for the rest of the frame; the crossing arrives with
-        // cos φ ≥ k·C/A, so the angle is well inside (-π/2, π/2)
+        // cos phi >= k*C/A, so the angle is well inside (-pi/2, pi/2)
         angle = 2f * MathF.Atan(MathF.Tan(angle / 2f) * MathF.Exp(-accelMagnitude / cap * rideTime));
 
         var (sin, cos) = MathF.SinCos(angle);
@@ -149,12 +149,12 @@ public partial class PlayerMovement
 
     /// <summary>
     /// Closed-form no-prestrafe frame starting above wishspeed: the speed rides the
-    /// friction decay envelope max(wishspeed, s0·e^(-kt)) while acceleration only turns
+    /// friction decay envelope max(wishspeed, s0*e^(-kt)) while acceleration only turns
     /// the velocity toward wishdir. Four phases, each analytic: no acceleration while the
-    /// wishdir speed component exceeds wishspeed (angle frozen, Source's addspeed gate);
-    /// a sliding phase holding that component at wishspeed (cos φ tracks w/R) while
-    /// acceleration can keep up with friction (sin²φ ≥ k·w/A); envelope rotation
-    /// dφ/dt = -(A/R(t))·sin φ; and the flat-cap rotation once the envelope sinks to
+    /// wishdir speed component exceeds wishspeed (angle frozen, addspeed gate);
+    /// a sliding phase holding that component at wishspeed (cos phi tracks w/R) while
+    /// acceleration can keep up with friction (sin^2(phi) >= k*w/A); envelope rotation
+    /// dphi/dt = -(A/R(t))*sin phi; and the flat-cap rotation once the envelope sinks to
     /// wishspeed. Returns false for the paths this model does not cover (retreating from
     /// wishdir, or a wide-angle approach entering the sliding phase from below), which
     /// keep the plain rescale.
@@ -178,11 +178,11 @@ public partial class PlayerMovement
         // When the envelope meets wishspeed and the cap goes flat
         var envelopeEnd = MathF.Log(startSpeed / wishspeed) / frictionRate;
 
-        // Frozen phase: the addspeed gate keeps acceleration off until R·cos φ = wishspeed
+        // Frozen phase: the addspeed gate keeps acceleration off until R*cos phi = wishspeed
         var time = along > wishspeed ? MathF.Min(MathF.Log(along / wishspeed) / frictionRate, deltaTime) : 0f;
 
         // Sliding phase: acceleration saturates restoring the wishdir component,
-        // pinning cos φ = wishspeed / R(t) until sin²φ falls to k·w/A
+        // pinning cos phi = wishspeed / R(t) until sin^2(phi) falls to k*w/A
         if (time < deltaTime && time < envelopeEnd && sinSq > frictionAccelRatio)
         {
             var exitCos = MathF.Sqrt(1f - frictionAccelRatio);
@@ -191,8 +191,8 @@ public partial class PlayerMovement
             time = slideEnd;
         }
 
-        // Envelope rotation: dφ/dt = -(A/R(t))·sin φ with R decaying, so tan(φ/2)
-        // scales by exp(-(A/(k·s0))·(e^(k·t2) - e^(k·t1)))
+        // Envelope rotation: dphi/dt = -(A/R(t))*sin phi with R decaying, so tan(phi/2)
+        // scales by exp(-(A/(k*s0))*(e^(k*t2) - e^(k*t1)))
         if (time < deltaTime && time < envelopeEnd)
         {
             var phaseEnd = MathF.Min(envelopeEnd, deltaTime);
@@ -202,7 +202,7 @@ public partial class PlayerMovement
         }
 
         // Past the envelope the pin only holds if acceleration outpaces friction
-        // radially (cos φ ≥ k·w/A); otherwise the speed falls below wishspeed and the
+        // radially (cos phi >= k*w/A); otherwise the speed falls below wishspeed and the
         // free flight plus recrossing solve takes over for the rest of the frame
         if (time < deltaTime && MathF.Cos(absAngle) < frictionAccelRatio)
         {
@@ -231,7 +231,7 @@ public partial class PlayerMovement
 
     /// <summary>
     /// Displacement over a frame of pure friction: exponential decay above stopspeed
-    /// (d = v·(1-e^(-kt))/k), constant deceleration below it, split at the crossing.
+    /// (d = v*(1-e^(-kt))/k), constant deceleration below it, split at the crossing.
     /// </summary>
     private static Vector3 FrictionDisplacement(Vector3 velocity, float deltaTime, float frictionRate)
     {
@@ -268,7 +268,7 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Distance covered under the constant stopspeed·k deceleration, halting at zero.
+    /// Distance covered under the constant stopspeed*k deceleration, halting at zero.
     /// </summary>
     private static float LinearFrictionDistance(float speed, float time, float frictionRate)
     {
@@ -280,8 +280,8 @@ public partial class PlayerMovement
     /// <summary>
     /// Frame starting below stopspeed under acceleration. The constant-magnitude friction
     /// there opposes the (rotating) velocity direction, so with a misaligned wishdir the
-    /// ODE has no elementary closed form; instead the continuous model — thrust gated at
-    /// wishspeed along wishdir, friction -stopspeed·k·v̂ below stopspeed and -k·v above —
+    /// ODE has no elementary closed form; instead the continuous model (thrust gated at
+    /// wishspeed along wishdir, friction -stopspeed*k*v/|v| below stopspeed and -k*v above)
     /// is integrated with fixed-size RK4 substeps. The substep is small enough that the
     /// result tracks the continuous trajectory (and therefore composes across any frame
     /// partitioning) far below float noise.
@@ -387,8 +387,8 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Minimum of |v(t)|² along the friction+acceleration ODE over the frame, where
-    /// |v(u)|² is a quadratic in u = e^(-kt) falling from 1 to <paramref name="decayEnd"/>.
+    /// Minimum of |v(t)|^2 along the friction+acceleration ODE over the frame, where
+    /// |v(u)|^2 is a quadratic in u = e^(-kt) falling from 1 to <paramref name="decayEnd"/>.
     /// Used to prove a frame never leaves the exponential friction regime.
     /// </summary>
     private static float OdeMinSpeedSquared(Vector3 v0, Vector3 equilibrium, float decayEnd)
@@ -424,11 +424,11 @@ public partial class PlayerMovement
 
     /// <summary>
     /// Tickless air strafe: the frame's uniform view rotation is integrated exactly by a
-    /// three-regime state machine (per H7perus' CSGO-Tickless-Movement analysis), so
-    /// strafe gain depends on degrees turned and the accel rate, not framerate.
+    /// three-regime state machine, so strafe gain depends on degrees turned and the
+    /// accel rate, not framerate.
     ///
-    /// The machine runs in the rotation-normalized (g, q) state space — g the wishdir
-    /// velocity component, q the component ahead of the rotation — in double precision,
+    /// The machine runs in the rotation-normalized (g, q) state space (g the wishdir
+    /// velocity component, q the component ahead of the rotation) in double precision,
     /// and reconstructs the velocity vector once at frame end. Regime transitions land on
     /// their boundaries symbolically (a spiral stepping to the cap crossing sets g = cap
     /// as a fact, a pin exiting on the rate bound sets q = -A), so no intra-frame regime
@@ -438,7 +438,7 @@ public partial class PlayerMovement
     /// Regimes: frozen (g above the cap, gate closed, velocity constant while the wishdir
     /// swings until it leads by acos(cap/speed)); pinned (g held at the cap, |q| growing
     /// at cap per radian, holding while the required rate |q| stays within the available
-    /// rate A); full accel (the spiral: g = R·sin(xi) with dxi = dtheta, whose upward cap
+    /// rate A); full accel (the spiral: g = R*sin(xi) with dxi = dtheta, whose upward cap
     /// crossing is xi = asin(cap/R)).
     ///
     /// Returns null for near-zero rotation frames, where the caller's discrete update is
@@ -518,7 +518,7 @@ public partial class PlayerMovement
             }
 
             {
-                // Full accel: g = R·sin(xi), q = R·cos(xi) - A, with xi advancing with
+                // Full accel: g = R*sin(xi), q = R*cos(xi) - A, with xi advancing with
                 // the rotation; the upward cap crossing sits at xi = asin(cap/R)
                 var gRate = q + accelPerRadian;
                 var amplitude = Math.Sqrt(g * g + gRate * gRate);

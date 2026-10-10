@@ -42,8 +42,8 @@ public sealed partial class MapExtract
     private readonly Dictionary<string, Vector2?> MaterialTextureSizes = [];
 
     /// <summary>
-    /// what to group overlay geometry by when reconstructing, tthe projected geometry of the overlays that share a material, render order,
-    /// tint and flags, which is everything a rebuilt overlay carries besides its shape.
+    /// Grouping key for projected overlay geometry: material, render order, tint and flags, everything a rebuilt
+    /// overlay carries besides its shape.
     /// </summary>
     private readonly record struct OverlayGroup(string Material, int RenderOrder, Vector4 Tint, ObjectTypeFlags Flags);
 
@@ -1119,9 +1119,8 @@ public sealed partial class MapExtract
 
         foreach (var (group, pieces) in WorldOverlayGeometry)
         {
-            // a surface stacked behind another receives its own copy of the decal, drop those hidden copies over the
-            // whole group at once or they come back as duplicated faces stacked on the rebuilt overlays, the copies
-            // can sit in different compiled meshes when the surfaces fall into different cells
+            // stacked surfaces get their own decal copy, in another compiled mesh when they fall into different cells:
+            // drop hidden copies over the whole group at once, else they return as duplicate faces on the rebuilt overlays
             var vertexCount = 0;
             var indexCount = 0;
 
@@ -2427,10 +2426,8 @@ public sealed partial class MapExtract
             var worldTransform = parentTransform is { } parent ? localTransform * parent : localTransform;
             if (parentTransform is not null)
             {
-                // parent transform is rigid (rotation and translation only), so worldTransform is affine and
-                // decomposes cleanly unless the child itself shears (non-uniform scale + rotation). Where it
-                // does shear, keep the entity's own placement rather than silently writing out an identity
-                // rotation the decompose left behind.
+                // Under a rigid parent (rotation and translation only), decompose fails only if the child shears
+                // (non-uniform scale with rotation). Then keep the entity's own placement, not the identity rotation.
                 if (Matrix4x4.Decompose(worldTransform, out var scales, out var rotation, out var translation))
                 {
                     mapEntity.Origin = translation;

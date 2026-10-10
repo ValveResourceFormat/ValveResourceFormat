@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         readonly LineBuffer lineBuffer;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="LineSceneNode"/> class rendering a single line segment.
+        /// Renders a single line segment.
         /// </summary>
         /// <param name="scene">The scene this node belongs to.</param>
         /// <param name="start">The start position of the line.</param>
@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="LineSceneNode"/> class rendering a list of line segments.
+        /// Renders a list of line segments.
         /// </summary>
         /// <param name="scene">The scene this node belongs to.</param>
         /// <param name="vertices">Pairs of vertices, one pair per line segment.</param>

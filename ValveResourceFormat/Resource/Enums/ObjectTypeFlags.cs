@@ -28,7 +28,7 @@ namespace ValveResourceFormat
         /// <summary>Object casts no dynamic shadows.</summary>
         NoShadows = 0x20,
 
-        /// <summary>Object uses worldspace texture blending. (Typo preserved from original engine enum: "Texure".)</summary>
+        /// <summary>Object uses worldspace texture blending. Member name keeps the "Texure" typo.</summary>
         WorldspaceTexureBlend = 0x40, // do not fix typo, it's in the original enum
 
         /// <summary>Object is disabled in low-quality render settings.</summary>

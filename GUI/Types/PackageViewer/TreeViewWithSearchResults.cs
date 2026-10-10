@@ -55,10 +55,9 @@ namespace GUI.Types.PackageViewer
 
         private CancellationTokenSource? ThumbnailRenderTokenSource;
 
-        // Items are populated lazily in OnLoad so that the listview's font and DPI context have
-        // stabilized before the native control caches per-item label measurements. Populating
-        // earlier (while the user control is still un-parented) causes labels to be measured
-        // against a stale font, leaving them truncated until the layout is invalidated.
+        // Populated in OnLoad, after the listview's font and DPI context settle, since the native
+        // control caches label measurements. Earlier, while un-parented, labels are measured against
+        // a stale font and stay truncated until the layout is invalidated.
         private VirtualPackageNode? PendingInitialDisplayNode;
 
         private readonly ConcurrentDictionary<PackageEntry, byte> QueuedOrRenderedThumbnailItems = new();
@@ -297,8 +296,8 @@ namespace GUI.Types.PackageViewer
 
             if (realNode.PackageEntry != null)
             {
-                // Blank the list view right away on a mouse click to minimize flashing, but if the next file is the
-                // same type as the one currently shown, keep that view as the background instead of flashing to blank.
+                // Blank the list view on a mouse click to minimize flashing, unless the next file is the same
+                // type as the one shown, which stays as the background.
                 if (CanQuickPreviewFile(realNode.PackageEntry) && realNode.PackageEntry.TypeName != currentPreviewType)
                 {
                     ShowPreviewPlaceholder();
@@ -494,11 +493,10 @@ namespace GUI.Types.PackageViewer
         };
 
         /// <summary>
-        /// Drains pending lambdas from <see cref="ThumbnailRenderQueue"/> (the actual work queue
-        /// consumed by the render thread) and clears <see cref="QueuedOrRenderedThumbnailItems"/>
-        /// (the dictionary that prevents duplicate queueing). Clearing the dictionary alone would
-        /// allow items to be re-queued, but the old lambdas would still be in the BlockingCollection
-        /// waiting to execute ahead of any new work.
+        /// Drains pending work from <see cref="ThumbnailRenderQueue"/>, which the render thread consumes,
+        /// and clears <see cref="QueuedOrRenderedThumbnailItems"/>, which prevents duplicate queueing.
+        /// Clearing only the dictionary would allow re-queueing, while the old lambdas would still be
+        /// ahead of new work.
         /// </summary>
         private void DrainThumbnailQueue()
         {
@@ -1536,14 +1534,14 @@ namespace GUI.Types.PackageViewer
         private void PreviewControl_Leave(object? sender, EventArgs e) => PreviewBlurred?.Invoke(this, EventArgs.Empty);
 
         /// <summary>
-        /// Whether the given file type is the one currently shown in the preview area, in which case the previous view
-        /// can be kept frozen while the next file of the same type loads.
+        /// Whether the file type is the one shown in the preview area, so its previous view can be kept
+        /// while the next file of that type loads.
         /// </summary>
         public bool IsSamePreviewType(string? typeName) => typeName != null && typeName == currentPreviewType;
 
         /// <summary>
-        /// Whether a quick file preview should be shown for the given entry: quick preview must be enabled, and
-        /// the file must not be one we deliberately don't preview inline (vpk to avoid nesting, vmap_c).
+        /// Whether the entry gets a quick preview: quick preview must be enabled, and the file must not be
+        /// vpk (to avoid nesting) or vmap_c.
         /// </summary>
         public static bool CanQuickPreviewFile(PackageEntry entry)
         {
@@ -1557,10 +1555,9 @@ namespace GUI.Types.PackageViewer
         }
 
         /// <summary>
-        /// Immediately blanks the list view area with an empty themed panel. Used to give a preview instant
-        /// visual feedback on click, before the double-click debounce elapses and the real loading panel is shown.
-        /// The blank panel matches the loading panel background so the later swap is seamless. It is disposed by
-        /// <see cref="ReplaceListViewWithControl"/> when the preview loads, or by <see cref="DisplayMainListView"/>.
+        /// Blanks the list view with an empty themed panel while the double-click debounce elapses, so a click
+        /// gives instant feedback. The panel matches the loading panel background so the swap is seamless, and
+        /// is disposed by <see cref="ReplaceListViewWithControl"/> or <see cref="DisplayMainListView"/>.
         /// </summary>
         private void ShowPreviewPlaceholder()
         {

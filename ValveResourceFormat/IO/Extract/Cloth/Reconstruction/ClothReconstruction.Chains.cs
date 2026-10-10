@@ -68,7 +68,7 @@ namespace ValveResourceFormat.IO
         public float ExtrudeRadius { get; set; }
         /// <summary>Gets the roll in degrees added to <see cref="ExtrudeTwist"/> to settle a node-base scan tie.</summary>
         public float ExtrudeTwistTieNudge { get; set; }
-        /// <summary>Gets the roll in degrees of the joint's proxy ring about the forward axis, from the rest frame's +Y.</summary>
+        /// <summary>Gets the roll in degrees of the joint's proxy ring about the forward axis, from the ring frame's +Z.</summary>
         public float ExtrudeTwist { get; set; }
         /// <summary>Gets the forward distance to the joint's second proxy ring (<c>end_effector</c>), or 0 for a single ring.</summary>
         public float EndEffector { get; set; }

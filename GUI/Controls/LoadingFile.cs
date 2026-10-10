@@ -24,9 +24,8 @@ namespace GUI.Controls
                 AddLargeIcon(fileName);
             }
 
-            // The panel auto-sizes to fit the file name label. Anchor=None only keeps it centered when the
-            // parent resizes, not when the panel itself grows, so a long file name would push it off center.
-            // Re-center it ourselves whenever its size changes.
+            // Anchor=None only centers on parent resize, not when a long file name grows the panel,
+            // so re-center whenever its size changes.
             tableLayoutPanel1.SizeChanged += (_, _) => CenterContent();
         }
 

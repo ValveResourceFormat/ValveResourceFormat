@@ -16,8 +16,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Particles
 {
     /// <summary>
-    /// Runs a particle system: its emitters, initializers, operators, forces, constraints and child
-    /// systems, with no graphics backend involved. Whatever draws it watches through <see cref="Observer"/>.
+    /// Runs a particle system (emitters, initializers, operators, forces, constraints, children) with no
+    /// graphics backend. Drawing layers watch it through <see cref="Observer"/>.
     /// </summary>
     public partial class ParticleSystemSimulation
     {
@@ -75,8 +75,7 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Watches this system so a drawing layer can follow it. Set by whatever draws the system,
-        /// and null when nothing does.
+        /// Set by the drawing layer watching this system, or null when nothing draws it.
         /// </summary>
         public IParticleSystemObserver? Observer { get; set; }
 
@@ -93,8 +92,7 @@ namespace ValveResourceFormat.Particles
         private readonly int firstMultipleOverride;
 
         /// <summary>
-        /// The group this system belongs to when it is used as a child, matched by
-        /// <see cref="ChooseRandomChildrenInGroup"/> on the parent.
+        /// The group this child belongs to, matched by <see cref="ChooseRandomChildrenInGroup"/> on the parent.
         /// </summary>
         private readonly int groupId;
 
@@ -182,9 +180,8 @@ namespace ValveResourceFormat.Particles
         private int simulatedFrames;
 
         /// <summary>
-        /// Real time the system has been asked to draw, accumulated across frames. A minimum time step
-        /// over-simulates whenever the frame is shorter than it, and the debt is repaid by skipping
-        /// later frames until the draw time catches up with the simulated age.
+        /// Real time the system has been asked to draw, accumulated across frames. A minimum time step over-simulates on short frames, and later frames are
+        /// skipped until draw time catches up with the simulated age.
         /// </summary>
         private float targetDrawTime;
 
@@ -198,8 +195,7 @@ namespace ValveResourceFormat.Particles
         /// <summary>Builds a runnable system from its definition.</summary>
         /// <param name="particleSystem">The system definition, read through its upgraded tree.</param>
         /// <param name="fileLoader">Resolves the child systems and snapshots the definition names.</param>
-        /// <param name="logger">Receives warnings about classes and fields that are not implemented. Pass
-        /// nothing to run without any.</param>
+        /// <param name="logger">Receives warnings about unimplemented classes and fields. Omit to run silently.</param>
         /// <param name="particleSnapshot">A snapshot to publish to the system, when it runs off one.</param>
         /// <param name="parentSystemState">The state of the system running this one as a child.</param>
         public ParticleSystemSimulation(ParticleSystem particleSystem, IFileLoader fileLoader, ILogger? logger = null, ParticleSnapshot? particleSnapshot = null, ParticleSystemState? parentSystemState = null)
@@ -220,8 +216,7 @@ namespace ValveResourceFormat.Particles
             initialParticles = parse.Int32("m_nInitialParticles", 0);
             maxParticles = parse.Int32("m_nMaxParticles", 1000);
 
-            // The pool is capped whatever the file asks for, and a system that simulates on the GPU
-            // is allowed a far larger one
+            // The pool is capped whatever the file asks for; GPU simulated systems get a far larger one.
             var particleCeiling = parse.Boolean("m_bIsGPUParticleSystem", false) ? 100000 : 20000;
             maxParticles = Math.Min(maxParticles, particleCeiling);
             minimumTimeStep = parse.Float("m_flMinimumTimeStep", 0f);
@@ -232,8 +227,7 @@ namespace ValveResourceFormat.Particles
             preSimulationTime = parse.Float("m_flPreSimulationTime", 0f);
             stopSimulationAfterTime = parse.Float("m_flStopSimulationAfterTime", 0f);
 
-            // A non-positive distance draws at any range, and one large enough to overflow when squared
-            // is taken as the same thing.
+            // Non-positive distances, and ones large enough to overflow when squared, draw at any range.
             var maxDrawDistance = parse.Float("m_flMaxDrawDistance", -1f);
             MaxDrawDistanceSquared = maxDrawDistance is <= 0f or >= 1e10f
                 ? float.MaxValue
@@ -241,8 +235,7 @@ namespace ValveResourceFormat.Particles
 
             maximumTimeStep = Math.Max(minimumTimeStep, maximumTimeStep);
 
-            // A zero max timestep would clamp every simulated frame to 0 and freeze the effect; fall back to
-            // the 0.1 default instead of treating 0 as "no time passes".
+            // A zero max timestep would clamp every frame to 0 and freeze the effect; use the 0.1 default.
             if (maximumTimeStep <= 0f)
             {
                 maximumTimeStep = 0.1f;

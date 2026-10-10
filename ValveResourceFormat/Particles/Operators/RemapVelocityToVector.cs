@@ -30,8 +30,7 @@ namespace ValveResourceFormat.Particles.Operators
                 return;
             }
 
-            // The Verlet position pair encodes the previous step's displacement, so it is the
-            // previous step's time that turns it back into units per second
+            // Verlet positions hold the previous step's displacement, so divide by that step's time
             var perSecond = scale / MathF.Max(1e-20f, particles.PreviousFrameTime);
 
             foreach (ref var particle in particles.Current)

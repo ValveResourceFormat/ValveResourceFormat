@@ -143,10 +143,10 @@ namespace ValveResourceFormat.Renderer.Materials
         public bool IsCs2Water { get; private set; }
 
         /// <summary>
-        /// Gets a value indicating whether this material's shader samples the scene color texture, and therefore
-        /// has to be drawn after the framebuffer grab in <see cref="RenderPass.OpaqueRefract"/> or <see cref="RenderPass.Water"/>.
-        /// Queried live rather than cached: shaders are compiled without blocking, so this only becomes true once
-        /// the program has been linked and reflected, which is one frame after the material is first collected.
+        /// Whether this material's shader samples the scene color texture, so it must be drawn after the framebuffer
+        /// grab in <see cref="RenderPass.OpaqueRefract"/> or <see cref="RenderPass.Water"/>. Queried live: shaders compile
+        /// without blocking, so this only becomes true once the program is linked and reflected, one frame after the
+        /// material is first collected.
         /// </summary>
         public bool ReadsSceneColor => Shader.ReadsSceneColor;
 
@@ -260,7 +260,7 @@ namespace ValveResourceFormat.Renderer.Materials
             SortId = GetSortId();
         }
 
-        /// <summary>The sort ID range allocated per unique shader program, used to group draw calls by shader while preserving random ordering within a group.</summary>
+        /// <summary>Sort ID range per shader program: groups draws by shader, random order within a group.</summary>
         public const int PerShaderSortIdRange = 10_000;
         private int GetSortId() => Shader.Program * PerShaderSortIdRange + Random.Shared.Next(1, 9999);
 

@@ -5,8 +5,7 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// Base class for all particle renderers. Renderers are responsible for drawing the visual
-    /// representation of a particle collection each frame.
+    /// Base class for particle renderers, which draw a particle collection each frame.
     /// </summary>
     abstract class ParticleFunctionRenderer : ParticleFunction
     {

@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
 /// <c>logic_case</c>. Picks one of up to sixteen outputs, either by matching a value against the authored
-/// cases or at random - the switch statement of entity I/O.
+/// cases or at random.
 /// </summary>
 public sealed class LogicCase : BaseEntity
 {
@@ -32,9 +32,8 @@ public sealed class LogicCase : BaseEntity
 
             cases[i] = string.IsNullOrEmpty(value) ? null : value;
 
-            // A case counts as available because something is wired to its output, which is what Source's
-            // BuildCaseMap tests. The authored value only decides what InValue matches, so a case picked at
-            // random needs no value at all - and maps that only ever pick randomly author none.
+            // A case is available when its output is wired. The authored value only matters for InValue,
+            // and maps that only pick randomly author none.
             if (HasOutput($"OnCase{i + 1:00}"))
             {
                 available.Add(i);
@@ -102,8 +101,8 @@ public sealed class LogicCase : BaseEntity
 
             shuffle.AddRange(available);
 
-            // A fresh batch may not open with the case the last one closed on, so that a repeat cannot
-            // straddle the boundary. Source swaps it to the end and shortens the draw by one.
+            // A new batch may not open with the case the last one ended on, so a repeat cannot straddle
+            // batches. That case is moved to the end and left out of the first draw.
             if (shuffle.Count > 1 && lastShuffleCase != -1)
             {
                 shuffle.Remove(lastShuffleCase);

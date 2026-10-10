@@ -3,7 +3,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <summary>
     /// What a renderer keeps placed in the scene for each live particle, keyed by unique particle id.
     /// Each frame the renderer marks the particles it still places with <see cref="Keep(int)"/>, then
-    /// releases what <see cref="Sweep"/> hands back for the particles it did not.
+    /// releases what <see cref="Sweep"/> returns for the rest.
     /// </summary>
     /// <typeparam name="T">What is placed for one particle.</typeparam>
     internal sealed class PlacedPerParticle<T>

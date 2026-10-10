@@ -1338,7 +1338,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Tests a node against a visibility row, such as a PVS or the sun row. A node that touches no
-        /// visibility cluster is never vis culled, matching the game, and an empty row passes everything.
+        /// visibility cluster is never vis culled, and an empty row passes everything.
         /// </summary>
         /// <param name="node">The node to test.</param>
         /// <param name="visibilityRow">A cluster bitfield, one bit per cluster id.</param>
@@ -1731,7 +1731,6 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Marks the spatial set that owns the given node as dirty so it will be rebuilt on the next update.
-        /// Also clears barn light shadow caches.
         /// </summary>
         /// <param name="node">The node whose owning set should be dirtied.</param>
         /// <returns><see langword="true"/> if the node was found and its octree was dirtied; <see langword="false"/> if the node is not part of this scene.</returns>
@@ -2093,7 +2092,7 @@ namespace ValveResourceFormat.Renderer
             AssignEnvironmentMaps(node);
         }
 
-        // Where a node samples lighting from, the engine's m_vLightingOrigin or else its bounds center
+        // Where a node samples lighting from: its lighting origin, or else its bounds center
         private static Vector3 LightingPosition(SceneNode node) => node.LightingOrigin ?? node.BoundingBox.Center;
 
         // Narrows the env maps a node overlaps to the ones it samples, and builds the visibility the shader reads

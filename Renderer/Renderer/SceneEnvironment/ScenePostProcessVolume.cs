@@ -38,7 +38,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         public float ToeDenom { get; init; }
 
         /// <summary>Gets the white point value; passed through the tonemapper before GPU upload.</summary>
-        public float WhitePoint { get; init; } // This is run through the tonemapper before being given to the shader
+        public float WhitePoint { get; init; }
 
         /// <summary>
         /// The scale the shader applies to the exposed scene before the curve.
@@ -70,7 +70,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             WhitePoint = 4.0f;
         }
 
-        /// <summary>Returns a <see cref="TonemapSettings"/> intended for linear (non-filmic) tonemapping. Note: <see cref="ApplyTonemapping"/> returns a constant 0 with these values, so they are not a true passthrough curve.</summary>
+        /// <summary>Linear (non-filmic) tonemapping. <see cref="ApplyTonemapping"/> returns a constant 0 with these values, so it is not a true passthrough.</summary>
         public static TonemapSettings Linear()
         {
             return new TonemapSettings()
@@ -146,8 +146,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// </summary>
         /// <param name="displayValue">The desired displayed value, in the 0-1 range the shader outputs.</param>
         /// <returns>
-        /// The exposed linear scene value that displays as <paramref name="displayValue"/>,
-        /// or <see cref="float.NaN"/> if this curve cannot be inverted.
+        /// The exposed linear scene value, or <see cref="float.NaN"/> if this curve cannot be inverted.
         /// </returns>
         public readonly float InvertTonemapping(float displayValue)
         {
@@ -498,7 +497,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         public PostProcessing? PostProcessingResource { get; set; }
 
         /// <summary>Gets or sets the model used as the trigger volume shape.</summary>
-        public Model? ModelVolume { get; set; } // dumb
+        public Model? ModelVolume { get; set; }
 
         /// <summary>Gets or sets the collider built from the volume model's physics, used to test whether the camera is inside.</summary>
         public EntityCollider? Collider { get; set; }
@@ -509,7 +508,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// </summary>
         public float Weight { get; set; }
 
-        /// <summary>Gets or sets whether this post-processing resource uses the newer post-Half-Life: Alyx format (detected via the presence of local contrast parameters).</summary>
+        /// <summary>Whether this resource uses the newer post-Half-Life: Alyx format, detected by local contrast parameters.</summary>
         public bool IsPostHLA { get; set; }
 
         /// <summary>Gets or sets whether this volume has tonemapping curve data.</summary>

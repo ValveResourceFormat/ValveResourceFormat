@@ -3,9 +3,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>func_door_rotating</c>. A door that swings about one axis instead of sliding, Source's
-/// <c>CRotDoor</c>. Everything but the travel is <see cref="FuncDoor"/>'s, because in the engine they
-/// are the same class; only where the two ends are, and how it gets between them, changes.
+/// <c>func_door_rotating</c>: a <see cref="FuncDoor"/> that swings about one axis instead of sliding.
 /// </summary>
 public class FuncDoorRotating : FuncDoor
 {
@@ -35,7 +33,7 @@ public class FuncDoorRotating : FuncDoor
     /// <summary>Gets how far the door swings, in degrees.</summary>
     public float Distance { get; private set; }
 
-    // The QAngle axis the swing turns about, which spawning open the old way reverses
+    // QAngle axis the swing turns about
     private Vector3 moveAngles;
 
     /// <summary>Initializes a <c>func_door_rotating</c> from its keyvalues.</summary>
@@ -91,18 +89,16 @@ public class FuncDoorRotating : FuncDoor
             return;
         }
 
-        // The engine scales the whole open angle rather than the swing, so a door not closed at zero turns
-        // somewhere other than its mirrored open angle when it opens the other way
+        // Scales the whole open angle, not the swing, so a door not closed at zero does not end at its
+        // mirrored open angle when it opens the other way
         AngularMove(AngleOpen * PickSwingSign(), Speed);
     }
 
     /// <inheritdoc/>
     protected override void JumpToEnd(bool atOpenEnd) => JumpTo(Origin, atOpenEnd ? AngleOpen : AngleClosed);
 
-    /// <summary>
-    /// Which way a yawing door opens: away from whoever opened it, judged by the side of the hinge their
-    /// nearest point on the door lies. Source's <c>CBaseDoor::DoorGoUp</c>.
-    /// </summary>
+    // A yawing door opens away from the activator, judged by which side of the hinge the nearest point
+    // on the door lies
     private float PickSwingSign()
     {
         if (LastActivator is not { } activator || HasSpawnFlags(RotatingSpawnFlag.OneWay) || moveAngles.Y == 0f)
@@ -120,8 +116,8 @@ public class FuncDoorRotating : FuncDoor
         toNearest = MathUtils.SafeNormalize(toNearest);
         toHinge = MathUtils.SafeNormalize(toHinge);
 
-        // Looking straight down the door with the nearest point on the hinge, the sides cannot be told
-        // apart, so the hinge is pulled out away from the door's center to break the tie
+        // Looking straight down the door with the nearest point at the hinge, the sides are ambiguous,
+        // so the hinge is pushed away from the door's center to break the tie
         if (nearestToHinge < 5f && Vector3.Dot(toHinge, toNearest) > 0.99f)
         {
             hinge += hinge - (Collider?.WorldBounds.Center ?? hinge);

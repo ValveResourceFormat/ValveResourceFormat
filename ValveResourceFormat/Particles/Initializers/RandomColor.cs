@@ -18,8 +18,8 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly ParticleColorBlendMode tintBlendMode = ParticleColorBlendMode.PARTICLEBLEND_DEFAULT;
         private readonly ParticleField fieldOutput = ParticleField.Color;
 
-        // The light last sampled at the tint control point, and where the point was when it was taken.
-        // Starting infinitely far away makes the first particle always sample.
+        // Light last sampled at the tint control point, and where that point was. Starting infinitely
+        // far away forces the first sample.
         private Vector3 sampledPosition = new(float.PositiveInfinity);
         private Vector3 sampledLight = Vector3.One;
 
@@ -56,8 +56,7 @@ namespace ValveResourceFormat.Particles.Initializers
             return particle;
         }
 
-        // The light is re-sampled only once the control point has moved further than m_flUpdateThreshold
-        // from where it was last taken.
+        // Re-sampled only once the control point moves past m_flUpdateThreshold from the last sample.
         private Vector3 SampleLight(ParticleSystemState particleSystemState)
         {
             var position = particleSystemState.GetControlPoint(tintControlPoint).Position;

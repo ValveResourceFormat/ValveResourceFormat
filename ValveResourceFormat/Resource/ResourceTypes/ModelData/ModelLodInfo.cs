@@ -87,8 +87,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         }
 
         /// <summary>
-        /// Gets the LOD mask of a mesh (bit N set =&gt; the mesh is in level N), zero when the mesh has
-        /// no entry. <see cref="IsMeshInLevel"/> treats a mesh with no entry as present everywhere.
+        /// Gets a mesh's LOD mask (bit N set =&gt; in level N), or zero with no entry.
+        /// <see cref="IsMeshInLevel"/> treats such meshes as present everywhere.
         /// </summary>
         public long GetMeshMask(int meshIndex)
             => meshIndex >= 0 && meshIndex < meshLodMasks.Length ? meshLodMasks[meshIndex] : 0L;
@@ -101,9 +101,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
             => meshIndex >= meshLodMasks.Length || IsInLevel(meshLodMasks[meshIndex], level);
 
         /// <summary>
-        /// Determines whether the mesh at <paramref name="meshIndex"/> shows up in every populated LOD
-        /// level. Those meshes render at all levels and are authored as a single <c>LODGroupAll</c> entry
-        /// rather than added to each group. Only meaningful when more than one level is populated.
+        /// Whether the mesh at <paramref name="meshIndex"/> is in every populated LOD level. These meshes
+        /// are authored once as a <c>LODGroupAll</c> entry, not per group. Only meaningful with more than
+        /// one populated level.
         /// </summary>
         public bool IsMeshInAllLevels(int meshIndex)
             => AvailableLevels.Count > 1 && AvailableLevels.All(level => IsMeshInLevel(meshIndex, level));

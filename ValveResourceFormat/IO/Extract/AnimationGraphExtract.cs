@@ -485,9 +485,6 @@ public class AnimationGraphExtract : IDisposable
     /// </summary>
     public IReadOnlyList<KVObject> Parameters { get; set; } = [];
 
-    /// <summary>
-    /// Builds the mapping from compiled node indices to their actual node IDs.
-    /// </summary>
     private void BuildNodeIdMap(IReadOnlyList<KVObject> compiledNodes)
     {
         compiledNodeIndexMap = [];
@@ -537,9 +534,8 @@ public class AnimationGraphExtract : IDisposable
     private const long GeneratedNodeIdMax = 999_999_999L;
 
     /// <summary>
-    /// Ids handed to nodes the document needs but the compiled graph does not number. One cursor
-    /// serves the whole document: every generated id has to be unique across it, not just within the
-    /// pass that produced it.
+    /// Ids for nodes the document needs but the compiled graph does not number. One cursor serves
+    /// the whole document, so ids stay unique across passes rather than only within one.
     /// </summary>
     private long generatedNodeIdCursor = GeneratedNodeIdMin;
 
@@ -582,10 +578,9 @@ public class AnimationGraphExtract : IDisposable
     ];
 
     /// <summary>
-    /// Places every canvas of a graph document. A node manager is its own canvas in the editor, as
-    /// is each state machine, so each is laid out in its own coordinate space. Whatever positions
-    /// the document arrived with are replaced, so a decompiled graph opens arranged rather than
-    /// however it was last dragged around.
+    /// Lays out every canvas of a graph document. Each node manager and state machine is its own
+    /// canvas with its own coordinates. Authored positions are replaced, so a decompiled graph opens
+    /// arranged rather than however it was last dragged around.
     /// </summary>
     private static void RelayoutEditorGraph(KVObject root)
     {
@@ -706,7 +701,7 @@ public class AnimationGraphExtract : IDisposable
 
     /// <summary>
     /// Lays out one state machine's states on their own canvas, wired by the transitions between
-    /// them, replacing whatever positions the state machine was authored with.
+    /// them, replacing authored positions.
     /// </summary>
     private static void RelayoutEditorStates(IReadOnlyList<KVObject> states)
     {
@@ -1071,8 +1066,7 @@ public class AnimationGraphExtract : IDisposable
 
     private KVObject ExtractParameterID(KVObject? paramHandle, bool requireFloat = false)
     {
-        // Graphs from before the handle was mandatory leave it out wherever the parameter is
-        // optional, which reads the same as a handle bound to nothing.
+        // Older graphs omit the handle where the parameter is optional, same as one bound to nothing.
         if (paramHandle == null)
         {
             return MakeNodeIdObjectValue(-1);

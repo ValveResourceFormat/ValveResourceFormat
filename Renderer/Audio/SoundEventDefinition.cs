@@ -19,7 +19,7 @@ public sealed class SoundEventDefinition
     /// <summary>Gets the sound event type ("csgo_mega"), empty when the definition has none.</summary>
     public string Type { get; }
 
-    /// <summary>Gets the position baked into the definition. An all-zero authored position is a placeholder and parses as null.</summary>
+    /// <summary>Gets the position, or null when all zero (an authoring placeholder).</summary>
     public Vector3? Position { get; }
 
     /// <summary>
@@ -82,17 +82,15 @@ public sealed class SoundEventDefinition
     internal long LastPlayedTimestamp;
 
     /// <summary>
-    /// Child definitions, resolved through the bank on first play and cached here so every instance/retrigger
-    /// of this definition reuses the same resolution.
+    /// Child definitions, resolved through the bank on first play and cached for every instance and retrigger.
     /// </summary>
     internal SoundEventDefinition?[]? ChildDefinitions;
 
     /// <summary>
-    /// Fully stopped instances of this definition, waiting to be reused by the next
-    /// <see cref="SoundEventPlayer.Play"/> instead of building a new instance (and its whole provider
-    /// tree) per play. Created by the first play; grows to the definition's peak concurrency and stays
-    /// there. Guarded by locking the list itself - instances are returned from the mixing thread
-    /// (a sound running dry mid-read) as well as the game thread (explicit stops).
+    /// Stopped instances of this definition, reused by the next <see cref="SoundEventPlayer.Play"/> instead of
+    /// building a new provider tree per play. Created on first play, grows to peak concurrency and stays there.
+    /// Lock the list itself: instances return from the mixing thread (a sound running dry mid-read) and the
+    /// game thread (explicit stops).
     /// </summary>
     internal List<SoundEvent>? IdlePool;
 

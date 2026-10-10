@@ -240,8 +240,7 @@ public class CS2BombDamageSceneNode : SceneNode
                 .Select(GetBombsiteDesignation)
                 .Distinct()
                 .ToList();
-            // Fall back to a per-site index when unresolved (e.g. standalone viewer has no
-            // entities) so each site still gets a distinct scene layer.
+            // Fall back to a per-site index when unresolved (e.g. standalone viewer has no entities) so each site gets its own layer.
             var label = designations.Count == 1 ? designations[0] : $"#{i + 1}";
 
             var sceneNode = new CS2BombDamageSceneNode(scene, bombDamageData, i, arrowTexture, label);

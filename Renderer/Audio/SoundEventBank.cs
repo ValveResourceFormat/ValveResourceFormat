@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// <summary>Stores sound event definitions loaded from soundevent (vsndevts) files.</summary>
 public sealed class SoundEventBank
 {
-    // Sound event names are hashed case-insensitively by the engine (see StringToken), match that here.
+    // Sound event names are case-insensitive, so lookups here ignore case.
     private readonly Dictionary<string, KVObject> soundEvents = new(capacity: 32768, StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, SoundEventDefinition> definitions = new(capacity: 2048, StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> removed = new(StringComparer.OrdinalIgnoreCase);

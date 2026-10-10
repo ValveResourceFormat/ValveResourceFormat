@@ -174,8 +174,8 @@ void ParseFile(string file)
                 }
             }
 
-            // "studio()" is the entity's real in-game model. "editormodel()"/"model()" are Hammer-only
-            // visualization aids that don't represent the entity's actual appearance.
+            // studio() is the in-game model. editormodel() and model() are Hammer-only visualization aids,
+            // not the real appearance.
             var isStudioValue = false;
 
             if ((behaviour.Name == "studio" || behaviour.Name == "editormodel" || behaviour.Name == "model") && behaviour.Values.Count > 0)

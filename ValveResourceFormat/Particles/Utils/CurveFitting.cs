@@ -108,8 +108,8 @@ namespace ValveResourceFormat.Particles.Utils
             curveDomainMin = new Vector2(domainMin[0], domainMin[1]);
             curveDomainMax = new Vector2(domainMax[0], domainMax[1]);
 
-            // Gather curve points. The engine truncates both arrays to the shorter count when their
-            // lengths differ (m_tangents can be missing or short in old content).
+            // Truncate both arrays to the shorter count when their lengths differ
+            // (m_tangents can be missing or short in old content).
             var splines = curveInfo.GetArray("m_spline");
             var tangents = curveInfo.ContainsKey("m_tangents") ? curveInfo.GetArray("m_tangents") : [];
             var pointCount = Math.Min(splines.Count, tangents.Count);
@@ -155,7 +155,7 @@ namespace ValveResourceFormat.Particles.Utils
 
         private float ClampToDomainRange(float value)
         {
-            // Inverted domain bounds resolve like the engine's successive min and max, not an exception
+            // Inverted domain bounds resolve through successive min and max, not an exception
             return MathF.Min(MathF.Max(value, curveDomainMin.Y), curveDomainMax.Y);
         }
 

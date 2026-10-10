@@ -51,10 +51,9 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
-        /// The engine's approximation of the sine and cosine of an angle in radians, used by the
-        /// initializers that draw a random direction. It is <see cref="HalfWave"/> with a correction
-        /// term that brings the peak error down to 0.0011, and the cosine is taken from the sine
-        /// rather than approximated separately.
+        /// Approximates the sine and cosine of an angle in radians, for the initializers that draw a random
+        /// direction. It is <see cref="HalfWave"/> plus a correction term that brings the peak error to 0.0011,
+        /// and the cosine is derived from the sine.
         /// </summary>
         public static (float Sin, float Cos) SinCos(float radians)
         {

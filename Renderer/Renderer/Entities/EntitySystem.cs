@@ -7,38 +7,30 @@ using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// What an authored entity I/O connection addresses: a name, and how the map means it to be read.
+/// What an authored entity I/O connection addresses: a name and how to read it.
 /// </summary>
 /// <param name="Name">
-/// The target name. May hold <c>*</c> and <c>?</c> wildcards, or be one of the <c>!</c> names that stand
-/// for an entity in the firing chain rather than for anything the map named.
+/// The target name. May hold <c>*</c> and <c>?</c> wildcards, or be a <c>!</c> name that stands
+/// for an entity in the firing chain.
 /// </param>
 /// <param name="Type">Whether the name is a targetname or a classname.</param>
 public readonly record struct EntityIOTarget(string Name, EntityIOTargetType Type);
 
 /// <summary>
-/// The world every simulated entity lives in. It owns the
-/// list of living entities, runs them on a fixed tick, and carries the entity I/O queue between them.
+/// Owns the living entities, runs them on a fixed tick, and carries the entity I/O queue.
 /// </summary>
 /// <remarks>
-/// Entities tick at <see cref="TickInterval"/> rather than once per rendered frame. A frame runs as many
-/// ticks as it owes, up to <see cref="MaxTicksPerFrame"/>, so a hitch cannot leave the world simulating
-/// for longer than it takes to draw.
+/// Entities tick at <see cref="TickInterval"/>, not once per frame. A frame runs the ticks it owes, up to
+/// <see cref="MaxTicksPerFrame"/>, so a hitch cannot make simulating take longer than drawing.
 /// </remarks>
 public sealed class EntitySystem
 {
-    /// <summary>The fixed simulation tick, matching the engine's default 64 tick.</summary>
+    /// <summary>The fixed simulation tick, 64 per second.</summary>
     public const float TickInterval = 1f / 64f;
 
-    /// <summary>
-    /// How many inputs one tick may deliver before the world is assumed to be looping.
-    /// </summary>
-    /// <remarks>
-    /// Not the engine's: <c>CEventQueue::ServiceEvents</c> has no limit, so a zero-delay cycle hangs the
-    /// server, which is accepted there but not in a viewer opening someone else's map. The limit is far
-    /// above real wiring - a large jailbreak map has under two thousand connections in total and a tick
-    /// delivers a few dozen - so hitting it means a cycle, not a busy moment.
-    /// </remarks>
+    // Unlike in game, where a zero-delay cycle hangs, a viewer must survive one in someone else's map.
+    // Far above real wiring (a large jailbreak map has under two thousand connections in total and a
+    // tick delivers a few dozen), so hitting it means a cycle.
     private const int MaxInputsPerTick = 100_000;
 
     /// <summary>The most ticks one frame may run before the leftover time is dropped.</summary>
@@ -48,18 +40,15 @@ public sealed class EntitySystem
     public RendererContext RendererContext { get; }
 
     /// <summary>
-    /// Gets the physics world of the main world group, the one every trace is made against: the player's
-    /// movement, use, pushers and the rest. It holds the world physics of every spawn group loaded into
-    /// that group.
+    /// Gets the physics world of the main world group, which every trace is made against. It holds the
+    /// world physics of every spawn group loaded into that group.
     /// </summary>
     public PhysicsWorld PhysicsWorld { get; } = new();
 
-    // Every other world group has a physics world of its own, such as a 3D sky's, which nothing traces
+    // Other world groups, such as a 3D sky, have a physics world of their own that nothing traces
     private readonly Dictionary<string, PhysicsWorld> worldGroupPhysicsWorlds = [];
 
-    /// <summary>
-    /// Gets the physics world of a world group, creating it the first time it is asked for.
-    /// </summary>
+    /// <summary>Gets the physics world of a world group, creating it on first use.</summary>
     /// <param name="worldGroup">The world group, or <see langword="null"/> for the main one.</param>
     public PhysicsWorld GetPhysicsWorld(string? worldGroup)
     {
@@ -77,7 +66,7 @@ public sealed class EntitySystem
         return physicsWorld;
     }
 
-    /// <summary>Gets the loader entities use to pull their models and physics.</summary>
+    /// <summary>Gets the loader for entity models and physics.</summary>
     public IFileLoader FileLoader => RendererContext.FileLoader;
 
     /// <summary>Gets the logger for entity problems.</summary>
@@ -87,9 +76,8 @@ public sealed class EntitySystem
     public IReadOnlyList<BaseEntity> Entities => entities;
 
     /// <summary>
-    /// Gets or sets whether the world is simulated. Switching it off holds every entity where it stands:
-    /// the ticks stop, so nothing thinks, moves, touches, or fires entity I/O. What is already spawned
-    /// stays in the scene and stays drawn.
+    /// Gets or sets whether the world is simulated. When off the ticks stop, so nothing thinks, moves,
+    /// touches or fires entity I/O. Spawned entities stay in the scene and stay drawn.
     /// </summary>
     public bool Enabled { get; set; } = true;
 
@@ -97,20 +85,18 @@ public sealed class EntitySystem
     public PlayerEntity? Player { get; private set; }
 
     /// <summary>
-    /// Gets the world entity at the root of the entity hierarchy, once a map has loaded. A trace that
-    /// hits the static world reports it as the entity it hit.
+    /// Gets the world entity at the root of the hierarchy, once a map has loaded. A trace that hits the
+    /// static world reports it as the entity hit.
     /// </summary>
     public WorldEntity? World { get; private set; }
 
-    /// <summary>Gets the current simulation time in seconds, the engine's <c>curtime</c>.</summary>
+    /// <summary>Gets the current simulation time in seconds.</summary>
     public float CurrentTime { get; private set; }
 
-    /// <summary>
-    /// Rounds a time onto the tick it lands nearest, the way the engine's <c>TIME_TO_TICKS</c> does.
-    /// </summary>
+    /// <summary>Rounds a time onto the nearest tick.</summary>
     /// <remarks>
-    /// Scheduling to the first tick at or after the time would round every interval up: a repeating 0.1s
-    /// think would run every 7 ticks instead of 6, about a sixth slow.
+    /// Rounding up to the first tick at or after the time would make a repeating 0.1s think run every 7
+    /// ticks instead of 6, about a sixth slow.
     /// </remarks>
     /// <returns>The time of the nearest tick.</returns>
     public static float SnapToTick(float time) => (int)(0.5f + (time / TickInterval)) * TickInterval;
@@ -120,13 +106,12 @@ public sealed class EntitySystem
 
     /// <summary>
     /// Gets how far the current frame sits between the last two simulated ticks, in [0, 1). Entities
-    /// interpolate their render transform across that span so movement is smooth at any framerate rather
-    /// than stepping at the tick rate.
+    /// interpolate their render transform across it so movement is smooth at any framerate.
     /// </summary>
     public float InterpolationFraction => tickAccumulator / TickInterval;
 
-    // Walked by index everywhere: a think, an input, or a touch handler may spawn or remove entities
-    // part way through, and one spawned mid-walk is meant to be reached by it
+    // Walked by index: thinks, inputs and touch handlers may spawn or remove entities mid-walk, and one
+    // spawned mid-walk is meant to be reached
     private readonly List<BaseEntity> entities = [];
     private readonly List<BaseEntity> parented = [];
 
@@ -138,8 +123,7 @@ public sealed class EntitySystem
     private bool hasRemovedEntities;
 
     /// <summary>
-    /// Initializes an entity world. Prefer <see cref="Renderer.EntitySystem"/> over constructing one
-    /// directly.
+    /// Initializes an entity world. Prefer <see cref="Renderer.EntitySystem"/> over constructing one.
     /// </summary>
     /// <param name="context">The shared renderer context entities load and log through.</param>
     public EntitySystem(RendererContext context)
@@ -150,13 +134,12 @@ public sealed class EntitySystem
         TempEntities = new TempEntities(this);
     }
 
-    /// <summary>Gets the effects that play once without an entity of their own, such as bullet impacts.</summary>
+    /// <summary>Gets the one-shot effects that have no entity of their own, such as bullet impacts.</summary>
     public TempEntities TempEntities { get; }
 
     /// <summary>
-    /// Creates the entity for a map entity's keyvalues and puts it in the world. A classname the entity
-    /// system does not implement becomes a <see cref="GenericModelEntity"/> or a <see cref="GenericEntity"/>,
-    /// which draw themselves but do nothing else.
+    /// Creates the entity for a map entity's keyvalues and puts it in the world. An unimplemented classname
+    /// becomes a <see cref="GenericModelEntity"/> or <see cref="GenericEntity"/>, which only draw themselves.
     /// </summary>
     /// <param name="data">The entity's keyvalues.</param>
     /// <param name="parentTransform">Transform of whatever spawned it.</param>
@@ -175,8 +158,8 @@ public sealed class EntitySystem
             return null;
         }
 
-        // The engine binds the move parent before spawning, so a child's Spawn sees its pose local to the
-        // parent. The parent may not exist yet, so the child spawns in Activate once it is bound.
+        // A child's Spawn must see its pose local to its move parent, which may not exist yet, so it
+        // spawns in Activate once bound.
         if (string.IsNullOrEmpty(data.GetStringProperty("parentname")))
         {
             entity.Spawn();
@@ -191,10 +174,7 @@ public sealed class EntitySystem
         return entity;
     }
 
-    /// <summary>
-    /// Puts the player into the world, so triggers have something to touch. Replaces any player already
-    /// spawned.
-    /// </summary>
+    /// <summary>Puts the player into the world, replacing any already spawned.</summary>
     /// <returns>The player entity.</returns>
     public PlayerEntity SpawnPlayer(IPlayerController controller, Scene scene)
     {
@@ -203,7 +183,7 @@ public sealed class EntitySystem
             Remove(Player);
         }
 
-        // Registration is what usually binds a class's inputs; the player never goes through the factory
+        // Inputs are normally bound at factory registration, which the player skips
         EntityInputTable.Bind<PlayerEntity>();
 
         Player = new PlayerEntity(this, scene, controller);
@@ -221,10 +201,7 @@ public sealed class EntitySystem
         entities.Add(entity);
     }
 
-    /// <summary>
-    /// Creates the world entity when the first map loads, before any of its entities, so it owns all of
-    /// them. It stays until <see cref="Clear"/>, whatever spawn groups come and go.
-    /// </summary>
+    // Created on the first map load, before any of its entities so it owns them all. Stays until Clear.
     internal void SpawnWorld(Scene scene)
     {
         if (World != null)
@@ -237,13 +214,13 @@ public sealed class EntitySystem
         Add(World);
     }
 
-    /// <summary>Puts an entity built in code, rather than from map keyvalues, into the world.</summary>
+    /// <summary>Adds an entity built in code rather than from map keyvalues.</summary>
     public void AddEntity(BaseEntity entity) => Add(entity);
 
-    // Numbers the placed maps that set their names apart, never reused while the game runs
+    // Never reused while the game runs
     private int nameFixupCount;
 
-    /// <summary>Gets the number for the next placed map that sets its names apart with a prefix of its own.</summary>
+    // Number for the next placed map that gives its entity names a prefix of its own
     internal int NextNameFixupIndex() => ++nameFixupCount;
 
     /// <summary>Gets or sets the host that draws spawn groups loaded at runtime.</summary>
@@ -268,7 +245,7 @@ public sealed class EntitySystem
             }
         }
 
-        // Only the group's own collision; the world group keeps its physics world, as the engine's does
+        // Only the group's own collision; the world group keeps its physics world
         if (group.WorldGroup == null)
         {
             PhysicsWorld.Remove(group.Scene);
@@ -281,9 +258,8 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Runs <see cref="BaseEntity.Activate"/> on every entity spawned since the last call. Called once
-    /// per spawn group - the map, and again for its 3D skybox - the way the engine activates each group
-    /// as it finishes spawning.
+    /// Runs <see cref="BaseEntity.Activate"/> on every entity spawned since the last call. Called as each
+    /// spawn group (the map, its 3D skybox) finishes spawning.
     /// </summary>
     public void Activate()
     {
@@ -323,10 +299,7 @@ public sealed class EntitySystem
         activatedCount = entities.Count;
     }
 
-    /// <summary>
-    /// Resolves an entity's move parent and lists it in <see cref="parented"/> behind its whole parent
-    /// chain, the order children tick and draw in.
-    /// </summary>
+    // Lists the entity in parented behind its whole parent chain, the order children tick and draw in
     internal void ResolveMoveParentChain(BaseEntity entity)
     {
         if (entity.IsMoveParentResolved)
@@ -361,9 +334,7 @@ public sealed class EntitySystem
         }
     }
 
-    /// <summary>
-    /// Removes an entity from the world and takes its nodes out of the scene.
-    /// </summary>
+    /// <summary>Removes an entity from the world and its nodes from the scene.</summary>
     public void Remove(BaseEntity entity)
     {
         if (entity.IsRemoved)
@@ -386,24 +357,16 @@ public sealed class EntitySystem
         }
     }
 
-    /// <summary>
-    /// Tests every trigger volume against the player, opening and closing touch links as they change. Both
-    /// sides of a touch hear about it, the way the engine marks a pair of entities as touching.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Only the player is tested. Testing every pair would be general, but costs a test per trigger per
-    /// entity per tick in a map full of entities that never move, and the player is the only thing here
-    /// that walks into a volume. So an entity the simulation moves into a trigger does not fire it. The
-    /// touch machinery stays general, so this is the one place to widen if that changes.
-    /// </para>
-    /// <para>
-    /// Run on the tick only, because touch handlers are entity logic: they teleport things, queue inputs
-    /// against <see cref="CurrentTime"/>, and spawn or remove entities, all of which would become
-    /// framerate-dependent if sampled per frame. The player still moves per frame, so a touch resolves up
-    /// to one tick late, reading the player's live position.
-    /// </para>
-    /// </remarks>
+    // Tests every trigger volume against the player, opening and closing touch links as they change. Both
+    // sides of a touch hear about it.
+    //
+    // Only the player is tested: testing every pair costs a test per trigger per entity per tick, and
+    // nothing else here walks into a volume. So an entity the simulation moves into a trigger does not
+    // fire it. The touch machinery is general, so this is the one place to widen.
+    //
+    // Runs on the tick only, because touch handlers teleport things, queue inputs against CurrentTime and
+    // spawn or remove entities, which would become framerate-dependent per frame. The player moves per
+    // frame, so a touch resolves up to one tick late, reading the player's live position.
     private void UpdateTouchLinks()
     {
         for (var i = 0; i < entities.Count; i++)
@@ -415,8 +378,7 @@ public sealed class EntitySystem
                 continue;
             }
 
-            // Re-read every time rather than once: a trigger earlier in this pass may have teleported the
-            // player, and the rest of the pass has to test where they are now, not where they set off from
+            // Re-read per trigger: an earlier trigger in this pass may have teleported the player
             if (Player is not { IsRemoved: false } player
                 || !player.TryGetTouchBounds(out var center, out var halfExtents))
             {
@@ -429,8 +391,8 @@ public sealed class EntitySystem
                 continue;
             }
 
-            // Against the volume rather than its surface: a player standing well inside a big trigger is
-            // still touching it. Rejects on world bounds first, so a trigger nowhere near costs one box test.
+            // Against the volume, not its surface, so a player deep inside a big trigger still touches it.
+            // Rejects on world bounds first, so a distant trigger costs one box test.
             var isOverlapping = volume.OverlapsVolume(center, halfExtents);
 
             entity.UpdateTouchLink(player, isOverlapping);
@@ -438,9 +400,7 @@ public sealed class EntitySystem
         }
     }
 
-    /// <summary>
-    /// Records that the player's movement ran into a solid entity, for the next tick to report as a touch.
-    /// </summary>
+    /// <summary>Records that the player hit a solid entity, for the next tick to report as a touch.</summary>
     /// <param name="entity">The entity a movement sweep hit.</param>
     public void NotePlayerImpact(BaseEntity entity) => playerImpacts.Add(entity);
 
@@ -479,8 +439,8 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Drops every entity and resets the clock. The scene nodes themselves are the scene's to clean up,
-    /// which <see cref="Renderer.Clear"/> does before calling this.
+    /// Drops every entity and resets the clock. Scene nodes are cleaned up by
+    /// <see cref="Renderer.Clear"/>, which runs first.
     /// </summary>
     public void Clear()
     {
@@ -510,9 +470,7 @@ public sealed class EntitySystem
         TickCount = 0;
     }
 
-    /// <summary>
-    /// Advances the world by a rendered frame's worth of time, running whole ticks.
-    /// </summary>
+    /// <summary>Advances the world by a frame's worth of time, running whole ticks.</summary>
     public void Update(float frameTime)
     {
         TempEntities.Update();
@@ -543,13 +501,13 @@ public sealed class EntitySystem
         }
         else
         {
-            // Time spent paused is not owed back: switching it on again resumes rather than catching up,
-            // and the entities rest on their last tick state rather than part way to the next one
+            // Paused time is not owed back, and entities rest on their last tick state rather than
+            // part way to the next one
             tickAccumulator = 0f;
         }
 
-        // Entities are not scene nodes, so nothing else would place what they own. Parents first, as a
-        // child is drawn in the frame its parent was just drawn at.
+        // Entities are not scene nodes, so nothing else places what they own. Parents first, so a child
+        // follows its parent's current pose.
         foreach (var entity in entities)
         {
             if (entity.MoveParent == null)
@@ -614,9 +572,8 @@ public sealed class EntitySystem
         UpdateTouchLinks();
         DispatchPlayerImpacts();
 
-        // Last, as the engine services its event queue after everything has moved and touched. A touch
-        // handler's outputs therefore land in the tick that saw the touch rather than the one after it,
-        // and a think scheduled for the current time waits for the next tick, as it does there.
+        // Last, after everything has moved and touched, so a touch handler's outputs land in the tick that
+        // saw the touch. A think scheduled for the current time waits for the next tick.
         DispatchDueInputs();
     }
 
@@ -640,10 +597,10 @@ public sealed class EntitySystem
                 continue;
             }
 
-            // A hull inside this entity cannot be swept - the SAT sweep is meaningless from an
-            // overlapping start. A move whose endpoint is fully outside steps out freely, anything
-            // else stops where it stands: escape is always possible, crossing the interior never is,
-            // and a pusher never leaves the player deep inside it.
+            // A hull inside this entity cannot be swept (the SAT sweep is meaningless from an overlapping
+            // start). A move ending fully outside steps out freely, anything else stops where it stands:
+            // escape is always possible, crossing the interior never is, and a pusher never leaves the
+            // player deep inside it.
             if (entity.Collider.OverlapsVolume(from, insideExtents))
             {
                 if (!entity.Collider.OverlapsVolume(to, insideExtents))
@@ -712,9 +669,7 @@ public sealed class EntitySystem
         return hitEntity;
     }
 
-    /// <summary>
-    /// Finds where a ray enters water that it is still under at its end.
-    /// </summary>
+    /// <summary>Finds where a ray enters water that it is still under at its end.</summary>
     /// <param name="from">Where the ray starts, above the water.</param>
     /// <param name="to">Where the ray ends.</param>
     /// <param name="surface">The point on the water surface the ray goes in at.</param>
@@ -775,9 +730,7 @@ public sealed class EntitySystem
 
     private const float WaterSurfaceSkin = 0.25f;
 
-    /// <summary>
-    /// Finds the nearest usable entity along a ray, for the player's <c>+use</c>.
-    /// </summary>
+    /// <summary>Finds the nearest usable entity along a ray, for the player's <c>+use</c>.</summary>
     /// <returns>The nearest usable entity in reach, or <see langword="null"/> when there is none.</returns>
     public BaseEntity? FindUseTarget(Vector3 from, Vector3 to)
     {
@@ -804,9 +757,7 @@ public sealed class EntitySystem
         return target;
     }
 
-    /// <summary>
-    /// Fires an entity I/O input at one entity, after a delay in seconds.
-    /// </summary>
+    /// <summary>Fires an entity I/O input at one entity after a delay in seconds.</summary>
     public void QueueInput(BaseEntity target, string inputName, string? parameter = null,
         BaseEntity? activator = null, BaseEntity? caller = null, float delay = 0f)
     {
@@ -816,8 +767,8 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Fires an entity I/O input at every entity whose targetname matches, <c>*</c> and <c>?</c> wildcards
-    /// included, after a delay in seconds.
+    /// Fires an entity I/O input at every entity whose targetname matches, or failing that classname,
+    /// <c>*</c> and <c>?</c> wildcards included, after a delay in seconds.
     /// </summary>
     public void QueueInputByTargetName(string targetName, string inputName, string? parameter = null,
         BaseEntity? activator = null, BaseEntity? caller = null, float delay = 0f)
@@ -828,10 +779,7 @@ public sealed class EntitySystem
         Enqueue(new QueuedInput(null, target, inputName, parameter, activator, caller, fireTime, sequence++, null));
     }
 
-    /// <summary>
-    /// Queues an input by target, the way an authored connection addresses one. The connection is passed
-    /// when one limits how often it may fire.
-    /// </summary>
+    // The connection is passed when it limits how often it may fire
     private void QueueInputByTarget(EntityIOTarget target, string inputName, string? parameter,
         BaseEntity? activator, BaseEntity? caller, float delay, EntityLump.Connection? connection)
     {
@@ -841,17 +789,16 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Drops the inputs an entity queued that have not fired yet, Source's <c>CancelPending</c>. Only the
-    /// ones it queued itself: an input another entity aimed at it is that entity's to cancel.
+    /// Drops the unfired inputs an entity queued itself. An input another entity aimed at it is that
+    /// entity's to cancel.
     /// </summary>
     public void CancelQueuedInputsFrom(BaseEntity caller)
         => inputQueue.RemoveAll(input => input.Caller == caller);
 
     private void Enqueue(QueuedInput input)
     {
-        // Kept in fire order, ties broken by the order they were queued, which is what the engine's
-        // time-ordered queue amounts to. Inserting into an almost-sorted list beats sorting at dispatch,
-        // and it keeps two connections with different delays from inverting inside one tick.
+        // Kept in fire order, ties by queue order. Inserting into an almost-sorted list beats sorting at
+        // dispatch, and keeps connections with different delays from inverting inside one tick.
         var index = inputQueue.Count;
 
         while (index > 0)
@@ -871,9 +818,8 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Fires one of an entity's authored outputs, delivering it to every connection with that name.
-    /// Source's <c>FireOutput</c>. The value is what the output reports, for the ones that carry a reading;
-    /// a connection authored with its own parameter overrides it, as in the engine. The caller defaults to
+    /// Fires an entity's authored output on every connection with that name. The value is what the output
+    /// reports, and a connection's own parameter overrides it. The caller defaults to
     /// <paramref name="source"/>; the few outputs that pass on the caller of the input that fired them name it.
     /// </summary>
     public void TriggerOutput(BaseEntity source, string outputName, BaseEntity? activator = null, string? value = null,
@@ -891,7 +837,7 @@ public sealed class EntitySystem
                 continue;
             }
 
-            // Hammer's "fire once only", which the map counts on for anything that must not repeat
+            // Hammer's "fire once only" and other limited counts
             if (connection.TimesToFire >= 0 && FiredCount(connection) >= connection.TimesToFire)
             {
                 continue;
@@ -902,10 +848,7 @@ public sealed class EntitySystem
         }
     }
 
-    /// <summary>
-    /// Fires one authored connection on its own, for triggering map logic by
-    /// hand.
-    /// </summary>
+    /// <summary>Fires one authored connection on its own, for triggering map logic by hand.</summary>
     /// <param name="connection">The connection to fire.</param>
     /// <param name="activator">The entity that started the chain, usually the player.</param>
     public void QueueConnection(EntityLump.Connection connection, BaseEntity? activator = null)
@@ -919,25 +862,17 @@ public sealed class EntitySystem
             connection.InputName, ConnectionParameter(connection, nameFixup, null), activator, source, 0f, null);
     }
 
-    /// <summary>
-    /// The target of an authored connection, named as the source entity's spawn group names its entities.
-    /// </summary>
+    // The connection's target name with the source entity's name fixup applied
     internal static EntityIOTarget ConnectionTarget(EntityLump.Connection connection, EntityNameFixup nameFixup)
         => new(nameFixup.Apply(connection.TargetName), connection.TargetType);
 
-    /// <summary>
-    /// The authored override wins over whatever the output reports, which is the precedence
-    /// CBaseEntityOutput::FireOutput uses: a parameter on the connection replaces the value. The override
-    /// gets the source entity's name fixup too.
-    /// </summary>
+    // A connection's own parameter replaces the output's value, and gets the name fixup too
     private static string? ConnectionParameter(EntityLump.Connection connection, EntityNameFixup nameFixup, string? value)
         => string.IsNullOrEmpty(connection.OverrideParam) || connection.OverrideParam == "(null)"
             ? value
             : nameFixup.Apply(connection.OverrideParam);
 
-    /// <summary>
-    /// Finds every entity whose targetname matches, in any world group, as the engine's name lookups do.
-    /// </summary>
+    /// <summary>Finds every entity whose targetname matches, in any world group.</summary>
     public IEnumerable<BaseEntity> FindAllByTargetName(string pattern)
     {
         foreach (var entity in entities)
@@ -961,8 +896,8 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Finds every entity in the world group of <paramref name="scene"/> whose targetname matches. Only
-    /// <c>parentname</c> is looked up this way; every other name an entity refers to is found in any world group.
+    /// Finds every entity in the world group of <paramref name="scene"/> whose targetname matches. Used
+    /// for <c>parentname</c> only; every other name is found in any world group.
     /// </summary>
     public IEnumerable<BaseEntity> FindAllByTargetNameInWorldGroup(string pattern, Scene scene)
     {
@@ -982,18 +917,12 @@ public sealed class EntitySystem
         && entity.TargetName != null
         && EntityLump.EntityNameMatches(pattern, entity.TargetName);
 
-    /// <summary>
-    /// Delivers everything the clock has reached, and everything those deliveries queue for now.
-    /// </summary>
-    /// <remarks>
-    /// The engine's <c>CEventQueue::ServiceEvents</c> restarts from the head of the queue after each event,
-    /// so a chain of zero-delay connections finishes in the tick that started it. Taking one snapshot
-    /// instead would spread an N-hop relay chain over N ticks, which a map expecting a button to act at
-    /// once would notice. The only difference here is <see cref="MaxInputsPerTick"/>.
-    /// </remarks>
+    // Delivers everything the clock has reached, and everything those deliveries queue for now.
+    // Restarting from the head of the queue after each event lets a chain of zero-delay connections finish
+    // in the tick that started it; one snapshot would spread an N-hop relay chain over N ticks.
     private void DispatchDueInputs()
     {
-        // The engine has no guard here and will spin forever on a cycle; see MaxInputsPerTick
+        // See MaxInputsPerTick
         var budget = MaxInputsPerTick;
 
         while (inputQueue.Count > 0 && inputQueue[0].FireTime <= CurrentTime)
@@ -1013,11 +942,8 @@ public sealed class EntitySystem
         }
     }
 
-    /// <summary>
-    /// Hands one queued input to whoever answers to its target now. The target is resolved here rather
-    /// than when the input was queued, as the engine does: a delayed input goes to whatever holds the
-    /// name at delivery, including an entity that spawned during the delay.
-    /// </summary>
+    // The target is resolved here, not when queued, so a delayed input reaches whatever holds the name at
+    // delivery, including an entity that spawned during the delay.
     private void Deliver(QueuedInput input)
     {
         var data = new EntityInputData
@@ -1047,9 +973,8 @@ public sealed class EntitySystem
             return;
         }
 
-        // Copied out, and into a list of its own rather than a shared buffer: a handler may spawn or
-        // remove entities, and may deliver further inputs, either of which would disturb a walk over
-        // state the next delivery down also uses
+        // Copied to a list of its own, not a shared buffer: a handler may spawn or remove entities or
+        // deliver further inputs, which would disturb a walk over state the nested delivery also uses
         var targets = new List<BaseEntity>();
 
         targets.AddRange(FindTargets(target, input.Activator, input.Caller));
@@ -1063,28 +988,24 @@ public sealed class EntitySystem
         }
     }
 
-    /// <summary>Whether a target name is the given <c>!</c> name, whatever case the map wrote it in.</summary>
     private static bool IsProceduralName(string targetName, string proceduralName)
         => targetName.Equals(proceduralName, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>How many times a connection has fired, for the ones a map limited.</summary>
     private int FiredCount(EntityLump.Connection connection)
         => firedCounts.TryGetValue(connection, out var count) ? count : 0;
 
     /// <summary>
-    /// Resolves what an authored connection addresses: the <c>!</c> names that stand for an entity in the
-    /// firing chain, then names and classnames.
+    /// Resolves what an authored connection addresses: <c>!</c> names for an entity in the firing chain,
+    /// then names and classnames.
     /// </summary>
     /// <returns>The entities the target stands for, which may be none.</returns>
     public IEnumerable<BaseEntity> FindTargets(EntityIOTarget target, BaseEntity? activator = null, BaseEntity? caller = null)
     {
-        // The target type can name the chain outright, and so can the name, which is how the older
-        // spelling of the same idea reaches here. Source's FindEntityProcedural.
+        // Both the target type and the name can name the chain; the name is the older spelling
         if (target.Type is EntityIOTargetType.SpecialActivator or EntityIOTargetType.SpecialCaller
             || (target.Name.Length > 0 && target.Name[0] == '!'))
         {
-            // Spelled the way a mapper writes them, and matched the way the engine matches them: its
-            // FindEntityProcedural compares with FStrEq, which is case-insensitive
+            // Matched case-insensitively
             var resolved = target.Type switch
             {
                 EntityIOTargetType.SpecialActivator => activator,
@@ -1109,9 +1030,8 @@ public sealed class EntitySystem
             yield break;
         }
 
-        // Anything else addresses entities by what they are called or what they are. The rest of the
-        // type set asks questions map data alone cannot answer - class inheritance, components, handles -
-        // and matches nothing rather than guessing.
+        // The other target types need more than map data (class inheritance, components, handles) and
+        // match nothing rather than guess
         var byName = target.Type is EntityIOTargetType.EntityName or EntityIOTargetType.EntityNameOrClassName;
         var byClass = target.Type is EntityIOTargetType.ClassName or EntityIOTargetType.EntityNameOrClassName;
 
@@ -1132,8 +1052,7 @@ public sealed class EntitySystem
             }
         }
 
-        // A name that matches nothing falls back to the classname: the combined type is the map saying
-        // "whichever of the two this turns out to be"
+        // The combined type falls back to the classname when no name matches
         if (!byClass || matchedName)
         {
             yield break;

@@ -25,8 +25,8 @@ namespace ValveResourceFormat.Compression
 
         private static int GetVertexBlockSize(int vertexSize)
         {
-            // make sure the entire block fits into the scratch buffer and is aligned to byte group size
-            // note: the block size is implicitly part of the format, so we can't change it without breaking compatibility
+            // fit the block into the scratch buffer, aligned to the byte group size
+            // block size is part of the format; changing it breaks compatibility
             var result = (VertexBlockSizeBytes / vertexSize) & ~(ByteGroupSize - 1);
 
             return result < VertexBlockMaxSize ? result : VertexBlockMaxSize;
@@ -218,8 +218,8 @@ namespace ValveResourceFormat.Compression
             {
                 var vertexOffset = k;
 
-                // upstream is templated on the element type; uint is used for every size here because
-                // only the low bytes are stored, so the untruncated high bits never affect the result
+                // uint is used for every size since only the low bytes are stored, so the untruncated high
+                // bits never affect the result
                 uint p = lastVertex[0];
                 for (var j = 1; j < size; ++j)
                 {

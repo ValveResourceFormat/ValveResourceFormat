@@ -63,7 +63,7 @@ public class PerfStats
     private static readonly string[] LightGroupNames = ["omni", "spot", "barn", "rect", "directional"];
     private static readonly string[] LightCostLabels = ["Static Lights:    ", "Stationary Lights:", "Dynamic Lights:   "];
 
-    // Declared after LightGroupNames so the instance created here sees it initialized (static initializers run in textual order).
+    // Must follow LightGroupNames, as static initializers run in textual order.
     /// <summary>Counters for the frame currently being rendered. Collects nothing while <see cref="Capture"/> is off.</summary>
     internal static PerfStats Active { get; private set; } = new();
 
@@ -123,7 +123,7 @@ public class PerfStats
         public bool Pending { get; set; }
     }
 
-    // The CPU runs ahead of the GPU, so results take a few frames to land and the displayed count lags accordingly.
+    // The CPU runs ahead of the GPU, so the displayed count lags a few frames.
     private const int TriangleFrameCount = 4;
     private readonly TriangleQueryFrame[] triangleFrames = CreateTriangleFrames();
     private int triangleFrameWrite;
@@ -456,10 +456,8 @@ public class PerfStats
     }
 
     /// <summary>
-    /// One line of what auto exposure decided: what the frame metered at, what it was aiming for, and
-    /// the exposure it reached within the range the post process volume allows. Exposure resting on one
-    /// of those bounds is called out, because a pinned exposure means the metering has no say in how
-    /// bright the image ends up and only the scene's own brightness does.
+    /// Auto exposure state: the metered luminance, its target, and the exposure within the post process
+    /// volume's range. Exposure pinned to a bound is flagged, as the scene's own brightness then decides.
     /// </summary>
     private string FormatTonemapStats()
     {
@@ -484,8 +482,8 @@ public class PerfStats
     }
 
     /// <summary>
-    /// One line of what binning produced. Counts are per barn light face, the unit the binner works in,
-    /// which is not the set the shadow line reports - that counts faces submitted for shadow rendering.
+    /// Binning results, counted per barn light face, the unit the binner works in. Not the same set as
+    /// the shadow line, which counts faces submitted for shadow rendering.
     /// </summary>
     private static string FormatBinnerStats(LightBinner.BinnerStats stats)
     {

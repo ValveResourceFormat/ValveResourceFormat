@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </summary>
 public class InfoParticleSystem : BaseEntity
 {
-    /// <summary>The most literal <c>cpointN_value</c> keys an entity applies, as the engine limits them.</summary>
+    // At most this many cpointN_value keys are applied
     private const int MaxLiteralControlPointValues = 4;
 
     private static readonly string[] ControlPointKeys = CreateKeys("cpoint{0}");
@@ -42,7 +42,7 @@ public class InfoParticleSystem : BaseEntity
             return;
         }
 
-        // Control point 0 is the effect's placement, so one handed to another entity is not the entity's to place
+        // Control point 0 places the effect, so when it names another entity this one must not
         AddNode(Effect, followsEntity: string.IsNullOrEmpty(KeyValues.GetStringProperty(ControlPointKeys[0])));
 
         if (!KeyValues.GetBooleanProperty("start_active", true))
@@ -51,7 +51,7 @@ public class InfoParticleSystem : BaseEntity
         }
     }
 
-    // In Activate, as the entities the control points name may be authored after this one
+    // Bound in Activate: the entities the control points name may be authored after this one
     /// <inheritdoc/>
     public override void Activate()
     {
@@ -73,11 +73,7 @@ public class InfoParticleSystem : BaseEntity
         ApplyLiteralControlPointValues(Effect);
     }
 
-    /// <summary>
-    /// Places a control point at the entity a <c>cpointN</c> key names, following it when it can move.
-    /// Control point 0 is the effect's own placement, so naming one moves the whole effect there, and
-    /// along with the entity it names.
-    /// </summary>
+    // Control point 0 is the effect's placement, so naming an entity there moves the whole effect to it
     private void BindControlPoint(ParticleSceneNode effect, int index, string targetName)
     {
         BaseEntity? target;
@@ -120,11 +116,8 @@ public class InfoParticleSystem : BaseEntity
         }
     }
 
-    /// <summary>
-    /// Pins control points to the literal values authored on the entity: <c>data_cp</c> takes a vector,
-    /// <c>tint_cp</c> a colour, and up to four <c>cpointN_value</c> keys a position each. Applied after
-    /// the <c>cpointN</c> bindings, which is the order the engine resolves them in.
-    /// </summary>
+    // data_cp takes a vector, tint_cp a colour, and up to four cpointN_value keys a position each.
+    // Applied after the cpointN bindings, overriding them.
     private void ApplyLiteralControlPointValues(ParticleSceneNode effect)
     {
         var dataControlPoint = LiteralControlPointIndex("data_cp");
@@ -155,10 +148,7 @@ public class InfoParticleSystem : BaseEntity
         }
     }
 
-    /// <summary>
-    /// Reads a literal control point index. Returns -1 when unused, which is also what an index outside
-    /// the control points resolves to.
-    /// </summary>
+    // -1 when unused or out of range
     private int LiteralControlPointIndex(string key)
         => KeyValues.GetInt32Property(key, -1) is var index && index >= 0 && index < ControlPointKeys.Length ? index : -1;
 

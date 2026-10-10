@@ -48,7 +48,7 @@ public sealed class InfoSpawnGroupLoadUnload : BaseEntity
             return;
         }
 
-        // The engine will not place a group without a landmark
+        // A group cannot be placed without a landmark
         if (Landmark.Length == 0)
         {
             EntitySystem.Logger.LogWarning("info_spawngroup_load_unload '{TargetName}' names no landmark, not loading '{MapName}'", TargetName, MapName);

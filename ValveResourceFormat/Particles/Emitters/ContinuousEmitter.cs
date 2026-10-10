@@ -103,8 +103,7 @@ namespace ValveResourceFormat.Particles.Emitters
 
             if (TryGetEmissionWindow(frameStart, elapsed, nextStartTime, nextEmissionDuration, out var windowStart, out var windowEnd))
             {
-                // Re-evaluate the emit rate every frame: a control-point or curve-driven
-                // rate changes over the emitter's lifetime.
+                // Read every frame: a control-point or curve-driven rate changes over the emitter's lifetime.
                 var rate = emitRate.NextNumber(particleSystemState) * strength;
 
                 if (scalePerParentParticle > 0f)

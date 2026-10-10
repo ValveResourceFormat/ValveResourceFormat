@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Blocks
                 public short Count { get; set; }
 
                 /// <summary>
-                /// Gets or sets the offset of the field on disk. A negative value (-1) means the field is not serialized to disk.
+                /// Gets or sets the on-disk offset of the field, -1 when it is not serialized.
                 /// </summary>
                 public short OnDiskOffset { get; set; }
 
@@ -332,8 +332,8 @@ namespace ValveResourceFormat.Blocks
         }
 
         /// <summary>
-        /// Gets the name of the enumerator with the given value in the enum definition with the given id,
-        /// or null when either the enum or an enumerator with that exact value is unknown.
+        /// Gets the enumerator name for a value of the enum with the given id, or null when the enum or
+        /// exact value is unknown.
         /// </summary>
         public string? GetEnumValueName(uint enumId, int value)
         {

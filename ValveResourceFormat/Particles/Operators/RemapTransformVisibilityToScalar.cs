@@ -1,14 +1,13 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Remaps the visibility of a transform input's position into a scalar output field, folded
-    /// through the set method and lerped toward by the operator strength. The remapped value is
-    /// computed once per frame and is the same for every particle.
+    /// Remaps transform visibility into a scalar output field, folded through the set method and
+    /// lerped toward by the operator strength. Computed once per frame and shared by all particles.
     /// </summary>
     /// <remarks>
-    /// <c>m_flOutputMin</c>/<c>m_flOutputMax</c> are clamped into [0, 1] at load time when the
-    /// output field is alpha or alternate alpha, matching the engine mutating its stored fields.
-    /// Visibility always reads as full, so the transform input and <c>m_flRadius</c> have no effect.
+    /// <c>m_flOutputMin</c>/<c>m_flOutputMax</c> are clamped into [0, 1] at load time for alpha and
+    /// alternate alpha output fields. Visibility always reads as full, so the transform input and
+    /// <c>m_flRadius</c> have no effect.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapTransformVisibilityToScalar">C_OP_RemapTransformVisibilityToScalar</seealso>
     class RemapTransformVisibilityToScalar : ParticleFunctionOperator

@@ -4,12 +4,12 @@ namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
 /// <c>trigger_multiple</c>. Fires <c>OnTrigger</c> for whatever is inside its volume, then waits
-/// <see cref="Wait"/> seconds before it can fire again. A negative wait makes it fire once and remove
-/// itself, which is all <see cref="TriggerOnce"/> is.
+/// <see cref="Wait"/> seconds. A negative wait makes it fire once and remove itself, which is all
+/// <see cref="TriggerOnce"/> is.
 /// </summary>
 /// <remarks>
-/// It fires on the touch, not the start of one, so something standing inside keeps firing it every time
-/// the wait runs out.
+/// Fires on the touch, not the start of one, so something standing inside fires it each time the wait
+/// runs out.
 /// </remarks>
 public class TriggerMultiple : BaseTrigger
 {
@@ -68,8 +68,8 @@ public class TriggerMultiple : BaseTrigger
             return;
         }
 
-        // Not removed on the spot, since the touch that got here is still being handled. The volume goes
-        // at once, so whatever is inside is told it left before the trigger disappears.
+        // Removed later, as this touch is still being handled. The volume goes now, so whatever is inside
+        // is told it left.
         RemoveVolume();
         isTouchEnabled = false;
         isRemoving = true;

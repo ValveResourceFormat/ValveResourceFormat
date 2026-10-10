@@ -131,8 +131,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>The normalized forward direction.</returns>
         public static Vector3 EulerAnglesToForwardDirection(Vector3 pitchYawRoll)
         {
-            // The first row of the matrix the angles build, which is already unit length. Roll turns about
-            // forward, so it cannot move it, and does not appear.
+            // First row of the built matrix, already unit length. Roll turns about forward, so it is left out.
             var (sinPitch, cosPitch) = MathF.SinCos(float.DegreesToRadians(pitchYawRoll.X));
             var (sinYaw, cosYaw) = MathF.SinCos(float.DegreesToRadians(pitchYawRoll.Y));
 
@@ -144,10 +143,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// Inverse of <see cref="EulerAnglesToForwardDirection"/>.
         /// </summary>
         /// <remarks>
-        /// A direction that is straight up or down leaves yaw undetermined, and reading it out of the
-        /// residual horizontal components would be numerical noise, so it is pinned to zero the way the
-        /// engine's <c>VectorAngles</c> does. That test is on absolute length, matching the engine, so a
-        /// direction shorter than a thousandth of a unit reads as vertical whichever way it points.
+        /// A straight up or down direction leaves yaw undetermined, so it is pinned to zero rather than
+        /// read from noise in the horizontal components. The vertical test uses the horizontal length, so
+        /// a direction whose horizontal part is under a thousandth of a unit reads as vertical, whichever
+        /// way it points.
         /// </remarks>
         /// <param name="direction">The forward direction. Need not be normalized, but see the remarks on very short ones.</param>
         /// <returns>The Euler angles in degrees.</returns>
@@ -172,9 +171,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// so forward lands on the first row.
         /// </summary>
         /// <remarks>
-        /// A direction cannot express roll, so one is chosen rather than recovered, and world up is the
-        /// reference that chooses it. Computed straight from the direction rather than by going through
-        /// angles, since this runs per particle in places.
+        /// A direction cannot express roll, so world up picks one rather than recovering it. Computed
+        /// directly from the direction, not through angles, since this runs per particle in places.
         /// </remarks>
         /// <param name="direction">The forward direction. Does not need to be normalized.</param>
         /// <returns>The rotation matrix, with forward, left and up as its rows.</returns>
@@ -211,8 +209,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var forward = Vector3.Normalize(direction);
 
-            // Yaw's sine and cosine come straight off the flattened direction, and pitch's off forward's
-            // own components, so the frame needs no trigonometry at all
+            // Yaw's sine and cosine come from the flattened direction, pitch's from forward: no trig needed.
             var flat = MathF.Sqrt(forward.X * forward.X + forward.Y * forward.Y);
             var cosYaw = forward.X / flat;
             var sinYaw = forward.Y / flat;

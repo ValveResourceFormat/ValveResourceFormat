@@ -444,8 +444,7 @@ public sealed class TiledCullFeeder
     /// </summary>
     public void End()
     {
-        // Fitted here rather than in Begin because it is a property of the items, and they are only
-        // projected in between.
+        // Fitted here, not in Begin, since it depends on items projected in between.
         SliceFar = Math.Clamp(MaxItemViewDepth, minSliceFar, maxSliceFar);
 
         cullParams.DepthBinWidth = SliceFar / depthBins;
@@ -692,9 +691,9 @@ public sealed class TiledCullFeeder
     }
 
     /// <summary>
-    /// Screen bounds of the hull a projection left behind, clamped to the viewport. This is the frustum
-    /// rejection the compute passes no longer do: false for a degenerate or off screen volume, which
-    /// clamping instead would smear across a whole edge row of tiles.
+    /// Screen bounds of the hull a projection left behind, clamped to the viewport. Frustum rejection
+    /// happens here: false for a degenerate or off screen volume, which clamping would smear across a
+    /// whole edge row of tiles.
     /// </summary>
     private bool HullBounds(in Projection projection, out Vector2 boundsMin, out Vector2 boundsMax)
     {

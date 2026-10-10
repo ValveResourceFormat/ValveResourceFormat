@@ -19,7 +19,7 @@ public class SampleProvider3D : SampleProviderSpatial
     /// <summary>
     /// Gets or sets the reciprocal of the distance this sound stays at full volume out to, past which it
     /// follows the inverse distance law (halving in amplitude per doubling of distance) instead of running
-    /// out of range - the engine's own attenuation model, derived from a sound level (see
+    /// out of range - derived from a sound level (see
     /// <see cref="SoundscapeOperatorParsing.SoundLevelToDistanceMult"/>). Zero attenuates nothing at all
     /// (SNDLVL_NONE), null leaves attenuation to the curve or to <see cref="Range"/>.
     /// </summary>
@@ -85,8 +85,7 @@ public class SampleProvider3D : SampleProviderSpatial
         base.ResetInterpolation();
         occlusion = -1f;
 
-        // A reused provider is a new sound somewhere else entirely: the old position says nothing about
-        // how fast this one is moving
+        // A reused provider is a new sound elsewhere, so its old position says nothing about speed
         hasLastPosition = false;
         velocity = Vector3.Zero;
     }
@@ -208,8 +207,8 @@ public class SampleProvider3D : SampleProviderSpatial
 
         var shift = Math.Clamp(1f + ((SpeedOfSound + closingRate) / (SpeedOfSound + recedingRate) - 1f) * scale, 0.5f, 2f);
 
-        // Anything below this is inaudible as a pitch change, and it is worth snapping to exactly 1:
-        // that is what lets a still listener keep streaming samples straight through instead of resampling
+        // Shifts within 0.001 of 1 are inaudible, so snap to exactly 1:
+        // a still listener then streams without resampling
         dopplerTarget.DopplerShift = MathF.Abs(shift - 1f) < 0.001f ? 1f : shift;
     }
 }

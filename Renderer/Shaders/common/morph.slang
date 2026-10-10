@@ -43,8 +43,7 @@ vec3 getMorphOffset()
     return vec3(0, 0, 0);
 }
 
-// The normal/wrinkle field carries the normal delta in rgb and the wrinkle weight in a.
-// Nothing consumes wrinkle yet, it is only composited.
+// Normal/wrinkle field: normal delta in rgb, wrinkle weight in a. Wrinkle is only composited so far.
 vec3 applyMorphNormal(vec3 normal)
 {
     #if (F_MORPH_SUPPORTED == 1)

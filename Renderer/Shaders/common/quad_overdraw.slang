@@ -35,13 +35,11 @@ void CountQuadOverdraw()
 
     // A primitive that touches a 2x2 quad shades it once per covered pixel, but must count only once.
 
-    // The quad lock serves as a scoreboard: each fragment tries to claim the quad with its primitive id, and only a claim
-    // that observed the quad unlocked counts.
+    // Scoreboard lock: fragments claim the quad with their primitive id; only a claim that saw it unlocked counts.
 
     // Fragments that see their primitive id lost the race to a sibling fragment and bail.
 
-    // Fragments that see a different primitive spin while that primitive releases the
-    // lock, bounded to keep the loop finite under heavy load.
+    // Fragments seeing another primitive spin until it releases the lock, bounded to stay finite under load.
     uint lockValue = 0u;
     bool done = false;
     int claimed = 0;

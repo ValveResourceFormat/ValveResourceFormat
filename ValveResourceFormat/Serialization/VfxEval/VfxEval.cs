@@ -126,9 +126,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
             SYSTEM_VALUE,       // 22
         };
 
-        // How tightly an expression binds, listed loosest first. An operand is bracketed only where
-        // it binds looser than the operator using it, which keeps the output free of brackets that
-        // the reader would put back in the same place anyway.
+        // Binding strength, loosest first. An operand is bracketed only where it binds looser than
+        // the operator using it, so the output has no brackets the reader would infer anyway.
         private enum Precedence
         {
             Conditional,    // a ? b : c
@@ -142,10 +141,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
             Atom,           // literals, names, calls, swizzles
         }
 
-        // Comparisons, &&, || and ?: are the operators producing a boolean, and they all bind looser
-        // than this. Where one of them is nested in an operator taking numbers, or in the condition or
-        // true result of a conditional, it keeps the brackets precedence would let us drop:
-        // (a==b) ? x : y reads better than a==b ? x : y, and (a==b)!=(c>=d) better than a==b!=c>=d.
+        // Comparisons, &&, || and ?: yield booleans and bind looser than this. Nested in a numeric
+        // operator, or as a conditional's condition or true result, they keep brackets precedence would drop:
+        // (a==b) ? x : y rather than a==b ? x : y, and (a==b)!=(c>=d) rather than a==b!=c>=d.
         private const Precedence AboveBoolean = Precedence.Additive;
 
         private static (string Symbol, Precedence Precedence) GetOperator(OPCODE op) => op switch
@@ -172,10 +170,9 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private const uint TRUE_BLOCK_FIRST = 0;
         private const uint FALSE_BLOCK_FIRST = 1;
 
-        // An expression carries two renderings, because at the point it is built it is not yet known
-        // how it is consumed. Text is what it reads as anywhere in the expression tree, ResultText is
-        // what it reads as where its value becomes the value of the whole expression, which is the
-        // only place where literals name a render state value.
+        // Each expression has two renderings, as its consumer is unknown when it is built. Text is how
+        // it reads anywhere in the tree, ResultText where its value becomes the whole expression's value,
+        // the only place literals name a render state value.
         private readonly struct Expression(string text, string resultText, Precedence precedence)
         {
             public string Text { get; } = text;
@@ -425,9 +422,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     ? (expFirstBlock, expSecondBlock)
                     : (expSecondBlock, expFirstBlock);
 
-                // && and || evaluate to a constant when they short circuit, restore their source form.
-                // Which one it was is decided by the shape alone. Results of exactly 1 and 0 are the one
-                // shape the two forms share, and there the conditional is what the source read as.
+                // && and || fold to a constant when they short circuit, and the shape alone tells which to restore.
+                // Results of exactly 1 and 0 fit both forms, and there the conditional is what the source read as.
                 string Fold(string symbol, Precedence precedence, in Expression other)
                     => $"{expCondition.Operand(precedence)} {symbol} {other.Operand(precedence + 1)}";
 
@@ -436,9 +432,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     : trueBlockFirst && whenTrue.Text == "1" ? Fold("||", Precedence.Or, whenFalse)
                     : null;
 
-                // A conditional picking between two values is written as the same bytes, so where both
-                // results are constants that name a value, the conditional is what the expression reads
-                // as in result position, and the fold is only how it reads everywhere else.
+                // A conditional choosing between two values is the same bytes as a fold, so where both results
+                // name a value, the conditional is what reads in result position, and the fold elsewhere.
                 var namedResults = TryGetValueName(whenTrue.Text, out _) && TryGetValueName(whenFalse.Text, out _);
 
                 // A conditional nested in the false result chains into a readable series of cases; the

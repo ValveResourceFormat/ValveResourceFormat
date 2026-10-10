@@ -10,8 +10,8 @@ namespace ValveResourceFormat.Renderer.Particles
 {
     /// <summary>
     /// Draws a <see cref="ParticleSystemSimulation"/>. One of these mirrors each system in the
-    /// simulation's child tree, owning the renderers that system draws through and nothing else: the
-    /// particles, control points and timing all belong to the simulation it watches.
+    /// simulation's child tree and owns only the renderers that system draws through. Particles,
+    /// control points and timing belong to the simulation it watches.
     /// </summary>
     internal sealed class ParticleRenderer : IParticleSystemObserver
     {
@@ -193,9 +193,8 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Finishes the frame for this system's renderers and its children's, on one thread. A renderer
-        /// that does not draw this frame, out of draw distance or faded out, is hidden; the rest finish
-        /// the step when there was one.
+        /// Finishes the frame for this system's renderers and its children's, on one thread. Renderers
+        /// out of draw distance or faded out are hidden; the rest finish the step when there was one.
         /// </summary>
         public void Act(Camera camera, bool stepped)
         {

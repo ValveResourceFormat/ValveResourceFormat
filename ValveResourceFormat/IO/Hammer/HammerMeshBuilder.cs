@@ -15,7 +15,7 @@ using RnHull = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Hull;
 namespace ValveResourceFormat.IO
 {
     /// <summary>
-    /// Finds the physics triangles that render geometry already covers in order to delete them, because reconstructed solid render meshes regenerate this physics geometry.
+    /// Finds physics triangles already covered by render geometry so they can be deleted, since reconstructed solid render meshes regenerate them.
     /// </summary>
     public class PhysicsTriangleMatcher
     {
@@ -198,14 +198,13 @@ namespace ValveResourceFormat.IO
     /// Add vertices with <see cref="AddVertices(ReadOnlySpan{Vector3})"/> and faces with <see cref="AddFace"/> (or use one of the adders for
     /// render and physics meshes), then write the result with <see cref="GenerateMesh"/>.
     ///
-    /// There are options for features such as <see cref="Untriangulate"/> to join
-    /// triangle pairs into quads or <see cref="GenerateMeshes()"/> to split the mesh by mesh connectivity, or <see cref="GenerateMeshes(float)"/> to weld it first.
+    /// <see cref="Untriangulate"/> joins triangle pairs into quads, <see cref="GenerateMeshes()"/> splits the mesh by connectivity
+    /// and <see cref="GenerateMeshes(float)"/> welds it first.
     /// </para>
     /// 
     /// <para>
-    /// The mesh itself is a <see cref="PolygonMesh"/>, a half edge topology with the data of a Hammer mesh, position
-    /// per vertex, corner data per half edge, material per face. <see cref="WriteMesh"/> loops through it and writes
-    /// the vmap format.
+    /// The mesh is a <see cref="PolygonMesh"/>, a half edge topology with Hammer data: position per vertex, corner data per
+    /// half edge, material per face. <see cref="WriteMesh"/> writes it as a vmap.
     /// </para>
     /// </remarks>
     public class HammerMeshBuilder
@@ -249,8 +248,8 @@ namespace ValveResourceFormat.IO
         public int OriginalFaceCount { get; private set; }
 
         /// <summary>
-        /// The mesh being built. Its editing operations (merging, dissolving, splitting into islands) can be used
-        /// once all faces were added, before the mesh is written out.
+        /// The mesh being built. Editing operations (merging, dissolving, splitting into islands) apply once all faces
+        /// are added, before writing.
         /// </summary>
         public PolygonMesh Mesh { get; } = new();
 
@@ -268,15 +267,14 @@ namespace ValveResourceFormat.IO
         public IProgress<string>? ProgressReporter { get; init; }
 
         /// <summary>
-        /// Join coplanar triangle pairs into quads when writing the mesh out, where they use the same material and
-        /// agree on their corner data along the shared edge. Off by default, the faces are written as they were added.
+        /// Join coplanar triangle pairs into quads when writing, if they share a material and agree on corner data
+        /// along their shared edge. Off by default.
         /// </summary>
         public bool Untriangulate { get; init; }
 
         /// <summary>
-        /// Returns the size in texels of the texture a material uses, for faces added without texture coordinates:
-        /// their texture is projected onto them in texels, like Hammer does. Null for materials it doesn't know, which
-        /// are projected with <see cref="DefaultProjectedTextureSize"/>.
+        /// Size in texels of a material's texture, for projecting faces added without texture coordinates the way Hammer does.
+        /// Null for unknown materials, which use <see cref="DefaultProjectedTextureSize"/>.
         /// </summary>
         public Func<string, Vector2?>? TextureSizeProvider { get; init; }
 
@@ -316,9 +314,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Writes everything added so far out as Hammer meshes, one per island of faces connected through shared
-        /// edges. Faces that were extracted because they didn't fit the topology are grouped by coinciding
-        /// positions. Each island is copied into its own mesh and written out, untriangulated when <see cref="Untriangulate"/> is set.
+        /// Writes everything added so far as Hammer meshes, one per island of faces connected through shared edges.
+        /// Faces that did not fit the topology are grouped by coinciding positions. Untriangulated when <see cref="Untriangulate"/> is set.
         /// </summary>
         public List<CDmePolygonMesh> GenerateMeshes()
             => WriteParts(Mesh.SplitConnectedParts());
@@ -441,7 +438,7 @@ namespace ValveResourceFormat.IO
 
                 var hEdge = new HalfEdgeHandle(i, polygonMesh.Topology);
 
-                // EdgeData refers to a single edge, so its half of the total of half edges, both halves of the edge should have the same EdgeData Index
+                // EdgeData refers to a single edge, so both halves of the edge share one EdgeData index
                 // Twin half edges are always allocated (and freed) as pairs, so both map to edge newIndex / 2
                 mesh.EdgeDataIndices.Add(newIndex / 2);
 
@@ -455,7 +452,7 @@ namespace ValveResourceFormat.IO
 
                 mesh.FaceVertexData.Size += 1;
 
-                // corner data was fanned onto the half edge streams in WriteFaceData(),
+                // corner data was fanned onto the half edge streams in WriteCorners(),
                 // boundary half edges keep the stream defaults (zero)
                 normals.Add(polygonMesh.Normals[hEdge]);
                 tangents.Add(polygonMesh.Tangents[hEdge]);
@@ -577,7 +574,7 @@ namespace ValveResourceFormat.IO
                 vertices[i] = Vertices[indices[i]];
             }
 
-            // AddFace will validate the face against all topology rules, if it fails, we duplicate its vertices, extracting the face
+            // the topology validates the face, if rejected it is extracted on duplicated vertices
             if (Mesh.Topology.AddFace(out var hFace, vertices))
             {
                 WriteCorners(hFace, material, corners);
@@ -690,8 +687,8 @@ namespace ValveResourceFormat.IO
             while (hEdge != hFace.Edge);
         }
 
-        // Faces which can't be integrated into the existing topology (they would create a nonmanifold edge or vertex)
-        // are added as a disconnected island with duplicated vertices, so no geometry is lost
+        // Faces that would create a nonmanifold edge or vertex are added as a disconnected island with
+        // duplicated vertices, so no geometry is lost
         private void ExtractFace(ReadOnlySpan<int> indices, string material, ReadOnlySpan<Corner> corners)
         {
             FacesRemoved++;

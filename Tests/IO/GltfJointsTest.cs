@@ -324,8 +324,7 @@ public class GltfJointsTest
 
         GltfModelExporter.SplitEightBoneJoints(joints, output);
 
-        // Layout: JOINTS_0 holds the first 4 indices of each vertex packed together,
-        // then JOINTS_1 holds the last 4 indices of each vertex packed together.
+        // JOINTS_0 packs the first 4 indices of each vertex, then JOINTS_1 packs the last 4.
         ushort[] expected = [
             1,  2,  3,  4,  11, 12, 13, 14, 21, 22, 23, 24,
             5,  6,  7,  8,  15, 16, 17, 18, 25, 26, 27, 28,

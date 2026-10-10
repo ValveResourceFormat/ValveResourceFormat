@@ -49,8 +49,7 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
-                // Keep the flat array aligned with the fixed-size node groups: substitute 0 for an unparseable
-                // token instead of dropping it, which would shift every later field.
+                // Substitute 0 for an unparseable token rather than dropping it, which would shift every later field.
                 result.Add(float.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : 0f);
             }
 
@@ -130,8 +129,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else
                 {
-                    // Unknown spelling: keep the array aligned with the node list by falling back to the
-                    // default (every node pinned) rather than dropping the entry.
+                    // Unknown spelling: fall back to the default (pinned) rather than dropping the entry, which would misalign the nodes.
                     result.Add(true);
                 }
             }

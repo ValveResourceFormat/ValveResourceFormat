@@ -11,17 +11,14 @@ namespace ValveResourceFormat.Renderer.Entities;
 public delegate BaseEntity EntityCreator(EntitySystem system, EntitySpawnInfo spawnInfo);
 
 /// <summary>
-/// Turns a classname into a live entity. Source's entity factory dictionary: every simulated classname
-/// registers here, and anything absent from the table is not one the entity system implements.
+/// Creates entities from classnames. Classnames absent from the table are not implemented.
 /// </summary>
 /// <remarks>
-/// The table is filled in statically rather than by scanning types, to stay trim-safe and AOT-compatible.
+/// Filled in statically rather than by scanning types, to stay trim-safe and AOT-compatible.
 /// </remarks>
 public static class EntityFactory
 {
-    // Concurrent for the same reason the input tables are: the registrations themselves all happen in the
-    // static constructor, but the map loads that read this run on several threads at once, and nothing in
-    // the type stops a caller registering a classname of its own later
+    // Concurrent because map loads read this from several threads and classnames may be registered later
     private static readonly ConcurrentDictionary<string, EntityCreator> Creators = new(StringComparer.OrdinalIgnoreCase);
 
     static EntityFactory()
@@ -139,9 +136,8 @@ public static class EntityFactory
     }
 
     /// <summary>
-    /// Registers a classname the entity system should simulate, and builds the entity class's table of
-    /// <see cref="EntityInputAttribute"/> handlers. Safe to call while maps are loading, though the static
-    /// constructor below is where the entity system's own classnames are declared.
+    /// Registers a classname and builds its entity class's table of <see cref="EntityInputAttribute"/>
+    /// handlers. Safe to call while maps are loading.
     /// </summary>
     /// <typeparam name="T">The entity class the classname spawns.</typeparam>
     /// <param name="classname">The classname to link, matched case-insensitively.</param>
@@ -155,10 +151,9 @@ public static class EntityFactory
     }
 
     /// <summary>
-    /// Creates the entity for a classname, not yet spawned and not yet in the world;
-    /// <see cref="EntitySystem.CreateEntity"/> is what spawns it and puts it there. A classname
-    /// that is not implemented spawns a <see cref="GenericModelEntity"/> when it has a model, and a
-    /// <see cref="GenericEntity"/> when it does not.
+    /// Creates the entity for a classname, which <see cref="EntitySystem.CreateEntity"/> then spawns and
+    /// adds to the world. An unimplemented classname gives a
+    /// <see cref="GenericModelEntity"/> when it has a model, otherwise a <see cref="GenericEntity"/>.
     /// </summary>
     /// <returns>
     /// The entity, or <see langword="null"/> when the keyvalues name no classname or a <c>worldspawn</c>.
@@ -167,8 +162,7 @@ public static class EntityFactory
     {
         var classname = spawnInfo.Data.GetStringProperty("classname");
 
-        // No entity class goes by worldspawn: its keyvalues are the map's world settings, and the world
-        // entity is the entity system's own
+        // worldspawn keyvalues are the map's world settings; the world entity belongs to the entity system
         if (classname == null || classname.Equals("worldspawn", StringComparison.OrdinalIgnoreCase))
         {
             return null;

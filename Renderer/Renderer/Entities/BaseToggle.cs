@@ -3,13 +3,11 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// The base of the brush entities that travel between two places, Source's <c>CBaseToggle</c>: buttons,
-/// doors, and anything else that slides open and shut.
+/// Base for brush entities that travel between two positions, such as buttons and doors.
 /// </summary>
 /// <remarks>
-/// The travel is a <c>LinearMove</c>, not an interpolation: the entity is given a constant velocity and a
-/// deadline, the tick integrates it like anything else that moves, and the arrival lands on the exact
-/// destination rather than wherever the last tick happened to leave it.
+/// A travel gives the entity a constant velocity and a deadline, and the arrival snaps to the exact
+/// destination instead of wherever the last tick left it.
 /// </remarks>
 public abstract class BaseToggle : BaseModelEntity
 {
@@ -29,22 +27,22 @@ public abstract class BaseToggle : BaseModelEntity
         GoingDown,
     }
 
-    /// <summary>Gets or sets how fast the brush travels, in units per second.</summary>
+    /// <summary>Gets how fast the brush travels, in units per second.</summary>
     public float Speed { get; protected set; }
 
-    /// <summary>Gets or sets how much of the brush stays proud of its opening, the <c>lip</c> keyvalue.</summary>
+    /// <summary>Gets the <c>lip</c> keyvalue: how much of the brush stays proud of its opening.</summary>
     public float Lip { get; protected set; }
 
     /// <summary>Gets the direction the brush travels in the world, resolved from its <c>movedir</c>.</summary>
     protected Vector3 MoveDirection { get; private set; }
 
     /// <summary>
-    /// Gets or sets where the brush is heading. A travel under way keeps its velocity when this changes, and
-    /// lands here once its time is up.
+    /// Gets or sets where the brush is heading. Changing it mid-travel keeps the velocity; the brush lands
+    /// here once its time is up.
     /// </summary>
     protected Vector3 FinalDestination { get; set; }
 
-    /// <summary>Gets whether a <see cref="LinearMove"/> or <see cref="AngularMove"/> is under way.</summary>
+    /// <summary>Gets whether a <see cref="LinearMove"/> is under way.</summary>
     protected bool IsLinearMoving { get; private set; }
 
     private Vector3 finalAngle;
@@ -62,8 +60,7 @@ public abstract class BaseToggle : BaseModelEntity
     }
 
     /// <summary>
-    /// Sets off towards a destination at <see cref="Speed"/>, arriving when the move-done comes due.
-    /// Source's <c>CBaseToggle::LinearMove</c>: constant velocity and a deadline, not a lerp.
+    /// Moves towards a destination at <see cref="Speed"/>, arriving when the move-done comes due.
     /// </summary>
     protected void LinearMove(Vector3 destination)
     {
@@ -71,7 +68,7 @@ public abstract class BaseToggle : BaseModelEntity
 
         if (destination == Origin || Speed <= 0f)
         {
-            // Nowhere to go, so the arrival is now, and the one a travel under way had scheduled is dropped
+            // Nothing to travel: arrive now and drop any scheduled arrival
             SetMoveDoneTime(-1f);
             MoveDone();
             return;
@@ -88,7 +85,7 @@ public abstract class BaseToggle : BaseModelEntity
 
     /// <summary>
     /// Turns towards a destination angle at <paramref name="speed"/> degrees per second, arriving when
-    /// the move-done comes due. Source's <c>CBaseToggle::AngularMove</c>.
+    /// the move-done comes due.
     /// </summary>
     protected void AngularMove(Vector3 destinationAngle, float speed)
     {
@@ -103,7 +100,7 @@ public abstract class BaseToggle : BaseModelEntity
 
         var delta = destinationAngle - Angles;
 
-        // Source's floor on the travel, so a turn cannot be so short that the tick steps over it
+        // Minimum duration so the tick cannot step over a tiny turn
         var travelTime = MathF.Max(delta.Length() / speed, 0.01f);
 
         isAngularMoving = true;
@@ -120,7 +117,6 @@ public abstract class BaseToggle : BaseModelEntity
     {
         if (isAngularMoving)
         {
-            // Land exactly on the destination rather than wherever the last tick left off
             isAngularMoving = false;
             AngularVelocity = Vector3.Zero;
             Angles = finalAngle;
@@ -141,9 +137,8 @@ public abstract class BaseToggle : BaseModelEntity
     }
 
     /// <summary>
-    /// Reads the axis a rotating brush turns about from its spawnflags. Source's
-    /// <c>CBaseToggle::AxisDir</c>, whose flag names are for the QAngle component they set, so its "roll"
-    /// flag is what Hammer labels X Axis.
+    /// Reads the axis a rotating brush turns about from its spawnflags. Flag names are for the QAngle
+    /// component they set, so the "roll" flag is what Hammer labels X Axis.
     /// </summary>
     protected static Vector3 GetAxisDirection(bool rollAxis, bool pitchAxis)
     {
@@ -156,9 +151,9 @@ public abstract class BaseToggle : BaseModelEntity
     }
 
     /// <summary>
-    /// Reads the direction a button, door or mover travels, the way CS2 reads it: <c>movedir</c> is an angle
-    /// in the entity's own frame, with none of Source 1's magic values for up and down, and the entity's
-    /// orientation carries it into the world. A door rotated by its instance therefore still opens the way it was authored to.
+    /// Reads the direction a button, door or mover travels. <c>movedir</c> is an angle in the entity's own
+    /// frame with no special values for up and down, and the entity's orientation carries it into the world,
+    /// so an instance-rotated door still opens as authored.
     /// </summary>
     /// <returns>The direction in the entity's own frame, which is the frame its bounds are measured in.</returns>
     protected Vector3 ResolveEntitySpaceMoveDirection()
@@ -174,8 +169,8 @@ public abstract class BaseToggle : BaseModelEntity
     /// How far the brush slides: its own length along the travel axis, less the lip that keeps it proud.
     /// </summary>
     /// <remarks>
-    /// Source 1 subtracts a further 2 units because its engine hands it a brush bound that is 1 unit larger
-    /// in every direction. CS2 measures the unpadded bounds, and so do the compiled collision hulls here.
+    /// Deliberately takes off no extra 2 units for bounds padded by 1 unit per side: the compiled collision
+    /// hulls are unpadded.
     /// </remarks>
     /// <param name="localDirection">The travel direction, in the frame of the brush's own bounds.</param>
     protected float GetTravelDistance(Vector3 localDirection)

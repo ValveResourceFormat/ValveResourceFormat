@@ -3,10 +3,9 @@ using OpenTK.Graphics.OpenGL;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Maps <see cref="ImageFormat"/>, the engine format vocabulary, to the OpenGL equivalents.
-    ///
-    /// This makes the renderer unaware of graphics API specific formats, and we can later map these to anything else.
-    /// The facts that hold for every API live on <see cref="Utils.ImageFormatExtensions"/> instead.
+    /// Maps <see cref="ImageFormat"/> to OpenGL equivalents, keeping the renderer
+    /// unaware of API specific formats so they can later map to anything else.
+    /// Facts that hold for every API live on <see cref="Utils.ImageFormatExtensions"/>.
     /// </summary>
     public static class GLImageFormatExtensions
     {

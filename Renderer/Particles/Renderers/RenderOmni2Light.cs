@@ -126,7 +126,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>
         /// Combines the particle color with the blend color. The particle color is quantized to bytes
         /// while the blend color stays normalized, so the modes that do not multiply the two mix
-        /// both scales, the same as in game.
+        /// both scales.
         /// </summary>
         private static Vector3 BlendColor(ParticleColorBlendType type, Vector3 blend, Vector3 particleColor)
         {

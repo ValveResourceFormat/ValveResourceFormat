@@ -24,8 +24,8 @@ public readonly record struct EntityNameFixup(string Parent, string Local)
     /// holds a marker.
     /// </summary>
     /// <remarks>
-    /// Nested values are left alone: the engine only fixes the strings inside them that are typed as entity
-    /// names, a type the parsed keyvalues no longer carry.
+    /// Nested values are left alone: only their strings typed as entity names would be fixed, and parsed
+    /// keyvalues no longer carry that type.
     /// </remarks>
     public Entity Apply(Entity data)
     {

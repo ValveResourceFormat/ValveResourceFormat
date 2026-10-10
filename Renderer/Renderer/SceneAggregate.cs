@@ -267,8 +267,8 @@ namespace ValveResourceFormat.Renderer
             drawCall.FirstMeshlet = RenderMesh.Meshlets.Count;
             drawCall.NumMeshlets = 1;
 
-            // Packed meshlet bounds are normalized within the parent draw bounds, so a min of zero and a
-            // max of 1023 in every component unpacks back to exactly the draw call's own bounding box.
+            // Packed bounds are normalized to the draw bounds, so min 0 and max 1023 in every component
+            // unpack to the draw call's own box.
             const uint PackedBoundsMax = (1023u << 20) | (1023u << 10) | 1023u;
 
             RenderMesh.Meshlets.Add(new Meshlet

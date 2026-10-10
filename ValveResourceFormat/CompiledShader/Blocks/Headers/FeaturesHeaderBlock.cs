@@ -12,8 +12,8 @@ namespace ValveResourceFormat.CompiledShader;
 public class FeaturesHeaderBlock : ShaderDataBlock
 {
     /// <summary>
-    /// Gets the version of the shader source this file was compiled from. It increments whenever the source changes,
-    /// and is identical across all platforms and shader models the shader was compiled for.
+    /// Gets the shader source version. It increments whenever the source changes and is identical
+    /// across all platforms and shader models.
     /// </summary>
     public int Version { get; }
     /// <summary>Gets the file description.</summary>

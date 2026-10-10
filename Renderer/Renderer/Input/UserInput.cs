@@ -99,9 +99,8 @@ public class UserInput
     public bool MouseLook { get; private set; }
 
     /// <summary>
-    /// Gets a value indicating whether the walk mode crosshair should be drawn. The viewmodel already
-    /// hides itself outside walk mode and while the camera is detached, so it decides; without one
-    /// there is nothing to aim, so no crosshair.
+    /// Gets whether to draw the walk mode crosshair. The viewmodel hides itself outside walk mode and while
+    /// the camera is detached, so it decides. With no viewmodel there is nothing to aim at.
     /// </summary>
     public bool ShowCrosshair => Viewmodel is { ShowCrosshair: true };
 

@@ -13,11 +13,10 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         /// <summary>Gets the distance to the near plane this view was projected with.</summary>
         /// <remarks>
-        /// Recovered from the projection rather than carried as a field, so it costs nothing in the layout
-        /// this class is marshalled to the GPU with. The reverse Z form
+        /// Recovered from the projection, so it adds nothing to the GPU layout. The reverse Z form
         /// <see cref="Camera.CreateProjectionMatrix"/> builds has <c>M33 = near / (far - near)</c> and
-        /// <c>M43 = near * far / (far - near)</c>, which inverts to this exactly and collapses to plain
-        /// <c>M43</c> when the far plane is infinite.
+        /// <c>M43 = near * far / (far - near)</c>, which inverts to this exactly and reduces to <c>M43</c>
+        /// when far is infinite.
         /// </remarks>
         public float NearPlane => ViewToProjection.M43 / (1f + ViewToProjection.M33);
 

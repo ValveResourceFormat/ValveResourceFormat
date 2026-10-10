@@ -6,7 +6,7 @@ using ValveResourceFormat.ResourceTypes;
 namespace Tests.Renderer
 {
     /// <summary>
-    /// The camera holds pitch and yaw the way the engine does, and derives its direction vectors from them
+    /// The camera holds pitch and yaw in QAngle convention, and derives its direction vectors from them
     /// analytically. These pin that the two agree, and that the derivation survives looking straight down,
     /// which is where an euler representation is usually expected to give out.
     /// </summary>
@@ -69,8 +69,8 @@ namespace Tests.Renderer
         }
 
         /// <summary>
-        /// Angles that carry no roll level the camera, rather than leaving whatever roll was there to show
-        /// through. A viewer opened while the view is punched used to inherit that punch for a frame.
+        /// Angles that carry no roll level the camera, rather than leaving whatever roll was there
+        /// to show through.
         /// </summary>
         [Test]
         public async Task SetFromQAngleClearsAnExistingRoll()

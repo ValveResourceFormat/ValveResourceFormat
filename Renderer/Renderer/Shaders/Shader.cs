@@ -538,7 +538,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <inheritdoc cref="SetUniform(string, float)"/>
         public void SetUniform(string name, Matrix4x4 value) => Default.SetUniform(name, value);
 
-        /// <summary>Enumerates all active non-block uniforms in the program (uniforms belonging to uniform blocks are skipped), populating the internal uniform location cache.</summary>
+        /// <summary>Enumerates active uniforms outside uniform blocks, populating the uniform location cache.</summary>
         /// <returns>A sequence of tuples with each uniform's name, index, type, and array size.</returns>
         public IEnumerable<(string Name, int Index, ActiveUniformType Type, int Size)> GetAllUniformNames()
         {
@@ -758,7 +758,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>Sets a 3×4 matrix uniform (converted from a <see cref="Matrix4x4"/> by transposing and dropping the last (M14/M24/M34/M44) column).</summary>
+        /// <summary>Sets a 3x4 matrix uniform (converted from a <see cref="Matrix4x4"/> by transposing and dropping the last (M14/M24/M34/M44) column).</summary>
         public void SetUniform3x4(string name, Matrix4x4 value)
         {
             var uniformLocation = GetUniformLocation(name);
@@ -769,7 +769,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>Sets a 4×4 matrix uniform on this program.</summary>
+        /// <summary>Sets a 4x4 matrix uniform on this program.</summary>
         /// <param name="name">The uniform variable name.</param>
         /// <param name="value">The matrix value.</param>
         /// <param name="transpose">Whether to transpose the matrix before uploading.</param>

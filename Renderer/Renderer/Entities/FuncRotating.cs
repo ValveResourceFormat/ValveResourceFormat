@@ -9,25 +9,19 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ported from Source's <c>CFuncRotating</c>, structure included: the speed ramp is a chain of move-done
-/// callbacks 0.1s apart (<c>SpinUpMove</c> / <c>SpinDownMove</c>) that hand over to <c>RotateMove</c> at
-/// the target speed, and the fixed tick integrates the angles.
+/// The speed ramp is a chain of move-done callbacks 0.1s apart (<c>SpinUpMove</c> / <c>SpinDownMove</c>)
+/// that hand over to <c>RotateMove</c> at the target speed.
 /// </para>
 /// <para>
-/// The axis flags are named after the code's <c>m_vecMoveAng</c>, a QAngle, so Hammer's "X Axis" sets roll
-/// and its "Y Axis" sets pitch, and with neither set the brush yaws about world Z. The mismatch is the
-/// engine's, kept so maps rotate the way they do in game.
+/// Hammer's "X Axis" sets roll and its "Y Axis" sets pitch, and with neither set the brush yaws about
+/// world Z. The mismatch is deliberate, so maps rotate the way they do in game.
 /// </para>
 /// <para>
-/// The brush is solid and the player collides with it as it turns, unless the "Not Solid" flag is set. The
-/// "Fan Pain" damage flag is not simulated, nor is the pusher physics that would carry a player standing
-/// on it or shove one it turns into.
+/// The brush is solid unless "Not Solid" is set. The "Fan Pain" damage flag is not simulated.
 /// </para>
 /// <para>
-/// The sound follows the speed like <c>RampPitchVol</c>, except in pitch: the engine winds the sample from
-/// 30% to 100% pitch during spin-up, which the sound player cannot do. Volume still ramps, so a fan fades
-/// in and out with its spin. The sound radius flags pick an attenuation, also not exposed, so a
-/// small-radius fan carries as far as a large one.
+/// Sound volume follows the speed, but the pitch stays fixed: in game the sample is wound from 30% to
+/// 100% pitch during spin-up, which the sound player cannot do.
 /// </para>
 /// </remarks>
 public sealed class FuncRotating : BaseModelEntity
@@ -38,11 +32,7 @@ public sealed class FuncRotating : BaseModelEntity
     /// <inheritdoc/>
     protected override bool IsUnblockableByPlayer => HasSpawnFlags(SpawnFlag.UnblockableByPlayer);
 
-    /// <summary>
-    /// What a <c>func_rotating</c>'s <c>spawnflags</c> mean. The axis flags are named for what they do;
-    /// the engine's own constants name them for the QAngle component they set, which is why its
-    /// <c>Z_AXIS</c> rolls and its <c>X_AXIS</c> pitches.
-    /// </summary>
+    /// <summary>The <c>spawnflags</c> of a <c>func_rotating</c>.</summary>
     [Flags]
     public enum SpawnFlag : uint
     {
@@ -80,7 +70,6 @@ public sealed class FuncRotating : BaseModelEntity
         UnblockableByPlayer = 2048,
     }
 
-    /// <summary>How the ramp progresses; Source picks between these with <c>SetMoveDone</c>.</summary>
     private enum MoveDoneFunction
     {
         None,
@@ -90,7 +79,7 @@ public sealed class FuncRotating : BaseModelEntity
         Rotate,
     }
 
-    /// <summary>Gets the axis to rotate about, as a QAngle direction. Source's <c>m_vecMoveAng</c>.</summary>
+    /// <summary>Gets the axis to rotate about, as a QAngle direction.</summary>
     public Vector3 MoveAngles { get; private set; }
 
     /// <summary>Gets the top rotation speed in degrees per second.</summary>
@@ -111,9 +100,7 @@ public sealed class FuncRotating : BaseModelEntity
     /// <summary>Gets the sound played while the brush turns, the <c>message</c> keyvalue.</summary>
     public string? SoundName { get; private set; }
 
-    /// <summary>
-    /// Gets the volume that sound reaches at full speed, 0 to 1. Authored as <c>volume</c>, 0 to 10.
-    /// </summary>
+    /// <summary>Gets the volume the sound reaches at full speed, 0 to 1. Authored as <c>volume</c>, 0 to 10.</summary>
     public float Volume { get; private set; } = 1f;
 
     private bool stopAtStartPos;
@@ -133,8 +120,7 @@ public sealed class FuncRotating : BaseModelEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
-        // KeyValue: m_flFanFriction = atof(szValue) / 100. Absent means zero rather than the FGD's 20,
-        // as it does in the engine, so the guard below is what a map that omits it actually gets.
+        // Absent means zero rather than the FGD's 20, so the guard below is what a map that omits it gets.
         FanFriction = KeyValues.GetFloatProperty("fanfriction") / 100f;
 
         // Prevent a divide by zero if the level designer forgot the friction
@@ -200,10 +186,7 @@ public sealed class FuncRotating : BaseModelEntity
         }
     }
 
-    /// <summary>
-    /// Starts a brush that spawned switched on. That deferred toggle is the only think this entity
-    /// schedules, so there is nothing to dispatch on.
-    /// </summary>
+    /// <summary>Toggles on a brush that spawned with <c>StartOn</c>; the only think this entity schedules.</summary>
     public override void Think() => Toggle();
 
     /// <inheritdoc/>
@@ -211,12 +194,11 @@ public sealed class FuncRotating : BaseModelEntity
     {
         base.PhysicsSimulate(tickInterval);
 
-        // Tracked as it turns, because once the body has turned off the axes the map authored it on,
-        // how far it has come round is no longer a component of the QAngle to be read back.
+        // Tracked here because once the body has turned off its authored axes, progress is no longer a
+        // QAngle component to read back.
         // Wrapped rather than run through AngleMod: that quantizes to 1/65536 of a turn and truncates
-        // towards zero, so accumulating through it drops the same fraction of a step every tick and the
-        // tracker walks away from the truth without bound. The engine never accumulates at all - it takes
-        // the difference from the live angles and applies anglemod once, at the point of reading it.
+        // towards zero, so accumulating through it drops a fraction of a step every tick and drifts
+        // without bound. AngleMod is applied once, when reading.
         turnedFromStart = (turnedFromStart + Speed * tickInterval) % 360f;
     }
 
@@ -243,7 +225,6 @@ public sealed class FuncRotating : BaseModelEntity
         }
     }
 
-    /// <summary>Spins the brush up to <c>maxspeed</c>, whichever way it was already set to turn.</summary>
     [EntityInput("Start")]
     private void InputStart(EntityInputData data)
     {
@@ -252,11 +233,7 @@ public sealed class FuncRotating : BaseModelEntity
         SetTargetSpeed(MaxSpeed);
     }
 
-    /// <summary>Spins the brush up to <c>maxspeed</c> forwards.</summary>
-    /// <remarks>
-    /// Unlike the other ways of starting it, this one leaves a pending <c>StopAtStartPos</c> alone, so a
-    /// brush told to stop at its start angle still does. The asymmetry is the engine's.
-    /// </remarks>
+    // Unlike the other starts, deliberately leaves a pending StopAtStartPos alone, so it still stops there.
     [EntityInput("StartForward")]
     private void InputStartForward(EntityInputData data)
     {
@@ -265,7 +242,6 @@ public sealed class FuncRotating : BaseModelEntity
         SetTargetSpeed(MaxSpeed);
     }
 
-    /// <summary>Spins the brush up to <c>maxspeed</c> backwards.</summary>
     [EntityInput("StartBackward")]
     private void InputStartBackward(EntityInputData data)
     {
@@ -275,7 +251,6 @@ public sealed class FuncRotating : BaseModelEntity
         SetTargetSpeed(MaxSpeed);
     }
 
-    /// <summary>Brings the brush to a stop wherever it happens to be.</summary>
     [EntityInput("Stop")]
     private void InputStop(EntityInputData data)
     {
@@ -284,14 +259,10 @@ public sealed class FuncRotating : BaseModelEntity
         SetTargetSpeed(0f);
     }
 
-    /// <summary>
-    /// Starts the brush if it is stopped, stops it if it is spinning. Tests the speed rather than the
-    /// angular velocity, as the input handler does; a brush that is running backwards starts again.
-    /// </summary>
+    // Tests the speed rather than the angular velocity, so a brush running backwards starts again.
     [EntityInput("Toggle")]
     private void InputToggle(EntityInputData data) => SetTargetSpeed(Speed > 0f ? 0f : MaxSpeed);
 
-    /// <summary>Flips the spin direction, keeping the speed it was already turning at.</summary>
     [EntityInput("Reverse")]
     private void InputReverse(EntityInputData data)
     {
@@ -301,7 +272,6 @@ public sealed class FuncRotating : BaseModelEntity
         SetTargetSpeed(Speed);
     }
 
-    /// <summary>Stops the brush once it comes back around to the angle it spawned at.</summary>
     [EntityInput("StopAtStartPos")]
     private void InputStopAtStartPos(EntityInputData data)
     {
@@ -310,14 +280,8 @@ public sealed class FuncRotating : BaseModelEntity
         SetMoveDoneTime(GetNextMoveInterval());
     }
 
-    /// <summary>
-    /// Puts the brush back on its start angle and stops it there, without waiting to come round.
-    /// </summary>
-    /// <remarks>
-    /// <c>OnReachedStart</c> is not fired, because it belongs to a pending <c>StopAtStartPos</c> running
-    /// its course and a snap cancels that stop rather than completing it. Stopping still reports through
-    /// <c>OnStopped</c>, like any other stop.
-    /// </remarks>
+    // Does not fire OnReachedStart: a snap cancels a pending StopAtStartPos rather than completing it.
+    // OnStopped still fires, as for any other stop.
     [EntityInput("SnapToStartPos")]
     private void InputSnapToStartPos(EntityInputData data)
     {
@@ -334,31 +298,23 @@ public sealed class FuncRotating : BaseModelEntity
         SnapInterpolation();
     }
 
-    /// <summary>
-    /// Changes the angle the brush treats as its start, the one it snaps and stops back to. The parameter
-    /// is the new start angles as a QAngle.
-    /// </summary>
+    // The parameter is the new start angles as a QAngle.
     [EntityInput("SetStartPos")]
     private void InputSetStartPos(EntityInputData data)
     {
         startAngles = data.Vector(startAngles);
 
-        // Re-based rather than zeroed: how far it has come round is measured from the new start, which is
-        // what the engine reads off the live angles every time it asks
+        // Re-based rather than zeroed: how far it has come round is measured from the new start.
         turnedFromStart = AngleMod(GetAxisAngle(Angles) - GetAxisAngle(startAngles));
     }
 
-    /// <summary>Makes the brush ramp up and down instead of snapping to speed.</summary>
     [EntityInput("EnableAccelDecel")]
     private void InputEnableAccelDecel(EntityInputData data) => acceleratesAndDecelerates = true;
 
-    /// <summary>Makes the brush start and stop instantly.</summary>
     [EntityInput("DisableAccelDecel")]
     private void InputDisableAccelDecel(EntityInputData data) => acceleratesAndDecelerates = false;
 
-    /// <summary>
-    /// Sets the speed to the parameter's fraction of <c>maxspeed</c>; a negative fraction spins in reverse.
-    /// </summary>
+    // The parameter is a fraction of maxspeed; a negative fraction spins in reverse.
     [EntityInput("SetSpeed")]
     private void InputSetSpeed(EntityInputData data)
     {
@@ -369,10 +325,7 @@ public sealed class FuncRotating : BaseModelEntity
         SetTargetSpeed(Math.Clamp(MathF.Abs(fraction) * MaxSpeed, 0f, MaxSpeed));
     }
 
-    /// <summary>
-    /// Starts the brush if it is stopped, stops it if it is spinning. Source's <c>RotatingUse</c>, which is
-    /// what a player pressing use, or the <c>Toggle</c> input, ends up calling.
-    /// </summary>
+    /// <summary>Starts the brush if it is stopped, stops it if it is spinning.</summary>
     public void Toggle() => SetTargetSpeed(AngularVelocity != Vector3.Zero ? 0f : MaxSpeed);
 
     /// <summary>
@@ -432,22 +385,16 @@ public sealed class FuncRotating : BaseModelEntity
         SetMoveDoneTime(GetNextMoveInterval());
     }
 
-    /// <summary>
-    /// Applies a new rotation speed, and lands exactly on the start angle when the brush was asked to stop
-    /// there. Source's <c>UpdateSpeed</c>, minus the sound pitch and volume ramp.
-    /// </summary>
-    /// <remarks>
-    /// A pending <c>StopAtStartPos</c> steers the last stretch, like <c>bmodels.cpp</c>: over 90 degrees
-    /// out it keeps its speed, inside that it eases towards the remaining angle but never below 20 degrees
-    /// per second, and once slow and within a degree it lands on the start.
-    /// </remarks>
+    // A pending StopAtStartPos steers the last stretch: over 90 degrees out it keeps its speed, inside that
+    // it eases towards the remaining angle but never below 20 degrees per second, and once slow and within
+    // a degree it lands on the start.
     private void UpdateSpeed(float newSpeed)
     {
         var oldSpeed = Speed;
         var speed = Math.Clamp(newSpeed, -MaxSpeed, MaxSpeed);
 
-        // The requested speed, not the clamped one: bmodels.cpp:911 tests flNewSpeed, which for a slow
-        // brush with high friction can be the larger of the two and decide the approach a step earlier
+        // The requested speed, not the clamped one, is tested: for a slow brush with high friction it can be
+        // the larger of the two and decide the approach a step earlier
         if (stopAtStartPos && newSpeed < 100f)
         {
             var angleDelta = GetAngleDeltaFromStart();
@@ -476,10 +423,7 @@ public sealed class FuncRotating : BaseModelEntity
         ApplySpeed(speed);
     }
 
-    /// <summary>
-    /// Applies the speed and reports the brush starting or stopping. Those are the two edges the engine
-    /// starts and stops the rotation sound on, which is what <c>OnStarted</c> and <c>OnStopped</c> name.
-    /// </summary>
+    // Starting and stopping also start and stop the rotation sound, and fire OnStarted and OnStopped.
     private void ApplySpeed(float speed)
     {
         var wasTurning = Speed != 0f;
@@ -505,7 +449,6 @@ public sealed class FuncRotating : BaseModelEntity
         }
     }
 
-    /// <summary>Starts the rotation sound, at the volume the speed it is starting from calls for.</summary>
     private void StartSound()
     {
         if (string.IsNullOrEmpty(SoundName))
@@ -519,14 +462,12 @@ public sealed class FuncRotating : BaseModelEntity
         RampVolume();
     }
 
-    /// <summary>Stops the rotation sound, if one is playing.</summary>
     private void StopSound()
     {
         playing.Stop();
         playing = default;
     }
 
-    /// <summary>Follows the volume with the speed, Source's <c>RampPitchVol</c> without the pitch.</summary>
     private void RampVolume()
     {
         playing.Volume = MathUtils.Saturate(MathF.Abs(Speed) / MaxSpeed);
@@ -540,16 +481,9 @@ public sealed class FuncRotating : BaseModelEntity
         base.OnRemove();
     }
 
-    /// <summary>
-    /// Lands the brush on the angle it spawned at and forgets the pending stop. A snap, not movement, so
-    /// the interpolation history goes with it.
-    /// </summary>
-    /// <remarks>
-    /// The landing happens once, and the pending stop records whether it still has to. Both callers go
-    /// through <see cref="SetTargetSpeed"/>, which for a brush that does not accelerate lands the stop
-    /// before its caller can. The engine has the same two paths and does not mind, because there it is two
-    /// assignments rather than an output a map can count.
-    /// </remarks>
+    // Lands on the spawn angles and clears the pending stop; a snap, so interpolation is reset.
+    // The pending stop also guards against landing twice: for a brush that does not accelerate,
+    // SetTargetSpeed has already landed it before the caller gets here.
     private void StopAtStartAngles()
     {
         if (!stopAtStartPos)
@@ -576,8 +510,7 @@ public sealed class FuncRotating : BaseModelEntity
         {
             newSpeed = TargetSpeed;
 
-            // A brush still working its way back to the start angle keeps ramping, so that the approach
-            // in UpdateSpeed goes on steering it
+            // A brush still heading back to its start angle keeps ramping, so UpdateSpeed goes on steering it
             spinUpDone = !stopAtStartPos;
         }
         else if (TargetSpeed < 0f)
@@ -596,9 +529,7 @@ public sealed class FuncRotating : BaseModelEntity
         SetMoveDoneTime(GetNextMoveInterval());
     }
 
-    /// <summary>
-    /// Bleeds off a little speed, slower than it spins up.
-    /// </summary>
+    /// <summary>Bleeds off speed, slower than it spins up.</summary>
     /// <returns><see langword="true"/> once it has arrived and the ramp is over.</returns>
     private bool SpinDown(float targetSpeed)
     {
@@ -639,7 +570,6 @@ public sealed class FuncRotating : BaseModelEntity
         }
     }
 
-    /// <summary>Comes to a stop before turning the other way.</summary>
     private void ReverseMove()
     {
         if (SpinDown(0f))
@@ -653,10 +583,8 @@ public sealed class FuncRotating : BaseModelEntity
         }
     }
 
-    /// <summary>
-    /// The at-speed state. Nothing to do while it just spins, so it wakes rarely; only a pending
-    /// <c>StopAtStartPos</c> needs to watch the angle every tick.
-    /// </summary>
+    // The at-speed state. Wakes rarely, as only a pending StopAtStartPos needs to watch
+    // the angle every tick.
     private void RotateMove()
     {
         SetMoveDoneTime(10f);
@@ -679,10 +607,7 @@ public sealed class FuncRotating : BaseModelEntity
         }
     }
 
-    /// <summary>
-    /// The component of a QAngle that lies on the axis this brush turns about, the engine's
-    /// <c>checkAxis</c> (<c>bmodels.cpp:1121-1131</c>).
-    /// </summary>
+    // The QAngle component on the axis this brush turns about.
     private float GetAxisAngle(Vector3 angles)
     {
         if (MoveAngles.X != 0f)
@@ -693,10 +618,8 @@ public sealed class FuncRotating : BaseModelEntity
         return MoveAngles.Y != 0f ? angles.Y : angles.Z;
     }
 
-    /// <summary>
-    /// Signed degrees turned from the spawn orientation, in [-180, 180]. The one place the quantization
-    /// belongs, so it costs a fixed 1/65536 of a turn rather than compounding.
-    /// </summary>
+    // Signed degrees turned from the start, in [-180, 180]. Quantization is applied only here, so its error
+    // stays a fixed 1/65536 of a turn rather than compounding.
     private float GetAngleDeltaFromStart()
     {
         var delta = AngleMod(turnedFromStart);
@@ -704,9 +627,7 @@ public sealed class FuncRotating : BaseModelEntity
         return delta > 180f ? delta - 360f : delta;
     }
 
-    /// <summary>
-    /// How long until the next move step. Stopping at the start position needs tick resolution to land on
-    /// the angle; everything else ramps in tenths of a second.
-    /// </summary>
+    // Stopping at the start position needs tick resolution to land on the angle;
+    // the ramp steps in tenths of a second.
     private float GetNextMoveInterval() => stopAtStartPos ? EntitySystem.TickInterval : 0.1f;
 }

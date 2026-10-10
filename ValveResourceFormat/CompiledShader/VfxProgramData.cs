@@ -138,8 +138,7 @@ namespace ValveResourceFormat.CompiledShader
         /// Gets the static combo entries, keyed by static combo ID.
         /// </summary>
         /// <remarks>
-        /// Each entry holds the information needed to locate and decompress its static combo;
-        /// to save processing, static combos are only decompressed on request.
+        /// Each entry locates its static combo; decompression happens only on request, to save processing.
         /// </remarks>
         public SortedDictionary<long, VfxStaticComboVcsEntry> StaticComboEntries { get; } = [];
 

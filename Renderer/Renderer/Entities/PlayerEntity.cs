@@ -3,13 +3,11 @@ using ValveResourceFormat.Renderer.Input;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// The player, as an entity the rest of the world can see. Source's <c>CBasePlayer</c> is an entity like
-/// any other; here the movement itself still lives behind an <see cref="IPlayerController"/>, and this
-/// mirrors it into the entity world so triggers have something to touch and teleports something to move.
+/// The player as an entity, mirroring an <see cref="IPlayerController"/> so triggers can touch it
+/// and teleports can move it.
 /// </summary>
 /// <remarks>
-/// Position comes from the controller rather than being simulated: the player moves off the input, per
-/// rendered frame, not on the entity tick. This entity is only a view onto that state, so
+/// The controller owns the position and moves per rendered frame, not on the entity tick, so
 /// <see cref="TryGetTouchBounds"/> reads the hull live rather than the last tick's copy.
 /// </remarks>
 public sealed class PlayerEntity : BaseEntity
@@ -20,20 +18,15 @@ public sealed class PlayerEntity : BaseEntity
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
 
-    /// <summary>
-    /// Gets the buttons as of the current tick: what is held, and what changed since the tick before.
-    /// </summary>
+    // Held and changed buttons, latched once per tick
     private PlayerButtonState Buttons;
 
-    /// <summary>
-    /// Creates the player entity for a movement controller.
-    /// </summary>
+    /// <summary>Creates the player entity for a movement controller.</summary>
     public PlayerEntity(EntitySystem system, Scene scene, IPlayerController controller) : base(system, scene, "player")
     {
         Controller = controller;
 
-        // Nothing traces against the player, and the player is what enters triggers rather than a volume
-        // anything can enter.
+        // Traces ignore the player, which enters triggers rather than being one
         IsSolid = false;
     }
 
@@ -46,8 +39,8 @@ public sealed class PlayerEntity : BaseEntity
     }
 
     /// <summary>
-    /// Teleports the player. <see cref="BaseEntity.WorldOrigin"/> is the feet, which is what
-    /// <see cref="IPlayerController.Teleport"/> takes, so the destination passes straight through.
+    /// Teleports the player. <see cref="BaseEntity.WorldOrigin"/> is the feet, as in
+    /// <see cref="IPlayerController.Teleport"/>, so the destination is passed through unchanged.
     /// </summary>
     public override void Teleport(Vector3 origin, Vector3? angles)
     {
@@ -76,7 +69,7 @@ public sealed class PlayerEntity : BaseEntity
         // unpressed and pressed again in within 3 frames the tick will see it as one press.
         Buttons = Controller.ConsumeButtons();
 
-        // The controller owns the position, so there is nothing to integrate; just keep up with it
+        // The controller owns the position, nothing to integrate
         SyncFromController();
 
         if (Buttons.Pressed(TrackedKeys.E))

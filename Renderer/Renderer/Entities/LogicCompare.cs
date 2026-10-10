@@ -4,8 +4,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>logic_compare</c>. Holds a value and a value to compare it against, and on request reports how the
-/// two relate. Every output carries the held value.
+/// <c>logic_compare</c>. Compares a held value against another on request. Every output carries the
+/// held value.
 /// </summary>
 public sealed class LogicCompare : BaseEntity
 {

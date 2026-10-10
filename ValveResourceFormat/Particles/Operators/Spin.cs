@@ -40,8 +40,8 @@ namespace ValveResourceFormat.Particles.Operators
 
         /// <summary>
         /// This frame's rotation increment in radians. Rotation is stored in radians, the spin rate
-        /// in degrees per second; the engine scales the converted rate by an extra 2*pi, inherited
-        /// from S1 CGeneralSpin (57 deg/s spins roughly one full turn per second).
+        /// in degrees per second; the engine scales the converted rate by an extra 2*pi
+        /// (57 deg/s spins roughly one full turn per second).
         /// </summary>
         protected float GetSpinDelta(in Particle particle, float frameTime, float strength)
             => float.DegreesToRadians(GetSpinRate(particle.Age, particle.Lifetime, strength)) * MathF.Tau * frameTime;

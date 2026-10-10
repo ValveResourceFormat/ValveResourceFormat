@@ -149,7 +149,7 @@ namespace ValveResourceFormat.Renderer
             return new RenderTexture(handle, Target);
         }
 
-        // Sampler state set through the methods below is remembered, so ReplaceHandle can reapply it —
+        // Sampler state set through the methods below is remembered, so ReplaceHandle can reapply it;
         // parameters do not carry over to a replacement texture object
         private (TextureMinFilter Min, TextureMagFilter Mag)? filtering;
         private (RsTextureAddressMode S, RsTextureAddressMode T, RsTextureAddressMode R)? wrapMode;
@@ -219,8 +219,7 @@ namespace ValveResourceFormat.Renderer
         public void SetParameter(TextureParameterName parameter, int value)
             => GL.TextureParameter(Handle, parameter, value);
 
-        // Swaps in a new texture object, deleting the old one. Raw SetParameter writes are not
-        // remembered and do not survive the swap.
+        // Raw SetParameter writes are not remembered and do not survive the swap.
         internal void ReplaceHandle(int newHandle, int numMipLevels)
         {
             GL.DeleteTexture(Handle);

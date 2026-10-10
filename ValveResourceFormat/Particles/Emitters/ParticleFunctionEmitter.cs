@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Particles.Emitters
         }
 
         /// <summary>
-        /// The engine's sub-frame emission accumulator, shared by the rate-driven emitters: charge it
+        /// Sub-frame emission accumulator, shared by the rate-driven emitters: charge it
         /// over the active part of a frame and it spawns whole particles, staggering their creation
         /// times evenly across the charged interval so a frame's worth of particles are not coincident.
         /// </summary>

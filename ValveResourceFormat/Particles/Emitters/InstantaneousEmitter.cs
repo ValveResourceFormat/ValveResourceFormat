@@ -104,8 +104,8 @@ namespace ValveResourceFormat.Particles.Emitters
                 remainingToEmit = ResolveEmitCount(particleSystemState);
             }
 
-            // A negative cap means "no authored limit", which resolves to the pool size rather than
-            // to no limit at all, so an oversized burst drips out as slots free
+            // A negative cap means no authored limit: it resolves to the pool size, so an oversized burst
+            // drips out as slots free
             var perFrameCap = maxEmittedPerFrame >= 0
                 ? maxEmittedPerFrame
                 : Math.Min(particleSystemState.Data?.ParticleCapacity ?? 20000, 20000);

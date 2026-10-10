@@ -32,8 +32,7 @@ namespace ValveResourceFormat.Particles
         /// <remarks>
         /// Providers that only place things answer <see langword="false"/> rather than reporting the +X an
         /// identity rotation would give, so a caller does not overwrite a direction with a meaningless one.
-        /// That is the default, so a provider has to opt in to having an orientation rather than remember
-        /// to opt out of reporting a bogus one.
+        /// Returning false is the default, so a provider opts in to having an orientation.
         /// </remarks>
         /// <returns>Whether the provider has an orientation to report.</returns>
         bool TryGetOrientation(ref Particle particle, ParticleSystemState renderState, out Vector3 orientation)

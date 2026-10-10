@@ -69,8 +69,8 @@ namespace ValveResourceFormat.Particles.Operators
         }
 
         /// <summary>
-        /// Takes the next duration from the shared random table. The draw is taken even when the range
-        /// is empty, so the table position stays in step with the other functions in the system.
+        /// Draws the next duration from the shared random table, even for an empty range, to stay in
+        /// step with the other functions.
         /// </summary>
         private float SampleDuration(ParticleSystemState particleSystemState)
         {

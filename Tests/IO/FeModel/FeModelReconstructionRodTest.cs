@@ -517,7 +517,7 @@ namespace Tests.IO
         }
 
         /// <summary>
-        /// A free chain of <paramref name="members"/> joints below j0, every node position-driven, its joints joined
+        /// A free chain of <paramref name="members"/> joints below j0, no node position-driven, its joints joined
         /// pairwise by rods banded 2 to 10.
         /// </summary>
         private static FeModelBuilder ClusterCloth(int members)

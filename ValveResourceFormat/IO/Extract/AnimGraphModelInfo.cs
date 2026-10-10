@@ -8,8 +8,8 @@ namespace ValveResourceFormat.IO;
 
 /// <summary>
 /// Resolves human-readable names (bones, sequences, weight lists, IK chains, feet, attachments,
-/// look-at chains) for an animation graph from its referenced model. Shared by the animation graph
-/// extractor and the GUI graph viewer so the model-introspection logic lives in one place.
+/// look-at chains) for an animation graph from its referenced model. Shared by the extractor and
+/// the GUI graph viewer.
 /// </summary>
 /// <remarks>
 /// The referenced model <see cref="Resource"/> is supplied lazily through a provider so each owner

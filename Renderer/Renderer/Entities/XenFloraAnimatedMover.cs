@@ -97,7 +97,7 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
         SnapInterpolation();
     }
 
-    /// <summary>Moves along the path by one tick, waiting at stops and turning to face the way it goes.</summary>
+    /// <summary>Moves along the path, pausing at stops.</summary>
     protected override void PhysicsSimulate(float tickInterval)
     {
         if (path.Count < 2 || finished)
@@ -166,10 +166,8 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
         SetWorldOriginAndAngles(path[index].Position + localOffset, WorldAngles);
     }
 
-    // Walks the target chain starting at the path_corner named startName, in the same way path_track/
-    // func_tracktrain follow theirs. The loop back index is set when the chain itself points back to an
-    // already-visited node (an authored closed loop), so a looping mover can honor that entry point
-    // instead of always restarting from the first node.
+    // Follows the target chain from the path_corner named startName. A chain pointing back to a visited
+    // node is an authored loop: that node becomes the loop back index, so a looping mover re-enters there.
     private void ResolvePath(string? startName)
     {
         var visited = new Dictionary<BaseEntity, int>();

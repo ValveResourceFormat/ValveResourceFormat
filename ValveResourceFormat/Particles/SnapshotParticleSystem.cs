@@ -31,9 +31,9 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         public static int MaxParticles => ParticleCollection.MAX_PARTICLES;
 
-        // Every field the snapshot format has a name for, in the order they are written into the particle.
-        // Declaration order would do except for two that write over something another one needs: Normal
-        // shares its storage with Yaw and Pitch, and ParticleId seeds the per-particle random draws.
+        // Every field the snapshot format names, in the order written into the particle. Declaration order
+        // would do, except Normal shares storage with Yaw and Pitch, and ParticleId seeds the per-particle
+        // random draws.
         private static readonly ParticleField[] ReadFields =
         [
             ParticleField.Position,
@@ -66,15 +66,14 @@ namespace ValveResourceFormat.Particles
         ];
 
         /// <summary>
-        /// Whether the snapshot holds anything this preview can place, i.e. a position attribute of the
-        /// expected type and at least one particle.
+        /// Whether the snapshot has a position attribute of the expected type and at least one particle.
         /// </summary>
         public static bool CanPreview(ParticleSnapshot snapshot)
             => snapshot.NumParticles > 0 && HasReadableAttribute(snapshot, ParticleField.Position);
 
         /// <summary>
-        /// Whether the preview has to invent a size because the snapshot stores no radius, in which case
-        /// the quads are drawn at a constant size on screen and <see cref="SetScreenSize"/> controls it.
+        /// Whether the snapshot stores no radius, so the quads are drawn at a constant on-screen size
+        /// set by <see cref="SetScreenSize"/>.
         /// </summary>
         public static bool UsesConstantScreenSize(ParticleSnapshot snapshot)
             => !HasReadableAttribute(snapshot, ParticleField.Radius);
@@ -178,10 +177,9 @@ namespace ValveResourceFormat.Particles
             return initializer;
         }
 
-        // Without a radius in the snapshot there is no world size to draw at, so one is invented:
-        // m_bDistanceAlpha turns the min/max size pair from a clamp in world units into one measured per
-        // unit of camera distance, and pinning both ends of that clamp to the same value makes the quad a
-        // constant size on screen whatever its radius or distance.
+        // Without a radius there is no world size, so one is invented: m_bDistanceAlpha measures the
+        // min/max size per unit of camera distance, and equal bounds pin the quad to a constant
+        // on-screen size.
         private static KVObject MakeRenderer(bool constantScreenSize)
         {
             var renderer = KVObject.Collection();

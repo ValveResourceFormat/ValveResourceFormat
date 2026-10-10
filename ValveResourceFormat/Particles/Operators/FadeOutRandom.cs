@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Fades a particle's alpha out over a per-particle randomly chosen duration drawn from a min/max range, with an optional bias curve applied to the fade.
+    /// Fades alpha out over a per-particle random duration from a min/max range, with optional easing.
     /// </summary>
     /// <remarks>
     /// "Alpha Fade Out Random" in the particle editor. Unlike "Alpha Fade Out Simple", the range

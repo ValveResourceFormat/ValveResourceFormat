@@ -185,10 +185,9 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>
-        /// The framed section with everything that changes how the graph is presented: layout
-        /// engine, wire style, the rebuild toggles and the unbudgeted crossing repair. The
-        /// repair button exists because the automatic pass is capped so opening a graph stays
-        /// quick, which means a large graph keeps crossings the full pass would have removed.
+        /// Presentation options: layout engine, wire style, rebuild toggles and the unbudgeted
+        /// crossing repair. The automatic pass is capped to keep opening quick, so a large graph
+        /// can keep crossings that the full pass would remove.
         /// </summary>
         private void AddViewSection()
         {

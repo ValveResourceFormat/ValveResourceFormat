@@ -214,10 +214,9 @@ public class Rubikon
         private bool fired = true;
 
         /// <summary>
-        /// Gets or sets a value indicating whether the trace actually fired. <see langword="false"/>
-        /// when the sweep was rejected (sub-<see cref="Epsilon"/> length): the result is reported
-        /// as a miss but carries no information about the geometry, so callers must not treat
-        /// the sweep as validated.
+        /// Gets or sets whether the trace fired. <see langword="false"/> when the sweep was rejected
+        /// as shorter than <see cref="Epsilon"/>: it reads as a miss but says nothing about the geometry,
+        /// so do not treat it as validated.
         /// </summary>
         public bool IsValid { readonly get => fired; set => fired = value; }
 
@@ -234,16 +233,15 @@ public class Rubikon
         public readonly bool IsMinimalDistance => Distance < 0.00001f;
 
         /// <summary>
-        /// Gets or sets the point of contact on the hit surface. For swept box traces this is
-        /// the closest point on the hit triangle to the box center at the time of impact,
-        /// while <see cref="HitPosition"/> is the center of the swept shape itself.
+        /// Gets or sets the point of contact on the hit surface: for swept box traces, the closest point
+        /// on the hit triangle to the box center at impact. <see cref="HitPosition"/> is the swept shape's center.
         /// </summary>
         public Vector3 ContactPoint { get; set; }
 
         /// <summary>
         /// Gets or sets the entity this hit belongs to, for sweeps that fold brush entities in: the
-        /// entity whose collider was struck, or the world entity for static world geometry, as the engine
-        /// reports it. Null when the sweep did not carry entity identity at all.
+        /// entity whose collider was struck, or the world entity for static world geometry. Null when
+        /// the sweep did not carry entity identity at all.
         /// </summary>
         public Entities.BaseEntity? HitEntity { get; set; }
 
@@ -533,9 +531,8 @@ public class Rubikon
     /// Tests a box at rest against the solid volume of this shape, rather than against its surface.
     /// </summary>
     /// <remarks>
-    /// What a trigger volume asks, and the difference from <see cref="IntersectsAABB"/> is a box that has
-    /// gone all the way inside a hull: no surface is in contact there, so the surface test calls it a
-    /// miss and a trigger driven by it would let go of anything that walked far enough in.
+    /// Trigger volumes need this: a box fully inside a hull touches no surface, so <see cref="IntersectsAABB"/>
+    /// calls it a miss, and the trigger would let go of anything that walked far enough in.
     /// </remarks>
     /// <param name="center">Center of the box.</param>
     /// <param name="halfExtents">Half-extents of the box.</param>

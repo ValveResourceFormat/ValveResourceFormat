@@ -3,10 +3,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>func_brush</c>. A piece of world geometry a map can show, hide, and make solid or not.
-/// <c>Enable</c> and <c>Disable</c> switch drawing and solidity together, as in the engine;
-/// <c>SetSolid</c> and <c>SetNonsolid</c> leave what is drawn alone. The authored <c>solidity</c>
-/// decides what "solid" means for a given brush.
+/// <c>func_brush</c>. World geometry a map can show, hide and make solid.
+/// <c>Enable</c> and <c>Disable</c> switch drawing and solidity together; <c>SetSolid</c> and
+/// <c>SetNonsolid</c> leave drawing alone. The authored <c>solidity</c> decides what "solid" means.
 /// </summary>
 public class FuncBrush : BaseModelEntity
 {
@@ -16,7 +15,7 @@ public class FuncBrush : BaseModelEntity
         /// <summary>Solid whenever it is drawn.</summary>
         ToggleSolid = 0,
 
-        /// <summary>Never solid, whatever else happens to it.</summary>
+        /// <summary>Never solid.</summary>
         NeverSolid = 1,
 
         /// <summary>Always solid, even while hidden.</summary>

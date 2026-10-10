@@ -345,7 +345,7 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
-            // The separator at the end avoids matching another app whose folder starts with the same name, such as "Artifact" and "Artifact 2.0"
+            // The trailing separator stops prefix matches, such as "Artifact" matching "Artifact 2.0"
             var gamePath = Path.GetFullPath(Path.Combine(steamPath, "common", installDir)) + Path.DirectorySeparatorChar;
 
             if (!Directory.Exists(gamePath))

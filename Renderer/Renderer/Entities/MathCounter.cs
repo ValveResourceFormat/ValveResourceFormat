@@ -43,7 +43,7 @@ public sealed class MathCounter : BaseEntity
             (Min, Max) = (Max, Min);
         }
 
-        // The engine reads the starting value as an integer, dropping any fraction
+        // The starting value is read as an integer, dropping any fraction
         Value = ClampToRange((int)KeyValues.GetDoubleProperty("startvalue"));
         IsEnabled = !KeyValues.GetBooleanProperty("startdisabled");
     }

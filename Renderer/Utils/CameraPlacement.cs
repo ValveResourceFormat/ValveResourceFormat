@@ -18,9 +18,8 @@ namespace ValveResourceFormat.Renderer.Utils
         private const float SurfaceMargin = 2f;
 
         /// <summary>
-        /// Yaws the camera orbits from, in radians. Maps are built on the grid, so the four axis
-        /// directions (+X, -X, +Y, -Y) look square-on to most surfaces and are tried before the
-        /// diagonals in between.
+        /// Yaws the camera orbits from, in radians. Maps are built on a grid, so the axis directions
+        /// (+X, -X, +Y, -Y) look square-on to most surfaces and are tried before the diagonals.
         /// </summary>
         private static readonly float[] Yaws =
         [

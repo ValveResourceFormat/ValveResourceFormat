@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>logic_auto</c>. Fires its outputs when the map starts - how a map kicks off its own wiring.
+/// <c>logic_auto</c>. Fires its outputs when the map starts.
 /// </summary>
 public sealed class LogicAuto : BaseEntity
 {

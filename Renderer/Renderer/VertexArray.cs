@@ -7,8 +7,8 @@ using OpenTK.Graphics.OpenGL;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Binds and deletes vertex array objects. Canonical locations let any shader draw any VAO, so nothing
-    /// else catches a mismatch between the two. Debug builds check it here.
+    /// Binds and deletes vertex array objects. Canonical locations let any shader draw any VAO, so debug
+    /// builds check for mismatches.
     /// </summary>
     public static class VertexArray
     {
@@ -117,8 +117,8 @@ namespace ValveResourceFormat.Renderer
                 shader.Logger.LogDebug("{Attributes} ({ShaderName}) missing from mesh {Geometry}",
                     shader.DescribeAttributes(missing), shader.Name, geometry);
 
-                // A name the geometry does not know shifts the slots of the custom attributes sorted after
-                // it, so the other locations are wrong too, not just this one
+                // An unknown name shifts the slots of the custom attributes sorted after it,
+                // so their locations are wrong too
                 foreach (var name in shader.DescribeAttributes(missing).Split(", "))
                 {
                     if (supplies.Names != null && Array.IndexOf(supplies.Names, name) < 0)

@@ -1,8 +1,7 @@
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// An entity whose classname the entity system does not implement, and which has a model: a prop, brush
-/// or piece of scenery. It draws its model but does nothing itself.
+/// An unimplemented classname with a model. Draws the model, but does nothing itself.
 /// </summary>
 /// <remarks>One without a model is a <see cref="GenericEntity"/>.</remarks>
 public sealed class GenericModelEntity : BaseModelEntity

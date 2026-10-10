@@ -26,9 +26,8 @@ public class AllocStats
         private const int GCAllocationTickEventId = 10;
         private const EventKeywords GCKeyword = (EventKeywords)0x1;
 
-        // System.Buffers.ArrayPoolEventSource event ids. Subscribed at Informational level only:
-        // the Verbose per-rent/return events box their payloads in the dispatch, which at one rent
-        // per frame becomes the dominant allocation in the very report this display produces.
+        // System.Buffers.ArrayPoolEventSource ids. Informational only: Verbose per-rent/return
+        // events box payloads, which at one rent per frame would be the overlay's top allocation.
         private const int BufferAllocatedEventId = 2;
         private const int BufferTrimmedEventId = 4;
         private const int BufferDroppedEventId = 6;

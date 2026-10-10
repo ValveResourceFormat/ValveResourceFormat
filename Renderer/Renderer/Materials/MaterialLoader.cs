@@ -495,7 +495,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Dimensions of one chain level for any texture target: width always halves per level,
         /// height is spatial except for 1D arrays where it carries the layer count, and depth halves only
-        /// for volumes — for array and cube targets it carries the layer (times face) count.</summary>
+        /// for volumes; for array and cube targets it carries the layer (times face) count.</summary>
         internal static (int Width, int Height, int Depth) GetChainLevelSize(TextureTarget target, int width, int height, int depth, int chainLevel)
         {
             var levelWidth = MathUtils.MipLevelSize(width, chainLevel);
@@ -629,7 +629,7 @@ namespace ValveResourceFormat.Renderer.Materials
             return errorMat;
         }
 
-        /// <summary>Returns a lazily created 4×4 checkerboard error texture used as a fallback for missing textures.</summary>
+        /// <summary>Returns a lazily created 4x4 checkerboard error texture used as a fallback for missing textures.</summary>
         public RenderTexture GetErrorTexture()
         {
             if (ErrorTexture == null)
@@ -654,17 +654,17 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         private static RenderTexture CreateSolidTexture(byte r, byte g, byte b) => GenerateColorTexture(1, 1, [r, g, b]);
-        /// <summary>Returns a lazily created 1×1 flat normal map texture (127, 127, 255).</summary>
+        /// <summary>Returns a lazily created 1x1 flat normal map texture (127, 127, 255).</summary>
         public RenderTexture GetDefaultNormal() => DefaultNormal ??= CreateSolidTexture(127, 127, 255);
 
-        /// <summary>Returns a lazily created 1×1 solid white mask texture.</summary>
+        /// <summary>Returns a lazily created 1x1 solid white mask texture.</summary>
         public RenderTexture GetDefaultMask() => DefaultMask ??= CreateSolidTexture(255, 255, 255);
 
-        /// <summary>Returns a lazily created 1×1 solid white colour texture, a neutral fallback albedo.</summary>
+        /// <summary>Returns a lazily created 1x1 solid white colour texture, a neutral fallback albedo.</summary>
         public RenderTexture GetDefaultColor() => DefaultColor ??= CreateSolidTexture(255, 255, 255);
 
         /// <summary>
-        /// Returns a lazily created 1×1 single layer white array texture.
+        /// Returns a lazily created 1x1 single layer white array texture.
         /// </summary>
         public RenderTexture GetDefaultTextureArray()
         {
@@ -680,7 +680,7 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Returns a lazily created 1×1×1 white volume texture.
+        /// Returns a lazily created 1x1x1 white volume texture.
         /// </summary>
         public RenderTexture GetDefaultVolume()
         {
@@ -779,8 +779,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return new Color32(255, 255, 255);
             }
 
-            // Stops are authored in order, but nothing guarantees it, so pick the bracketing pair by value
-            // rather than by index.
+            // Stops are usually authored in order but nothing guarantees it, so pick the bracketing pair by value, not by index.
             var lower = stops[0];
             var upper = stops[0];
             var hasLower = false;

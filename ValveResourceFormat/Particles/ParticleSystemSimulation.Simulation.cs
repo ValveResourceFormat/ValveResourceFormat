@@ -455,8 +455,8 @@ namespace ValveResourceFormat.Particles
 
                 remaining -= step;
 
-                // Renderer state and bounds are refreshed by the final substep only, as the engine
-                // does that bookkeeping once per frame rather than once per step
+                // Renderer state and bounds are refreshed by the final substep only, once per frame
+                // rather than once per step
                 Simulate(step, presimulating: presimulating || remaining > 0f);
             }
 

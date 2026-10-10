@@ -1,9 +1,8 @@
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// An entity whose classname the entity system does not implement, and which has no model: a marker such
-/// as <c>info_target</c>. It is in the world so that others can find it by name, target it with entity I/O
-/// and read where it is, and it is drawn as its editor icon, but it does nothing itself.
+/// An unimplemented classname with no model, such as <c>info_target</c>. Drawn as its editor icon, it is
+/// only a marker that others can find by name, target with entity I/O and read the position of.
 /// </summary>
 /// <remarks>One with a model is a <see cref="GenericModelEntity"/>.</remarks>
 public sealed class GenericEntity : BaseEntity

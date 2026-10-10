@@ -11,8 +11,8 @@ using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// Writes a model's collision shapes out as DMX: the hulls and meshes each physics part carries, and
-/// the surface and collision tag markup naming the material they compile against.
+/// Writes each physics part's hulls and meshes as DMX, with the surface and collision tag markup
+/// naming the material.
 /// </summary>
 partial class ModelExtract
 {

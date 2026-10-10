@@ -75,9 +75,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         }
 
         /// <inheritdoc/>
-        /// <remarks>
-        /// Returns the event class name and its time window.
-        /// </remarks>
         public override string ToString() => string.Create(CultureInfo.InvariantCulture, $"{ClassName} @ {StartTime}s +{Duration}s");
     }
 

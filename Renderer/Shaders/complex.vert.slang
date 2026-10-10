@@ -249,9 +249,8 @@ vec4 GetTintColorLinear(vec4 vTint)
 // Firstperson legs distortion parameters
 uniform int g_bFirstpersonLegsDistortion = 0;
 
-// Apply firstperson legs distortion effect to clip space position and normal.
-// This creates a fish-eye warping effect on player legs in first-person view,
-// preventing clipping when looking down by scaling outward and pulling back.
+// Fish-eye warp of first-person legs, applied to clip space position and normal.
+// Scales outward and pulls back so legs do not clip when looking down.
 void ApplyFirstpersonLegsDistortion(
     in vec3 vertexPosOS,
     in vec3 vertexPosWS,
@@ -261,9 +260,7 @@ void ApplyFirstpersonLegsDistortion(
     out vec4 outClipSpacePos,
     out vec3 outNormal)
 {
-    // Calculate distortion factor based on:
-    // 1. Vertex Z height (legs height) - normalized and clamped
-    // 2. Camera pitch (looking down) - squared for sharper falloff
+    // Vertex Z height (normalized, clamped) times camera pitch looking down, squared for sharper falloff
     float heightFactor = saturate((vertexPosOS.z + 1.0) * 0.0125) * 0.5;
     float pitchFactor = pow2(saturate(-viewDirZ));
     float distortionAmount = pow(heightFactor * pitchFactor, 1.5);

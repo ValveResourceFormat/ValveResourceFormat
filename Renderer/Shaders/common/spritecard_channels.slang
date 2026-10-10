@@ -31,9 +31,8 @@ const vec3 LUMA_601 = vec3(0.299, 0.587, 0.114);
 #define SPRITECARD_TEXTURE_BLEND_AVERAGE   5
 #define SPRITECARD_TEXTURE_BLEND_LUMINANCE 6
 
-// Reduce (accumulator, layer) to a single colour/alpha pair. SUBTRACT zeroes the accumulator's
-// contribution in the modes that would otherwise pass it straight through, so that subtracting a
-// colour-only layer does not also subtract the alpha it never supplied.
+// SUBTRACT zeroes the accumulator's contribution in pass-through modes, so subtracting a
+// colour-only layer does not also subtract alpha it never supplied.
 vec4 ApplyChannelMask(vec4 accum, vec4 layer, int maskMode, float sub)
 {
     switch (maskMode)

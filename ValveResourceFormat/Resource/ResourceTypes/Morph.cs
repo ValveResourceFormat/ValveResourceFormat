@@ -247,9 +247,8 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets which vertices each flex places a rect over, whether or not the delta there quantised to
-        /// zero. A writer that only kept the non-zero deltas would hand the atlas packer a more
-        /// fragmented shape than the one it started from.
+        /// Gets which vertices each flex covers with a rect, zero-quantised deltas included. Dropping
+        /// those would leave the atlas packer a more fragmented shape.
         /// </summary>
         public Dictionary<string, bool[]> GetFlexVertexCoverage()
         {
@@ -323,8 +322,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             loaded = true;
 
-            // The rig is described in this block, so it is readable whether or not an atlas of deltas
-            // for it exists.
+            // The rig is in this block, so it is readable whether or not the atlas exists.
             FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
                 .Select(kv => ParseFlexRule(kv))
                 .ToArray();
@@ -409,8 +407,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets what each bundle of a morph rect holds. The bundle types are shared by every rect, so this
-        /// indexes into a rect's <c>m_bundleDatas</c>.
+        /// Gets each bundle's type, shared by every rect and indexed like a rect's <c>m_bundleDatas</c>.
         /// </summary>
         public MorphBundleType[] GetBundleTypes()
         {

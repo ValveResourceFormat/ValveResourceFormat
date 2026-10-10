@@ -120,8 +120,7 @@ public class RendererContext : IDisposable
         MorphAtlas.Dispose();
     }
 
-    // Deliberately outlive Dispose: teardown disposes the context on the UI thread and only then waits
-    // for the loaders, off that thread, and that wait reads both of these.
+    // Outlive Dispose: the loader wait runs off the UI thread after teardown and reads these fields.
     [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "Outlives Dispose so WaitForLoadingToStop still works after it")]
     private readonly CancellationTokenSource loadCancellation = new();
 

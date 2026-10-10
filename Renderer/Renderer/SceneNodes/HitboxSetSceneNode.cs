@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         Skeleton skeleton => animationController.FrameCache.Skeleton;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="HitboxSetSceneNode"/> class and builds scene nodes for all hitbox sets.
+        /// Builds scene nodes for all hitbox sets.
         /// </summary>
         /// <param name="scene">The scene this node belongs to.</param>
         /// <param name="animationController">The animation controller providing bone pose data.</param>

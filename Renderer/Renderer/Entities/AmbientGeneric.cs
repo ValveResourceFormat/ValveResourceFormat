@@ -14,7 +14,7 @@ public sealed class AmbientGeneric : BaseEntity
     [Flags]
     public enum SpawnFlag : uint
     {
-        /// <summary>No flags: a looping sound, audible from its own position, playing from the start.</summary>
+        /// <summary>No flags: a looping sound, positional, playing from the start.</summary>
         None = 0,
 
         /// <summary>Heard everywhere at full volume, rather than from a point in the world.</summary>
@@ -54,7 +54,6 @@ public sealed class AmbientGeneric : BaseEntity
     {
         SoundName = KeyValues.GetStringProperty("message");
 
-        // Authored 0 to 10, and the engine emits it as a fraction of full volume
         Volume = MathUtils.Saturate(KeyValues.GetFloatProperty("health", 10f) / 10f);
 
         fadeInSeconds = KeyValues.GetFloatProperty("fadeinsecs");
@@ -90,8 +89,7 @@ public sealed class AmbientGeneric : BaseEntity
             return;
         }
 
-        // Left to the first tick rather than started here: entities activate while the rest of the map is
-        // still loading, and the map should not be audible before it is on screen.
+        // Deferred to the first tick so the map is not audible before it is on screen
         SetNextThink(EntitySystem.CurrentTime + EntitySystem.TickInterval);
     }
 
@@ -108,8 +106,7 @@ public sealed class AmbientGeneric : BaseEntity
 
         StopSound();
 
-        // The event keeps its authored volume; the entity's fraction rides on top as the live gain,
-        // so the Volume input can move it
+        // Live gain on top of the event's own volume, so the Volume input can change it
         playing = Sound.Play(SoundName, GetEmitPosition());
         playing.Volume = Volume;
 
@@ -196,10 +193,6 @@ public sealed class AmbientGeneric : BaseEntity
         playing = default;
     }
 
-    /// <summary>
-    /// Where the sound emits from: the source entity if one was named, this entity otherwise, or nowhere
-    /// in particular when it is set to play everywhere.
-    /// </summary>
     private Vector3? GetEmitPosition()
     {
         if (HasSpawnFlags(SpawnFlag.PlayEverywhere))

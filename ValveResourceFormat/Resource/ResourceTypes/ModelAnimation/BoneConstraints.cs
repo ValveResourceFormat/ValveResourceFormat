@@ -270,19 +270,19 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// </summary>
     public enum RbfKernel
     {
-        /// <summary>sqrt(1 + (r/falloff)²).</summary>
+        /// <summary>sqrt(1 + (r/falloff)^2).</summary>
         Multiquadric = 0,
-        /// <summary>1 / sqrt(1 + (r/falloff)²).</summary>
+        /// <summary>1 / sqrt(1 + (r/falloff)^2).</summary>
         InverseMultiquadric = 1,
-        /// <summary>exp(-(r/falloff)²).</summary>
+        /// <summary>exp(-(r/falloff)^2).</summary>
         Gaussian = 2,
         /// <summary>r.</summary>
         Linear = 3,
-        /// <summary>r³.</summary>
+        /// <summary>r^3.</summary>
         Cubic = 4,
-        /// <summary>r⁵.</summary>
+        /// <summary>r^5.</summary>
         Quintic = 5,
-        /// <summary>r² log r.</summary>
+        /// <summary>r^2 log r.</summary>
         ThinPlate = 6,
     }
 

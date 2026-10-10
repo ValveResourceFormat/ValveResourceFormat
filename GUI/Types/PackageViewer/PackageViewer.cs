@@ -205,7 +205,7 @@ namespace GUI.Types.PackageViewer
 #if DEBUG
             ScanForResourceDependencies();
 
-            // Fire-and-forget on purpose: this is a dev-only prompt, and AddFiles has no reason to wait for it.
+            // Fire-and-forget: this dev-only prompt need not hold up AddFiles.
             async void ScanForResourceDependencies()
             {
                 if (resourceEntries.Count == 0 || !await AppMessageDialogs.ConfirmAsync(

@@ -1,8 +1,8 @@
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// Source's <c>CWorld</c>, the root of the entity hierarchy. An entity world has exactly one, created on
-/// its own rather than from a map: a map's <c>worldspawn</c> keyvalues never spawn an entity.
+/// The root of the entity hierarchy, one per entity world. Created directly: the map's
+/// <c>worldspawn</c> keyvalues never spawn an entity.
 /// </summary>
 public sealed class WorldEntity : BaseEntity
 {

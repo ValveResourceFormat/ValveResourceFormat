@@ -1,13 +1,11 @@
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
-/// The static collision of one world group: the world physics of every map loaded into it, each placed
-/// where its spawn group put it.
+/// Static collision of one world group: each loaded map's world physics, placed by its spawn group.
 /// </summary>
 /// <remarks>
-/// Queries are moved into each shape's local space, so a swept box stays axis-aligned to the shape rather
-/// than to the world. That is exact for a shape that is only moved, as nearly every spawn group is, and
-/// only approximate for one that is also rotated.
+/// Queries run in each shape's local space, so a swept box stays aligned to the shape, not the world.
+/// Exact for shapes that are only moved, as nearly every spawn group is; approximate when also rotated.
 /// </remarks>
 public sealed class PhysicsWorld
 {

@@ -32,10 +32,9 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         /// <summary>Initializes a new storage buffer bound to the given reserved slot.</summary>
         /// <param name="bindingPoint">The reserved slot to bind the buffer to.</param>
-        /// <param name="name">Debug name for the buffer. Named explicitly because <see cref="ReservedBufferSlots"/>
-        /// reuses its values between the uniform and storage namespaces, so a slot cannot name itself: the
-        /// scratch slots have no meaningful name of their own, and the rest would report the uniform slot sharing
-        /// their value.</param>
+        /// <param name="name">Debug name. Must be explicit: <see cref="ReservedBufferSlots"/> values are shared
+        /// with the uniform namespace, so scratch slots have no name of their own and the rest would report the
+        /// uniform slot's name.</param>
         public StorageBuffer(ReservedBufferSlots bindingPoint, string name)
             : base(BufferTarget.ShaderStorageBuffer, (int)bindingPoint, name)
         {

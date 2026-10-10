@@ -187,7 +187,6 @@ internal sealed partial class ClothExtract
         return rods.Count == 1 && !cloth.IsSourceSpring(edge.A, edge.B) && !rods[0].IsBanded;
     }
 
-    /// <summary>Builds the test for whether a bone has an ancestor that is a cloth control node.</summary>
     private Func<string, bool> ClothControlAncestorTest(ClothReconstruction cloth)
     {
         var (controlNames, boneByName) = ClothControlLookups(cloth);
@@ -210,7 +209,6 @@ internal sealed partial class ClothExtract
         };
     }
 
-    /// <summary>Builds the test for whether a bone's parent bone is a cloth control node.</summary>
     private Func<string, bool> ClothControlParentTest(ClothReconstruction cloth)
     {
         var (controlNames, boneByName) = ClothControlLookups(cloth);

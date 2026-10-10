@@ -73,7 +73,7 @@ namespace ValveResourceFormat.Compression
             var sel1 = Sse2.MultiplyHigh(selw, LoadConfig(hbits, 3).AsUInt16());
             var seli = (sel0 | (sel1 << 8)).AsByte();
 
-            // the interleaved fields are masked by the bit count (special handling: for 0/8-bit values, mul produces 0)
+            // mask the interleaved fields by bit count (0/8-bit values get 0 from the mul)
             var sent = LoadConfig(hbits, 0);
             var sel = seli & sent;
 
@@ -93,7 +93,7 @@ namespace ValveResourceFormat.Compression
             var sm1r = sm1 - Ssse3.Shuffle(npops, Vector128<byte>.Zero);
             var shuf = Sse2.UnpackLow(sm0.AsInt64(), sm1r.AsInt64()).AsByte();
 
-            // expand rest via shuffle mask and combine with sel; shuffle mask zeroes out bytes that are replaced by sel
+            // expand rest via the shuffle mask; lanes it zeroes are filled from sel
             var result = Ssse3.Shuffle(rest, shuf) | Sse2.AndNot(mask, sel);
 
             Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(buffer), result);
@@ -165,8 +165,8 @@ namespace ValveResourceFormat.Compression
                 var headerOffset = i / ByteGroupSize;
                 var headerByte = header[headerOffset / 4];
 
-                // very-fast-path: for consecutive 4 groups that are all 0-bit (v0/0, v1/0/0000) or 8-bit (v0/3333, v1/1/3333),
-                // the branchless decoders are slower than branching over the decoding of 4 groups and issuing a few load/store ops
+                // fast path for 4 consecutive 0-bit (v0/0, v1/0/0000) or 8-bit (v0/3333, v1/1/3333) groups:
+                // branching and a few load/store ops beat the branchless decoders
                 if (hshift != 5 && headerByte == 0)
                 {
                     buffer.Slice(i, ByteGroupSize * 4).Clear();

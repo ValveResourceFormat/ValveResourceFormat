@@ -493,9 +493,8 @@ namespace ValveResourceFormat.IO
 
             var meshes = LoadModelMeshes(model, name).ToList();
 
-            // Animation frames are sized from the flex controllers, so they have to be known before the
-            // animations are written. Reading them here lets the model's own morph block win; only a
-            // model whose morph set sits in a separate vmorf falls back to the one its meshes carry.
+            // Animation frames are sized from flex controllers, so read them before writing animations.
+            // The model's morph block wins; a model with its morph set in a separate vmorf falls back to its meshes'.
             if (model.FlexControllers.Length == 0)
             {
                 foreach (var m in meshes)
@@ -714,7 +713,6 @@ namespace ValveResourceFormat.IO
                 MergeBuffers = false,
             };
 
-            // Write GLB to a provided stream
             if (stream != null)
             {
                 exportedModel.MergeBuffers();

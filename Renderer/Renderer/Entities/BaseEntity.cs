@@ -10,9 +10,8 @@ using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// Everything <see cref="EntityFactory"/> needs to bring an entity into the world: its keyvalues, the
-/// transform of whatever spawned it, the visibility layer its scene nodes belong to, and the scene those
-/// nodes go into.
+/// Everything <see cref="EntityFactory"/> needs to spawn an entity: its keyvalues, the transform of its
+/// spawner, its visibility layer, and its scene.
 /// </summary>
 /// <param name="Data">The entity's keyvalues, as authored in the map.</param>
 /// <param name="ParentTransform">Transform of the spawner (a template or spawn group placement, identity for map entities), applied to the authored origin and angles.</param>
@@ -22,31 +21,28 @@ namespace ValveResourceFormat.Renderer.Entities;
 public readonly record struct EntitySpawnInfo(Entity Data, Matrix4x4 ParentTransform, string? LayerName, Scene Scene, EntityNameFixup NameFixup);
 
 /// <summary>
-/// The base of the simulated entity hierarchy, Source's <c>CBaseEntity</c>. It carries the origin and
-/// angles, ticks inside <see cref="EntitySystem"/>, and owns the scene nodes that draw it.
+/// The base of the simulated entities. Ticks inside <see cref="EntitySystem"/> and owns the scene nodes
+/// that draw it.
 /// </summary>
 /// <remarks>
-/// Entities move on the fixed tick rather than the render frame, so think intervals and ramps match the
-/// engine at any framerate. An entity is not a scene node; it owns one, <see cref="RootNode"/>, and places
-/// it each frame. That node defaults to the editor box, and a class with real geometry replaces it.
+/// Entities move on the fixed tick rather than the render frame, so think intervals and ramps do not
+/// depend on framerate. An entity is not a scene node; it owns <see cref="RootNode"/> and places it each
+/// frame.
 /// </remarks>
 public abstract class BaseEntity
 {
     /// <summary>Gets the scene that holds the nodes of this entity.</summary>
     public Scene Scene { get; }
 
-    /// <summary>
-    /// Gets the node this entity is drawn as, from <see cref="CreateRootNode"/>. The entity positions it;
-    /// anything hanging off it follows by the scene graph's own rules.
-    /// </summary>
+    /// <summary>Gets the node this entity is drawn as, from <see cref="CreateRootNode"/>.</summary>
     public SceneNode? RootNode { get; private set; }
 
     /// <summary>Gets the world transform the entity is drawn at, interpolated between ticks.</summary>
     public Matrix4x4 Transform { get; private set; } = Matrix4x4.Identity;
 
     /// <summary>
-    /// Gets where the entity is in the world at its current tick, without its <see cref="EntityScale"/>:
-    /// the placement of anything the scale must not stretch, such as collision or a baked volume.
+    /// Gets the world transform at the current tick, without <see cref="EntityScale"/>, for anything the
+    /// scale must not stretch, such as collision.
     /// </summary>
     public Matrix4x4 RigidTransform => EntityTransformHelper.ToRigidTransformationMatrix(angles, origin) * GetParentFrame();
 
@@ -57,15 +53,14 @@ public abstract class BaseEntity
     public EntitySystem EntitySystem { get; }
 
     /// <summary>
-    /// Gets the entity's keyvalues as authored in the map, or <see langword="null"/> for an entity created
-    /// at runtime rather than loaded from one. Names in it still carry their fixup markers; read
-    /// <see cref="SpawnData"/> for the names the entity was spawned with.
+    /// Gets the keyvalues as authored in the map, or <see langword="null"/> for an entity created at
+    /// runtime. Names in it still carry their fixup markers; <see cref="SpawnData"/> has the spawned names.
     /// </summary>
     public Entity? Data { get; }
 
     /// <summary>
-    /// Gets the keyvalues the entity was spawned with: <see cref="Data"/> with <see cref="NameFixup"/>
-    /// applied to every name in it, or <see langword="null"/> for an entity created at runtime.
+    /// Gets <see cref="Data"/> with <see cref="NameFixup"/> applied to every name, or
+    /// <see langword="null"/> for an entity created at runtime.
     /// </summary>
     public Entity? SpawnData { get; }
 
@@ -73,8 +68,8 @@ public abstract class BaseEntity
     public EntityNameFixup NameFixup { get; } = EntityNameFixup.None;
 
     /// <summary>
-    /// Gets the keyvalues this entity was spawned with. Throws for an entity created at runtime, which has
-    /// none; read <see cref="SpawnData"/> instead in a class that can be either.
+    /// Gets <see cref="SpawnData"/>, throwing for an entity created at runtime. A class that can be
+    /// either reads <see cref="SpawnData"/> instead.
     /// </summary>
     protected Entity KeyValues => SpawnData
         ?? throw new InvalidOperationException($"'{Classname}' was created at runtime and has no map keyvalues");
@@ -85,30 +80,27 @@ public abstract class BaseEntity
     /// <summary>Gets the entity's <c>targetname</c>, the name entity I/O addresses it by.</summary>
     public string? TargetName { get; }
 
-    /// <summary>Gets the entity's <c>spawnflags</c>, which some entities change at runtime as Source's do.</summary>
+    /// <summary>Gets the entity's <c>spawnflags</c>, which some entities change at runtime.</summary>
     public uint SpawnFlags { get; protected set; }
 
     /// <summary>
-    /// Gets the placement of whatever spawned this entity, a template or a spawn group, already applied to its
-    /// pose. Identity for plain map entities.
+    /// Gets the placement of the template or spawn group that spawned this entity, already applied to its
+    /// pose. Identity for map entities.
     /// </summary>
     public Matrix4x4 SpawnTransform { get; }
 
     /// <summary>
-    /// Gets or sets the owning entity, Source's <c>m_hOwnerEntity</c>. Null only on the root <see cref="WorldEntity"/>.
+    /// Gets or sets the owning entity. Null only on the root <see cref="WorldEntity"/>.
     /// </summary>
     public BaseEntity? Owner { get; set; }
 
     /// <summary>
-    /// Gets the entity this one moves with, the map's <c>parentname</c> - the move parent, which is a
-    /// different link than <see cref="Owner"/>. A door's handle rides its door through this.
+    /// Gets the entity this one moves with (<c>parentname</c>), a different link than <see cref="Owner"/>.
+    /// A door's handle rides its door through this.
     /// </summary>
     public BaseEntity? MoveParent { get; private set; }
 
-    /// <summary>
-    /// Gets whether <see cref="ResolveMoveParent"/> has run and whether
-    /// empty MoveParent means it has not yet been resolved or there's no parent.
-    /// </summary>
+    // A null MoveParent alone cannot tell unresolved from having no parent
     internal bool IsMoveParentResolved { get; private set; }
 
     // What the move parent frame is: the parent entity, or an attachment point or bone of its model
@@ -122,21 +114,17 @@ public abstract class BaseEntity
     private ParentFrameKind parentFrameKind;
     private string? parentAttachmentName;
 
-    // Entities whose pose is relative to this one
     private readonly List<BaseEntity> moveChildren = [];
-
-    // What blocked the last push, Source's m_pBlocker
     private BaseEntity? currentBlocker;
 
-    // Taken out of traces while its own push is checked, Source's UnlinkPusherList
+    // Taken out of traces while its own push is checked
     private bool isCollisionSuspended;
 
-    // Source's sv_stepsize, which pads the push's search volume above the pushers
     private const float PushStepSize = 18f;
 
     /// <summary>
-    /// Resolves <c>parentname</c> once everything has spawned, and turns the authored world pose into one
-    /// local to the parent, the way the engine does at spawn.
+    /// Resolves <c>parentname</c> once everything has spawned, making the authored world pose local to the
+    /// parent.
     /// </summary>
     internal void ResolveMoveParent()
     {
@@ -236,14 +224,14 @@ public abstract class BaseEntity
     public Vector3 EntityScale { get; }
 
     /// <summary>
-    /// Gets the <c>model</c> the map authored. Source's <c>m_ModelName</c>. Reading the keyvalue is generic;
-    /// an entity that has something to draw applies it by deriving from <see cref="BaseModelEntity"/>.
+    /// Gets the <c>model</c> the map authored. An entity that draws it derives from
+    /// <see cref="BaseModelEntity"/>.
     /// </summary>
     public string? ModelName { get; protected set; }
 
     /// <summary>
-    /// Gets or sets the origin relative to the move parent frame, the world origin for an entity without one.
-    /// Source's <c>m_vecOrigin</c>, which movement works in. Setting it rebuilds <see cref="Transform"/>.
+    /// Gets or sets the origin in the move parent frame, the world origin for an entity without one.
+    /// Movement works in this. Setting it rebuilds <see cref="Transform"/>.
     /// </summary>
     public Vector3 Origin
     {
@@ -253,7 +241,7 @@ public abstract class BaseEntity
 
     /// <summary>
     /// Gets or sets the orientation relative to the move parent frame, as a QAngle (pitch, yaw, roll) in
-    /// degrees. Source's <c>m_angRotation</c>. Setting it rebuilds <see cref="Transform"/>.
+    /// degrees. Setting it rebuilds <see cref="Transform"/>.
     /// </summary>
     public Vector3 Angles
     {
@@ -281,9 +269,8 @@ public abstract class BaseEntity
     public Vector3 Velocity { get; set; }
 
     /// <summary>
-    /// Gets or sets the angular velocity as a QAngle in degrees per second, turning the entity about its
-    /// own axes, or through its angle components where <see cref="TurnsByAngleComponents"/> says so.
-    /// Source's <c>SetLocalAngularVelocity</c>.
+    /// Gets or sets the angular velocity as a QAngle in degrees per second, about the entity's own axes
+    /// unless <see cref="TurnsByAngleComponents"/> says otherwise.
     /// </summary>
     public Vector3 AngularVelocity { get; set; }
 
@@ -295,12 +282,11 @@ public abstract class BaseEntity
 
     /// <summary>
     /// Gets the time <see cref="MoveDone"/> next runs on the entity's own move clock, or -1 when no move is
-    /// scheduled. Source's <c>m_flMoveDoneTime</c>, how pushing entities step their movement state machines.
+    /// scheduled. Pushing entities step their movement state machines with it.
     /// </summary>
     /// <remarks>
-    /// The clock is Source's <c>m_flLocalTime</c>. It only runs while a move is pending and winds back when
-    /// a push is blocked, so a move lasts exactly as long as it was scheduled for, whenever in the tick it
-    /// was scheduled.
+    /// The clock only runs while a move is pending and winds back when a push is blocked, so a move lasts
+    /// exactly as long as scheduled, whenever in the tick it was scheduled.
     /// </remarks>
     public float MoveDoneTime { get; private set; } = -1f;
 
@@ -310,27 +296,25 @@ public abstract class BaseEntity
     public bool IsRemoved { get; private set; }
 
     /// <summary>
-    /// Gets the entity's collision shape, or <see langword="null"/> when it has none. Built by
-    /// <see cref="BaseModelEntity"/> from the model's physics, and moved with the entity every tick.
+    /// Gets the collision shape, or <see langword="null"/> when it has none. Built by
+    /// <see cref="BaseModelEntity"/> from the model's physics and moved with the entity every tick.
     /// </summary>
     public EntityCollider? Collider { get; protected set; }
 
     /// <summary>
-    /// Gets or sets whether the entity collides with the player. Setting it to <see langword="false"/>
-    /// leaves the shape built but takes the entity out of traces, which is what Source's
-    /// <c>SOLID_NONE</c> amounts to here.
+    /// Gets or sets whether the entity collides with the player. <see langword="false"/> keeps the shape
+    /// but takes the entity out of traces.
     /// </summary>
     public bool IsSolid { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets whether the entity is a trigger volume: something passes through it and it reports
-    /// the touch, rather than blocking. Source's <c>FSOLID_TRIGGER</c>.
+    /// Gets or sets whether the entity is a trigger volume, which reports touches instead of blocking.
     /// </summary>
     public bool IsTrigger { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the entity's geometry is drawn, Source's <c>EF_NODRAW</c>. Every node it
-    /// owns follows, through <see cref="SceneNode.Visible"/>, so toggling costs nothing.
+    /// Gets or sets whether the entity's geometry is drawn. Every node it owns follows through
+    /// <see cref="SceneNode.Visible"/>.
     /// </summary>
     public bool IsDrawn
     {
@@ -352,10 +336,7 @@ public abstract class BaseEntity
     /// </summary>
     public bool IsCollidable => IsSolid && !IsTrigger && Collider is { IsEmpty: false } && !IsRemoved && !isCollisionSuspended && IsInQueryWorld;
 
-    /// <summary>
-    /// Gets whether the entity's collision is in the physics world of the main world group, the only one
-    /// traces are made against. A 3D sky's entities collide in a physics world of their own.
-    /// </summary>
+    // A 3D sky's entities collide in a physics world of their own, which traces do not use
     internal bool IsInQueryWorld => Scene.WorldGroup == null;
 
     /// <summary>Gets the entities currently inside this one's volume.</summary>
@@ -376,9 +357,7 @@ public abstract class BaseEntity
     // Transform without the scale, where children following this entity are drawn from
     private Matrix4x4 renderFrame = Matrix4x4.Identity;
 
-    /// <summary>
-    /// Initializes the entity from its keyvalues, reading the properties every entity has.
-    /// </summary>
+    /// <summary>Initializes the entity from its keyvalues.</summary>
     protected BaseEntity(EntitySystem system, EntitySpawnInfo spawnInfo)
     {
         EntitySystem = system;
@@ -422,8 +401,7 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Initializes an entity created at runtime rather than loaded from a map, so it has no keyvalues to
-    /// read and starts at the world origin.
+    /// Initializes an entity created at runtime, which has no keyvalues and starts at the world origin.
     /// </summary>
     /// <param name="system">The entity world it lives in.</param>
     /// <param name="scene">The scene its nodes render into.</param>
@@ -444,16 +422,15 @@ public abstract class BaseEntity
     /// Builds the node this entity is drawn as, or returns <see langword="null"/> for one that draws nothing.
     /// </summary>
     /// <remarks>
-    /// The default is the editor marker, <see cref="CreateEditorNode"/>: the icon the entity's Hammer class
-    /// names, or a box in its colour. A class with real geometry overrides this, so the icon is never built
-    /// for one that has geometry.
+    /// The default is the editor marker, <see cref="CreateEditorNode"/>. A class with real geometry
+    /// overrides this, so the marker is never built for it.
     /// </remarks>
     /// <returns>The node, or <see langword="null"/> to own none.</returns>
     protected virtual SceneNode? CreateRootNode() => CreateEditorNode();
 
     /// <summary>
-    /// Builds the node the editor draws this entity as: the icon its Hammer class names, or a box in its
-    /// colour. <see langword="null"/> for an entity created at runtime, which has no Hammer class.
+    /// Builds the editor marker: the icon of the entity's Hammer class, or a box in its colour.
+    /// <see langword="null"/> for an entity created at runtime, which has no Hammer class.
     /// </summary>
     /// <param name="flags">Flags for the node.</param>
     /// <returns>The node, or <see langword="null"/>.</returns>
@@ -477,8 +454,8 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Loads an effect for the entity to play, at the entity and on the particles layer. The caller decides
-    /// whether the entity owns and places it, through <see cref="AddNode"/>.
+    /// Loads an effect at the entity on the particles layer. The caller decides through
+    /// <see cref="AddNode"/> whether the entity owns and places it.
     /// </summary>
     /// <param name="effectName">The effect, or <see langword="null"/> or empty for none.</param>
     /// <param name="snapshot">A snapshot the effect starts from, such as a rope's points.</param>
@@ -514,9 +491,8 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Tests whether any of the given <c>spawnflags</c> bits are set, as Source's <c>HasSpawnFlags</c> does.
-    /// Each entity class declares what its flags mean as a <see cref="FlagsAttribute"/> enum backed by
-    /// <see cref="uint"/>.
+    /// Tests whether any of the given <c>spawnflags</c> bits are set. Each entity class declares its flags
+    /// as a <see cref="FlagsAttribute"/> enum backed by <see cref="uint"/>.
     /// </summary>
     /// <typeparam name="TSpawnFlags">The entity class's spawnflags enum.</typeparam>
     public bool HasSpawnFlags<TSpawnFlags>(TSpawnFlags flags)
@@ -524,16 +500,15 @@ public abstract class BaseEntity
         => (SpawnFlags & Unsafe.BitCast<TSpawnFlags, uint>(flags)) != 0;
 
     /// <summary>
-    /// Sets up the entity: loads its model, reads class-specific keyvalues, and schedules its first think.
-    /// Called by <see cref="EntityFactory"/> right after construction, before the entity enters the world.
+    /// Sets up the entity (model, class keyvalues, first think). Called by <see cref="EntityFactory"/>
+    /// right after construction, before the entity enters the world.
     /// </summary>
     public virtual void Spawn()
     {
     }
 
     /// <summary>
-    /// Called once every entity in the map has spawned, for anything that needs to resolve other entities
-    /// by name. Source's <c>Activate</c>.
+    /// Called once every entity in the map has spawned, to resolve other entities by name.
     /// </summary>
     public virtual void Activate()
     {
@@ -544,10 +519,7 @@ public abstract class BaseEntity
     {
     }
 
-    /// <summary>
-    /// Runs when the host declares a round started, via <see cref="EntitySystem.StartRound"/>. What the
-    /// engine's game rules announce to entities on round restart.
-    /// </summary>
+    /// <summary>Runs when the host starts a round, via <see cref="EntitySystem.StartRound"/>.</summary>
     public virtual void RoundStart()
     {
     }
@@ -558,12 +530,11 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Reports the box this entity occupies for touch tests, which by default is the world-space bounds of
-    /// its collision shape. An entity with no shape has no volume and cannot be touched, so it says so.
+    /// Reports the box this entity occupies for touch tests, by default the world bounds of its collision
+    /// shape. Without a shape it occupies no space and cannot be touched.
     /// </summary>
     /// <remarks>
-    /// A box rather than the real shape, because that is what trigger volumes test against, here and in
-    /// the engine.
+    /// A box rather than the real shape, because that is what trigger volumes test against.
     /// </remarks>
     /// <returns><see langword="true"/> when this entity occupies space.</returns>
     public virtual bool TryGetTouchBounds(out Vector3 center, out Vector3 halfExtents)
@@ -583,46 +554,41 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Whether this entity is interested in being touched by <paramref name="other"/>. A refusal keeps the
-    /// touch link from opening at all, which is where a trigger's filters belong.
+    /// Whether this entity accepts a touch from <paramref name="other"/>. Refusing keeps the touch link
+    /// from opening, which is where a trigger's filters belong.
     /// </summary>
     protected virtual bool AcceptsTouchFrom(BaseEntity other) => true;
 
-    /// <summary>Runs on the tick <paramref name="other"/> enters this entity's volume. Source's <c>StartTouch</c>.</summary>
+    /// <summary>Runs on the tick <paramref name="other"/> enters this entity's volume.</summary>
     protected virtual void OnStartTouch(BaseEntity other)
     {
     }
 
     /// <summary>
     /// Runs every tick <paramref name="other"/> is inside this entity's volume, the tick it entered included,
-    /// and on a tick the player ran into this solid entity while moving. Source's <c>Touch</c>, which serves both.
+    /// and on a tick the player ran into this solid entity while moving.
     /// </summary>
     protected virtual void OnTouch(BaseEntity other)
     {
     }
 
-    /// <summary>Runs on the tick <paramref name="other"/> leaves this entity's volume. Source's <c>EndTouch</c>.</summary>
+    /// <summary>Runs on the tick <paramref name="other"/> leaves this entity's volume.</summary>
     protected virtual void OnEndTouch(BaseEntity other)
     {
     }
 
-    /// <summary>
-    /// Gets what this entity can do, which is how the player's use trace decides whether it is worth
-    /// pressing. Source's <c>ObjectCaps</c>.
-    /// </summary>
+    /// <summary>Gets what this entity can do, which the player's use trace checks.</summary>
     public virtual EntityCapability ObjectCaps => EntityCapability.None;
 
     /// <summary>
-    /// Runs when something presses this entity. Source's <c>CBaseEntity::Use</c>, minus the use type and
-    /// value, which nothing here distinguishes.
+    /// Runs when something presses this entity. Use type and value are not distinguished.
     /// </summary>
     public virtual void Use(BaseEntity? activator)
     {
     }
 
     /// <summary>
-    /// Moves the entity somewhere else outright, rather than by travelling there. Source's
-    /// <c>CBaseEntity::Teleport</c>. Null angles keep the current ones.
+    /// Moves the entity outright rather than by travelling there. Null angles keep the current ones.
     /// </summary>
     public virtual void Teleport(Vector3 origin, Vector3? angles)
     {
@@ -655,8 +621,8 @@ public abstract class BaseEntity
 
         if (isOverlapping)
         {
-            // The engine touches on the tick of entry too, straight after the start, so a trigger_multiple
-            // fires as the player walks in rather than a tick later
+            // Touch on the tick of entry too, straight after the start, so a trigger_multiple fires as
+            // the player walks in rather than a tick later
             if (touching.Add(other))
             {
                 OnStartTouch(other);
@@ -674,9 +640,9 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Handles an entity I/O input fired at this entity, by running the handler this entity's class
-    /// declared for it with <see cref="EntityInputAttribute"/>. Override only to intercept inputs that
-    /// cannot be a fixed method, and call the base to fall back to the table.
+    /// Handles an entity I/O input by running the handler declared with <see cref="EntityInputAttribute"/>.
+    /// Override only to intercept inputs that cannot be a fixed method, and call the base to fall back to
+    /// the table.
     /// </summary>
     /// <returns><see langword="true"/> when the input was handled.</returns>
     public virtual bool AcceptInput(string inputName, EntityInputData data)
@@ -710,17 +676,14 @@ public abstract class BaseEntity
         => NextThink = time < 0f ? -1f : EntitySystem.SnapToTick(time);
 
     /// <summary>
-    /// Schedules <see cref="MoveDone"/> to run after a delay in seconds, matching Source's
-    /// <c>SetMoveDoneTime</c>. A negative delay cancels the scheduled move.
+    /// Schedules <see cref="MoveDone"/> to run after a delay in seconds. A negative delay cancels the
+    /// scheduled move.
     /// </summary>
     public void SetMoveDoneTime(float delay)
         => MoveDoneTime = delay >= 0f ? localTime + delay : -1f;
 
-    /// <summary>
-    /// Runs one entity tick: think, move, then move-done, the order Source's pusher physics uses.
-    /// </summary>
-    // The state this tick starts from is the one frames interpolate out of. Taken for every entity before
-    // any of them moves, so a child sees where its parent started.
+    // The state a tick starts from is what frames interpolate out of. Taken for every entity before any
+    // of them moves, so a child sees where its parent started.
     internal void BeginTick()
     {
         previousOrigin = origin;
@@ -732,6 +695,7 @@ public abstract class BaseEntity
         => previousOrigin != origin || previousAngles != angles
         || (parentFrameKind == ParentFrameKind.Entity && MoveParent!.MovedThisTick());
 
+    // Runs one tick: think, move, then move-done
     internal void Simulate(float tickInterval)
     {
         if (NextThink > 0f && NextThink <= EntitySystem.CurrentTime)
@@ -745,9 +709,8 @@ public abstract class BaseEntity
             return;
         }
 
-        // Only as far as the scheduled arrival, never past it. Source's pusher does the same
-        // (physics_main.cpp: movetime is clamped to the frame), and without it a 0.1s ramp step would
-        // take a whole 7th tick of movement it was never given time for.
+        // Only as far as the scheduled arrival, never past it, or a 0.1s ramp step would take a whole 7th
+        // tick of movement it was never given time for.
         var moveTime = tickInterval;
 
         if (MoveDoneTime > 0f)
@@ -786,14 +749,14 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Integrates this tick's movement, advancing <see cref="Origin"/> by <see cref="Velocity"/> and
-    /// turning by <see cref="AngularVelocity"/>.
+    /// Integrates this tick's movement: advances <see cref="Origin"/> by <see cref="Velocity"/> and turns
+    /// by <see cref="AngularVelocity"/>.
     /// </summary>
     /// <remarks>
-    /// Source 2 does it both ways, chosen per class by <see cref="TurnsByAngleComponents"/>. By default the
-    /// turn goes about the entity's own axes, so a brush authored on its side spins about its own up axis
-    /// rather than the world's. The doors and other toggle brushes instead add the rate onto the QAngle
-    /// components, as Source 1 always did. The two only differ for an entity the map already rotated.
+    /// Turning is chosen per class by <see cref="TurnsByAngleComponents"/>. By default it is about the
+    /// entity's own axes, so a brush authored on its side spins about its own up axis. Doors and other
+    /// toggle brushes add the rate onto the QAngle components instead. The two only differ for an entity
+    /// the map already rotated.
     /// </remarks>
     protected virtual void PhysicsSimulate(float tickInterval)
     {
@@ -813,20 +776,20 @@ public abstract class BaseEntity
 
     /// <summary>
     /// Gets whether a turn adds <see cref="AngularVelocity"/> onto the QAngle components rather than turning
-    /// the body about its own axes. The doors and other toggle brushes do, so their travel between two
-    /// authored angles is a straight line through the components and lands where it was aimed.
+    /// about the body's own axes. Doors and other toggle brushes do, so their travel between two authored
+    /// angles is a straight line through the components and lands where it was aimed.
     /// </summary>
     protected virtual bool TurnsByAngleComponents => false;
 
     /// <summary>
-    /// Gets whether this entity pushes the player out of its way as it moves, Source's
-    /// <c>MOVETYPE_PUSH</c>. Doors, buttons, rotating brushes and trains opt in.
+    /// Gets whether this entity pushes the player out of its way as it moves. Doors, buttons, rotating
+    /// brushes and trains opt in.
     /// </summary>
     protected internal virtual bool IsPusher => false;
 
     /// <summary>
-    /// Gets whether the player can never block this pusher, Source's <c>FL_UNBLOCKABLE_BY_PLAYER</c>. The
-    /// player is moved the whole way, through the world if need be, and the pusher keeps going.
+    /// Gets whether the player can never block this pusher: the player is moved the whole way, through the
+    /// world if need be, and the pusher keeps going.
     /// </summary>
     protected virtual bool IsUnblockableByPlayer => false;
 
@@ -837,24 +800,23 @@ public abstract class BaseEntity
     protected bool MovesWithoutPushing { get; set; }
 
     /// <summary>
-    /// Gets whether a player in the way of anything parented under this entity is pushed the way the game
-    /// pushes them off trains: slid along the push and lifted out of whatever it left them in, and never
-    /// able to block it.
+    /// Gets whether a player in the way of anything parented under this entity is pushed as a train pushes
+    /// them: slid along the push and lifted out of whatever it left them in, and never able to block it.
     /// </summary>
     protected virtual bool PushesPlayerAsTrain => false;
 
     /// <summary>
-    /// Gets whether this entity collides as a physics mesh, Source's <c>SOLID_VPHYSICS</c>, as nearly every
-    /// model does. A turning one pushes the player by the motion of the corner of their box that leads
-    /// into the turn, rather than by the motion of their origin.
+    /// Gets whether this entity collides as a physics mesh, as nearly every model does. A turning one
+    /// pushes the player by the motion of the corner of their box that leads into the turn, rather than
+    /// by the motion of their origin.
     /// </summary>
     protected virtual bool HasVPhysicsSolid => true;
 
     /// <summary>
-    /// The engine's pusher physics, run on the tick right after this entity's own move. Everything
-    /// parented to the pusher moves with it as one body. A player standing on any of it, or that the
-    /// new pose overlaps, is moved by the whole push, cut short only by whatever else is in the way. When
-    /// that leaves them inside something, they block the pusher, which takes its motion back.
+    /// Pusher physics, run right after this entity's own move. Everything parented to the pusher moves
+    /// with it as one body. A player standing on any of it, or overlapped by the new pose, is moved by the
+    /// whole push, cut short only by whatever else is in the way. If that leaves them inside something,
+    /// they block the pusher, which takes its motion back.
     /// </summary>
     /// <returns>What blocked the push, or <see langword="null"/>.</returns>
     private PlayerEntity? PushPlayer(float moveTime)
@@ -908,7 +870,7 @@ public abstract class BaseEntity
         return null;
     }
 
-    // This entity and everything parented under it, Source's SetupAllInHierarchy
+    // Adds this entity and everything parented under it
     private void CollectPushers(List<BaseEntity> pushers)
     {
         pushers.Add(this);
@@ -935,10 +897,9 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Whether the player is something this push has to move, Source's <c>GenerateBlockingEntityList</c>:
-    /// anyone standing on the pushers rides them, anyone else only when the new pose overlaps them. Both
-    /// only within the volume the pushers now fill, stretched back over the ground the push covered and
-    /// two steps up.
+    /// Whether the push has to move the player: anyone standing on the pushers rides them, anyone else only
+    /// when the new pose overlaps them. Both only within the volume the pushers now fill, stretched back
+    /// over the ground the push covered and two steps up.
     /// </summary>
     private static bool IsInPushersWay(List<BaseEntity> pushers, BaseEntity? ground, Vector3 center, Vector3 halfExtents, Vector3 sweep)
     {
@@ -988,9 +949,8 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Where this tick's turn takes the player, Source's <c>ComputeRotationalPushDirection</c>: the motion
-    /// of their origin at the feet, or for a physics mesh pusher, of the corner of their box that leads
-    /// into that motion.
+    /// How far this tick's turn moves the player: the motion of their origin at the feet, or for a physics
+    /// mesh pusher, of the corner of their box that leads into that motion.
     /// </summary>
     private Vector3 RotationalPushAt(in Matrix4x4 motion, Vector3 center, Vector3 halfExtents)
     {
@@ -1014,9 +974,9 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Moves the player by the push, Source's <c>SpeculativelyCheckPush</c>. The move is traced with the
-    /// pushers out of the way and stops at whatever else is there. A straight push that went the whole
-    /// way is done; otherwise the player must have come out clear of everything, pushers included.
+    /// Moves the player by the push, traced with the pushers out of the way and stopping at whatever else
+    /// is there. A straight push that went the whole way is done; otherwise the player must have come out
+    /// clear of everything, pushers included.
     /// </summary>
     /// <returns><see langword="false"/> when the player blocks the push.</returns>
     private bool TrySpeculativePush(IPlayerController controller, List<BaseEntity> pushers, Vector3 center, Vector3 push, bool rotational, out Vector3 moved)
@@ -1065,8 +1025,8 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// The game's own push for a player in a train's way, which never blocks. A rider is carried like by
-    /// any pusher, then lifted out of whatever that left them in; anyone else is slid along the push.
+    /// The push for a player in a train's way, which never blocks. A rider is carried as by any pusher,
+    /// then lifted out of whatever that left them in; anyone else is slid along the push.
     /// </summary>
     private Vector3 PushPlayerAsTrain(IPlayerController controller, List<BaseEntity> pushers, Vector3 center, Vector3 push, bool rotational)
     {
@@ -1122,7 +1082,7 @@ public abstract class BaseEntity
     /// <summary>
     /// Slides the player along a push for up to four bumps, with the pushers out of the way. Every sweep
     /// starts four units above where the slide began. A bump takes the push off the surface it hit and
-    /// lengthens what remains by as much as the hit was a graze.
+    /// lengthens what remains the more the hit was a graze.
     /// </summary>
     private Vector3 SlidePlayer(IPlayerController controller, List<BaseEntity> pushers, Vector3 center, Vector3 direction, float distance)
     {
@@ -1186,7 +1146,7 @@ public abstract class BaseEntity
         }
     }
 
-    // Source's pusher remembers what blocked it, telling the entity when that changes and then on every
+    // Remembers what blocked the pusher, telling the entity when that changes and then on every
     // blocked tick
     private void UpdateBlocker(BaseEntity? blocker)
     {
@@ -1211,21 +1171,21 @@ public abstract class BaseEntity
         }
     }
 
-    /// <summary>Runs on the first tick a push is blocked by <paramref name="blocker"/>. Source's <c>StartBlocked</c>.</summary>
+    /// <summary>Runs on the first tick a push is blocked by <paramref name="blocker"/>.</summary>
     /// <param name="blocker">What the push could not move.</param>
     protected virtual void OnStartBlocked(BaseEntity blocker)
     {
     }
 
     /// <summary>
-    /// Runs on every tick a push is blocked, after the tick's motion was taken back. Source's <c>Blocked</c>.
+    /// Runs on every tick a push is blocked, after the tick's motion was taken back.
     /// </summary>
     /// <param name="blocker">What the push could not move.</param>
     protected virtual void OnBlocked(BaseEntity blocker)
     {
     }
 
-    /// <summary>Runs on the first push that is no longer blocked. Source's <c>EndBlocked</c>.</summary>
+    /// <summary>Runs on the first push that is no longer blocked.</summary>
     protected virtual void OnEndBlocked()
     {
     }
@@ -1267,8 +1227,7 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Moves and turns in one go, so a tick's movement rebuilds the transform once rather than once per
-    /// property, and an unchanged write costs nothing.
+    /// Sets origin and angles together so the transform is rebuilt once; an unchanged write does nothing.
     /// </summary>
     protected void SetOriginAndAngles(Vector3 newOrigin, Vector3 newAngles)
     {
@@ -1326,8 +1285,7 @@ public abstract class BaseEntity
     };
 
     /// <summary>
-    /// Brings the entity's node up to date for this frame: interpolate between the last two ticks, then put
-    /// the node where that lands.
+    /// Interpolates between the last two ticks and places the entity's nodes where that lands.
     /// </summary>
     /// <remarks>
     /// The octree entry is moved here rather than in <see cref="Scene.Update"/>, which measures a node's
@@ -1363,9 +1321,8 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Puts a node this entity owns into the scene, and takes responsibility for its lifetime, whether it
-    /// is drawn, and by default its placement. <see cref="RootNode"/> is the one the entity is drawn as; a
-    /// model entity also owns the collision hulls its model was compiled with.
+    /// Adds a node to the scene and takes ownership of its lifetime, visibility and, by default, placement.
+    /// A model entity also owns the collision hulls its model was compiled with.
     /// </summary>
     /// <param name="node">The node to own.</param>
     /// <param name="followsEntity">
@@ -1410,10 +1367,7 @@ public abstract class BaseEntity
         placedNodes.Clear();
     }
 
-    /// <summary>
-    /// Takes this entity's nodes out of the scene. Called by <see cref="EntitySystem"/> when the entity
-    /// is removed from the world.
-    /// </summary>
+    // Called by EntitySystem when the entity is removed from the world
     internal void RemoveFromScene()
     {
         IsRemoved = true;
@@ -1433,8 +1387,8 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Called as the entity leaves the world, before its nodes are taken out of the scene. Source's
-    /// <c>UpdateOnRemove</c>: the place to let go of anything the entity started, such as a playing sound.
+    /// Called as the entity leaves the world, before its nodes leave the scene. Release anything the entity
+    /// started here, such as a playing sound.
     /// </summary>
     protected virtual void OnRemove()
     {
@@ -1447,14 +1401,11 @@ public abstract class BaseEntity
         UpdateColliderTransform();
     }
 
-    /// <summary>
-    /// Moves the collision shape onto the entity's current tick state.
-    /// </summary>
+    /// <summary>Moves the collision shape onto the entity's current tick state.</summary>
     /// <remarks>
-    /// Uses the tick state, not the interpolated one drawn this frame, because collision answers where
-    /// the entity is - the same split the engine has between the server tracing and the client drawing.
-    /// The transform stays rigid, leaving <see cref="EntityScale"/> out, because the shape's sweeps
-    /// assume distances do not change in its local space.
+    /// Collision uses the tick state, not the interpolated one drawn this frame. The transform is rigid,
+    /// without <see cref="EntityScale"/>, because the shape's sweeps assume distances do not change in its
+    /// local space.
     /// </remarks>
     protected void UpdateColliderTransform()
     {
@@ -1474,10 +1425,9 @@ public abstract class BaseEntity
     /// Rebuilds <see cref="Transform"/> for drawing, somewhere between the last two ticks.
     /// </summary>
     /// <remarks>
-    /// The engine's client-side interpolation: draw between the two most recent tick states instead of the
-    /// newest one, which renders slightly in the past but stays smooth at any framerate. Angles slerp, like
-    /// mathlib's <c>Lerp&lt;QAngle&gt;</c>, taking the shortest arc. Only what is drawn changes; the tick
-    /// state stays authoritative.
+    /// Drawing between the two most recent tick states instead of the newest renders slightly in the past
+    /// but stays smooth at any framerate. Angles slerp along the shortest arc. Only what is drawn changes;
+    /// the tick state stays authoritative.
     /// </remarks>
     protected virtual void UpdateRenderTransform(float fraction)
     {
@@ -1496,8 +1446,7 @@ public abstract class BaseEntity
 
     /// <summary>
     /// Drops the interpolation history, so the entity is drawn at its current state instead of sliding
-    /// there from where it was. Source's <c>Interp_Reset</c>; call it after a teleport or any other jump
-    /// that is not movement.
+    /// there. Call it after a teleport or any other jump that is not movement.
     /// </summary>
     protected void SnapInterpolation()
     {
@@ -1516,8 +1465,8 @@ public abstract class BaseEntity
     }
 
     /// <summary>
-    /// Wraps an angle into [0, 360), the way the engine's <c>anglemod</c> does, quantization included, so
-    /// comparisons against a stored angle behave the same here as they do in Source.
+    /// Wraps an angle into [0, 360), quantized to 65536 steps as in game, so comparisons against a stored
+    /// angle behave the same.
     /// </summary>
     public static float AngleMod(float degrees)
         => 360f / 65536f * ((int)(degrees * (65536f / 360f)) & 65535);

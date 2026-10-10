@@ -685,7 +685,6 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private List<BaseEntity>? SpawnWorldLayer(InfoWorldLayer worldLayer)
         {
-            // The layer names the world it belongs to.
             // TODO: The engine finds any world loaded into the layer's world group by that name, such as a stage
             // loaded by info_spawngroup_load_unload. Supporting it needs a registry of loaded worlds that keeps
             // their loaders alive, and the layer's visibility toggled in the named world's scene too.

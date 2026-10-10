@@ -168,7 +168,7 @@ namespace ValveResourceFormat.Particles
         // C_OP_SetParentControlPointsToChildCP creates them, so it stays null for almost every system.
         private Dictionary<int, ControlPoint>? controlPointOverrides;
 
-        /// <summary>Gets a control point, creating it and every index below it on first use.</summary>
+        /// <summary>Gets a control point, creating it on first use.</summary>
         /// <param name="cp">The control point index.</param>
         public ControlPoint GetControlPoint(int cp)
         {

@@ -292,7 +292,6 @@ public class Renderer : ISpawnGroupHost
     private readonly Dictionary<SpawnGroup, Entities.SkyCamera?> skyCameras = [];
     private readonly List<Scene> sunCasters = [];
 
-    // options
     /// <summary>
     /// Width and height in texels of the shadow depth buffers.
     /// </summary>

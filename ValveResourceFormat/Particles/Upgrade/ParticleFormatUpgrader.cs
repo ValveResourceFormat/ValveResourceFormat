@@ -6,7 +6,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Particles.Upgrade;
 
 /// <summary>
-/// Replays the engine's vpcf KV3 format-conversion chain, upgrading particle system documents
+/// Replays the vpcf KV3 format-conversion chain, upgrading particle system documents
 /// from their stored format to the newest implemented format.
 /// </summary>
 public static class ParticleFormatUpgrader
@@ -116,10 +116,9 @@ public static class ParticleFormatUpgrader
     }
 
     /// <summary>
-    /// Deep-clones the given document root and applies every implemented chain step past the
-    /// stored format, returning the upgraded clone. Missing and unknown formats start at the
-    /// oldest step, matching the engine treating headerless data as oldest. The result is always
-    /// a clone, so a caller that edits it never reaches the document it was given.
+    /// Deep-clones the document root, applies every implemented step past the stored format and
+    /// returns the upgraded clone, so edits to the result never reach the input. Missing and
+    /// unknown formats start at the oldest step, as headerless data does.
     /// </summary>
     public static KVObject UpgradeToLatest(KVObject root, KV3ID? storedFormat)
     {

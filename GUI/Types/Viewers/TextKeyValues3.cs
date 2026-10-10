@@ -14,8 +14,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace GUI.Types.Viewers;
 
 /// <summary>
-/// Uncompiled KV3 text files. Shows the document as syntax highlighted KV3 plus a hex tab, and
-/// when the root is an animation graph editor document it adds the graph viewer alongside.
+/// Uncompiled KV3 text files, shown as highlighted text plus a hex tab. Animation graph documents
+/// also get the graph viewer.
 /// </summary>
 class TextKeyValues3(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
 {

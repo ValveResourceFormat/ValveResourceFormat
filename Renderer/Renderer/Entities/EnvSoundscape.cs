@@ -4,9 +4,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>env_soundscape</c> / <c>snd_soundscape</c>. Registers the region the map's ambient bed plays from:
-/// a single sound event ("enablesoundevent") or a classic scripted soundscape. The sound player picks
-/// which region is audible each frame; the entity only owns the region and its enabled state.
+/// <c>env_soundscape</c> / <c>snd_soundscape</c>. A region the map's ambient bed plays from: a single
+/// sound event ("enablesoundevent") or a scripted soundscape. The sound player picks which region is
+/// audible.
 /// </summary>
 public sealed class EnvSoundscape : BaseEntity
 {

@@ -93,7 +93,7 @@ internal sealed class Vpcf10ToVpcf11 : ParticleUpgradeStep
     }
 
     /// <summary>
-    /// The engine's lifespan-exponent-to-bias mapping: the exponent quantizes to quarter steps
+    /// Maps the lifespan exponent to a bias: the exponent quantizes to quarter steps
     /// truncated toward zero; quantized values of one and above map to 0..-1 over nineteen
     /// units, values below one map to 1..0 directly.
     /// </summary>

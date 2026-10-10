@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>path_track</c>, Source's <c>CPathTrack</c>. A node of the track a <see cref="FuncTrackTrain"/> runs
+/// <c>path_track</c>. A node of the track a <see cref="FuncTrackTrain"/> runs
 /// along, linked to the next one by <c>target</c> and optionally branching to an <c>altpath</c>.
 /// </summary>
 public class PathTrack : BaseEntity
@@ -32,7 +32,7 @@ public class PathTrack : BaseEntity
     /// <summary>How a train orients itself at this node, the <c>orientationtype</c> keyvalue.</summary>
     public enum Orientation
     {
-        /// <summary>No orientation of its own: the direction of the path.</summary>
+        /// <summary>Same as <see cref="FacePath"/>.</summary>
         Fixed = 0,
 
         /// <summary>The direction of the path.</summary>
@@ -75,9 +75,7 @@ public class PathTrack : BaseEntity
     }
 
     /// <inheritdoc/>
-    /// <remarks>
-    /// Only a node with a name links itself, and only forward: the link back is made by the node before it.
-    /// </remarks>
+    /// <remarks>Only a named node links, and only forward; the link back is made by the node before it.</remarks>
     public override void Activate()
     {
         if (TargetName != null)
@@ -229,7 +227,7 @@ public class PathTrack : BaseEntity
 
     /// <summary>
     /// Walks the path from this node, starting at <paramref name="origin"/>, for |<paramref name="dist"/>|
-    /// units, forward for a positive distance and backward for a negative one.
+    /// units: forward when positive, backward when negative.
     /// </summary>
     /// <param name="origin">Where to start, in the move parent frame; receives the point reached.</param>
     /// <param name="dist">The signed distance to walk.</param>
@@ -300,10 +298,9 @@ public class PathTrack : BaseEntity
 
     private static float Length(Vector3 v) => MathF.Sqrt(v.Z * v.Z + v.Y * v.Y + v.X * v.X);
 
-    /// <summary>Reports a train passing, the <c>InPass</c> input the train sends.</summary>
     internal void Pass(BaseEntity? activator) => EntitySystem.TriggerOutput(this, "OnPass", activator);
 
-    /// <summary>Fires <c>OnPass</c>, as a train passing does.</summary>
+    /// <summary>Fires <c>OnPass</c>.</summary>
     [EntityInput("InPass")]
     protected void InputInPass(EntityInputData data) => Pass(data.Activator);
 

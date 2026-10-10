@@ -4,7 +4,6 @@ using ValveResourceFormat.NavMesh;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// Navigation mesh export functionality for the GLTF model exporter.
 /// Converts navigation mesh areas and ladders into GLTF geometry.
 /// </summary>
 public partial class GltfModelExporter

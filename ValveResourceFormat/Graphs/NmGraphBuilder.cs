@@ -402,8 +402,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                     CreateInputAndChild<Value>(node, switchValueNodeIdx, "Switch");
                 }
 
-                // Either branch may be a constant instead of a wired node, in which case the
-                // constant it falls back to is worth showing in its place.
+                // A branch with no wired node is a constant, so show that constant in its place.
                 var trueNodeIdx = data.GetInt32Property("m_nTrueValueNodeIdx", -1);
                 var falseNodeIdx = data.GetInt32Property("m_nFalseValueNodeIdx", -1);
 

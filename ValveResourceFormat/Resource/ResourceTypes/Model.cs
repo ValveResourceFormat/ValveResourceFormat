@@ -173,8 +173,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="morph">The morph data whose flex controllers should be reused.</param>
         public void SetExternalMorphData(Morph? morph)
         {
-            // The model's own morph block wins; a model whose morph set sits in a separate vmorf takes
-            // the one its meshes carry.
+            // The model's own morph block wins; otherwise use the morph set its meshes carry (separate vmorf).
             if (FlexControllers.Length == 0)
             {
                 cachedFlexControllers = morph?.FlexControllers;

@@ -108,14 +108,14 @@ internal static class SoundscapeOperatorParsing
 
     /// <summary>
     /// Converts a "soundlevel" token ("SNDLVL_140db", a named constant like "SNDLVL_NORM", or a bare
-    /// number) into the engine's distance multiplier: the reciprocal of the distance the sound stays at
+    /// number) into the distance multiplier: the reciprocal of the distance the sound stays at
     /// full volume out to, past which it follows the inverse distance law (see
     /// <see cref="SampleProviders.SampleProvider3D.DistanceMult"/>). Zero means it never attenuates
     /// (SNDLVL_NONE). Missing and unrecognized tokens fall back to <paramref name="fallbackDecibels"/>.
     /// </summary>
     /// <remarks>
-    /// A sound level is the sound pressure the source is authored at, so the model is the physical one the
-    /// engine uses: a source at <see cref="ReferenceDecibels"/> is played at full volume out to
+    /// A sound level is the sound pressure the source is authored at, so the model is the physical one:
+    /// a source at <see cref="ReferenceDecibels"/> is played at full volume out to
     /// <see cref="ReferenceDistance"/> units, and every doubling of distance past that halves the
     /// amplitude. It never reaches zero - which is the point of it, a loud sound stays faintly audible far
     /// past where a "range" would have cut it off entirely.
@@ -170,7 +170,7 @@ internal static class SoundscapeOperatorParsing
         ["WEAPON"] = 150f,
     };
 
-    // The engine's reference pair (its snd_refdb/snd_refdist): 60 dB reproduced at full volume three feet out.
+    // Reference pair: 60 dB reproduced at full volume three feet out.
     private const float ReferenceDecibels = 60f;
     private const float ReferenceDistance = 36f;
 }

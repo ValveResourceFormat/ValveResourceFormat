@@ -4,10 +4,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
 /// <c>func_button</c>. A brush that slides in along its <c>movedir</c> when pressed, fires its outputs, and
-/// either comes back out by itself after <c>wait</c> seconds or stays in until pressed again. Source's
-/// <c>CBaseButton</c>. It can be pressed by use, by the player walking into it, by damage, or by input.
-/// Not simulated: the <c>master</c> that has to be triggered first, as nothing here can be one, and the
-/// spark effect, of which only the sound plays.
+/// either comes back out after <c>wait</c> seconds or stays in until pressed again. It can be pressed by
+/// use, touch, damage or input. Not simulated: <c>master</c>, as nothing here can be one, and the spark
+/// effect, of which only the sound plays.
 /// </summary>
 public sealed class FuncButton : BaseToggle
 {
@@ -37,8 +36,8 @@ public sealed class FuncButton : BaseToggle
         StartsLocked = 2048,
 
         /// <summary>
-        /// Sparks every so often while out. The same bit also silences the locked and unlocked sounds, as
-        /// the engine tests it for those without regard to what it means on a button.
+        /// Sparks every so often while out. Also silences the locked and unlocked sounds, as the same bit is
+        /// tested for those.
         /// </summary>
         Sparks = 4096,
 
@@ -46,10 +45,9 @@ public sealed class FuncButton : BaseToggle
         NonSolid = 16384,
     }
 
-    // Seconds the locked and unlocked sounds are held off for after playing
     private const float LockSoundWait = 0.5f;
 
-    // Seconds OnUseLocked is held off for after firing, so holding use does not flood it
+    // Stops holding use from flooding OnUseLocked
     private const float UseLockedWait = 0.5f;
 
     private enum ThinkFunction
@@ -73,8 +71,8 @@ public sealed class FuncButton : BaseToggle
     public bool IsDisabled { get; private set; }
 
     /// <summary>
-    /// Gets whether the player is shown the button can be used. Source's networked <c>m_usable</c>, a hint for
-    /// the client: <see cref="ObjectCaps"/> is what decides whether use reaches the button.
+    /// Gets whether the client shows the button as usable, a hint only: <see cref="ObjectCaps"/> decides
+    /// whether use reaches it.
     /// </summary>
     public bool IsUsable { get; private set; }
 
@@ -96,9 +94,7 @@ public sealed class FuncButton : BaseToggle
     /// <summary>Gets the position the button is pressed in to.</summary>
     public Vector3 PositionIn { get; private set; }
 
-    /// <summary>
-    /// Gets whether the player can press this button with use. Source's <c>CBaseButton::ObjectCaps</c>.
-    /// </summary>
+    /// <summary>Gets whether the player can press this button with use.</summary>
     public override EntityCapability ObjectCaps
         => !IsDisabled && HasSpawnFlags(SpawnFlag.UseActivates) ? EntityCapability.ImpulseUse : EntityCapability.None;
 
@@ -106,10 +102,10 @@ public sealed class FuncButton : BaseToggle
     private ThinkFunction thinkFunction;
     private MoveDoneFunction moveDoneFunction;
 
-    // Source's m_pfnTouch being ButtonTouch: pressing by touch disarms it until the button is back out
+    // Pressing by touch disarms it until the button is back out
     private bool isTouchArmed;
 
-    // Who pressed the button last, which OnIn and OnOut report when the travel ends
+    // Last presser, reported by OnIn and OnOut
     private BaseEntity? activator;
 
     private string? useSound;
@@ -204,10 +200,7 @@ public sealed class FuncButton : BaseToggle
         GlowEntity = EntitySystem.FindByTargetName(glowEntityName);
     }
 
-    /// <summary>
-    /// Runs when the player presses use on the button. Source's <c>CBaseButton::ButtonUse</c>, which is only
-    /// hooked up for buttons with <see cref="SpawnFlag.UseActivates"/>.
-    /// </summary>
+    /// <summary>Presses the button on use, if it has <see cref="SpawnFlag.UseActivates"/>.</summary>
     public override void Use(BaseEntity? activator)
     {
         if (!HasSpawnFlags(SpawnFlag.UseActivates) || state is ToggleState.GoingUp or ToggleState.GoingDown)
@@ -243,7 +236,7 @@ public sealed class FuncButton : BaseToggle
         }
     }
 
-    /// <summary>Source's <c>CBaseButton::ButtonTouch</c>, for as long as the touch is armed.</summary>
+    /// <summary>Presses the button by touch, for as long as the touch is armed.</summary>
     protected override void OnTouch(BaseEntity other)
     {
         if (!isTouchArmed || other is not PlayerEntity || state is ToggleState.GoingUp or ToggleState.GoingDown)
@@ -282,12 +275,12 @@ public sealed class FuncButton : BaseToggle
 
     /// <summary>
     /// Reports damage dealt to the button, which presses it when it has <see cref="SpawnFlag.DamageActivates"/>.
-    /// Source's <c>CBaseButton::OnTakeDamage</c>. Nothing deals damage yet, so this waits for whatever does.
+    /// Nothing deals damage yet, so this waits for whatever does.
     /// </summary>
     /// <param name="attacker">Who dealt the damage, who becomes the activator of the press.</param>
     public void TakeDamage(BaseEntity? attacker)
     {
-        // Reports the previous activator, not the attacker, as the engine does
+        // Reports the previous activator, not the attacker
         EntitySystem.TriggerOutput(this, "OnDamaged", activator);
 
         if (!HasSpawnFlags(SpawnFlag.DamageActivates)
@@ -315,8 +308,7 @@ public sealed class FuncButton : BaseToggle
         }
     }
 
-    // The inputs take no notice of the activator they carry beyond OnPressed, so OnIn and OnOut still
-    // report whoever last pressed the button by use, touch or damage
+    // Inputs only pass their activator to OnPressed; OnIn and OnOut keep reporting the last presser
 
     [EntityInput("Press")]
     private void InputPress(EntityInputData data)
@@ -407,7 +399,7 @@ public sealed class FuncButton : BaseToggle
         switch (thinkFunction)
         {
             case ThinkFunction.Spark:
-                // Only the sound; the sparks themselves are an engine effect with no particle system to play
+                // Only the sound; there is no particle effect for the sparks
                 SetNextThink(EntitySystem.CurrentTime + 0.1f + Random.Shared.NextSingle() * 1.5f);
                 Sound.Play("DoSpark", WorldOrigin);
                 break;
@@ -502,7 +494,7 @@ public sealed class FuncButton : BaseToggle
         }
     }
 
-    // No entity here can be a master, and the engine lets a button through when its master is missing
+    // Nothing here can be a master, and a button with no master is let through
     private static bool IsMasterTriggered() => true;
 
     private void PlayUseSound()

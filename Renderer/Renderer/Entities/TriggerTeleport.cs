@@ -8,18 +8,15 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// their velocity.
 /// </summary>
 /// <remarks>
-/// The volume is the trigger's own <c>model</c>, the brush hulls it was compiled with, supplied by
-/// <see cref="BaseTrigger.InitTrigger"/>. The destination is a plain map entity, usually an
-/// <c>info_teleport_destination</c>, found in <see cref="Activate"/> once the whole map has loaded. It may be
-/// in another spawn group of the same world group.
+/// The volume is the trigger's own <c>model</c>, supplied by <see cref="BaseTrigger.InitTrigger"/>. The
+/// destination, usually an <c>info_teleport_destination</c>, is found in <see cref="Activate"/> once the
+/// whole map has loaded, and may be in another spawn group of the same world group.
 /// </remarks>
 public sealed class TriggerTeleport : BaseTrigger
 {
     private (Vector3 Origin, Vector3 Angles)? destination;
 
-    /// <summary>
-    /// Initializes a <c>trigger_teleport</c> from its keyvalues.
-    /// </summary>
+    /// <summary>Initializes a <c>trigger_teleport</c> from its keyvalues.</summary>
     public TriggerTeleport(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
     }

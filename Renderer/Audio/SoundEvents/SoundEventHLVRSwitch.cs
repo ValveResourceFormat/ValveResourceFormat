@@ -3,9 +3,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
-/// Implements the "hlvr_start_multi_switch" sound event type: a weighted coin flip between exactly two
-/// children ("soundevent_01"/"soundevent_02"), picked fresh on every play. "soundevent_split" is the
-/// probability of picking "soundevent_01" (defaults to an even 50/50 split when absent).
+/// Sound event type "hlvr_start_multi_switch": a weighted coin flip between "soundevent_01" and
+/// "soundevent_02" per play. "soundevent_split" is the chance of "soundevent_01" (default 0.5).
 /// </summary>
 internal sealed class SoundEventHLVRSwitch : SoundEvent
 {
@@ -28,9 +27,9 @@ internal sealed class SoundEventHLVRSwitch : SoundEvent
         var childDefinitions = Definition.ChildDefinitions ??= ResolveChildDefinitions(childEventNames);
         var picked = Random.NextSingle() < split ? 0 : 1;
 
-        // Only the picked slot is non-null this call, so StartChildren plays just that one; an already
-        // built child instance for the other slot (from an earlier pick) is simply left untouched.
-        // The scratch array is reused across starts to keep the per-play path allocation-free.
+        // Only the picked slot is non-null, so StartChildren plays just that one. A child built for
+        // the other slot by an earlier pick is left alone. The scratch array is reused to keep plays
+        // allocation-free.
         toStart[0] = null;
         toStart[1] = null;
         toStart[picked] = childDefinitions[picked];

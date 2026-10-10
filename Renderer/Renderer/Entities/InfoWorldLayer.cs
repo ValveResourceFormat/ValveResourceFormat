@@ -3,12 +3,12 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>info_world_layer</c>. Shows and hides one world layer, and spawns and destroys the entities
-/// compiled into the layer's own entity lump, by entity I/O.
+/// <c>info_world_layer</c>. Shows or hides a world layer and spawns or destroys the entities in the
+/// layer's entity lump, by entity I/O.
 /// </summary>
 /// <remarks>
-/// Entities spawned by an input after the map has loaded are not bound to the scene's cubemaps and light
-/// probes, which are only assigned when the scene is first initialized.
+/// Entities spawned by an input after load are not bound to the scene's cubemaps and light probes,
+/// which are only assigned when the scene is first initialized.
 /// </remarks>
 public sealed class InfoWorldLayer : BaseEntity
 {
@@ -32,7 +32,7 @@ public sealed class InfoWorldLayer : BaseEntity
     /// <summary>Gets the entities spawned from the layer's entity lump, or <see langword="null"/> when they are not spawned.</summary>
     public IReadOnlyList<BaseEntity>? LayerEntities { get; private set; }
 
-    /// <summary>Spawns the layer's entity lump, set by the map that placed this entity.</summary>
+    /// <summary>Set by the map; spawns the layer's entity lump.</summary>
     internal Func<InfoWorldLayer, IReadOnlyList<BaseEntity>?>? LayerSpawner { get; set; }
 
     /// <summary>Initializes an <c>info_world_layer</c> from its keyvalues.</summary>
@@ -96,7 +96,7 @@ public sealed class InfoWorldLayer : BaseEntity
         }
     }
 
-    // Spawned by an input, so the map has long been activated and the new entities need it on their own
+    // Spawned by an input after the map activated, so the new entities need their own Activate
     private void SpawnLayerEntitiesNow()
     {
         if (SpawnLayerEntities())

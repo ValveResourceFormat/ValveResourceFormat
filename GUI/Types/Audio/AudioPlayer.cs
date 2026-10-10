@@ -8,9 +8,8 @@ namespace GUI.Types.Audio
     internal static class AudioPlayer
     {
         /// <summary>
-        /// Creates a decoded <see cref="WaveStream"/> and loop markers for the streaming sound
-        /// data of a compiled sound resource, or null when the resource has no sound data.
-        /// The caller takes ownership of the returned stream.
+        /// Creates a decoded <see cref="WaveStream"/> and loop markers for streaming sound data, or null
+        /// if there is none. The caller owns the returned stream.
         /// </summary>
         public static (WaveStream Stream, (int Start, int End) LoopMarkers)? CreateWaveStream(Resource resource)
         {

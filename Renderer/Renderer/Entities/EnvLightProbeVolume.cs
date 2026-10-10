@@ -1,8 +1,7 @@
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>env_light_probe_volume</c>, and <c>env_combined_light_probe_volume</c>, which bakes a cubemap
-/// alongside its probes.
+/// <c>env_light_probe_volume</c>, and <c>env_combined_light_probe_volume</c>, which also bakes a cubemap.
 /// </summary>
 public sealed class EnvLightProbeVolume : EnvLightingVolume
 {

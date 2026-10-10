@@ -114,8 +114,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public override Texture.SpritesheetData? SpriteSheet => ParticleTextureLayer.FindSpriteSheet(layers);
 
         /// <inheritdoc/>
-        // The override stands in for the card's base texture; the layers composited over it keep their
-        // own textures along with the channels and blend settings that fold them together.
+        // Replaces the card's base texture. Layers composited over it keep their own textures,
+        // channels and blend settings.
         public override void SetTextureOverride(RenderTexture texture)
         {
             layers[0].Texture = texture;
@@ -223,10 +223,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// The frames a layer's own sheet is showing, or null when it carries no sequence.
         /// </summary>
         /// <remarks>
-        /// The first layer plays the particle's sequence and every layer after it the second sequence,
-        /// which is 0 unless something sets it. A sequence number outside the sheet plays sequence 0. A
-        /// frame packing several images gives each layer the image at its own index, the last one
-        /// standing in for layers beyond them.
+        /// Layer 0 plays the particle's sequence, later layers the second sequence (0 unless set).
+        /// Sequence numbers outside the sheet play sequence 0. Layer N of a multi-image frame uses
+        /// image N, and the last image covers any layers beyond that.
         /// </remarks>
         private LayerFrames? GetLayerFrames(int layer, ref Particle particle)
         {

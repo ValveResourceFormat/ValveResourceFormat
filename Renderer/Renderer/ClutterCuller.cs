@@ -5,9 +5,9 @@ using OpenTK.Graphics.OpenGL;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Thins the instances of every <see cref="SceneClutter"/> in a scene on the GPU. Each frame one dispatch tests
-    /// every instance against the camera, writes the transforms of the ones to draw into the start of their node's
-    /// run in the scene transform buffer, and counts them into the node's indirect draw commands.
+    /// Culls the instances of every <see cref="SceneClutter"/> in a scene against the camera on the GPU, in one
+    /// dispatch per frame. Visible transforms are packed to the start of each node's run in the scene transform
+    /// buffer and counted into its indirect draw commands.
     /// </summary>
     internal sealed class ClutterCuller
     {

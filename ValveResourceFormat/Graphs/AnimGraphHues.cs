@@ -2,9 +2,8 @@
 namespace ValveResourceFormat.Graphs;
 
 /// <summary>
-/// Functional bucket an animation graph node belongs to. AG1 and AG2 describe the same domain
-/// with different class vocabularies, so both map onto this one set and a node of a given kind
-/// reads the same colour in either viewer.
+/// Functional bucket of an animation graph node. AG1 and AG2 use different class vocabularies,
+/// so both map onto this set and a node of a kind reads the same colour in either viewer.
 /// </summary>
 internal enum AnimGraphCategory
 {
@@ -116,9 +115,8 @@ internal static class AnimGraphHues
     public const GraphHue TransitionHue = GraphHue.Slate;
 
     /// <summary>
-    /// Draws the dashed transition wire between two state cards, reusing the transition sockets
-    /// either card already carries. Transitions repeated between the same pair of states share
-    /// one wire and merge their labels onto it.
+    /// Draws a dashed transition wire between two state cards, reusing their existing sockets.
+    /// Repeated transitions between the same pair share one wire and merge their labels.
     /// </summary>
     public static void ConnectTransition(GraphDocument document, GraphNode source, GraphNode target, string? label = null)
     {
@@ -210,7 +208,7 @@ internal static class AnimGraphHues
     /// <summary>
     /// The value kind an AG2 value node produces, from its type name (CNm prefix and
     /// Node::CDefinition suffix already stripped). Every constructor bakes its pin's value type;
-    /// this mirrors the recovered table for the names shipped graphs use, and falls back to
+    /// this mirrors the table for the names shipped graphs use, and falls back to
     /// Float, the commonest kind, when a name is not recognised.
     /// </summary>
     public static AnimGraphValueKind AG2ValueKindOf(string nodeType)

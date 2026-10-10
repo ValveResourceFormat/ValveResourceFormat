@@ -4,13 +4,11 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
-/// Implements a classic soundscape script's "playrandom" operator (see <see cref="SoundscapeBank"/>):
-/// picks a track from "rndwave", plays it once at a volume/pitch drawn from an authored min/max range,
-/// then reschedules itself on a random "time" interval for as long as the soundscape stays active.
-/// Unlike the modern event types the range here is the whole value, not an offset added to a base.
-/// "position" "random" places the sound at a fresh random point around the listener on every retrigger;
-/// otherwise an authored "origin" (a literal world position) is used as a fixed spot, or the sound plays
-/// unspatialized when neither is present.
+/// Implements the soundscape script "playrandom" operator (see <see cref="SoundscapeBank"/>): plays a
+/// "rndwave" track at a volume and pitch drawn from an authored min/max range (the whole value, not an
+/// offset), then reschedules on a random "time" interval while the soundscape is active. "position"
+/// "random" places each play at a fresh random point around the listener; otherwise an authored "origin"
+/// is a fixed spot, or it plays unspatialized.
 /// </summary>
 internal sealed class SoundEventScriptedRandom : SoundEvent
 {
@@ -23,15 +21,13 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
     private readonly float distanceMult;
 
     /// <summary>
-    /// The first play waits out half an interval rather than a whole one, the way the engine seeds the
-    /// timer when a soundscape becomes active.
+    /// The first play waits half an interval, not a whole one, when a soundscape becomes active.
     /// </summary>
     private const float FirstIntervalScale = 0.5f;
 
     /// <summary>
-    /// How far from the listener a "position" "random" sound is placed. The operator randomizes which
-    /// direction an ambient one shot comes from, not how far away it is: scaling this with the operator's
-    /// audible range instead puts it far enough out that the falloff swallows it.
+    /// How far from the listener a "position" "random" sound is placed. Only the direction is randomized:
+    /// scaling by the audible range puts it far enough out that the falloff swallows it.
     /// </summary>
     private const float RandomPositionRadius = 100f;
 
@@ -81,8 +77,7 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
     internal override void Prewarm(int depth) => PrewarmTracks(trackNames);
 
     /// <summary>
-    /// The next play is already armed by <see cref="DoStart"/>; this only keeps the event in the mixer
-    /// until it comes around.
+    /// Keeps the event in the mixer until the already armed next play comes around.
     /// </summary>
     private protected override bool StayAliveAfterFinishing() => RetriggerArmed;
 

@@ -58,9 +58,8 @@ public abstract class SoundEvent
     public float? VolumeOverride { get; set; }
 
     /// <summary>
-    /// Gets or sets an extra multiplier applied on top of whatever volume this event ends up playing at,
-    /// including a <see cref="VolumeOverride"/>. Carries a scripted soundscape's "playsoundscape" volume,
-    /// which scales everything the soundscape it pulls in plays, and so cascades to child events.
+    /// Gets or sets an extra multiplier applied on top of the final volume, including a <see cref="VolumeOverride"/>.
+    /// Carries a scripted soundscape's "playsoundscape" volume, cascading to every child event it pulls in.
     /// </summary>
     public float VolumeScale { get; set; } = 1f;
 
@@ -337,9 +336,8 @@ public abstract class SoundEvent
     }
 
     /// <summary>
-    /// Starts another sound event as a child of this one, mixed into this event's output. Callers may pass
-    /// the same instance again on a later retrigger (e.g. cached by child index) instead of building a new
-    /// one - already-wired instances are recognized and only restarted, not rebuilt.
+    /// Starts a child sound event mixed into this event's output. A retrigger may pass the same instance
+    /// again (e.g. cached by child index), which is restarted rather than rebuilt.
     /// </summary>
     protected void StartAsChild(SoundEvent childSoundEvent)
     {
@@ -483,10 +481,9 @@ public abstract class SoundEvent
     }
 
     /// <summary>
-    /// Starts (or restarts, on a later retrigger) one child per entry in <paramref name="definitions"/>: builds
-    /// each the first time and reuses the same instance afterwards instead of rebuilding its whole provider
-    /// subtree from scratch every time. Null entries (unresolved definitions) are skipped.
-    /// Call once per <see cref="DoStart"/> when a definition plays a fixed set of child events.
+    /// Starts (or restarts, on a retrigger) one child per entry in <paramref name="definitions"/>, building each
+    /// once and reusing it afterwards instead of rebuilding its provider subtree. Null entries (unresolved
+    /// definitions) are skipped. Call once per <see cref="DoStart"/> for a definition with a fixed set of children.
     /// </summary>
     /// <param name="definitions">The child definitions to start, by index.</param>
     /// <param name="beforeStart">
@@ -540,11 +537,10 @@ public abstract class SoundEvent
     }
 
     /// <summary>
-    /// Pre-builds everything this event would otherwise lazily create on its first start - child
-    /// instances, track providers - and queues background decodes for every vsnd it could pick, so the
-    /// first real play allocates nothing and reads warm samples. Called on pooled idle instances by
-    /// <see cref="SoundEventPlayer.Cache(string)"/> at load/approach time; must not start anything.
-    /// Types override this to warm the parts only they know about; the base does nothing.
+    /// Pre-builds what the first start would otherwise create (child instances, track providers) and queues
+    /// background decodes for every vsnd it could pick, so the first play allocates nothing and reads warm
+    /// samples. Called on idle pooled instances by <see cref="SoundEventPlayer.Cache(string)"/> at load or
+    /// approach time; must not start anything. Types override this to warm their own parts.
     /// </summary>
     /// <param name="depth">Recursion depth, guarding against cyclic child references.</param>
     internal virtual void Prewarm(int depth)

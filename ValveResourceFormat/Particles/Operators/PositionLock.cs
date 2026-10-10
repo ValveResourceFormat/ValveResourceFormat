@@ -62,8 +62,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            // The transform delta must be computed once per frame, not per particle,
-            // otherwise only the first particle ever observes the transform moving
+            // Compute the transform delta once per frame; per particle, only the first would see it move
             var transform = transformInput.NextTransform(particleSystemState);
             var transformPosition = transform.Translation;
             var scale = componentScale.NextVector(particleSystemState);
@@ -144,8 +143,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 var scaledDelta = delta * scale * (creationFraction * lockStrength);
 
-                // The always-locked loop weights the rotation by operator strength where the fading one
-                // weights it by the time fade alone
+                // Always-locked particles weight rotation by strength, others by time fade alone
                 var rotationLockStrength = alwaysLocked ? strength : timeFade;
 
                 if (fadeRange > 0f)

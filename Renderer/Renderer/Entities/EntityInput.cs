@@ -4,13 +4,13 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// Marks a method as an entity I/O input handler, the equivalent of Source's <c>DEFINE_INPUTFUNC</c>.
+/// Marks a method as an entity I/O input handler.
 /// </summary>
 /// <remarks>
-/// The method must be an instance method taking one <see cref="EntityInputData"/> and returning void. A
-/// class's own inputs can be private, but declare one protected to pass it down to subclasses, since
-/// private methods are not visible on the derived class the table is built for. The name is always spelled
-/// out because it is what maps were authored against, not whatever the method happens to be called.
+/// The method must be an instance method taking one <see cref="EntityInputData"/> and returning void.
+/// Declare it protected to pass it down to subclasses, since the table is built per derived class and
+/// cannot see private base methods. The name is spelled out because maps are authored against it, not
+/// the method name.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class EntityInputAttribute : Attribute
@@ -26,7 +26,7 @@ public sealed class EntityInputAttribute : Attribute
 }
 
 /// <summary>
-/// What comes in with an entity I/O input: the parameter and who sent it. Source's <c>inputdata_t</c>.
+/// The parameter and senders of an entity I/O input.
 /// </summary>
 public readonly struct EntityInputData
 {
@@ -39,7 +39,7 @@ public readonly struct EntityInputData
     /// <summary>Gets the entity that fired the output.</summary>
     public BaseEntity? Caller { get; init; }
 
-    /// <summary>Reads the parameter as a float, as Source's <c>inputdata.value.Float()</c> does.</summary>
+    /// <summary>Reads the parameter as a float.</summary>
     public float Float(float defaultValue = 0f)
         => float.TryParse(Parameter, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
             ? value
@@ -51,9 +51,7 @@ public readonly struct EntityInputData
             ? value
             : defaultValue;
 
-    /// <summary>
-    /// Reads the parameter as a vector, three numbers separated by spaces, the way a map authors one.
-    /// </summary>
+    /// <summary>Reads the parameter as a vector of three space-separated numbers.</summary>
     public Vector3 Vector(Vector3 defaultValue = default)
         => Parameter != null && EntityTransformHelper.TryParseVector3(Parameter, out var value)
             ? value

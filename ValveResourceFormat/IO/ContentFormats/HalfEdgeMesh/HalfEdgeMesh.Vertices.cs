@@ -77,7 +77,7 @@ partial class HalfEdgeMesh
     }
 
     /// <summary>
-    /// Whether every edge at the vertex borders two faces.
+    /// Whether any edge at the vertex has the same face on both sides.
     /// </summary>
     public static bool IsVertexInternal(VertexHandle hVertex)
     {

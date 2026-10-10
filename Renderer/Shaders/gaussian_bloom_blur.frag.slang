@@ -50,7 +50,7 @@ void main()
 
     return;
 
-    // blur pass 2 is actually a tent upsampling filter used to upsample the blurred mips to the final bloom image
+    // Tent upsampling of the blurred mips into the final bloom image.
 #elif D_BLUR_PASS >= 2
 
     vec2 uvScale = g_vTexelSize.xy;
@@ -68,7 +68,6 @@ void main()
     vec2 uv_center = min(currentUV, uvClamp);
     
     // tent filter, weighted sum of 9 samples
-    // center sample
     vec3 higherMipColor = textureLod(g_tSource, uv_center, g_nCurrentMip - 1.0).xyz * g_vCurMipBlurTint;
 
     vec3 g_nCurrentMipColor = textureLod(g_tSource, uv_center, g_nCurrentMip).xyz * 0.25;

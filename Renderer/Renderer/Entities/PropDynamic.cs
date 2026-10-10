@@ -153,7 +153,7 @@ public sealed class PropDynamic : BaseModelEntity
         var skins = node.GetMaterialGroups().ToList();
         string? skin;
 
-        // A number is the skin's position, as the input is typed, even where a group is named like one:
+        // A number is a skin index, even where a group is named like one
         if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index))
         {
             // Every model has a skin 0, whether or not it names any groups
@@ -179,7 +179,7 @@ public sealed class PropDynamic : BaseModelEntity
         node.SetMaterialGroup(skin);
     }
 
-    // "<bodygroup>,<choice>", the choice by index or by the name modern models give it.
+    // "<bodygroup>,<choice>", the choice by index or by name
     private void SetBodyGroup(string? value)
     {
         if (ModelNode is not { } node || NonEmpty(value?.Trim()) is not { } parameter)
@@ -309,7 +309,7 @@ public sealed class PropDynamic : BaseModelEntity
 
         var loops = looping ?? (animation is not SequenceAnimation sequence || sequence.IsLooping);
 
-        // An input's animation fades in over the sequence's own fade-in, as a sequence change does
+        // Input animations fade in over the sequence's own fade-in time
         var blendTime = 0f;
 
         if (forced && controller.ActiveAnimation != null && animation is SequenceAnimation fadingSequence)

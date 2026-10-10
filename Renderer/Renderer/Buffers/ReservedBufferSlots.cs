@@ -26,8 +26,8 @@ public enum ReservedBufferSlots
     /// <summary>Packed material properties.</summary>
     Globals = 7,
 
-    // ssbo: fixed slots are for buffers that stay bound across draws. Everything else takes a BufferSlotN
-    // and binds it right before its dispatch or draw, so different passes can share a number.
+    // ssbo: fixed slots stay bound across draws. Others bind a BufferSlotN just before their dispatch
+    // or draw, so different passes can share a number.
 
     /// <summary>Per draw data read at the base instance SSBO slot.</summary>
     Instances = 0,

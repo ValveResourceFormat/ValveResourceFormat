@@ -125,7 +125,7 @@ namespace ValveResourceFormat.Renderer.Decals
 
         private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform, float PlaceTime, DecalLifetime Lifetime, uint Id);
 
-        // What a decal that does not age gives as the time it was added: long enough ago that anything aging has settled
+        // Place time of non-aging decals, far enough back that aging ones have settled
         private const float SettledPlaceTime = -1e9f;
 
         private readonly Scene scene;
@@ -178,9 +178,8 @@ namespace ValveResourceFormat.Renderer.Decals
         internal ReadOnlySpan<Matrix4x4> BoxTransforms => CollectionsMarshal.AsSpan(boxTransforms);
 
         /// <summary>
-        /// Registers a kind of decal. Its textures are loaded here, and join every other decal's in the
-        /// one draw, whether they are files of their own or parts of an atlas. The color and normal
-        /// textures have to be BC7, the occlusion texture ATI2N and the height texture ATI1N.
+        /// Registers a decal kind. Its textures are loaded here and join every other decal's in the one
+        /// draw, as files or atlas parts. Color and normal must be BC7, occlusion ATI2N and height ATI1N.
         /// </summary>
         /// <param name="definition">What the decal looks like.</param>
         /// <returns>A handle to add decals with, or -1 when the color texture could not be loaded.</returns>
@@ -464,8 +463,7 @@ namespace ValveResourceFormat.Renderer.Decals
         public string? FindImpactEffect(uint surfacePropertyHash) => ImpactDecals.FindEffect(surfacePropertyHash);
 
         /// <summary>
-        /// Moves and retints a decal added without a parent, for decals that follow something other
-        /// than an entity, such as a particle.
+        /// Moves and retints a decal added without a parent, such as one following a particle.
         /// </summary>
         /// <param name="handle">The handle the decal was added with.</param>
         /// <param name="boxTransform">The new box, see <see cref="CreateBoxTransform"/>.</param>

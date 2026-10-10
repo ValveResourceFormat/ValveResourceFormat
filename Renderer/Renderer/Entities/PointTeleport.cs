@@ -9,9 +9,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>point_teleport</c>. Moves its <c>target</c>, or the entity an input names, to a saved pose on command.
 /// </summary>
 /// <remarks>
-/// <c>Teleport</c> goes to the pose saved in <see cref="Activate"/>, not to wherever this entity is now;
-/// the <c>ToCurrentPos</c> inputs are the ones that follow it. Maps rely on that to park an entity out of
-/// sight and snap it into place later.
+/// <c>Teleport</c> goes to the pose saved in <see cref="Activate"/>, not to where this entity is now;
+/// the <c>ToCurrentPos</c> inputs use its current pose. Maps rely on that to park an entity out of sight
+/// and snap it into place later.
 /// </remarks>
 public sealed class PointTeleport : BaseEntity
 {

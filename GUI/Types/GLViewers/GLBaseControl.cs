@@ -240,8 +240,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     /// <summary>
     /// Intercepts the GL control's high-frequency input messages before WinForms translates each one
     /// into freshly allocated event args (MouseEventArgs, KeyEventArgs, PreviewKeyDownEventArgs).
-    /// Swallowing them here also sinks all shortcuts into the control, which the previous event-based
-    /// path did via PreviewKeyDown.IsInputKey and KeyEventArgs.SuppressKeyPress.
+    /// Swallowing them here also sinks all shortcuts into the control.
     /// </summary>
     public bool PreFilterMessage(ref Message m)
     {
@@ -604,9 +603,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         }
     }
 
-    // Cursor visibility is a counter Windows also writes to, resetting it when a mouse is added or
-    // removed, so hiding cannot assume its own show will be what brings it back. Drive it to the state
-    // that is wanted instead of stepping it once and trusting the arithmetic.
+    // Windows resets the cursor visibility counter when a mouse is added or removed, so a hide cannot
+    // count on its own show to undo it. Drive the counter to the wanted state instead of stepping it once.
     private static void SetCursorVisible(bool visible)
     {
         for (var attempt = 0; attempt < 8; attempt++)

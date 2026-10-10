@@ -253,8 +253,7 @@ public readonly struct PerRenderTargetFlags
 }
 
 /// <summary>
-/// Describes the blend state configuration for all render targets, stored as the packed VCS words:
-/// one 4-bit value per render target in each word.
+/// Blend state for all render targets, packed into VCS words with 4 bits per render target in each word.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/rendersystemdx11/RsBlendStateDesc_t">RsBlendStateDesc_t</seealso>
 [StructLayout(LayoutKind.Sequential, Pack = 1)]

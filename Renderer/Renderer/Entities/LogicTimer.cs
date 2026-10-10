@@ -18,10 +18,7 @@ public sealed class LogicTimer : BaseEntity
 
     private const float MinimumRefireTime = 0.01f;
 
-    /// <summary>
-    /// Gets the interval between firings in seconds. A randomised timer draws a new one each time it
-    /// restarts and keeps it here.
-    /// </summary>
+    /// <summary>Gets the interval between firings in seconds; a randomised timer redraws it on each restart.</summary>
     public float RefireTime { get; private set; }
 
     /// <summary>Gets whether the timer is running.</summary>
@@ -209,7 +206,6 @@ public sealed class LogicTimer : BaseEntity
         SetNextThink(-1f);
     }
 
-    /// <summary>Starts a full interval from now, drawing a fresh one for a randomised timer.</summary>
     private void RestartTimer()
     {
         if (!IsEnabled)
@@ -226,7 +222,6 @@ public sealed class LogicTimer : BaseEntity
         IsPaused = false;
     }
 
-    /// <summary>Stops the countdown, keeping what was left of it for <c>UnpauseTimer</c>.</summary>
     private void Pause()
     {
         RemainingTime = NextThink < 0f ? 0f : MathF.Max(NextThink - EntitySystem.CurrentTime, 0f);
@@ -234,7 +229,6 @@ public sealed class LogicTimer : BaseEntity
         IsPaused = true;
     }
 
-    /// <summary>Moves the next firing later, or earlier for a negative amount, but no earlier than now.</summary>
     private void ShiftTimer(float seconds)
     {
         if (!IsEnabled)

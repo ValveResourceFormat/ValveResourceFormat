@@ -67,8 +67,7 @@ namespace ValveResourceFormat.Particles.Operators
                     _ => throw new NotImplementedException($"Unrecognized scalar expression type ({expression})")
                 };
 
-                // Strength scales the raw arithmetic result before the set method combines it;
-                // the comparison expressions emit their bare 0/1 unscaled
+                // Strength scales arithmetic results before the set method; comparisons stay 0/1
                 if (expression is not (ScalarExpressionType.SCALAR_EXPRESSION_EQUAL
                     or ScalarExpressionType.SCALAR_EXPRESSION_GT
                     or ScalarExpressionType.SCALAR_EXPRESSION_LT))

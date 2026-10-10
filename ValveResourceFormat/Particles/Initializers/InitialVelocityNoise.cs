@@ -78,7 +78,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         /// <summary>
         /// When any component is inverted, inverted components become 1 + noise while the other
-        /// components are sign-flipped, exceeding the usual output band; engine behavior.
+        /// components are sign-flipped, exceeding the usual output band.
         /// </summary>
         private static float MapComponent(float noise, bool absolute, bool inverted, bool anyInverted, float min, float max)
         {

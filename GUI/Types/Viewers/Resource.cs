@@ -1317,8 +1317,7 @@ namespace GUI.Types.Viewers
 
         public void Dispose()
         {
-            // Order matters: nothing may dispose a resource until every thread that could still be
-            // reading it has stopped
+            // Order matters: a resource must not be disposed while any thread may still be reading it.
             GLViewer?.Dispose();
             rendererContext?.Dispose();
             resource?.Dispose();

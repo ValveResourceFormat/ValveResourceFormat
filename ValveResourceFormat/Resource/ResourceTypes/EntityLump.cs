@@ -284,7 +284,7 @@ namespace ValveResourceFormat.ResourceTypes
             return entity;
         }
 
-        // TODO: Keep the original casing once entity property lookups are case-insensitive, like the engine's hash compare
+        // TODO: Keep the original casing once entity property lookups are case-insensitive
         private static string ToPropertyKey(string name) => name.ToLowerInvariant();
 
         private static KVObject MakeColor32(byte[] bytes)
@@ -668,7 +668,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Replaces the first <see cref="ParentNameFixupMarker"/> and the first <see cref="LocalNameFixupMarker"/>
-        /// in a compiled name, as the engine does to every name an entity is spawned with.
+        /// in a compiled name, applied to every name an entity is spawned with.
         /// </summary>
         /// <param name="name">A name as compiled, such as a targetname or a connection's target.</param>
         /// <param name="parentFixup">What replaces <see cref="ParentNameFixupMarker"/>.</param>

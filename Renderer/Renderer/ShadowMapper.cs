@@ -115,8 +115,8 @@ public class ShadowMapper
                 MaskCulledFaces = maskCulledFaces,
             };
 
-            // A light the mask culled every face of asks for no atlas space. This is also what demotes
-            // the omni faces pointing away from the camera: they reach no tile either.
+            // Lights with every face culled get no atlas space. This also demotes omni faces facing away
+            // from the camera, as they reach no tile.
             if (light.CastShadows == 1)
             {
                 PerfStats.Active.Count(Counter.ShadowFaceMaskCulled, BitOperations.PopCount(maskCulledFaces));

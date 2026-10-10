@@ -3,10 +3,9 @@ using System.Runtime.InteropServices;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// One corner of a spritecard quad, for the renderers that hand their vertices over rather than
-    /// having them generated. Each texture layer past the first carries its own coordinate pair, because
-    /// a layer resolves its sheet frame against its own sequence and lands wherever its own transform
-    /// puts it.
+    /// One corner of a spritecard quad, for renderers that supply vertices rather than generating them.
+    /// Each texture layer past the first carries its own coordinate pair, since it resolves its sheet
+    /// frame against its own sequence and lands wherever its transform puts it.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     internal struct SpritecardVertex

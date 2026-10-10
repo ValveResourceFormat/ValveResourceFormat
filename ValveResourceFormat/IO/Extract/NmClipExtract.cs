@@ -315,8 +315,8 @@ public class NmClipExtract
         var spline = KVObject.Array();
         var tangents = KVObject.Array();
 
-        // Curve x is the normalized position in the clip, matching the domain convention of
-        // curves Valve ships (the compiler copies the curve verbatim into the compiled event).
+        // Curve x is the normalized position in the clip, matching shipped curves (the compiler
+        // copies the curve verbatim into the compiled event).
         for (var f = 0; f < curve.Values.Length; f++)
         {
             var knot = KVObject.Collection();

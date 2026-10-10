@@ -4,7 +4,7 @@ namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
     /// Picks a point in a min/max vector range for a particle, configured by the
-    /// <c>CRandomNumberGeneratorParameters</c> block the six range-filling initializers carry. The
+    /// <c>m_randomnessParameters</c> block the six range-filling initializers carry. The
     /// default is an ordinary draw from the system's shared random table. Asked for an even
     /// distribution it instead walks a stratified low-discrepancy sequence keyed to the particle's
     /// spawn ordinal, spreading the particles out rather than letting them clump, and takes nothing

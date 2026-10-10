@@ -4,10 +4,9 @@ using ValveResourceFormat.Blocks;
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
-    /// The half of <c>C_INIT_InitFromCPSnapshot</c> and <c>C_OP_SetFromCPSnapshot</c> that is the same
-    /// on both: which snapshot to read, which of its columns, which particle attribute to write, and
-    /// how to walk the rows. What is left to each of them is when the write happens and the handful of
-    /// keys only one of them carries.
+    /// Shared half of <c>C_INIT_InitFromCPSnapshot</c> and <c>C_OP_SetFromCPSnapshot</c>: which
+    /// snapshot to read, which of its columns, which particle attribute to write, and how to walk
+    /// the rows. Each function adds when the write happens and the keys only it carries.
     /// </summary>
     class SnapshotRead
     {

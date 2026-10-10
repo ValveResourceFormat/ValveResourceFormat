@@ -326,9 +326,9 @@ LayerFrame_t GetDerivedFrame(vec2 texCoord, vec3 normal)
 #endif
 
 #if (ANY_BIPLANAR == 1)
-    // Layers only ever sample the dominant plane. Valve swaps in the median plane's
-    // derivatives when that plane wins outright but keeps the dominant plane's coordinate,
-    // so there is only ever one set of texels to fetch.
+    // Layers only ever sample the dominant plane. When the median plane wins outright, its
+    // derivatives are swapped in but the dominant plane's coordinate is kept, so there is only
+    // ever one set of texels to fetch.
     LayerFrame_t GetBiPlanarFrame(vec3 normal, float tiling)
     {
         PlanarAxes_t axes = GetPlanarAxes(normal);
@@ -396,8 +396,7 @@ struct Layer_t
     float SelfIllum;
 };
 
-// The hemi-octahedron normal expressed as a surface gradient, so that layers and overlays
-// can be summed before a single normalize at the end.
+// Hemi-octahedron normal as a surface gradient, so layers and overlays sum before one normalize.
 vec2 GetSurfaceGradient(vec2 hemiOct)
 {
     vec3 normalTs = DecodeHemiOctahedronNormal(hemiOct);

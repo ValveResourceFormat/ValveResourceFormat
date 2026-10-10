@@ -309,8 +309,7 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Rewrites a particle's spawn snapshot, which the endcap lerps do so that a fade starting
-        /// mid-life runs from where the particle currently is.
+        /// Rewrites the spawn snapshot for endcap lerps, so a mid-life fade runs from the current value.
         /// </summary>
         public static void SetInitialScalar(this ref Particle particle, ParticleCollection particles, ParticleField field, float value)
             => particles.Initial[particle.Index].SetScalar(field, value);
@@ -331,9 +330,9 @@ namespace ValveResourceFormat.Particles
             => setMethod is ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE;
 
         /// <summary>
-        /// The initializer-time form. There is no spawn snapshot yet - the collection's initial array
-        /// still holds the system's constant template - so the "initial value" an initializer scales or
-        /// adds to is what earlier initializers in the same pass have already written to the particle.
+        /// The initializer-time form. No spawn snapshot exists yet (the initial array holds the
+        /// constant template), so the "initial value" is what earlier initializers in the same pass
+        /// wrote to the particle.
         /// </summary>
         public static float ModifyScalarBySetMethodAtSpawn(this ref Particle particle, ParticleCollection particles, ParticleField field, float value, ParticleSetMethod setMethod)
         {
@@ -349,7 +348,6 @@ namespace ValveResourceFormat.Particles
                 ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE => value + initialValue,
                 ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE => value * currentValue,
                 ParticleSetMethod.PARTICLE_SET_ADD_TO_CURRENT_VALUE => value + currentValue,
-                // new in DeskJob. Exponential, unlike other ramps
                 ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE => currentValue + (value * deltaTime),
                 _ => throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!"),
             };

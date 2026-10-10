@@ -3,15 +3,11 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// The base of the trigger volumes, Source's <c>CBaseTrigger</c>. A trigger is a brush you pass through
-/// that reports what is inside it, so every trigger shares the same setup and the same set of outputs;
-/// only what it does on a touch differs.
+/// Base of the trigger volumes: a brush that reports what is inside it. Subclasses add what a touch does.
 /// </summary>
 /// <remarks>
-/// <see cref="InitTrigger"/> is the shared half of <c>Spawn</c>, as in the engine: a trigger's own
-/// <c>Spawn</c> calls it instead of repeating the model and solidity setup. Unlike the engine, the volume
-/// stays visible, since showing a map's triggers is the point. They use tools materials, so the
-/// tools-material toggle still hides them.
+/// A trigger's <c>Spawn</c> calls <see cref="InitTrigger"/>. Deliberately stays visible: showing a map's
+/// triggers is the point. They use tools materials, so the tools-material toggle still hides them.
 /// </remarks>
 public abstract class BaseTrigger : BaseModelEntity
 {
@@ -41,25 +37,21 @@ public abstract class BaseTrigger : BaseModelEntity
         OnlyClientsOutOfVehicles = 512,
     }
 
-    // What has passed the filters and not yet left, Source's m_hTouchingEntities. Kept apart from the touch
-    // links, which also open for things the filters refuse, and which the StartTouch and EndTouch inputs
-    // bypass entirely.
+    // Passed the filters and not yet left. Touch links also open for filtered-out entities, and the
+    // StartTouch and EndTouch inputs bypass the links.
     private readonly List<BaseEntity> touchingEntities = [];
     private bool hasVolume = true;
 
     /// <summary>Gets whether the trigger reacts to anything.</summary>
     public bool IsEnabled { get; private set; } = true;
 
-    /// <summary>
-    /// Initializes a trigger from its keyvalues.
-    /// </summary>
+    /// <summary>Initializes a trigger from its keyvalues.</summary>
     protected BaseTrigger(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
     }
 
     /// <summary>
-    /// The setup every trigger shares: take the brush volume from the authored model, and stand aside from
-    /// movement so things pass through instead of colliding. Source's <c>InitTrigger</c>.
+    /// Shared trigger setup: non-solid so things pass through, enabled unless <c>startdisabled</c>.
     /// </summary>
     protected void InitTrigger()
     {
@@ -69,9 +61,8 @@ public abstract class BaseTrigger : BaseModelEntity
     }
 
     /// <summary>
-    /// Takes the volume out of the world for good while leaving the trigger enabled, so everything inside
-    /// stops touching it on the next tick. What a spent <c>trigger_once</c> does in the moment before it is
-    /// removed.
+    /// Removes the volume for good while the trigger stays enabled; everything inside stops touching it on
+    /// the next tick. Used by a spent <c>trigger_once</c> before it is removed.
     /// </summary>
     protected void RemoveVolume() => hasVolume = false;
 
@@ -131,14 +122,11 @@ public abstract class BaseTrigger : BaseModelEntity
     }
 
     /// <summary>
-    /// Whether <paramref name="other"/> is the kind of thing this trigger reacts to, from its spawnflags.
-    /// Source's <c>PassesTriggerFilters</c>, without the <c>filtername</c> entity filters.
+    /// Whether <paramref name="other"/> matches this trigger's spawnflags. <c>filtername</c> filters are not read.
     /// </summary>
     /// <remarks>
-    /// A trigger reacts only to what its spawnflags name, like the engine's, so one that names nothing it
-    /// accepts never fires. The player is the only thing here that can enter a volume, so only
-    /// "everything" and "clients" can pass; a trigger for NPCs, pushables or physics props stays shut.
-    /// <c>filtername</c> filters are not read, so passing the flags is enough.
+    /// The player is the only thing here that can enter a volume, so only "everything" and "clients" can
+    /// pass; a trigger for NPCs, pushables or physics props, or one naming nothing, never fires.
     /// </remarks>
     /// <returns><see langword="true"/> when the touch should register.</returns>
     protected bool PassesTriggerFilters(BaseEntity other)
@@ -155,8 +143,8 @@ public abstract class BaseTrigger : BaseModelEntity
     }
 
     /// <summary>
-    /// A disabled or spent trigger has no volume to be inside, so no touch opens. The filters are not
-    /// applied here: things they refuse still touch, and <see cref="OnStartTouch"/> ignores them.
+    /// A disabled or spent trigger accepts no touches. Filters are not applied here;
+    /// <see cref="OnStartTouch"/> ignores what they refuse.
     /// </summary>
     protected override bool AcceptsTouchFrom(BaseEntity other) => IsEnabled && hasVolume;
 
@@ -168,8 +156,7 @@ public abstract class BaseTrigger : BaseModelEntity
             return;
         }
 
-        // The first thing through the filters, and what a map wires to mean "occupied". It goes out
-        // ahead of OnStartTouch, as the engine fires it.
+        // The first entity through the filters fires OnStartTouchAll ("occupied") ahead of OnStartTouch
         if (!touchingEntities.Contains(other))
         {
             touchingEntities.Add(other);

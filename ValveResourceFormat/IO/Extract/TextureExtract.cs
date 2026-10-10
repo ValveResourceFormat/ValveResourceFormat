@@ -336,8 +336,8 @@ public sealed class TextureExtract
     }
 
     /// <summary>
-    /// Converts one sprite of a sheet to PNG image bytes, restoring the image the sheet cut it out of: its
-    /// pixels sit where they sat in that image, and whatever the sheet packed around them is cleared away.
+    /// Converts a sheet sprite to PNG bytes, restored to its place in the source image with the
+    /// packed content around it cleared.
     /// </summary>
     public static byte[] SpriteToPngImage(SKBitmap bitmap, SheetSprite sprite, SKRectI[] packed)
     {

@@ -315,8 +315,8 @@ namespace ValveResourceFormat.Blocks
             {
                 var region = regions[i];
 
-                // Regions can name a row past the clusters, such as the sky one, which is not a cluster
-                // anything can be looked up by, and a third of them may claim no cluster at all
+                // Regions can name a row past the clusters, such as the sky row, and a third may
+                // claim no cluster at all
                 if (region.HasCluster && region.ClusterId < ClusterCount && region.Bounds.Contains(position))
                 {
                     return (int)node.Offset + i;

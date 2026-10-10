@@ -30,7 +30,7 @@ public class DmeModel : DMElement
     public Datamodel.ElementArray Children { get; } = [];
 
     /// <summary>
-    /// List of <see cref="DmeTransform"/> elements, one per bone, in skinning order.
+    /// List of <see cref="DmeDag"/> elements, one per bone, in skinning order.
     /// </summary>
     public Datamodel.ElementArray JointList { get; init; } = [];
 

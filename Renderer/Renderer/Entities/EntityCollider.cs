@@ -4,14 +4,12 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// A brush entity's collision shape: the <see cref="Rubikon"/> built from its own model, plus the
-/// rigid transform placing it in the world. Sweeps and overlap tests are answered in the shape's
-/// local space and mapped back out, so the shape follows the entity as it moves without rebuilding.
+/// A brush entity's collision shape: the <see cref="Rubikon"/> built from its model, plus a rigid
+/// transform placing it in the world. Queries run in the shape's local space and are mapped back out.
 /// </summary>
 /// <remarks>
-/// The player hull stays axis-aligned in the shape's local frame rather than being re-fitted to a
-/// world-axis-aligned box, matching how the engine traces against rotated brush models. Under
-/// rotation this is the same approximation Source makes.
+/// The swept hull stays axis-aligned in the shape's local frame instead of being re-fitted to a
+/// world-axis box, so a rotated shape is only approximated.
 /// </remarks>
 public sealed class EntityCollider
 {
@@ -47,9 +45,7 @@ public sealed class EntityCollider
         }
     }
 
-    /// <summary>
-    /// Builds a collider from a brush entity's compiled physics.
-    /// </summary>
+    /// <summary>Builds a collider from a brush entity's compiled physics.</summary>
     /// <param name="physics">The entity model's physics aggregate.</param>
     public EntityCollider(PhysAggregateData physics)
     {
@@ -85,9 +81,7 @@ public sealed class EntityCollider
         return isEmpty ? new AABB(Vector3.Zero, Vector3.Zero) : new AABB(min, max);
     }
 
-    /// <summary>
-    /// Sweeps an axis-aligned box through this shape.
-    /// </summary>
+    /// <summary>Sweeps an axis-aligned box through this shape.</summary>
     /// <param name="from">Sweep start, the box centre in world space.</param>
     /// <param name="to">Sweep end in world space.</param>
     /// <param name="halfExtents">Half-extents of the swept box.</param>
@@ -118,10 +112,7 @@ public sealed class EntityCollider
         return result;
     }
 
-    /// <summary>
-    /// Traces a ray against this shape. Used by the player's reach test, which needs a point
-    /// query rather than the swept hull movement uses.
-    /// </summary>
+    /// <summary>Traces a ray against this shape, for point queries such as the player's reach test.</summary>
     /// <param name="from">Ray start in world space.</param>
     /// <param name="to">Ray end in world space.</param>
     /// <param name="collisionName">Collision interaction name used to filter shapes.</param>
@@ -146,9 +137,7 @@ public sealed class EntityCollider
         return result;
     }
 
-    /// <summary>
-    /// Tests a resting axis-aligned box against this shape's solid volume, containment included.
-    /// </summary>
+    /// <summary>Tests a resting axis-aligned box against this shape's solid volume, containment included.</summary>
     public bool OverlapsVolume(Vector3 center, Vector3 halfExtents)
     {
         if (IsEmpty || !WorldBounds.Intersects(new AABB(center - halfExtents, center + halfExtents)))
@@ -159,9 +148,7 @@ public sealed class EntityCollider
         return Shape.IntersectsOrContainsAABB(Vector3.Transform(center, inverseTransform), halfExtents, "player");
     }
 
-    /// <summary>
-    /// Tests whether a world-space point is inside this shape's solid volume.
-    /// </summary>
+    /// <summary>Tests whether a world-space point is inside this shape's solid volume.</summary>
     public bool ContainsPoint(Vector3 point)
     {
         if (IsEmpty || !WorldBounds.Contains(point))
@@ -172,10 +159,7 @@ public sealed class EntityCollider
         return Shape.ContainsPoint(Vector3.Transform(point, inverseTransform));
     }
 
-    /// <summary>
-    /// Tests whether a world-space swept box could possibly reach this collider, so callers can skip
-    /// the transform and descent entirely.
-    /// </summary>
+    /// <summary>Cheap broad-phase test of whether a world-space swept box could reach this collider.</summary>
     /// <param name="from">Sweep start.</param>
     /// <param name="to">Sweep end.</param>
     /// <param name="halfExtents">Half-extents of the swept box.</param>
@@ -191,10 +175,7 @@ public sealed class EntityCollider
         return WorldBounds.Intersects(sweep);
     }
 
-    /// <summary>
-    /// Loads the physics of a brush entity model, following the model's referenced physics when it
-    /// carries none inline.
-    /// </summary>
+    /// <summary>Loads a brush entity model's physics, from the referenced physics file when none is embedded.</summary>
     /// <param name="model">The entity's model, already loaded.</param>
     /// <param name="fileLoader">Loader used for the referenced physics file.</param>
     /// <returns>The physics aggregate, or <see langword="null"/> when the model has none.</returns>

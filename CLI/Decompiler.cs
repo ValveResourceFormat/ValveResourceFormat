@@ -883,8 +883,8 @@ namespace CLI
         }
 
         /// <summary>
-        /// Loaders for --test_loader, shared by the input files in each folder since mounting the game files is slow.
-        /// A loader is disposed once all of the files in its folder have been processed, to not keep every game in memory.
+        /// Loaders for --test_loader, shared by the files in each folder since mounting game files is slow.
+        /// Each is disposed after its folder's last file, to not keep every game in memory.
         /// </summary>
         private readonly Dictionary<string, TestFileLoader> TestFileLoaders = [];
 

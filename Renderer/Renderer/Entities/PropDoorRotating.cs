@@ -7,11 +7,10 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>prop_door_rotating</c>, Source's <c>CPropDoorRotating</c>: the swinging model door on maps like
-/// de_inferno. It is usable by default, swings away from whoever uses it unless <c>opendir</c> forces a side,
-/// can spawn open or ajar, and opens and closes the other half of a double door with it. Breaking, and the
-/// blocker that keeps NPCs out of the swing, are not simulated. Alyx's <c>prop_door_rotating_physics</c> is
-/// played as the same thing: the hand that swings it in VR is a use press here.
+/// <c>prop_door_rotating</c>: a swinging model door. Swings away from whoever uses it unless <c>opendir</c>
+/// forces a side, can spawn open or ajar, and drives the other half of a double door. Breaking and the NPC
+/// blocker are not simulated. Alyx's <c>prop_door_rotating_physics</c> is the same thing, with the VR hand
+/// swing acting as a use press.
 /// </summary>
 public class PropDoorRotating : BaseToggle
 {
@@ -38,7 +37,7 @@ public class PropDoorRotating : BaseToggle
     /// <summary>How <c>opendir</c> constrains the swing.</summary>
     public enum OpenDirection
     {
-        /// <summary>Away from whoever opens it, the standard door behavior.</summary>
+        /// <summary>Away from whoever opens it.</summary>
         Both = 0,
 
         /// <summary>Forward only.</summary>
@@ -67,7 +66,6 @@ public class PropDoorRotating : BaseToggle
         Ajar,
     }
 
-    // Which of the swept volumes a clearance test covers, Source's doorCheck_e
     private enum SwingSide
     {
         Forward,
@@ -83,7 +81,7 @@ public class PropDoorRotating : BaseToggle
         AutoClose,
     }
 
-    // Source's DOOR_SOUNDWAIT, how long a lock sound keeps another from playing
+    // How long a lock sound keeps another from playing
     private const float LockSoundWait = 1f;
 
     /// <summary>Gets where the door is in its swing.</summary>
@@ -115,17 +113,17 @@ public class PropDoorRotating : BaseToggle
     private Vector3 angleOpenBack;
     private Vector3 goalAngles;
 
-    // The QAngle deltas one degree of swing makes
+    // QAngle delta per degree of swing
     private Vector3 moveAngles;
 
-    // The space each swing sweeps, relative to the hinge
+    // Swept space per swing, relative to the hinge
     private AABB forwardVolume;
     private AABB backVolume;
 
     private bool ajarNeedsFarSide;
     private MoveDoneFunction moveDoneFunction;
 
-    // Source's m_hActivator: who set the door going, which the outputs report and arriving forgets
+    // Reported by the outputs, cleared when a swing finishes
     private BaseEntity? lastActivator;
 
     private string? soundOpen;
@@ -147,8 +145,8 @@ public class PropDoorRotating : BaseToggle
     {
         angleClosed = Angles;
 
-        // CS2 swings about the door's own up axis, and still spreads it over the QAngle components the way
-        // Source did for a hinge along Z, so an upright door only ever yaws
+        // Swings about the door's own up axis, spread over the QAngle components as for a hinge along Z,
+        // so an upright door only yaws
         var rotation = EntityTransformHelper.EulerAnglesToRotationMatrix(angleClosed);
         moveAngles = new Vector3(rotation.M32, rotation.M33, rotation.M31);
 
@@ -173,8 +171,8 @@ public class PropDoorRotating : BaseToggle
     }
 
     /// <summary>
-    /// Links a double door. A named door takes as its slaves the other doors called its <c>slavename</c>, or
-    /// failing that its own name, and they open and close with it.
+    /// Links a double door: a named door takes the other doors called its <c>slavename</c> (or its own name
+    /// when unset) as slaves, which open and close with it.
     /// </summary>
     public override void Activate()
     {
@@ -262,8 +260,8 @@ public class PropDoorRotating : BaseToggle
     [EntityInput("OpenAwayFromActivator")]
     protected void InputOpenAwayFromActivator(EntityInputData data)
     {
-        // The parameter is the speed for this swing alone. A missing one would never arrive, so the
-        // door's own is kept for it
+        // The parameter overrides the speed for this swing only. A missing one would never arrive, so the
+        // door's own is kept
         var speed = Speed;
         var overrideSpeed = data.Float();
 
@@ -286,7 +284,7 @@ public class PropDoorRotating : BaseToggle
             return;
         }
 
-        // Fired here as well as by the close itself, so a door not already closing reports it twice
+        // DoorClose fires it too, so a door not already closing reports it twice
         EntitySystem.TriggerOutput(this, "OnClose", data.Activator);
         DoorClose();
     }
@@ -345,11 +343,8 @@ public class PropDoorRotating : BaseToggle
         CalculateDoorVolumes(Angles);
     }
 
-    /// <summary>
-    /// A use press. Source's <c>CBasePropDoor::OnUse</c>: a closed door opens away from the one pressing it,
-    /// one swinging shut reopens, and an open or opening one closes only when <see cref="SpawnFlag.UseCloses"/>
-    /// allows it.
-    /// </summary>
+    // A closed door opens away from the presser, one swinging shut reopens, and an open or opening one
+    // closes only with UseCloses
     private void OnUse(BaseEntity? activator)
     {
         switch (State)
@@ -547,7 +542,7 @@ public class PropDoorRotating : BaseToggle
         lastActivator = null;
     }
 
-    // Closing by itself checks both sides of the doorway, and waits another delay while anything stands in it
+    // Checks both swing sides, and waits another delay while anything blocks either
     private void AutoClose()
     {
         if (DoorCanClose(autoClose: true))
@@ -617,10 +612,7 @@ public class PropDoorRotating : BaseToggle
         JumpTo(Origin, angles);
     }
 
-    /// <summary>
-    /// Where an ajar door rests: turned <c>ajarangle</c> degrees about its own up axis, or at the older
-    /// <c>ajarangles</c> outright when that is not set.
-    /// </summary>
+    // Turned ajarangle degrees about the door's up axis, or the older ajarangles when that is unset
     private Vector3 GetAjarAngles()
     {
         var ajarAngle = KeyValues.GetFloatProperty("ajarangle");
@@ -637,8 +629,7 @@ public class PropDoorRotating : BaseToggle
         return EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(ajar));
     }
 
-    // The engine measures both from the closed angles at spawn, but from wherever the door stands when the
-    // distance changes later
+    // Measured from the closed angles at spawn, but from the current angles when the distance changes later
     private void CalculateDoorVolumes(Vector3 fromAngles)
     {
         forwardVolume = CalculateDoorVolume(fromAngles, angleOpenForward);
@@ -658,11 +649,8 @@ public class PropDoorRotating : BaseToggle
         return from.Union(to);
     }
 
-    /// <summary>
-    /// Which way the door opens. A forced <c>opendir</c> decides it; otherwise it opens away from
-    /// <paramref name="awayFrom"/>, and without one it opens forward, which for an upright door is always a
-    /// negative yaw.
-    /// </summary>
+    // A forced opendir decides; otherwise away from awayFrom, or forward without one (a negative yaw for an
+    // upright door)
     private SwingSide ChooseSwingSide(BaseEntity? awayFrom)
     {
         if (OpenDir == OpenDirection.ForwardOnly)
@@ -682,8 +670,7 @@ public class PropDoorRotating : BaseToggle
             side = SwingSide.Backward;
         }
 
-        // A player who would swing it into something on the far side gets it opened towards them instead,
-        // unless that side is in the way too
+        // Opens towards a player instead of into something on the far side, unless that side is blocked too
         if (lastActivator is PlayerEntity && awayFrom is PlayerEntity && !CheckDoorClear(side))
         {
             var other = side == SwingSide.Forward ? SwingSide.Backward : SwingSide.Forward;
@@ -708,9 +695,8 @@ public class PropDoorRotating : BaseToggle
 
     private bool IsOpenForwardOnLeft() => MathUtils.Wrap(angleOpenForward.Y - Angles.Y, -180f, 180f) >= 0f;
 
-    // With ajardoorshouldntalwaysopen set, an ajar door only opens further for someone on the side it
-    // would swing away from, and shuts for anyone else. The side is the one the door already stands open
-    // to, measured from closed.
+    // With ajardoorshouldntalwaysopen, an ajar door opens further only for someone on the side it swings
+    // away from (the side it already stands open to), and shuts for anyone else
     private bool ShouldAjarOpen(BaseEntity? activator)
         => !ajarNeedsFarSide || activator == null
             || IsOnLeft(activator) != MathUtils.Wrap(Angles.Y - angleClosed.Y, -180f, 180f) >= 0f;
@@ -735,10 +721,8 @@ public class PropDoorRotating : BaseToggle
         return CheckDoorClear(autoClose ? SwingSide.Both : OpenSide);
     }
 
-    /// <summary>
-    /// Whether the space a swing sweeps is free of solid entities. The engine traces the swept box against
-    /// entities only, leaving out the world, players and NPCs, the door's own parts, and whoever opened it.
-    /// </summary>
+    // Whether the swept volume is free of solid entities. The world, players, the door's own parts and
+    // whoever opened it are ignored.
     private bool CheckDoorClear(SwingSide side)
     {
         var volume = side switch
@@ -784,9 +768,8 @@ public class PropDoorRotating : BaseToggle
         soundLocked = NonEmpty(KeyValues.GetStringProperty("soundlockedoverride"));
         soundUnlocked = NonEmpty(KeyValues.GetStringProperty("soundunlockedoverride"));
 
-        // What the map leaves out comes from the model's door_sounds, or failing that the metal door's. The
-        // skin and hardware blocks of door_options are consulted after the metal defaults are already in
-        // place, so they never supply any of these.
+        // Unset sounds come from the model's door_sounds, else the metal door defaults. The door_options skin
+        // and hardware blocks are consulted after the defaults, so they never supply any.
         if (LoadedModel?.KeyValues.GetSubCollection("door_sounds") is { ValueType: KVValueType.Collection } doorSounds)
         {
             soundOpen ??= NonEmpty(doorSounds.GetStringProperty("opened"));
@@ -814,8 +797,7 @@ public class PropDoorRotating : BaseToggle
     }
 
     /// <summary>
-    /// Runs on the first tick something blocks the swing. The door holds where it is, falls quiet, and
-    /// carries on once it is clear.
+    /// Runs on the first tick something blocks the swing; the door holds and falls quiet until clear.
     /// </summary>
     protected override void OnStartBlocked(BaseEntity blocker)
     {
@@ -861,7 +843,7 @@ public class PropDoorRotating : BaseToggle
         }
     }
 
-    // Source's PlayLockSounds, which debounces so a held use does not rattle the handle every tick
+    // Debounced so a held use does not rattle the handle every tick
     private void PlayLockSound(bool locked)
     {
         if (IsSilent || EntitySystem.CurrentTime <= lockSoundNext)

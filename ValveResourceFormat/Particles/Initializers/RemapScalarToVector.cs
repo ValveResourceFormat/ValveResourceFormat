@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var input = MathUtils.Saturate(MathUtils.Remap(particle.GetScalar(fieldInput), inputMin, inputMax));
 
-            // Source's Bias(): 0.5 leaves the value untouched, lower pushes it down, higher pushes it up.
+            // 0.5 leaves the value untouched, lower pushes it down, higher pushes it up.
             if (remapBias != 0.5f && remapBias > 0f)
             {
                 input = MathF.Pow(input, MathF.Log(remapBias) / MathF.Log(0.5f));
@@ -64,8 +64,8 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (localCoords)
             {
-                // Positions are authored as offsets from the control point and directions as
-                // rotations of it; colors carry no frame at all.
+                // Positions are offsets from the control point and directions are rotated by it;
+                // colors have no frame.
                 value = fieldOutput switch
                 {
                     ParticleField.Position or ParticleField.PositionPrevious or ParticleField.HitboxOffsetPosition

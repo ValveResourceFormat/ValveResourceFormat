@@ -173,8 +173,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 ? repeatsPerSegment / (chain.Length - 1)
                 : repeatsPerSegment;
 
-            // Exact buffer sizes are known up front, so the transient build buffers are rented, filled by
-            // index and returned; the rented arrays may be larger, so sizes are threaded through explicitly.
+            // Exact sizes are known up front, so build buffers are rented and filled by index. Rented
+            // arrays may be larger, so sizes are passed explicitly.
             var ringCount = TotalRings(positions.Length, levels);
             var sides = CableMeshBuilder.SideCount(roundness);
             var vertexCount = ringCount * (sides + 1);

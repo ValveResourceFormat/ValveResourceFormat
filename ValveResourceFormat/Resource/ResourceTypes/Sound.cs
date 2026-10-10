@@ -558,12 +558,11 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Reads the raw streaming sound data - the samples exactly as stored, without the container
-        /// header <see cref="GetSoundStream"/> synthesizes - into <paramref name="buffer"/>, which must be
-        /// exactly <see cref="StreamingDataSize"/> bytes. The stored format is described by
-        /// <see cref="SoundType"/>, <see cref="AudioFormat"/>, <see cref="Bits"/>, <see cref="Channels"/>,
-        /// <see cref="SampleRate"/> and (for ADPCM) <see cref="Header"/>, so decoders can consume the data
-        /// directly instead of round-tripping through a synthesized RIFF header.
+        /// Reads the raw streaming data as stored, without the container header <see cref="GetSoundStream"/> synthesizes,
+        /// into <paramref name="buffer"/>, which must be exactly <see cref="StreamingDataSize"/> bytes.
+        /// The format is given by <see cref="SoundType"/>, <see cref="AudioFormat"/>, <see cref="Bits"/>,
+        /// <see cref="Channels"/>, <see cref="SampleRate"/> and (for ADPCM) <see cref="Header"/>, so decoders
+        /// can use the data directly without a round-trip through a synthesized RIFF header.
         /// </summary>
         public void ReadStreamingData(Span<byte> buffer)
         {

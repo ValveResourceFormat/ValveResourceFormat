@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private int GetMeshBoneIndex(int modelBoneIndex, RenderableMesh mesh)
             => remappingTable.Span.Slice(mesh.MeshBoneOffset, mesh.MeshBoneCount).IndexOf(modelBoneIndex);
 
-        // Slots from a model's transform to its first bone: Source 2 keeps a CTransform in between
+        // Slots from a model's transform to its first bone, with one transform in between
         internal const int BoneTransformStart = 2;
 
         internal int SkinningTransformCount

@@ -7,9 +7,8 @@
 //   1  generated, one set of attributes per particle at divisor 1, for a sprite card
 //   2  generated, as 1, but a trail: a colour and a half width per end rather than one of each
 //
-// The generated paths reuse the same attribute names as the buffer path wherever the data plays the
-// same role, because locations are allocated over every name declared in this file, whether or not the
-// combo compiling it keeps the declaration.
+// Generated paths reuse the buffer path's names where the data has the same role, because locations
+// are allocated over every name declared here, even if the combo does not keep the declaration.
 #define S_PARTICLE_INSTANCED 0
 
 // The corner position, or the card's centre when the corners are generated.
@@ -90,9 +89,8 @@ uniform vec3 uColorScale = vec3(1.0);
 uniform float uDepthBias = 0.0;
 
 #if S_PARTICLE_INSTANCED
-// Each layer's uv controls: scale in xy, offset in zw, then the rotation and whether it clamps. One
-// value per layer for the whole draw rather than per particle, which is what lets a particle send the
-// sheet frame rectangle it is on instead of a placed coordinate per corner.
+// Per-layer uv controls: scale in xy, offset in zw, then rotation and clamp. One value per layer for the
+// whole draw, so each particle sends its sheet frame rectangle, not a placed coordinate per corner.
 uniform vec4 uLayerUvScaleOffset[S_TEXTURE_LAYERS + 1];
 uniform float uLayerUvRotation[S_TEXTURE_LAYERS + 1];
 uniform bool uLayerUvClamp[S_TEXTURE_LAYERS + 1];

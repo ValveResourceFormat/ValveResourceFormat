@@ -55,9 +55,8 @@ public partial class GltfModelExporter
         }
 
         /// <summary>
-        /// Writes a skeletal animation to the glTF model. Entries in <paramref name="joints"/> may be
-        /// null when an animation targets a skeleton with bones the exported model does not have
-        /// (e.g. animation graph clips retargeted by bone name); those bones are skipped.
+        /// Writes a skeletal animation to the glTF model. Null joints, for bones the model lacks
+        /// (e.g. animation graph clips retargeted by name), are skipped.
         /// </summary>
         public void WriteAnimation(ModelRoot model, Node?[] joints, VAnim animation, string? animationName = null)
         {

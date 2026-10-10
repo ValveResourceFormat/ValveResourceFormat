@@ -1,9 +1,8 @@
 namespace ValveResourceFormat.Renderer.Audio.Decoders;
 
 /// <summary>
-/// Receives decoded audio as a stream of interleaved float chunks.
-/// Decoders push through this instead of materializing whole files, so decode memory stays flat
-/// (one scratch chunk) no matter how long the sound is.
+/// Receives decoded audio as interleaved float chunks, so decode memory stays flat
+/// (one scratch chunk) regardless of sound length.
 /// </summary>
 internal interface IPcm16Sink
 {
@@ -121,8 +120,8 @@ internal sealed class Pcm16ArenaSink : IPcm16Sink
             var frame0 = (long)nextSourcePos;
 
             // frame1 = frame0 + 1 must be inside this chunk; the final source frame is interpolated
-            // against itself once the stream ends via the carry in the next (absent) chunk - matching
-            // the old whole-file converter's clamp - so a tiny tail may go unemitted. Inaudible.
+            // against itself once the stream ends via the carry in the next (absent) chunk, so a tiny
+            // tail may go unemitted. Inaudible.
             if (frame0 + 1 >= chunkEnd || frame0 < consumedFrames - (hasCarry ? 1 : 0))
             {
                 break;
@@ -192,9 +191,8 @@ internal sealed class Pcm16ArenaSink : IPcm16Sink
         (slab, slabIndex, offset, capacity) = (grown.Slab, grown.SlabIndex, grown.Offset, grown.Length);
     }
 
-    // Random.Shared rather than the player's SoundRandom: this runs on the decode threads, where the
-    // shared instance's thread safety is worth more than matching the rest of the audio system, and
-    // dither wants to be uncorrelated with anything else anyway.
+    // Random.Shared rather than the player's SoundRandom: this runs on decode threads, where thread
+    // safety outweighs matching the rest of the audio system. Dither should be uncorrelated anyway.
     private static short Quantize(float value, Random random)
     {
         // Difference of two uniform [0,1) draws gives a triangular distribution over (-1, 1) LSB

@@ -21,10 +21,8 @@ namespace ValveResourceFormat.IO
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This class is intended for loading compiled resources (such as models, textures, materials)
-    /// that need to be parsed as <see cref="Resource"/> objects. It handles resource lookup
-    /// across VPK packages and loose files on disk, automatically discovering game search paths
-    /// from gameinfo.gi files.
+    /// Loads compiled resources (models, textures, materials) as <see cref="Resource"/> objects. Lookup spans
+    /// VPK packages and loose files on disk, with game search paths discovered from gameinfo.gi files.
     /// </para>
     /// <para>
     /// To read raw file bytes from a VPK package, use <c>Package.ReadEntry</c> instead.

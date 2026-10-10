@@ -34,9 +34,8 @@ uniform sampler2D g_tColor; // SrgbRead(true)
 uniform sampler2D g_tNormalRoughness;
 
 #if (F_USE_NPR_LIGHTING == 1)
-    // NPR materials bind no g_tTintMask; they pack the tint mask and the rim light mask into
-    // one two channel texture instead. Only .x is used here, .y being the rim mask that the
-    // NPR lighting would consume.
+    // NPR materials bind no g_tTintMask and pack the tint and rim light masks into one two channel texture.
+    // Only .x is used here, .y being the rim mask that NPR lighting would consume.
     uniform sampler2D g_tTintMaskRimLightMask;
 #else
     uniform sampler2D g_tTintMask;
@@ -423,9 +422,8 @@ void main()
         outputColor.rgb = mat.DiffuseColor * diffuseLighting + specularLighting + mat.IllumColor;
 
         #if (F_GLASS == 1)
-            // Beer-Lambert through the albedo, thickening as the surface turns away, over
-            // whatever the scene already drew behind it. Valve offsets and blurs the lookup
-            // with its cloak machinery; this samples straight through.
+            // Beer-Lambert through the albedo, thickening as the surface turns away, over whatever the scene
+            // already drew behind it. The lookup samples straight through, without offset or blur.
             float glassMask = texture(g_tGlass, GetAlbedoTexCoord()).x;
 
             if (glassMask > 0.0)

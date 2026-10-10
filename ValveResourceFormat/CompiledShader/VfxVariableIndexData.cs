@@ -18,9 +18,9 @@ public readonly struct VfxVariableIndexData
     public short PackedIndex { get; init; }
 
     /// <summary>Gets the variable index into <see cref="VfxProgramData.VariableDescriptions"/>.</summary>
-    public int VariableIndex => PackedIndex & 0xFFF; // index VariableDescriptions
+    public int VariableIndex => PackedIndex & 0xFFF;
     /// <summary>Gets the descriptor set ID in the shader layout.</summary>
-    public int LayoutSet => (PackedIndex >> 12) & 0xF; // Descriptor set id in the shader layout()
+    public int LayoutSet => (PackedIndex >> 12) & 0xF;
 
     /// <summary>Gets the binding slot, the low byte of the register offset. It is 255 when the variable has no register.</summary>
     public int BindingSlot => RegisterOffset & 0xFF;

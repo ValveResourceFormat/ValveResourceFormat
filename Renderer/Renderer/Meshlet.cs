@@ -51,7 +51,6 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Offset (in vertices) into the global vertex/index data for this meshlet.
-        /// Used by the renderer to locate the meshlet's vertex data.
         /// </summary>
         public int VertexOffset { get; init; }
 

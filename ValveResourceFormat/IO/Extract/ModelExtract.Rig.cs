@@ -461,8 +461,7 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Copies a key across only when the compiled block carries it, leaving a key an older compiler
-    /// never wrote absent.
+    /// Adds Bone nodes for each bone and its children, flattening compiler-owned cloth bones into the parent.
     /// </summary>
     void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
     {
@@ -644,8 +643,7 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Writes the rig the model was authored against: its animation graph name, its bone constraints and
-    /// its IK data.
+    /// Writes the rig's animation graph name, bone constraints and IK data.
     /// </summary>
     private void AddRigNodes(Model model, KVObject keyvalues, ModelDocLists lists, KVObject rootNode)
     {

@@ -56,9 +56,9 @@ namespace Tests.IO
             => Collect(document, "AnimNode").Single(node => node.GetStringProperty("m_sName") == name);
 
         /// <summary>
-        /// Every node id the document mentions resolves to a node the document declares, and no two
-        /// nodes share an id. A decompiler that drops a node or renumbers one produces a document the
-        /// editor cannot load, and that shows up here as a reference pointing at nothing.
+        /// Every referenced node id resolves to a declared node, and no two nodes share an id. A dropped
+        /// or renumbered node yields a document the editor cannot load, which shows up here as a
+        /// dangling reference.
         /// </summary>
         [Test]
         public async Task EveryNodeReferenceResolvesToADeclaredNode()
@@ -149,9 +149,8 @@ namespace Tests.IO
         }
 
         /// <summary>
-        /// The settings the document gives individual nodes come back as authored. These are spelled out
-        /// one by one so the expected value can be read straight out of the authored document rather
-        /// than trusted because a comparison passed.
+        /// Per-node settings come back as authored. Expected values are spelled out to check against the
+        /// document, not trusted because a comparison passed.
         /// </summary>
         [Test]
         public async Task TheAuthoredNodeSettingsComeBack()

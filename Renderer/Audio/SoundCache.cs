@@ -61,8 +61,7 @@ public sealed class SoundCache : IDisposable
     {
         get
         {
-            // Written only under this lock (decode publish, Prune), so read under it too rather than
-            // implying a lock-free protocol that isn't there
+            // Written only under this lock (decode publish, Prune), so read under it too
             lock (sounds)
             {
                 return cachedBytes;

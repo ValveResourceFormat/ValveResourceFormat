@@ -33,9 +33,8 @@ vec3 diffuseWrapped(vec3 vNormal, vec3 vLightVector)
 // Normal Distribution function --------------------------------------
 // D = Normal distribution (Distribution of the microfacets)
 
-// No 1/PI unlike most GGX implementation, s2 lights carry it instead i think.
-// Diffuse is simply NoL rather than albedo/PI, which means lightColor is really E/PI, so specular owes a PI back.
-// Omitting the divide here is that extra PI.
+// No 1/PI unlike most GGX, s2 lights probably carry it instead. Diffuse is NoL rather than albedo/PI,
+// so lightColor is really E/PI and specular owes a PI back, which omitting the divide here repays.
 float D_GGX(float NoH, float roughness)
 {
 	float oneMinusNoHSquared = 1.0 - pow2(NoH);
@@ -132,8 +131,7 @@ uniform sampler2DArray g_tBRDFLookup; // reserved
 #define BRDF_LUT_GGX 1.0
 #define BRDF_LUT_SHEEN 2.0
 
-// Half a texel in from either edge of the 64 wide table, so the ends of the range are the
-// centres of the first and last texels rather than a clamped extrapolation.
+// Half a texel in from each edge of the 64 wide table: ends sample texel centres, not clamped edges.
 vec4 SampleBrdfLut(float roughness, float NdotV, float layer)
 {
     vec2 coords = vec2(roughness, sqrt(1.0 - NdotV)) * (63.0 / 64.0) + (1.0 / 128.0);
@@ -146,7 +144,7 @@ float D_Charlie(float roughness, float NoH)
     return (invRough + 2.0) * pow(max(1.0 - pow2(NoH), 0.0078125), invRough * 0.5) / TAU;
 }
 
-// Clamped to 1 (Filament, Deadlock). Unclamped it runs away to ~65000
+// Clamped to 1. Unclamped it runs away to ~65000
 // where NoL and NoV both approach zero.
 float V_Neubelt(float NoL, float NoV)
 {
@@ -199,8 +197,8 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat, f
         ndfVis = mix(ndfVis, ClothNDF * ClothVis * CLOTH_ENERGY_SCALE * NoL, mat.ClothMask);
     }
 
-    // Sheen is a second lobe over the top, with its own colour and roughness, rather than a
-    // blend into the first, so the base has to give up the energy it takes.
+    // Sheen is a second lobe with its own colour and roughness, not a blend into the base,
+    // so the base gives up the energy it takes.
     vec3 specular = vec3(ndfVis) * NoL * F * sheenAlbedoScaling;
 
     if (mat.SheenRoughness > 0.0)
@@ -215,9 +213,8 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat, f
 
 
 
-// How much of the base lobes survives once the sheen has taken its share. The directional
-// albedo is read at both the light and the view, because a grazing sheen absorbs from either
-// direction. Without a sheen lobe this is 1 and nothing is sampled.
+// Base lobe energy left after the sheen. The directional albedo is read at light and view, as a
+// grazing sheen absorbs from either. Without a sheen lobe this is 1 and nothing is sampled.
 float GetSheenAlbedoScaling(MaterialProperties_t mat, vec3 lightVector)
 {
     if (mat.SheenRoughness <= 0.0)

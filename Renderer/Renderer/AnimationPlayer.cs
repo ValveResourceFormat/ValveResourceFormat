@@ -100,9 +100,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Gets or sets the current frame index of the active animation. Seeking targets a position in the
-        /// cycle being played rather than the first one, so scrubbing a looping animation walks within that
-        /// cycle instead of unwinding everything played so far.
+        /// Gets or sets the current frame index of the active animation. Seeking stays within the cycle being
+        /// played, so scrubbing a looping animation does not unwind earlier cycles.
         /// </summary>
         public int Frame
         {

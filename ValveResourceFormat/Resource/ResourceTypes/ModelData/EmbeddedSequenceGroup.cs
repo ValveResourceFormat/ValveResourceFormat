@@ -39,8 +39,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="EmbeddedSequenceGroup"/> class by resolving a
-        /// model's <c>embedded_animation</c> block references.
+        /// Resolves a model's <c>embedded_animation</c> block references.
         /// </summary>
         public EmbeddedSequenceGroup(Resource resource)
         {
@@ -136,9 +135,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         }
 
         /// <summary>
-        /// Gets the named morph controller masks, mapping each mask name to a weight for every flex
-        /// controller. A controller the mask does not list carries the mask's own default weight, itself
-        /// 1 when the compiled data omits it. A mask name scopes both bones
+        /// Gets morph masks by name, each mapping every flex controller to a weight. Unlisted controllers
+        /// use the mask's default weight (1 if omitted). A mask name scopes both bones
         /// (<see cref="GetBoneMasks"/>) and flex controllers.
         /// </summary>
         public Dictionary<string, Dictionary<string, float>> GetMorphMasks(FlexController[] flexControllers)

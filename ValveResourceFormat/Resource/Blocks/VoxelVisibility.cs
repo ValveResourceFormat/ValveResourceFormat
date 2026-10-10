@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Blocks
 
     /// <summary>
     /// "VXVS" block. Three layouts, differing in how space is cut into clusters:
-    /// <para><see cref="VoxelVisibility"/>, latest: an octree that dices each leaf into a 4x4x4 grid of cells, where every cluster reaching that leaf owns a 64 bit mask of the cells it covers.</para>
+    /// <para><see cref="VoxelVisibility"/>, latest: an octree with a 4x4x4 grid of cells in each leaf, and a 64 bit cell mask per cluster reaching it.</para>
     /// <para><see cref="RegionBoxVoxelVisibility"/>, until 2022: an octree whose leaves list boxes, each box tagged with the cluster that owns it.</para>
     /// <para><see cref="BspVoxelVisibility"/>, until 2018: a binary tree of arbitrary split planes, where a leaf is a cluster outright and nothing subdivides it further.</para>
     /// </summary>

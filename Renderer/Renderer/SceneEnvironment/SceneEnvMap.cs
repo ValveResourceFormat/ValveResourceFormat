@@ -113,7 +113,7 @@ public class SceneEnvMap : SceneNode
         public static EnvMapVisibility128 Full => Unsafe.BitCast<UInt128, EnvMapVisibility128>(UInt128.MaxValue);
 
 #pragma warning disable CA1024 // Use properties where appropriate
-        /// <summary>Returns an enumeration of shader indices for all env maps currently marked visible in this bitmask.</summary>
+        /// <summary>Shader indices of every env map marked visible in this bitmask.</summary>
         public readonly IEnumerable<int> GetVisibleShaderIndices()
         {
             for (var bucket = 0; bucket < 4; bucket++)

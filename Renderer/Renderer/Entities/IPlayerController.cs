@@ -1,17 +1,15 @@
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// The physical state of a player, as much of it as the entity world needs: where they stand, how fast,
-/// how big, and how to move them somewhere else.
+/// The player's physical state as the entity world needs it: position, velocity, size, and moving them.
 /// </summary>
 /// <remarks>
-/// Declared next to its consumer so the entity world does not depend on whatever drives the player. The
-/// player moves per rendered frame rather than on the entity tick, so <see cref="PlayerEntity"/> reads an
-/// implementation of this instead of owning the state.
+/// The player moves per rendered frame rather than per entity tick, so <see cref="PlayerEntity"/> reads
+/// this instead of owning the state. Declared here so the entity world does not depend on what drives it.
 /// </remarks>
 public interface IPlayerController
 {
-    /// <summary>Gets whether the player is being simulated: standing in the world rather than a free camera.</summary>
+    /// <summary>Gets whether the player is simulated, as opposed to a free camera.</summary>
     bool IsActive { get; }
 
     /// <summary>Gets the position of the player's feet, which is the entity origin.</summary>
@@ -33,35 +31,30 @@ public interface IPlayerController
     BaseEntity? GroundEntity { get; }
 
     /// <summary>
-    /// Gets the center of the collision hull, which is where pushers move the player from. The view can
-    /// trail it for a tick after a push.
+    /// Gets the center of the collision hull, which pushers move the player from. The view can trail it
+    /// for a tick after a push.
     /// </summary>
     Vector3 HullCenter { get; }
 
-    /// <summary>
-    /// Sweeps the collision hull between two centers against the world and every collidable entity.
-    /// </summary>
+    /// <summary>Sweeps the collision hull between two centers against the world and all collidable entities.</summary>
     Rubikon.TraceResult TraceHull(Vector3 startCenter, Vector3 endCenter);
 
     /// <summary>Gets whether the collision hull centered at a point overlaps the world or any collidable entity.</summary>
     bool IsHullStuck(Vector3 center);
 
     /// <summary>
-    /// Moves the player by a pusher's displacement, already checked against what is in the way. The hull
-    /// moves at once, as the engine moves it on the tick; the view follows over the tick interval, the
-    /// way the pusher is drawn moving.
+    /// Moves the player by a pusher's displacement, already checked for obstruction. The hull moves at
+    /// once; the view follows over the tick interval, as the pusher is drawn moving.
     /// </summary>
     void Push(Vector3 delta);
 
     /// <summary>
-    /// Takes the buttons seen since the last call, reporting them against the state the previous call
-    /// left. Called once per tick, by the player entity.
+    /// Takes the buttons seen since the last call, reported against the state the previous call left.
+    /// Called once per tick by the player entity.
     /// </summary>
     /// <returns>What is held, and what changed, for the tick collecting it.</returns>
     PlayerButtonState ConsumeButtons();
 
-    /// <summary>
-    /// Moves the player somewhere else outright, keeping their velocity. Null angles keep the current ones.
-    /// </summary>
+    /// <summary>Moves the player outright, keeping their velocity. Null angles keep the current ones.</summary>
     void Teleport(Vector3 feetPosition, Vector3? angles);
 }

@@ -21,11 +21,10 @@ namespace ValveResourceFormat.Particles.Initializers
         protected static ulong FieldMask(ParticleField field) => 1UL << (int)field;
 
         /// <summary>
-        /// The particle attributes this initializer writes, as a bit mask over
-        /// <see cref="ParticleField"/> values, matching what the engine's class declares rather
-        /// than what this port happens to assign. Under the pre-version-6 first-writer-wins rule
-        /// an initializer runs only while some attribute it declares is still unwritten, so a
-        /// class declaring nothing never runs there.
+        /// Bit mask over <see cref="ParticleField"/> values of the attributes this initializer
+        /// declares it writes, not the ones it happens to assign. Under the pre-version-6
+        /// first-writer-wins rule an initializer runs only while some attribute it declares is
+        /// still unwritten, so one declaring nothing never runs there.
         /// </summary>
         public abstract ulong WrittenFields { get; }
 

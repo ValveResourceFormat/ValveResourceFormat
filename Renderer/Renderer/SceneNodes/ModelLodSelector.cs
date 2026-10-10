@@ -24,8 +24,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public IReadOnlyList<int> AvailableLevels => lodInfo.AvailableLevels;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ModelLodSelector"/> class, starting at the
-        /// model's lowest populated level.
+        /// Starts at the model's lowest populated level.
         /// </summary>
         public ModelLodSelector(ModelLodInfo lodInfo)
         {

@@ -270,9 +270,8 @@ namespace ValveResourceFormat.Particles
         public PerParticleCountNormalizedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemState renderState)
         {
-            // Mapping input ranges for this provider type are authored in normalized 0-1 space.
-            // Index is the slot in the alive list; UniqueParticleId is a lifetime spawn counter and would exceed the count.
-            // From behavior version 12 the last live particle reads 1 instead of count/(count+1).
+            // Mapping input ranges are normalized 0-1. Index is the alive-list slot; UniqueParticleId is a lifetime counter
+            // that would exceed the count. From behavior version 12 the last live particle reads 1, not count/(count+1).
             var divisor = renderState.Data?.BehaviorVersion >= 12
                 ? Math.Max(renderState.ParticleCount - 1, 1)
                 : Math.Max(renderState.ParticleCount, 1);
@@ -473,7 +472,6 @@ namespace ValveResourceFormat.Particles
             => attributeMapping.ApplyMapping(snapshot.Count(renderState));
     }
 
-    // Distance from the particle to a control point
     class ControlPointDistanceNumberProvider : INumberProvider
     {
         private readonly AttributeMapping attributeMapping;

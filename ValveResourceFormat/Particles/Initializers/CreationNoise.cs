@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var samplePosition = (particle.Position + offsetLoc) * noiseScaleLoc;
 
-            // The engine's world time term ticks in milliseconds
+            // The world time term ticks in milliseconds
             var sampleTime = ((particle.CreationTime + offset) * noiseScale)
                 + (particleSystemState.WorldTime * 1000f * worldTimeScale);
             var noise = Noise.Value3D(samplePosition + new Vector3(sampleTime));

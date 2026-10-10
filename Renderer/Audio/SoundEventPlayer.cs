@@ -286,11 +286,9 @@ public sealed class SoundEventPlayer : IDisposable
     }
 
     /// <summary>
-    /// Conventional path for an addon/workshop map's own extra sound events. Unlike the rest of a base
-    /// game's content, an addon's own files are not necessarily reachable from
-    /// "soundevents/soundevents_manifest.vrman" (that manifest ships with the base game, not the addon),
-    /// so this is always attempted directly in <see cref="LoadSoundEvents"/> regardless of what is loaded -
-    /// most content (anything that is not an addon) simply does not have the file.
+    /// Conventional path for an addon or workshop map's extra sound events. Addon files are not listed in
+    /// the base game's "soundevents/soundevents_manifest.vrman", so this is always attempted directly in
+    /// <see cref="LoadSoundEvents"/>. Most content has no such file.
     /// </summary>
     private const string AddonSoundEventsFile = "soundevents/soundevents_addon.vsndevts";
 
@@ -587,12 +585,11 @@ public sealed class SoundEventPlayer : IDisposable
     }
 
     /// <summary>
-    /// Pre-warms a sound event so its first real play does no lazy work on the frame: builds the full
-    /// instance tree (event instances, providers, child wiring) into the definition's pool, and queues
-    /// background decodes for every vsnd the tree could pick. Also safe to call again while approaching
-    /// an already-warm event - the instance work is a no-op and the decode queueing just refreshes the
-    /// sounds' cache eviction age. Returns immediately; sounds that want to play right now take priority
-    /// over the queued decodes. Unknown events and unsupported types are ignored.
+    /// Pre-warms a sound event so its first play does no lazy work: builds the full instance tree (event
+    /// instances, providers, child wiring) into the definition's pool and queues background decodes for
+    /// every vsnd the tree could pick. Safe to call again on a warm event, which only refreshes the sounds'
+    /// cache eviction age. Returns immediately; sounds playing right now take priority over the queued
+    /// decodes. Unknown events and unsupported types are ignored.
     /// </summary>
     public void Cache(string soundEventName)
     {
@@ -637,7 +634,7 @@ public sealed class SoundEventPlayer : IDisposable
         return false;
     }
 
-    /// <summary>Picks a random track index out of <paramref name="trackCount"/>, never repeating the previously picked track for the same sound event definition.</summary>
+    /// <summary>Picks a random track index, never repeating the previous pick for the same definition.</summary>
     internal int PickTrack(SoundEventDefinition definition, int trackCount)
     {
         if (trackCount <= 1)
@@ -757,9 +754,8 @@ public sealed class SoundEventPlayer : IDisposable
 
     /// <summary>
     /// Whether nothing solid stands between the listener and a soundscape entity. An env_soundscape only
-    /// claims the listener when it can see them, which is what keeps the one across the wall (or the floor)
-    /// from taking over the room they are actually standing in. Without an <see cref="OcclusionTrace"/> to
-    /// ask there is nothing to test against, and every region counts as visible.
+    /// claims the listener when it can see them, so one across a wall or floor cannot take over the room
+    /// they are in. Without an <see cref="OcclusionTrace"/> every region counts as visible.
     /// </summary>
     private bool HasLineOfSight(Vector3 listenerPosition, Vector3 position)
     {
@@ -940,7 +936,7 @@ public sealed class SoundEventPlayer : IDisposable
 
     private void UpdateSoundscape(Vector3 listenerPosition)
     {
-        // The engine re-picks the listener's soundscape on a think rather than every frame, and one pass
+        // Re-picks the listener's soundscape on a timer rather than every frame, and one pass
         // here walks every region in the map and traces to the ones in range of the listener
         var now = Stopwatch.GetTimestamp();
 

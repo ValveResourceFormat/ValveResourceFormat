@@ -9,20 +9,19 @@ namespace ValveResourceFormat.Renderer.Shaders
     /// Registry of user provided shader directories and shader name mappings.
     ///
     /// <para>
-    /// Directories added here are mounted in front of the shaders shipped with the renderer, similar to how search paths
-    /// work in <see cref="ValveResourceFormat.IO.GameFileLoader"/>. Any file placed in a mounted directory overrides the
-    /// built-in file with the same relative path, which applies to shader entry points (<c>complex.vert.slang</c>) as well
-    /// as anything pulled in with <c>#include</c> (<c>common/lighting.slang</c>).
+    /// Mounted directories take priority over the shaders shipped with the renderer, like search paths in
+    /// <see cref="ValveResourceFormat.IO.GameFileLoader"/>. A file in a mounted directory overrides the built-in file with
+    /// the same relative path, for entry points (<c>complex.vert.slang</c>) and includes (<c>common/lighting.slang</c>) alike.
     /// </para>
     ///
     /// <para>
-    /// Mappings translate a Source 2 shader name (<c>shader.vfx</c>) to the renderer shader file that will be used to draw
-    /// it, taking priority over the built-in mapping table.
+    /// Mappings take priority over the built-in table, translating a Source 2 shader name (<c>shader.vfx</c>) to a
+    /// renderer shader file.
     /// </para>
     ///
     /// <para>
-    /// Configure this before creating a <see cref="RendererContext"/>. Changing the registry drops the parsed shader cache,
-    /// but shader programs that have already been compiled by an existing loader keep running the old code.
+    /// Configure before creating a <see cref="RendererContext"/>. Changing the registry drops the parsed shader cache, but
+    /// already compiled shader programs keep running the old code.
     /// </para>
     /// </summary>
     public static class ShaderRegistry
@@ -38,8 +37,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         public static ImmutableDictionary<string, string> Mappings => mappings;
 
         /// <summary>
-        /// Mounts a directory containing shader files. The most recently added directory has the highest priority, and all
-        /// mounted directories take priority over the shaders shipped with the renderer.
+        /// Mounts a shader directory above the shaders shipped with the renderer. The most recently added directory has
+        /// the highest priority.
         /// </summary>
         /// <param name="path">Path to the directory that mirrors the layout of the built-in <c>Renderer/Shaders</c> folder.</param>
         /// <returns><see langword="true"/> if the directory was added, <see langword="false"/> if it was already mounted.</returns>
@@ -70,8 +69,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
         /// <summary>
-        /// Maps a Source 2 shader name to the renderer shader file used to draw it. Overrides the built-in mapping when the
-        /// same name is already known to the renderer.
+        /// Maps a Source 2 shader name to the renderer shader file used to draw it, overriding the built-in mapping.
         /// </summary>
         /// <param name="shaderName">The Source 2 shader name, including the extension (e.g. <c>shader.vfx</c>).</param>
         /// <param name="shaderFileName">The renderer shader name without stage or extension (e.g. <c>my_shader</c> for <c>my_shader.vert.slang</c>).</param>
@@ -101,8 +99,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
         /// <summary>
-        /// Opens a shader file from the mounted directories, or returns <see langword="null"/> when no mounted directory
-        /// provides it and the built-in shader should be used instead.
+        /// Opens a shader file from the mounted directories, or returns <see langword="null"/> to use the built-in shader.
         /// </summary>
         /// <param name="name">Root relative shader file name using forward slashes (e.g. <c>common/lighting.slang</c>).</param>
         internal static Stream? TryOpenShaderFile(string name)

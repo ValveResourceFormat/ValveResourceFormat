@@ -51,9 +51,8 @@ namespace Tests.IO
 
                 var root = ModelRoot.Load(outPath);
 
-                // The root_motion bone has no per-frame bone animation, so any net displacement of its
-                // translation channel comes purely from the baked root motion (~47.92 source units forward,
-                // ~1.22 m once the source->glTF unit conversion is baked into the export).
+                // root_motion has no per-frame bone animation, so its translation displacement is purely baked
+                // root motion (~47.92 source units forward, ~1.22 m after the source-to-glTF unit conversion).
                 var anim = root.LogicalAnimations.Single(a => a.Name == "box_creature_leggy_walk");
                 var rootMotionNode = root.LogicalNodes.Single(n => n.Name == "root_motion");
                 var sampler = anim.FindTranslationChannel(rootMotionNode)?.GetTranslationSampler();
@@ -112,9 +111,8 @@ namespace Tests.IO
             });
         }
 
-        // Regression guard for issue #1135: bone translation keyframes must be baked into meters (matching
-        // the unit-scaled armature), not left in source inches. In-inches channels under a 0.0254 armature
-        // scale are exactly what made bones stretch ~39x once transforms were applied.
+        // Regression guard for issue #1135: translation keys must be in meters, matching the armature.
+        // Inch keys under a 0.0254 armature scale stretch bones ~39x once transforms are applied.
         [Test]
         public async Task TestSkinnedAnimationStaysMeterScaled()
         {
@@ -147,9 +145,8 @@ namespace Tests.IO
             });
         }
 
-        // The non-skinned mesh path bakes the conversion into vertex positions and leaves the node at
-        // identity (it used to live on the node transform). Verify the geometry is in meters with no residual
-        // node scale or placement.
+        // The non-skinned mesh path bakes the conversion into vertex positions, leaving the node at identity.
+        // Geometry must be in meters with no residual node scale or placement.
         [Test]
         public async Task TestStaticMeshConversionBakedIntoGeometry()
         {

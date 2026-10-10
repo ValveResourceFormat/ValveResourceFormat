@@ -48,8 +48,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     static class CableSceneNode
     {
-        // Authoritative editor defaults from PathParticleRopeBase / path_node_cable in base.fgd,
-        // used only when an entity omits the key (compiled maps usually store them explicitly).
+        // Editor defaults, used only when an entity omits the key
+        // (compiled maps usually store them explicitly).
         private const float DefaultRadius = 4.0f;
         private const float DefaultSlack = 0.5f;
         private const float DefaultParticleSpacing = 32.0f;

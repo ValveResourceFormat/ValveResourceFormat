@@ -58,8 +58,7 @@ namespace ValveResourceFormat.Particles.Initializers
         public override ulong WrittenFields => FieldMask(fieldOutput) | FieldMask(ParticleField.PositionPrevious);
 
         /// <summary>
-        /// The time window applies only when both bounds are set: a -1 sentinel on either bound
-        /// disables the gate entirely.
+        /// A -1 sentinel on either bound disables the time window.
         /// </summary>
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {

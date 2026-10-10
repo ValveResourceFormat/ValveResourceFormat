@@ -68,7 +68,7 @@ vec3 GetLightDirection(vec3 vPositionWs, uint nLightIndex)
     return lightVector;
 }
 
-// Already premultiplied by brightness, like the game's g_vBakedLightColor.
+// Already premultiplied by brightness.
 vec3 GetLightColor(uint nLightIndex)
 {
     return g_vLightColor_Brightness[nLightIndex].rgb;

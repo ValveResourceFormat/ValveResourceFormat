@@ -511,8 +511,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
     /// <summary>
     /// Editor model tint for a light entity, keyed on how expensive it is: teal for static, amber for
-    /// stationary, red for dynamic. These are the colors the Source 2 light entities pass to the
-    /// <c>lightModeTint2</c> editor model helper in their fgd.
+    /// stationary, red for dynamic.
     /// </summary>
     /// <param name="entity">Light entity to read the direct lighting key values from.</param>
     public static Vector3 GetEditorTint(Entity entity) => GetCost(entity) switch
@@ -871,7 +870,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     }
 
     /// <summary>
-    /// Calculates the effective solid angle of a spotlight cone, clamped to a maximum of 4π steradians (full sphere).
+    /// Calculates the effective solid angle of a spotlight cone, clamped to a maximum of 4pi steradians (full sphere).
     /// </summary>
     public float ComputeConeSolidAngle()
     {

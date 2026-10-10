@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Text for a <see cref="TextRenderRequest"/>. Converts implicitly from a string, or from a
-        /// caller-owned char buffer slice to render without allocating — in which case the buffer
+        /// caller-owned char buffer slice to render without allocating, in which case the buffer
         /// must not be overwritten until <see cref="Render"/> runs.
         /// </summary>
         public readonly struct TextMemory
@@ -123,7 +123,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// A reusable fixed-size buffer for per-frame formatted text. Construct once, sized directly or
         /// from a worst-case template string, then <see cref="Format"/> into it each frame and pass it
-        /// wherever <see cref="TextMemory"/> is expected — no per-call allocations.
+        /// wherever <see cref="TextMemory"/> is expected, with no per-call allocations.
         /// </summary>
         public sealed class TextBuffer
         {

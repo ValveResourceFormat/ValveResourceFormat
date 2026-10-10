@@ -138,10 +138,10 @@ public class VfxShaderFileVulkan : VfxShaderFile
     }
 
     /// <summary>
-    /// Reads the binding metadata that follows the attribute map. Mobile blobs of version 3 are read like the mobile
-    /// engine does, newer versions like the latest desktop engine reader that accepts them. Desktop blobs of version 3
-    /// are skipped, because engine builds wrote different layouts under that version with nothing in the file to tell them apart.
-    /// Version 5 is skipped, because no engine reader reads it the way it was written.
+    /// Reads the binding metadata that follows the attribute map. Mobile version 3 blobs are read with their
+    /// mobile layout, other versions with the desktop layout. Desktop version 3 blobs are skipped, since builds
+    /// wrote different layouts under that version with no way to tell them apart. Version 5 is skipped because
+    /// no known reader parses it correctly.
     /// </summary>
     private void ReadMetadata(BinaryReader datareader, long end)
     {
@@ -236,7 +236,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
     }
 
     /// <summary>
-    /// Reads little endian values from the metadata, returning zeros past the end like the engine buffer does.
+    /// Reads little endian values from the metadata, returning zeros past the end.
     /// </summary>
     private sealed class MetadataReader(byte[] data)
     {

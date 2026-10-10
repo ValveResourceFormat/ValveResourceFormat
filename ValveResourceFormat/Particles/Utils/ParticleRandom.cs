@@ -1,17 +1,17 @@
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
-    /// One particle system's access to the engine's shared random table. Every random value in the
+    /// One particle system's access to the shared random table. Every random value in the
     /// particle system comes from here, and nothing else reads <see cref="RandomFloats"/>.
     ///
     /// <para>There are three ways in, and which one a draw uses decides whether the value changes
     /// between frames:</para>
     /// <list type="bullet">
-    /// <item><c>Next…</c> advances a counter that runs free for the life of the system, so
+    /// <item><c>Next...</c> advances a counter that runs free for the life of the system, so
     /// consecutive draws land on unrelated slots. Every initializer draws this way.</item>
-    /// <item><c>ForParticle…</c> reads a slot fixed by the particle, so the value is the same on
+    /// <item><c>ForParticle...</c> reads a slot fixed by the particle, so the value is the same on
     /// every frame of that particle's life. Used by the operators that must not flicker.</item>
-    /// <item><c>ForSample…</c> reads a slot the caller worked out in full. These are static, because
+    /// <item><c>ForSample...</c> reads a slot the caller worked out in full. These are static, because
     /// such a draw ignores this system's seed and counter entirely.</item>
     /// </list>
     /// </summary>
@@ -57,8 +57,8 @@ namespace ValveResourceFormat.Particles.Utils
         public float Next() => At(queryCount++ + Seed);
 
         /// <summary>
-        /// Takes the next value, remapped clear of both ends of the interval. The initializers that
-        /// draw a direction go through this so that a drawn polar cosine is never exactly +/-1.
+        /// Takes the next value, remapped clear of both ends of the interval. Direction initializers
+        /// use it so that a drawn polar cosine is never exactly +/-1.
         /// </summary>
         private float NextInterior() => (Next() * 0.99989998f) + 0.000099999997f;
 
@@ -140,8 +140,8 @@ namespace ValveResourceFormat.Particles.Utils
             => Between(MathF.Pow(ForParticle(particleId, fieldOffset), exponent), min, max);
 
         /// <summary>
-        /// Reads the slot a caller has already worked out in full, for the draws that key on neither
-        /// the running counter nor the particle id.
+        /// Reads the slot a caller has already worked out in full, for draws keyed on neither the
+        /// counter nor the particle id.
         /// </summary>
         public static float ForSample(int sampleId) => At(sampleId);
 
@@ -157,8 +157,8 @@ namespace ValveResourceFormat.Particles.Utils
                 ForSampleBetween(sampleId + 2, min.Z, max.Z));
 
         /// <summary>
-        /// Scales a drawn value into [<paramref name="min"/>, <paramref name="max"/>] the way the
-        /// engine does, off the range's width rather than by weighting the two ends.
+        /// Scales a drawn value into [<paramref name="min"/>, <paramref name="max"/>] off the range's
+        /// width rather than by weighting the two ends.
         /// </summary>
         private static float Between(float draw, float min, float max) => (draw * (max - min)) + min;
 

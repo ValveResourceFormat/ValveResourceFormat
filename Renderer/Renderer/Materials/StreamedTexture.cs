@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Materials
     /// its mip reads. Chain level 0 is the biggest allocated mip of the (possibly user-capped) chain.
     /// Mips load strictly smallest to largest with one read in flight per texture: the next read is
     /// dispatched only once the previous mip's upload has been applied. Reads may one day run a couple
-    /// of mips ahead, but must stay sequential — the reveal assumes uploads arrive in chain order.
+    /// of mips ahead, but must stay sequential: the reveal assumes uploads arrive in chain order.
     /// </summary>
     sealed class StreamedTexture : IThreadPoolWorkItem
     {

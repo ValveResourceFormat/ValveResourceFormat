@@ -1,13 +1,13 @@
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// What an entity can do, Source's <c>FCAP_</c> flags as returned by <c>ObjectCaps</c>. Only the
-/// use-related capabilities so far; the values are the engine's.
+/// What an entity can do, as returned by <see cref="BaseEntity.ObjectCaps"/>. Only the use-related
+/// capabilities so far, with the game's flag values.
 /// </summary>
 [Flags]
 public enum EntityCapability : uint
 {
-    /// <summary>Nothing; the entity cannot be interacted with.</summary>
+    /// <summary>Cannot be interacted with.</summary>
     None = 0,
 
     /// <summary>Responds to a single press of use.</summary>

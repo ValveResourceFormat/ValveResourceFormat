@@ -12,9 +12,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// positions, with configurable length, fade-in, texture scaling, and blend modes.
     /// </summary>
     /// <remarks>
-    /// Trails are sprites that stretch based on their speed over time. Traditional use cases
-    /// include bullet tracers and sparks; they are also useful when particles need to be oriented
-    /// in 3D space, which regular sprites handle poorly.
+    /// Trails are sprites stretched by speed over time. Typical uses are bullet tracers and sparks,
+    /// and particles that need 3D orientation, which regular sprites handle poorly.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderTrails">C_OP_RenderTrails</seealso>
     internal class RenderTrails : ParticleFunctionRenderer
@@ -152,8 +151,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         private static VertexInputLayout BuildInstanceLayout(int layerCount)
         {
-            // In buffer order. Each axis carries one end's half width in w, the way Valve's own trail
-            // signature packs a radius alongside each of its control points.
+            // In buffer order. Each axis carries one end's half width in w.
             var elements = new List<VertexAttribute>
             {
                 new(VertexSlot.Position, DXGI_FORMAT.R32G32B32_FLOAT),
@@ -194,9 +192,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var headColor = headColorScale.NextVector(systemState);
             var tailColor = tailColorScale.NextVector(systemState);
 
-            // The moved distance is converted back to a velocity (distance / dt) before scaling by
-            // the trail-length attribute. The division only applies when the previous point comes
-            // from the Verlet pair, and the operator can opt out of it entirely.
+            // Converts the moved distance to a velocity (distance / dt) before scaling by the trail-length
+            // attribute. The division only applies when the previous point is the Verlet one, and the
+            // operator can opt out of it.
             var usesVerletDelta = prevPositionSource == ParticleField.PositionPrevious;
             var oneOverDt = ignoreDeltaTime || !usesVerletDelta || particleBag.CurrentFrameTime == 0f
                 ? 1f
@@ -239,8 +237,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     ref var particle = ref current[sorted ? (int)(uint)order[n] : n];
                     var position = particle.Position;
                     var previousPosition = particle.GetVector(prevPositionSource);
-                    // A particle that has not moved has no direction to run in, and the engine collapses
-                    // its four control points onto the position rather than streaking along a fixed axis
+                    // A particle that has not moved has no direction to run in, and its four control points
+                    // collapse onto the position rather than streaking along a fixed axis
                     var difference = previousPosition - position;
 
                     if (difference == Vector3.Zero)
@@ -325,7 +323,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var halfWidth = radius;
                     var halfLength = length * 0.5f;
 
-                    // The engine slides the trail along the motion axis by m_flForwardShift lengths;
+                    // The trail slides along the motion axis by m_flForwardShift lengths;
                     // direction runs backwards along travel here, so the shift subtracts
                     var center = position + (direction * (length * (0.5f - forwardShift)));
 

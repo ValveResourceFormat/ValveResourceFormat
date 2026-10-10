@@ -40,7 +40,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var noise = Noise.Value3D(samplePosition + new Vector3(sampleTime));
 
             // abs folds the signed noise into the full range; otherwise the half-span scale centers
-            // it. absValInv inverts either way. Matches C_INIT_CreationNoise.
+            // it. absValInv inverts either way.
             var absScale = absVal ? 1f : 0.5f;
             var normalized = absVal ? MathF.Abs(noise) : noise;
 

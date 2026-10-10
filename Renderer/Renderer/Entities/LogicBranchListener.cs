@@ -20,7 +20,7 @@ public sealed class LogicBranchListener : BaseEntity
         Mixed,
     }
 
-    // Duplicates are kept: a branch matched by two names is listed twice, as in the engine
+    // Duplicates are kept: a branch matched by two names is listed twice
     private readonly List<LogicBranch> branches = [];
     private State lastState;
 
@@ -70,8 +70,8 @@ public sealed class LogicBranchListener : BaseEntity
     [EntityInput("_OnLogicBranchChanged")]
     private void InputOnLogicBranchChanged(EntityInputData data) => UpdateOutputs(data.Activator);
 
-    // The engine sends this one to the removed branch itself rather than to its listeners, so in practice
-    // only a map firing it by hand reaches here. A removed branch still counts as not true either way.
+    // In game this goes to the removed branch itself, not its listeners, so only a map firing it by hand
+    // reaches here. A removed branch still counts as not true.
     [EntityInput("_OnLogicBranchRemoved")]
     private void InputOnLogicBranchRemoved(EntityInputData data)
     {

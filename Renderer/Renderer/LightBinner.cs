@@ -88,7 +88,7 @@ public sealed class LightBinner(SceneViewState view) : IDisposable
         && TileCullBitsShader != null
         && DepthBinCullBitsShader != null;
 
-    /// <summary>Loads the two compute shaders. Call once the GL context exists.</summary>
+    /// <summary>Loads the three compute shaders. Call once the GL context exists.</summary>
     public void LoadShaders()
     {
         TileCullBitsShader = view.Scene.RendererContext.ShaderLoader.LoadShader("compute_tile_cullbits");

@@ -180,8 +180,8 @@ namespace GUI.Utils
 
         public void ClearCache() => ClearCache(disposeStreamingResources: false);
 
-        /// <param name="disposeStreamingResources">Only safe once every renderer context on this loader has been
-        /// disposed, since that is what waits for the streaming reads still holding these resources.</param>
+        /// <param name="disposeStreamingResources">Only safe once all renderer contexts on this loader are disposed, since disposal
+        /// waits for streaming reads still holding these resources.</param>
         private void ClearCache(bool disposeStreamingResources)
         {
             foreach (var (path, resource) in CachedResources)
@@ -239,8 +239,8 @@ namespace GUI.Utils
             return context;
         }
 
-        // Whoever disposes the resources has to be the one that guarantees nobody is still reading them.
-        // Leaving that to callers means every disposal path has to get the order right, and they do not.
+        // Disposal has to wait for readers itself: callers would need the order right on every path,
+        // and they do not.
         private void StopLoadingAndDispose(bool disposing)
         {
             foreach (var context in rendererContexts)

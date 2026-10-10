@@ -6,12 +6,12 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// HL:A's <c>func_combine_barrier</c>: a Combine force field. A brush that blocks either humans or the
-/// Combine, drawn by an ambient effect spread over the brush and coloured by which of the two it blocks.
+/// HL:A's <c>func_combine_barrier</c>: a Combine force field brush that blocks either humans or the
+/// Combine, drawn as an ambient effect over the brush.
 /// </summary>
 /// <remarks>
-/// The effect places its particles on the brush model through <c>C_INIT_CreateOnModel</c>, which the
-/// particle system does not implement yet, so they gather at the barrier's centre for now.
+/// The effect places particles on the brush model with <c>C_INIT_CreateOnModel</c>, which is not
+/// implemented yet, so they gather at the barrier's centre.
 /// </remarks>
 public sealed class FuncCombineBarrier : FuncBrush
 {
@@ -25,7 +25,7 @@ public sealed class FuncCombineBarrier : FuncBrush
         BlocksCombine = 1,
     }
 
-    /// <summary>The size of one cell of the field, which the effect is sized in. The game's own default.</summary>
+    // Default size of one field cell, which the effect is sized in
     private const float CellSpacing = 6f;
 
     private static readonly Vector3 HumanBlockerColor = new(100f, 255f, 255f);
@@ -45,7 +45,7 @@ public sealed class FuncCombineBarrier : FuncBrush
     /// <inheritdoc/>
     public override void Spawn()
     {
-        // Read before the base spawns, which switches the barrier on and so needs to know its state
+        // Read first: the base spawn enables the barrier, which applies the state
         BarrierState = ParseState(KeyValues.GetStringProperty("barrier_state"));
 
         base.Spawn();
@@ -56,7 +56,7 @@ public sealed class FuncCombineBarrier : FuncBrush
     {
         if (!IsEnabled)
         {
-            // A disabled barrier destroys its effect, and lets everything through
+            // Disabled: no effect, everything passes
             Effect?.Stop();
             IsSolid = false;
             return;
@@ -74,10 +74,8 @@ public sealed class FuncCombineBarrier : FuncBrush
         ApplyState();
     }
 
-    /// <summary>
-    /// Builds the effect, sized to the brush: control points 1 and 2 at the two ends of the field along
-    /// its width, 18 the number of cells, which drives how much it emits, and 19 the cell grid.
-    /// </summary>
+    // Control points: 1 and 2 are the ends of the field along its width, 18 the cell count (drives
+    // emission), 19 the cell grid
     private void CreateBarrierEffect()
     {
         if ((Collider?.LocalBounds ?? ModelNode?.LocalBoundingBox) is not { } bounds)
@@ -100,8 +98,7 @@ public sealed class FuncCombineBarrier : FuncBrush
 
         var placement = RigidTransform;
 
-        // Control point 0 follows the centre of the barrier rather than its origin, so the effect is not
-        // one the entity places
+        // Control point 0 is the barrier's centre, not its origin, so the entity must not place the effect
         Effect.Transform = placement with { Translation = Vector3.Transform(bounds.Center, placement) };
         Effect.GetControlPoint(1).Position = Vector3.Transform(new Vector3(0f, width * 0.5f, 0f), placement);
         Effect.GetControlPoint(2).Position = Vector3.Transform(new Vector3(0f, width * -0.5f, 0f), placement);
@@ -111,10 +108,7 @@ public sealed class FuncCombineBarrier : FuncBrush
         AddNode(Effect, followsEntity: false);
     }
 
-    /// <summary>
-    /// Makes the barrier solid when it blocks humans, and colours the effect by what it blocks: control
-    /// point 16 the field, 17 its accent.
-    /// </summary>
+    // Control point 16 is the field colour, 17 its accent
     private void ApplyState()
     {
         var blocksHumans = BarrierState == State.BlocksHumans;
@@ -130,7 +124,6 @@ public sealed class FuncCombineBarrier : FuncBrush
         Effect.GetControlPoint(17).Position = blocksHumans ? CombineBlockerColor : HumanBlockerColor;
     }
 
-    /// <summary>Switches what the barrier blocks.</summary>
     [EntityInput("SetBarrierState")]
     private void InputSetBarrierState(EntityInputData data)
     {

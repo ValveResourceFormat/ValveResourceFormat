@@ -29,7 +29,7 @@ internal sealed class ReadbackRing : IDisposable
     private int readCursor;
     private int inFlight;
 
-    /// <summary>Gets the slots holding a submitted copy that has not been consumed yet.</summary>
+    /// <summary>Gets the number of slots holding a submitted copy that has not been consumed yet.</summary>
     public int InFlight => inFlight;
 
     /// <summary>Allocates the ring's mapped slots, each holding up to <paramref name="capacityWords"/> uints.</summary>

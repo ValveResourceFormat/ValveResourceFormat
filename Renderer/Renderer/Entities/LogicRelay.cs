@@ -3,14 +3,13 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>logic_relay</c>. A named place to send an output so that one trigger can drive many things, and so
-/// that a map can switch a whole branch of its wiring on and off from one entity.
+/// <c>logic_relay</c>. Lets one trigger drive many outputs, and a map switch a branch of its wiring
+/// on and off from one entity.
 /// </summary>
 public sealed class LogicRelay : BaseEntity
 {
     /// <summary>
-    /// What a <c>logic_relay</c>'s <c>spawnflags</c> mean, for maps that predate the <c>TriggerOnce</c> and
-    /// <c>FastRetrigger</c> keyvalues.
+    /// Spawn flags, used by maps that predate the <c>TriggerOnce</c> and <c>FastRetrigger</c> keyvalues.
     /// </summary>
     [Flags]
     public enum SpawnFlag : uint
@@ -22,7 +21,7 @@ public sealed class LogicRelay : BaseEntity
         AllowFastRetrigger = 2,
     }
 
-    /// <summary>Gets whether the relay passes anything on. The <c>Disable</c> input clears it.</summary>
+    /// <summary>Gets whether the relay passes triggers on.</summary>
     public bool IsEnabled { get; private set; } = true;
 
     private bool triggerOnce;

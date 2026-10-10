@@ -1,10 +1,7 @@
 
 namespace ValveResourceFormat.Graphs;
 
-/// <summary>
-/// The role a pulse graph node plays. Cell roles follow the pulse editor's own node palettes in
-/// scripts/tools/pulse_scene_styles_v2; the instruction roles have no editor counterpart.
-/// </summary>
+/// <summary>The role a pulse graph node plays.</summary>
 internal enum PulseCategory
 {
     /// <summary>The graph info card, and any cell class the table does not name.</summary>
@@ -37,10 +34,7 @@ internal enum PulseCategory
 /// </summary>
 internal static class PulseHues
 {
-    /// <summary>
-    /// Colour slot a node category is drawn in. Entry point, yielding, value and flow control take
-    /// the colours the pulse editor gives those roles in scripts/tools/pulse_scene_styles_v2.
-    /// </summary>
+    /// <summary>Colour slot a node category is drawn in.</summary>
     /// <param name="category">The category to colour.</param>
     public static GraphHue HueOf(PulseCategory category) => category switch
     {
@@ -61,8 +55,8 @@ internal static class PulseHues
     public const GraphHue VariableLinkHue = GraphHue.Indigo;
 
     /// <summary>
-    /// The legend the pulse viewer advertises: the line samples first, then the node colour
-    /// swatches, matching the two sub-sections the legend panel draws.
+    /// Legend entries: line samples first, then node colour swatches, matching the legend panel's
+    /// two sub-sections.
     /// </summary>
     public static IEnumerable<GraphLegendEntry> Legend()
     {
@@ -88,7 +82,7 @@ internal static class PulseHues
     /// <summary>
     /// Buckets a compiled cell class. Yielding is the class's ancestry, which the compiled graph
     /// does not record - a yielding cell serialises its resume points under per-class names that
-    /// read as ordinary outflows - so the set is named here, from the CS2, Dota 2 and Deadlock schema.
+    /// read as ordinary outflows - so the set is named here.
     /// </summary>
     /// <param name="cellClass">The cell's _class value.</param>
     public static PulseCategory CategoryOf(string cellClass) => cellClass switch
