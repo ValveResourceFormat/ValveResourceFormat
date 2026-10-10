@@ -32,7 +32,7 @@ namespace Tests
         [Test]
         public async Task DeferredReadDefersAndMaterializesBlocks()
         {
-            using var fullResource = Read("alchemist.vmdl_c", BlockParsing.Eager);
+            using var fullResource = Read("alchemist.vmdl_c", BlockParsing.Runtime);
             using var partialResource = Read("alchemist.vmdl_c");
 
             var deferredData = partialResource.UnparsedBlocks.First(block => block.Type == BlockType.DATA);
@@ -74,14 +74,6 @@ namespace Tests
         }
 
         [Test]
-        public async Task EagerReadParsesEveryBlock()
-        {
-            using var resource = Read("alchemist.vmdl_c", BlockParsing.Eager);
-
-            await Assert.That(resource.UnparsedBlocks.All(static block => block.IsRead)).IsTrue();
-        }
-
-        [Test]
         public async Task EnumeratingBlocksParsesThem()
         {
             using var resource = Read("alchemist.vmdl_c");
@@ -93,7 +85,7 @@ namespace Tests
         [Test]
         public async Task DeferredVDataIsSpecialized()
         {
-            using var fullResource = Read("abilities_kv3_v5_zstd.vdata_c", BlockParsing.Eager);
+            using var fullResource = Read("abilities_kv3_v5_zstd.vdata_c", BlockParsing.Runtime);
             using var partialResource = Read("abilities_kv3_v5_zstd.vdata_c");
 
             using (Assert.Multiple())
@@ -120,7 +112,7 @@ namespace Tests
         [Test]
         public async Task DeferredEditInfoParsesOnFirstUse()
         {
-            using var fullResource = Read("reflectivity_90b.vmat_c", BlockParsing.Eager);
+            using var fullResource = Read("reflectivity_90b.vmat_c", BlockParsing.Runtime);
             using var partialResource = Read("reflectivity_90b.vmat_c");
             var editInfoBlock = partialResource.UnparsedBlocks.First(static block => block.Type is BlockType.REDI or BlockType.RED2);
 
@@ -140,7 +132,7 @@ namespace Tests
         {
             using var fullStream = File.OpenRead(TestFile("reflectivity_90b.vmat_c"));
             using var fullResource = new Resource();
-            fullResource.Read(fullStream, leaveOpen: true, BlockParsing.Eager);
+            fullResource.Read(fullStream, leaveOpen: true, BlockParsing.Runtime);
 
             using var partialStream = File.OpenRead(TestFile("reflectivity_90b.vmat_c"));
             using var partialResource = new Resource();
@@ -157,7 +149,7 @@ namespace Tests
         [Test]
         public async Task ConcurrentMaterializationMatchesFullRead()
         {
-            using var fullResource = Read("export_test.vmdl_c", BlockParsing.Eager);
+            using var fullResource = Read("export_test.vmdl_c", BlockParsing.Runtime);
             var expected = fullResource.Blocks.Select(static block => block.ToString()).ToList();
 
             using var partialResource = Read("export_test.vmdl_c");
@@ -200,13 +192,13 @@ namespace Tests
         }
 
         [Test]
-        public async Task CorruptBlockThrowsFromEagerRead()
+        public async Task CorruptBlockThrowsFromRuntimeRead()
         {
             var bytes = ReadWithCorruptData("alchemist.vmdl_c");
 
             using var resource = new Resource { FileName = "alchemist.vmdl_c" };
 
-            await Assert.That(() => resource.Read(new MemoryStream(bytes), parsing: BlockParsing.Eager)).ThrowsException();
+            await Assert.That(() => resource.Read(new MemoryStream(bytes), parsing: BlockParsing.Runtime)).ThrowsException();
         }
     }
 }

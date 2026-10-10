@@ -560,7 +560,6 @@ namespace ValveResourceFormat
         /// </summary>
         private bool IsParsedInRead(BlockType type, BlockParsing parsing) => parsing switch
         {
-            BlockParsing.Eager => true,
             BlockParsing.Deferred => ResourceType == ResourceType.VData && type == BlockType.DATA,
             _ => type switch
             {

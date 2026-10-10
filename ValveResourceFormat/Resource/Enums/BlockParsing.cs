@@ -16,10 +16,5 @@ namespace ValveResourceFormat
         /// parses on first access, so a block that fails to parse throws there instead of in Read.
         /// </summary>
         Deferred,
-
-        /// <summary>
-        /// Every block parses in Read.
-        /// </summary>
-        Eager,
     }
 }
