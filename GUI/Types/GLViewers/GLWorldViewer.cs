@@ -7,6 +7,7 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Editor.Entities;
 using ValveResourceFormat.Editor.Picking;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
@@ -203,6 +204,7 @@ namespace GUI.Types.GLViewers
                 LoadedWorld = new WorldLoader(world, Scene, Renderer.EntitySystem)
                 {
                     LoadingProgress = GuiContext.LoadingProgress,
+                    DefaultEnabledLayers = { HammerEntityVisuals.MarkerLayerName },
                 };
 
                 LoadedWorld.Load(mapExternalReferences);

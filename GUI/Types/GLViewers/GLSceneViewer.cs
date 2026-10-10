@@ -7,6 +7,7 @@ using GUI.Controls;
 using GUI.Types.Audio;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Editor.Entities;
 using ValveResourceFormat.Editor.Picking;
 using ValveResourceFormat.Editor.Selection;
 using ValveResourceFormat.Renderer;
@@ -112,6 +113,7 @@ namespace GUI.Types.GLViewers
 
             Renderer = new(rendererContext);
             Input = new UserInput(Renderer);
+            Renderer.EntitySystem.ToolVisuals = new HammerEntityVisuals();
             TextRenderer = new(rendererContext, Renderer.Camera);
             crosshairRenderer = new CrosshairRenderer(rendererContext);
             Scene = Renderer.Scene;
