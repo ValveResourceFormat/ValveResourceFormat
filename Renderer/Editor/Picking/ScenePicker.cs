@@ -1,7 +1,6 @@
 using System.Threading;
-using ValveResourceFormat.Renderer;
 
-namespace ValveResourceFormat.Editor.Picking;
+namespace ValveResourceFormat.Renderer.Editor.Picking;
 
 /// <summary>What a pick is for.</summary>
 public enum PickIntent
@@ -117,7 +116,7 @@ public sealed class ScenePicker
     /// </summary>
     /// <param name="renderer">The renderer that draws the scenes.</param>
     /// <param name="renderContext">The frame's render context, which the pass replaces the shader and target of.</param>
-    public void Render(Renderer.Renderer renderer, Scene.RenderContext renderContext)
+    public void Render(Renderer renderer, Scene.RenderContext renderContext)
     {
         using (requestLock.EnterScope())
         {

@@ -5,7 +5,7 @@
 
 using ValveResourceFormat.Utils;
 
-namespace ValveResourceFormat.Editor.Entities;
+namespace ValveResourceFormat.Renderer.Editor.Entities;
 
 /// <summary>
 /// Provides editor visualization metadata for Hammer entity classes.

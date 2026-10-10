@@ -1,13 +1,12 @@
-using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
-using static ValveResourceFormat.Editor.Entities.HammerEntities;
+using static ValveResourceFormat.Renderer.Editor.Entities.HammerEntities;
 
-namespace ValveResourceFormat.Editor.Entities
+namespace ValveResourceFormat.Renderer.Editor.Entities
 {
     /// <summary>
     /// Where a helper line is drawn: solid where the scene does not hide it, and over the scene in its color's alpha.
@@ -49,12 +48,12 @@ namespace ValveResourceFormat.Editor.Entities
         /// <summary>Adds a line to the passes it is drawn in, opaque where the scene does not hide it.</summary>
         public void AddLine(Vector3 start, Vector3 end, Color32 color, HelperPasses passes)
         {
-            if (passes.HasFlag(HelperPasses.Visible))
+            if ((passes & HelperPasses.Visible) != 0)
             {
                 ShapeSceneNode.AddLine(Lines, start, end, color with { A = 255 });
             }
 
-            if (passes.HasFlag(HelperPasses.Overlay))
+            if ((passes & HelperPasses.Overlay) != 0)
             {
                 ShapeSceneNode.AddLine(OverlayLines, start, end, color);
             }

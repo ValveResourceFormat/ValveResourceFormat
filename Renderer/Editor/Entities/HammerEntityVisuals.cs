@@ -1,7 +1,6 @@
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
-using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -10,7 +9,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
-namespace ValveResourceFormat.Editor.Entities;
+namespace ValveResourceFormat.Renderer.Editor.Entities;
 
 /// <summary>
 /// Draws entities the way Hammer shows them, from what their Hammer classes declare: the model, sprite or
