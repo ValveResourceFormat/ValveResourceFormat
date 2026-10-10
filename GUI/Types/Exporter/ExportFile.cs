@@ -36,11 +36,6 @@ namespace GUI.Types.Exporter
 
             if (decompile && fileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
             {
-                var exportData = new ExportData
-                {
-                    VrfGuiContext = new VrfGuiContext(fileName, vrfGuiContext),
-                };
-
                 var resourceTemp = new Resource
                 {
                     FileName = fileName,
@@ -96,6 +91,10 @@ namespace GUI.Types.Exporter
                 }
 
                 var directory = Path.GetDirectoryName(filaNameToSave);
+                var exportData = new ExportData
+                {
+                    VrfGuiContext = new VrfGuiContext(fileName, vrfGuiContext),
+                };
 
                 try
                 {
