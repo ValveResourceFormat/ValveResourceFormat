@@ -773,6 +773,12 @@ public class Renderer : ISpawnGroupHost
 
     private void BindView(in SceneView view, SceneViewState state)
     {
+        SetViewConstants(view, state);
+        UploadViewConstants(view, state);
+    }
+
+    private void SetViewConstants(in SceneView view, SceneViewState state)
+    {
         Debug.Assert(ViewBuffer != null);
 
         view.Camera.SetViewConstants(ViewBuffer.Data);
@@ -787,11 +793,24 @@ public class Renderer : ISpawnGroupHost
         ViewBuffer.Data.SceneIndex = (uint)scenes.IndexOf(state.Scene);
 
         ViewBuffer.Data.SunShadowsEnabled = view.Sky == null;
+    }
 
-        state.LightBinner.SetPixelRemap(GetPixelRemap(view));
+    private void UploadViewConstants(in SceneView view, SceneViewState state)
+    {
+        Debug.Assert(ViewBuffer != null);
+
+        SetLightCullConstants(state, GetPixelRemap(view));
 
         ViewBuffer.BindBufferBase();
         ViewBuffer.Update();
+    }
+
+    private void SetLightCullConstants(SceneViewState state, Vector4 pixelRemap)
+    {
+        Debug.Assert(ViewBuffer != null);
+
+        ViewBuffer.Data.LightCull = state.LightBinner.CullConstants;
+        ViewBuffer.Data.LightCull.LightCullPixelRemap = pixelRemap;
     }
 
     private Vector4 GetPixelRemap(in SceneView view)
@@ -814,13 +833,15 @@ public class Renderer : ISpawnGroupHost
 
         var scene = state.Scene;
 
-        BindView(view, state);
+        SetViewConstants(view, state);
 
         var cullWidth = (int)ViewBuffer.Data.ViewportSize.X;
         var cullHeight = (int)ViewBuffer.Data.ViewportSize.Y;
 
         // The main scene's tile culling toggle applies to every view
         state.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, Scene.EnableTiledLightCulling);
+
+        UploadViewConstants(view, state);
 
         if (MeshletCullFrustumFor(view) is { } meshletCullFrustum)
         {
@@ -1679,8 +1700,10 @@ public class Renderer : ISpawnGroupHost
                 }
 
                 state.Scene.SetSceneBuffers();
-                state.LightBinner.SetPixelRemap(targetRemap);
                 state.LightBinner.Bind();
+
+                SetLightCullConstants(state, targetRemap);
+                ViewBuffer.Update();
 
                 renderContext.Scene = state.Scene;
                 renderContext.View = state;
@@ -1693,8 +1716,6 @@ public class Renderer : ISpawnGroupHost
                 {
                     state.RenderWaterEffectsLayer(renderContext);
                 }
-
-                state.LightBinner.SetPixelRemap(viewRemap);
             }
         }
 

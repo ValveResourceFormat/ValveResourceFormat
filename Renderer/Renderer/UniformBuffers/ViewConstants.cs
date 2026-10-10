@@ -111,6 +111,9 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Padding to satisfy alignment requirements.</summary>
         public Vector2 Padding1;
 
+        /// <summary>Cull mask layout of the scene being drawn, from its <see cref="LightBinner"/>.</summary>
+        public LightCullConstants LightCull;
+
         /// <summary>Initializes a new <see cref="ViewConstants"/> with identity matrices and default values.</summary>
         public ViewConstants()
         {

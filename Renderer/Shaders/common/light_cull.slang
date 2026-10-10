@@ -5,38 +5,6 @@
 
 #include "ViewConstants.slang"
 
-layout(binding = 6, std140) uniform LightCullConstants
-{
-    uint g_nLightTileBase;
-    uint g_nLightSliceBase;
-    uint g_nLightCullWords;
-    uint g_nLightTileShift;
-
-    uint g_nLightTileCols;
-    uint g_nLightTileRows;
-    uint g_nLightSliceCount;
-    uint g_nEnvMapTileBase;
-
-    uint g_nEnvMapBinBase;
-    uint g_nEnvMapCullWords;
-    uint g_nEnvMapCount;
-    uint _lightCullPadding0;
-
-    uint g_nLightProbeTileBase;
-    uint g_nLightProbeBinBase;
-    uint g_nLightProbeCullWords;
-    uint g_nLightProbeCount;
-
-    vec4 g_vLightDepthSliceParams;
-    vec4 g_vLightCullPixelRemap;
-
-    vec3 g_vLightCullCameraPositionWs;
-    float _lightCullPadding1;
-
-    vec3 g_vLightCullCameraDirWs;
-    float _lightCullPadding2;
-};
-
 layout(std430, binding = 4) readonly buffer LightCullBitsBuffer
 {
     uint g_CullBits[];

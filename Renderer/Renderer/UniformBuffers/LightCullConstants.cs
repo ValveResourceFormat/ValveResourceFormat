@@ -3,13 +3,8 @@ using System.Runtime.InteropServices;
 namespace ValveResourceFormat.Renderer.Buffers
 {
     /// <summary>Layout of one scene's cull masks, plus the view they were built against.</summary>
-    /// <remarks>
-    /// Its own buffer rather than part of <see cref="ViewConstants"/> because it is per scene, not per
-    /// view: the 3D skybox shares the camera but bins its own lights into its own masks, and binding a
-    /// different one of these is the whole of switching between them.
-    /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 16)]
-    public class LightCullConstants
+    public struct LightCullConstants
     {
         /// <summary>Index of the first word of the barn light screen tile mask region.</summary>
         public uint LightTileBase;
@@ -57,7 +52,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// Maps this pass's pixel to the one the same ray occupies in the view the masks were built for:
         /// xy scale, zw bias. Identity for the view that produced them.
         /// </summary>
-        public Vector4 LightCullPixelRemap = ViewConstants.PixelRemapIdentity;
+        public Vector4 LightCullPixelRemap;
 
         /// <summary>World-space position of the camera the masks were built for.</summary>
         public Vector3 LightCullCameraPosition;
