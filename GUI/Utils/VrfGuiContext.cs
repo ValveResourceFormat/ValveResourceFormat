@@ -187,8 +187,8 @@ namespace GUI.Utils
         {
             foreach (var (path, resource) in CachedResources)
             {
-
-                if (!disposeStreamingResources && resource is { ResourceType: ResourceType.Texture })
+                // Texture mips and sounds are still read on background threads after the scene has loaded
+                if (!disposeStreamingResources && resource is { ResourceType: ResourceType.Texture or ResourceType.Sound })
                 {
                     continue;
                 }
