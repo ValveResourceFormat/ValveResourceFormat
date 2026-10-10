@@ -306,22 +306,10 @@ namespace ValveResourceFormat.Renderer.Editor.Entities
             }
         }
 
-        // Corner i takes the max along X, Y and Z where bits 0, 1 and 2 of i are set
-        private static void GetCorners(in AABB box, Span<Vector3> corners)
-        {
-            for (var i = 0; i < corners.Length; i++)
-            {
-                corners[i] = new Vector3(
-                    (i & 1) != 0 ? box.Max.X : box.Min.X,
-                    (i & 2) != 0 ? box.Max.Y : box.Min.Y,
-                    (i & 4) != 0 ? box.Max.Z : box.Min.Z);
-            }
-        }
-
         private void AddBox(in AABB box, Color32 color)
         {
             Span<Vector3> corners = stackalloc Vector3[8];
-            GetCorners(box, corners);
+            BoxLines.GetCorners(box, corners);
 
             // Each edge joins two corners that differ along one axis
             for (var i = 0; i < corners.Length; i++)
@@ -718,7 +706,7 @@ namespace ValveResourceFormat.Renderer.Editor.Entities
         private void AddBoxFaces(in AABB box, Color32 color)
         {
             Span<Vector3> corners = stackalloc Vector3[8];
-            GetCorners(box, corners);
+            BoxLines.GetCorners(box, corners);
 
             foreach (ref var corner in corners)
             {
