@@ -206,10 +206,10 @@ internal static class AnimGraphHues
     };
 
     /// <summary>
-    /// The value kind an AG2 value node produces, from its type name (CNm prefix and
-    /// Node::CDefinition suffix already stripped). Every constructor bakes its pin's value type;
-    /// this mirrors the table for the names shipped graphs use, and falls back to
-    /// Float, the commonest kind, when a name is not recognised.
+    /// The kind an AG2 node outputs, from its type name (CNm prefix and Node::CDefinition suffix
+    /// already stripped). Every constructor bakes its pin's value type; this mirrors the table for
+    /// every node definition the runtime registers, and falls back to Float, the commonest kind,
+    /// when a name is not recognised.
     /// </summary>
     public static AnimGraphValueKind AG2ValueKindOf(string nodeType)
     {
@@ -220,19 +220,33 @@ internal static class AnimGraphHues
 
         return nodeType switch
         {
-            "ConstBool" or "ControlParameterBool" or "VirtualParameterBool"
-                or "Not" or "And" or "Or" or "IsTargetSet" => AnimGraphValueKind.Bool,
+            "Clip" or "TimeControlledClip" or "AnimationPose" or "ReferencedGraph" or "ExternalPose"
+                or "ZeroPose" or "ReferencePose" or "StateMachine" or "State" or "Blend1D" or "Blend2D"
+                or "VelocityBlend" or "ParameterizedBlend" or "LayerBlend" or "Selector" or "ClipSelector"
+                or "ParameterizedSelector" or "ParameterizedClipSelector" or "IDBasedSelector"
+                or "IDBasedClipSelector" or "TargetSelector" or "SpeedScale" or "DurationScale"
+                or "VelocityBasedSpeedScale" or "Passthrough" or "Scale" or "TwoBoneIK" or "FootIK"
+                or "ChainLookat" or "FollowBone" or "RootMotionOverride" or "TargetWarp"
+                or "OrientationWarp" or "AimCS" or "SnapWeapon" or "BodyGroup" => AnimGraphValueKind.Pose,
+
+            "ConstBool" or "CachedBool" or "ControlParameterBool" or "VirtualParameterBool"
+                or "Not" or "And" or "Or" or "IsTargetSet" or "IsExternalGraphSlotFilled"
+                or "IsExternalPoseSet" => AnimGraphValueKind.Bool,
 
             "ConstID" or "CachedID" or "ControlParameterID" or "VirtualParameterID"
-                or "IDSwitch" or "CurrentSyncEventID" => AnimGraphValueKind.Id,
+                or "IDSwitch" or "IDSelector" or "IDEvent" or "CurrentSyncEventID"
+                or "FootstepEventID" => AnimGraphValueKind.Id,
 
-            "ConstTarget" or "ControlParameterTarget" or "VirtualParameterTarget"
-                or "TargetOffset" or "TargetPoint" => AnimGraphValueKind.Target,
+            "ConstTarget" or "CachedTarget" or "ControlParameterTarget" or "VirtualParameterTarget"
+                or "TargetOffset" => AnimGraphValueKind.Target,
 
-            "ConstVector" or "ControlParameterVector" or "VirtualParameterVector" => AnimGraphValueKind.Vector,
+            "ConstVector" or "CachedVector" or "ControlParameterVector" or "VirtualParameterVector"
+                or "VectorCreate" or "VectorNegate" or "TargetPoint" => AnimGraphValueKind.Vector,
 
-            "BoneMask" or "FixedWeightBoneMask" or "BoneMaskSwitch"
-                or "BoneMaskSelector" => AnimGraphValueKind.BoneMask,
+            "BoneMask" or "FixedWeightBoneMask" or "BoneMaskSwitch" or "BoneMaskSelector"
+                or "BoneMaskBlend" or "VirtualParameterBoneMask" => AnimGraphValueKind.BoneMask,
+
+            "Missing" => AnimGraphValueKind.Unknown,
 
             _ => AnimGraphValueKind.Float,
         };
@@ -259,7 +273,7 @@ internal static class AnimGraphHues
 
         return nodeType switch
         {
-            "Clip" or "ClipSelector" or "AnimationClipSelector" or "ParameterizedClipSelector"
+            "Clip" or "TimeControlledClip" or "ClipSelector" or "AnimationClipSelector" or "ParameterizedClipSelector"
                 or "ParameterizedAnimationClipSelector" or "AnimationPose" => AnimGraphCategory.Clip,
 
             "Blend1D" or "Blend2D" or "ParameterizedBlend" or "VelocityBlend"
@@ -278,8 +292,11 @@ internal static class AnimGraphHues
                 or "TargetSelector" or "BoneMaskSelectorNode" or "FloatSwitch" or "IDSwitch"
                 or "IDBasedSelector" or "IDBasedClipSelector" => AnimGraphCategory.Selector,
 
-            "FloatMath" or "FloatCurve" or "FloatRemap" or "FloatEase" or "Scale"
-                or "Not" or "And" or "Or" or "IsTargetSet" => AnimGraphCategory.Value,
+            "FloatMath" or "FloatAngleMath" or "FloatCurve" or "FloatCurveEvent" or "FloatRemap"
+                or "FloatEase" or "FloatSpring" or "FloatClamp" or "IDToFloat" or "IDEvent"
+                or "IDEventPercentageThrough" or "FootstepEventID" or "FootstepEventPercentageThrough"
+                or "VectorCreate" or "VectorNegate" or "VectorInfo" or "IsExternalGraphSlotFilled"
+                or "IsExternalPoseSet" or "Scale" or "Not" or "And" or "Or" or "IsTargetSet" => AnimGraphCategory.Value,
 
             "StateMachine" or "State" or "Transition" or "EntryOverride"
                 or "EntryStateOverride" => AnimGraphCategory.StateMachine,
