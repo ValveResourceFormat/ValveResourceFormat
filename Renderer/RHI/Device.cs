@@ -6,9 +6,6 @@ using Vortice.Vulkan;
 using static Vortice.Vulkan.Vma;
 using static Vortice.Vulkan.Vulkan;
 
-
-
-
 namespace ValveResourceFormat.Renderer.RHI
 {
     public static class S2vDevice
@@ -34,7 +31,6 @@ namespace ValveResourceFormat.Renderer.RHI
             GraphicsFamily.HasValue && PresentFamily.HasValue && TransferFamily.HasValue;
     };
 
-
     enum BindlessBindingIndex
     {
         CombinedImageSampler = 1,
@@ -42,14 +38,12 @@ namespace ValveResourceFormat.Renderer.RHI
         StorageBuffer = 7,
     }
 
-
     public class Device
     {
 
         public VkInstanceApi VkInstanceApi;
         public VkDeviceApi VkDeviceApi;
         public VkPhysicalDevice VkPhysicalDevice;
-
 
         private class BindlessManagerType
         {
@@ -222,9 +216,6 @@ namespace ValveResourceFormat.Renderer.RHI
                 pfnUserCallback = &DebugCallback
             };
 
-
-
-
             var layerNamesPtr = (byte*)Marshal.StringToHGlobalAnsi("VK_LAYER_KHRONOS_validation");
 
             string[] layerNames = new string[] { "VK_LAYER_KHRONOS_validation" };
@@ -246,11 +237,9 @@ namespace ValveResourceFormat.Renderer.RHI
             //byte* debugUtilsExtName = (byte*)Marshal.StringToHGlobalAnsi("VK_EXT_debug_utils");
             //allExtensions[sdlExtensionCount] = debugUtilsExtName;
 
-
             string[] instanceExtensions = new string[] { "VK_EXT_debug_utils", "VK_KHR_win32_surface", "VK_KHR_surface" };
 
             VkStringArray instanceExtensionsArray = new VkStringArray(instanceExtensions);
-
 
             var instanceCreateInfo = new VkInstanceCreateInfo
             {
@@ -275,7 +264,6 @@ namespace ValveResourceFormat.Renderer.RHI
             VkInstanceApi.vkEnumeratePhysicalDevices(&deviceCount, null);
 
             if (deviceCount == 0) throw new Exception("no GPUs with SilkVk support");
-
 
             var devices = new VkPhysicalDevice[deviceCount];
             fixed (VkPhysicalDevice* devicesPtr = devices)
@@ -345,7 +333,6 @@ namespace ValveResourceFormat.Renderer.RHI
             var hasDedicatedTransferFamily = QueueFamilyIndices.TransferFamily != QueueFamilyIndices.GraphicsFamily;
             var queueCreateInfos = stackalloc VkDeviceQueueCreateInfo[2] { graphicsQueueCreateInfo, transferQueueCreateInfo };
 
-
             string[] extensions = new string[] { "VK_KHR_swapchain", "VK_EXT_image_view_min_lod" };
 
             VkStringArray extensionsArray = new VkStringArray(extensions);
@@ -386,7 +373,6 @@ namespace ValveResourceFormat.Renderer.RHI
 
             TransferQueueLock = hasDedicatedTransferFamily ? new Lock() : GraphicsQueueLock;
 
-
             VmaAllocatorCreateInfo allocatorCreateInfo = new()
             {
                 instance = VkInstanceApi.Instance,
@@ -397,7 +383,6 @@ namespace ValveResourceFormat.Renderer.RHI
 
             vmaCreateAllocator(&allocatorCreateInfo, out var allocator);
             VmaAllocator = allocator;
-
 
             CreateSharedBindlessDescriptorSetLayout();
             CreateSharedPipelineLayout();
@@ -494,7 +479,6 @@ namespace ValveResourceFormat.Renderer.RHI
             Samplers.Add(samplerInfo, sampler);
             return sampler;
         }
-
 
         public unsafe VkSemaphore CreateSemaphore(bool isTimeline = false)
         {
@@ -717,7 +701,6 @@ namespace ValveResourceFormat.Renderer.RHI
             imageInfo.imageView = imageViewHandle;
             imageInfo.sampler = samplerHandle;
 
-
             VkWriteDescriptorSet write = new()
             {
                 dstSet = RenderDevice!.SharedBindlessDescriptorSet,
@@ -730,7 +713,7 @@ namespace ValveResourceFormat.Renderer.RHI
 
             RenderDevice!.VkDeviceApi.vkUpdateDescriptorSets(1, &write, 0, null);
 
-            return bindlessIndex; 
+            return bindlessIndex;
         }
 
         // Rewrites a slot that frames still in flight may be sampling through. The spec only allows updating
@@ -746,7 +729,6 @@ namespace ValveResourceFormat.Renderer.RHI
             imageInfo.imageLayout = VkImageLayout.ShaderReadOnlyOptimal;
             imageInfo.imageView = imageViewHandle;
             imageInfo.sampler = samplerHandle;
-
 
             VkWriteDescriptorSet write = new()
             {
@@ -825,7 +807,6 @@ namespace ValveResourceFormat.Renderer.RHI
                 VkDescriptorBindingFlags.PartiallyBound | VkDescriptorBindingFlags.UpdateAfterBind | VkDescriptorBindingFlags.UpdateUnusedWhilePending,
                 bindings.Length).ToArray();
 
-
             fixed (VkDescriptorBindingFlags* pBindingFlags = bindingFlags)
             fixed (VkDescriptorSetLayoutBinding* pDescriptorSetLayoutBindings = descriptorSetLayoutBindings)
             {
@@ -833,7 +814,7 @@ namespace ValveResourceFormat.Renderer.RHI
                 {
                     bindingCount = (uint)bindings.Length,
                     pBindingFlags = pBindingFlags
-                }; 
+                };
 
                 VkDescriptorSetLayoutCreateInfo setLayoutCreateInfo = new()
                 {
@@ -842,7 +823,6 @@ namespace ValveResourceFormat.Renderer.RHI
                     bindingCount = (uint)bindings.Length,
                     pBindings = pDescriptorSetLayoutBindings,
                 };
-
 
                 VkDeviceApi.vkCreateDescriptorSetLayout(setLayoutCreateInfo, out SharedBindlessDescriptorSetLayout);
             }
@@ -863,12 +843,11 @@ namespace ValveResourceFormat.Renderer.RHI
                         SharedBindlessDescriptorSetLayout,
                     };
 
-            //Fixed push constant range for us. We push a DescriptorHandle and nothing more.
+            //Fixed push constant range for us. We push DescriptorHandles and nothing more.
             VkPushConstantRange pushRange = new()
             {
                 stageFlags = VkShaderStageFlags.All,
-                // Must match the bounds check in CommandList.PushConstants
-                size = 16
+                size = CommandList.PushConstantSize
             };
 
             fixed (VkDescriptorSetLayout* pSets = sets)
@@ -927,8 +906,5 @@ namespace ValveResourceFormat.Renderer.RHI
                 VkDeviceApi.vkAllocateDescriptorSets(allocInfo, out SharedBindlessDescriptorSet).CheckResult();
             }
         }
-
-
     }
-    
 }

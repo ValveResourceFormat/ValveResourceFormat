@@ -1,12 +1,12 @@
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.VisualBasic.FileIO;
 using Vortice.Vulkan;
 
 namespace ValveResourceFormat.Renderer.RHI;
-
 
 public struct RenderingAttachmentInfo
 {
@@ -47,6 +47,14 @@ unsafe public class CommandList : IDisposable
     public VkCommandBuffer Handle { get; }
 
     public uint QueueFamilyIndex { get; private set; }
+
+    /// <summary>Size of the push constant range of the shared pipeline layout, in bytes.</summary>
+    public const uint PushConstantSize = 24;
+
+    /// <summary>Largest update <see cref="UpdateBuffer(Buffer, ReadOnlySpan{byte}, ulong)"/> accepts, in bytes.</summary>
+    public const int MaxUpdateBufferSize = 65536;
+
+    private bool insideRendering;
 
     public CommandList(uint queueFamilyIndex)
     {
@@ -132,7 +140,6 @@ unsafe public class CommandList : IDisposable
                     dynamicOffsets: null);
             }
     }
-
 
     internal void BlitImageToImage(Image a, Image b)
     {
@@ -311,7 +318,6 @@ unsafe public class CommandList : IDisposable
     {
         var device = RenderDevice!;
 
-
         var barrier = new VkImageMemoryBarrier2
         {
             oldLayout = image.MipLayouts[mipLevel],
@@ -356,6 +362,63 @@ unsafe public class CommandList : IDisposable
         //H7per: TODO: We should warn if nothing was submitted.
     }
 
+    /// <summary>Records one barrier per buffer, each covering the whole buffer.</summary>
+    public void BufferBarrier(
+        VkPipelineStageFlags2 srcStage,
+        VkAccessFlags2 srcAccess,
+        VkPipelineStageFlags2 dstStage,
+        VkAccessFlags2 dstAccess,
+        params ReadOnlySpan<Buffer> buffers)
+    {
+        Span<VkBufferMemoryBarrier2> barriers = stackalloc VkBufferMemoryBarrier2[buffers.Length];
+
+        for (var i = 0; i < buffers.Length; i++)
+        {
+            barriers[i] = new VkBufferMemoryBarrier2
+            {
+                srcStageMask = srcStage,
+                srcAccessMask = srcAccess,
+                dstStageMask = dstStage,
+                dstAccessMask = dstAccess,
+                srcQueueFamilyIndex = Vulkan.VK_QUEUE_FAMILY_IGNORED,
+                dstQueueFamilyIndex = Vulkan.VK_QUEUE_FAMILY_IGNORED,
+                buffer = buffers[i].Handle,
+                offset = 0,
+                size = Vulkan.VK_WHOLE_SIZE,
+            };
+        }
+
+        PipelineBarrier(bufferMemoryBarriers: barriers);
+    }
+
+    /// <summary>
+    /// Writes <paramref name="data"/> into <paramref name="buffer"/> in command order. The data is copied into
+    /// the command buffer when recorded, so the source may be reused right away. Synchronize with
+    /// <see cref="BufferBarrier"/> as a transfer write.
+    /// </summary>
+    /// <remarks>The buffer needs <see cref="VkBufferUsageFlags.TransferDst"/> usage.</remarks>
+    public void UpdateBuffer(Buffer buffer, ReadOnlySpan<byte> data, ulong offset = 0)
+    {
+        if (data.IsEmpty || data.Length > MaxUpdateBufferSize || data.Length % 4 != 0 || offset % 4 != 0)
+        {
+            throw new ArgumentException($"vkCmdUpdateBuffer takes 4 byte aligned updates of 4 to {MaxUpdateBufferSize} bytes, got {data.Length} at offset {offset}");
+        }
+
+        Debug.Assert(offset + (ulong)data.Length <= buffer.Size, "Update runs past the end of the buffer");
+        Debug.Assert(!insideRendering, "vkCmdUpdateBuffer cannot be recorded inside a render pass instance");
+
+        fixed (byte* pData = data)
+        {
+            RenderDevice!.VkDeviceApi.vkCmdUpdateBuffer(Handle, buffer.Handle, offset, (ulong)data.Length, pData);
+        }
+    }
+
+    /// <inheritdoc cref="UpdateBuffer(Buffer, ReadOnlySpan{byte}, ulong)"/>
+    public void UpdateBuffer<T>(Buffer buffer, in T data, ulong offset = 0) where T : unmanaged
+    {
+        UpdateBuffer(buffer, MemoryMarshal.AsBytes(new ReadOnlySpan<T>(in data)), offset);
+    }
+
     public void BindGraphicsPipeline(PipelineGraphics pipeline)
     {
         RenderDevice!.VkDeviceApi.vkCmdBindPipeline(Handle, VkPipelineBindPoint.Graphics, pipeline.Handle);
@@ -384,14 +447,12 @@ unsafe public class CommandList : IDisposable
 
     public void PushConstants<T>(T data, uint offset = 0) where T : struct
     {
-        // Must match the push constant range size of the shared pipeline layout in Device
-        if (offset + sizeof(T) > 16)
+        if (offset + sizeof(T) > PushConstantSize)
         {
             throw new ArgumentException($"The size of {nameof(T)} exceeds the available push constant range");
         }
         RenderDevice!.VkDeviceApi.vkCmdPushConstants(Handle, RenderDevice!.SharedPipelineLayout, VkShaderStageFlags.All, offset, (uint)sizeof(T), &data);
     }
-
 
     public void BeginDebugLabel(string name, (float r, float g, float b, float a)? labelColor = null)
     {
@@ -477,7 +538,6 @@ unsafe public class CommandList : IDisposable
                 colorAttachmentArray[i].resolveImageView = renderingInfo.colorAttachments[i].resolveImage!.ImageViewHandle;
                 colorAttachmentArray[i].resolveImageLayout = renderingInfo.colorAttachments[i].resolveImage!.MipLayouts[0];
             }
-
         }
 
         VkRenderingAttachmentInfo* pDepthAttachment = null;
@@ -497,14 +557,13 @@ unsafe public class CommandList : IDisposable
 
             if (renderingInfo.depthAttachment.Value.resolveImage != null)
             {
-                depthAttachment.resolveMode =               renderingInfo.depthAttachment.Value.resolveMode;
-                depthAttachment.resolveImageView =          renderingInfo.depthAttachment.Value.resolveImage!.ImageViewHandle;
-                depthAttachment.resolveImageLayout =        renderingInfo.depthAttachment.Value.resolveImage!.MipLayouts[0];
+                depthAttachment.resolveMode = renderingInfo.depthAttachment.Value.resolveMode;
+                depthAttachment.resolveImageView = renderingInfo.depthAttachment.Value.resolveImage!.ImageViewHandle;
+                depthAttachment.resolveImageLayout = renderingInfo.depthAttachment.Value.resolveImage!.MipLayouts[0];
             }
 
             pDepthAttachment = &depthAttachment;
         }
-
 
         VkRenderingInfo.pDepthAttachment = pDepthAttachment;
 
@@ -513,17 +572,18 @@ unsafe public class CommandList : IDisposable
             VkRenderingInfo.pColorAttachments = pAttachmentInfos;
             BeginRendering(VkRenderingInfo);
         }
-
     }
 
     public void BeginRendering(VkRenderingInfo renderingInfo)
     {
         RenderDevice!.VkDeviceApi.vkCmdBeginRendering(Handle, &renderingInfo);
+        insideRendering = true;
     }
 
     public void EndRendering()
     {
         RenderDevice!.VkDeviceApi.vkCmdEndRendering(Handle);
+        insideRendering = false;
     }
 
     public void Draw(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
