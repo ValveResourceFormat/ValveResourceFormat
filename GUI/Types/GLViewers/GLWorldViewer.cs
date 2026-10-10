@@ -39,6 +39,9 @@ namespace GUI.Types.GLViewers
         private EntityInfoForm? entityInfoForm;
         private ThemedButton? playPauseButton;
         private ThemedButton? stopButton;
+        private System.Drawing.Image? playImage;
+        private System.Drawing.Image? pauseImage;
+        private System.Drawing.Image? stopImage;
         private ThemedToggleButton? toolEntitiesButton;
         private ThemedToggleButton? toolMaterialsButton;
         private readonly ToolsVisibility tools = new();
@@ -105,6 +108,9 @@ namespace GUI.Types.GLViewers
             entityInfoForm?.Dispose();
             playPauseButton?.Dispose();
             stopButton?.Dispose();
+            playImage?.Dispose();
+            pauseImage?.Dispose();
+            stopImage?.Dispose();
             toolEntitiesButton?.Dispose();
             toolMaterialsButton?.Dispose();
         }
@@ -1237,8 +1243,13 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            playPauseButton = UiControl.AddToolbarButton("Play", () => RequestSimulation(SimulationRequest.PlayOrPause));
-            stopButton = UiControl.AddToolbarButton("Stop", () => RequestSimulation(SimulationRequest.Stop));
+            // The image list hands out a copy each time it is asked
+            playImage = AppIcons.ImageList.Images[AppIcons.Icons["AudioPlay"]];
+            pauseImage = AppIcons.ImageList.Images[AppIcons.Icons["AudioPause"]];
+            stopImage = AppIcons.ImageList.Images[AppIcons.Icons["RendererStop"]];
+
+            playPauseButton = UiControl.AddToolbarButton(playImage, "Play", () => RequestSimulation(SimulationRequest.PlayOrPause));
+            stopButton = UiControl.AddToolbarButton(stopImage, "Stop", () => RequestSimulation(SimulationRequest.Stop));
 
             UiControl.AddToolbarSeparator();
 
@@ -1270,7 +1281,10 @@ namespace GUI.Types.GLViewers
 
         private void UpdateSimulationButtons(SimulationState state)
         {
-            playPauseButton?.Text = state == SimulationState.Playing ? "Pause" : "Play";
+            var playing = state == SimulationState.Playing;
+
+            playPauseButton?.Image = playing ? pauseImage : playImage;
+            playPauseButton?.AccessibleName = playing ? "Pause" : "Play";
             stopButton?.Enabled = state != SimulationState.Stopped;
 
             // Both are hidden while the world is played, whatever the switches say

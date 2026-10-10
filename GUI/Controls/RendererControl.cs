@@ -326,6 +326,20 @@ partial class RendererControl : UserControl
         return button;
     }
 
+    /// <summary>Adds a button showing an icon instead of a label to the toolbar above the viewport.</summary>
+    public ThemedButton AddToolbarButton(Image icon, string accessibleName, Action onClick)
+    {
+        var button = AddToolbarButton(string.Empty, onClick);
+        button.Image = icon;
+        button.AccessibleName = accessibleName;
+
+        // The icon is drawn to fit the height, so the button only has to be a little wider than tall
+        button.AutoSize = false;
+        button.Size = new Size(this.AdjustForDPI(ToolbarItemHeight * 3 / 2), this.AdjustForDPI(ToolbarItemHeight));
+
+        return button;
+    }
+
     /// <summary>Adds a button that stays pressed while on to the toolbar above the viewport.</summary>
     public ThemedToggleButton AddToolbarToggle(string text, bool initialChecked, Action<bool> onToggled)
     {
@@ -350,11 +364,15 @@ partial class RendererControl : UserControl
         EnsureToolbar().Controls.Add(separator);
     }
 
+    // Every item is this tall, so the ones with a label line up with the ones with an icon
+    private const int ToolbarItemHeight = 26;
+
     private void AddToolbarItem(ThemedButton button, string text)
     {
         button.Text = text;
         button.AutoSize = true;
         button.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        button.MinimumSize = new Size(0, this.AdjustForDPI(ToolbarItemHeight));
         button.Padding = new Padding(this.AdjustForDPI(6), 0, this.AdjustForDPI(6), 0);
         button.Margin = new Padding(this.AdjustForDPI(2), 0, this.AdjustForDPI(2), 0);
 
