@@ -81,7 +81,12 @@ namespace GUI.Types.GLViewers
         private PerfDisplay perfDisplay;
         private ComboBox? perfDisplayComboBox;
 
-        private bool roundStarted;
+        private volatile HashSet<string>? chosenLayers;
+        private volatile bool visibilityDirty;
+        private string? currentRenderMode;
+
+        /// <summary>Gets whether the viewer has its own switches for what of the tools is drawn.</summary>
+        protected virtual bool HasToolsVisibilityControls => false;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
@@ -173,13 +178,16 @@ namespace GUI.Types.GLViewers
 
                 UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) => showStaticOctree = v);
                 UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
-                UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
+                if (!HasToolsVisibilityControls)
                 {
-                    foreach (var scene in Renderer.Scenes)
+                    UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
                     {
-                        scene.ShowToolsMaterials = v;
-                    }
-                });
+                        foreach (var scene in Renderer.Scenes)
+                        {
+                            scene.ShowToolsMaterials = v;
+                        }
+                    });
+                }
 
                 if (Renderer.Scenes.Any(static scene => scene.LightingInfo.LightProbes.Count > 0))
                 {
@@ -602,6 +610,12 @@ namespace GUI.Types.GLViewers
 
             Input.EnableMouseLook = true;
 
+            if (visibilityDirty)
+            {
+                visibilityDirty = false;
+                ApplyVisibility();
+            }
+
             if (loadedDefaultLighting && Input.NoClip && (CurrentlyPressedKeys & TrackedKeys.Control) != 0)
             {
                 var delta = new Vector2(LastMouseDelta.Y, LastMouseDelta.X);
@@ -645,12 +659,6 @@ namespace GUI.Types.GLViewers
                 if (!wasWalkMode && Input.WalkMode)
                 {
                     Selection.Clear();
-
-                    if (!roundStarted)
-                    {
-                        roundStarted = true;
-                        Renderer.EntitySystem.StartRound();
-                    }
                 }
 
                 // Walk mode and mouse look aim with the mouse, so they hold the cursor. Leaving both,
@@ -1116,13 +1124,35 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        /// <summary>Shows the chosen layers from the next frame.</summary>
         protected void SetEnabledLayers(HashSet<string> layers)
         {
+            chosenLayers = layers;
+            RequestVisibilityUpdate();
+        }
+
+        /// <summary>
+        /// Reapplies what is shown at the start of the next frame. Nodes are added and removed on the render
+        /// thread, so they are only walked there.
+        /// </summary>
+        protected void RequestVisibilityUpdate() => visibilityDirty = true;
+
+        /// <summary>Applies the chosen layers. Runs on the render thread.</summary>
+        protected virtual void ApplyVisibility()
+        {
+            if (chosenLayers is not { } layers)
+            {
+                return;
+            }
+
             foreach (var scene in Renderer.Scenes)
             {
-                scene.SetEnabledLayers(layers);
+                scene.SetEnabledLayers(FilterLayers(layers));
             }
         }
+
+        /// <summary>Narrows the chosen layers to the ones that end up shown.</summary>
+        protected virtual HashSet<string> FilterLayers(HashSet<string> layers) => layers;
 
         // Only shown in the Cubemaps render mode; the choice is kept for when that mode is selected again
         private void ApplyCubemapColors()
@@ -1167,6 +1197,18 @@ namespace GUI.Types.GLViewers
                 "Irradiance" or "Illumination" => LightingBindingDisplay.LightProbe,
                 _ => LightingBindingDisplay.None,
             };
+
+            currentRenderMode = renderMode;
+            ApplyRenderModeToNodes();
+        }
+
+        /// <summary>Gives every node the chosen render mode, for the nodes added since it was chosen.</summary>
+        protected void ApplyRenderModeToNodes()
+        {
+            if (currentRenderMode is not { } renderMode)
+            {
+                return;
+            }
 
             foreach (var node in Renderer.Scenes.SelectMany(static scene => scene.AllNodes))
             {
