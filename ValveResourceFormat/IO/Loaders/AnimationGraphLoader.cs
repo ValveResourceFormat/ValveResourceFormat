@@ -1,4 +1,8 @@
+using System.Linq;
+using System.Threading.Tasks;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO
@@ -13,7 +17,7 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Gets the clip (.vnmclip) resource names referenced by the model's animation graphs, recursing
-        /// into nested graphs. <see cref="Model.GetAllAnimations"/> loads these clips as part of the
+        /// into nested graphs. <see cref="Model.GetAllAnimations(IFileLoader)"/> loads these clips as part of the
         /// model's animation set. The returned list is de-duplicated (each clip appears once) and
         /// preserves first-seen order.
         /// </summary>
@@ -28,6 +32,38 @@ namespace ValveResourceFormat.IO
             }
 
             return clipNames;
+        }
+
+        /// <summary>
+        /// Loads clips in parallel, each distinct name once. A clip that is missing is left out.
+        /// </summary>
+        /// <param name="clipNames">Clip (.vnmclip) resource names.</param>
+        /// <param name="fileLoader">Loader for the clip files, which must allow loading from several threads at once.</param>
+        /// <returns>The loaded clips by resource name, compared without case.</returns>
+        public static Dictionary<string, ClipAnimation> LoadClips(IEnumerable<string> clipNames, IFileLoader fileLoader)
+        {
+            var names = clipNames.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            var clips = new ClipAnimation?[names.Length];
+
+            Parallel.For(0, names.Length, i =>
+            {
+                if (fileLoader.LoadFileCompiled(names[i])?.DataBlock is AnimationClip clip)
+                {
+                    clips[i] = new ClipAnimation(clip);
+                }
+            });
+
+            var result = new Dictionary<string, ClipAnimation>(names.Length, StringComparer.OrdinalIgnoreCase);
+
+            for (var i = 0; i < names.Length; i++)
+            {
+                if (clips[i] is { } clip)
+                {
+                    result[names[i]] = clip;
+                }
+            }
+
+            return result;
         }
 
         private static void CollectClips(string graphName, IFileLoader fileLoader, HashSet<string> visited, List<string> clipNames)
