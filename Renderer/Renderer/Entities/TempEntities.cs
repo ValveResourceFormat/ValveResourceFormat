@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -194,9 +195,17 @@ public sealed class TempEntities
         particles.RemoveAt(index);
     }
 
-    // The scene nodes are the scene's to clean up
+    // Takes the effects out of the scenes that still hold them; a scene that was emptied has deleted its own
     internal void Clear()
     {
+        foreach (var particle in particles.Concat(idleParticles.Values.SelectMany(static idle => idle)))
+        {
+            if (particle.Scene.Remove(particle, dynamic: true))
+            {
+                particle.Delete();
+            }
+        }
+
         particles.Clear();
         idleParticles.Clear();
         particleSystems.Clear();

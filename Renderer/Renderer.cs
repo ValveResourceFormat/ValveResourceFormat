@@ -936,6 +936,21 @@ public class Renderer : ISpawnGroupHost
     }
 
     /// <summary>
+    /// Removes every entity, every spawn group and what they registered with the scene, leaving the loaded
+    /// world in place for its entities to spawn again as they did when it loaded.
+    /// </summary>
+    public void RemoveEntities()
+    {
+        foreach (var group in spawnGroups.ToArray())
+        {
+            EntitySystem.RemoveSpawnGroup(group);
+        }
+
+        EntitySystem.RemoveAllEntities();
+        Scene.ClearEntityState();
+    }
+
+    /// <summary>
     /// Empties the entity world and every scene, leaving the renderer ready to load something else.
     /// </summary>
     public void Clear()

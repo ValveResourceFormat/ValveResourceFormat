@@ -1321,7 +1321,7 @@ public abstract class BaseEntity
     /// Whether the entity places the node at itself. Pass <see langword="false"/> for a node placed some
     /// other way, such as an effect whose control point 0 belongs to another entity.
     /// </param>
-    protected void AddNode(SceneNode node, bool followsEntity = true)
+    protected internal void AddNode(SceneNode node, bool followsEntity = true)
     {
         node.EntityData = Data;
         node.EntityInstance = this;

@@ -182,7 +182,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
                 end = endEntity.Transform.Translation;
             }
 
-            AddLine(scene, start, end, line.Color, line.Color, layerName);
+            AddLine(entity, start, end, line.Color, line.Color, layerName);
         }
     }
 
@@ -231,7 +231,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
                 name = $"Line from {entity.Data.GetStringProperty("hammeruniqueid")} to {target.Data?.GetStringProperty("hammeruniqueid")}";
 #endif
 
-                AddLine(scene, start, target.Transform.Translation, ConnectionStartColor, ConnectionEndColor, ConnectionsLayerName, name);
+                AddLine(entity, start, target.Transform.Translation, ConnectionStartColor, ConnectionEndColor, ConnectionsLayerName, name);
             }
 
             if (!matched)
@@ -241,17 +241,18 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         }
     }
 
-    private static void AddLine(Scene scene, Vector3 start, Vector3 end, Color32 startColor, Color32 endColor, string layerName, string? name = null)
+    // Owned by the entity the line starts at, so it leaves the scene with it
+    private static void AddLine(BaseEntity owner, Vector3 start, Vector3 end, Color32 startColor, Color32 endColor, string layerName, string? name = null)
     {
         var origin = (start + end) / 2f;
 
-        var lineNode = new LineSceneNode(scene, start - origin, end - origin, startColor, endColor)
+        var lineNode = new LineSceneNode(owner.Scene, start - origin, end - origin, startColor, endColor)
         {
             LayerName = layerName,
             Transform = Matrix4x4.CreateTranslation(origin),
             Name = name,
         };
 
-        scene.Add(lineNode, true);
+        owner.AddNode(lineNode, followsEntity: false);
     }
 }

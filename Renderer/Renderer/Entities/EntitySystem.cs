@@ -445,10 +445,22 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Drops every entity and resets the clock. Scene nodes are cleaned up by
-    /// <see cref="Renderer.Clear"/>, which runs first.
+    /// Drops every entity and the collision of the loaded worlds, and resets the clock. Scene nodes are
+    /// cleaned up by <see cref="Renderer.Clear"/>, which runs first.
     /// </summary>
     public void Clear()
+    {
+        RemoveAllEntities();
+
+        PhysicsWorld.Clear();
+        worldGroupPhysicsWorlds.Clear();
+    }
+
+    /// <summary>
+    /// Removes every entity and resets the clock, keeping the collision of the loaded worlds, so their
+    /// entities can spawn again as they did when the map loaded.
+    /// </summary>
+    public void RemoveAllEntities()
     {
         foreach (var entity in entities)
         {
@@ -461,8 +473,7 @@ public sealed class EntitySystem
         entities.Clear();
         parented.Clear();
         pendingSpawns.Clear();
-        PhysicsWorld.Clear();
-        worldGroupPhysicsWorlds.Clear();
+        nameFixupCount = 0;
         World = null;
         Player = null;
         activatedCount = 0;
