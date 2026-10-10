@@ -1484,13 +1484,13 @@ namespace GUI.Types.PackageViewer
         // instead of flashing to a blank page. Null when the area shows a blank page or the list.
         private string? currentPreviewType;
 
-        public void ReplaceListViewWithControl(TabPage tab, string? typeName = null)
+        /// <returns>False when this view has already been torn down, in which case the tab is disposed.</returns>
+        public bool ReplaceListViewWithControl(TabPage tab, string? typeName = null)
         {
-            var parentControl = mainListView.Parent;
-
-            if (parentControl == null)
+            if (mainListView?.Parent is not { } parentControl)
             {
-                return;
+                tab.Dispose();
+                return false;
             }
 
             mainListView.Visible = false;
@@ -1521,6 +1521,8 @@ namespace GUI.Types.PackageViewer
 
                 old.Dispose();
             }
+
+            return true;
         }
 
         private void PreviewControl_Enter(object? sender, EventArgs e)

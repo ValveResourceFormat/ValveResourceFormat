@@ -782,7 +782,11 @@ namespace GUI
                 {
                     // Show the loading panel in the preview area right away (replacing the blank page).
                     Debug.Assert(packageTreeView != null);
-                    packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName);
+
+                    if (!packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName))
+                    {
+                        return;
+                    }
                 }
             }
 
@@ -923,7 +927,11 @@ namespace GUI
                     {
                         // Same-type preview: swap the frozen previous view for the newly loaded viewer.
                         Debug.Assert(packageTreeView != null);
-                        packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName);
+
+                        if (!packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName))
+                        {
+                            return;
+                        }
                     }
                     else
                     {
