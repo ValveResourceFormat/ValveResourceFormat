@@ -37,8 +37,7 @@ namespace GUI.Types.GLViewers
         private ComboBox? cameraComboBox;
         private SavedCameraPositionsControl? savedCameraPositionsControl;
         private EntityInfoForm? entityInfoForm;
-        private ThemedButton? playButton;
-        private ThemedButton? pauseButton;
+        private ThemedButton? playPauseButton;
         private ThemedButton? stopButton;
         private ThemedToggleButton? toolEntitiesButton;
         private ThemedToggleButton? toolMaterialsButton;
@@ -69,6 +68,9 @@ namespace GUI.Types.GLViewers
             None,
             Play,
             Pause,
+
+            /// <summary>Pause while playing, otherwise play.</summary>
+            PlayOrPause,
             Stop,
         }
 
@@ -101,8 +103,7 @@ namespace GUI.Types.GLViewers
             cameraComboBox?.Dispose();
             savedCameraPositionsControl?.Dispose();
             entityInfoForm?.Dispose();
-            playButton?.Dispose();
-            pauseButton?.Dispose();
+            playPauseButton?.Dispose();
             stopButton?.Dispose();
             toolEntitiesButton?.Dispose();
             toolMaterialsButton?.Dispose();
@@ -1236,8 +1237,7 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            playButton = UiControl.AddToolbarButton("Play", () => RequestSimulation(SimulationRequest.Play));
-            pauseButton = UiControl.AddToolbarButton("Pause", () => RequestSimulation(SimulationRequest.Pause));
+            playPauseButton = UiControl.AddToolbarButton("Play", () => RequestSimulation(SimulationRequest.PlayOrPause));
             stopButton = UiControl.AddToolbarButton("Stop", () => RequestSimulation(SimulationRequest.Stop));
 
             UiControl.AddToolbarSeparator();
@@ -1270,8 +1270,7 @@ namespace GUI.Types.GLViewers
 
         private void UpdateSimulationButtons(SimulationState state)
         {
-            playButton?.Enabled = state != SimulationState.Playing;
-            pauseButton?.Enabled = state == SimulationState.Playing;
+            playPauseButton?.Text = state == SimulationState.Playing ? "Pause" : "Play";
             stopButton?.Enabled = state != SimulationState.Stopped;
 
             // Both are hidden while the world is played, whatever the switches say
@@ -1317,6 +1316,11 @@ namespace GUI.Types.GLViewers
             if (world == null)
             {
                 return;
+            }
+
+            if (request == SimulationRequest.PlayOrPause)
+            {
+                request = simulationState == SimulationState.Playing ? SimulationRequest.Pause : SimulationRequest.Play;
             }
 
             var entitySystem = Renderer.EntitySystem;
