@@ -348,7 +348,7 @@ public class UserInput
 
         if (Viewmodel != null)
         {
-            punch += Viewmodel.AimPunchServices.Sample(Renderer.Uptime) * AimPunchServices.ViewScale;
+            punch += Viewmodel.AimPunchServices.Punch * AimPunchServices.ViewScale;
         }
 
         renderCamera.SetLocationPitchYaw(
@@ -734,7 +734,6 @@ public class UserInput
     public bool TryLoadViewmodel(Scene scene, EntitySystem entitySystem)
     {
         Viewmodel = ViewmodelSceneNode.TryLoadCs2Viewmodel(scene, entitySystem);
-        OrbitFollowProvider = Viewmodel is null ? null : Viewmodel.GetOrbitFollow;
         return Viewmodel != null;
     }
 }

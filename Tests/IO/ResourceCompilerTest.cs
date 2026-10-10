@@ -20,8 +20,11 @@ namespace Tests.IO;
 /// installed or has no Workshop Tools. The tests stage and compile a temporary addon
 /// (<c>vrf_recompile_test_&lt;pid&gt;</c>) inside the installation's <c>content</c> and <c>game</c>
 /// addon folders, and delete it after every test.
+///
+/// Opt in, run with <c>dotnet test --treenode-filter "/*/*/ResourceCompilerTest/*"</c>.
 /// </summary>
-[ClassDataSource<ResourceCompilerTest.GameInstallations>(Shared = SharedType.PerClass)]
+[Explicit]
+[ClassDataSource<GameInstallations>(Shared = SharedType.PerClass)]
 [NotInParallel(nameof(ResourceCompilerTest))]
 public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations installations)
 {

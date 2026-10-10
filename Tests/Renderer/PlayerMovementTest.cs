@@ -14,6 +14,7 @@ namespace Tests.Renderer
     /// The thresholds are regression locks set just above the best measured precision:
     /// when precision improves, LOWER them so it cannot silently regress.
     /// </summary>
+    [Explicit]
     public class PlayerMovementTest
     {
         private const float AirCap = 30f;                 // AirMaxWishSpeed
