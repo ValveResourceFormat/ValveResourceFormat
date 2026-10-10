@@ -1458,7 +1458,7 @@ namespace ValveResourceFormat.Renderer
             shadowCasterBoxes = VisibilityBoxes.PrepareSecondaryView(light.Position);
 
             // Skip static geo for stationary lights
-            CollectShadowDrawCalls(lightFrustum, includeStatic: light.DirectLight != SceneLight.DirectLightType.Stationary, includeDynamic: true, skipFlags: ObjectTypeFlags.None, barnShadowDrawCalls);
+            CollectShadowDrawCalls(lightFrustum, includeStatic: light.DirectLight != SceneLight.DirectLightType.Stationary, includeDynamic: true, skipFlags: ObjectTypeFlags.NoShadows, barnShadowDrawCalls);
 
             shadowCasterBoxes = null;
 

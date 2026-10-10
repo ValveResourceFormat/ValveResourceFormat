@@ -30,6 +30,12 @@ ConsoleAppFramework (CLI only)
   Copyright (c) 2020 Cysharp, Inc.
   https://github.com/Cysharp/ConsoleAppFramework
 
+Esoterica
+  License: MIT
+  Copyright (c) 2022-2024 Bobby Anguelov
+  Copyright (c) 2024-2026 Bobby Anguelov and Kirill Bazhenov
+  https://github.com/BobbyAnguelov/Esoterica
+
 FastColoredTextBox (GUI only)
   License: LGPL-3.0
   Copyright (C) Pavel Torgashov, 2011-2016

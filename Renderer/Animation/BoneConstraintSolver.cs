@@ -864,7 +864,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        // Untested: no shipped CS2 model uses it, so the blob layout is only known from the reader.
+        // Untested: no model seen so far uses it, so the blob layout is only known from the reader.
         private sealed class Rbf(Constrained[] inputs, Constrained[] outputs, RbfParameters parameters) : Constraint
         {
             private readonly (Vector3 Position, Quaternion Rotation)[] inputPose = new (Vector3, Quaternion)[inputs.Length];

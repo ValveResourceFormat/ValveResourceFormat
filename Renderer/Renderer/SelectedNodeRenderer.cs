@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Renderer
         private const byte HiddenLineAlpha = 32;
 
         /// <summary>Gets or sets optional debug text rendered in the top-left corner of the viewport.</summary>
-        public string ScreenDebugText { get; set; } = string.Empty;
+        public TextRenderer.TextMemory ScreenDebugText { get; set; }
 
         /// <summary>Gets a value indicating whether any node is currently selected.</summary>
         public bool HasSelectedNodes => selectedNodes.Count > 0;

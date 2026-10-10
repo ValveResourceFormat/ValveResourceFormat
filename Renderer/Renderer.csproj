@@ -20,6 +20,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="ValveKeyValue" />
+    <Using Include="ValveResourceFormat.ResourceTypes.ModelAnimation.FrameBone" Alias="Transform" />
     <Using Include="ValveResourceFormat.Utils" />
     <Using Include="ValveResourceFormat.CompiledShader" />
     <Using Include="ValveResourceFormat.Renderer.Utils" />
@@ -45,6 +47,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
+    <ProjectReference Include="..\Misc\SourceGenerators\SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>
