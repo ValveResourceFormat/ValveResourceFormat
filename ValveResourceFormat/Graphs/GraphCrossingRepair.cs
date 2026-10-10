@@ -15,10 +15,21 @@ namespace ValveResourceFormat.Graphs;
 /// reinsert a card at another slot, slide a card to a height that clears a crossing, and move a
 /// card out from under a wire that passes across it. Wire endpoints are cached in parallel arrays
 /// and refreshed per moved card, since the scoring loop runs tens of millions of times.
+/// <para>
+/// Whether a move helps depends on nothing but the geometry within its reach, so a refused move
+/// is remembered with that reach and not scored again until a later move disturbs it. Most moves
+/// are refused on every pass, and this is what keeps the later passes cheap.
+/// </para>
 /// </remarks>
 internal sealed class CrossingRepair
 {
     private const float ColumnQuantum = 8f;
+
+    /// <summary>
+    /// Distance from a slide's sweep inside which a wire is rescored at every height, kept well
+    /// clear of where rounding could flip a crossing test.
+    /// </summary>
+    private const float SweepMargin = 1f;
 
     /// <summary>Slack allowed on the separation test, so gaps laid out at exactly the spacing pass.</summary>
     private const float SeparationTolerance = 0.5f;
@@ -90,7 +101,49 @@ internal sealed class CrossingRepair
         }
 
         unionMarks = new int[wires.Length];
-        allWires = [.. Enumerable.Range(0, wires.Length)];
+        nearWires = new int[wires.Length][];
+        nearCards = new int[sizes.Length][];
+        wireBoxes = new Box[wires.Length];
+        cardBoxes = new Box[sizes.Length];
+        refusedSlides = new Refusal?[sizes.Length];
+        refusedClears = new Refusal?[sizes.Length];
+
+        var spans = new Dictionary<(float, float), int[]>();
+
+        for (var i = 0; i < wires.Length; i++)
+        {
+            nearWires[i] = WiresSpanning(minX[i], maxX[i]);
+            wireBoxes[i] = WireBox(i);
+        }
+
+        for (var node = 0; node < sizes.Length; node++)
+        {
+            nearCards[node] = WiresSpanning(positions[node].X, positions[node].X + sizes[node].X);
+            cardBoxes[node] = CardBox(node);
+        }
+
+        landedCrossings = new int[wires.Length];
+        landedFrom = [.. from];
+        landedTo = [.. to];
+        landedMinY = [.. minY];
+        landedMaxY = [.. maxY];
+
+        for (var i = 0; i < wires.Length; i++)
+        {
+            landedCrossings[i] = Count(i, nearWires[i], int.MaxValue);
+        }
+
+        // Cards only ever move vertically, so which wires share an x range never changes, and
+        // wires between the same two columns share one list.
+        int[] WiresSpanning(float left, float right)
+        {
+            if (!spans.TryGetValue((left, right), out var near))
+            {
+                spans[(left, right)] = near = [.. Enumerable.Range(0, wires.Length).Where(i => minX[i] <= right && maxX[i] >= left)];
+            }
+
+            return near;
+        }
 
         var buckets = new Dictionary<int, int>();
 
@@ -287,22 +340,39 @@ internal sealed class CrossingRepair
             return false;
         }
 
-        var subset = Union(x, y);
+        ref var refusal = ref CollectionsMarshal.GetValueRefOrAddDefault(refusedSwaps, (x, y), out _);
 
-        // Scored against every wire. Narrowing the set first costs a pass over all of them, which
-        // only pays back when the same subset is scored many times over; a swap scores twice.
-        var candidates = allWires;
-        var before = Count(subset, candidates);
+        if (StillRefused(ref refusal))
+        {
+            return false;
+        }
+
+        var subset = Union(x, y);
+        var before = CrossingsOf(subset);
+        var originalX = positions[x];
+        var originalY = positions[y];
         Exchange(x, y);
 
         // Cards of different heights can land on a neighbour when they trade places, and the
         // layout guarantees no overlapping cards, so such a swap is refused outright.
-        if (Blocked(x) || Blocked(y) || Count(subset, candidates) >= before)
+        if (Blocked(x) || Blocked(y) || Count(subset, before) >= before)
         {
+            var shift = Math.Max(Math.Abs(positions[x].Y - originalX.Y), Math.Abs(positions[y].Y - originalY.Y));
             Exchange(x, y);
+
+            if (positions[x] != originalX || positions[y] != originalY)
+            {
+                Commit([x, y]);
+            }
+            else
+            {
+                refusal = new Refusal(changes.Count, Reach([x, y], shift));
+            }
+
             return false;
         }
 
+        Commit([x, y]);
         return true;
     }
 
@@ -312,6 +382,13 @@ internal sealed class CrossingRepair
         // for every card in it. On a small graph that is a good trade for the crossings it buys;
         // on a large one it stretches far more wire than it saves, so it is left off there.
         if (column.Count is < 3 or > 40 || sizes.Length > options.CrossingReinsertMaxNodes)
+        {
+            return false;
+        }
+
+        ref var refusal = ref CollectionsMarshal.GetValueRefOrAddDefault(refusedReinserts, column, out _);
+
+        if (StillRefused(ref refusal))
         {
             return false;
         }
@@ -327,6 +404,7 @@ internal sealed class CrossingRepair
 
         if (subset.Count == 0)
         {
+            refusal = new Refusal(changes.Count, Reach(column, 0f));
             return false;
         }
 
@@ -342,7 +420,7 @@ internal sealed class CrossingRepair
             placed[i] = positions[column[i]].Y;
         }
 
-        var best = Count(subset, candidates);
+        var best = CrossingsOf(subset);
         var bestOrder = new List<int>(column);
         var order = new List<int>(column);
         var moved = false;
@@ -381,7 +459,7 @@ internal sealed class CrossingRepair
                     continue;
                 }
 
-                var score = Count(subset, candidates);
+                var score = Count(subset, candidates, best);
 
                 if (score < best)
                 {
@@ -399,12 +477,15 @@ internal sealed class CrossingRepair
                 Move(column[i], placed[i]);
             }
 
+            var stacked = column.Sum(node => sizes[node].Y + options.NodeSpacing);
+            refusal = new Refusal(changes.Count, Reach(column, stacked + positions[last].Y + sizes[last].Y - top));
             return false;
         }
 
         Restack(bestOrder, top);
         column.Clear();
         column.AddRange(bestOrder);
+        Commit(column);
         return true;
 
         bool Fits(List<int> stacked)
@@ -425,22 +506,18 @@ internal sealed class CrossingRepair
     {
         var touching = incident[node];
 
-        if (touching.Count == 0)
+        if (touching.Count == 0 || StillRefused(ref refusedSlides[node]))
         {
             return false;
         }
 
-        // A slide moves this card by at most the slide limit, so only wires inside the bounding box
-        // of its wires, grown by that much, can be crossed. Filtering here rather than per shift
-        // turns tens of passes over every wire into a single pass.
-        var candidates = LocalCandidates(touching, options.CrossingSlideLimit);
-
         var originalY = positions[node].Y;
         var bestY = originalY;
-        var best = Count(touching, candidates);
+        var best = CrossingsOf(touching);
 
         if (best == 0)
         {
+            refusedSlides[node] = new Refusal(changes.Count, Reach([node], options.CrossingSlideLimit));
             return false;
         }
 
@@ -469,30 +546,59 @@ internal sealed class CrossingRepair
             Consider(-offset);
         }
 
+        // Only the card's end of each wire travels, so over every height a slide can try a wire
+        // sweeps a triangle fanning out from its far end. A partner that stays clear of that
+        // triangle, of the far end and of the path the near end takes crosses the wire at every
+        // height or at none, so it keeps its share of the current count and is never rescored.
+        var sweeping = new List<(int Wire, int Other)>();
+        var settled = best;
+
         foreach (var wire in touching)
         {
             var atSource = wires[wire].From == node;
             var mine = atSource ? from[wire] : to[wire];
             var theirs = atSource ? to[wire] : from[wire];
+            var sweep = new WireSweep(theirs, mine, -options.CrossingSlideLimit, options.CrossingSlideLimit, SweepMargin);
 
             // The height that makes this wire run dead level.
             Consider(theirs.Y - mine.Y);
 
-            // Levelling a wire often lands just short of clearing the wire it crosses, because
-            // what actually matters is being on the correct side of the other wire's endpoints,
-            // not being level with your own. So aim past each crossing partner's ends too.
-            foreach (var other in candidates)
+            foreach (var other in nearWires[wire])
             {
-                if (other == wire || SharesSocket(wires[wire], wires[other])
-                    || !GraphSegmentGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other]))
+                var moves = wires[other].From == node || wires[other].To == node;
+
+                // Everything the wire crosses now lies inside its sweep too, so a partner clear of
+                // the sweep's bounds needs nothing further.
+                if (other == wire || (!moves && !sweep.Overlaps(minX[other], maxX[other], minY[other], maxY[other]))
+                    || SharesSocket(wires[wire], wires[other]))
                 {
                     continue;
                 }
 
-                foreach (var target in (float[])[from[other].Y, to[other].Y])
+                var crossing = Overlaps(wire, other) && GraphSegmentGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other]);
+
+                // Levelling a wire often lands just short of clearing the wire it crosses, because
+                // what actually matters is being on the correct side of the other wire's endpoints,
+                // not being level with your own. So aim past each crossing partner's ends too.
+                if (crossing)
                 {
-                    Consider(target - mine.Y + options.CrossingClearance);
-                    Consider(target - mine.Y - options.CrossingClearance);
+                    foreach (var target in (float[])[from[other].Y, to[other].Y])
+                    {
+                        Consider(target - mine.Y + options.CrossingClearance);
+                        Consider(target - mine.Y - options.CrossingClearance);
+                    }
+                }
+
+                if (!moves && !sweep.Reaches(from[other], to[other]))
+                {
+                    continue;
+                }
+
+                sweeping.Add((wire, other));
+
+                if (crossing)
+                {
+                    settled--;
                 }
             }
         }
@@ -514,7 +620,7 @@ internal sealed class CrossingRepair
                 continue;
             }
 
-            var score = Count(touching, candidates);
+            var score = settled + Sweeping(best - settled);
 
             if (score < best)
             {
@@ -524,7 +630,31 @@ internal sealed class CrossingRepair
         }
 
         Move(node, bestY);
-        return bestY != originalY;
+
+        if (bestY == originalY)
+        {
+            refusedSlides[node] = new Refusal(changes.Count, Reach([node], options.CrossingSlideLimit));
+            return false;
+        }
+
+        Commit([node]);
+        return true;
+
+        int Sweeping(int limit)
+        {
+            var crossings = 0;
+
+            foreach (var (wire, other) in sweeping)
+            {
+                if (Overlaps(wire, other) && GraphSegmentGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other])
+                    && ++crossings >= limit)
+                {
+                    break;
+                }
+            }
+
+            return crossings;
+        }
     }
 
     private void Move(int node, float y)
@@ -600,10 +730,15 @@ internal sealed class CrossingRepair
     }
 
     private bool Crosses(int node, ReadOnlySpan<int> candidates)
-        => Count(incident[node], candidates) > 0;
+        => Count(incident[node], candidates, 1) > 0;
 
     private readonly List<int> localScratch = [];
-    private readonly int[] allWires = [];
+
+    /// <summary>Per wire, every wire whose x range overlaps its own: the only ones it can cross.</summary>
+    private readonly int[][] nearWires;
+
+    /// <summary>Per card, every wire whose x range overlaps the card's.</summary>
+    private readonly int[][] nearCards;
     private readonly List<int> unionScratch = [];
     private readonly int[] unionMarks = [];
     private int unionStamp;
@@ -649,24 +784,84 @@ internal sealed class CrossingRepair
         return CollectionsMarshal.AsSpan(localScratch);
     }
 
-    /// <summary>Crossings between the given wires and the given candidates.</summary>
-    private int Count(List<int> subset, ReadOnlySpan<int> candidates)
+    /// <summary>
+    /// Crossings between the given wires and the given candidates, counted up to
+    /// <paramref name="limit"/>: callers only compare the result against a score to beat.
+    /// </summary>
+    private int Count(List<int> subset, ReadOnlySpan<int> candidates, int limit)
     {
         var crossings = 0;
 
         foreach (var wire in subset)
         {
-            foreach (var other in candidates)
-            {
-                if (other == wire || !Overlaps(wire, other) || SharesSocket(wires[wire], wires[other]))
-                {
-                    continue;
-                }
+            crossings += Count(wire, candidates, limit - crossings);
 
-                if (GraphSegmentGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other]))
-                {
-                    crossings++;
-                }
+            if (crossings >= limit)
+            {
+                break;
+            }
+        }
+
+        return crossings;
+    }
+
+    /// <summary>
+    /// Crossings of each wire with every other wire where the cards have landed, kept current by
+    /// <see cref="Commit"/>. Every move starts from the landed layout, so its score to beat comes
+    /// from here rather than from a count.
+    /// </summary>
+    private readonly int[] landedCrossings;
+
+    /// <summary>Wire ends where the cards have landed, which is what <see cref="landedCrossings"/> was counted on.</summary>
+    private readonly Vector2[] landedFrom;
+    private readonly Vector2[] landedTo;
+    private readonly float[] landedMinY;
+    private readonly float[] landedMaxY;
+
+    private int CrossingsOf(List<int> subset)
+    {
+        var total = 0;
+
+        foreach (var wire in subset)
+        {
+            total += landedCrossings[wire];
+        }
+
+        return total;
+    }
+
+    /// <summary>Crossings between the given wires and every other wire, counted up to <paramref name="limit"/>.</summary>
+    private int Count(List<int> subset, int limit)
+    {
+        var crossings = 0;
+
+        foreach (var wire in subset)
+        {
+            crossings += Count(wire, nearWires[wire], limit - crossings);
+
+            if (crossings >= limit)
+            {
+                break;
+            }
+        }
+
+        return crossings;
+    }
+
+    private int Count(int wire, ReadOnlySpan<int> candidates, int limit)
+    {
+        var crossings = 0;
+
+        foreach (var other in candidates)
+        {
+            if (other == wire || !Overlaps(wire, other) || SharesSocket(wires[wire], wires[other]))
+            {
+                continue;
+            }
+
+            if (GraphSegmentGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other]) && ++crossings >= limit)
+            {
+                break;
             }
         }
 
@@ -679,9 +874,14 @@ internal sealed class CrossingRepair
 
         for (var i = 0; i < wires.Length && found.Count < budget && !Spent; i++)
         {
-            for (var j = i + 1; j < wires.Length && found.Count < budget; j++)
+            foreach (var j in nearWires[i])
             {
-                if (!Overlaps(i, j) || SharesSocket(wires[i], wires[j]))
+                if (found.Count >= budget)
+                {
+                    break;
+                }
+
+                if (j <= i || !Overlaps(i, j) || SharesSocket(wires[i], wires[j]))
                 {
                     continue;
                 }
@@ -708,10 +908,16 @@ internal sealed class CrossingRepair
     /// </summary>
     private bool TryClearWires(int node)
     {
+        if (StillRefused(ref refusedClears[node]))
+        {
+            return false;
+        }
+
         var offenders = Underlaps(node, out var lowest, out var highest);
 
         if (offenders == 0)
         {
+            refusedClears[node] = new Refusal(changes.Count, Reach([node], options.WireClearLimit));
             return false;
         }
 
@@ -724,7 +930,7 @@ internal sealed class CrossingRepair
         var up = highest - options.WireClearance - (originalY + height);
 
         var touching = incident[node];
-        var before = Count(touching, allWires);
+        var before = CrossingsOf(touching);
 
         foreach (var shift in Math.Abs(down) <= Math.Abs(up) ? (float[])[down, up] : [up, down])
         {
@@ -738,14 +944,16 @@ internal sealed class CrossingRepair
             // Taken only when the card lands clear of its neighbours, is genuinely out from under
             // wires it was under, and buys that with no crossing of its own.
             if (!Blocked(node) && Underlaps(node, out _, out _) < offenders
-                && Count(touching, allWires) <= before + options.ClearCrossingTolerance)
+                && Count(touching, before + options.ClearCrossingTolerance + 1) <= before + options.ClearCrossingTolerance)
             {
+                Commit([node]);
                 return true;
             }
 
             Move(node, originalY);
         }
 
+        refusedClears[node] = new Refusal(changes.Count, Reach([node], options.WireClearLimit));
         return false;
     }
 
@@ -765,7 +973,7 @@ internal sealed class CrossingRepair
         highest = float.MaxValue;
         var offenders = 0;
 
-        foreach (var wire in allWires)
+        foreach (var wire in nearCards[node])
         {
             if (wires[wire].From == node || wires[wire].To == node
                 || !GraphSegmentGeometry.BoxesOverlap(minX[wire], maxX[wire], minY[wire], maxY[wire],
@@ -819,6 +1027,16 @@ internal sealed class CrossingRepair
             return false;
         }
 
+        ref var refusal = ref CollectionsMarshal.GetValueRefOrAddDefault(refusedBranchSwaps, (wireA, wireB), out _);
+
+        if (StillRefused(ref refusal))
+        {
+            return false;
+        }
+
+        // Parking a branch measures the whole island, so any move anywhere can change the outcome.
+        var everywhere = new Refusal(changes.Count, Box.Everything);
+
         var upperSource = wires[upperDock].From;
         var lowerSource = wires[lowerDock].From;
 
@@ -827,6 +1045,7 @@ internal sealed class CrossingRepair
 
         if (branchUpper == null || branchLower == null)
         {
+            refusal = everywhere;
             return false;
         }
 
@@ -835,6 +1054,7 @@ internal sealed class CrossingRepair
 
         if (branchUpper.Count == 0)
         {
+            refusal = everywhere;
             return false;
         }
 
@@ -850,7 +1070,8 @@ internal sealed class CrossingRepair
         // Only wires touching the branch can change, so scoring the whole island per candidate
         // would repeat an identical count over every wire that cannot move.
         var subset = Union(branchUpper);
-        var before = Count(subset, allWires);
+        var before = CrossingsOf(subset);
+        var originalHeights = branchUpper.Select(node => positions[node].Y).ToArray();
 
         // Just clearing the other source is the smallest move and is tried first, but a packed
         // layout usually leaves the branch landing on top of whatever else occupies those columns.
@@ -867,11 +1088,9 @@ internal sealed class CrossingRepair
                 Move(node, positions[node].Y + candidate);
             }
 
-            var blocked = branchUpper.Any(Blocked);
-            var after = Count(subset, allWires);
-
-            if (!blocked && after < before)
+            if (!branchUpper.Any(Blocked) && Count(subset, before) < before)
             {
+                Commit(branchUpper);
                 return true;
             }
 
@@ -879,6 +1098,15 @@ internal sealed class CrossingRepair
             {
                 Move(node, positions[node].Y - candidate);
             }
+        }
+
+        if (branchUpper.Select(node => positions[node].Y).SequenceEqual(originalHeights))
+        {
+            refusal = everywhere;
+        }
+        else
+        {
+            Commit(branchUpper);
         }
 
         return false;
@@ -951,6 +1179,163 @@ internal sealed class CrossingRepair
         }
 
         return branch;
+    }
+
+    /// <summary>An axis-aligned box: what a refused move depended on, or what a landed move disturbed.</summary>
+    private readonly record struct Box(float MinX, float MaxX, float MinY, float MaxY)
+    {
+        public static Box Everything { get; } = new(float.MinValue, float.MaxValue, float.MinValue, float.MaxValue);
+
+        public bool Overlaps(Box other)
+            => GraphSegmentGeometry.BoxesOverlap(MinX, MaxX, MinY, MaxY, other.MinX, other.MaxX, other.MinY, other.MaxY);
+
+        public Box Union(Box other)
+            => new(Math.Min(MinX, other.MinX), Math.Max(MaxX, other.MaxX), Math.Min(MinY, other.MinY), Math.Max(MaxY, other.MaxY));
+    }
+
+    /// <summary>
+    /// A refused move: the length of <see cref="changes"/> when it was refused, and the box
+    /// holding every card and wire its outcome depended on.
+    /// </summary>
+    private readonly record struct Refusal(int Since, Box Reach);
+
+    /// <summary>
+    /// The boxes landed moves disturbed, in order: where each moved card and each of its wires was
+    /// before the move and where it is after it.
+    /// </summary>
+    private readonly List<Box> changes = [];
+
+    /// <summary>Where each card and wire was when it last went into <see cref="changes"/>.</summary>
+    private readonly Box[] cardBoxes;
+    private readonly Box[] wireBoxes;
+
+    private readonly Dictionary<(int, int), Refusal?> refusedSwaps = [];
+    private readonly Dictionary<(int, int), Refusal?> refusedBranchSwaps = [];
+    private readonly Dictionary<List<int>, Refusal?> refusedReinserts = [];
+    private readonly Refusal?[] refusedSlides;
+    private readonly Refusal?[] refusedClears;
+
+    private Box CardBox(int node)
+        => new(positions[node].X, positions[node].X + sizes[node].X, positions[node].Y, positions[node].Y + sizes[node].Y);
+
+    private Box WireBox(int wire) => new(minX[wire], maxX[wire], minY[wire], maxY[wire]);
+
+    /// <summary>
+    /// Everything a move of <paramref name="nodes"/> by up to <paramref name="travel"/> vertically
+    /// can touch: the cards and their wires, grown by that travel plus the card spacing the
+    /// separation veto measures.
+    /// </summary>
+    private Box Reach(IEnumerable<int> nodes, float travel)
+    {
+        var reach = new Box(float.MaxValue, float.MinValue, float.MaxValue, float.MinValue);
+
+        foreach (var node in nodes)
+        {
+            reach = reach.Union(CardBox(node));
+
+            foreach (var wire in incident[node])
+            {
+                reach = reach.Union(WireBox(wire));
+            }
+        }
+
+        var margin = travel + options.NodeSpacing + 1f;
+        return new Box(reach.MinX - 1f, reach.MaxX + 1f, reach.MinY - margin, reach.MaxY + margin);
+    }
+
+    /// <summary>
+    /// Records that the given cards moved: brings the crossing counts of their wires and of every
+    /// wire those cross or crossed up to date, and logs what moved for the refusals to check.
+    /// Undoing a refused move can leave a card a rounding error away from where it was, which
+    /// counts as a move too.
+    /// </summary>
+    private void Commit(IReadOnlyCollection<int> nodes)
+    {
+        var moved = new HashSet<int>();
+
+        foreach (var node in nodes)
+        {
+            moved.UnionWith(incident[node]);
+        }
+
+        // Each wire's count is judged from its own side, as a count would judge it, so both ends of
+        // a pair are tested in their own order.
+        foreach (var wire in moved)
+        {
+            foreach (var other in nearWires[wire])
+            {
+                if (other == wire || SharesSocket(wires[wire], wires[other]))
+                {
+                    continue;
+                }
+
+                landedCrossings[wire] += Delta(wire, other);
+
+                if (!moved.Contains(other))
+                {
+                    landedCrossings[other] += Delta(other, wire);
+                }
+            }
+        }
+
+        foreach (var wire in moved)
+        {
+            landedFrom[wire] = from[wire];
+            landedTo[wire] = to[wire];
+            landedMinY[wire] = minY[wire];
+            landedMaxY[wire] = maxY[wire];
+        }
+
+        foreach (var node in nodes)
+        {
+            changes.Add(cardBoxes[node]);
+            cardBoxes[node] = CardBox(node);
+            changes.Add(cardBoxes[node]);
+
+            foreach (var wire in incident[node])
+            {
+                changes.Add(wireBoxes[wire]);
+                wireBoxes[wire] = WireBox(wire);
+                changes.Add(wireBoxes[wire]);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether a move refused earlier would be refused again: nothing landed since has disturbed
+    /// its reach. A refusal that still holds is brought up to date, so it is not checked against
+    /// the same changes twice.
+    /// </summary>
+    private bool StillRefused(ref Refusal? refusal)
+    {
+        if (refusal is not { } refused)
+        {
+            return false;
+        }
+
+        for (var i = refused.Since; i < changes.Count; i++)
+        {
+            if (changes[i].Overlaps(refused.Reach))
+            {
+                refusal = null;
+                return false;
+            }
+        }
+
+        refusal = refused with { Since = changes.Count };
+        return true;
+    }
+
+    /// <summary>How the crossing of two wires changed since they last landed, judged as <see cref="Count(int, ReadOnlySpan{int}, int)"/> judges it.</summary>
+    private int Delta(int wire, int other)
+    {
+        var now = Overlaps(wire, other) && GraphSegmentGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other]);
+        // Cards only move vertically, so a wire's x extent where it landed is its x extent now.
+        var then = GraphSegmentGeometry.BoxesOverlap(minX[wire], maxX[wire], landedMinY[wire], landedMaxY[wire],
+                minX[other], maxX[other], landedMinY[other], landedMaxY[other])
+            && GraphSegmentGeometry.SegmentsIntersect(landedFrom[wire], landedTo[wire], landedFrom[other], landedTo[other]);
+
+        return (now ? 1 : 0) - (then ? 1 : 0);
     }
 
     /// <summary>Whether two wires overlap in both axes, and so could possibly cross.</summary>

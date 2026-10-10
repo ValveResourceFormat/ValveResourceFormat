@@ -41,6 +41,15 @@ internal static class GraphSegmentGeometry
             || SegmentsIntersect(a, b, bottomLeft, min);
     }
 
+    /// <summary>Distance from a point to the closest point of a segment.</summary>
+    public static float DistanceToSegment(Vector2 point, Vector2 a, Vector2 b)
+    {
+        var along = b - a;
+        var lengthSquared = along.LengthSquared();
+        var t = lengthSquared > 0f ? MathUtils.Saturate(Vector2.Dot(point - a, along) / lengthSquared) : 0f;
+        return Vector2.Distance(point, a + (along * t));
+    }
+
     /// <summary>Whether two segments properly cross, by the sign of the four orientation tests.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool SegmentsIntersect(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4)
