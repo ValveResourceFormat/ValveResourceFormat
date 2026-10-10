@@ -60,6 +60,25 @@ namespace Tests.Resources
             }
         }
 
+        [Test]
+        public async Task AdditiveBlendTurnsTheBoneInItsOwnSpace()
+        {
+            var pose = new FrameBone(new Vector3(1f, 2f, 3f), 1f, Quaternion.CreateFromAxisAngle(Vector3.UnitZ, 0.6f));
+            var delta = new FrameBone(new Vector3(0.5f, 0f, 0f), 0.25f, Quaternion.CreateFromAxisAngle(Vector3.UnitX, 0.4f));
+
+            var blended = pose.BlendAdd(delta, 1f);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(blended.Position).IsEqualTo(pose.Position + delta.Position);
+                await Assert.That(blended.Scale).IsEqualTo(1.25f);
+
+                // The delta comes after the pose, as it does when an additive frame is composed over the bind pose
+                await Assert.That(MathF.Abs(Quaternion.Dot(blended.Angle, pose.Angle * delta.Angle))).IsGreaterThan(0.99999f);
+                await Assert.That(MathF.Abs(Quaternion.Dot(blended.Angle, delta.Angle * pose.Angle))).IsLessThan(0.999f);
+            }
+        }
+
         private static ClipAnimation LoadNovaShootAnimation(Resource resource)
         {
             resource.Read(TestFixtures.Path("shoot1_nova.vnmclip_c"));

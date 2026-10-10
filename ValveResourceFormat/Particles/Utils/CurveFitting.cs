@@ -92,12 +92,24 @@ namespace ValveResourceFormat.Particles.Utils
     /// <summary>
     /// A piecewise curve used in particle systems' dynamic parameters.
     /// </summary>
-    class PiecewiseCurve
+    public class PiecewiseCurve
     {
         private readonly Vector2 curveDomainMin;
         private readonly Vector2 curveDomainMax;
         private readonly SplineCurve[] curveSegments;
         private readonly bool isLooped;
+
+        /// <summary>Gets the lowest input (X) and output (Y) the curve is defined over.</summary>
+        public Vector2 DomainMin => curveDomainMin;
+
+        /// <summary>Gets the highest input (X) and output (Y) the curve is defined over.</summary>
+        public Vector2 DomainMax => curveDomainMax;
+
+        /// <summary>
+        /// Reads a piecewise curve from its compiled data.
+        /// </summary>
+        /// <param name="curveInfo">The curve data.</param>
+        /// <param name="isLooped">Whether evaluation wraps around the curve's domain.</param>
         public PiecewiseCurve(KVObject curveInfo, bool isLooped)
         {
             this.isLooped = isLooped;
@@ -159,6 +171,9 @@ namespace ValveResourceFormat.Particles.Utils
             return MathF.Min(MathF.Max(value, curveDomainMin.Y), curveDomainMax.Y);
         }
 
+        /// <summary>
+        /// Evaluates the curve at the given input value.
+        /// </summary>
         public float Evaluate(float value)
         {
             if (curveSegments.Length == 0)

@@ -192,6 +192,15 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// The angle in radians between two rotations, the shorter way round.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float AngleBetween(Quaternion a, Quaternion b)
+        {
+            return 2f * SafeAcos(MathF.Abs(Quaternion.Dot(a, b)));
+        }
+
+        /// <summary>
         /// Moves <paramref name="value"/> toward <paramref name="target"/> by at most <paramref name="step"/>,
         /// without overshooting.
         /// </summary>

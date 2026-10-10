@@ -4,4 +4,8 @@
   <Project Path="Renderer/Renderer.csproj" />
   <Project Path="Tests/Tests.csproj" />
   <Project Path="ValveResourceFormat/ValveResourceFormat.csproj" />
+
+  <Folder Name="/Misc/">
+    <Project Path="Misc/SourceGenerators/SourceGenerators.csproj" />
+  </Folder>
 </Solution>

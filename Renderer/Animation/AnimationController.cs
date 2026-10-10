@@ -113,6 +113,13 @@ namespace ValveResourceFormat.Renderer
             set => player.IsPaused = value;
         }
 
+        /// <summary>
+        /// Advances the attached animation graph by one step on the next update while <see cref="IsPaused"/>,
+        /// as that frame's only update.
+        /// </summary>
+        /// <param name="timeStep">How far to advance, in seconds, before <see cref="FrametimeMultiplier"/>.</param>
+        public void StepGraph(float timeStep) => player.StepGraph(timeStep * FrametimeMultiplier);
+
         /// <summary>Gets or sets whether the active animation is composed over the bind pose.</summary>
         public bool ApplyAdditive
         {
@@ -183,6 +190,12 @@ namespace ValveResourceFormat.Renderer
         /// <returns><see langword="true"/> if the pose was updated; <see langword="false"/> if nothing changed.</returns>
         public bool Update(float timeStep)
         {
+            if (BoneMergeParent is { } parent)
+            {
+                parent.FullPose.CopyTo(Pose, 0);
+                return true;
+            }
+
             timeStep *= FrametimeMultiplier;
 
             // External skeletons are posed in their own space; Transform is applied during remapping below.
@@ -280,6 +293,49 @@ namespace ValveResourceFormat.Renderer
             externalRetargeter = newRetargeter;
 
             player.SetAnimation(animation, blendTime, Looping, warp);
+            updateHandler(ActiveAnimation, -1);
+        }
+
+        /// <summary>
+        /// Attaches an animation graph as the pose source, playing it on the player of the skeleton the graph
+        /// animates: the model's own, or an external one registered if needed. Pass <see langword="null"/>
+        /// to detach the graph from the current player and return to clip playback.
+        /// </summary>
+        /// <param name="graph">The animation graph to play, or <see langword="null"/> to detach.</param>
+        public void SetAnimationGraph(IAnimationGraph? graph)
+        {
+            if (graph == null)
+            {
+                player.SetGraph(null);
+                return;
+            }
+
+            var newPlayer = modelPlayer;
+            SkeletonRetargeter? newRetargeter = null;
+
+            if (graph.SkeletonName.Length > 0)
+            {
+                if (!externalSkeletons.TryGetValue(graph.SkeletonName, out var external))
+                {
+                    RegisterExternalSkeleton(graph.SkeletonName, graph.Skeleton);
+                    external = externalSkeletons[graph.SkeletonName];
+                }
+
+                newPlayer = external.Player;
+                newRetargeter = external.Retargeter;
+            }
+
+            if (newPlayer != player)
+            {
+                newPlayer.IsPaused = player.IsPaused;
+                player.ClearClips();
+                player.SetGraph(null);
+            }
+
+            player = newPlayer;
+            externalRetargeter = newRetargeter;
+
+            player.SetGraph(graph);
             updateHandler(ActiveAnimation, -1);
         }
 

@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
@@ -38,6 +39,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private readonly (string Name, string[] Materials)[] materialGroups;
 
+        /// <summary>Gets the animation graphs the model is bound to, by identifier and resource name. The first is the default.</summary>
+        public IReadOnlyList<(string Identifier, string GraphPath)> AnimationGraphReferences { get; }
+
         /// <summary>
         /// Loads the model's meshes and animations.
         /// </summary>
@@ -49,6 +53,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             : base(scene)
         {
             materialGroups = model.GetMaterialGroups().ToArray();
+            AnimationGraphReferences = model.AnimGraph2References;
             meshGroups = model.MeshGroups;
             lod = new ModelLodSelector(model.LodInfo);
             referenceMeshes = model.GetReferenceMeshNamesAndLoD().ToList();
@@ -276,11 +281,26 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        private IEnumerable<Animation> GetAllAnimations(Model model)
+        {
+            var fileLoader = Scene.RendererContext.FileLoader;
+
+            try
+            {
+                return model.GetAllAnimations(fileLoader);
+            }
+            catch (Exception e) when (model.AnimGraph2References.Count > 0)
+            {
+                Scene.RendererContext.Logger.LogError(e, "Failed to load the animation graph clips of '{Model}', loading it without them", model.Name);
+                return model.GetAllAnimations(fileLoader, includeAnimationGraphClips: false);
+            }
+        }
+
         private void LoadAnimations(Model model, bool embeddedAnimationsOnly)
         {
             var animations = (embeddedAnimationsOnly
                 ? model.GetEmbeddedAnimations()
-                : model.GetAllAnimations(Scene.RendererContext.FileLoader)).ToList();
+                : GetAllAnimations(model)).ToList();
 
             animations.RemoveAll(animation => !AnimationController.IsPlayable(animation));
 
@@ -444,6 +464,62 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 {
                     renderer.SetSkinningActive(false);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Loads an animation graph to play on this model, reusing the clips the node already loaded. Each node
+        /// needs its own instance, which holds the playback state.
+        /// </summary>
+        /// <param name="graphPath">The graph resource name, such as one of <see cref="AnimationGraphReferences"/>.</param>
+        /// <returns>The graph, or <see langword="null"/> when it or a skeleton it animates could not be loaded.</returns>
+        public AnimationGraph? LoadAnimationGraph(string graphPath)
+        {
+            var fileLoader = Scene.RendererContext.FileLoader;
+
+            try
+            {
+                if (fileLoader.LoadFileCompiled(graphPath) is not { ResourceType: ResourceType.NmGraph, DataBlock: BinaryKV3 graphDefinition })
+                {
+                    return null;
+                }
+
+                return AnimationGraph.TryLoad(graphDefinition, fileLoader, clipName => Animations.GetValueOrDefault(clipName) as ClipAnimation);
+            }
+            catch (Exception e)
+            {
+                // The graph format changes over time, and one that cannot be read must not take the model down with it
+                Scene.RendererContext.Logger.LogError(e, "Failed to load animation graph '{Graph}'", graphPath);
+                return null;
+            }
+        }
+
+        /// <summary>Plays the model's default animation graph.</summary>
+        /// <returns><see langword="true"/> when the model has a default graph and it loaded.</returns>
+        public bool PlayDefaultAnimationGraph()
+        {
+            if (AnimationGraphReferences.Count == 0 || LoadAnimationGraph(AnimationGraphReferences[0].GraphPath) is not { } graph)
+            {
+                return false;
+            }
+
+            SetAnimationGraph(graph);
+            return true;
+        }
+
+        /// <summary>
+        /// Plays an animation graph on this model, binding the skinning buffers the same way
+        /// <see cref="SetAnimation"/> does. Pass <see langword="null"/> to detach the graph.
+        /// </summary>
+        /// <param name="graph">The animation graph to play, or <see langword="null"/> to detach.</param>
+        public void SetAnimationGraph(IAnimationGraph? graph)
+        {
+            AnimationController.SetAnimationGraph(graph);
+            UpdateBoundingBox();
+
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.SetSkinningActive(graph != null && IsAnimated);
             }
         }
 

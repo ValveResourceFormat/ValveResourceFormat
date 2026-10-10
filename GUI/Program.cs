@@ -236,6 +236,14 @@ namespace GUI
 
             output.AppendLine("```");
             output.AppendLine(exception.ToString());
+
+            if (exception.Data[ValveResourceFormat.Renderer.AnimationGraph.ExceptionDataKey] is string graphState)
+            {
+                output.AppendLine();
+                output.AppendLine(ValveResourceFormat.Renderer.AnimationGraph.ExceptionDataKey + ":");
+                output.Append(graphState);
+            }
+
             output.AppendLine("```");
 
             output.Append("*S2V ");

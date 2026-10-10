@@ -292,3 +292,7 @@ dotnet_diagnostic.CA5390.severity = none # Do not hard-code encryption key
 # Test assemblies have no synchronization context to capture.
 [Tests/**.cs]
 dotnet_diagnostic.CA2007.severity = none # Consider calling ConfigureAwait on the awaited task
+
+# Generated from the schema, which describes more classes than the renderer reads.
+[Renderer/Animation/AnimLib/Definitions/**.cs]
+dotnet_diagnostic.CA1812.severity = none # Avoid uninstantiated internal classes

@@ -2,6 +2,7 @@
   <Project Path="VrfFgdParser/VrfFgdParser.csproj" />
   <Project Path="RenderTest/RenderTest.csproj" />
   <Project Path="ShaderValidator/ShaderValidator.csproj" />
+  <Project Path="SourceGenerators/SourceGenerators.csproj" />
   <Project Path="FontMsdfGen/FontMsdfGen.csproj" />
   <Project Path="MurmurHashMatcher/MurmurHashMatcher.csproj" />
   <Project Path="ShaderCatalog/ShaderCatalog.csproj" />

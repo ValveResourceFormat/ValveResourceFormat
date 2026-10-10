@@ -9,6 +9,20 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets whether first-person legs mode is enabled (zeros bones from spine_0 and up, keeping the pelvis and legs).</summary>
         internal bool EnableFirstPersonLegs { get; set; }
 
+        /// <summary>
+        /// Gets or sets the controller this one is bone merged onto. While set, <see cref="Update"/> copies
+        /// that controller's <see cref="FullPose"/> instead of animating, so both must be of the same skeleton.
+        /// </summary>
+        internal AnimationController? BoneMergeParent { get; set; }
+
+        private Matrix4x4[]? fullPose;
+
+        /// <summary>
+        /// Gets the pose as it was before <see cref="EnableFirstPersonLegs"/> hid the upper body, which is
+        /// <see cref="Pose"/> itself when nothing is hidden. Bone merged controllers take this one.
+        /// </summary>
+        internal Matrix4x4[] FullPose => EnableFirstPersonLegs && fullPose != null ? fullPose : Pose;
+
         /// <summary>Gets or sets whether the bone constraints are evaluated after each pose update.</summary>
         public bool EnableConstraints { get; set; } = true;
 
@@ -41,6 +55,9 @@ namespace ValveResourceFormat.Renderer
             {
                 return;
             }
+
+            fullPose ??= new Matrix4x4[Pose.Length];
+            Pose.CopyTo(fullPose, 0);
 
             var spine0 = Skeleton.GetBoneIndex("spine_0");
             if (spine0 != -1)
