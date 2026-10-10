@@ -2286,13 +2286,6 @@ namespace CLI
                         }
                     }
                     break;
-                case ResourceType.Shader:
-                {
-                    var stream = resource.Reader!.BaseStream;
-                    stream.Seek(0, SeekOrigin.Begin);
-                    ParseVCS(path, stream, originalPath, package);
-                    break;
-                }
             }
 
             AddStatLocal(info);
@@ -2329,6 +2322,14 @@ namespace CLI
                     ExportExtras = GltfExportExtras,
                 };
                 gltfModelExporter.Export(resource, null); // Filename passed as null which tells exporter to write gltf to a null stream
+            }
+
+            // Last, because the shader disposes the resource stream it reads
+            if (resource.ResourceType == ResourceType.Shader)
+            {
+                var stream = resource.Reader!.BaseStream;
+                stream.Seek(0, SeekOrigin.Begin);
+                ParseVCS(path, stream, originalPath, package);
             }
         }
 
