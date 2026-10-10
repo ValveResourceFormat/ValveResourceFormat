@@ -348,19 +348,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 // Read bone list
                 var end = 8 + numElements * 2;
                 var elements = MemoryMarshal.Cast<byte, short>(containerSpan[8..end]);
-                var remapTable = new int[localChannel.RemapTable.Length];
-
-                for (var j = 0; j < remapTable.Length; j++)
-                {
-                    remapTable[j] = elements.IndexOf((short)localChannel.RemapTable[j]);
-                }
-
-                var wantedElements = remapTable.Where(boneID => boneID != -1).ToArray();
-                remapTable = remapTable
-                    .Select((boneID, i) => (boneID, i))
-                    .Where(t => t.boneID != -1)
-                    .Select(t => t.i)
-                    .ToArray();
+                var (wantedElements, remapTable) = BuildSegmentRemap(elements, localChannel.RemapTable);
 
                 if (localChannel.Attribute == AnimationChannelAttribute.Unknown)
                 {
@@ -405,6 +393,60 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             return segmentArray;
+        }
+
+        /// <summary>
+        /// Pairs each channel element the segment stores with its position in the segment.
+        /// </summary>
+        /// <returns>The positions within the segment, and the matching channel element indices, in channel order.</returns>
+        private static (int[] WantedElements, int[] RemapTable) BuildSegmentRemap(ReadOnlySpan<short> elements, int[] channelRemap)
+        {
+            // Searching the element list for every channel entry is quadratic, and dominated loading models with many animations
+            var maxElement = -1;
+
+            foreach (var element in elements)
+            {
+                maxElement = Math.Max(maxElement, element);
+            }
+
+            var positions = new int[maxElement + 1];
+            positions.AsSpan().Fill(-1);
+
+            for (var i = elements.Length - 1; i >= 0; i--)
+            {
+                if (elements[i] >= 0)
+                {
+                    positions[elements[i]] = i;
+                }
+            }
+
+            var count = 0;
+
+            foreach (var element in channelRemap)
+            {
+                if ((uint)element < (uint)positions.Length && positions[element] != -1)
+                {
+                    count++;
+                }
+            }
+
+            var wantedElements = new int[count];
+            var remapTable = new int[count];
+            count = 0;
+
+            for (var i = 0; i < channelRemap.Length; i++)
+            {
+                var element = channelRemap[i];
+
+                if ((uint)element < (uint)positions.Length && positions[element] != -1)
+                {
+                    wantedElements[count] = positions[element];
+                    remapTable[count] = i;
+                    count++;
+                }
+            }
+
+            return (wantedElements, remapTable);
         }
 
         /// <summary>
