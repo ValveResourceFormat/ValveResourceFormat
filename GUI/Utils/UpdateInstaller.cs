@@ -1,7 +1,9 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
@@ -9,6 +11,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Forms;
 using Sigstore;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.Storage.FileSystem;
 
 namespace GUI.Utils;
 
@@ -24,6 +29,9 @@ static class UpdateInstaller
     private const string RepositoryId = "42366054";
     private const string Workflow = ".github/workflows/build.yml";
     private const string ProvenancePredicateType = "https://slsa.dev/provenance/v1";
+
+    /// <summary>Starts the viewer as an elevated installer, followed by the download path and its SHA-256.</summary>
+    public const string ElevatedInstallArgument = "--install-update";
 
     // Keeps the Sigstore trust root cached between verifications
     private static readonly SigstoreVerifier Verifier = new();
@@ -48,7 +56,14 @@ static class UpdateInstaller
         }
 
         TryDelete(exePath + PendingSuffix);
-        _ = DeleteReplacedAsync(exePath + ReplacedSuffix);
+
+        // An elevated install schedules its replaced executable for deletion on reboot instead
+        var replacedPath = exePath + ReplacedSuffix;
+
+        if (File.Exists(replacedPath) && IsDirectoryWritable(Path.GetDirectoryName(exePath)!))
+        {
+            _ = DeleteReplacedAsync(replacedPath);
+        }
     }
 
     // The previous instance is usually still exiting when this one starts, so keep trying for a while.
@@ -142,16 +157,31 @@ static class UpdateInstaller
             return;
         }
 
+        var installed = true;
+
         try
         {
-            Swap(exePath, downloadPath);
+            if (IsDirectoryWritable(Path.GetDirectoryName(exePath)!))
+            {
+                Swap(exePath, downloadPath, expectedHash);
+            }
+            else
+            {
+                installed = await InstallElevatedAsync(exePath, downloadPath, expectedHash).ConfigureAwait(true);
+            }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            TryDelete(downloadPath);
-            TryDelete(exePath + PendingSuffix);
-
             throw new IOException($"The update was verified but could not be installed over {exePath}. {e.Message}", e);
+        }
+        finally
+        {
+            TryDelete(downloadPath);
+        }
+
+        if (!installed)
+        {
+            return;
         }
 
         InstalledVersionText = UpdateChecker.NewVersionText;
@@ -386,10 +416,7 @@ static class UpdateInstaller
             throw new InvalidDataException($"Downloaded {actualSize} bytes but expected {expectedSize} bytes.");
         }
 
-        if (!actualHash.Equals(expectedHash, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidDataException("The downloaded file does not match the expected hash.");
-        }
+        VerifyHash(actualHash, expectedHash);
 
         // The file is what the manifest promised, now make sure the manifest promised the right build
         var fileVersion = FileVersionInfo.GetVersionInfo(downloadPath).FileVersion;
@@ -411,9 +438,82 @@ static class UpdateInstaller
         }
     }
 
+    // Probing is the only reliable check, a running executable that cannot be deleted
+    // and a folder without write access both fail with access denied
+    private static bool IsDirectoryWritable(string directory)
+    {
+        try
+        {
+            using var probe = new FileStream(Path.Combine(directory, Path.GetRandomFileName()), FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose);
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    // Returns false when the user declines the elevation prompt
+    private static async Task<bool> InstallElevatedAsync(string exePath, string downloadPath, string expectedHash)
+    {
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(exePath)
+            {
+                Arguments = $"{ElevatedInstallArgument} \"{downloadPath}\" {expectedHash}",
+                UseShellExecute = true,
+                Verb = "runas",
+            }) ?? throw new IOException("Failed to start the elevated installer.");
+
+            await process.WaitForExitAsync().ConfigureAwait(true);
+
+            if (process.ExitCode != 0)
+            {
+                throw new IOException(Marshal.GetExceptionForHR(process.ExitCode)?.Message ?? $"The elevated installer failed with code {process.ExitCode}.");
+            }
+
+            return true;
+        }
+        catch (Win32Exception e) when (e.NativeErrorCode == (int)WIN32_ERROR.ERROR_CANCELLED)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Installs a downloaded update over the running executable, from the elevated instance started by <see cref="InstallAsync"/>.
+    /// </summary>
+    /// <returns>The process exit code, zero on success and the error HRESULT otherwise.</returns>
+    public static int InstallElevated(string downloadPath, string expectedHash)
+    {
+        var exePath = Environment.ProcessPath!;
+
+        try
+        {
+            Swap(exePath, downloadPath, expectedHash);
+        }
+        catch (Exception e)
+        {
+            return e.HResult;
+        }
+
+        // The viewer cannot delete it on the next launch without elevation
+        _ = PInvoke.MoveFileEx(exePath + ReplacedSuffix, null, MOVE_FILE_FLAGS.MOVEFILE_DELAY_UNTIL_REBOOT);
+
+        return 0;
+    }
+
+    private static void VerifyHash(string actualHash, string expectedHash)
+    {
+        if (!actualHash.Equals(expectedHash, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException("The downloaded file does not match the expected hash.");
+        }
+    }
+
     // Windows allows renaming a running executable, only deleting or overwriting it is refused.
     // The old file is removed on the next launch, once nothing is running from it anymore.
-    private static void Swap(string exePath, string downloadPath)
+    private static void Swap(string exePath, string downloadPath, string expectedHash)
     {
         var replacedPath = exePath + ReplacedSuffix;
         var pendingPath = exePath + PendingSuffix;
@@ -427,19 +527,35 @@ static class UpdateInstaller
             throw new IOException("A previous update is still in use, restart the viewer and try again.", e);
         }
 
-        // Bring the download next to the executable first, so that the copy from the temp folder and any
-        // permission problem in the install folder surface before the running executable is touched.
-        // What remains are two renames on the same volume.
-        File.Move(downloadPath, pendingPath, overwrite: true);
-        File.Move(exePath, replacedPath);
-
         try
         {
-            File.Move(pendingPath, exePath);
+            // Copy the download next to the executable first, so that any permission problem in the install folder
+            // surfaces before the running executable is touched, and what remains are two renames on the same volume.
+            // Unlike a move, a copy takes the permissions of the install folder. It is hashed again as it is written
+            // because the temp folder is writable by anything the user runs.
+            using (var source = File.OpenRead(downloadPath))
+            using (var file = new FileStream(pendingPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16))
+            using (var destination = new HashingProgressStream(file, static _ => { }))
+            {
+                source.CopyTo(destination);
+                VerifyHash(destination.GetHash(), expectedHash);
+            }
+
+            File.Move(exePath, replacedPath);
+
+            try
+            {
+                File.Move(pendingPath, exePath);
+            }
+            catch
+            {
+                File.Move(replacedPath, exePath);
+                throw;
+            }
         }
         catch
         {
-            File.Move(replacedPath, exePath);
+            TryDelete(pendingPath);
             throw;
         }
     }
