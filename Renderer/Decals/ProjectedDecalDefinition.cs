@@ -223,7 +223,8 @@ namespace ValveResourceFormat.Renderer.Decals
         {
             ArgumentNullException.ThrowIfNull(fileLoader);
 
-            using var resource = fileLoader.LoadFileCompiled(ColorTexture);
+            // Not disposed: a caching loader may share this texture with a material still streaming its mips
+            var resource = fileLoader.LoadFileCompiled(ColorTexture);
 
             if (resource?.DataBlock is not Texture texture || texture.GetSpriteSheetData() is not { } sheet)
             {

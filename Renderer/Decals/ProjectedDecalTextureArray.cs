@@ -51,7 +51,8 @@ namespace ValveResourceFormat.Renderer.Decals
                 return existing;
             }
 
-            using var resource = fileLoader.LoadFileCompiled(path);
+            // Not disposed: a caching loader may share this texture with a material still streaming its mips
+            var resource = fileLoader.LoadFileCompiled(path);
 
             // TODO: Compress textures in other formats to BC7 on the GPU instead of rejecting them
             if (resource?.DataBlock is not Texture data || data.Format != format || data.Depth != 1)
@@ -134,7 +135,7 @@ namespace ValveResourceFormat.Renderer.Decals
                     continue;
                 }
 
-                using var resource = fileLoader?.LoadFileCompiled(layerPaths[i]);
+                var resource = fileLoader?.LoadFileCompiled(layerPaths[i]);
 
                 if (resource?.DataBlock is Texture data)
                 {

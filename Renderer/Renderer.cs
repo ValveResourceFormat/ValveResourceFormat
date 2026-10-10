@@ -689,7 +689,8 @@ public class Renderer : ISpawnGroupHost
                 continue;
             }
 
-            using var resource = RendererContext.FileLoader.LoadFileCompiled(path);
+            // Not disposed: a caching loader may share this texture with a material still streaming its mips
+            var resource = RendererContext.FileLoader.LoadFileCompiled(path);
 
             var texture = resource != null
                 ? RendererContext.MaterialLoader.LoadTexture(resource)
