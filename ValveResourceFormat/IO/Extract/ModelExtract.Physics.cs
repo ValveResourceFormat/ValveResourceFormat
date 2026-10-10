@@ -175,7 +175,7 @@ partial class ModelExtract
                 }
 
                 int hullCount = Math.Min(shape.GetAllHulls().Count(), PhysHullsToExtract.Count - hullIndex);
-                int meshCount = Math.Min(shape.GetAllMeshes().Count(), PhysMeshesToExtract.Count - meshIndex);
+                int meshCount = Math.Min(shape.GetAllMeshes().Sum(CountMeshNodes), PhysMeshesToExtract.Count - meshIndex);
 
                 if (writesShapeFiles)
                 {
@@ -245,7 +245,6 @@ partial class ModelExtract
 
         var shapeName = shapeDesc.UserFriendlyName ?? Path.GetFileNameWithoutExtension(fileName);
 
-        // TODO: per faceSet surface_prop
         var physicsShapeFile = MakeNode(
             className,
             ("filename", fileName),
@@ -254,6 +253,11 @@ partial class ModelExtract
             ("collision_tags", string.Join(" ", collisionTags)),
             ("name", shapeName)
         );
+
+        if (shapeDesc is HullDescriptor)
+        {
+            physicsShapeFile.Add("optimization_algorithm", "Exact");
+        }
 
         AddHitGroup(physicsShapeFile, shapeDesc);
         AddCollisionProperty(physicsShapeFile, shapeDesc.CollisionAttributeIndex);

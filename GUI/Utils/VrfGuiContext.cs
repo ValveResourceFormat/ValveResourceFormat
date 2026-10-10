@@ -333,6 +333,10 @@ namespace GUI.Utils
         }
 
         // Override to add support for parent file loaders
+        public override IEnumerable<string> FindFilesByName(string fileName)
+            => base.FindFilesByName(fileName).Concat(ParentGuiContext?.FindFilesByName(fileName) ?? []).Distinct();
+
+        // Override to add support for parent file loaders
         protected override ShaderCollection LoadShaderFromDisk(string shaderName)
         {
             if (ParentGuiContext != null)
@@ -354,6 +358,7 @@ namespace GUI.Utils
             public Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
             public ShaderCollection? LoadShader(string shaderName) => context.LoadShader(shaderName);
             public Stream? GetFileStream(string file) => context.GetFileStream(file);
+            public IEnumerable<string> FindFilesByName(string fileName) => context.FindFilesByName(fileName);
         }
 
         private Resource? LoadFileUncached(string file) => base.LoadFile(file);

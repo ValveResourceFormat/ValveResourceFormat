@@ -554,8 +554,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <returns>Enumerable of material group names and their materials.</returns>
         public IEnumerable<(string Name, string[] Materials)> GetMaterialGroups()
-           => Data.GetArray("m_materialGroups")
-                .Select(group => (group.GetStringProperty("m_name"), group.GetArray<string>("m_materials")));
+           => (Data.GetArray("m_materialGroups") ?? [])
+                .Select(group => (group.GetStringProperty("m_name"), group.GetArray<string>("m_materials") ?? []));
 
         /// <summary>
         /// Gets the material attributes the anim graph is allowed to drive, with their channel count

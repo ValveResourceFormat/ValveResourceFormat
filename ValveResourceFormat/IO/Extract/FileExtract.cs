@@ -147,6 +147,9 @@ namespace ValveResourceFormat.IO
         /// <inheritdoc/>
         public Stream? GetFileStream(string file) => fileLoader.GetFileStream(file);
 
+        /// <inheritdoc/>
+        public IEnumerable<string> FindFilesByName(string fileName) => fileLoader.FindFilesByName(fileName);
+
         /// <summary>
         /// Initializes a new instance of the <see cref="TrackingFileLoader"/> class.
         /// </summary>
