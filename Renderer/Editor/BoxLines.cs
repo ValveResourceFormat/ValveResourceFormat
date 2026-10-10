@@ -13,40 +13,36 @@ internal static class BoxLines
     // Opacity of the lines over the scene, out of 255
     private const byte HiddenLineAlpha = 32;
 
-    private static readonly Color32 AxisX = new(1.0f, 0.2f, 0.2f, 1);
-    private static readonly Color32 AxisY = new(0.2f, 0.8f, 0.2f, 1);
-    private static readonly Color32 AxisZ = new(0.2f, 0.2f, 1.0f, 1);
+    private static readonly Color32 AxisX = new(255, 140, 140);
+    private static readonly Color32 AxisY = new(140, 255, 140);
+    private static readonly Color32 AxisZ = new(140, 140, 255);
 
     /// <summary>Adds the twelve edges of a transformed box.</summary>
     public static void Add(HelperVertices vertices, in Matrix4x4 transform, in AABB box, Color32 color)
         => Add(vertices, transform, box, color, null, null);
 
     /// <summary>
-    /// Adds the twelve edges of a transformed box, colouring the three edges at the corner nearest the
-    /// camera by axis and labelling them with their lengths.
+    /// Adds the twelve edges of a transformed box, colouring the three edges at the corner in view nearest
+    /// the camera by axis and labelling them with their lengths, as Hammer shows the size of a selection.
     /// </summary>
     public static void AddWithSize(HelperVertices vertices, in Matrix4x4 transform, in AABB box, Color32 color, Camera camera, TextRenderer textRenderer)
         => Add(vertices, transform, box, color, camera, textRenderer);
 
     private static void Add(HelperVertices vertices, in Matrix4x4 transform, in AABB box, Color32 color, Camera? camera, TextRenderer? textRenderer)
     {
-        ReadOnlySpan<Vector3> c =
-        [
-            Vector3.Transform(new Vector3(box.Min.X, box.Min.Y, box.Min.Z), transform),
-            Vector3.Transform(new Vector3(box.Max.X, box.Min.Y, box.Min.Z), transform),
-            Vector3.Transform(new Vector3(box.Max.X, box.Max.Y, box.Min.Z), transform),
-            Vector3.Transform(new Vector3(box.Min.X, box.Max.Y, box.Min.Z), transform),
-            Vector3.Transform(new Vector3(box.Min.X, box.Min.Y, box.Max.Z), transform),
-            Vector3.Transform(new Vector3(box.Max.X, box.Min.Y, box.Max.Z), transform),
-            Vector3.Transform(new Vector3(box.Max.X, box.Max.Y, box.Max.Z), transform),
-            Vector3.Transform(new Vector3(box.Min.X, box.Max.Y, box.Max.Z), transform),
-        ];
+        Span<Vector3> c = stackalloc Vector3[8];
+        GetCorners(box, c);
+
+        foreach (ref var corner in c)
+        {
+            corner = Vector3.Transform(corner, transform);
+        }
 
         ReadOnlySpan<(int Start, int End)> Lines =
         [
-            (0, 1), (1, 2), (2, 3), (3, 0), // Bottom face
-            (4, 5), (5, 6), (6, 7), (7, 4), // Top face
-            (0, 4), (1, 5), (2, 6), (3, 7), // Vertical edges
+            (0, 1), (1, 3), (3, 2), (2, 0), // Bottom face
+            (4, 5), (5, 7), (7, 6), (6, 4), // Top face
+            (0, 4), (1, 5), (3, 7), (2, 6), // Vertical edges
         ];
 
         var closestIndex = camera != null ? ClosestVertexInView(camera, c) : -1;
@@ -67,16 +63,19 @@ internal static class BoxLines
                 };
 
                 var (v0, v1) = (c[line.Start], c[line.End]);
-                var length = Vector3.Distance(v0, v1);
+                var middle = Vector3.Lerp(v0, v1, 0.5f);
 
-                textRenderer!.AddTextBillboard(Vector3.Lerp(v0, v1, 0.5f), new TextRenderer.TextRenderRequest
+                if (FormatLength(Vector3.Distance(v0, v1)) is { } text && camera!.ViewFrustum.Intersects(middle))
                 {
-                    Scale = 13f,
-                    Color = axisColor,
-                    Text = length.ToString("0.##", CultureInfo.InvariantCulture),
-                    CenterVertical = true,
-                    CenterHorizontal = true,
-                }, camera!);
+                    textRenderer!.AddTextBillboard(middle, new TextRenderer.TextRenderRequest
+                    {
+                        Scale = 13f,
+                        Color = axisColor,
+                        Text = text,
+                        CenterVertical = true,
+                        CenterHorizontal = true,
+                    }, camera);
+                }
 
                 AddLine(vertices, c[line.Start], c[line.End], axisColor);
                 continue;
@@ -86,14 +85,42 @@ internal static class BoxLines
         }
     }
 
+    /// <summary>Gets the corners of a box. Corner i takes the max along X, Y and Z where bits 0, 1 and 2 of i are set.</summary>
+    public static void GetCorners(in AABB box, Span<Vector3> corners)
+    {
+        for (var i = 0; i < corners.Length; i++)
+        {
+            corners[i] = new Vector3(
+                (i & 1) != 0 ? box.Max.X : box.Min.X,
+                (i & 2) != 0 ? box.Max.Y : box.Min.Y,
+                (i & 4) != 0 ? box.Max.Z : box.Min.Z);
+        }
+    }
+
     /// <summary>Adds a line, solid where seen and faint over the scene.</summary>
     public static void AddLine(HelperVertices vertices, Vector3 start, Vector3 end, Color32 color)
         => vertices.AddLine(start, end, color with { A = HiddenLineAlpha }, HelperPasses.Both);
 
+    // Whole when within a hundredth of it, otherwise to two decimals, and nothing for an edge with no length
+    private static string? FormatLength(float length)
+    {
+        if (length < 0.01f)
+        {
+            return null;
+        }
+
+        var rounded = (int)(length + 0.5f);
+
+        return MathF.Abs(length - rounded) < 0.01f
+            ? rounded.ToString(CultureInfo.InvariantCulture)
+            : length.ToString("F2", CultureInfo.InvariantCulture);
+    }
+
+    // The corner in view nearest the camera, or the box's min corner while none of them are in view
     private static int ClosestVertexInView(Camera camera, ReadOnlySpan<Vector3> vertices)
     {
         var minDistance = float.MaxValue;
-        var closestIndex = -1;
+        var closestIndex = 0;
 
         for (var i = 0; i < vertices.Length; i++)
         {
