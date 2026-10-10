@@ -21,21 +21,13 @@ public abstract class RawBinary : Block
             throw new NotImplementedException("Serializing this block currently only works when modifying an existing resource.");
         }
 
-        // The dumbest implementation.
-        var data = new byte[Size];
-        Resource.Reader.BaseStream.Position = Offset;
-        Resource.Reader.Read(data);
-        stream.Write(data);
+        stream.Write(ReadRawData());
     }
 
     /// <inheritdoc/>
     public override void WriteText(IndentedTextWriter writer)
     {
-        ArgumentNullException.ThrowIfNull(Resource?.Reader);
-
-        var data = new byte[Size];
-        Resource.Reader.BaseStream.Position = Offset;
-        Resource.Reader.Read(data);
+        var data = ReadRawData();
 
         for (var i = 0; i < data.Length; i += 16)
         {

@@ -569,8 +569,11 @@ namespace ValveResourceFormat.ResourceTypes
             Debug.Assert(buffer.Length == StreamingDataSize);
             Debug.Assert(Reader != null);
 
-            Reader.BaseStream.Position = Resource.FileSize;
-            Reader.BaseStream.ReadExactly(buffer);
+            lock (Resource.ReaderLock)
+            {
+                Reader.BaseStream.Position = Resource.FileSize;
+                Reader.BaseStream.ReadExactly(buffer);
+            }
         }
 
         /// <summary>
@@ -627,8 +630,11 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             Debug.Assert(Reader != null);
-            Reader.BaseStream.Position = Resource.FileSize;
-            Reader.BaseStream.CopyTo(stream);
+            lock (Resource.ReaderLock)
+            {
+                Reader.BaseStream.Position = Resource.FileSize;
+                Reader.BaseStream.CopyTo(stream);
+            }
             Debug.Assert(stream.Length == totalSize);
 
             // Flush and reset position so that consumers can read it

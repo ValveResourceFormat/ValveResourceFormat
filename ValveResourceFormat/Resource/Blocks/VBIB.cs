@@ -403,8 +403,12 @@ namespace ValveResourceFormat.Blocks
                 {
                     Debug.Assert(Resource.Reader != null);
                     var span = temp.AsSpan(0, compressedSize);
-                    Resource.Reader.BaseStream.Position = dataBlock.Offset;
-                    Resource.Reader.Read(span);
+
+                    lock (Resource.ReaderLock)
+                    {
+                        Resource.Reader.BaseStream.Position = dataBlock.Offset;
+                        Resource.Reader.Read(span);
+                    }
 
                     if (isZstdCompressed || isMeshoptCompressed)
                     {

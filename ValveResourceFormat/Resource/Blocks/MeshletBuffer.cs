@@ -44,8 +44,12 @@ public class MeshletBuffer : RawBinary
         try
         {
             var buffer = rented.AsSpan(0, byteCount);
-            Resource.Reader.BaseStream.Position = Offset + (long)entryOffset * sizeof(uint);
-            Resource.Reader.Read(buffer);
+
+            lock (Resource.ReaderLock)
+            {
+                Resource.Reader.BaseStream.Position = Offset + (long)entryOffset * sizeof(uint);
+                Resource.Reader.Read(buffer);
+            }
 
             var entries = MemoryMarshal.Cast<byte, uint>(buffer);
 
