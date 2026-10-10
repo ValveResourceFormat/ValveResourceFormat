@@ -1,9 +1,8 @@
 using System.Globalization;
-using ValveResourceFormat.Editor.Entities;
-using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Utils;
 
-namespace ValveResourceFormat.Editor;
+namespace ValveResourceFormat.Renderer.Editor;
 
 /// <summary>
 /// Builds the lines of wireframe boxes drawn by editor overlays, solid where the scene does not hide them and

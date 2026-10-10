@@ -1,7 +1,6 @@
 using System.Threading;
-using ValveResourceFormat.Renderer;
 
-namespace ValveResourceFormat.Editor.Selection;
+namespace ValveResourceFormat.Renderer.Editor.Selection;
 
 /// <summary>
 /// The scene nodes selected in a viewport. It is changed from both the UI thread and the render

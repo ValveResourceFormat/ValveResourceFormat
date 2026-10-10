@@ -1,13 +1,12 @@
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Editor.Entities;
-using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
-namespace ValveResourceFormat.Editor.Selection;
+namespace ValveResourceFormat.Renderer.Editor.Selection;
 
 /// <summary>Which lighting a selected node uses is shown linked to it.</summary>
 public enum LightingBindingDisplay
