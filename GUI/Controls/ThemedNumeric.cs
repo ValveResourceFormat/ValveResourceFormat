@@ -178,15 +178,7 @@ namespace GUI.Controls
 
         protected override int Parse(string text)
         {
-            try
-            {
-                return Clamp(int.Parse(text, CultureInfo.InvariantCulture));
-            }
-            catch (Exception)
-            {
-            }
-
-            return Value;
+            return int.TryParse(text, CultureInfo.InvariantCulture, out var value) ? Clamp(value) : Value;
         }
 
         protected override int Clamp(int value)
@@ -226,15 +218,7 @@ namespace GUI.Controls
 
         protected override float Parse(string text)
         {
-            try
-            {
-                return Clamp(float.Parse(text, CultureInfo.InvariantCulture));
-            }
-            catch (Exception)
-            {
-            }
-
-            return Value;
+            return float.TryParse(text, CultureInfo.InvariantCulture, out var value) ? Clamp(value) : Value;
         }
 
         protected override float Clamp(float value)

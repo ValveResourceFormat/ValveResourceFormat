@@ -21,6 +21,9 @@ internal class Slider : UserControl
     public Slider()
     {
         DoubleBuffered = true;
+
+        // The knob position scales with the width, so a resize moves everything already drawn
+        ResizeRedraw = true;
     }
 
     protected override void OnHandleCreated(EventArgs e)
@@ -48,7 +51,7 @@ internal class Slider : UserControl
         var sliderStartX = knobRadius;
         var sliderWidth = width - KnobSize;
 
-        var knobCenterX = sliderStartX + Value * sliderWidth + knobRadius;
+        var knobCenterX = sliderStartX + Value * sliderWidth;
         var filledWidth = knobCenterX - sliderStartX;
         var unfilledWidth = sliderWidth - filledWidth;
 
@@ -93,13 +96,11 @@ internal class Slider : UserControl
 
         var mousePos = ClipPointToRect(PointToClient(Cursor.Position), ClientRectangle);
 
-        var knobSize = (int)(Height / 1.5);
-        var knobRadius = knobSize / 2;
-        var penWidth = Themer.AdjustForDPI(this, 2);
-        var halfPenWidth = (int)Math.Ceiling(penWidth / 2f);
-        var effectiveWidth = Width - knobSize - halfPenWidth * 2;
+        // The same track OnPaint draws: knob centres run from one radius in to one radius short of the end
+        var knobRadius = KnobSize / 2;
+        var trackWidth = Width - KnobSize;
 
-        Value = MathUtils.Saturate(MathUtils.Remap(mousePos.X - knobRadius - halfPenWidth, 0f, effectiveWidth));
+        Value = trackWidth > 0 ? MathUtils.Saturate(MathUtils.Remap(mousePos.X - knobRadius, 0f, trackWidth)) : 0f;
 
         ValueChanged?.Invoke(Value);
     }
