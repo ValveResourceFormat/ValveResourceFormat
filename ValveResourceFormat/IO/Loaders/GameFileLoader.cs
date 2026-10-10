@@ -1,5 +1,6 @@
 //#define DEBUG_FILE_LOAD
 
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -51,7 +52,7 @@ namespace ValveResourceFormat.IO
         private readonly HashSet<string> CurrentGameSearchPaths = [];
         private readonly HashSet<string> CurrentGameOfficialAddonsPaths = [];
         private readonly HashSet<string> CurrentGameAddonsPaths = [];
-        private readonly List<Package> CurrentGamePackages = [];
+        private ImmutableArray<Package> CurrentGamePackages = [];
 
         // Addons are mounted in front of the game's own files, so they override them
         private readonly List<Package> CurrentAddonPackages = [];
@@ -126,7 +127,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 CurrentAddonPackages.Clear();
-                CurrentGamePackages.Clear();
+                CurrentGamePackages = [];
 
                 lock (CachedShadersLock)
                 {
@@ -550,7 +551,12 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public void AddPackageToSearch(Package package)
         {
-            CurrentGamePackages.Add(package);
+            // Replaced rather than mutated, because files are looked up in parallel while shader and spawn group packages
+            // get mounted. Shader packages are mounted while this lock is already held by the shader load.
+            lock (CachedShadersLock)
+            {
+                CurrentGamePackages = CurrentGamePackages.Add(package);
+            }
         }
 
         /// <summary>
@@ -558,7 +564,17 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public bool RemovePackageFromSearch(Package package)
         {
-            return CurrentAddonPackages.Remove(package) || CurrentGamePackages.Remove(package);
+            if (CurrentAddonPackages.Remove(package))
+            {
+                return true;
+            }
+
+            lock (CachedShadersLock)
+            {
+                var packages = CurrentGamePackages;
+                CurrentGamePackages = packages.Remove(package);
+                return CurrentGamePackages.Length != packages.Length;
+            }
         }
 
         private Package ReadPackage(string searchPath)
