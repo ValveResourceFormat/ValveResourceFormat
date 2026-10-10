@@ -350,6 +350,40 @@ partial class RendererControl : UserControl
         return button;
     }
 
+    /// <summary>Adds a dropdown over the top right corner of the viewport.</summary>
+    public ComboBox AddViewportSelection(Action<string, int> changeCallback)
+    {
+        var margin = this.AdjustForDPI(6);
+
+        var comboBox = new ThemedFlatComboBox
+        {
+            Width = this.AdjustForDPI(180),
+            ItemHeight = this.AdjustForDPI(20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+        };
+
+        comboBox.Location = new Point(glControlContainer.ClientSize.Width - comboBox.Width - margin, margin);
+
+        comboBox.SelectedIndexChanged += (_, _) =>
+        {
+            if (comboBox.SelectedItem is string selectedItem)
+            {
+                changeCallback(selectedItem, comboBox.SelectedIndex);
+            }
+            else if (comboBox.SelectedItem is ThemedComboBoxItem selectedThemedItem)
+            {
+                changeCallback(selectedThemedItem.Text, comboBox.SelectedIndex);
+            }
+        };
+
+        glControlContainer.Controls.Add(comboBox);
+
+        // In front of the viewport, which fills the container
+        comboBox.BringToFront();
+
+        return comboBox;
+    }
+
     /// <summary>Adds a vertical line between groups of toolbar items.</summary>
     public void AddToolbarSeparator()
     {

@@ -868,7 +868,6 @@ namespace GUI.Types.GLViewers
             UiControl.UseWideSplitter();
 
             AddRenderModeSelectionControl();
-            UiControl.AddDivider();
 
             AddShaderButton();
             UiControl.AddDivider();
