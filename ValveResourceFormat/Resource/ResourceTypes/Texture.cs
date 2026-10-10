@@ -690,9 +690,13 @@ namespace ValveResourceFormat.ResourceTypes
             if (IsRawAnyImage)
             {
                 Debug.Assert(Reader is not null);
-                Reader.BaseStream.Position = DataOffset;
-                SkipMipmaps(0);
-                return Reader.ReadBytes(CalculateTextureDataSize());
+
+                lock (Resource.ReaderLock)
+                {
+                    Reader.BaseStream.Position = DataOffset;
+                    SkipMipmaps(0);
+                    return Reader.ReadBytes(CalculateTextureDataSize());
+                }
             }
 
             return null;
@@ -741,18 +745,15 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 case VTexFormat.JPEG_DXT5:
                 case VTexFormat.JPEG_RGBA8888:
-                    Reader.BaseStream.Position = DataOffset;
-                    return SKBitmap.Decode(Reader.ReadBytes(CalculateJpegSize()));
+                    return SKBitmap.Decode(ReadBytesAtData(CalculateJpegSize));
 
                 case VTexFormat.PNG_DXT5:
                 case VTexFormat.PNG_RGBA8888:
-                    Reader.BaseStream.Position = DataOffset;
-                    return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
+                    return SKBitmap.Decode(ReadBytesAtData(CalculatePngSize));
 
                 case VTexFormat.WEBP_DXT5:
                 case VTexFormat.WEBP_RGBA8888:
-                    Reader.BaseStream.Position = DataOffset;
-                    return SKBitmap.Decode(Reader.ReadBytes(CalculateWebpSize()));
+                    return SKBitmap.Decode(ReadBytesAtData(CalculateWebpSize));
             }
 
             var isHdrBitmap = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR);
@@ -783,9 +784,12 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var span = buf.AsSpan(0, uncompressedSize);
 
-                Reader.BaseStream.Position = DataOffset;
-                SkipMipmaps(mipLevel);
-                ReadTexture(mipLevel, span);
+                lock (Resource.ReaderLock)
+                {
+                    Reader.BaseStream.Position = DataOffset;
+                    SkipMipmaps(mipLevel);
+                    ReadTexture(mipLevel, span);
+                }
 
                 if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
                 {
@@ -1101,7 +1105,7 @@ namespace ValveResourceFormat.ResourceTypes
         public IEnumerable<(uint Level, int Width, int Height, int Depth, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer, int minMipLevelAllowed = 0)
         {
             Debug.Assert(Reader is not null);
-            Reader.BaseStream.Position = DataOffset;
+            long position = DataOffset;
 
             foreach (var (mipLevel, width, height, depth, uncompressedSize) in GetEveryMipLevelMetrics())
             {
@@ -1110,9 +1114,12 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 }
 
-                var output = buffer.AsSpan(0, uncompressedSize);
-
-                ReadTexture(mipLevel, output);
+                lock (Resource.ReaderLock)
+                {
+                    Reader.BaseStream.Position = position;
+                    ReadTexture(mipLevel, buffer.AsSpan(0, uncompressedSize));
+                    position = Reader.BaseStream.Position;
+                }
 
                 yield return (mipLevel, width, height, depth, uncompressedSize);
             }
@@ -1150,11 +1157,12 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new ArgumentException($"Buffer size ({output.Length}) must be at least {bufferSize}, mip level {mipLevel}");
             }
 
-            Reader.BaseStream.Position = DataOffset;
-
-            SkipMipmaps(mipLevel);
-
-            ReadTexture(mipLevel, output);
+            lock (Resource.ReaderLock)
+            {
+                Reader.BaseStream.Position = DataOffset;
+                SkipMipmaps(mipLevel);
+                ReadTexture(mipLevel, output);
+            }
         }
 
         /// <summary>Calculate decompression buffer size for <see cref="ReadTextureMipLevelInPlace"/>.</summary>
@@ -1197,12 +1205,26 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-            Reader.BaseStream.Position = DataOffset;
-
-            SkipMipmaps(mipLevel);
-
             var compressedSize = CompressedMips![mipLevel];
-            DecompressLz4Mip(buffer.Slice(requiredSize - compressedSize, compressedSize), buffer[..uncompressedSize]);
+
+            lock (Resource.ReaderLock)
+            {
+                Reader.BaseStream.Position = DataOffset;
+                SkipMipmaps(mipLevel);
+                DecompressLz4Mip(buffer.Slice(requiredSize - compressedSize, compressedSize), buffer[..uncompressedSize]);
+            }
+        }
+
+        private byte[] ReadBytesAtData(Func<int> calculateSize)
+        {
+            Debug.Assert(Reader is not null);
+
+            lock (Resource.ReaderLock)
+            {
+                var size = calculateSize();
+                Reader.BaseStream.Position = DataOffset;
+                return Reader.ReadBytes(size);
+            }
         }
 
         private int CalculateJpegSize()
@@ -1216,6 +1238,8 @@ namespace ValveResourceFormat.ResourceTypes
             Debug.Assert(Reader is not null);
 
             var size = 8; // PNG header
+
+            using var scope = Resource.ReaderLock.EnterScope();
             var originalPosition = Reader.BaseStream.Position;
 
             Reader.BaseStream.Position = DataOffset;
@@ -1264,6 +1288,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Debug.Assert(Reader is not null);
 
+            using var scope = Resource.ReaderLock.EnterScope();
             var originalPosition = Reader.BaseStream.Position;
 
             Reader.BaseStream.Position = DataOffset;
