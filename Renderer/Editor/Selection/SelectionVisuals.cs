@@ -171,11 +171,11 @@ public sealed class SelectionVisuals
 
         textRenderer.AddTextBillboard(position, new TextRenderer.TextRenderRequest
         {
-            Scale = 20f,
+            Scale = 14f,
             Text = nodeName,
             CenterHorizontal = true,
             TextOffset = NodeNameOffset
-        }, camera, fixedScale: false);
+        }, camera);
     }
 
     private void AddLightingBindings(SceneNode node, in Matrix4x4 toWorld, Vector3 nodeCenter)
