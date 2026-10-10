@@ -43,14 +43,11 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         var classname = entity.Classname;
         var hammerEntity = HammerEntities.Get(classname);
 
-        // On the editor-only layer, so it hides with the other markers rather than with the world, except a
-        // template and what it spawns, which are grouped together. An icon the Hammer class draws as a
-        // studio model stands in for real geometry, so it stays on the entity's own layer.
-        var layerName = entity.LayerName == WorldLoader.TemplateLayerName
-            ? WorldLoader.TemplateLayerName
-            : hammerEntity?.Studio == true && entity.LayerName != null
-                ? entity.LayerName
-                : MarkerLayerName;
+        // Whatever the Hammer class draws, even a model, is the editor's preview and never what the game
+        // shows, so it goes on the editor-only layer. A template and what it spawns stay grouped together.
+        // This also hides entities the game does draw but that only get the Hammer model as a stand-in here,
+        // such as CS2 weapons placed on the ground. They will show again once their class spawns its real model.
+        var layerName = entity.LayerName == WorldLoader.TemplateLayerName ? WorldLoader.TemplateLayerName : MarkerLayerName;
 
         // Only markers keep their size where the scene is magnified
         var keepsMarkerSize = layerName == MarkerLayerName;

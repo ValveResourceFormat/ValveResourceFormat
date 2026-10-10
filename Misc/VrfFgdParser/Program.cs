@@ -174,10 +174,6 @@ void ParseFile(string file)
                 }
             }
 
-            // studio() is the in-game model. editormodel() and model() are Hammer-only visualization aids,
-            // not the real appearance.
-            var isStudioValue = false;
-
             if ((behaviour.Name == "studio" || behaviour.Name == "editormodel" || behaviour.Name == "model") && behaviour.Values.Count > 0)
             {
                 value = behaviour.Values[0];
@@ -193,8 +189,6 @@ void ParseFile(string file)
                     {
                         value += ".vmdl";
                     }
-
-                    isStudioValue = behaviour.Name == "studio";
                 }
                 else
                 {
@@ -209,7 +203,6 @@ void ParseFile(string file)
                     if (baseEntities.TryGetValue(baseClass, out var values) && values.Icons.Count > 0)
                     {
                         value = values.Icons.First(); // TODO: more than one
-                        isStudioValue = values.IsStudio;
                         Console.WriteLine($"Found {_class.Name} base icon from {baseClass}");
                         break;
                     }
@@ -223,13 +216,11 @@ void ParseFile(string file)
                 if (icons.TryGetValue(_class.Name, out var existingIcons))
                 {
                     existingIcons.Icons.Add(value);
-                    existingIcons.IsStudio |= isStudioValue;
                 }
                 else
                 {
                     icons[_class.Name] = new();
                     icons[_class.Name].Icons.Add(value);
-                    icons[_class.Name].IsStudio = isStudioValue;
                 }
             }
 
@@ -537,11 +528,6 @@ void WriteEntities()
 
         var fields = new List<string>();
 
-        if (icon.Value.IsStudio)
-        {
-            fields.Add("Studio = true");
-        }
-
         if (icons.Count > 0)
         {
             var iconsStr = string.Join(@""", """, icons);
@@ -661,7 +647,6 @@ static string ShapeName(string helper) => helper switch
 class EntityInfo
 {
     public HashSet<string> Icons = [];
-    public bool IsStudio;
     public string? Color;
     public HashSet<string> Lines = [];
 }
