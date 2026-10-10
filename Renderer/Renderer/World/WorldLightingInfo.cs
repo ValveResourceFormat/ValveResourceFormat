@@ -265,6 +265,15 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
+        /// <summary>Forgets every registered environment map and light probe, for the entities that register them to spawn again.</summary>
+        internal void ClearVolumes()
+        {
+            EnvMaps.Clear();
+            EnvMapHandshakes.Clear();
+            LightProbes.Clear();
+            ProbeHandshakes.Clear();
+        }
+
         /// <summary>
         /// Registers a light probe with the scene, validating its texture set against the lightmap version.
         /// </summary>
@@ -457,7 +466,7 @@ namespace ValveResourceFormat.Renderer.World
         private bool usesUniformLightStore;
 
         /// <summary>
-        /// Initial store of map lights to GPU.
+        /// Stores the map's lights to GPU, replacing any stored before.
         /// </summary>
         public void StoreLights(List<SceneLight> lights)
         {
@@ -703,6 +712,7 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             LightingData.NumBarnLights = 0; // changed dynamically
+            BarnLights.Clear();
 
             var filtered = lights.Where(SceneLight.IsRealTimeLight).ToList();
             if (filtered.Count == 0)

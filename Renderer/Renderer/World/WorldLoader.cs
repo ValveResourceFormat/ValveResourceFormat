@@ -114,6 +114,10 @@ namespace ValveResourceFormat.Renderer.World
         // What this spawn group puts in place of the markers in its entities' names
         private readonly EntityNameFixup nameFixup;
 
+        // Set when the entities spawn into a scene that already holds the geometry and collision of the map,
+        // as when they spawn again
+        private bool entitiesOnly;
+
         /// <summary>
         /// Loads a map by name, performing a full load of all world components.
         /// </summary>
@@ -124,7 +128,7 @@ namespace ValveResourceFormat.Renderer.World
         public static WorldLoader LoadMap(string mapResourceName, Scene scene, EntitySystem entitySystem, Matrix4x4? rootTransform = null)
             => LoadMap(mapResourceName, scene, entitySystem, rootTransform, LoadKind.Map, EntityNameFixup.None);
 
-        private static WorldLoader LoadMap(string mapResourceName, Scene scene, EntitySystem entitySystem, Matrix4x4? rootTransform, LoadKind loadKind, EntityNameFixup nameFixup)
+        private static WorldLoader LoadMap(string mapResourceName, Scene scene, EntitySystem entitySystem, Matrix4x4? rootTransform, LoadKind loadKind, EntityNameFixup nameFixup, bool entitiesOnly = false)
         {
             var renderContext = scene.RendererContext;
             Resource? mapResource = null;
@@ -146,7 +150,11 @@ namespace ValveResourceFormat.Renderer.World
             var worldPath = GetWorldNameFromMap(mapResourceName);
             var worldResource = renderContext.FileLoader.LoadFileCompiled(worldPath) ?? throw new FileNotFoundException($"Failed to load world file '{worldPath}'.");
 
-            var loader = new WorldLoader((WorldResource)worldResource.DataBlock!, scene, entitySystem, rootTransform, loadKind, nameFixup);
+            var loader = new WorldLoader((WorldResource)worldResource.DataBlock!, scene, entitySystem, rootTransform, loadKind, nameFixup)
+            {
+                entitiesOnly = entitiesOnly,
+            };
+
             loader.Load(mapResource.ExternalReferences);
             return loader;
         }
@@ -279,8 +287,12 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             LoadEntities();
-            LoadWorldNodes();
-            LoadWorldPhysics();
+
+            if (!entitiesOnly)
+            {
+                LoadWorldNodes();
+                LoadWorldPhysics();
+            }
 
             if (ownsScene)
             {
@@ -343,6 +355,25 @@ namespace ValveResourceFormat.Renderer.World
                     scene.AllNodes.OfType<SceneLight>().ToList()
                 );
             }
+        }
+
+        /// <summary>
+        /// Spawns the world's entities again from its entity lumps, as they spawned when it loaded, once the
+        /// ones it spawned have been removed. The 3D sky and other spawn groups they place load again into
+        /// <see cref="SpawnGroups"/>.
+        /// </summary>
+        public void ReloadEntities()
+        {
+            Entities.Clear();
+            CameraNames.Clear();
+            CameraMatrices.Clear();
+            SkyCameras.Clear();
+            SpawnGroups.Clear();
+
+            // The geometry of the prefabs the entities place is in the scene already
+            entitiesOnly = true;
+
+            LoadEntities();
         }
 
         /// <summary>
@@ -777,7 +808,7 @@ namespace ValveResourceFormat.Renderer.World
 
             LoadingProgress?.Report("Loading 3D sky…");
 
-            var skyLoader = LoadNestedMap(RendererContext, entitySystem, targetMapName, skyScene, reference, LoadKind.SpawnGroup, ChildNameFixup(skyboxReference), out var package);
+            var skyLoader = LoadNestedMap(RendererContext, entitySystem, targetMapName, skyScene, reference, LoadKind.SpawnGroup, ChildNameFixup(skyboxReference), entitiesOnly: false, out var package);
 
             if (currentLoadingPhase != null)
             {
@@ -828,7 +859,7 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
-            var prefabLoader = LoadNestedMap(RendererContext, entitySystem, targetMapName, scene, prefab.RigidTransform, LoadKind.Prefab, ChildNameFixup(prefab), out var package);
+            var prefabLoader = LoadNestedMap(RendererContext, entitySystem, targetMapName, scene, prefab.RigidTransform, LoadKind.Prefab, ChildNameFixup(prefab), entitiesOnly, out var package);
 
             if (package != null)
             {
@@ -933,7 +964,7 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         private static WorldLoader? LoadNestedMap(RendererContext rendererContext, EntitySystem entitySystem, string targetMapName,
-            Scene intoScene, Matrix4x4 transform, LoadKind loadKind, EntityNameFixup nameFixup, out Package? package)
+            Scene intoScene, Matrix4x4 transform, LoadKind loadKind, EntityNameFixup nameFixup, bool entitiesOnly, out Package? package)
         {
             var mapName = GetSpawnGroupMapName(targetMapName);
 
@@ -944,7 +975,7 @@ namespace ValveResourceFormat.Renderer.World
 
             try
             {
-                return LoadMap($"{mapName}.vmap", intoScene, entitySystem, transform, loadKind, nameFixup);
+                return LoadMap($"{mapName}.vmap", intoScene, entitySystem, transform, loadKind, nameFixup, entitiesOnly);
             }
             catch (FileNotFoundException e)
             {

@@ -9,6 +9,7 @@ partial class RendererControl : UserControl
 {
 #pragma warning disable CA2213 // Disposable fields should be disposed
     private Control? currentControlsTarget;
+    private FlowLayoutPanel? toolbar;
 #pragma warning restore CA2213 // Disposable fields should be disposed
     private Control ControlsPanel => currentControlsTarget ?? controlsPanel;
     public Control GLControlContainer => glControlContainer;
@@ -313,6 +314,130 @@ partial class RendererControl : UserControl
         panel.Controls.Add(label);
         ControlsPanel.Controls.Add(panel);
         SetControlLocation(panel);
+    }
+
+    /// <summary>Adds a button to the toolbar above the viewport.</summary>
+    public ThemedButton AddToolbarButton(string text, Action onClick)
+    {
+        var button = new ThemedButton();
+        AddToolbarItem(button, text);
+        button.Click += (_, _) => onClick();
+
+        return button;
+    }
+
+    /// <summary>Adds a button showing an icon instead of a label to the toolbar above the viewport.</summary>
+    public ThemedButton AddToolbarButton(Image icon, string accessibleName, Action onClick)
+    {
+        var button = AddToolbarButton(string.Empty, onClick);
+        button.Image = icon;
+        button.AccessibleName = accessibleName;
+
+        // The icon is drawn to fit the height, so the button only has to be a little wider than tall
+        button.AutoSize = false;
+        button.Size = new Size(this.AdjustForDPI(ToolbarItemHeight * 3 / 2), this.AdjustForDPI(ToolbarItemHeight));
+
+        return button;
+    }
+
+    /// <summary>Adds a button that stays pressed while on to the toolbar above the viewport.</summary>
+    public ThemedToggleButton AddToolbarToggle(string text, bool initialChecked, Action<bool> onToggled)
+    {
+        var button = new ThemedToggleButton { Checked = initialChecked };
+        AddToolbarItem(button, text);
+        button.Toggled += onToggled;
+
+        return button;
+    }
+
+    /// <summary>Adds a dropdown over the top right corner of the viewport.</summary>
+    public ComboBox AddViewportSelection(Action<string, int> changeCallback)
+    {
+        var margin = this.AdjustForDPI(6);
+
+        var comboBox = new ThemedFlatComboBox
+        {
+            Width = this.AdjustForDPI(180),
+            ItemHeight = this.AdjustForDPI(20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+        };
+
+        comboBox.Location = new Point(glControlContainer.ClientSize.Width - comboBox.Width - margin, margin);
+
+        comboBox.SelectedIndexChanged += (_, _) =>
+        {
+            if (comboBox.SelectedItem is string selectedItem)
+            {
+                changeCallback(selectedItem, comboBox.SelectedIndex);
+            }
+            else if (comboBox.SelectedItem is ThemedComboBoxItem selectedThemedItem)
+            {
+                changeCallback(selectedThemedItem.Text, comboBox.SelectedIndex);
+            }
+        };
+
+        glControlContainer.Controls.Add(comboBox);
+
+        // In front of the viewport, which fills the container
+        comboBox.BringToFront();
+
+        return comboBox;
+    }
+
+    /// <summary>Adds a vertical line between groups of toolbar items.</summary>
+    public void AddToolbarSeparator()
+    {
+        var separator = new UnstyledPanel
+        {
+            Width = this.AdjustForDPI(1),
+            Height = this.AdjustForDPI(20),
+            BackColor = Themer.CurrentThemeColors.Border,
+            Margin = new Padding(this.AdjustForDPI(6), this.AdjustForDPI(4), this.AdjustForDPI(6), 0),
+        };
+
+        EnsureToolbar().Controls.Add(separator);
+    }
+
+    // Every item is this tall, so the ones with a label line up with the ones with an icon
+    private const int ToolbarItemHeight = 26;
+
+    private void AddToolbarItem(ThemedButton button, string text)
+    {
+        button.Text = text;
+        button.AutoSize = true;
+        button.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        button.MinimumSize = new Size(0, this.AdjustForDPI(ToolbarItemHeight));
+        button.Padding = new Padding(this.AdjustForDPI(6), 0, this.AdjustForDPI(6), 0);
+        button.Margin = new Padding(this.AdjustForDPI(2), 0, this.AdjustForDPI(2), 0);
+
+        EnsureToolbar().Controls.Add(button);
+    }
+
+    // Created on first use, so viewers without toolbar items keep the whole height for the viewport
+    private FlowLayoutPanel EnsureToolbar()
+    {
+        if (toolbar != null)
+        {
+            return toolbar;
+        }
+
+        toolbar = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            WrapContents = true,
+            Padding = new Padding(this.AdjustForDPI(2)),
+            Font = controlsPanel.Font,
+        };
+
+        // In whichever side of the splitter the viewport is, which preview mode swaps
+        var host = glControlContainer.Parent ?? splitContainer.Panel2;
+        host.Controls.Add(toolbar);
+
+        // Docking goes from the back, so the viewport fills what is left under the toolbar
+        glControlContainer.BringToFront();
+
+        return toolbar;
     }
 
     public void SetMoveSpeed(string text)
