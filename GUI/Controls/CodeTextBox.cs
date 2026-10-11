@@ -150,14 +150,7 @@ namespace GUI.Controls
             output.AppendLine("Try using latest dev build to see if the issue persists.");
             output.AppendLine();
 
-            if (context != null)
-            {
-                output.Append("Context: ");
-                output.AppendLine(context);
-                output.AppendLine();
-            }
-
-            Program.AppendExceptionWithVersion(output, exception);
+            Program.AppendExceptionWithVersion(output, exception, context);
 
             var text = output.ToString();
             var control = new CodeTextBox(text, HighlightLanguage.None)

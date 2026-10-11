@@ -239,15 +239,23 @@ namespace GUI
             }
         }
 
-        public static void AppendExceptionWithVersion(StringBuilder output, Exception exception)
+        public static void AppendExceptionWithVersion(StringBuilder output, Exception exception, string? context = null)
         {
             var version = Program.ProductVersion;
 
             output.AppendLine("```");
-            output.AppendLine(exception.ToString());
-            output.AppendLine("```");
 
-            output.Append("*S2V ");
+            if (context != null)
+            {
+                output.Append("Context: ");
+                output.AppendLine(context);
+                output.AppendLine();
+            }
+
+            output.AppendLine(exception.ToString());
+            output.AppendLine();
+
+            output.Append("S2V ");
             output.Append(version.Replace('+', ' '));
             output.Append(CultureInfo.InvariantCulture, $" on {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
 
@@ -256,7 +264,8 @@ namespace GUI
                 output.Append(CultureInfo.InvariantCulture, $" ({GLEnvironment.GpuRendererAndDriver})");
             }
 
-            output.AppendLine("*");
+            output.AppendLine();
+            output.AppendLine("```");
         }
     }
 }

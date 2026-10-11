@@ -57,7 +57,7 @@ jobs:
           VERSION_TEXT=$(printf '%s\n' "$BODY_TEXT" | grep -A 3 '### What version of S2V are you using' | tail -n +2 | grep -m 1 . || true)
           INPUT_BUILD=$(printf '%s\n' "${VERSION_TEXT%% on *}" | grep -oP '\d+\.\d+\.\K\d+' | head -1 || true)
 
-          # Copied exceptions end with "*S2V 20.0.1234 <commit> on <os>*", and the console log starts with "Source 2 Viewer v20.0.1234+<commit>"
+          # Copied exceptions end with "S2V 20.0.1234 <commit> on <os>", and the console log starts with "Source 2 Viewer v20.0.1234+<commit>"
           EXCEPTION_BUILD=$(printf '%s\n' "$BODY_TEXT" | grep -oP '(?:\bS2V|Source 2 Viewer) v?\d+\.\d+\.\K\d+' | sort -n | tail -1 || true)
 
           echo "Detected version text: $VERSION_TEXT"
