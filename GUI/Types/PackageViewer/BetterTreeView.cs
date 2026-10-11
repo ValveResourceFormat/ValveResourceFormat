@@ -205,9 +205,16 @@ namespace GUI.Types.PackageViewer
                         },
                         archiveIndex =>
                         {
+                            // Archives that only hold empty entries are never read
+                            if (!sortedEntriesPerArchive.TryGetValue(archiveIndex, out var archiveEntries))
+                            {
+                                Interlocked.Increment(ref archivesScanned);
+                                return;
+                            }
+
                             var fileName = $"{VrfGuiContext.CurrentPackage.FileName}_{archiveIndex:D3}.vpk";
 
-                            var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesPerArchive[archiveIndex]);
+                            var archiveMatches = SearchForContentsInFile(fileName, pattern, archiveEntries);
 
                             if (archiveMatches.Count > 0)
                             {
