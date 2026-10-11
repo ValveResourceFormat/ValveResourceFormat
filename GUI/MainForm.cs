@@ -192,7 +192,7 @@ namespace GUI
                     }
 
                     file = Path.GetFullPath(file);
-                    Log.Info(nameof(MainForm), $"Opening {file}");
+                    Log.Info(nameof(MainForm), $"Opening {VrfGuiContext.GetDisplayPath(file)}");
 
                     VrfGuiContext? packageContext = null;
 
@@ -661,8 +661,6 @@ namespace GUI
 
         public void OpenFile(string fileName)
         {
-            Log.Info(nameof(MainForm), $"Opening {fileName}");
-
             if (Regexes.VpkNumberArchive().IsMatch(fileName))
             {
                 var fixedPackage = $"{fileName[..^8]}_dir.vpk";
@@ -675,6 +673,9 @@ namespace GUI
             }
 
             var vrfGuiContext = new VrfGuiContext(fileName, null, loadSearchPaths: false);
+
+            Log.Info(nameof(MainForm), $"Opening {vrfGuiContext.DisplayPath}");
+
             OpenFile(vrfGuiContext, null, loadSearchPaths: true);
 
             Settings.TrackRecentFile(fileName);
@@ -721,7 +722,7 @@ namespace GUI
 
             try
             {
-                tab.ToolTipText = vrfGuiContext.FullPath;
+                tab.ToolTipText = vrfGuiContext.DisplayPath;
 
                 var extension = Path.GetExtension(vrfGuiContext.FileName.AsSpan());
 
@@ -815,7 +816,7 @@ namespace GUI
                             return;
                         }
 
-                        var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
+                        var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
 
                         tab.Controls.Add(control);
                     });
@@ -894,7 +895,7 @@ namespace GUI
                                 return;
                             }
 
-                            var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
+                            var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
 
                             tab.Controls.Add(control);
                         });

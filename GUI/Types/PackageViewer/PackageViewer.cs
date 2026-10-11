@@ -262,7 +262,7 @@ namespace GUI.Types.PackageViewer
 
                         if (!File.Exists(file))
                         {
-                            Log.Warn(nameof(PackageViewer), $"Failed to find file: {file}");
+                            Log.Warn(nameof(PackageViewer), $"Failed to find file: {reference.Name}");
                             continue;
                         }
                     }

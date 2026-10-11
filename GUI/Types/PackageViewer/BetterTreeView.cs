@@ -185,7 +185,7 @@ namespace GUI.Types.PackageViewer
                 {
                     var fileName = $"{VrfGuiContext.CurrentPackage.FileName}{(VrfGuiContext.CurrentPackage.IsDirVPK ? "_dir" : "")}.vpk";
 
-                    progressDialog.SetProgress($"Searching '{fileName}'");
+                    progressDialog.SetProgress($"Searching '{Path.GetFileName(fileName)}'");
 
                     var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesInDirVpk);
                     results.AddRange(archiveMatches);

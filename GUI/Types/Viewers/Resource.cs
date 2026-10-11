@@ -87,7 +87,7 @@ namespace GUI.Types.Viewers
                 }
                 catch (Exception ex)
                 {
-                    GLViewerError = CodeTextBox.CreateFromException(ex, vrfGuiContext.FullPath);
+                    GLViewerError = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
                 }
             }
         }
@@ -304,7 +304,7 @@ namespace GUI.Types.Viewers
                     }
                     catch (Exception ex)
                     {
-                        GLViewerError = CodeTextBox.CreateFromException(ex, vrfGuiContext.FullPath);
+                        GLViewerError = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
                     }
                 }
 
@@ -472,7 +472,7 @@ namespace GUI.Types.Viewers
             }
             catch (Exception ex)
             {
-                var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.FullPath);
+                var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
 
                 var tabEx = new ThemedTabPage("Decompile Error");
                 tabEx.Controls.Add(control);
@@ -579,7 +579,7 @@ namespace GUI.Types.Viewers
                 if (!tabPage.IsDisposed)
                 {
                     loadingFile.Dispose();
-                    tabPage.Controls.Add(CodeTextBox.CreateFromException(e, vrfGuiContext.FullPath));
+                    tabPage.Controls.Add(CodeTextBox.CreateFromException(e, vrfGuiContext.DisplayPath));
                 }
 
                 return null;
@@ -1140,11 +1140,11 @@ namespace GUI.Types.Viewers
                         KVSerializer.Create(KVSerializationFormat.KeyValues3Text).Serialize(stream, document);
                     }).ConfigureAwait(true);
 
-                    Log.Info(nameof(Resource), $"Saved {block.Type} block to \"{fileName}\"");
+                    Log.Info(nameof(Resource), $"Saved {block.Type} block to \"{Path.GetFileName(fileName)}\"");
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(nameof(Resource), $"Failed to save {block.Type} block to \"{fileName}\": {ex}");
+                    Log.Error(nameof(Resource), $"Failed to save {block.Type} block to \"{Path.GetFileName(fileName)}\": {ex}");
                 }
                 finally
                 {

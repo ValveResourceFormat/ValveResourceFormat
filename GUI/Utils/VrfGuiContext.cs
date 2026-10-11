@@ -37,23 +37,29 @@ namespace GUI.Utils
         public VrfGuiContext? ParentGuiContext { get; }
         public ToolsAssetInfo? ToolsAssetInfo { get; private set; }
 
-        /// <summary>File name followed by the chain of parent files it was opened from.</summary>
-        public string FullPath
+        /// <summary>
+        /// File name followed by the chain of parent files it was opened from,
+        /// with paths on disk made relative to their Steam app when they are inside of one.
+        /// </summary>
+        public string DisplayPath
         {
             get
             {
-                var path = FileName;
-                var parentContext = ParentGuiContext;
+                var path = GetDisplayPath(FileName);
 
-                while (parentContext != null)
+                for (var parentContext = ParentGuiContext; parentContext != null; parentContext = parentContext.ParentGuiContext)
                 {
-                    path = $"{path} ← {parentContext.FileName}";
-                    parentContext = parentContext.ParentGuiContext;
+                    path = $"{path} ← {GetDisplayPath(parentContext.FileName)}";
                 }
 
                 return path;
             }
         }
+
+        /// <summary>
+        /// Converts a path on disk to a path relative to its Steam app when it is inside of one.
+        /// </summary>
+        public static string GetDisplayPath(string path) => Path.IsPathRooted(path) ? GetSteamAppPath(path) ?? path : path;
 
         /// <summary>
         /// Converts a full path inside of an installed Steam app to a portable <c>steam:&lt;appid&gt;/&lt;path&gt;</c> path.
