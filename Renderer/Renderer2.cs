@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Renderer.RHI;
+using ValveResourceFormat.ResourceTypes;
 using Vortice.Vulkan;
 
 namespace ValveResourceFormat.Renderer;
@@ -35,7 +36,6 @@ public class Renderer2
     /// </summary>
     public Scene Scene { get; set; }
 
-
     private InFlightFrames InFlightFrames;
 
     private RenderTarget HdrRenderTarget { get; set; }
@@ -53,7 +53,6 @@ public class Renderer2
     /// Time elapsed since the last frame, in seconds.
     /// </summary>
     public float DeltaTime { get; set; }
-
 
     /// <summary>
     /// Shared renderer context containing loaders and caches.
@@ -74,7 +73,32 @@ public class Renderer2
         //ViewmodelCamera = new Camera();
         Scene = new Scene(rendererContext);
 
+        // VKTODO: Replace with the world's own lighting once WorldLightingInfo is ported
+        LoadDefaultLighting(Scene);
+
         InFlightFrames = new InFlightFrames(2);
+    }
+
+    /// <summary>
+    /// Default sun angles (pitch, yaw) for lighting used by viewers without lighting information
+    /// </summary>
+    public static Vector2 DefaultSunAngles { get; } = new(80f, 170f);
+
+    /// <summary>
+    /// Default sun color for lighting used by viewers without lighting information
+    /// </summary>
+    public static Vector4 DefaultSunColor { get; } = new(new Vector3(255, 247, 235) / 255.0f, 2.5f);
+
+    /// <summary>
+    /// Load default lighting, used by viewers without lighting information
+    /// </summary>
+    public static void LoadDefaultLighting(Scene scene)
+    {
+        // VKTODO: Also take the default IBL cubemap and add it as an environment map, once env maps are ported
+        var sunForward = EntityTransformHelper.EulerAnglesToForwardDirection(new Vector3(DefaultSunAngles.X, DefaultSunAngles.Y, 0f));
+        scene.LightingInfo.LightingData.SunDirection = new Vector4(-sunForward, 0f);
+        scene.LightingInfo.LightingData.SunColor = new Vector4(DefaultSunColor.AsVector3() * DefaultSunColor.W, 1f);
+        scene.MarkLightingDirty();
     }
 
     public void SetTargetWindow(uint width, uint height, nint windowHandle)
@@ -128,6 +152,8 @@ public class Renderer2
 
         RendererContext.TextureStreaming.FinishPendingQueueTransfers(cmd);
 
+        Scene.UploadStaticBuffers(cmd);
+
         cmd.ClearRenderTarget(HdrRenderTarget, new VkClearColorValue(0.1f, 0.1f, 0.2f, 1.0f), 1);
 
         cmd.ClearSwapchainImage(WindowSwapchain.Images[currIndex], new VkClearColorValue(0.15f, 0.1f, 0.13f, 1.0f));
@@ -160,7 +186,7 @@ public class Renderer2
         RenderDevice!.SubmitGraphics(cmd, Frame.PresentComplete, WindowSwapchain.WriteToImageFinishedSemaphores[currIndex], InFlightFrames.timelineSemaphore, InFlightFrames.FramesSubmitted);
 
         InFlightFrames.EndFrame();
-        
+
         WindowSwapchain.Present(WindowSwapchain.WriteToImageFinishedSemaphores[currIndex]);
 
     }

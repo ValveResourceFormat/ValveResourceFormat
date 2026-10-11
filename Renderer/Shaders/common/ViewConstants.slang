@@ -42,26 +42,3 @@ public struct ViewConstantsData
 //     const float phase = 0;
 //     return fract((fract(g_flTime * 0.5) + phase)) < 0.5;
 // }
-
-public interface IParameters {};
-
-public struct NoParams : IParameters;
-
-public struct PushData<T> where T : IParameters
-{
-    DescriptorHandle<ConstantBuffer<ViewConstantsData>> viewConstants;
-    DescriptorHandle<ConstantBuffer<T>> parameterBuffer;
-
-    public property ViewConstantsData ViewConstants
-    {
-        get {
-            return *viewConstants;
-        }
-    }
-    public property T Parameters
-    {
-        get {
-            return *parameterBuffer;
-        }
-    }
-}

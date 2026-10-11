@@ -1,0 +1,66 @@
+using System.Runtime.InteropServices;
+
+namespace ValveResourceFormat.Renderer
+{
+    /// <summary>
+    /// Uniform buffer containing all scene lights and lightmap configuration.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public class LightingConstants
+    {
+        /// <summary>Maximum number of lights (static plus dynamic) supported per scene.</summary>
+        public const int MAX_LIGHTS = 256;
+
+        /// <summary>UV scale applied when sampling the lightmap atlas.</summary>
+        public Vector2 LightmapUvScale;
+        /// <summary>Non-zero when the current draw is part of the skybox.</summary>
+        public uint IsSkybox;
+        /// <summary>Number of active barn lights in the scene.</summary>
+        public uint NumBarnLights;
+        /// <summary>Per-type light counts (index matches light type enum).</summary>
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] private readonly uint[] NumLights;
+        /// <summary>Surface-to-sun direction (XYZ) of the environment light, or zero when the scene has none.</summary>
+        public Vector4 SunDirection;
+        /// <summary>Sun color: linear color premultiplied by brightness (RGB), render-specular flag (W).</summary>
+        public Vector4 SunColor;
+        /// <summary>Sun baked shadow data: V2 stores the one-hot shadow channel mask, V1 stores the sun's baked light index 0-255 in X (-1 for none).</summary>
+        public Vector4 SunLightBakedShadowMask;
+        /// <summary>World-space position (XYZ) and type (W) for each light.</summary>
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightPosition_Type;
+
+        /// <summary>World-space direction (XYZ) and inverse range (W) for each light.</summary>
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightDirection_InvRange;
+
+        /// <summary>Transform matrix from light space to world space for each light.</summary>
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Matrix4x4[] LightToWorld;
+
+        /// <summary>Light color per light. V1: premultiplied linear color (RGB) and render-specular flag (W), like <c>g_vBakedLightColor</c>. V2: linear color (RGB) and brightness (W).</summary>
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightColor_Brightness;
+        /// <summary>Spot cone cosines or ortho half extents (XY), plus the diffuse and transmissive render gates (ZW), for each light.</summary>
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightSpotInnerOuterCosines;
+        /// <summary>Per-light falloff shaped like <c>g_vSingleLightFalloffParams</c>: linear (X) and quadratic (Y) attenuation, squared range cutoff (Z), zero-at-range bias (W).</summary>
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightFallOff;
+
+        /// <summary>Mip level and size constants used when sampling environment maps.</summary>
+        public Vector4 EnvMapSizeConstants;
+
+        /// <summary>Gets or sets the number of lightmapped lights in the scene.</summary>
+        public uint StaticLightCount { get => NumLights[0]; set => NumLights[0] = value; }
+
+        /// <summary>Gets or sets the total light count (static plus dynamic); dynamic lights occupy indices from <see cref="StaticLightCount"/> up to this value.</summary>
+        public uint DynamicLightCount { get => NumLights[1]; set => NumLights[1] = value; }
+
+        /// <summary>Initializes a new <see cref="LightingConstants"/> with all arrays allocated to their maximum sizes.</summary>
+        public LightingConstants()
+        {
+            NumLights = new uint[4];
+            SunLightBakedShadowMask = new Vector4(-1f, 0f, 0f, 0f);
+            LightPosition_Type = new Vector4[MAX_LIGHTS];
+            LightDirection_InvRange = new Vector4[MAX_LIGHTS];
+            LightToWorld = new Matrix4x4[MAX_LIGHTS];
+            LightColor_Brightness = new Vector4[MAX_LIGHTS];
+            LightSpotInnerOuterCosines = new Vector4[MAX_LIGHTS];
+            LightFallOff = new Vector4[MAX_LIGHTS];
+        }
+    }
+}

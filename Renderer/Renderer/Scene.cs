@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.RHI;
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.World;
 using Vortice.Vulkan;
 
 namespace ValveResourceFormat.Renderer;
@@ -45,7 +48,6 @@ public class Scene
         public float Uptime { get; init; }
     }
 
-
     //VKTEMP:
     public RendererContext RendererContext;
 
@@ -63,13 +65,33 @@ public class Scene
     /// <summary>Gets the render attribute overrides applied to all draw calls in this scene.</summary>
     public Dictionary<string, byte> RenderAttributes { get; } = [];
 
+    /// <summary>Gets the world lighting information including light probes, environment maps, and dynamic lights.</summary>
+    /// <remarks>Call <see cref="MarkLightingDirty"/> after changing its <see cref="WorldLightingInfo.LightingData"/>.</remarks>
+    public WorldLightingInfo LightingInfo { get; }
+
+    private readonly RHI.Buffer lightingBuffer;
+    private readonly RHI.Buffer sceneBuffers;
+    private readonly byte[] lightingUpload = new byte[Marshal.SizeOf<LightingConstants>()];
+    private bool staticBuffersDirty = true;
+
+    /// <summary>The byte offset of <c>sceneBuffers</c> in the shaders' <c>PushData</c>, after the parameter buffer handle.</summary>
+    internal const uint SceneBuffersPushConstantOffset = 16;
+
+    /// <summary>Gets the handle to the scene's <see cref="SceneBuffers"/>, pushed once before drawing the scene.</summary>
+    internal DescriptorHandle<RHI.Buffer> SceneBuffersHandle => sceneBuffers.DescriptorHandle;
+
     public Scene(RendererContext context, float sizeHint = 32768)
     {
         RendererContext = context;
         StaticOctree = new(sizeHint);
 
+        const VkBufferUsageFlags usage = VkBufferUsageFlags.UniformBuffer | VkBufferUsageFlags.TransferDst;
+        lightingBuffer = new RHI.Buffer((ulong)lightingUpload.Length, usage, VmaMemoryUsage.AutoPreferDevice, name: nameof(LightingConstants));
+        sceneBuffers = new RHI.Buffer((ulong)Unsafe.SizeOf<SceneBuffers>(), usage, VmaMemoryUsage.AutoPreferDevice, name: nameof(SceneBuffers));
+
+        LightingInfo = new();
+
         //VKTODO:
-        //LightingInfo = new(this);
         //LightBinner = new(this);
         //EntitySystem = new(this);
     }
@@ -88,6 +110,41 @@ public class Scene
         }
     }
 
+    /// <summary>Queues <see cref="WorldLightingInfo.LightingData"/> for upload before the next frame draws.</summary>
+    public void MarkLightingDirty() => staticBuffersDirty = true;
+
+    /// <summary>
+    /// Uploads the scene's buffers if they changed. Must be recorded outside a render pass instance, before
+    /// anything draws the scene.
+    /// </summary>
+    internal void UploadStaticBuffers(CommandList cmd)
+    {
+        if (!staticBuffersDirty)
+        {
+            return;
+        }
+
+        staticBuffersDirty = false;
+
+        unsafe
+        {
+            fixed (byte* pLighting = lightingUpload)
+            {
+                Marshal.StructureToPtr(LightingInfo.LightingData, (nint)pLighting, false);
+            }
+        }
+
+        const VkPipelineStageFlags2 ShaderStages = VkPipelineStageFlags2.VertexShader | VkPipelineStageFlags2.FragmentShader | VkPipelineStageFlags2.ComputeShader;
+
+        // Earlier frames may still be reading the previous contents
+        cmd.BufferBarrier(ShaderStages, VkAccessFlags2.None, VkPipelineStageFlags2.Transfer, VkAccessFlags2.TransferWrite, lightingBuffer, sceneBuffers);
+
+        cmd.UpdateBuffer(lightingBuffer, lightingUpload);
+        cmd.UpdateBuffer(sceneBuffers, new SceneBuffers { Lighting = lightingBuffer.DescriptorHandle });
+
+        cmd.BufferBarrier(VkPipelineStageFlags2.Transfer, VkAccessFlags2.TransferWrite, ShaderStages, VkAccessFlags2.UniformRead, lightingBuffer, sceneBuffers);
+    }
+
     /// <summary>
     /// Renders the opaque pass, optionally with a depth prepass, followed by aggregate indirect draws and static overlay geometry.
     /// </summary>
@@ -97,6 +154,8 @@ public class Scene
     public void RenderOpaqueLayer(ViewContext viewContext, CommandList cmd)
     {
         var camera = viewContext.Camera;
+
+        cmd.PushConstants(SceneBuffersHandle, SceneBuffersPushConstantOffset);
 
         //using (new GLDebugGroup("Opaque Render"))
         //{
@@ -126,6 +185,5 @@ public class Scene
                 }
             }
         }
-
     }
 }

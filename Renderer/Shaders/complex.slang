@@ -1,6 +1,6 @@
 import common.Core;
 import common.compression;
-import common.ViewConstants;
+import common.PushData;
 
 struct Parameters : IParameters
 {
@@ -49,7 +49,12 @@ void fragMain(
     float3 normColor = in_.normal * 0.5f + 0.5f;
     color = float4(pc.Parameters.g_vTexCoordCenter); //float4(normColor, 1.0f);
     
-    color = pc.Parameters.g_tColor.Sample(in_.uv);
+    float4 albedo = pc.Parameters.g_tColor.Sample(in_.uv);
+
+    var lighting = pc.Lighting;
+    float NdotL = saturate(dot(normalize(in_.normal), lighting.g_vSunDirection.xyz));
+
+    color = float4(albedo.rgb * lighting.g_vSunColor.rgb * NdotL, albedo.a);
 
     outDepth = in_.linearDepth;
 }
