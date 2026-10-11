@@ -1244,14 +1244,12 @@ namespace GUI.Types.GLViewers
             Debug.Assert(UiControl != null);
 
             // The image list hands out a copy each time it is asked
-            playImage = AppIcons.ImageList.Images[AppIcons.Icons["AudioPlay"]];
-            pauseImage = AppIcons.ImageList.Images[AppIcons.Icons["AudioPause"]];
+            playImage = AppIcons.ImageList.Images[AppIcons.Icons["RendererPlay"]];
+            pauseImage = AppIcons.ImageList.Images[AppIcons.Icons["RendererPause"]];
             stopImage = AppIcons.ImageList.Images[AppIcons.Icons["RendererStop"]];
 
-            playPauseButton = UiControl.AddToolbarButton(playImage, "Play", () => RequestSimulation(SimulationRequest.PlayOrPause));
-            stopButton = UiControl.AddToolbarButton(stopImage, "Stop", () => RequestSimulation(SimulationRequest.Stop));
-
-            UiControl.AddToolbarSeparator();
+            playPauseButton = UiControl.AddToolbarButton(playImage, "Play", () => RequestSimulation(SimulationRequest.PlayOrPause), centered: true);
+            stopButton = UiControl.AddToolbarButton(stopImage, "Stop", () => RequestSimulation(SimulationRequest.Stop), centered: true);
 
             toolEntitiesButton = UiControl.AddToolbarToggle("Tool Entities", tools.ShowToolEntities, v =>
             {
@@ -1298,11 +1296,11 @@ namespace GUI.Types.GLViewers
             tools.IsPlaying = state != SimulationState.Stopped;
         }
 
-        protected override (string Text, Color32 Color)? ModeLabel => world == null ? null : simulationState switch
+        protected override (string Text, Color32 Color)? ModeLabel => simulationState switch
         {
-            SimulationState.Stopped => ("EDITOR MODE", new Color32(120, 180, 255)),
+            SimulationState.Playing => ("PLAY MODE", new Color32(90, 220, 90)),
             SimulationState.Paused => ("PLAY MODE (PAUSED)", new Color32(90, 220, 90)),
-            _ => ("PLAY MODE", new Color32(90, 220, 90)),
+            _ => null,
         };
 
         protected override void OnUpdate(float frameTime)

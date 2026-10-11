@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -9,7 +10,8 @@ partial class RendererControl : UserControl
 {
 #pragma warning disable CA2213 // Disposable fields should be disposed
     private Control? currentControlsTarget;
-    private FlowLayoutPanel? toolbar;
+    private FlowLayoutPanel? toolbarItems;
+    private FlowLayoutPanel? toolbarCenteredItems;
 #pragma warning restore CA2213 // Disposable fields should be disposed
     private Control ControlsPanel => currentControlsTarget ?? controlsPanel;
     public Control GLControlContainer => glControlContainer;
@@ -316,20 +318,20 @@ partial class RendererControl : UserControl
         SetControlLocation(panel);
     }
 
-    /// <summary>Adds a button to the toolbar above the viewport.</summary>
-    public ThemedButton AddToolbarButton(string text, Action onClick)
+    /// <summary>Adds a button to the toolbar above the viewport, either on its left or in its middle.</summary>
+    public ThemedButton AddToolbarButton(string text, Action onClick, bool centered = false)
     {
         var button = new ThemedButton();
-        AddToolbarItem(button, text);
+        AddToolbarItem(button, text, centered);
         button.Click += (_, _) => onClick();
 
         return button;
     }
 
     /// <summary>Adds a button showing an icon instead of a label to the toolbar above the viewport.</summary>
-    public ThemedButton AddToolbarButton(Image icon, string accessibleName, Action onClick)
+    public ThemedButton AddToolbarButton(Image icon, string accessibleName, Action onClick, bool centered = false)
     {
-        var button = AddToolbarButton(string.Empty, onClick);
+        var button = AddToolbarButton(string.Empty, onClick, centered);
         button.Image = icon;
         button.AccessibleName = accessibleName;
 
@@ -384,24 +386,10 @@ partial class RendererControl : UserControl
         return comboBox;
     }
 
-    /// <summary>Adds a vertical line between groups of toolbar items.</summary>
-    public void AddToolbarSeparator()
-    {
-        var separator = new UnstyledPanel
-        {
-            Width = this.AdjustForDPI(1),
-            Height = this.AdjustForDPI(20),
-            BackColor = Themer.CurrentThemeColors.Border,
-            Margin = new Padding(this.AdjustForDPI(6), this.AdjustForDPI(4), this.AdjustForDPI(6), 0),
-        };
-
-        EnsureToolbar().Controls.Add(separator);
-    }
-
     // Every item is this tall, so the ones with a label line up with the ones with an icon
     private const int ToolbarItemHeight = 26;
 
-    private void AddToolbarItem(ThemedButton button, string text)
+    private void AddToolbarItem(ThemedButton button, string text, bool centered = false)
     {
         button.Text = text;
         button.AutoSize = true;
@@ -410,25 +398,60 @@ partial class RendererControl : UserControl
         button.Padding = new Padding(this.AdjustForDPI(6), 0, this.AdjustForDPI(6), 0);
         button.Margin = new Padding(this.AdjustForDPI(2), 0, this.AdjustForDPI(2), 0);
 
-        EnsureToolbar().Controls.Add(button);
+        EnsureToolbar();
+        (centered ? toolbarCenteredItems : toolbarItems).Controls.Add(button);
     }
 
     // Created on first use, so viewers without toolbar items keep the whole height for the viewport
-    private FlowLayoutPanel EnsureToolbar()
+    [MemberNotNull(nameof(toolbarItems), nameof(toolbarCenteredItems))]
+    private void EnsureToolbar()
     {
-        if (toolbar != null)
+        if (toolbarItems != null && toolbarCenteredItems != null)
         {
-            return toolbar;
+            return;
         }
 
-        toolbar = new FlowLayoutPanel
+        var padding = this.AdjustForDPI(2);
+
+        var toolbar = new Panel
         {
             Dock = DockStyle.Top,
-            AutoSize = true,
-            WrapContents = true,
-            Padding = new Padding(this.AdjustForDPI(2)),
+            Height = this.AdjustForDPI(ToolbarItemHeight) + padding * 2,
+            Padding = new Padding(padding),
             Font = controlsPanel.Font,
         };
+
+        var items = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Left,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+        };
+
+        var centeredItems = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+        };
+
+        toolbar.Controls.Add(centeredItems);
+        toolbar.Controls.Add(items);
+
+        void CenterItems(object? sender, EventArgs e)
+        {
+            // In the middle of the toolbar, unless the items on the left reach that far
+            var middle = (toolbar.ClientSize.Width - centeredItems.Width) / 2;
+            centeredItems.Location = new Point(Math.Max(items.Right, middle), padding);
+        }
+
+        toolbar.SizeChanged += CenterItems;
+        items.SizeChanged += CenterItems;
+        centeredItems.SizeChanged += CenterItems;
+
+        toolbarItems = items;
+        toolbarCenteredItems = centeredItems;
 
         // In whichever side of the splitter the viewport is, which preview mode swaps
         var host = glControlContainer.Parent ?? splitContainer.Panel2;
@@ -436,8 +459,6 @@ partial class RendererControl : UserControl
 
         // Docking goes from the back, so the viewport fills what is left under the toolbar
         glControlContainer.BringToFront();
-
-        return toolbar;
     }
 
     public void SetMoveSpeed(string text)
