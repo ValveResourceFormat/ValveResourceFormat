@@ -30,7 +30,6 @@ namespace GUI.Controls
         private readonly TaskCompletionSource handleCreated = new();
         private readonly List<TreeDataNode> TreeData = [];
         private static readonly ConcurrentDictionary<string, string> WorkshopAddons = new();
-        public static readonly List<GameFolderLocator.SteamLibraryGameInfo> SteamGames = [];
 
         public ExplorerControl()
         {
@@ -185,18 +184,9 @@ namespace GUI.Controls
                 //
             }
 
-            if (SteamGames.Count == 0)
-            {
-                var steamGames = GameFolderLocator.FindAllSteamGames()
-                    // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
-                    .Where(static gameInfo => gameInfo.AppID is not (1237970 or 1454890 or 1172470))
-                    .OrderBy(static gameInfo => gameInfo.AppID)
-                    .ToList();
+            var steamGames = await InstalledSteamGames.FindAsync().ConfigureAwait(false);
 
-                SteamGames.AddRange(steamGames);
-            }
-
-            if (SteamGames.Count == 0)
+            if (steamGames.Count == 0)
             {
                 return;
             }
@@ -230,7 +220,9 @@ namespace GUI.Controls
                 return !File.Exists(fixedPackage);
             }
 
-            var gamesToScan = SteamGames
+            var gamesToScan = steamGames
+                // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
+                .Where(static gameInfo => gameInfo.AppID is not (1237970 or 1454890 or 1172470))
                 .DistinctBy(static game => game.GamePath, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -400,7 +392,7 @@ namespace GUI.Controls
             // to instantly load their icons before rendering the list
             foreach (var path in Settings.Config.RecentFiles.Concat(Settings.Config.BookmarkedFiles))
             {
-                if (GameFolderLocator.FindSteamGameContainingPath(path, SteamGames) is { } game)
+                if (GameFolderLocator.FindSteamGameContainingPath(path, steamGames) is { } game)
                 {
                     await GetOrLoadAppImage(game.AppID, libraryAssetsKv, libraryCachePath).ConfigureAwait(false);
                 }
@@ -608,7 +600,7 @@ namespace GUI.Controls
                     }
                 }
 
-                if (GameFolderLocator.FindSteamGameContainingPath(path, SteamGames) is { } game)
+                if (GameFolderLocator.FindSteamGameContainingPath(path, InstalledSteamGames.Games) is { } game)
                 {
                     pathDisplay = $"[{game.AppName}] {pathDisplay.AsSpan(Math.Min(game.GamePath.Length, pathDisplay.Length))}";
 

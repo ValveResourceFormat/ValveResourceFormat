@@ -54,6 +54,13 @@ namespace GUI.Utils
                 return path;
             }
         }
+
+        /// <summary>
+        /// Converts a full path inside of an installed Steam app to a portable <c>steam:&lt;appid&gt;/&lt;path&gt;</c> path.
+        /// </summary>
+        /// <returns>The portable path, or <c>null</c> if the path is not inside of an installed app.</returns>
+        public static string? GetSteamAppPath(string fullPath) => GameFolderLocator.GetSteamAppPath(fullPath, InstalledSteamGames.Games);
+
         private bool ToolsAssetInfoLoaded;
 
         // This is a hack to set camera and properties when clicking a mesh from a model or map

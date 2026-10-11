@@ -71,6 +71,9 @@ namespace GUI
                 return;
             }
 
+            // The explorer and tab paths need the installed games, find them while the window is being created
+            _ = InstalledSteamGames.FindAsync();
+
             Assembly = Assembly.GetExecutingAssembly();
 
             // from winforms dep: Application.ProductVersion

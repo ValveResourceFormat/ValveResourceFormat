@@ -228,9 +228,7 @@ namespace GUI
 
             packageChain.Reverse();
 
-            // The explorer has usually found the installed games already
-            var games = ExplorerControl.SteamGames.Count > 0 ? ExplorerControl.SteamGames : null;
-            packageChain[0] = GameFolderLocator.GetSteamAppPath(packageChain[0], games) ?? packageChain[0];
+            packageChain[0] = VrfGuiContext.GetSteamAppPath(packageChain[0]) ?? packageChain[0];
 
             return string.Concat(VpkLink.Prefix, string.Join(':', packageChain.Select(static path => VpkLink.EscapePath(path.Replace('\\', '/')))));
         }

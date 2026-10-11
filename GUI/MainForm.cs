@@ -727,7 +727,7 @@ namespace GUI
 
                 if (MemoryExtensions.Equals(extension, ".vpk", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (GameFolderLocator.FindSteamGameContainingPath(vrfGuiContext.FileName, ExplorerControl.SteamGames) is { } game
+                    if (GameFolderLocator.FindSteamGameContainingPath(vrfGuiContext.FileName, InstalledSteamGames.Games) is { } game
                         && AppIcons.GameIcons.TryGetValue(game.AppID, out var imageIndexGame))
                     {
                         tab.ImageIndex = imageIndexGame;
