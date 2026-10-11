@@ -504,11 +504,9 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            var (skeletonNode, joints) = ExportAnimations
-                ? CreateGltfSkeleton(scene, model.Skeleton, name)
-                : (null, null);
+            var (skeletonNode, joints) = CreateGltfSkeleton(scene, model.Skeleton, name);
 
-            if (skeletonNode != null)
+            if (skeletonNode != null && ExportAnimations)
             {
                 Debug.Assert(joints != null);
 
@@ -528,10 +526,6 @@ namespace ValveResourceFormat.IO
                 }
 
                 WriteAnimationGraphClips(exportedModel, scene, model, joints!, animationFilter);
-            }
-            else
-            {
-                Debug.Assert(joints == null);
             }
 
             var nodeTransform = GetPlacementTransform(transform);
@@ -564,7 +558,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 // meshNode is set even for skinned meshes, where the returned node is null.
-                if (skeletonNode != null && meshNode != null && m.Mesh.MorphData?.FlexRules.Length > 0)
+                if (skeletonNode != null && ExportAnimations && meshNode != null && m.Mesh.MorphData?.FlexRules.Length > 0)
                 {
                     morphedMeshNodes.Add((meshNode, m.Mesh));
                 }
