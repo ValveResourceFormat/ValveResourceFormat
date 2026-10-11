@@ -17,7 +17,7 @@ public static class ResourceTypeExtensions
 #pragma warning restore CA1810
     {
         var typeToExtension = new Dictionary<ResourceType, string>();
-        var extensionToType = new Dictionary<string, ResourceType>(StringComparer.Ordinal);
+        var extensionToType = new Dictionary<string, ResourceType>(StringComparer.OrdinalIgnoreCase);
 
         var fields = typeof(ResourceType).GetFields(BindingFlags.Public | BindingFlags.Static);
 
@@ -34,7 +34,7 @@ public static class ResourceTypeExtensions
 
         ResourceTypeToExtension = typeToExtension.ToFrozenDictionary();
         ExtensionCharsToResourceType = extensionToType
-            .ToFrozenDictionary(StringComparer.Ordinal)
+            .ToFrozenDictionary(StringComparer.OrdinalIgnoreCase)
             .GetAlternateLookup<ReadOnlySpan<char>>();
     }
 
@@ -60,7 +60,7 @@ public static class ResourceTypeExtensions
             return ResourceType.Unknown;
         }
 
-        extension = extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) ? extension[1..^2] : extension[1..];
+        extension = extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase) ? extension[1..^2] : extension[1..];
 
         return ExtensionCharsToResourceType.TryGetValue(extension, out var resourceType)
             ? resourceType

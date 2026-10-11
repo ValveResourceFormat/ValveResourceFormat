@@ -29,7 +29,8 @@ namespace Tests.Utils
                 await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".vanim_c")).IsEqualTo(ResourceType.Animation);
                 await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".vanim")).IsEqualTo(ResourceType.Animation);
                 await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".vsmart_c")).IsEqualTo(ResourceType.SmartProp);
-                await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".vanim_C")).IsEqualTo(ResourceType.Unknown);
+                await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".vanim_C")).IsEqualTo(ResourceType.Animation);
+                await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".VMDL_C")).IsEqualTo(ResourceType.Model);
                 await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".anim")).IsEqualTo(ResourceType.Unknown);
                 await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".anim_c")).IsEqualTo(ResourceType.Unknown);
                 await Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".")).IsEqualTo(ResourceType.Unknown);

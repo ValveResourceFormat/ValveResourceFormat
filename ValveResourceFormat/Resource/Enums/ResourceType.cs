@@ -32,7 +32,7 @@ namespace ValveResourceFormat
         AnimationGraph,
 
         /// <summary>
-        /// Animgraph 2 graph for animation behavior. Graph variations have a vnmgraph.+variationname suffix.
+        /// Animgraph 2 graph for animation behavior. Graph variations are named like name.vnmgraph+variation.vnmvar.
         /// </summary>
         [Extension("vnmgraph")]
         NmGraph,
