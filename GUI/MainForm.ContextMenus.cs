@@ -325,21 +325,21 @@ namespace GUI
                     continue;
                 }
 
-                context.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
-
-                var tempPath = $"{Path.GetTempPath()}Source 2 Viewer - {Path.GetFileName(context.CurrentPackage.FileName)} - {file.GetFileName()}";
-                using (var stream = new FileStream(tempPath, FileMode.Create))
-                {
-                    stream.Write(output, 0, output.Length);
-                }
-
                 try
                 {
+                    context.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
+
+                    var tempPath = $"{Path.GetTempPath()}Source 2 Viewer - {Path.GetFileName(context.CurrentPackage.FileName)} - {file.GetFileName()}";
+                    using (var stream = new FileStream(tempPath, FileMode.Create))
+                    {
+                        stream.Write(output, 0, output.Length);
+                    }
+
                     Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true });
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(nameof(MainForm), $"Failed to start process: {ex.Message}");
+                    Program.ShowError(ex, file.GetFullPath());
                 }
             }
         }
@@ -364,6 +364,10 @@ namespace GUI
                     mainTabs.TabPages.Add(tab);
                     mainTabs.SelectTab(tab);
                 }
+            }
+            catch (Exception ex)
+            {
+                Program.ShowError(ex, selectedNode.PackageEntry.GetFullPath());
             }
             finally
             {
@@ -465,7 +469,7 @@ namespace GUI
 
                     try
                     {
-                        await ExportFile.ExtractFileFromStream(Path.GetFileName(exportData.VrfGuiContext.FileName), fileStream, exportData.VrfGuiContext, decompile).ConfigureAwait(true);
+                        await ExportFile.ExtractFileFromStream(Path.GetFileName(exportData.VrfGuiContext.FileName), fileStream, exportData.VrfGuiContext, decompile, exportData.VrfGuiContext.DisplayPath).ConfigureAwait(true);
                         fileStream = null; // ExtractFileFromStream should dispose it when done, not `using` here in case there's some threading
                     }
                     finally

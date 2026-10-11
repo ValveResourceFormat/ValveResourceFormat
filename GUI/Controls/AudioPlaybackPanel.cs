@@ -26,6 +26,7 @@ namespace GUI.Controls
 
         private Bitmap? WavePeakBitmap;
 
+        private readonly string ErrorContext;
         private readonly bool AutoPlay;
         private bool Looping;
         private bool WaveformClicked;
@@ -45,8 +46,9 @@ namespace GUI.Controls
         private readonly Image RepeatImage = AppIcons.ImageList.Images[AppIcons.Icons["AudioRepeat"]];
         private readonly Image RepeatImagePressed = AppIcons.ImageList.Images[AppIcons.Icons["AudioRepeatPressed"]];
 
-        public AudioPlaybackPanel(WaveStream inputStream, bool autoPlay, (int start, int end) loopMarkers)
+        public AudioPlaybackPanel(WaveStream inputStream, string errorContext, bool autoPlay, (int start, int end) loopMarkers)
         {
+            ErrorContext = errorContext;
             AutoPlay = autoPlay;
             Dock = DockStyle.Fill;
 
@@ -121,7 +123,7 @@ namespace GUI.Controls
             }
             catch (Exception driverCreateException)
             {
-                Program.ShowError(driverCreateException);
+                Program.ShowError(driverCreateException, ErrorContext);
             }
             finally
             {
@@ -514,7 +516,7 @@ namespace GUI.Controls
         {
             if (e.Exception != null)
             {
-                Program.ShowError(e.Exception);
+                Program.ShowError(e.Exception, ErrorContext);
             }
 
             if (IsDisposed)

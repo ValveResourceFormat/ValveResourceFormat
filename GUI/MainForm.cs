@@ -859,6 +859,16 @@ namespace GUI
                         {
                             return;
                         }
+                        catch (Exception ex)
+                        {
+                            var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath);
+
+                            tab.Controls.Add(control);
+
+                            // Controls the viewer added before throwing would otherwise cover the error
+                            control.BringToFront();
+                            return;
+                        }
 
                         if (tab.IsDisposed)
                         {
@@ -899,8 +909,6 @@ namespace GUI
 
                             tab.Controls.Add(control);
                         });
-
-                        Log.Error(nameof(MainForm), ex.ToString());
 
                         return false;
                     }

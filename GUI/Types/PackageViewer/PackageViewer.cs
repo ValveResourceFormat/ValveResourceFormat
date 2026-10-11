@@ -316,7 +316,17 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            vrfGuiContext.CurrentPackage.Write(fileName);
+            try
+            {
+                vrfGuiContext.CurrentPackage.Write(fileName);
+            }
+            catch (Exception e)
+            {
+                Log.Error(nameof(PackageViewer), $"Failed to save \"{Path.GetFileName(fileName)}\": {e}");
+
+                _ = AppMessageDialogs.ShowMessageAsync(e.Message, "Failed to create VPK", MessageIcon.Warning);
+                return;
+            }
 
             var fileCount = 0;
             var fileSize = 0u;
@@ -479,7 +489,7 @@ namespace GUI.Types.PackageViewer
                         }
                         catch (Exception ex)
                         {
-                            Log.Debug(nameof(PackageViewer), $"File {hiddenIndex} - {ex.Message}");
+                            Log.Debug(nameof(PackageViewer), $"Failed to parse \"{newEntry.FileName}\": {ex.Message}");
 
                             newEntry.FileName += $" ({length} bytes)";
 
@@ -529,14 +539,15 @@ namespace GUI.Types.PackageViewer
                 if (archiveIndex != short.MaxValue)
                 {
                     var archiveFileSize = nextOffset;
+                    var archiveFileName = $"{package.FileName}_{archiveIndex:D3}.vpk";
 
                     try
                     {
-                        archiveFileSize = (uint)new FileInfo($"{package.FileName}_{archiveIndex:D3}.vpk").Length;
+                        archiveFileSize = (uint)new FileInfo(archiveFileName).Length;
                     }
                     catch (Exception e)
                     {
-                        Log.Debug(nameof(PackageViewer), e.Message);
+                        Log.Debug(nameof(PackageViewer), $"Failed to get size of \"{Path.GetFileName(archiveFileName)}\": {e.Message}");
                     }
 
                     if (archiveFileSize != nextOffset)

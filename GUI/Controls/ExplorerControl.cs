@@ -115,7 +115,7 @@ namespace GUI.Controls
                 await handleCreated.Task.ConfigureAwait(false);
                 await treeView.InvokeAsync(() =>
                 {
-                    scanningTreeNode.Text = t.Exception.Message;
+                    scanningTreeNode.Text = "Failed to scan game folders, see the console for details.";
                 }).ConfigureAwait(false);
             }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
             scanTask.ContinueWith(async t =>

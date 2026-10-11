@@ -140,8 +140,13 @@ namespace GUI.Controls
             return new CodeTextBox(text, language, sourceMap);
         }
 
-        public static CodeTextBox CreateFromException(Exception exception, string? context = null)
+        /// <summary>
+        /// Creates a control showing the exception, and logs it with the context of the file that failed.
+        /// </summary>
+        public static CodeTextBox CreateFromException(Exception exception, string context)
         {
+            Log.Error(nameof(CodeTextBox), $"Failed to open \"{context}\": {exception}");
+
             var output = new StringBuilder(512);
             output.AppendLine("Unhandled exception occurred while trying to open this file:");
             output.AppendLine(exception.Message);

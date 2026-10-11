@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Drawing;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -945,6 +946,9 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             RenderLoopThread.SetCurrentGLControl(this);
             prewarmed.Wait();
             RenderLoopThread.UnsetCurrentGLControl(this);
+
+            // The warm-up runs on the render loop thread, rethrow its failure to whoever is loading this viewer
+            PrewarmFailure?.Throw();
         }
     }
 
@@ -1019,6 +1023,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     private bool PrewarmPending { get; set; }
 
+    private ExceptionDispatchInfo? PrewarmFailure;
+
     /// <summary>Runs the warm-up loading is waiting on, if any, and reports whether it did. Called by the
     /// render loop thread, which is the one the driver has to see the draws come from.</summary>
     public bool TryPrewarm()
@@ -1032,6 +1038,10 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         {
             using var lockedGl = MakeCurrent();
             PrewarmRenderer();
+        }
+        catch (Exception e)
+        {
+            PrewarmFailure = ExceptionDispatchInfo.Capture(e);
         }
         finally
         {

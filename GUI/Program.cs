@@ -131,9 +131,9 @@ namespace GUI
             ShowError((Exception)ex.ExceptionObject);
         }
 
-        public static void ShowError(Exception exception)
+        public static void ShowError(Exception exception, string? context = null)
         {
-            Log.Error(nameof(Program), exception.ToString());
+            Log.Error(nameof(Program), context == null ? exception.ToString() : $"Failed on \"{context}\": {exception}");
 
             if (exception is ValveResourceFormat.Renderer.Shaders.ShaderLoader.ShaderCompilerException)
             {
@@ -146,7 +146,7 @@ namespace GUI
             }
 
             var output = new StringBuilder(512);
-            AppendExceptionWithVersion(output, exception);
+            AppendExceptionWithVersion(output, exception, context);
             var outputText = output.ToString();
 
             var copyButton = new TaskDialogButton("Copy to clipboard");

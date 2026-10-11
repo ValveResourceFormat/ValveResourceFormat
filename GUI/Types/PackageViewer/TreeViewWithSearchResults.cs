@@ -598,7 +598,7 @@ namespace GUI.Types.PackageViewer
                                 }
                                 catch (Exception ex) when (ex is not OperationCanceledException)
                                 {
-                                    Log.Error(nameof(TreeViewWithSearchResults), $"Failed to render thumbnail for {entry.GetFullPath()}: {ex.Message}");
+                                    Log.Error(nameof(TreeViewWithSearchResults), $"Failed to render thumbnail for \"{entry.GetFullPath()}\" in \"{context.DisplayPath}\": {ex.Message}");
                                     return;
                                 }
 
@@ -1054,8 +1054,7 @@ namespace GUI.Types.PackageViewer
         {
             DeletedFilesRecovered = true;
 
-            var currentPackage = mainTreeView.VrfGuiContext?.CurrentPackage;
-            if (currentPackage == null)
+            if (mainTreeView.VrfGuiContext is not { CurrentPackage: { } currentPackage } vrfGuiContext)
             {
                 return;
             }
@@ -1068,7 +1067,17 @@ namespace GUI.Types.PackageViewer
             {
                 progressDialog.SetProgress("Scanning for deleted files, this may take a while…");
 
-                var foundFiles = Types.PackageViewer.PackageViewer.RecoverDeletedFiles(currentPackage, progressDialog);
+                List<PackageEntry> foundFiles;
+
+                try
+                {
+                    foundFiles = Types.PackageViewer.PackageViewer.RecoverDeletedFiles(currentPackage, progressDialog);
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    Program.ShowError(e, vrfGuiContext.DisplayPath);
+                    return Task.CompletedTask;
+                }
 
                 Invoke((MethodInvoker)(() =>
                 {
@@ -1119,8 +1128,7 @@ namespace GUI.Types.PackageViewer
 
         internal void VerifyPackageContents()
         {
-            var package = mainTreeView.VrfGuiContext?.CurrentPackage;
-            if (package?.Entries == null)
+            if (mainTreeView.VrfGuiContext is not { CurrentPackage: { Entries: not null } package } vrfGuiContext)
             {
                 return;
             }
@@ -1173,7 +1181,7 @@ namespace GUI.Types.PackageViewer
                 }
                 catch (Exception e)
                 {
-                    Log.Error(nameof(Package), $"Failed to verify package contents: {e.Message}");
+                    Log.Error(nameof(TreeViewWithSearchResults), $"Failed to verify \"{vrfGuiContext.DisplayPath}\": {e}");
 
                     if (!cancellationToken.IsCancellationRequested)
                     {

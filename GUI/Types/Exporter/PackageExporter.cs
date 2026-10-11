@@ -333,44 +333,47 @@ namespace GUI.Types.Exporter
                     outFilePath = Path.ChangeExtension(outFilePath, outputFormat);
                 }
 
-                EnsureDirectoryExists(outFilePath);
-
-                var stream = GameFileLoader.GetPackageEntryStream(currentPackage, packageFile);
-
-                if (!decompile || !packageFile.TypeName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
-                {
-                    // Extract as is
-                    using var rawStream = stream;
-                    using var outStream = new FileStream(outFilePath, new FileStreamOptions
-                    {
-                        Mode = FileMode.Create,
-                        Access = FileAccess.Write,
-                        Options = FileOptions.Asynchronous,
-                        PreallocationSize = packageFile.TotalLength >= PreallocationThreshold ? packageFile.TotalLength : 0,
-                    });
-                    await rawStream.CopyToAsync(outStream, cancellationToken).ConfigureAwait(false);
-
-                    continue;
-                }
-
-                using var resource = new Resource
-                {
-                    FileName = fileFullName,
-                };
-
                 try
                 {
-                    resource.Read(stream);
-                }
-                catch (Exception e)
-                {
-                    filesFailedToExport++;
-                    Log.Error(nameof(PackageExporter), $"Failed to extract '{fileFullName}': {e}");
-                    continue;
-                }
+                    EnsureDirectoryExists(outFilePath);
 
-                await ExtractFileAsync(resource, fileFullName, outFilePath, false, cancellationToken).ConfigureAwait(false);
+                    using var stream = GameFileLoader.GetPackageEntryStream(currentPackage, packageFile);
+
+                    if (!decompile || !packageFile.TypeName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+                    {
+                        // Extract as is
+                        using var outStream = new FileStream(outFilePath, new FileStreamOptions
+                        {
+                            Mode = FileMode.Create,
+                            Access = FileAccess.Write,
+                            Options = FileOptions.Asynchronous,
+                            PreallocationSize = packageFile.TotalLength >= PreallocationThreshold ? packageFile.TotalLength : 0,
+                        });
+                        await stream.CopyToAsync(outStream, cancellationToken).ConfigureAwait(false);
+
+                        continue;
+                    }
+
+                    using var resource = new Resource
+                    {
+                        FileName = fileFullName,
+                    };
+
+                    resource.Read(stream);
+
+                    await ExtractFileAsync(resource, fileFullName, outFilePath, false, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception e) when (e is not OperationCanceledException)
+                {
+                    ReportFailure(fileFullName, e);
+                }
             }
+        }
+
+        private void ReportFailure(string fileName, Exception exception)
+        {
+            filesFailedToExport++;
+            Log.Error(nameof(PackageExporter), $"Failed to extract '{fileName}': {exception}");
         }
 
         private async Task ExtractFileAsync(Resource resource, string inFilePath, string outFilePath, bool flatSubfiles, CancellationToken cancellationToken)
@@ -404,31 +407,30 @@ namespace GUI.Types.Exporter
                 }
                 catch (Exception e)
                 {
-                    filesFailedToExport++;
-                    Log.Error(nameof(PackageExporter), $"Failed to extract '{resource.FileName}': {e}");
+                    ReportFailure(inFilePath, e);
                 }
 
                 return;
-            }
-
-            if (outExtension == ".sound" || outExtension == ".image" || outExtension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
-            {
-                var extension = FileExtract.GetExtension(resource);
-
-                if (extension != null)
-                {
-                    outFilePath = Path.ChangeExtension(outFilePath, extension);
-                }
-            }
-            else if (outExtension == ".vmap")
-            {
-                flatSubfiles = false;
             }
 
             ContentFile? contentFile = null;
 
             try
             {
+                if (outExtension == ".sound" || outExtension == ".image" || outExtension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+                {
+                    var extension = FileExtract.GetExtension(resource);
+
+                    if (extension != null)
+                    {
+                        outFilePath = Path.ChangeExtension(outFilePath, extension);
+                    }
+                }
+                else if (outExtension == ".vmap")
+                {
+                    flatSubfiles = false;
+                }
+
                 contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext, progress);
 
                 if (contentFile.Data != null)
@@ -469,8 +471,7 @@ namespace GUI.Types.Exporter
             }
             catch (Exception e)
             {
-                filesFailedToExport++;
-                Log.Error(nameof(PackageExporter), $"Failed to extract '{inFilePath}': {e}");
+                ReportFailure(inFilePath, e);
             }
             finally
             {
@@ -503,8 +504,7 @@ namespace GUI.Types.Exporter
                 }
                 catch (Exception e)
                 {
-                    filesFailedToExport++;
-                    Log.Error(nameof(PackageExporter), $"Failed to extract subfile '{contentSubFile.FileName}': {e}");
+                    ReportFailure(contentSubFile.FileName, e);
                     continue;
                 }
 

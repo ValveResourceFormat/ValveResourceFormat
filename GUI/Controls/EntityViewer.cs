@@ -138,7 +138,7 @@ namespace GUI.Types.Viewers
                 {
                     if (t.Exception != null)
                     {
-                        Log.Error(nameof(EntityViewer), t.Exception.ToString());
+                        Log.Error(nameof(EntityViewer), $"Failed to load entity icons for \"{GuiContext.DisplayPath}\": {t.Exception}");
                     }
                 });
             }

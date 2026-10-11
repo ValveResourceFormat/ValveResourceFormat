@@ -714,7 +714,7 @@ namespace GUI.Types.Viewers
             }
             else if (model.Data.ContainsKey("m_animGraph2Refs"))
             {
-                Log.Warn(nameof(Resource), "Model has a non-array m_animGraph2Refs value, skipping its animation graph tabs.");
+                Log.Warn(nameof(Resource), $"Model \"{vrfGuiContext.DisplayPath}\" has a non-array m_animGraph2Refs value, skipping its animation graph tabs.");
             }
 
             if (model.Data.ContainsKey("m_refAnimGraph"))
@@ -789,7 +789,7 @@ namespace GUI.Types.Viewers
 
                                 try
                                 {
-                                    var audio = new AudioPlaybackPanel(ownedStream, isPreview && autoPlay, loopMarkers);
+                                    var audio = new AudioPlaybackPanel(ownedStream, vrfGuiContext.DisplayPath, isPreview && autoPlay, loopMarkers);
                                     specialTabPage.Controls.Add(audio);
                                     ownedStream = null;
                                 }
@@ -801,11 +801,11 @@ namespace GUI.Types.Viewers
                         }
                         catch (Exception e)
                         {
-                            Log.Error(nameof(AudioPlayer), e.ToString());
+                            Log.Error(nameof(AudioPlayer), $"Failed to create audio stream for \"{vrfGuiContext.DisplayPath}\": {e}");
 
                             var msg = new Label
                             {
-                                Text = $"NAudio Exception: {e}",
+                                Text = $"NAudio Exception for \"{vrfGuiContext.DisplayPath}\": {e}",
                                 Dock = DockStyle.Fill,
                             };
 
@@ -1047,7 +1047,7 @@ namespace GUI.Types.Viewers
             }
             catch (Exception e)
             {
-                Log.Error(nameof(Resource), e.ToString());
+                Log.Error(nameof(Resource), $"Failed to show the {block.Type} block of \"{vrfGuiContext.DisplayPath}\" as text, showing bytes instead: {e}");
                 AddByteViewControl(resource, block, container);
             }
         }
@@ -1160,11 +1160,11 @@ namespace GUI.Types.Viewers
         /// Runs <paramref name="populate"/> the first time <paramref name="page"/> is shown, so the
         /// contents of tabs that are never opened are not built.
         /// </summary>
-        private static void PopulateWhenShown(TabPage page, Action populate)
+        private void PopulateWhenShown(TabPage page, Action populate)
         {
             if (page.Visible)
             {
-                populate();
+                TryPopulate();
                 return;
             }
 
@@ -1176,7 +1176,20 @@ namespace GUI.Types.Viewers
                 }
 
                 page.VisibleChanged -= OnVisibleChanged;
-                populate();
+                TryPopulate();
+            }
+
+            // Usually runs from a UI event, where an escaping exception would not say which file failed
+            void TryPopulate()
+            {
+                try
+                {
+                    populate();
+                }
+                catch (Exception ex)
+                {
+                    page.Controls.Add(CodeTextBox.CreateFromException(ex, vrfGuiContext.DisplayPath));
+                }
             }
 
             page.VisibleChanged += OnVisibleChanged;

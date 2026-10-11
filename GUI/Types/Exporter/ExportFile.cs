@@ -22,127 +22,165 @@ namespace GUI.Types.Exporter
                 return;
             }
 
-            var stream = GameFileLoader.GetPackageEntryStream(currentPackage, file);
+            var fileName = file.GetFullPath();
 
-            await ExtractFileFromStream(file.GetFullPath(), stream, vrfGuiContext, decompile).ConfigureAwait(true);
-        }
+            // The context is either the package, or a tab opened from it which already names the file
+            var errorContext = vrfGuiContext.FileName == fileName ? vrfGuiContext.DisplayPath : $"{fileName} ← {vrfGuiContext.DisplayPath}";
 
-        public static async Task ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile)
-        {
-            if (decompile && !await PreExportDisclaimer(Path.GetExtension(fileName)).ConfigureAwait(true))
+            Stream stream;
+
+            try
             {
+                stream = GameFileLoader.GetPackageEntryStream(currentPackage, file);
+            }
+            catch (Exception e)
+            {
+                Program.ShowError(e, errorContext);
                 return;
             }
 
-            if (decompile && fileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+            await ExtractFileFromStream(fileName, stream, vrfGuiContext, decompile, errorContext).ConfigureAwait(true);
+        }
+
+        /// <param name="errorContext">Which file this is, shown when extracting it fails.</param>
+        public static async Task ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile, string errorContext)
+        {
+            try
             {
-                var resourceTemp = new Resource
+                if (decompile && !await PreExportDisclaimer(Path.GetExtension(fileName)).ConfigureAwait(true))
                 {
-                    FileName = fileName,
-                };
-                var resource = resourceTemp;
-                string filaNameToSave;
-
-                try
-                {
-                    resource.Read(stream);
-
-                    var extension = FileExtract.GetExtension(resource);
-
-                    if (extension == null)
-                    {
-                        await stream.DisposeAsync().ConfigureAwait(true);
-                        Log.Error(nameof(ExportFile), $"Export for \"{fileName}\" has no suitable extension");
-                        return;
-                    }
-
-                    var filter = $"{extension} file|*.{extension}";
-
-                    if (GltfModelExporter.CanExport(resource))
-                    {
-                        const string gltfFilter = "glTF|*.gltf";
-                        const string glbFilter = "glTF Binary|*.glb";
-
-                        filter = $"{filter}|{gltfFilter}|{glbFilter}";
-                    }
-
-                    var fileNameForSave = Path.GetFileNameWithoutExtension(fileName);
-
-                    if (Path.GetExtension(fileName) == ".vmap_c")
-                    {
-                        // When exporting a vmap, suggest saving with a suffix like de_dust2_d,
-                        // to reduce conflicts when users end up recompiling the map with the same name as it exists in the game
-                        fileNameForSave += "_d";
-                    }
-
-                    var pickedFileName = AppFileDialogs.SaveFile("Choose where to save the file", fileNameForSave, extension, filter);
-
-                    if (pickedFileName == null)
-                    {
-                        return;
-                    }
-
-                    filaNameToSave = pickedFileName;
-                    resourceTemp = null;
-                }
-                finally
-                {
-                    resourceTemp?.Dispose();
+                    return;
                 }
 
-                var directory = Path.GetDirectoryName(filaNameToSave);
-                var exportData = new ExportData
+                if (decompile && fileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                 {
-                    VrfGuiContext = new VrfGuiContext(fileName, vrfGuiContext),
-                };
-
-                try
-                {
-                    var exporter = new PackageExporter(exportData, directory ?? string.Empty, true);
-
-                    // Cancelling closes the dialog while the extract is still winding down, so wait for it to
-                    // stop before the finally pulls the resource out from under it
-                    await exporter.ExecuteSingleFileExtractAsync(resource, fileName, filaNameToSave, $"Extracting {fileName} to \"{Path.GetFileName(filaNameToSave)}\"").ConfigureAwait(true);
+                    await DecompileResource(fileName, stream, vrfGuiContext).ConfigureAwait(true);
                 }
-                finally
+                else
                 {
-                    await stream.DisposeAsync().ConfigureAwait(true);
-                    resource.Dispose();
-                    exportData.VrfGuiContext.Dispose();
+                    await SaveFile(fileName, stream, decompile).ConfigureAwait(true);
                 }
             }
-            else
+            catch (Exception e) when (e is not OperationCanceledException)
             {
-                if (decompile && FileExtract.TryExtractNonResource(stream, fileName, out var content))
+                Program.ShowError(e, errorContext);
+            }
+            finally
+            {
+                await stream.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+
+        private static async Task DecompileResource(string fileName, Stream stream, VrfGuiContext vrfGuiContext)
+        {
+            var resourceTemp = new Resource
+            {
+                FileName = fileName,
+            };
+            var resource = resourceTemp;
+            string filaNameToSave;
+
+            try
+            {
+                resource.Read(stream);
+
+                var extension = FileExtract.GetExtension(resource);
+
+                if (extension == null)
+                {
+                    Log.Error(nameof(ExportFile), $"Export for \"{fileName}\" has no suitable extension");
+                    return;
+                }
+
+                var filter = $"{extension} file|*.{extension}";
+
+                if (GltfModelExporter.CanExport(resource))
+                {
+                    const string gltfFilter = "glTF|*.gltf";
+                    const string glbFilter = "glTF Binary|*.glb";
+
+                    filter = $"{filter}|{gltfFilter}|{glbFilter}";
+                }
+
+                var fileNameForSave = Path.GetFileNameWithoutExtension(fileName);
+
+                if (Path.GetExtension(fileName) == ".vmap_c")
+                {
+                    // When exporting a vmap, suggest saving with a suffix like de_dust2_d,
+                    // to reduce conflicts when users end up recompiling the map with the same name as it exists in the game
+                    fileNameForSave += "_d";
+                }
+
+                var pickedFileName = AppFileDialogs.SaveFile("Choose where to save the file", fileNameForSave, extension, filter);
+
+                if (pickedFileName == null)
+                {
+                    return;
+                }
+
+                filaNameToSave = pickedFileName;
+                resourceTemp = null;
+            }
+            finally
+            {
+                resourceTemp?.Dispose();
+            }
+
+            var directory = Path.GetDirectoryName(filaNameToSave);
+            var exportData = new ExportData
+            {
+                VrfGuiContext = new VrfGuiContext(fileName, vrfGuiContext),
+            };
+
+            try
+            {
+                var exporter = new PackageExporter(exportData, directory ?? string.Empty, true);
+
+                // Cancelling closes the dialog while the extract is still winding down, so wait for it to
+                // stop before the finally pulls the resource out from under it
+                await exporter.ExecuteSingleFileExtractAsync(resource, fileName, filaNameToSave, $"Extracting {fileName} to \"{Path.GetFileName(filaNameToSave)}\"").ConfigureAwait(true);
+            }
+            finally
+            {
+                resource.Dispose();
+                exportData.VrfGuiContext.Dispose();
+            }
+        }
+
+        private static async Task SaveFile(string fileName, Stream stream, bool decompile)
+        {
+            ContentFile? content = null;
+
+            try
+            {
+                if (decompile && FileExtract.TryExtractNonResource(stream, fileName, out content))
                 {
                     if (content.Data == null)
                     {
                         // Content has no data to extract, only potentially subfiles
-                        content.Dispose();
-                        await stream.DisposeAsync().ConfigureAwait(true);
                         Log.Info(nameof(ExportFile), $"File \"{fileName}\" has no extractable data");
                         return;
                     }
 
-                    var extension = Path.GetExtension(content.FileName);
-                    fileName = Path.ChangeExtension(fileName, extension);
-                    await stream.DisposeAsync().ConfigureAwait(true);
-
+                    fileName = Path.ChangeExtension(fileName, Path.GetExtension(content.FileName));
                     stream = new MemoryStream(content.Data);
-                    content.Dispose();
                 }
 
                 var saveFileName = AppFileDialogs.SaveFile("Choose where to save the file", Path.GetFileName(fileName), null, "All files (*.*)|*.*");
 
-                if (saveFileName != null)
+                if (saveFileName == null)
                 {
-                    Log.Info(nameof(ExportFile), $"Saved \"{Path.GetFileName(saveFileName)}\"");
-
-                    using var streamOutput = File.Create(saveFileName);
-                    await stream.CopyToAsync(streamOutput).ConfigureAwait(true);
+                    return;
                 }
 
-                await stream.DisposeAsync().ConfigureAwait(true);
+                using var streamOutput = File.Create(saveFileName);
+                await stream.CopyToAsync(streamOutput).ConfigureAwait(true);
+
+                Log.Info(nameof(ExportFile), $"Saved \"{Path.GetFileName(saveFileName)}\"");
+            }
+            finally
+            {
+                content?.Dispose();
             }
         }
 
