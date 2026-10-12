@@ -86,7 +86,7 @@ public class VfxCombo : ShaderDataBlock
             }
         }
 
-        if (ComboSourceType is ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__) or ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_NE__))
+        if (vcsVersion >= 59 && ComboSourceType is ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__) or ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_NE__))
         {
             FeatureComparisonValue = datareader.ReadInt32();
         }

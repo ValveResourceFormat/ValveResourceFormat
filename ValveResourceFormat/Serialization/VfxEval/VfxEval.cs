@@ -272,6 +272,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     OffsetAtBranchExits.Push(dataReader.ReadUInt16() + 1u);
                     return;
 
+                // Version 58 shaders compile both branch blocks as subroutines after the main code, called by BRANCH and ending in RET
                 case OPCODE.BRANCH:
                 {
                     var pointerWhenTrue = dataReader.ReadUInt16();
