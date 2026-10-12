@@ -986,7 +986,7 @@ namespace ValveResourceFormat.IO
                     yield break;
                 }
 
-                if (CurrentFileName == vpk)
+                if (IsOpenedPackage(vpk))
                 {
 #if DEBUG_FILE_LOAD
                     Logger.LogDebug("VPK \"{Vpk}\" is the same we just opened, skipping", vpk);
@@ -996,6 +996,21 @@ namespace ValveResourceFormat.IO
 
                 yield return vpk;
             }
+        }
+
+        /// <summary>
+        /// Whether <paramref name="vpk"/> is the file that was opened, given either by its own path or as
+        /// <see cref="CurrentPackage"/>, whose name has the <c>_dir.vpk</c> suffix stripped.
+        /// </summary>
+        private bool IsOpenedPackage(string vpk)
+        {
+            if (CurrentFileName == vpk)
+            {
+                return true;
+            }
+
+            return CurrentPackage?.FileName is { } packageName
+                && string.Equals(Path.GetFullPath(string.Concat(packageName, "_dir.vpk")), Path.GetFullPath(vpk), StringComparison.Ordinal);
         }
 
         private HashSet<string> FindGameFoldersForWorkshopFile()
