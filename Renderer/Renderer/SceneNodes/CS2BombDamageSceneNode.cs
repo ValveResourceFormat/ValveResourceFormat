@@ -58,13 +58,14 @@ public class CS2BombDamageSceneNode : SceneNode
     /// </summary>
     /// <param name="scene">The scene this node belongs to.</param>
     /// <param name="bombDamageData">Baked bomb damage data.</param>
+    /// <param name="name">Name of the resource the data was loaded from, which names the GPU buffers.</param>
     /// <param name="bombsiteIndex">Index of the bombsite. Index 0 is not guaranteed to be bombsite A.</param>
     /// <param name="renderTexture">Texture drawn on each damage value quad.</param>
     /// <param name="bombsiteLabel">Display label for the bombsite ("A", "B", or a per-site index when unresolved).</param>
-    public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, int bombsiteIndex, RenderTexture renderTexture, string bombsiteLabel) : base(scene)
+    public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, string name, int bombsiteIndex, RenderTexture renderTexture, string bombsiteLabel) : base(scene)
     {
         var shader = Scene.RendererContext.ShaderLoader.LoadShader("cs2_baked_bomb_damage");
-        meshName = $"{bombDamageData.Resource.FileName}:site{bombsiteIndex}";
+        meshName = $"{name}:site{bombsiteIndex}";
 
         material = new RenderMaterial(shader);
         material.IntParams["F_TRANSLUCENT"] = 1;
@@ -218,7 +219,7 @@ public class CS2BombDamageSceneNode : SceneNode
     /// labeled from the <c>func_bomb_target</c> volumes intersecting their bounds, falling back to a per-site
     /// index unless exactly one designation matches (e.g. when the scene has no entities).
     /// </summary>
-    public static void AddBakedBombDamageToScene(BombDamage? bombDamageData, Scene scene)
+    public static void AddBakedBombDamageToScene(BombDamage? bombDamageData, string name, Scene scene)
     {
         if (bombDamageData == null || scene == null)
         {
@@ -243,7 +244,7 @@ public class CS2BombDamageSceneNode : SceneNode
             // Fall back to a per-site index when unresolved (e.g. standalone viewer has no entities) so each site gets its own layer.
             var label = designations.Count == 1 ? designations[0] : $"#{i + 1}";
 
-            var sceneNode = new CS2BombDamageSceneNode(scene, bombDamageData, i, arrowTexture, label);
+            var sceneNode = new CS2BombDamageSceneNode(scene, bombDamageData, name, i, arrowTexture, label);
             scene.Add(sceneNode, false);
             var boundsVertices = new List<SimpleVertex>(2 * 12);
             ShapeSceneNode.AddBox(boundsVertices, new AABB(bombsite.BoundsMin, bombsite.BoundsMax), Color32.Red);

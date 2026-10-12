@@ -7,7 +7,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.GenericData;
 
 namespace ValveResourceFormat
 {
@@ -317,14 +316,6 @@ namespace ValveResourceFormat
 
                     block.EnsureRead();
                 }
-            }
-
-            // Specialize the generic VData KV3 DATA block into a typed block based on generic_data_type
-            if (ResourceType == ResourceType.VData
-                && DataBlock is BinaryKV3 vdataBlock
-                && GenericData.Construct(vdataBlock) is { } specializedData)
-            {
-                blocks.Items[blocks.Items.IndexOf(vdataBlock)] = specializedData;
             }
         }
 
