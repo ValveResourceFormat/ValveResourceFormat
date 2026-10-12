@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -40,7 +41,7 @@ namespace GUI.Types.GLViewers
         private readonly Resource Resource;
         private TabControl? Tabs;
         private Button? openShaderButton;
-        private TableLayoutPanel? ParamsTable;
+        private Panel? ParamsPanel;
         private RenderMaterial? renderMat;
         private ComboBox? previewObjectComboBox;
 
@@ -74,7 +75,7 @@ namespace GUI.Types.GLViewers
 
         public override void Dispose()
         {
-            ParamsTable?.Dispose();
+            ParamsPanel?.Dispose();
             openShaderButton?.Dispose();
             previewObjectComboBox?.Dispose();
             vcsShader?.Dispose();
@@ -153,10 +154,10 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Each row adds its editors to its Controls, which dispose them")]
         private void CreateMaterialEditControls(RenderMaterial loadedMaterial)
         {
-            Debug.Assert(ParamsTable != null);
-            Debug.Assert(UiControl != null);
+            Debug.Assert(ParamsPanel != null);
 
             // Mesh previews may draw with their own copy of the material, so edit that one
             var previewMaterial = loadedMaterial;
@@ -268,7 +269,7 @@ namespace GUI.Types.GLViewers
                 .ToList();
 
             var currentHeading = string.Empty;
-            ParamsTable.SuspendLayout();
+            ParamsPanel.SuspendLayout();
 
             // Add parameters to UI with layer headers
             foreach (var (paramName, value, type, vfxDescription) in sortedParams)
@@ -276,209 +277,138 @@ namespace GUI.Types.GLViewers
                 if (vfxDescription != null && vfxDescription.UiGroup.Heading != currentHeading)
                 {
                     currentHeading = vfxDescription.UiGroup.Heading;
-
-                    var headerRow = ParamsTable.RowCount;
-                    ParamsTable.RowCount = headerRow + 1;
-                    ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
-
-                    var header = new Label
-                    {
-                        Text = currentHeading,
-                        Dock = DockStyle.Fill,
-                        Font = new Font(UiControl.Font, FontStyle.Bold),
-                        TextAlign = ContentAlignment.MiddleLeft,
-                        BackColor = SystemColors.ControlLight,
-                        ForeColor = SystemColors.ControlText
-                    };
-
-                    var headerCell = new TableLayoutPanel
-                    {
-                        Dock = DockStyle.Fill,
-                        Margin = new Padding(0),
-                        Padding = new Padding(10, 5, 0, 5),
-                        BackColor = SystemColors.ControlLight
-                    };
-                    headerCell.Controls.Add(header);
-
-                    ParamsTable.Controls.Add(headerCell, 0, headerRow);
-                    ParamsTable.SetColumnSpan(headerCell, 2);
+                    AddParameterRow(CreateParameterHeader(currentHeading));
                 }
+
+                var displayName = NormalizeParameterName(paramName);
 
                 switch (type)
                 {
                     case ParamType.Float:
                         var (floatVal, floatPresence) = ((float, ParameterPresence))value;
-                        Vector2 range = vfxDescription != null
-                            ? new(vfxDescription.FloatMins[0], vfxDescription.FloatMaxs[0])
-                            : new(Math.Min(floatVal, 0), Math.Max(floatVal, 1));
-                        AddNumericParameter(
-                            paramName,
-                            floatVal,
-                            range,
-                            ParamType.Float,
-                            v => previewMaterial.FloatParams[paramName] = (float)v,
-                            floatPresence != ParameterPresence.MaterialOnly);
+                        var (floatMin, floatMax) = vfxDescription != null
+                            ? (vfxDescription.FloatMins[0], vfxDescription.FloatMaxs[0])
+                            : (0f, 1f);
+
+                        // The slider widens to include the value, so an unusable range only needs a starting point
+                        if (!(floatMin < floatMax) || !float.IsFinite(floatMax - floatMin))
+                        {
+                            (floatMin, floatMax) = (0f, 1f);
+                        }
+
+                        var (slider, field) = RendererControl.CreateRangedFloatEditor(floatVal, floatMin, floatMax, wholeNumbers: false,
+                            v => previewMaterial.FloatParams[paramName] = v);
+                        AddParameterRow(CreateParameterRow(displayName, [slider], field), floatPresence != ParameterPresence.MaterialOnly);
                         break;
                     case ParamType.Int:
                         var (intVal, intPresence) = ((int, ParameterPresence))value;
-                        Vector2 rangeInt = vfxDescription != null
-                            ? new(vfxDescription.IntMins[0], vfxDescription.IntMaxs[0])
-                            : new(Math.Min(intVal, 0), Math.Max(intVal, 1));
-                        AddNumericParameter(
-                            paramName,
-                            intVal,
-                            rangeInt,
-                            ParamType.Int,
-                            v =>
-                            {
-                                previewMaterial.IntParams[paramName] = (int)v;
-                                previewMaterial.LoadRenderState();
-                            },
-                            intPresence != ParameterPresence.MaterialOnly);
+                        var (intMin, intMax) = vfxDescription != null
+                            ? (vfxDescription.IntMins[0], vfxDescription.IntMaxs[0])
+                            : (Math.Min(intVal, 0), Math.Max(intVal, 1));
+
+                        if (intMin > intMax)
+                        {
+                            (intMin, intMax) = (Math.Min(intVal, 0), Math.Max(intVal, 1));
+                        }
+
+                        var intInput = new ThemedIntNumeric
+                        {
+                            MinValue = intMin,
+                            MaxValue = intMax,
+                            Value = Math.Clamp(intVal, intMin, intMax),
+                        };
+
+                        intInput.ValueChanged += (_, _) =>
+                        {
+                            previewMaterial.IntParams[paramName] = intInput.Value;
+                            previewMaterial.LoadRenderState();
+                        };
+
+                        AddParameterRow(CreateParameterRow(displayName, [intInput]), intPresence != ParameterPresence.MaterialOnly);
                         break;
                     case ParamType.Bool:
                         var (boolVal, boolPresence) = ((bool, ParameterPresence))value;
-                        AddBooleanParameter(
-                            paramName,
-                            boolVal,
-                            v =>
-                            {
-                                previewMaterial.IntParams[paramName] = v ? 1 : 0;
-                                previewMaterial.LoadRenderState();
-                            },
-                            boolPresence != ParameterPresence.MaterialOnly);
+                        var checkBox = RendererControl.CreateRowCheckBox(boolVal, v =>
+                        {
+                            previewMaterial.IntParams[paramName] = v ? 1 : 0;
+                            previewMaterial.LoadRenderState();
+                        });
+                        AddParameterRow(CreateParameterRow(displayName, [checkBox]), boolPresence != ParameterPresence.MaterialOnly);
                         break;
                     case ParamType.Vector:
                         var (vector, count, vectorPresence) = ((Vector4, int, ParameterPresence))value;
-                        AddVectorParameter(
-                            paramName,
-                            count,
-                            vector,
-                            v => previewMaterial.VectorParams[paramName] = v,
-                            vectorPresence != ParameterPresence.MaterialOnly);
+                        var vectorFields = CreateVectorFields(vector, Math.Clamp(count, 1, 4), v => previewMaterial.VectorParams[paramName] = v);
+                        AddParameterRow(CreateParameterRow(displayName, vectorFields), vectorPresence != ParameterPresence.MaterialOnly);
                         break;
 
                     case ParamType.Color:
                         var (colorVec, colorPresence) = ((Vector4, ParameterPresence))value;
-                        AddColorParameter(
-                            paramName,
-                            Vector4ToColor(colorVec),
-                            c => previewMaterial.VectorParams[paramName] = ColorToVector4(c),
-                            colorPresence != ParameterPresence.MaterialOnly);
+                        var colorButton = CreateColorButton(Vector4ToColor(colorVec), c => previewMaterial.VectorParams[paramName] = ColorToVector4(c));
+                        AddParameterRow(CreateParameterRow(displayName, [colorButton]), colorPresence != ParameterPresence.MaterialOnly);
                         break;
                 }
             }
 
-            ParamsTable.ResumeLayout();
+            ParamsPanel.ResumeLayout();
         }
 
-        private void AddBooleanParameter(string paramName, bool initialValue, Action<bool> onValueChanged, bool isEnabled = true)
+        private static PropertyRow CreateParameterRow(string name, Control[] editors, params Control[] trailing)
+            => new(name, editors, trailing) { NameAlign = ContentAlignment.MiddleRight };
+
+        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "The header adds the label to its Controls, which dispose it")]
+        private static Panel CreateParameterHeader(string heading)
         {
-            Debug.Assert(ParamsTable != null);
+            var label = RendererControl.CreateSectionHeader(heading);
+            label.AutoSize = false;
+            label.TextAlign = ContentAlignment.BottomRight;
 
-            var row = ParamsTable.RowCount;
-            ParamsTable.RowCount = row + 1;
-            ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
-
-            var displayName = NormalizeParameterName(paramName);
-
-            var label = new Label()
+            var header = new Panel
             {
-                Dock = DockStyle.Fill,
-                AutoSize = false,
-                Text = displayName,
-                TextAlign = ContentAlignment.MiddleRight,
-                ForeColor = isEnabled ? SystemColors.ControlText : SystemColors.GrayText
+                Margin = Padding.Empty,
             };
 
-            ParamsTable.Controls.Add(label, 0, row);
+            header.Height = header.AdjustForDPI(28);
 
-            var checkbox = new CheckBox
-            {
-                Dock = DockStyle.Fill,
-                Checked = initialValue,
-                AutoSize = true,
-                Margin = new Padding(10, 0, 0, 0),
-                Enabled = isEnabled
-            };
+            // The label takes its font from the sidebar, which the header only knows once it is in it
+            header.ParentChanged += (_, _) => header.Controls.Add(label);
 
-            checkbox.CheckedChanged += (sender, e) =>
-            {
-                onValueChanged(checkbox.Checked);
-            };
+            // Ends where the names of the rows below end
+            header.Layout += (_, _) => label.SetBounds(0, 0, header.Width / 2 - header.AdjustForDPI(PropertyRow.Gap), header.Height);
 
-            ParamsTable.Controls.Add(checkbox, 1, row);
+            return header;
         }
 
-        private void AddVectorParameter(string paramName, int componentCount, Vector4 value, Action<Vector4> onValueChanged, bool isEnabled = true)
+        private void AddParameterRow(Control row, bool isEnabled = true)
         {
-            Debug.Assert(ParamsTable != null);
+            Debug.Assert(ParamsPanel != null);
 
-            var row = ParamsTable.RowCount;
-            ParamsTable.RowCount = row + 1;
-            ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
+            row.Enabled = isEnabled;
+            row.Dock = DockStyle.Top;
+            ParamsPanel.Controls.Add(row);
+            row.BringToFront();
+        }
 
-            var displayName = NormalizeParameterName(paramName);
+        private static ThemedFloatNumeric[] CreateVectorFields(Vector4 value, int componentCount, Action<Vector4> onValueChanged)
+        {
+            var fields = new ThemedFloatNumeric[componentCount];
 
-            var label = new Label()
+            for (var i = 0; i < fields.Length; i++)
             {
-                Dock = DockStyle.Fill,
-                AutoSize = false,
-                Text = displayName,
-                TextAlign = ContentAlignment.MiddleRight,
-                ForeColor = isEnabled ? SystemColors.ControlText : SystemColors.GrayText
-            };
-
-            ParamsTable.Controls.Add(label, 0, row);
-
-            var inputRow = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = componentCount,
-                Margin = new Padding(0),
-            };
-
-            // Set equal width for each component
-            var columnWidth = 100f / componentCount;
-            for (var i = 0; i < componentCount; i++)
-            {
-                inputRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, columnWidth));
-            }
-
-            // Add Numeric controls for vector components
-            var inputs = new ThemedFloatNumeric[componentCount];
-            for (var i = 0; i < componentCount; i++)
-            {
-                var index = i; // Capture for lambda
-                var input = new ThemedFloatNumeric
+                fields[i] = RendererControl.CreateFloatField(value[i], 3, _ =>
                 {
-                    Dock = DockStyle.Fill,
-                    MinValue = float.MinValue,
-                    MaxValue = float.MaxValue,
-                    DragWithinRange = false,
-                    DecimalMax = 3,
-                    Value = (index == 0 ? value.X : index == 1 ? value.Y : index == 2 ? value.Z : value.W),
-                    Enabled = isEnabled,
-                };
+                    // Components past the register size keep their value
+                    var newVector = value;
 
-                input.ValueChanged += (sender, e) =>
-                {
-                    // Keep existing W value for vec2/vec3, or use 1.0 as default
-                    var w = componentCount < 4 ? (componentCount == 3 ? 1.0f : value.W) : (float)inputs[3].Value;
-                    var newVector = new Vector4(
-                        index == 0 ? (float)input.Value : (float)inputs[0].Value,
-                        index == 1 ? (float)input.Value : (float)inputs[1].Value,
-                        index == 2 && componentCount > 2 ? (float)input.Value : value.Z,
-                        w
-                    );
+                    for (var component = 0; component < fields.Length; component++)
+                    {
+                        newVector[component] = fields[component].Value;
+                    }
+
                     onValueChanged(newVector);
-                };
-
-                inputs[i] = input;
-                inputRow.Controls.Add(input, i, 0);
+                });
             }
 
-            ParamsTable.Controls.Add(inputRow, 1, row);
+            return fields;
         }
 
         private static string NormalizeParameterName(string paramNameString)
@@ -526,37 +456,16 @@ namespace GUI.Types.GLViewers
             return result.ToString().Trim();
         }
 
-        private void AddColorParameter(string paramName, Color initialColor, Action<Color> onValueChanged, bool isEnabled = true)
+        private static ThemedButton CreateColorButton(Color initialColor, Action<Color> onValueChanged)
         {
-            Debug.Assert(ParamsTable != null);
-
-            var row = ParamsTable.RowCount;
-            ParamsTable.RowCount = row + 1;
-            ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
-
-            var displayName = NormalizeParameterName(paramName);
-
-            var label = new Label()
-            {
-                Dock = DockStyle.Fill,
-                AutoSize = false,
-                Text = displayName,
-                TextAlign = ContentAlignment.MiddleRight,
-                ForeColor = isEnabled ? SystemColors.ControlText : SystemColors.GrayText
-            };
-
-            ParamsTable.Controls.Add(label, 0, row);
-
             var colorButton = new ThemedButton
             {
-                Dock = DockStyle.Fill,
                 BackColor = initialColor,
                 FlatStyle = FlatStyle.Flat,
-                Enabled = isEnabled,
                 Style = false,
-                Padding = new Padding(2),
-                MinimumSize = new Size(0, 20),
             };
+
+            colorButton.Height = colorButton.AdjustForDPI(20);
 
             colorButton.Click += (sender, e) =>
             {
@@ -569,145 +478,7 @@ namespace GUI.Types.GLViewers
                 picker.ShowDialog();
             };
 
-            ParamsTable.Controls.Add(colorButton, 1, row);
-        }
-
-        private void AddNumericParameter(string paramName, float initialValue, Vector2 range, ParamType paramType, Action<float> onValueChanged, bool isEnabled = true)
-        {
-            Debug.Assert(ParamsTable != null);
-
-            var row = ParamsTable.RowCount;
-            ParamsTable.RowCount = row + 1;
-            ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
-
-            var displayName = NormalizeParameterName(paramName);
-
-            var label = new Label()
-            {
-                Dock = DockStyle.Fill,
-                AutoSize = false,
-                Text = displayName,
-                TextAlign = ContentAlignment.MiddleRight,
-                ForeColor = isEnabled ? SystemColors.ControlText : SystemColors.GrayText
-            };
-
-            ParamsTable.Controls.Add(label, 0, row);
-
-            var inputRow = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = paramType == ParamType.Float ? 2 : 1,
-                Margin = new Padding(0),
-            };
-
-            var min = range.X;
-            var max = range.Y;
-            if (float.IsNaN(min) || float.IsNaN(max) || min > max)
-            {
-                min = Math.Min(initialValue, 0);
-                max = Math.Max(initialValue, 1);
-            }
-
-            if (paramType == ParamType.Float)
-            {
-                inputRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70F));
-                inputRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
-
-                // Slider uses thousandths for reasonable precision
-                var scale = 1000.0f;
-                var sliderMin = (int)Math.Round(min * scale);
-                var sliderMax = (int)Math.Round(max * scale);
-
-                // Ensure a usable slider range
-                if (sliderMax <= sliderMin)
-                {
-                    sliderMax = sliderMin + 1;
-                }
-
-                var clampedInitial = Math.Clamp(initialValue, min, max);
-                var sliderValue = (int)Math.Round(clampedInitial * scale);
-
-                var slider = new TrackBar
-                {
-                    Dock = DockStyle.Fill,
-                    Minimum = sliderMin,
-                    Maximum = sliderMax,
-                    TickStyle = TickStyle.None,
-                    Value = sliderValue,
-                    Enabled = isEnabled,
-                };
-
-                var input = new ThemedFloatNumeric
-                {
-                    Dock = DockStyle.Fill,
-                    MinValue = min,
-                    MaxValue = max,
-                    DecimalMax = 3,
-                    DragWithinRange = false,
-                    Value = clampedInitial,
-                    Enabled = isEnabled,
-                };
-
-                var updatingFromSlider = false;
-
-                slider.ValueChanged += (sender, e) =>
-                {
-                    if (!updatingFromSlider)
-                    {
-                        updatingFromSlider = true;
-                        input.Value = slider.Value / scale;
-                        updatingFromSlider = false;
-                    }
-                };
-
-                input.ValueChanged += (sender, e) =>
-                {
-                    var v = Math.Clamp(input.Value, min, max);
-                    onValueChanged(v);
-
-                    if (!updatingFromSlider)
-                    {
-                        updatingFromSlider = true;
-                        slider.Value = (int)Math.Round(v * scale);
-                        updatingFromSlider = false;
-                    }
-                };
-
-                // If the range is degenerate, disable the slider UI
-                if (Math.Abs(max - min) < 1e-6f)
-                {
-                    slider.Enabled = false;
-                }
-
-                inputRow.Controls.Add(slider, 0, 0);
-                inputRow.Controls.Add(input, 1, 0);
-            }
-            else // Int parameter
-            {
-                inputRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-
-                var intMin = (int)Math.Floor(min);
-                var intMax = (int)Math.Ceiling(max);
-                if (intMax < intMin)
-                {
-                    intMax = intMin;
-                }
-
-                var input = new ThemedIntNumeric
-                {
-                    Dock = DockStyle.Fill,
-                    MinValue = intMin,
-                    MaxValue = intMax,
-                    Value = Math.Clamp((int)initialValue, intMin, intMax),
-                    Enabled = isEnabled,
-                };
-
-                input.ValueChanged += (sender, e) => onValueChanged(input.Value);
-
-                inputRow.Controls.Add(input, 0, 0);
-            }
-
-            ParamsTable.Controls.Add(inputRow, 1, row);
+            return colorButton;
         }
 
         public override void PostSceneLoad()
@@ -860,6 +631,7 @@ namespace GUI.Types.GLViewers
             return Vector4.Create(c.R, c.G, c.B, c.A) / 255f;
         }
 
+        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Each row adds its editors to its Controls, which dispose them")]
         protected override void AddUiControls()
         {
             Debug.Assert(UiControl != null);
@@ -873,83 +645,33 @@ namespace GUI.Types.GLViewers
             AddShaderButton();
             UiControl.AddDivider();
 
-            var previewControls = new TableLayoutPanel
+            var colorButton = CreateColorButton(Color.White, pickedColor =>
             {
-                Dock = DockStyle.Top,
-                AutoSize = true,
-                ColumnCount = 2,
-                RowCount = 2,
-                Height = 60,
-            };
-            previewControls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            previewControls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-
-            previewControls.Controls.Add(new Label()
-            {
-                Dock = DockStyle.Fill,
-                AutoSize = false,
-                Text = "Render Color",
-                TextAlign = ContentAlignment.MiddleRight
-            }, 0, 0);
-
-            var colorButton = new ThemedButton
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Style = false
-            };
-            colorButton.Click += (sender, e) =>
-            {
-                var oldColor = colorButton.BackColor;
-
-                using var picker = new BetterColorPicker(colorButton.BackColor, (pickedColor) =>
+                if (previewNode != null)
                 {
-                    if (previewNode != null)
-                    {
-                        previewNode.TintAlpha = ColorToVector4(pickedColor);
-                    }
-
-                    colorButton.BackColor = pickedColor;
-                });
-
-                picker.ShowDialog();
-            };
-            previewControls.Controls.Add(colorButton, 1, 0);
-
-            previewControls.Controls.Add(new Label()
-            {
-                Dock = DockStyle.Fill,
-                AutoSize = false,
-                Text = "Render Mesh",
-                TextAlign = ContentAlignment.MiddleRight
-            }, 0, 1);
+                    previewNode.TintAlpha = ColorToVector4(pickedColor);
+                }
+            });
 
             previewObjectComboBox = new ThemedComboBox
             {
-                Dock = DockStyle.Fill,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
 
             previewObjectComboBox.SelectedIndexChanged += RenderMeshPreview_SelectionChanged;
 
-            previewControls.Controls.Add(previewObjectComboBox, 1, 1);
+            UiControl.AddControl(CreateParameterRow("Render Color", [colorButton]));
+            UiControl.AddControl(CreateParameterRow("Render Mesh", [previewObjectComboBox]));
 
-            UiControl.AddControl(previewControls);
-
-            ParamsTable = new TableLayoutPanel
+            ParamsPanel = new Panel
             {
-                Dock = DockStyle.Top,
                 AutoSize = true,
+                Margin = Padding.Empty,
             };
 
             UiControl.AddDivider();
-            UiControl.AddControl(ParamsTable);
+            UiControl.AddControl(ParamsPanel);
             UiControl.AddDivider();
-
-            ParamsTable.ColumnCount = 2;
-            ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
 
             // Populate UI controls with scene data
             if (renderMat != null)

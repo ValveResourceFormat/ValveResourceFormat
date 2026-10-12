@@ -49,6 +49,13 @@ namespace GUI.Controls
             base.OnMouseUp(mevent);
         }
 
+        /// <summary>Draws the button as pressed or released, whatever the mouse is doing.</summary>
+        public void ShowPressed(bool pressed)
+        {
+            Clicked = pressed;
+            Invalidate();
+        }
+
         protected override void OnCreateControl()
         {
             base.OnCreateControl();
