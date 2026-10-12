@@ -26,11 +26,13 @@ Characters exported to glTF arrive in Blender rigged, with their skeleton and an
 
     ![Context menu of haze.vmdl_c with Decompile & export highlighted](./images/characters-in-blender-context-menu.webp)
 
-2. Choose an empty folder, set **Save as type** to **glTF** and click **Save**.
+2. Choose **gltf** in the output types dialog and click **Continue**.
+
+3. Choose an empty folder and click **Save**.
 
     ![Save dialog with Save as type set to glTF and the file name haze.gltf](./images/characters-in-blender-save-dialog.webp)
 
-3. When the window says **Export completed**, click **Close**.
+4. When the window says **Export completed**, click **Close**.
 
     ![Export progress window saying Export completed](./images/characters-in-blender-export-completed.webp)
 

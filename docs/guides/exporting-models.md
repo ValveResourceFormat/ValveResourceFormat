@@ -54,15 +54,23 @@ The **Animation** list at the top of the sidebar holds all animations of the mod
 
     ![Context menu of roshan.vmdl_c in the file list with Decompile & export highlighted](./images/exporting-models-export-menu.webp)
 
-2. Choose an empty folder, as the export writes several files. Set **Save as type** to **glTF** or **glTF Binary** and click **Save**.
+2. Choose **gltf** or **glb** in the output types dialog and click **Continue**.
 
-    ![Save dialog in a folder named Roshan with the file name roshan.vmdl and the Save as type list open, offering vmdl file, glTF and glTF Binary](./images/exporting-models-save-dialog.webp)
+3. Choose an empty folder, as the export writes several files, and click **Save**.
 
-3. When the window says **Export completed**, click **Close**.
+4. When the window says **Export completed**, click **Close**.
 
     ![The export window twice: above while it extracts roshan.vmdl_c to roshan.gltf, below when it says Export completed in 0:01](./images/exporting-models-export-progress.webp)
 
 The export holds the most detailed meshes, the materials with their textures as PNG files, the skeleton, every animation and any morph targets. The collision shapes go into a second file, `roshan_physics.gltf`. Keep the files together.
+
+## Decompiling to .vmdl
+
+Choosing **vmdl** in the output types dialog asks for a folder instead of a file. The model is written at its path in the game below that folder, such as `models/creeps/roshan/roshan.vmdl`. A folder inside an addon or mod, either on the `content` or the `game` side, uses the root of that addon or mod. A folder such as `models/creeps` that already ends in the start of the model's path is not repeated.
+
+The mesh, physics and animation DMX files are written where the `.vmdl` references them, which can be a different folder than the model. Animation clips and skeletons are written at the path they were authored at. A clip used by several models is written once.
+
+Check **Include dependencies** in the output types dialog to also decompile the materials, textures, animation clips, skeletons and graphs the model references from the same package. Base-game files stay referenced. If files already exist, you are asked once whether to replace them all or skip them.
 
 ## Importing into Blender
 

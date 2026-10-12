@@ -48,9 +48,7 @@ HDR textures, such as this sky, export as EXR with their full brightness range.
 
     ![Context menu on the magazine cover texture with Decompile & export highlighted](./images/exporting-textures-export-menu.webp)
 
-2. Choose a folder and click **Save**.
-
-    ![The save dialog in a folder named Textures, with the file name shoots_magazine_color_psd_c0170b69.png and the Save as type list open, showing png file](./images/exporting-textures-save-dialog.webp)
+2. Click **Continue** in the output types dialog, choose a folder and click **Select Folder**. The texture is written at its path in the game below that folder, such as `materials/...`.
 
 3. A window shows when the export is done.
 
@@ -58,7 +56,7 @@ HDR textures, such as this sky, export as EXR with their full brightness range.
 
 Textures are written as PNG, HDR textures as EXR, and textures stored as JPEG or WebP keep that format. A texture compiled from a `.vtex` file of its own is saved as that `.vtex`, with the image next to it. The exported image keeps the alpha channel.
 
-**Decompile & export** on a material writes the `.vmat` and its textures, with textures that pack several maps split into one image each.
+**Decompile & export** on a material writes the `.vmat` and its textures, with textures that pack several maps split into one image each. The images are written at the paths the `.vmat` refers to. Check **Include dependencies** in the output types dialog to also decompile the textures of a material or model from the same package.
 
 ## Exporting a Folder
 
@@ -66,7 +64,7 @@ Textures are written as PNG, HDR textures as EXR, and textures stored as JPEG or
 
     ![Context menu on the ak47 folder with Decompile & export highlighted](./images/getting-started-folder-export-menu.webp)
 
-2. Keep **image** for `vtex_c`. Set `vmat_c` to `* Do not export *` to get every texture under its own name instead of through its materials.
+2. Keep **vtex** for `vtex_c`. Set `vmat_c` to `* Do not export *` to get every texture under its own name instead of through its materials.
 
     ![Select output file types window for the ak47 folder, with the list for vtex_c open, showing Do not export, image and vtex](./images/exporting-textures-folder-types.webp)
 
