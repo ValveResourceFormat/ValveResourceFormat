@@ -521,6 +521,7 @@ public partial class GltfModelExporter
         var exportedTexturePath = Path.Join(DstDir, fileName);
         using var fs = File.Open(exportedTexturePath, FileMode.Create);
         await fs.WriteAsync(pngBytes, CancellationToken).ConfigureAwait(false);
+        FileWritten?.Invoke(exportedTexturePath);
 
         var count = Interlocked.Increment(ref TexturesExportedSoFar);
         ProgressReporter?.Report($"[{count}/{ExportedTextures.Count}] Exported texture: {image.Name}");
