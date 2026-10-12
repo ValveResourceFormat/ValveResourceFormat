@@ -55,7 +55,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         /// <inheritdoc/>
         public override bool HasFlexData => hasFlexData ??=
-            Array.Exists(segments.All, segment => segment?.ChannelAttribute == AnimationChannelAttribute.Data);
+            GetOwnSegments().Any(static segment => segment.ChannelAttribute == AnimationChannelAttribute.Data);
 
         /// <summary>
         /// Gets the movement data for this animation.
@@ -573,9 +573,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         {
             var scaled = new SortedSet<int>();
 
-            foreach (var segment in segments.All)
+            foreach (var segment in GetOwnSegments())
             {
-                if (segment is null || segment.ChannelAttribute != AnimationChannelAttribute.Scale)
+                if (segment.ChannelAttribute != AnimationChannelAttribute.Scale)
                 {
                     continue;
                 }
@@ -601,11 +601,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         private AnimatedChannels[] BuildAnimatedChannels()
         {
+            var ownSegments = GetOwnSegments().ToList();
             var boneCount = 0;
 
-            foreach (var segment in segments.All)
+            foreach (var segment in ownSegments)
             {
-                foreach (var boneIndex in segment?.RemapTable ?? [])
+                foreach (var boneIndex in segment.RemapTable)
                 {
                     boneCount = Math.Max(boneCount, boneIndex + 1);
                 }
@@ -613,13 +614,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             var animated = new AnimatedChannels[boneCount];
 
-            foreach (var segment in segments.All)
+            foreach (var segment in ownSegments)
             {
-                if (segment is null)
-                {
-                    continue;
-                }
-
                 var channel = segment.ChannelAttribute switch
                 {
                     AnimationChannelAttribute.Position => AnimatedChannels.Position,
@@ -642,6 +638,25 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             return animated;
+        }
+
+        /// <summary>
+        /// Gets the decoders of the segments this animation's frame blocks reference, skipping unsupported ones.
+        /// </summary>
+        private IEnumerable<AnimationSegmentDecoder> GetOwnSegments()
+        {
+            var seen = new HashSet<long>();
+
+            foreach (var frameBlock in FrameBlocks)
+            {
+                foreach (var segmentIndex in frameBlock.SegmentIndexArray)
+                {
+                    if (seen.Add(segmentIndex) && segments.Get(segmentIndex) is { } segment)
+                    {
+                        yield return segment;
+                    }
+                }
+            }
         }
 
         /// <inheritdoc/>

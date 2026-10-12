@@ -25,7 +25,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private HashSet<string>? unhandledDecoders;
         private string[]? decoderNames;
         private AnimationDataChannel[]? dataChannels;
-        private AnimationSegmentDecoder?[]? all;
 
         public AnimationSegmentTable(KVObject animationData, KVObject decodeKey, Skeleton skeleton, FlexController[] flexControllers)
         {
@@ -51,30 +50,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             return ReferenceEquals(decoder, Unhandled) ? null : decoder;
-        }
-
-        /// <summary>
-        /// Gets the decoders of every segment, building any not built yet.
-        /// </summary>
-        public AnimationSegmentDecoder?[] All
-        {
-            get
-            {
-                if (Volatile.Read(ref all) is { } built)
-                {
-                    return built;
-                }
-
-                built = new AnimationSegmentDecoder?[decoders.Length];
-
-                for (var i = 0; i < built.Length; i++)
-                {
-                    built[i] = Get(i);
-                }
-
-                Volatile.Write(ref all, built);
-                return built;
-            }
         }
 
         private string[] DecoderNames => LazyInitializer.EnsureInitialized(ref decoderNames, () =>
