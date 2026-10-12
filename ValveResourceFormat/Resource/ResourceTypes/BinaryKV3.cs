@@ -864,7 +864,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (blockLength > 0)
                     {
-                        output = [.. buffer.Bytes1[..blockLength]]; // explicit copy
+                        output = buffer.Bytes1.AsSpan(0, blockLength).ToArray();
                         buffer.Bytes1 = buffer.Bytes1[blockLength..];
                     }
                     else
@@ -881,7 +881,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (blockLength > 0)
                     {
-                        output = [.. context.BinaryBlobs[..blockLength]]; // explicit copy
+                        output = context.BinaryBlobs.AsSpan(0, blockLength).ToArray();
                         context.BinaryBlobs = context.BinaryBlobs[blockLength..];
                     }
                     else
