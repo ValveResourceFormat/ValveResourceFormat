@@ -39,6 +39,12 @@ namespace ValveResourceFormat.IO
         public IProgress<string>? ProgressReporter { get; set; }
 
         /// <summary>
+        /// Gets or sets a callback receiving the full path of every file written: the glTF itself, its buffers, its
+        /// textures and the separate physics file. It may be called from the tasks that export textures.
+        /// </summary>
+        public Action<string>? FileWritten { get; set; }
+
+        /// <summary>
         /// Gets the file loader for loading referenced resources.
         /// </summary>
         public IFileLoader FileLoader { get; }
@@ -264,7 +270,7 @@ namespace ValveResourceFormat.IO
                     case ResourceType.Map:
                     {
                         var lumpFolder = MapExtract.GetLumpFolderFromVmapRERL(resource.ExternalReferences);
-                        var worldFile = Path.Combine(lumpFolder, "world.vwrld");
+                        var worldFile = $"{lumpFolder}/world.vwrld";
                         using var mapResource = FileLoader.LoadFileCompiled(worldFile) ?? throw new FileNotFoundException($"Failed to load \"{worldFile}\"");
                         ExportToFile(resource.FileName, targetPath, (VWorld)mapResource.DataBlock!);
                         break;
@@ -860,7 +866,24 @@ namespace ValveResourceFormat.IO
             settings.JsonIndented = true;
 #endif
 
-            exportedModel.Save(filePath, settings);
+            var directory = Path.GetDirectoryName(Path.GetFullPath(filePath))!;
+            var context = WriteContext.Create((assetName, data) =>
+            {
+                var path = Path.Join(directory, assetName);
+                File.WriteAllBytes(path, data.AsSpan());
+                FileWritten?.Invoke(path);
+            }).WithSettingsFrom(settings);
+
+            var name = Path.GetFileName(filePath);
+
+            if (isGLB)
+            {
+                context.WriteBinarySchema2(name, exportedModel);
+            }
+            else
+            {
+                context.WriteTextSchema2(name, exportedModel);
+            }
 
             if (SatelliteImages)
             {
