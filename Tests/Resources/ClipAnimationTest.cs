@@ -78,6 +78,24 @@ namespace Tests.Resources
             }
         }
 
+        [Test]
+        public async Task BoneTransformsMultiplyAsTheirMatricesDo()
+        {
+            var first = new FrameBone(new Vector3(1f, 2f, 3f), 1.5f, Quaternion.CreateFromAxisAngle(Vector3.UnitZ, 0.6f));
+            var second = new FrameBone(new Vector3(-4f, 0.5f, 2f), 0.5f, Quaternion.CreateFromAxisAngle(Vector3.Normalize(new Vector3(1f, 1f, 0f)), -1.1f));
+
+            var combined = (first * second).ToMatrix();
+            var expected = first.ToMatrix() * second.ToMatrix();
+
+            for (var row = 0; row < 4; row++)
+            {
+                for (var column = 0; column < 4; column++)
+                {
+                    await Assert.That(combined[row, column]).IsEqualTo(expected[row, column]).Within(1e-5f);
+                }
+            }
+        }
+
         private static ClipAnimation LoadNovaShootAnimation(Resource resource)
         {
             resource.Read(TestFixtures.Path("shoot1_nova.vnmclip_c"));

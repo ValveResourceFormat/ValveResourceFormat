@@ -117,9 +117,29 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public readonly FrameBone BlendAdd(FrameBone other, float t)
         {
             var positionScale = Vector4.FusedMultiplyAdd(other.PositionScale, new Vector4(t), PositionScale);
-            var targetAngle = other.Angle * Angle;
+            var targetAngle = Angle * other.Angle;
             var angle = Quaternion.Slerp(Angle, targetAngle, t);
             return new(positionScale, angle);
+        }
+
+        /// <summary>
+        /// Combines two transforms, applying <paramref name="lhs"/> first and then <paramref name="rhs"/>,
+        /// as the product of their matrices does.
+        /// </summary>
+        public static FrameBone operator *(FrameBone lhs, FrameBone rhs)
+        {
+            return new FrameBone(
+                rhs.TransformPoint(lhs.Position),
+                lhs.Scale * rhs.Scale,
+                Quaternion.Normalize(rhs.Angle * lhs.Angle));
+        }
+
+        /// <summary>
+        /// Combines two transforms.
+        /// </summary>
+        public static FrameBone Multiply(FrameBone left, FrameBone right)
+        {
+            return left * right;
         }
     }
 }
