@@ -171,8 +171,19 @@ public sealed partial class MapExtract
         }
 
         return modelName.Contains("_mesh_blocklight", StringComparison.Ordinal)
-            || modelName.Contains("_mesh_overlay", StringComparison.Ordinal)
+            || IsOverlayMeshName(modelName)
             || modelName.Contains("_c0_", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Whether a compiled world mesh holds merged overlay geometry: <c>mesh_overlay</c>, <c>mesh_nsoverlay</c> or an
+    /// <c>agg_overlay_</c> aggregate.
+    /// </summary>
+    private static bool IsOverlayMeshName(string modelName)
+    {
+        return modelName.Contains("mesh_overlay", StringComparison.Ordinal)
+            || modelName.Contains("mesh_nsoverlay", StringComparison.Ordinal)
+            || modelName.Contains("agg_overlay_", StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -1080,7 +1091,7 @@ public sealed partial class MapExtract
         {
             HammerMesheEntitiesSelectionSet?.Children.Add(hammerMeshEntitySelectionSet);
         }
-        else if (resource.FileName!.Contains("_mesh_overlay", StringComparison.Ordinal))
+        else if (IsOverlayMeshName(resource.FileName!))
         {
             OverlaysSelectionSet?.Children.Add(drawSelectionSet);
         }
@@ -1092,8 +1103,10 @@ public sealed partial class MapExtract
         return hammerMeshesToReturn;
     }
 
-    internal void AddOverlayGeometry(Model model, Resource resource, Matrix4x4 transform, KVObject sceneObject, ObjectTypeFlags objectFlags)
+    internal void AddOverlayGeometry(Model model, Resource resource, Matrix4x4 transform, int renderOrder, Func<int, Vector4> drawCallTint, Func<int, ObjectTypeFlags> drawCallFlags)
     {
+        var drawCallCount = 0;
+
         foreach (var (mesh, _) in GetRenderMeshes(model))
         {
             var submeshDrawCalls = new List<(DmeDag Dag, KVObject DrawCall)>();
@@ -1101,6 +1114,8 @@ public sealed partial class MapExtract
 
             foreach (var (dag, drawCall) in submeshDrawCalls)
             {
+                var drawCallIndex = drawCallCount++;
+
                 if (dag.Shape is not DmeMesh shape)
                 {
                     continue;
@@ -1148,9 +1163,7 @@ public sealed partial class MapExtract
                     }
                 }
 
-                var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
-                var renderOrder = (int)sceneObject.GetIntegerProperty("m_nOverlayRenderOrder");
-                var group = new OverlayGroup(material, renderOrder, tintColor, objectFlags & OverlayFlags);
+                var group = new OverlayGroup(material, renderOrder, drawCallTint(drawCallIndex), drawCallFlags(drawCallIndex) & OverlayFlags);
 
                 if (!WorldOverlayGeometry.TryGetValue(group, out var pieces))
                 {
@@ -2061,9 +2074,11 @@ public sealed partial class MapExtract
                 var model = (Model)mesh.DataBlock;
 
                 // overlays are not normal hammer geo, their projected geometry is collected and reconstructed at the end
-                if (modelName!.Contains("_mesh_overlay", StringComparison.Ordinal))
+                if (IsOverlayMeshName(modelName!))
                 {
-                    AddOverlayGeometry(model, mesh, objectTransform, sceneObject, objectFlags);
+                    var overlayTint = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
+                    var renderOrder = (int)sceneObject.GetIntegerProperty("m_nOverlayRenderOrder");
+                    AddOverlayGeometry(model, mesh, objectTransform, renderOrder, _ => overlayTint, _ => objectFlags);
                     return;
                 }
 
@@ -2282,6 +2297,14 @@ public sealed partial class MapExtract
 
                 int HammerMeshShadows(int drawCallIndex)
                     => DisableShadowsFromFlags(fragmentFlags.GetValueOrDefault(drawCallIndex, allFlags));
+
+                if (IsOverlayMeshName(modelName))
+                {
+                    AddOverlayGeometry(model, modelRes, Matrix4x4.Identity, 0,
+                        drawCallIndex => fragmentTints.GetValueOrDefault(drawCallIndex, new Vector4(255f)) / 255f,
+                        drawCallIndex => fragmentFlags.GetValueOrDefault(drawCallIndex, allFlags));
+                    return;
+                }
 
                 // world geometry is welded across all aggregates, the meshes are made once every world node is in
                 WorldHammerMeshDrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, HammerMeshShadows, WorldHammerMeshBuilders);

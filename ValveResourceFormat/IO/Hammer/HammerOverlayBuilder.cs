@@ -29,8 +29,13 @@ namespace ValveResourceFormat.IO
         // steepest angle at which a projection direction still counts as seeing a surface
         private static readonly float SurfaceSeenCos = MathF.Cos(float.DegreesToRadians(75f));
 
-        // receiver triangles steeper than this against the projection are left out of the lifted mesh
-        private static readonly float GrazingCos = MathF.Cos(float.DegreesToRadians(85f));
+        // largest angle between a surface and the projection at which the overlay still lands on it
+        private const float DefaultBackFacingAngle = 90f;
+
+        // keeps surfaces exactly perpendicular to the projection out
+        private const float BackFacingEpsilon = 1e-5f;
+
+        private static readonly float BackFacingCos = MathF.Cos(float.DegreesToRadians(DefaultBackFacingAngle)) + BackFacingEpsilon;
 
         // distance for welding overlapping vertices
         private const float WeldDistance = 1f / 64f;
@@ -228,11 +233,10 @@ namespace ValveResourceFormat.IO
 
             for (var t = 0; t < triangleCount; t++)
             {
-                // only what faced the overlay, and still has an area once flattened along the projection, past
-                // grazing the footprint squishes into slivers that only stack over the neighbouring geometry
+                // only what faces the projection within the back facing angle and still has an area once flattened along it
                 var facingCos = Vector3.Dot(normals[t], direction);
 
-                if (areas[t] <= 0f || facingCos <= GrazingCos)
+                if (areas[t] <= 0f || facingCos <= BackFacingCos)
                 {
                     continue;
                 }
@@ -328,7 +332,7 @@ namespace ValveResourceFormat.IO
                 Origin = origin + nudge,
                 Angles = EntityTransformHelper.ToEulerAngles(rotation),
                 ProjectionFar = MathF.Ceiling(MeshHeight + (top - bottom) + ProjectionMargin),
-                BackFacingAngle = MathF.Min(90f, MathF.Ceiling(float.RadiansToDegrees(MathUtils.SafeAcos(steepestCos)) + ProjectionMargin)),
+                BackFacingAngle = MathF.Min(DefaultBackFacingAngle, MathF.Ceiling(float.RadiansToDegrees(MathUtils.SafeAcos(steepestCos)) + ProjectionMargin)),
             };
         }
 
