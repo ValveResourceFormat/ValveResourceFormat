@@ -1,36 +1,10 @@
 <!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
 {
-	m_name = resource:""
-	m_frameData = 
-	[
-		{
-			m_fileName = resource:""
-			m_nFrames = 1
-			m_nFramesPerBlock = 0
-			m_frameblockArray = 
-			[
-				{
-					m_nStartFrame = 0
-					m_nEndFrame = 0
-					m_segmentIndexArray = [ 0, 1 ]
-				},
-			]
-			m_usageDifferences = 
-			{
-				m_boneArray = [  ]
-				m_morphArray = [  ]
-				m_userArray = [  ]
-				m_bHasRotationBitArray = #[ 01 ]
-				m_bHasMovementBitArray = #[ 01 ]
-				m_bHasMorphBitArray = #[  ]
-				m_bHasUserBitArray = #[  ]
-			}
-		},
-	]
+	m_name = ""
 	m_animArray = 
 	[
 		{
-			m_name = resource:"@idle"
+			m_name = "@idle"
 			m_flags = 
 			{
 				m_bLooping = false
@@ -42,7 +16,7 @@
 			fps = 30.0
 			m_pData = 
 			{
-				m_fileName = resource:""
+				m_fileName = ""
 				m_nFrames = 1
 				m_nFramesPerBlock = 0
 				m_frameblockArray = 
@@ -91,117 +65,117 @@
 	m_decoderArray = 
 	[
 		{
-			m_szName = resource:"CCompressedStaticFloat"
+			m_szName = "CCompressedStaticFloat"
 			m_nVersion = 0
 			m_nType = 1
 		},
 		{
-			m_szName = resource:"CCompressedFullFloat"
+			m_szName = "CCompressedFullFloat"
 			m_nVersion = 0
 			m_nType = 1
 		},
 		{
-			m_szName = resource:"CCompressedStaticVector3"
+			m_szName = "CCompressedStaticVector3"
 			m_nVersion = 0
 			m_nType = 3
 		},
 		{
-			m_szName = resource:"CCompressedStaticFullVector3"
+			m_szName = "CCompressedStaticFullVector3"
 			m_nVersion = 0
 			m_nType = 3
 		},
 		{
-			m_szName = resource:"CCompressedAnimVector3"
+			m_szName = "CCompressedAnimVector3"
 			m_nVersion = 0
 			m_nType = 3
 		},
 		{
-			m_szName = resource:"CCompressedDeltaVector3"
+			m_szName = "CCompressedDeltaVector3"
 			m_nVersion = 0
 			m_nType = 3
 		},
 		{
-			m_szName = resource:"CCompressedFullVector3"
+			m_szName = "CCompressedFullVector3"
 			m_nVersion = 0
 			m_nType = 3
 		},
 		{
-			m_szName = resource:"CCompressedStaticQuaternion"
+			m_szName = "CCompressedStaticQuaternion"
 			m_nVersion = 0
 			m_nType = 4
 		},
 		{
-			m_szName = resource:"CCompressedAnimQuaternion"
+			m_szName = "CCompressedAnimQuaternion"
 			m_nVersion = 0
 			m_nType = 4
 		},
 		{
-			m_szName = resource:"CCompressedStaticChar"
+			m_szName = "CCompressedStaticChar"
 			m_nVersion = 0
 			m_nType = 5
 		},
 		{
-			m_szName = resource:"CCompressedFullChar"
+			m_szName = "CCompressedFullChar"
 			m_nVersion = 0
 			m_nType = 5
 		},
 		{
-			m_szName = resource:"CCompressedStaticInt"
+			m_szName = "CCompressedStaticInt"
 			m_nVersion = 0
 			m_nType = 5
 		},
 		{
-			m_szName = resource:"CCompressedFullShort"
+			m_szName = "CCompressedFullShort"
 			m_nVersion = 0
 			m_nType = 5
 		},
 		{
-			m_szName = resource:"CCompressedStaticInt"
+			m_szName = "CCompressedStaticInt"
 			m_nVersion = 0
 			m_nType = 5
 		},
 		{
-			m_szName = resource:"CCompressedFullInt"
+			m_szName = "CCompressedFullInt"
 			m_nVersion = 0
 			m_nType = 5
 		},
 		{
-			m_szName = resource:"CCompressedStaticBool"
+			m_szName = "CCompressedStaticBool"
 			m_nVersion = 0
 			m_nType = 6
 		},
 		{
-			m_szName = resource:"CCompressedFullBool"
+			m_szName = "CCompressedFullBool"
 			m_nVersion = 0
 			m_nType = 6
 		},
 		{
-			m_szName = resource:"CCompressedStaticColor32"
+			m_szName = "CCompressedStaticColor32"
 			m_nVersion = 0
 			m_nType = 9
 		},
 		{
-			m_szName = resource:"CCompressedFullColor32"
+			m_szName = "CCompressedFullColor32"
 			m_nVersion = 0
 			m_nType = 9
 		},
 		{
-			m_szName = resource:"CCompressedStaticVector2D"
+			m_szName = "CCompressedStaticVector2D"
 			m_nVersion = 0
 			m_nType = 25
 		},
 		{
-			m_szName = resource:"CCompressedFullVector2D"
+			m_szName = "CCompressedFullVector2D"
 			m_nVersion = 0
 			m_nType = 25
 		},
 		{
-			m_szName = resource:"CCompressedStaticVector4D"
+			m_szName = "CCompressedStaticVector4D"
 			m_nVersion = 0
 			m_nType = 27
 		},
 		{
-			m_szName = resource:"CCompressedFullVector4D"
+			m_szName = "CCompressedFullVector4D"
 			m_nVersion = 0
 			m_nType = 27
 		},

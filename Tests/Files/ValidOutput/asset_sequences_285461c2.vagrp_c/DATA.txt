@@ -1,20 +1,20 @@
 <!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
 {
 	m_nFlags = 0
-	m_name = resource:""
+	m_name = ""
 	m_localHAnimArray = 
 	[
-		resource_name:"models/285461c2/bad_ancient_ambient_blast_anim.vanim",
+		resource:"models/285461c2/bad_ancient_ambient_blast_anim.vanim",
 	]
 	m_includedGroupArray = [  ]
 	m_directHSeqGroup = null
 	m_decodeKey = 
 	{
-		m_name = resource:""
+		m_name = ""
 		m_boneArray = 
 		[
 			{
-				m_name = resource:"joint13"
+				m_name = "joint13"
 				m_parent = -1
 				m_pos = [ -45.34375, -146.625, 108.3125 ]
 				m_quat = [ 0.499999, 0.499999, 0.499999, 0.500004 ]
@@ -22,7 +22,7 @@
 				m_flags = 0
 			},
 			{
-				m_name = resource:"joint6"
+				m_name = "joint6"
 				m_parent = -1
 				m_pos = [ -69.875, -205.875, 452.0 ]
 				m_quat = [ 0.499999, 0.499999, 0.499999, 0.500004 ]
@@ -30,7 +30,7 @@
 				m_flags = 0
 			},
 			{
-				m_name = resource:"joint10"
+				m_name = "joint10"
 				m_parent = -1
 				m_pos = [ -105.1875, -298.5, 184.25 ]
 				m_quat = [ 0.499999, 0.499999, 0.499999, 0.500004 ]
@@ -38,7 +38,7 @@
 				m_flags = 0
 			},
 			{
-				m_name = resource:"joint3"
+				m_name = "joint3"
 				m_parent = -1
 				m_pos = [ -29.203125, -101.8125, 276.5 ]
 				m_quat = [ 0.499999, 0.499999, 0.499999, 0.500004 ]
@@ -46,7 +46,7 @@
 				m_flags = 0
 			},
 			{
-				m_name = resource:"joint7"
+				m_name = "joint7"
 				m_parent = -1
 				m_pos = [ -86.8125, -196.125, 276.5 ]
 				m_quat = [ 0.499999, 0.499999, 0.499999, 0.500004 ]
@@ -54,7 +54,7 @@
 				m_flags = 0
 			},
 			{
-				m_name = resource:"joint11"
+				m_name = "joint11"
 				m_parent = -1
 				m_pos = [ -44.65625, -145.5, 444.25 ]
 				m_quat = [ 0.499999, 0.499999, 0.499999, 0.500004 ]
@@ -62,7 +62,7 @@
 				m_flags = 0
 			},
 			{
-				m_name = resource:"joint4"
+				m_name = "joint4"
 				m_parent = -1
 				m_pos = [ -23.71875, -120.4375, 439.25 ]
 				m_quat = [ 0.499999, 0.499999, 0.499999, 0.500004 ]
@@ -70,7 +70,7 @@
 				m_flags = 0
 			},
 			{
-				m_name = resource:"joint8"
+				m_name = "joint8"
 				m_parent = -1
 				m_pos = [ -70.8125, -207.0, 100.625 ]
 				m_quat = [ 0.499999, 0.499999, 0.499999, 0.500004 ]
@@ -78,7 +78,7 @@
 				m_flags = 0
 			},
 			{
-				m_name = resource:"joint12"
+				m_name = "joint12"
 				m_parent = -1
 				m_pos = [ -56.25, -130.25, 276.0 ]
 				m_quat = [ 0.499999, 0.499999, 0.499999, 0.500004 ]
@@ -86,7 +86,7 @@
 				m_flags = 0
 			},
 			{
-				m_name = resource:"joint5"
+				m_name = "joint5"
 				m_parent = -1
 				m_pos = [ -23.65625, -120.8125, 113.375 ]
 				m_quat = [ 0.499999, 0.499999, 0.499999, 0.500004 ]
@@ -94,7 +94,7 @@
 				m_flags = 0
 			},
 			{
-				m_name = resource:"joint9"
+				m_name = "joint9"
 				m_parent = -1
 				m_pos = [ -107.6875, -299.75, 372.75 ]
 				m_quat = [ 0.499999, 0.499999, 0.499999, 0.500004 ]
@@ -102,7 +102,7 @@
 				m_flags = 0
 			},
 			{
-				m_name = resource:"joint2"
+				m_name = "joint2"
 				m_parent = -1
 				m_pos = [ 15.640625, -95.875, 276.5 ]
 				m_quat = [ 0.499999, 0.499999, 0.499999, 0.500004 ]
@@ -117,26 +117,26 @@
 		m_dataChannelArray = 
 		[
 			{
-				m_szChannelClass = resource:"BoneChannel"
-				m_szVariableName = resource:"Position"
+				m_szChannelClass = "BoneChannel"
+				m_szVariableName = "Position"
 				m_nFlags = 0
 				m_nType = 3
-				m_szGrouping = resource:""
-				m_szDescription = resource:""
+				m_szGrouping = ""
+				m_szDescription = ""
 				m_szElementNameArray = 
 				[
-					resource:"joint13",
-					resource:"joint6",
-					resource:"joint10",
-					resource:"joint3",
-					resource:"joint7",
-					resource:"joint11",
-					resource:"joint4",
-					resource:"joint8",
-					resource:"joint12",
-					resource:"joint5",
-					resource:"joint9",
-					resource:"joint2",
+					"joint13",
+					"joint6",
+					"joint10",
+					"joint3",
+					"joint7",
+					"joint11",
+					"joint4",
+					"joint8",
+					"joint12",
+					"joint5",
+					"joint9",
+					"joint2",
 				]
 				m_nElementIndexArray = 
 				[
@@ -152,26 +152,26 @@
 				]
 			},
 			{
-				m_szChannelClass = resource:"BoneChannel"
-				m_szVariableName = resource:"Angle"
+				m_szChannelClass = "BoneChannel"
+				m_szVariableName = "Angle"
 				m_nFlags = 0
 				m_nType = 4
-				m_szGrouping = resource:""
-				m_szDescription = resource:""
+				m_szGrouping = ""
+				m_szDescription = ""
 				m_szElementNameArray = 
 				[
-					resource:"joint13",
-					resource:"joint6",
-					resource:"joint10",
-					resource:"joint3",
-					resource:"joint7",
-					resource:"joint11",
-					resource:"joint4",
-					resource:"joint8",
-					resource:"joint12",
-					resource:"joint5",
-					resource:"joint9",
-					resource:"joint2",
+					"joint13",
+					"joint6",
+					"joint10",
+					"joint3",
+					"joint7",
+					"joint11",
+					"joint4",
+					"joint8",
+					"joint12",
+					"joint5",
+					"joint9",
+					"joint2",
 				]
 				m_nElementIndexArray = 
 				[

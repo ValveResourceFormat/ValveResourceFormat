@@ -51,6 +51,8 @@ namespace ValveResourceFormat
         RadianEuler = 42,
         DegreeEuler = 43,
         FourVectors = 44,
+        RotationVector = 45,
+        AABB = 46,
 #pragma warning restore CS1591
     }
 }
