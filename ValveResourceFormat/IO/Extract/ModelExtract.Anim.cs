@@ -125,7 +125,6 @@ partial class ModelExtract
         {
             var clipContent = extract.ToContentFile();
             clipContent.FileName = name;
-            clipContent.KeepFullPath = true;
             vmdl.AdditionalFiles.Add(clipContent);
         }
     }
