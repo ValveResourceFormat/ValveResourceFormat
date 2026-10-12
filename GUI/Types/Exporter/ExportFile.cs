@@ -39,149 +39,87 @@ namespace GUI.Types.Exporter
                 return;
             }
 
-            await ExtractFileFromStream(fileName, stream, vrfGuiContext, decompile, errorContext).ConfigureAwait(true);
+            await ExtractFileFromStream(fileName, stream, vrfGuiContext, decompile, ContentExportSource.FromPackage(currentPackage), errorContext).ConfigureAwait(true);
         }
 
+        public static async Task ExtractFileFromDisk(string path, VrfGuiContext vrfGuiContext, bool decompile)
+        {
+            var contentPath = ContentPaths.GetContentPathFromDiskOrFileName(path, decompile ? message => Log.Warn(nameof(ExportFile), message) : null);
+            var stream = File.OpenRead(path);
+
+            await ExtractFileFromStream(contentPath, stream, vrfGuiContext, decompile, ContentExportSource.FromDiskFile(path), vrfGuiContext.DisplayPath).ConfigureAwait(true);
+        }
+
+        /// <summary>
+        /// Decompiles or saves a single file, taking ownership of <paramref name="stream"/>.
+        /// </summary>
+        /// <param name="fileName">Content path of the file.</param>
+        /// <param name="stream">The file contents.</param>
+        /// <param name="vrfGuiContext">The context the file was opened in.</param>
+        /// <param name="decompile">Whether to decompile the file instead of saving it as is.</param>
+        /// <param name="source">Where the file came from, the dependencies it is decompiled with come from there.</param>
         /// <param name="errorContext">Which file this is, shown when extracting it fails.</param>
-        public static async Task ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile, string errorContext)
+        public static async Task ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile, ContentExportSource? source, string errorContext)
         {
-            try
+            await using (stream.ConfigureAwait(true))
             {
-                if (decompile && !await PreExportDisclaimer(Path.GetExtension(fileName)).ConfigureAwait(true))
+                try
                 {
-                    return;
-                }
-
-                if (decompile && fileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
-                {
-                    await DecompileResource(fileName, stream, vrfGuiContext).ConfigureAwait(true);
-                }
-                else
-                {
-                    await SaveFile(fileName, stream, decompile).ConfigureAwait(true);
-                }
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                ErrorReport.ShowError(e, errorContext);
-            }
-            finally
-            {
-                await stream.DisposeAsync().ConfigureAwait(true);
-            }
-        }
-
-        private static async Task DecompileResource(string fileName, Stream stream, VrfGuiContext vrfGuiContext)
-        {
-            var resourceTemp = new Resource
-            {
-                FileName = fileName,
-            };
-            var resource = resourceTemp;
-            string filaNameToSave;
-
-            try
-            {
-                resource.Read(stream);
-
-                var extension = FileExtract.GetExtension(resource);
-
-                if (extension == null)
-                {
-                    await AppMessageDialogs.ShowMessageAsync($"Exporting \"{fileName}\" is not supported.", "Failed to export", MessageIcon.Warning).ConfigureAwait(true);
-                    return;
-                }
-
-                var filter = $"{extension} file|*.{extension}";
-
-                if (GltfModelExporter.CanExport(resource))
-                {
-                    const string gltfFilter = "glTF|*.gltf";
-                    const string glbFilter = "glTF Binary|*.glb";
-
-                    filter = $"{filter}|{gltfFilter}|{glbFilter}";
-                }
-
-                var fileNameForSave = Path.GetFileNameWithoutExtension(fileName);
-
-                if (Path.GetExtension(fileName) == ".vmap_c")
-                {
-                    // When exporting a vmap, suggest saving with a suffix like de_dust2_d,
-                    // to reduce conflicts when users end up recompiling the map with the same name as it exists in the game
-                    fileNameForSave += "_d";
-                }
-
-                var pickedFileName = AppFileDialogs.SaveFile("Choose where to save the file", fileNameForSave, extension, filter);
-
-                if (pickedFileName == null)
-                {
-                    return;
-                }
-
-                filaNameToSave = pickedFileName;
-                resourceTemp = null;
-            }
-            finally
-            {
-                resourceTemp?.Dispose();
-            }
-
-            var directory = Path.GetDirectoryName(filaNameToSave);
-            var exportData = new ExportData
-            {
-                VrfGuiContext = new VrfGuiContext(fileName, vrfGuiContext),
-            };
-
-            try
-            {
-                var exporter = new PackageExporter(exportData, directory ?? string.Empty, true);
-
-                // Cancelling closes the dialog while the extract is still winding down, so wait for it to
-                // stop before the finally pulls the resource out from under it
-                await exporter.ExecuteSingleFileExtractAsync(resource, fileName, filaNameToSave, $"Extracting {fileName} to \"{Path.GetFileName(filaNameToSave)}\"").ConfigureAwait(true);
-            }
-            finally
-            {
-                resource.Dispose();
-                exportData.VrfGuiContext.Dispose();
-            }
-        }
-
-        private static async Task SaveFile(string fileName, Stream stream, bool decompile)
-        {
-            ContentFile? content = null;
-
-            try
-            {
-                if (decompile && FileExtract.TryExtractNonResource(stream, fileName, out content))
-                {
-                    if (content.Data == null)
+                    if (decompile && !await PreExportDisclaimer(Path.GetExtension(fileName)).ConfigureAwait(true))
                     {
-                        // Content has no data to extract, only potentially subfiles
-                        Log.Info(nameof(ExportFile), $"File \"{fileName}\" has no extractable data");
                         return;
                     }
 
-                    fileName = Path.ChangeExtension(fileName, Path.GetExtension(content.FileName));
-                    stream = new MemoryStream(content.Data);
+                    if (decompile && ContentPaths.HasCompiledSuffix(fileName))
+                    {
+                        await DecompileResource(fileName, stream, vrfGuiContext, source).ConfigureAwait(true);
+                    }
+                    else
+                    {
+                        await SaveFile(fileName, stream, vrfGuiContext, decompile).ConfigureAwait(true);
+                    }
                 }
-
-                var saveFileName = AppFileDialogs.SaveFile("Choose where to save the file", Path.GetFileName(fileName), null, "All files (*.*)|*.*");
-
-                if (saveFileName == null)
+                catch (Exception e) when (e is not OperationCanceledException)
                 {
-                    return;
+                    ErrorReport.ShowError(e, errorContext);
+                }
+            }
+        }
+
+        private static async Task SaveFile(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile)
+        {
+            if (decompile && FileExtract.TryExtractNonResource(stream, fileName, out var content))
+            {
+                using (content)
+                {
+                    var exporter = new PackageExporter(new ExportData { VrfGuiContext = vrfGuiContext }, decompile: true);
+                    await exporter.ExecuteSingleFileExtractAsync(content).ConfigureAwait(true);
                 }
 
-                using var streamOutput = File.Create(saveFileName);
-                await stream.CopyToAsync(streamOutput).ConfigureAwait(true);
+                return;
+            }
 
-                Log.Info(nameof(ExportFile), $"Saved \"{Path.GetFileName(saveFileName)}\"");
-            }
-            finally
+            var saveFileName = AppFileDialogs.SaveFile("Choose where to save the file", Path.GetFileName(fileName), null, "All files (*.*)|*.*");
+
+            if (saveFileName == null)
             {
-                content?.Dispose();
+                return;
             }
+
+            using var streamOutput = File.Create(saveFileName);
+            await stream.CopyToAsync(streamOutput).ConfigureAwait(true);
+
+            Log.Info(nameof(ExportFile), $"Saved \"{Path.GetFileName(saveFileName)}\"");
+        }
+
+        private static async Task DecompileResource(string fileName, Stream stream, VrfGuiContext vrfGuiContext, ContentExportSource? source)
+        {
+            using var fileContext = new VrfGuiContext(fileName, vrfGuiContext);
+            using var resource = new Resource { FileName = fileName };
+            resource.Read(stream);
+
+            var exporter = new PackageExporter(new ExportData { VrfGuiContext = fileContext }, decompile: true);
+            await exporter.ExecuteSingleFileExtractAsync(resource, source).ConfigureAwait(true);
         }
 
         public static async Task ExtractFilesFromTreeNode(IBetterBaseItem selectedNode, VrfGuiContext vrfGuiContext, bool decompile)
@@ -199,7 +137,7 @@ namespace GUI.Types.Exporter
                     VrfGuiContext = vrfGuiContext,
                 };
 
-                var exporter = new PackageExporter(exportData, null, decompile);
+                var exporter = new PackageExporter(exportData, decompile);
                 exporter.QueueFiles(selectedNode);
                 exporter.ExecuteMultipleFileExtract();
             }
@@ -212,7 +150,7 @@ namespace GUI.Types.Exporter
                 VrfGuiContext = vrfGuiContext,
             };
 
-            var exporter = new PackageExporter(exportData, null, decompile);
+            var exporter = new PackageExporter(exportData, decompile);
 
             // When queuing files this way, it'll preserve the original tree
             // which is probably unwanted behaviour? It works tho /shrug

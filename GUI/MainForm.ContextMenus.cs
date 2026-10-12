@@ -465,20 +465,7 @@ namespace GUI
                 }
                 else
                 {
-                    var fileStream = File.OpenRead(exportData.VrfGuiContext.FileName);
-
-                    try
-                    {
-                        await ExportFile.ExtractFileFromStream(Path.GetFileName(exportData.VrfGuiContext.FileName), fileStream, exportData.VrfGuiContext, decompile, exportData.VrfGuiContext.DisplayPath).ConfigureAwait(true);
-                        fileStream = null; // ExtractFileFromStream should dispose it when done, not `using` here in case there's some threading
-                    }
-                    finally
-                    {
-                        if (fileStream != null)
-                        {
-                            await fileStream.DisposeAsync().ConfigureAwait(true);
-                        }
-                    }
+                    await ExportFile.ExtractFileFromDisk(exportData.VrfGuiContext.FileName, exportData.VrfGuiContext, decompile).ConfigureAwait(true);
                 }
             }
             else

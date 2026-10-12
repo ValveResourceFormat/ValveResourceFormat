@@ -37,6 +37,7 @@ namespace GUI.Forms
             label3 = new System.Windows.Forms.Label();
             label4 = new System.Windows.Forms.Label();
             button1 = new ThemedButton();
+            includeDependenciesCheckBox = new System.Windows.Forms.CheckBox();
             tableLayoutPanel1.SuspendLayout();
             typesTable.SuspendLayout();
             SuspendLayout();
@@ -56,15 +57,17 @@ namespace GUI.Forms
             tableLayoutPanel1.ColumnCount = 1;
             tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             tableLayoutPanel1.Controls.Add(typesTable, 0, 1);
-            tableLayoutPanel1.Controls.Add(button1, 0, 2);
+            tableLayoutPanel1.Controls.Add(includeDependenciesCheckBox, 0, 2);
+            tableLayoutPanel1.Controls.Add(button1, 0, 3);
             tableLayoutPanel1.Controls.Add(label1, 0, 0);
             tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
             tableLayoutPanel1.Font = new System.Drawing.Font("Segoe UI", 10F);
             tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
-            tableLayoutPanel1.RowCount = 3;
+            tableLayoutPanel1.RowCount = 4;
             tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 12F));
-            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 76F));
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 70F));
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 6F));
             tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 12F));
             tableLayoutPanel1.Size = new System.Drawing.Size(493, 563);
             tableLayoutPanel1.TabIndex = 3;
@@ -84,7 +87,7 @@ namespace GUI.Forms
             typesTable.Name = "typesTable";
             typesTable.RowCount = 1;
             typesTable.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
-            typesTable.Size = new System.Drawing.Size(487, 421);
+            typesTable.Size = new System.Drawing.Size(487, 388);
             typesTable.TabIndex = 3;
             // 
             // label2
@@ -113,6 +116,17 @@ namespace GUI.Forms
             label4.Size = new System.Drawing.Size(47, 19);
             label4.TabIndex = 2;
             label4.Text = "Count";
+            // 
+            // includeDependenciesCheckBox
+            // 
+            includeDependenciesCheckBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            includeDependenciesCheckBox.AutoSize = true;
+            includeDependenciesCheckBox.Location = new System.Drawing.Point(3, 468);
+            includeDependenciesCheckBox.Name = "includeDependenciesCheckBox";
+            includeDependenciesCheckBox.Size = new System.Drawing.Size(162, 23);
+            includeDependenciesCheckBox.TabIndex = 4;
+            includeDependenciesCheckBox.Text = "Include dependencies";
+            includeDependenciesCheckBox.UseVisualStyleBackColor = true;
             // 
             // button1
             // 
@@ -153,5 +167,6 @@ namespace GUI.Forms
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.CheckBox includeDependenciesCheckBox;
     }
 }

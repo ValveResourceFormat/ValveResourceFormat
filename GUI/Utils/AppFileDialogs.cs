@@ -13,6 +13,7 @@ public static class AppFileDialogs
         None,
         OpenDirectory,
         SaveDirectory,
+        DecompileDirectory,
     }
 
     // updateRemembered: set to false when the caller validates the picked path first and
@@ -113,6 +114,7 @@ public static class AppFileDialogs
     {
         RememberIn.OpenDirectory => Settings.Config.OpenDirectory,
         RememberIn.SaveDirectory => Settings.Config.SaveDirectory,
+        RememberIn.DecompileDirectory => Settings.Config.DecompileDirectory,
         _ => string.Empty,
     };
 
@@ -125,6 +127,9 @@ public static class AppFileDialogs
                 break;
             case RememberIn.SaveDirectory:
                 Settings.Config.SaveDirectory = path;
+                break;
+            case RememberIn.DecompileDirectory:
+                Settings.Config.DecompileDirectory = path;
                 break;
             case RememberIn.None:
                 break;
