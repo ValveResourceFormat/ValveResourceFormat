@@ -37,14 +37,14 @@ namespace ValveResourceFormat
 
         /// <summary>
         /// Gets whether the block data has been parsed. Only false for blocks a
-        /// <see cref="BlockParsing.Deferred"/> read left unparsed.
+        /// <see cref="ReadMode.Deferred"/> read left unparsed.
         /// </summary>
         internal bool IsRead => !deferred;
 
         internal void MarkDeferred() => deferred = true;
 
         /// <summary>
-        /// Parses the block data if a <see cref="BlockParsing.Deferred"/> read left it unparsed.
+        /// Parses the block data if a <see cref="ReadMode.Deferred"/> read left it unparsed.
         /// Safe to call from multiple threads and a no-op once the block is parsed.
         /// The resource's input stream must still be open. A block that fails to parse
         /// throws the same exception on every later call.

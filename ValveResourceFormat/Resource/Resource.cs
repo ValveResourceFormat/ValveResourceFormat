@@ -65,7 +65,7 @@ namespace ValveResourceFormat
         public IReadOnlyList<Block> Blocks => blocks;
 
         /// <summary>
-        /// Gets the blocks without parsing the ones a <see cref="BlockParsing.Deferred"/> read left unparsed.
+        /// Gets the blocks without parsing the ones a <see cref="ReadMode.Deferred"/> read left unparsed.
         /// </summary>
         internal List<Block> UnparsedBlocks => blocks.Items;
 
@@ -178,13 +178,13 @@ namespace ValveResourceFormat
         /// The file is held open until the object is disposed.
         /// </summary>
         /// <param name="filename">The file to open and read.</param>
-        /// <param name="parsing">When the blocks are parsed.</param>
-        public void Read(string filename, BlockParsing parsing = BlockParsing.Runtime)
+        /// <param name="mode">When the blocks are parsed.</param>
+        public void Read(string filename, ReadMode mode = ReadMode.Runtime)
         {
             FileName = filename;
             FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
-            Read(FileStream, parsing: parsing);
+            Read(FileStream, mode: mode);
         }
 
         /// <summary>
@@ -192,12 +192,12 @@ namespace ValveResourceFormat
         /// </summary>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         /// <param name="leaveOpen">Whether to leave the stream open after the object is disposed.</param>
-        /// <param name="parsing">When the blocks are parsed.</param>
+        /// <param name="mode">When the blocks are parsed.</param>
         /// <remarks>
         /// The input stream must remain open while accessing data from this resource,
         /// as some operations may perform reads lazily from the stream at call time.
         /// </remarks>
-        public void Read(Stream input, bool leaveOpen = false, BlockParsing parsing = BlockParsing.Runtime)
+        public void Read(Stream input, bool leaveOpen = false, ReadMode mode = ReadMode.Runtime)
         {
             Reader = new BinaryReader(input, Encoding.UTF8, leaveOpen);
 
@@ -271,15 +271,7 @@ namespace ValveResourceFormat
                 block.Size = size;
 
                 blocks.Items.Add(block);
-
-                if (block is ResourceEditInfo && ResourceType != ResourceType.Unknown && !IsParsedInRead(block.Type, parsing))
-                {
-                    block.MarkDeferred();
-                }
-                else if (IsReadEagerly(block.Type))
-                {
-                    block.Read(Reader);
-                }
+                block.MarkDeferred();
 
                 if (block is ResourceEditInfo blockEditInfo)
                 {
@@ -290,6 +282,8 @@ namespace ValveResourceFormat
                     // will depend on knowing the resource type to construct the correct block in ConstructResourceType()
                     if (ResourceType == ResourceType.Unknown)
                     {
+                        block.EnsureRead();
+
                         foreach (var specialDep in editInfo.SpecialDependencies)
                         {
                             ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDep);
@@ -311,18 +305,17 @@ namespace ValveResourceFormat
                 Reader.BaseStream.Position = position + 8;
             }
 
-            foreach (var block in blocks.Items)
+            if (mode != ReadMode.Deferred)
             {
-                if (!IsReadEagerly(block.Type))
+                foreach (var block in blocks.Items)
                 {
-                    if (IsParsedInRead(block.Type, parsing))
+                    // Skip some blocks
+                    if (mode == ReadMode.Runtime && block.Type is (BlockType.REDI or BlockType.RED2 or BlockType.STAT))
                     {
-                        block.Read(Reader);
+                        continue;
                     }
-                    else
-                    {
-                        block.MarkDeferred();
-                    }
+
+                    block.EnsureRead();
                 }
             }
 
@@ -553,24 +546,6 @@ namespace ValveResourceFormat
                 _ => ContainsBlockType(BlockType.NTRO) ? new NTRO() { Resource = this } : new UnknownDataBlock(ResourceType) { Resource = this },
             };
         }
-
-        /// <summary>
-        /// Whether <see cref="Read(Stream, bool, BlockParsing)"/> parses a block that no other block depends on.
-        /// </summary>
-        private bool IsParsedInRead(BlockType type, BlockParsing parsing) => parsing switch
-        {
-            BlockParsing.Deferred => ResourceType == ResourceType.VData && type == BlockType.DATA,
-            _ => type switch
-            {
-                BlockType.REDI or BlockType.RED2 => ResourceType is ResourceType.Material or ResourceType.Texture,
-                BlockType.STAT => false,
-                _ => true,
-            },
-        };
-
-        // Other blocks may depend on these, so they are read as soon as they are found
-        private static bool IsReadEagerly(BlockType type)
-            => type is BlockType.NTRO or BlockType.CTRL or BlockType.REDI or BlockType.RED2;
 
         private static bool IsHandledResourceType(ResourceType type)
         {

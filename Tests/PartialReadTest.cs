@@ -9,10 +9,10 @@ namespace Tests
     {
         private static string TestFile(string name) => Path.Combine(TestContext.TestDirectory!, "Files", name);
 
-        private static Resource Read(string name, BlockParsing parsing = BlockParsing.Deferred)
+        private static Resource Read(string name, ReadMode mode = ReadMode.Deferred)
         {
             var resource = new Resource();
-            resource.Read(TestFile(name), parsing);
+            resource.Read(TestFile(name), mode);
             return resource;
         }
 
@@ -32,7 +32,7 @@ namespace Tests
         [Test]
         public async Task DeferredReadDefersAndMaterializesBlocks()
         {
-            using var fullResource = Read("alchemist.vmdl_c", BlockParsing.Runtime);
+            using var fullResource = Read("alchemist.vmdl_c", ReadMode.Runtime);
             using var partialResource = Read("alchemist.vmdl_c");
 
             var deferredData = partialResource.UnparsedBlocks.First(block => block.Type == BlockType.DATA);
@@ -56,7 +56,7 @@ namespace Tests
         [Test]
         public async Task RuntimeReadLeavesOnlyToolsDataUnparsed()
         {
-            using var resource = Read("alchemist.vmdl_c", BlockParsing.Runtime);
+            using var resource = Read("alchemist.vmdl_c", ReadMode.Runtime);
 
             using (Assert.Multiple())
             {
@@ -66,9 +66,24 @@ namespace Tests
         }
 
         [Test]
-        public async Task RuntimeReadParsesMaterialEditInfo()
+        public async Task RuntimeReadDefersMaterialEditInfo()
         {
-            using var resource = Read("reflectivity_90b.vmat_c", BlockParsing.Runtime);
+            using var resource = Read("reflectivity_90b.vmat_c", ReadMode.Runtime);
+            var editInfoBlock = resource.UnparsedBlocks.First(static block => block.Type is BlockType.REDI or BlockType.RED2);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(editInfoBlock.IsRead).IsFalse();
+                await Assert.That(resource.UnparsedBlocks.Where(block => block != editInfoBlock).All(static block => block.IsRead)).IsTrue();
+                await Assert.That(resource.EditInfo).IsSameReferenceAs(editInfoBlock);
+                await Assert.That(editInfoBlock.IsRead).IsTrue();
+            }
+        }
+
+        [Test]
+        public async Task FullReadParsesEveryBlock()
+        {
+            using var resource = Read("reflectivity_90b.vmat_c", ReadMode.Eager);
 
             await Assert.That(resource.UnparsedBlocks.All(static block => block.IsRead)).IsTrue();
         }
@@ -85,7 +100,7 @@ namespace Tests
         [Test]
         public async Task DeferredVDataIsSpecialized()
         {
-            using var fullResource = Read("abilities_kv3_v5_zstd.vdata_c", BlockParsing.Runtime);
+            using var fullResource = Read("abilities_kv3_v5_zstd.vdata_c", ReadMode.Runtime);
             using var partialResource = Read("abilities_kv3_v5_zstd.vdata_c");
 
             using (Assert.Multiple())
@@ -96,23 +111,24 @@ namespace Tests
         }
 
         [Test]
-        public async Task DependencyBlocksAlwaysParse()
+        public async Task DependencyBlocksParseWhenAskedFor()
         {
             using var resource = Read("alchemist.vmdl_c");
+            var dependencies = resource.UnparsedBlocks.Where(static block => block.Type is BlockType.NTRO or BlockType.CTRL).ToList();
 
             using (Assert.Multiple())
             {
                 await Assert.That(resource.ResourceType).IsEqualTo(ResourceType.Model);
-                await Assert.That(resource.UnparsedBlocks
-                    .Where(static block => block.Type is BlockType.NTRO or BlockType.CTRL)
-                    .All(static block => block.IsRead)).IsTrue();
+                await Assert.That(dependencies).IsNotEmpty();
+                await Assert.That(dependencies.Any(static block => block.IsRead)).IsFalse();
+                await Assert.That(dependencies.All(block => resource.GetBlockByType(block.Type)!.IsRead)).IsTrue();
             }
         }
 
         [Test]
         public async Task DeferredEditInfoParsesOnFirstUse()
         {
-            using var fullResource = Read("reflectivity_90b.vmat_c", BlockParsing.Runtime);
+            using var fullResource = Read("reflectivity_90b.vmat_c", ReadMode.Runtime);
             using var partialResource = Read("reflectivity_90b.vmat_c");
             var editInfoBlock = partialResource.UnparsedBlocks.First(static block => block.Type is BlockType.REDI or BlockType.RED2);
 
@@ -132,7 +148,7 @@ namespace Tests
         {
             using var fullStream = File.OpenRead(TestFile("reflectivity_90b.vmat_c"));
             using var fullResource = new Resource();
-            fullResource.Read(fullStream, leaveOpen: true, BlockParsing.Runtime);
+            fullResource.Read(fullStream, leaveOpen: true, ReadMode.Runtime);
 
             using var partialStream = File.OpenRead(TestFile("reflectivity_90b.vmat_c"));
             using var partialResource = new Resource();
@@ -149,7 +165,7 @@ namespace Tests
         [Test]
         public async Task ConcurrentMaterializationMatchesFullRead()
         {
-            using var fullResource = Read("export_test.vmdl_c", BlockParsing.Runtime);
+            using var fullResource = Read("export_test.vmdl_c", ReadMode.Runtime);
             var expected = fullResource.Blocks.Select(static block => block.ToString()).ToList();
 
             using var partialResource = Read("export_test.vmdl_c");
@@ -181,7 +197,7 @@ namespace Tests
             var bytes = ReadWithCorruptData("alchemist.vmdl_c");
 
             using var resource = new Resource { FileName = "alchemist.vmdl_c" };
-            resource.Read(new MemoryStream(bytes), parsing: BlockParsing.Deferred);
+            resource.Read(new MemoryStream(bytes), mode: ReadMode.Deferred);
 
             using (Assert.Multiple())
             {
@@ -198,7 +214,7 @@ namespace Tests
 
             using var resource = new Resource { FileName = "alchemist.vmdl_c" };
 
-            await Assert.That(() => resource.Read(new MemoryStream(bytes), parsing: BlockParsing.Runtime)).ThrowsException();
+            await Assert.That(() => resource.Read(new MemoryStream(bytes), mode: ReadMode.Runtime)).ThrowsException();
         }
     }
 }
