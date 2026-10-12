@@ -1262,9 +1262,20 @@ public sealed partial class MapExtract
             ProcessAggregate(aggregateSceneObject, layerIndex, layerNodes);
         }
 
+        var clutterGroups = new Dictionary<int, CMapGroup>();
+
         foreach (var clutterSceneObject in node.ClutterSceneObjects)
         {
-            // TODO: Clutter
+            var clutter = new WorldNode.ClutterSceneObject(clutterSceneObject);
+
+            if (!clutterGroups.TryGetValue(clutter.Layer, out var clutterGroup))
+            {
+                clutterGroup = new CMapGroup { Name = "clutter" };
+                GetWorldLayerNode(clutter.Layer, layerNodes).Children.Add(clutterGroup);
+                clutterGroups.Add(clutter.Layer, clutterGroup);
+            }
+
+            AddClutter(clutter, clutterGroup);
         }
     }
 

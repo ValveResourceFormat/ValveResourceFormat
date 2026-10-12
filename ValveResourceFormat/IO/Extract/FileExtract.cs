@@ -164,6 +164,9 @@ namespace ValveResourceFormat.IO
         /// <inheritdoc/>
         public GameInfo GameInfo => fileLoader.GameInfo;
 
+        /// <inheritdoc/>
+        public IEnumerable<string> FindFilesByName(string fileName) => fileLoader.FindFilesByName(fileName);
+
         /// <summary>
         /// Initializes a new instance of the <see cref="TrackingFileLoader"/> class.
         /// </summary>
