@@ -410,12 +410,13 @@ namespace ValveResourceFormat.ResourceTypes
                 return [];
             }
 
-            if (group.SequenceData is { } sequenceData)
-            {
-                return SequenceAnimation.FromSequenceData(sequenceData, animationData, decodeKey, skeleton, flexControllers);
-            }
+            var animations = group.SequenceData is { } sequenceData
+                ? SequenceAnimation.FromSequenceData(sequenceData, animationData, decodeKey, skeleton, flexControllers)
+                : SequenceAnimation.FromData(animationData, decodeKey, skeleton, flexControllers);
 
-            return SequenceAnimation.FromData(animationData, decodeKey, skeleton, flexControllers);
+            group.ReleaseDataBlocks();
+
+            return animations;
         }
 
         /// <summary>

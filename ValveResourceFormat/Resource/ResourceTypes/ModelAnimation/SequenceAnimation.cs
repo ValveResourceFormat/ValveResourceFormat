@@ -442,7 +442,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// Creates animation instances from a resource file.
         /// </summary>
         public static IEnumerable<SequenceAnimation> FromResource(Resource resource, KVObject decodeKey, Skeleton skeleton, FlexController[] flexControllers)
-            => FromData(GetAnimationData(resource), decodeKey, skeleton, flexControllers);
+        {
+            var animations = FromData(GetAnimationData(resource), decodeKey, skeleton, flexControllers);
+
+            if (resource.DataBlock is KeyValuesOrNTRO dataBlock)
+            {
+                dataBlock.Data = null;
+            }
+
+            return animations;
+        }
 
         private static KVObject GetAnimationData(Resource resource)
             => (resource.DataBlock ?? throw new InvalidOperationException("Resource has no data block.")).AsKeyValueCollection();

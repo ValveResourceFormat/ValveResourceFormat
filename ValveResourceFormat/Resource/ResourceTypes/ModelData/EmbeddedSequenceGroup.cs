@@ -22,13 +22,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         /// <summary>
         /// Gets the compiled animation data, or <see langword="null"/> when the model carries none.
         /// </summary>
-        public KVObject? AnimationData { get; }
+        public KVObject? AnimationData => animationDataBlock?.Data;
 
         /// <summary>
         /// Gets the animation group's decode key, or <see langword="null"/> when the model carries no
         /// embedded animation.
         /// </summary>
-        public KVObject? DecodeKey { get; }
+        public KVObject? DecodeKey => animationGroupBlock?.Data.GetSubCollection("m_decodeKey");
+
+        private readonly KeyValuesOrNTRO? animationDataBlock;
+        private readonly KeyValuesOrNTRO? animationGroupBlock;
 
         /// <summary>
         /// Gets the compiled legacy sequence group, or <see langword="null"/> when there is none.
@@ -54,11 +57,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
                 return;
             }
 
-            var animationGroup = resource.GetBlockByIndex((int)embeddedAnimation.GetIntegerProperty("group_data_block")) as KeyValuesOrNTRO;
-            DecodeKey = animationGroup?.Data.GetSubCollection("m_decodeKey");
-
-            var animationDataBlock = resource.GetBlockByIndex((int)embeddedAnimation.GetIntegerProperty("anim_data_block")) as KeyValuesOrNTRO;
-            AnimationData = animationDataBlock?.Data;
+            animationGroupBlock = resource.GetBlockByIndex((int)embeddedAnimation.GetIntegerProperty("group_data_block")) as KeyValuesOrNTRO;
+            animationDataBlock = resource.GetBlockByIndex((int)embeddedAnimation.GetIntegerProperty("anim_data_block")) as KeyValuesOrNTRO;
 
             // Index zero is the model's own data block.
             var sequenceBlockIndex = embeddedAnimation.GetIntegerProperty("seqgroup_data_block");
@@ -67,6 +67,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
             {
                 SequenceData = (resource.GetBlockByIndex((int)sequenceBlockIndex) as KeyValuesOrNTRO)?.Data;
             }
+        }
+
+        internal void ReleaseDataBlocks()
+        {
+            animationDataBlock?.Data = null;
+            animationGroupBlock?.Data = null;
         }
 
         /// <summary>

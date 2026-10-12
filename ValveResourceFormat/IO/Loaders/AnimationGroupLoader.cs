@@ -39,20 +39,27 @@ namespace ValveResourceFormat.IO
             if (animBlock != null)
             {
                 animationList.AddRange(SequenceAnimation.FromData(animBlock.Data, decodeKey, skeleton, flexControllers));
-                return animationList;
+                animBlock.Data = null;
+            }
+            else
+            {
+                // Get the list of animation files
+                var animArray = data.GetArray<string>("m_localHAnimArray")!.Where(a => !string.IsNullOrEmpty(a));
+
+                foreach (var animationFile in animArray)
+                {
+                    var animResource = fileLoader.LoadFileCompiled(animationFile);
+
+                    if (animResource != null)
+                    {
+                        animationList.AddRange(SequenceAnimation.FromResource(animResource, decodeKey, skeleton, flexControllers));
+                    }
+                }
             }
 
-            // Get the list of animation files
-            var animArray = data.GetArray<string>("m_localHAnimArray")!.Where(a => !string.IsNullOrEmpty(a));
-
-            foreach (var animationFile in animArray)
+            if (dataBlock is KeyValuesOrNTRO groupBlock)
             {
-                var animResource = fileLoader.LoadFileCompiled(animationFile);
-
-                if (animResource != null)
-                {
-                    animationList.AddRange(SequenceAnimation.FromResource(animResource, decodeKey, skeleton, flexControllers));
-                }
+                groupBlock.Data = null;
             }
 
             return animationList;
