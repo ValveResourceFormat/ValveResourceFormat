@@ -66,10 +66,27 @@ namespace ValveResourceFormat.ResourceTypes
         public Dictionary<string, string> StringAttributes { get; } = [];
 
         /// <summary>
-        /// Gets the dynamic scalar and texture parameter expressions, decompiled to readable source.
+        /// Gets the compiled expressions of the dynamic scalar and vector parameters, by parameter name.
+        /// </summary>
+        public Dictionary<string, byte[]> DynamicParams { get; } = [];
+
+        /// <summary>
+        /// Gets the compiled expressions of the dynamic texture parameters, by parameter name.
+        /// </summary>
+        public Dictionary<string, byte[]> DynamicTextureParams { get; } = [];
+
+        /// <summary>
+        /// Gets the render attributes that the compiled expressions refer to by index.
+        /// </summary>
+        public string[] RenderAttributesUsed { get; private set; } = [];
+
+        /// <summary>
+        /// Gets <see cref="DynamicParams"/> and <see cref="DynamicTextureParams"/> decompiled to readable source.
         /// Nothing evaluates them; a parameter driven by one keeps its static baked value.
         /// </summary>
-        public Dictionary<string, string> DynamicExpressions { get; } = [];
+        public Dictionary<string, string> DynamicExpressions => dynamicExpressions ??= DecompileDynamicExpressions();
+
+        private Dictionary<string, string>? dynamicExpressions;
 
         private VsInputSignature? inputSignature;
 
@@ -160,28 +177,35 @@ namespace ValveResourceFormat.ResourceTypes
                 Console.WriteLine("unexpected textureAttributes length");
             }
 
-            var renderAttributesUsed = Data.GetArray<string>("m_renderAttributesUsed");
+            RenderAttributesUsed = Data.GetArray<string>("m_renderAttributesUsed") ?? [];
 
             // s&box removed m_dynamicParams + m_dynamicTextureParams from the material schema
             // so guard against nulls here
 
             foreach (var kvp in Data.GetArray("m_dynamicParams") ?? [])
             {
-                var dynamicParamName = kvp.GetStringProperty("m_name");
-                var dynamicParamBytes = kvp.GetArray<byte>("m_value");
-                var vfxEval = new VfxEval(dynamicParamBytes, renderAttributesUsed);
-                DynamicExpressions.Add(dynamicParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
+                DynamicParams.Add(kvp.GetStringProperty("m_name"), kvp.GetArray<byte>("m_value"));
             }
 
             foreach (var kvp in Data.GetArray("m_dynamicTextureParams") ?? [])
             {
-                var dynamicTextureParamName = kvp.GetStringProperty("m_name");
-                var dynamicTextureParamBytes = kvp.GetArray<byte>("m_value");
-                var vfxEval = new VfxEval(dynamicTextureParamBytes, renderAttributesUsed);
-                DynamicExpressions.Add(dynamicTextureParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
+                DynamicTextureParams.Add(kvp.GetStringProperty("m_name"), kvp.GetArray<byte>("m_value"));
             }
 
             Data = null;
+        }
+
+        private Dictionary<string, string> DecompileDynamicExpressions()
+        {
+            var expressions = new Dictionary<string, string>(DynamicParams.Count + DynamicTextureParams.Count);
+
+            foreach (var (name, expression) in DynamicParams.Concat(DynamicTextureParams))
+            {
+                var vfxEval = new VfxEval(expression, RenderAttributesUsed);
+                expressions.Add(name, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
+            }
+
+            return expressions;
         }
 
         /// <summary>
