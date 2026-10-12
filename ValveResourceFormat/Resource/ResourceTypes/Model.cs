@@ -511,11 +511,14 @@ namespace ValveResourceFormat.ResourceTypes
             animations.AddRange(GetAnimationGroupAnimations(fileLoader));
 
             // Animation graph (AG2) clips are part of the model's animation set.
-            foreach (var clipName in IO.AnimationGraphLoader.GetClipNames(this, fileLoader))
+            var clipNames = IO.AnimationGraphLoader.GetClipNames(this, fileLoader);
+            var clips = IO.AnimationGraphLoader.LoadClips(clipNames, fileLoader);
+
+            foreach (var clipName in clipNames)
             {
-                if (fileLoader.LoadFileCompiled(clipName)?.DataBlock is ModelAnimation2.AnimationClip clip)
+                if (clips.TryGetValue(clipName, out var clip))
                 {
-                    animations.Add(new ClipAnimation(clip));
+                    animations.Add(clip);
                 }
             }
 
