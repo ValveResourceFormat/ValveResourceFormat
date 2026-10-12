@@ -139,11 +139,8 @@ namespace ValveResourceFormat.CompiledShader
                 var blockSize = byteCodeData.GetInt32Property("m_nSize");
                 var finalOffset = programData.Resource!.FileSize + blockOffset;
 
-                programData.DataReader!.BaseStream.Position = finalOffset;
-
-                using var byteCodeStream = VfxStaticComboVcsEntry.GetUncompressedStaticComboDataStream(programData.DataReader);
+                using var byteCodeStream = ReadByteCodeStream(programData, finalOffset, blockSize);
                 using var byteCodeReader = new BinaryReader(byteCodeStream, Encoding.UTF8, leaveOpen: true);
-                Debug.Assert(programData.DataReader.BaseStream.Position == finalOffset + blockSize);
 
                 var hashes = byteCodeData.GetArray("m_hash");
                 var offsets = byteCodeData.GetArray<uint>("m_offs")!;
@@ -347,6 +344,17 @@ namespace ValveResourceFormat.CompiledShader
             if (dataReader.BaseStream.Position != dataReader.BaseStream.Length)
             {
                 throw new ShaderParserException("End of file expected");
+            }
+        }
+
+        private static PooledMemoryStream ReadByteCodeStream(VfxProgramData programData, long offset, int size)
+        {
+            lock (programData.Resource!.ReaderLock)
+            {
+                programData.DataReader!.BaseStream.Position = offset;
+                var stream = VfxStaticComboVcsEntry.GetUncompressedStaticComboDataStream(programData.DataReader);
+                Debug.Assert(programData.DataReader.BaseStream.Position == offset + size);
+                return stream;
             }
         }
 
