@@ -530,7 +530,7 @@ namespace ValveResourceFormat.IO
 
             var nodeTransform = GetPlacementTransform(transform);
 
-            var skinMaterialPath = skinName != null ? GetSkinPathFromModel(model, skinName) : null;
+            var skinMaterialTable = skinName != null ? GetSkinMaterialTable(model, skinName) : null;
 
             var morphedMeshNodes = new List<(Node Node, VMesh Mesh)>();
 
@@ -543,13 +543,13 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                if (skinName != null)
+                if (skinMaterialTable != null)
                 {
                     meshName = string.Concat(meshName, ".", skinName);
                 }
 
                 var boneRemapTable = model.GetRemapTable(m.MeshIndex);
-                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, out var meshNode, boneRemapTable, skinMaterialPath, entity);
+                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, out var meshNode, boneRemapTable, skinMaterialTable, entity);
                 if (node != null)
                 {
                     node.WorldMatrix = nodeTransform;
@@ -634,7 +634,7 @@ namespace ValveResourceFormat.IO
 
         private Node? AddMeshNode(ModelRoot exportedModel, Scene scene, string name, Vector4 tintColor,
             VMesh mesh, Blocks.VBIB vbib, Node[]? joints, out Node? meshNode, int[]? boneRemapTable = null,
-            string? skinMaterialPath = null, EntityLump.Entity? entity = null)
+            Dictionary<string, string>? skinMaterialTable = null, EntityLump.Entity? entity = null)
         {
             meshNode = null;
 
@@ -649,7 +649,7 @@ namespace ValveResourceFormat.IO
 
             if (!ExportedMeshes.TryGetValue(name, out var exportedMesh))
             {
-                exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, skinMaterialPath, tintColor);
+                exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, skinMaterialTable, tintColor);
                 ExportedMeshes.Add(name, exportedMesh);
 
                 if (entity != null && ExportExtras)

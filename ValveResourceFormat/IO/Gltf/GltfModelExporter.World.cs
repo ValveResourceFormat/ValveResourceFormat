@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using SharpGLTF.Schema2;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using Mesh = SharpGLTF.Schema2.Mesh;
@@ -147,11 +148,7 @@ public partial class GltfModelExporter
             // TODO: skybox/skydome
 
             var model = (VModel)modelResource.DataBlock!;
-            var skinName = entity.GetStringProperty("skin");
-            if (skinName == "0" || skinName == "default")
-            {
-                skinName = null;
-            }
+            var skinName = GetSkinName(entity, "skin");
 
             // todo: rendercolor might sometimes be vec4, which holds renderamt
             var rendercolor = entity.GetColor32Property("rendercolor");
@@ -177,15 +174,34 @@ public partial class GltfModelExporter
         }
     }
 
-    private static string? GetSkinPathFromModel(VModel model, string skinName)
+    private static string? GetSkinName(KVObject placement, string key)
     {
-        var materialGroupForSkin = model.GetMaterialGroups()
-            .SingleOrDefault(group => group.Name == skinName);
+        var skinName = placement.GetStringProperty(key);
+        return skinName is "" or "0" or "default" ? null : skinName;
+    }
 
-        // Given these are at the model level, and otherwise pull materials from drawcalls
-        // on the mesh, not sure how they correlate if there's more than one here
-        // So just take the first one and hope for the best
-        return materialGroupForSkin.Materials?[0];
+    /// <summary>
+    /// Maps each material of the model's default material group to the one at the same index in the named group.
+    /// </summary>
+    /// <returns>The replacement table, or <see langword="null"/> when the named group is missing or is the default one.</returns>
+    private static Dictionary<string, string>? GetSkinMaterialTable(VModel model, string skinName)
+    {
+        var materialGroups = model.GetMaterialGroups().ToArray();
+        var skinIndex = Array.FindIndex(materialGroups, group => group.Name == skinName);
+
+        if (skinIndex <= 0)
+        {
+            return null;
+        }
+
+        var materialTable = new Dictionary<string, string>();
+
+        foreach (var (material, replacement) in materialGroups[0].Materials.Zip(materialGroups[skinIndex].Materials))
+        {
+            materialTable[material] = replacement;
+        }
+
+        return materialTable;
     }
 
     /// <summary>
@@ -228,7 +244,7 @@ public partial class GltfModelExporter
                 tintColor = Vector4.One;
             }
 
-            LoadModel(exportedModel, scene, model, name, matrix, tintColor);
+            LoadModel(exportedModel, scene, model, name, matrix, tintColor, GetSkinName(sceneObject, "m_skin"));
         }
 
         foreach (var sceneObject in worldNode.AggregateSceneObjects)

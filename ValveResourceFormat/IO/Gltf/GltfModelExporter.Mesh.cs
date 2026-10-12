@@ -34,7 +34,7 @@ public partial class GltfModelExporter
     private readonly Dictionary<Accessor, Accessor> ScaledLightmapUvAccessors = [];
     private readonly Dictionary<(Accessor Position, Accessor Normal), Accessor> OverlayOffsetPositionAccessors = [];
 
-    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[]? boneRemapTable, string? skinMaterialPath, Vector4 tintColor)
+    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[]? boneRemapTable, Dictionary<string, string>? skinMaterialTable, Vector4 tintColor)
     {
         ProgressReporter?.Report($"Creating mesh: {meshName}");
 
@@ -55,7 +55,7 @@ public partial class GltfModelExporter
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
             {
-                var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath, tintColor);
+                var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialTable, tintColor);
 
                 if (flexData != null && normalData != null)
                 {
@@ -316,7 +316,7 @@ public partial class GltfModelExporter
     }
 
     private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string,
-        AttributeAccessor>[] vertexBufferAccessors, ModelRoot exportedModel, string? skinMaterialPath, Vector4 parentTintColor)
+        AttributeAccessor>[] vertexBufferAccessors, ModelRoot exportedModel, Dictionary<string, string>? skinMaterialTable, Vector4 parentTintColor)
     {
         CancellationToken.ThrowIfCancellationRequested();
 
@@ -324,7 +324,13 @@ public partial class GltfModelExporter
         var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
         var indexBuffer = vbib.IndexBuffers[indexBufferIndex];
 
-        var materialPath = skinMaterialPath ?? VMesh.GetMaterialName(drawCall)!;
+        var materialPath = VMesh.GetMaterialName(drawCall)!;
+
+        if (skinMaterialTable != null && skinMaterialTable.TryGetValue(materialPath, out var skinMaterialPath))
+        {
+            materialPath = skinMaterialPath;
+        }
+
         Resource? materialResource = null;
 
         // Bake g_vLightmapUvScale into lightmap UVs. Like the renderer, only draw calls with baked
@@ -584,7 +590,7 @@ public partial class GltfModelExporter
             var mesh = exportedModel.CreateMesh(meshName);
             mesh.Extras = new JsonObject();
 
-            CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath: null, tintColor);
+            CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialTable: null, tintColor);
 
             var newNode = scene.CreateNode(name).WithMesh(mesh);
             // The conversion is baked into the geometry (CreateVertexBufferAccessors), so the placement
