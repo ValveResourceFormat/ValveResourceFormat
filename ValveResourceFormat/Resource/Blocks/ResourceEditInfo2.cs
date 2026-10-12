@@ -153,6 +153,8 @@ namespace ValveResourceFormat.Blocks
                     SubassetDefinitions.Add(propertyKey, definitions);
                 }
             }
+
+            kv3.Data = null;
         }
 
         /// <inheritdoc/>

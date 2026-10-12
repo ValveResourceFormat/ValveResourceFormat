@@ -1048,6 +1048,7 @@ namespace ValveResourceFormat.Renderer.World
                 {
                     NavMesh = new NavMeshFile();
                     NavMesh.Read(navFileStream);
+                    NavMesh.CustomData = null; // large object, drop it we don't use it
                     RendererContext.Logger.LogInformation("Navigation mesh loaded from '{NavFilePath}'", navFilePath);
                 }
             }

@@ -45,6 +45,7 @@ public sealed class BombDamage : GenericData
     public BombDamage(BinaryKV3 kv3) : base(kv3)
     {
         ParseData();
+        Data = null;
     }
 
     /// <summary>
