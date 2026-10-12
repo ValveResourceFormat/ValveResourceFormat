@@ -893,9 +893,13 @@ namespace GUI.Types.GLViewers
         {
             switch (link)
             {
-                case LinkedEntity { Entity: var entity }:
+                case LinkedEntities { Entities: [var entity] }:
                     SelectAndFocusEntity(entity);
                     ShowEntityDetails(entity);
+                    break;
+
+                case LinkedEntities { Entities: var entities }:
+                    SelectAndFocusEntities(entities);
                     break;
 
                 case LinkedFile { Path: var path }:

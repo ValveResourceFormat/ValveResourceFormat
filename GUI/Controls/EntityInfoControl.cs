@@ -109,7 +109,7 @@ namespace GUI.Forms
                 LinkedResource? link = text switch
                 {
                     null or "" => null,
-                    _ when FindEntity(entities, text) is { } namedEntity => new LinkedEntity(namedEntity),
+                    _ when FindEntities(entities, text) is [_, ..] namedEntities => new LinkedEntities(namedEntities),
                     _ => new LinkedFile(text),
                 };
 
@@ -120,7 +120,7 @@ namespace GUI.Forms
             {
                 foreach (var connection in entity.Connections)
                 {
-                    AddOutputConnection(connection, FindEntity(entities, connection.TargetName));
+                    AddOutputConnection(connection, FindEntities(entities, connection.TargetName));
                 }
             }
 
@@ -170,14 +170,14 @@ namespace GUI.Forms
                         text,
                     ]);
 
-                    dataGridReferences.Rows[rowIndex].Tag = new LinkedEntity(source);
+                    dataGridReferences.Rows[rowIndex].Tag = new LinkedEntities([source]);
                 }
             }
         }
 
-        private static Entity? FindEntity(List<Entity> entities, string targetPattern)
+        private static List<Entity> FindEntities(List<Entity> entities, string targetPattern)
         {
-            return entities.Find(candidate => candidate.TargetName is { } targetName && EntityNameMatches(targetPattern, targetName));
+            return entities.FindAll(candidate => candidate.TargetName is { } targetName && EntityNameMatches(targetPattern, targetName));
         }
 
         public void AddProperty(string name, string value, LinkedResource? link = null)
@@ -194,7 +194,7 @@ namespace GUI.Forms
         private static string? BareText(KVObject value)
             => value.ValueType == KVValueType.String ? (string)value : null;
 
-        private void AddOutputConnection(Connection connectionData, Entity? target)
+        private void AddOutputConnection(Connection connectionData, List<Entity> targets)
         {
             var rowIndex = dataGridOutputs.Rows.Add([
                 connectionData.OutputName,
@@ -206,7 +206,7 @@ namespace GUI.Forms
             ]);
 
             var row = dataGridOutputs.Rows[rowIndex];
-            row.Tag = target != null ? new LinkedEntity(target) : null;
+            row.Tag = targets.Count > 0 ? new LinkedEntities(targets) : null;
             row.Cells[OutputsFire.Index].Tag = connectionData;
         }
 
@@ -222,7 +222,7 @@ namespace GUI.Forms
             ]);
 
             var row = dataGridInputs.Rows[rowIndex];
-            row.Tag = new LinkedEntity(connectionData.SourceEntity);
+            row.Tag = new LinkedEntities([connectionData.SourceEntity]);
             row.Cells[InputsFire.Index].Tag = connectionData;
         }
 

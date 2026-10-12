@@ -431,8 +431,8 @@ namespace GUI.Types.Viewers
         {
             switch (link)
             {
-                case LinkedEntity { Entity: var entity }:
-                    ShowLinkedEntity(entity);
+                case LinkedEntities { Entities: var entities }:
+                    ShowLinkedEntities(entities);
                     break;
 
                 case LinkedFile { Path: var path }:
@@ -441,24 +441,41 @@ namespace GUI.Types.Viewers
             }
         }
 
-        private void ShowLinkedEntity(Entity entity)
+        private void ShowLinkedEntities(IReadOnlyList<Entity> entities)
         {
-            EntityViewerGrid.SelectedItems.Clear();
+            var targets = entities.ToHashSet();
+            ListViewItem? firstItem = null;
 
-            foreach (ListViewItem item in EntityViewerGrid.Items)
+            EntityViewerGrid.SelectedIndexChanged -= EntityViewerGrid_SelectionChanged;
+
+            try
             {
-                if (item.Tag == entity)
+                EntityViewerGrid.SelectedItems.Clear();
+
+                foreach (ListViewItem item in EntityViewerGrid.Items)
                 {
-                    // Selecting it shows its properties through SelectedIndexChanged
-                    item.Selected = true;
-                    item.Focused = true;
-                    item.EnsureVisible();
-                    return;
+                    if (item.Tag is Entity entity && targets.Contains(entity))
+                    {
+                        item.Selected = true;
+                        firstItem ??= item;
+                    }
                 }
             }
+            finally
+            {
+                EntityViewerGrid.SelectedIndexChanged += EntityViewerGrid_SelectionChanged;
+            }
 
-            // Filtered out of the list
-            ShowEntityProperties(entity);
+            if (firstItem is not { Tag: Entity firstEntity })
+            {
+                // Filtered out of the list
+                ShowEntityProperties(entities[0]);
+                return;
+            }
+
+            firstItem.Focused = true;
+            firstItem.EnsureVisible();
+            ShowEntityProperties(firstEntity);
         }
 
         private void EntityViewerGrid_Resize(object sender, EventArgs e)

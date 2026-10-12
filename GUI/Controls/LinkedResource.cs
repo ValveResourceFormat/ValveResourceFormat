@@ -10,6 +10,9 @@ namespace GUI.Forms
     /// <summary>A resource file, by the path it is referenced with.</summary>
     sealed record LinkedFile(string Path) : LinkedResource;
 
-    /// <summary>An entity in the same world, named by a property or on either end of a connection.</summary>
-    sealed record LinkedEntity(Entity Entity) : LinkedResource;
+    /// <summary>
+    /// The entities in the same world named by a property or on either end of a connection,
+    /// more than one when several share the name or a wildcard matches several.
+    /// </summary>
+    sealed record LinkedEntities(IReadOnlyList<Entity> Entities) : LinkedResource;
 }
