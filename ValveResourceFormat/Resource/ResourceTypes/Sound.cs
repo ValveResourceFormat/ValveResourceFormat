@@ -229,6 +229,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var bitpackedSoundInfo = reader.ReadUInt32();
                 var type = ExtractSub(bitpackedSoundInfo, 0, 2);
                 var bits = ExtractSub(bitpackedSoundInfo, 2, 5);
+                // Bits 9-11 are the bytes per sample frame, channels times bytes per sample
                 var waveFormat = (WaveAudioFormat)ExtractSub(bitpackedSoundInfo, 12, 2);
 
                 var soundFormat = (AudioFileType)type switch
