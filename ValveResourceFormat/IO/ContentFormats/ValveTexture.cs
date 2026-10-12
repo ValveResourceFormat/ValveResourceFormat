@@ -1,3 +1,4 @@
+using System.Globalization;
 using Datamodel.Format;
 using DMElement = Datamodel.Element;
 
@@ -65,34 +66,39 @@ public class CDmeVtex : DMElement
     //public bool HiddenAssetFlag { get; set; }
 
     /// <summary>
-    /// Creates a 2D texture configuration from input images.
+    /// Creates a texture configuration whose input images all feed one output channel set, such as the slices of a cubemap array.
     /// </summary>
-    public static CDmeVtex CreateTexture2D((string FileName, string Channels, string MipAlgorithm)[] images, string outputFormat = "DXT1")
+    /// <param name="fileNames">Input image file names, in output slice order.</param>
+    /// <param name="inputType">Type of each input image, e.g. "2D", "CUBE", "2DARRAY" or "3D".</param>
+    /// <param name="outputType">Type of texture to generate, e.g. "2D", "CUBE", "CUBEARRAY", "2DARRAY" or "3D".</param>
+    /// <param name="outputFormat">Image data format to generate.</param>
+    /// <param name="colorSpace">Color space of the input images and the output.</param>
+    /// <param name="mipAlgorithm">Mipmap generation algorithm, "None" for a single mip.</param>
+    public static CDmeVtex CreateTexture(IEnumerable<string> fileNames, string inputType, string outputType, string outputFormat, string colorSpace = "srgb", string mipAlgorithm = "Box")
     {
         var vtex = new CDmeVtex
         {
-            OutputFormat = outputFormat
+            OutputTypeString = outputType,
+            OutputFormat = outputFormat,
         };
 
-        var i = 0;
-        foreach (var image in images)
+        var output = new CDmeTextureOutputChannel
         {
-            var inputImageId = "InputTexture" + i++;
-            var input = new CDmeInputTexture { Name = inputImageId, FileName = image.FileName };
-            input.ImageProcessorArray.Add(new CDmeImageProcessor()); // Empty
+            OutputColorSpace = colorSpace,
+        };
+        output.MipAlgorithm.Algorithm = mipAlgorithm;
+
+        var i = 0;
+        foreach (var fileName in fileNames)
+        {
+            var inputImageId = string.Create(CultureInfo.InvariantCulture, $"InputTexture{i++}");
+            var input = new CDmeInputTexture { Name = inputImageId, FileName = fileName, TypeString = inputType, ColorSpace = colorSpace };
+            input.ImageProcessorArray.Add(new CDmeImageProcessor());
             vtex.InputTextureArray.Add(input);
-
-            var output = new CDmeTextureOutputChannel()
-            {
-                SrcChannels = "rgba"[..image.Channels.Length],
-                DstChannels = image.Channels,
-            };
-
             output.InputTextureArray.Add(inputImageId);
-            output.MipAlgorithm.Algorithm = image.MipAlgorithm;
-            vtex.TextureOutputChannelArray.Add(output);
         }
 
+        vtex.TextureOutputChannelArray.Add(output);
         return vtex;
     }
 }
