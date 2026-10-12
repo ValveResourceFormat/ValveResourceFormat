@@ -1422,6 +1422,7 @@ namespace CLI
 
             using var package = new Package();
             package.SetFileName(path);
+            package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
 
             try
             {
