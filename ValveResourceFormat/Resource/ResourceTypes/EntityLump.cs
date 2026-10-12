@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.IO;
-using System.IO.Enumeration;
 using System.Linq;
 using System.Text;
 using ValveKeyValue;
@@ -711,13 +710,63 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Compares an entity targetname against a target string that may contain wildcards.
+        /// Letters compare ignoring ASCII case only, and there is no escape character.
         /// </summary>
         /// <param name="pattern">Targetname to match against, may contain wildcards: `*` and `?` (e.g. <c>door_*</c>).</param>
         /// <param name="targetName">Entity targetname.</param>
         /// <returns>Whether the targetname matches.</returns>
         public static bool EntityNameMatches(string pattern, string targetName)
         {
-            return FileSystemName.MatchesSimpleExpression(pattern, targetName, true);
+            var patternIndex = 0;
+            var nameIndex = 0;
+            var starIndex = -1;
+            var starNameIndex = 0;
+
+            while (nameIndex < targetName.Length)
+            {
+                if (patternIndex < pattern.Length && pattern[patternIndex] == '*')
+                {
+                    while (patternIndex < pattern.Length && pattern[patternIndex] == '*')
+                    {
+                        patternIndex++;
+                    }
+
+                    if (patternIndex == pattern.Length)
+                    {
+                        return true;
+                    }
+
+                    starIndex = patternIndex;
+                    starNameIndex = nameIndex;
+                }
+                else if (patternIndex < pattern.Length
+                    && (pattern[patternIndex] == '?' || ToUpperAscii(pattern[patternIndex]) == ToUpperAscii(targetName[nameIndex])))
+                {
+                    patternIndex++;
+                    nameIndex++;
+                }
+                else if (starIndex >= 0)
+                {
+                    patternIndex = starIndex;
+                    nameIndex = ++starNameIndex;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            while (patternIndex < pattern.Length && pattern[patternIndex] == '*')
+            {
+                patternIndex++;
+            }
+
+            return patternIndex == pattern.Length;
         }
+
+        /// <summary>
+        /// Uppercases ASCII letters and leaves every other character unchanged.
+        /// </summary>
+        internal static char ToUpperAscii(char c) => char.IsAsciiLetterLower(c) ? (char)(c - ('a' - 'A')) : c;
     }
 }

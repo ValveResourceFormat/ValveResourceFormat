@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Hashing;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
@@ -13,17 +14,26 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly record struct ClusterDrawRange(int Start, int Count, ushort ClusterId);
 
         private readonly Shader shader;
-        private readonly int vao;
-        private readonly int totalVertexCount;
-        private readonly ClusterDrawRange[] clusterDrawRanges;
+        private readonly IWorldVisibility voxelVisibility;
+        private int vao;
+        private int totalVertexCount;
+        private ClusterDrawRange[]? clusterDrawRanges;
 
         /// <summary>
         /// Initializes a new <see cref="VisibilitySceneNode"/> from the given voxel visibility data.
+        /// The cluster boxes are built when the node is first drawn.
         /// </summary>
         public VisibilitySceneNode(Scene scene, IWorldVisibility voxelVisibility) : base(scene)
         {
             shader = Scene.RendererContext.ShaderLoader.LoadShader("default");
+            this.voxelVisibility = voxelVisibility;
 
+            LocalBoundingBox = new AABB(voxelVisibility.MinBounds, voxelVisibility.MaxBounds);
+        }
+
+        [MemberNotNull(nameof(clusterDrawRanges))]
+        private void CreateBuffers()
+        {
             var vertices = new List<SimpleVertex>();
             var ranges = new List<ClusterDrawRange>();
 
@@ -49,14 +59,22 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var vboHandle = GraphicsDevice.CreateBuffer<SimpleVertex>(nameof(VisibilitySceneNode), CollectionsMarshal.AsSpan(vertices), BufferUsage.Static);
 
             vao = SimpleVertex.InputLayout.CreateVertexArray(nameof(VisibilitySceneNode), vboHandle);
-
-            LocalBoundingBox = new AABB(voxelVisibility.MinBounds, voxelVisibility.MaxBounds);
         }
 
         /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
-            if (totalVertexCount == 0 || context.RenderPass is not RenderPass.Translucent and not RenderPass.Outline)
+            if (context.RenderPass is not RenderPass.Translucent and not RenderPass.Outline)
+            {
+                return;
+            }
+
+            if (clusterDrawRanges == null)
+            {
+                CreateBuffers();
+            }
+
+            if (totalVertexCount == 0)
             {
                 return;
             }
