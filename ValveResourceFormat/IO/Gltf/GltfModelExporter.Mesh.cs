@@ -41,8 +41,6 @@ public partial class GltfModelExporter
         var mesh = exportedModel.CreateMesh(meshName);
         mesh.Extras = new JsonObject();
 
-        vmesh.LoadExternalMorphData(FileLoader);
-
         var boneWeightCount = vmesh.BoneWeightCount;
 
         var vertexBufferAccessors = CreateVertexBufferAccessors(exportedModel, vbib, boneRemapTable != null ? boneWeightCount : 0, boneRemapTable);

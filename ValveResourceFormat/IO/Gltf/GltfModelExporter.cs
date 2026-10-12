@@ -645,21 +645,19 @@ namespace ValveResourceFormat.IO
 
             var newNode = scene.CreateNode(name);
             meshNode = newNode;
-            if (ExportedMeshes.TryGetValue(name, out var exportedMesh))
-            {
-                // Make a new node that uses the existing mesh
-                newNode.Mesh = exportedMesh;
-                return newNode;
-            }
+            mesh.LoadExternalMorphData(FileLoader);
 
-            exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, skinMaterialPath, tintColor);
-            ExportedMeshes.Add(name, exportedMesh);
-
-            if (entity != null && ExportExtras)
+            if (!ExportedMeshes.TryGetValue(name, out var exportedMesh))
             {
-                foreach (var (key, value) in entity.Children)
+                exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, skinMaterialPath, tintColor);
+                ExportedMeshes.Add(name, exportedMesh);
+
+                if (entity != null && ExportExtras)
                 {
-                    exportedMesh.Extras[key] = value.ValueType == KVValueType.String ? (string)value : value.ToString();
+                    foreach (var (key, value) in entity.Children)
+                    {
+                        exportedMesh.Extras[key] = value.ValueType == KVValueType.String ? (string)value : value.ToString();
+                    }
                 }
             }
 
