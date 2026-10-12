@@ -102,6 +102,42 @@ namespace Tests.Resources
         }
 
         [Test]
+        public async Task LoadsAnimationWithoutDataBlockAndDecodesPose()
+        {
+            var vpkPath = TestFixtures.Path("info_speech_anim.vpk");
+
+            using var package = new Package();
+            package.Read(vpkPath);
+
+            using var loader = new GameFileLoader(package, vpkPath);
+            using var resource = loader.LoadFileCompiled("models/extras/info_speech.vmdl");
+            var model = (Model)resource!.DataBlock!;
+
+            var animations = model.GetAllAnimations(loader).ToList();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(animations.Select(a => a.Name)).IsEquivalentTo(["@idle"]);
+                await Assert.That(animations[0].Fps).IsEqualTo(12);
+                await Assert.That(animations[0].FrameCount).IsEqualTo(31);
+                await Assert.That(((SequenceAnimation)animations[0]).IsLooping).IsTrue();
+            }
+
+            var frameCache = new AnimationFrameCache(model.Skeleton, []);
+            var firstFrame = frameCache.GetFrame(animations[0], 0);
+            var middleFrame = frameCache.GetFrame(animations[0], 15);
+
+            using (Assert.Multiple())
+            {
+                // The circle spins half a turn around Y by the middle of the loop.
+                await Assert.That(model.Skeleton.Bones[2].Name).IsEqualTo("circle");
+                await Assert.That(firstFrame.Bones[2].Angle.W).IsEqualTo(1f).Within(0.0001f);
+                await Assert.That(middleFrame.Bones[2].Angle.Y).IsEqualTo(-1f).Within(0.0001f);
+                await Assert.That(middleFrame.Bones[2].Angle.W).IsEqualTo(0f).Within(0.0001f);
+            }
+        }
+
+        [Test]
         public async Task MovementOffsetReachesFullDisplacement()
         {
             using var resource = new Resource();

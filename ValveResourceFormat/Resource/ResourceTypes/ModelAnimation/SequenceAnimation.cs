@@ -131,6 +131,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private static AnimationLocalHierarchy[] GetLocalHierarchy(KVObject? animDesc)
             => animDesc?.GetArray("m_hierarchyArray")?.Select(static x => new AnimationLocalHierarchy(x)).ToArray() ?? [];
 
+        private static (int FrameCount, AnimationFrameBlock[] FrameBlocks) GetFrameData(KVObject animDesc)
+        {
+            // Older animations store the frame data directly on the description
+            var pData = animDesc.GetSubCollection("m_pData");
+            var frameCount = pData?.GetInt32Property("m_nFrames") ?? animDesc.GetInt32Property("numframes");
+            var frameBlocks = (pData ?? animDesc).GetArray("m_frameblockArray").Select(static x => new AnimationFrameBlock(x)).ToArray();
+
+            return (frameCount, frameBlocks);
+        }
+
         private SequenceAnimation(KVObject animDesc, AnimationSegmentDecoder?[] segmentArray)
         {
             Name = animDesc.GetStringProperty("m_name");
@@ -145,15 +155,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Worldspace = flags.GetBooleanProperty("m_bLegacyWorldspace");
             IsAdditive = Delta || AnimGraphAdditive;
 
-            var pData = animDesc.GetSubCollection("m_pData");
-            FrameCount = pData.GetInt32Property("m_nFrames");
-
-            var frameBlockArray = pData.GetArray("m_frameblockArray");
-            FrameBlocks = new AnimationFrameBlock[frameBlockArray.Count];
-            for (var i = 0; i < frameBlockArray.Count; i++)
-            {
-                FrameBlocks[i] = new AnimationFrameBlock(frameBlockArray[i]);
-            }
+            (FrameCount, FrameBlocks) = GetFrameData(animDesc);
 
             var movementArray = animDesc.GetArray("m_movementArray");
             Movements = new AnimationMovement[movementArray.Count];
@@ -172,8 +174,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             LocalHierarchy = GetLocalHierarchy(animDesc);
 
-            var sequenceParams = animDesc.GetSubCollection("m_sequenceParams");
-            SequenceParams = new AnimationSequenceParams(sequenceParams);
+            if (animDesc.GetSubCollection("m_sequenceParams") is { } sequenceParams)
+            {
+                SequenceParams = new AnimationSequenceParams(sequenceParams);
+            }
 
             FromSequence = false;
         }
@@ -220,15 +224,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 Fps = animDesc.GetFloatProperty("fps");
 
-                var pData = animDesc.GetSubCollection("m_pData");
-                FrameCount = pData.GetInt32Property("m_nFrames");
-
-                var frameBlockArray = pData.GetArray("m_frameblockArray");
-                FrameBlocks = new AnimationFrameBlock[frameBlockArray.Count];
-                for (var i = 0; i < frameBlockArray.Count; i++)
-                {
-                    FrameBlocks[i] = new AnimationFrameBlock(frameBlockArray[i]);
-                }
+                (FrameCount, FrameBlocks) = GetFrameData(animDesc);
 
                 var movementArray = animDesc.GetArray("m_movementArray");
                 Movements = new AnimationMovement[movementArray.Count];
