@@ -18,6 +18,9 @@ namespace ValveResourceFormat.IO;
 /// </summary>
 public partial class GltfModelExporter
 {
+    private const int PhysicsShapeSegments = 16;
+    private const int PhysicsShapeHemisphereRings = 8;
+
     private void LoadPhysicsMeshes(ModelRoot exportedModel, Scene scene, PhysAggregateData phys, Matrix4x4 transform, string? classname = null)
     {
         var bindPose = phys.BindPose;
@@ -44,8 +47,8 @@ public partial class GltfModelExporter
                     foreach (var sphere in shape.GetAllSpheres().Where(s => s.CollisionAttributeIndex == collisionAttrIndex && s.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var center = Vector3.Transform(sphere.Shape.Center, pose);
-                        var radius = sphere.Shape.Radius;
-                        CreateSphereMesh(combinedVerts, combinedNormals, combinedUvs, combinedIndices, center, radius);
+                        var (positions, faces) = PhysicsShapeTessellation.Sphere(center, sphere.Shape.Radius, PhysicsShapeSegments, PhysicsShapeHemisphereRings);
+                        AddPolygons(faces, positions, combinedVerts, combinedNormals, combinedUvs, combinedIndices);
                     }
 
                     // Process capsule shapes with matching properties
@@ -54,8 +57,8 @@ public partial class GltfModelExporter
                         var center = capsule.Shape.Center;
                         var start = Vector3.Transform(center[0], pose);
                         var end = Vector3.Transform(center[1], pose);
-                        var radius = capsule.Shape.Radius;
-                        CreateCapsuleMesh(combinedVerts, combinedNormals, combinedUvs, combinedIndices, start, end, radius);
+                        var (positions, faces) = PhysicsShapeTessellation.Capsule(start, end, capsule.Shape.Radius, PhysicsShapeSegments, PhysicsShapeHemisphereRings);
+                        AddPolygons(faces, positions, combinedVerts, combinedNormals, combinedUvs, combinedIndices);
                     }
 
                     // Process hull shapes with matching properties
@@ -160,6 +163,21 @@ public partial class GltfModelExporter
     }
 
     /// <summary>
+    /// Adds convex polygons, triangulated as fans, to the vertex data.
+    /// </summary>
+    private static void AddPolygons(List<int[]> polygons, Vector3[] positions,
+        List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices)
+    {
+        foreach (var polygon in polygons)
+        {
+            for (var i = 2; i < polygon.Length; i++)
+            {
+                AddTriangleWithNormal(positions[polygon[0]], positions[polygon[i - 1]], positions[polygon[i]], verts, normals, uvs, indices);
+            }
+        }
+    }
+
+    /// <summary>
     /// Adds a single triangle to the vertex data with computed normal and planar UV coordinates.
     /// </summary>
     private static void AddTriangleWithNormal(Vector3 a, Vector3 b, Vector3 c,
@@ -216,153 +234,6 @@ public partial class GltfModelExporter
     // Degenerate triangles have no direction, but glTF requires every normal to be unit length
     internal static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)
         => MathUtils.SafeNormalize(MathUtils.TriangleCross(a, b, c), Vector3.UnitZ, 1e-12f);
-
-    /// <summary>
-    /// Generates a procedural sphere mesh with proper normals and spherical UV coordinates.
-    /// </summary>
-    private static void CreateSphereMesh(List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices, Vector3 center, float radius)
-    {
-        const int latitudeSegments = 16;
-        const int longitudeSegments = 16;
-
-        // Generate vertices with spherical coordinates
-        var sphereVerts = new List<Vector3>();
-        var sphereNormals = new List<Vector3>();
-        var sphereUVs = new List<Vector2>();
-
-        for (var lat = 0; lat <= latitudeSegments; lat++)
-        {
-            var theta = lat * MathF.PI / latitudeSegments;
-            var sinTheta = MathF.Sin(theta);
-            var cosTheta = MathF.Cos(theta);
-
-            for (var lon = 0; lon <= longitudeSegments; lon++)
-            {
-                var phi = lon * MathF.Tau / longitudeSegments;
-                var sinPhi = MathF.Sin(phi);
-                var cosPhi = MathF.Cos(phi);
-
-                var x = cosPhi * sinTheta;
-                var y = cosTheta;
-                var z = sinPhi * sinTheta;
-
-                var normal = new Vector3(x, y, z);
-                var position = center + normal * radius;
-
-                // Generate spherical UV coordinates
-                var u = (float)lon / longitudeSegments;
-                var v = (float)lat / latitudeSegments;
-
-                sphereVerts.Add(position);
-                sphereNormals.Add(normal);
-                sphereUVs.Add(new Vector2(u, v));
-            }
-        }
-
-        // Generate triangle indices for sphere quads
-        var baseIndex = verts.Count;
-        verts.AddRange(sphereVerts);
-        normals.AddRange(sphereNormals);
-        uvs.AddRange(sphereUVs);
-
-        for (var lat = 0; lat < latitudeSegments; lat++)
-        {
-            for (var lon = 0; lon < longitudeSegments; lon++)
-            {
-                var first = lat * (longitudeSegments + 1) + lon;
-                var second = first + longitudeSegments + 1;
-
-                // First triangle
-                indices.Add(baseIndex + first);
-                indices.Add(baseIndex + second);
-                indices.Add(baseIndex + first + 1);
-
-                // Second triangle
-                indices.Add(baseIndex + second);
-                indices.Add(baseIndex + second + 1);
-                indices.Add(baseIndex + first + 1);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Generates a procedural capsule mesh as a cylinder with hemisphere end caps.
-    /// Uses cylindrical UV coordinates for the main body.
-    /// </summary>
-    private static void CreateCapsuleMesh(List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices, Vector3 start, Vector3 end, float radius)
-    {
-        var length = Vector3.Distance(start, end);
-
-        // A capsule with both ends at the same point is a sphere, so any axis works
-        var direction = MathUtils.SafeNormalize(end - start, Vector3.UnitZ, 1e-12f);
-        var center = (start + end) * 0.5f;
-
-        // Find perpendicular vectors
-        Vector3 right, up;
-        if (Math.Abs(direction.Y) < 0.9f)
-        {
-            right = Vector3.Normalize(Vector3.Cross(direction, Vector3.UnitY));
-            up = Vector3.Cross(right, direction);
-        }
-        else
-        {
-            right = Vector3.Normalize(Vector3.Cross(direction, Vector3.UnitX));
-            up = Vector3.Cross(right, direction);
-        }
-
-        const int segments = 16;
-        const int rings = 8;
-
-        var baseIndex = verts.Count;
-
-        // Generate cylinder vertices
-        for (var ring = 0; ring <= rings; ring++)
-        {
-            var t = (float)ring / rings;
-            var y = (t - 0.5f) * length;
-            var pos = center + direction * y;
-
-            for (var seg = 0; seg <= segments; seg++)
-            {
-                var angle = seg * MathF.Tau / segments;
-
-                // Right and up are perpendicular unit vectors, so this is unit length even for a zero radius
-                var normal = right * MathF.Cos(angle) + up * MathF.Sin(angle);
-
-                // Generate cylindrical UV coordinates
-                var u = (float)seg / segments;
-                var v = t;
-
-                verts.Add(pos + normal * radius);
-                normals.Add(normal);
-                uvs.Add(new Vector2(u, v));
-            }
-        }
-
-        // Generate triangle indices for cylindrical surface
-        for (var ring = 0; ring < rings; ring++)
-        {
-            for (var seg = 0; seg < segments; seg++)
-            {
-                var current = ring * (segments + 1) + seg;
-                var next = current + segments + 1;
-
-                // First triangle
-                indices.Add(baseIndex + current);
-                indices.Add(baseIndex + next);
-                indices.Add(baseIndex + current + 1);
-
-                // Second triangle
-                indices.Add(baseIndex + next);
-                indices.Add(baseIndex + next + 1);
-                indices.Add(baseIndex + current + 1);
-            }
-        }
-
-        // Add hemispherical end caps using sphere mesh generation
-        CreateSphereMesh(verts, normals, uvs, indices, start, radius);
-        CreateSphereMesh(verts, normals, uvs, indices, end, radius);
-    }
 
     /// <summary>
     /// Generates UV coordinates using planar projection based on the surface normal.
