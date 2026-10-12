@@ -192,7 +192,7 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         await Assert.That(contentFile.Data).IsNotEmpty().Because($"Decompiling {assetPath} produced no vmdl data.");
 
         var vmdlPath = Path.Combine(installation.ContentAddonPath, assetPath[..^"_c".Length]);
-        WriteContentFile(contentFile, vmdlPath);
+        new ContentExporter(installation.ContentAddonPath).Export(contentFile);
 
         var (exitCode, compilerOutput) = RunResourceCompiler(installation.ResourceCompilerPath, vmdlPath);
         var compiledPath = Path.Combine(installation.GameAddonPath, assetPath);
@@ -278,32 +278,6 @@ public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations install
         return [.. (sequenceData.Data.GetArray("m_localS1SeqDescArray") ?? [])
             .Select(static sequence => sequence.GetStringProperty("m_sName"))
             .Where(static name => !string.IsNullOrEmpty(name) && !name.StartsWith('@'))];
-    }
-
-    private static void WriteContentFile(ContentFile contentFile, string outFilePath)
-    {
-        var outFolder = Path.GetDirectoryName(outFilePath)!;
-        Directory.CreateDirectory(outFolder);
-
-        if (contentFile.Data != null)
-        {
-            File.WriteAllBytes(outFilePath, contentFile.Data);
-        }
-
-        foreach (var additionalFile in contentFile.AdditionalFiles)
-        {
-            WriteContentFile(additionalFile, Path.Combine(outFolder, Path.GetFileName(additionalFile.FileName)));
-        }
-
-        foreach (var subFile in contentFile.SubFiles)
-        {
-            var subFileData = subFile.Extract?.Invoke();
-
-            if (subFileData is { Length: > 0 })
-            {
-                File.WriteAllBytes(Path.Combine(outFolder, subFile.FileName), subFileData);
-            }
-        }
     }
 
     private static (int ExitCode, string Output) RunResourceCompiler(string resourceCompilerPath, string vmdlPath)

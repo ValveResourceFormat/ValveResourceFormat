@@ -86,16 +86,7 @@ public sealed class MaterialExtract
             }
 
             var images = GetTextureUnpackInfos(type, filePath, (Texture)texture.DataBlock!, omitDefaults: true, omitUniforms: true);
-            var vtex = new TextureExtract(texture).ToMaterialMaps(images);
-
-            if (vtex.SubFiles.Count > 0)
-            {
-                vmat.AdditionalFiles.Add(vtex);
-            }
-            else
-            {
-                vtex.Dispose();
-            }
+            vmat.AdditionalFiles.Add(new TextureExtract(texture).ToMaterialMaps(images));
         }
 
         return vmat;
