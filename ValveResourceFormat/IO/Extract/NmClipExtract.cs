@@ -72,9 +72,15 @@ public class NmClipExtract
         if (skeleton != null)
         {
             var bonesToSampleInModelSpace = KVObject.Array();
-            foreach (var boneIndex in clip.ModelSpaceSampledBones)
+            // These index into the sampling chain, which in turn indexes into the skeleton bones.
+            foreach (var chainIndex in clip.ModelSpaceBoneSamplingIndices)
             {
-                bonesToSampleInModelSpace.Add(skeleton.Bones[boneIndex].Name);
+                if (chainIndex < 0 || chainIndex >= clip.ModelSpaceSamplingChain.Length)
+                {
+                    throw new InvalidDataException($"Model space sampling chain index {chainIndex} is out of bounds (0..{clip.ModelSpaceSamplingChain.Length - 1}).");
+                }
+
+                bonesToSampleInModelSpace.Add(skeleton.Bones[clip.ModelSpaceSamplingChain[chainIndex].BoneIndex].Name);
             }
             kv.Add("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
 
@@ -95,7 +101,7 @@ public class NmClipExtract
             kv.Add("m_secondaryAnimationSkeletonNames", secondarySkeletonNames);
         }
 
-        var syncEventIds = clip.SyncEventIds.Where(static id => !string.IsNullOrEmpty(id)).ToHashSet();
+        var syncEventIds = clip.SyncTrack.Events.Select(static e => e.ID).Where(static id => !string.IsNullOrEmpty(id)).ToHashSet();
 
         var frameIntervalCount = Math.Max(0, animation.FrameCount - 1);
         var docEventTracks = KVObject.Array();

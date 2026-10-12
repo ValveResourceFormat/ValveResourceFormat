@@ -7,6 +7,7 @@ using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
+using Transform = ValveResourceFormat.ResourceTypes.ModelAnimation.FrameBone;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 {
@@ -31,6 +32,37 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         bool IsTranslationStatic,
         bool IsScaleStatic
     );
+
+    /// <summary>
+    /// A named period of a sync track. Times are fractions of the clip.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmSyncTrack::Event_t">CNmSyncTrack::Event_t</seealso>
+    public readonly record struct SyncEvent(string ID, float StartTime, float Duration);
+
+    /// <summary>
+    /// Divides a clip into named periods. Clips of different lengths use this for aligning.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmSyncTrack">CNmSyncTrack</seealso>
+    public readonly record struct SyncTrack(SyncEvent[] Events, int StartEventOffset);
+
+    /// <summary>
+    /// The root motion of a clip, as the transform of the root on each frame.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmRootMotionData">CNmRootMotionData</seealso>
+    public readonly record struct RootMotionData
+    (
+        Transform[] Transforms,
+        int NumFrames,
+        float AverageLinearVelocity,
+        float AverageAngularVelocityRadians,
+        Transform TotalDelta
+    );
+
+    /// <summary>
+    /// A link in the chain of bones that is evaluated to sample a bone in model space.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmClip::ModelSpaceSamplingChainLink_t">CNmClip::ModelSpaceSamplingChainLink_t</seealso>
+    public readonly record struct ModelSpaceSamplingChainLink(int BoneIndex, int ParentBoneIndex, int ParentChainLinkIndex);
 
     /// <summary>
     /// Represents an animation clip with compressed pose data.
@@ -102,14 +134,24 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         public AnimationFloatCurve[] FloatCurves { get; private set; } = [];
 
         /// <summary>
-        /// Gets the skeleton bone index of each bone that is sampled in model space.
+        /// Gets the sync track of the clip.
         /// </summary>
-        public int[] ModelSpaceSampledBones { get; private set; } = [];
+        public SyncTrack SyncTrack { get; private set; } = new([], 0);
 
         /// <summary>
-        /// Gets the IDs of the events on the sync track.
+        /// Gets the root motion as stored, which <see cref="RootMotion"/> is derived from.
         /// </summary>
-        public string[] SyncEventIds { get; private set; } = [];
+        public RootMotionData RootMotionData { get; private set; } = new([], 0, 0f, 0f, Transform.Identity);
+
+        /// <summary>
+        /// Gets the chain of bones evaluated to sample bones in model space.
+        /// </summary>
+        public ModelSpaceSamplingChainLink[] ModelSpaceSamplingChain { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the bones sampled in model space, as indices into <see cref="ModelSpaceSamplingChain"/>.
+        /// </summary>
+        public int[] ModelSpaceBoneSamplingIndices { get; private set; } = [];
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
@@ -134,28 +176,50 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             Duration = clipData.GetFloatProperty("m_flDuration");
             IsAdditive = clipData.GetBooleanProperty("m_bIsAdditive");
 
-            var rootTransforms = clipData.GetSubCollection("m_rootMotion")?.GetArray("m_transforms");
-            if (rootTransforms is { Count: > 1 })
+            if (clipData.GetSubCollection("m_rootMotion") is { } rootMotion)
             {
-                RootMotion = new AnimationMovement.MovementData[rootTransforms.Count];
+                RootMotionData = new RootMotionData(
+                    [.. (rootMotion.GetArray("m_transforms") ?? []).Select(ReadTransform)],
+                    rootMotion.GetInt32Property("m_nNumFrames"),
+                    rootMotion.GetFloatProperty("m_flAverageLinearVelocity"),
+                    rootMotion.GetFloatProperty("m_flAverageAngularVelocityRadians"),
+                    rootMotion.TryGetValue("m_totalDelta", out var totalDelta) ? ReadTransform(totalDelta) : Transform.Identity);
+            }
+
+            var rootTransforms = RootMotionData.Transforms;
+            if (rootTransforms.Length > 1)
+            {
+                RootMotion = new AnimationMovement.MovementData[rootTransforms.Length];
                 var previousYaw = 0f;
 
-                for (var t = 0; t < rootTransforms.Count; t++)
+                for (var t = 0; t < rootTransforms.Length; t++)
                 {
-                    var (position, _, rotation) = rootTransforms[t].ToTransform();
-
-                    var yaw = EntityTransformHelper.ToEulerAngles(rotation).Y;
+                    var yaw = EntityTransformHelper.ToEulerAngles(rootTransforms[t].Angle).Y;
                     yaw += 360f * MathF.Round((previousYaw - yaw) / 360f);
                     previousYaw = yaw;
 
-                    RootMotion[t] = new AnimationMovement.MovementData(position, yaw);
+                    RootMotion[t] = new AnimationMovement.MovementData(rootTransforms[t].Position, yaw);
                 }
             }
 
+            if (clipData.GetSubCollection("m_syncTrack") is { } syncTrack)
+            {
+                SyncTrack = new SyncTrack(
+                    [.. (syncTrack.GetArray("m_syncEvents") ?? []).Select(static e => new SyncEvent(
+                        e.GetStringProperty("m_ID", string.Empty),
+                        e.GetSubCollection("m_startTime")?.GetFloatProperty("m_flValue") ?? 0f,
+                        e.GetSubCollection("m_duration")?.GetFloatProperty("m_flValue") ?? 0f))],
+                    syncTrack.GetInt32Property("m_nStartEventOffset"));
+            }
+
+            ModelSpaceSamplingChain = [.. (clipData.GetArray("m_modelSpaceSamplingChain") ?? []).Select(static link => new ModelSpaceSamplingChainLink(
+                link.GetInt32Property("m_nBoneIdx", -1),
+                link.GetInt32Property("m_nParentBoneIdx", -1),
+                link.GetInt32Property("m_nParentChainLinkIdx", -1)))];
+            ModelSpaceBoneSamplingIndices = [.. clipData.GetIntegerArray("m_modelSpaceBoneSamplingIndices").Select(static i => (int)i)];
+
             TrackCompressionSettings = ReadTrackCompressionSettings(clipData);
             FloatCurves = ReadFloatCurves(clipData);
-            ModelSpaceSampledBones = ReadModelSpaceSampledBones(clipData);
-            SyncEventIds = [.. (clipData.GetSubCollection("m_syncTrack")?.GetArray("m_syncEvents") ?? []).Select(static e => e.GetStringProperty("m_ID", string.Empty))];
             CompressedPoseData = clipData.GetArray<byte>("m_compressedPoseData");
 
             var events = clipData.GetArray("m_events") ?? [];
@@ -184,26 +248,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             }
         }
 
-        private static int[] ReadModelSpaceSampledBones(KVObject clipData)
+        private static Transform ReadTransform(KVObject data)
         {
-            var samplingChain = clipData.GetArray("m_modelSpaceSamplingChain") ?? [];
-            // These index into the sampling chain, which in turn indexes into the skeleton bones.
-            var samplingIndices = clipData.GetIntegerArray("m_modelSpaceBoneSamplingIndices");
-            var bones = new int[samplingIndices.Length];
-
-            for (var i = 0; i < bones.Length; i++)
-            {
-                var chainIndex = samplingIndices[i];
-
-                if (chainIndex < 0 || chainIndex >= samplingChain.Count)
-                {
-                    throw new InvalidDataException($"Model space sampling chain index {chainIndex} is out of bounds (0..{samplingChain.Count - 1}).");
-                }
-
-                bones[i] = samplingChain[(int)chainIndex].GetInt32Property("m_nBoneIdx");
-            }
-
-            return bones;
+            var (position, scale, rotation) = data.ToTransform();
+            return new Transform(position, scale, rotation);
         }
 
         private AnimationFloatCurve[] ReadFloatCurves(KVObject clipData)
