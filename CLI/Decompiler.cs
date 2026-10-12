@@ -62,7 +62,8 @@ namespace CLI
         private bool VerifyVPKChecksums;
         private bool CachedManifest;
         private bool Decompile;
-        private TextureCodec TextureDecodeFlags = TextureCodec.Auto;
+        private bool DecompileDependencies;
+        private bool SkipExisting;
         private FileExtractOptions ExtractOptions = new();
         private string[] FileFilter = [];
         private string? LinkedFilePath; // The file inside of the package that a "vpk:" input link points to
@@ -92,6 +93,17 @@ namespace CLI
         private string[]? ExtFilterList;
         private bool IsInputFolder;
         private Progress<string>? ProgressReporter;
+        private ContentExporter? Exporter;
+
+        /// <summary>
+        /// The package or file on disk each exported input file came from, by content path.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, string> ExportedFrom = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The file the main output is written to when --output names a file.
+        /// </summary>
+        private string? TargetFile => OutputIsDirectory ? null : OutputFile;
 
         public static void Main(string[] args)
         {
@@ -124,6 +136,8 @@ namespace CLI
         /// <param name="block">-b, Print the content of specific block(s), example: "DATA" or "RERL,RED2".</param>
         /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files. Requires --output.</param>
         /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto" (default), "ForceLDR". Requires --output.</param>
+        /// <param name="decompile_dependencies">When decompiling, also decompile every file the input uses, directly or through other files, that is in the same VPK, addon or mod. Files from elsewhere, such as the base game, stay referenced. Requires --output.</param>
+        /// <param name="skip_existing">Keep files that already exist in the output folder instead of overwriting them. Requires --output.</param>
         /// <param name="skip_softbody_reconstruction">Skip reconstructing soft-body (cloth) physics when decompiling models.</param>
         /// <param name="vpk_list">-l, List all files in the given VPK or folder. File extension and path filters apply.</param>
         /// <param name="vpk_dir">Same as --vpk_list, but also print the archive index, offset and metadata size of each file.</param>
@@ -167,6 +181,8 @@ namespace CLI
             [HideDefaultValue] string? block = default,
             bool decompile = false,
             [HideDefaultValue] string? texture_decode_flags = default,
+            bool decompile_dependencies = false,
+            bool skip_existing = false,
             bool skip_softbody_reconstruction = false,
             bool vpk_list = false,
             bool vpk_dir = false,
@@ -271,6 +287,8 @@ namespace CLI
             InputFile = isSteamInput ? "steam" : Path.GetFullPath(input);
             OutputFile = output;
             Decompile = decompile;
+            DecompileDependencies = decompile_dependencies;
+            SkipExisting = skip_existing;
             ExtractOptions = new FileExtractOptions { ReconstructSoftbody = !skip_softbody_reconstruction };
             RecursiveSearch = recursive;
             RecursiveSearchArchives = recursive_vpk;
@@ -315,7 +333,6 @@ namespace CLI
 
             if (OutputFile == "-")
             {
-                // Output paths are still computed to name the printed files, relative to the working directory
                 OutputToConsole = true;
                 OutputFile = Environment.CurrentDirectory + Path.DirectorySeparatorChar;
             }
@@ -355,7 +372,7 @@ namespace CLI
                     return 1;
                 }
 
-                TextureDecodeFlags = decodeFlags;
+                ExtractOptions = ExtractOptions with { TextureDecodeFlags = decodeFlags };
             }
 
             var blockNames = Enum.GetNames<BlockType>().Where(name => name != nameof(BlockType.Undefined)).ToArray();
@@ -488,15 +505,21 @@ namespace CLI
                 return 1;
             }
 
+            if (OutputFile == null && (DecompileDependencies || SkipExisting))
+            {
+                Console.Error.WriteLine("--decompile_dependencies and --skip_existing require --output.");
+                return 1;
+            }
+
             if (VpkCreatePath == null && VpkCreateChunkSize != 0)
             {
                 Console.Error.WriteLine("--vpk_create_chunk_size requires --vpk_create.");
                 return 1;
             }
 
-            if (OutputToConsole && (GltfExportFormat != null || CachedManifest))
+            if (OutputToConsole && (GltfExportFormat != null || CachedManifest || DecompileDependencies || SkipExisting))
             {
-                Console.Error.WriteLine("--output - only prints decompiled files, use it without glTF exports or --vpk_cache.");
+                Console.Error.WriteLine("--output - only prints decompiled files, use it without glTF exports, --vpk_cache, --decompile_dependencies or --skip_existing.");
                 return 1;
             }
 
@@ -637,6 +660,11 @@ namespace CLI
                 return 1;
             }
 
+            if (OutputFile != null)
+            {
+                paths = [.. paths.OrderBy(static path => ContentExporter.GetExportOrder(path))];
+            }
+
             CurrentFile = 0;
             TotalFiles = paths.Count;
 
@@ -671,14 +699,18 @@ namespace CLI
                 Console.SetOut(Console.Error);
             }
 
+            var isSinglePackage = LinkedFilePath == null && paths is [var onlyPath] && onlyPath.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase);
+
+            if (OutputFile != null && !isSinglePackage)
+            {
+                Exporter = CreateExporter(GetContentFolder(paths));
+            }
+
             if (MaxParallelismThreads > 1)
             {
                 Console.WriteLine("Will use {0} threads concurrently.", MaxParallelismThreads);
 
                 FreeFileProcessingSlots = MaxParallelismThreads;
-
-                var queue = new ConcurrentQueue<string>(paths);
-                var tasks = new List<Task>();
 
                 ThreadPool.GetMinThreads(out var workerThreads, out var completionPortThreads);
 
@@ -687,18 +719,28 @@ namespace CLI
                     ThreadPool.SetMinThreads(MaxParallelismThreads, MaxParallelismThreads);
                 }
 
-                for (var n = 0; n < MaxParallelismThreads; n++)
-                {
-                    tasks.Add(Task.Run(() =>
-                    {
-                        while (queue.TryDequeue(out var path))
-                        {
-                            ProcessInputFile(path);
-                        }
-                    }));
-                }
+                var phases = OutputFile != null
+                    ? paths.GroupBy(static path => ContentExporter.GetExportOrder(path)).Select(static phase => phase.ToList())
+                    : [paths];
 
-                Task.WhenAll(tasks).GetAwaiter().GetResult();
+                foreach (var phase in phases)
+                {
+                    var queue = new ConcurrentQueue<string>(phase);
+                    var tasks = new List<Task>();
+
+                    for (var n = 0; n < MaxParallelismThreads; n++)
+                    {
+                        tasks.Add(Task.Run(() =>
+                        {
+                            while (queue.TryDequeue(out var path))
+                            {
+                                ProcessInputFile(path);
+                            }
+                        }));
+                    }
+
+                    Task.WhenAll(tasks).GetAwaiter().GetResult();
+                }
             }
             else
             {
@@ -718,9 +760,9 @@ namespace CLI
                 }
             }
 
-            if (OutputFile != null && !OutputToConsole)
+            if (Exporter != null && !OutputToConsole)
             {
-                Console.WriteLine($"--- Wrote {WrittenFiles} files");
+                Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"--- Wrote {WrittenFiles} files"));
             }
 
             if (!AnyFileMatched && !CollectStats && (HasPathFilter || ExtFilterList != null))
@@ -779,6 +821,91 @@ namespace CLI
             }
 
             return 0;
+        }
+
+        private ContentExporter CreateExporter(string? contentFolder)
+        {
+            Debug.Assert(OutputFile != null);
+
+            var outputFolder = OutputIsDirectory ? OutputFile : Path.GetDirectoryName(OutputFile)!;
+            var outputRoot = OutputToConsole ? outputFolder : ContentPaths.ResolveOutputRoot(outputFolder, contentFolder);
+
+            if (!OutputToConsole)
+            {
+                Console.WriteLine($"--- Writing files to \"{outputRoot}\"");
+            }
+
+            return new ContentExporter(outputRoot)
+            {
+                IncludeDependencies = DecompileDependencies,
+                ExistingFileAction = SkipExisting ? ExistingFileAction.Skip : ExistingFileAction.Overwrite,
+                ExtractOptions = ExtractOptions,
+                Progress = ProgressReporter,
+                FileWritten = OnFileWritten,
+                FileSkipped = OnFileSkipped,
+                Warning = Warn,
+                FileFailed = (fileName, exception) => LogException(exception, fileName),
+            };
+        }
+
+        /// <summary>
+        /// Gets the content folder that every input file is in, or null when it is not known.
+        /// </summary>
+        private string? GetContentFolder(List<string> paths)
+        {
+            if (LinkedFilePath != null)
+            {
+                return ContentPaths.GetDirectoryName(LinkedFilePath);
+            }
+
+            if (paths.Exists(static path => path.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase)))
+            {
+                return null;
+            }
+
+            var contentPaths = paths.Select(ContentPaths.GetContentPathFromDisk).ToList();
+
+            return contentPaths.Contains(null) ? null : ContentPaths.GetCommonDirectory(contentPaths!);
+        }
+
+        /// <summary>
+        /// Gets the content folder that every file of a package the filters match is in.
+        /// </summary>
+        private string GetMatchedEntriesFolder(Package package)
+        {
+            Debug.Assert(package.Entries != null);
+
+            return ContentPaths.GetCommonDirectory(package.Entries
+                .Where(group => MatchesExtensionFilter(group.Key))
+                .SelectMany(group => FilteredEntries(group.Value))
+                .Select(static entry => entry.FilePath));
+        }
+
+        /// <summary>
+        /// Whether an input file was already exported, or used by an exported file, and should be skipped. A file whose
+        /// content path was exported from another package or file is exported again.
+        /// </summary>
+        private bool IsAlreadyExported(string contentPath, string source)
+        {
+            Debug.Assert(Exporter != null);
+
+            var key = ContentPaths.Normalize(contentPath);
+
+            if (!Exporter.IsHandled(key))
+            {
+                ExportedFrom.TryAdd(key, source);
+                return false;
+            }
+
+            return !ExportedFrom.TryGetValue(key, out var exportedFrom) || exportedFrom == source;
+        }
+
+        /// <summary>
+        /// Gets the content path of an input file, which for a file on disk is found from where it is.
+        /// </summary>
+        private string GetContentPath(string path, string? originalPath)
+        {
+            return originalPath != null ? path : ContentPaths.GetContentPathFromDiskOrFileName(path, Warn);
         }
 
         private List<string>? FindPathsToProcessInFolder(string path)
@@ -1050,7 +1177,9 @@ namespace CLI
                 return;
             }
 
-            if (TryParseNonResource(path, stream, originalPath))
+            var contentPath = OutputFile != null ? GetContentPath(path, originalPath) : path;
+
+            if (TryParseNonResource(path, contentPath, stream, originalPath))
             {
                 return;
             }
@@ -1074,12 +1203,7 @@ namespace CLI
 
                 if (extension == null)
                 {
-                    extension = Path.GetExtension(path);
-
-                    if (extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
-                    {
-                        extension = extension[..^2];
-                    }
+                    extension = ContentPaths.TrimCompiledSuffix(Path.GetExtension(path));
                 }
 
                 if (CollectStats)
@@ -1089,37 +1213,35 @@ namespace CLI
 
                 if (OutputFile != null)
                 {
-                    using var outputFileLoader = CreateGameFileLoader(null, resource.FileName);
+                    resource.FileName = contentPath;
 
-                    path = Path.ChangeExtension(path, extension);
-                    var outFilePath = GetOutputPath(path);
-
-                    if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
+                    if (IsAlreadyExported(resource.FileName, path))
                     {
-                        outFilePath = Path.ChangeExtension(outFilePath, GltfExportFormat);
-                        Directory.CreateDirectory(Path.GetDirectoryName(outFilePath)!);
-
-                        CreateGltfExporter(outputFileLoader).Export(resource, outFilePath);
-                        Interlocked.Increment(ref WrittenFiles);
-
-                        Console.WriteLine("--- Dump written to \"{0}\"", outFilePath);
+                        Console.WriteLine("--- Skipped \"{0}\", it is part of a file that was exported", path);
                         return;
                     }
 
-                    using var contentFile = DecompileResource(resource, outputFileLoader);
+                    using var outputFileLoader = CreateGameFileLoader(null, path);
 
-                    var extensionNew = Path.GetExtension(outFilePath);
-                    if (extensionNew.Length == 0 || extensionNew[1..] != extension)
+                    if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
                     {
-                        lock (ConsoleWriterLock)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine($"Extension '.{extension}' might be more suitable than the one provided '{extensionNew}'");
-                            Console.ResetColor();
-                        }
+                        ExportGltf(CreateGltfExporter(outputFileLoader), resource);
+                        return;
                     }
 
-                    DumpContentFile(outFilePath, contentFile, singleFileOutput: !OutputIsDirectory);
+                    if (TargetFile != null && !Path.GetExtension(TargetFile).Equals($".{extension}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Warn($"Extension '.{extension}' might be more suitable than the one provided '{Path.GetExtension(TargetFile)}'");
+                    }
+
+                    var source = ContentExportSource.FromDiskFile(path);
+
+                    if (source == null && DecompileDependencies)
+                    {
+                        Warn($"Dependencies of \"{path}\" are not decompiled, it is not in an addon or mod folder.");
+                    }
+
+                    ExportResource(resource, outputFileLoader, source);
                     return;
                 }
             }
@@ -1232,16 +1354,87 @@ namespace CLI
             }
         }
 
-        private ContentFile DecompileResource(Resource resource, IFileLoader fileLoader)
+        private void ExportResource(Resource resource, IFileLoader fileLoader, ContentExportSource? source)
         {
-            return resource.ResourceType switch
+            Debug.Assert(Exporter != null);
+
+            if (OutputToConsole)
             {
-                ResourceType.Texture => new TextureExtract(resource)
-                {
-                    DecodeFlags = TextureDecodeFlags,
-                }.ToContentFile(),
-                _ => FileExtract.Extract(resource, fileLoader, ProgressReporter, ExtractOptions),
-            };
+                using var contentFile = FileExtract.Extract(resource, fileLoader, ProgressReporter, ExtractOptions);
+                PrintContentFile(contentFile);
+                return;
+            }
+
+            Exporter.Export(resource, fileLoader, source, TargetFile);
+        }
+
+        private void ExportContentFile(ContentFile contentFile)
+        {
+            Debug.Assert(Exporter != null);
+
+            if (OutputToConsole)
+            {
+                PrintContentFile(contentFile);
+                return;
+            }
+
+            Exporter.Export(contentFile, TargetFile);
+        }
+
+        private void WriteFile(string contentPath, ReadOnlySpan<byte> data)
+        {
+            Debug.Assert(Exporter != null);
+
+            if (OutputToConsole)
+            {
+                PrintFile(contentPath, data);
+                return;
+            }
+
+            Exporter.WriteFile(contentPath, data, TargetFile);
+        }
+
+        /// <summary>
+        /// Exports to glTF next to where the decompiled resource would go, or to --output when it names a file.
+        /// </summary>
+        private void ExportGltf(GltfModelExporter gltfExporter, Resource resource)
+        {
+            if (PrepareGltfOutputPath(resource.FileName!) is { } outFilePath)
+            {
+                gltfExporter.Export(resource, outFilePath);
+            }
+        }
+
+        private void OnFileWritten(string path)
+        {
+            Interlocked.Increment(ref WrittenFiles);
+            Console.WriteLine("--- Dump written to \"{0}\"", path);
+        }
+
+        private static void OnFileSkipped(string path)
+        {
+            Console.WriteLine("--- Skipped \"{0}\", it already exists", path);
+        }
+
+        /// <summary>
+        /// Gets the path a glTF export is written to and creates its folder, or null when the file that is already there
+        /// is kept.
+        /// </summary>
+        private string? PrepareGltfOutputPath(string contentPath)
+        {
+            Debug.Assert(Exporter != null);
+
+            var outFilePath = Path.GetFullPath(Path.ChangeExtension(TargetFile ?? Exporter.GetOutputPath(contentPath), GltfExportFormat));
+
+            if (!Exporter.CanWrite(outFilePath))
+            {
+                OnFileSkipped(outFilePath);
+                return null;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(outFilePath)!);
+
+            return outFilePath;
         }
 
         private void ParseVCS(string path, Stream stream, string? originalPath, Package? package = null)
@@ -1305,11 +1498,12 @@ namespace CLI
 
                 if (OutputFile != null && GltfExportFormat != null)
                 {
-                    var outFilePath = Path.ChangeExtension(GetOutputPath(path), GltfExportFormat);
-                    Directory.CreateDirectory(Path.GetDirectoryName(outFilePath)!);
+                    if (PrepareGltfOutputPath(GetContentPath(path, originalPath)) is { } outFilePath)
+                    {
+                        using var fileLoader = CreateGameFileLoader(null, path);
+                        CreateGltfExporter(fileLoader).Export(navMeshFile, path, outFilePath);
+                    }
 
-                    using var fileLoader = CreateGameFileLoader(null, path);
-                    CreateGltfExporter(fileLoader).Export(navMeshFile, path, outFilePath);
                     return;
                 }
 
@@ -1396,11 +1590,11 @@ namespace CLI
         /// <summary>
         /// Handles files supported by <see cref="FileExtract.ExtractNonResource"/>, returns false if the file is not one of them.
         /// </summary>
-        private bool TryParseNonResource(string path, Stream stream, string? originalPath)
+        private bool TryParseNonResource(string path, string contentPath, Stream stream, string? originalPath)
         {
             try
             {
-                using var content = FileExtract.ExtractNonResource(stream, path);
+                using var content = FileExtract.ExtractNonResource(stream, contentPath);
 
                 if (content == null)
                 {
@@ -1418,7 +1612,7 @@ namespace CLI
                 }
                 else if (OutputFile != null)
                 {
-                    DumpNonResourceContentFile(path, content);
+                    ExportContentFile(content);
                 }
                 else if (content.Data != null && Path.GetExtension(path) is not (".vfont" or ".uifont"))
                 {
@@ -1431,15 +1625,6 @@ namespace CLI
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Writes a decoded non-resource file next to where the input would go, with the extension of what it was decoded to.
-        /// </summary>
-        private void DumpNonResourceContentFile(string path, ContentFile content)
-        {
-            path = Path.ChangeExtension(path, Path.GetExtension(content.FileName));
-            DumpContentFile(GetOutputPath(path), content, singleFileOutput: !OutputIsDirectory);
         }
 
         private void ParseKV3(string path, Stream stream, string? originalPath)
@@ -1525,6 +1710,11 @@ namespace CLI
             }
 
             Debug.Assert(package.Entries != null);
+
+            if (OutputFile != null)
+            {
+                Exporter ??= CreateExporter(GetMatchedEntriesFolder(package));
+            }
 
             if (OutputFile == null)
             {
@@ -1714,9 +1904,9 @@ namespace CLI
 
                 using var fileLoader = CreateGameFileLoader(package, package.FileName);
 
-                foreach (var type in package.Entries)
+                foreach (var type in package.Entries.Keys.OrderBy(static type => ContentExporter.GetExportOrder($".{type}")))
                 {
-                    ProcessVPKEntries(path, package, fileLoader, type.Key, manifestData);
+                    ProcessVPKEntries(path, package, fileLoader, type, manifestData);
                 }
 
                 if (CachedManifest)
@@ -1804,8 +1994,6 @@ namespace CLI
 
             foreach (var (file, filePath) in FilteredEntries(entries))
             {
-                var extension = type;
-
                 if (OutputFile != null && CachedManifest)
                 {
                     if (manifestData.TryGetValue(filePath, out var oldCrc32) && oldCrc32 == file.CRC32)
@@ -1826,7 +2014,7 @@ namespace CLI
                 var rawFileData = ArrayPool<byte>.Shared.Rent(totalLength);
                 ContentFile? contentFile = null;
 
-                // Must outlive DumpContentFile because content subfiles can be generated lazily from the resource.
+                // Must outlive the export because content subfiles can be generated lazily from the resource.
                 Resource? resource = null;
 
                 try
@@ -1836,30 +2024,29 @@ namespace CLI
                     // Not a file that can be decompiled, or no decompilation was requested
                     var isVcsFile = type == "vcs";
 
-                    if (!Decompile || !type.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) && !isVcsFile)
+                    if (!Decompile || !ContentPaths.HasCompiledSuffix(type) && !isVcsFile)
                     {
                         if (OutputFile != null)
                         {
-                            var outputFile = filePath;
-
-                            if (RecursiveSearchArchives)
+                            if (Decompile && IsAlreadyExported(filePath, parentPath))
                             {
-                                outputFile = Path.Combine(parentPath, outputFile);
+                                Console.WriteLine("--- Skipped \"{0}\", it is part of a file that was exported", filePath);
+                                continue;
                             }
 
                             if (Decompile)
                             {
                                 using var nonResourceStream = new MemoryStream(rawFileData, 0, totalLength);
-                                contentFile = FileExtract.ExtractNonResource(nonResourceStream, filePath);
+                                contentFile = FileExtract.ExtractNonResource(nonResourceStream, file.GetFullPath());
                             }
 
                             if (contentFile != null)
                             {
-                                DumpNonResourceContentFile(outputFile, contentFile);
+                                ExportContentFile(contentFile);
                             }
                             else
                             {
-                                DumpFile(GetOutputPath(outputFile), rawFileData.AsSpan()[..totalLength]);
+                                WriteFile(file.GetFullPath(), rawFileData.AsSpan(0, totalLength));
                             }
                         }
 
@@ -1870,7 +2057,8 @@ namespace CLI
 
                     if (OutputFile != null)
                     {
-                        string outputFile;
+                        Debug.Assert(Exporter != null);
+
                         // VCS files require multiple files to be decompiled together
                         if (isVcsFile)
                         {
@@ -1883,63 +2071,35 @@ namespace CLI
                             // Remove the last part from the file name ("_features", ...)
                             var fileName = Path.GetFileNameWithoutExtension(filePath);
                             var newFileNameBase = fileName.AsSpan(0, fileName.LastIndexOf('_'));
-                            var directory = Path.GetDirectoryName(filePath);
-
-                            outputFile = Path.Combine(directory ?? string.Empty, string.Concat(newFileNameBase, ".vfx"));
+                            var vfxFileName = ContentPaths.Join(Path.GetDirectoryName(filePath), string.Concat(newFileNameBase, ".vfx"));
 
                             var collection = ShaderCollection.GetShaderCollection(filePath, package);
-                            contentFile = new ShaderExtract(collection).ToContentFile();
+                            contentFile = new ShaderExtract(collection).ToContentFile(vfxFileName);
+                            ExportContentFile(contentFile);
+                            continue;
                         }
-                        else
+
+                        if (IsAlreadyExported(filePath, parentPath))
                         {
+                            Console.WriteLine("--- Skipped \"{0}\", it is part of a file that was exported", filePath);
+                            continue;
+                        }
+
 #pragma warning disable CA2000 // False positive, resource is disposed in the finally block
-                            resource = new Resource
-                            {
-                                FileName = filePath,
-                            };
-#pragma warning restore CA2000
-                            resource.Read(memory);
-
-                            if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
-                            {
-                                outputFile = filePath;
-
-                                if (RecursiveSearchArchives)
-                                {
-                                    outputFile = Path.Combine(parentPath, outputFile);
-                                }
-
-                                outputFile = GetOutputPath(outputFile);
-                                outputFile = Path.ChangeExtension(outputFile, GltfExportFormat);
-
-                                Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
-
-                                gltfExporter.Export(resource, outputFile);
-                                Interlocked.Increment(ref WrittenFiles);
-
-                                Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
-
-                                continue;
-                            }
-
-                            contentFile = DecompileResource(resource, fileLoader);
-
-                            outputFile = filePath;
-                            extension = FileExtract.GetExtension(resource) ?? type[..^2];
-                            if (type != extension)
-                            {
-                                outputFile = Path.ChangeExtension(outputFile, extension);
-                            }
-                        }
-
-                        if (RecursiveSearchArchives)
+                        resource = new Resource
                         {
-                            outputFile = Path.Combine(parentPath, outputFile);
+                            FileName = file.GetFullPath(),
+                        };
+#pragma warning restore CA2000
+                        resource.Read(memory);
+
+                        if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
+                        {
+                            ExportGltf(gltfExporter, resource);
+                            continue;
                         }
 
-                        outputFile = GetOutputPath(outputFile);
-
-                        DumpContentFile(outputFile, contentFile, singleFileOutput: !OutputIsDirectory);
+                        ExportResource(resource, fileLoader, ContentExportSource.FromPackage(package));
                     }
                 }
                 catch (Exception e)
@@ -1977,6 +2137,7 @@ namespace CLI
                 ExportExtras = GltfExportExtras,
                 ComposeAdditiveAnimations = GltfComposeAdditive,
                 ProgressReporter = ProgressReporter,
+                FileWritten = OnFileWritten,
             };
 
             gltfModelExporter.AnimationFilter.UnionWith(GltfAnimationFilter);
@@ -2010,77 +2171,30 @@ namespace CLI
             return highestByShader.Values.Select(x => x.FilePath).ToHashSet();
         }
 
-        private void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true, bool singleFileOutput = false)
-        {
-            if (OutputToConsole)
-            {
-                PrintContentFile(path, contentFile);
-                return;
-            }
-
-            if (contentFile.Data != null)
-            {
-                DumpFile(path, contentFile.Data);
-            }
-
-            foreach (var additionalFile in contentFile.AdditionalFiles)
-            {
-                // Additional files (animation-graph clips) carry their full resource path. With a real output
-                // directory we keep it; otherwise we flatten to the leaf name next to the parent file, which can
-                // collide on shared names. Resolving these relative to the parent's output path properly needs a
-                // bigger rework of the extract path handling (also in the GUI's PackageExporter).
-                var additionalPath = additionalFile.KeepFullPath && OutputIsDirectory
-                    ? Path.Combine(OutputFile!, additionalFile.FileName)
-                    : Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName));
-                DumpContentFile(additionalPath, additionalFile);
-            }
-
-            if (dumpSubFiles)
-            {
-                if (singleFileOutput && contentFile.Data == null && contentFile.SubFiles.Count == 1)
-                {
-                    var data = GetMainFileData(contentFile);
-                    if (data != null)
-                    {
-                        DumpFile(path, data);
-                    }
-
-                    return;
-                }
-
-                foreach (var contentSubFile in contentFile.SubFiles)
-                {
-                    var data = contentSubFile.Extract?.Invoke();
-                    if (data != null)
-                    {
-                        DumpFile(Path.Combine(Path.GetDirectoryName(path)!, contentSubFile.FileName), data);
-                    }
-                }
-            }
-        }
-
         /// <summary>
         /// Prints the main file of a decompiled resource, the files it would write alongside are skipped.
         /// </summary>
-        private void PrintContentFile(string path, ContentFile contentFile)
+        private void PrintContentFile(ContentFile contentFile)
         {
             var skippedFiles = contentFile.AdditionalFiles.Count + contentFile.SubFiles.Count;
+            var contentPath = ContentPaths.Normalize(contentFile.FileName);
 
             if (contentFile.Data == null && contentFile.SubFiles.Count == 1)
             {
                 skippedFiles--;
+                contentPath = ContentPaths.Normalize(contentFile.SubFiles[0].FileName);
             }
 
             var data = GetMainFileData(contentFile);
 
             if (data != null)
             {
-                DumpFile(path, data);
+                PrintFile(contentPath, data);
             }
 
             if (skippedFiles > 0)
             {
-                Console.Error.WriteLine($"--- Not printing {skippedFiles} additional files of \"{GetConsoleOutputPath(path)}\", use --output <folder> to write them");
+                Console.Error.WriteLine($"--- Not printing {skippedFiles} additional files of \"{contentPath}\", use --output <folder> to write them");
             }
         }
 
@@ -2097,31 +2211,27 @@ namespace CLI
             return contentFile.Data;
         }
 
-        private string GetConsoleOutputPath(string path) => Path.GetRelativePath(OutputFile!, path).Replace('\\', '/');
-
-        private void DumpFile(string path, ReadOnlySpan<byte> data)
+        private void PrintFile(string contentPath, ReadOnlySpan<byte> data)
         {
-            if (OutputToConsole)
+            lock (ConsoleWriterLock)
             {
-                lock (ConsoleWriterLock)
-                {
-                    Stdout.WriteLine($"--- {GetConsoleOutputPath(path)}");
-                    Stdout.Flush();
+                Stdout.WriteLine($"--- {contentPath}");
+                Stdout.Flush();
 
-                    using var stdout = Console.OpenStandardOutput();
-                    stdout.Write(data);
-                    stdout.Write("\n"u8);
-                }
-
-                return;
+                using var stdout = Console.OpenStandardOutput();
+                stdout.Write(data);
+                stdout.Write("\n"u8);
             }
+        }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-
-            File.WriteAllBytes(path, data.ToArray());
-            Interlocked.Increment(ref WrittenFiles);
-
-            Console.WriteLine("--- Dump written to \"{0}\"", path);
+        private void Warn(string message)
+        {
+            lock (ConsoleWriterLock)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Error.WriteLine(message);
+                Console.ResetColor();
+            }
         }
 
         private IEnumerable<(PackageEntry Entry, string FilePath)> FilteredEntries(IEnumerable<PackageEntry> entries)
@@ -2196,34 +2306,6 @@ namespace CLI
             }
 
             return false;
-        }
-
-        private string GetOutputPath(string inputPath)
-        {
-            Debug.Assert(OutputFile != null);
-
-            if (IsInputFolder)
-            {
-                if (!inputPath.StartsWith(InputFile, StringComparison.Ordinal))
-                {
-                    throw new ArgumentException($"Path '{inputPath}' does not start with '{InputFile}', is this a bug?", nameof(inputPath));
-                }
-
-                inputPath = inputPath[InputFile.Length..];
-
-                return Path.Combine(OutputFile, inputPath);
-            }
-            else if (OutputIsDirectory)
-            {
-                if (Path.IsPathRooted(inputPath))
-                {
-                    inputPath = Path.GetFileName(inputPath);
-                }
-
-                return Path.Combine(OutputFile, inputPath);
-            }
-
-            return Path.GetFullPath(OutputFile);
         }
 
         /// <summary>
