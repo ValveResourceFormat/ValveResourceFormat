@@ -362,6 +362,24 @@ unsafe public class CommandList : IDisposable
         //H7per: TODO: We should warn if nothing was submitted.
     }
 
+    /// <summary>Records a global memory barrier, covering every resource.</summary>
+    public void MemoryBarrier(
+        VkPipelineStageFlags2 srcStage,
+        VkAccessFlags2 srcAccess,
+        VkPipelineStageFlags2 dstStage,
+        VkAccessFlags2 dstAccess)
+    {
+        var barrier = new VkMemoryBarrier2
+        {
+            srcStageMask = srcStage,
+            srcAccessMask = srcAccess,
+            dstStageMask = dstStage,
+            dstAccessMask = dstAccess,
+        };
+
+        PipelineBarrier(memoryBarriers: new ReadOnlySpan<VkMemoryBarrier2>(in barrier));
+    }
+
     /// <summary>Records one barrier per buffer, each covering the whole buffer.</summary>
     public void BufferBarrier(
         VkPipelineStageFlags2 srcStage,

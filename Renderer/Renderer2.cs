@@ -150,9 +150,14 @@ public class Renderer2
 
         cmd.Begin();
 
-        RendererContext.TextureStreaming.FinishPendingQueueTransfers(cmd);
+        var texturesChanged = RendererContext.TextureStreaming.FinishPendingQueueTransfers(cmd);
 
         Scene.UploadStaticBuffers(cmd);
+
+        if (texturesChanged)
+        {
+            RendererContext.MaterialLoader.PatchTextureHandles(cmd);
+        }
 
         cmd.ClearRenderTarget(HdrRenderTarget, new VkClearColorValue(0.1f, 0.1f, 0.2f, 1.0f), 1);
 

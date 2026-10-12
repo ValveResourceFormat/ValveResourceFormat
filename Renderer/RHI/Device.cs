@@ -33,7 +33,9 @@ namespace ValveResourceFormat.Renderer.RHI
 
     enum BindlessBindingIndex
     {
+        Sampler = 0,
         CombinedImageSampler = 1,
+        SampledImage = 2,
         UniformBuffer = 6,
         StorageBuffer = 7,
     }
@@ -163,6 +165,7 @@ namespace ValveResourceFormat.Renderer.RHI
             }
         }
         public Dictionary<VkSamplerCreateInfo, VkSampler> Samplers = new Dictionary<VkSamplerCreateInfo, VkSampler>(new SamplerCreateInfoComparer());
+        private readonly Dictionary<VkSamplerCreateInfo, uint> SamplerSlots = new(new SamplerCreateInfoComparer());
 
         public QueueFamilyIndices QueueFamilyIndices;
         private VkQueue _graphicsQueue;
@@ -388,6 +391,9 @@ namespace ValveResourceFormat.Renderer.RHI
             CreateSharedPipelineLayout();
             CreateSharedDescriptorPool();
             CreateSharedBindlessDescriptorSet();
+
+            // The first sampler lands in slot 0, which handles without a sampler of their own index
+            GetSampler(Texture.DefaultSamplerInfo);
         }
         unsafe QueueFamilyIndices FindQueueFamilies()
         {
@@ -475,9 +481,46 @@ namespace ValveResourceFormat.Renderer.RHI
             {
                 return sampler;
             }
-            RenderDevice!.VkDeviceApi.vkCreateSampler(samplerInfo, out sampler);
+            VkDeviceApi.vkCreateSampler(samplerInfo, out sampler);
             Samplers.Add(samplerInfo, sampler);
             return sampler;
+        }
+
+        /// <summary>Gets the sampler table slot for a sampler state, creating the sampler on first use.</summary>
+        /// <param name="samplerInfo">The sampler state.</param>
+        /// <returns>The index into the shader's sampler table.</returns>
+        public unsafe uint GetSampler(VkSamplerCreateInfo samplerInfo)
+        {
+            var sampler = CreateSampler(samplerInfo);
+
+            using var _ = BindlessLock.EnterScope();
+
+            if (SamplerSlots.TryGetValue(samplerInfo, out var bindlessIndex))
+            {
+                return bindlessIndex;
+            }
+
+            bindlessIndex = BindlessManager.GetBindlessIndex(BindlessBindingIndex.Sampler);
+
+            VkDescriptorImageInfo imageInfo = new()
+            {
+                sampler = sampler,
+            };
+
+            VkWriteDescriptorSet write = new()
+            {
+                dstSet = SharedBindlessDescriptorSet,
+                dstBinding = (uint)BindlessBindingIndex.Sampler,
+                dstArrayElement = bindlessIndex,
+                descriptorCount = 1,
+                descriptorType = VkDescriptorType.Sampler,
+                pImageInfo = &imageInfo
+            };
+
+            VkDeviceApi.vkUpdateDescriptorSets(1, &write, 0, null);
+
+            SamplerSlots.Add(samplerInfo, bindlessIndex);
+            return bindlessIndex;
         }
 
         public unsafe VkSemaphore CreateSemaphore(bool isTimeline = false)
@@ -701,7 +744,9 @@ namespace ValveResourceFormat.Renderer.RHI
             imageInfo.imageView = imageViewHandle;
             imageInfo.sampler = samplerHandle;
 
-            VkWriteDescriptorSet write = new()
+            // VKTODO: The sampled image slot shares the combined slot's index until textures allocate their own
+            VkWriteDescriptorSet* writes = stackalloc VkWriteDescriptorSet[2];
+            writes[0] = new()
             {
                 dstSet = RenderDevice!.SharedBindlessDescriptorSet,
                 dstBinding = 1,
@@ -710,8 +755,11 @@ namespace ValveResourceFormat.Renderer.RHI
                 descriptorType = VkDescriptorType.CombinedImageSampler,
                 pImageInfo = &imageInfo
             };
+            writes[1] = writes[0];
+            writes[1].dstBinding = (uint)BindlessBindingIndex.SampledImage;
+            writes[1].descriptorType = VkDescriptorType.SampledImage;
 
-            RenderDevice!.VkDeviceApi.vkUpdateDescriptorSets(1, &write, 0, null);
+            RenderDevice!.VkDeviceApi.vkUpdateDescriptorSets(2, writes, 0, null);
 
             return bindlessIndex;
         }
@@ -755,10 +803,16 @@ namespace ValveResourceFormat.Renderer.RHI
         private void ComputeBindlessCapacities(in VkPhysicalDeviceVulkan12Properties limits)
         {
             const uint DesiredCapacity = 65536;
+            const uint SamplerCapacity = 1024;
 
             BindlessCapacities[BindlessBindingIndex.CombinedImageSampler] = Math.Min(DesiredCapacity, Math.Min(
                 Math.Min(limits.maxDescriptorSetUpdateAfterBindSampledImages, limits.maxPerStageDescriptorUpdateAfterBindSampledImages),
                 Math.Min(limits.maxDescriptorSetUpdateAfterBindSamplers, limits.maxPerStageDescriptorUpdateAfterBindSamplers)));
+
+            BindlessCapacities[BindlessBindingIndex.SampledImage] = BindlessCapacities[BindlessBindingIndex.CombinedImageSampler];
+
+            BindlessCapacities[BindlessBindingIndex.Sampler] = Math.Min(SamplerCapacity,
+                Math.Min(limits.maxDescriptorSetUpdateAfterBindSamplers, limits.maxPerStageDescriptorUpdateAfterBindSamplers));
 
             BindlessCapacities[BindlessBindingIndex.UniformBuffer] = Math.Min(DesiredCapacity,
                 Math.Min(limits.maxDescriptorSetUpdateAfterBindUniformBuffers, limits.maxPerStageDescriptorUpdateAfterBindUniformBuffers));

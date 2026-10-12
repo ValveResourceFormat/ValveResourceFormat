@@ -104,21 +104,10 @@ namespace ValveResourceFormat.Renderer.Materials
         private ParameterLayout? filledLayout;
         private uint filledVersion;
 
-        private uint InputsVersion
-        {
-            get
-            {
-                var version = unchecked(IntParams.Version + FloatParams.Version + VectorParams.Version + Matrices.Version + Textures.Version);
+        // What the parameter buffer holds in its texture members, so only handles that changed since get patched
+        private readonly List<(string Name, ParameterMember Member, DescriptorHandle<RHI.Texture> Written)> writtenTextureHandles = [];
 
-                // A texture replaces the fallback written in its place once its first mip arrives
-                foreach (var texture in Textures.Values)
-                {
-                    version = unchecked(version + texture.ResidencyVersion);
-                }
-
-                return version;
-            }
-        }
+        private uint InputsVersion => unchecked(IntParams.Version + FloatParams.Version + VectorParams.Version + Matrices.Version + Textures.Version);
 
         private BlendMode blendMode;
         private bool isRenderBackfaces;
@@ -348,8 +337,9 @@ namespace ValveResourceFormat.Renderer.Materials
         /// a new buffer when the pipeline's layout or any material input changed since the last fill.
         /// </summary>
         /// <remarks>
-        /// A buffer is never rewritten once filled, since frames still in flight may be reading it. Changes create a
-        /// new buffer instead and retire the old one through the destroy queue.
+        /// A buffer is never rewritten from the CPU once filled, since frames still in flight may be reading it. Changes
+        /// create a new buffer instead and retire the old one through the destroy queue. Texture handles are the
+        /// exception, <see cref="PatchTextureHandles"/> updates them in command order.
         /// </remarks>
         /// <param name="pipeline">The pipeline being bound for the draw, read once from <see cref="Pipeline"/>.</param>
         /// <returns>The buffer handle, or a default handle when the pipeline's shader declares no parameters.</returns>
@@ -374,7 +364,7 @@ namespace ValveResourceFormat.Renderer.Materials
             RetireParameterBuffer();
 
             var name = Material.Name.Length > 0 ? Material.Name : ShaderName;
-            parameters = new RHI.Buffer(layout.Size, VkBufferUsageFlags.UniformBuffer, VmaMemoryUsage.CpuToGpu, name: $"{name} parameters");
+            parameters = new RHI.Buffer(layout.Size, VkBufferUsageFlags.UniformBuffer | VkBufferUsageFlags.TransferDst, VmaMemoryUsage.CpuToGpu, name: $"{name} parameters");
 
             FillParameterBuffer(layout, parameters);
 
@@ -382,6 +372,56 @@ namespace ValveResourceFormat.Renderer.Materials
             filledVersion = InputsVersion;
 
             return parameters.DescriptorHandle;
+        }
+
+        /// <summary>
+        /// Records updates of the texture handles in the parameter buffer that changed since they were written, such as
+        /// when a texture's mips stream in. Must be recorded outside rendering, between barriers that order it against
+        /// the buffer's uniform reads.
+        /// </summary>
+        /// <param name="cmd">The command list to record the updates into.</param>
+        internal void PatchTextureHandles(CommandList cmd)
+        {
+            if (parameters == null)
+            {
+                return;
+            }
+
+            foreach (ref var slot in CollectionsMarshal.AsSpan(writtenTextureHandles))
+            {
+                if (ResolveTexture(slot.Name, slot.Member) is not { } texture)
+                {
+                    continue;
+                }
+
+                var handle = texture.DescriptorHandle;
+
+                if (handle == slot.Written)
+                {
+                    continue;
+                }
+
+                cmd.UpdateBuffer(parameters, handle, slot.Member.Offset);
+                slot.Written = handle;
+            }
+        }
+
+        /// <summary>Releases the GPU resources this material owns. Safe to call more than once.</summary>
+        public void Delete()
+        {
+            RetireParameterBuffer();
+            filledLayout = null;
+        }
+
+        private RHI.Texture? ResolveTexture(string name, ParameterMember member)
+        {
+            // A handle to a view of another shape is invalid to sample, and so is a texture without any mips yet
+            if (!Textures.TryGetValue(name, out var texture) || !texture.IsResident || texture.Dimension != member.TextureDimension)
+            {
+                texture = Loader?.GetFallbackTexture(member.TextureDimension);
+            }
+
+            return texture;
         }
 
         private void RetireParameterBuffer()
@@ -394,6 +434,7 @@ namespace ValveResourceFormat.Renderer.Materials
             Debug.Assert(rendererContext != null, "Only materials created with a renderer context own a parameter buffer.");
             rendererContext.DestroyQueue.Enqueue(parameters, rendererContext.CurrentFrame);
             parameters = null;
+            writtenTextureHandles.Clear();
         }
 
         private unsafe void FillParameterBuffer(ParameterLayout layout, RHI.Buffer buffer)
@@ -408,15 +449,11 @@ namespace ValveResourceFormat.Renderer.Materials
 
                 if (member.IsTexture)
                 {
-                    // A handle to a view of another shape is invalid to sample, and so is a texture without any mips yet
-                    if (!Textures.TryGetValue(name, out var texture) || !texture.IsResident || texture.Dimension != member.TextureDimension)
+                    if (ResolveTexture(name, member) is { } texture)
                     {
-                        texture = Loader?.GetFallbackTexture(member.TextureDimension);
-                    }
-
-                    if (texture != null)
-                    {
-                        MemoryMarshal.Write(target, texture.DescriptorHandle);
+                        var handle = texture.DescriptorHandle;
+                        MemoryMarshal.Write(target, handle);
+                        writtenTextureHandles.Add((name, member, handle));
                     }
 
                     continue;

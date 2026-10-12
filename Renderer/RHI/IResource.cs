@@ -5,18 +5,28 @@ using System.Text;
 
 namespace ValveResourceFormat.Renderer.RHI
 {
-    //With VK_EXT_descriptor_heap, these would become resource index and sampler index respectively.
+    // Matches slang's DescriptorHandle, which is a uint2 of resource index and sampler index
     [StructLayout(LayoutKind.Sequential)]
-    public readonly struct DescriptorHandle<T> where T : IResource
+    public readonly struct DescriptorHandle<T> : IEquatable<DescriptorHandle<T>> where T : IResource
     {
         public readonly uint Index;
-        public readonly uint padding;
+        public readonly uint SamplerIndex;
 
-        public DescriptorHandle(uint index, uint padding = 0)
+        public DescriptorHandle(uint index, uint samplerIndex = 0)
         {
             Index = index;
-            this.padding = padding;
+            SamplerIndex = samplerIndex;
         }
+
+        public bool Equals(DescriptorHandle<T> other) => Index == other.Index && SamplerIndex == other.SamplerIndex;
+
+        public override bool Equals(object? obj) => obj is DescriptorHandle<T> other && Equals(other);
+
+        public override int GetHashCode() => HashCode.Combine(Index, SamplerIndex);
+
+        public static bool operator ==(DescriptorHandle<T> left, DescriptorHandle<T> right) => left.Equals(right);
+
+        public static bool operator !=(DescriptorHandle<T> left, DescriptorHandle<T> right) => !left.Equals(right);
     }
 
     /// <summary>

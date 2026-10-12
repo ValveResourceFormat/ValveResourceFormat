@@ -66,7 +66,8 @@ namespace ValveResourceFormat.Renderer.Materials
         /// frame on. Must be called on the render thread at the start of the frame, before anything samples a texture.
         /// </summary>
         /// <param name="commands">The frame's command list, after it has begun.</param>
-        internal void FinishPendingQueueTransfers(CommandList commands)
+        /// <returns>Whether any texture got new mips, which changes its <see cref="RHI.Texture.DescriptorHandle"/>.</returns>
+        internal bool FinishPendingQueueTransfers(CommandList commands)
         {
             // Done here, on the first frame, so they are resident before any material is drawn with them
             if (!createdFallbackTextures)
@@ -77,7 +78,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             if (pendingTransfers.IsEmpty)
             {
-                return;
+                return false;
             }
 
             finishing.Clear();
@@ -120,6 +121,8 @@ namespace ValveResourceFormat.Renderer.Materials
 
                 texture.SetResidentMip((uint)transfer.FirstMip);
             }
+
+            return true;
         }
 
         // Hands waiting streams to the thread pool, as many as the upload limit allows

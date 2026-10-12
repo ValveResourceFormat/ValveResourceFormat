@@ -22,7 +22,10 @@ namespace ValveResourceFormat.Renderer.Materials
     public partial class MaterialLoader
     {
         //private readonly Dictionary<ulong, RenderMaterial> Materials = [];
-        //private readonly List<RenderMaterial> OwnedMaterials = [];
+
+        // Materials are loaded on loader threads and patched on the render thread
+        private readonly List<RenderMaterial> OwnedMaterials = [];
+        private readonly Lock OwnedMaterialsLock = new();
 
         // Keyed by sRGB too, a shader member declared [SrgbRead] samples the same file through an sRGB format
         private readonly Dictionary<(string Path, bool Srgb), RHI.Texture> Textures = [];
@@ -172,14 +175,13 @@ namespace ValveResourceFormat.Renderer.Materials
                 shaderArguments
             );
 
-            //VKTODO: OwnedMaterials.Add(mat);
-
             // Bound against the layout the material is created with. Members a shader hot reload adds later
             // stay unbound until the material is loaded again.
             var layout = mat.Pipeline.Current.ParameterLayout;
 
             if (layout == null)
             {
+                AddOwnedMaterial(mat);
                 return mat;
             }
 
@@ -210,7 +212,52 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
+            // Only once its textures are bound, the render thread reads them as soon as it is listed
+            AddOwnedMaterial(mat);
+
             return mat;
+        }
+
+        private void AddOwnedMaterial(RenderMaterial mat)
+        {
+            using var _ = OwnedMaterialsLock.EnterScope();
+            OwnedMaterials.Add(mat);
+        }
+
+        /// <summary>
+        /// Updates the texture handles in every material's parameter buffer that changed since they were written, such
+        /// as when streamed mips arrive. Must be recorded outside rendering, before the frame's draws.
+        /// </summary>
+        /// <param name="cmd">The command list to record the updates into.</param>
+        internal void PatchTextureHandles(CommandList cmd)
+        {
+            const VkPipelineStageFlags2 ShaderStages = VkPipelineStageFlags2.VertexShader | VkPipelineStageFlags2.FragmentShader | VkPipelineStageFlags2.ComputeShader;
+
+            // Earlier frames may still be reading the handles being replaced
+            cmd.MemoryBarrier(ShaderStages, VkAccessFlags2.None, VkPipelineStageFlags2.Transfer, VkAccessFlags2.TransferWrite);
+
+            using (OwnedMaterialsLock.EnterScope())
+            {
+                foreach (var material in OwnedMaterials)
+                {
+                    material.PatchTextureHandles(cmd);
+                }
+            }
+
+            cmd.MemoryBarrier(VkPipelineStageFlags2.Transfer, VkAccessFlags2.TransferWrite, ShaderStages, VkAccessFlags2.UniformRead);
+        }
+
+        /// <summary>Releases the GPU resources of every material this loader created.</summary>
+        public void Clear()
+        {
+            using var _ = OwnedMaterialsLock.EnterScope();
+
+            foreach (var material in OwnedMaterials)
+            {
+                material.Delete();
+            }
+
+            OwnedMaterials.Clear();
         }
 
         private bool TryBindTexture(RenderMaterial mat, ParameterLayout layout, string name, string path)

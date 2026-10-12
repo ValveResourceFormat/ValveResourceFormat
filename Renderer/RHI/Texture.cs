@@ -35,10 +35,19 @@ namespace ValveResourceFormat.Renderer.RHI
         /// <summary>Gets the most detailed mip shaders may sample, <see cref="Image.MipLevels"/> while nothing is resident.</summary>
         public uint ResidentMip { get; private set; }
 
-        /// <summary>Gets a value that changes when <see cref="IsResident"/> becomes true.</summary>
-        public uint ResidencyVersion { get; private set; }
+        /// <summary>Gets the sampler table slot of this texture's own sampler state, see <see cref="Device.GetSampler"/>.</summary>
+        public uint SamplerIndex { get; private set; }
 
-        public DescriptorHandle<Texture> DescriptorHandle => new DescriptorHandle<Texture>(BindlessIndex);
+        /// <summary>Gets a bindless handle that samples this texture with its own sampler state.</summary>
+        public DescriptorHandle<Texture> DescriptorHandle => new DescriptorHandle<Texture>(BindlessIndex, SamplerIndex);
+
+        /// <summary>Gets a bindless handle that samples this texture with another sampler.</summary>
+        /// <remarks>
+        /// The sampler's <c>minLod</c> must be at least <see cref="ResidentMip"/>, since only this texture's own
+        /// sampler keeps sampling away from mips that have not streamed in yet.
+        /// </remarks>
+        /// <param name="samplerIndex">The sampler table slot, see <see cref="Device.GetSampler"/>.</param>
+        public DescriptorHandle<Texture> GetDescriptorHandleWithSampler(uint samplerIndex) => new DescriptorHandle<Texture>(BindlessIndex, samplerIndex);
 
         /// <summary>
         /// Creates a sampled texture and takes its bindless slot. It may be sampled once <see cref="SetResidentMip"/> says it has data.
@@ -64,6 +73,7 @@ namespace ValveResourceFormat.Renderer.RHI
             this.samplerInfo.minLod = MipLevels - 1;
 
             BindlessIndex = RenderDevice!.GetBindlessSlot(VkDescriptorType.CombinedImageSampler, ImageViewHandle, RenderDevice!.CreateSampler(this.samplerInfo));
+            SamplerIndex = RenderDevice!.GetSampler(this.samplerInfo);
         }
 
         /// <summary>
@@ -81,18 +91,11 @@ namespace ValveResourceFormat.Renderer.RHI
                 return;
             }
 
-            if (!IsResident)
-            {
-                unchecked
-                {
-                    ResidencyVersion++;
-                }
-            }
-
             ResidentMip = mipLevel;
             samplerInfo.minLod = mipLevel;
 
             RenderDevice!.UpdateBindlessCombinedSampler(ImageViewHandle, RenderDevice!.CreateSampler(samplerInfo), BindlessIndex);
+            SamplerIndex = RenderDevice!.GetSampler(samplerInfo);
         }
 
         /// <summary>Changes the sampler state this texture is sampled with.</summary>
@@ -103,6 +106,7 @@ namespace ValveResourceFormat.Renderer.RHI
             samplerInfo.minLod = Math.Min(ResidentMip, MipLevels - 1);
 
             RenderDevice!.UpdateBindlessCombinedSampler(ImageViewHandle, RenderDevice!.CreateSampler(samplerInfo), BindlessIndex);
+            SamplerIndex = RenderDevice!.GetSampler(samplerInfo);
         }
 
         /// <summary>Gets a bindless handle to a single mip level, see <see cref="Image.GetMipView"/>.</summary>
