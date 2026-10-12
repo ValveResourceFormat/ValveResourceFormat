@@ -142,9 +142,9 @@ public sealed partial class NmGraphExtract
     {
         public KVObject CreateNode(NmGraphExtract owner, int nodeIndex, Animation.GraphNode? definition)
         {
-            var node = CreateBaseNode(className, MakeGuid(), owner.GetNodeName(nodeIndex));
-            node.Add("m_inputPins", MakePins(inputPinsFactory(definition)));
-            node.Add("m_outputPins", MakePins(outputPins));
+            var node = CreateBaseNode(className, owner.MakeGuid(), owner.GetNodeName(nodeIndex));
+            node.Add("m_inputPins", owner.MakePins(inputPinsFactory(definition)));
+            node.Add("m_outputPins", owner.MakePins(outputPins));
 
             foreach (var (key, value) in extraFields)
             {

@@ -259,7 +259,7 @@ partial class ModelExtract
     {
         using var dmx = ConvertMeshToDatamodelMesh(mesh, name, options);
         using var stream = new MemoryStream();
-        dmx.Save(stream, "binary", 9);
+        dmx.SaveWithStableIds(stream, "binary", 9);
 
         return stream.ToArray();
     }

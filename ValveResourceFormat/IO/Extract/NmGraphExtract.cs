@@ -55,6 +55,8 @@ public sealed partial class NmGraphExtract : IDisposable
     private readonly Dictionary<int, string> _rootParameterNodeIds = [];
     private readonly Dictionary<string, float?> _clipAverageLinearVelocityCache = [];
     private readonly List<VariationGraph> _variationGraphs = [];
+    private readonly byte[] _guidSeed;
+    private long _guidCount;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NmGraphExtract"/> class.
@@ -63,6 +65,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         _resource = resource;
         _fileLoader = fileLoader ?? new NullFileLoader();
+        _guidSeed = Encoding.UTF8.GetBytes(resource.FileName ?? string.Empty);
         var resourceData = resource.DataBlock as BinaryKV3
             ?? throw new InvalidDataException("Resource DataBlock is not a BinaryKV3.");
         _graph = resourceData.Data;
@@ -96,9 +99,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return new ContentFile
         {
             Data = Encoding.UTF8.GetBytes(document.ToKV3String()),
-            FileName = _resource.FileName is not null && _resource.FileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal)
-                ? _resource.FileName[..^2]
-                : _resource.FileName ?? "graph.vnmgraph",
+            FileName = _resource.FileName ?? "graph.vnmgraph",
         };
     }
 
@@ -115,7 +116,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject BuildRootGraph()
     {
-        var graphBuilder = new FlowGraphBuilder("root", "BlendTree");
+        var graphBuilder = new FlowGraphBuilder(this, "root", "BlendTree");
 
         foreach (var nodeIndex in _persistentNodeIndices.Order())
         {
@@ -202,7 +203,7 @@ public sealed partial class NmGraphExtract : IDisposable
             VirtualParameterBoneMaskNode parameter => parameter.ChildNodeIdx,
             _ => nodeIndex,
         };
-        var graphBuilder = new FlowGraphBuilder($"virtual:{nodeIndex}", "VirtualParameterValueTree");
+        var graphBuilder = new FlowGraphBuilder(this, $"virtual:{nodeIndex}", "VirtualParameterValueTree");
 
         KVObject childNode;
         if (childNodeIndex == nodeIndex)
@@ -319,7 +320,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject BuildNestedStateMachineChildGraph(int childStateMachineNodeIndex)
     {
-        var graphBuilder = new FlowGraphBuilder($"nested-sm:{childStateMachineNodeIndex}", "BlendTree");
+        var graphBuilder = new FlowGraphBuilder(this, $"nested-sm:{childStateMachineNodeIndex}", "BlendTree");
         var childNode = BuildStateMachineNode(childStateMachineNodeIndex);
         var resultNode = CreatePoseResultNode($"nested-sm:{childStateMachineNodeIndex}/result");
 
@@ -331,7 +332,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject BuildStateLayerGraph(int stateNodeIndex, StateNode state)
     {
-        var graphBuilder = new FlowGraphBuilder($"state-layer:{stateNodeIndex}", "ValueTree");
+        var graphBuilder = new FlowGraphBuilder(this, $"state-layer:{stateNodeIndex}", "ValueTree");
         var resultNode = CreateStateLayerResultNode($"state-layer:{stateNodeIndex}/result");
         graphBuilder.Nodes.Add(resultNode);
 
@@ -358,7 +359,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject BuildEntryOverrideGraph(int stateMachineNodeIndex, StateMachineNode.StateDefinition[] stateDefinitions, IReadOnlyDictionary<int, KVObject> stateNodes)
     {
-        var graphBuilder = new FlowGraphBuilder($"entry-override:{stateMachineNodeIndex}", "EntryOverrideTree");
+        var graphBuilder = new FlowGraphBuilder(this, $"entry-override:{stateMachineNodeIndex}", "EntryOverrideTree");
         var resultNode = CreateEntryOverrideConditionsNode(stateMachineNodeIndex);
         graphBuilder.Nodes.Add(resultNode);
 
@@ -391,7 +392,7 @@ public sealed partial class NmGraphExtract : IDisposable
     private KVObject BuildGlobalTransitionConduit(int stateMachineNodeIndex, StateMachineNode.StateDefinition[] stateDefinitions, IReadOnlyList<TransitionInfo> transitions, Dictionary<int, KVObject> stateNodes)
     {
         var conduitNode = CreateBaseNode("CNmGraphDocGlobalTransitionConduitNode", MakeGuid(), string.Empty);
-        var graphBuilder = new FlowGraphBuilder($"global-conduit:{stateMachineNodeIndex}", "GlobalTransitionConduit");
+        var graphBuilder = new FlowGraphBuilder(this, $"global-conduit:{stateMachineNodeIndex}", "GlobalTransitionConduit");
 
         var transitionsByTargetState = transitions
             .GroupBy(transition => transition.TargetStateNodeIndex)
@@ -518,7 +519,7 @@ public sealed partial class NmGraphExtract : IDisposable
         conduitNode.Add("m_startStateID", stateNodes[firstTransition.SourceStateNodeIndex].GetStringProperty("m_ID"));
         conduitNode.Add("m_endStateID", stateNodes[firstTransition.TargetStateNodeIndex].GetStringProperty("m_ID"));
 
-        var graphBuilder = new FlowGraphBuilder(conduitKey, "TransitionConduit");
+        var graphBuilder = new FlowGraphBuilder(this, conduitKey, "TransitionConduit");
 
         foreach (var transition in transitions)
         {
@@ -636,7 +637,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject BuildBlendTreeGraph(string graphKey, int rootNodeIndex)
     {
-        var graphBuilder = new FlowGraphBuilder(graphKey, "BlendTree");
+        var graphBuilder = new FlowGraphBuilder(this, graphKey, "BlendTree");
         var rootNode = BuildFlowNode(rootNodeIndex, graphBuilder);
         var resultNode = CreatePoseResultNode($"{graphKey}/result");
 
@@ -1806,7 +1807,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return node;
     }
 
-    private static KVObject CreateLayerBlendInputNode(int parentNodeIndex, int layerIndex, LayerBlendNode.LayerDefinitionType layerDefinition)
+    private KVObject CreateLayerBlendInputNode(int parentNodeIndex, int layerIndex, LayerBlendNode.LayerDefinitionType layerDefinition)
     {
         var isStateMachineLayer = layerDefinition.IsStateMachineLayer;
         var node = CreateBaseNode(
@@ -2239,10 +2240,10 @@ public sealed partial class NmGraphExtract : IDisposable
         return node;
     }
 
-    private static KVObject CreatePoseResultNode(string key)
+    private KVObject CreatePoseResultNode(string key)
         => CreateResultNode("CNmGraphDocPoseResultNode", key, "Out", "Pose");
 
-    private static KVObject CreateStateLayerResultNode(string key)
+    private KVObject CreateStateLayerResultNode(string key)
     {
         var node = CreateBaseNode("CNmGraphDocStateLayerDataNode", MakeGuid(), string.Empty);
         node.Add("m_inputPins", MakePins([
@@ -2255,7 +2256,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return node;
     }
 
-    private static KVObject CreateEntryOverrideConditionsNode(int stateMachineNodeIndex)
+    private KVObject CreateEntryOverrideConditionsNode(int stateMachineNodeIndex)
     {
         var node = CreateBaseNode("CNmGraphDocEntryStateOverrideConditionsNode", MakeGuid(), string.Empty);
         node.Add("m_inputPins", KVObject.Array());
@@ -2265,7 +2266,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return node;
     }
 
-    private static KVObject CreateResultNode(string className, string key, string inputName, string inputType)
+    private KVObject CreateResultNode(string className, string key, string inputName, string inputType)
     {
         var node = CreateBaseNode(className, MakeGuid(), string.Empty);
         node.Add("m_inputPins", MakePins([new PinDef(inputName, inputType)]));
@@ -2276,7 +2277,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject BuildSelectorConditionGraph(int nodeIndex, short[] conditionNodeIndices, string[] optionLabels)
     {
-        var graphBuilder = new FlowGraphBuilder($"selector:{nodeIndex}:conditions", "ValueTree");
+        var graphBuilder = new FlowGraphBuilder(this, $"selector:{nodeIndex}:conditions", "ValueTree");
         var conditionNode = CreateSelectorConditionNode(nodeIndex, optionLabels);
         graphBuilder.Nodes.Add(conditionNode);
 
@@ -2294,7 +2295,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return graphBuilder.ToGraph();
     }
 
-    private static KVObject CreateSelectorConditionNode(int nodeIndex, string[] optionLabels)
+    private KVObject CreateSelectorConditionNode(int nodeIndex, string[] optionLabels)
     {
         var node = CreateBaseNode("CNmGraphDocSelectorConditionNode", MakeGuid(), string.Empty);
         node.Add("m_inputPins", MakePins(optionLabels.Select(label => new PinDef(label, "Bool", IsDynamicPin: true))));
@@ -2669,7 +2670,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return node;
     }
 
-    private static KVObject MakePins(IEnumerable<PinDef> pins)
+    private KVObject MakePins(IEnumerable<PinDef> pins)
     {
         var array = KVObject.Array();
         foreach (var pin in pins)
@@ -2680,7 +2681,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return array;
     }
 
-    private static KVObject MakePinsWithOverrides(IReadOnlyList<PinDef> pins, KVObject overridePoints)
+    private KVObject MakePinsWithOverrides(IReadOnlyList<PinDef> pins, KVObject overridePoints)
     {
         var array = KVObject.Array();
         var overrideIndex = 0;
@@ -2700,7 +2701,7 @@ public sealed partial class NmGraphExtract : IDisposable
         return array;
     }
 
-    private static KVObject CreatePin(string name, string type, bool isDynamicPin = false, bool allowMultipleOutConnections = false)
+    private KVObject CreatePin(string name, string type, bool isDynamicPin = false, bool allowMultipleOutConnections = false)
         => CreatePinWithId(name, type, MakeGuid(), isDynamicPin, allowMultipleOutConnections);
 
     private static KVObject CreatePinWithId(string name, string type, string id, bool isDynamicPin = false, bool allowMultipleOutConnections = false)
@@ -2728,8 +2729,8 @@ public sealed partial class NmGraphExtract : IDisposable
         return vector;
     }
 
-    private static string MakeGuid()
-        => Guid.NewGuid().ToString();
+    private string MakeGuid()
+        => StableIds.Create(_guidSeed, _guidCount++).ToString();
 
     private string GetOrCreateRootParameterNodeId(int nodeIndex)
     {
