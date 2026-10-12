@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
@@ -1060,7 +1061,7 @@ namespace CLI
 
             try
             {
-                resource.Read(stream);
+                resource.Read(stream, parsing: OutputFile == null && !CollectStats ? BlockParsing.Deferred : BlockParsing.Runtime);
 
                 if (HasShaderOptions && resource.DataBlock is Material material)
                 {
@@ -1146,7 +1147,29 @@ namespace CLI
             Console.WriteLine("\tFile Size: {0} bytes", resource.FileSize);
             Console.WriteLine(Environment.NewLine);
 
-            var rerl = resource.ExternalReferences;
+            HashSet<Exception>? loggedExceptions = null;
+
+            void LogBlockException(Exception e)
+            {
+                loggedExceptions ??= [];
+
+                if (loggedExceptions.Add(e))
+                {
+                    LogException(e, path, originalPath);
+                }
+            }
+
+            ResourceExtRefList? rerl = null;
+
+            try
+            {
+                rerl = resource.ExternalReferences;
+            }
+            catch (Exception e)
+            {
+                LogBlockException(e);
+            }
+
             if (rerl != null)
             {
                 Console.WriteLine("--- Resource External Refs: ---");
@@ -1164,21 +1187,33 @@ namespace CLI
 
             Console.WriteLine(Environment.NewLine);
 
-            Console.WriteLine("--- Resource Blocks: Count {0} ---", resource.Blocks.Count);
+            Console.WriteLine("--- Resource Blocks: Count {0} ---", resource.UnparsedBlocks.Count);
 
-            foreach (var block in resource.Blocks)
+            foreach (var header in resource.UnparsedBlocks)
             {
-                Console.WriteLine("\t-- Block: {0,-4}  Size: {1,-6} bytes [Offset: {2,6}]", block.Type, block.Size, block.Offset);
+                Console.WriteLine("\t-- Block: {0,-4}  Size: {1,-6} bytes [Offset: {2,6}]", header.Type, header.Size, header.Offset);
             }
 
             if (ShouldPrintBlockContents)
             {
                 Console.WriteLine(Environment.NewLine);
 
-                foreach (var block in resource.Blocks)
+                for (var blockIndex = 0; blockIndex < resource.UnparsedBlocks.Count; blockIndex++)
                 {
-                    if (!PrintAllBlocks && !BlocksToPrint.Contains(block.Type.ToString()))
+                    if (!PrintAllBlocks && !BlocksToPrint.Contains(resource.UnparsedBlocks[blockIndex].Type.ToString()))
                     {
+                        continue;
+                    }
+
+                    Block block;
+
+                    try
+                    {
+                        block = resource.GetBlockByIndex(blockIndex);
+                    }
+                    catch (Exception e)
+                    {
+                        LogBlockException(e);
                         continue;
                     }
 

@@ -1056,8 +1056,13 @@ namespace GUI.Types.Viewers
         {
             Debug.Assert(resource.Reader != null);
 
-            resource.Reader.BaseStream.Position = block.Offset;
-            var input = resource.Reader.ReadBytes((int)block.Size);
+            byte[] input;
+
+            lock (resource.ReaderLock)
+            {
+                resource.Reader.BaseStream.Position = block.Offset;
+                input = resource.Reader.ReadBytes((int)block.Size);
+            }
 
             var text = ByteViewer.GetTextFromBytes(input.AsSpan());
 
