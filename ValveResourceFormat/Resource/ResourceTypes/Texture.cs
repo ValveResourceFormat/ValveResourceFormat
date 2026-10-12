@@ -7,6 +7,7 @@ using System.Text;
 using K4os.Compression.LZ4;
 using SkiaSharp;
 using TinyBCSharp;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.TextureDecoders;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -427,6 +428,12 @@ namespace ValveResourceFormat.ResourceTypes
         {
             reader.BaseStream.Position = Offset;
 
+            if (Resource.Version == 0)
+            {
+                ReadLegacyHeader(reader);
+                return;
+            }
+
             Version = reader.ReadUInt16();
 
             if (Version != 1)
@@ -543,6 +550,38 @@ namespace ValveResourceFormat.ResourceTypes
                     reader.BaseStream.Position = prevOffset;
                 }
             }
+        }
+
+        private void ReadLegacyHeader(BinaryReader reader)
+        {
+            Width = reader.ReadUInt16();
+            Height = reader.ReadUInt16();
+            Depth = reader.ReadUInt16();
+
+            var imageFormat = (LegacyImageFormat)reader.ReadSByte();
+            Format = imageFormat switch
+            {
+                LegacyImageFormat.RGBA8888 => VTexFormat.RGBA8888,
+                LegacyImageFormat.I8 => VTexFormat.I8,
+                LegacyImageFormat.DXT1 => VTexFormat.DXT1,
+                LegacyImageFormat.DXT5 => VTexFormat.DXT5,
+                LegacyImageFormat.RG1616 => VTexFormat.RG1616,
+                _ => throw new UnexpectedMagicException("Unsupported image format", (int)imageFormat, nameof(imageFormat)),
+            };
+
+            NumMipLevels = reader.ReadByte();
+            Picmip0Res = reader.ReadUInt32();
+            reader.ReadUInt16(); // Multisample type
+
+            // These flags start four bits higher than in later versions
+            Flags = (VTexFlags)(reader.ReadUInt16() >> 4);
+
+            Reflectivity = new(
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle(),
+                reader.ReadSingle()
+            );
         }
 
         /// <summary>
