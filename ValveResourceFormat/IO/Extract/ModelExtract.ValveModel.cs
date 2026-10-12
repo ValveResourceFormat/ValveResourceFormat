@@ -42,6 +42,8 @@ partial class ModelExtract
         public KVObject BreakPieces => Get("BreakPieceList");
         public KVObject GameData => Get("GameDataList");
         public KVObject ModelData => Get("ModelDataList");
+        public KVObject MorphControls => Get("MorphControlList");
+        public KVObject MorphRules => Get("MorphRuleList");
 
         private KVObject Get(string className)
         {
@@ -85,6 +87,7 @@ partial class ModelExtract
             AddModelConfigNodes(model, root.Children);
             ExtractModelKeyValues(model, lists, root.Node);
             AddHitboxSetNodes(model, lists);
+            AddMorphControlNodes(lists);
 
             if (model.Skeleton.Roots.Length > 0)
             {
