@@ -334,7 +334,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
             }
             else if (magic == MAGIC)
             {
-                if (Version != 9 && Version != 10)
+                if (Version < 8 || Version > 10)
                 {
                     throw new UnexpectedMagicException("Unexpected version (old magic)", Version, nameof(Version));
                 }
@@ -487,7 +487,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
             {
                 var file = lookup[fileId];
 
-                file.NeedsRefresh = reader.ReadBoolean();
+                file.NeedsRefresh = Version >= 9 && reader.ReadBoolean();
                 int count;
 
                 for (var searchPathType = 0; searchPathType < 2; searchPathType++)
