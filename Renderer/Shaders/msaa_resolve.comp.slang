@@ -91,7 +91,7 @@ void main()
         float farScale = g_vNearFarScaleBias.z;
         float farBias = g_vNearFarScaleBias.w;
 
-        float closeCoC = saturate((distanceFromLensPlane * nearScale) + -nearBias);
+        float closeCoC = saturate((distanceFromLensPlane * nearScale) + nearBias);
         float farCoC = saturate((distanceFromLensPlane * farScale) + farBias);
 
         outputAlpha = max(closeCoC, farCoC);
