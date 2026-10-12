@@ -136,11 +136,17 @@ public sealed class ContentExporter
 
     /// <summary>
     /// Gets the order to export resources of the given file name in, lowest first, so a resource exported before the
-    /// ones it consumes marks them as handled, see <see cref="IsHandled"/>.
+    /// ones it consumes marks them as handled, see <see cref="IsHandled"/>. Resources the compiler generated from
+    /// another one, named <c>&lt;parent&gt;+&lt;name&gt;</c>, come last.
     /// </summary>
     public static int GetExportOrder(string fileName)
     {
         ArgumentNullException.ThrowIfNull(fileName);
+
+        if (GetGeneratingResource(fileName) != null)
+        {
+            return ExportOrder.Count + 1;
+        }
 
         var type = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(fileName.AsSpan()));
         return ExportOrder.GetValueOrDefault(type, ExportOrder.Count);
@@ -152,8 +158,9 @@ public sealed class ContentExporter
     public string GetOutputPath(string contentPath) => Path.Join(OutputRoot, NormalizeContentPath(contentPath));
 
     /// <summary>
-    /// Whether a resource was exported, or consumed by an exported resource, during this export. Front ends skip
-    /// such resources when they come up again.
+    /// Whether a resource was exported, or consumed by an exported resource, during this export. A resource the
+    /// compiler generated from another one counts as handled once that one is. Front ends skip such resources when they
+    /// come up again.
     /// </summary>
     /// <param name="contentPath">Content path of the resource, compiled or not.</param>
     public bool IsHandled(string contentPath)
@@ -161,10 +168,11 @@ public sealed class ContentExporter
         ArgumentNullException.ThrowIfNull(contentPath);
 
         var key = GetHandledKey(contentPath);
+        var generatingResource = GetGeneratingResource(key);
 
         lock (StateLock)
         {
-            return HandledFiles.Contains(key);
+            return HandledFiles.Contains(key) || (generatingResource != null && HandledFiles.Contains(generatingResource));
         }
     }
 
@@ -481,6 +489,17 @@ public sealed class ContentExporter
         {
             HandledFiles.Add(key);
         }
+    }
+
+    /// <summary>
+    /// Gets the resource the compiler generated a resource named <c>&lt;parent&gt;+&lt;name&gt;</c> from, such as the
+    /// non-additive version of an additive clip or a graph variation.
+    /// </summary>
+    private static string? GetGeneratingResource(string contentPath)
+    {
+        var separator = contentPath.IndexOf('+', StringComparison.Ordinal);
+
+        return separator > 0 && Path.HasExtension(contentPath.AsSpan(0, separator)) ? contentPath[..separator] : null;
     }
 
     private static string GetHandledKey(string contentPath)

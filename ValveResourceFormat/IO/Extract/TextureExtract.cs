@@ -159,7 +159,7 @@ public sealed class TextureExtract
                 {
                     var currentDepth = depth;
 
-                    contentFile.AddSubFile(outTextureName + ImageOutputExtension, () =>
+                    contentFile.AddSubFile(GetContentPath(outTextureName + ImageOutputExtension), () =>
                     {
                         using var bitmap = texture.GenerateBitmap(depth: currentDepth, decodeFlags: DecodeFlags);
                         return ImageEncode(bitmap);
@@ -171,7 +171,7 @@ public sealed class TextureExtract
                 if (LatLongCombineCubemap && ExportExr)
                 {
                     var currentDepth = depth;
-                    contentFile.AddSubFile($"{outTextureName}{ImageOutputExtension}", () =>
+                    contentFile.AddSubFile(GetContentPath($"{outTextureName}{ImageOutputExtension}"), () =>
                     {
                         var bitmaps = new SKBitmap[6];
                         var faces = new SKPixmap[6];
@@ -204,7 +204,7 @@ public sealed class TextureExtract
                         var currentDepth = depth;
                         var currentFace = face;
 
-                        contentFile.AddSubFile($"{outTextureName}_{CubemapNames[face]}{ImageOutputExtension}", () =>
+                        contentFile.AddSubFile(GetContentPath($"{outTextureName}_{CubemapNames[face]}{ImageOutputExtension}"), () =>
                         {
                             using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace, decodeFlags: DecodeFlags);
                             return ImageEncode(bitmap);
@@ -227,19 +227,19 @@ public sealed class TextureExtract
 
         if (TryGetMksData(out var sprites, out var mks))
         {
-            vtex.AddSubFile(Path.GetFileName(GetMksFileName())!, () => Encoding.UTF8.GetBytes(mks));
+            vtex.AddSubFile(GetMksFileName(), () => Encoding.UTF8.GetBytes(mks));
 
             var packed = sprites.Keys.Select(static sprite => sprite.Pixels).ToArray();
 
             foreach (var (sprite, spriteFileName) in sprites)
             {
-                vtex.AddImageSubFile(Path.GetFileName(spriteFileName)!, (bitmap) => SpriteToPngImage(bitmap, sprite, packed));
+                vtex.AddImageSubFile(GetContentPath(spriteFileName), (bitmap) => SpriteToPngImage(bitmap, sprite, packed));
             }
 
             return vtex;
         }
 
-        vtex.AddImageSubFile(Path.GetFileName(GetImageFileName())!, ImageEncode);
+        vtex.AddImageSubFile(GetImageFileName(), ImageEncode);
         return vtex;
     }
 
@@ -260,7 +260,7 @@ public sealed class TextureExtract
 
                 if (firstUnpackInfo.FileName != null)
                 {
-                    vtexContent.SubFiles[0].FileName = Path.GetFileName(firstUnpackInfo.FileName);
+                    vtexContent.SubFiles[0].FileName = firstUnpackInfo.FileName;
                 }
             }
 
@@ -283,7 +283,7 @@ public sealed class TextureExtract
 
             if (firstUnpackInfo.FileName != null)
             {
-                vtex.AddImageSubFile(Path.GetFileName(firstUnpackInfo.FileName), ToExrImage);
+                vtex.AddImageSubFile(firstUnpackInfo.FileName, ToExrImage);
             }
 
             return vtex;
@@ -291,7 +291,7 @@ public sealed class TextureExtract
 
         foreach (var unpackInfo in mapsToUnpack)
         {
-            vtex.AddImageSubFile(Path.GetFileName(unpackInfo.FileName)!, (bitmap) => ToPngImageChannels(bitmap, unpackInfo.Channel));
+            vtex.AddImageSubFile(unpackInfo.FileName, (bitmap) => ToPngImageChannels(bitmap, unpackInfo.Channel));
         }
 
         return vtex;
@@ -321,10 +321,16 @@ public sealed class TextureExtract
     }
 
     private string GetImageFileName()
-        => Path.ChangeExtension(fileName, ImageOutputExtension);
+        => ContentPaths.ChangeExtension(fileName, ImageOutputExtension);
+
+    /// <summary>
+    /// Gets the content path of a file next to the texture.
+    /// </summary>
+    private string GetContentPath(string name)
+        => ContentPaths.Join(Path.GetDirectoryName(fileName), name);
 
     private string GetMksFileName()
-        => Path.ChangeExtension(fileName, "mks");
+        => ContentPaths.ChangeExtension(fileName, "mks");
 
     /// <summary>
     /// Converts a bitmap to PNG image bytes.
@@ -863,10 +869,10 @@ public sealed class TextureExtract
     {
         if (isSpriteSheet)
         {
-            return GetMksFileName().Replace(Path.DirectorySeparatorChar, '/');
+            return GetMksFileName();
         }
 
-        return GetImageFileName().Replace(Path.DirectorySeparatorChar, '/');
+        return GetImageFileName();
     }
 
     /// <summary>
@@ -1050,4 +1056,3 @@ public sealed class TextureExtract
         return colorSpan[clampedY * faceWidth + clampedX];
     }
 }
-

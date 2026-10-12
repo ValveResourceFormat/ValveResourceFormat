@@ -97,18 +97,16 @@ partial class ModelExtract
     string GetDmxFileName_ForEmbeddedMesh(string subString, int number = 0)
     {
         var fileName = ModelName;
-        return (Path.GetDirectoryName(fileName)
-            + Path.DirectorySeparatorChar
-            + Path.GetFileNameWithoutExtension(fileName)
+        return ContentPaths.Join(Path.GetDirectoryName(fileName),
+            Path.GetFileNameWithoutExtension(fileName)
             + "_"
             + subString
             + (number > 0 ? number : string.Empty)
-            + ".dmx")
-            .Replace('\\', '/');
+            + ".dmx");
     }
 
     static string GetDmxFileName_ForReferenceMesh(string fileName)
-        => Path.ChangeExtension(fileName, ".dmx").Replace('\\', '/');
+        => ContentPaths.ChangeExtension(fileName, ".dmx");
 
     private void EnqueueMeshes()
     {
@@ -236,7 +234,7 @@ partial class ModelExtract
 
             if (i == 0)
             {
-                vmdl.AddSubFile(Path.GetFileName(fileName), sharedDmxExtractMethod);
+                vmdl.AddSubFile(fileName, sharedDmxExtractMethod);
             }
 
             yield return vmdl;

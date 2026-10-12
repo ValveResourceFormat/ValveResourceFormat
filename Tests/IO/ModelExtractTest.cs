@@ -35,7 +35,7 @@ namespace Tests.IO
                 await Assert.That(vmdl).DoesNotContain("MaterialGroupList");
 
                 await Assert.That(content.SubFiles.Select(subFile => subFile.FileName))
-                    .IsEquivalentTo(["chen_weapon.dmx"], StringComparer.Ordinal);
+                    .IsEquivalentTo(["models/heroes/chen/chen_weapon.dmx"], StringComparer.Ordinal);
                 await Assert.That(content.SubFiles.Single().Extract!.Invoke()).IsNotEmpty();
             }
         }
