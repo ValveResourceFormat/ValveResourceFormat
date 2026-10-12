@@ -418,7 +418,9 @@ namespace ValveResourceFormat.IO
 
                 if (foundFile.PathOnDisk != null)
                 {
-                    resource.Read(foundFile.PathOnDisk);
+#pragma warning disable CA2000 // The resource owns the stream and disposes it
+                    resource.Read(File.Open(foundFile.PathOnDisk, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete));
+#pragma warning restore CA2000
                     resourceToReturn = resource;
                     resource = null;
                 }

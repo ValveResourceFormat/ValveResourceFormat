@@ -4,6 +4,7 @@ using ValveKeyValue;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.TextureDecoders;
 
 namespace ValveResourceFormat.IO
 {
@@ -21,29 +22,22 @@ namespace ValveResourceFormat.IO
         private string outFileName = string.Empty;
 
         /// <summary>
-        /// Suggested output file name. Based on the resource name.
+        /// Content path of the file, such as <c>models/props/crate.vmdl</c>. A trailing <c>_c</c> is removed.
         /// </summary>
         public string FileName
         {
             get => outFileName;
-            set
-            {
-                outFileName = value.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.InvariantCultureIgnoreCase)
-                ? value[..^2]
-                : value;
-            }
+            set => outFileName = ContentPaths.TrimCompiledSuffix(value);
         }
 
         /// <summary>
-        /// Additional files that make up this content file. E.g. for a vtex, this would be the PNG files.
+        /// Files that make up this content file, such as the images of a vtex.
         /// </summary>
         public List<SubFile> SubFiles { get; init; } = [];
 
         /// <summary>
-        /// Additional extracted resources. E.g. for a vmat, this would be the vtex files.
-        /// You will want to extract the files if data is non null, and also their respective subfiles.
-        /// You might want to ignore further extracts on these files, especially lone extracts,
-        /// since this is most likely their most optimal extract context.
+        /// Other resources extracted along with this one, such as the vtex files of a vmat. An entry without
+        /// <see cref="Data"/> or sub files only marks its resource as handled, see <see cref="ContentExporter.IsHandled"/>.
         /// </summary>
         public List<ContentFile> AdditionalFiles { get; init; } = [];
 
@@ -102,7 +96,7 @@ namespace ValveResourceFormat.IO
     public class SubFile
     {
         /// <summary>
-        /// Gets or sets the file name (relative to the content file).
+        /// Gets or sets the content path of the file, such as <c>models/props/crate_body.dmx</c>.
         /// </summary>
         public string FileName { get; set; } = string.Empty;
 
@@ -110,6 +104,13 @@ namespace ValveResourceFormat.IO
         /// Gets or sets the extraction function that returns the file data.
         /// </summary>
         public virtual Func<byte[]>? Extract { get; set; }
+
+        /// <summary>
+        /// Gets or sets the pixel count of an image decoded from a compiled texture, or 0 for other files. Such images
+        /// are named after their source image, so <see cref="ContentExporter"/> keeps the one with the most pixels when
+        /// several claim the same path instead of renaming them.
+        /// </summary>
+        public long ImagePixelCount { get; set; }
     }
 
     /// <summary>
@@ -120,7 +121,7 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Gets the set of file paths that have been loaded.
         /// </summary>
-        public HashSet<string> LoadedFilePaths { get; } = [];
+        public HashSet<string> LoadedFilePaths { get; } = new(StringComparer.OrdinalIgnoreCase);
         private readonly IFileLoader fileLoader;
 
         /// <inheritdoc/>
@@ -131,7 +132,7 @@ namespace ValveResourceFormat.IO
             {
                 lock (LoadedFilePaths)
                 {
-                    LoadedFilePaths.Add(file.Replace('\\', '/'));
+                    LoadedFilePaths.Add(ContentPaths.Normalize(file));
                 }
             }
 
@@ -165,6 +166,11 @@ namespace ValveResourceFormat.IO
         /// Gets whether models, and the models a map extracts, reconstruct their soft-body (cloth) physics. Defaults to true.
         /// </summary>
         public bool ReconstructSoftbody { get; init; } = true;
+
+        /// <summary>
+        /// Gets the flags textures are decoded with. Defaults to <see cref="TextureCodec.Auto"/>.
+        /// </summary>
+        public TextureCodec TextureDecodeFlags { get; init; } = TextureCodec.Auto;
     }
 
     /// <summary>
@@ -263,7 +269,8 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Texture:
-                    contentFile = new TextureExtract(resource).ToContentFile();
+                    contentFile = new TextureExtract(resource) { DecodeFlags = options.TextureDecodeFlags }.ToContentFile();
+                    TextureExtract.SetImagePixelCount(contentFile, (Texture)resource.DataBlock!);
                     break;
 
                 case ResourceType.Particle:
@@ -284,13 +291,13 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.PostProcessing:
                 {
-                    var lutFileName = Path.ChangeExtension(resource.FileName, "raw")!;
+                    var lutFileName = ContentPaths.ChangeExtension(resource.FileName!, "raw");
                     contentFile.Data = Encoding.UTF8.GetBytes(
-                        ((PostProcessing)resource.DataBlock!).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/'))
+                        ((PostProcessing)resource.DataBlock!).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName)
                     );
 
                     contentFile.AddSubFile(
-                        fileName: Path.GetFileName(lutFileName)!,
+                        fileName: lutFileName,
                         extractMethod: () => ((PostProcessing)resource.DataBlock!).GetRAWData()
                     );
 
@@ -339,6 +346,11 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            if (contentFile.FileName.Length == 0 && resource.FileName != null)
+            {
+                contentFile.FileName = ContentPaths.ChangeExtension(resource.FileName, GetExtension(resource));
+            }
+
             return contentFile;
         }
 
@@ -357,7 +369,7 @@ namespace ValveResourceFormat.IO
                 return new ContentFile
                 {
                     Data = new ValveFont.ValveFont().Read(stream),
-                    FileName = Path.ChangeExtension(fileName, ".ttf"),
+                    FileName = ContentPaths.ChangeExtension(fileName, ".ttf"),
                 };
             }
 
@@ -378,12 +390,19 @@ namespace ValveResourceFormat.IO
 
             return magic switch
             {
-                FlexSceneFile.FlexSceneFile.MAGIC => new FlexSceneExtract(stream).ToContentFile(),
+                FlexSceneFile.FlexSceneFile.MAGIC => ExtractFlexScene(stream, fileName),
                 ClosedCaptions.ClosedCaptions.MAGIC => new ClosedCaptionsExtract(stream, fileName).ToContentFile(),
                 NavMesh.NavMeshFile.MAGIC => ExtractNavMesh(stream, fileName),
                 MapFormats.GridNavFile.MAGIC => ExtractGridNav(stream, fileName),
                 _ => null,
             };
+        }
+
+        private static ContentFile ExtractFlexScene(Stream stream, string fileName)
+        {
+            var contentFile = new FlexSceneExtract(stream).ToContentFile();
+            contentFile.FileName = ContentPaths.ChangeExtension(fileName, ".txt");
+            return contentFile;
         }
 
         private static ContentFile ExtractGridNav(Stream stream, string fileName)
@@ -394,7 +413,7 @@ namespace ValveResourceFormat.IO
             return new ContentFile
             {
                 Data = Encoding.UTF8.GetBytes(gridNav.ToString()),
-                FileName = Path.ChangeExtension(fileName, ".txt"),
+                FileName = ContentPaths.ChangeExtension(fileName, ".txt"),
             };
         }
 
@@ -413,7 +432,7 @@ namespace ValveResourceFormat.IO
                 return new ContentFile
                 {
                     Data = fontFile.OpenTypeFontData,
-                    FileName = Path.ChangeExtension(fileName, Path.GetExtension(fontFile.FileName)),
+                    FileName = ContentPaths.ChangeExtension(fileName, Path.GetExtension(fontFile.FileName)),
                 };
             }
 
@@ -422,9 +441,11 @@ namespace ValveResourceFormat.IO
                 FileName = fileName,
             };
 
+            var folder = Path.GetDirectoryName(fileName);
+
             foreach (var fontFile in fontPackage.FontFiles)
             {
-                contentFile.AddSubFile(fontFile.FileName, () => fontFile.OpenTypeFontData);
+                contentFile.AddSubFile(ContentPaths.Join(folder, fontFile.FileName), () => fontFile.OpenTypeFontData);
             }
 
             return contentFile;
@@ -443,7 +464,7 @@ namespace ValveResourceFormat.IO
             return new ContentFile
             {
                 Data = glbStream.ToArray(),
-                FileName = Path.ChangeExtension(fileName, ".glb"),
+                FileName = ContentPaths.ChangeExtension(fileName, ".glb"),
             };
         }
 

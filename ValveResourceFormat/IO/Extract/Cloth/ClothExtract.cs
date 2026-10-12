@@ -132,7 +132,7 @@ internal sealed partial class ClothExtract(Model? model, PhysAggregateData? phys
     {
         foreach (var (fileName, data) in subFiles)
         {
-            vmdl.AddSubFile(Path.GetFileName(fileName), () => data);
+            vmdl.AddSubFile(fileName, () => data);
         }
     }
 
