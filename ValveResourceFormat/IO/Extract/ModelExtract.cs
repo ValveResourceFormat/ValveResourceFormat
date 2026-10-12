@@ -78,6 +78,7 @@ public partial class ModelExtract
         fileName = Path.ChangeExtension(modelResource.FileName ?? "model", ".vmdl");
         EnqueueMeshes();
         EnqueueAnimations();
+        morphSetForControlNodes = new(FindMorphSetForControlNodes);
     }
 
     /// <inheritdoc cref="ModelExtract(Resource, IFileLoader)"/>
@@ -117,6 +118,8 @@ public partial class ModelExtract
             FileName = ModelName,
         };
 
+        var skipEmptyMorphSets = MorphSetForControlNodes != null;
+
         foreach (var renderMesh in RenderMeshesToExtract)
         {
             if (fileLoader != null)
@@ -139,6 +142,7 @@ public partial class ModelExtract
                 BonePositions = Cloth.RestBonePositions,
                 ClothSurface = Cloth.RenderBindingSurface,
                 ReconstructCloth = ReconstructsCloth,
+                SkipEmptyMorphSet = skipEmptyMorphSets,
             };
 
             vmdl.AddSubFile(
