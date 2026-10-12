@@ -95,13 +95,7 @@ public sealed partial class MapExtract
             return null;
         }
 
-        var intAttributes = material.Data.GetArray("m_intAttributes") ?? [];
-
-        int GetIntAttribute(string name)
-        {
-            var attribute = intAttributes.FirstOrDefault(a => a.GetStringProperty("m_name") == name);
-            return attribute?.GetInt32Property("m_nValue") ?? 0;
-        }
+        int GetIntAttribute(string name) => (int)material.IntAttributes.GetValueOrDefault(name);
 
         var worldMappingWidth = GetIntAttribute("WorldMappingWidth");
         var worldMappingHeight = GetIntAttribute("WorldMappingHeight");

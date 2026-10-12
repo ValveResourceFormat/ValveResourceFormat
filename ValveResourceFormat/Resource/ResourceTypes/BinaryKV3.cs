@@ -95,7 +95,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return data!;
             }
 
-            protected set => data = value;
+            set => data = value;
         }
 
         private KVDocument? data;

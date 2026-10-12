@@ -180,6 +180,8 @@ namespace ValveResourceFormat.ResourceTypes
                 var vfxEval = new VfxEval(dynamicTextureParamBytes, renderAttributesUsed);
                 DynamicExpressions.Add(dynamicTextureParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
             }
+
+            Data = null;
         }
 
         /// <summary>

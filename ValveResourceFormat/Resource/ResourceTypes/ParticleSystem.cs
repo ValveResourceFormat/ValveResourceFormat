@@ -22,7 +22,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// The stored format, or the format it was created with when built in memory.
         /// </summary>
-        private KV3ID? SourceFormat => Format ?? createdFormat;
+        private KV3ID? SourceFormat => createdFormat ?? Format;
 
         /// <summary>
         /// Gets the particle system data upgraded through the vpcf format-conversion chain to the
