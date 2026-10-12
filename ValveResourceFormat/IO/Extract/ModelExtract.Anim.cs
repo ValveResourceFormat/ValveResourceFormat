@@ -110,7 +110,6 @@ partial class ModelExtract
 
             var clipContent = new NmClipExtract(clip.Resource, fileLoader).ToContentFile();
             clipContent.FileName = animation.Name;
-            clipContent.KeepFullPath = true;
             vmdl.AdditionalFiles.Add(clipContent);
         }
     }
