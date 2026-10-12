@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -66,7 +66,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// <summary>
         /// Gets the compression settings for each animation track.
         /// </summary>
-        public TrackCompressionSetting[] TrackCompressionSettings => LazyInitializer.EnsureInitialized(ref trackCompressionSettings, ReadTrackCompressionSettings);
+        public TrackCompressionSetting[] TrackCompressionSettings { get; private set; } = [];
 
         /// <summary>
         /// Gets the offsets (in 16-bit / ushort units) into the compressed pose data for each frame.
@@ -99,11 +99,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// <summary>
         /// Gets the clip's named scalar channels (float curves), decoded per frame.
         /// </summary>
-        public AnimationFloatCurve[] FloatCurves => LazyInitializer.EnsureInitialized(ref floatCurves, ReadFloatCurves);
+        public AnimationFloatCurve[] FloatCurves { get; private set; } = [];
 
-        private KVObject? clipData;
-        private TrackCompressionSetting[]? trackCompressionSettings;
-        private AnimationFloatCurve[]? floatCurves;
+        /// <summary>
+        /// Gets the skeleton bone index of each bone that is sampled in model space.
+        /// </summary>
+        public int[] ModelSpaceSampledBones { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the IDs of the events on the sync track.
+        /// </summary>
+        public string[] SyncEventIds { get; private set; } = [];
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
@@ -118,11 +124,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             }
 
             ReadClip(Data);
+            Data = null;
         }
 
         private void ReadClip(KVObject clipData)
         {
-            this.clipData = clipData;
             SkeletonName = clipData.GetStringProperty("m_skeleton");
             NumFrames = clipData.GetInt32Property("m_nNumFrames");
             Duration = clipData.GetFloatProperty("m_flDuration");
@@ -146,6 +152,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                 }
             }
 
+            TrackCompressionSettings = ReadTrackCompressionSettings(clipData);
+            FloatCurves = ReadFloatCurves(clipData);
+            ModelSpaceSampledBones = ReadModelSpaceSampledBones(clipData);
+            SyncEventIds = [.. (clipData.GetSubCollection("m_syncTrack")?.GetArray("m_syncEvents") ?? []).Select(static e => e.GetStringProperty("m_ID", string.Empty))];
             CompressedPoseData = clipData.GetArray<byte>("m_compressedPoseData");
 
             var events = clipData.GetArray("m_events") ?? [];
@@ -174,9 +184,30 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             }
         }
 
-        private AnimationFloatCurve[] ReadFloatCurves()
+        private static int[] ReadModelSpaceSampledBones(KVObject clipData)
         {
-            var clipData = this.clipData!;
+            var samplingChain = clipData.GetArray("m_modelSpaceSamplingChain") ?? [];
+            // These index into the sampling chain, which in turn indexes into the skeleton bones.
+            var samplingIndices = clipData.GetIntegerArray("m_modelSpaceBoneSamplingIndices");
+            var bones = new int[samplingIndices.Length];
+
+            for (var i = 0; i < bones.Length; i++)
+            {
+                var chainIndex = samplingIndices[i];
+
+                if (chainIndex < 0 || chainIndex >= samplingChain.Count)
+                {
+                    throw new InvalidDataException($"Model space sampling chain index {chainIndex} is out of bounds (0..{samplingChain.Count - 1}).");
+                }
+
+                bones[i] = samplingChain[(int)chainIndex].GetInt32Property("m_nBoneIdx");
+            }
+
+            return bones;
+        }
+
+        private AnimationFloatCurve[] ReadFloatCurves(KVObject clipData)
+        {
             var floatCurveIds = clipData.GetArray<string>("m_floatCurveIDs");
             if (floatCurveIds is not { Length: > 0 })
             {
@@ -225,9 +256,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             return curves;
         }
 
-        private TrackCompressionSetting[] ReadTrackCompressionSettings()
+        private static TrackCompressionSetting[] ReadTrackCompressionSettings(KVObject clipData)
         {
-            var settings = clipData!.GetArray("m_trackCompressionSettings");
+            var settings = clipData.GetArray("m_trackCompressionSettings");
             var trackSettings = new TrackCompressionSetting[settings.Count];
 
             var i = 0;

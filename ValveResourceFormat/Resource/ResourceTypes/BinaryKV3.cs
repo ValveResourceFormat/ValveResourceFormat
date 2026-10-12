@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -76,7 +77,28 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the deserialized KeyValues3 data.
         /// </summary>
-        public KVDocument Data { get; protected set; } = null!;
+        /// <remarks>Can be set to null to release the data. Next probe will deserialize again.</remarks>
+        [AllowNull]
+        public KVDocument Data
+        {
+            get
+            {
+                if (data == null)
+                {
+                    lock (Resource.ReaderLock)
+                    {
+                        var reader = Resource.Reader ?? throw new InvalidOperationException($"Cannot read block {Type} because the resource's reader is not available.");
+                        ReadDocument(reader);
+                    }
+                }
+
+                return data!;
+            }
+
+            protected set => data = value;
+        }
+
+        private KVDocument? data;
 
         /// <summary>
         /// Gets or sets the binary KV3 version used when serializing this block. Supported values are 4 and 5.
@@ -138,7 +160,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
-        public override void Read(BinaryReader reader)
+        public override void Read(BinaryReader reader) => ReadDocument(reader);
+
+        private void ReadDocument(BinaryReader reader)
         {
             if (KVBlockType != BlockType.Undefined)
             {

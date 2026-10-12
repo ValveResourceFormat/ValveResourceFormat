@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
@@ -70,19 +71,10 @@ public class NmClipExtract
         var animation = new ResourceTypes.ModelAnimation.ClipAnimation(clip);
         if (skeleton != null)
         {
-            var modelSpaceSamplingChain = clip.Data.Root.GetArray("m_modelSpaceSamplingChain");
-            // The array below indexes into the bone sampling chain, which in turn indexes into the skeleton bones.
-            var modelSpaceBoneSamplingIndices = clip.Data.Root.GetIntegerArray("m_modelSpaceBoneSamplingIndices");
-
             var bonesToSampleInModelSpace = KVObject.Array();
-            foreach (var chainIdx in modelSpaceBoneSamplingIndices)
+            foreach (var boneIndex in clip.ModelSpaceSampledBones)
             {
-                if (chainIdx < 0 || chainIdx >= modelSpaceSamplingChain!.Count)
-                {
-                    throw new InvalidDataException($"Model space sampling chain index {chainIdx} is out of bounds (0..{modelSpaceSamplingChain!.Count - 1}).");
-                }
-                var boneIdx = modelSpaceSamplingChain[(int)chainIdx]!.GetInt32Property("m_nBoneIdx");
-                bonesToSampleInModelSpace.Add(skeleton.Bones[boneIdx].Name);
+                bonesToSampleInModelSpace.Add(skeleton.Bones[boneIndex].Name);
             }
             kv.Add("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
 
@@ -103,28 +95,11 @@ public class NmClipExtract
             kv.Add("m_secondaryAnimationSkeletonNames", secondarySkeletonNames);
         }
 
-        var syncEventIds = new HashSet<string>();
-        var syncTrack = clip.Data.Root.GetSubCollection("m_syncTrack");
-        if (syncTrack != null)
-        {
-            var syncEvents = syncTrack.GetArray("m_syncEvents");
-            if (syncEvents != null)
-            {
-                foreach (var syncEv in syncEvents)
-                {
-                    var syncId = syncEv.GetStringProperty("m_ID", string.Empty);
-                    if (!string.IsNullOrEmpty(syncId))
-                    {
-                        syncEventIds.Add(syncId);
-                    }
-                }
-            }
-        }
+        var syncEventIds = clip.SyncEventIds.Where(static id => !string.IsNullOrEmpty(id)).ToHashSet();
 
         var frameIntervalCount = Math.Max(0, animation.FrameCount - 1);
-        var events = clip.Data.Root.GetArray("m_events")!;
         var docEventTracks = KVObject.Array();
-        foreach (var ev in events!)
+        foreach (var ev in clip.Events.Select(static e => e.Data))
         {
             var eventSyncId = ev.GetStringProperty("m_syncID", ev.GetStringProperty("m_ID", string.Empty));
             var isSyncTrack = syncEventIds.Contains(eventSyncId);

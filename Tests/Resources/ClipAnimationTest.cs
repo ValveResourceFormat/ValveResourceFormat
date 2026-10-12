@@ -21,6 +21,24 @@ namespace Tests.Resources
         }
 
         [Test]
+        public async Task ReleasedClipDataIsReadFromTheResourceAgain()
+        {
+            using var resource = new Resource();
+            resource.Read(TestFixtures.Path("idle_ak.vnmclip_c"));
+            var clip = (AnimationClip)resource.DataBlock!;
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(clip.Data.Root.ContainsKey("m_trackCompressionSettings")).IsTrue();
+                await Assert.That(clip.Data).IsSameReferenceAs(clip.Data).Because("the data is only read again once");
+            }
+        }
+
+        [Test]
         public async Task ConstructionMapsClipProperties()
         {
             using var resource = new Resource();
