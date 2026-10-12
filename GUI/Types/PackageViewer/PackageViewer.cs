@@ -188,7 +188,7 @@ namespace GUI.Types.PackageViewer
                 {
                     var magicResourceVersion = BitConverter.ToUInt16(data, 4);
 
-                    if (Viewers.Resource.IsAccepted(magicResourceVersion) && name.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+                    if (Viewers.Resource.IsAccepted(magicResourceVersion) && ContentPaths.HasCompiledSuffix(name))
                     {
                         resourceEntries.Enqueue((file, entry));
                     }

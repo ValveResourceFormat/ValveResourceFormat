@@ -680,12 +680,7 @@ namespace GUI.Types.PackageViewer
                 return typeName;
             }
 
-            var ext = typeName;
-
-            if (ext.EndsWith("_c", StringComparison.Ordinal))
-            {
-                ext = ext[..^2];
-            }
+            var ext = ContentPaths.TrimCompiledSuffix(typeName);
 
             if (AppIcons.ExtensionSVGS.ContainsKey(ext))
             {
@@ -1902,15 +1897,10 @@ namespace GUI.Types.PackageViewer
 
             if (!AssetSearchData.TryGetValue(filePath, out var searchData))
             {
-                // Try without the compiled suffix
-                if (!filePath.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
-                {
-                    return false;
-                }
+                var uncompiledPath = ContentPaths.TrimCompiledSuffix(filePath.AsSpan());
 
-                var uncompiledPath = filePath.AsSpan(0, filePath.Length - GameFileLoader.CompiledFileSuffix.Length);
-
-                if (!AssetSearchData.GetAlternateLookup<ReadOnlySpan<char>>().TryGetValue(uncompiledPath, out searchData))
+                if (uncompiledPath.Length == filePath.Length
+                    || !AssetSearchData.GetAlternateLookup<ReadOnlySpan<char>>().TryGetValue(uncompiledPath, out searchData))
                 {
                     return false;
                 }

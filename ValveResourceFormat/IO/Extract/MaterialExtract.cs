@@ -125,8 +125,7 @@ public sealed class MaterialExtract
             && textureParts[^2].Length >= 3 && textureParts[^2].Length <= 4 // This is the original extension
             && !string.IsNullOrEmpty(string.Join("_", textureParts[..^2])))   // Name of the Input[0] image
             {
-                texturePath = Path.Combine(Path.GetDirectoryName(texturePath)!, string.Join("_", textureParts[..^2]));
-                texturePath = texturePath.Replace(Path.DirectorySeparatorChar, '/');
+                texturePath = ContentPaths.Join(Path.GetDirectoryName(texturePath), string.Join("_", textureParts[..^2]));
             }
             // Also seen "{MAT}_vmat_{G_TPARAM}_{HASH}.vtex"
         }
