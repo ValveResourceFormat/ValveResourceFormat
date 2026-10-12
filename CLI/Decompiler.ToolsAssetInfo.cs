@@ -42,10 +42,7 @@ public partial class Decompiler
 
             if (OutputFile != null)
             {
-                path = Path.ChangeExtension(path, "txt");
-                path = GetOutputPath(path);
-
-                DumpFile(path, Encoding.UTF8.GetBytes(output));
+                WriteFile(Path.ChangeExtension(GetContentPath(path, originalPath), "txt"), Encoding.UTF8.GetBytes(output));
             }
             else
             {
