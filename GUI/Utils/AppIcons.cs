@@ -143,10 +143,7 @@ static class AppIcons
 
     public static int GetImageIndexForExtension(ReadOnlySpan<char> extension)
     {
-        if (extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
-        {
-            extension = extension[0..^2];
-        }
+        extension = ContentPaths.TrimCompiledSuffix(extension);
 
         var lookup = ExtensionIcons.GetAlternateLookup<ReadOnlySpan<char>>();
 
