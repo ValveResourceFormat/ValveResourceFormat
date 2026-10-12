@@ -4211,6 +4211,7 @@ class EntityLumpKnownKeys
         "landing_relative_offset",
         "landmark",
         "LandTarget",
+        "lane",
         "laneID",
         "large",
         "large_fx_scale",
