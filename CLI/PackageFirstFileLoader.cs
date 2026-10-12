@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
@@ -49,5 +50,17 @@ namespace CLI
         }
 
         public GameInfo GameInfo => fallback.GameInfo;
+
+        public IEnumerable<string> FindFilesByName(string fileName)
+        {
+            var extension = Path.GetExtension(fileName).TrimStart('.');
+            var name = Path.GetFileNameWithoutExtension(fileName);
+
+            return (package.Entries?.GetValueOrDefault(extension) ?? [])
+                .Where(entry => entry.FileName.Equals(name, StringComparison.OrdinalIgnoreCase))
+                .Select(static entry => entry.GetFullPath())
+                .Concat(fallback.FindFilesByName(fileName))
+                .Distinct();
+        }
     }
 }

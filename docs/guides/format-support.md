@@ -194,7 +194,8 @@ into editable per-material Hammer meshes (near-coplanar triangle pairs merged ba
 quads) with real
 per-face texture projection, static props with their original properties, material overrides and vertex
 paint/vertex lighting buffers, aggregate props
-split back into individual entities, world layers, and per-surface-property
+split back into individual entities, clutter (such as compiled detail props) as clutter instance static props,
+world layers, and per-surface-property
 physics geometry for collision that has no matching render mesh.
 
 Data that was already destroyed by the map compiler, and therefore cannot come back:
@@ -215,12 +216,9 @@ branches, and it is regenerated on recompile anyway.
 
 Not implemented yet:
 
-| What                         | Details                                                                                                                                                                                                                       |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| External reference meshes    | Models welded into Hammer geometry (world meshes and aggregates) use only their embedded meshes, so render meshes living in a separate `.vmesh_c` are dropped from that geometry. Props that reference models are unaffected. |
-| Clutter                      | Procedural scatter objects such as compiled detail props are not decompiled; the viewer thins them per instance by screen size on the GPU, and instances pop instead of fading.                                               |
-| Physics spheres and capsules | Only physics hulls and meshes are turned into Hammer geometry.                                                                                                                                                                |
-| 3D skybox bundling           | `skybox_reference` keeps its properties, but the referenced skybox map is not decompiled and bundled automatically (same for glTF export, [#967](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/967)).     |
+| What               | Details                                                                                                                                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3D skybox bundling | `skybox_reference` keeps its properties, but the referenced skybox map is not decompiled and bundled automatically (same for glTF export, [#967](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/967)). |
 
 For glTF map exports, additionally: only `light_environment` is exported as a light (point
 and spot lights are not), entities carrying no model at all (logic, cameras, point
@@ -236,6 +234,8 @@ Visibility data it leaves unused:
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | Older region box tree layout | Found only in some Dota 2 scene maps, whose engine ignores it too; it is not parsed and those maps render without visibility culling. |
 | Two cluster octrees          | Visibility with two clusters or fewer culls nothing, as in the game.                                                                  |
+
+The viewer thins clutter per instance by screen size on the GPU, and instances pop instead of fading.
 
 In the viewer, maps that a map places into itself load as spawn groups, each with its own
 lighting and visibility: the 3D sky a `skybox_reference` names, prefabs left for the game to
@@ -329,7 +329,8 @@ Animgraph 2 system is taken from the [Esoterica](https://www.esotericaengine.com
 
 All four collision shape types (sphere, capsule, hull, mesh) parse, render, and export to
 glTF as visualization geometry. Decompiled `.vmdl` files carry all four; `.vmap` decompiles
-carry only hulls and meshes. Hitboxes fully round-trip into decompiled models.
+rebuild spheres and capsules as convex hull meshes. Hitboxes fully round-trip into decompiled
+models.
 
 Joints (`m_joints`) with their friction motors, and their bodies' mass, inertia, damping, drag,
 center of mass and tags export into decompiled models. The `FeModel` cloth/softbody block is
