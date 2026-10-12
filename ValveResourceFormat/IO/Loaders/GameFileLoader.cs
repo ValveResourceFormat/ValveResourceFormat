@@ -202,22 +202,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            if (AddonDependenciesPending && (CurrentPackage != null || PreferredAddonFolderOnDisk != null))
-            {
-                // Files are looked up in parallel, the addon lists must be complete before anyone searches them
-                lock (AddonDependenciesLock)
-                {
-                    if (AddonDependenciesPending)
-                    {
-#if DEBUG_FILE_LOAD
-                        Logger.LogDebug("Attempting to find addon dependencies while loading \"{File}\"", file);
-#endif
-
-                        LoadAddonDependencies();
-                        AddonDependenciesPending = false;
-                    }
-                }
-            }
+            LoadPendingAddonDependencies();
 
             foreach (var (package, folder) in CurrentAddonSearchPaths)
             {
@@ -285,6 +270,47 @@ namespace ValveResourceFormat.IO
 #endif
 
             return (null, null, null);
+        }
+
+        private void LoadPendingAddonDependencies()
+        {
+            if (!AddonDependenciesPending || (CurrentPackage == null && PreferredAddonFolderOnDisk == null))
+            {
+                return;
+            }
+
+            // Files are looked up in parallel, the addon lists must be complete before anyone searches them
+            lock (AddonDependenciesLock)
+            {
+                if (AddonDependenciesPending)
+                {
+#if DEBUG_FILE_LOAD
+                    Logger.LogDebug("Attempting to find addon dependencies");
+#endif
+
+                    LoadAddonDependencies();
+                    AddonDependenciesPending = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Finds the files with a given name in any folder of the mounted packages. Loose files on disk are not searched.
+        /// </summary>
+        /// <param name="fileName">The file name with its extension and without a folder, such as <c>chair.vmdl_c</c>.</param>
+        /// <returns>The full path of each match, in search order.</returns>
+        public virtual IEnumerable<string> FindFilesByName(string fileName)
+        {
+            var extension = Path.GetExtension(fileName).TrimStart('.');
+            var name = Path.GetFileNameWithoutExtension(fileName);
+
+            LoadPendingAddonDependencies();
+
+            return EnumerateSearchedPackages()
+                .SelectMany(package => package.Entries?.GetValueOrDefault(extension) ?? [])
+                .Where(entry => entry.FileName.Equals(name, StringComparison.OrdinalIgnoreCase))
+                .Select(static entry => entry.GetFullPath())
+                .Distinct();
         }
 
         /// <summary>

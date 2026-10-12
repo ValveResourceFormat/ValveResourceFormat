@@ -525,6 +525,10 @@ namespace GUI.Utils
         protected override GameFileLoader? GameInfoFallback => ParentGuiContext;
 
         // Override to add support for parent file loaders
+        public override IEnumerable<string> FindFilesByName(string fileName)
+            => base.FindFilesByName(fileName).Concat(ParentGuiContext?.FindFilesByName(fileName) ?? []).Distinct();
+
+        // Override to add support for parent file loaders
         protected override ShaderCollection LoadShaderFromDisk(string shaderName)
         {
             if (ParentGuiContext != null)
@@ -547,6 +551,7 @@ namespace GUI.Utils
             public ShaderCollection? LoadShader(string shaderName) => context.LoadShader(shaderName);
             public Stream? GetFileStream(string file) => context.GetFileStream(file);
             public GameInfo GameInfo => context.GameInfo;
+            public IEnumerable<string> FindFilesByName(string fileName) => context.FindFilesByName(fileName);
         }
 
         private Resource? LoadFileUncached(string file) => base.LoadFile(file);
