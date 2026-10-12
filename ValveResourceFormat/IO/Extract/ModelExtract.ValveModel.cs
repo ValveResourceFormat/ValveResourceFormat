@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 
@@ -38,6 +39,9 @@ partial class ModelExtract
         public KVObject BreakPieces => Get("BreakPieceList");
         public KVObject GameData => Get("GameDataList");
         public KVObject DynamicConfigs => Get("DynamicConfigList");
+        public KVObject ModelData => Get("ModelDataList");
+        public KVObject MorphControls => Get("MorphControlList");
+        public KVObject MorphRules => Get("MorphRuleList");
 
         private KVObject Get(string className)
         {
@@ -76,9 +80,12 @@ partial class ModelExtract
 
         if (model != null)
         {
+            AddRootAttributes(root.Node);
+            AddBoundsNodes(model, lists);
             ExtractModelKeyValues(model, lists, root.Node);
             AddHitboxSetNodes(model, lists);
             AddModelConfigNodes(model, lists);
+            AddMorphControlNodes(lists);
 
             if (model.Skeleton.Roots.Length > 0)
             {
@@ -102,6 +109,56 @@ partial class ModelExtract
 
         AddVsnapNodes(lists);
 
-        return kv.ToKV3String(format: KV3IDLookup.Get("modeldoc28"));
+        return kv.ToKV3String(format: KV3IDLookup.Get(writesClothStiffenSpeedInOut ? "modeldoc30" : "modeldoc28"));
+    }
+
+    /// <summary>
+    /// Writes the root's archetype and primary entity, which the compiler keeps only in the searchable edit info.
+    /// </summary>
+    private void AddRootAttributes(KVObject rootNode)
+    {
+        if (modelResource?.EditInfo?.SearchableUserData is not { } searchable)
+        {
+            return;
+        }
+
+        if (searchable.GetStringProperty("model_archetype_id") is { Length: > 0 } archetype)
+        {
+            rootNode.Add("model_archetype", archetype);
+        }
+
+        if (searchable.GetStringProperty("model_primary_associated_entity") is { Length: > 0 } entity)
+        {
+            rootNode.Add("primary_associated_entity", entity);
+        }
+    }
+
+    /// <summary>
+    /// Writes the <c>Bounds Hull</c> and <c>Bounds View</c> nodes behind non-zero hull and view bounds.
+    /// </summary>
+    private static void AddBoundsNodes(Model model, ModelDocLists lists)
+    {
+        var modelInfo = model.Data.GetSubCollection("m_modelInfo");
+
+        if (modelInfo is null)
+        {
+            return;
+        }
+
+        foreach (var (className, minsKey, maxsKey) in (ReadOnlySpan<(string, string, string)>)[
+            ("Bounds Hull", "m_vHullMin", "m_vHullMax"),
+            ("Bounds View", "m_vViewMin", "m_vViewMax"),
+        ])
+        {
+            var mins = modelInfo[minsKey].ToVector3();
+            var maxs = modelInfo[maxsKey].ToVector3();
+
+            if (mins == Vector3.Zero && maxs == Vector3.Zero)
+            {
+                continue;
+            }
+
+            lists.ModelData.Add(MakeNode(className, ("mins", ToKVArray(mins)), ("maxs", ToKVArray(maxs))));
+        }
     }
 }
