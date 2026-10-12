@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Threading;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
@@ -8,64 +7,21 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     /// <summary>
-    /// The segment decoders of one animation data block, shared by every animation in it. A segment's
-    /// decoder is built the first time it is asked for. Safe to use from several threads.
+    /// The segment decoders of one animation data block, shared by every animation in it.
     /// </summary>
     internal sealed class AnimationSegmentTable
     {
-        private static readonly AnimationSegmentDecoder Unhandled = new CCompressedStaticBool();
-
-        private readonly KVObject animationData;
-        private readonly KVObject decodeKey;
-        private readonly Skeleton skeleton;
-        private readonly FlexController[] flexControllers;
-        private readonly IReadOnlyList<KVObject> segmentKVs;
         private readonly AnimationSegmentDecoder?[] decoders;
-        private readonly Lock unhandledDecodersLock = new();
-        private HashSet<string>? unhandledDecoders;
-        private string[]? decoderNames;
-        private AnimationDataChannel[]? dataChannels;
 
         public AnimationSegmentTable(KVObject animationData, KVObject decodeKey, Skeleton skeleton, FlexController[] flexControllers)
         {
-            this.animationData = animationData;
-            this.decodeKey = decodeKey;
-            this.skeleton = skeleton;
-            this.flexControllers = flexControllers;
-            segmentKVs = animationData.GetArray("m_segmentArray");
-            decoders = new AnimationSegmentDecoder?[segmentKVs.Count];
-        }
-
-        /// <summary>
-        /// Gets the decoder of a segment, or <see langword="null"/> when its decoder or channel is not supported.
-        /// </summary>
-        public AnimationSegmentDecoder? Get(long index)
-        {
-            var decoder = Volatile.Read(ref decoders[index]);
-
-            if (decoder == null)
-            {
-                decoder = Build((int)index) ?? Unhandled;
-                decoder = Interlocked.CompareExchange(ref decoders[index], decoder, null) ?? decoder;
-            }
-
-            return ReferenceEquals(decoder, Unhandled) ? null : decoder;
-        }
-
-        private string[] DecoderNames => LazyInitializer.EnsureInitialized(ref decoderNames, () =>
-        {
             var decoderArrayKV = animationData.GetArray("m_decoderArray");
-            var names = new string[decoderArrayKV.Count];
+            var decoderNames = new string[decoderArrayKV.Count];
             for (var i = 0; i < decoderArrayKV.Count; i++)
             {
-                names[i] = decoderArrayKV[i].GetStringProperty("m_szName");
+                decoderNames[i] = decoderArrayKV[i].GetStringProperty("m_szName");
             }
 
-            return names;
-        });
-
-        private AnimationDataChannel[] DataChannels => LazyInitializer.EnsureInitialized(ref dataChannels, () =>
-        {
             var userArrayKV = decodeKey.GetArray("m_userArray");
             var userNames = new string[userArrayKV?.Count ?? 0];
             for (var i = 0; i < userNames.Length; i++)
@@ -74,24 +30,35 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             var dataChannelArrayKV = decodeKey.GetArray("m_dataChannelArray");
-            var channels = new AnimationDataChannel[dataChannelArrayKV.Count];
+            var dataChannels = new AnimationDataChannel[dataChannelArrayKV.Count];
             for (var i = 0; i < dataChannelArrayKV.Count; i++)
             {
-                channels[i] = new AnimationDataChannel(skeleton, flexControllers, userNames, dataChannelArrayKV[i]);
+                dataChannels[i] = new AnimationDataChannel(skeleton, flexControllers, userNames, dataChannelArrayKV[i]);
             }
 
-            return channels;
-        });
+            var segments = animationData.GetArray("m_segmentArray");
+            var unhandledDecoders = new HashSet<string>();
+            decoders = new AnimationSegmentDecoder?[segments.Count];
 
-        private AnimationSegmentDecoder? Build(int index)
+            for (var i = 0; i < decoders.Length; i++)
+            {
+                decoders[i] = Build(segments[i], decoderNames, dataChannels, unhandledDecoders);
+            }
+        }
+
+        /// <summary>
+        /// Gets the decoder of a segment, or <see langword="null"/> when its decoder or channel is not supported.
+        /// </summary>
+        public AnimationSegmentDecoder? Get(long index) => decoders[index];
+
+        private static AnimationSegmentDecoder? Build(KVObject segmentKV, string[] decoderNames, AnimationDataChannel[] dataChannels, HashSet<string> unhandledDecoders)
         {
-            var segmentKV = segmentKVs[index];
             var container = segmentKV.GetArray<byte>("m_container");
             var containerSpan = container.AsSpan();
-            var localChannel = DataChannels[segmentKV.GetInt32Property("m_nLocalChannel")];
+            var localChannel = dataChannels[segmentKV.GetInt32Property("m_nLocalChannel")];
 
             // Read header
-            var decoderName = DecoderNames[BitConverter.ToInt16(containerSpan[0..2])];
+            var decoderName = decoderNames[BitConverter.ToInt16(containerSpan[0..2])];
             //var cardinality = BitConverter.ToInt16(containerSpan[2..4]);
             var numElements = BitConverter.ToInt16(containerSpan[4..6]);
             //var totalLength = BitConverter.ToInt16(containerSpan[6..8]);
@@ -123,14 +90,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             if (decoder == null)
             {
-                lock (unhandledDecodersLock)
+                if (unhandledDecoders.Add(decoderName))
                 {
-                    unhandledDecoders ??= [];
-
-                    if (unhandledDecoders.Add(decoderName))
-                    {
-                        Console.Error.WriteLine($"Unhandled animation bone decoder type '{decoderName}' for attribute '{localChannel.Attribute}'");
-                    }
+                    Console.Error.WriteLine($"Unhandled animation bone decoder type '{decoderName}' for attribute '{localChannel.Attribute}'");
                 }
 
                 return null;

@@ -76,7 +76,7 @@ namespace ValveResourceFormat.ResourceTypes
         public Dictionary<string, byte[]> DynamicTextureParams { get; } = [];
 
         /// <summary>
-        /// Gets the render attributes that the compiled expressions refer to by index.
+        /// Gets the render attributes that the compiled expressions might have used.
         /// </summary>
         public string[] RenderAttributesUsed { get; private set; } = [];
 
