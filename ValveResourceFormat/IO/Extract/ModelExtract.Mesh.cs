@@ -80,6 +80,12 @@ partial class ModelExtract
         /// <c>cloth_enable</c> paint instead.
         /// </summary>
         internal bool ReconstructCloth { get; init; }
+
+        /// <summary>
+        /// Whether a morph set without morph targets is left out because the model writes its controllers and
+        /// rules as <c>MorphControl</c> and <c>MorphRule</c> nodes.
+        /// </summary>
+        internal bool SkipEmptyMorphSet { get; init; }
     }
 
     /// <summary>
@@ -198,6 +204,7 @@ partial class ModelExtract
             SplitDrawCallsIntoSeparateSubmeshes = true,
             BoneRemapTable = boneRemapTable,
             Skeleton = skeleton,
+            SkipEmptyMorphSet = extract.MorphSetForControlNodes != null,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -275,6 +282,7 @@ partial class ModelExtract
             BoneRemapTable = options.BoneRemapTable,
             SkeletonRoot = skeletonRoot,
             Cloth = options.ReconstructCloth ? ClothRenderBinding.Create(options.Skeleton, options.ClothSurface) : null,
+            SkipEmptyMorphSet = options.SkipEmptyMorphSet,
         });
     }
 

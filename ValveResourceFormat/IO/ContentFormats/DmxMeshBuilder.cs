@@ -36,6 +36,9 @@ internal readonly record struct DmxMeshBuildOptions
 
     /// <summary>The cloth proxy bones the mesh is skinned to, written back as <c>cloth_enable</c> paint.</summary>
     public ClothRenderBinding? Cloth { get; init; }
+
+    /// <summary>Leave out a morph set without morph targets, whose controllers and rules the model writes itself.</summary>
+    public bool SkipEmptyMorphSet { get; init; }
 }
 
 /// <summary>
@@ -476,14 +479,14 @@ internal static class DmxMeshBuilder
 
         DmxScaffolding.TieElementRoot(datamodel, dmeModel);
 
-        if (mesh.MorphData != null)
+        if (mesh.MorphData is { } morph && (morph.HasMorphTargets || !options.SkipEmptyMorphSet))
         {
             var morphTargets = dmeVertexBuffers
                 .Select(pair => ((DmeMesh)pair.Value.Dag.Shape!, morphVertexOffsets[pair.Key],
                     (int)(merged?.Buffer.ElementCount ?? mbuf.VertexBuffers[pair.Key.Item1].ElementCount)))
                 .ToList();
 
-            AddMorphData(datamodel, mesh.MorphData, morphTargets);
+            AddMorphData(datamodel, morph, morphTargets);
         }
 
         return datamodel;
