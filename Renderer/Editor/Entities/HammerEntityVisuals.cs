@@ -27,6 +27,12 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     private static readonly Color32 ConnectionStartColor = new(0, 255, 0);
     private static readonly Color32 ConnectionEndColor = new(255, 0, 0);
 
+    /// <summary>
+    /// Gets the entities that are drawn by geometry of their own which their keyvalues do not name, such as
+    /// the meshes of a brush entity in a map that is not compiled. These get no stand-in.
+    /// </summary>
+    public HashSet<EntityLump.Entity> EntitiesWithGeometry { get; } = [];
+
     /// <inheritdoc/>
     public IEnumerable<string> GetResourcesToPreload(string classname) => HammerEntities.Get(classname)?.Icons ?? [];
 
@@ -34,7 +40,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     /// <exception cref="InvalidDataException">The Hammer class names an icon of a type not handled here.</exception>
     public SceneNode? CreateStandIn(BaseEntity entity, ObjectTypeFlags flags)
     {
-        if (entity.Data is not { } data)
+        if (entity.Data is not { } data || EntitiesWithGeometry.Contains(data))
         {
             return null;
         }

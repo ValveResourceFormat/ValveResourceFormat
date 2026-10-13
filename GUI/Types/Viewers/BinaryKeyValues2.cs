@@ -13,8 +13,7 @@ namespace GUI.Types.Viewers
 
         public static bool IsAccepted(uint magic, string fileName)
         {
-            return magic == MAGIC && (fileName.EndsWith(".dmx", StringComparison.OrdinalIgnoreCase) ||
-                                      fileName.EndsWith(".vmap", StringComparison.OrdinalIgnoreCase));
+            return magic == MAGIC && fileName.EndsWith(".dmx", StringComparison.OrdinalIgnoreCase);
         }
 
         public async Task LoadAsync(Stream? input)

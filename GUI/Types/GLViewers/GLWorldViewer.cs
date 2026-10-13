@@ -32,7 +32,7 @@ namespace GUI.Types.GLViewers
         private readonly World? world;
         private readonly WorldNode? worldNode;
         private readonly ResourceExtRefList? mapExternalReferences;
-        private CheckedListBox? worldLayersComboBox;
+        protected CheckedListBox? worldLayersComboBox;
         private CheckedListBox? physicsGroupsComboBox;
         private ComboBox? cameraComboBox;
         private SavedCameraPositionsControl? savedCameraPositionsControl;
@@ -95,6 +95,11 @@ namespace GUI.Types.GLViewers
         {
             this.worldNode = worldNode;
             mapExternalReferences = externalReferences;
+        }
+
+        protected GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext)
+            : base(vrfGuiContext, rendererContext)
+        {
         }
 
         public override void Dispose()
@@ -220,20 +225,25 @@ namespace GUI.Types.GLViewers
 
             if (worldNode != null)
             {
-                base.LoadDefaultLighting();
-
-                Scene.LightingInfo.CubemapType = CubemapType.None; // default envmap actually looks bad
-                Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
-                Scene.LightingInfo.SunLightShadowCoverageScale = 2f;
-
-                var post = new ScenePostProcessVolume(Scene)
-                {
-                    HasBloom = true,
-                    IsMaster = true,
-                };
-
-                Scene.PostProcessInfo.AddPostProcessVolume(post);
+                LoadUnbakedLighting();
             }
+        }
+
+        protected void LoadUnbakedLighting()
+        {
+            base.LoadDefaultLighting();
+
+            Scene.LightingInfo.CubemapType = CubemapType.None; // default envmap actually looks bad
+            Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
+            Scene.LightingInfo.SunLightShadowCoverageScale = 2f;
+
+            var post = new ScenePostProcessVolume(Scene)
+            {
+                HasBloom = true,
+                IsMaster = true,
+            };
+
+            Scene.PostProcessInfo.AddPostProcessVolume(post);
         }
 
         protected override void LoadScene()
@@ -964,7 +974,7 @@ namespace GUI.Types.GLViewers
             return entityInfoForm;
         }
 
-        private List<EntityLump.Entity> GetLinkableEntities()
+        protected virtual List<EntityLump.Entity> GetLinkableEntities()
         {
             if (LoadedWorld == null)
             {
@@ -1166,7 +1176,7 @@ namespace GUI.Types.GLViewers
             });
         }
 
-        private void SetAvailableLayers(IEnumerable<string> worldLayers)
+        protected void SetAvailableLayers(IEnumerable<string> worldLayers)
         {
             Debug.Assert(worldLayersComboBox != null);
 

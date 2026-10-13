@@ -564,8 +564,9 @@ namespace ValveResourceFormat.Renderer
         /// <param name="vertexIndexBuffers">Vertex and index buffer data to upload.</param>
         /// <param name="bounds">Bounding box of the mesh.</param>
         /// <param name="renderContext">Renderer context for uploading buffers.</param>
-        /// <returns>A new <see cref="RenderableMesh"/> with one opaque draw call.</returns>
-        public static RenderableMesh CreateMesh(string name, RenderMaterial material, VBIB vertexIndexBuffers, AABB bounds, RendererContext renderContext)
+        /// <param name="sortByMaterial">Whether the draw call goes with the overlays or the blended ones when its material is one, rather than always with the opaque ones.</param>
+        /// <returns>A new <see cref="RenderableMesh"/> with one draw call, reading from every vertex buffer of the data.</returns>
+        public static RenderableMesh CreateMesh(string name, RenderMaterial material, VBIB vertexIndexBuffers, AABB bounds, RendererContext renderContext, bool sortByMaterial = false)
         {
             var mesh = new RenderableMesh(name, bounds, renderContext);
             var gpuVbib = renderContext.MeshBufferCache.CreateVertexIndexBuffers(name, vertexIndexBuffers);
@@ -586,12 +587,12 @@ namespace ValveResourceFormat.Renderer
 
                 VertexBuffers =
                 [
-                    new VertexDrawBuffer()
+                    .. vertexIndexBuffers.VertexBuffers.Select((buffer, index) => new VertexDrawBuffer()
                     {
-                        Handle = gpuVbib.VertexBuffers[0],
-                        ElementSizeInBytes = vb.ElementSizeInBytes,
-                        InputLayoutFields = vb.InputLayoutFields,
-                    }
+                        Handle = gpuVbib.VertexBuffers[index],
+                        ElementSizeInBytes = buffer.ElementSizeInBytes,
+                        InputLayoutFields = buffer.InputLayoutFields,
+                    })
                 ],
 
                 IndexBuffer = new IndexDrawBuffer()
@@ -600,7 +601,15 @@ namespace ValveResourceFormat.Renderer
                 }
             };
 
-            mesh.DrawCallsOpaque.Add(drawCall);
+            if (sortByMaterial)
+            {
+                mesh.AddDrawCall(drawCall, isAggregate: false);
+            }
+            else
+            {
+                mesh.DrawCallsOpaque.Add(drawCall);
+            }
+
             return mesh;
         }
     }

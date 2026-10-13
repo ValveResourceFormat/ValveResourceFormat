@@ -820,29 +820,30 @@ public sealed partial class MapExtract
         static int TotalMapMeshSize(CMapMesh mesh)
         {
             var meshSize = 0;
+            var meshData = mesh.MeshData!;
             // face-vertices
-            GetTotalDataStreamSizes(mesh.MeshData.FaceVertexData.Streams, ref meshSize);
+            GetTotalDataStreamSizes(meshData.FaceVertexData.Streams, ref meshSize);
 
             // vertices
-            meshSize += GetArraySize(mesh.MeshData.VertexEdgeIndices);
-            meshSize += GetArraySize(mesh.MeshData.VertexDataIndices);
-            GetTotalDataStreamSizes(mesh.MeshData.VertexData.Streams, ref meshSize);
+            meshSize += GetArraySize(meshData.VertexEdgeIndices);
+            meshSize += GetArraySize(meshData.VertexDataIndices);
+            GetTotalDataStreamSizes(meshData.VertexData.Streams, ref meshSize);
 
             // edges
-            meshSize += GetArraySize(mesh.MeshData.EdgeVertexIndices)
-                + GetArraySize(mesh.MeshData.EdgeDataIndices)
-                + GetArraySize(mesh.MeshData.EdgeOppositeIndices)
-                + GetArraySize(mesh.MeshData.EdgeNextIndices)
-                + GetArraySize(mesh.MeshData.EdgeFaceIndices)
-                + GetArraySize(mesh.MeshData.EdgeDataIndices)
-                + GetArraySize(mesh.MeshData.EdgeVertexDataIndices);
-            GetTotalDataStreamSizes(mesh.MeshData.EdgeData.Streams, ref meshSize);
+            meshSize += GetArraySize(meshData.EdgeVertexIndices)
+                + GetArraySize(meshData.EdgeDataIndices)
+                + GetArraySize(meshData.EdgeOppositeIndices)
+                + GetArraySize(meshData.EdgeNextIndices)
+                + GetArraySize(meshData.EdgeFaceIndices)
+                + GetArraySize(meshData.EdgeDataIndices)
+                + GetArraySize(meshData.EdgeVertexDataIndices);
+            GetTotalDataStreamSizes(meshData.EdgeData.Streams, ref meshSize);
 
             // faces
-            meshSize += GetArraySize(mesh.MeshData.FaceEdgeIndices);
-            meshSize += GetArraySize(mesh.MeshData.FaceDataIndices);
-            meshSize += GetArraySize(mesh.MeshData.Materials);
-            GetTotalDataStreamSizes(mesh.MeshData.FaceData.Streams, ref meshSize);
+            meshSize += GetArraySize(meshData.FaceEdgeIndices);
+            meshSize += GetArraySize(meshData.FaceDataIndices);
+            meshSize += GetArraySize(meshData.Materials);
+            GetTotalDataStreamSizes(meshData.FaceData.Streams, ref meshSize);
             return meshSize;
         }
 
@@ -1338,7 +1339,7 @@ public sealed partial class MapExtract
 
         foreach (var mesh in candidates)
         {
-            var positions = mesh.MeshData.VertexData.Streams.OfType<CDmePolygonMeshDataStream>().FirstOrDefault(s => s.Name == "position:0")?.Data as Datamodel.Array<Vector3>;
+            var positions = mesh.MeshData!.VertexData.Streams.OfType<CDmePolygonMeshDataStream>().FirstOrDefault(s => s.Name == "position:0")?.Data as Datamodel.Array<Vector3>;
             if (positions is null)
             {
                 continue;
@@ -1652,7 +1653,7 @@ public sealed partial class MapExtract
         }
 
         static bool IsPhysicsMesh(CMapMesh mesh)
-            => mesh.MeshData.Materials.Count > 0 && mesh.MeshData.Materials.All(m =>
+            => mesh.MeshData is { Materials.Count: > 0 } meshData && meshData.Materials.All(m =>
                 m.Contains("/_vrf/physics_surfaces/", StringComparison.Ordinal) || m.StartsWith("materials/tools/", StringComparison.Ordinal));
 
         // inside the polygon in the plane, or within the tolerance of one of its edges
@@ -1932,12 +1933,6 @@ public sealed partial class MapExtract
         void SetTintAlpha(BaseEntity entity, Vector4 tint)
         {
             var color32 = ConvertToColor32(tint);
-            if (entity is CMapInstance instance)
-            {
-                instance.TintColor = color32;
-                return;
-            }
-
             entity.EntityProperties["rendercolor"] = $"{color32.R} {color32.G} {color32.B}";
             entity.EntityProperties["renderamt"] = color32.A.ToString(CultureInfo.InvariantCulture);
         }

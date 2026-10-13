@@ -251,7 +251,7 @@ namespace ValveResourceFormat.Renderer
         private VertexDrawBuffer[] AddMissingAttributes(VertexDrawBuffer[] vertexBuffers)
         {
             // Shaders read white where a mesh has no COLOR stream, matching the engine default
-            if (!vertexBuffers.Any(vb => vb.InputLayoutFields.Any(f => f.SemanticName == "COLOR")))
+            if (!vertexBuffers.Any(vb => vb.InputLayoutFields.Any(f => f.SemanticName == "COLOR" && f.SemanticIndex == 0)))
             {
                 var defaultColor = new VertexDrawBuffer
                 {
