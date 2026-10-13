@@ -10,7 +10,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimDesc">CAnimDesc</seealso>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CSeqS1SeqDesc">CSeqS1SeqDesc</seealso>
-    public sealed class SequenceAnimation : Animation
+    public sealed class SequenceAnimation : AnimationBase
     {
         /// <summary>
         /// Gets a value indicating whether the animation loops.

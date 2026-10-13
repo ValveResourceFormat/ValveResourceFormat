@@ -2,7 +2,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     /// <summary>
     /// An event on an animation timeline, sampled by the player as it advances a clip. Implemented by
-    /// <see cref="AnimationEvent"/> for sequences and by <see cref="ModelAnimation2.NmClipEvent"/> for
+    /// <see cref="AnimationEvent"/> for sequences and by <see cref="Animation.Event"/> for
     /// animation graph clips, which author their event times in different units but both carry a cycle.
     /// </summary>
     public interface IAnimationEvent

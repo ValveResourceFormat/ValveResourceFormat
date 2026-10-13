@@ -3,7 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Represents a model animation that can be sampled per frame.
     /// </summary>
-    public abstract class Animation
+    public abstract class AnimationBase
     {
         /// <summary>
         /// Gets the name of the animation.

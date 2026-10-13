@@ -147,13 +147,13 @@ partial class ModelExtract
     /// <summary>
     /// Converts an animation to DMX format.
     /// </summary>
-    public static byte[] ToDmxAnim(Model model, Animation anim)
+    public static byte[] ToDmxAnim(Model model, AnimationBase anim)
         => ToDmxAnim(model.Skeleton, model.FlexControllers, anim);
 
     /// <summary>
     /// Converts an animation to DMX format using skeleton and flex controllers.
     /// </summary>
-    public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim, bool nmSkelAxisFixup = false)
+    public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, AnimationBase anim, bool nmSkelAxisFixup = false)
         => ToDmxAnim(skeleton, flexControllers, anim, [], nmSkelAxisFixup);
 
     /// <summary>
@@ -161,16 +161,16 @@ partial class ModelExtract
     /// (an NM clip's tracks for further skeletons, e.g. the weapon of a viewmodel clip) are written
     /// into the same DMX, their joints appended beside the primary skeleton's.
     /// </summary>
-    public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim,
-        IReadOnlyList<(Skeleton Skeleton, Animation Animation)> secondaryAnimations, bool nmSkelAxisFixup = false)
+    public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, AnimationBase anim,
+        IReadOnlyList<(Skeleton Skeleton, AnimationBase Animation)> secondaryAnimations, bool nmSkelAxisFixup = false)
         => ToDmxAnim(skeleton, flexControllers, anim, secondaryAnimations, nmSkelAxisFixup, keepClothProxyBones: true);
 
     /// <summary>
     /// Converts an animation to DMX format. Generated cloth proxy bones are written as ordinary joints only when
     /// <paramref name="keepClothProxyBones"/> is set.
     /// </summary>
-    internal static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim,
-        IReadOnlyList<(Skeleton Skeleton, Animation Animation)> secondaryAnimations, bool nmSkelAxisFixup, bool keepClothProxyBones)
+    internal static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, AnimationBase anim,
+        IReadOnlyList<(Skeleton Skeleton, AnimationBase Animation)> secondaryAnimations, bool nmSkelAxisFixup, bool keepClothProxyBones)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
 
@@ -306,10 +306,10 @@ partial class ModelExtract
     /// is skipped, since extracting motion from it on recompile would turn the root bone's sway into
     /// real movement.
     /// </summary>
-    private static bool ShouldExtractMotion(Animation anim)
+    private static bool ShouldExtractMotion(AnimationBase anim)
         => anim.HasMovementData() && (anim is not SequenceAnimation sequence || sequence.HasNonZeroMovementData());
 
-    private static void ProcessRootMotionChannel(Animation anim, DmeModel skeleton, DmeChannelsClip clip)
+    private static void ProcessRootMotionChannel(AnimationBase anim, DmeModel skeleton, DmeChannelsClip clip)
     {
         if (!ShouldExtractMotion(anim))
         {
@@ -344,7 +344,7 @@ partial class ModelExtract
         clip.Channels.Add(rootOrientationChannel);
     }
 
-    private static void ProcessFlexChannels(FlexController[] flexControllers, Animation anim, DmeChannelsClip clip, Frame[] frames)
+    private static void ProcessFlexChannels(FlexController[] flexControllers, AnimationBase anim, DmeChannelsClip clip, Frame[] frames)
     {
         for (var flexId = 0; flexId < flexControllers.Length; flexId++)
         {
@@ -369,7 +369,7 @@ partial class ModelExtract
         }
     }
 
-    private static void ProcessBoneChannels(Skeleton skeleton, Animation anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames,
+    private static void ProcessBoneChannels(Skeleton skeleton, AnimationBase anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames,
         bool keepClothProxyBones)
     {
         var rootMotionBone = skeleton["root_motion"];

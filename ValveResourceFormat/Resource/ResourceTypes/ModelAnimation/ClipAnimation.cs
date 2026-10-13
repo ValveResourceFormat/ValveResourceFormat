@@ -5,7 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Represents a model animation backed by an animation graph clip.
     /// </summary>
-    public sealed class ClipAnimation : Animation
+    public sealed class ClipAnimation : AnimationBase
     {
         /// <summary>
         /// Gets the animation clip data for ModelAnimation2 format.
@@ -35,9 +35,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         /// <summary>
         /// Gets the events on this animation's timeline, ordered by start time. Times are in seconds.
-        /// Consumers filter for the event types they are interested in (e.g. <see cref="NmSoundEvent"/>).
+        /// Consumers filter for the event types they are interested in (e.g. <see cref="Animation.SoundEvent"/>).
         /// </summary>
-        public NmClipEvent[] Events => Clip.Events;
+        public Animation.Event[] Events => Clip.Events;
 
         /// <summary>
         /// A decoded clip bone is already the delta: clips store one for every bone, un-animated ones
