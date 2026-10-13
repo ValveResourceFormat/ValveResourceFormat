@@ -1,3 +1,4 @@
+using System.Globalization;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -20,6 +21,10 @@ namespace ValveResourceFormat.NavMesh
         /// <param name="fileLoader">The loader to read the presets file with.</param>
         /// <param name="presetName">The preset name stored in <see cref="NavMeshGenerationParams.HullPresetName"/>, or empty for the default preset.</param>
         /// <returns>The hull names, or an empty array when the game has no presets file or no such preset.</returns>
+        /// <remarks>
+        /// The game itself takes the preset from gameinfo, and skips names missing from <c>scripts/nav_hulls.vdata</c>
+        /// when numbering the hulls.
+        /// </remarks>
         public static string[] Read(IFileLoader fileLoader, string? presetName)
         {
             using var presets = fileLoader.LoadFile(PresetsFile);
@@ -38,6 +43,6 @@ namespace ValveResourceFormat.NavMesh
         /// Gets the name of a hull, or <c>hull N</c> when it is not named.
         /// </summary>
         public static string GetName(IReadOnlyList<string> hullNames, int hullIndex)
-            => hullIndex < hullNames.Count ? hullNames[hullIndex] : $"hull {hullIndex}";
+            => (uint)hullIndex < (uint)hullNames.Count ? hullNames[hullIndex] : string.Create(CultureInfo.InvariantCulture, $"hull {hullIndex}");
     }
 }

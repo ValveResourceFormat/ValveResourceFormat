@@ -23,7 +23,8 @@ namespace ValveResourceFormat.NavMesh
 
         /// <summary>
         /// Gets the vertices of the region where the hulls of both blocks overlap, in no particular order.
-        /// Blocks that only touch use the overlap of their hulls grown by 2 units.
+        /// Blocks that only touch use the overlap of their hulls grown by 2 units. A few transitions extend further
+        /// than both blocks.
         /// </summary>
         public Vector3[] Vertices { get; init; } = [];
     }
