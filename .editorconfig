@@ -292,3 +292,16 @@ dotnet_diagnostic.CA5390.severity = none # Do not hard-code encryption key
 # Test assemblies have no synchronization context to capture.
 [Tests/**.cs]
 dotnet_diagnostic.CA2007.severity = none # Consider calling ConfigureAwait on the awaited task
+
+# Generated from the schema, which describes more classes than the renderer reads.
+[ValveResourceFormat/Animation/Definitions/**.cs]
+dotnet_diagnostic.CA1812.severity = none # Avoid uninstantiated internal classes
+dotnet_diagnostic.CA1716.severity = none # Identifiers should not match keywords
+
+# Graph nodes and their data are named after what they are.
+[ValveResourceFormat/Animation/{Definitions,Runtime}/**.cs]
+dotnet_diagnostic.CS1591.severity = none # Missing XML comment for publicly visible type or member
+
+# Nodes and the structures they pass around keep their state in fields.
+[ValveResourceFormat/Animation/**.cs]
+dotnet_diagnostic.CA1051.severity = none # Do not declare visible instance fields

@@ -227,3 +227,6 @@ exceptions*.txt
 /docs/.vitepress/dist/
 /docs/.vitepress/cache/
 /docs/.vitepress/.temp/
+
+# Schema converter downloads
+Misc/SchemaConverter/cache/
