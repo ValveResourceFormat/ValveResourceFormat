@@ -37,6 +37,9 @@
     <None Include="..\Misc\Icons\source2viewer_dark.png" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Misc\SourceGenerators\SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
     <Using Include="ValveResourceFormat.Utils" />
   </ItemGroup>
 </Project>
