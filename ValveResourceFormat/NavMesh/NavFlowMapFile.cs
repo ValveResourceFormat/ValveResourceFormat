@@ -91,7 +91,8 @@ namespace ValveResourceFormat.NavMesh
         public int HullIndex { get; init; }
 
         /// <summary>
-        /// Gets the clusters of this hull, indexed by <see cref="NavFlowMapNode.Index"/>.
+        /// Gets the clusters of this hull. Connections and flow map entries refer to a cluster by its position in
+        /// this array.
         /// </summary>
         public NavFlowMapNode[] Nodes { get; init; } = [];
     }
@@ -102,7 +103,7 @@ namespace ValveResourceFormat.NavMesh
     public class NavFlowMapNode
     {
         /// <summary>
-        /// Gets the index of this cluster within its hull.
+        /// Gets the index this cluster was written with, which matches its position in <see cref="NavFlowMapHull.Nodes"/>.
         /// </summary>
         public int Index { get; init; }
 
@@ -122,8 +123,9 @@ namespace ValveResourceFormat.NavMesh
         public NavFlowMapConnection[] Connections { get; init; } = [];
 
         /// <summary>
-        /// Gets the precomputed route entries. Each entry packs a cluster index in its upper 12 bits and a 4-bit
-        /// value in its lower bits, where 15 means none.
+        /// Gets the next hop towards every cluster of the hull, run-length encoded. Each entry packs the first
+        /// destination cluster it covers in its upper 12 bits and an index into <see cref="Connections"/> in its
+        /// lower 4 bits, where 15 means unreachable. An entry covers every destination up to the start of the next one.
         /// </summary>
         public ushort[] FlowMap { get; init; } = [];
     }
