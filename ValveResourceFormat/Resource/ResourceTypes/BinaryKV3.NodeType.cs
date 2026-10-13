@@ -29,6 +29,8 @@ namespace ValveResourceFormat.ResourceTypes
             INT32_AS_BYTE = 23,
             ARRAY_TYPE_BYTE_LENGTH = 24,
             ARRAY_TYPE_AUXILIARY_BUFFER = 25,
+            UINT32_ZERO = 26,
+            UINT32_ONE = 27,
         }
     }
 }

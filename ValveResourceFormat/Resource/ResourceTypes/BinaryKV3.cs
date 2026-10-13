@@ -811,6 +811,10 @@ namespace ValveResourceFormat.ResourceTypes
                     return 0.0D;
                 case KV3BinaryNodeType.DOUBLE_ONE:
                     return 1.0D;
+                case KV3BinaryNodeType.UINT32_ZERO:
+                    return 0U;
+                case KV3BinaryNodeType.UINT32_ONE:
+                    return 1U;
 
                 // 1 byte values
                 case KV3BinaryNodeType.BOOLEAN:
