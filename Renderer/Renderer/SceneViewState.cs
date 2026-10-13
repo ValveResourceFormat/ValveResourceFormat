@@ -339,6 +339,11 @@ public sealed class SceneViewState : IDisposable
 
             if (node is MeshCollectionNode meshCollection)
             {
+                if ((node.RenderPasses & CustomRenderPasses.Default) == 0)
+                {
+                    continue;
+                }
+
                 foreach (var mesh in meshCollection.RenderableMeshes)
                 {
                     foreach (var call in mesh.DrawCallsOpaque)
