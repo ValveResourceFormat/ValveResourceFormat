@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
 using ValveResourceFormat;
+using ValveResourceFormat.Animation;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -20,7 +21,7 @@ namespace Tests.Renderer
             return new ClipAnimation((AnimationClip)resource.DataBlock!);
         }
 
-        private static SampledAnimationEvents<NmClipEvent> Sample(ClipAnimation animation, float previousTime, float newTime, bool finished = false)
+        private static SampledAnimationEvents<Event> Sample(ClipAnimation animation, float previousTime, float newTime, bool finished = false)
             => new(animation.Events, animation.Duration, previousTime, newTime, finished);
 
         // Event start times of the nova shoot clip, which is 0.8 seconds long
@@ -34,13 +35,13 @@ namespace Tests.Renderer
             using var resource = new Resource();
             var animation = LoadNovaShootAnimation(resource);
 
-            static float[] Sampled(SampledAnimationEvents<NmClipEvent> events)
+            static float[] Sampled(SampledAnimationEvents<Event> events)
             {
                 var times = new List<float>();
 
                 foreach (var clipEvent in events)
                 {
-                    times.Add(clipEvent.StartTime);
+                    times.Add(clipEvent.StartSeconds);
                 }
 
                 return [.. times];
@@ -69,7 +70,7 @@ namespace Tests.Renderer
             const int Loops = 5;
             const float TimeStep = 1 / 60f;
 
-            var fireCounts = new Dictionary<NmClipEvent, int>();
+            var fireCounts = new Dictionary<Event, int>();
 
             // Playback time keeps growing while looping, exactly like the animation player advances a clip.
             // The step ending on the final loop point fires the events at time zero again, so it is left out.
@@ -97,11 +98,11 @@ namespace Tests.Renderer
 
             using var skeletonResource = new Resource();
             skeletonResource.Read(TestFixtures.Path("ak47.vnmskel_c"));
-            var skeleton = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
+            var skeleton = ValveResourceFormat.ResourceTypes.ModelAnimation.Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
 
             var pose = new Matrix4x4[skeleton.Bones.Length];
             var player = new AnimationPlayer(skeleton, [], new Matrix4x4[skeleton.Bones.Length], pose);
-            var fired = new List<NmClipEvent>();
+            var fired = new List<Event>();
 
             player.ClipEventFired += fired.Add;
             player.SetAnimation(animation, blendTime: 0f, looping: true);
@@ -112,7 +113,7 @@ namespace Tests.Renderer
             fired.Clear();
             player.Update(0.15f, Matrix4x4.Identity);
 
-            await Assert.That(fired.Select(e => e.StartTime)).IsEquivalentTo(PumpSoundEvent, CollectionOrdering.Matching)
+            await Assert.That(fired.Select(e => e.StartSeconds)).IsEquivalentTo(PumpSoundEvent, CollectionOrdering.Matching)
                 .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
         }
     }

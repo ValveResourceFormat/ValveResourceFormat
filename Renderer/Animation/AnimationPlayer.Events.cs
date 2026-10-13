@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Renderer
         /// Raised for every event of an animation graph clip crossed while the player advances its clips.
         /// Consumers filter for the event types they handle.
         /// </summary>
-        public event Action<NmClipEvent>? ClipEventFired;
+        public event Action<Animation.Event>? ClipEventFired;
 
         /// <summary>
         /// Raised for every event of a sequence animation crossed while the player advances its clips.
@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Renderer
             {
                 var clipHandler = ClipEventFired;
 
-                foreach (var clipEvent in new SampledAnimationEvents<NmClipEvent>(clipAnimation.Events, duration, previousTime, newTime, finished))
+                foreach (var clipEvent in new SampledAnimationEvents<Animation.Event>(clipAnimation.Events, duration, previousTime, newTime, finished))
                 {
                     clipHandler?.Invoke(clipEvent);
                     PlayEventSound(clip, clipEvent, newTime, finished);
@@ -69,14 +69,14 @@ namespace ValveResourceFormat.Renderer
         private readonly record struct ActiveClipSound(
             Audio.SoundHandle Handle,
             PlaybackClip Clip,
-            NmSoundEvent Event,
+            Animation.SoundEvent Event,
             float FireTime);
 
         private readonly List<ActiveClipSound> activeClipSounds = [];
 
-        private void PlayEventSound(PlaybackClip clip, NmClipEvent clipEvent, float newTime, bool finished)
+        private void PlayEventSound(PlaybackClip clip, Animation.Event clipEvent, float newTime, bool finished)
         {
-            if (clipEvent is not NmSoundEvent soundEvent || soundEvent.Relevance == "ServerOnly")
+            if (clipEvent is not Animation.SoundEvent soundEvent || soundEvent.Relevance == Animation.EventRelevance.ServerOnly)
             {
                 return;
             }
@@ -84,18 +84,18 @@ namespace ValveResourceFormat.Renderer
             var duration = clip.Animation.Duration;
             var currentTime = duration > 0f ? newTime % duration : newTime;
 
-            var fireTime = finished && clipEvent.StartTime >= currentTime
+            var fireTime = finished && clipEvent.StartSeconds >= currentTime
                 ? newTime
-                : newTime - ((currentTime - clipEvent.StartTime + duration) % duration);
+                : newTime - ((currentTime - clipEvent.StartSeconds + duration) % duration);
 
-            // "EntityEyePos" is the listener itself, play it unspatialized; "EntityPos" plays at the entity
-            var position = soundEvent.Position == "EntityPos"
+            // The eye position is the listener itself, play it unspatialized; the entity position plays at the entity
+            var position = soundEvent.Position == Animation.SoundEvent.PositionType.EntityPos
                 ? ResolvePosition?.Invoke(soundEvent.AttachmentName)
                 : null;
 
             var handle = Sound.Play(soundEvent.Name, position);
 
-            if (handle.IsValid && soundEvent.Duration > 0f)
+            if (handle.IsValid && soundEvent.DurationSeconds > 0f)
             {
                 activeClipSounds.Add(new ActiveClipSound(handle, clip, soundEvent, fireTime));
             }
@@ -141,14 +141,14 @@ namespace ValveResourceFormat.Renderer
 
                 if (interrupted)
                 {
-                    if (elapsed < soundEvent.Duration * soundEvent.DurationInterruptionThreshold)
+                    if (elapsed < soundEvent.DurationSeconds * soundEvent.DurationInterruptionThreshold)
                     {
                         handle.Stop();
                     }
 
                     activeClipSounds.RemoveAt(i);
                 }
-                else if (elapsed >= soundEvent.Duration)
+                else if (elapsed >= soundEvent.DurationSeconds)
                 {
                     if (!soundEvent.ContinuePlayingSoundAtDurationEnd)
                     {
@@ -161,13 +161,13 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Pre-decodes every sound the animation's events can play. Call when the animation is loaded.</summary>
-        public static void PrewarmAnimationSounds(Animation animation)
+        public static void PrewarmAnimationSounds(AnimationBase animation)
         {
             PrewarmClipSounds(animation);
             PrewarmLegacyAnimationEventSounds(animation);
         }
 
-        private static void PrewarmClipSounds(Animation animation)
+        private static void PrewarmClipSounds(AnimationBase animation)
         {
             if (animation is not ClipAnimation clipAnimation)
             {
@@ -176,14 +176,14 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var clipEvent in clipAnimation.Events)
             {
-                if (clipEvent is NmSoundEvent soundEvent)
+                if (clipEvent is Animation.SoundEvent soundEvent)
                 {
                     Sound.Cache(soundEvent.Name);
                 }
             }
         }
 
-        private static void PrewarmLegacyAnimationEventSounds(Animation animation)
+        private static void PrewarmLegacyAnimationEventSounds(AnimationBase animation)
         {
             if (animation is not SequenceAnimation sequence)
             {
