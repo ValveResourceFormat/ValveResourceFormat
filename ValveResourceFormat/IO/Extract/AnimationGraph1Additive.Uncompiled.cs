@@ -49,6 +49,7 @@ namespace ValveResourceFormat.IO
         }
 
         // Walks down from an additive slot, gathering the sequence names of every sequence node it reaches.
+        // Subtract nodes derive the delta at runtime from absolute inputs, so sequences below them are skipped.
         private static void CollectSequenceNames(long nodeId, Dictionary<long, KVObject> nodesById, HashSet<long> visited, HashSet<string> result)
         {
             if (nodeId == InvalidNodeId || !visited.Add(nodeId) || !nodesById.TryGetValue(nodeId, out var node))
@@ -56,7 +57,14 @@ namespace ValveResourceFormat.IO
                 return;
             }
 
-            if (node.GetStringProperty("_class") == "CSequenceAnimNode")
+            var nodeClass = node.GetStringProperty("_class");
+
+            if (nodeClass == "CSubtractAnimNode")
+            {
+                return;
+            }
+
+            if (nodeClass == "CSequenceAnimNode")
             {
                 AddSequence(node.GetStringProperty("m_sequenceName"), result);
             }
