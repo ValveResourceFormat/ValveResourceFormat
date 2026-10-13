@@ -8,6 +8,7 @@ using System.Threading;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using Windows.Win32;
 using Windows.Win32.System.LibraryLoader;
 
@@ -253,6 +254,14 @@ namespace GUI
             }
 
             output.AppendLine(exception.ToString());
+
+            if (exception.Data[AnimationGraph.ExceptionDataKey] is string graphState)
+            {
+                output.AppendLine();
+                output.AppendLine(AnimationGraph.ExceptionDataKey + ":");
+                output.Append(graphState);
+            }
+
             output.AppendLine();
 
             output.Append("S2V ");

@@ -33,7 +33,7 @@ namespace GUI.Types.GLViewers
         protected SelectionSet Selection { get; } = new();
 
         /// <summary>Text drawn in the top-left corner of the viewport, such as stats for the selection.</summary>
-        protected string ScreenDebugText { get; set; } = string.Empty;
+        protected ValveResourceFormat.Renderer.TextRenderer.TextMemory ScreenDebugText { get; set; }
 
         protected QuadOverdraw? QuadOverdrawRenderer { get; set; }
 
@@ -699,6 +699,11 @@ namespace GUI.Types.GLViewers
             });
         }
 
+        /// <summary>Draws viewer specific lines over the scene, after the frame's camera is final.</summary>
+        protected virtual void RenderOverlayLines(Scene.RenderContext renderContext)
+        {
+        }
+
         protected void DrawWorldSpaceText(string text, float size, Vector3 position, Color32 color, Scene.RenderContext renderContext)
         {
             TextRenderer.AddTextBillboard(position, new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
@@ -822,6 +827,8 @@ namespace GUI.Types.GLViewers
 
             using (new GLDebugGroup("Lines Render"))
             {
+                RenderOverlayLines(renderContext);
+
                 if (showStaticOctree && Scene.StaticOctree.DebugRenderer != null)
                 {
                     Scene.StaticOctree.DebugRenderer.Render();
