@@ -19,7 +19,9 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.GenericData.CS2;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
+using Sound = ValveResourceFormat.ResourceTypes.Sound;
 
 namespace GUI.Types.Viewers
 {
