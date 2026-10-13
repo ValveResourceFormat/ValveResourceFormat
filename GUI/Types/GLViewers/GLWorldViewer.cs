@@ -215,7 +215,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 NavMeshSceneNode.AddNavNodesToScene(LoadedWorld.NavMesh, Scene);
-                CS2BombDamageSceneNode.AddBakedBombDamageToScene(LoadedWorld.BombDamage, Scene);
+                CS2BombDamageSceneNode.AddBakedBombDamageToScene(LoadedWorld.BombDamage, LoadedWorld.MapName, Scene);
 
                 if (LoadedWorld.CameraMatrices.Count > 0)
                 {

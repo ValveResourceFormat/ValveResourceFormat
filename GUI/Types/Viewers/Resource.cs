@@ -251,9 +251,9 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.VData:
-                    if (resource.DataBlock is BombDamage bombDamage)
+                    if (resource.DataBlock is BinaryKV3 dataBlock && BombDamage.FromDataBlock(dataBlock) is { } bombDamage)
                     {
-                        GLViewer = new GLBombDamageViewer(vrfGuiContext, rendererContext, bombDamage);
+                        GLViewer = new GLBombDamageViewer(vrfGuiContext, rendererContext, bombDamage, vrfGuiContext.FileName);
                         GLViewerTabName = "BOMB DAMAGE";
                     }
                     break;

@@ -1073,7 +1073,7 @@ namespace ValveResourceFormat.Renderer.World
             try
             {
                 using var bombDamageFile = RendererContext.FileLoader.LoadFile(bombDamagePath);
-                if (bombDamageFile?.DataBlock is BombDamage bombDamage)
+                if (bombDamageFile?.DataBlock is BinaryKV3 dataBlock && BombDamage.FromDataBlock(dataBlock) is { } bombDamage)
                 {
                     BombDamage = bombDamage;
                     RendererContext.Logger.LogInformation("Loaded CS2 baked bomb damage data from '{BakedBombDamagePath}'", bombDamagePath);

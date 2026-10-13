@@ -98,16 +98,15 @@ namespace Tests
         }
 
         [Test]
-        public async Task DeferredVDataIsSpecialized()
+        public async Task DeferredVDataParsesOnFirstUse()
         {
-            using var fullResource = Read("abilities_kv3_v5_zstd.vdata_c", ReadMode.Runtime);
-            using var partialResource = Read("abilities_kv3_v5_zstd.vdata_c");
+            using var fullResource = Read("deadlock_tracked_stats_player_staging_kv3_v5.vdata_c", ReadMode.Runtime);
+            using var partialResource = Read("deadlock_tracked_stats_player_staging_kv3_v5.vdata_c");
+            var dataBlock = partialResource.UnparsedBlocks.First(static block => block.Type == BlockType.DATA);
 
-            using (Assert.Multiple())
-            {
-                await Assert.That(partialResource.UnparsedBlocks.First(static block => block.Type == BlockType.DATA).IsRead).IsTrue();
-                await Assert.That(partialResource.DataBlock!.GetType()).IsEqualTo(fullResource.DataBlock!.GetType());
-            }
+            await Assert.That(dataBlock.IsRead).IsFalse();
+            await Assert.That(partialResource.DataBlock!.ToString()).IsEqualTo(fullResource.DataBlock!.ToString());
+            await Assert.That(dataBlock.IsRead).IsTrue();
         }
 
         [Test]
@@ -152,7 +151,7 @@ namespace Tests
 
             using var partialStream = File.OpenRead(TestFile("reflectivity_90b.vmat_c"));
             using var partialResource = new Resource();
-            partialResource.Read(partialStream, leaveOpen: true);
+            partialResource.Read(partialStream, leaveOpen: true, ReadMode.Deferred);
 
             using (Assert.Multiple())
             {

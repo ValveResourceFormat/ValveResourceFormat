@@ -8,11 +8,13 @@ namespace GUI.Types.GLViewers
     class GLBombDamageViewer : GLSceneLayerViewer
     {
         private readonly BombDamage bombDamageData;
+        private readonly string name;
 
-        public GLBombDamageViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, BombDamage bombDamageData)
+        public GLBombDamageViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, BombDamage bombDamageData, string name)
             : base(vrfGuiContext, rendererContext)
         {
             this.bombDamageData = bombDamageData;
+            this.name = name;
         }
 
         protected override string LayersControlName => "Bombsites";
@@ -22,7 +24,7 @@ namespace GUI.Types.GLViewers
 
         protected override void LoadScene()
         {
-            CS2BombDamageSceneNode.AddBakedBombDamageToScene(bombDamageData, Scene);
+            CS2BombDamageSceneNode.AddBakedBombDamageToScene(bombDamageData, name, Scene);
         }
     }
 }

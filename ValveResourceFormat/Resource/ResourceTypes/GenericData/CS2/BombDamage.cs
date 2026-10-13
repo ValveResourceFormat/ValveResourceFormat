@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.GenericData.CS2;
@@ -9,7 +9,7 @@ namespace ValveResourceFormat.ResourceTypes.GenericData.CS2;
 /// <summary>
 /// CS2 baked bomb damage data.
 /// </summary>
-public sealed class BombDamage : GenericData
+public sealed class BombDamage
 {
     /// <summary>
     /// The <c>generic_data_type</c> value identifying a baked bomb damage resource.
@@ -37,15 +37,26 @@ public sealed class BombDamage : GenericData
     /// </summary>
     public BombDamageDamageValue[] DamageValues { get; private set; } = [];
 
-    /// <summary>
-    /// Wraps an already-read <see cref="BinaryKV3"/> DATA block and parses the bomb damage payload from it.
-    /// </summary>
-    /// <param name="kv3">The KV3 DATA block that has already been read.</param>
-    [SetsRequiredMembers]
-    public BombDamage(BinaryKV3 kv3) : base(kv3)
+    private BombDamage(KVObject kvRoot)
     {
-        ParseData();
-        Data = null;
+        ParseData(kvRoot);
+    }
+
+    /// <summary>
+    /// Parses the bomb damage data from the DATA block of a vdata resource.
+    /// </summary>
+    /// <param name="dataBlock">The KV3 DATA block of a vdata resource.</param>
+    /// <returns>The bomb damage data, or <see langword="null"/> if the block holds other data.</returns>
+    public static BombDamage? FromDataBlock(BinaryKV3 dataBlock)
+    {
+        var kvRoot = dataBlock.Data.Root;
+
+        if (kvRoot.GetStringProperty("generic_data_type") != DataType)
+        {
+            return null;
+        }
+
+        return new BombDamage(kvRoot);
     }
 
     /// <summary>
@@ -88,10 +99,8 @@ public sealed class BombDamage : GenericData
         return Math.Clamp(damage, 0f, 255f);
     }
 
-    private void ParseData()
+    private void ParseData(KVObject kvRoot)
     {
-        var kvRoot = Data.Root;
-
         if (!kvRoot.ContainsKey("header") || !kvRoot.ContainsKey("data"))
         {
             throw new ArgumentException("Baked bomb damage resource does not contain expected KV3 data structure.");
