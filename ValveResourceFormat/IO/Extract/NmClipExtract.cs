@@ -43,7 +43,7 @@ public class NmClipExtract
 
         // Secondary animations (e.g. the weapon of a viewmodel clip) share the DMX; the compiler
         // pulls each declared skeleton's tracks out of it by bone name.
-        var secondaryAnimations = new List<(ResourceTypes.ModelAnimation.Skeleton Skeleton, ResourceTypes.ModelAnimation.Animation Animation)>();
+        var secondaryAnimations = new List<(ResourceTypes.ModelAnimation.Skeleton Skeleton, ResourceTypes.ModelAnimation.AnimationBase Animation)>();
         foreach (var secAnim in clip.SecondaryAnimations)
         {
             if (LoadSkeleton(secAnim.SkeletonName, skeletonSourceFiles) is { } secSkeleton)
@@ -101,11 +101,12 @@ public class NmClipExtract
             kv.Add("m_secondaryAnimationSkeletonNames", secondarySkeletonNames);
         }
 
-        var syncEventIds = clip.SyncTrack.Events.Select(static e => e.ID).Where(static id => !string.IsNullOrEmpty(id)).ToHashSet();
+        var syncEventIds = clip.SyncTrack.SyncEvents.Select(static e => e.ID.Name).Where(static id => !string.IsNullOrEmpty(id)).ToHashSet();
 
         var frameIntervalCount = Math.Max(0, animation.FrameCount - 1);
         var docEventTracks = KVObject.Array();
-        foreach (var ev in clip.Events.Select(static e => e.Data))
+        // The exported document mirrors the compiled event data key for key
+        foreach (var ev in ((KVObject)clip.Data).GetArray("m_events") ?? [])
         {
             var eventSyncId = ev.GetStringProperty("m_syncID", ev.GetStringProperty("m_ID", string.Empty));
             var isSyncTrack = syncEventIds.Contains(eventSyncId);

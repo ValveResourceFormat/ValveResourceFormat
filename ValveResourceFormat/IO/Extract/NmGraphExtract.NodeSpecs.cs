@@ -1,5 +1,7 @@
+using System.IO;
 using System.Linq;
 using ValveKeyValue;
+using ValveResourceFormat.Animation;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO;
@@ -8,23 +10,23 @@ public sealed partial class NmGraphExtract
 {
     private static readonly Dictionary<string, FlowNodeSpec> FlowNodeSpecs = new(StringComparer.Ordinal)
     {
-        ["Not"] = SimpleValueSpec("CNmGraphDocNotNode", [new PinDef("Not", "Bool")], "Bool", [Required("m_nInputValueNodeIdx", 0)]),
-        ["And"] = SimpleValueSpec(
+        ["Not"] = ValueSpec<NotNode>("CNmGraphDocNotNode", [new PinDef("Not", "Bool")], "Bool", static node => [node.InputValueNodeIdx]),
+        ["And"] = ValueSpec<AndNode>(
             "CNmGraphDocAndNode",
-            node => CreateRepeatedPins("And", "Bool", GetDynamicInputCount(node, "m_conditionNodeIndices", 2)),
+            static node => CreateRepeatedPins("And", "Bool", node.ConditionNodeIndices.Length),
             "Bool",
-            arrayConnections: [ArrayConnection("m_conditionNodeIndices", 0)]),
-        ["Or"] = SimpleValueSpec(
+            static node => [.. node.ConditionNodeIndices]),
+        ["Or"] = ValueSpec<OrNode>(
             "CNmGraphDocOrNode",
-            node => CreateRepeatedPins("Or", "Bool", GetDynamicInputCount(node, "m_conditionNodeIndices", 2)),
+            static node => CreateRepeatedPins("Or", "Bool", node.ConditionNodeIndices.Length),
             "Bool",
-            arrayConnections: [ArrayConnection("m_conditionNodeIndices", 0)]),
-        ["CachedBool"] = CachedValueSpec("CNmGraphDocCachedBoolNode", "Bool"),
-        ["CachedFloat"] = CachedValueSpec("CNmGraphDocCachedFloatNode", "Float"),
-        ["CachedID"] = CachedValueSpec("CNmGraphDocCachedIDNode", "ID"),
-        ["CachedTarget"] = CachedValueSpec("CNmGraphDocCachedTargetNode", "Target"),
-        ["CachedVector"] = CachedValueSpec("CNmGraphDocCachedVectorNode", "Vector"),
-        ["VectorCreate"] = SimpleValueSpec(
+            static node => [.. node.ConditionNodeIndices]),
+        ["CachedBool"] = ValueSpec<CachedBoolNode>("CNmGraphDocCachedBoolNode", [new PinDef("Value", "Bool")], "Bool", static node => [node.InputValueNodeIdx], static node => node.Mode),
+        ["CachedFloat"] = ValueSpec<CachedFloatNode>("CNmGraphDocCachedFloatNode", [new PinDef("Value", "Float")], "Float", static node => [node.InputValueNodeIdx], static node => node.Mode),
+        ["CachedID"] = ValueSpec<CachedIDNode>("CNmGraphDocCachedIDNode", [new PinDef("Value", "ID")], "ID", static node => [node.InputValueNodeIdx], static node => node.Mode),
+        ["CachedTarget"] = ValueSpec<CachedTargetNode>("CNmGraphDocCachedTargetNode", [new PinDef("Value", "Target")], "Target", static node => [node.InputValueNodeIdx], static node => node.Mode),
+        ["CachedVector"] = ValueSpec<CachedVectorNode>("CNmGraphDocCachedVectorNode", [new PinDef("Value", "Vector")], "Vector", static node => [node.InputValueNodeIdx], static node => node.Mode),
+        ["VectorCreate"] = ValueSpec<VectorCreateNode>(
             "CNmGraphDocVectorCreateNode",
             [
                 new PinDef("Vector", "Vector"),
@@ -33,15 +35,10 @@ public sealed partial class NmGraphExtract
                 new PinDef("Z", "Float"),
             ],
             "Vector",
-            [
-                Optional("m_inputVectorValueNodeIdx", 0),
-                Optional("m_inputValueXNodeIdx", 1),
-                Optional("m_inputValueYNodeIdx", 2),
-                Optional("m_inputValueZNodeIdx", 3),
-            ]),
-        ["VectorNegate"] = SimpleValueSpec("CNmGraphDocVectorNegateNode", [new PinDef("Vector", "Vector")], "Vector", [Required("m_nInputValueNodeIdx", 0)]),
-        ["IsTargetSet"] = SimpleValueSpec("CNmGraphDocIsTargetSetNode", [new PinDef("Target", "Target")], "Bool", [Required("m_nInputValueNodeIdx", 0)]),
-        ["BoneMaskBlend"] = SimpleValueSpec(
+            static node => [node.InputVectorValueNodeIdx, node.InputValueXNodeIdx, node.InputValueYNodeIdx, node.InputValueZNodeIdx]),
+        ["VectorNegate"] = ValueSpec<VectorNegateNode>("CNmGraphDocVectorNegateNode", [new PinDef("Vector", "Vector")], "Vector", static node => [node.InputValueNodeIdx]),
+        ["IsTargetSet"] = ValueSpec<IsTargetSetNode>("CNmGraphDocIsTargetSetNode", [new PinDef("Target", "Target")], "Bool", static node => [node.InputValueNodeIdx]),
+        ["BoneMaskBlend"] = ValueSpec<BoneMaskBlendNode>(
             "CNmGraphDocBoneMaskBlendNode",
             [
                 new PinDef("Blend Weight", "Float"),
@@ -49,12 +46,8 @@ public sealed partial class NmGraphExtract
                 new PinDef("Target", "BoneMask"),
             ],
             "BoneMask",
-            [
-                Required("m_nBlendWeightValueNodeIdx", 0),
-                Required("m_nSourceMaskNodeIdx", 1),
-                Required("m_nTargetMaskNodeIdx", 2),
-            ]),
-        ["Scale"] = SimpleValueSpec(
+            static node => [node.BlendWeightValueNodeIdx, node.SourceMaskNodeIdx, node.TargetMaskNodeIdx]),
+        ["Scale"] = ValueSpec<ScaleNode>(
             "CNmGraphDocScaleNode",
             [
                 new PinDef("Input", "Pose"),
@@ -62,25 +55,26 @@ public sealed partial class NmGraphExtract
                 new PinDef("Enable", "Bool"),
             ],
             "Pose",
-            [
-                Required("m_nChildNodeIdx", 0),
-                Optional("m_nMaskNodeIdx", 1),
-                Optional("m_nEnableNodeIdx", 2),
-            ]),
-        ["CurrentSyncEventID"] = SimpleValueSpec("CNmGraphDocCurrentSyncEventIDNode", [], "ID"),
-        ["CurrentSyncEventIndex"] = SimpleValueSpec("CNmGraphDocCurrentSyncEventNode", [], "Float", extraFields: [("m_infoType", "Index")]),
-        ["CurrentSyncEventPercentageThrough"] = SimpleValueSpec("CNmGraphDocCurrentSyncEventNode", [], "Float", extraFields: [("m_infoType", "PercentageThrough")]),
-        ["ZeroPose"] = SimplePoseSpec("CNmGraphDocZeroPoseNode"),
-        ["ReferencePose"] = SimplePoseSpec("CNmGraphDocReferencePoseNode"),
-        ["IsInactiveBranchCondition"] = SimpleValueSpec("CNmGraphDocIsInactiveBranchConditionNode", [], "Bool"),
-        ["StateCompletedCondition"] = SimpleValueSpec("CNmGraphDocStateCompletedConditionNode", [], "Bool"),
+            static node => [node.ChildNodeIdx, node.MaskNodeIdx, node.EnableNodeIdx]),
+        ["CurrentSyncEventID"] = SettingsSpec("CNmGraphDocCurrentSyncEventIDNode", "ID"),
+        ["CurrentSyncEvent"] = new(
+            "CNmGraphDocCurrentSyncEventNode",
+            static _ => [],
+            OutputPins("Float", allowMultipleOutConnections: true),
+            static _ => [],
+            [],
+            static node => [("m_infoType", Typed<CurrentSyncEventNode>(node).InfoType.ToString())]),
+        ["ZeroPose"] = SettingsSpec("CNmGraphDocZeroPoseNode", "Pose", allowMultipleOutConnections: false),
+        ["ReferencePose"] = SettingsSpec("CNmGraphDocReferencePoseNode", "Pose", allowMultipleOutConnections: false),
+        ["IsInactiveBranchCondition"] = SettingsSpec("CNmGraphDocIsInactiveBranchConditionNode", "Bool"),
+        ["StateCompletedCondition"] = SettingsSpec("CNmGraphDocStateCompletedConditionNode", "Bool"),
     };
 
-    private bool TryCreateFlowNodeFromSpec(string stem, int nodeIndex, KVObject compiledNode, out KVObject node)
+    private bool TryCreateFlowNodeFromSpec(string stem, int nodeIndex, out KVObject node)
     {
         if (FlowNodeSpecs.TryGetValue(stem, out var spec))
         {
-            node = spec.CreateNode(this, nodeIndex, compiledNode);
+            node = spec.CreateNode(this, nodeIndex, GetDefinition(nodeIndex));
             return true;
         }
 
@@ -88,86 +82,68 @@ public sealed partial class NmGraphExtract
         return false;
     }
 
-    private bool TryWireFlowNodeFromSpec(string stem, KVObject compiledNode, KVObject node, FlowGraphBuilder graphBuilder)
+    private bool TryWireFlowNodeFromSpec(string stem, int nodeIndex, KVObject node, FlowGraphBuilder graphBuilder)
     {
         if (!FlowNodeSpecs.TryGetValue(stem, out var spec))
         {
             return false;
         }
 
-        spec.WireInputs(this, compiledNode, node, graphBuilder);
+        spec.WireInputs(this, GetDefinition(nodeIndex), node, graphBuilder);
         return true;
     }
 
-    private static FlowNodeSpec SimplePoseSpec(string className)
-        => SimpleValueSpec(className, [], "Pose", allowMultipleOutConnections: false);
+    // A node with no inputs, described by its class alone
+    private static FlowNodeSpec SettingsSpec(string className, string outputType, bool allowMultipleOutConnections = true)
+        => new(className, static _ => [], OutputPins(outputType, allowMultipleOutConnections), static _ => [], [], null);
 
-    private static FlowNodeSpec CachedValueSpec(string className, string valueType)
-        => SimpleValueSpec(
-            className,
-            [new PinDef("Value", valueType)],
-            valueType,
-            [Required("m_nInputValueNodeIdx", 0)],
-            extraFieldsFactory: node => [("m_mode", GetOptionalString(node, "m_mode", "OnEntry"))]);
-
-    private static FlowNodeSpec SimpleValueSpec(
+    private static FlowNodeSpec ValueSpec<TNode>(
         string className,
         IReadOnlyList<PinDef> inputPins,
         string outputType,
-        IReadOnlyList<NodeInputConnection> inputConnections = null!,
-        IReadOnlyList<NodeInputArrayConnection> arrayConnections = null!,
-        bool allowMultipleOutConnections = true,
-        IReadOnlyList<(string Key, object Value)> extraFields = null!,
-        Func<KVObject, IReadOnlyList<(string Key, object Value)>>? extraFieldsFactory = null)
+        Func<TNode, int[]> inputs,
+        Func<TNode, CachedValueMode>? cachedMode = null)
+        where TNode : Animation.GraphNode
         => new(
             className,
             _ => inputPins,
-            [new PinDef(outputType == "Pose" ? "Pose" : "Result", outputType, AllowMultipleOutConnections: allowMultipleOutConnections)],
-            inputConnections ?? [],
-            arrayConnections ?? [],
-            extraFields ?? [],
-            extraFieldsFactory);
+            OutputPins(outputType, allowMultipleOutConnections: true),
+            node => inputs(Typed<TNode>(node)),
+            [],
+            cachedMode is null ? null : node => [("m_mode", cachedMode(Typed<TNode>(node)).ToString())]);
 
-    private static FlowNodeSpec SimpleValueSpec(
+    private static FlowNodeSpec ValueSpec<TNode>(
         string className,
-        Func<KVObject, IReadOnlyList<PinDef>> inputPinsFactory,
+        Func<TNode, IReadOnlyList<PinDef>> inputPinsFactory,
         string outputType,
-        IReadOnlyList<NodeInputConnection> inputConnections = null!,
-        IReadOnlyList<NodeInputArrayConnection> arrayConnections = null!,
-        bool allowMultipleOutConnections = true,
-        IReadOnlyList<(string Key, object Value)> extraFields = null!,
-        Func<KVObject, IReadOnlyList<(string Key, object Value)>>? extraFieldsFactory = null)
+        Func<TNode, int[]> inputs)
+        where TNode : Animation.GraphNode
         => new(
             className,
-            inputPinsFactory,
-            [new PinDef(outputType == "Pose" ? "Pose" : "Result", outputType, AllowMultipleOutConnections: allowMultipleOutConnections)],
-            inputConnections ?? [],
-            arrayConnections ?? [],
-            extraFields ?? [],
-            extraFieldsFactory);
+            node => inputPinsFactory(Typed<TNode>(node)),
+            OutputPins(outputType, allowMultipleOutConnections: true),
+            node => inputs(Typed<TNode>(node)),
+            [],
+            null);
 
-    private static NodeInputConnection Required(string fieldName, int inputIndex)
-        => new(fieldName, inputIndex, true);
+    private static PinDef[] OutputPins(string outputType, bool allowMultipleOutConnections)
+        => [new PinDef(outputType == "Pose" ? "Pose" : "Result", outputType, AllowMultipleOutConnections: allowMultipleOutConnections)];
 
-    private static NodeInputConnection Optional(string fieldName, int inputIndex)
-        => new(fieldName, inputIndex, false);
-
-    private static NodeInputArrayConnection ArrayConnection(string fieldName, int inputIndexOffset)
-        => new(fieldName, inputIndexOffset);
+    private static TNode Typed<TNode>(Animation.GraphNode? node) where TNode : Animation.GraphNode
+        => node as TNode ?? throw new InvalidDataException($"Expected a {typeof(TNode).Name}.");
 
     private sealed class FlowNodeSpec(
         string className,
-        Func<KVObject, IReadOnlyList<PinDef>> inputPinsFactory,
+        Func<Animation.GraphNode?, IReadOnlyList<PinDef>> inputPinsFactory,
         IReadOnlyList<PinDef> outputPins,
-        IReadOnlyList<NodeInputConnection> inputConnections,
-        IReadOnlyList<NodeInputArrayConnection> arrayConnections,
+        Func<Animation.GraphNode?, int[]> inputs,
         IReadOnlyList<(string Key, object Value)> extraFields,
-        Func<KVObject, IReadOnlyList<(string Key, object Value)>>? extraFieldsFactory)
+        Func<Animation.GraphNode?, IReadOnlyList<(string Key, object Value)>>? extraFieldsFactory)
     {
-        public KVObject CreateNode(NmGraphExtract owner, int nodeIndex, KVObject compiledNode)
+        public KVObject CreateNode(NmGraphExtract owner, int nodeIndex, Animation.GraphNode? definition)
         {
             var node = CreateBaseNode(className, MakeGuid(), owner.GetNodeName(nodeIndex));
-            node.Add("m_inputPins", MakePins(inputPinsFactory(compiledNode)));
+            node.Add("m_inputPins", MakePins(inputPinsFactory(definition)));
             node.Add("m_outputPins", MakePins(outputPins));
 
             foreach (var (key, value) in extraFields)
@@ -177,7 +153,7 @@ public sealed partial class NmGraphExtract
 
             if (extraFieldsFactory is not null)
             {
-                foreach (var (key, value) in extraFieldsFactory(compiledNode))
+                foreach (var (key, value) in extraFieldsFactory(definition))
                 {
                     AddValue(node, key, value);
                 }
@@ -186,28 +162,15 @@ public sealed partial class NmGraphExtract
             return node;
         }
 
-        public void WireInputs(NmGraphExtract owner, KVObject compiledNode, KVObject node, FlowGraphBuilder graphBuilder)
+        // Inputs connect in the order they are listed
+        public void WireInputs(NmGraphExtract owner, Animation.GraphNode? definition, KVObject node, FlowGraphBuilder graphBuilder)
         {
-            foreach (var connection in inputConnections)
-            {
-                var sourceIndex = connection.Required
-                    ? (int)compiledNode.GetInt64Property(connection.FieldName)
-                    : (int)compiledNode.GetInt64Property(connection.FieldName, -1);
-                owner.ConnectIfValid(sourceIndex, node, connection.InputIndex, graphBuilder);
-            }
+            var sourceIndices = inputs(definition);
 
-            foreach (var connection in arrayConnections)
+            for (var i = 0; i < sourceIndices.Length; i++)
             {
-                var sourceIndices = compiledNode.GetIntegerArray(connection.FieldName)?.Select(value => (int)value).ToArray() ?? [];
-                for (var i = 0; i < sourceIndices.Length; i++)
-                {
-                    owner.ConnectIfValid(sourceIndices[i], node, i + connection.InputIndexOffset, graphBuilder);
-                }
+                owner.ConnectIfValid(sourceIndices[i], node, i, graphBuilder);
             }
         }
     }
-
-    private readonly record struct NodeInputConnection(string FieldName, int InputIndex, bool Required);
-
-    private readonly record struct NodeInputArrayConnection(string FieldName, int InputIndexOffset);
 }
