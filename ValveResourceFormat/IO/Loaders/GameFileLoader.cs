@@ -136,7 +136,7 @@ namespace ValveResourceFormat.IO
         public GameFileLoader(Package? currentPackage, string? currentFileName, ILogger? logger = null)
         {
             CurrentPackage = currentPackage;
-            CurrentFileName = currentFileName;
+            CurrentFileName = GetGamePathForContentFile(currentFileName);
             Logger = logger ?? NullLogger.Instance;
 
             // Find gameinfo.gi by walking up from the current file, preload vpks and add folders to search paths
@@ -978,6 +978,31 @@ namespace ValveResourceFormat.IO
             {
                 AddAddonFolderToSearch(PreferredAddonFolderOnDisk, 0);
             }
+        }
+
+        // A source file sits under "content", beside the "game" folder holding what it compiles to, with the
+        // same folders below both. The game side is the one with the gameinfo and the compiled files.
+        private static string? GetGamePathForContentFile(string? fileName)
+        {
+            var directory = Path.GetDirectoryName(fileName);
+
+            while (!string.IsNullOrEmpty(directory))
+            {
+                var parent = Path.GetDirectoryName(directory);
+
+                if (parent != null && Path.GetFileName(directory).Equals("content", StringComparison.OrdinalIgnoreCase))
+                {
+                    var gameDirectory = Path.Join(parent, "game");
+
+                    return Directory.Exists(gameDirectory)
+                        ? Path.Join(gameDirectory, fileName![(directory.Length + 1)..])
+                        : fileName;
+                }
+
+                directory = parent;
+            }
+
+            return fileName;
         }
 
         private string? GetModIdentifierFile()
