@@ -992,11 +992,9 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                if (rebindProbes && node.LightProbeVolumePrecomputedHandshake == 0
-                    && LightingPosition(node) is var lightingPosition
-                    && (node.LightProbeBinding is not { } probe || !VolumeContains(probe, lightingPosition)))
+                if (rebindProbes && node.LightProbeVolumePrecomputedHandshake == 0)
                 {
-                    node.LightProbeBinding = ChooseLightProbeVolume(lightingPosition)!;
+                    node.LightProbeBinding = ChooseLightProbeVolume(LightingPosition(node))!;
                 }
 
                 objectDataCpu[node.Id] = ObjectEntry(node);
@@ -1943,12 +1941,6 @@ namespace ValveResourceFormat.Renderer
 
         internal IReadOnlyList<SceneLightProbe> ProbeAtlasVolumes
             => LightingInfo.LightProbeType == LightProbeType.ProbeAtlas && boundLightProbes != null ? (IReadOnlyList<SceneLightProbe>)boundLightProbes : [];
-
-        internal static bool VolumeContains(SceneLightProbe probe, Vector3 position)
-        {
-            return probe.BoundingBox.Contains(position)
-                && probe.LocalBoundingBox.Contains(Vector3.Transform(position, probe.WorldToLocal));
-        }
 
         /// <summary>
         /// Returns the environment map that best covers a position: one whose volume contains it, the
