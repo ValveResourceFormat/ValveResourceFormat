@@ -114,7 +114,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private List<Animation>? CachedAnimations;
+        private List<AnimationBase>? CachedAnimations;
         private KVObject? cachedKeyValues;
         private Skeleton? cachedSkeleton;
         private FlexController[]? cachedFlexControllers;
@@ -424,7 +424,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <param name="fileLoader">The file loader to use.</param>
         /// <returns>Enumerable of animations.</returns>
-        public IEnumerable<Animation> GetReferencedAnimations(IFileLoader fileLoader)
+        public IEnumerable<AnimationBase> GetReferencedAnimations(IFileLoader fileLoader)
         {
             var refAnimModels = Data.GetArray<string>("m_refAnimIncludeModels");
             if (refAnimModels == null || refAnimModels.Length == 0)
@@ -432,7 +432,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return [];
             }
 
-            var allAnims = new List<Animation>();
+            var allAnims = new List<AnimationBase>();
             foreach (var modelName in refAnimModels)
             {
                 if (string.IsNullOrEmpty(modelName))
@@ -499,26 +499,38 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <param name="fileLoader">The file loader to use.</param>
         /// <returns>Enumerable of all animations.</returns>
-        public IEnumerable<Animation> GetAllAnimations(IFileLoader fileLoader)
+        public IEnumerable<AnimationBase> GetAllAnimations(IFileLoader fileLoader)
+            => GetAllAnimations(fileLoader, includeAnimationGraphClips: true);
+
+        /// <summary>
+        /// Gets all animations from this model including embedded, referenced, and animation groups.
+        /// </summary>
+        /// <param name="fileLoader">The file loader to use.</param>
+        /// <param name="includeAnimationGraphClips">Whether to load the clips of the model's animation graphs too.</param>
+        /// <returns>Enumerable of all animations.</returns>
+        public IEnumerable<AnimationBase> GetAllAnimations(IFileLoader fileLoader, bool includeAnimationGraphClips)
         {
-            if (CachedAnimations != null)
+            if (CachedAnimations != null && includeAnimationGraphClips)
             {
                 return CachedAnimations;
             }
 
-            var animations = GetEmbeddedAnimations().ToList<Animation>();
+            var animations = GetEmbeddedAnimations().ToList<AnimationBase>();
 
             animations.AddRange(GetAnimationGroupAnimations(fileLoader));
 
-            // Animation graph (AG2) clips are part of the model's animation set.
-            var clipNames = IO.AnimationGraphLoader.GetClipNames(this, fileLoader);
-            var clips = IO.AnimationGraphLoader.LoadClips(clipNames, fileLoader);
-
-            foreach (var clipName in clipNames)
+            if (includeAnimationGraphClips)
             {
-                if (clips.TryGetValue(clipName, out var clip))
+                // Animation graph (AG2) clips are part of the model's animation set.
+                var clipNames = IO.AnimationGraphLoader.GetClipNames(this, fileLoader);
+                var clips = IO.AnimationGraphLoader.LoadClips(clipNames, fileLoader);
+
+                foreach (var clipName in clipNames)
                 {
-                    animations.Add(clip);
+                    if (clips.TryGetValue(clipName, out var clip))
+                    {
+                        animations.Add(clip);
+                    }
                 }
             }
 
@@ -548,9 +560,12 @@ namespace ValveResourceFormat.ResourceTypes
                 sequenceAnimation.IsAdditive |= additiveSequences.Contains(sequenceName);
             }
 
-            CachedAnimations = animations;
+            if (includeAnimationGraphClips)
+            {
+                CachedAnimations = animations;
+            }
 
-            return CachedAnimations;
+            return animations;
         }
 
         /// <summary>

@@ -34,31 +34,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     );
 
     /// <summary>
-    /// A named period of a sync track. Times are fractions of the clip.
-    /// </summary>
-    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmSyncTrack::Event_t">CNmSyncTrack::Event_t</seealso>
-    public readonly record struct SyncEvent(string ID, float StartTime, float Duration);
-
-    /// <summary>
-    /// Divides a clip into named periods. Clips of different lengths use this for aligning.
-    /// </summary>
-    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmSyncTrack">CNmSyncTrack</seealso>
-    public readonly record struct SyncTrack(SyncEvent[] Events, int StartEventOffset);
-
-    /// <summary>
-    /// The root motion of a clip, as the transform of the root on each frame.
-    /// </summary>
-    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmRootMotionData">CNmRootMotionData</seealso>
-    public readonly record struct RootMotionData
-    (
-        Transform[] Transforms,
-        int NumFrames,
-        float AverageLinearVelocity,
-        float AverageAngularVelocityRadians,
-        Transform TotalDelta
-    );
-
-    /// <summary>
     /// A link in the chain of bones that is evaluated to sample a bone in model space.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmClip::ModelSpaceSamplingChainLink_t">CNmClip::ModelSpaceSamplingChainLink_t</seealso>
@@ -117,9 +92,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
         /// <summary>
         /// Gets the events fired during playback of this clip, ordered by start time. Times are in seconds.
-        /// Consumers filter for the event types they are interested in (e.g. <see cref="NmSoundEvent"/>).
+        /// Consumers filter for the event types they are interested in (e.g. <see cref="Animation.SoundEvent"/>).
         /// </summary>
-        public NmClipEvent[] Events { get; private set; } = [];
+        public Animation.Event[] Events { get; private set; } = [];
 
         /// <summary>
         /// Gets the accumulated root motion per frame (position plus unwrapped yaw in degrees).
@@ -136,12 +111,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// <summary>
         /// Gets the sync track of the clip.
         /// </summary>
-        public SyncTrack SyncTrack { get; private set; } = new([], 0);
+        public Animation.SyncTrack SyncTrack { get; private set; } = Animation.SyncTrack.Default;
 
         /// <summary>
         /// Gets the root motion as stored, which <see cref="RootMotion"/> is derived from.
         /// </summary>
-        public RootMotionData RootMotionData { get; private set; } = new([], 0, 0f, 0f, Transform.Identity);
+        public Animation.RootMotionData RootMotionData { get; private set; } = Animation.RootMotionData.Empty;
 
         /// <summary>
         /// Gets the chain of bones evaluated to sample bones in model space.
@@ -178,12 +153,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
             if (clipData.GetSubCollection("m_rootMotion") is { } rootMotion)
             {
-                RootMotionData = new RootMotionData(
-                    [.. (rootMotion.GetArray("m_transforms") ?? []).Select(ReadTransform)],
-                    rootMotion.GetInt32Property("m_nNumFrames"),
-                    rootMotion.GetFloatProperty("m_flAverageLinearVelocity"),
-                    rootMotion.GetFloatProperty("m_flAverageAngularVelocityRadians"),
-                    rootMotion.TryGetValue("m_totalDelta", out var totalDelta) ? ReadTransform(totalDelta) : Transform.Identity);
+                RootMotionData = new Animation.RootMotionData(rootMotion);
             }
 
             var rootTransforms = RootMotionData.Transforms;
@@ -204,12 +174,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
             if (clipData.GetSubCollection("m_syncTrack") is { } syncTrack)
             {
-                SyncTrack = new SyncTrack(
-                    [.. (syncTrack.GetArray("m_syncEvents") ?? []).Select(static e => new SyncEvent(
-                        e.GetStringProperty("m_ID", string.Empty),
-                        e.GetSubCollection("m_startTime")?.GetFloatProperty("m_flValue") ?? 0f,
-                        e.GetSubCollection("m_duration")?.GetFloatProperty("m_flValue") ?? 0f))],
-                    syncTrack.GetInt32Property("m_nStartEventOffset"));
+                SyncTrack = new Animation.SyncTrack(syncTrack);
             }
 
             ModelSpaceSamplingChain = [.. (clipData.GetArray("m_modelSpaceSamplingChain") ?? []).Select(static link => new ModelSpaceSamplingChainLink(
@@ -223,11 +188,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             CompressedPoseData = clipData.GetArray<byte>("m_compressedPoseData");
 
             var events = clipData.GetArray("m_events") ?? [];
-            Events = new NmClipEvent[events.Count];
+            Events = new Animation.Event[events.Count];
 
             for (var eventIndex = 0; eventIndex < events.Count; eventIndex++)
             {
-                Events[eventIndex] = NmClipEvent.Build(events[eventIndex], Duration);
+                Events[eventIndex] = Animation.Event.Create(events[eventIndex], Duration);
             }
 
             CompressedPoseOffsets = clipData.GetIntegerArray("m_compressedPoseOffsets");

@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
@@ -9,10 +10,76 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Utils
 {
     /// <summary>
-    /// Provides utilities for string token hashing and inverse lookup.
+    /// String token, also known as global symbol, is a 32-bit hash of a string.
+    /// The string can be interned into a global table, for later retrieval.
     /// </summary>
-    public static class StringToken
+    public readonly struct StringToken : IEquatable<StringToken>
     {
+        /// <summary>The name the token was hashed from, empty when unset.</summary>
+        public string Name => Token == 0 ? string.Empty : StringToken.GetKnownString(Token);
+        /// <summary>The hashed token.</summary>
+        public uint Token { get; }
+
+        /// <summary>Hashes and records a name. An empty name is unset.</summary>
+        public StringToken(string name)
+        {
+            // An empty name is the unset symbol rather than the hash of nothing
+            Token = name.Length == 0 ? 0 : StringToken.Store(name);
+        }
+
+        /// <summary>Hashes a name without recording it, so it neither allocates nor touches the shared table. An empty name is unset.</summary>
+        public static StringToken Lookup(ReadOnlySpan<char> name) => name.IsEmpty ? default : new(StringToken.Get(name), allowUnknown: true);
+
+        /// <summary>Wraps a token, which must be known unless allowed otherwise.</summary>
+        public StringToken(uint token, bool allowUnknown = false)
+        {
+            Debug.Assert(
+                allowUnknown || StringToken.InvertedTable.ContainsKey(token),
+                $"Unknown symbol {token}."
+            );
+
+            Token = token;
+        }
+
+        /// <summary>Whether this symbol holds a stored token, as opposed to being unset.</summary>
+        public bool IsValid => Token != 0;
+
+        /// <inheritdoc/>
+        public override readonly string ToString() => Name;
+
+        /// <summary>Gets the token.</summary>
+        public static implicit operator uint(StringToken symbol) => symbol.Token;
+        /// <summary>Wraps a token, known or not.</summary>
+        public static implicit operator StringToken(uint token) => new(token, allowUnknown: true);
+        /// <summary>Hashes and records a name.</summary>
+        public static implicit operator StringToken(string name) => new(name);
+
+        /// <summary>Gets the token.</summary>
+        public uint ToUInt32() => Token;
+
+        /// <summary>Wraps a token, known or not.</summary>
+        public static StringToken FromUInt32(uint token) => new(token, allowUnknown: true);
+
+        /// <summary>Hashes and records a name.</summary>
+        public static StringToken FromString(string name) => new(name);
+
+        /// <inheritdoc/>
+        public bool Equals(StringToken other) => Token == other.Token;
+        /// <inheritdoc/>
+        public override int GetHashCode() => (int)Token;
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            Debug.Assert(false, $"Boxing operation on {nameof(StringToken)}. Can you avoid this?");
+            return obj is StringToken other && Equals(other);
+        }
+
+        /// <summary>Whether two symbols have the same token.</summary>
+        public static bool operator ==(StringToken left, StringToken right) => left.Equals(right);
+        /// <summary>Whether two symbols have different tokens.</summary>
+        public static bool operator !=(StringToken left, StringToken right) => !left.Equals(right);
+
 #if VRF_NO_GENERATOR_VERSION
         // Use the following command to avoid putting version in the dumps for stable git tracking of dumped files
         // dotnet build -p:DefineConstants=VRF_NO_GENERATOR_VERSION
