@@ -205,7 +205,8 @@ public partial class PlayerMovement : IPlayerController
     /// <summary>Gets a value indicating whether the player is climbing a ladder.</summary>
     public bool OnLadder { get; private set; }
 
-    private Vector3 LadderNormal;
+    /// <summary>Gets the normal of the ladder surface being climbed, pointing away from it.</summary>
+    public Vector3 LadderNormal { get; private set; }
     private float LadderJumpBlockRemaining;
 
     // A ladder just walked off the top of is grabbed again, but only after a ground move, not after a jump
