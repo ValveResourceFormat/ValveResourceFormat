@@ -119,6 +119,7 @@ namespace ValveResourceFormat.ResourceTypes
         private Skeleton? cachedSkeleton;
         private FlexController[]? cachedFlexControllers;
         private EmbeddedSequenceGroup? cachedSequenceGroup;
+        private SequenceAnimation[]? cachedEmbeddedAnimations;
         private List<ModelMesh>? cachedEmbeddedMeshes;
         private ModelLodInfo? cachedLodInfo;
         private BoneConstraint[]? cachedBoneConstraints;
@@ -396,7 +397,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets embedded animations from the model.
         /// </summary>
         /// <returns>Enumerable of animations.</returns>
-        public IEnumerable<SequenceAnimation> GetEmbeddedAnimations() => GetEmbeddedAnimations(Skeleton, FlexControllers);
+        public IEnumerable<SequenceAnimation> GetEmbeddedAnimations()
+            => cachedEmbeddedAnimations ??= [.. GetEmbeddedAnimations(Skeleton, FlexControllers)];
 
         /// <summary>
         /// Gets embedded animations from the model, with remap tables built for the provided skeleton and flex controllers.
