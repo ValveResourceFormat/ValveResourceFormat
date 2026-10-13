@@ -1,5 +1,6 @@
 using System.IO;
 using ValveKeyValue;
+using ValveResourceFormat.Animation;
 using ValveResourceFormat.Graphs;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -162,8 +163,7 @@ public sealed partial class NmGraphExtract
         public int TargetStateNodeIndex { get; init; }
         public int ConditionNodeIndex { get; init; }
         public int TransitionNodeIndex { get; init; }
-        public KVObject CompiledTransitionNode { get; init; } = null!;
-        public KVObject StateMachineTransition { get; init; } = null!;
+        public TransitionNode TransitionNode { get; init; } = null!;
         public bool CanBeForced { get; init; }
     }
 }
