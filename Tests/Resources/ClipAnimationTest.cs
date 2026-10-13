@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
 using ValveResourceFormat;
+using ValveResourceFormat.Animation;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
@@ -63,7 +64,7 @@ namespace Tests.Resources
 
             using var skeletonResource = new Resource();
             skeletonResource.Read(TestFixtures.Path("ak47.vnmskel_c"));
-            var skeleton = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
+            var skeleton = ValveResourceFormat.ResourceTypes.ModelAnimation.Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
 
             var animation = new ClipAnimation(clip);
             var frameCache = new AnimationFrameCache(skeleton, []);
@@ -111,8 +112,8 @@ namespace Tests.Resources
             using var resource = new Resource();
             var animation = LoadNovaShootAnimation(resource);
 
-            var soundEvent = animation.Events.OfType<NmSoundEvent>().Single();
-            var idEvent = animation.Events.OfType<NmIDEvent>().Single();
+            var soundEvent = animation.Events.OfType<SoundEvent>().Single();
+            var idEvent = animation.Events.OfType<IDEvent>().Single();
 
             using (Assert.Multiple())
             {
@@ -121,13 +122,13 @@ namespace Tests.Resources
 
                 // Times are stored normalized in the resource, they are exposed in seconds
                 await Assert.That(soundEvent.Name).IsEqualTo("Weapon_Nova.Pump_Q");
-                await Assert.That(soundEvent.StartTime).IsEqualTo(0.233333f).Within(0.0001f);
+                await Assert.That(soundEvent.StartSeconds).IsEqualTo(0.233333f).Within(0.0001f);
                 await Assert.That(soundEvent.DurationInterruptionThreshold).IsEqualTo(0.9f).Because("unset properties fall back to their engine default");
 
-                await Assert.That(idEvent.ID).IsEqualTo("WPN_BLOCK_INSPECT");
-                await Assert.That(idEvent.Duration).IsEqualTo(0.7f).Within(0.0001f);
+                await Assert.That(idEvent.ID.Name).IsEqualTo("WPN_BLOCK_INSPECT");
+                await Assert.That(idEvent.DurationSeconds).IsEqualTo(0.7f).Within(0.0001f);
 
-                await Assert.That(animation.Events.OfType<NmParticleEvent>().Last().ParticleSystemName).IsEqualTo("particles/weapons/cs_weapon_fx/weapon_shell_casing_shotgun_nova.vpcf");
+                await Assert.That(animation.Events.OfType<ParticleEvent>().Last().ParticleSystem).IsEqualTo("particles/weapons/cs_weapon_fx/weapon_shell_casing_shotgun_nova.vpcf");
             }
         }
 

@@ -62,6 +62,35 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Bone merges this model onto another: from now on it stops animating itself and takes its pose
+        /// from <paramref name="parent"/> on every update, the way Source attaches one model to the
+        /// skeleton of another.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Unlike the engine's bone merge, which matches bones by name, the pose is copied whole, so
+        /// <paramref name="parent"/> must be a node of the same model.
+        /// </para>
+        /// <para>
+        /// The pose is taken as it stood before <paramref name="parent"/> hid any bones for the first
+        /// person view, so a model merged onto first person legs still has its upper body.
+        /// </para>
+        /// <para>
+        /// Update <paramref name="parent"/> before this node each frame, or the pose trails it by a frame.
+        /// </para>
+        /// </remarks>
+        /// <param name="parent">The node whose pose this one takes.</param>
+        internal void BoneMerge(ModelSceneNode parent)
+        {
+            AnimationController.BoneMergeParent = parent.AnimationController;
+
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.SetSkinningActive(IsAnimated);
+            }
+        }
+
         private void SetupSkinning()
         {
             IsAnimated = boneCount > 0;

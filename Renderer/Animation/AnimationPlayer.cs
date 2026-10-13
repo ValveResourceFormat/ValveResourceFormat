@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer
         public Matrix4x4[] Pose { get; }
 
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
-        public Animation? ActiveAnimation => activeClip?.Animation;
+        public AnimationBase? ActiveAnimation => activeClip?.Animation;
 
         /// <summary>Gets the frame cache used to retrieve and interpolate animation frames.</summary>
         public AnimationFrameCache FrameCache { get; }
@@ -160,6 +160,11 @@ namespace ValveResourceFormat.Renderer
         /// <returns><see langword="true"/> if the pose was updated; <see langword="false"/> if nothing changed.</returns>
         public bool Update(float timeStep, Matrix4x4 rootTransform)
         {
+            if (Graph != null)
+            {
+                return UpdateFromGraph(Graph, timeStep, rootTransform);
+            }
+
             if ((ActiveAnimation == null || IsPaused || ActiveAnimation.FrameCount == 1) && !forceUpdate)
             {
                 return false;
@@ -214,7 +219,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="looping">Whether the clip should loop when reaching the end.</param>
         /// <param name="warp">Whether re-activating the animation already playing should cross over
         /// into a second instance of it rather than restarting it in place.</param>
-        public void SetAnimation(Animation? animation, float blendTime, bool looping, bool warp = false)
+        public void SetAnimation(AnimationBase? animation, float blendTime, bool looping, bool warp = false)
         {
             FrameCache.PurgeCache();
             ApplyAdditive = animation?.IsAdditive ?? false;
@@ -223,6 +228,8 @@ namespace ValveResourceFormat.Renderer
 
             if (animation != null)
             {
+                // Picking a specific animation takes over from graph playback.
+                Graph = null;
                 TransitionToClip(animation, blendTime, looping, warp);
             }
             else

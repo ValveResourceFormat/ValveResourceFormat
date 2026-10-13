@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.Renderer
@@ -11,7 +12,7 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public partial class AnimationController
     {
-        private Action<Animation?, int> updateHandler = (_, __) => { };
+        private Action<AnimationBase?, int> updateHandler = (_, __) => { };
 
         /// <summary>
         /// The skeleton being animated.
@@ -77,7 +78,7 @@ namespace ValveResourceFormat.Renderer
         /// Optional resolver from an animation or sequence name to the loaded <see cref="Animation"/>,
         /// used to resolve an auto layer's <see cref="AnimationAutoLayer.ReferencedAnimationName"/>.
         /// </summary>
-        public Func<string, Animation?>? AnimationLookup
+        public Func<string, AnimationBase?>? AnimationLookup
         {
             get => modelPlayer.AnimationLookup;
             set
@@ -92,7 +93,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
-        public Animation? ActiveAnimation => player.ActiveAnimation;
+        public AnimationBase? ActiveAnimation => player.ActiveAnimation;
 
         /// <summary>Gets the frame cache used to retrieve and interpolate frames on the model skeleton.</summary>
         public AnimationFrameCache FrameCache => modelPlayer.FrameCache;
@@ -112,6 +113,13 @@ namespace ValveResourceFormat.Renderer
             get => player.IsPaused;
             set => player.IsPaused = value;
         }
+
+        /// <summary>
+        /// Advances the attached animation graph by one step on the next update while <see cref="IsPaused"/>,
+        /// as that frame's only update.
+        /// </summary>
+        /// <param name="timeStep">How far to advance, in seconds, before <see cref="FrametimeMultiplier"/>.</param>
+        public void StepGraph(float timeStep) => player.StepGraph(timeStep * FrametimeMultiplier);
 
         /// <summary>Gets or sets whether the active animation is composed over the bind pose.</summary>
         public bool ApplyAdditive
@@ -183,6 +191,12 @@ namespace ValveResourceFormat.Renderer
         /// <returns><see langword="true"/> if the pose was updated; <see langword="false"/> if nothing changed.</returns>
         public bool Update(float timeStep)
         {
+            if (BoneMergeParent is { } parent)
+            {
+                parent.FullPose.CopyTo(Pose, 0);
+                return true;
+            }
+
             timeStep *= FrametimeMultiplier;
 
             // External skeletons are posed in their own space; Transform is applied during remapping below.
@@ -246,7 +260,7 @@ namespace ValveResourceFormat.Renderer
         /// Sets the active animation, resets playback to frame zero, and clears the frame cache.
         /// </summary>
         /// <param name="animation">The animation to activate, or <see langword="null"/> to clear.</param>
-        public void SetAnimation(Animation? animation)
+        public void SetAnimation(AnimationBase? animation)
         {
             SetAnimation(animation, 0f);
         }
@@ -259,7 +273,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="blendTime">The time in seconds to blend from previous animations to the new animation.</param>
         /// <param name="warp">Whether re-activating the animation already playing should cross over
         /// into a second instance of it rather than restarting it in place.</param>
-        public void SetAnimation(Animation? animation, float blendTime, bool warp = false)
+        public void SetAnimation(AnimationBase? animation, float blendTime, bool warp = false)
         {
             var newPlayer = modelPlayer;
             SkeletonRetargeter? newRetargeter = null;
@@ -283,6 +297,49 @@ namespace ValveResourceFormat.Renderer
             updateHandler(ActiveAnimation, -1);
         }
 
+        /// <summary>
+        /// Attaches an animation graph as the pose source, playing it on the player of the skeleton the graph
+        /// animates: the model's own, or an external one registered if needed. Pass <see langword="null"/>
+        /// to detach the graph from the current player and return to clip playback.
+        /// </summary>
+        /// <param name="graph">The animation graph to play, or <see langword="null"/> to detach.</param>
+        public void SetAnimationGraph(IAnimationGraph? graph)
+        {
+            if (graph == null)
+            {
+                player.SetGraph(null);
+                return;
+            }
+
+            var newPlayer = modelPlayer;
+            SkeletonRetargeter? newRetargeter = null;
+
+            if (graph.SkeletonName.Length > 0)
+            {
+                if (!externalSkeletons.TryGetValue(graph.SkeletonName, out var external))
+                {
+                    RegisterExternalSkeleton(graph.SkeletonName, graph.Skeleton);
+                    external = externalSkeletons[graph.SkeletonName];
+                }
+
+                newPlayer = external.Player;
+                newRetargeter = external.Retargeter;
+            }
+
+            if (newPlayer != player)
+            {
+                newPlayer.IsPaused = player.IsPaused;
+                player.ClearClips();
+                player.SetGraph(null);
+            }
+
+            player = newPlayer;
+            externalRetargeter = newRetargeter;
+
+            player.SetGraph(graph);
+            updateHandler(ActiveAnimation, -1);
+        }
+
         /// <summary>Pauses playback and seeks to the last frame of the active animation.</summary>
         public void PauseLastFrame()
         {
@@ -300,7 +357,7 @@ namespace ValveResourceFormat.Renderer
         /// Registers a callback invoked each time the animation frame changes, receiving the active animation and frame index.
         /// </summary>
         /// <param name="handler">The callback to invoke on each animation update.</param>
-        public void RegisterUpdateHandler(Action<Animation?, int> handler)
+        public void RegisterUpdateHandler(Action<AnimationBase?, int> handler)
         {
             updateHandler = handler;
         }
@@ -331,7 +388,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Whether the animation can play correctly on this controller.
         /// </summary>
-        public bool IsPlayable(Animation animation)
+        public bool IsPlayable(AnimationBase animation)
         {
             if (animation is ClipAnimation clipAnimation)
             {

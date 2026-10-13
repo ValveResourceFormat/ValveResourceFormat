@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Animation;
 using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -588,7 +589,7 @@ public class FuncTrackTrain : BaseModelEntity
             t = (1f - MathF.Cos(t * MathF.PI)) * 0.5f;
         }
 
-        var blended = FastSlerp(EntityTransformHelper.EulerAnglesToQuaternion(from), EntityTransformHelper.EulerAnglesToQuaternion(to), t);
+        var blended = TransformMath.FastSLerp(EntityTransformHelper.EulerAnglesToQuaternion(from), EntityTransformHelper.EulerAnglesToQuaternion(to), t);
         var angles = EntityTransformHelper.ToEulerAngles(blended);
 
         if (HasSpawnFlags(SpawnFlag.NoPitch))
@@ -597,28 +598,6 @@ public class FuncTrackTrain : BaseModelEntity
         }
 
         DoUpdateOrientation(Angles, angles);
-    }
-
-    // Polynomial-corrected nlerp, which only approximates a slerp
-    private static Quaternion FastSlerp(Quaternion from, Quaternion to, float t)
-    {
-        var dot = Quaternion.Dot(from, to);
-        var a = MathF.Abs(dot);
-        var c = t - 0.5f;
-
-        var toWeight = ((((3.55645f - a * 1.43519f) * a - 3.2452f) * a + 1.0904f) * (c * c)
-            + ((a * 0.215638f - 1.06021f) * a + 0.848013f)) * (c * t * (t - 1f)) + t;
-        var fromWeight = 1f - toWeight;
-
-        if (dot <= 0f)
-        {
-            toWeight = -toWeight;
-        }
-
-        var sum = to * toWeight + from * fromWeight;
-        var length = MathF.Sqrt(Quaternion.Dot(sum, sum));
-
-        return length == 0f ? Quaternion.Identity : new Quaternion(sum.X / length, sum.Y / length, sum.Z / length, sum.W / length);
     }
 
     // The angular velocity is the whole angle error per second, re-aimed every tick, so the train closes

@@ -289,10 +289,23 @@ Both feed viewer playback, glTF export, and DMX reconstruction; playback and glT
 retarget clips authored on a different skeleton.
 
 Animation _graphs_ are decompiled to editable documents and visualized, for both Animgraph 1
-and Animgraph 2, but are never executed: the viewer plays explicitly selected clips, not what
-the graph's state machine would choose. The viewer evaluates bone constraints, including
-constraint-driven morphs, on every pose; IK chains are not solved, and glTF export does not
-apply constraints. `vnmikrig` files have no dedicated support beyond the generic dump.
+and Animgraph 2. Animgraph 2 graphs (`vnmgraph`) are also executed in the model viewer.
+The viewer evaluates bone constraints, including constraint-driven morphs, on every pose; IK
+chains are not solved, and glTF export does not apply constraints. `vnmikrig` files have no
+dedicated support beyond the generic dump.
+
+### Animgraph Playback
+
+| Gap                                 | Category              | Detail                                                                                                      |
+| ----------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Control parameter values            | Not in compiled files | Set at runtime. The viewer exposes every parameter as a control and guesses starting values.                |
+| External graph, pose and data slots | Not in compiled files | Slots filled at runtime stay empty, and the branches reading them contribute no pose.                       |
+| Animgraph 1 execution               | Not implemented       | Only Animgraph 2 graphs are executed.                                                                       |
+| Orientation warp translation        | Not implemented       | The translation warp flag of `OrientationWarpNode` is not applied.                                          |
+| Target selector alignment bone      | Not implemented       | `TargetSelectorNode` scores its options by where their root motion ends, without the alignment bone.        |
+
+Animgraph 2 system is taken from the [Esoterica](https://www.esotericaengine.com/) animation system. Source 2 adds a couple of new nodes: `ChainLookatNode`,
+`FollowBoneNode`, `BodyGroupNode` and `IsInactiveBranchConditionNode`, and a few ones that are game specific.
 
 ## Physics (vphys)
 

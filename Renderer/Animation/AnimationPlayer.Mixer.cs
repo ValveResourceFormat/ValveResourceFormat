@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer
     public partial class AnimationPlayer
     {
         /// <summary>Represents an animation clip with its playback state.</summary>
-        public record class PlaybackClip(Animation Animation)
+        public record class PlaybackClip(AnimationBase Animation)
         {
             /// <summary>Gets or sets the current playback time in seconds.</summary>
             public float Time { get; set; }
@@ -119,7 +119,7 @@ namespace ValveResourceFormat.Renderer
         private readonly Dictionary<string, ClipMask> masks = [];
 
         /// <summary>Optional resolver from an animation or sequence name to the loaded <see cref="Animation"/>.</summary>
-        public Func<string, Animation?>? AnimationLookup { get; set; }
+        public Func<string, AnimationBase?>? AnimationLookup { get; set; }
 
         private readonly Dictionary<string, PoseParameter> poseParameterDefinitions = [];
         private readonly Dictionary<string, float> poseParameterValues = [];
@@ -418,11 +418,11 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private Animation? Resolve(string name)
+        private AnimationBase? Resolve(string name)
             => string.IsNullOrEmpty(name) ? null : AnimationLookup?.Invoke(name);
 
         /// <summary>Gets or adds the clip at <paramref name="key"/>, driven by <paramref name="driver"/>.</summary>
-        private PlaybackClip DriveClip(string key, Animation animation, ClipDriver driver)
+        private PlaybackClip DriveClip(string key, AnimationBase animation, ClipDriver driver)
         {
             if (!clips.TryGetValue(key, out var clip))
             {
@@ -551,7 +551,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="looping">Whether the clip should loop when reaching the end.</param>
         /// <param name="warp">Whether re-entering the animation already playing should cross
         /// over into a second instance of it rather than restarting it in place.</param>
-        private void TransitionToClip(Animation animation, float blendTime, bool looping, bool warp)
+        private void TransitionToClip(AnimationBase animation, float blendTime, bool looping, bool warp)
         {
             var transition = blendTime switch
             {
