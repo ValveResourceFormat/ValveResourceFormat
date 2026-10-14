@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -69,8 +70,8 @@ public class Scene
     /// <remarks>Call <see cref="MarkLightingDirty"/> after changing its <see cref="WorldLightingInfo.LightingData"/>.</remarks>
     public WorldLightingInfo LightingInfo { get; }
 
-    private readonly RHI.Buffer lightingBuffer;
-    private readonly RHI.Buffer sceneBuffers;
+    private RHI.Buffer? lightingBuffer;
+    private RHI.Buffer? sceneBuffers;
     private readonly byte[] lightingUpload = new byte[Marshal.SizeOf<LightingConstants>()];
     private bool staticBuffersDirty = true;
 
@@ -78,22 +79,54 @@ public class Scene
     internal const uint SceneBuffersPushConstantOffset = 16;
 
     /// <summary>Gets the handle to the scene's <see cref="SceneBuffers"/>, pushed once before drawing the scene.</summary>
-    internal DescriptorHandle<RHI.Buffer> SceneBuffersHandle => sceneBuffers.DescriptorHandle;
+    internal DescriptorHandle<RHI.Buffer> SceneBuffersHandle => sceneBuffers!.DescriptorHandle;
 
     public Scene(RendererContext context, float sizeHint = 32768)
     {
         RendererContext = context;
         StaticOctree = new(sizeHint);
 
-        const VkBufferUsageFlags usage = VkBufferUsageFlags.UniformBuffer | VkBufferUsageFlags.TransferDst;
-        lightingBuffer = new RHI.Buffer((ulong)lightingUpload.Length, usage, VmaMemoryUsage.AutoPreferDevice, name: nameof(LightingConstants));
-        sceneBuffers = new RHI.Buffer((ulong)Unsafe.SizeOf<SceneBuffers>(), usage, VmaMemoryUsage.AutoPreferDevice, name: nameof(SceneBuffers));
-
         LightingInfo = new();
 
         //VKTODO:
         //LightBinner = new(this);
         //EntitySystem = new(this);
+    }
+
+    /// <summary>
+    /// Performs one-time GPU setup: builds acceleration structures, allocates buffers, computes light probe and environment map bindings, and loads internal shaders.
+    /// </summary>
+    public void Initialize()
+    {
+        //VKTODO:
+        //UpdateOctrees();
+        //UpdateNodeIndices();
+        CreateBuffers();
+        //VKTODO:
+        //CalculateLightProbeBindings();
+        //CalculateEnvironmentMaps();
+        //CreateInstanceTransformBuffers(deletePrevious: true); // after calculating envmap and lpv
+
+        //UpdateBuffers();
+
+        //OutlineShader = RendererContext.ShaderLoader.LoadShader("outline");
+        //FrustumCullShader = RendererContext.ShaderLoader.LoadShader("frustum_cull");
+        //CompactionShader = RendererContext.ShaderLoader.LoadShader("compact_indirect_draws");
+        //DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("depth_pyramid");
+        //DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
+        //LightBinner.LoadShaders();
+
+        //// set render lists to their max capacity
+        //CollectSceneDrawCalls(new Camera(), Frustum.CreateEmpty());
+        //SetupSceneShadows(new Camera(), -1);
+    }
+
+    /// <summary>Allocates the GPU buffers for the scene's lighting constants and the handles shaders use to reach them.</summary>
+    public void CreateBuffers()
+    {
+        const VkBufferUsageFlags usage = VkBufferUsageFlags.UniformBuffer | VkBufferUsageFlags.TransferDst;
+        lightingBuffer ??= new RHI.Buffer((ulong)lightingUpload.Length, usage, VmaMemoryUsage.AutoPreferDevice, name: nameof(LightingConstants));
+        sceneBuffers ??= new RHI.Buffer((ulong)Unsafe.SizeOf<SceneBuffers>(), usage, VmaMemoryUsage.AutoPreferDevice, name: nameof(SceneBuffers));
     }
 
     public void Add(SceneNode node, bool dynamic)
@@ -119,6 +152,8 @@ public class Scene
     /// </summary>
     internal void UploadStaticBuffers(CommandList cmd)
     {
+        Debug.Assert(lightingBuffer != null && sceneBuffers != null, "Scene.Initialize() must be called before rendering.");
+
         if (!staticBuffersDirty)
         {
             return;

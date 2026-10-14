@@ -421,7 +421,7 @@ namespace GUI.Types.GLViewers
             //QuadOverdrawRenderer.Load();
 
             //Renderer.ShadowTextureSize = Settings.Config.ShadowResolution;
-            //Renderer.Initialize();
+            Renderer.Initialize();
 
             //Renderer.MainFramebuffer = MainFramebuffer;
 
@@ -430,6 +430,8 @@ namespace GUI.Types.GLViewers
             //var timer = Stopwatch.StartNew();
             //PreSceneLoad();
             LoadScene();
+            //VKTODO: Move back into PostSceneLoad() once the rest of it is ported
+            Scene.Initialize();
             //timer.Stop();
             //Log.Debug(GetType().Name, $"Loading scene time: {timer.Elapsed}, shader variants: {Scene.RendererContext.ShaderLoader.ShaderCount}, materials: {Scene.RendererContext.MaterialLoader.MaterialCount}");
 

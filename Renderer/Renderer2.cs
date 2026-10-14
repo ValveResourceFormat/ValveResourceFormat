@@ -36,7 +36,7 @@ public class Renderer2
     /// </summary>
     public Scene Scene { get; set; }
 
-    private InFlightFrames InFlightFrames;
+    private InFlightFrames InFlightFrames = null!;
 
     private RenderTarget HdrRenderTarget { get; set; }
 
@@ -75,8 +75,6 @@ public class Renderer2
 
         // VKTODO: Replace with the world's own lighting once WorldLightingInfo is ported
         LoadDefaultLighting(Scene);
-
-        InFlightFrames = new InFlightFrames(2);
     }
 
     /// <summary>
@@ -199,6 +197,14 @@ public class Renderer2
     public void RenderScenesWithView(ViewContext viewContext)
     {
         Scene.RenderOpaqueLayer(viewContext, InFlightFrames.CurrentFrame.CommandList);
+    }
+
+    /// <summary>
+    /// Creates the renderer's own GPU resources. Must be called once the render device exists, before rendering.
+    /// </summary>
+    public void Initialize()
+    {
+        InFlightFrames ??= new InFlightFrames(2);
     }
 
     public void LoadRendererResources()
