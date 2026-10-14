@@ -11,6 +11,7 @@ using GUI.Types.GLViewers;
 using GUI.Types.Graphs;
 using GUI.Utils;
 using ValveKeyValue;
+using ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
@@ -888,7 +889,122 @@ namespace GUI.Types.Viewers
                 return true;
             }
 
+            return OpenMapPackage(vrfGuiContext, name);
+        }
+
+        /// <summary>
+        /// Finds the package a map reference points at. Maps are not packed into the content packages,
+        /// each one ships as its own vpk next to the game files, and panorama names them relative to
+        /// the maps folder.
+        /// </summary>
+        public static bool TryFindMapPackage(VrfGuiContext vrfGuiContext, string name,
+            [NotNullWhen(true)] out string? packagePath, [NotNullWhen(true)] out string? innerFile)
+        {
+            const string MapExtension = ".vmap";
+
+            packagePath = null;
+            innerFile = null;
+
+            if (!name.EndsWith(MapExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var mapName = name.Replace('\\', '/');
+
+            foreach (var candidate in new[] { mapName, string.Concat("maps/", mapName) })
+            {
+                var packageName = string.Concat(candidate.AsSpan(0, candidate.Length - MapExtension.Length), ".vpk");
+                var found = FindPackageOnDisk(vrfGuiContext, packageName);
+
+                if (found != null)
+                {
+                    packagePath = found;
+                    innerFile = candidate + GameFileLoader.CompiledFileSuffix;
+                    return true;
+                }
+            }
+
             return false;
+        }
+
+        private static bool OpenMapPackage(VrfGuiContext vrfGuiContext, string name)
+        {
+            return TryFindMapPackage(vrfGuiContext, name, out var packagePath, out var innerFile)
+                && OpenFileInPackage(packagePath, innerFile);
+        }
+
+        private static string? FindPackageOnDisk(VrfGuiContext vrfGuiContext, string packageName)
+        {
+            for (var context = vrfGuiContext; context != null; context = context.ParentGuiContext)
+            {
+                var found = context.FindFile(packageName, logNotFound: false);
+
+                if (found.PathOnDisk != null)
+                {
+                    return found.PathOnDisk;
+                }
+            }
+
+            return null;
+        }
+
+        public static bool OpenFileInPackage(string packagePath, string innerFile)
+        {
+            VrfGuiContext? packageContext = null;
+
+            try
+            {
+                var package = new Package();
+
+                try
+                {
+                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                    package.Read(packagePath);
+                    packageContext = new VrfGuiContext(packagePath, null)
+                    {
+                        CurrentPackage = package
+                    };
+                    package = null;
+                }
+                finally
+                {
+                    package?.Dispose();
+                }
+
+                var entry = packageContext.CurrentPackage!.FindEntry(innerFile);
+
+                if (entry == null)
+                {
+                    return false;
+                }
+
+                var fileContext = new VrfGuiContext(entry.GetFullPath(), packageContext);
+
+                try
+                {
+                    Program.MainForm.OpenFile(fileContext, entry);
+                    fileContext = null;
+                }
+                finally
+                {
+                    fileContext?.Dispose();
+                }
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                Log.Error(nameof(Resource), $"Failed to open '{innerFile}' in '{packagePath}': {e.Message}");
+                return false;
+            }
+            finally
+            {
+                for (var context = packageContext; context != null; context = context.ParentGuiContext)
+                {
+                    context.Dispose();
+                }
+            }
         }
 
         private void AddReferencesTab(ValveResourceFormat.Resource resource, TabControl resTabs)

@@ -59,6 +59,9 @@ namespace GUI.Controls
         /// <summary>The last row of a folder that lists only its first rows, which lists all of them when opened.</summary>
         private sealed record ShowAllRows(Group Group);
 
+        /// <summary>A referrer that is only found in a map package, which opens through that package.</summary>
+        private sealed record PackagedReference(ResourceReference Reference, string Package);
+
         private readonly VrfGuiContext GuiContext;
         private readonly string? SelfName;
         private readonly bool ListsReferrers;
@@ -637,10 +640,10 @@ namespace GUI.Controls
                 return;
             }
 
-            var found = UsedByIndex.Find(SelfName);
+            var found = FoldIntoModels(UsedByIndex, UsedByIndex.Find(SelfName));
             var dimmed = Themer.CurrentThemeColors.ContrastSoft;
 
-            foreach (var referrer in found)
+            foreach (var (referrer, through) in found)
             {
                 var reference = ResourceReference.Create(referrer.Name, referrer.Kinds);
                 var icon = AppIcons.GetImageIndexForExtension(GetExtension(referrer.Name));
@@ -648,8 +651,13 @@ namespace GUI.Controls
                 {
                     ImageIndex = icon,
                     SelectedImageIndex = icon,
-                    Tag = reference,
-                    ToolTipText = $"{referrer.Name}\nReferences this file, found in its {KindNames(referrer.Kinds)}",
+                    Tag = referrer.Package == null ? reference : new PackagedReference(reference, referrer.Package),
+                    ToolTipText = (through, referrer.Package) switch
+                    {
+                        ({ } mesh, _) => $"{referrer.Name}\nUses this file through {mesh}",
+                        (_, { } package) => $"{referrer.Name}\nReferences this file, found in its {KindNames(referrer.Kinds)}\nIn map package {package}",
+                        _ => $"{referrer.Name}\nReferences this file, found in its {KindNames(referrer.Kinds)}",
+                    },
                 };
 
                 UsedByRows.Add(new Row
@@ -663,7 +671,7 @@ namespace GUI.Controls
 
             if (found.Count == 0)
             {
-                UsedByNotes.Add(new TreeNode($"Not referenced by any file in the {UsedByIndex.SearchedCount} indexed packages")
+                UsedByNotes.Add(new TreeNode($"Not referenced by any file in the {UsedByIndex.SearchedCount} indexed packages and map folders")
                 {
                     ForeColor = dimmed,
                 });
@@ -671,7 +679,7 @@ namespace GUI.Controls
 
             if (UsedByIndex.FailedCount > 0)
             {
-                UsedByNotes.Add(new TreeNode($"{UsedByIndex.FailedCount} packages could not be indexed, see the log")
+                UsedByNotes.Add(new TreeNode($"{UsedByIndex.FailedCount} packages or map folders could not be indexed, see the log")
                 {
                     ForeColor = Themer.CurrentThemeColors.Attention,
                 });
@@ -679,6 +687,56 @@ namespace GUI.Controls
 
             UsedByReady = true;
             UpdateUsedByNode();
+        }
+
+        /// <summary>
+        /// Replaces meshes and animation groups, which only their models load, with the models that use them.
+        /// An intermediate that no model uses stays as it is.
+        /// </summary>
+        private static List<(ResourceReferenceIndex.Referrer Referrer, string? Through)> FoldIntoModels(ResourceReferenceIndex index, IReadOnlyList<ResourceReferenceIndex.Referrer> referrers)
+        {
+            static bool IsIntermediate(string name) => name.EndsWith(".vmesh", StringComparison.OrdinalIgnoreCase)
+                || name.EndsWith(".vagrp", StringComparison.OrdinalIgnoreCase);
+
+            var folded = new List<(ResourceReferenceIndex.Referrer Referrer, string? Through)>(referrers.Count);
+            var listed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var referrer in referrers)
+            {
+                if (!IsIntermediate(referrer.Name))
+                {
+                    listed.Add(referrer.Name);
+                    folded.Add((referrer, null));
+                }
+            }
+
+            foreach (var referrer in referrers)
+            {
+                if (!IsIntermediate(referrer.Name))
+                {
+                    continue;
+                }
+
+                var models = index.Find(referrer.Name).Where(static model => model.Name.EndsWith(".vmdl", StringComparison.OrdinalIgnoreCase)).ToList();
+
+                if (models.Count == 0)
+                {
+                    folded.Add((referrer, null));
+                    continue;
+                }
+
+                foreach (var model in models)
+                {
+                    if (listed.Add(model.Name))
+                    {
+                        folded.Add((model, referrer.Name));
+                    }
+                }
+            }
+
+            folded.Sort(static (a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.Referrer.Name, b.Referrer.Name));
+
+            return folded;
         }
 
         private void LookUpNextRows()
@@ -737,7 +795,7 @@ namespace GUI.Controls
                 return true;
             }
 
-            return false;
+            return Types.Viewers.Resource.TryFindMapPackage(GuiContext, name, out _, out _);
         }
 
         private void OnFilterChanged(object? sender, EventArgs e)
@@ -802,6 +860,14 @@ namespace GUI.Controls
             {
                 case ShowAllRows more:
                     ShowAll(node, more.Group);
+                    return;
+
+                case PackagedReference packaged:
+                    if (!Types.Viewers.Resource.OpenFileInPackage(packaged.Package, packaged.Reference.Name + GameFileLoader.CompiledFileSuffix))
+                    {
+                        MarkNotFound(node);
+                    }
+
                     return;
 
                 case ResourceReference reference when Categorize(reference) == RowCategory.Reference:

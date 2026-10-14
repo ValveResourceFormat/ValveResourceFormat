@@ -43,12 +43,14 @@ namespace GUI.Utils
         private static readonly ConcurrentDictionary<string, LazyIndex> Indexes = new(StringComparer.OrdinalIgnoreCase);
 
         private readonly Dictionary<string, Package> Packages;
+        private readonly string[] MapFolders;
         private LazyIndex[] ActiveIndexes = [];
         private Task? Build;
 
-        private ResourceReferenceIndex(Dictionary<string, Package> packages)
+        private ResourceReferenceIndex(Dictionary<string, Package> packages, string[] mapFolders)
         {
             Packages = packages;
+            MapFolders = mapFolders;
         }
 
         /// <summary>
@@ -63,21 +65,27 @@ namespace GUI.Utils
                 return null;
             }
 
-            return new ResourceReferenceIndex(packages);
+            var mapFolders = packages.Keys
+                .Select(static package => Path.Combine(Path.GetDirectoryName(package)!, "maps"))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(Directory.Exists)
+                .ToArray();
+
+            return new ResourceReferenceIndex(packages, mapFolders);
         }
 
         /// <summary>
-        /// The number of packages this index searches.
+        /// The number of packages and map folders this index searches.
         /// </summary>
-        public int SearchedCount => Packages.Count;
+        public int SearchedCount => Packages.Count + MapFolders.Length;
 
         /// <summary>
-        /// The number of packages that could not be indexed.
+        /// The number of packages and map folders that could not be indexed.
         /// </summary>
         public int FailedCount => ActiveIndexes.Count(static index => index.Failed);
 
         /// <summary>
-        /// Indexes the packages. The task does not fault,
+        /// Indexes the packages, and the maps next to them once the packages are done. The task does not fault,
         /// a package that fails to index is counted in <see cref="FailedCount"/>.
         /// </summary>
         public Task BuildAsync() => Build ??= BuildAllAsync();
@@ -85,10 +93,12 @@ namespace GUI.Utils
         private async Task BuildAllAsync()
         {
             var packageIndexes = Packages.Select(static package => Indexes.GetOrAdd(package.Key, static (key, package) => new LazyIndex(key, () => IndexPackage(package)), package.Value)).ToArray();
+            var mapIndexes = MapFolders.Select(static folder => Indexes.GetOrAdd(folder, static folder => new LazyIndex(folder, () => IndexMaps(folder)))).ToArray();
 
-            ActiveIndexes = packageIndexes;
+            ActiveIndexes = [.. packageIndexes, .. mapIndexes];
 
             await Task.WhenAll(packageIndexes.Select(static index => index.BuildAsync())).ConfigureAwait(false);
+            await Task.WhenAll(mapIndexes.Select(static index => index.BuildAsync())).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -96,7 +106,8 @@ namespace GUI.Utils
         /// </summary>
         /// <param name="Name">The referencing file.</param>
         /// <param name="Kinds">Where the referencing file stores the reference.</param>
-        public readonly record struct Referrer(string Name, ResourceReferenceKind Kinds);
+        /// <param name="Package">The map package the referencing file is in, when it is not in a loaded package.</param>
+        public readonly record struct Referrer(string Name, ResourceReferenceKind Kinds, string? Package = null);
 
         public IReadOnlyList<Referrer> Find(string name)
         {
@@ -113,7 +124,7 @@ namespace GUI.Utils
                 foreach (var referrer in referrers)
                 {
                     found[referrer.Name] = found.TryGetValue(referrer.Name, out var existing)
-                        ? existing with { Kinds = existing.Kinds | referrer.Kinds }
+                        ? existing with { Kinds = existing.Kinds | referrer.Kinds, Package = existing.Package ?? referrer.Package }
                         : referrer;
                 }
             }
@@ -184,6 +195,77 @@ namespace GUI.Utils
                     Indexes.TryRemove(KeyValuePair.Create(key, this));
                     return null;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Indexes the external reference list of the map in every map package in a maps folder. Maps ship as
+        /// packages of their own, which are not mounted.
+        /// </summary>
+        private static Dictionary<string, Referrer[]> IndexMaps(string folder)
+        {
+            var timer = Stopwatch.StartNew();
+            var results = new ConcurrentBag<Dictionary<string, List<Referrer>>>();
+            var mapPackages = Directory.GetFiles(folder, "*.vpk", SearchOption.AllDirectories);
+
+            Parallel.ForEach(
+                mapPackages,
+                () => new Dictionary<string, List<Referrer>>(StringComparer.OrdinalIgnoreCase),
+                (path, _, local) =>
+                {
+                    IndexMapPackage(path, local);
+                    return local;
+                },
+                results.Add);
+
+            var referrers = Merge(results);
+
+            Log.Debug(nameof(ResourceReferenceIndex), string.Create(CultureInfo.InvariantCulture,
+                $"Indexed {mapPackages.Length} map packages in {folder} referencing {referrers.Count} targets in {timer.Elapsed.TotalSeconds:F2}s"));
+
+            return referrers;
+        }
+
+        private static void IndexMapPackage(string path, Dictionary<string, List<Referrer>> found)
+        {
+            try
+            {
+                using var package = new Package();
+                package.Read(path);
+
+                if (package.Entries == null || !package.Entries.TryGetValue("vmap_c", out var maps))
+                {
+                    return;
+                }
+
+                foreach (var entry in maps)
+                {
+                    var references = ReadReferencesThroughPackage(package, entry);
+
+                    if (references == null)
+                    {
+                        continue;
+                    }
+
+                    var referrer = new Referrer(Normalize(entry.GetFullPath()), ResourceReferenceKind.External, path);
+
+                    foreach (var reference in references)
+                    {
+                        var key = Normalize(reference.Name);
+
+                        if (!found.TryGetValue(key, out var list))
+                        {
+                            list = [];
+                            found.Add(key, list);
+                        }
+
+                        list.Add(referrer);
+                    }
+                }
+            }
+            catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException)
+            {
+                Log.Debug(nameof(ResourceReferenceIndex), $"Failed to index map package {path}: {e.Message}");
             }
         }
 
