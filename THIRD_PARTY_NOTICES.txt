@@ -15,11 +15,6 @@ Each entry covers a project rather than a package, and names a sub package only 
 license differs. An entry marked (GUI only) or (CLI only) does not ship in the NuGet
 libraries.
 
-7-Zip LZMA SDK
-  License: Public domain
-  Igor Pavlov
-  https://www.7-zip.org/sdk.html
-
 Blake3
   License: BSD-2-Clause
   Copyright (c) 2020, Alexandre Mutel

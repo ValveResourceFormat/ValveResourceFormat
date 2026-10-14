@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using ValveKeyValue;
+using ValveResourceFormat.Compression;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -77,11 +78,8 @@ public class VfxStaticComboVcsEntry
             var lzmaUncompressedSize = reader.ReadInt32();
             var lzmaCompressedSize = reader.ReadInt32();
 
-            var lzmaDecoder = new SevenZip.Compression.LZMA.Decoder();
-            lzmaDecoder.SetDecoderProperties(reader.ReadBytes(5));
-
             var outStream = new PooledMemoryStream(lzmaUncompressedSize);
-            lzmaDecoder.Code(reader.BaseStream, outStream, lzmaCompressedSize, lzmaUncompressedSize, null);
+            LzmaDecoder.Decode(reader.BaseStream, lzmaCompressedSize, outStream.BufferSpan);
             return outStream;
         }
 
