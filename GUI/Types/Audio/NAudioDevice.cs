@@ -2,7 +2,7 @@ using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Threading;
 using NAudio.Wave;
-using ValveResourceFormat.RendererOld.Audio;
+using ValveResourceFormat.Renderer.Audio;
 
 namespace GUI.Types.Audio
 {

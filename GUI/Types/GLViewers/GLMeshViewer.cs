@@ -1,6 +1,6 @@
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
-using ValveResourceFormat.RendererOld.SceneNodes;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.GLViewers

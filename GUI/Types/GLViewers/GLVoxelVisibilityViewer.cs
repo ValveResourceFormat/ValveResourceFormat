@@ -1,8 +1,8 @@
 using GUI.Utils;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer;
-using ValveResourceFormat.RendererOld.SceneNodes;
-using static ValveResourceFormat.RendererOld.PickingTexture;
+using ValveResourceFormat.Renderer.SceneNodes;
+//using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {

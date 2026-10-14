@@ -89,8 +89,9 @@ namespace GUI.Types.GLViewers
         private int frameTimeNextId;
         private int frameTimeCount;
 
-        private readonly ValveResourceFormat.RendererOld.TextRenderer.TextBuffer fpsText = new("FPS: 10000  CPU: 10000.0ms  GPU: 10000.0ms");
-        private readonly ValveResourceFormat.RendererOld.TextRenderer.TextBuffer speedText = new("Speed: 100000.0 u/s");
+        //VKTODO:
+        //private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer fpsText = new("FPS: 10000  CPU: 10000.0ms  GPU: 10000.0ms");
+        //private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer speedText = new("Speed: 100000.0 u/s");
         private int frametimeQuery1;
         private int frametimeQuery2;
 
@@ -640,19 +641,20 @@ namespace GUI.Types.GLViewers
             //}
         }
 
-        protected void DrawLowerCornerText(ValveResourceFormat.RendererOld.TextRenderer.TextMemory text, Color32 color, int lineFromBottom = 0)
-        {
-            //Debug.Assert(MainFramebuffer != null);
+        //VKTODO:
+        //protected void DrawLowerCornerText(ValveResourceFormat.Renderer.TextRenderer.TextMemory text, Color32 color, int lineFromBottom = 0)
+        //{
+        //    //Debug.Assert(MainFramebuffer != null);
 
-            //TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
-            //{
-            //    X = 2f,
-            //    Y = MainFramebuffer.Height - 4f - lineFromBottom * 16f,
-            //    Scale = 14f,
-            //    Color = color,
-            //    Text = text
-            //});
-        }
+        //    //TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+        //    //{
+        //    //    X = 2f,
+        //    //    Y = MainFramebuffer.Height - 4f - lineFromBottom * 16f,
+        //    //    Scale = 14f,
+        //    //    Color = color,
+        //    //    Text = text
+        //    //});
+        //}
 
         //VKTODO:
         //protected void DrawWorldSpaceText(string text, float size, Vector3 position, Color32 color, Scene.RenderContext renderContext)

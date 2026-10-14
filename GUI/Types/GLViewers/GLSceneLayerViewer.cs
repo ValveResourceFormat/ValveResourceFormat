@@ -3,7 +3,7 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
-using static ValveResourceFormat.RendererOld.PickingTexture;
+//using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {
