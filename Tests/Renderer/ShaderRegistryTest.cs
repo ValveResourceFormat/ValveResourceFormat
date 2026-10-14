@@ -5,9 +5,9 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.RendererOld;
-using ValveResourceFormat.RendererOld.Shaders;
-using ValveResourceFormat.RendererOld.Utils;
+using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Shaders;
+using ValveResourceFormat.Renderer.Utils;
 
 namespace Tests.Renderer
 {

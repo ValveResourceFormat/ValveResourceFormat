@@ -10,11 +10,17 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
-    <ProjectReference Include="..\RendererOld\Renderer.csproj" />
+    <ProjectReference Include="..\Renderer\Renderer2.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Files\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- VKTODO: Excluded until the code they test is ported to the new renderer, see GUI/CurrentGlVkTodo.md -->
+    <Compile Remove="Renderer\AnimationControllerTest.cs" />
+    <Compile Remove="Renderer\SampledAnimationEventsTest.cs" />
+    <Compile Remove="Renderer\ShaderRegistryTest.cs" />
   </ItemGroup>
 </Project>

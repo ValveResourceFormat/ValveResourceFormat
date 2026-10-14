@@ -1,6 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
-using ValveResourceFormat.RendererOld;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
