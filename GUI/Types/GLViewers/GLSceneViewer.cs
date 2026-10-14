@@ -103,7 +103,12 @@ namespace GUI.Types.GLViewers
         protected GLSceneViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(rendererContext)
         {
             GuiContext = vrfGuiContext;
-            S2vDevice.CreateRenderDevice();
+
+            if (S2vDevice.WaitForRenderDevice() == null)
+            {
+                throw new InvalidOperationException("Failed to create the Vulkan render device.", S2vDevice.RenderDeviceError);
+            }
+
             Renderer = new(rendererContext);
             //VKTODO:
             Input = new UserInput(Renderer);

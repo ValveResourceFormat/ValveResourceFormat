@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Utils;
-using ValveResourceFormat.RendererOld;
+using ValveResourceFormat.Renderer.RHI;
 
 namespace GUI
 {
@@ -59,6 +59,8 @@ namespace GUI
             {
                 return;
             }
+
+            S2vDevice.BeginCreateRenderDevice();
 
             Assembly = Assembly.GetExecutingAssembly();
 
@@ -237,9 +239,9 @@ namespace GUI
             output.Append(version.Replace('+', ' '));
             output.Append(CultureInfo.InvariantCulture, $" on {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
 
-            if (GLEnvironment.GpuRendererAndDriver != null)
+            if (S2vDevice.RenderDevice != null)
             {
-                output.Append(CultureInfo.InvariantCulture, $" ({GLEnvironment.GpuRendererAndDriver})");
+                output.Append(CultureInfo.InvariantCulture, $" ({S2vDevice.RenderDevice.GpuRendererAndDriver})");
             }
 
             output.AppendLine("*");

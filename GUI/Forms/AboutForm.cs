@@ -7,11 +7,9 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Types.GLViewers;
 using GUI.Utils;
 using Svg.Skia;
-using ValveResourceFormat.RendererOld;
-using ValveResourceFormat.TextureDecoders;
+using ValveResourceFormat.Renderer.RHI;
 
 namespace GUI.Forms
 {
@@ -29,12 +27,6 @@ namespace GUI.Forms
                 Debug.Assert(svgResource is not null);
                 svg.Load(svgResource);
                 icon.Image = Themer.SvgToBitmap(svg, icon.Width, icon.Height);
-            }
-
-            // Start the decoder thread so that it fetches the opengl version and is ready for the version copy
-            if (GLEnvironment.GpuRendererAndDriver == null && HardwareAcceleratedTextureDecoder.Decoder is GLTextureDecoder decoder)
-            {
-                decoder.StartThread();
             }
 
             currentVersionLabel.Text = Program.DisplayVersion;
@@ -219,9 +211,9 @@ namespace GUI.Forms
             output.Append(Program.DisplayVersion);
             output.Append(CultureInfo.InvariantCulture, $" on {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
 
-            if (GLEnvironment.GpuRendererAndDriver != null)
+            if (S2vDevice.WaitForRenderDevice() is { } device)
             {
-                output.Append(CultureInfo.InvariantCulture, $" ({GLEnvironment.GpuRendererAndDriver})");
+                output.Append(CultureInfo.InvariantCulture, $" ({device.GpuRendererAndDriver})");
             }
 
             AppClipboard.SetText(output.ToString());

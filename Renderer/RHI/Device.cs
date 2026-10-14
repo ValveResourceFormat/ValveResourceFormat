@@ -8,16 +8,50 @@ using static Vortice.Vulkan.Vulkan;
 
 namespace ValveResourceFormat.Renderer.RHI
 {
+    /// <summary>
+    /// Owns the single render device, which is created once in the background and never retried.
+    /// </summary>
     public static class S2vDevice
     {
+        private static Task? creationTask;
+
+        /// <summary>
+        /// Gets the render device, or null if it has not been created yet or creation failed.
+        /// </summary>
         public static Device? RenderDevice { get; private set; }
 
-        public static void CreateRenderDevice()
+        /// <summary>
+        /// Gets the reason the render device could not be created, if it failed.
+        /// </summary>
+        public static Exception? RenderDeviceError { get; private set; }
+
+        /// <summary>
+        /// Starts creating the render device on a background thread. Subsequent calls do nothing.
+        /// </summary>
+        public static void BeginCreateRenderDevice()
         {
-            if (RenderDevice == null)
+            creationTask ??= Task.Run(static () =>
             {
-                RenderDevice = new ValveResourceFormat.Renderer.RHI.Device();
-            }
+                try
+                {
+                    RenderDevice = new Device();
+                }
+                catch (Exception e)
+                {
+                    RenderDeviceError = e;
+                }
+            });
+        }
+
+        /// <summary>
+        /// Blocks until device creation has finished.
+        /// </summary>
+        /// <returns>The render device, or null if creation failed; see <see cref="RenderDeviceError"/>.</returns>
+        public static Device? WaitForRenderDevice()
+        {
+            BeginCreateRenderDevice();
+            creationTask!.Wait();
+            return RenderDevice;
         }
     }
 
@@ -116,6 +150,10 @@ namespace ValveResourceFormat.Renderer.RHI
 
         /// <summary>The highest anisotropy a sampler may use, only meaningful when <c>samplerAnisotropy</c> is enabled.</summary>
         public float MaxSamplerAnisotropy { get; private set; }
+
+        /// <summary>The GPU name and driver version, for bug reports.</summary>
+        public string GpuRendererAndDriver { get; private set; } = string.Empty;
+
         public VkDescriptorSetLayout SharedBindlessDescriptorSetLayout;
         public VkDescriptorSet SharedBindlessDescriptorSet;
         public VkPipelineLayout SharedPipelineLayout;
@@ -279,13 +317,19 @@ namespace ValveResourceFormat.Renderer.RHI
 
             VkInstanceApi.vkGetPhysicalDeviceProperties(VkPhysicalDevice, out var properties);
 
-            Console.WriteLine("Picked GPU: " + Marshal.PtrToStringAnsi((nint)properties.deviceName));
-
             MaxSamplerAnisotropy = properties.limits.maxSamplerAnisotropy;
 
             var properties12 = new VkPhysicalDeviceVulkan12Properties();
             var properties2 = new VkPhysicalDeviceProperties2 { pNext = &properties12 };
             VkInstanceApi.vkGetPhysicalDeviceProperties2(VkPhysicalDevice, &properties2);
+
+            var gpuName = Marshal.PtrToStringUTF8((nint)properties.deviceName);
+            var driverName = Marshal.PtrToStringUTF8((nint)properties12.driverName);
+            var driverInfo = Marshal.PtrToStringUTF8((nint)properties12.driverInfo);
+            var apiVersion = new VkVersion(properties.apiVersion);
+            GpuRendererAndDriver = $"GPU: {gpuName}, Driver: {driverName} {driverInfo}, Vulkan {apiVersion.Major}.{apiVersion.Minor}.{apiVersion.Patch}";
+
+            Console.WriteLine(GpuRendererAndDriver);
 
             ComputeBindlessCapacities(properties12);
             BindlessManager = new BindlessManagerType(BindlessCapacities);
