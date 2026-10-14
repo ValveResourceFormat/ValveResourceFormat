@@ -139,6 +139,7 @@ namespace CLI
         /// <param name="shader_list_combos">List every compiled variant of a shader with its combo values and bytecode hash. For a material, only the variants of its shader that the material selects.</param>
         /// <param name="shader_combo">Decompile the shader variant matching these combo values, example: "S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4". A bare name means "=1", omitted combos stay at their minimum. For a material, the static combos it selects are used.</param>
         /// <param name="tools_asset_info_short">Print only file paths for tools_asset_info files.</param>
+        /// <param name="smartprop_seed">Print what a smart prop evaluates to with this master seed and its default parameters: the placed models, deformers, material sets, handles and element states.</param>
         /// <param name="threads">If higher than 1, files are processed concurrently. Only used with --output or --test.</param>
         /// <param name="quiet">-q, When writing to --output or --vpk_create, only print errors and a summary. With the shader options, only print their output.</param>
         /// <param name="game">Path to a gameinfo.gi file, or the folder containing it, to load game search paths from, such as "steam:730/game/csgo". Useful when the input file is not located inside a game folder.</param>
@@ -183,6 +184,7 @@ namespace CLI
             bool shader_list_combos = false,
             [HideDefaultValue] string? shader_combo = default,
             bool tools_asset_info_short = false,
+            [HideDefaultValue] int? smartprop_seed = default,
 
             int threads = 1,
             bool quiet = false,
@@ -302,6 +304,7 @@ namespace CLI
             ToolsAssetInfoShort = tools_asset_info_short;
             ShaderListCombos = shader_list_combos;
             ShaderCombo = shader_combo;
+            SmartPropSeed = smartprop_seed;
 
             CollectStats = test;
             StatsWithLoader = test_loader;
@@ -392,11 +395,11 @@ namespace CLI
                 return 1;
             }
 
-            bool[] modes = [OutputFile != null, ListResources, VerifyVPKChecksums, VpkCreatePath != null, ShouldPrintBlockContents, CollectStats, HasShaderOptions, kv_flatten];
+            bool[] modes = [OutputFile != null, ListResources, VerifyVPKChecksums, VpkCreatePath != null, ShouldPrintBlockContents, CollectStats, HasShaderOptions, HasSmartPropOptions, kv_flatten];
 
             if (modes.Count(mode => mode) > 1)
             {
-                Console.Error.WriteLine("Only one of --output, --vpk_list (or --vpk_dir), --vpk_verify, --vpk_create, --block (or --all), --test, --kv_flatten, and the shader options can be used at a time.");
+                Console.Error.WriteLine("Only one of --output, --vpk_list (or --vpk_dir), --vpk_verify, --vpk_create, --block (or --all), --test, --kv_flatten, --smartprop_seed, and the shader options can be used at a time.");
                 return 1;
             }
 
@@ -517,6 +520,11 @@ namespace CLI
             if (HasShaderOptions && ExtFilterList == null)
             {
                 ExtFilterList = ["vcs", "vmat_c"];
+            }
+
+            if (HasSmartPropOptions && ExtFilterList == null)
+            {
+                ExtFilterList = ["vsmart_c"];
             }
 
             // Printing to the console is done one file at a time
@@ -1026,6 +1034,12 @@ namespace CLI
                 }
             }
 
+            if (HasSmartPropOptions && pathExtension != ".vsmart_c")
+            {
+                ReportError($"\"{path}\" is not a smart prop, --smartprop_seed only applies to those.");
+                return;
+            }
+
             switch (magic)
             {
                 case VfxProgramData.MAGIC: ParseVCS(path, stream, originalPath, package); return;
@@ -1067,6 +1081,12 @@ namespace CLI
                 if (HasShaderOptions && resource.DataBlock is Material material)
                 {
                     ProcessMaterialShaderOptions(material, originalPath ?? Path.GetDirectoryName(path)!);
+                    return;
+                }
+
+                if (HasSmartPropOptions && resource.DataBlock is SmartProp smartProp)
+                {
+                    EvaluateSmartProp(smartProp, path, fileLoader, package);
                     return;
                 }
 
@@ -1477,7 +1497,7 @@ namespace CLI
         private void ParseVPK(string path, Stream stream, IFileLoader? parentFileLoader = null)
         {
             // When processing the files inside of the package, they are counted and print their own header instead
-            var processVpkFiles = OutputFile == null && !VerifyVPKChecksums && !ListResources && (CollectStats || ShouldPrintBlockContents || HasShaderOptions);
+            var processVpkFiles = OutputFile == null && !VerifyVPKChecksums && !ListResources && (CollectStats || ShouldPrintBlockContents || HasShaderOptions || HasSmartPropOptions);
 
             if (!processVpkFiles && !ListResources)
             {

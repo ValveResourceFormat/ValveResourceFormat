@@ -36,6 +36,32 @@ namespace Tests.Utils
         }
 
         [Test]
+        public async Task MatchesSourceSamples()
+        {
+            var random = new UniformRandomStream(1);
+            float[] floats = [random.RandomFloat(), random.RandomFloat(), random.RandomFloat(), random.RandomFloat(), random.RandomFloat()];
+
+            random.SetSeed(12345);
+            int[] ints = [random.RandomInt(0, 0x7FFFFFFE), random.RandomInt(0, 0x7FFFFFFE), random.RandomInt(0, 0x7FFFFFFE), random.RandomInt(0, 0x7FFFFFFE), random.RandomInt(0, 0x7FFFFFFE)];
+
+            await Assert.That(floats).IsEquivalentTo([0.4159993529319763f, 0.09196489304304123f, 0.7564104795455933f, 0.5297002196311951f, 0.9304364919662476f]);
+            await Assert.That(ints).IsEquivalentTo([1982386332, 715426902, 424962143, 2038867620, 1683198519]);
+        }
+
+        [Test]
+        [Arguments(0)]
+        [Arguments(1)]
+        [Arguments(-1)]
+        [Arguments(int.MinValue)]
+        public async Task SeedsZeroOneAndNegativeOneAreEqual(int seed)
+        {
+            var random = new UniformRandomStream(seed);
+            int[] values = [random.RandomInt(0, 0x7FFFFFFE), random.RandomInt(0, 0x7FFFFFFE), random.RandomInt(0, 0x7FFFFFFE)];
+
+            await Assert.That(values).IsEquivalentTo([893351816, 197493099, 1624379149]);
+        }
+
+        [Test]
         public async Task EmptyIntRangeDoesNotAdvance()
         {
             var random = new UniformRandomStream(1234);

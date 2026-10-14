@@ -6,6 +6,5 @@ namespace ValveResourceFormat.ResourceTypes
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/smartprops/CSmartPropRoot">CSmartPropRoot</seealso>
     public class SmartProp : BinaryKV3
     {
-        // nothing yet
     }
 }

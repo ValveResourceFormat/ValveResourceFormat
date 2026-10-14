@@ -1,0 +1,15 @@
+Models: 4
+	[4, 0, 5] models/props_street/street_curb_64.vmdl
+		Position: -100 0 0, angles 0 0 0, scale 1
+	[4, 1, 5] models/props_street/street_curb_64.vmdl
+		Position: -36 0 0, angles 0 0 0, scale 1
+	[4, 2, 5] models/props_street/street_curb_64.vmdl
+		Position: 28 0 0, angles 0 0 0, scale 1
+	[4, 3, 5] models/props_street/street_curb_64.vmdl
+		Position: 92 0 0, angles 0 0 0, scale 1
+Deformers: 0
+Material override sets: 0
+Material tint sets: 0
+Handles: 0
+Choice handles: 0
+Element states: 0

@@ -369,10 +369,14 @@ interpreted.
 
 ## Per-Game Notes
 
-- **Counter-Strike 2**: weapon skin composite materials (`vcompmat`) only dump as KV3, with
-  no compositing preview. Smart props render partially (nested smart prop references are not
-  expanded, [#590](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/590)),
-  and very high-poly smart-prop-deformed meshes can decompile with missing faces
+- **Counter-Strike 2**: weapon skin composite materials (`vcompmat`) only dump as KV3, with no
+  compositing preview. Smart props (`vsmart`) are evaluated like Hammer evaluates them, with a
+  fixed seed in place of Hammer's clock-seeded first placement. Their traces never hit, since a
+  smart prop is shown without a map. PlaceOnPath elements use their default path, since
+  Hammer's path objects are not available. Experimental nodes (PlaceOnMesh, RotateTowards,
+  TraceToPoint and TraceToLine) are not evaluated, as in Hammer with experimental nodes turned
+  off. Compiled maps need no evaluation, since the map compile bakes smart props into props and
+  entities. Very high-poly smart-prop-deformed meshes can decompile with missing faces
   ([#874](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/874)).
 - **Half-Life: Alyx**: its custom per-mip roughness normal map packing has no preserving
   export path ([#936](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/936)).

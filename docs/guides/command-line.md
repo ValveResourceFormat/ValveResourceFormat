@@ -40,6 +40,7 @@ The binary name is `Source2Viewer-CLI`.
 | `--shader_list_combos`           | List every compiled variant of a shader with its combo values and bytecode hash. For a material, only the variants of its shader that the material selects.                                                                                                                                                      |
 | `--shader_combo`                 | Decompile the shader variant matching these combo values, example: `"S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4"`. A bare name means `=1`, omitted combos stay at their minimum. For a material, the static combos it selects are used.                                                                               |
 | `--tools_asset_info_short`       | Print only file paths for tools_asset_info files.                                                                                                                                                                                                                                                                |
+| `--smartprop_seed`               | Print what a smart prop evaluates to with this master seed and its default parameters: the placed models, deformers, material sets, handles and element states.                                                                                                                                                  |
 | **Other**                        |                                                                                                                                                                                                                                                                                                                  |
 | `--threads`                      | If higher than 1, files are processed concurrently. Only used with `--output` or `--test`.                                                                                                                                                                                                                       |
 | `--quiet` (or `-q`)              | When writing to `--output` or `--vpk_create`, only print errors and a summary. With the shader options, only print their output.                                                                                                                                                                                 |
@@ -55,7 +56,7 @@ The exit code is `0` on success, `1` for invalid arguments, and `2` when any fil
 
 ### Good to know
 
-- Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_verify`, `--vpk_create`, `--block` (or `--all`), `--test`, `--kv_flatten`, and the shader options can be used at a time.
+- Only one of `--output`, `--vpk_list` (or `--vpk_dir`), `--vpk_verify`, `--vpk_create`, `--block` (or `--all`), `--test`, `--kv_flatten`, `--smartprop_seed`, and the shader options can be used at a time.
 - Paths starting with `steam:<appid>/` are relative to the installation folder of that Steam app, so `-i steam:730/game/csgo/pak01_dir.vpk` works on any computer with Counter-Strike 2 installed. **Copy URL** in Source 2 Viewer copies `vpk:` links in this form, which can be passed to `--input` to process the file or folder they point to.
 - Pass the `_dir.vpk` of a multi-chunk package (`pak01_dir.vpk`), not one of the numbered `pak01_000.vpk` chunks.
 - Use `--vpk_list` to find the exact path of a file, then filter on it with `--vpk_filepath`. The filter matches the start of the path, so `models/chicken/` works but `chicken` does not, use `*chicken*` instead.
@@ -137,6 +138,14 @@ Or decompile the entities of every map:
 
 ```powershell
 ./Source2Viewer-CLI.exe -i "<game>/maps" --recursive_vpk --vpk_extensions "vents_c" -d -o "entities" --quiet
+```
+
+### Print what a smart prop evaluates to
+
+Nested smart props are loaded from the game the file belongs to, or from the game given with `--game`:
+
+```powershell
+./Source2Viewer-CLI.exe -i "file.vsmart_c" --smartprop_seed 1 --game "steam:730/game/csgo"
 ```
 
 ### Print a file copied from Source 2 Viewer
