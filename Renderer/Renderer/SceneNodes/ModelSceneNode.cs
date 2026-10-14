@@ -34,6 +34,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         internal override List<RenderableMesh> AllRenderableMeshes => meshRenderers;
 
+        /// <summary>Gets the meshes of every LoD level and mesh group, including the ones not drawn now.</summary>
+        public IReadOnlyList<RenderableMesh> AllMeshes => meshRenderers;
+
         private (string Name, string[] Materials) activeMaterialGroup;
         private Dictionary<string, string>? materialTable;
 
@@ -407,6 +410,25 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             SetActiveMeshGroups(model.MeshGroups.Defaults);
+        }
+
+        /// <summary>
+        /// Draws the meshes with vertex streams baked by the caller over their own positions, normals and tangents. Pins the
+        /// node to the baked LoD level, since the other levels keep their own geometry, and fits the bounds to that level.
+        /// Call once per node.
+        /// </summary>
+        /// <param name="streams">Streams baked from the model this node draws.</param>
+        public void SetBakedVertexStreams(BakedVertexStreams streams)
+        {
+            ArgumentNullException.ThrowIfNull(streams);
+
+            streams.Bind(meshRenderers, Scene.RendererContext);
+            SetOverrideLod(streams.LodLevel);
+
+            if (RenderableMeshes.Count > 0)
+            {
+                LocalBoundingBox = RenderableMeshes.Skip(1).Aggregate(RenderableMeshes[0].BoundingBox, static (bounds, mesh) => bounds.Union(mesh.BoundingBox));
+            }
         }
 
         /// <summary>Activates the animation with the given name, or stops animation if not found.</summary>

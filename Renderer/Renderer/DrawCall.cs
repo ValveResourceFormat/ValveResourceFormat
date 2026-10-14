@@ -133,6 +133,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the OpenGL buffer object handle.</summary>
         public int Handle { get; init; }
 
+        /// <summary>Gets the index of this buffer within the mesh's index buffer list.</summary>
+        public int BufferIndex { get; init; }
+
         /// <summary>Gets the byte offset within the buffer.</summary>
         public uint Offset { get; init; }
     }

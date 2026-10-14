@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer
     public class RenderableMesh
     {
         /// <summary>Gets the axis-aligned bounding box of the mesh in local space.</summary>
-        public AABB BoundingBox { get; }
+        public AABB BoundingBox { get; internal set; }
 
         private readonly RendererContext renderContext;
 
@@ -428,6 +428,7 @@ namespace ValveResourceFormat.Renderer
                 var indexBuffer = new IndexDrawBuffer
                 {
                     Handle = gpuVbib.IndexBuffers[(int)bufferIndex],
+                    BufferIndex = (int)bufferIndex,
                     Offset = indexBindOffset
                 };
                 drawCall.IndexBuffer = indexBuffer;
