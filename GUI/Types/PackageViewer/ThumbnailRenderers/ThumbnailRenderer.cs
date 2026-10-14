@@ -9,9 +9,10 @@ using OpenTK.Windowing.Desktop;
 using ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.RendererOld;
-using ValveResourceFormat.RendererOld.Materials;
-using ValveResourceFormat.RendererOld.SceneEnvironment;
+//VKTODO:
+//using ValveResourceFormat.Renderer;
+//using ValveResourceFormat.Renderer.Materials;
+//using ValveResourceFormat.Renderer.SceneEnvironment;
 
 namespace GUI.Types.PackageViewer.ThumbnailRenderers;
 
@@ -26,11 +27,12 @@ internal enum ThumbnailSizes : int
 
 internal abstract class ThumbnailRenderer : IDisposable
 {
-    protected Renderer? SceneRenderer;
-    private Framebuffer? framebuffer;
-    private TextRenderer? textRenderer;
-    private RendererContext? RendererContext;
-    private NativeWindow? NativeWindow;
+    //VKTODO:
+    //protected Renderer? SceneRenderer;
+    //private Framebuffer? framebuffer;
+    //private TextRenderer? textRenderer;
+    //private RendererContext? RendererContext;
+    //private NativeWindow? NativeWindow;
     private bool disposed;
 
     public bool Loaded { get; private set; }
@@ -44,98 +46,100 @@ internal abstract class ThumbnailRenderer : IDisposable
     {
         Loaded = true;
 
-        var nativeWindowSettings = new NativeWindowSettings()
-        {
-            APIVersion = GLEnvironment.RequiredVersion,
-            Vsync = VSyncMode.Adaptive,
-            WindowBorder = WindowBorder.Hidden,
-            WindowState = WindowState.Normal,
-            Title = "Thumbnail Renderer",
-            Flags = ContextFlags.ForwardCompatible,
-            Profile = ContextProfile.Core,
-            StartVisible = false,
-            StartFocused = false,
-        };
+        //VKTODO:
+        //var nativeWindowSettings = new NativeWindowSettings()
+        //{
+        //    APIVersion = GLEnvironment.RequiredVersion,
+        //    Vsync = VSyncMode.Adaptive,
+        //    WindowBorder = WindowBorder.Hidden,
+        //    WindowState = WindowState.Normal,
+        //    Title = "Thumbnail Renderer",
+        //    Flags = ContextFlags.ForwardCompatible,
+        //    Profile = ContextProfile.Core,
+        //    StartVisible = false,
+        //    StartFocused = false,
+        //};
 
-        NativeWindow = GLViewers.NativeWindowFactory.Create(nativeWindowSettings);
-        RendererContext = new RendererContext(context, VrfGuiContext.Logger);
+        //NativeWindow = GLViewers.NativeWindowFactory.Create(nativeWindowSettings);
+        //RendererContext = new RendererContext(context, VrfGuiContext.Logger);
 
-        RendererContext.Device.CreateContext(new GLViewers.GLFWSurface(NativeWindow.Context)).Begin();
+        //RendererContext.Device.CreateContext(new GLViewers.GLFWSurface(NativeWindow.Context)).Begin();
 
-        GLEnvironment.Initialize(RendererContext.Logger);
-        GLEnvironment.SetDefaultRenderState();
+        //GLEnvironment.Initialize(RendererContext.Logger);
+        //GLEnvironment.SetDefaultRenderState();
 
-        SceneRenderer = new Renderer(RendererContext);
+        //SceneRenderer = new Renderer(RendererContext);
 
-        // We have few textures here, so prefer streaming them to end
-        RendererContext.TextureStreaming.Mode = TextureStreamingMode.Immediate;
+        //// We have few textures here, so prefer streaming them to end
+        //RendererContext.TextureStreaming.Mode = TextureStreamingMode.Immediate;
 
-        SceneRenderer.Camera.SetFromQAngle(new Vector3(20f, 225f, 0f));
+        //SceneRenderer.Camera.SetFromQAngle(new Vector3(20f, 225f, 0f));
 
-        RendererContext.Logger.LogInformation("Loading scene...");
+        //RendererContext.Logger.LogInformation("Loading scene...");
 
-        // Create TextRenderer (needed for Scene.Update)
-        textRenderer = new TextRenderer(RendererContext, SceneRenderer.Camera);
-        textRenderer.Load();
+        //// Create TextRenderer (needed for Scene.Update)
+        //textRenderer = new TextRenderer(RendererContext, SceneRenderer.Camera);
+        //textRenderer.Load();
 
-        SceneRenderer.Postprocess.Load(4);
+        //SceneRenderer.Postprocess.Load(4);
 
-        framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
-            ImageFormat.RGBA16161616F,
-            ImageFormat.D16);
-        framebuffer.Initialize();
+        //framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
+        //    ImageFormat.RGBA16161616F,
+        //    ImageFormat.D16);
+        //framebuffer.Initialize();
 
-        SceneRenderer.Initialize();
-        SceneRenderer.MainFramebuffer = framebuffer;
+        //SceneRenderer.Initialize();
+        //SceneRenderer.MainFramebuffer = framebuffer;
 
-        SceneRenderer.LoadRendererResources();
+        //SceneRenderer.LoadRendererResources();
 
-        using var stream = Program.Assembly.GetManifestResourceStream("GUI.Utils.industrial_sunset_puresky.vtex_c");
-        Debug.Assert(stream != null);
+        //using var stream = Program.Assembly.GetManifestResourceStream("GUI.Utils.industrial_sunset_puresky.vtex_c");
+        //Debug.Assert(stream != null);
 
-        using var resource = new Resource()
-        {
-            FileName = "vrf_default_cubemap.vtex_c"
-        };
-        resource.Read(stream);
+        //using var resource = new Resource()
+        //{
+        //    FileName = "vrf_default_cubemap.vtex_c"
+        //};
+        //resource.Read(stream);
 
-        Renderer.LoadDefaultLighting(SceneRenderer.Scene, resource);
+        //Renderer.LoadDefaultLighting(SceneRenderer.Scene, resource);
 
-        var post = new ScenePostProcessVolume(SceneRenderer.Scene)
-        {
-            HasBloom = true,
-            IsMaster = true,
-            BloomSettings = new BloomSettings
-            {
-                BlendMode = BloomBlendType.BLOOM_BLEND_SCREEN,
-                BloomStartValue = 1,
-                ScreenBloomStrength = 0.584f,
-                BloomThreshold = 1.972f,
-                BloomThresholdWidth = 2.364f
-            }
-        };
+        //var post = new ScenePostProcessVolume(SceneRenderer.Scene)
+        //{
+        //    HasBloom = true,
+        //    IsMaster = true,
+        //    BloomSettings = new BloomSettings
+        //    {
+        //        BlendMode = BloomBlendType.BLOOM_BLEND_SCREEN,
+        //        BloomStartValue = 1,
+        //        ScreenBloomStrength = 0.584f,
+        //        BloomThreshold = 1.972f,
+        //        BloomThresholdWidth = 2.364f
+        //    }
+        //};
 
-        SceneRenderer.Scene.PostProcessInfo.AddPostProcessVolume(post);
+        //SceneRenderer.Scene.PostProcessInfo.AddPostProcessVolume(post);
     }
 
-    public Bitmap? ReadPixelsToBitmap()
-    {
-        var currentSize = NativeWindow?.ClientSize.X ?? 256;
+    //VKTODO:
+    //public Bitmap? ReadPixelsToBitmap()
+    //{
+    //    var currentSize = NativeWindow?.ClientSize.X ?? 256;
 
-        NativeWindow?.MakeCurrent();
-        using var bitmap = new SkiaSharp.SKBitmap(currentSize, currentSize, SkiaSharp.SKColorType.Bgra8888, SkiaSharp.SKAlphaType.Opaque);
-        var pixels = bitmap.GetPixels(out var length);
+    //    NativeWindow?.MakeCurrent();
+    //    using var bitmap = new SkiaSharp.SKBitmap(currentSize, currentSize, SkiaSharp.SKColorType.Bgra8888, SkiaSharp.SKAlphaType.Opaque);
+    //    var pixels = bitmap.GetPixels(out var length);
 
-        Framebuffer.GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
-        GL.ReadPixels(0, 0, currentSize, currentSize, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+    //    Framebuffer.GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+    //    GL.ReadPixels(0, 0, currentSize, currentSize, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
 
-        // Flip y
-        using var canvas = new SkiaSharp.SKCanvas(bitmap);
-        canvas.Scale(1, -1, 0, bitmap.Height / 2f);
-        canvas.DrawBitmap(bitmap, new SkiaSharp.SKPoint(), SkiaSharp.SKSamplingOptions.Default);
+    //    // Flip y
+    //    using var canvas = new SkiaSharp.SKCanvas(bitmap);
+    //    canvas.Scale(1, -1, 0, bitmap.Height / 2f);
+    //    canvas.DrawBitmap(bitmap, new SkiaSharp.SKPoint(), SkiaSharp.SKSamplingOptions.Default);
 
-        return bitmap.ToBitmap();
-    }
+    //    return bitmap.ToBitmap();
+    //}
 
     public static Resource? LoadResourceFromPackageEntry(VrfGuiContext context, PackageEntry entry)
     {
@@ -154,69 +158,71 @@ internal abstract class ThumbnailRenderer : IDisposable
 
     public virtual Bitmap? Render(PackageEntry entry, VrfGuiContext context, ThumbnailSizes thumbnailSize, CancellationToken cancellationToken)
     {
-        Debug.Assert(SceneRenderer != null);
+        //VKTODO:
+        //Debug.Assert(SceneRenderer != null);
 
-        using var resource = LoadResourceFromPackageEntry(context, entry);
+        //using var resource = LoadResourceFromPackageEntry(context, entry);
 
-        if (resource == null)
-        {
-            return null;
-        }
+        //if (resource == null)
+        //{
+        //    return null;
+        //}
 
-        Debug.Assert(NativeWindow != null, "NativeWindow is not created.");
-        Debug.Assert(RendererContext != null, "RendererContext is not created.");
-        Debug.Assert(SceneRenderer != null, "SceneRenderer is not loaded.");
-        Debug.Assert(framebuffer is not null, "Framebuffer is not created.");
-        Debug.Assert(textRenderer != null, "TextRenderer is not created.");
+        //Debug.Assert(NativeWindow != null, "NativeWindow is not created.");
+        //Debug.Assert(RendererContext != null, "RendererContext is not created.");
+        //Debug.Assert(SceneRenderer != null, "SceneRenderer is not loaded.");
+        //Debug.Assert(framebuffer is not null, "Framebuffer is not created.");
+        //Debug.Assert(textRenderer != null, "TextRenderer is not created.");
 
-        NativeWindow.MakeCurrent();
+        //NativeWindow.MakeCurrent();
 
-        SceneRenderer.Scene.Clear();
+        //SceneRenderer.Scene.Clear();
 
-        var size = (int)thumbnailSize;
+        //var size = (int)thumbnailSize;
 
-        // Before the resource is set, because setting it frames the camera on what it loaded, and framing
-        // it against the previous thumbnail's aspect ratio picks the wrong distance
-        SceneRenderer.Camera.SetViewportSize(size, size);
+        //// Before the resource is set, because setting it frames the camera on what it loaded, and framing
+        //// it against the previous thumbnail's aspect ratio picks the wrong distance
+        //SceneRenderer.Camera.SetViewportSize(size, size);
 
-        SetResource(resource);
+        //SetResource(resource);
 
-        // Initialize scene (creates lighting buffers, octrees, etc.)
-        SceneRenderer.Scene.Initialize();
+        //// Initialize scene (creates lighting buffers, octrees, etc.)
+        //SceneRenderer.Scene.Initialize();
 
-        RendererContext.MaxTextureSize = size;
-        NativeWindow.ClientSize = new(size);
-        NativeWindow.Size = new OpenTK.Mathematics.Vector2i(size, size);
-        GL.Viewport(0, 0, size, size);
-        framebuffer.Resize(size, size);
+        //RendererContext.MaxTextureSize = size;
+        //NativeWindow.ClientSize = new(size);
+        //NativeWindow.Size = new OpenTK.Mathematics.Vector2i(size, size);
+        //GL.Viewport(0, 0, size, size);
+        //framebuffer.Resize(size, size);
 
-        NativeWindow.MakeCurrent();
+        //NativeWindow.MakeCurrent();
 
-        var updateContext = new Scene.UpdateContext
-        {
-            Camera = SceneRenderer!.Camera,
-            TextRenderer = textRenderer!,
-            Timestep = 0,
-        };
+        //var updateContext = new Scene.UpdateContext
+        //{
+        //    Camera = SceneRenderer!.Camera,
+        //    TextRenderer = textRenderer!,
+        //    Timestep = 0,
+        //};
 
-        SceneRenderer.Update(updateContext);
+        //SceneRenderer.Update(updateContext);
 
-        GL.ClearColor(Color.Green);
-        GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        //GL.ClearColor(Color.Green);
+        //GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-        SceneRenderer.Render(framebuffer);
-        framebuffer.Bind(FramebufferTarget.ReadFramebuffer);
-        Framebuffer.GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
-        SceneRenderer.PostprocessRender(framebuffer, Framebuffer.GLDefaultFramebuffer, flipY: false);
+        //SceneRenderer.Render(framebuffer);
+        //framebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+        //Framebuffer.GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
+        //SceneRenderer.PostprocessRender(framebuffer, Framebuffer.GLDefaultFramebuffer, flipY: false);
 
-        textRenderer.Render(SceneRenderer.Camera);
+        //textRenderer.Render(SceneRenderer.Camera);
 
-        // no need for this since we just want the pixels into bitmap
-        //NativeWindow.Context.SwapBuffers();
+        //// no need for this since we just want the pixels into bitmap
+        ////NativeWindow.Context.SwapBuffers();
 
-        GL.Flush();
+        //GL.Flush();
 
-        return ReadPixelsToBitmap();
+        //return ReadPixelsToBitmap();
+        return null;
     }
 
     public void Dispose()
@@ -234,9 +240,10 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         if (disposing)
         {
-            RendererContext?.Dispose();
-            SceneRenderer?.Dispose();
-            GLViewers.NativeWindowFactory.Destroy(NativeWindow);
+            //VKTODO:
+            //RendererContext?.Dispose();
+            //SceneRenderer?.Dispose();
+            //GLViewers.NativeWindowFactory.Destroy(NativeWindow);
         }
 
         Loaded = false;

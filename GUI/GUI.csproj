@@ -58,4 +58,14 @@
   <ItemGroup>
     <Folder Include="Shaders\" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- VKTODO: Excluded until they have Vulkan equivalents, see CurrentGlVkTodo.md -->
+    <Compile Remove="Types\GLViewers\GLLockScope.cs" />
+    <Compile Remove="Types\GLViewers\GLTextureDecoder.cs" />
+    <Compile Remove="Types\GLViewers\GLFWSurface.cs" />
+    <Compile Remove="Types\PackageViewer\ThumbnailRenderers\ThumbnailMaterialRenderer.cs" />
+    <Compile Remove="Types\PackageViewer\ThumbnailRenderers\ThumbnailModelRenderer.cs" />
+    <Compile Remove="Types\PackageViewer\ThumbnailRenderers\ThumbnailParticleRenderer.cs" />
+    <Compile Remove="Types\PackageViewer\ThumbnailRenderers\ThumbnailSnapshotRenderer.cs" />
+  </ItemGroup>
 </Project>

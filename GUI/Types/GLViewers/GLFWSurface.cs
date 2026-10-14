@@ -1,5 +1,5 @@
 using OpenTK.Windowing.Desktop;
-using ValveResourceFormat.RendererOld;
+using ValveResourceFormat.Renderer;
 
 namespace GUI.Types.GLViewers;
 

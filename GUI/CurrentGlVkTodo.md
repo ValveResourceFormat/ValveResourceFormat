@@ -42,6 +42,8 @@ This is the primary and first task. The GUI currently has deep coupling to both 
 - [ ] Abstract or remove the reparenting mechanism (`GLControl.cs`, `NonportableReparent`) — no longer needed without GLFW windows
 - [ ] Replace Skia GL backend with abstracted surface path (or remove entirely)
 - [ ] Remove `GLLockScope`, `RenderLoopThread`, and the per-thread context migration dance — all GL-specific abstractions
+- [x] Exclude GL-only files via `<Compile Remove>` (marked `VKTODO`), keeping the files identical to master so rebases apply cleanly. Re-enable by deleting the line once a Vulkan equivalent exists.
+  - `GUI.csproj`: `GLLockScope`, `GLTextureDecoder` (GUI texture decoding falls back to the CPU path, like the CLI), `GLFWSurface`, and the GL thumbnail renderers `ThumbnailMaterialRenderer`, `ThumbnailModelRenderer`, `ThumbnailParticleRenderer`, `ThumbnailSnapshotRenderer` (texture and SVG thumbnails still work)
 - [ ] Decouple GUI from Renderer's GL types (`Framebuffer`, `RendererContext`, `GLEnvironment`) — either by removing those dependencies or abstracting them behind a surface interface
 - [ ] Remove GLFW window creation/management from `GLBaseControl.InitializeLoadCore()` and the thread affinity dance
 - [ ] Replace raw mouse capture (`CursorState.Grabbed`) with WinForms + Windows raw input API

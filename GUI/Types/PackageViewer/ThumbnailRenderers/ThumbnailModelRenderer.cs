@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
 using ValveResourceFormat;
-using ValveResourceFormat.RendererOld.SceneNodes;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.PackageViewer.ThumbnailRenderers;

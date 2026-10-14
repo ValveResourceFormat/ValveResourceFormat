@@ -7,8 +7,8 @@ using OpenTK.Windowing.Desktop;
 using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.RendererOld;
-using ValveResourceFormat.RendererOld.Materials;
+using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 

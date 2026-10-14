@@ -485,12 +485,13 @@ namespace GUI.Types.PackageViewer
 
         private readonly Dictionary<string, ThumbnailRenderer> ThumbnailRenderers = new()
         {
-            {"vmdl_c", new ThumbnailModelRenderer() },
-            {"vmat_c", new ThumbnailMaterialRenderer() },
+            //VKTODO:
+            //{"vmdl_c", new ThumbnailModelRenderer() },
+            //{"vmat_c", new ThumbnailMaterialRenderer() },
             {"vtex_c", new ThumbnailTextureRenderer() },
             {"vsvg_c", new ThumbnailSVGRenderer() },
-            {"vpcf_c", new ThumbnailParticleRenderer() },
-            {"vsnap_c", new ThumbnailSnapshotRenderer() },
+            //{"vpcf_c", new ThumbnailParticleRenderer() },
+            //{"vsnap_c", new ThumbnailSnapshotRenderer() },
         };
 
         /// <summary>

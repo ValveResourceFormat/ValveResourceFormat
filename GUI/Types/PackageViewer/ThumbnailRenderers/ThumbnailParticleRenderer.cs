@@ -1,5 +1,5 @@
 using ValveResourceFormat;
-using ValveResourceFormat.RendererOld.SceneNodes;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.PackageViewer.ThumbnailRenderers;
@@ -14,7 +14,7 @@ internal class ThumbnailParticleRenderer : ThumbnailRenderer
         SceneRenderer.Scene.Add(particleSceneNode, true);
 
         // Update once with 100ms to give particles a chance to simulate/emit/start rendering
-        var updateContext = new ValveResourceFormat.RendererOld.Scene.UpdateContext
+        var updateContext = new ValveResourceFormat.Renderer.Scene.UpdateContext
         {
             Camera = SceneRenderer.Camera,
             TextRenderer = null!,

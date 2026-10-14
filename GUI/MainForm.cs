@@ -123,7 +123,8 @@ namespace GUI
 
             CheckForUpdatesIfNecessary();
 
-            HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder(VrfGuiContext.Logger);
+            //VKTODO:
+            //HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder(VrfGuiContext.Logger);
             RenderLoopThread.Initialize(this);
 
 #if DEBUG
@@ -1094,24 +1095,25 @@ namespace GUI
             };
             progressDialog.OnProcess = _ =>
             {
-                var window = NativeWindowFactory.Create(new()
-                {
-                    APIVersion = ValveResourceFormat.RendererOld.GLEnvironment.RequiredVersion,
-                    Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
-                    StartVisible = false,
-                    Title = "Source 2 Viewer Shader Validator"
-                });
+                //VKTODO:
+                //var window = NativeWindowFactory.Create(new()
+                //{
+                //    APIVersion = ValveResourceFormat.Renderer.GLEnvironment.RequiredVersion,
+                //    Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+                //    StartVisible = false,
+                //    Title = "Source 2 Viewer Shader Validator"
+                //});
 
-                try
-                {
-                    window.MakeCurrent();
+                //try
+                //{
+                //    window.MakeCurrent();
 
-                    ValveResourceFormat.RendererOld.Shaders.ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
-                }
-                finally
-                {
-                    NativeWindowFactory.Destroy(window);
-                }
+                //    ValveResourceFormat.Renderer.Shaders.ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
+                //}
+                //finally
+                //{
+                //    NativeWindowFactory.Destroy(window);
+                //}
 
                 return Task.CompletedTask;
             };
