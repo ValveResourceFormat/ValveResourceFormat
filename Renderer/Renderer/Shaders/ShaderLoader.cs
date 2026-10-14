@@ -750,28 +750,28 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 #endif
 
-        //        /// <summary>
-        //        /// Exception thrown when shader compilation or linking fails.
-        //        /// </summary>
-        //        public class ShaderCompilerException : Exception
-        //        {
-        //            /// <summary>Initializes a new instance of the <see cref="ShaderCompilerException"/> class.</summary>
-        //            public ShaderCompilerException()
-        //            {
-        //            }
+        /// <summary>
+        /// Exception thrown when shader compilation or linking fails.
+        /// </summary>
+        public class ShaderCompilerException : Exception
+        {
+            /// <summary>Initializes a new instance of the <see cref="ShaderCompilerException"/> class.</summary>
+            public ShaderCompilerException()
+            {
+            }
 
-        //            /// <summary>Initializes a new instance of the <see cref="ShaderCompilerException"/> class with a message.</summary>
-        //            /// <param name="message">The error message describing the compilation or link failure.</param>
-        //            public ShaderCompilerException(string message) : base(message)
-        //            {
-        //            }
+            /// <summary>Initializes a new instance of the <see cref="ShaderCompilerException"/> class with a message.</summary>
+            /// <param name="message">The error message describing the compilation or link failure.</param>
+            public ShaderCompilerException(string message) : base(message)
+            {
+            }
 
-        //            /// <summary>Initializes a new instance of the <see cref="ShaderCompilerException"/> class with a message and an inner exception.</summary>
-        //            /// <param name="message">The error message describing the compilation or link failure.</param>
-        //            /// <param name="innerException">The exception that caused this exception.</param>
-        //            public ShaderCompilerException(string message, Exception innerException) : base(message, innerException)
-        //            {
-        //            }
-        //        }
+            /// <summary>Initializes a new instance of the <see cref="ShaderCompilerException"/> class with a message and an inner exception.</summary>
+            /// <param name="message">The error message describing the compilation or link failure.</param>
+            /// <param name="innerException">The exception that caused this exception.</param>
+            public ShaderCompilerException(string message, Exception innerException) : base(message, innerException)
+            {
+            }
+        }
     }
 }

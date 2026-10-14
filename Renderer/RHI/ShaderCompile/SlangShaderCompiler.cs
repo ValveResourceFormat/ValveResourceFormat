@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using SlangShaderSharp;
+using ValveResourceFormat.Renderer.Shaders;
 using ValveResourceFormat.Utils;
 using Vortice.Vulkan;
 
@@ -106,9 +107,9 @@ namespace ValveResourceFormat.Renderer.RHI.ShaderCompile
             if (module == null)
             {
                 if (loadDiagnostics != null)
-                    throw new Exception(loadDiagnostics.AsString);
+                    throw new ShaderLoader.ShaderCompilerException(loadDiagnostics.AsString);
                 else
-                    throw new Exception("Unspecified error during shader compilation!");
+                    throw new ShaderLoader.ShaderCompilerException("Unspecified error during shader compilation!");
             }
 
             List<CompileTimeConstant> compileTimeConstants = new();

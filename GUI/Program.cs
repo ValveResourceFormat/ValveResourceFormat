@@ -123,7 +123,7 @@ namespace GUI
         {
             Log.Error(nameof(Program), exception.ToString());
 
-            if (exception is ValveResourceFormat.RendererOld.Shaders.ShaderLoader.ShaderCompilerException)
+            if (exception is ValveResourceFormat.Renderer.Shaders.ShaderLoader.ShaderCompilerException)
             {
 #pragma warning disable RS0030
                 // cant use the new api here because this must work when UI is broken or not yet initialized due to the callbacks
