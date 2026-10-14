@@ -56,3 +56,4 @@ Only after Phase 1 is complete.
 - [ ] Design pixel readback abstraction layer (staging buffers + fence cycles) — affects 6+ files
 - [ ] Migrate `GLGraphViewer` from GL backend to `SkiaSharp.Vulkan.SharpVk`
 - [ ] Replace raw mouse capture with WinForms + Windows raw input API
+- [ ] VKTODO: Shader validation is unavailable. The GUI's "Validate shaders" action and `Misc/ShaderValidator` both target the old GL renderer (the validator and `Misc/RenderTest` do not build on this branch). Replace them with a Slang validator that compiles every shader to SPIR-V, which needs no window or GPU.
