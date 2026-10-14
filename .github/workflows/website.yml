@@ -1,0 +1,29 @@
+name: Website
+
+on:
+  release:
+    types:
+      - published
+      - edited
+      - deleted
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Create token
+      id: token
+      uses: actions/create-github-app-token@v3
+      with:
+        client-id: ${{ secrets.SITE_APP_CLIENT_ID }}
+        private-key: ${{ secrets.SITE_APP_PRIVATE_KEY }}
+        repositories: valveresourceformat.github.io
+        permission-contents: write
+
+    - name: Rebuild website
+      run: gh api repos/ValveResourceFormat/valveresourceformat.github.io/dispatches -f event_type=release
+      env:
+        GH_TOKEN: ${{ steps.token.outputs.token }}
