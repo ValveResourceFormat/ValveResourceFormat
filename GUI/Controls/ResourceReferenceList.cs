@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveResourceFormat;
@@ -15,6 +16,7 @@ namespace GUI.Controls
     {
         private const string ContentCategory = "Source files, not shipped";
         private const string SubassetCategory = "Subassets";
+        private const string UsedByKey = "\0UsedBy";
         private const string NotFoundNote = "\nNot found in the loaded files";
         private const int MaxRowsShown = 500;
 
@@ -58,7 +60,12 @@ namespace GUI.Controls
         private sealed record ShowAllRows(Group Group);
 
         private readonly VrfGuiContext GuiContext;
+        private readonly string? SelfName;
         private readonly bool ListsReferrers;
+        private readonly ResourceReferenceIndex? UsedByIndex;
+        private readonly List<Row> UsedByRows = [];
+        private readonly List<TreeNode> UsedByNotes = [];
+        private bool UsedByReady;
         private readonly TreeViewDoubleBuffered Tree;
         private readonly ThemedTextBox FilterBox;
         private readonly System.Windows.Forms.Timer FilterTimer = new() { Interval = 150 };
@@ -73,9 +80,15 @@ namespace GUI.Controls
 
         /// <param name="guiContext">The context the references are looked up and opened in.</param>
         /// <param name="references">The files the resource references.</param>
-        public ResourceReferenceList(VrfGuiContext guiContext, IReadOnlyList<ResourceReference> references)
+        /// <param name="selfName">The name the resource is loaded by, which the used by folder looks up.</param>
+        /// <param name="usedByIndex">The index the used by folder is filled from, or <c>null</c> to leave it out.</param>
+        public ResourceReferenceList(VrfGuiContext guiContext, IReadOnlyList<ResourceReference> references, string? selfName, ResourceReferenceIndex? usedByIndex)
             : this(guiContext, references, listsReferrers: false)
         {
+            SelfName = selfName;
+            UsedByIndex = selfName == null ? null : usedByIndex;
+
+            ApplyFilter();
         }
 
         private ResourceReferenceList(VrfGuiContext guiContext, IReadOnlyList<ResourceReference> references, bool listsReferrers)
@@ -124,7 +137,10 @@ namespace GUI.Controls
             Controls.Add(Tree);
             Controls.Add(filterPanel);
 
-            ApplyFilter();
+            if (listsReferrers)
+            {
+                ApplyFilter();
+            }
 
             Themer.ThemeControl(this);
         }
@@ -153,6 +169,11 @@ namespace GUI.Controls
 
             LookedUpRows = 0;
             BeginInvoke(LookUpNextRows);
+
+            if (UsedByIndex != null)
+            {
+                BuildUsedBy(UsedByIndex);
+            }
         }
 
         protected override void Dispose(bool disposing)
@@ -381,7 +402,13 @@ namespace GUI.Controls
             {
                 Tree.Nodes.Clear();
 
-                var roots = new List<TreeNode>(Categories.Count);
+                var roots = new List<TreeNode>(Categories.Count + 1);
+                var usedByNode = CreateUsedByNode();
+
+                if (usedByNode != null)
+                {
+                    roots.Add(usedByNode);
+                }
 
                 foreach (var category in Categories)
                 {
@@ -398,6 +425,22 @@ namespace GUI.Controls
 
                 Tree.Nodes.AddRange([.. roots]);
                 ExpandFilled(roots);
+            });
+        }
+
+        private void UpdateUsedByNode()
+        {
+            UpdateTree(() =>
+            {
+                Tree.Nodes.RemoveByKey(UsedByKey);
+
+                var usedByNode = CreateUsedByNode();
+
+                if (usedByNode != null)
+                {
+                    Tree.Nodes.Insert(0, usedByNode);
+                    ExpandFilled([usedByNode]);
+                }
             });
         }
 
@@ -527,11 +570,115 @@ namespace GUI.Controls
             group.Filled = true;
         }
 
+        private TreeNode? CreateUsedByNode()
+        {
+            if (UsedByIndex == null)
+            {
+                return null;
+            }
+
+            var folderIcon = AppIcons.Icons["Folder"];
+
+            if (!UsedByReady)
+            {
+                return new TreeNode("Used by (indexing…)")
+                {
+                    Name = UsedByKey,
+                    ImageIndex = folderIcon,
+                    SelectedImageIndex = folderIcon,
+                };
+            }
+
+            var matching = Matching(UsedByRows, AppliedFilter);
+
+            if (AppliedFilter.Length > 0 && matching.Count == 0)
+            {
+                return null;
+            }
+
+            TreeNode[] children = AppliedFilter.Length == 0
+                ? [.. matching.Select(static row => row.Node), .. UsedByNotes]
+                : [.. matching.Select(static row => row.Node)];
+            var expand = AppliedFilter.Length > 0 || ExpandedByUser.GetValueOrDefault(UsedByKey);
+
+            return CreateGroupNode(UsedByKey, $"Used by ({matching.Count})", folderIcon, children, expand);
+        }
+
         private static List<Row> Matching(List<Row> rows, string filter)
         {
             return filter.Length == 0
                 ? rows
                 : rows.Where(row => row.Search.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        private void BuildUsedBy(ResourceReferenceIndex usedByIndex)
+        {
+            usedByIndex.BuildAsync().ContinueWith(_ =>
+            {
+                if (IsDisposed || Disposing || !IsHandleCreated)
+                {
+                    return;
+                }
+
+                try
+                {
+                    BeginInvoke(FillUsedBy);
+                }
+                catch (Exception e) when (e is ObjectDisposedException or InvalidOperationException)
+                {
+                }
+            }, TaskScheduler.Default);
+        }
+
+        private void FillUsedBy()
+        {
+            if (IsDisposed || Disposing || SelfName == null || UsedByIndex == null)
+            {
+                return;
+            }
+
+            var found = UsedByIndex.Find(SelfName);
+            var dimmed = Themer.CurrentThemeColors.ContrastSoft;
+
+            foreach (var referrer in found)
+            {
+                var reference = ResourceReference.Create(referrer.Name, referrer.Kinds);
+                var icon = AppIcons.GetImageIndexForExtension(GetExtension(referrer.Name));
+                var node = new TreeNode(referrer.Name)
+                {
+                    ImageIndex = icon,
+                    SelectedImageIndex = icon,
+                    Tag = reference,
+                    ToolTipText = $"{referrer.Name}\nReferences this file, found in its {KindNames(referrer.Kinds)}",
+                };
+
+                UsedByRows.Add(new Row
+                {
+                    Reference = reference,
+                    Category = RowCategory.Reference,
+                    Node = node,
+                    Search = referrer.Name,
+                });
+            }
+
+            if (found.Count == 0)
+            {
+                UsedByNotes.Add(new TreeNode($"Not referenced by any file in the {UsedByIndex.SearchedCount} indexed packages")
+                {
+                    ForeColor = dimmed,
+                });
+            }
+
+            if (UsedByIndex.FailedCount > 0)
+            {
+                UsedByNotes.Add(new TreeNode($"{UsedByIndex.FailedCount} packages could not be indexed, see the log")
+                {
+                    ForeColor = Themer.CurrentThemeColors.Attention,
+                });
+            }
+
+            UsedByReady = true;
+            UpdateUsedByNode();
         }
 
         private void LookUpNextRows()

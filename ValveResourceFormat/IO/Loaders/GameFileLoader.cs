@@ -73,6 +73,11 @@ namespace ValveResourceFormat.IO
         public Package? CurrentPackage { get; set; }
 
         /// <summary>
+        /// Gets the packages that were mounted from the game's search paths.
+        /// </summary>
+        public IReadOnlyList<Package> MountedPackages => CurrentGamePackages;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="GameFileLoader"/> class.
         /// </summary>
         /// <param name="currentPackage">The current package to search for files in.</param>
@@ -532,6 +537,30 @@ namespace ValveResourceFormat.IO
             }
 
             return success;
+        }
+
+        /// <summary>
+        /// Gets the name a file on disk is loaded by, relative to the search path folder it is in.
+        /// </summary>
+        /// <param name="pathOnDisk">The path of the file on disk.</param>
+        /// <returns>The name with forward slashes, or <see langword="null"/> when no search path folder contains the file.</returns>
+        public string? GetNameInSearchPaths(string pathOnDisk)
+        {
+            ArgumentNullException.ThrowIfNull(pathOnDisk);
+
+            var fullPath = Path.GetFullPath(pathOnDisk);
+
+            foreach (var searchPath in CurrentGameSearchPaths)
+            {
+                var name = Path.GetRelativePath(searchPath, fullPath);
+
+                if (!Path.IsPathRooted(name) && name != ".." && !name.StartsWith("..\\", StringComparison.Ordinal) && !name.StartsWith("../", StringComparison.Ordinal))
+                {
+                    return name.Replace('\\', '/');
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

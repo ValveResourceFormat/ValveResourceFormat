@@ -898,9 +898,13 @@ namespace GUI.Types.Viewers
 
             PopulateWhenShown(referencesTab, () =>
             {
-                var references = ResourceReferenceCollector.Collect(resource);
+                var selfName = Path.IsPathRooted(vrfGuiContext.FileName)
+                    ? vrfGuiContext.GetNameInSearchPaths(vrfGuiContext.FileName)
+                    : vrfGuiContext.FileName;
+                var references = ResourceReferenceCollector.Collect(resource, selfName);
+                var usedByIndex = selfName == null ? null : ResourceReferenceIndex.ForContext(vrfGuiContext);
 
-                referencesTab.Controls.Add(new ResourceReferenceList(vrfGuiContext, references));
+                referencesTab.Controls.Add(new ResourceReferenceList(vrfGuiContext, references, selfName, usedByIndex));
             });
         }
 
