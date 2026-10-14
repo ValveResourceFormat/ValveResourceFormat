@@ -73,6 +73,7 @@ namespace GUI.Controls
         private readonly ThemedTextBox FilterBox;
         private readonly System.Windows.Forms.Timer FilterTimer = new() { Interval = 150 };
         private readonly List<Row> Rows = [];
+        private readonly List<Row> NotFoundRows = [];
         private readonly HashSet<TreeNode> MarkedNotFound = [];
         private readonly List<Category> Categories = [];
         private readonly Dictionary<string, bool> ExpandedByUser = new(StringComparer.Ordinal);
@@ -760,12 +761,47 @@ namespace GUI.Controls
                 }
 
                 MarkNotFound(row.Node);
+                NotFoundRows.Add(row);
             }
 
             if (LookedUpRows < Rows.Count)
             {
                 BeginInvoke(LookUpNextRows);
+                return;
             }
+
+            if (NotFoundRows.Count > 0)
+            {
+                ExplainNotFound();
+            }
+        }
+
+        private void ExplainNotFound()
+        {
+            var reasons = new MissingReferenceReasons(GuiContext);
+            var names = NotFoundRows.Select(static row => row.Reference.Name).ToArray();
+
+            Task.Run(() => names.Select(reasons.Explain).ToArray()).ContinueWith(task =>
+            {
+                if (!task.IsCompletedSuccessfully || IsDisposed || Disposing || !IsHandleCreated)
+                {
+                    return;
+                }
+
+                try
+                {
+                    BeginInvoke(() =>
+                    {
+                        for (var i = 0; i < NotFoundRows.Count; i++)
+                        {
+                            NotFoundRows[i].Node.ToolTipText = string.Concat(NotFoundRows[i].Node.ToolTipText, "\n", task.Result[i]);
+                        }
+                    });
+                }
+                catch (Exception e) when (e is ObjectDisposedException or InvalidOperationException)
+                {
+                }
+            }, TaskScheduler.Default);
         }
 
         private void MarkNotFound(TreeNode node)
