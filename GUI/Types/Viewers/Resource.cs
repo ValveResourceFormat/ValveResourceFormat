@@ -348,6 +348,7 @@ namespace GUI.Types.Viewers
 
             var loadedResource = resource;
             var blocksByType = new Dictionary<BlockType, List<(int Index, Block Block)>>();
+            var referencesTabAdded = false;
 
             for (var blockIndex = 0; blockIndex < resource.Blocks.Count; blockIndex++)
             {
@@ -384,14 +385,10 @@ namespace GUI.Types.Viewers
                     continue;
                 }
 
-                if (block.Type == BlockType.RERL && block is ResourceExtRefList externalReferences)
+                if (block.Type == BlockType.RERL)
                 {
-                    var externalRefsTree = BuildExternalRefTree(vrfGuiContext, externalReferences.ResourceRefInfoList);
-
-                    var externalRefsTab = new ThemedTabPage("References");
-                    externalRefsTab.Controls.Add(externalRefsTree);
-                    resTabs.TabPages.Add(externalRefsTab);
-
+                    AddReferencesTab(loadedResource, resTabs);
+                    referencesTabAdded = true;
                     continue;
                 }
 
@@ -449,6 +446,11 @@ namespace GUI.Types.Viewers
                 {
                     resTabs.SelectTab(blockTab);
                 }
+            }
+
+            if (!referencesTabAdded)
+            {
+                AddReferencesTab(loadedResource, resTabs);
             }
 
             try
@@ -889,97 +891,17 @@ namespace GUI.Types.Viewers
             return false;
         }
 
-        public static TreeViewDoubleBuffered BuildExternalRefTree(VrfGuiContext vrfGuiContext, List<ResourceExtRefList.ResourceReferenceInfo> references)
+        private void AddReferencesTab(ValveResourceFormat.Resource resource, TabControl resTabs)
         {
-            var treeView = new TreeViewDoubleBuffered
+            var referencesTab = new ThemedTabPage("References");
+            resTabs.TabPages.Add(referencesTab);
+
+            PopulateWhenShown(referencesTab, () =>
             {
-                Dock = DockStyle.Fill,
-                ImageList = AppIcons.ImageList,
-                HideSelection = false,
-                ShowRootLines = true,
-            };
+                var references = ResourceReferenceCollector.Collect(resource);
 
-            treeView.BeginUpdate();
-
-            var rootNodes = new Dictionary<string, TreeNode>();
-            var rootLookup = rootNodes.GetAlternateLookup<ReadOnlySpan<char>>();
-            var folderIcon = AppIcons.Icons["Folder"];
-
-            foreach (var refInfo in references)
-            {
-                var pathSpan = refInfo.Name.AsSpan();
-                var slashIndex = pathSpan.IndexOf('/');
-
-                ReadOnlySpan<char> rootFolderSpan;
-
-                if (slashIndex >= 0)
-                {
-                    rootFolderSpan = pathSpan[..slashIndex];
-                }
-                else
-                {
-                    rootFolderSpan = [];
-                }
-
-                var extensionSpan = Path.GetExtension(pathSpan);
-                if (extensionSpan.Length > 0)
-                {
-                    extensionSpan = extensionSpan[1..];
-                }
-
-                var fileIcon = AppIcons.GetImageIndexForExtension(extensionSpan);
-                var fileNode = new TreeNode(refInfo.Name)
-                {
-                    ImageIndex = fileIcon,
-                    SelectedImageIndex = fileIcon,
-                    Tag = refInfo,
-                };
-
-                TreeNode? rootNode = null;
-
-                if (!rootFolderSpan.IsEmpty && !rootLookup.TryGetValue(rootFolderSpan, out rootNode))
-                {
-                    var rootFolder = rootFolderSpan.ToString();
-                    rootNode = new TreeNode(rootFolder)
-                    {
-                        ImageIndex = folderIcon,
-                        SelectedImageIndex = folderIcon,
-                    };
-                    rootNodes[rootFolder] = rootNode;
-                    treeView.Nodes.Add(rootNode);
-                }
-
-                if (rootNode != null)
-                {
-                    rootNode.Nodes.Add(fileNode);
-                }
-                else
-                {
-                    treeView.Nodes.Add(fileNode);
-                }
-            }
-
-            treeView.ExpandAll();
-            treeView.EndUpdate();
-
-            void OnNodeDoubleClick(object? sender, TreeNodeMouseClickEventArgs e)
-            {
-                if (e.Node?.Tag is ResourceExtRefList.ResourceReferenceInfo refInfo)
-                {
-                    OpenExternalReference(vrfGuiContext, refInfo.Name);
-                }
-            }
-
-            void OnDisposed(object? sender, EventArgs e)
-            {
-                treeView.NodeMouseDoubleClick -= OnNodeDoubleClick;
-                treeView.Disposed -= OnDisposed;
-            }
-
-            treeView.NodeMouseDoubleClick += OnNodeDoubleClick;
-            treeView.Disposed += OnDisposed;
-
-            return treeView;
+                referencesTab.Controls.Add(new ResourceReferenceList(vrfGuiContext, references));
+            });
         }
 
         // Both before and after the MVTX MIDX update
