@@ -8,10 +8,10 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// Renders each particle as a model from the authored list, placed, turned and scaled by the
-    /// particle and tinted by its color. The models are ordinary model scene nodes, so they light,
-    /// shadow and depth sort like any other model in the scene; this renderer only keeps one placed
-    /// on each live particle.
+    /// Renders each particle as the model its model input's control point carries or a model from the
+    /// authored list, placed, turned and scaled by the particle and tinted by its color. The models are
+    /// ordinary model scene nodes, so they light, shadow and depth sort like any other model in the
+    /// scene; this renderer only keeps one placed on each live particle.
     /// </summary>
     /// <remarks>
     /// Body groups, sequences and per-particle animation, cloth and material variables are not
@@ -22,8 +22,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     internal class RenderModels : ParticleFunctionRenderer
     {
         private readonly Scene scene;
-        private readonly (Model? Model, float Weight, string[] Skins)[] models;
+        private readonly List<(Model? Model, float Weight, string[] Skins)> models = [];
         private readonly float totalWeight;
+        private readonly int modelInputControlPoint = -1;
+        private readonly Dictionary<Model, int> inputModels = [];
 
         private readonly bool ignoreNormal;
         private readonly bool orientZ;
@@ -44,16 +46,25 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>The model each live particle was given when it was created, by unique particle id, or -1 for none.</summary>
         private readonly Dictionary<int, int> pickedModels = [];
         private readonly HashSet<int> liveParticleIds = [];
-        private readonly Stack<(ModelSceneNode Node, int Skin)>[] idle;
+        private readonly List<Stack<(ModelSceneNode Node, int Skin)>> idle;
 
         public RenderModels(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
         {
             this.scene = scene;
 
-            var list = new List<(Model?, float, string[])>();
-
             if (!OnlyRenderInEffectsBloomPass && !OnlyRenderInEffectsWaterPass)
             {
+                // TODO: Named value model and entity handle inputs
+                if (parse.Data.GetSubCollection("m_modelInput") is { IsCollection: true } modelInputData)
+                {
+                    var modelInput = parse.Nested(modelInputData);
+
+                    if (modelInput.Enum("m_nType", ParticleModelType.PM_TYPE_INVALID) == ParticleModelType.PM_TYPE_CONTROL_POINT)
+                    {
+                        modelInputControlPoint = modelInput.Int32("m_nControlPoint", modelInputControlPoint);
+                    }
+                }
+
                 foreach (var entry in parse.Data.GetArray("m_ModelList") ?? [])
                 {
                     var path = entry.GetStringProperty("m_model");
@@ -64,11 +75,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     model?.GetEmbeddedMeshes();
 
                     var weight = entry.ContainsKey("m_flRelativeProbabilityOfSpawn") ? entry.GetFloatProperty("m_flRelativeProbabilityOfSpawn") : 1f;
-                    list.Add((model, weight, model?.GetMaterialGroups().Select(static group => group.Name).ToArray() ?? []));
+                    models.Add((model, weight, MaterialGroupNames(model)));
                 }
             }
 
-            models = [.. list];
             totalWeight = models.Where(static entry => entry.Model != null && entry.Weight > 0f).Sum(static entry => entry.Weight);
             idle = [.. models.Select(static _ => new Stack<(ModelSceneNode, int)>())];
 
@@ -92,7 +102,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void Act(ParticleCollection particles, ParticleSystemState systemState)
         {
-            if (models.Length == 0)
+            if (models.Count == 0)
             {
                 return;
             }
@@ -153,7 +163,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void InitializeParticles(ParticleCollection particles, ParticleSystemState systemState, int first, int count)
         {
-            if (models.Length == 0)
+            if (models.Count == 0 && modelInputControlPoint < 0)
             {
                 return;
             }
@@ -194,15 +204,21 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// The model a new particle draws: the list entry the manual selection names when it is in range,
-        /// otherwise one picked by relative probability with one draw from the system's random sequence,
-        /// or -1 when there is no model to draw.
+        /// The model a new particle draws: the model bound to the model input's control point when there
+        /// is one, otherwise the list entry the manual selection names when it is in range, otherwise one
+        /// picked by relative probability with one draw from the system's random sequence, or -1 when
+        /// there is no model to draw.
         /// </summary>
         private int PickModel(ref Particle particle, ParticleSystemState systemState)
         {
+            if (systemState.GetControlPointModel(modelInputControlPoint) is { } inputModel)
+            {
+                return InputModelIndex(inputModel);
+            }
+
             var manual = (int)manualModelSelection.NextNumber(ref particle, systemState);
 
-            if ((uint)manual < (uint)models.Length)
+            if ((uint)manual < (uint)models.Count)
             {
                 return models[manual].Model != null ? manual : -1;
             }
@@ -215,7 +231,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var pick = systemState.Random.Next() * totalWeight;
             var picked = -1;
 
-            for (var i = 0; i < models.Length; i++)
+            for (var i = 0; i < models.Count; i++)
             {
                 if (models[i].Model == null || models[i].Weight <= 0f)
                 {
@@ -233,6 +249,23 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             return picked;
         }
+
+        /// <summary>Where a model a control point supplies sits in the model list, adding it with no spawn weight the first time.</summary>
+        private int InputModelIndex(Model model)
+        {
+            if (!inputModels.TryGetValue(model, out var index))
+            {
+                index = models.Count;
+                inputModels.Add(model, index);
+                models.Add((model, 0f, MaterialGroupNames(model)));
+                idle.Add(new Stack<(ModelSceneNode, int)>());
+            }
+
+            return index;
+        }
+
+        private static string[] MaterialGroupNames(Model? model)
+            => model?.GetMaterialGroups().Select(static group => group.Name).ToArray() ?? [];
 
         private (ModelSceneNode Node, int Model, int Skin) TakeNode(int model)
         {

@@ -219,6 +219,10 @@ namespace ValveResourceFormat.Particles
         public ParticleSnapshot? GetControlPointSnapshot(int cp)
             => (uint)cp <= MaxControlPoint ? controlPoints[cp]?.Snapshot : null;
 
+        /// <summary>Gets the model bound to a control point, or null when none is.</summary>
+        public Model? GetControlPointModel(int cp)
+            => (uint)cp <= MaxControlPoint ? controlPoints[cp]?.Model : null;
+
         /// <summary>Binds a snapshot to a control point of this system and every system below it.</summary>
         internal void SetControlPointSnapshot(int cp, ParticleSnapshot snapshot)
         {
@@ -607,6 +611,32 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>The snapshot bound to this control point, or null when none is.</summary>
         internal ParticleSnapshot? Snapshot { get; set; }
+
+        private Model? model;
+
+        /// <summary>
+        /// The model bound to this control point, such as the model an effect is attached to, or null
+        /// when none is. Model inputs of type <c>PM_TYPE_CONTROL_POINT</c> read it. Setting it does not
+        /// count as a change of the control point.
+        /// </summary>
+        public Model? Model
+        {
+            get => model;
+            set
+            {
+                model = value;
+
+                if (Owner == null)
+                {
+                    return;
+                }
+
+                foreach (var child in Owner.Children)
+                {
+                    child.GetControlPoint(Index).Model = value;
+                }
+            }
+        }
 
         /// <summary>
         /// Write potentially non positional data to the control point, for the particle to read.
