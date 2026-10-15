@@ -20,9 +20,10 @@ namespace ValveResourceFormat.Particles.Utils
         public readonly Vector3 MidPointOffset = Vector3.Zero;
         public readonly Vector3 EndOffset = Vector3.Zero;
 
-        public ParticlePathParameters(ParticleDefinitionParser parse)
+        /// <summary>Reads the path from the block at <paramref name="key"/>, keeping the defaults when it is absent.</summary>
+        public ParticlePathParameters(ParticleDefinitionParser parse, string key = "m_PathParams")
         {
-            var pathParams = parse.Data.GetSubCollection("m_PathParams");
+            var pathParams = parse.Data.GetSubCollection(key);
             if (pathParams == null)
             {
                 return;
