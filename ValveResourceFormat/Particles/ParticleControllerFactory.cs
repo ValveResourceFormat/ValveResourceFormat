@@ -25,11 +25,25 @@ namespace ValveResourceFormat.Particles
             = new()
             {
                 ["C_OP_ChooseRandomChildrenInGroup"] = preEmissionOperatorInfo => new ChooseRandomChildrenInGroup(preEmissionOperatorInfo),
+                ["C_OP_ControlPointToRadialScreenSpace"] = preEmissionOperatorInfo => new ControlPointToRadialScreenSpace(preEmissionOperatorInfo),
                 ["C_OP_DistanceBetweenCPsToCP"] = preEmissionOperatorInfo => new DistanceBetweenCPsToCP(preEmissionOperatorInfo),
+                ["C_OP_DriveCPFromGlobalSoundFloat"] = preEmissionOperatorInfo => new DriveCPFromGlobalSoundFloat(preEmissionOperatorInfo),
+                ["C_OP_EnableChildrenFromParentParticleCount"] = preEmissionOperatorInfo => new EnableChildrenFromParentParticleCount(preEmissionOperatorInfo),
+                ["C_OP_ForceControlPointStub"] = preEmissionOperatorInfo => new ForceControlPointStub(preEmissionOperatorInfo),
                 ["C_OP_HSVShiftToCP"] = preEmissionOperatorInfo => new HSVShiftToCP(preEmissionOperatorInfo),
                 ["C_OP_LightningSnapshotGenerator"] = preEmissionOperatorInfo => new LightningSnapshotGenerator(preEmissionOperatorInfo),
                 ["C_OP_RampCPLinearRandom"] = preEmissionOperatorInfo => new RampCPLinearRandom(preEmissionOperatorInfo),
+                ["C_OP_RemapAverageScalarValuetoCP"] = preEmissionOperatorInfo => new RemapAverageScalarValuetoCP(preEmissionOperatorInfo),
+                ["C_OP_RemapBoundingVolumetoCP"] = preEmissionOperatorInfo => new RemapBoundingVolumetoCP(preEmissionOperatorInfo),
+                ["C_OP_RemapCPtoCP"] = preEmissionOperatorInfo => new RemapCPtoCP(preEmissionOperatorInfo),
+                ["C_OP_RemapDotProductToCP"] = preEmissionOperatorInfo => new RemapDotProductToCP(preEmissionOperatorInfo),
                 ["C_OP_RemapSpeedtoCP"] = preEmissionOperatorInfo => new RemapSpeedtoCP(preEmissionOperatorInfo),
+                ["C_OP_RepeatedTriggerChildGroup"] = preEmissionOperatorInfo => new RepeatedTriggerChildGroup(preEmissionOperatorInfo),
+                ["C_OP_SelectivelyEnableChildren"] = preEmissionOperatorInfo => new SelectivelyEnableChildren(preEmissionOperatorInfo),
+                ["C_OP_SetCPOrientationToPointAtCP"] = preEmissionOperatorInfo => new SetCPOrientationToPointAtCP(preEmissionOperatorInfo),
+                ["C_OP_SetControlPointFieldToWater"] = preEmissionOperatorInfo => new SetControlPointFieldToWater(preEmissionOperatorInfo),
+                ["C_OP_SetControlPointOrientationToCPVelocity"] = preEmissionOperatorInfo => new SetControlPointOrientationToCPVelocity(preEmissionOperatorInfo),
+                ["C_OP_SetControlPointPositionToRandomActiveCP"] = preEmissionOperatorInfo => new SetControlPointPositionToRandomActiveCP(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointPositions"] = preEmissionOperatorInfo => new SetControlPointPositions(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointRotation"] = preEmissionOperatorInfo => new SetControlPointRotation(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointToCenter"] = preEmissionOperatorInfo => new SetControlPointToCenter(preEmissionOperatorInfo),
@@ -37,8 +51,10 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_SetControlPointToVectorExpression"] = preEmissionOperatorInfo => new SetControlPointToVectorExpression(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointOrientation"] = preEmissionOperatorInfo => new SetControlPointOrientation(preEmissionOperatorInfo),
                 ["C_OP_PlayEndCapWhenFinished"] = preEmissionOperatorInfo => new PlayEndCapWhenFinished(preEmissionOperatorInfo),
+                ["C_OP_SetGravityToCP"] = preEmissionOperatorInfo => new SetGravityToCP(preEmissionOperatorInfo),
                 ["C_OP_SetParentControlPointsToChildCP"] = preEmissionOperatorInfo => new SetParentControlPointsToChildCP(preEmissionOperatorInfo),
                 ["C_OP_SetRandomControlPointPosition"] = preEmissionOperatorInfo => new SetRandomControlPointPosition(preEmissionOperatorInfo),
+                ["C_OP_SetSimulationRate"] = preEmissionOperatorInfo => new SetSimulationRate(preEmissionOperatorInfo),
                 ["C_OP_SetSingleControlPointPosition"] = preEmissionOperatorInfo => new SetSingleControlPointPosition(preEmissionOperatorInfo),
                 ["C_OP_StopAfterCPDuration"] = preEmissionOperatorInfo => new StopAfterDuration(preEmissionOperatorInfo),
             };
@@ -192,6 +208,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_SpinUpdate"] = operatorInfo => new SpinUpdate(operatorInfo),
                 ["C_OP_SpinYaw"] = operatorInfo => new SpinYaw(operatorInfo),
                 ["C_OP_VelocityDecay"] = operatorInfo => new VelocityDecay(operatorInfo),
+                ["C_OP_VelocityMatchingForce"] = operatorInfo => new VelocityMatchingForce(operatorInfo),
             };
 
         // Register particle force generators
@@ -199,13 +216,20 @@ namespace ValveResourceFormat.Particles
             = new()
             {
                 ["C_OP_AttractToControlPoint"] = forceGeneratorInfo => new AttractToControlPoint(forceGeneratorInfo),
+                ["C_OP_CPVelocityForce"] = forceGeneratorInfo => new CPVelocityForce(forceGeneratorInfo),
                 ["C_OP_CurlNoiseForce"] = forceGeneratorInfo => new CurlNoiseForce(forceGeneratorInfo),
+                ["C_OP_ExternalGameImpulseForce"] = forceGeneratorInfo => new ExternalGameImpulseForce(forceGeneratorInfo),
+                ["C_OP_ExternalWindForce"] = forceGeneratorInfo => new ExternalWindForce(forceGeneratorInfo),
+                ["C_OP_ForceBasedOnDistanceToPlane"] = forceGeneratorInfo => new ForceBasedOnDistanceToPlane(forceGeneratorInfo),
+                ["C_OP_IntraParticleForce"] = forceGeneratorInfo => new IntraParticleForce(forceGeneratorInfo),
                 ["C_OP_LocalAccelerationForce"] = forceGeneratorInfo => new LocalAccelerationForce(forceGeneratorInfo),
+                ["C_OP_ParentVortices"] = forceGeneratorInfo => new ParentVortices(forceGeneratorInfo),
                 ["C_OP_PerParticleForce"] = forceGeneratorInfo => new PerParticleForce(forceGeneratorInfo),
                 ["C_OP_RandomForce"] = forceGeneratorInfo => new RandomForce(forceGeneratorInfo),
                 ["C_OP_TimeVaryingForce"] = forceGeneratorInfo => new TimeVaryingForce(forceGeneratorInfo),
                 ["C_OP_TurbulenceForce"] = forceGeneratorInfo => new TurbulenceForce(forceGeneratorInfo),
                 ["C_OP_TwistAroundAxis"] = forceGeneratorInfo => new TwistAroundAxis(forceGeneratorInfo),
+                ["C_OP_WindForce"] = forceGeneratorInfo => new WindForce(forceGeneratorInfo),
             };
 
         // Register particle constraints (run after operators each frame to relax particle positions)

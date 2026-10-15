@@ -104,6 +104,23 @@ namespace ValveResourceFormat.Particles
         /// <summary>Whether <paramref name="state"/> belongs to a system tagged with <paramref name="groupId"/>.</summary>
         internal static bool IsInGroup(ParticleSystemState state, int groupId) => state.Data?.groupId == groupId;
 
+        /// <summary>The group this system belongs to among its parent's children (<c>m_nGroupID</c>).</summary>
+        internal int GroupId => groupId;
+
+        /// <summary>
+        /// Holds this child before its start until a group operator starts it again. With
+        /// <paramref name="finishedWhileHeld"/> it also counts as finished while it waits.
+        /// </summary>
+        internal void Hold(bool finishedWhileHeld)
+        {
+            if (finishedWhileHeld)
+            {
+                finishedBeforeStartAllowed = true;
+            }
+
+            systemState.Age = float.MinValue;
+        }
+
         private void SetupChildParticles(IReadOnlyList<KVObject> children)
         {
             for (var slot = 0; slot < children.Count; slot++)
