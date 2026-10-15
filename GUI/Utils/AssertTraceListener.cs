@@ -43,7 +43,7 @@ namespace GUI.Utils
 
             try
             {
-                Program.ShowError(exception);
+                ErrorReport.ShowError(exception);
             }
             catch
             {

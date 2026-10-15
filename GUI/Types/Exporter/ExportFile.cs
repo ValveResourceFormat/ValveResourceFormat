@@ -35,7 +35,7 @@ namespace GUI.Types.Exporter
             }
             catch (Exception e)
             {
-                Program.ShowError(e, errorContext);
+                ErrorReport.ShowError(e, errorContext);
                 return;
             }
 
@@ -63,7 +63,7 @@ namespace GUI.Types.Exporter
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                Program.ShowError(e, errorContext);
+                ErrorReport.ShowError(e, errorContext);
             }
             finally
             {

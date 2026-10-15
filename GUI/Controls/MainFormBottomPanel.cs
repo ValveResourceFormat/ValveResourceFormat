@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Windows.Forms;
 using GUI.Forms;
 using GUI.Utils;
@@ -66,7 +67,7 @@ public partial class MainFormBottomPanel : Panel
         }
 
         newVersionAvailableToolStripMenuItem.Text = "Update Available";
-        newVersionAvailableToolStripMenuItem.Visible = Settings.Config.Update.CheckAutomatically && Settings.Config.Update.UpdateAvailable;
+        newVersionAvailableToolStripMenuItem.Visible = Settings.Config.Update.CheckAutomatically && UpdateChecker.IsUpdateAvailable;
     }
 
     /// <summary>
@@ -77,7 +78,7 @@ public partial class MainFormBottomPanel : Panel
     {
         RefreshUpdateState();
 
-        if (IsDisposed || newVersionAvailableToolStripMenuItem.Visible || UpdateChecker.NewerDevBuild == null)
+        if (IsDisposed || newVersionAvailableToolStripMenuItem.Visible || UpdateChecker.GetUpdateStatus() != UpdateChecker.UpdateStatus.NewerDev)
         {
             return;
         }
@@ -89,6 +90,15 @@ public partial class MainFormBottomPanel : Panel
 
     public void ShowAboutDialog()
     {
+        // The error dialog can ask for it while it is already open
+        var openForm = Application.OpenForms.OfType<AboutForm>().FirstOrDefault();
+
+        if (openForm != null)
+        {
+            openForm.Activate();
+            return;
+        }
+
         using var form = new AboutForm();
         form.ShowDialog(this);
 

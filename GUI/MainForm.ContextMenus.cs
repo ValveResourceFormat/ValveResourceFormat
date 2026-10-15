@@ -339,7 +339,7 @@ namespace GUI
                 }
                 catch (Exception ex)
                 {
-                    Program.ShowError(ex, file.GetFullPath());
+                    ErrorReport.ShowError(ex, file.GetFullPath());
                 }
             }
         }
@@ -367,7 +367,7 @@ namespace GUI
             }
             catch (Exception ex)
             {
-                Program.ShowError(ex, selectedNode.PackageEntry.GetFullPath());
+                ErrorReport.ShowError(ex, selectedNode.PackageEntry.GetFullPath());
             }
             finally
             {

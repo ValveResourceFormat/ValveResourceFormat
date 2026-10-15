@@ -123,7 +123,7 @@ namespace GUI.Controls
             }
             catch (Exception driverCreateException)
             {
-                Program.ShowError(driverCreateException, ErrorContext);
+                ErrorReport.ShowError(driverCreateException, ErrorContext);
             }
             finally
             {
@@ -516,7 +516,7 @@ namespace GUI.Controls
         {
             if (e.Exception != null)
             {
-                Program.ShowError(e.Exception, ErrorContext);
+                ErrorReport.ShowError(e.Exception, ErrorContext);
             }
 
             if (IsDisposed)

@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -259,15 +258,15 @@ namespace GUI.Types.Viewers
         {
             try
             {
+                control.TextBox.ClearException();
                 DisplayNode(node);
             }
             catch (Exception ex)
             {
-                Log.Error(nameof(CompiledShader), $"Failed to display \"{node.Text}\" in \"{vrfGuiContext.DisplayPath}\": {ex}");
+                var context = $"{node.Text} in {vrfGuiContext.DisplayPath}";
+                Log.Error(nameof(CompiledShader), $"Failed to display \"{context}\": {ex}");
 
-                var output = new StringBuilder();
-                Program.AppendExceptionWithVersion(output, ex, vrfGuiContext.DisplayPath);
-                control.TextBox.Text = output.ToString();
+                control.TextBox.ShowException(ex, context);
             }
         }
 

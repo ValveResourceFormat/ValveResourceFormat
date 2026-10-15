@@ -608,7 +608,7 @@ namespace GUI
 
         private void OnAboutItemClick(object sender, EventArgs e)
         {
-            mainFormBottomPanel.ShowAboutDialog();
+            ShowAbout();
         }
 
         private void OnSettingsItemClick(object sender, EventArgs e)
@@ -914,7 +914,7 @@ namespace GUI
                     }
                     catch (Exception e)
                     {
-                        Program.ShowError(e);
+                        ErrorReport.ShowError(e);
 
                         return true;
                     }
@@ -1131,6 +1131,11 @@ namespace GUI
             await UpdateChecker.CheckForUpdatesIfNecessary().ConfigureAwait(true);
 
             mainFormBottomPanel.RefreshUpdateState();
+        }
+
+        public void ShowAbout()
+        {
+            mainFormBottomPanel.ShowAboutDialog();
         }
 
         public void ShowUpdateAfterError()

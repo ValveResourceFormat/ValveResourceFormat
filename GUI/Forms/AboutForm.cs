@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
@@ -165,7 +166,7 @@ namespace GUI.Forms
             }
             catch (Exception ex)
             {
-                Program.ShowError(ex);
+                ErrorReport.ShowError(ex);
             }
             finally
             {
@@ -199,17 +200,28 @@ namespace GUI.Forms
             CheckForUpdates();
         }
 
-        private static void OpenUrl(string url)
+        /// <summary>
+        /// Opens an https url in the default browser, logging instead of throwing when that fails.
+        /// </summary>
+        public static void OpenUrl(string url)
         {
             if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
             {
-                throw new ArgumentException($"Refusing to open \"{url}\".", nameof(url));
+                Log.Error(nameof(AboutForm), $"Refusing to open \"{url}\".");
+                return;
             }
 
-            Process.Start(new ProcessStartInfo(uri.AbsoluteUri)
+            try
             {
-                UseShellExecute = true,
-            });
+                Process.Start(new ProcessStartInfo(uri.AbsoluteUri)
+                {
+                    UseShellExecute = true,
+                });
+            }
+            catch (Win32Exception e)
+            {
+                Log.Error(nameof(AboutForm), $"Failed to open \"{url}\": {e.Message}");
+            }
         }
 
         private void OnCopyVersionClick(object sender, EventArgs e)

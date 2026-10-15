@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Utils;
 
 namespace GUI.Forms
 {
@@ -163,7 +164,7 @@ namespace GUI.Forms
                         {
                             if (exception is not OperationCanceledException)
                             {
-                                Program.ShowError(exception);
+                                ErrorReport.ShowError(exception);
                             }
                         }
                     }

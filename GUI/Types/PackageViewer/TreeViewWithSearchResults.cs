@@ -1075,7 +1075,7 @@ namespace GUI.Types.PackageViewer
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
-                    Program.ShowError(e, vrfGuiContext.DisplayPath);
+                    ErrorReport.ShowError(e, vrfGuiContext.DisplayPath);
                     return Task.CompletedTask;
                 }
 

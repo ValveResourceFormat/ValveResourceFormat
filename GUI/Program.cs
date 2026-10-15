@@ -2,13 +2,9 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Utils;
-using ValveResourceFormat.Renderer;
-using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using Windows.Win32;
 using Windows.Win32.System.LibraryLoader;
 
@@ -124,157 +120,12 @@ namespace GUI
 
         private static void ThreadException(object sender, ThreadExceptionEventArgs e)
         {
-            ShowError(e.Exception);
+            ErrorReport.ShowError(e.Exception);
         }
 
         private static void UnhandledException(object sender, UnhandledExceptionEventArgs ex)
         {
-            ShowError((Exception)ex.ExceptionObject);
-        }
-
-        public static void ShowError(Exception exception, string? context = null)
-        {
-            Log.Error(nameof(Program), context == null ? exception.ToString() : $"Failed on \"{context}\": {exception}");
-
-            if (exception is ValveResourceFormat.Renderer.Shaders.ShaderLoader.ShaderCompilerException)
-            {
-#pragma warning disable RS0030
-                // cant use the new api here because this must work when UI is broken or not yet initialized due to the callbacks
-                // finding a real fix here is a problem for future us when we know how the new UI works.
-                MessageBox.Show(exception.Message, "Failed to compile shader", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-#pragma warning restore RS0030
-                return;
-            }
-
-            var output = new StringBuilder(512);
-            AppendExceptionWithVersion(output, exception, context);
-            var outputText = output.ToString();
-
-            var copyButton = new TaskDialogButton("Copy to clipboard");
-
-            var firstLocation = string.Empty;
-
-            try
-            {
-                var stackTrace = new StackTrace(exception, true);
-                if (stackTrace.FrameCount > 0)
-                {
-                    var frame = stackTrace.GetFrame(0);
-                    if (frame != null)
-                    {
-                        var method = frame.GetMethod();
-                        var fileName = frame.GetFileName();
-                        var lineNumber = frame.GetFileLineNumber();
-
-                        if (method != null)
-                        {
-                            firstLocation = $"{Environment.NewLine}{method.DeclaringType?.FullName}.{method.Name}";
-
-                            if (!string.IsNullOrEmpty(fileName) && lineNumber > 0)
-                            {
-                                firstLocation += $" in {fileName}:{lineNumber}";
-                            }
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                //
-            }
-
-            ShowUpdateAfterError();
-
-            var page = new TaskDialogPage
-            {
-                Caption = $"Unhandled exception: {exception.GetType()}",
-                Text = $"{exception.Message}{firstLocation}{Environment.NewLine}{Environment.NewLine}Use copy button when sharing this error, and also mention your exact steps. Details also available in console.",
-                Icon = TaskDialogIcon.Error,
-                Buttons = { copyButton, TaskDialogButton.Close },
-                DefaultButton = TaskDialogButton.Close,
-                AllowCancel = false,
-                AllowMinimize = false,
-                Expander = new TaskDialogExpander
-                {
-                    Position = TaskDialogExpanderPosition.AfterFootnote,
-                    Text = outputText,
-                },
-                Footnote = new TaskDialogFootnote
-                {
-                    Text = $"S2V {Program.DisplayVersion}{Environment.NewLine}Try using latest dev build to see if the issue persists.",
-                    Icon = TaskDialogIcon.Information
-                }
-            };
-
-            var result = TaskDialog.ShowDialog(page);
-
-            if (result == copyButton)
-            {
-                if (MainForm != null && MainForm.InvokeRequired)
-                {
-                    MainForm.BeginInvoke(() => AppClipboard.SetText(outputText));
-                }
-                else
-                {
-                    AppClipboard.SetText(outputText);
-                }
-            }
-        }
-
-        private static void ShowUpdateAfterError()
-        {
-            var mainForm = MainForm;
-
-            if (mainForm is not { IsHandleCreated: true, IsDisposed: false })
-            {
-                return;
-            }
-
-            try
-            {
-                mainForm.BeginInvoke(mainForm.ShowUpdateAfterError);
-            }
-            catch (InvalidOperationException)
-            {
-                // The window is being destroyed
-            }
-        }
-
-        public static void AppendExceptionWithVersion(StringBuilder output, Exception exception, string? context = null)
-        {
-            var version = Program.ProductVersion;
-
-            output.AppendLine("```");
-
-            if (context != null)
-            {
-                output.Append("Context: ");
-                output.AppendLine(context);
-                output.AppendLine();
-            }
-
-            output.AppendLine(exception.ToString());
-
-            if (exception.Data[AnimationGraph.ExceptionDataKey] is string graphState)
-            {
-                output.AppendLine();
-                output.AppendLine(AnimationGraph.ExceptionDataKey + ":");
-                output.Append(graphState);
-            }
-
-            output.AppendLine();
-
-            output.Append("S2V ");
-            output.Append(version.Replace('+', ' '));
-            output.Append(CultureInfo.InvariantCulture, $" on {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
-
-            if (GLEnvironment.GpuRendererAndDriver != null)
-            {
-                output.Append(CultureInfo.InvariantCulture, $" ({GLEnvironment.GpuRendererAndDriver})");
-            }
-
-            output.AppendLine();
-            output.AppendLine("```");
+            ErrorReport.ShowError((Exception)ex.ExceptionObject);
         }
     }
 }
