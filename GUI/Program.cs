@@ -132,6 +132,30 @@ namespace GUI
             ShowError((Exception)ex.ExceptionObject);
         }
 
+        private const string DevBuildUrl = "https://s2v.app/dev/";
+
+        public const string ReportAdvice = $"Get the latest dev build from {DevBuildUrl} and try again. If it still happens there, report it on GitHub or Discord (both linked on https://s2v.app/) with the copied error and your exact steps.";
+
+        /// <summary>
+        /// Tells the user an error may already be fixed in a newer dev build, naming it when the update check found one.
+        /// </summary>
+        public static string GetDevBuildHeading()
+        {
+            var newerDevBuild = UpdateChecker.NewerDevBuild;
+
+            return newerDevBuild == null
+                ? "This may already be fixed in the latest dev build"
+                : string.Create(CultureInfo.InvariantCulture, $"This may already be fixed in dev build {newerDevBuild}");
+        }
+
+        /// <summary>
+        /// Writes a highlighted line to the console telling the user to try the latest dev build before reporting an error.
+        /// </summary>
+        public static void LogDevBuildAdvice()
+        {
+            Log.Alert(nameof(Program), $"{GetDevBuildHeading()}. {ReportAdvice}");
+        }
+
         public static void ShowError(Exception exception, string? context = null)
         {
             Log.Error(nameof(Program), context == null ? exception.ToString() : $"Failed on \"{context}\": {exception}");
@@ -145,6 +169,8 @@ namespace GUI
 #pragma warning restore RS0030
                 return;
             }
+
+            LogDevBuildAdvice();
 
             var output = new StringBuilder(512);
             AppendExceptionWithVersion(output, exception, context);
@@ -185,12 +211,15 @@ namespace GUI
 
             ShowUpdateAfterError();
 
+            var devBuildButton = new TaskDialogButton("Get latest dev build");
+
             var page = new TaskDialogPage
             {
                 Caption = $"Unhandled exception: {exception.GetType()}",
-                Text = $"{exception.Message}{firstLocation}{Environment.NewLine}{Environment.NewLine}Use copy button when sharing this error, and also mention your exact steps. Details also available in console.",
-                Icon = TaskDialogIcon.Error,
-                Buttons = { copyButton, TaskDialogButton.Close },
+                Heading = GetDevBuildHeading(),
+                Text = $"{exception.Message}{firstLocation}{Environment.NewLine}{Environment.NewLine}{ReportAdvice}",
+                Icon = TaskDialogIcon.ShieldErrorRedBar,
+                Buttons = { devBuildButton, copyButton, TaskDialogButton.Close },
                 DefaultButton = TaskDialogButton.Close,
                 AllowCancel = false,
                 AllowMinimize = false,
@@ -201,14 +230,21 @@ namespace GUI
                 },
                 Footnote = new TaskDialogFootnote
                 {
-                    Text = $"S2V {Program.DisplayVersion}{Environment.NewLine}Try using latest dev build to see if the issue persists.",
+                    Text = $"S2V {Program.DisplayVersion}",
                     Icon = TaskDialogIcon.Information
                 }
             };
 
+            // The red heading bar comes from the initial icon and stays when the icon is replaced
+            page.Created += (_, _) => page.Icon = TaskDialogIcon.Error;
+
             var result = TaskDialog.ShowDialog(page);
 
-            if (result == copyButton)
+            if (result == devBuildButton)
+            {
+                Process.Start(new ProcessStartInfo(DevBuildUrl) { UseShellExecute = true });
+            }
+            else if (result == copyButton)
             {
                 if (MainForm != null && MainForm.InvokeRequired)
                 {

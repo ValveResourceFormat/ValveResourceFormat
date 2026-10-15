@@ -83,6 +83,7 @@ namespace GUI.Utils
                 Log.Category.DEBUG => TextStyleDebug,
                 Log.Category.WARN => TextStyleWarn,
                 Log.Category.ERROR => TextStyleError,
+                Log.Category.ALERT => CodeTextBox.AlertStyle,
                 _ => null,
             };
 

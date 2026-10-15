@@ -8,6 +8,7 @@ internal static class Log
         INFO,
         WARN,
         ERROR,
+        ALERT,
     }
 
     private static ConsoleTab? console;
@@ -67,6 +68,20 @@ internal static class Log
         }
 
         console.WriteLine(Category.ERROR, component, message);
+    }
+
+    /// <summary>
+    /// Writes a message that stands out from errors, for advice the user must not miss.
+    /// </summary>
+    public static void Alert(string component, string message)
+    {
+        if (console == null)
+        {
+            WriteToConsole(component, message);
+            return;
+        }
+
+        console.WriteLine(Category.ALERT, component, message);
     }
 
     public static void ClearConsole() => console?.ClearBuffer();

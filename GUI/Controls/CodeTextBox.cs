@@ -12,6 +12,9 @@ namespace GUI.Controls
     {
         private string? LazyText;
 
+        /// <summary>Bold white on red, for advice the user must not miss.</summary>
+        public static readonly TextStyle AlertStyle = new(Brushes.White, Brushes.Red, FontStyle.Bold);
+
         public static Font GetMonospaceFont()
         {
             try
@@ -146,13 +149,15 @@ namespace GUI.Controls
         public static CodeTextBox CreateFromException(Exception exception, string context)
         {
             Log.Error(nameof(CodeTextBox), $"Failed to open \"{context}\": {exception}");
+            Program.LogDevBuildAdvice();
 
             var output = new StringBuilder(512);
-            output.AppendLine("Unhandled exception occurred while trying to open this file:");
-            output.AppendLine(exception.Message);
+            output.AppendLine(Program.GetDevBuildHeading());
+            output.AppendLine(Program.ReportAdvice);
             output.AppendLine();
 
-            output.AppendLine("Try using latest dev build to see if the issue persists.");
+            output.AppendLine("Unhandled exception occurred while trying to open this file:");
+            output.AppendLine(exception.Message);
             output.AppendLine();
 
             Program.AppendExceptionWithVersion(output, exception, context);
@@ -162,7 +167,15 @@ namespace GUI.Controls
             {
                 WordWrap = true,
             };
+            control.TextChanged += HighlightDevBuildAdvice;
             return control;
+        }
+
+        private static void HighlightDevBuildAdvice(object? sender, TextChangedEventArgs e)
+        {
+            var control = (CodeTextBox)sender!;
+            control.TextChanged -= HighlightDevBuildAdvice;
+            control.GetRange(new Place(0, 0), new Place(control.GetLineLength(1), 1)).SetStyle(AlertStyle);
         }
 
         private void OnDisposed(object? sender, EventArgs e)
