@@ -42,4 +42,13 @@ public interface IParticleSystemObserver
     void OnParticleEvent(ParticleCollection particles, ParticleEventType eventType, ReadOnlySpan<int> indices)
     {
     }
+
+    /// <summary>
+    /// Called when a function of the system places, moves or puts out a scene light of its own, also
+    /// while the system fast-forwards through a pre-simulation.
+    /// </summary>
+    /// <param name="light">The light, which keeps its instance for the life of the system.</param>
+    void OnLightSourceUpdated(ParticleLightSource light)
+    {
+    }
 }

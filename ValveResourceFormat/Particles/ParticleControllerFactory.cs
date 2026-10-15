@@ -279,6 +279,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_SpinUpdate"] = operatorInfo => new SpinUpdate(operatorInfo),
                 ["C_OP_SpinYaw"] = operatorInfo => new SpinYaw(operatorInfo),
                 ["C_OP_TeleportBeam"] = operatorInfo => new TeleportBeam(operatorInfo),
+                ["C_OP_UpdateLightSource"] = operatorInfo => new UpdateLightSource(operatorInfo),
                 ["C_OP_VelocityDecay"] = operatorInfo => new VelocityDecay(operatorInfo),
                 ["C_OP_VelocityMatchingForce"] = operatorInfo => new VelocityMatchingForce(operatorInfo),
             };
