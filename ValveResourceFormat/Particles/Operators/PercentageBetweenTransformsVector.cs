@@ -1,9 +1,12 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
     /// Writes how far along each particle is between two transform origins into a vector output
     /// field, lerping every component of the output range by the same scalar percentage. The
-    /// percentage is computed exactly as in <see cref="PercentageBetweenTransforms"/>.
+    /// percentage is computed as in <see cref="PercentageBetweenTransforms"/>, except that the radial
+    /// ratio adds no epsilon to the span length, so coincident transforms give an infinite percentage.
     /// </summary>
     /// <remarks>
     /// The engine implementation never reads operator strength, so the strength passed to
@@ -45,7 +48,9 @@ namespace ValveResourceFormat.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                var percentage = PercentageBetweenTransforms.Percentage(particle.Position, start, end, length, radialCheck);
+                var percentage = radialCheck
+                    ? 1f / (length / (Vector3.Distance(particle.Position, start) + ParticleMath.FloatEpsilon))
+                    : PercentageBetweenTransforms.Percentage(particle.Position, start, end, length, radialCheck: false);
 
                 if (activeRange && !(inputMin <= percentage && percentage <= inputMax))
                 {

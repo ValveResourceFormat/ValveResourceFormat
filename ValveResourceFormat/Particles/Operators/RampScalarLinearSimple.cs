@@ -22,12 +22,22 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            var step = rate * (strength * frameTime);
+            var (min, max) = field.SetFloatRange();
+
             foreach (ref var particle in particles.Current)
             {
-                // The start/end window is in normalized age, like FadeInSimple.
-                if (particle.NormalizedAge > startTime && particle.NormalizedAge < endTime)
+                if (particle.Lifetime <= 0f)
                 {
-                    particle.SetScalar(field, particle.GetScalar(field) + rate * frameTime * strength);
+                    continue;
+                }
+
+                // The start/end window is in normalized age, like FadeInSimple.
+                var normalizedAge = particle.Age / particle.Lifetime;
+
+                if (startTime <= normalizedAge && normalizedAge < endTime)
+                {
+                    particle.SetScalar(field, Math.Clamp(particle.GetScalar(field) + step, min, max));
                 }
             }
         }

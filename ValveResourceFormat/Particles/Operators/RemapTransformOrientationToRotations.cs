@@ -4,10 +4,9 @@ namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
     /// Writes a transform input's orientation into every particle's pitch/yaw/roll rotations (or its
-    /// forward direction into the normal), plus a fixed rotation offset. The angle path derives
-    /// pitch and yaw from the forward direction with roll always zero; the quaternion path composes
-    /// the offset in the transform's local frame and preserves roll. The value is uniform across all
-    /// particles each frame.
+    /// forward direction into the normal), plus a fixed rotation offset. The angle path adds the
+    /// offset to the transform's pitch, yaw and roll; the quaternion path composes the offset in the
+    /// transform's local frame. The value is uniform across all particles each frame.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapTransformOrientationToRotations">C_OP_RemapTransformOrientationToRotations</seealso>
     class RemapTransformOrientationToRotations : ParticleFunctionOperator
@@ -55,7 +54,7 @@ namespace ValveResourceFormat.Particles.Operators
         /// <param name="transformInput">The transform whose orientation is read.</param>
         /// <param name="state">The system state the transform resolves against.</param>
         /// <param name="rotationOffset">Fixed rotation offset in degrees; component order depends on <paramref name="useQuat"/>.</param>
-        /// <param name="useQuat">Whether to compose via quaternions, preserving roll.</param>
+        /// <param name="useQuat">Whether to compose via quaternions rather than adding angles.</param>
         /// <param name="anglesRadians">Pitch, yaw, roll in radians.</param>
         /// <param name="forward">The rotated forward direction.</param>
         public static void Compute(ITransformProvider transformInput, ParticleSystemState state,
@@ -69,17 +68,15 @@ namespace ValveResourceFormat.Particles.Operators
                 // The offset's components map pitch, yaw, roll = Y, Z, X on this path
                 var offset = EntityTransformHelper.EulerAnglesToQuaternion(
                     new Vector3(rotationOffset.Y, rotationOffset.Z, rotationOffset.X));
-                var final = offset * baseRotation;
+                var final = baseRotation * offset;
 
                 anglesRadians = Vector3.DegreesToRadians(EntityTransformHelper.ToEulerAngles(final));
                 forward = Vector3.Transform(Vector3.UnitX, final);
             }
             else
             {
-                var baseForward = Vector3.Transform(Vector3.UnitX, baseRotation);
-
                 // The offset's components map pitch, yaw, roll = X, Y, Z on this path
-                var angles = EntityTransformHelper.ForwardDirectionToEulerAngles(baseForward) + rotationOffset;
+                var angles = EntityTransformHelper.ToEulerAngles(baseRotation) + rotationOffset;
 
                 anglesRadians = Vector3.DegreesToRadians(angles);
                 forward = EntityTransformHelper.EulerAnglesToForwardDirection(angles);

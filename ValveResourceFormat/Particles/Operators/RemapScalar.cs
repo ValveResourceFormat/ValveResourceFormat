@@ -37,31 +37,30 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var blend = MathF.Min(strength, 1f);
-
             foreach (ref var particle in particles.Current)
             {
                 var input = particle.GetScalar(fieldInput);
+                var current = particle.GetScalar(fieldOutput);
 
-                float output;
+                if (oldCode)
+                {
+                    var output = inputMin == inputMax
+                        ? (input - inputMax < 0f ? outputMin : outputMax)
+                        : MathUtils.RemapValClamped(input, inputMin, inputMax, outputMin, outputMax);
 
-                if (inputMin == inputMax)
-                {
-                    output = input >= inputMax ? outputMax : outputMin;
-                }
-                else if (oldCode)
-                {
-                    output = MathUtils.RemapValClamped(input, inputMin, inputMax, outputMin, outputMax);
-                }
-                else
-                {
-                    // The current path clamps the input into the range and then maps it, rather than
-                    // clamping the ratio, which differs once the input range is inverted.
-                    var clamped = MathF.Max(inputMin, MathF.Min(inputMax, input));
-                    output = outputMin + ((outputMax - outputMin) * (clamped - inputMin) / (inputMax - inputMin));
+                    particle.SetScalar(fieldOutput, ((output - current) * strength) + current);
+                    continue;
                 }
 
-                particle.SetScalar(fieldOutput, float.Lerp(particle.GetScalar(fieldOutput), output, blend));
+                // The current path clamps the input into the range and then maps it, rather than
+                // clamping the ratio, which differs once the input range is inverted. A degenerate
+                // range therefore always reads as the top of the range.
+                var clamped = MathF.Max(inputMin, MathF.Min(inputMax, input));
+                var remapped = inputMin == inputMax
+                    ? (float.IsNaN(clamped) ? outputMin : outputMax)
+                    : outputMin + ((outputMax - outputMin) * (clamped - inputMin) / (inputMax - inputMin));
+
+                particle.SetScalar(fieldOutput, strength >= 1f ? remapped : (remapped * strength) + (current * (1f - strength)));
             }
         }
     }
