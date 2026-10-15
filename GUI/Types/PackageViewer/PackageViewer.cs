@@ -322,9 +322,7 @@ namespace GUI.Types.PackageViewer
             }
             catch (Exception e)
             {
-                Log.Error(nameof(PackageViewer), $"Failed to save \"{Path.GetFileName(fileName)}\": {e}");
-
-                _ = AppMessageDialogs.ShowMessageAsync(e.Message, "Failed to create VPK", MessageIcon.Warning);
+                ErrorReport.ShowError(e, fileName);
                 return;
             }
 

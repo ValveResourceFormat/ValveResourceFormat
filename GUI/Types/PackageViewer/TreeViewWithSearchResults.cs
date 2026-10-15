@@ -1181,11 +1181,13 @@ namespace GUI.Types.PackageViewer
                 }
                 catch (Exception e)
                 {
-                    Log.Error(nameof(TreeViewWithSearchResults), $"Failed to verify \"{vrfGuiContext.DisplayPath}\": {e}");
-
-                    if (!cancellationToken.IsCancellationRequested)
+                    if (cancellationToken.IsCancellationRequested)
                     {
-                        _ = AppMessageDialogs.ShowMessageAsync(e.Message, "Failed to verify package contents", MessageIcon.Warning);
+                        Log.Error(nameof(TreeViewWithSearchResults), $"Failed to verify \"{vrfGuiContext.DisplayPath}\": {e}");
+                    }
+                    else
+                    {
+                        ErrorReport.ShowError(e, vrfGuiContext.DisplayPath);
                     }
                 }
 
