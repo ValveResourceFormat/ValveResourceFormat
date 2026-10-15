@@ -5,7 +5,9 @@ namespace ValveResourceFormat.Particles.Constraints
     /// <summary>
     /// Collides particles with the world. Each particle's movement over the step is tested against the
     /// surfaces its collision mode finds, and a particle that crosses one is moved back to the contact,
-    /// where it can bounce, slide, stick or be killed.
+    /// where it can bounce, slide, stick or have its lifetime ended. It runs once per step, after the
+    /// relaxation passes of the other constraints. Contacts raise collision events for the children that
+    /// listen for them.
     /// </summary>
     /// <remarks>
     /// The plane set modes trace from a control point instead of from the particles: once straight down
@@ -22,6 +24,9 @@ namespace ValveResourceFormat.Particles.Constraints
     class WorldTraceConstraint : ParticleFunctionConstraint
     {
         private const float ConfirmationTraceExtension = 64f;
+
+        /// <summary>The bit of <see cref="Particle.UserEventStates"/> marking a particle that has collided before.</summary>
+        private const int CollidedEventState = 0x10000;
         private const int ConfirmationBlockSize = 4;
 
         private readonly int controlPoint;
@@ -68,7 +73,9 @@ namespace ValveResourceFormat.Particles.Constraints
             stopSpeed = parse.NumberProvider("m_flStopSpeed", stopSpeed);
         }
 
-        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState)
+        public override bool IsFinalConstraint => true;
+
+        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var collision = particleSystemState.Collision;
             var mode = GetEffectiveCollisionMode(particleSystemState.DetailLevel);
@@ -85,6 +92,8 @@ namespace ValveResourceFormat.Particles.Constraints
             var hitAny = false;
             var confirmations = 0;
             var index = 0;
+            var listened = particleSystemState.Data?.ListenedEvents ?? ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
+            var hitEvent = killOnContact ? ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_COLLISION : ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION;
 
             foreach (ref var particle in particles.Current)
             {
@@ -95,6 +104,12 @@ namespace ValveResourceFormat.Particles.Constraints
                 }
 
                 var bounce = bounceAmount.NextNumber(ref particle, particleSystemState);
+
+                if ((listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION) != 0)
+                {
+                    bounce += ParticleMath.FloatEpsilon;
+                }
+
                 var slide = slideAmount.NextNumber(ref particle, particleSystemState);
                 var scatter = randomDirectionScale.NextNumber(ref particle, particleSystemState);
                 var scale = radiusScale.NextNumber(ref particle, particleSystemState);
@@ -144,18 +159,23 @@ namespace ValveResourceFormat.Particles.Constraints
                 {
                     if (minimumSpeed < 0f || tooSlow)
                     {
-                        particle.Kill();
+                        particle.Lifetime = 0f;
                     }
 
                     particle.Position = contact;
-                    particle.PositionPrevious = contact;
+
+                    if ((listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_COLLISION) == 0)
+                    {
+                        particle.PositionPrevious = contact;
+                    }
                 }
                 else if (tooSlow)
                 {
-                    particle.Kill();
+                    particle.Lifetime = 0f;
                 }
 
                 var writeNormal = setNormal;
+                var stopped = false;
 
                 if (!killOnContact || bounceKilledParticles)
                 {
@@ -172,7 +192,8 @@ namespace ValveResourceFormat.Particles.Constraints
 
                     if (stickField != ParticleField.NoneDisabled)
                     {
-                        writeNormal = Stick(ref particle, frameTime, particleSystemState) && setNormal;
+                        stopped = Stick(ref particle, frameTime, particleSystemState);
+                        writeNormal = stopped && setNormal;
                     }
                 }
 
@@ -180,9 +201,30 @@ namespace ValveResourceFormat.Particles.Constraints
                 {
                     particle.SetVector(ParticleField.Normal, normal);
                 }
+
+                RaiseCollisionEvents(particles, ref particle, listened, hitEvent, stopped);
             }
 
             return hitAny;
+        }
+
+        private static void RaiseCollisionEvents(ParticleCollection particles, ref Particle particle, ParticleEventType listened, ParticleEventType hitEvent, bool stopped)
+        {
+            if ((listened & (ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION | ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_COLLISION)) != 0)
+            {
+                particles.RaiseEvent(particle.Index, hitEvent);
+            }
+
+            if ((listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_FIRST_COLLISION) != 0 && (particle.UserEventStates & CollidedEventState) == 0)
+            {
+                particle.UserEventStates |= CollidedEventState;
+                particles.RaiseEvent(particle.Index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_FIRST_COLLISION);
+            }
+
+            if (stopped && (listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION_STOPPED) != 0)
+            {
+                particles.RaiseEvent(particle.Index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION_STOPPED);
+            }
         }
 
         private ParticleCollisionMode GetEffectiveCollisionMode(ParticleDetailLevel detailLevel)

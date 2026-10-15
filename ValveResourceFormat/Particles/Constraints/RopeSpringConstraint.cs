@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Particles.Constraints
             baseLength = 0f;
         }
 
-        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState)
+        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var current = particles.Current;
 

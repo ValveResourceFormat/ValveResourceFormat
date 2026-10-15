@@ -9,14 +9,24 @@ namespace ValveResourceFormat.Particles.Initializers
     {
         protected ParticleFunctionInitializer(ParticleDefinitionParser parse) : base(parse)
         {
+            AssociatedEmitterIndex = parse.Int32("m_nAssociatedEmitterIndex", AssociatedEmitterIndex);
         }
+
+        /// <summary>
+        /// The position in the emitter list of the only emitter whose particles this initializer runs
+        /// on, or -1 to run on every emitter's particles and the initial ones.
+        /// </summary>
+        public int AssociatedEmitterIndex { get; } = -1;
 
         public abstract Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState);
 
-        /// <summary>Rebuilds any per-instance running state when the system starts or restarts.</summary>
+        /// <summary>Builds the per-instance running state the initializer starts with.</summary>
         public virtual void Reset()
         {
         }
+
+        /// <summary>Called when the system restarts; rebuilds the running state unless overridden.</summary>
+        public virtual void Restart(ParticleSystemState particleSystemState) => Reset();
 
         /// <summary>Bit for <paramref name="field"/> in a <see cref="WrittenFields"/> mask.</summary>
         protected static ulong FieldMask(ParticleField field) => 1UL << (int)field;

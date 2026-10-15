@@ -69,6 +69,16 @@ namespace ValveResourceFormat.Particles
             => opEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ALWAYS_ON
                 || systemState.InEndCap == (opEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON);
 
+        /// <summary>
+        /// Whether removing particles must keep the survivors in order while this function is part of
+        /// the system.
+        /// </summary>
+        public virtual bool IsOrderImportant => false;
+
+        /// <summary>Whether the fade window has closed for good, past <c>m_flOpEndFadeOutTime</c>.</summary>
+        protected bool IsPastFadeOut(ParticleSystemState systemState)
+            => OpFadeOscillatePeriod == 0f && OpEndFadeOutTime > 0f && GetFunctionTime(systemState) > OpEndFadeOutTime;
+
         public float GetOperatorRunStrength(ParticleSystemState systemState) // CheckIfOperatorShouldRun
         {
             if (StrengthFastPath)
@@ -99,14 +109,14 @@ namespace ValveResourceFormat.Particles
         /// and stretched per system instance when the time offset and scale seeds are set. An
         /// oscillating fade instead takes the phase of the system age within the period, in [0, 1).
         /// </summary>
-        private float GetFunctionTime(ParticleSystemState systemState)
+        protected float GetFunctionTime(ParticleSystemState systemState)
         {
             if (OpFadeOscillatePeriod > 0f)
             {
                 return systemState.Age / OpFadeOscillatePeriod % 1f;
             }
 
-            var time = MathF.Max(0f, systemState.Age - systemState.RestartAge);
+            var time = MathF.Max(0f, systemState.Age - systemState.OperatorTimeBase);
 
             if (normalizeToStopTime && opEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON)
             {

@@ -64,7 +64,7 @@ namespace ValveResourceFormat.Particles.Initializers
                     case ParticleTraceMissBehavior.PARTICLE_TRACE_MISS_BEHAVIOR_NONE:
                         return particle;
                     case ParticleTraceMissBehavior.PARTICLE_TRACE_MISS_BEHAVIOR_KILL:
-                        particle.Kill();
+                        particle.Lifetime = -1f;
                         return particle;
                 }
             }
@@ -84,7 +84,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
                 if (collision.TraceRay(hitPosition, hitPosition + (radiusOffset * 0.5f), out _, out _, out _))
                 {
-                    particle.Kill();
+                    particle.Lifetime = -1f;
                 }
 
                 pullBack += radius * offsetByRadiusFactor;

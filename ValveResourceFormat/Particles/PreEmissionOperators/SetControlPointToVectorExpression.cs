@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             expression = parse.Enum<VectorExpression>("m_nExpression", expression);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             var vec1 = input1.NextVector(particleSystemState);
             var vec2 = input2.NextVector(particleSystemState);

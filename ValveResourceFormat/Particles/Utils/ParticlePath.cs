@@ -72,7 +72,7 @@ namespace ValveResourceFormat.Particles.Utils
         public static Vector3 GetControlPointAtTime(ParticleSystemState state, int controlPoint, float time)
         {
             var point = state.GetControlPoint(controlPoint);
-            return Vector3.Lerp(point.PositionPrevious, point.Position, point.StepFraction(state, time));
+            return Vector3.Lerp(point.PositionPrevious, point.Position, ControlPoint.StepFraction(state, time));
         }
 
         /// <summary>

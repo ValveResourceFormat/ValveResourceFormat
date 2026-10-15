@@ -17,6 +17,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         private readonly float startAlpha = 1f;
         private readonly float endAlpha;
+        private readonly bool forcePreserveParticleOrder;
 
         public FadeAndKill(ParticleDefinitionParser parse) : base(parse)
         {
@@ -44,7 +45,10 @@ namespace ValveResourceFormat.Particles.Operators
             endFadeOutTime = endOut;
             startAlpha = parse.Float("m_flStartAlpha", startAlpha);
             endAlpha = parse.Float("m_flEndAlpha", endAlpha);
+            forcePreserveParticleOrder = parse.Boolean("m_bForcePreserveParticleOrder", forcePreserveParticleOrder);
         }
+
+        public override bool IsOrderImportant => forcePreserveParticleOrder;
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {

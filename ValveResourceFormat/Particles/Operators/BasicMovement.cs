@@ -12,11 +12,13 @@ namespace ValveResourceFormat.Particles.Operators
     {
         private readonly IVectorProvider gravity = new LiteralVectorProvider(Vector3.Zero);
         private readonly INumberProvider drag = new LiteralNumberProvider(0);
+        private readonly int maxConstraintPasses = 3;
 
         public BasicMovement(ParticleDefinitionParser parse) : base(parse)
         {
             gravity = parse.VectorProvider("m_Gravity", gravity);
             drag = parse.NumberProvider("m_fDrag", drag);
+            maxConstraintPasses = parse.Int32("m_nMaxConstraintPasses", maxConstraintPasses);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
@@ -53,6 +55,8 @@ namespace ValveResourceFormat.Particles.Operators
                 particle.PositionPrevious = particle.Position;
                 particle.Position += step;
             }
+
+            particleSystemState.Data?.RunConstraints(particles, frameTime, maxConstraintPasses);
         }
     }
 }

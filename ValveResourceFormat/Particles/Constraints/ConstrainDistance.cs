@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Particles.Constraints
             globalCenter = parse.Boolean("m_bGlobalCenter", globalCenter);
         }
 
-        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState)
+        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var offset = centerOffset.NextVector(particleSystemState);
             var center = globalCenter

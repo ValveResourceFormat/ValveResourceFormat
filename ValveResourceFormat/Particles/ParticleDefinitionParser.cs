@@ -372,13 +372,13 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     return new ControlPointTransformProvider(controlPoint, useOrientation);
                 }
                 case "PT_TYPE_CONTROL_POINT_RANGE":
-                    // TODO: Implement range support if needed
-                    Logger.LogWarning("PT_TYPE_CONTROL_POINT_RANGE not fully supported, using first CP only");
-                    {
-                        var controlPoint = parse.Int32("m_nControlPoint");
-                        var useOrientation = parse.Boolean("m_bUseOrientation", true);
-                        return new ControlPointTransformProvider(controlPoint, useOrientation);
-                    }
+                {
+                    var controlPoint = parse.Int32("m_nControlPoint");
+                    var useOrientation = parse.Boolean("m_bUseOrientation", true);
+                    var rangeMax = parse.Int32("m_nControlPointRangeMax");
+                    var endGrowthTime = parse.Float("m_flEndCPGrowthTime");
+                    return new ControlPointTransformProvider(controlPoint, useOrientation, rangeMax, endGrowthTime);
+                }
                 case "PT_TYPE_INVALID":
                 case "PT_TYPE_NAMED_VALUE":
                 default:
@@ -390,7 +390,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
         // Fields that became transform inputs without a format bump still hold a bare control point number in older content.
         if (!transformParameters.IsNull)
         {
-            return new ControlPointTransformProvider(Data.GetInt32Property(key), true);
+            return new ControlPointTransformProvider(Math.Clamp(Data.GetInt32Property(key), 0, ParticleSystemState.MaxControlPoint), true);
         }
 
         return new IdentityTransformProvider();

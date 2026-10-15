@@ -13,11 +13,15 @@ namespace ValveResourceFormat.Particles.Operators
     class Decay : ParticleFunctionOperator
     {
         private readonly bool ropeDecay;
+        private readonly bool forcePreserveParticleOrder;
 
         public Decay(ParticleDefinitionParser parse) : base(parse)
         {
             ropeDecay = parse.Boolean("m_bRopeDecay", ropeDecay);
+            forcePreserveParticleOrder = parse.Boolean("m_bForcePreserveParticleOrder", forcePreserveParticleOrder);
         }
+
+        public override bool IsOrderImportant => forcePreserveParticleOrder;
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {

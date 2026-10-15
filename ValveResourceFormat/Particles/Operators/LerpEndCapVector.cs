@@ -32,6 +32,10 @@ namespace ValveResourceFormat.Particles.Operators
             startAge = -1f;
         }
 
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
+        }
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             if (!particleSystemState.InEndCap)

@@ -6,10 +6,14 @@ namespace ValveResourceFormat.Particles.Emitters
     /// Emits particles at a rate modulated by noise, producing organic variation between a minimum
     /// and maximum emission rate.
     /// </summary>
+    /// <remarks>
+    /// The noise is sampled at the system's clock, offset by <c>m_flOffset</c>, plus the world clock in
+    /// whole milliseconds scaled by <c>m_flWorldTimeScale</c>.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_NoiseEmitter">C_OP_NoiseEmitter</seealso>
     class NoiseEmitter : ParticleFunctionEmitter
     {
-        public override bool IsFinished { get; protected set; }
+        private const float MaximumRate = 2147483600f;
 
         private readonly INumberProvider emissionDuration = new LiteralNumberProvider(0);
         private readonly INumberProvider startTime = new LiteralNumberProvider(0);
@@ -28,9 +32,10 @@ namespace ValveResourceFormat.Particles.Emitters
         private readonly Vector3 offsetLoc;
         private readonly float worldTimeScale;
 
-        private Action<float>? particleEmitCallback;
-
-        private EmissionAccumulator accumulator;
+        private double totalToEmit;
+        private long totalEmitted;
+        private float timeBase;
+        private bool active = true;
 
         public NoiseEmitter(ParticleDefinitionParser parse) : base(parse)
         {
@@ -43,7 +48,12 @@ namespace ValveResourceFormat.Particles.Emitters
             noiseOffset = parse.Float("m_flOffset", noiseOffset);
             absVal = parse.Boolean("m_bAbsVal", absVal);
             absValInv = parse.Boolean("m_bAbsValInv", absValInv);
-            emissionScale = parse.Float("m_flEmissionScale", emissionScale);
+
+            if (parse.BehaviorVersion < 2)
+            {
+                emissionScale = parse.Float("m_flEmissionScale", emissionScale);
+            }
+
             scaleControlPoint = parse.Int32("m_nScaleControlPoint", scaleControlPoint);
             scaleControlPointField = parse.Int32("m_nScaleControlPointField", scaleControlPointField);
             worldNoisePoint = parse.Int32("m_nWorldNoisePoint", worldNoisePoint);
@@ -52,81 +62,126 @@ namespace ValveResourceFormat.Particles.Emitters
             worldTimeScale = parse.Float("m_flWorldTimeScale", worldTimeScale);
         }
 
-        protected override void OnStart(Action<float> particleEmitCallback)
+        public override void Reset()
         {
-            this.particleEmitCallback = particleEmitCallback;
-
-            accumulator.Reset(initialCharge: 1d, flushEpsilon: 0f);
-
-            IsFinished = false;
+            totalToEmit = 1d;
+            totalEmitted = 0;
+            timeBase = 0f;
+            active = true;
         }
 
-        public override void Stop()
+        public override void Restart(ParticleSystemState particleSystemState)
         {
-            IsFinished = true;
-            particleEmitCallback = null;
+            if (emissionDuration.NextNumber(particleSystemState) != 0f)
+            {
+                timeBase = particleSystemState.Age;
+            }
         }
 
-        public override void Emit(float frameTime, ParticleSystemState particleSystemState, float strength)
+        public override void StartEmission()
         {
-            if (IsFinished)
+            active = true;
+        }
+
+        public override void StopEmission()
+        {
+            active = false;
+        }
+
+        public override bool MayCreateMoreParticles(ParticleSystemState particleSystemState)
+        {
+            var duration = emissionDuration.NextNumber(particleSystemState);
+            var start = timeBase + startTime.NextNumber(particleSystemState);
+
+            return active
+                && !(duration != 0f && particleSystemState.Age - particleSystemState.CurrentStep > start + duration)
+                && !IsPastFadeOut(particleSystemState);
+        }
+
+        public override void Emit(ParticleSystemState particleSystemState, float strength, Action<float> emit)
+        {
+            var time = particleSystemState.Age;
+            var step = particleSystemState.CurrentStep;
+
+            var amplitude = absVal ? 1f : 0.5f;
+            var indexScale = particleSystemState.HighestControlPoint * emissionScale;
+
+            var position = Vector3.Zero;
+            var worldScale = 1f;
+
+            if (worldNoisePoint != -1)
+            {
+                position = particleSystemState.GetControlPoint(worldNoisePoint).Position + offsetLoc;
+                worldScale = worldNoiseScale;
+            }
+
+            var timeTerm = (noiseOffset + time) * noiseScale.NextNumber(particleSystemState);
+            var worldTimeTerm = (int)(particleSystemState.WorldTime * 1000f) * worldTimeScale;
+            var noise = Noise.Value3D((position * worldScale) + new Vector3(timeTerm) + new Vector3(worldTimeTerm));
+
+            if (absVal)
+            {
+                noise = MathF.Abs(noise);
+            }
+
+            if (absValInv)
+            {
+                noise = 1f - noise;
+            }
+
+            var outputMin = emissionMin.NextNumber(particleSystemState);
+            var range = emissionMax.NextNumber(particleSystemState) - outputMin;
+            var rate = MathF.Min(MathF.Max((range * amplitude * noise) + (((1f - amplitude) * range) + outputMin), 0f), MaximumRate) * strength;
+
+            if (scaleControlPoint >= 0 && scaleControlPointField != -1)
+            {
+                var component = scaleControlPointField is >= 0 and <= 2
+                    ? particleSystemState.GetControlPoint(scaleControlPoint).Position.GetComponent(scaleControlPointField)
+                    : 0f;
+
+                rate *= MathF.Max(0f, component);
+            }
+
+            if (indexScale != 0f)
+            {
+                rate *= indexScale;
+            }
+
+            var duration = emissionDuration.NextNumber(particleSystemState);
+            var start = timeBase + startTime.NextNumber(particleSystemState);
+
+            if (rate == 0f || !active || (duration != 0f && time - step > start + duration) || IsPastFadeOut(particleSystemState) || start > time)
             {
                 return;
             }
 
-            var elapsed = particleSystemState.Age - StartAge;
-            var frameStart = elapsed - frameTime;
+            var windowStart = time - step;
+            var windowEnd = time;
 
-            var nextStartTime = startTime.NextNumber(particleSystemState);
-            var nextEmissionDuration = emissionDuration.NextNumber(particleSystemState);
-
-            if (TryGetEmissionWindow(frameStart, elapsed, nextStartTime, nextEmissionDuration, out var windowStart, out var windowEnd))
+            if (duration != 0f)
             {
-                var basePosition = worldNoisePoint < 0
-                    ? Vector3.Zero
-                    : (particleSystemState.GetControlPoint(worldNoisePoint).Position + offsetLoc) * worldNoiseScale;
-
-                // The world time term ticks in milliseconds
-                var sampleTime = ((elapsed + noiseOffset) * noiseScale.NextNumber(particleSystemState))
-                    + (particleSystemState.WorldTime * 1000f * worldTimeScale);
-                var noise = Noise.Value3D(basePosition + new Vector3(sampleTime));
-
-                var absScale = absVal ? 1f : 0.5f;
-                var normalized = absVal ? MathF.Abs(noise) : noise;
-
-                if (absValInv)
-                {
-                    normalized = 1f - normalized;
-                }
-
-                var emissionMinValue = emissionMin.NextNumber(particleSystemState);
-                var emissionMaxValue = emissionMax.NextNumber(particleSystemState);
-                var span = emissionMaxValue - emissionMinValue;
-                var emissionRate = MathF.Max(0f, emissionMinValue + ((1f - absScale) * span) + (absScale * span * normalized)) * strength;
-
-                if (scaleControlPoint >= 0 && scaleControlPointField != -1)
-                {
-                    var component = scaleControlPointField is >= 0 and <= 2
-                        ? particleSystemState.GetControlPoint(scaleControlPoint).Position.GetComponent(scaleControlPointField)
-                        : 0f;
-
-                    emissionRate *= MathF.Max(0f, component);
-                }
-
-                // The highest index scales the rate without the +1 the continuous emitter applies
-                var indexScale = particleSystemState.HighestControlPoint * emissionScale;
-
-                if (indexScale != 0f)
-                {
-                    emissionRate *= indexScale;
-                }
-
-                accumulator.Charge(emissionRate, windowStart, windowEnd, elapsed, particleEmitCallback);
+                windowStart = MathF.Max(start, windowStart);
+                windowEnd = MathF.Min(duration + start, time);
             }
 
-            if (nextEmissionDuration != 0f && elapsed > nextStartTime + nextEmissionDuration)
+            totalToEmit += (windowEnd - windowStart) * rate;
+
+            var count = Math.Max((int)Math.Floor(totalToEmit) - (int)totalEmitted, 0);
+            totalEmitted += count;
+            count = Math.Min(count, Math.Max(FreeSlots(particleSystemState), 0));
+
+            if (count == 0)
             {
-                IsFinished = true;
+                return;
+            }
+
+            var spacing = (windowEnd - windowStart) / count;
+            var creationTime = windowStart;
+
+            for (var i = 0; i < count; i++)
+            {
+                creationTime = MathF.Min(creationTime + spacing, windowEnd);
+                emit(creationTime);
             }
         }
     }

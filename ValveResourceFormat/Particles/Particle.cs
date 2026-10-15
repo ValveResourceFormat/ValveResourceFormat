@@ -235,7 +235,7 @@ namespace ValveResourceFormat.Particles
             => EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(Rotation.Y, Rotation.X, Rotation.Z));
 
         /// <summary>
-        /// Marks this particle for removal at the end of the current frame.
+        /// Marks this particle for removal once the running function returns.
         /// </summary>
         public void Kill()
         {

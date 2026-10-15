@@ -69,7 +69,7 @@ namespace ValveResourceFormat.Particles.Operators
 
             if (previousTransformPosition.X == float.MaxValue)
             {
-                previousTransform = transformInput.NextTransformAtTime(ref Particle.Default, particleSystemState, particleSystemState.FrameStartAge);
+                previousTransform = transformInput.NextTransformAtTime(ref Particle.Default, particleSystemState, particleSystemState.StepStartAge);
                 previousTransformPosition = previousTransform.Translation;
             }
 

@@ -84,7 +84,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         /// Builds a new bolt once the system's age passes the next generation time. <c>m_flRecalcRate</c>
         /// is the period until the next one, so 0 rebuilds every step and a negative rate keeps the first.
         /// </summary>
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (particleSystemState.Data is not { } simulation || particleSystemState.Age <= nextGenerationTime)
             {

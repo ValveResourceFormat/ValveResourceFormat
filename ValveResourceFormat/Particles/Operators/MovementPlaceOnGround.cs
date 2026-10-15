@@ -174,7 +174,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                     if (!hitGround && missBehavior == ParticleTraceMissBehavior.PARTICLE_TRACE_MISS_BEHAVIOR_KILL)
                     {
-                        particle.Kill();
+                        particle.Lifetime = -1f;
                     }
                     else
                     {

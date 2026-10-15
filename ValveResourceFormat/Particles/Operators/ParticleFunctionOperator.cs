@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public abstract void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength);
 
-        /// <summary>Rebuilds any per-instance running state when the system starts or restarts.</summary>
+        /// <summary>Builds the per-instance running state the operator starts with.</summary>
         public virtual void Reset()
         {
         }
@@ -27,5 +27,11 @@ namespace ValveResourceFormat.Particles.Operators
         /// <inheritdoc cref="BlendByStrength(float, float, float)"/>
         protected static Vector3 BlendByStrength(Vector3 current, Vector3 value, float strength)
             => strength >= 1f ? value : (value * strength) + (current * (1f - strength));
+
+        /// <summary>Builds the running state when the system is created or replayed; <see cref="Reset"/> unless overridden.</summary>
+        public virtual void Initialize(ParticleSystemState particleSystemState) => Reset();
+
+        /// <summary>Called when the system restarts; rebuilds the running state unless overridden.</summary>
+        public virtual void Restart(ParticleSystemState particleSystemState) => Reset();
     }
 }

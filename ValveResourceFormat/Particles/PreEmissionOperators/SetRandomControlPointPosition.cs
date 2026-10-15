@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             initialised = false;
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (!initialised)
             {
@@ -83,7 +83,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             if (orient)
             {
-                particleSystemState.SetControlPointOrientation(cp, particleSystemState.GetControlPoint(offsetCP).Orientation);
+                var head = particleSystemState.GetControlPoint(offsetCP);
+                particleSystemState.SetControlPointOrientation(cp, head.Forward, head.Left, head.Up);
             }
         }
     }

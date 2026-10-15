@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Particles.Constraints
             maximumDistanceToControlPoint = parse.NumberProvider("m_flMaximumDistanceToCP", maximumDistanceToControlPoint);
         }
 
-        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState)
+        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var origin = globalOrigin
                 ? pointOnPlane

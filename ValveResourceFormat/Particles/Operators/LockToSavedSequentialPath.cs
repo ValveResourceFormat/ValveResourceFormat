@@ -46,6 +46,10 @@ namespace ValveResourceFormat.Particles.Operators
             Array.Clear(previousPaths);
         }
 
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
+        }
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             for (var i = 0; i < pathCount; i++)

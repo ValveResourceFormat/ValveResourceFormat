@@ -39,7 +39,16 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             previousVelocity = Vector3.Zero;
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
+        /// <summary>
+        /// Starts the velocity change over from the input control point's position rather than a
+        /// velocity, so the first change measured after a restart is against that.
+        /// </summary>
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
+            previousVelocity = particleSystemState.GetControlPoint(inControlPoint).Position;
+        }
+
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             // The control point writer takes the field index unsigned and rejects anything
             // above 3, and index 3 addresses a component the position vector does not have

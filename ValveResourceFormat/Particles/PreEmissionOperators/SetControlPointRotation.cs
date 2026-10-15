@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             localCP = parse.Int32("m_nLocalCP", localCP);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             var authoredAxis = this.axis.NextVector(particleSystemState);
 

@@ -159,6 +159,43 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
+        /// Builds the left and up axes that complete a frame around <paramref name="forward"/>, taking
+        /// world up as the reference; a vertical forward gets a fixed left instead.
+        /// </summary>
+        public static (Vector3 Left, Vector3 Up) VectorVectors(Vector3 forward)
+        {
+            if (MathF.Abs(forward.X) < 1e-6f && MathF.Abs(forward.Y) < 1e-6f)
+            {
+                return (Vector3.UnitY, new Vector3(-forward.Z, 0f, 0f));
+            }
+
+            var right = Vector3.Normalize(Vector3.Cross(forward, Vector3.UnitZ));
+            var up = Vector3.Normalize(Vector3.Cross(right, forward));
+
+            return (-right, up);
+        }
+
+        /// <summary>
+        /// Interpolates from <paramref name="from"/> to <paramref name="to"/> by a normalized linear blend
+        /// whose fraction is corrected toward constant angular speed. Takes the short way round and
+        /// returns the identity when the blend cancels out.
+        /// </summary>
+        public static Quaternion Blend(Quaternion from, Quaternion to, float t)
+        {
+            var dot = Quaternion.Dot(to, from);
+            var d = MathF.Abs(dot);
+            var a = ((((3.55645f - (1.43519f * d)) * d) - 3.2452f) * d) + 1.0904f;
+            var b = ((((0.215638f * d) - 1.06021f) * d) + 0.848013f);
+            var centered = t - 0.5f;
+            var corrected = (((a * centered * centered) + b) * (centered * t * (t - 1f))) + t;
+            var toWeight = dot <= 0f ? -corrected : corrected;
+
+            var blended = (to * toWeight) + (from * (1f - corrected));
+
+            return blended.LengthSquared() > 0f ? Quaternion.Normalize(blended) : Quaternion.Identity;
+        }
+
+        /// <summary>
         /// Folds <paramref name="x"/> onto [0, 2), one period of <c>sin(pi * x)</c>, and reports
         /// whether it was negative.
         /// </summary>

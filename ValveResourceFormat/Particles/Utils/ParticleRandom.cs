@@ -90,6 +90,16 @@ namespace ValveResourceFormat.Particles.Utils
         public EvaluationKey Evaluation(int particleIndex)
             => new(this, functionCall, particleIndex < 0 ? -1 : particleIndex >> 2);
 
+        /// <summary>
+        /// Takes the seed a child system gets from its parent's <paramref name="parentSeed"/> and its
+        /// position <paramref name="slot"/> in the parent's child list. A zero parent seed gives zero.
+        /// </summary>
+        public void DeriveSeed(int parentSeed, int slot)
+        {
+            Seed = parentSeed == 0 ? 0 : parentSeed + (129 * (slot + 1));
+            queryCount = 0;
+        }
+
         /// <summary>Takes the next value from the table, in [0, 1).</summary>
         public float Next() => At(queryCount++ + Seed);
 
