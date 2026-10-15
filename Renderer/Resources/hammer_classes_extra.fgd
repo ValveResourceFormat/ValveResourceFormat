@@ -1,0 +1,455 @@
+// Classes of games whose tools are not out, which no FGD file on disk declares, kept by hand. They
+// come from an older generated table, so every one is a point class and its helpers are only what it was
+// drawn with. A class is only looked up here when the generated classes do not have it.
+
+@PointClass color(220 30 220) sphere("radiusoverride", "255", "255", "255") = ai_reaction
+[
+]
+
+@PointClass color(255 0 255) iconsprite("materials/editor/aiscripted_schedule.vmat") = ai_scripted_abilityusage
+[
+]
+
+@PointClass color(255 0 255) iconsprite("materials/editor/aiscripted_schedule.vmat") = ai_scripted_idle
+[
+]
+
+@PointClass color(255 0 255) iconsprite("materials/editor/ai_scripted_moveto.vmat") = ai_scripted_moveto
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/ai_sound.vmat") = ai_volumetric_event
+[
+]
+
+@PointClass color(0 0 255) iconsprite("materials/editor/env_microphone.vmat") = ai_volumetric_event_sensor
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/info_target.vmdl") = buoyancy_helper
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/props_gameplay/rejuv/rejuv.vmdl") = citadel_base_prop_midboss_indicator
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/neutral_camp_marker.vmdl") = citadel_base_prop_stairs
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/props_gameplay/wooden_crate_03/wooden_crate_03.vmdl") = citadel_breakable_prop
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/info_target.vmdl") = citadel_final_objective_proxy
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/npc/sewer_beast/sewer.vmdl") = citadel_herotest_orbspawner
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/hideout/hideout_wallclock_large.vmdl") = citadel_hideout_clock
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/heroes_staging/grey_talon/grey_talon_owl.vmdl") = citadel_hideout_shootable_target_spawner
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/props_gameplay/powerup_idol/powerup_idol.vmdl") = citadel_item_powerup_spawner
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/snd_event.vmat") = citadel_point_talker
+[
+]
+
+@PointClass color(220 30 220) box_oriented("box_mins", "box_maxs") = citadel_snd_base_music_obb
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/snd_opvar_set.vmat") box_oriented("box_mins", "box_maxs") = citadel_snd_obb
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/snd_opvar_set.vmat") box_oriented("box_mins", "box_maxs") = citadel_snd_stack_field_obb
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/light.vmat") = citadel_volume_omni
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/props_gameplay/zip_tower_hover.vmdl") = citadel_zipline_path_node
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/point_script.vmat") = client_script
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/pets/egg_pristine.vmdl") = cs_pet_placement
+[
+]
+
+@PointClass color(220 30 220) vecline_local("burstlocation", "255", "200", "200") = devtest_hierarchy
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/survivors/survivor_gambler.vmdl") vecline_local("burstlocation", "255", "200", "200") = devtest_hierarchy2
+[
+]
+
+@PointClass color(220 30 220) vecline_local("burstlocation", "255", "200", "200") = devtest_hierarchy_child
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/camera.vmdl") = end_of_match_camera
+[
+]
+
+@PointClass color(0 0 255) line("0", "0", "255", "targetname", "EndTargetName") = env_alyxemp
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/ambient_generic.vmat") = env_speaker
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/env_wind.vmat") = env_wind_controller
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/env_wind.vmat") box_oriented("box_mins", "box_maxs") = env_wind_volume
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/light_env.vmat") = env_world_lighting
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/filter_class.vmat") = filter_combineball_type
+[
+]
+
+@PointClass color(220 30 220) sphere("fademindist", "255", "255", "255") sphere("fademaxdist", "255", "255", "255") = func_bulletshield
+[
+]
+
+@PointClass color(220 30 220) drawangles_local("movedir", "movedir_islocal") = func_lookdoor
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/combine_helicopter/helicopter_bomb01.vmdl") = grenade_helicopter
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/weapons/w_eq_fraggrenade.vmdl") = hegrenade_projectile
+[
+]
+
+@PointClass color(220 30 220) sphere("radius", "255", "255", "255") = high_quality_shadows_region
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/axis_helper_thick.vmdl") = info_assigned_lane_particle
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/npc/trooper/trooper_humanoid.vmdl") = info_cover_point
+[
+]
+
+@PointClass color(220 30 220) sphere("lightradius", "255", "255", "255") = info_darknessmode_lightsource
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/heroes_staging/gen_man/gen_man.vmdl") line("100", "105", "255", "targetname", "MoveTarget") = info_hero_testing_point
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/info_target.vmdl") = info_mini_map_marker
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/nav_space.vmat") = info_nav_space
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/neutral_camp_marker.vmdl") = info_neutral_trooper_camp
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/props_gameplay/neutral_vault/neutral_vault.vmdl") = info_neutral_trooper_spawn
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/info_target.vmat") sphere("radius", "255", "255", "255") = info_radar_target
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/npc/trooper/trooper_boss.vmdl") = info_super_trooper_spawn
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/info_target.vmat") = info_target_advisor_roaming_crash
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/info_target.vmat") = info_target_vehicle_transition
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/playerstart.vmdl") = info_team_spawn
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/info_target.vmdl") = info_teleport_location
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/info_target.vmat") = info_teleporter_countdown
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/npc/trooper/trooper_humanoid.vmdl") = info_trooper_spawn
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/props_gameplay/gold_crate.vmdl") = item_crate
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/props_gameplay/gold_crate.vmdl") = item_crate_spawn
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/items/healthkit.vmdl") sphere("fademindist", "255", "255", "255") sphere("fademaxdist", "255", "255", "255") = item_dynamic_resupply
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/light_ambient.vmat") = light_ambient
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/light_ambientocclusion.vmat") = light_ambientocclusion
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/light.vmat") = light_capsule
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/light_sky.vmat") = light_sky
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/logic_animtag_listener.vmat") = logic_animtag_listener
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/logic_auto.vmat") = logic_auto_citadel
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/weapons/w_eq_molotov.vmdl") = molotov_projectile
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/npcs/washing_machine_cube/washing_machine_cube.vmdl") = npc_appliance
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/npc/trooper/trooper_boss.vmdl") = npc_barrack_boss
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/npc/gargoyle/neutral_gargoyle.vmdl") = npc_base_defense_sentry
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/npc/boss_tier_02_sun_walker/boss_tier_02_sun_walker.vmdl") = npc_boss_tier2
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/npc/titan_v2/titan.vmdl") = npc_boss_tier3
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/Synth.vmdl") = npc_crabsynth
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/roller.vmdl") = npc_cranedriver
+[
+]
+
+@PointClass color(255 150 0) = npc_enemyfinder_combinecannon
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/Zombie/Fast_torso.vmdl") = npc_fastzombie_torso
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/Barney.vmdl") = npc_fisherman
+[
+]
+
+@PointClass color(255 255 0) = npc_heli_avoidbox
+[
+]
+
+@PointClass color(255 255 0) iconsprite("materials/editor/env_firesource.vmat") sphere("radius", "255", "255", "255") = npc_heli_avoidsphere
+[
+]
+
+@PointClass color(255 255 0) = npc_heli_nobomb
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/npc_maker.vmat") = npc_hunter_maker
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/ichthyosaur.vmdl") = npc_ichthyosaur
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/junk/w_traffcone.vmdl") = npc_launcher
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/missile_defense.vmdl") = npc_missiledefense
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/Monk.vmdl") = npc_monk
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/mortarsynth.vmdl") = npc_mortarsynth
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/mossman.vmdl") = npc_mossman
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/roller.vmdl") = npc_rollermine
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/Stalker.vmdl") = npc_stalker
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/npc/trooper/trooper_boss.vmdl") = npc_trooper_boss
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/combine_turrets/ground_turret.vmdl") = npc_turret_ground
+[
+]
+
+@PointClass color(255 0 0) = path_corner_crash
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/axis_helper.vmdl") = phys_wheelconstraint
+[
+]
+
+@PointClass color(0 0 255) sphere("repelradius", "255", "255", "255") = point_antlion_repellant
+[
+]
+
+@PointClass color(220 30 220) sphere("radius", "255", "255", "255") = point_flesh_effect_target
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/point_pulse.vmat") = point_pulse
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/props_combine/coreball.vmdl") = prop_coreball
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/weapons/w_eq_smokegrenade.vmdl") = smokegrenade_projectile
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/ambient_generic.vmat") = sound_opvar_set
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/camera.vmdl") = steampal_camera_path
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/camera.vmdl") = steampal_camera_path_node
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/steampal_conveyor.vmat") = steampal_conveyor
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/steampal_conveyor.vmat") = steampal_conveyor_entity_spawner
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/props/steamdesk_model.vmdl") = steampal_desk
+[
+]
+
+@PointClass color(220 30 220) box_oriented("box_mins", "box_maxs") = steampal_kill_volume
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/camera.vmdl") = steampal_point_camera
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/steampal_sequencer.vmat") = steampal_sequencer
+[
+]
+
+@PointClass color(220 30 220) iconsprite("materials/editor/steampal_turret_manager.vmat") = steampal_turret_manager
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/editor/camera.vmdl") = team_select_camera
+[
+]
+
+@PointClass color(220 30 220) editormodel("characters/models/ctm_sas/ctm_sas.vmdl") = team_select_counterterrorist
+[
+]
+
+@PointClass color(220 30 220) editormodel("characters/models/tm_phoenix/tm_phoenix.vmdl") = team_select_terrorist
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/weapons/W_Alyx_Gun.vmdl") sphere("fademindist", "255", "255", "255") sphere("fademaxdist", "255", "255", "255") = weapon_alyxgun
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/weapons/W_annabelle.vmdl") sphere("fademindist", "255", "255", "255") sphere("fademaxdist", "255", "255", "255") = weapon_annabelle
+[
+]
+
+@PointClass color(220 30 220) sphere("fademindist", "255", "255", "255") sphere("fademaxdist", "255", "255", "255") = weapon_brickbat
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/magnusson_device.vmdl") sphere("fademindist", "255", "255", "255") sphere("fademaxdist", "255", "255", "255") vecline_local("burstlocation", "255", "200", "200") = weapon_striderbuster
+[
+]
+
+@PointClass color(220 30 220) editormodel("models/weapons/vr_baton/vr_baton.vmdl") sphere("fademindist", "255", "255", "255") sphere("fademaxdist", "255", "255", "255") = weapon_stunstick
+[
+]
