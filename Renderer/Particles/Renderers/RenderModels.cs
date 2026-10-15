@@ -40,6 +40,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         // A particle no model was picked for has no node
         private readonly PlacedPerParticle<(ModelSceneNode? Node, int Model, int Skin)> placed = new();
+
+        /// <summary>The model each live particle was given when it was created, by unique particle id, or -1 for none.</summary>
+        private readonly Dictionary<int, int> pickedModels = [];
+        private readonly HashSet<int> liveParticleIds = [];
         private readonly Stack<(ModelSceneNode Node, int Skin)>[] idle;
 
         public RenderModels(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse, scene)
@@ -101,9 +105,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             foreach (ref var particle in particles.Current)
             {
-                if (!placed.TryGetValue(particle.UniqueParticleId, out var entry))
+                var model = pickedModels.GetValueOrDefault(particle.UniqueParticleId, -1);
+
+                if (!placed.TryGetValue(particle.UniqueParticleId, out var entry) || entry.Model != model)
                 {
-                    var model = PickModel(ref particle, systemState);
+                    Release(entry);
                     entry = model < 0 ? (null, model, 0) : TakeNode(model);
                 }
 
@@ -137,6 +143,43 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 Release(entry);
             }
+
+            if (pickedModels.Count > particles.Count)
+            {
+                ForgetDeadParticles(particles);
+            }
+        }
+
+        /// <inheritdoc/>
+        public override void InitializeParticles(ParticleCollection particles, ParticleSystemState systemState, int first, int count)
+        {
+            if (models.Length == 0)
+            {
+                return;
+            }
+
+            foreach (ref var particle in particles.Current.Slice(first, count))
+            {
+                pickedModels[particle.UniqueParticleId] = PickModel(ref particle, systemState);
+            }
+        }
+
+        private void ForgetDeadParticles(ParticleCollection particles)
+        {
+            liveParticleIds.Clear();
+
+            foreach (ref var particle in particles.Current)
+            {
+                liveParticleIds.Add(particle.UniqueParticleId);
+            }
+
+            foreach (var particleId in pickedModels.Keys)
+            {
+                if (!liveParticleIds.Contains(particleId))
+                {
+                    pickedModels.Remove(particleId);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -151,16 +194,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// The model a new particle draws: the manual selection when it names a loaded model, otherwise
-        /// one picked at random by relative probability, or -1 when no model can be picked.
+        /// The model a new particle draws: the list entry the manual selection names when it is in range,
+        /// otherwise one picked by relative probability with one draw from the system's random sequence,
+        /// or -1 when there is no model to draw.
         /// </summary>
         private int PickModel(ref Particle particle, ParticleSystemState systemState)
         {
             var manual = (int)manualModelSelection.NextNumber(ref particle, systemState);
 
-            if ((uint)manual < (uint)models.Length && models[manual].Model != null)
+            if ((uint)manual < (uint)models.Length)
             {
-                return manual;
+                return models[manual].Model != null ? manual : -1;
             }
 
             if (totalWeight <= 0f)
@@ -168,7 +212,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return -1;
             }
 
-            var pick = systemState.Random.ForParticle(particle.ParticleId) * totalWeight;
+            var pick = systemState.Random.Next() * totalWeight;
             var picked = -1;
 
             for (var i = 0; i < models.Length; i++)

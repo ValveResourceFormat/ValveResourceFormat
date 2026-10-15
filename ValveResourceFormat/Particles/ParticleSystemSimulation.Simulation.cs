@@ -745,7 +745,8 @@ namespace ValveResourceFormat.Particles
         /// Runs the initializers over the <paramref name="count"/> particles from <paramref name="first"/>,
         /// one initializer over the whole batch before the next. <paramref name="writtenFields"/> are
         /// the attributes whoever created the particles already wrote, and <paramref name="emitterIndex"/>
-        /// the emitter that did, or -1. The spawn events go to the children unless <paramref name="raiseEvents"/> is off.
+        /// the emitter that did, or -1. Unless <paramref name="raiseEvents"/> is off, the observer is told
+        /// of the batch and the spawn events go to the children.
         /// </summary>
         private void InitializeNewParticles(int first, int count, ulong writtenFields, int emitterIndex, bool raiseEvents = true)
         {
@@ -809,13 +810,16 @@ namespace ValveResourceFormat.Particles
 
             if (raiseEvents)
             {
+                Observer?.OnParticlesInitialized(particleCollection, systemState, first, count);
                 DispatchSpawnEvents(first, count);
             }
         }
 
         private void DispatchSpawnEvents(int first, int count)
         {
-            if ((eventListenMask & (ParticleEventType.PARTICLE_EVENT_TYPE_MASK_SPAWNED | ParticleEventType.PARTICLE_EVENT_TYPE_MASK_CULLED_ON_SPAWN)) == 0)
+            var listened = eventListenMask | (Observer?.ObservedEvents ?? ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE);
+
+            if ((listened & (ParticleEventType.PARTICLE_EVENT_TYPE_MASK_SPAWNED | ParticleEventType.PARTICLE_EVENT_TYPE_MASK_CULLED_ON_SPAWN)) == 0)
             {
                 return;
             }

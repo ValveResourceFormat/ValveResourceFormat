@@ -23,9 +23,10 @@ namespace ValveResourceFormat.Particles.Operators
         /// turn per second). Strength scales the rate, and a zero result spins nothing. With a stop time,
         /// the step decays linearly to 0 over that fraction of the particle's lifetime; without one, a
         /// step longer than a turn wraps. The minimum rate, which strength does not scale, floors the
-        /// step either way. The angle itself is kept within one turn either side of 0.
+        /// step either way. The angle itself is kept within one turn either side of 0, except while the
+        /// step is one the drawing layer blends back from, so the blend never crosses a wrap.
         /// </summary>
-        protected void Rotate(ParticleCollection particles, ParticleField field, float frameTime, float strength)
+        protected void Rotate(ParticleCollection particles, ParticleField field, float frameTime, float strength, ParticleSystemState systemState)
         {
             var rate = strength * float.DegreesToRadians(spinRateDegrees);
 
@@ -33,6 +34,8 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 return;
             }
+
+            var wrap = systemState.Data?.TryGetRenderBlend(out _) != true;
 
             var step = MathF.Abs(rate * MathF.Tau) * frameTime;
 
@@ -60,14 +63,17 @@ namespace ValveResourceFormat.Particles.Operators
 
                 var angle = particle.GetScalar(field) + delta;
 
-                if (angle >= MathF.Tau)
+                if (wrap)
                 {
-                    angle -= MathF.Tau;
-                }
+                    if (angle >= MathF.Tau)
+                    {
+                        angle -= MathF.Tau;
+                    }
 
-                if (angle <= -MathF.Tau)
-                {
-                    angle += MathF.Tau;
+                    if (angle <= -MathF.Tau)
+                    {
+                        angle += MathF.Tau;
+                    }
                 }
 
                 particle.SetScalar(field, angle);
@@ -88,7 +94,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            Rotate(particles, ParticleField.Roll, frameTime, strength);
+            Rotate(particles, ParticleField.Roll, frameTime, strength, particleSystemState);
         }
     }
 
@@ -105,7 +111,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            Rotate(particles, ParticleField.Yaw, frameTime, strength);
+            Rotate(particles, ParticleField.Yaw, frameTime, strength, particleSystemState);
         }
     }
 }

@@ -89,6 +89,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private long[] sortKeyScratch = [];
         private readonly Dictionary<int, int> segmentRanks = [];
 
+        private readonly Dictionary<int, int> segmentRepeats = [];
+        private bool segmentDataDirty;
+
         private float vOffsetAccumulator;
         private float firstSegmentLength;
         private int firstParticleId = -1;
@@ -178,6 +181,62 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <inheritdoc/>
         public override Texture.SpritesheetData? SpriteSheet => ParticleTextureLayer.FindSpriteSheet(layers);
+
+        private bool Splits => splitField is >= 0 and not ParticleField.NoneDisabled;
+
+        /// <inheritdoc/>
+        public override ParticleEventType ObservedEvents => Splits
+            ? ParticleEventType.PARTICLE_EVENT_TYPE_MASK_SPAWNED | ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED
+            : ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
+
+        /// <inheritdoc/>
+        public override void OnParticleEvent(ParticleCollection particles, ParticleEventType eventType, ReadOnlySpan<int> indices)
+        {
+            segmentDataDirty = true;
+        }
+
+        /// <inheritdoc/>
+        public override void Simulate(ParticleCollection particles, ParticleSystemState systemState)
+        {
+            if (!segmentDataDirty || GetOperatorRunStrength(systemState) <= 0f)
+            {
+                return;
+            }
+
+            segmentDataDirty = false;
+
+            if (sortBySegmentId)
+            {
+                UpdateSegmentData(particles.Current);
+            }
+        }
+
+        /// <summary>
+        /// Writes each particle's place in its rope segment to <see cref="Particle.RopeSegmentData"/>:
+        /// how many particles of the segment come before it in x, that as a fraction of the segment's
+        /// last place in y, and the last place in z. Segments are told apart by the bits of their value.
+        /// </summary>
+        private void UpdateSegmentData(Span<Particle> particles)
+        {
+            segmentRepeats.Clear();
+
+            foreach (ref var particle in particles)
+            {
+                var segmentBits = BitConverter.SingleToInt32Bits(particle.GetScalar(splitField));
+                var place = segmentRepeats.TryGetValue(segmentBits, out var repeats) ? repeats + 1 : 0;
+
+                segmentRepeats[segmentBits] = place;
+                particle.RopeSegmentData = new Vector3(place, 0f, 0f);
+            }
+
+            foreach (ref var particle in particles)
+            {
+                var last = segmentRepeats[BitConverter.SingleToInt32Bits(particle.GetScalar(splitField))];
+                var place = particle.RopeSegmentData.X;
+
+                particle.RopeSegmentData = new Vector3(place, last > 0 ? place / last : 0f, last);
+            }
+        }
 
         /// <inheritdoc/>
         public override void SetTextureOverride(RenderTexture texture)
@@ -330,7 +389,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var startFadeSlope = startFadeSize.NextNumber(systemState);
             var endFadeSlope = endFadeSize.NextNumber(systemState);
-            var splits = splitField is >= 0 and not ParticleField.NoneDisabled;
+            var splits = Splits;
             var scales = EvaluateScales(systemState);
 
             for (var i = 0; i < count; i++)

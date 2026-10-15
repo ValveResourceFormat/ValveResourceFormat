@@ -874,10 +874,15 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>
     /// Calculates the effective solid angle of a spotlight cone, clamped to a maximum of 4pi steradians (full sphere).
     /// </summary>
-    public float ComputeConeSolidAngle()
+    public float ComputeConeSolidAngle() => ComputeConeSolidAngle(SpotOuterAngle, SpotInnerAngle);
+
+    /// <inheritdoc cref="ComputeConeSolidAngle()"/>
+    /// <param name="spotOuterAngle">The outer cone angle, in degrees.</param>
+    /// <param name="spotInnerAngle">The inner cone angle, in degrees.</param>
+    public static float ComputeConeSolidAngle(float spotOuterAngle, float spotInnerAngle)
     {
-        var outerRad = float.DegreesToRadians(Math.Clamp(SpotOuterAngle, 1f, 180f));
-        var innerRad = float.DegreesToRadians(Math.Clamp(SpotInnerAngle, 0f, SpotOuterAngle));
+        var outerRad = float.DegreesToRadians(Math.Clamp(spotOuterAngle, 1f, 180f));
+        var innerRad = float.DegreesToRadians(Math.Clamp(spotInnerAngle, 0f, spotOuterAngle));
 
         var avgCos = (MathF.Cos(outerRad) + MathF.Cos(innerRad)) * 0.5f;
         return MathF.Min(MathF.Tau * (1f - avgCos), 4f * MathF.PI);

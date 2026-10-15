@@ -225,7 +225,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             using (var drawOrder = new RentedBuffer<ulong>(sorted ? particleBag.Count : 0))
             {
                 var instances = vertexBuffer.Span;
-                var current = particleBag.Current;
+                var current = GetBlendedParticles(particleBag, systemState);
 
                 var order = drawOrder.Span;
 

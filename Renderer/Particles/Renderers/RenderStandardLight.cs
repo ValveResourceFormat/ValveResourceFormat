@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <summary>
     /// Render a standard point or spot light per particle. Up to <c>m_nMaxAllowed</c> particles with a
     /// positive intensity get a light each, which follows its particle by id and faces along its angles.
+    /// The scene draws the lights; drawing the renderer only lets the next simulation step keep them.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderStandardLight">C_OP_RenderStandardLight</seealso>
     internal class RenderStandardLight : ParticleFunctionRenderer
@@ -31,6 +32,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         // The barn light path these are drawn through runs brighter per unit than a standard light
         private const float IntensityScaleBarnPath = 3f;
+
+        private const float LightFallOff = 0.5f;
 
         private readonly ParticleLightPool lights;
         private readonly StandardLightType lightType;
@@ -64,25 +67,50 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             reverseOrder = parse.Boolean("m_bReverseOrder", reverseOrder);
         }
 
-        /// <inheritdoc/>
-        public override void Hide() => lights.ReleaseAll();
+        private bool drawn;
 
         /// <inheritdoc/>
-        public override void Act(ParticleCollection particles, ParticleSystemState systemState)
+        public override void Hide()
+        {
+            lights.ReleaseAll();
+            lights.Apply();
+        }
+
+        /// <inheritdoc/>
+        public override void Act(ParticleCollection particles, ParticleSystemState systemState) => lights.Apply();
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Lights are kept only by a step that follows a draw, so every step after the first of a frame
+        /// split into several puts them all out.
+        /// </remarks>
+        public override void Simulate(ParticleCollection particles, ParticleSystemState systemState)
         {
             lights.BeginStep(Math.Min(particles.Count, maxAllowed));
 
-            if (particles.Count == 0)
+            if (GetOperatorRunStrength(systemState) <= 0f)
             {
-                lights.EndStep();
+                lights.ReleaseAll();
                 return;
             }
 
+            if (drawn && particles.Count > 0 && !UpdateLights(particles, systemState))
+            {
+                return;
+            }
+
+            lights.EndStep();
+            drawn = false;
+        }
+
+        /// <summary>Places a light on each lit particle, or returns false to leave every light as it was.</summary>
+        private bool UpdateLights(ParticleCollection particles, ParticleSystemState systemState)
+        {
             var radiusScale = radiusMultiplier.NextNumber(systemState);
 
             if (radiusScale == 0f)
             {
-                return;
+                return false;
             }
 
             if (attenuationStyle == AttenuationStyle.LIGHT_STYLE_NEW)
@@ -110,25 +138,27 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 slot.Touched = true;
 
-                var light = slot.Light;
                 var color = ParticleColorBlend.Apply(ColorBlendType, ParticleColorBlend.ToBytes(particle.Color, 1f), colorScale);
 
-                light.Color = color.AsVector3() / 255f;
-                light.LinearBrightness = brightness * IntensityScaleBarnPath;
-                light.BrightnessScale = particle.Alpha;
-                light.Range = radiusScale * particle.Radius;
-                light.SpotInnerAngle = cone.Inner;
-                light.SpotOuterAngle = cone.Outer;
-                light.PlaceAt(particle.GetRotationMatrix() * Matrix4x4.CreateTranslation(particle.Position));
-                light.IsDirty = true;
+                slot.State = new ParticleLightPool.LightState(
+                    Color: color.AsVector3() / 255f,
+                    LinearBrightness: brightness * IntensityScaleBarnPath,
+                    BrightnessScale: particle.Alpha,
+                    Range: radiusScale * particle.Radius,
+                    SpotInnerAngle: cone.Inner,
+                    SpotOuterAngle: cone.Outer,
+                    LuminaireSize: 0f,
+                    FallOff: LightFallOff,
+                    Transform: particle.GetRotationMatrix() * Matrix4x4.CreateTranslation(particle.Position));
             }
 
-            lights.EndStep();
+            return true;
         }
 
+        /// <inheritdoc/>
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
-            // Light rendering is handled externally by the scene/light system.
+            drawn = true;
         }
 
         public override void Delete() => lights.Delete();
@@ -145,7 +175,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 Type = SceneLight.LightType.Point,
                 Entity = SceneLight.EntityType.Omni2,
                 DirectLight = SceneLight.DirectLightType.Dynamic,
-                FallOff = 0.5f,
+                FallOff = LightFallOff,
                 SpotOuterAngle = 180f,
                 BrightnessScale = 0f,
 

@@ -185,6 +185,60 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, ColorScale.NextVector(systemState)), alpha));
         }
 
+        private Particle[] blendedParticles = [];
+
+        /// <summary>
+        /// The particles as they stand at the time the system was asked to reach. That is
+        /// <see cref="ParticleCollection.Current"/>, unless the last step carried the system past that
+        /// time: then each particle is blended back from its state before the step, and the ones created
+        /// after that time get no alpha.
+        /// </summary>
+        protected Span<Particle> GetBlendedParticles(ParticleCollection particles, ParticleSystemState systemState)
+        {
+            if (systemState.Data?.TryGetRenderBlend(out var fraction) != true)
+            {
+                return particles.Current;
+            }
+
+            var current = particles.Current;
+            var previous = particles.PreviousStep;
+
+            if (blendedParticles.Length < current.Length)
+            {
+                blendedParticles = new Particle[current.Length];
+            }
+
+            var blended = blendedParticles.AsSpan(0, current.Length);
+
+            for (var i = 0; i < blended.Length; i++)
+            {
+                blended[i] = Blend(previous[i], current[i], fraction, systemState.RequestedAge);
+            }
+
+            return blended;
+        }
+
+        private static Particle Blend(in Particle previous, in Particle current, float fraction, float requestedAge)
+        {
+            var particle = current;
+
+            particle.Position = Vector3.Lerp(previous.Position, current.Position, fraction);
+            particle.PositionPrevious = Vector3.Lerp(previous.PositionPrevious, current.PositionPrevious, fraction);
+            particle.Age = float.Lerp(previous.Age, current.Age, fraction);
+            particle.Radius = float.Lerp(previous.Radius, current.Radius, fraction);
+            particle.Color = Vector3.Lerp(previous.Color, current.Color, fraction);
+            particle.Alpha = current.CreationTime > requestedAge ? 0f : float.Lerp(previous.Alpha, current.Alpha, fraction);
+            particle.AlphaAlternate = float.Lerp(previous.AlphaAlternate, current.AlphaAlternate, fraction);
+            particle.Rotation = Vector3.Lerp(previous.Rotation, current.Rotation, fraction);
+            particle.Normal = Vector3.Lerp(previous.Normal, current.Normal, fraction);
+            particle.TrailLength = float.Lerp(previous.TrailLength, current.TrailLength, fraction);
+            particle.ManualAnimationFrame = float.Lerp(previous.ManualAnimationFrame, current.ManualAnimationFrame, fraction);
+            particle.ShaderExtraData1 = float.Lerp(previous.ShaderExtraData1, current.ShaderExtraData1, fraction);
+            particle.ShaderExtraData2 = float.Lerp(previous.ShaderExtraData2, current.ShaderExtraData2, fraction);
+
+            return particle;
+        }
+
         /// <summary>A particle's position moved toward the camera by <see cref="CameraBias"/>.</summary>
         protected Vector3 BiasTowardCamera(Vector3 position, Vector3 cameraPosition)
             => CameraBias == 0f
@@ -300,10 +354,36 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         public SceneNode? OwnerNode { get; set; }
 
-        /// <summary>Called as the system finishes a step. Runs on the pool, so touch only what this renderer owns.</summary>
+        /// <summary>Called as the system finishes each step of a frame. Runs on the pool, so touch only what this renderer owns.</summary>
         /// <param name="particles">The system's particles, as the step left them.</param>
         /// <param name="systemState">The state the system's functions read it through.</param>
         public virtual void Simulate(ParticleCollection particles, ParticleSystemState systemState)
+        {
+        }
+
+        /// <summary>
+        /// Called once the initializers have run over particles the system just created. Runs on the
+        /// pool, so touch only what this renderer owns.
+        /// </summary>
+        /// <param name="particles">The system's particles.</param>
+        /// <param name="systemState">The state the system's functions read it through.</param>
+        /// <param name="first">The index of the first new particle.</param>
+        /// <param name="count">How many particles were created.</param>
+        public virtual void InitializeParticles(ParticleCollection particles, ParticleSystemState systemState, int first, int count)
+        {
+        }
+
+        /// <summary>The particle events this renderer wants through <see cref="OnParticleEvent"/>.</summary>
+        public virtual ParticleEventType ObservedEvents => ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
+
+        /// <summary>
+        /// Called when particles of the system raise an event, during the step. Runs on the pool, so
+        /// touch only what this renderer owns.
+        /// </summary>
+        /// <param name="particles">The system's particles; particles being killed are still in place.</param>
+        /// <param name="eventType">The event, a single flag.</param>
+        /// <param name="indices">The indices of the particles that raised it, ascending.</param>
+        public virtual void OnParticleEvent(ParticleCollection particles, ParticleEventType eventType, ReadOnlySpan<int> indices)
         {
         }
 

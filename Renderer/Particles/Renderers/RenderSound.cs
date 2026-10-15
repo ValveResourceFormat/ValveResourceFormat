@@ -5,8 +5,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
     /// Plays a sound event for each particle, up to sixteen at once, following the particle by id: the
-    /// sound moves with it and takes its volume from it, and stops when it dies. Particles past the
-    /// sixteenth wait for a sound to come free. Has no visual output.
+    /// sound moves with it and takes its volume from it, and stops when it dies or when the system goes
+    /// a frame without being drawn. Particles past the sixteenth wait for a sound to come free. Has no
+    /// visual output.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderSound">C_OP_RenderSound</seealso>
     internal class RenderSound : ParticleFunctionRenderer
@@ -26,9 +27,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             public bool Allocated;
             public bool Used;
             public bool Played;
+            public Vector3 Position;
+            public float Volume;
         }
 
         private readonly SoundSlot[] slots = new SoundSlot[MaxSounds];
+
+        /// <summary>Sounds the simulation let go of, stopped by the next <see cref="Act"/>.</summary>
+        private readonly List<Audio.SoundHandle> released = [];
+
+        private bool drawn;
 
         public RenderSound(ParticleDefinitionParser parse) : base(parse)
         {
@@ -48,7 +56,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
-        public override void Act(ParticleCollection particles, ParticleSystemState systemState)
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Sounds are kept only by a step that follows a draw, so every step after the first of a frame
+        /// split into several lets them all go, and the next drawn frame starts them again.
+        /// </remarks>
+        public override void Simulate(ParticleCollection particles, ParticleSystemState systemState)
         {
             if (soundName.Length == 0)
             {
@@ -60,34 +73,57 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 slots[i].Used = false;
             }
 
-            foreach (ref var particle in particles.Current)
+            if (drawn && GetOperatorRunStrength(systemState) > 0f)
             {
-                var index = FindSlot(particle.ParticleId);
-
-                if (index < 0)
+                foreach (ref var particle in particles.Current)
                 {
-                    continue;
+                    var index = FindSlot(particle.ParticleId);
+
+                    if (index < 0)
+                    {
+                        continue;
+                    }
+
+                    ref var slot = ref slots[index];
+                    slot.Used = true;
+                    slot.Position = particle.Position;
+                    slot.Volume = volumeField is ParticleField.NoneDisabled or < 0 ? 1f : particle.GetScalar(volumeField);
                 }
-
-                ref var slot = ref slots[index];
-                slot.Used = true;
-
-                if (!slot.Played)
-                {
-                    slot.Handle = Sound.Play(soundName, particle.Position, volume: volumeScale);
-                    slot.Played = true;
-                }
-
-                slot.Handle.Position = particle.Position;
-                slot.Handle.Volume = volumeField is ParticleField.NoneDisabled or < 0 ? 1f : particle.GetScalar(volumeField);
             }
 
             for (var i = 0; i < slots.Length; i++)
             {
                 if (slots[i].Allocated && !slots[i].Used)
                 {
-                    StopSound(ref slots[i]);
+                    Release(ref slots[i]);
                 }
+            }
+
+            drawn = false;
+        }
+
+        /// <inheritdoc/>
+        public override void Act(ParticleCollection particles, ParticleSystemState systemState)
+        {
+            StopReleased();
+
+            for (var i = 0; i < slots.Length; i++)
+            {
+                ref var slot = ref slots[i];
+
+                if (!slot.Allocated)
+                {
+                    continue;
+                }
+
+                if (!slot.Played)
+                {
+                    slot.Handle = Sound.Play(soundName, slot.Position, volume: volumeScale);
+                    slot.Played = true;
+                }
+
+                slot.Handle.Position = slot.Position;
+                slot.Handle.Volume = slot.Volume;
             }
         }
 
@@ -117,6 +153,30 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return free;
         }
 
+        /// <summary>Frees a slot, leaving its sound for <see cref="Act"/> to stop.</summary>
+        private void Release(ref SoundSlot slot)
+        {
+            if (slot.Played)
+            {
+                released.Add(slot.Handle);
+            }
+
+            slot = default;
+        }
+
+        private void StopReleased()
+        {
+            foreach (var handle in released)
+            {
+                if (!suppressStopSoundEvent)
+                {
+                    handle.FadeOutAndStop(StopFadeFallbackSeconds);
+                }
+            }
+
+            released.Clear();
+        }
+
         /// <summary>Stops every sound, as when the system stops drawing.</summary>
         public override void Hide()
         {
@@ -124,28 +184,28 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 if (slots[i].Allocated)
                 {
-                    StopSound(ref slots[i]);
+                    Release(ref slots[i]);
                 }
             }
+
+            StopReleased();
         }
 
-        private void StopSound(ref SoundSlot slot)
-        {
-            if (!suppressStopSoundEvent)
-            {
-                slot.Handle.FadeOutAndStop(StopFadeFallbackSeconds);
-            }
-
-            slot = default;
-        }
-
+        /// <inheritdoc/>
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
-            // Nothing to draw; the sound is started from Act.
+            drawn = true;
         }
 
         public override void Delete()
         {
+            foreach (var handle in released)
+            {
+                handle.Stop();
+            }
+
+            released.Clear();
+
             for (var i = 0; i < slots.Length; i++)
             {
                 slots[i].Handle.Stop();

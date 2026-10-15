@@ -7,7 +7,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
     /// Render an Omni2 light from particle data. Up to <c>m_nMaxAllowed</c> particles get a light each,
-    /// which follows its particle by id; particles past that wait for a light to come free.
+    /// which follows its particle by id; particles past that wait for a light to come free. The scene
+    /// draws the lights; drawing the renderer only lets the next simulation step keep them.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderOmni2Light">C_OP_RenderOmni2Light</seealso>
     internal class RenderOmni2Light : ParticleFunctionRenderer
@@ -68,38 +69,62 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             cookiePath = parse.Data.GetStringProperty("m_hLightCookie") is { Length: > 0 } cookie ? cookie : null;
         }
 
-        /// <inheritdoc/>
-        public override void Hide() => lights.ReleaseAll();
+        private bool drawn;
 
         /// <inheritdoc/>
-        public override void Act(ParticleCollection particles, ParticleSystemState systemState)
+        public override void Hide()
+        {
+            lights.ReleaseAll();
+            lights.Apply();
+        }
+
+        /// <inheritdoc/>
+        public override void Act(ParticleCollection particles, ParticleSystemState systemState) => lights.Apply();
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Lights are kept only by a step that follows a draw, so every step after the first of a frame
+        /// split into several puts them all out.
+        /// </remarks>
+        public override void Simulate(ParticleCollection particles, ParticleSystemState systemState)
         {
             lights.BeginStep(Math.Min(particles.Count, maxAllowed));
 
-            var blend = new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, colorBlend.NextVector(systemState)), 1f);
-
-            foreach (ref var particle in particles.Current)
+            if (GetOperatorRunStrength(systemState) <= 0f)
             {
-                var lightRange = range.NextNumber(ref particle, systemState);
-                var brightness = brightnessUnit == ParticleLightUnitChoiceList.PARTICLE_LIGHT_UNIT_CANDELAS
-                    ? brightnessCandelas.NextNumber(ref particle, systemState)
-                    : brightnessLumens.NextNumber(ref particle, systemState);
+                lights.ReleaseAll();
+                return;
+            }
 
-                if (lightRange <= 0f || brightness == 0f || lights.Claim(particle.ParticleId) is not { } slot)
+            if (drawn)
+            {
+                var blend = new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, colorBlend.NextVector(systemState)), 1f);
+
+                foreach (ref var particle in particles.Current)
                 {
-                    continue;
-                }
+                    var lightRange = range.NextNumber(ref particle, systemState);
+                    var brightness = brightnessUnit == ParticleLightUnitChoiceList.PARTICLE_LIGHT_UNIT_CANDELAS
+                        ? brightnessCandelas.NextNumber(ref particle, systemState)
+                        : brightnessLumens.NextNumber(ref particle, systemState);
 
-                slot.Touched = true;
-                UpdateLight(slot.Light, ref particle, systemState, blend, lightRange, brightness);
+                    if (lightRange <= 0f || brightness == 0f || lights.Claim(particle.ParticleId) is not { } slot)
+                    {
+                        continue;
+                    }
+
+                    slot.Touched = true;
+                    slot.State = BuildLight(ref particle, systemState, blend, lightRange, brightness);
+                }
             }
 
             lights.EndStep();
+            drawn = false;
         }
 
+        /// <inheritdoc/>
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
-            // Light rendering is handled by the scene/light system.
+            drawn = true;
         }
 
         public override void Delete() => lights.Delete();
@@ -147,27 +172,31 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 : frame;
         }
 
-        private void UpdateLight(SceneLight light, ref Particle particle, ParticleSystemState systemState, Vector4 blend, float lightRange, float brightness)
+        private ParticleLightPool.LightState BuildLight(ref Particle particle, ParticleSystemState systemState, Vector4 blend, float lightRange, float brightness)
         {
             var tint = particle.Color * 255f;
             var color = ParticleColorBlend.Apply(ColorBlendType, new Vector4((byte)(int)tint.X, (byte)(int)tint.Y, (byte)(int)tint.Z, 255f), blend);
 
-            light.SpotOuterAngle = Math.Clamp(outerConeAngle.NextNumber(ref particle, systemState), 0f, 180f);
-            light.SpotInnerAngle = Math.Clamp(innerConeAngle.NextNumber(ref particle, systemState), 0f, light.SpotOuterAngle);
-            light.LuminaireSize = luminaireRadius.NextNumber(ref particle, systemState);
-            light.Color = color.AsVector3() / 255f;
+            var outerAngle = Math.Clamp(outerConeAngle.NextNumber(ref particle, systemState), 0f, 180f);
+            var innerAngle = Math.Clamp(innerConeAngle.NextNumber(ref particle, systemState), 0f, outerAngle);
+            var luminaireSize = luminaireRadius.NextNumber(ref particle, systemState);
 
             // Lumens spread over the cone, as the intensity the faces are lit with 100 units away
-            var solidAngle = light.ComputeConeSolidAngle();
-            light.LinearBrightness = brightness * 4f * MathF.PI * 10f
+            var solidAngle = SceneLight.ComputeConeSolidAngle(outerAngle, innerAngle);
+            var linearBrightness = brightness * 4f * MathF.PI * 10f
                 * (brightnessUnit == ParticleLightUnitChoiceList.PARTICLE_LIGHT_UNIT_CANDELAS ? 1f : 1f / solidAngle)
                 / (100f * 100f);
 
-            light.BrightnessScale = MathF.Max(0f, particle.Alpha);
-            light.Range = lightRange;
-            light.FallOff = skirt.NextNumber(ref particle, systemState);
-            light.PlaceAt(LightRotation(ref particle, systemState) * Matrix4x4.CreateTranslation(particle.Position));
-            light.IsDirty = true;
+            return new ParticleLightPool.LightState(
+                Color: color.AsVector3() / 255f,
+                LinearBrightness: linearBrightness,
+                BrightnessScale: MathF.Max(0f, particle.Alpha),
+                Range: lightRange,
+                SpotInnerAngle: innerAngle,
+                SpotOuterAngle: outerAngle,
+                LuminaireSize: luminaireSize,
+                FallOff: skirt.NextNumber(ref particle, systemState),
+                Transform: LightRotation(ref particle, systemState) * Matrix4x4.CreateTranslation(particle.Position));
         }
     }
 }

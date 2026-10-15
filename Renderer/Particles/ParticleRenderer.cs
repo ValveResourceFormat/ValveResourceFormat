@@ -78,6 +78,11 @@ namespace ValveResourceFormat.Renderer.Particles
 
             SetupRenderers(simulation.Definition.GetArray("m_Renderers") ?? [], scene);
 
+            foreach (var renderer in renderers)
+            {
+                ObservedEvents |= renderer.ObservedEvents;
+            }
+
             simulation.RenderState.SequenceDurations = CollectSequenceDurations();
             simulation.RenderState.Lighting = scene.LightingInfo;
             simulation.RenderState.Collision = scene.ParticleCollision;
@@ -189,6 +194,30 @@ namespace ValveResourceFormat.Renderer.Particles
             foreach (var renderer in renderers)
             {
                 renderer.Simulate(particles, state);
+            }
+        }
+
+        /// <inheritdoc/>
+        public void OnParticlesInitialized(ParticleCollection particles, ParticleSystemState state, int first, int count)
+        {
+            foreach (var renderer in renderers)
+            {
+                renderer.InitializeParticles(particles, state, first, count);
+            }
+        }
+
+        /// <inheritdoc/>
+        public ParticleEventType ObservedEvents { get; }
+
+        /// <inheritdoc/>
+        public void OnParticleEvent(ParticleCollection particles, ParticleEventType eventType, ReadOnlySpan<int> indices)
+        {
+            foreach (var renderer in renderers)
+            {
+                if ((renderer.ObservedEvents & eventType) != 0)
+                {
+                    renderer.OnParticleEvent(particles, eventType, indices);
+                }
             }
         }
 

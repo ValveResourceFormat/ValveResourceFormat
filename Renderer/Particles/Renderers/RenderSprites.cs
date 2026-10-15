@@ -405,7 +405,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             using (var drawOrder = new RentedBuffer<ulong>(sorted ? particles.Count : 0))
             {
                 var instances = vertexBuffer.Span;
-                var current = particles.Current;
+                var current = GetBlendedParticles(particles, systemState);
                 var i = 0;
 
                 var order = drawOrder.Span;
