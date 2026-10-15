@@ -86,8 +86,9 @@ namespace ValveResourceFormat.IO
         /// <param name="NodeA">First node of the lane.</param>
         /// <param name="NodeB">Second node of the lane.</param>
         /// <param name="Weight0">Share of <paramref name="NodeA"/> in the correction, as in <see cref="Rod.Weight0"/>.</param>
+        /// <param name="RelaxationFactor">The lane's <c>f4RelaxationFactor</c>.</param>
         /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/FeSimdRodConstraintAnim_t">FeSimdRodConstraintAnim_t</seealso>
-        internal readonly record struct AnimRod(int NodeA, int NodeB, float Weight0)
+        internal readonly record struct AnimRod(int NodeA, int NodeB, float Weight0, float RelaxationFactor = 1f)
         {
             /// <summary>Gets the rod's two nodes, the lower first.</summary>
             internal (int, int) Pair => ClothReconstruction.UnorderedPair(NodeA, NodeB);
@@ -334,9 +335,11 @@ namespace ValveResourceFormat.IO
                 }
 
                 var weights = entry.Weight0;
+                var relaxations = entry.RelaxationFactor;
                 for (var lane = 0; lane < 4; lane++)
                 {
-                    var rod = new AnimRod(flat[lane], flat[4 + lane], lane < weights.Length ? weights[lane] : 0.5f);
+                    var rod = new AnimRod(flat[lane], flat[4 + lane], lane < weights.Length ? weights[lane] : 0.5f,
+                        lane < relaxations.Length ? relaxations[lane] : 1f);
                     if (rod.NodeA != rod.NodeB && !rods.Contains(rod))
                     {
                         rods.Add(rod);

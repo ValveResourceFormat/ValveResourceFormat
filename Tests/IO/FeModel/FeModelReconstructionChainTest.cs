@@ -1106,5 +1106,75 @@ namespace Tests.IO
                     CollectionOrdering.Matching);
             }
         }
+
+        /// <summary>
+        /// A hinge whose link to a ringless child is carried only by animated rods is a soft hinge over an
+        /// <c>animated_length</c> child, and a ringless chain of animated spans reads each slider off its lanes and the copies
+        /// off the node masses: two everywhere, the tail's root pair weighed twice as torsion and suspender. Without that
+        /// doubling the tail reads no suspender.
+        /// </summary>
+        [Test]
+        public async Task AnimatedRodsCarryTheSpringsOfARinglessChain()
+        {
+            var hinged = AnimatedHingeLink.Reconstruct();
+            var hingeChain = hinged.BuildBoneChains()[0];
+
+            static (float, float, float, float, int) Tail(float tailInvMass)
+            {
+                var joint = (AnimatedTail with { InvMasses = [0f, 1f / 640f, 1f / 640f, tailInvMass] }).Reconstruct().BuildBoneChains()
+                    .SelectMany(static chain => chain.Joints).First(static joint => joint.Name == "j3");
+                return (joint.StretchStiffness, joint.BendStiffness, joint.TorsionStiffness, joint.Suspender, joint.ExtraIterations);
+            }
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(hingeChain.Joints.First(static joint => joint.Name == "flap_end").AnimatedLength).IsTrue();
+                await Assert.That(hinged.HasChainRods(hingeChain)).IsTrue();
+                await Assert.That(hinged.HasRigidHingeLink(hingeChain)).IsFalse();
+                await Assert.That(Tail(1f / 1440f)).IsEqualTo((0.85f, 0.3f, 1f, 1f, 1));
+                await Assert.That(Tail(1f / 960f)).IsEqualTo((0.85f, 0.3f, 1f, 0f, 1));
+            }
+        }
+
+        /// <summary>
+        /// A limited hinge on the static root "flap" over a ringless "flap_end", both ring nodes reaching it by an animated rod
+        /// and a double-wound triangle pair.
+        /// </summary>
+        private static FeModelBuilder AnimatedHingeLink => new()
+        {
+            Names = ["$ha_flap", "$ccflap_0", "$ccflap_1", "flap", "flap_end"],
+            StaticNodes = 4,
+            InvMasses = [0f, 0f, 0f, 0f, 0.009112f],
+            Parents = [3, 3, 3, -1, 3],
+            Positions = [new(0f, 0f, 0f), new(0f, -2f, 0f), new(0f, 2f, 0f), new(0f, 0f, 0f), new(6.56f, 0f, 0f)],
+            CtrlOffsets = [Offset(3, 1, 0f, -2f, 0f), Offset(3, 2, 0f, 2f, 0f)],
+            SourceElems = [0, 0, 2, 0, 2, 1, 4, 1, 2, 4],
+            HingeLimits = [new FeHingeLimit([1, 2, 0, 4, 0, 4], 0, 0f, 0f, 1.646532f, 2.007129f)],
+            SimdRodsAnim = [new FeSimdRodConstraintAnim([[1, 2, 2, 2], [4, 4, 4, 4]], [0f, 0f, 0f, 0f], [1f, 1f, 1f, 1f])],
+        };
+
+        /// <summary>
+        /// A static root over j1..j3 hanging 10 apart, every span an animated rod: stretch 0.85, bend 0.3 and j3's torsion at
+        /// 1.0 onto the root.
+        /// </summary>
+        private static FeModelBuilder AnimatedTail => new()
+        {
+            Names = ["root", "j1", "j2", "j3"],
+            StaticNodes = 1,
+            Parents = [-1, 0, 1, 2],
+            Positions = [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f)],
+            SimdRodsAnim =
+            [
+                AnimLane(0, 1, 0f, 0.85f),
+                AnimLane(1, 2, 0.5f, 0.85f),
+                AnimLane(2, 3, 0.5f, 0.85f),
+                AnimLane(0, 2, 0f, 0.3f),
+                AnimLane(1, 3, 0.5f, 0.3f),
+                AnimLane(0, 3, 0f, 1f),
+            ],
+        };
+
+        private static FeSimdRodConstraintAnim AnimLane(int a, int b, float weight0, float relaxation)
+            => new([[a, a, a, a], [b, b, b, b]], [weight0, weight0, weight0, weight0], [relaxation, relaxation, relaxation, relaxation]);
     }
 }

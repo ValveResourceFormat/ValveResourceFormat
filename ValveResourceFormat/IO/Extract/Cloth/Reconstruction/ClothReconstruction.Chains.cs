@@ -923,7 +923,7 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var rodLinked = rodPairs.Contains(UnorderedPair(p, i));
+                var rodLinked = rodPairs.Contains(UnorderedPair(p, i)) || AnimRodPairs.Contains(UnorderedPair(p, i));
                 var bothDrivenSim = i >= FirstPositionDrivenNode && p >= FirstPositionDrivenNode && Simulates(i) && Simulates(p);
                 var proxyRibbon = proxyChildrenOf.ContainsKey(i);
                 var hingedRoot = HasHingeAnchor(Fe.CtrlName[p]) || RigidHingeJoints.ContainsKey(p);
@@ -2018,6 +2018,19 @@ namespace ValveResourceFormat.IO
             List<int> Extrusion(int node)
                 => jointRingOf.TryGetValue(node, out var ring) ? [node, .. ring] : [node];
 
+            bool SpanOnlyAnimated(BoneChainJoint joint)
+            {
+                if (joint.IsRoot || joint.ParentNode < 0 || !Simulates(joint.Node)
+                    || (jointRingOf.TryGetValue(joint.Node, out var ring) && ring.Count > 0))
+                {
+                    return false;
+                }
+
+                var parentSide = Side(joint.ParentNode);
+                return parentSide.Exists(other => AnimRodPairs.Contains(UnorderedPair(joint.Node, other)))
+                    && !AnyRod(rodPairs, [joint.Node], parentSide);
+            }
+
             var ropeHinted = Index.NodeBases.Count == 0 ? RopeRunParents : new Dictionary<int, int>();
 
             // Read up front: JointCopies consults it, and nothing the loop below writes feeds it.
@@ -2129,10 +2142,17 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            var spanAnimated = new List<BoneChainJoint>();
             foreach (var joint in chain.Joints)
             {
                 if (!DeclaresNoStretch(joint))
                 {
+                    joint.AnimatedLength = SpanOnlyAnimated(joint);
+                    if (joint.AnimatedLength)
+                    {
+                        spanAnimated.Add(joint);
+                    }
+
                     continue;
                 }
 
@@ -2152,6 +2172,8 @@ namespace ValveResourceFormat.IO
                     joint.StretchStiffness = 1f;
                 }
             }
+
+            ReadAnimatedSpans(spanAnimated, jointByNode, rootNode, Side, Slider);
 
             float ChildSiblingValue(BoneChainJoint joint)
             {
