@@ -188,10 +188,13 @@ namespace ValveResourceFormat.Particles
         public bool EmissionStopped { get; internal set; }
 
         /// <summary>
-        /// How many parent particles the event being handed to this system's emitters covers. Only
-        /// set while a parent applies an event list.
+        /// The parent's indices of the particles the event being handed to this system's emitters was
+        /// raised on. Only set while a parent applies an event list, and null otherwise.
         /// </summary>
-        internal int EmitterEventCount { get; set; }
+        internal IReadOnlyList<int>? EmitterEventParticles { get; set; }
+
+        /// <summary>How many parent particles the event being handed to this system's emitters covers.</summary>
+        internal int EmitterEventCount => EmitterEventParticles?.Count ?? 0;
 
         /// <summary>Whether a child of this system emits from <paramref name="eventType"/>.</summary>
         internal bool ListensFor(ParticleEventType eventType) => Data is { } simulation && (simulation.ListenedEvents & eventType) != 0;
