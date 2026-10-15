@@ -878,5 +878,63 @@ namespace Tests.IO
                 await Assert.That(BeadAlignment(0)).IsEqualTo(0);
             }
         }
+
+        /// <summary>
+        /// A parentless free static whose twist toward a locked static has no entry back hangs under it, simulated with
+        /// <c>lock_translation</c>, and pulls a static sibling into the hub's chain; a static root stating its own
+        /// <c>twist_relax</c> stays off its skeleton parent; and a node-base tie roll may not turn a short node-base axis.
+        /// </summary>
+        [Test]
+        public async Task ChainParentsTheCompilerErasedAreRestored()
+        {
+            static ClothReconstruction Model(IReadOnlyDictionary<string, string?> boneParents, params FeTwistConstraint[] twists)
+                => WithSkeleton(new FeModelBuilder
+                {
+                    Names = ["hub", "sibling", "free", "tip"],
+                    StaticNodes = 3,
+                    RotLockStaticNodes = 2,
+                    Parents = [-1, 0, -1, 2],
+                    Positions = [new(0f, 0f, 10f), new(5f, 0f, 0f), new(0f, 0f, 0f), new(0f, 0f, -10f)],
+                    Rods = [RigidRod(2, 3, 10f)],
+                    Twists = twists,
+                }.Reconstruct(), boneParents);
+
+            static BoneChainJoint? Joint(ClothReconstruction cloth, string name)
+                => cloth.BuildBoneChains().SelectMany(static chain => chain.Joints).FirstOrDefault(joint => joint.Name == name);
+
+            var skeleton = new Dictionary<string, string?> { ["hub"] = null, ["sibling"] = "hub", ["free"] = "hub", ["tip"] = "free" };
+            var erased = Model(skeleton, Twist(2, 0, 0.1545f, 0f), Twist(2, 3, 0.0955f, 0.5f));
+            var both = Model(skeleton, Twist(2, 0, 0.1545f, 0f), Twist(0, 2, 0f, 1f), Twist(2, 3, 0.0955f, 0.5f));
+            var free = ClothExtract.MakeClothJoint(erased, Joint(erased, "free")!);
+
+            var ownTwist = WithSkeleton(new FeModelBuilder
+            {
+                Names = ["spine", "root", "kid"],
+                StaticNodes = 2,
+                Parents = [-1, 0, 1],
+                Positions = [new(0f, 0f, 10f), new(0f, 0f, 0f), new(0f, 0f, -10f)],
+                Rods = [RigidRod(1, 2, 10f)],
+                Twists = [Twist(1, 2, 0f, 1f)],
+            }.Reconstruct(), new Dictionary<string, string?> { ["spine"] = null, ["root"] = "spine", ["kid"] = "root" });
+
+            static bool RollAffordable(float axisLength) => new FeModelBuilder
+            {
+                Names = ["joint", "$ccjoint_0", "end"],
+                Positions = [Vector3.Zero, new(0.4f, 0f, 0f), new(0.4f, 0f, axisLength)],
+                NodeBases = [NodeBase(2, 0, 2, 2, 1)],
+            }.Reconstruct().NodeBaseRollAffordable(new Dictionary<int, Vector3> { [1] = new(0.4f, 1.1e-4f, 0f) });
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Joint(erased, "free")!.ParentName).IsEqualTo("hub");
+                await Assert.That(free.GetBooleanProperty("simulate")).IsTrue();
+                await Assert.That(free.GetBooleanProperty("lock_translation")).IsTrue();
+                await Assert.That(Joint(erased, "sibling")?.ParentName).IsEqualTo("hub");
+                await Assert.That(Joint(both, "free")?.ParentName).IsNull();
+                await Assert.That(Joint(ownTwist, "root")!.ParentName).IsNull();
+                await Assert.That(RollAffordable(0.0144f)).IsFalse();
+                await Assert.That(RollAffordable(5f)).IsTrue();
+            }
+        }
     }
 }

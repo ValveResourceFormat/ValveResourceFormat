@@ -140,6 +140,7 @@ namespace ValveResourceFormat.IO
         private Dictionary<int, List<int>>? proxyRings;
         private (Dictionary<int, List<int>> ChildrenOf, Dictionary<int, int> OwnerOf)? proxyRingsByOwner;
         private ChainTopology? chainTopology;
+        private readonly HashSet<int> erasedChainParents = [];
         private float? chainRingCurvature;
         private List<BoneChain>? unversionedChains;
 
@@ -980,6 +981,12 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            foreach (var (i, p) in ErasedParentLinks(isReal, realParent))
+            {
+                realParent[i] = p;
+                erasedChainParents.Add(i);
+            }
+
             if (SkeletonBoneParents is not null)
             {
                 var sheetSkinned = SheetSkinnedNodes();
@@ -1012,7 +1019,7 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        if (Simulates(i) || Simulates(p))
+                        if (Simulates(i) || Simulates(p) || StatesOwnTwistRelax(i, p))
                         {
                             continue;
                         }
@@ -1169,6 +1176,54 @@ namespace ValveResourceFormat.IO
 
             return (realParent, children, roots);
         }
+
+        /// <summary>
+        /// Gets whether <paramref name="node"/> hangs under a rotation-locked static chain parent missing from
+        /// <c>m_SkelParents</c>, declared simulated with <c>lock_translation</c>.
+        /// </summary>
+        internal bool HasErasedChainParent(int node)
+        {
+            _ = Topology;
+            return erasedChainParents.Contains(node);
+        }
+
+        /// <summary>
+        /// Finds each parentless free-rotating static whose only twist entry toward a rotation-locked static has no entry back,
+        /// paired with that static as its erased chain parent.
+        /// </summary>
+        private List<(int Node, int Parent)> ErasedParentLinks(bool[] isReal, int[] realParent)
+        {
+            var candidates = new Dictionary<int, List<int>>();
+            foreach (var (orient, end) in TwistRelaxByLink.Keys)
+            {
+                if (orient >= isReal.Length || end >= isReal.Length || !isReal[orient] || !isReal[end]
+                    || realParent[orient] >= 0 || SkelParentOf(orient) >= 0
+                    || !Index.IsStatic(orient) || !Index.AllowsRotation(orient)
+                    || !Index.IsStatic(end) || Index.AllowsRotation(end)
+                    || TwistRelaxByLink.ContainsKey((end, orient)) || ReachesByParents(realParent, end, orient))
+                {
+                    continue;
+                }
+
+                if (SkeletonBoneParents is { } boneParents
+                    && !string.Equals(boneParents.GetValueOrDefault(Fe.CtrlName[orient]), Fe.CtrlName[end],
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                GetOrAdd(candidates, orient).Add(end);
+            }
+
+            return [.. candidates.Where(static entry => entry.Value.Count == 1).Select(static entry => (entry.Key, entry.Value[0]))];
+        }
+
+        /// <summary>
+        /// Gets whether static <paramref name="node"/> carries a relaxless twist only its own <c>twist_relax</c> writes, with no
+        /// twist linking it to <paramref name="parent"/>.
+        /// </summary>
+        private bool StatesOwnTwistRelax(int node, int parent)
+            => (OrientsRelaxlessTwist(node) || HasRelaxlessTwistLink(node)) && !TwistLinks.Contains(UnorderedPair(parent, node));
 
         /// <summary>
         /// Groups each root's children into the chain declarations they were authored as, one spec per declaration.

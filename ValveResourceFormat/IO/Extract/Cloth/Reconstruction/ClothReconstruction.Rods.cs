@@ -104,6 +104,9 @@ namespace ValveResourceFormat.IO
             return generated;
         }
 
+        /// <summary>Gets the node pairs <paramref name="chains"/> regenerate at least one rod on.</summary>
+        internal IEnumerable<(int, int)> ChainGeneratedPairs(List<BoneChain> chains) => ChainGeneratedSpans(chains).Keys;
+
         /// <summary>
         /// Gets the two-corner source elements between chain joints or <c>$cc</c> ring nodes that the chains do not span,
         /// with how many rod copies each one has to declare.

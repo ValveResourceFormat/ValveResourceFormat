@@ -38,6 +38,7 @@ internal sealed partial class ClothExtract
         var sourceSprings = AddClothSourceSprings(softbodyChildren, cloth, boneChains);
         sourceSprings.UnionWith(AddClothChainSurplusRods(softbodyChildren, cloth, boneChains));
         sourceSprings.UnionWith(AddClothChainCrossLinkSprings(softbodyChildren, cloth, boneChains));
+        sourceSprings.UnionWith(cloth.ChainGeneratedPairs(boneChains));
 
         var chainCoveredNodes = boneChains.SelectMany(static chain => chain.Joints)
             .Where(joint => !cloth.SiblingSpringHubs.Contains(joint.Name))

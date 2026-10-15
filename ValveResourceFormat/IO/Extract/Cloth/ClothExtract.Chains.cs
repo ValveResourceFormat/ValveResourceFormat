@@ -318,7 +318,8 @@ internal sealed partial class ClothExtract
 
         var twistRelax = cloth.GetAuthoredTwistRelax(joint.Node, joint.ParentNode, joint.ProxyNode);
 
-        var pinnedSimulatedRoot = (joint.IsRoot && !joint.Simulated && twistRelax > 0f) || joint.SpringsWithSiblings;
+        var pinnedSimulatedRoot = (joint.IsRoot && !joint.Simulated && twistRelax > 0f) || joint.SpringsWithSiblings
+            || cloth.HasErasedChainParent(joint.Node);
 
         var firstOfTwo = secondRoot is not null && !secondDeclaration
             && !string.Equals(joint.Name, secondRoot, StringComparison.OrdinalIgnoreCase);

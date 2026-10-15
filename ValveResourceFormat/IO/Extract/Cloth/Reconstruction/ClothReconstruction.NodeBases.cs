@@ -16,7 +16,10 @@ namespace ValveResourceFormat.IO
             0.002f, -0.002f, 0.001f, -0.001f, 0.0005f, -0.0005f,
         ];
 
-        /// <summary>The furthest a roll may move a node or change a rod's rest length.</summary>
+        /// <summary>
+        /// The furthest a roll may move a node or change a rod's rest length, and the most it may turn a node-base axis, in
+        /// radians.
+        /// </summary>
         private const float NodeBaseCostBudget = 5e-4f;
 
         private const float NodeBaseDegenerateAxis = 0.05f;
@@ -147,7 +150,11 @@ namespace ValveResourceFormat.IO
             return false;
         }
 
-        private bool NodeBaseRollAffordable(Dictionary<int, Vector3> probe)
+        /// <summary>
+        /// Gets whether the ring roll <paramref name="probe"/> stays inside <see cref="NodeBaseCostBudget"/> on every node it
+        /// moves, every rod and every node-base axis.
+        /// </summary>
+        internal bool NodeBaseRollAffordable(Dictionary<int, Vector3> probe)
         {
             foreach (var (node, position) in probe)
             {
@@ -173,7 +180,33 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            foreach (var basis in Index.NodeBases.Values)
+            {
+                if (NodeBaseAxisTurn(basis.NodeX0, basis.NodeX1, probe) > NodeBaseCostBudget
+                    || NodeBaseAxisTurn(basis.NodeY0, basis.NodeY1, probe) > NodeBaseCostBudget)
+                {
+                    return false;
+                }
+            }
+
             return true;
+        }
+
+        /// <summary>
+        /// Gets the angle in radians <paramref name="probe"/> turns the axis from node <paramref name="a"/> to node
+        /// <paramref name="b"/>.
+        /// </summary>
+        private float NodeBaseAxisTurn(int a, int b, Dictionary<int, Vector3> probe)
+        {
+            if ((!probe.ContainsKey(a) && !probe.ContainsKey(b))
+                || a < 0 || b < 0 || a >= Index.InitPosePositions.Length || b >= Index.InitPosePositions.Length)
+            {
+                return 0f;
+            }
+
+            var rest = Index.InitPosePositions[b] - Index.InitPosePositions[a];
+            var rolled = RestPosition(b, probe) - RestPosition(a, probe);
+            return MathF.Atan2(Vector3.Cross(rest, rolled).Length(), Vector3.Dot(rest, rolled));
         }
 
         private bool NodeBaseRingIsReadElsewhere(List<int> ring, List<NodeBaseTarget> targets)
