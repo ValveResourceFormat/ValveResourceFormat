@@ -487,6 +487,7 @@ namespace ValveResourceFormat.Renderer.Materials
             VTexFormat.RGBA8888        => ImageFormat.RGBA8888,
             VTexFormat.BGRA8888        => ImageFormat.BGRA8888,
             VTexFormat.I8              => ImageFormat.I8,
+            VTexFormat.R8_UNORM        => ImageFormat.I8, // Both upload as a single red channel
 
             //VTexFormat.IA88
             //VTexFormat.R11_EAC

@@ -807,6 +807,7 @@ namespace ValveResourceFormat.ResourceTypes
                 VTexFormat.RGB323232F => new DecodeRGB323232F(),
                 VTexFormat.RGBA32323232F => new DecodeRGBA32323232F(),
                 VTexFormat.IA88 => new DecodeIA88(),
+                VTexFormat.R8_UNORM => new DecodeR8(),
                 VTexFormat.BGRA8888 => new DecodeBGRA8888(),
                 _ => throw new UnexpectedMagicException("Unhandled image type", (int)Format, nameof(Format))
             };
