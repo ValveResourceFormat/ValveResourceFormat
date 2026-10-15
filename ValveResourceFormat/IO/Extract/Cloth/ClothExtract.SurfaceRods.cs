@@ -120,7 +120,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        if (!generatesBendRods && !generatesBendOnlyRods && cloth.HasSurfaceFolds)
+        if (!generatesBendOnlyRods && cloth.HasSurfaceFolds)
         {
             var keptFaces = new List<int[]>();
             foreach (var (_, _, proxyMesh) in proxies)
@@ -133,7 +133,11 @@ internal sealed partial class ClothExtract
 
             var folds = ClothReconstruction.BendRodsFromDeclaredFaces(keptFaces, cloth.Index.IsStatic);
             folds.ExceptWith(derived);
-            if (folds.Count > 0 && folds.All(fold => cloth.RodsByPair.ContainsKey(fold)
+            if (generatesBendRods)
+            {
+                derived.UnionWith(folds.Where(cloth.RodsByPair.ContainsKey));
+            }
+            else if (folds.Count > 0 && folds.All(fold => cloth.RodsByPair.ContainsKey(fold)
                 || cloth.Index.IsStatic(fold.Item1) || cloth.Index.IsStatic(fold.Item2)))
             {
                 var boundedFolds = HasBoundedRod(cloth, folds);
@@ -223,7 +227,7 @@ internal sealed partial class ClothExtract
     /// </summary>
     private static MixedSurfaceRods? ClothMixedSurfaceRods(ClothReconstruction cloth, List<int[]> surfaceFaces, HashSet<(int, int)> beyondSurface)
     {
-        if (beyondSurface.Count == 0 || cloth.Index.HasAxialEdges)
+        if (beyondSurface.Count == 0)
         {
             return null;
         }
@@ -245,6 +249,11 @@ internal sealed partial class ClothExtract
         if (bend.Count == 0 || suspenders.Count != rest.Count)
         {
             return null;
+        }
+
+        if (cloth.Index.HasAxialEdges)
+        {
+            return new MixedSurfaceRods(bend, suspenders, 0f, 0f, HasBoundedRod(cloth, bend));
         }
 
         var curvature = ClothCurvatureFromSurface(ClothHingeReadings(cloth, surfaceFaces, bend));
@@ -311,12 +320,13 @@ internal sealed partial class ClothExtract
     /// <summary>
     /// The suspender rods among a sheet's rods beyond its faces, and the <c>add_curvature</c> they read: a rigid rod from
     /// a static to a simulated vertex at its rest span, with <c>flMinDist = flMaxDist * sin(add_curvature * pi)</c>. Taken
-    /// only where every such rod and the chain rings agree; a set at zero minimum is reported saturated.
+    /// only where every such rod and the chain rings agree; a set at zero minimum is reported saturated. Under
+    /// <c>rigid_edge_hinges</c> every suspender has a zero minimum and reads no curvature.
     /// </summary>
     private static (HashSet<(int, int)> Suspenders, float AddCurvature, bool Saturated) ClothSuspenders(
         ClothReconstruction cloth, HashSet<(int, int)> beyondSurface)
     {
-        if (beyondSurface.Count == 0 || cloth.Index.HasAxialEdges)
+        if (beyondSurface.Count == 0)
         {
             return ([], 0f, false);
         }
@@ -355,6 +365,11 @@ internal sealed partial class ClothExtract
         }
 
         var saturated = curvature <= 0f;
+        if (cloth.Index.HasAxialEdges)
+        {
+            return saturated ? ([.. shaped.Select(static s => s.Edge)], 0f, true) : ([], 0f, false);
+        }
+
         var ring = cloth.ChainRingCurvature;
         if (saturated
             ? ring > ClothReconstruction.ChainRingCurvatureAgreement

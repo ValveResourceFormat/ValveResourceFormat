@@ -1485,5 +1485,61 @@ namespace Tests.IO
                 await Assert.That(cloth.GetUngeneratedRods(chains)).IsEmpty();
             }
         }
+
+        /// <summary>
+        /// A sibling-spring hub reads its <c>antishrink</c> off the rods between its children, a static joint under a static
+        /// parent counts its <c>extra_iterations</c> off its bend rods alone, and a ringed joint reads its <c>motion_bias</c>
+        /// off the bounded rods between its ring and its parent's ring.
+        /// </summary>
+        [Test]
+        public async Task ChainSpansReadAntishrinkCopiesAndMotionBias()
+        {
+            var side = MathF.Sqrt(18f);
+            FeRodConstraint Sibling(int a, int b) => Rod(a, b, 0.6f * side, side, relaxation: 0.5f);
+            var hub = SiblingChain(RigidRod(0, 1, 3f), RigidRod(0, 2, 3f), RigidRod(0, 3, 3f), Sibling(1, 2), Sibling(1, 3), Sibling(2, 3));
+
+            var staticJoint = new FeModelBuilder
+            {
+                Names = ["hub", "a1", "a2", "r"],
+                StaticNodes = 3,
+                Parents = [-1, 3, 1, 0],
+                Positions = [new(0f, 0f, 0f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 0f, -10f)],
+                Rods = [RigidRod(0, 3, 10f), .. Enumerable.Repeat(RigidRod(3, 1, 10f), 4), .. Enumerable.Repeat(RigidRod(3, 2, 20f, 0.3f), 4)],
+            }.Reconstruct().BuildBoneChains().SelectMany(static chain => chain.Joints).First(static joint => joint.Name == "a2");
+
+            var ringed = new BoneChainJoint { Node = 6, Name = "j2", ParentNode = 3, InvMass = 1f };
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(hub!.Antishrink).IsEqualTo(0.6f).Within(1e-5f);
+                await Assert.That(staticJoint.ExtraIterations).IsEqualTo(3);
+                await Assert.That(BiasedRings(bounded: true).GetMotionBias(ringed) ?? float.NaN).IsEqualTo(0.25f).Within(1e-3f);
+                await Assert.That(BiasedRings(bounded: false).GetMotionBias(ringed)).IsNull();
+            }
+        }
+
+        /// <summary>
+        /// A static ringed root over two simulated ringed joints 20 apart down -Z, each ring two nodes 10 apart, the rods from
+        /// j2's ring to j1's ring weighted 4/7 toward j2 and rigid or, unless <paramref name="bounded"/>, without a maximum.
+        /// </summary>
+        private static ClothReconstruction BiasedRings(bool bounded)
+        {
+            const float Diagonal = 22.36068f;
+            FeRodConstraint Span(int a, int b, float length) => Rod(a, b, length, bounded ? length : 16384f, 4f / 7f);
+
+            return new FeModelBuilder
+            {
+                Names = ["root", "$ccroot_0", "$ccroot_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1"],
+                StaticNodes = 3,
+                Parents = [-1, 0, 0, 0, 3, 3, 3, 6, 6],
+                Positions = [.. Enumerable.Range(0, 9).Select(static node => new Vector3((node % 3) switch { 1 => 5f, 2 => -5f, _ => 0f }, 0f, -20f * (node / 3)))],
+                Rods =
+                [
+                    RigidRod(1, 4, 20f, 1f, 0f), RigidRod(2, 5, 20f, 1f, 0f), RigidRod(1, 5, Diagonal, 1f, 0f), RigidRod(2, 4, Diagonal, 1f, 0f),
+                    RigidRod(4, 5, 10f), RigidRod(7, 8, 10f),
+                    Span(7, 4, 20f), Span(8, 5, 20f), Span(7, 5, Diagonal), Span(8, 4, Diagonal),
+                ],
+            }.Reconstruct();
+        }
     }
 }

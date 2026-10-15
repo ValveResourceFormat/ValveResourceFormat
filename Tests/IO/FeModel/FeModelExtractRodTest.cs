@@ -533,5 +533,105 @@ namespace Tests.IO
                 await Assert.That(sprung).Contains("cloth_node_1 = \"coattail_1_R\"");
             }
         }
+
+        /// <summary>
+        /// A zero-minimum rest-span rod on a rigid-hinge sheet is a suspender, and where another sheet turns
+        /// <c>add_stiffness_rods</c> on, a face-kept sheet's folds are derived; even-split rods there stay declared.
+        /// </summary>
+        [Test]
+        public async Task RigidHingeSuspendersAndFaceKeptFoldsAreDerived()
+        {
+            static ClothExtract.ClothSurfaceRods Read(FeModelBuilder model)
+            {
+                var cloth = model.Reconstruct();
+                return ClothExtract.ClothRodsFromSurface(cloth,
+                    [.. cloth.BuildProxyMeshes().Select(static (proxy, i) => new ClothExtract.ClothProxyFile($"p{i}.dmx", $"p{i}", proxy))]);
+            }
+
+            var suspended = Read(SuspendedRigidHingeStrip());
+            var folded = Read(FoldedBesideBentStrip(0.666667f));
+            var declared = Read(FoldedBesideBentStrip(0.5f));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(suspended.SuspenderNodes).IsEquivalentTo([0, 6], CollectionOrdering.Any);
+                await Assert.That(suspended.Derived.Contains((0, 6))).IsTrue();
+                await Assert.That(folded.Derived.Contains((4, 8)) && folded.Derived.Contains((5, 9))).IsTrue();
+                await Assert.That(declared.Derived.Contains((4, 8))).IsFalse();
+            }
+        }
+
+        /// <summary>
+        /// A <c>rigid_edge_hinges</c> strip of three quads hanging from two static nodes, its bend network unbounded and one
+        /// zero-minimum rod from static node 0 to simulated node 6.
+        /// </summary>
+        private static FeModelBuilder SuspendedRigidHingeStrip()
+        {
+            int[][] faces = [[0, 1, 3, 2], [2, 3, 5, 4], [4, 5, 7, 6]];
+            Vector3[] positions = [.. Enumerable.Range(0, 8).Select(static node => new Vector3(node % 2, 0f, -2f * (node / 2)))];
+            static bool IsStatic(int node) => node < 2;
+
+            return new()
+            {
+                Names = [.. Enumerable.Range(0, 8).Select(static node => $"$cloth_m0p{node}")],
+                StaticNodes = 2,
+                InvMasses = [0f, 0f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f],
+                Positions = positions,
+                SourceElems = [0, 0, 0, 3, .. faces.SelectMany(static face => face)],
+                Rods =
+                [
+                    .. ClothReconstruction.DeriveRodsFromFaces(faces)
+                        .Where(static pair => !(IsStatic(pair.Item1) && IsStatic(pair.Item2)))
+                        .Select(pair => RigidRod(pair.Item1, pair.Item2, Vector3.Distance(positions[pair.Item1], positions[pair.Item2]))),
+                    .. ClothReconstruction.BendRodsFromSurface(faces, IsStatic)
+                        .Select(pair => Rod(pair.Item1, pair.Item2, Vector3.Distance(positions[pair.Item1], positions[pair.Item2]), 16384f)),
+                    Rod(0, 6, 0f, 6f, 0f),
+                ],
+                AxialEdges = [new(0f, 0f, 0f, [], [2, 3, 4, 4, 3, 2])],
+            };
+        }
+
+        /// <summary>
+        /// A face-kept sheet of three quads (mesh 0) with folds 4-8 and 5-9 weighted <paramref name="foldWeight"/>, beside a
+        /// rod-built strip of three quads (mesh 1) whose bounded bend rods turn <c>add_stiffness_rods</c> on.
+        /// </summary>
+        private static FeModelBuilder FoldedBesideBentStrip(float foldWeight)
+        {
+            int[][] stripFaces = [[2, 3, 11, 10], [10, 11, 13, 12], [12, 13, 15, 14]];
+            Vector3[] positions =
+            [
+                new(0f, 0f, 0f), new(1f, 0f, 0f), new(5f, 0f, 0f), new(6f, 0f, 0f),
+                new(0f, 0f, -2f), new(1f, 0f, -2f), new(0f, 0f, -4f), new(1f, 0f, -4f), new(0f, 0f, -6f), new(1f, 0f, -6f),
+                new(5f, 0f, -2f), new(6f, 0f, -2f), new(5f, 0f, -4f), new(6f, 0f, -4f), new(5f, 0f, -6f), new(6f, 0f, -6f),
+            ];
+            static bool IsStatic(int node) => node < 4;
+
+            var stripRods = ClothReconstruction.DeriveRodsFromFaces(stripFaces)
+                .Where(static pair => !(IsStatic(pair.Item1) && IsStatic(pair.Item2)))
+                .Select(pair => RigidRod(pair.Item1, pair.Item2, Vector3.Distance(positions[pair.Item1], positions[pair.Item2])))
+                .Concat(ClothReconstruction.BendRodsFromSurface(stripFaces, IsStatic).Select(pair =>
+                {
+                    var length = Vector3.Distance(positions[pair.Item1], positions[pair.Item2]);
+                    return Rod(pair.Item1, pair.Item2, 0.5f * length, length);
+                }));
+            Vector4[] even = [new(0f, 0f, 0f, 0.25f), new(0f, 0f, 0f, 0.25f), new(0f, 0f, 0f, 0.25f), new(0f, 0f, 0f, 0.25f)];
+
+            return new()
+            {
+                Names = ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m1p0", "$cloth_m1p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5",
+                    "$cloth_m0p6", "$cloth_m0p7", "$cloth_m1p2", "$cloth_m1p3", "$cloth_m1p4", "$cloth_m1p5", "$cloth_m1p6", "$cloth_m1p7"],
+                StaticNodes = 4,
+                InvMasses = [0f, 0f, 0f, 0f, 0.1f, 0.1f, 0.08f, 0.08f, 0.05f, 0.05f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f],
+                Positions = positions,
+                Quads =
+                [
+                    Quad(0, 1, 5, 4, 0f, [new(0f, 0f, 0f, 0f), new(0f, 0f, 0f, 0f), new(0f, 0f, 0f, 0.5f), new(0f, 0f, 0f, 0.5f)]),
+                    Quad(4, 5, 7, 6, 0f, even),
+                    Quad(6, 7, 9, 8, 0f, even),
+                ],
+                SourceElems = [0, 0, 0, 3, .. stripFaces.SelectMany(static face => face)],
+                Rods = [Rod(4, 8, 3.5f, 4f, foldWeight), Rod(5, 9, 3.5f, 4f, foldWeight), .. stripRods],
+            };
+        }
     }
 }

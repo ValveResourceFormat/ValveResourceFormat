@@ -1533,7 +1533,40 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
-                return found is { } reading ? MathUtils.Saturate(reading) : 1f;
+                return (found ?? SiblingContraction(joint)) is { } reading ? MathUtils.Saturate(reading) : 1f;
+            }
+
+            float? SiblingContraction(BoneChainJoint joint)
+            {
+                if (joint.ChildSiblingSpring <= 0f)
+                {
+                    return null;
+                }
+
+                var kids = KidsOf(joint);
+                var siblingPairs = kids.SelectMany((kid, i) => kids.Skip(i + 1)
+                    .SelectMany(other => Side(kid.Node).SelectMany(a => Side(other.Node).Select(b => UnorderedPair(a, b)))));
+                List<float>? common = null;
+                foreach (var pair in siblingPairs)
+                {
+                    if (!rodContractionsByPair.TryGetValue(pair, out var contractions))
+                    {
+                        continue;
+                    }
+
+                    if (common is null)
+                    {
+                        common = [.. contractions];
+                    }
+                    else
+                    {
+                        common.RemoveAll(seen => !contractions.Exists(contraction => MathF.Abs(seen - contraction) <= ChainReadingTolerance));
+                    }
+                }
+
+                return common is { Count: > 0 } && common.TrueForAll(value => MathF.Abs(value - common[0]) <= ChainReadingTolerance)
+                    ? common[0]
+                    : null;
             }
 
             int JointCopies(BoneChainJoint joint, bool floor = false)
@@ -1552,6 +1585,11 @@ namespace ValveResourceFormat.IO
                         foreach (var b in Side(other))
                         {
                             var count = SpanRodCopies(a, b);
+                            if (count == 0 && Index.IsStatic(a) && Index.IsStatic(b))
+                            {
+                                continue;
+                            }
+
                             if (count == 0 || (!floor && copies != 0 && count != copies))
                             {
                                 return false;
@@ -1657,9 +1695,11 @@ namespace ValveResourceFormat.IO
                     || (joint.TorsionSpring && rootNode == greatGrand);
 
             // upwardCopies is the joint's JointCopies when the root is an upward target, else 0.
-            float? RootSuspenderValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand, out int upwardCopies)
+            float? RootSuspenderValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand, out int upwardCopies,
+                out float? rootSpanSpring)
             {
                 upwardCopies = 0;
+                rootSpanSpring = null;
                 if (joint.Node == rootNode)
                 {
                     return null;
@@ -1671,7 +1711,7 @@ namespace ValveResourceFormat.IO
                     var totalCopies = upwardCopies = JointCopies(joint);
                     if (totalCopies <= 1 || totalCopies % 2 != 0)
                     {
-                        return null;
+                        return DoubledRootSpanSuspender(joint, parentNode, grand, greatGrand, out upwardCopies, out rootSpanSpring);
                     }
 
                     var baseCopies = totalCopies / 2;
@@ -1679,26 +1719,28 @@ namespace ValveResourceFormat.IO
                         && rodRelaxationsByPair.TryGetValue(UnorderedPair(joint.Node, ownRing[0]), out var ringRods)
                         ? ringRods.Count
                         : 0;
-                    float? suspender = null;
-                    foreach (var a in Side(joint.Node))
+                    if (RootSpans(joint, baseCopies * 2) is not { } spans)
                     {
-                        foreach (var b in Side(rootNode))
-                        {
-                            var pair = UnorderedPair(a, b);
-                            if (!rodRelaxationsByPair.TryGetValue(pair, out var relaxations)
-                                || relaxations.Count != baseCopies * 2
-                                || (SplitEvenly(relaxations, naturalRf, baseCopies)
-                                    ?? (ringCopies == baseCopies && relaxations.TrueForAll(rf => MathF.Abs(rf - naturalRf) < ChainReadingTolerance)
-                                        ? naturalRf
-                                        : null)) is not { } value
-                                || !AgreeInto(ref suspender, value))
-                            {
-                                return null;
-                            }
-                        }
+                        return null;
                     }
 
-                    return suspender;
+                    float? suspender = null;
+                    if (spans.TrueForAll(relaxations => (SplitEvenly(relaxations, naturalRf, baseCopies)
+                            ?? (ringCopies == baseCopies && relaxations.TrueForAll(rf => MathF.Abs(rf - naturalRf) < ChainReadingTolerance)
+                                ? naturalRf
+                                : null)) is { } value
+                        && AgreeInto(ref suspender, value)))
+                    {
+                        return suspender;
+                    }
+
+                    if (rootNode != parentNode || SplitRootSpans(spans, baseCopies) is not { } split || split.Spring == split.Suspender)
+                    {
+                        return null;
+                    }
+
+                    rootSpanSpring = split.Spring;
+                    return split.Suspender;
                 }
 
                 float? rigidSuspender = null;
@@ -1719,6 +1761,70 @@ namespace ValveResourceFormat.IO
                 }
 
                 return rigidSuspender;
+            }
+
+            List<List<float>>? RootSpans(BoneChainJoint joint, int copies)
+            {
+                var spans = new List<List<float>>();
+                foreach (var a in Side(joint.Node))
+                {
+                    foreach (var b in Side(rootNode))
+                    {
+                        if (!rodRelaxationsByPair.TryGetValue(UnorderedPair(a, b), out var relaxations) || relaxations.Count != copies)
+                        {
+                            return null;
+                        }
+
+                        spans.Add(relaxations);
+                    }
+                }
+
+                return spans;
+            }
+
+            static (float Spring, float Suspender)? SplitRootSpans(List<List<float>> spans, int baseCopies)
+            {
+                (float Spring, float Suspender)? split = null;
+                foreach (var relaxations in spans)
+                {
+                    var low = relaxations.Min();
+                    var high = relaxations.Max();
+                    if (high - low >= ChainReadingTolerance && relaxations.Count(rf => rf - low < ChainReadingTolerance) != baseCopies)
+                    {
+                        return null;
+                    }
+
+                    if (split is { } seen
+                        && (MathF.Abs(seen.Spring - high) >= ChainReadingTolerance || MathF.Abs(seen.Suspender - low) >= ChainReadingTolerance))
+                    {
+                        return null;
+                    }
+
+                    split = (high, low);
+                }
+
+                return split;
+            }
+
+            float? DoubledRootSpanSuspender(BoneChainJoint joint, int parentNode, int grand, int greatGrand, out int copies,
+                out float? rootSpanSpring)
+            {
+                copies = 0;
+                rootSpanSpring = null;
+                var baseCopies = SpanCopies(joint, parentNode);
+                if (rootNode == parentNode || baseCopies < 2
+                    || (joint.BendSpring && grand != rootNode && SpanCopies(joint, grand) != baseCopies)
+                    || (joint.TorsionSpring && greatGrand != rootNode && SpanCopies(joint, greatGrand) != baseCopies)
+                    || Side(joint.Node).Exists(a => Side(rootNode).Exists(b => IsSourceSpring(a, b)))
+                    || RootSpans(joint, 2 * baseCopies) is not { } spans
+                    || SplitRootSpans(spans, baseCopies) is not { } split)
+                {
+                    return null;
+                }
+
+                copies = 2 * baseCopies;
+                rootSpanSpring = split.Spring;
+                return split.Suspender;
             }
 
             float? RootCompanionValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand, out float? spanRelaxation)
@@ -1972,10 +2078,25 @@ namespace ValveResourceFormat.IO
                 joint.TorsionStiffness = joint.TorsionSpring ? SpringStiffness(greatGrandParent, grandParent) : 0f;
                 joint.Antishrink = JointContraction(joint, parent, grandParent, greatGrandParent);
 
-                if (RootSuspenderValue(joint, parent, grandParent, greatGrandParent, out var upwardCopies) is { } suspender)
+                if (RootSuspenderValue(joint, parent, grandParent, greatGrandParent, out var upwardCopies, out var rootSpanSpring) is { } suspender)
                 {
                     joint.Suspender = Slider(suspender);
                     joint.ExtraIterations = upwardCopies > 0 ? upwardCopies / 2 - 1 : JointCopies(joint) - 1;
+                    if (rootSpanSpring is { } spring)
+                    {
+                        if (rootNode == parent)
+                        {
+                            joint.StretchStiffness = Slider(spring);
+                        }
+                        else if (joint.BendSpring && rootNode == grandParent)
+                        {
+                            joint.BendStiffness = Slider(spring);
+                        }
+                        else
+                        {
+                            joint.TorsionStiffness = Slider(spring);
+                        }
+                    }
                 }
                 else if (RootCompanionValue(joint, parent, grandParent, greatGrandParent, out var spanReading) is { } companion)
                 {

@@ -951,8 +951,8 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Recovers the <c>motion_bias</c> of a chain joint from the weights of the rods between it and its parent, or
-        /// null where they carry no reading.
+        /// Recovers the <c>motion_bias</c> of a chain joint from the weights of the rods between it and its parent, and the
+        /// bounded rods between their simulated <c>$cc</c> rings, or null where they carry no reading.
         /// </summary>
         internal float? GetMotionBias(BoneChainJoint joint)
         {
@@ -961,33 +961,30 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
-            var parentMass = InverseMassOf(joint.ParentNode);
-            var jointMass = InverseMassOf(joint.Node);
-            if (parentMass <= 0f || jointMass <= 0f)
+            if (InverseMassOf(joint.ParentNode) <= 0f || InverseMassOf(joint.Node) <= 0f)
             {
                 return null;
             }
 
-            if (!HasExplicitMasses)
-            {
-                parentMass = 1f / (RecoverJointMassMultiplier(joint.ParentNode) ?? 1f);
-                jointMass = 1f / (RecoverJointMassMultiplier(joint.Node) ?? 1f);
-            }
+            var parentMultiplier = HasExplicitMasses ? 1f : RecoverJointMassMultiplier(joint.ParentNode) ?? 1f;
+            var jointMultiplier = HasExplicitMasses ? 1f : RecoverJointMassMultiplier(joint.Node) ?? 1f;
+            var parentEnds = SpanEnds(joint.ParentNode);
+            var jointEnds = SpanEnds(joint.Node);
 
             float? bias = null;
-            var spanRods = Index.Rods.Select(static rod => (rod.NodeA, rod.NodeB, rod.Weight0))
-                .Concat(Index.AnimRods.Select(static rod => (rod.NodeA, rod.NodeB, rod.Weight0)));
-            foreach (var (nodeA, nodeB, weight0) in spanRods)
+            var spanRods = Index.Rods.Select(static rod => (rod.NodeA, rod.NodeB, rod.Weight0, Bounded: rod.MaxDist < UnboundedRodDistance))
+                .Concat(Index.AnimRods.Select(static rod => (rod.NodeA, rod.NodeB, rod.Weight0, Bounded: true)));
+            foreach (var (nodeA, nodeB, weight0, bounded) in spanRods)
             {
-                var weight = nodeA == joint.ParentNode && nodeB == joint.Node ? weight0
-                    : nodeB == joint.ParentNode && nodeA == joint.Node ? 1f - weight0
-                    : float.NaN;
-                if (float.IsNaN(weight))
+                var (parentEnd, jointEnd, weight) = parentEnds.Contains(nodeA) && jointEnds.Contains(nodeB) ? (nodeA, nodeB, weight0)
+                    : parentEnds.Contains(nodeB) && jointEnds.Contains(nodeA) ? (nodeB, nodeA, 1f - weight0)
+                    : (-1, -1, float.NaN);
+                if (float.IsNaN(weight) || (!bounded && (parentEnd != joint.ParentNode || jointEnd != joint.Node)))
                 {
                     continue;
                 }
 
-                var reading = weight <= 0f ? 1f : weight >= 1f ? -1f : Bias(weight);
+                var reading = weight <= 0f ? 1f : weight >= 1f ? -1f : Bias(weight, parentEnd, jointEnd);
                 if (bias is { } seen && MathF.Abs(seen - reading) > MotionBiasTolerance)
                 {
                     return null;
@@ -998,8 +995,13 @@ namespace ValveResourceFormat.IO
 
             return bias is { } value && MathF.Abs(value) > MotionBiasTolerance ? value : null;
 
-            float Bias(float weight)
+            HashSet<int> SpanEnds(int jointNode)
+                => [jointNode, .. ProxyRingOf(jointNode).Where(node => !Index.IsStatic(node))];
+
+            float Bias(float weight, int parentEnd, int jointEnd)
             {
+                var parentMass = HasExplicitMasses ? InverseMassOf(parentEnd) : 1f / parentMultiplier;
+                var jointMass = HasExplicitMasses ? InverseMassOf(jointEnd) : 1f / jointMultiplier;
                 var ratio = weight * jointMass / ((1f - weight) * parentMass);
                 return ratio <= 1f ? 1f - ratio : -(1f - (1f / ratio));
             }
