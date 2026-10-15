@@ -1,5 +1,8 @@
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.World;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
 
@@ -94,5 +97,148 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
         var heightCull = (UseHeightFog || ((HeightEnd - HeightStart) > 0)) ? fogSpace.Height(HeightStart) : float.PositiveInfinity;
 
         return new Vector4(distCull, heightCull, MathF.Pow(2f, ExposureBias), Opacity);
+    }
+
+    /// <summary>The <c>cubemapfogsource</c> values.</summary>
+    public enum FogSource : uint
+    {
+        /// <summary>The <c>cubemapfogtexture</c> texture. Not offered in CS2.</summary>
+        Texture = 0,
+
+        /// <summary>The sky material of the <c>env_sky</c> named by <c>cubemapfogskyentity</c>.</summary>
+        SkyEntity = 1,
+
+        /// <summary>The <c>cubemapfogskymaterial</c> material.</summary>
+        Material = 2,
+    }
+
+    /// <summary>The sky a fog takes its color from.</summary>
+    /// <param name="MaterialName">Sky material of the sky entity.</param>
+    /// <param name="Transform">Where the sky entity is placed. The fog takes its rotation.</param>
+    /// <param name="BrightnessScale">Brightness scale of the sky entity.</param>
+    public readonly record struct SkySource(string? MaterialName, Matrix4x4 Transform, float BrightnessScale);
+
+    /// <summary>Creates the fog an <c>env_cubemap_fog</c> entity describes.</summary>
+    /// <param name="scene">The scene the fog is for.</param>
+    /// <param name="entity">The keyvalues of the entity.</param>
+    /// <param name="transform">Where the entity is placed.</param>
+    /// <param name="findSky">Finds the sky entity with a name, for a fog that takes its color from one.</param>
+    /// <returns>The fog, or <see langword="null"/> when what it takes its color from cannot be told.</returns>
+    public static SceneCubemapFog? FromEntityProperties(Scene scene, EntityLump.Entity entity, Matrix4x4 transform, Func<string, SkySource?> findSky)
+    {
+        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(entity);
+        ArgumentNullException.ThrowIfNull(findSky);
+
+        var rendererContext = scene.RendererContext;
+
+        var lodBias = entity.GetFloatProperty("cubemapfoglodbiase");
+
+        var falloffExponent = entity.GetFloatProperty("cubemapfogfalloffexponent");
+        var startDist = entity.GetFloatProperty("cubemapfogstartdistance");
+        var endDist = entity.GetFloatProperty("cubemapfogenddistance");
+
+        var hasHeightEnd = entity.ContainsKey("cubemapfogheightend");
+
+        var useHeightFog = entity.ContainsKey("cubemapfogheightexponent"); // the oldest versions have these values missing, so disable it there
+        useHeightFog = entity.GetBooleanProperty("cubemapheightfog", useHeightFog); // New in CS2
+
+        var heightExponent = 1.0f;
+        var heightStart = float.PositiveInfinity; // is this right?
+        var heightEnd = float.PositiveInfinity;
+        if (useHeightFog)
+        {
+            heightExponent = entity.GetFloatProperty("cubemapfogheightexponent");
+            heightStart = entity.GetFloatProperty("cubemapfogheightstart");
+            if (hasHeightEnd)
+            {
+                // New in CS2
+                heightEnd = entity.GetFloatProperty("cubemapfogheightend");
+            }
+            else
+            {
+                var heightWidth = entity.GetFloatProperty("cubemapfogheightwidth");
+                heightEnd = heightStart + heightWidth;
+            }
+        }
+
+        var opacity = entity.GetFloatProperty("cubemapfogmaxopacity", 1f);
+        var fogSource = (FogSource)entity.GetUInt32Property("cubemapfogsource");
+
+        RenderTexture? fogTexture = null;
+        var exposureBias = 0.0f;
+        string? material = null;
+        var skyBrightnessScale = 1.0f;
+
+        switch (fogSource)
+        {
+            case FogSource.Texture:
+                var textureName = entity.GetStringProperty("cubemapfogtexture");
+                if (textureName != null)
+                {
+                    fogTexture = rendererContext.MaterialLoader.GetTexture(textureName);
+                }
+
+                break;
+
+            case FogSource.SkyEntity:
+                var skyEntTargetName = entity.GetStringProperty("cubemapfogskyentity");
+
+                if (skyEntTargetName == null)
+                {
+                    break;
+                }
+
+                if (findSky(skyEntTargetName) is not { } sky)
+                {
+                    rendererContext.Logger.LogWarning("Disabling cubemap fog because failed to find env_sky of target name {SkyEntTargetName}", skyEntTargetName);
+                    return null;
+                }
+
+                material = sky.MaterialName;
+                transform = sky.Transform with { Translation = transform.Translation }; // steal rotation from env_sky
+                skyBrightnessScale = sky.BrightnessScale;
+                break;
+
+            case FogSource.Material:
+                material = entity.GetStringProperty("cubemapfogskymaterial");
+                break;
+
+            default:
+                rendererContext.Logger.LogWarning("Disabling cubemap fog '{TargetName}' because its fog source {FogSource} is not recognized", entity.GetStringProperty("targetname"), fogSource);
+                return null;
+        }
+
+        if (!string.IsNullOrEmpty(material))
+        {
+            using var matFile = rendererContext.FileLoader.LoadFileCompiled(material);
+            var mat = rendererContext.MaterialLoader.LoadMaterial(matFile);
+
+            if (mat != null && mat.Textures.TryGetValue("g_tSkyTexture", out fogTexture))
+            {
+                var brightnessExposureBias = mat.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias", 0f);
+                // todo: make sure this matches with scene post process
+                var renderOnlyExposureBias = mat.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias", 0f);
+
+                // These are both logarithms, so this is equivalent to a multiply of the raw value
+                exposureBias = brightnessExposureBias + renderOnlyExposureBias + MathF.Log2(skyBrightnessScale);
+            }
+        }
+
+        return new SceneCubemapFog(scene)
+        {
+            StartDist = startDist,
+            EndDist = endDist,
+            FalloffExponent = falloffExponent,
+            HeightStart = heightStart,
+            HeightEnd = heightEnd,
+            HeightExponent = heightExponent,
+            LodBias = lodBias,
+            Transform = transform,
+            CubemapFogTexture = fogTexture,
+            Opacity = opacity,
+            ExposureBias = exposureBias,
+            UseHeightFog = useHeightFog,
+        };
     }
 }

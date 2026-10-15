@@ -22,12 +22,6 @@ public abstract class EnvLightingVolume : BaseEntity
 {
     private readonly bool isSphere;
 
-    // The handshake baked objects name this volume by, 0 when it has none
-    private int handShake;
-    private int indoorOutdoorLevel;
-    private AABB bounds;
-    private Vector3 edgeFadeDists;
-
     /// <summary>Initializes a lighting volume from its keyvalues.</summary>
     /// <param name="system">The entity system the volume belongs to.</param>
     /// <param name="spawnInfo">The volume's keyvalues and placement.</param>
@@ -37,119 +31,15 @@ public abstract class EnvLightingVolume : BaseEntity
         this.isSphere = isSphere;
     }
 
-    /// <inheritdoc/>
-    public override void Spawn()
-    {
-        if (!int.TryParse(KeyValues.GetStringProperty("handshake"), out handShake))
-        {
-            handShake = KeyValues.GetInt32Property("handshake");
-        }
-
-        indoorOutdoorLevel = KeyValues.GetInt32Property("indoor_outdoor_level");
-
-        if (isSphere)
-        {
-            var radius = KeyValues.GetFloatProperty("influenceradius");
-            bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
-        }
-        else
-        {
-            bounds = new AABB(KeyValues.GetVector3Property("box_mins"), KeyValues.GetVector3Property("box_maxs"));
-        }
-
-        edgeFadeDists = KeyValues.GetVector3Property("edge_fade_dists"); // TODO: Not available on all entities
-    }
-
     /// <summary>Registers the cubemap the volume baked, if it has one and it is not a custom texture.</summary>
     protected void AddEnvironmentMap()
     {
-        var cubemapTextureName = KeyValues.GetStringProperty("cubemaptexture");
-
-        if (cubemapTextureName == null)
-        {
-            return;
-        }
-
-        var envMapTexture = Scene.RendererContext.MaterialLoader.GetTexture(cubemapTextureName, true);
-        var arrayIndex = KeyValues.GetInt32Property("array_index");
-
-        var envMap = new SceneEnvMap(Scene, bounds)
-        {
-            LayerName = LayerName,
-            Transform = RigidTransform,
-            EntityData = Data,
-            HandShake = handShake,
-            ArrayIndex = arrayIndex,
-            IndoorOutdoorLevel = indoorOutdoorLevel,
-            EdgeFadeDists = edgeFadeDists,
-            ProjectionMode = isSphere ? 0 : 1,
-            EnvMapTexture = envMapTexture,
-            NormalizationSH = SceneEnvMap.CalculateNormalizationSH(envMapTexture.RadianceCoefficients, arrayIndex),
-        };
-
-        if (KeyValues.GetStringProperty("customcubemaptexture") == null)
-        {
-            Scene.LightingInfo.AddEnvironmentMap(envMap);
-        }
+        SceneLightingVolume.AddEnvironmentMap(Scene, KeyValues, RigidTransform, LayerName, isSphere);
     }
 
     /// <summary>Registers the light probe the volume baked.</summary>
     protected void AddLightProbe()
     {
-        var materialLoader = Scene.RendererContext.MaterialLoader;
-        var lightProbeTextureName = KeyValues.GetStringProperty("lightprobetexture");
-
-        var lightProbe = new SceneLightProbe(Scene, bounds)
-        {
-            LayerName = LayerName,
-            Transform = RigidTransform,
-            EntityData = Data,
-            HandShake = handShake,
-            Irradiance = lightProbeTextureName != null ? materialLoader.GetTexture(lightProbeTextureName, srgbRead: true) : null,
-            IndoorOutdoorLevel = indoorOutdoorLevel,
-            EdgeFadeDists = edgeFadeDists,
-            VoxelSize = KeyValues.GetFloatProperty("voxel_size"),
-        };
-
-        var dliName = KeyValues.GetStringProperty("lightprobetexture_dli");
-        var dlsName = KeyValues.GetStringProperty("lightprobetexture_dls");
-        var dlsdName = KeyValues.GetStringProperty("lightprobetexture_dlshd");
-
-        if (dlsName != null)
-        {
-            lightProbe.DirectLightScalars = materialLoader.GetTexture(dlsName);
-            lightProbe.DirectLightScalars.SetWrapMode(RsTextureAddressMode.Clamp);
-        }
-
-        if (dliName != null)
-        {
-            lightProbe.DirectLightIndices = materialLoader.GetTexture(dliName);
-            lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-            lightProbe.DirectLightIndices.SetWrapMode(RsTextureAddressMode.Clamp);
-        }
-
-        Scene.LightingInfo.LightProbeType = KeyValues.ContainsKey("light_probe_atlas_x")
-            ? LightProbeType.ProbeAtlas
-            : LightProbeType.IndividualProbes;
-
-        if (dlsdName != null)
-        {
-            lightProbe.DirectLightShadows = materialLoader.GetTexture(dlsdName);
-            lightProbe.DirectLightShadows.SetWrapMode(RsTextureAddressMode.Clamp);
-
-            lightProbe.AtlasSize = new Vector3(
-                KeyValues.GetFloatProperty("light_probe_size_x"),
-                KeyValues.GetFloatProperty("light_probe_size_y"),
-                KeyValues.GetFloatProperty("light_probe_size_z")
-            );
-
-            lightProbe.AtlasOffset = new Vector3(
-                KeyValues.GetFloatProperty("light_probe_atlas_x"),
-                KeyValues.GetFloatProperty("light_probe_atlas_y"),
-                KeyValues.GetFloatProperty("light_probe_atlas_z")
-            );
-        }
-
-        Scene.LightingInfo.AddProbe(lightProbe);
+        SceneLightingVolume.AddLightProbe(Scene, KeyValues, RigidTransform, LayerName, isSphere);
     }
 }
