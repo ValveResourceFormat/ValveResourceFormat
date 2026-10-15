@@ -144,7 +144,8 @@ namespace ValveResourceFormat.Particles
         private readonly bool infiniteBounds;
 
         /// <summary>
-        /// Cache a reference to <see cref="EmitParticle"/> as to not allocate one for every emitted particle.
+        /// Cache a reference to <see cref="EmitParticle"/>, for emitters, as to not allocate one for every
+        /// emitted particle.
         /// </summary>
         private readonly Action<float> emitParticleAction;
 
@@ -201,7 +202,7 @@ namespace ValveResourceFormat.Particles
         /// <param name="parentSystemState">The state of the system running this one as a child.</param>
         public ParticleSystemSimulation(ParticleSystem particleSystem, IFileLoader fileLoader, ILogger? logger = null, ParticleSnapshot? particleSnapshot = null, ParticleSystemState? parentSystemState = null)
         {
-            emitParticleAction = EmitParticle;
+            emitParticleAction = ageAtSpawn => EmitParticle(ageAtSpawn, EmitterWrittenFields);
 
             childSimulations = [];
             this.logger = logger ?? NullLogger.Instance;

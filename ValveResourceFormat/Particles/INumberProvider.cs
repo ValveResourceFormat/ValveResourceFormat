@@ -251,7 +251,8 @@ namespace ValveResourceFormat.Particles
     {
         private readonly AttributeMapping attributeMapping;
         public PerParticleSpeedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
-        public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.Speed);
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+            => attributeMapping.ApplyMapping(particle.GetVelocity(renderState.Data?.CurrentFrameTime ?? 0f).Length());
         public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 

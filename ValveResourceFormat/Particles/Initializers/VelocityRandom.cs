@@ -46,25 +46,14 @@ namespace ValveResourceFormat.Particles.Initializers
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
             var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
 
-            // The speed range is a per-component world space box added on top, not a multiplier
             if (speedmin != 0f || speedmax != 0f)
             {
-                velocity += particleSystemState.Random.NextBetweenPerComponent(
-                    new Vector3(speedmin),
-                    new Vector3(speedmax));
+                var direction = MathUtils.SafeNormalize(particleSystemState.Random.NextInUnitBall(out _));
+                velocity += direction * particleSystemState.Random.NextBetween(speedmin, speedmax);
             }
 
             // With the flag set the authored value is a raw per-step displacement, not units/second.
-            if (ignoreDT)
-            {
-                var frameTime = particleSystemState.Data?.CurrentFrameTime ?? 0f;
-                if (frameTime > 0f)
-                {
-                    velocity /= frameTime;
-                }
-            }
-
-            particle.Velocity += velocity;
+            particle.PositionPrevious -= ignoreDT ? velocity : velocity * particles.PreviousFrameTime;
 
             return particle;
         }

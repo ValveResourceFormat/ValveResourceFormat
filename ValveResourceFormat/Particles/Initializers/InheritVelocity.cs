@@ -19,16 +19,22 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            // The inherited velocity comes from the control point's motion over the last frame; a move
-            // of 100+ units is treated as a teleport and skipped.
-            var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
+            var frameTime = particles.CurrentFrameTime;
 
-            if (controlPoint.StepDelta.Length() >= 100f)
+            if (frameTime <= 0f)
             {
                 return particle;
             }
 
-            particle.Velocity += controlPoint.Velocity * velocityScale;
+            // A rescaled move of 100 units or more is treated as a teleport
+            var step = particleSystemState.GetControlPoint(controlPointNumber).StepDelta * particles.PreviousFrameTime / frameTime;
+
+            if (step.Length() >= 100f)
+            {
+                return particle;
+            }
+
+            particle.PositionPrevious -= step * velocityScale;
             return particle;
         }
     }

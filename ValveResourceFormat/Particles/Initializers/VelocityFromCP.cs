@@ -24,16 +24,14 @@ namespace ValveResourceFormat.Particles.Initializers
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemRenderState)
         {
             var velocity = velocityInput.NextVector(ref particle, particleSystemRenderState);
+            velocity = Vector3.TransformNormal(velocity, transformInput.NextTransform(ref particle, particleSystemRenderState));
 
-            if (directionOnly && velocity != Vector3.Zero)
+            if (directionOnly)
             {
                 velocity = MathUtils.SafeNormalize(velocity);
             }
 
-            velocity *= velocityScale;
-            velocity = Vector3.TransformNormal(velocity, transformInput.NextTransform(ref particle, particleSystemRenderState));
-
-            particle.Velocity += velocity;
+            particle.PositionPrevious -= velocity * particles.PreviousFrameTime * velocityScale;
             return particle;
         }
     }

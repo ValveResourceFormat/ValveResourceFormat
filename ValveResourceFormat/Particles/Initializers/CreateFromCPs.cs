@@ -63,7 +63,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var position = particleSystemState.GetControlPoint(controlPoint).Position;
             particle.Position = position;
-            particle.Velocity = Vector3.Zero;
+            particle.PositionPrevious = position;
 
             return particle;
         }

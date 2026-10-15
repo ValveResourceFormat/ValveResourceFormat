@@ -25,7 +25,14 @@ namespace ValveResourceFormat.Particles.Initializers
         // todo: these (operators and initializers) can reference either the current value and the initial value. do we need to store the initial value of all attributes?
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            particle.SetVector(outputField, inputValue.NextVector(ref particle, particleSystemState));
+            var value = inputValue.NextVector(ref particle, particleSystemState);
+
+            particle.SetVector(outputField, value);
+
+            if (writePreviousPosition && outputField == ParticleField.Position)
+            {
+                particle.PositionPrevious = value;
+            }
 
             return particle;
         }

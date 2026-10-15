@@ -49,6 +49,7 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             particle.Position += offset;
+            particle.PositionPrevious += offset;
 
             return particle;
         }

@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -62,13 +64,19 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var value = Vector3.Lerp(outputMin, outputMax, input);
 
+            if (fieldOutput == ParticleField.Position)
+            {
+                WritePosition(ref particle, particles, particleSystemState, value);
+                return particle;
+            }
+
             if (localCoords)
             {
                 // Positions are offsets from the control point and directions are rotated by it;
                 // colors have no frame.
                 value = fieldOutput switch
                 {
-                    ParticleField.Position or ParticleField.PositionPrevious or ParticleField.HitboxOffsetPosition
+                    ParticleField.PositionPrevious or ParticleField.HitboxOffsetPosition
                         => ControlPointTransformProvider.TransformPosition(particleSystemState, controlPoint, value),
                     ParticleField.Normal or ParticleField.ScratchVector or ParticleField.ScratchVector2
                         => ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, value),
@@ -79,6 +87,29 @@ namespace ValveResourceFormat.Particles.Initializers
             particle.SetVector(fieldOutput, particle.ModifyVectorBySetMethodAtSpawn(particles, fieldOutput, value, setMethod));
 
             return particle;
+        }
+
+        /// <summary>
+        /// Places the particle. In local coordinates the value is a point in the control point's frame and
+        /// the particle starts at rest; otherwise it is an offset from the control point, and the set
+        /// method combines it with the position and the previous position separately.
+        /// </summary>
+        private void WritePosition(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState, Vector3 value)
+        {
+            if (localCoords)
+            {
+                var position = ControlPointTransformProvider.TransformPosition(particleSystemState, controlPoint, value);
+                position = particle.ModifyVectorBySetMethodAtSpawn(particles, ParticleField.Position, position, setMethod);
+
+                particle.Position = position;
+                particle.PositionPrevious = position;
+                return;
+            }
+
+            var offset = ParticlePath.GetControlPointAtTime(particleSystemState, controlPoint, particle.CreationTime) + value;
+
+            particle.Position = particle.ModifyVectorBySetMethodAtSpawn(particles, ParticleField.Position, offset, setMethod);
+            particle.PositionPrevious = particle.ModifyVectorBySetMethodAtSpawn(particles, ParticleField.PositionPrevious, offset, setMethod);
         }
     }
 }

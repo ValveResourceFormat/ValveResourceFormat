@@ -1,7 +1,9 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Clamps each particle's velocity to a maximum speed and raises it to a minimum speed.
+    /// Clamps each particle's velocity to a maximum speed and raises it to a minimum speed, by moving the
+    /// position relative to the previous position. The minimum wins when it exceeds the maximum, and a
+    /// particle at rest is first given a small random step so it can be pushed up to the minimum.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_MaxVelocity">C_OP_MaxVelocity</seealso>
     class MaxVelocity : ParticleFunctionOperator
@@ -22,27 +24,31 @@ namespace ValveResourceFormat.Particles.Operators
                 var maxVelocity = maxVelocityProvider.NextNumber(ref particle, particleSystemState);
                 var minVelocity = minVelocityProvider.NextNumber(ref particle, particleSystemState);
 
-                var originalVelocity = particle.Velocity;
-                var speed = originalVelocity.Length();
+                var step = particle.Position - particle.PositionPrevious;
 
-                if (speed > maxVelocity)
+                if (minVelocity > 0f && step.LengthSquared() <= 0f)
                 {
-                    particle.Velocity = originalVelocity * (maxVelocity / speed);
-                }
-                else if (speed > 0f && speed < minVelocity)
-                {
-                    particle.Velocity = originalVelocity * (minVelocity / speed);
-                }
-                else
-                {
-                    continue;
+                    var x = particleSystemState.Random.NextBetween(-0.1f, 0.1f);
+                    var y = particleSystemState.Random.NextBetween(-0.1f, 0.1f);
+                    step = new Vector3(x, y, 0.1f - x - y);
                 }
 
-                particle.Velocity = Vector3.Lerp(originalVelocity, particle.Velocity, strength);
+                var length = step.Length();
+                var scale = 1f;
 
-                // Motion lives in the Verlet position pair; write the clamp back so the next
-                // integration step actually uses it.
-                particle.PositionPrevious = particle.Position - (particle.Velocity * frameTime);
+                if (maxVelocity * frameTime < length)
+                {
+                    scale = maxVelocity * frameTime / length;
+                }
+
+                if (length < minVelocity * frameTime)
+                {
+                    scale = minVelocity * frameTime / length;
+                }
+
+                var clamped = (step * scale) + particle.PositionPrevious;
+
+                particle.Position = strength >= 1f ? clamped : (clamped * strength) + (particle.Position * (1f - strength));
             }
         }
     }

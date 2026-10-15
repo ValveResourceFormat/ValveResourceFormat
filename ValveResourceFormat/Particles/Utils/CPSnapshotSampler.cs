@@ -46,13 +46,13 @@ namespace ValveResourceFormat.Particles.Utils
         /// does not match the snapshot data or the index is out of range.
         /// When <paramref name="writePositionPrevious"/> is set, a <see cref="ParticleField.Position"/> write also seeds <see cref="Particle.PositionPrevious"/>
         /// (the initializer always mirrors it; the operator only when <c>m_bPrev</c> is set).
-        /// <paramref name="atSpawn"/> marks the initializer path, where a velocity write goes through
-        /// <see cref="Particle.Velocity"/> so the emit path's Verlet encoding picks it up.
+        /// A <see cref="ParticleField.PositionPrevious"/> write reads the snapshot value as a velocity over
+        /// <paramref name="frameTime"/>.
         /// <paramref name="localSpaceAngles"/> extends the control point transform to Roll, Yaw and Pitch writes
         /// (<c>m_bLocalSpaceAngles</c>, which only the initializer carries).
         /// </summary>
         public static void WriteAttribute(ref Particle particle, ParticleField attributeToWrite, IEnumerable readAttributeData,
-            int idx, int localSpaceCP, bool writePositionPrevious, bool atSpawn, float frameTime, ParticleSystemState particleSystemState,
+            int idx, int localSpaceCP, bool writePositionPrevious, float frameTime, ParticleSystemState particleSystemState,
             bool localSpaceAngles = false)
         {
             var fieldType = attributeToWrite.FieldType();
@@ -79,12 +79,6 @@ namespace ValveResourceFormat.Particles.Utils
                 // position and that velocity over the frame (1/30 fallback when the frame time is unknown).
                 if (attributeToWrite == ParticleField.PositionPrevious)
                 {
-                    if (atSpawn)
-                    {
-                        particle.Velocity = value;
-                        return;
-                    }
-
                     var dt = frameTime > 0f ? frameTime : 1f / 30f;
                     particle.PositionPrevious = particle.Position - (value * dt);
                     return;

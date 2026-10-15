@@ -54,7 +54,11 @@ namespace ValveResourceFormat.Particles.Initializers
         /// <summary>Attribute the spawn position is written to.</summary>
         protected readonly ParticleField outputField = ParticleField.Position;
 
-        /// <summary>Attribute the spawn velocity is written to.</summary>
+        /// <summary>
+        /// Attribute the spawn velocity is written to. <see cref="ParticleField.PositionPrevious"/> gives the
+        /// particle that velocity; any other field receives the spawn position minus the velocity, unscaled
+        /// by the step.
+        /// </summary>
         protected readonly ParticleField velocityField = ParticleField.PositionPrevious;
 
         protected CreateWithinSphere(ParticleDefinitionParser parse, ITransformProvider transformInput) : base(parse)
@@ -106,15 +110,6 @@ namespace ValveResourceFormat.Particles.Initializers
             var radiusMaxValue = radiusMax.NextNumber(ref particle, particleSystemState);
             var distance = ((radiusMaxValue - radiusMinValue) * radiusFraction) + radiusMinValue;
 
-            var speed = particleSystemState.Random.NextWithExponentBetween(
-                speedRandExp,
-                speedMin.NextNumber(ref particle, particleSystemState),
-                speedMax.NextNumber(ref particle, particleSystemState));
-
-            var localCoordinateSystemSpeed = particleSystemState.Random.NextBetweenPerComponent(
-                localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
-                localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
-
             var offset = biasedDirection * distance;
 
             Vector3 worldOffset;
@@ -129,13 +124,37 @@ namespace ValveResourceFormat.Particles.Initializers
 
             particle.SetVector(outputField, worldOffset);
 
+            if (velocityField is ParticleField.NoneDisabled || velocityField < 0)
+            {
+                return particle;
+            }
+
+            var speed = particleSystemState.Random.NextWithExponentBetween(
+                speedRandExp,
+                speedMin.NextNumber(ref particle, particleSystemState),
+                speedMax.NextNumber(ref particle, particleSystemState));
+
+            var localCoordinateSystemSpeed = particleSystemState.Random.NextBetweenPerComponent(
+                localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
+                localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
+
             var velocityDirection = localCoords
                 ? Vector3.TransformNormal(biasedDirection, transform)
                 : biasedDirection;
 
             var velocityLocal = Vector3.TransformNormal(localCoordinateSystemSpeed, transform);
+            var velocity = -(velocityDirection * speed) - velocityLocal;
 
-            particle.Velocity = (velocityDirection * speed) + velocityLocal;
+            if (velocityField == ParticleField.PositionPrevious)
+            {
+                velocity *= particles.PreviousFrameTime;
+            }
+            else if (outputField == ParticleField.Position)
+            {
+                particle.PositionPrevious = worldOffset;
+            }
+
+            particle.SetVector(velocityField, worldOffset + velocity);
 
             return particle;
         }

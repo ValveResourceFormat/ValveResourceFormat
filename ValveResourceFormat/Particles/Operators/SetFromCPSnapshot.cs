@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Particles.Operators
                 var row = snapshot.SelectRow(ref particle, rowCount, startPoint.NextInt(ref particle, particleSystemState), particleSystemState);
 
                 CPSnapshotSampler.WriteAttribute(ref particle, snapshot.AttributeToWrite, column, row, snapshot.LocalSpaceCP,
-                    writePrevious, atSpawn: false, frameTime, particleSystemState);
+                    writePrevious, frameTime, particleSystemState);
             }
         }
     }

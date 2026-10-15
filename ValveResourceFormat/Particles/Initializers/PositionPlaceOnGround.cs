@@ -101,10 +101,10 @@ namespace ValveResourceFormat.Particles.Initializers
             {
                 particle.SetVector(attribute, value + delta);
             }
-            else if (attribute == ParticleField.Position && particles.CurrentFrameTime > 0f)
+
+            if (attribute == ParticleField.Position)
             {
-                // The previous position is rebuilt from the velocity once the initializers have run
-                particle.Velocity -= delta / particles.CurrentFrameTime;
+                particle.PositionPrevious += delta;
             }
 
             if (setNormal)

@@ -21,8 +21,8 @@ namespace ValveResourceFormat.Particles.Initializers
         /// <summary>Transform the ring is centred on, and whose rotation the ring plane lies in.</summary>
         private readonly ITransformProvider transformInput = new ControlPointTransformProvider();
 
-        /// <summary>Drops the vertical part of the outward speed, leaving the ring to spread flat.</summary>
-        private readonly bool xyVelocityOnly;
+        /// <summary>Drops the world Z part of the outward speed.</summary>
+        private readonly bool xyVelocityOnly = true;
 
         private uint orbitCount;
 
@@ -62,20 +62,25 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
 
-            particle.Position = Vector3.Transform((radius * radialDirection) + thicknessOffset, transform);
+            var position = Vector3.Transform((radius * radialDirection) + thicknessOffset, transform);
 
             // Initial speed pushes outward, along the line from the transform to where the particle
             // actually landed, so the thickness offset tilts the direction as well as the position.
-            var outward = MathUtils.SafeNormalize(particle.Position - transform.Translation);
-
-            if (xyVelocityOnly)
-            {
-                outward.Z = 0f;
-            }
+            var outward = MathUtils.SafeNormalize(position - transform.Translation);
 
             var speedMin = initialSpeedMin.NextNumber(ref particle, particleSystemState);
             var speedMax = initialSpeedMax.NextNumber(ref particle, particleSystemState);
-            particle.Velocity += outward * particleSystemState.Random.NextBetween(speedMin, speedMax);
+            var speed = particleSystemState.Random.NextBetween(speedMin, speedMax);
+
+            var previous = position - (outward * (speed * particles.PreviousFrameTime));
+
+            if (xyVelocityOnly)
+            {
+                previous.Z = position.Z;
+            }
+
+            particle.Position = position;
+            particle.PositionPrevious = previous;
 
             return particle;
         }

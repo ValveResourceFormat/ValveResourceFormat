@@ -58,8 +58,8 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var direction = Vector3.Normalize((forward * axialDistance) + ringOffset);
 
-            particle.SetVector(ParticleField.Position, position);
-            particle.Velocity = direction * particleSpeed;
+            particle.Position = position;
+            particle.PositionPrevious = position - (direction * (particleSpeed * particles.PreviousFrameTime));
 
             return particle;
         }

@@ -60,7 +60,8 @@ namespace ValveResourceFormat.Particles.Initializers
             var position = ParticlePath.Evaluate(start, mid, end, t);
             position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-distance), new Vector3(distance));
 
-            particle.SetVector(ParticleField.Position, position);
+            particle.Position = position;
+            particle.PositionPrevious = position;
 
             if (saveOffset)
             {

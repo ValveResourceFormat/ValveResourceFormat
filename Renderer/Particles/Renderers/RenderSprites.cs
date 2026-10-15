@@ -236,7 +236,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return null;
             }
 
-            var sequenceNumber = layer > 0 ? particle.SecondSequenceNumber : particle.SequenceNumber;
+            var sequenceNumber = (int)(layer > 0 ? particle.SecondSequenceNumber : particle.SequenceNumber);
             var sequence = spriteSheetData.Sequences[(uint)sequenceNumber < (uint)spriteSheetData.Sequences.Length ? sequenceNumber : 0];
 
             if (sequence.Frames.Length == 0)

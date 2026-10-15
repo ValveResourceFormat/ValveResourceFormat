@@ -24,12 +24,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var velocity = particle.GetVector(ParticleField.Normal) * particleSystemState.Random.NextBetween(speedMin, speedMax);
 
             // With the flag set the speed is a per-step displacement rather than units per second
-            if (ignoreDt && particleSystemState.Data?.CurrentFrameTime is > 0f and var frameTime)
-            {
-                velocity /= frameTime;
-            }
-
-            particle.Velocity += velocity;
+            particle.PositionPrevious -= ignoreDt ? velocity : velocity * particles.PreviousFrameTime;
 
             return particle;
         }

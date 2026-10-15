@@ -43,6 +43,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (length <= 0f || speed <= 0f)
             {
+                particle.PositionPrevious = particle.Position;
                 return particle;
             }
 
@@ -53,7 +54,7 @@ namespace ValveResourceFormat.Particles.Initializers
             length = MathF.Max(0f, length - offset - endOffset.NextNumber(ref particle, particleSystemState));
 
             particle.Lifetime = length / speed;
-            particle.Velocity = direction * speed;
+            particle.PositionPrevious = particle.Position - (direction * (speed * particles.PreviousFrameTime));
 
             return particle;
         }

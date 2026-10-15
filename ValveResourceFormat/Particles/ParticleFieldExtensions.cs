@@ -153,10 +153,10 @@ namespace ValveResourceFormat.Particles
                     particle.Lifetime = value;
                     break;
                 case ParticleField.SequenceNumber:
-                    particle.SequenceNumber = (int)value;
+                    particle.SequenceNumber = value;
                     break;
                 case ParticleField.SecondSequenceNumber:
-                    particle.SecondSequenceNumber = (int)value;
+                    particle.SecondSequenceNumber = value;
                     break;
                 case ParticleField.ManualAnimationFrame:
                     particle.ManualAnimationFrame = value;

@@ -64,14 +64,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
             var transformed = Vector3.TransformNormal(velocity, transform);
 
-            // The engine skips the timestep multiply on its previous-position subtraction, which in
-            // velocity terms divides by the spawn frame's timestep
-            if (ignoreDt && particles.CurrentFrameTime > 0f)
-            {
-                transformed /= particles.CurrentFrameTime;
-            }
-
-            particle.Velocity += transformed;
+            particle.PositionPrevious -= ignoreDt ? transformed : transformed * particles.PreviousFrameTime;
 
             return particle;
         }

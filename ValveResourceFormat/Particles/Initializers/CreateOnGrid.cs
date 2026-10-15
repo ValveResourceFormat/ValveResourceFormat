@@ -152,7 +152,7 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             particle.Position = position;
-            particle.Velocity = Vector3.Zero;
+            particle.PositionPrevious = position;
 
             return particle;
         }

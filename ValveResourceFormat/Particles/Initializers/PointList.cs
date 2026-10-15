@@ -133,6 +133,12 @@ namespace ValveResourceFormat.Particles.Initializers
 
             particle.SetVector(fieldOutput, particlePosition);
 
+            // Placement along the path leaves the previous position as it was
+            if (fieldOutput == ParticleField.Position && (!usePath || pointList.Count == 1))
+            {
+                particle.PositionPrevious = particlePosition;
+            }
+
             return particle;
         }
     }

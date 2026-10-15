@@ -104,7 +104,8 @@ namespace ValveResourceFormat.Particles
         {
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => particle.Velocity;
+        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+            => particle.GetVelocity(renderState.Data?.CurrentFrameTime ?? 0f);
     }
 
     // CP Value

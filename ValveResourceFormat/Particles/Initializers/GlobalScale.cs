@@ -55,16 +55,29 @@ namespace ValveResourceFormat.Particles.Initializers
                 particle.Radius *= finalScale;
             }
 
+            var origin = particleSystemState.GetControlPoint(controlPoint).Position;
+            var position = particle.Position;
+            var previous = particle.PositionPrevious;
+            var velocity = position - previous;
+
             if (scalePosition)
             {
-                var origin = particleSystemState.GetControlPoint(controlPoint).Position;
-                particle.Position = origin + ((particle.Position - origin) * finalScale);
+                position = origin + ((position - origin) * finalScale);
             }
 
             if (scaleVelocity)
             {
-                particle.Velocity *= finalScale;
+                previous = scalePosition
+                    ? origin + ((previous - origin) * finalScale)
+                    : position - (velocity * finalScale);
             }
+            else if (scalePosition)
+            {
+                previous = position - velocity;
+            }
+
+            particle.Position = position;
+            particle.PositionPrevious = previous;
 
             return particle;
         }

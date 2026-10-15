@@ -7,10 +7,10 @@ namespace ValveResourceFormat.Particles
     public partial class ParticleSystemSimulation
     {
         /// <summary>
-        /// Attributes counted as written before the first initializer runs. The engine takes this
-        /// from the emitter, and all four report creation time on the path that emits.
+        /// Attributes counted as written before the first initializer runs when an emitter spawns the
+        /// particle, as every emitter stamps its creation time. Other spawns start with nothing written.
         /// </summary>
-        private const ulong SpawnWrittenFields = 1UL << (int)ParticleField.CreationTime;
+        private const ulong EmitterWrittenFields = 1UL << (int)ParticleField.CreationTime;
 
         /// <summary>Starts the system and its children, running any pre-simulation the definition asks for.</summary>
         public void Start()
@@ -118,7 +118,7 @@ namespace ValveResourceFormat.Particles
             RefreshRenderState();
         }
 
-        private void EmitParticle(float ageAtSpawn)
+        private void EmitParticle(float ageAtSpawn, ulong preWrittenFields = 0)
         {
             var index = particleCollection.Add();
             if (index < 0)
@@ -135,13 +135,12 @@ namespace ValveResourceFormat.Particles
             particleCollection.Current[index].UniqueParticleId = particlesEmitted++;
             particleCollection.Current[index].ParticleId = particleCollection.Current[index].UniqueParticleId + systemState.Random.Seed;
             particleCollection.Current[index].Index = index;
-            particleCollection.Current[index].Position = MainControlPoint.Position;
             particleCollection.Current[index].CreationTime = systemState.Age - ageAtSpawn;
             particleCollection.Current[index].Age = ageAtSpawn;
 
             // Below behavior version 6 the first writer of an attribute wins: a later initializer whose
             // declared write set is already fully initialized is skipped, up to firstMultipleOverride.
-            var written = SpawnWrittenFields;
+            var written = preWrittenFields;
 
             foreach (var initializer in initializers)
             {
@@ -163,10 +162,7 @@ namespace ValveResourceFormat.Particles
                 written |= fields;
             }
 
-            // The initial velocity is encoded into the Verlet state at spawn (prev = pos - vel*dt);
-            // BasicMovement then derives motion purely from the position pair.
             ref var emitted = ref particleCollection.Current[index];
-            emitted.PositionPrevious = emitted.Position - (emitted.Velocity * currentFrameTime);
 
             // Snapshot the fully-initialized spawn state into the initial array so operators that scale a
             // particle's initial value (fade out/in, radius interpolation) read the initialized value rather

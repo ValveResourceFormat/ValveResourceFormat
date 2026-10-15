@@ -39,10 +39,8 @@ namespace ValveResourceFormat.Particles.Initializers
             var startPoint = Math.Max(0, startIndex.NextInt(ref particle, particleSystemState));
             var row = snapshot.SelectRow(ref particle, rowCount, startPoint, particleSystemState);
 
-            // A Position write is mirrored into PositionPrevious, and a velocity write goes through
-            // Particle.Velocity for the emit path's Verlet encoding.
             CPSnapshotSampler.WriteAttribute(ref particle, snapshot.AttributeToWrite, column, row, snapshot.LocalSpaceCP,
-                writePositionPrevious: true, atSpawn: true, 0f, particleSystemState, localSpaceAngles);
+                writePositionPrevious: true, particles.PreviousFrameTime, particleSystemState, localSpaceAngles);
 
             return particle;
         }
