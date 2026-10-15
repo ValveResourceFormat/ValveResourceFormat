@@ -8,7 +8,7 @@ ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source
 - **Renderer/**: OpenGL renderer
     - Shaders are GLSL in `.slang` files (`.frag.slang`, `.vert.slang`) and must be ASCII only.
     - After changing shaders, run `dotnet run --project Misc/ShaderValidator -- <name filter>` to compile all their combos on a real GL context. `complex` is too slow for this, so iterate on a smaller shader.
-    - `Renderer/Editor/` is the editor like layer on top of the renderer: selection, picking, and the Hammer stand-ins and lines drawn for entities. The rest of the renderer only draws what the game shows and leaves tool visuals to the `IEntityToolVisuals` hook.
+    - `Renderer/Editor/` is the editor like layer on top of the renderer: selection, picking, tools visibility, and the Hammer stand-ins and lines drawn for entities. The rest of the renderer only draws what the game shows and leaves tool visuals to the `IEntityToolVisuals` hook.
 - **Tests/**: TUnit suite for the library, plus headless Renderer logic tests in `Tests/Renderer/`. GUI and CLI are not covered.
     - Run the full suite with `dotnet test` when changing `ValveResourceFormat/` or `Renderer/`. On `Zero tests ran` (exit code 5), do a full `dotnet build` and retry.
     - When a parsing change legitimately alters text output, `VRF_REGEN_FIXTURES=1` rewrites the mismatching `Tests/Files/ValidOutput` dumps.

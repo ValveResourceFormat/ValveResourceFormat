@@ -487,6 +487,39 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Forgets what the scene's entities registered with it and left on it, once they are removed: the
+        /// environment maps and light probe volumes, post processing and decals.
+        /// </summary>
+        internal void ClearEntityState()
+        {
+            LightingDebug.Clear();
+            LightingInfo.ClearVolumes();
+            PostProcessInfo.Clear();
+            ProjectedDecals.Clear();
+        }
+
+        /// <summary>
+        /// Binds every node to the light probe volumes and environment maps again, once the entities that
+        /// register them have spawned again.
+        /// </summary>
+        public void RebindLighting()
+        {
+            foreach (var node in AllNodes)
+            {
+                node.LightProbeBinding = null;
+                node.EnvMaps.Clear();
+            }
+
+            UpdateOctrees();
+            CalculateLightProbeBindings();
+            CalculateEnvironmentMaps();
+            UpdateBuffers();
+
+            // The bindings reach the shaders through each node's entry, written when the nodes are laid out
+            DynamicOctree.Dirty = true;
+        }
+
+        /// <summary>
         /// Finds a scene node by its scene-unique ID.
         /// </summary>
         /// <param name="id">The node ID to look up.</param>

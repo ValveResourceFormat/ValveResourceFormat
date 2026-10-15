@@ -103,7 +103,9 @@ public abstract class BaseModelEntity : BaseEntity
         foreach (var particleNode in particleNodes)
         {
             particleNode.LayerName = Scene.ParticlesLayerName;
-            Scene.Add(particleNode, true);
+
+            // Owned, so they leave the scene with the entity
+            AddNode(particleNode, followsEntity: false);
         }
 
         // Meshes are only known once the node is built, so a collision-only model's node is dropped.

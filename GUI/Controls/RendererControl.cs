@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -9,6 +10,9 @@ partial class RendererControl : UserControl
 {
 #pragma warning disable CA2213 // Disposable fields should be disposed
     private Control? currentControlsTarget;
+    private FlowLayoutPanel? toolbarItems;
+    private FlowLayoutPanel? toolbarCenteredItems;
+    private FlowLayoutPanel? toolbarRightItems;
 #pragma warning restore CA2213 // Disposable fields should be disposed
     private Control ControlsPanel => currentControlsTarget ?? controlsPanel;
     public Control GLControlContainer => glControlContainer;
@@ -566,6 +570,158 @@ partial class RendererControl : UserControl
         panel.Controls.Add(label);
         ControlsPanel.Controls.Add(panel);
         SetControlLocation(panel);
+    }
+
+    /// <summary>Adds a button to the toolbar above the viewport, either on its left or in its middle.</summary>
+    public ThemedButton AddToolbarButton(string text, Action onClick, bool centered = false)
+    {
+        var button = new ThemedButton();
+        AddToolbarItem(button, text, centered);
+        button.Click += (_, _) => onClick();
+
+        return button;
+    }
+
+    /// <summary>Adds a button showing an icon instead of a label to the toolbar above the viewport.</summary>
+    public ThemedButton AddToolbarButton(Image icon, string accessibleName, Action onClick, bool centered = false)
+    {
+        var button = AddToolbarButton(string.Empty, onClick, centered);
+        button.Image = icon;
+        button.AccessibleName = accessibleName;
+
+        // The icon is drawn to fit the height, so the button only has to be a little wider than tall
+        button.AutoSize = false;
+        button.Size = new Size(this.AdjustForDPI(ToolbarItemHeight * 3 / 2), this.AdjustForDPI(ToolbarItemHeight));
+
+        return button;
+    }
+
+    /// <summary>Adds a button that stays pressed while on to the toolbar above the viewport.</summary>
+    public ThemedToggleButton AddToolbarToggle(string text, bool initialChecked, Action<bool> onToggled)
+    {
+        var button = new ThemedToggleButton { Checked = initialChecked };
+        AddToolbarItem(button, text);
+        button.Toggled += onToggled;
+
+        return button;
+    }
+
+    /// <summary>Adds a dropdown on the right of the toolbar above the viewport.</summary>
+    /// <param name="changeCallback">Called with the selected item's text and index.</param>
+    /// <param name="defaultItemText">Shown in place of the first item while it is selected.</param>
+    public ComboBox AddToolbarSelection(Action<string, int> changeCallback, string? defaultItemText = null)
+    {
+        var comboBox = new ThemedFlatComboBox
+        {
+            Width = this.AdjustForDPI(180),
+            ItemHeight = this.AdjustForDPI(20),
+            Margin = new Padding(this.AdjustForDPI(2), 0, this.AdjustForDPI(2), 0),
+            DefaultItemText = defaultItemText,
+        };
+
+        comboBox.SelectedIndexChanged += (_, _) =>
+        {
+            if (comboBox.SelectedItem is string selectedItem)
+            {
+                changeCallback(selectedItem, comboBox.SelectedIndex);
+            }
+            else if (comboBox.SelectedItem is ThemedComboBoxItem selectedThemedItem)
+            {
+                changeCallback(selectedThemedItem.Text, comboBox.SelectedIndex);
+            }
+        };
+
+        EnsureToolbar();
+        toolbarRightItems.Controls.Add(comboBox);
+
+        return comboBox;
+    }
+
+    // Every item is this tall, so the ones with a label line up with the ones with an icon
+    private const int ToolbarItemHeight = 26;
+
+    private void AddToolbarItem(ThemedButton button, string text, bool centered = false)
+    {
+        button.Text = text;
+        button.AutoSize = true;
+        button.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        button.MinimumSize = new Size(0, this.AdjustForDPI(ToolbarItemHeight));
+        button.Padding = new Padding(this.AdjustForDPI(6), 0, this.AdjustForDPI(6), 0);
+        button.Margin = new Padding(this.AdjustForDPI(2), 0, this.AdjustForDPI(2), 0);
+
+        EnsureToolbar();
+        (centered ? toolbarCenteredItems : toolbarItems).Controls.Add(button);
+    }
+
+    // Created on first use, so viewers without toolbar items keep the whole height for the viewport
+    [MemberNotNull(nameof(toolbarItems), nameof(toolbarCenteredItems), nameof(toolbarRightItems))]
+    private void EnsureToolbar()
+    {
+        if (toolbarItems != null && toolbarCenteredItems != null && toolbarRightItems != null)
+        {
+            return;
+        }
+
+        var padding = this.AdjustForDPI(2);
+
+        var toolbar = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = this.AdjustForDPI(ToolbarItemHeight) + padding * 2,
+            Padding = new Padding(padding),
+            Font = controlsPanel.Font,
+        };
+
+        var items = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Left,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+        };
+
+        var centeredItems = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+        };
+
+        var rightItems = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Right,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+        };
+
+        toolbar.Controls.Add(centeredItems);
+        toolbar.Controls.Add(items);
+        toolbar.Controls.Add(rightItems);
+
+        void CenterItems(object? sender, EventArgs e)
+        {
+            // In the middle of the toolbar, unless the items on either side reach that far, the left ones winning
+            var middle = (toolbar.ClientSize.Width - centeredItems.Width) / 2;
+            var left = Math.Max(items.Right, Math.Min(middle, rightItems.Left - centeredItems.Width));
+            centeredItems.Location = new Point(left, padding);
+        }
+
+        toolbar.SizeChanged += CenterItems;
+        items.SizeChanged += CenterItems;
+        centeredItems.SizeChanged += CenterItems;
+        rightItems.SizeChanged += CenterItems;
+
+        toolbarItems = items;
+        toolbarCenteredItems = centeredItems;
+        toolbarRightItems = rightItems;
+
+        // In whichever side of the splitter the viewport is, which preview mode swaps
+        var host = glControlContainer.Parent ?? splitContainer.Panel2;
+        host.Controls.Add(toolbar);
+
+        // Docking goes from the back, so the viewport fills what is left under the toolbar
+        glControlContainer.BringToFront();
     }
 
     public void SetMoveSpeed(string text)

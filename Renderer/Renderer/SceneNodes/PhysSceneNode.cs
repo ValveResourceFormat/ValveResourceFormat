@@ -29,6 +29,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Gets whether these shapes stand for surfaces built from a tools material, such as clips and triggers,
+        /// which the compiled world keeps only as collision.
+        /// </summary>
+        public bool IsToolsMaterial { get; private set; }
+
         /// <summary>Gets the display name of the collision group represented by this node.</summary>
         public required string PhysGroupName { get; init; }
 
@@ -325,6 +331,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private void SetToolTexture(string toolMaterialName)
         {
+            IsToolsMaterial = true;
             ToolTexture = Scene.RendererContext.MaterialLoader.GetMaterial(toolMaterialName, null).Textures.GetValueOrDefault("g_tColor");
         }
 

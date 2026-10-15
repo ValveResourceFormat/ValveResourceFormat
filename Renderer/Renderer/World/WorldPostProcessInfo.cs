@@ -55,6 +55,15 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
+        /// <summary>Forgets every registered volume and tonemap controller, for the entities that register them to spawn again.</summary>
+        internal void Clear()
+        {
+            PostProcessVolumes.Clear();
+            masterVolumes.Clear();
+            MasterTonemapController = null;
+            isTonemapControllerMarkedMaster = false;
+        }
+
         /// <summary>Gets the post-processing state computed for the current frame.</summary>
         public PostProcessState CurrentState { get; private set; } = new();
 
