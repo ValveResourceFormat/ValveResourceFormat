@@ -20,6 +20,24 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public abstract Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState);
 
+        /// <summary>
+        /// Runs the initializer over the particles one emission created, which sit at the end of
+        /// <paramref name="particles"/>. Initializes them one by one unless overridden.
+        /// </summary>
+        public virtual void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            foreach (ref var particle in batch)
+            {
+                Initialize(ref particle, particles, particleSystemState);
+            }
+        }
+
+        /// <summary>
+        /// Whether the initializer takes part in initializing the particles being created now. One
+        /// that does not is skipped as if disabled, and counts as writing nothing.
+        /// </summary>
+        public virtual bool ShouldRun(ParticleSystemState particleSystemState) => true;
+
         /// <summary>Builds the per-instance running state the initializer starts with.</summary>
         public virtual void Reset()
         {
