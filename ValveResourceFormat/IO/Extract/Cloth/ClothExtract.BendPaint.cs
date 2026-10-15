@@ -22,6 +22,15 @@ internal sealed partial class ClothExtract
 
     private static readonly float[] ClothBendStiffnessCoverTolerances = [1e-5f, 1e-4f, 1e-3f, ClothBendStiffnessAgreement];
 
+    // The shares of the rod miss rule the exact solve holds a rod to in turn, tightest first.
+    private static readonly float[] ClothExactSolveMargins = [0.01f, 0.5f];
+
+    // How many hinge choices the exact solve tries before giving up.
+    private const int ClothExactSolveBranchLimit = 4096;
+
+    // The highest per-vertex paint the exact solve tries in turn.
+    private static readonly float[] ClothExactPaintCeilings = [1f, 2f];
+
     /// <summary>A per-vertex <c>cloth_bend_stiffness</c> keyed by control node, or null for none, and its <c>add_curvature</c>.</summary>
     internal readonly record struct BendPaintSolution(Dictionary<int, float>? Paint, float AddCurvature);
 
@@ -85,19 +94,162 @@ internal sealed partial class ClothExtract
             : [settled.AddCurvature, 0f];
         foreach (var curvature in curvatures)
         {
-            if (ClothBendStiffnessCoveringHinges(cloth, readings, curvature) is not { } covered)
+            if (ClothBendStiffnessCoveringHinges(cloth, readings, curvature) is { } covered)
             {
-                continue;
+                Consider(covered, curvature);
+            }
+        }
+
+        var exactSolves = ClothExactPaintCeilings.SelectMany(ceiling => curvatures
+            .SelectMany(curvature => ClothExactSolveMargins.Select(margin => (ceiling, curvature, margin))));
+        foreach (var (ceiling, curvature, margin) in exactSolves)
+        {
+            if (bestMisses == 0)
+            {
+                return best;
             }
 
-            var misses = ClothPaintMisses(cloth, generators, network, covered, curvature);
-            if (misses < bestMisses)
+            if (ClothBendStiffnessExact(cloth, generators, network, curvature, ceiling, margin) is { } exact)
             {
-                (best, bestMisses) = (new BendPaintSolution(covered, curvature), misses);
+                Consider(exact, curvature);
             }
         }
 
         return best;
+
+        void Consider(Dictionary<int, float> paint, float curvature)
+        {
+            var misses = ClothPaintMisses(cloth, generators, network, paint, curvature);
+            if (misses < bestMisses)
+            {
+                (best, bestMisses) = (new BendPaintSolution(paint, curvature), misses);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The per-vertex paint in [0, <paramref name="ceiling"/>] under which no generating hinge folds a network rod below its
+    /// compiled minimum and every rod short of its rest span has a hinge folding it to that minimum, within
+    /// <paramref name="margin"/> of the rod miss rule; null where no choice of setting hinges holds.
+    /// </summary>
+    private static Dictionary<int, float>? ClothBendStiffnessExact(ClothReconstruction cloth,
+        Dictionary<(int, int), List<(int, int)>> generators, HashSet<(int, int)> network, float addCurvature, float ceiling,
+        float margin)
+    {
+        var positions = cloth.Index.InitPosePositions;
+        var least = new Dictionary<(int, int), double>();
+        var setRods = new List<((int, int) Hinge, double Most)[]>();
+        foreach (var rod in cloth.Index.Rods)
+        {
+            var pair = rod.Pair;
+            if (!network.Contains(pair) || pair.Item2 >= positions.Length)
+            {
+                continue;
+            }
+
+            var tolerance = margin * MathF.Max(1e-3f, 1e-4f * rod.MinDist);
+            var shortest = (double)rod.MinDist - tolerance;
+            var longest = (double)rod.MinDist + tolerance;
+            var settled = cloth.Index.RestDistance(rod.NodeA, rod.NodeB) <= longest;
+            var setters = new List<((int, int) Hinge, double Most)>();
+            foreach (var hinge in generators.GetValueOrDefault(pair) ?? [])
+            {
+                var axis = positions[hinge.Item2] - positions[hinge.Item1];
+                if (axis.LengthSquared() < 1e-12f)
+                {
+                    continue;
+                }
+
+                var (alongA, alongB, riseA, riseB) = HingeOffsets(positions, rod, hinge, Vector3.Normalize(axis));
+                var flat = ((double)(alongA - alongB) * (alongA - alongB)) + ((double)riseA * riseA) + ((double)riseB * riseB);
+                var cross = 2.0 * riseA * riseB;
+                if (cross < 1e-12)
+                {
+                    settled |= flat <= longest * longest;
+                    continue;
+                }
+
+                double SumAt(double span) => (Math.Acos(Math.Clamp((flat - (span * span)) / cross, -1.0, 1.0)) * 2.0 / Math.PI)
+                    - (2.0 * addCurvature);
+
+                var floor = SumAt(shortest);
+                if (floor > 0.0)
+                {
+                    least[hinge] = Math.Max(least.GetValueOrDefault(hinge), floor);
+                }
+
+                if (longest * longest >= flat + cross)
+                {
+                    settled = true;
+                }
+                else if (longest * longest >= flat - cross && SumAt(longest) is var most and >= 0.0)
+                {
+                    setters.Add((hinge, most));
+                }
+            }
+
+            if (!settled)
+            {
+                if (setters.Count == 0)
+                {
+                    return null;
+                }
+
+                setRods.Add([.. setters]);
+            }
+        }
+
+        var held = new Dictionary<(int, int), double>();
+        var branches = 0;
+        var solved = Search();
+        return solved is not null && solved.Values.Any(static value => value > ClothBendStiffnessAgreement) ? solved : null;
+
+        Dictionary<int, float>? Search()
+        {
+            if (++branches > ClothExactSolveBranchLimit)
+            {
+                return null;
+            }
+
+            List<(int U, float SignU, int V, float SignV, float Most)> constraints =
+            [
+                .. least.Select(static entry => (entry.Key.Item1, -1f, entry.Key.Item2, -1f, (float)-entry.Value)),
+                .. held.Select(static entry => (entry.Key.Item1, 1f, entry.Key.Item2, 1f, (float)entry.Value)),
+            ];
+
+            if (constraints.Count == 0 || SolvePairwiseBounds(constraints, ceiling) is not { } paint)
+            {
+                return null;
+            }
+
+            float SumOf((int, int) hinge) => paint.GetValueOrDefault(hinge.Item1) + paint.GetValueOrDefault(hinge.Item2);
+            var unset = setRods.Find(setters => !Array.Exists(setters, setter => SumOf(setter.Hinge) <= setter.Most + 1e-5));
+            if (unset is null)
+            {
+                return paint;
+            }
+
+            foreach (var (hinge, most) in unset)
+            {
+                var wasHeld = held.TryGetValue(hinge, out var previous);
+                held[hinge] = wasHeld ? Math.Min(previous, most) : most;
+                if (Search() is { } found)
+                {
+                    return found;
+                }
+
+                if (wasHeld)
+                {
+                    held[hinge] = previous;
+                }
+                else
+                {
+                    held.Remove(hinge);
+                }
+            }
+
+            return null;
+        }
     }
 
     /// <summary>
@@ -812,7 +964,7 @@ internal sealed partial class ClothExtract
                 }
             }
 
-            if (SolvePairwiseBounds(constraints) is { } paint)
+            if (SolvePairwiseBounds(constraints, 1f) is { } paint)
             {
                 return paint.Values.Any(static value => value > ClothBendStiffnessAgreement) ? paint : null;
             }
@@ -822,10 +974,12 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// Values in [0, 1] for every node the constraints name, each constraint <c>SignU * x[U] + SignV * x[V] &lt;= Most</c>,
-    /// solved as shortest paths over each value and its negation; null on a negative cycle.
+    /// Values in [0, <paramref name="ceiling"/>] for every node the constraints name, each constraint
+    /// <c>SignU * x[U] + SignV * x[V] &lt;= Most</c>, solved as shortest paths over each value and its negation; null on a
+    /// negative cycle.
     /// </summary>
-    private static Dictionary<int, float>? SolvePairwiseBounds(List<(int U, float SignU, int V, float SignV, float Most)> constraints)
+    private static Dictionary<int, float>? SolvePairwiseBounds(List<(int U, float SignU, int V, float SignV, float Most)> constraints,
+        float ceiling)
     {
         var nodes = constraints.SelectMany(static c => new[] { c.U, c.V }).Distinct().Order().ToList();
         var index = new Dictionary<int, int>();
@@ -853,7 +1007,7 @@ internal sealed partial class ClothExtract
 
         for (var i = 0; i < nodes.Count; i++)
         {
-            Bound(i, 1f, i, 1f, 2.0);
+            Bound(i, 1f, i, 1f, 2.0 * ceiling);
             Bound(i, -1f, i, -1f, 0.0);
         }
 
@@ -875,7 +1029,7 @@ internal sealed partial class ClothExtract
                 var solved = new Dictionary<int, float>();
                 for (var i = 0; i < nodes.Count; i++)
                 {
-                    solved[nodes[i]] = (float)Math.Clamp((distance[2 * i] - distance[(2 * i) + 1]) / 2.0, 0.0, 1.0);
+                    solved[nodes[i]] = (float)Math.Clamp((distance[2 * i] - distance[(2 * i) + 1]) / 2.0, 0.0, ceiling);
                 }
 
                 return solved;

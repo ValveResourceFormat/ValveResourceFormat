@@ -579,19 +579,20 @@ namespace Tests.IO
         }
 
         /// <summary>
-        /// The 4x3 grid of <see cref="LeastFoldedHingeGrid"/> with every hinge read flat except the lower vertical one,
-        /// whose rod (8, 10) sits at <paramref name="lowerHingeMinDist"/>. At its rest span of 20 that rod is capped and
-        /// bounds its hinge from below; short of it the hinge states a fold of its own instead.
+        /// The 4x3 grid of <see cref="LeastFoldedHingeGrid"/> with every rod folded shut except (4, 6), which both left
+        /// vertical hinges generate, at <paramref name="middleRodMinDist"/>. At its rest span of 20 that rod is capped and
+        /// bounds both hinges from below against the rods that hold them shut; short of it the hinges state folds of their
+        /// own instead.
         /// </summary>
-        private static ClothReconstruction CappedAgainstFlatHingeGrid(float lowerHingeMinDist) => (HingeGrid with
+        private static ClothReconstruction CappedAgainstFlatHingeGrid(float middleRodMinDist) => (HingeGrid with
         {
             Rods =
             [
                 Rod(0, 2, 0f, 20f),
                 Rod(1, 3, 0f, 20f),
-                Rod(4, 6, 0f, 20f),
+                Rod(4, 6, middleRodMinDist, 20f),
                 Rod(5, 7, 0f, 20f),
-                Rod(8, 10, lowerHingeMinDist, 20f),
+                Rod(8, 10, 0f, 20f),
                 Rod(9, 11, 0f, 20f),
                 Rod(0, 8, 0f, 20f),
                 Rod(1, 9, 0f, 20f),
@@ -1092,5 +1093,38 @@ namespace Tests.IO
                 Rod(81, 83, 18.559027f, 19.094467f),
             ],
         }.Reconstruct();
+
+        /// <summary>
+        /// Where the centre of a 2x2 grid holds three hinges at sum 0.2 and the fourth at 1.8, the paint puts the far hinge's
+        /// fold on its outer vertex above 1, each sum read back within 0.02.
+        /// </summary>
+        [Test]
+        public async Task AHingeSharingAVertexWithLowHingesPaintsItsOuterVertexAboveOne()
+        {
+            const float FarSum = 1.8f;
+            List<int[]> faces = [[0, 1, 4, 3], [1, 2, 5, 4], [3, 4, 7, 6], [4, 5, 8, 7]];
+            HashSet<(int, int)> network = [(0, 2), (3, 5), (6, 8), (0, 6), (1, 7), (2, 8)];
+            static float FoldedSpan(float sum) => 20f * MathF.Sin(sum * MathF.PI / 4f);
+            var low = FoldedSpan(0.2f);
+            var sheet = new FeModelBuilder
+            {
+                Names = SheetNodes(9),
+                Positions = [.. Enumerable.Range(0, 9).Select(static node => new Vector3(10f * (node % 3), 0f, -10f * (node / 3)))],
+                Rods = [Rod(0, 2, FoldedSpan(FarSum), 20f), Rod(3, 5, low, 20f), Rod(6, 8, low, 20f), Rod(0, 6, low, 20f), Rod(1, 7, low, 20f), Rod(2, 8, low, 20f)],
+            }.Reconstruct();
+
+            var paint = ClothExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0f, keepsCurvature: true).Paint;
+            float Sum(int a, int b) => (paint?.GetValueOrDefault(a) ?? 0f) + (paint?.GetValueOrDefault(b) ?? 0f);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(paint).IsNotNull();
+                await Assert.That(Sum(1, 4)).IsEqualTo(FarSum).Within(0.02f);
+                await Assert.That(Sum(4, 7)).IsEqualTo(0.2f).Within(0.02f);
+                await Assert.That(Sum(3, 4)).IsEqualTo(0.2f).Within(0.02f);
+                await Assert.That(Sum(4, 5)).IsEqualTo(0.2f).Within(0.02f);
+                await Assert.That(paint?.Values.Max() ?? 0f).IsGreaterThan(1f);
+            }
+        }
     }
 }
