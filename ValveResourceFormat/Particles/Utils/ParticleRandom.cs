@@ -107,6 +107,12 @@ namespace ValveResourceFormat.Particles.Utils
         public float NextSeededTwice() => At(queryCount++ + Seed + Seed);
 
         /// <summary>
+        /// Takes the next value from the slot displaced by the seed a second time, the way the
+        /// functions placing particles inside model hitboxes draw the position within a box.
+        /// </summary>
+        public float NextDoublySeeded() => At(queryCount++ + Seed + Seed);
+
+        /// <summary>
         /// Takes the next value, remapped clear of both ends of the interval. Direction initializers
         /// use it so that a drawn polar cosine is never exactly +/-1.
         /// </summary>

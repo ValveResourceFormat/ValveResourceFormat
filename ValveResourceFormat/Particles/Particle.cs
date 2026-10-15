@@ -174,6 +174,25 @@ namespace ValveResourceFormat.Particles
         /// the path offset.
         /// </summary>
         public Vector3 HitboxOffsetPosition { get; set; } = Vector3.Zero;
+
+        /// <summary>
+        /// Gets or sets the index of the model hitbox, or bone, the particle is placed on. The functions
+        /// that place particles on a model write it with <see cref="HitboxOffsetPosition"/> holding the
+        /// position inside that hitbox's box, as a fraction of its extent per axis.
+        /// </summary>
+        public int HitboxIndex { get; set; }
+
+        /// <summary>
+        /// Gets or sets the four model bones a skinned particle follows, as 16-bit indices from the low
+        /// bits up. 0xFFFF marks an unused slot.
+        /// </summary>
+        public ulong BoneIndices { get; set; }
+
+        /// <summary>
+        /// Gets or sets the weights of the first three of <see cref="BoneIndices"/>. The fourth bone
+        /// takes what is left of 1.
+        /// </summary>
+        public Vector3 BoneWeights { get; set; } = Vector3.Zero;
         /// <summary>Gets or sets a general-purpose scratch vector.</summary>
         public Vector3 ScratchVector { get; set; } = Vector3.Zero;
         /// <summary>Gets or sets a second general-purpose scratch vector.</summary>
