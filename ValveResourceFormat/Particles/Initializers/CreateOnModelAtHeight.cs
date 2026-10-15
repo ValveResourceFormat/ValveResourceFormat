@@ -137,7 +137,7 @@ namespace ValveResourceFormat.Particles.Initializers
             {
                 var boxIndex = candidates[(int)(candidates.Count * random.Next())];
                 var box = boxes[boxIndex];
-                var drawn = new Vector3(random.NextDoublySeeded(), random.NextDoublySeeded(), random.NextDoublySeeded());
+                var drawn = new Vector3(random.NextSeededTwice(), random.NextSeededTwice(), random.NextSeededTwice());
                 var candidateFraction = ((highFraction - lowFraction) * drawn) + lowFraction;
                 var candidate = box.PointAt(candidateFraction);
                 var reference = biasType == HitboxBiasType.PARTICLE_HITBOX_BIAS_HITBOX ? box.TransformPoint((box.Maxs - box.Mins) * 0.5f) : origin;

@@ -354,7 +354,7 @@ namespace ValveResourceFormat.Particles.Utils
                 }
                 else
                 {
-                    fraction = new Vector3(random.NextDoublySeeded(), random.NextDoublySeeded(), random.NextDoublySeeded());
+                    fraction = new Vector3(random.NextSeededTwice(), random.NextSeededTwice(), random.NextSeededTwice());
                     fraction = ((high - low) * fraction) + low;
                 }
 
