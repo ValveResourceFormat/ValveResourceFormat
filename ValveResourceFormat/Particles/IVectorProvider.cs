@@ -102,6 +102,11 @@ namespace ValveResourceFormat.Particles
     {
         private readonly Vector3 vectorAttributeScale = Vector3.One;
 
+        /// <summary>The velocity at its own scale, which an input defaulting to this type reads.</summary>
+        public ParticleVelocityVectorProvider()
+        {
+        }
+
         public ParticleVelocityVectorProvider(ParticleDefinitionParser parse)
         {
             vectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", vectorAttributeScale);
