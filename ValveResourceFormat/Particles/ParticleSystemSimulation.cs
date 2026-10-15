@@ -218,6 +218,9 @@ namespace ValveResourceFormat.Particles
         private readonly ILogger logger;
         private readonly IFileLoader fileLoader;
 
+        /// <summary>Resolves the resources the definition and its functions name.</summary>
+        internal IFileLoader FileLoader => fileLoader;
+
         /// <summary>Whether the first frame, which runs the pre-emission operators once and the initial burst, is still to come.</summary>
         private bool firstFramePending = true;
 

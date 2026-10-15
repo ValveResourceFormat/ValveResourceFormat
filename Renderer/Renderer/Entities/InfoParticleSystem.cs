@@ -1,6 +1,8 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Particles;
+using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -118,9 +120,11 @@ public class InfoParticleSystem : BaseEntity
             effect.SetControlPoint(index, target.Transform);
         }
 
-        if (target is BaseModelEntity { LoadedModel: { } model })
+        if (target is BaseModelEntity { LoadedModel: { } model } modelEntity)
         {
-            effect.GetControlPoint(index).Model = model;
+            effect.GetControlPoint(index).ModelObject = modelEntity.ModelNode is { } modelNode
+                ? new ParticleModelNodeObject(model, modelNode, EntitySystem.RendererContext.FileLoader)
+                : new ParticleModelObject(model) { Transform = target.Transform };
         }
     }
 

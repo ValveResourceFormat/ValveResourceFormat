@@ -333,6 +333,9 @@ of failing. Omni2 particle lights of the barn type are drawn as point lights. Pa
 world traces hit all collision, ignoring collision groups, trace sets and water masks. Model
 particles render in bind pose with default body groups, without `m_bAnimated` or
 `m_bManualAnimFrame` ([#716](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/716)).
+Functions that place particles on a model use the hitboxes, bones and sequence of the model a
+control point carries, but not its render mesh triangles, sequence activities, or the collision
+hull and snapshot hitbox fallbacks.
 
 Particle snapshots (`vsnap`) preview and extract. Bone name streams survive, but skinning
 streams are written into the extracted `.vsnap` as empty streams: their values show in the
