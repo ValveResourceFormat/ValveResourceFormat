@@ -16,5 +16,16 @@ namespace ValveResourceFormat.Particles.Operators
         public virtual void Reset()
         {
         }
+
+        /// <summary>
+        /// Moves <paramref name="current"/> toward <paramref name="value"/> by <paramref name="strength"/>.
+        /// A strength of 1 or more gives <paramref name="value"/> itself rather than overshooting it.
+        /// </summary>
+        protected static float BlendByStrength(float current, float value, float strength)
+            => strength >= 1f ? value : (value * strength) + (current * (1f - strength));
+
+        /// <inheritdoc cref="BlendByStrength(float, float, float)"/>
+        protected static Vector3 BlendByStrength(Vector3 current, Vector3 value, float strength)
+            => strength >= 1f ? value : (value * strength) + (current * (1f - strength));
     }
 }

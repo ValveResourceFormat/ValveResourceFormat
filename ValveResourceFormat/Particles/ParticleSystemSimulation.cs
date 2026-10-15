@@ -143,6 +143,16 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         private readonly bool infiniteBounds;
 
+        private bool boundsCalculated;
+
+        /// <summary>
+        /// The world-space box last calculated around the system's particles and children, or null
+        /// before the first one. A system with infinite bounds has one from the start, covering everything.
+        /// </summary>
+        internal AABB? WorldBoundingBox => infiniteBounds || boundsCalculated
+            ? LocalBoundingBox.Translate(MainControlPoint.Position)
+            : null;
+
         /// <summary>
         /// Cache a reference to <see cref="EmitParticle"/>, for emitters, as to not allocate one for every
         /// emitted particle.

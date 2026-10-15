@@ -708,6 +708,7 @@ namespace ValveResourceFormat.Particles
             }
 
             LocalBoundingBox = newBounds;
+            boundsCalculated = true;
         }
     }
 }

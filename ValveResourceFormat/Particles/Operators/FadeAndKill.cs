@@ -20,10 +20,28 @@ namespace ValveResourceFormat.Particles.Operators
 
         public FadeAndKill(ParticleDefinitionParser parse) : base(parse)
         {
-            startFadeInTime = parse.Float("m_flStartFadeInTime", startFadeInTime);
-            endFadeInTime = parse.Float("m_flEndFadeInTime", endFadeInTime);
-            startFadeOutTime = parse.Float("m_flStartFadeOutTime", startFadeOutTime);
-            endFadeOutTime = parse.Float("m_flEndFadeOutTime", endFadeOutTime);
+            var startIn = parse.Float("m_flStartFadeInTime", startFadeInTime);
+            var endIn = parse.Float("m_flEndFadeInTime", endFadeInTime);
+            var startOut = parse.Float("m_flStartFadeOutTime", startFadeOutTime);
+            var endOut = parse.Float("m_flEndFadeOutTime", endFadeOutTime);
+
+            endIn = MathF.Max(endIn, startIn);
+            endOut = MathF.Max(endOut, startOut);
+
+            if (startIn > startOut)
+            {
+                (startIn, startOut) = (startOut, startIn);
+            }
+
+            if (endIn > endOut)
+            {
+                (endIn, endOut) = (endOut, endIn);
+            }
+
+            startFadeInTime = startIn;
+            endFadeInTime = endIn;
+            startFadeOutTime = startOut;
+            endFadeOutTime = endOut;
             startAlpha = parse.Float("m_flStartAlpha", startAlpha);
             endAlpha = parse.Float("m_flEndAlpha", endAlpha);
         }
@@ -58,7 +76,7 @@ namespace ValveResourceFormat.Particles.Operators
                     alpha = initialAlpha * float.Lerp(1f, endAlpha, blend);
                 }
 
-                particle.Alpha = BlendsWithStrength ? float.Lerp(particle.Alpha, alpha, strength) : alpha;
+                particle.Alpha = BlendsWithStrength ? BlendByStrength(particle.Alpha, alpha, strength) : alpha;
             }
         }
 

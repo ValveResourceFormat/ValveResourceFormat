@@ -23,24 +23,31 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            if (fadeEndTime == fadeStartTime)
+            {
+                return;
+            }
+
+            var inverseFadeLength = 1f / (fadeEndTime - fadeStartTime);
+
             foreach (ref var particle in particles.Current)
             {
-                var time = particle.NormalizedAge;
+                var initialColor = particle.GetInitialVector(particles, fieldOutput);
+                var color = particle.GetVector(fieldOutput);
 
-                if (time >= fadeStartTime && time <= fadeEndTime)
+                if (particle.Lifetime > 0f)
                 {
-                    var t = MathUtils.Remap(time, fadeStartTime, fadeEndTime);
+                    var t = MathUtils.Saturate(((particle.Age / particle.Lifetime) - fadeStartTime) * inverseFadeLength);
+
                     if (easeInOut)
                     {
                         t = MathUtils.Smoothstep(0f, 1f, t);
                     }
 
-                    // Interpolate from constant color to fade color; strength blends from the initial color
-                    var initialColor = particle.GetInitialVector(particles, ParticleField.Color);
-                    var faded = Vector3.Lerp(initialColor, colorFade, t);
-
-                    particle.SetVector(fieldOutput, Vector3.Lerp(initialColor, faded, strength));
+                    color = Vector3.Lerp(initialColor, colorFade, t);
                 }
+
+                particle.SetVector(fieldOutput, BlendByStrength(initialColor, color, strength));
             }
         }
     }

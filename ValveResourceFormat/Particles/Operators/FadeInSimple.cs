@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Fades a particle's alpha field in linearly over a proportional fade-in time at the start of the particle's life.
+    /// Fades a particle's alpha field in along a smoothstep over a proportional fade-in time at the start of the particle's life.
     /// </summary>
     /// <remarks>
     /// The fade-in time is a fraction of the particle's lifetime in the 0-1 range: a setting of
@@ -23,11 +23,12 @@ namespace ValveResourceFormat.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                var time = particle.NormalizedAge;
-                if (time <= fadeInTime)
+                var fadeInLength = fadeInTime * particle.Lifetime;
+
+                if (MathF.Max(0f, particle.Age - frameTime) < fadeInLength)
                 {
-                    var newAlpha = (time / fadeInTime) * particle.GetInitialScalar(particles, ParticleField.Alpha);
-                    particle.SetScalar(fieldOutput, newAlpha);
+                    var blend = MathUtils.Smoothstep(0f, 1f, MathUtils.Saturate(particle.Age / fadeInLength));
+                    particle.SetScalar(fieldOutput, blend * particle.GetInitialScalar(particles, fieldOutput));
                 }
             }
         }
