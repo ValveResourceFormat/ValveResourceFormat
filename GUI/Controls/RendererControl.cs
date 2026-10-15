@@ -12,6 +12,7 @@ partial class RendererControl : UserControl
     private Control? currentControlsTarget;
     private FlowLayoutPanel? toolbarItems;
     private FlowLayoutPanel? toolbarCenteredItems;
+    private FlowLayoutPanel? toolbarRightItems;
 #pragma warning restore CA2213 // Disposable fields should be disposed
     private Control ControlsPanel => currentControlsTarget ?? controlsPanel;
     public Control GLControlContainer => glControlContainer;
@@ -352,19 +353,18 @@ partial class RendererControl : UserControl
         return button;
     }
 
-    /// <summary>Adds a dropdown over the top right corner of the viewport.</summary>
-    public ComboBox AddViewportSelection(Action<string, int> changeCallback)
+    /// <summary>Adds a dropdown on the right of the toolbar above the viewport.</summary>
+    /// <param name="changeCallback">Called with the selected item's text and index.</param>
+    /// <param name="defaultItemText">Shown in place of the first item while it is selected.</param>
+    public ComboBox AddToolbarSelection(Action<string, int> changeCallback, string? defaultItemText = null)
     {
-        var margin = this.AdjustForDPI(6);
-
         var comboBox = new ThemedFlatComboBox
         {
             Width = this.AdjustForDPI(180),
             ItemHeight = this.AdjustForDPI(20),
-            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            Margin = new Padding(this.AdjustForDPI(2), 0, this.AdjustForDPI(2), 0),
+            DefaultItemText = defaultItemText,
         };
-
-        comboBox.Location = new Point(glControlContainer.ClientSize.Width - comboBox.Width - margin, margin);
 
         comboBox.SelectedIndexChanged += (_, _) =>
         {
@@ -378,10 +378,8 @@ partial class RendererControl : UserControl
             }
         };
 
-        glControlContainer.Controls.Add(comboBox);
-
-        // In front of the viewport, which fills the container
-        comboBox.BringToFront();
+        EnsureToolbar();
+        toolbarRightItems.Controls.Add(comboBox);
 
         return comboBox;
     }
@@ -403,10 +401,10 @@ partial class RendererControl : UserControl
     }
 
     // Created on first use, so viewers without toolbar items keep the whole height for the viewport
-    [MemberNotNull(nameof(toolbarItems), nameof(toolbarCenteredItems))]
+    [MemberNotNull(nameof(toolbarItems), nameof(toolbarCenteredItems), nameof(toolbarRightItems))]
     private void EnsureToolbar()
     {
-        if (toolbarItems != null && toolbarCenteredItems != null)
+        if (toolbarItems != null && toolbarCenteredItems != null && toolbarRightItems != null)
         {
             return;
         }
@@ -436,22 +434,34 @@ partial class RendererControl : UserControl
             WrapContents = false,
         };
 
+        var rightItems = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Right,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+        };
+
         toolbar.Controls.Add(centeredItems);
         toolbar.Controls.Add(items);
+        toolbar.Controls.Add(rightItems);
 
         void CenterItems(object? sender, EventArgs e)
         {
-            // In the middle of the toolbar, unless the items on the left reach that far
+            // In the middle of the toolbar, unless the items on either side reach that far, the left ones winning
             var middle = (toolbar.ClientSize.Width - centeredItems.Width) / 2;
-            centeredItems.Location = new Point(Math.Max(items.Right, middle), padding);
+            var left = Math.Max(items.Right, Math.Min(middle, rightItems.Left - centeredItems.Width));
+            centeredItems.Location = new Point(left, padding);
         }
 
         toolbar.SizeChanged += CenterItems;
         items.SizeChanged += CenterItems;
         centeredItems.SizeChanged += CenterItems;
+        rightItems.SizeChanged += CenterItems;
 
         toolbarItems = items;
         toolbarCenteredItems = centeredItems;
+        toolbarRightItems = rightItems;
 
         // In whichever side of the splitter the viewport is, which preview mode swaps
         var host = glControlContainer.Parent ?? splitContainer.Panel2;

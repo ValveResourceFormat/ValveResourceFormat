@@ -13,6 +13,9 @@ public class ThemedFlatComboBox : ThemedComboBox
 {
     private bool hovered;
 
+    /// <summary>Gets or sets the text shown in the closed box in place of the first item while it is selected.</summary>
+    public string? DefaultItemText { get; set; }
+
     public ThemedFlatComboBox()
     {
         DropDownStyle = ComboBoxStyle.DropDownList;
@@ -74,7 +77,8 @@ public class ThemedFlatComboBox : ThemedComboBox
         var arrowAreaWidth = this.AdjustForDPI(20);
 
         var textRect = new Rectangle(padding, 0, rect.Width - padding - arrowAreaWidth, rect.Height);
-        TextRenderer.DrawText(e.Graphics, GetItemText(SelectedItem), Font, textRect, colors.Contrast,
+        var text = SelectedIndex == 0 && DefaultItemText != null ? DefaultItemText : GetItemText(SelectedItem);
+        TextRenderer.DrawText(e.Graphics, text, Font, textRect, colors.Contrast,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
         // The arrow that marks it as a dropdown

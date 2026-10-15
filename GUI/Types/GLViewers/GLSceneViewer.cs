@@ -1042,7 +1042,7 @@ namespace GUI.Types.GLViewers
             UiControl.AddCheckBox("Show Wireframe", Renderer.IsWireframe, (v) => Renderer.IsWireframe = v);
         }
 
-        /// <summary>Adds the render mode dropdown over the top right corner of the viewport.</summary>
+        /// <summary>Adds the render mode dropdown on the right of the toolbar above the viewport.</summary>
         protected void AddRenderModeSelectionControl()
         {
             if (renderModeComboBox != null)
@@ -1052,7 +1052,7 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(UiControl != null);
 
-            renderModeComboBox = UiControl.AddViewportSelection(OnRenderModeSelected);
+            renderModeComboBox = UiControl.AddToolbarSelection(OnRenderModeSelected, "Render mode");
 
             // Hands the keyboard back to the viewport, which the dropdown took
             renderModeComboBox.DropDownClosed += (_, _) => GLControl?.Focus();
