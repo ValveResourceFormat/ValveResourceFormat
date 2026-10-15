@@ -331,8 +331,9 @@ VRF's upgraded in-memory version, so decompiled `.vpcf` files match the compiled
 subset of particle functions and lists any unsupported functions per system in red instead
 of failing. Omni2 particle lights of the barn type are drawn as point lights. Particle
 world traces hit all collision, ignoring collision groups, trace sets and water masks.
-Particle functions that ask the game for wind, gravity, impulses or sound values get no wind,
-gravity or impulses and sound values of 0, and water is everything below z = 0. Model
+Particle functions that ask the game for wind, gravity, impulses or sound values get no wind
+or impulses, the standard world gravity and sound values of 0, and water is everything below
+z = 0. Model
 particles render in bind pose with default body groups, without `m_bAnimated` or
 `m_bManualAnimFrame` ([#716](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/716)).
 
