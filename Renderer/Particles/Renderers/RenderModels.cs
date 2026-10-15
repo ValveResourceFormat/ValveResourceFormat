@@ -30,14 +30,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly bool ignoreRadius;
         private readonly bool localScale;
         private readonly bool suppressTint;
+        private readonly bool centerOffset;
         private readonly int modelScaleControlPoint = -1;
         private readonly IVectorProvider localOffset = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider localRotation = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider componentScale = new LiteralVectorProvider(Vector3.One);
         private readonly INumberProvider manualModelSelection = new LiteralNumberProvider(-1f);
         private readonly INumberProvider skin = new LiteralNumberProvider(0f);
-        private readonly INumberProvider rollScale = new LiteralNumberProvider(1f);
-        private readonly ParticleField alpha2Field = ParticleField.AlphaAlternate;
 
         // A particle no model was picked for has no node
         private readonly PlacedPerParticle<(ModelSceneNode? Node, int Model, int Skin)> placed = new();
@@ -74,14 +73,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             ignoreRadius = parse.Boolean("m_bIgnoreRadius", ignoreRadius);
             localScale = parse.Boolean("m_bLocalScale", localScale);
             suppressTint = parse.Boolean("m_bSuppressTint", suppressTint);
+            centerOffset = parse.Boolean("m_bCenterOffset", centerOffset);
             modelScaleControlPoint = parse.Int32("m_nModelScaleCP", modelScaleControlPoint);
             localOffset = parse.VectorProvider("m_vecLocalOffset", localOffset);
             localRotation = parse.VectorProvider("m_vecLocalRotation", localRotation);
             componentScale = parse.VectorProvider("m_vecComponentScale", componentScale);
             manualModelSelection = parse.NumberProvider("m_flManualModelSelection", manualModelSelection);
             skin = parse.NumberProvider("m_nSkin", skin);
-            rollScale = parse.NumberProvider("m_flRollScale", rollScale);
-            alpha2Field = parse.ParticleField("m_nAlpha2Field", alpha2Field);
         }
 
         /// <inheritdoc/>
@@ -95,10 +93,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            var colorScale = ColorScale.NextVector(systemState);
-            var alphaScale = AlphaScale.NextNumber(systemState);
-            var radiusScale = RadiusScale.NextNumber(systemState);
-            var roll = rollScale.NextNumber(systemState);
+            var scales = EvaluateScales(systemState);
+            var skinIndex = (int)skin.NextNumber(systemState);
             var controlPointScale = modelScaleControlPoint >= 0 ? systemState.GetControlPoint(modelScaleControlPoint).Position : Vector3.One;
 
             placed.BeginFrame();
@@ -114,21 +110,23 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 if (entry.Node is { } node)
                 {
                     var skins = models[entry.Model].Skins;
-                    var skinIndex = (int)skin.NextNumber(ref particle, systemState);
-                    skinIndex = (uint)skinIndex < (uint)skins.Length ? skinIndex : 0;
+                    var modelSkin = (uint)skinIndex < (uint)skins.Length ? skinIndex : 0;
 
-                    if (skinIndex != entry.Skin)
+                    if (modelSkin != entry.Skin)
                     {
-                        node.SetMaterialGroup(skins[skinIndex]);
-                        entry = entry with { Skin = skinIndex };
+                        node.SetMaterialGroup(skins[modelSkin]);
+                        entry = entry with { Skin = modelSkin };
                     }
 
                     var scale = componentScale.NextVector(ref particle, systemState) * controlPointScale
-                        * (ignoreRadius ? 1f : particle.Radius * radiusScale);
+                        * (ignoreRadius ? 1f : MathF.Max(ParticleMath.FloatEpsilon, particle.Radius * scales.Radius));
 
-                    node.Transform = ParticleTransform(ref particle, systemState, scale, roll);
-                    node.Tint = suppressTint ? Vector3.One : particle.Color * colorScale;
-                    node.Alpha = particle.Alpha * particle.GetScalar(alpha2Field) * alphaScale;
+                    // The alpha scale applies twice: once with the particle's alpha and again in the blend
+                    var color = BlendColor(ref particle, scales, scales.Alpha);
+
+                    node.Transform = ParticleTransform(ref particle, systemState, node, scale, scales.Roll);
+                    node.Tint = suppressTint ? Vector3.One : color.AsVector3();
+                    node.Alpha = color.W;
                     node.Visible = true;
                 }
 
@@ -218,23 +216,29 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Model space to world. The model takes the local offset, then the scale, the authored local
-        /// rotation and the particle's own angles, and is then turned into the frame its normal gives,
-        /// unless the normal is ignored. A local scale applies along the model's own axes, otherwise it
-        /// applies after the turns, along the axes of that frame.
+        /// Model space to world. The model takes the local offset, less the centre of its mesh bounds when
+        /// centred, then the scale, the authored local rotation and the particle's own angles, and is then
+        /// turned into the frame its normal gives, unless the normal is ignored. A local scale applies
+        /// along the model's own axes, otherwise it applies after the turns, along the axes of that frame.
         /// </summary>
-        private Matrix4x4 ParticleTransform(ref Particle particle, ParticleSystemState systemState, Vector3 scale, float roll)
+        private Matrix4x4 ParticleTransform(ref Particle particle, ParticleSystemState systemState, ModelSceneNode node, Vector3 scale, float roll)
         {
             var angles = particle.Rotation;
             var turn = EntityTransformHelper.EulerAnglesToRotationMatrix(localRotation.NextVector(ref particle, systemState))
                 * EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(angles.Y, angles.X, angles.Z * roll));
 
-            var scaling = Matrix4x4.CreateScale(Vector3.Max(scale, new Vector3(ParticleMath.FloatEpsilon)));
+            var scaling = Matrix4x4.CreateScale(scale);
             var basis = ignoreNormal ? Matrix4x4.Identity : NormalBasis(particle.Normal, orientZ);
             var model = localScale ? scaling * turn * basis : turn * scaling * basis;
 
-            return Matrix4x4.CreateTranslation(localOffset.NextVector(ref particle, systemState)) * model
-                * Matrix4x4.CreateTranslation(particle.Position);
+            var offset = localOffset.NextVector(ref particle, systemState);
+
+            if (centerOffset)
+            {
+                offset -= node.LocalBoundingBox.Center;
+            }
+
+            return Matrix4x4.CreateTranslation(offset) * model * Matrix4x4.CreateTranslation(particle.Position);
         }
 
         /// <summary>

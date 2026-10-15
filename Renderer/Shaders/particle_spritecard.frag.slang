@@ -15,6 +15,9 @@
 #define PARTICLE_OUTPUT_BLEND_MODE_MOD2X 5
 uniform int uBlendMode = 0; // PARTICLE_OUTPUT_BLEND_MODE_ALPHA
 
+// The share of the destination each output blend mode covers, per unit of alpha, indexed by mode.
+const float OUTPUT_BLEND_MODE_ALPHA_FACTOR[7] = float[](1.0, 0.0, -1.0, 0.5, -0.5, 1.0, 1.0);
+
 // One sampler per texture layer. Layer 0 is the base texture and keeps the plain name.
 // One more colour layer than the combo's value, matching Base + Layer1..Layer4.
 #define S_TEXTURE_LAYERS 0
@@ -424,7 +427,7 @@ void main(void) {
             ApplyFog(finalColor, vFragPosition);
         }
 
-        fragColor = vec4(finalColor * alpha, isAdditive ? 0.0 : alpha);
+        fragColor = vec4(finalColor * alpha, alpha * OUTPUT_BLEND_MODE_ALPHA_FACTOR[clamp(uBlendMode, 0, 6)]);
     }
 
     if (g_iRenderMode == renderMode_Color)

@@ -1,39 +1,34 @@
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// Starts a sound event per spawned particle, then steers its position and volume by handle while
-    /// the particle lives and stops it when the particle dies. Has no visual output.
+    /// Plays a sound event for each particle, up to sixteen at once, following the particle by id: the
+    /// sound moves with it and takes its volume from it, and stops when it dies. Particles past the
+    /// sixteenth wait for a sound to come free. Has no visual output.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderSound">C_OP_RenderSound</seealso>
     internal class RenderSound : ParticleFunctionRenderer
     {
+        private const int MaxSounds = 16;
         private const float StopFadeFallbackSeconds = 0.05f;
 
         private readonly string soundName = string.Empty;
         private readonly float volumeScale = 1f;
         private readonly ParticleField volumeField = ParticleField.Alpha;
-        // -1 leaves the sound on the particle rather than attaching it to a control point.
-        private readonly int controlPointReference = -1;
         private readonly bool suppressStopSoundEvent;
 
-        // Particle ids are handed out in ascending order and never reused, so a high-water mark is all
-        // the state needed to tell which particles appeared since the last update.
-        private int nextParticleId;
-
-        private struct TrackedSound
+        private struct SoundSlot
         {
             public Audio.SoundHandle Handle;
-            public bool FieldSeen; // see ApplyFieldVolume
-            public bool SeenThisFrame;
+            public int ParticleId;
+            public bool Allocated;
+            public bool Used;
+            public bool Played;
         }
 
-        private readonly Dictionary<int, TrackedSound> trackedSounds = [];
-        private readonly List<int> sweepScratch = [];
+        private readonly SoundSlot[] slots = new SoundSlot[MaxSounds];
 
         public RenderSound(ParticleDefinitionParser parse) : base(parse)
         {
@@ -44,7 +39,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             volumeScale = parse.Float("m_flVolumeScale", volumeScale);
             volumeField = parse.ParticleField("m_nVolumeField", volumeField);
-            controlPointReference = parse.Int32("m_nCPReference", controlPointReference);
             suppressStopSoundEvent = parse.Boolean("m_bSuppressStopSoundEvent");
 
             // Decoding a vsnd on the update thread would stall the first particle that wants it.
@@ -61,126 +55,89 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            foreach (var particleId in trackedSounds.Keys)
+            for (var i = 0; i < slots.Length; i++)
             {
-                ref var tracked = ref CollectionsMarshal.GetValueRefOrNullRef(trackedSounds, particleId);
-                tracked.SeenThisFrame = false;
+                slots[i].Used = false;
             }
-
-            var highestId = nextParticleId;
 
             foreach (ref var particle in particles.Current)
             {
-                if (particle.UniqueParticleId < nextParticleId)
-                {
-                    UpdateSound(ref particle, systemState);
-                    continue;
-                }
+                var index = FindSlot(particle.ParticleId);
 
-                if (particle.UniqueParticleId >= highestId)
-                {
-                    highestId = particle.UniqueParticleId + 1;
-                }
-
-                // Renderers do not run during pre-simulation, so the first real update meets every
-                // particle the burst created at once. Only the ones born this frame should sound.
-                if (particle.Age > particles.PreviousFrameTime)
+                if (index < 0)
                 {
                     continue;
                 }
 
-                StartSound(ref particle, systemState);
-            }
+                ref var slot = ref slots[index];
+                slot.Used = true;
 
-            nextParticleId = highestId;
-
-            sweepScratch.Clear();
-
-            foreach (var (particleId, tracked) in trackedSounds)
-            {
-                if (!tracked.SeenThisFrame)
+                if (!slot.Played)
                 {
-                    StopSound(tracked);
-                    sweepScratch.Add(particleId);
+                    slot.Handle = Sound.Play(soundName, particle.Position, volume: volumeScale);
+                    slot.Played = true;
                 }
+
+                slot.Handle.Position = particle.Position;
+                slot.Handle.Volume = volumeField is ParticleField.NoneDisabled or < 0 ? 1f : particle.GetScalar(volumeField);
             }
 
-            foreach (var particleId in sweepScratch)
+            for (var i = 0; i < slots.Length; i++)
             {
-                trackedSounds.Remove(particleId);
+                if (slots[i].Allocated && !slots[i].Used)
+                {
+                    StopSound(ref slots[i]);
+                }
             }
         }
 
-        /// <summary>Stops every tracked sound, as when its particle dies.</summary>
+        /// <summary>The slot following a particle, else the first free one, claimed for it, else -1.</summary>
+        private int FindSlot(int particleId)
+        {
+            var free = -1;
+
+            for (var i = 0; i < slots.Length; i++)
+            {
+                if (slots[i].Allocated && slots[i].ParticleId == particleId)
+                {
+                    return i;
+                }
+
+                if (!slots[i].Allocated && free < 0)
+                {
+                    free = i;
+                }
+            }
+
+            if (free >= 0)
+            {
+                slots[free] = new SoundSlot { ParticleId = particleId, Allocated = true };
+            }
+
+            return free;
+        }
+
+        /// <summary>Stops every sound, as when the system stops drawing.</summary>
         public override void Hide()
         {
-            foreach (var tracked in trackedSounds.Values)
+            for (var i = 0; i < slots.Length; i++)
             {
-                StopSound(tracked);
+                if (slots[i].Allocated)
+                {
+                    StopSound(ref slots[i]);
+                }
             }
-
-            trackedSounds.Clear();
         }
 
-        private void StopSound(in TrackedSound tracked)
+        private void StopSound(ref SoundSlot slot)
         {
             if (!suppressStopSoundEvent)
             {
-                tracked.Handle.FadeOutAndStop(StopFadeFallbackSeconds);
-            }
-        }
-
-        private void StartSound(ref Particle particle, ParticleSystemState systemState)
-        {
-            var handle = Sound.Play(soundName, GetSoundPosition(ref particle, systemState), volume: volumeScale);
-
-            if (!handle.IsValid)
-            {
-                return;
+                slot.Handle.FadeOutAndStop(StopFadeFallbackSeconds);
             }
 
-            var tracked = new TrackedSound
-            {
-                Handle = handle,
-                SeenThisFrame = true,
-            };
-
-            ApplyFieldVolume(ref tracked, ref particle);
-            trackedSounds[particle.UniqueParticleId] = tracked;
+            slot = default;
         }
-
-        private void UpdateSound(ref Particle particle, ParticleSystemState systemState)
-        {
-            ref var tracked = ref CollectionsMarshal.GetValueRefOrNullRef(trackedSounds, particle.UniqueParticleId);
-
-            if (Unsafe.IsNullRef(ref tracked))
-            {
-                return;
-            }
-
-            // A sound that finished on its own stays unseen and gets swept
-            if (tracked.Handle.Started)
-            {
-                tracked.SeenThisFrame = true;
-                tracked.Handle.Position = GetSoundPosition(ref particle, systemState);
-                ApplyFieldVolume(ref tracked, ref particle);
-            }
-        }
-
-        // Fields often sit at zero on spawn until their operators run, so the field only steers the
-        // volume once seen non-zero - one that never populates leaves the sound at full scale, not silent
-        private void ApplyFieldVolume(ref TrackedSound tracked, ref Particle particle)
-        {
-            var fieldVolume = particle.GetScalar(volumeField);
-
-            tracked.FieldSeen |= fieldVolume > 0f;
-            tracked.Handle.Volume = tracked.FieldSeen ? fieldVolume : 1f;
-        }
-
-        private Vector3 GetSoundPosition(ref Particle particle, ParticleSystemState systemState)
-            => controlPointReference >= 0
-                ? systemState.GetControlPoint(controlPointReference).Position
-                : particle.Position;
 
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
@@ -189,12 +146,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public override void Delete()
         {
-            foreach (var tracked in trackedSounds.Values)
+            for (var i = 0; i < slots.Length; i++)
             {
-                tracked.Handle.Stop();
+                slots[i].Handle.Stop();
+                slots[i] = default;
             }
-
-            trackedSounds.Clear();
         }
     }
 }
