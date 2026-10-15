@@ -7,6 +7,9 @@ namespace ValveResourceFormat.Particles.Operators
     /// colours, and (fade start, unused, speed scale). Dashes past the fade start take the second
     /// colour and fade out by the end of the arc.
     /// </summary>
+    /// <remarks>
+    /// The dashes keep their phase across restarts.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_TeleportBeam">C_OP_TeleportBeam</seealso>
     class TeleportBeam : ParticleFunctionOperator
     {
@@ -41,7 +44,9 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Initialize(ParticleSystemState particleSystemState) => arcStartTime = particleSystemState.Age;
 
-        public override void Restart(ParticleSystemState particleSystemState) => arcStartTime = particleSystemState.Age;
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
+        }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {

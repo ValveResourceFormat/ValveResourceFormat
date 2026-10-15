@@ -793,6 +793,7 @@ namespace ValveResourceFormat.Particles
                 }
 
                 systemState.Random.BeginFunctionCall();
+                systemState.InitializedFields = written;
 
                 initializer.Initialize(batch, particleCollection, systemState);
 

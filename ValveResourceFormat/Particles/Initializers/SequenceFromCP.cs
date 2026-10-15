@@ -12,6 +12,8 @@ namespace ValveResourceFormat.Particles.Initializers
     /// A particle left over once every digit is placed gets a lifetime of -1, which kills it unless a
     /// later initializer sets the lifetime again. <c>m_bKillUnused</c> only declares the lifetime as
     /// written for the first-writer rule. A fractional component keeps its fraction in the lowest digit.
+    /// An emission of 16 or more particles starts the digits over in each run
+    /// <see cref="ParticleFunctionInitializer.SplitIntoCalls"/> splits it into.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_SequenceFromCP">C_INIT_SequenceFromCP</seealso>
     class SequenceFromCP : ParticleFunctionInitializer
@@ -56,6 +58,15 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            var (head, blocks, tail) = SplitIntoCalls(batch);
+
+            InitializeCall(batch[head], particleSystemState);
+            InitializeCall(batch[blocks], particleSystemState);
+            InitializeCall(batch[tail], particleSystemState);
+        }
+
+        private void InitializeCall(Span<Particle> batch, ParticleSystemState particleSystemState)
         {
             var numbers = particleSystemState.GetControlPoint(cp).Position;
             var digitCount = Math.Min(batch.Length, DigitCount(numbers.X) + DigitCount(numbers.Y) + DigitCount(numbers.Z));

@@ -5,7 +5,8 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <summary>
     /// Copies an attribute from the parent particles an event was raised on into the particles the
     /// event emits, cycling through the event's particles in order. Runs only for particles emitted
-    /// from a parent's event, whichever event that is.
+    /// from a parent's event, whichever event that is, and leaves the attribute alone when an earlier
+    /// initializer or the emitter has already written it.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_InitFromParentKilled">C_INIT_InitFromParentKilled</seealso>
     class InitFromParentKilled : ParticleFunctionInitializer
@@ -27,7 +28,10 @@ namespace ValveResourceFormat.Particles.Initializers
         {
             var parentIndices = particleSystemState.EmitterEventParticles;
 
-            if (!CopiesAttribute || parentIndices is not { Count: > 0 } || particleSystemState.ParentSystem?.Data is not { } parent)
+            if (!CopiesAttribute
+                || (particleSystemState.InitializedFields & FieldMask(attributeToCopy)) != 0
+                || parentIndices is not { Count: > 0 }
+                || particleSystemState.ParentSystem?.Data is not { } parent)
             {
                 return;
             }

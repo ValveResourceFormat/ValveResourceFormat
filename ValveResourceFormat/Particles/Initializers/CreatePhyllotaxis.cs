@@ -11,8 +11,9 @@ namespace ValveResourceFormat.Particles.Initializers
     /// </summary>
     /// <remarks>
     /// The spiral is sized for the particles placed so far plus those in the emission, so each
-    /// emission stretches it. Nothing is placed while either radius per point is 0. The point count
-    /// keeps running across restarts.
+    /// emission stretches it; an emission of 16 or more particles is sized in up to three runs, as
+    /// <see cref="ParticleFunctionInitializer.SplitIntoCalls"/> splits it. Nothing is placed while
+    /// either radius per point is 0. The point count keeps running across restarts.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreatePhyllotaxis">C_INIT_CreatePhyllotaxis</seealso>
     class CreatePhyllotaxis : ParticleFunctionInitializer
@@ -71,7 +72,16 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (radPerPoint == 0f || radPerPointTo == 0f)
+            var (head, blocks, tail) = SplitIntoCalls(batch);
+
+            InitializeCall(batch[head], particleSystemState);
+            InitializeCall(batch[blocks], particleSystemState);
+            InitializeCall(batch[tail], particleSystemState);
+        }
+
+        private void InitializeCall(Span<Particle> batch, ParticleSystemState particleSystemState)
+        {
+            if (batch.IsEmpty || radPerPoint == 0f || radPerPointTo == 0f)
             {
                 return;
             }

@@ -33,6 +33,26 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         /// <summary>
+        /// Splits a batch into the runs the particles are initialized in, one call each: the whole
+        /// batch below 16 particles, else the particles before the first collection index that is a
+        /// multiple of four, the whole blocks of four from there, and the rest. Any run can be empty;
+        /// state an initializer keeps per call, such as its particle count, restarts with each run.
+        /// </summary>
+        protected static (Range Head, Range Blocks, Range Tail) SplitIntoCalls(Span<Particle> batch)
+        {
+            if (batch.Length < 16)
+            {
+                return (Range.All, ^0.., ^0..);
+            }
+
+            var first = batch[0].Index;
+            var blocksStart = MathUtils.AlignUp(first, 4) - first;
+            var blocksEnd = ((first + batch.Length) & ~3) - first;
+
+            return (..blocksStart, blocksStart..blocksEnd, blocksEnd..);
+        }
+
+        /// <summary>
         /// Whether the initializer takes part in initializing the particles being created now. One
         /// that does not is skipped as if disabled, and counts as writing nothing.
         /// </summary>

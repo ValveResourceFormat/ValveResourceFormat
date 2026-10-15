@@ -15,8 +15,6 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_SetAttributeToScalarExpression">C_INIT_SetAttributeToScalarExpression</seealso>
     class SetAttributeToScalarExpression : ParticleFunctionInitializer
     {
-        private const int BlockPathMinimum = 16;
-
         private readonly ScalarExpressionType expression = ScalarExpressionType.SCALAR_EXPRESSION_ADD;
         private readonly INumberProvider input1 = new LiteralNumberProvider(0f);
         private readonly INumberProvider input2 = new LiteralNumberProvider(0f);
@@ -38,19 +36,16 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            if (batch.Length < BlockPathMinimum)
+            var (head, blocks, tail) = SplitIntoCalls(batch);
+
+            base.Initialize(batch[head], particles, particleSystemState);
+
+            if (!batch[blocks].IsEmpty)
             {
-                base.Initialize(batch, particles, particleSystemState);
-                return;
+                base.Initialize(particles.Current, particles, particleSystemState);
             }
 
-            var first = batch[0].Index;
-            var alignedStart = MathUtils.AlignUp(first, 4) - first;
-            var alignedEnd = ((first + batch.Length) & ~3) - first;
-
-            base.Initialize(batch[..alignedStart], particles, particleSystemState);
-            base.Initialize(particles.Current, particles, particleSystemState);
-            base.Initialize(batch[alignedEnd..], particles, particleSystemState);
+            base.Initialize(batch[tail], particles, particleSystemState);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)

@@ -8,7 +8,9 @@ namespace ValveResourceFormat.Particles.Initializers
     /// result can be normalized.
     /// </summary>
     /// <remarks>
-    /// The lerp expression takes <c>m_flLerp</c> as is, without clamping it to [0, 1].
+    /// The lerp expression clamps <c>m_flLerp</c> to [0, 1] only for the whole blocks of four of an
+    /// emission of 16 or more particles, as <see cref="ParticleFunctionInitializer.SplitIntoCalls"/>
+    /// splits it, and takes it as is everywhere else.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_SetVectorAttributeToVectorExpression">C_INIT_SetVectorAttributeToVectorExpression</seealso>
     class SetVectorAttributeToVectorExpression : ParticleFunctionInitializer
@@ -20,6 +22,8 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly ParticleField outputField = ParticleField.Normal;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly bool normalizedOutput;
+
+        private bool clampLerp;
 
         public SetVectorAttributeToVectorExpression(ParticleDefinitionParser parse) : base(parse)
         {
@@ -34,13 +38,24 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(outputField);
 
+        public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            var (head, blocks, tail) = SplitIntoCalls(batch);
+
+            base.Initialize(batch[head], particles, particleSystemState);
+            clampLerp = true;
+            base.Initialize(batch[blocks], particles, particleSystemState);
+            clampLerp = false;
+            base.Initialize(batch[tail], particles, particleSystemState);
+        }
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var value1 = input1.NextVector(ref particle, particleSystemState);
             var value2 = input2.NextVector(ref particle, particleSystemState);
             var lerpAmount = lerp.NextNumber(ref particle, particleSystemState);
 
-            if (expression.Evaluate(value1, value2, lerpAmount, clampLerp: false) is not { } result)
+            if (expression.Evaluate(value1, value2, lerpAmount, clampLerp) is not { } result)
             {
                 return particle;
             }

@@ -8,7 +8,9 @@ namespace ValveResourceFormat.Particles.Initializers
     /// </summary>
     /// <remarks>
     /// The sweep starts over at the top once more particles than the density have been placed. It
-    /// restarts with the system.
+    /// restarts with the system. An emission of 16 or more particles is counted in up to three runs,
+    /// as <see cref="ParticleFunctionInitializer.SplitIntoCalls"/> splits it. The previous position
+    /// is left alone when an earlier initializer has already written it.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateSpiralSphere">C_INIT_CreateSpiralSphere</seealso>
     class CreateSpiralSphere : ParticleFunctionInitializer
@@ -48,8 +50,17 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            densityScale = useParticleCount ? batch.Length : 1f;
-            base.Initialize(batch, particles, particleSystemState);
+            var (head, blocks, tail) = SplitIntoCalls(batch);
+
+            InitializeCall(batch[head], particles, particleSystemState);
+            InitializeCall(batch[blocks], particles, particleSystemState);
+            InitializeCall(batch[tail], particles, particleSystemState);
+        }
+
+        private void InitializeCall(Span<Particle> call, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            densityScale = useParticleCount ? call.Length : 1f;
+            base.Initialize(call, particles, particleSystemState);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
@@ -76,7 +87,11 @@ namespace ValveResourceFormat.Particles.Initializers
             var direction = MathUtils.SafeNormalize(position - transform.Translation);
 
             particle.Position = position;
-            particle.PositionPrevious = position - (direction * (speed * particles.PreviousFrameTime));
+
+            if ((particleSystemState.InitializedFields & FieldMask(ParticleField.PositionPrevious)) == 0)
+            {
+                particle.PositionPrevious = position - (direction * (speed * particles.PreviousFrameTime));
+            }
 
             height -= heightStep;
             azimuth += GoldenAngle;

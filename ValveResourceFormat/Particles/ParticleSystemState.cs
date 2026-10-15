@@ -76,6 +76,12 @@ namespace ValveResourceFormat.Particles
         internal bool InitializingParticles { get; set; }
 
         /// <summary>
+        /// While initializers run, the <see cref="ParticleField"/> bit mask of the attributes the
+        /// particles' creator and the initializers before the running one have declared written.
+        /// </summary>
+        internal ulong InitializedFields { get; set; }
+
+        /// <summary>
         /// The state <paramref name="particle"/> was left in by its initializers, or the particle itself
         /// while they still run or when no running system holds it.
         /// </summary>
