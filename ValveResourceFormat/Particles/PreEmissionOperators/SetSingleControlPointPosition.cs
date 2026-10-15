@@ -30,16 +30,19 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
         public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
-            if (!(setOnce && hasRunBefore))
+            var position = cp1Pos.NextVector(particleSystemState);
+
+            if (setOnce)
             {
-                var position = cp1Pos.NextVector(particleSystemState);
-
-                position = Vector3.Transform(position, transformInput.NextTransform(ref Particle.Default, particleSystemState));
-
-                particleSystemState.SetControlPointValue(cp1, position);
+                if (hasRunBefore)
+                {
+                    return;
+                }
 
                 hasRunBefore = true;
             }
+
+            particleSystemState.SetControlPointValue(cp1, Vector3.Transform(position, transformInput.NextTransform(particleSystemState)));
         }
     }
 }

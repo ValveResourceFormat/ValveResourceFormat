@@ -80,6 +80,12 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             poolSize = -1;
         }
 
+        /// <summary>Rebuilds the bolt on the next step, keeping the pool size of the first one.</summary>
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
+            nextGenerationTime = 0f;
+        }
+
         /// <summary>
         /// Builds a new bolt once the system's age passes the next generation time. <c>m_flRecalcRate</c>
         /// is the period until the next one, so 0 rebuilds every step and a negative rate keeps the first.

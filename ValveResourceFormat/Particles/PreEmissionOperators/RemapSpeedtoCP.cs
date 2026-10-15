@@ -7,6 +7,9 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
     ///
     /// <para>A degenerate input range (<c>m_flInputMin</c> equal to <c>m_flInputMax</c>) becomes a step:
     /// speeds below the threshold map to <c>m_flOutputMin</c>, everything else to <c>m_flOutputMax</c>.</para>
+    ///
+    /// <para>The velocity is the move since the end of the previous frame over the current step, and an
+    /// output control point equal to the input one disables the operator.</para>
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapSpeedtoCP">C_OP_RemapSpeedtoCP</seealso>
     class RemapSpeedtoCP : ParticleFunctionPreEmissionOperator
@@ -32,6 +35,11 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             outputMin = parse.Float("m_flOutputMin", outputMin);
             outputMax = parse.Float("m_flOutputMax", outputMax);
             useDeltaV = parse.Boolean("m_bUseDeltaV", useDeltaV);
+
+            if (outControlPoint == inControlPoint)
+            {
+                outControlPoint = -1;
+            }
         }
 
         public override void Reset()
@@ -57,7 +65,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 return;
             }
 
-            var velocity = particleSystemState.GetControlPoint(inControlPoint).Velocity;
+            var velocity = particleSystemState.GetControlPoint(inControlPoint).StepDelta / frameTime;
 
             float speed;
 
