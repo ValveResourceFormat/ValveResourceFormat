@@ -786,15 +786,9 @@ namespace GUI.Types.Viewers
                         }
                         catch (Exception e)
                         {
-                            Log.Error(nameof(AudioPlayer), $"Failed to create audio stream for \"{vrfGuiContext.DisplayPath}\": {e}");
-
-                            var msg = new Label
-                            {
-                                Text = $"NAudio Exception for \"{vrfGuiContext.DisplayPath}\": {e}",
-                                Dock = DockStyle.Fill,
-                            };
-
-                            specialTabPage.Controls.Add(msg);
+                            var errorControl = CodeTextBox.CreateFromException(e, vrfGuiContext.DisplayPath);
+                            specialTabPage.Controls.Add(errorControl);
+                            errorControl.BringToFront(); // Fill below the docked info label instead of under it
                         }
 
                         resTabs.TabPages.Add(specialTabPage);
