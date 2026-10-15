@@ -23,6 +23,7 @@ namespace ValveResourceFormat.IO
         private bool? isImportedCloth;
         private HashSet<int>? importedStripNodes;
         private HashSet<int>? ropeNodes;
+        private HashSet<int>? springRopeNodes;
 
         /// <summary>
         /// Gets the <c>transform_alignment</c> and <c>node_base</c> references that compile to the node's
@@ -225,5 +226,14 @@ namespace ValveResourceFormat.IO
         /// </summary>
         internal bool IsRopeNode(int node)
             => (ropeNodes ??= [.. RopeRuns.Where(static run => run.Length >= 2).SelectMany(static run => run)]).Contains(node);
+
+        /// <summary>
+        /// Gets whether a node lies on an <c>m_Ropes</c> run whose every link is a two-corner source element, a run declared
+        /// as <c>ClothNode</c>s.
+        /// </summary>
+        internal bool IsSpringRopeNode(int node)
+            => (springRopeNodes ??= [.. RopeRuns
+                .Where(run => run.Length >= 2 && Enumerable.Range(1, run.Length - 1).All(i => IsSourceSpring(run[i - 1], run[i])))
+                .SelectMany(static run => run)]).Contains(node);
     }
 }

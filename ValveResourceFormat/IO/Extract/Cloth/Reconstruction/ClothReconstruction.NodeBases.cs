@@ -232,6 +232,31 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
+        /// Gets whether free-rotating <paramref name="node"/> lacks the basis the bulk node-base pass would grade for it, under
+        /// ancestors that are all rotation-locked statics. Only read on a compile that carries <c>m_SkelParents</c>.
+        /// </summary>
+        internal bool WithheldBulkNodeBase(int node)
+        {
+            if (!HasCompiledSkelParents || Index.NodeBases.ContainsKey(node) || !Index.AllowsRotation(node) || NodeNeighbours(node).Count < 3)
+            {
+                return false;
+            }
+
+            var parent = SkelParentOf(node);
+            for (var step = 0; parent >= 0 && step < SkelParents.Length; step++, parent = SkelParentOf(parent))
+            {
+                if (Index.AllowsRotation(parent))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+
+            int SkelParentOf(int child) => child < SkelParents.Length && SkelParents[child] != child ? SkelParents[child] : -1;
+        }
+
+        /// <summary>
         /// Gets the sorted neighbour set a node's basis is graded against: the node and every corner of each source
         /// element it belongs to.
         /// </summary>

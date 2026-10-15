@@ -322,7 +322,7 @@ internal sealed partial class ClothExtract
 
         var firstOfTwo = secondRoot is not null && !secondDeclaration
             && !string.Equals(joint.Name, secondRoot, StringComparison.OrdinalIgnoreCase);
-        kv.Add("simulate", !firstOfTwo && (joint.Simulated || pinnedSimulatedRoot));
+        kv.Add("simulate", !firstOfTwo && (joint.Simulated || pinnedSimulatedRoot || joint.PinnedOverSimulatedRing));
 
         if (secondRoot is not null)
         {
@@ -341,7 +341,7 @@ internal sealed partial class ClothExtract
             kv.Add("allow_rotation", cloth.Index.AllowsRotation(joint.Node));
         }
 
-        if (cloth.LocksTranslation(joint.Node, chainVersion, chain) || pinnedSimulatedRoot)
+        if (cloth.LocksTranslation(joint.Node, chainVersion, chain) || pinnedSimulatedRoot || joint.PinnedOverSimulatedRing)
         {
             kv.Add("lock_translation", true);
         }
@@ -377,7 +377,7 @@ internal sealed partial class ClothExtract
             : cloth.StrayRadiusNode(joint.Node, joint.Name);
         kv.Add("stray_radius", cloth.Index.GetStrayRadius(strayNode));
         kv.Add("stray_radius_stretchiness", cloth.GetStrayStretchiness(strayNode));
-        kv.Add("friction", cloth.Index.GetNodeFriction(joint.Node));
+        kv.Add("friction", cloth.Index.GetNodeFriction(joint.ValueNode >= 0 ? joint.ValueNode : joint.Node));
 
         if (cloth.RecoverJointMass(joint.Node, chainMass) is { } massMultiplier)
         {

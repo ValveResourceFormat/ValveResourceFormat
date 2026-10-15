@@ -79,6 +79,11 @@ namespace ValveResourceFormat.IO
         /// <summary>Gets whether the joint is a static, goal-locked sibling that a hub's <c>child_sibling_spring</c> gathers.</summary>
         public bool SpringsWithSiblings { get; set; }
         /// <summary>
+        /// Gets whether the joint is a free-rotating, goal-locked static whose first ring simulates, declared simulating with
+        /// <c>lock_translation</c>.
+        /// </summary>
+        public bool PinnedOverSimulatedRing { get; set; }
+        /// <summary>
         /// Gets the root bone of the second <c>ClothChain</c> that re-declares this joint, or null when only one declares it.
         /// </summary>
         public string? SecondDeclarationRoot { get; set; }
@@ -763,7 +768,7 @@ namespace ValveResourceFormat.IO
             var isReal = new bool[n];
             for (var i = 0; i < n; i++)
             {
-                isReal[i] = !IsGeneratedNodeName(Fe.CtrlName[i]) && !ImportedStripNodes.Contains(i);
+                isReal[i] = !IsGeneratedNodeName(Fe.CtrlName[i]) && !ImportedStripNodes.Contains(i) && !(HasCompiledSkelParents && IsSpringRopeNode(i));
             }
 
             var rodGraph = BuildRodGraph();
@@ -2262,6 +2267,13 @@ namespace ValveResourceFormat.IO
                 {
                     joint.ValueNode = proxies[0];
                     joint.InvMass = proxies[0] < Fe.NodeInvMasses.Length ? Fe.NodeInvMasses[proxies[0]] : joint.InvMass;
+                }
+                else if (!joint.Simulated && HasCompiledSkelParents && Index.IsLockedToGoal(joint.Node) && Index.AllowsRotation(joint.Node)
+                    && proxies.FindIndex(p => p < Fe.NodeInvMasses.Length && Fe.NodeInvMasses[p] > 0f
+                        && RingSuffixIndex(Fe.CtrlName[p]) is 0 or 1) is var simulatedRing and >= 0)
+                {
+                    joint.ValueNode = proxies[simulatedRing];
+                    joint.PinnedOverSimulatedRing = true;
                 }
 
                 var ring = proxies;

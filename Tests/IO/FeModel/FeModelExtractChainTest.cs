@@ -840,5 +840,43 @@ namespace Tests.IO
             StaticNodes = 2,
             RotLockStaticNodes = rootRotationLocked ? 1 : null,
         }).Reconstruct();
+
+        /// <summary>
+        /// A goal-locked static root over a simulated ring is declared simulating with <c>lock_translation</c>, and a bead on a
+        /// spring loop under a rotation-locked static that compiled without a basis at <c>transform_alignment</c> 1; with the
+        /// ring static or the bead's parent free-rotating, neither is.
+        /// </summary>
+        [Test]
+        public async Task PinnedRootsAndUnbasedBeadsAreDeclaredAsCompiled()
+        {
+            static KVObject Root(int staticNodes)
+            {
+                var cloth = (TwoSidedStrip with { StaticNodes = staticNodes, NodeBases = [], LockToGoal = [0] }).Reconstruct();
+                var chain = cloth.BuildBoneChains()[0];
+                return ClothExtract.MakeClothJoint(cloth, chain.Joints.Find(static joint => joint.Name == "root")!, chain: chain);
+            }
+
+            static int BeadAlignment(int rotLockStaticNodes) => ClothExtract.MakeClothNode(new FeModelBuilder
+            {
+                Names = ["anchor", "bead_0", "bead_1", "bead_2", "bead_3"],
+                StaticNodes = 1,
+                RotLockStaticNodes = rotLockStaticNodes,
+                Parents = [-1, 0, 0, 0, 0],
+                Positions = [new(0f, 0f, 0f), new(2f, 0f, 0f), new(0f, 2f, 0f), new(-2f, 0f, 0f), new(0f, -2f, 0f)],
+                SourceElems = [0, 4, 0, 0, 1, 2, 2, 3, 3, 4, 4, 1],
+                Rods = [RigidRod(1, 2, 2.828427f), RigidRod(2, 3, 2.828427f), RigidRod(3, 4, 2.828427f), RigidRod(4, 1, 2.828427f)],
+            }.Reconstruct(), "bead_0", 1).GetInt32Property("transform_alignment");
+
+            var pinned = Root(1);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(pinned.GetBooleanProperty("simulate")).IsTrue();
+                await Assert.That(pinned.GetBooleanProperty("lock_translation")).IsTrue();
+                await Assert.That(Root(3).GetBooleanProperty("simulate")).IsFalse();
+                await Assert.That(BeadAlignment(1)).IsEqualTo(1);
+                await Assert.That(BeadAlignment(0)).IsEqualTo(0);
+            }
+        }
     }
 }
