@@ -42,7 +42,9 @@ namespace ValveResourceFormat.Particles.Initializers
             var current = particle.GetScalar(outputField);
             var strength = inputStrength.NextNumber(ref particle, particleSystemState);
 
-            particle.SetScalar(outputField, float.Lerp(current, target, strength));
+            var result = float.Lerp(current, target, strength);
+
+            particle.SetScalar(outputField, outputField.IsIntegerAttribute() ? (int)result : result);
 
             return particle;
         }

@@ -2,7 +2,8 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Uniformly scales a particle's radius, spawn position and velocity by a literal scale,
-    /// optionally multiplied by the value carried on a scale control point.
+    /// optionally multiplied by the X component of a scale control point, which collapses the
+    /// particles while that control point is unset.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_GlobalScale">C_INIT_GlobalScale</seealso>
     class GlobalScale : ParticleFunctionInitializer
@@ -18,7 +19,7 @@ namespace ValveResourceFormat.Particles.Initializers
         {
             scale = parse.Float("m_flScale", scale);
             scaleControlPoint = parse.Int32("m_nScaleControlPointNumber", scaleControlPoint);
-            controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
+            controlPoint = Math.Clamp(parse.Int32("m_nControlPointNumber", controlPoint), 0, ParticleSystemState.MaxControlPoint);
             scaleRadius = parse.Boolean("m_bScaleRadius", scaleRadius);
             scalePosition = parse.Boolean("m_bScalePosition", scalePosition);
             scaleVelocity = parse.Boolean("m_bScaleVelocity", scaleVelocity);
@@ -32,17 +33,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (scaleControlPoint >= 0)
             {
-                // The scale is carried in the control point's X component, driven game-side from the
-                // effect's control point configuration. An undriven point reads zero, which would
-                // collapse the effect entirely, so treat that as "no scale supplied".
-                var controlPointScale = particleSystemState.GetControlPoint(scaleControlPoint).Position.X;
-
-                if (controlPointScale == 0f)
-                {
-                    return particle;
-                }
-
-                finalScale *= controlPointScale;
+                finalScale *= particleSystemState.GetControlPoint(scaleControlPoint).Position.X;
             }
 
             if (finalScale == 1f)

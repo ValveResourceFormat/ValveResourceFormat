@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Particles.Initializers
         /// </summary>
         private readonly bool fractionalIncrement;
 
-        /// <summary>The parent particle index attribute is only written from behavior version 9.</summary>
+        /// <summary>The parent particle attributes are only written from behavior version 9.</summary>
         private readonly bool writeParentIndex;
 
         private float currentParentIndex;
@@ -31,6 +31,10 @@ namespace ValveResourceFormat.Particles.Initializers
         {
             currentParentIndex = 0f;
             randomCounter = 0;
+        }
+
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
         }
 
         public CreateFromParentParticles(ParticleDefinitionParser parse) : base(parse)
@@ -78,18 +82,17 @@ namespace ValveResourceFormat.Particles.Initializers
             var walkIndex = NextParentIndex(lastIndex, particleSystemState);
             var parentIndex = Math.Clamp((int)MathF.Floor(walkIndex), 0, lastIndex);
 
+            ref var parent = ref parentParticles[parentIndex];
+
             if (writeParentIndex)
             {
                 particle.ParentParticleIndex = parentIndex;
-            }
+                particle.ParentParticleId = parent.ParticleId;
 
-            ref var parent = ref parentParticles[parentIndex];
-
-            particle.ParentParticleId = parent.ParticleId;
-
-            if (setRopeSegmentID)
-            {
-                particle.RopeSegmentId = parent.ParticleId;
+                if (setRopeSegmentID)
+                {
+                    particle.RopeSegmentId = parent.ParticleId;
+                }
             }
 
             var parentPosition = parent.Position;

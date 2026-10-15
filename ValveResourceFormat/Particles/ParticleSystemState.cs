@@ -550,6 +550,29 @@ namespace ValveResourceFormat.Particles
             return Math.Clamp((step - (state.Age - time)) / step, 0f, 1f);
         }
 
+        /// <summary>
+        /// The position at <paramref name="time"/> within the step <see cref="Owner"/> is simulating,
+        /// between the previous and the current position. A point without an owner answers with its
+        /// current position.
+        /// </summary>
+        /// <param name="time">The time to locate, such as a particle's creation time.</param>
+        public Vector3 GetPositionAtTime(float time)
+            => Owner == null ? position : Vector3.Lerp(PositionPrevious, position, StepFraction(Owner, time));
+
+        /// <summary>
+        /// The axes as rows and <see cref="GetPositionAtTime"/> as the translation. The axes are the
+        /// previous ones at exactly the start of the step and the current ones otherwise.
+        /// </summary>
+        /// <param name="time">The time to locate, such as a particle's creation time.</param>
+        public Matrix4x4 GetBasisAtTime(float time)
+        {
+            var atStepStart = Owner != null && Owner.CurrentStep != 0f && time == Owner.Age - Owner.CurrentStep;
+            var basis = atStepStart ? GetPreviousRotationMatrix() : GetRotationMatrix();
+            basis.Translation = GetPositionAtTime(time);
+
+            return basis;
+        }
+
         /// <summary>The rotation matrix with <see cref="Forward"/>, <see cref="Left"/> and <see cref="Up"/> as its rows.</summary>
         public Matrix4x4 GetRotationMatrix() => BasisMatrix(forward, left, up);
 

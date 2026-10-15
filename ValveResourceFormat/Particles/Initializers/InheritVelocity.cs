@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public InheritVelocity(ParticleDefinitionParser parse) : base(parse)
         {
-            controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
+            controlPointNumber = Math.Clamp(parse.Int32("m_nControlPointNumber", controlPointNumber), 0, ParticleSystemState.MaxControlPoint);
             velocityScale = parse.Float("m_flVelocityScale", velocityScale);
         }
 

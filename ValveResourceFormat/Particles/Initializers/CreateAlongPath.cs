@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Particles.Initializers
                     : parse.NumberProvider("m_fT", new LiteralNumberProvider(0f));
             }
 
-            pathParams = new ParticlePathParameters(parse);
+            pathParams = new ParticlePathParameters(parse).WithClampedControlPoints();
         }
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.HitboxOffsetPosition);

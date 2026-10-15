@@ -96,6 +96,20 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
+        /// The curve of <see cref="Bias(float, float)"/> with <paramref name="x"/> clamped to [0, 1] and
+        /// <paramref name="bias"/> to [smallest normal float, 1] instead of saturating at the bias limits.
+        /// </summary>
+        /// <param name="x">Value to bias.</param>
+        /// <param name="bias">Bias parameter.</param>
+        public static float BiasClamped(float x, float bias)
+        {
+            x = MathUtils.Saturate(x);
+            bias = Math.Clamp(bias, 1.17549435e-38f, 1f);
+
+            return x / (((1f - x) * ((1f / bias) - 2f)) + 1f);
+        }
+
+        /// <summary>
         /// Applies one of the <see cref="ParticleFloatBiasType"/> curves to a 0-1 value for a
         /// <c>m_flBiasParameter</c>, which is authored in the -1 to 1 range and is the identity at 0.
         /// This is a different parameterization to <see cref="Bias(float, float)"/> and the two take

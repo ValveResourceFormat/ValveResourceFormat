@@ -29,6 +29,14 @@ namespace ValveResourceFormat.Particles
             => NextTransform(ref particle, renderState);
 
         /// <summary>
+        /// Returns the current rotation of the transform with its position as it stood at
+        /// <paramref name="time"/> within the step being simulated. Providers without a history answer
+        /// with their current transform.
+        /// </summary>
+        Matrix4x4 NextTransformWithPositionAtTime(ref Particle particle, ParticleSystemState renderState, float time)
+            => NextTransform(ref particle, renderState);
+
+        /// <summary>
         /// Gets the orientation, meaning the forward direction, that this provider carries.
         /// </summary>
         /// <remarks>
@@ -154,6 +162,16 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <inheritdoc/>
+        public Matrix4x4 NextTransformWithPositionAtTime(ref Particle particle, ParticleSystemState renderState, float time)
+        {
+            var cp = renderState.GetControlPoint(PickControlPoint(renderState));
+            var transform = Rotation(cp);
+            transform.Translation = cp.GetPositionAtTime(time);
+
+            return transform;
+        }
+
+        /// <inheritdoc/>
         public bool TryGetOrientation(ref Particle particle, ParticleSystemState renderState, out Vector3 orientation)
         {
             if (!useOrientation)
@@ -192,9 +210,7 @@ namespace ValveResourceFormat.Particles
                 _ => new Vector3(0f, 0f, degrees),
             };
 
-            var composed = EntityTransformHelper.EulerAnglesToRotationMatrix(angles)
-                * state.GetControlPoint(cp).GetRotationMatrix();
-            var result = EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(composed));
+            var result = TransformAngles(state, cp, angles);
 
             return float.DegreesToRadians(angleField switch
             {
@@ -202,6 +218,18 @@ namespace ValveResourceFormat.Particles
                 ParticleField.Yaw => result.Y,
                 _ => result.Z,
             });
+        }
+
+        /// <summary>
+        /// Rotates (pitch, yaw, roll) angles in degrees by control point <paramref name="cp"/>'s
+        /// orientation and returns the angles of the composed rotation.
+        /// </summary>
+        public static Vector3 TransformAngles(ParticleSystemState state, int cp, Vector3 pitchYawRoll)
+        {
+            var composed = EntityTransformHelper.EulerAnglesToRotationMatrix(pitchYawRoll)
+                * state.GetControlPoint(cp).GetRotationMatrix();
+
+            return EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(composed));
         }
     }
 

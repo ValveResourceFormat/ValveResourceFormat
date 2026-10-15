@@ -3,8 +3,9 @@ using ValveResourceFormat.Particles.Utils;
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Places particles at random positions within an axis-aligned box defined by a minimum and
-    /// maximum corner vector, offset by a control point.
+    /// Places particles at random positions within a box defined by a minimum and maximum corner
+    /// vector, around a control point where it was at each particle's creation time, optionally in the
+    /// control point's own axes.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateWithinBox">C_INIT_CreateWithinBox</seealso>
     class CreateWithinBox : ParticleFunctionInitializer
@@ -13,13 +14,15 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly IVectorProvider max = new LiteralVectorProvider(Vector3.Zero);
 
         private readonly int controlPointNumber;
+        private readonly bool localSpace;
         private readonly RangeSampler rangeSampler;
 
         public CreateWithinBox(ParticleDefinitionParser parse) : base(parse)
         {
             min = parse.VectorProvider("m_vecMin", min);
             max = parse.VectorProvider("m_vecMax", max);
-            controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
+            controlPointNumber = Math.Clamp(parse.Int32("m_nControlPointNumber", controlPointNumber), 0, ParticleSystemState.MaxControlPoint);
+            localSpace = parse.Boolean("m_bLocalSpace", localSpace);
             rangeSampler = RangeSampler.Parse(parse);
         }
 
@@ -32,9 +35,11 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var position = rangeSampler.NextVectorBetween(ref particle, particleSystemState, posMin, posMax);
 
-            var offset = particleSystemState.GetControlPoint(controlPointNumber).Position;
+            var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
 
-            particle.Position = position + offset;
+            particle.Position = localSpace
+                ? Vector3.Transform(position, controlPoint.GetBasisAtTime(particle.CreationTime))
+                : position + controlPoint.GetPositionAtTime(particle.CreationTime);
             particle.PositionPrevious = particle.Position;
 
             return particle;

@@ -5,7 +5,9 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <summary>
     /// Sets a scalar attribute at spawn from the particle's distance to a control point, remapped
     /// between input and output ranges with optional Schlick bias, per-component distance scaling,
-    /// and an active range that skips particles outside it. Line-of-sight testing is not supported.
+    /// and an active range that skips particles outside it. With line of sight, a trace from the control
+    /// point toward the particle that hits the world scales the distance by the hit fraction and
+    /// <c>m_flLOSScale</c>; the trace ignores the collision group and trace set.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_DistanceToCPInit">C_INIT_DistanceToCPInit</seealso>
     class DistanceToCPInit : ParticleFunctionInitializer
@@ -21,6 +23,9 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly Vector3 distanceScale = Vector3.One;
         private readonly float remapBias = 0.5f;
         private readonly bool hasBias;
+        private readonly bool lineOfSight;
+        private readonly INumberProvider maxTraceLength = new LiteralNumberProvider(-1f);
+        private readonly float lineOfSightScale;
 
         public DistanceToCPInit(ParticleDefinitionParser parse) : base(parse)
         {
@@ -35,6 +40,9 @@ namespace ValveResourceFormat.Particles.Initializers
             distanceScale = parse.Vector3("m_vecDistanceScale", distanceScale);
             remapBias = parse.Float("m_flRemapBias", remapBias);
             hasBias = remapBias != 0.5f;
+            lineOfSight = parse.Boolean("m_bLOS", lineOfSight);
+            maxTraceLength = parse.NumberProvider("m_flMaxTraceLength", maxTraceLength);
+            lineOfSightScale = parse.Float("m_flLOSScale", lineOfSightScale);
         }
 
         public override ulong WrittenFields => FieldMask(fieldOutput);
@@ -47,6 +55,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var inMax = inputMax.NextNumber(ref particle, particleSystemState);
             var outMin = outputMin.NextNumber(ref particle, particleSystemState);
             var outMax = outputMax.NextNumber(ref particle, particleSystemState);
+            var traceLength = maxTraceLength.NextNumber(ref particle, particleSystemState);
 
             if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
             {
@@ -61,11 +70,25 @@ namespace ValveResourceFormat.Particles.Initializers
                 return particle;
             }
 
+            if (lineOfSight)
+            {
+                var traceEnd = traceLength != -1f && distance > traceLength
+                    ? (MathUtils.SafeNormalize(particle.Position) * traceLength) + controlPointPosition
+                    : particle.Position;
+
+                particleSystemState.Collision.TraceRay(controlPointPosition, traceEnd, out _, out _, out var fraction);
+
+                if (fraction != 1f)
+                {
+                    distance *= fraction * lineOfSightScale;
+                }
+            }
+
             var value = MathUtils.RemapValClamped(distance, inMin, inMax, outMin, outMax);
 
             if (hasBias)
             {
-                value = ParticleMath.Bias(MathUtils.Saturate(value), remapBias);
+                value = ParticleMath.BiasClamped(value, remapBias);
             }
 
             value = particle.ModifyScalarBySetMethodAtSpawn(particles, fieldOutput, value, setMethod);

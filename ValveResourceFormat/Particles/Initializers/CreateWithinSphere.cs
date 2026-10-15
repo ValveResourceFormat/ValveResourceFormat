@@ -48,7 +48,10 @@ namespace ValveResourceFormat.Particles.Initializers
         /// </summary>
         protected readonly Vector3 distanceBiasAbs = Vector3.Zero;
 
-        /// <summary>Whether the spawn offset is rotated by the transform.</summary>
+        /// <summary>
+        /// Whether the spawn direction is rotated by the transform. It is only rotated while the
+        /// distance bias or its absolute axes shape the sphere.
+        /// </summary>
         protected readonly bool localCoords;
 
         /// <summary>Attribute the spawn position is written to.</summary>
@@ -84,9 +87,6 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
-            var position = transform.Translation;
-
             var randomVector = particleSystemState.Random.NextInUnitBall(out var radiusFraction);
 
             if (distanceBiasAbs.X != 0)
@@ -104,23 +104,20 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var bias = distanceBias.NextVector(ref particle, particleSystemState);
 
-            var biasedDirection = MathUtils.SafeNormalize(randomVector * bias);
+            var direction = MathUtils.SafeNormalize(randomVector * bias);
+
+            var transform = transformInput.NextTransformWithPositionAtTime(ref particle, particleSystemState, particle.CreationTime);
+
+            if (localCoords && (bias != Vector3.One || distanceBiasAbs != Vector3.Zero))
+            {
+                direction = Vector3.TransformNormal(direction, transform);
+            }
 
             var radiusMinValue = radiusMin.NextNumber(ref particle, particleSystemState);
             var radiusMaxValue = radiusMax.NextNumber(ref particle, particleSystemState);
             var distance = ((radiusMaxValue - radiusMinValue) * radiusFraction) + radiusMinValue;
 
-            var offset = biasedDirection * distance;
-
-            Vector3 worldOffset;
-            if (localCoords)
-            {
-                worldOffset = Vector3.TransformNormal(offset, transform) + position;
-            }
-            else
-            {
-                worldOffset = position + offset;
-            }
+            var worldOffset = transform.Translation + (direction * distance);
 
             particle.SetVector(outputField, worldOffset);
 
@@ -138,12 +135,8 @@ namespace ValveResourceFormat.Particles.Initializers
                 localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
                 localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 
-            var velocityDirection = localCoords
-                ? Vector3.TransformNormal(biasedDirection, transform)
-                : biasedDirection;
-
             var velocityLocal = Vector3.TransformNormal(localCoordinateSystemSpeed, transform);
-            var velocity = -(velocityDirection * speed) - velocityLocal;
+            var velocity = -(direction * speed) - velocityLocal;
 
             if (velocityField == ParticleField.PositionPrevious)
             {

@@ -394,6 +394,15 @@ namespace ValveResourceFormat.Particles
             => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch;
 
         /// <summary>
+        /// Whether the field holds an integer, which is copied as is and truncated when a float is
+        /// written to it.
+        /// </summary>
+        public static bool IsIntegerAttribute(this ParticleField field)
+            => field is ParticleField.ParticleId or ParticleField.HitboxIndex or ParticleField.ParentParticleIndex
+                or ParticleField.BoxFlags or ParticleField.UserEventStates or ParticleField.ParentParticleId
+                or ParticleField.RopeSegmentId;
+
+        /// <summary>
         /// The range the float set operators hold a written value inside. Alpha is bounded to [0, 1],
         /// radius and trail length to the non-negative half, and every other field is left free.
         /// </summary>
