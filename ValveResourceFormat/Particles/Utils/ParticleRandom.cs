@@ -103,6 +103,9 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>Takes the next value from the table, in [0, 1).</summary>
         public float Next() => At(queryCount++ + Seed);
 
+        /// <summary>Takes the next value from the slot the seed displaces twice instead of once.</summary>
+        public float NextSeededTwice() => At(queryCount++ + Seed + Seed);
+
         /// <summary>
         /// Takes the next value, remapped clear of both ends of the interval. Direction initializers
         /// use it so that a drawn polar cosine is never exactly +/-1.
