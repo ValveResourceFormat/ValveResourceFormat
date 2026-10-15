@@ -234,6 +234,78 @@ namespace ValveResourceFormat.Particles
     }
 
     /// <summary>
+    /// PT_TYPE_NAMED_VALUE. The system's transform named value, as it stands now when following it and
+    /// as the system started with otherwise, blended from the previous step's value within a step.
+    /// The identity when the system has none.
+    /// </summary>
+    readonly struct NamedValueTransformProvider : ITransformProvider
+    {
+        private readonly string name;
+        private readonly bool follow;
+        private readonly bool useOrientation;
+
+        public NamedValueTransformProvider(ParticleDefinitionParser parse)
+        {
+            name = parse.String("m_NamedValue");
+            follow = parse.Boolean("m_bFollowNamedValue");
+            useOrientation = parse.Boolean("m_bUseOrientation", true);
+        }
+
+        private bool TryGet(ParticleSystemState state, out ParticleNamedValue value, out ParticleNamedValue previous)
+        {
+            if (state.Data is { } system)
+            {
+                return system.NamedValues.TryGetTransform(name, follow, out value, out previous);
+            }
+
+            value = previous = ParticleNamedValue.Default(ParticleNamedValueType.Transform);
+            return false;
+        }
+
+        private Matrix4x4 Compose(Quaternion rotation, Vector3 position)
+        {
+            var transform = useOrientation ? Matrix4x4.CreateFromQuaternion(rotation) : Matrix4x4.Identity;
+            transform.Translation = position;
+
+            return transform;
+        }
+
+        /// <inheritdoc/>
+        public Matrix4x4 NextTransform(ref Particle particle, ParticleSystemState renderState)
+        {
+            TryGet(renderState, out var value, out _);
+            return Compose(value.Rotation, value.Vector);
+        }
+
+        /// <inheritdoc/>
+        public Matrix4x4 NextTransformAtTime(ref Particle particle, ParticleSystemState renderState, float time)
+        {
+            TryGet(renderState, out var value, out var previous);
+            var fraction = ControlPoint.StepFraction(renderState, time);
+            var position = ((value.Vector - previous.Vector) * fraction) + previous.Vector;
+
+            return Compose(ParticleMath.Blend(previous.Rotation, value.Rotation, fraction), position);
+        }
+
+        /// <inheritdoc/>
+        public Matrix4x4 NextTransformWithPositionAtTime(ref Particle particle, ParticleSystemState renderState, float time)
+        {
+            TryGet(renderState, out var value, out var previous);
+            var fraction = ControlPoint.StepFraction(renderState, time);
+
+            return Compose(value.Rotation, Vector3.Lerp(previous.Vector, value.Vector, fraction));
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetOrientation(ref Particle particle, ParticleSystemState renderState, out Vector3 orientation)
+        {
+            TryGet(renderState, out var value, out _);
+            orientation = Vector3.Transform(Vector3.UnitX, value.Rotation);
+            return useOrientation;
+        }
+    }
+
+    /// <summary>
     /// A transform provider that always returns the identity matrix.
     /// </summary>
     readonly struct IdentityTransformProvider : ITransformProvider

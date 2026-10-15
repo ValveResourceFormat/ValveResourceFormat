@@ -113,6 +113,25 @@ namespace ValveResourceFormat.Particles
         public Vector3 NextVector(ParticleSystemState renderState) => Vector3.Zero;
     }
 
+    /// <summary>
+    /// PVEC_TYPE_NAMED_VALUE. The system's vector named value, as it stands now when following it and
+    /// as the system started with otherwise. Zero when it has none.
+    /// </summary>
+    readonly struct NamedValueVectorProvider : IVectorProvider
+    {
+        private readonly string name;
+        private readonly bool follow;
+
+        public NamedValueVectorProvider(ParticleDefinitionParser parse)
+        {
+            name = parse.String("m_NamedValue");
+            follow = parse.Boolean("m_bFollowNamedValue");
+        }
+
+        public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState)
+            => renderState.Data?.NamedValues.GetVector(name, follow) ?? Vector3.Zero;
+    }
+
     // CP Value
     readonly struct CPValueVectorProvider : IVectorProvider
     {
@@ -362,15 +381,4 @@ namespace ValveResourceFormat.Particles
 			m_flNoiseImgPreviewScale = 1.000000
 			m_bNoiseImgPreviewLive = true
     */
-
-    // Used for named value:
-    // m_bFollowNamedValue
-
-    /*ALSO NOTE
-     * ParticleTransform Types
-     * PT_TYPE_INVALID
-     * PT_TYPE_NAMED_VALUE
-     * PT_TYPE_CONTROL_POINT
-     * PT_TYPE_CONTROL_POINT_RANGE
-     */
 }

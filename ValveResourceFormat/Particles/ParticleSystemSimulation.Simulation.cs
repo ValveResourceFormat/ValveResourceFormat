@@ -238,6 +238,8 @@ namespace ValveResourceFormat.Particles
             particleCollection.PreviousFrameTime = FirstFrameStep;
 
             ResetFunctions();
+            NamedValues.Reset();
+            ApplyNamedValueLocals();
         }
 
         /// <summary>
@@ -250,6 +252,7 @@ namespace ValveResourceFormat.Particles
         {
             preSimFrames = 0;
             systemState.Random.RedrawInputSeeds();
+            NamedValues.Recapture();
 
             if (IsEndCapChild)
             {
@@ -345,6 +348,8 @@ namespace ValveResourceFormat.Particles
             {
                 return;
             }
+
+            NamedValues.BeginFrame();
 
             if (systemState.Age < 0f)
             {
@@ -453,6 +458,8 @@ namespace ValveResourceFormat.Particles
             {
                 systemState.Frozen = true;
             }
+
+            NamedValues.EndFrame();
         }
 
         private void SimulateStep(float step, bool overshoot)

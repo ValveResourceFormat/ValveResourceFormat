@@ -160,6 +160,34 @@ namespace ValveResourceFormat.Particles
         }
     }
 
+    /// <summary>
+    /// PF_TYPE_NAMED_VALUE. The system's current float named value, or the literal while neither a local
+    /// default nor a host has given the name one.
+    /// </summary>
+    class NamedValueNumberProvider : INumberProvider
+    {
+        private readonly string name;
+        private readonly float literalValue;
+        private readonly AttributeMapping attributeMapping;
+
+        public NamedValueNumberProvider(ParticleDefinitionParser parse)
+        {
+            name = parse.String("m_NamedValue");
+            literalValue = parse.Float("m_flLiteralValue");
+            attributeMapping = new AttributeMapping(parse);
+        }
+
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        {
+            if (renderState.Data?.NamedValues is { } namedValues && namedValues.TryGetFloat(name, out var value))
+            {
+                return attributeMapping.ApplyMapping(value);
+            }
+
+            return literalValue;
+        }
+    }
+
     // Collection Age
     class CollectionAgeNumberProvider : INumberProvider
     {
@@ -568,8 +596,4 @@ namespace ValveResourceFormat.Particles
 
         public float NextNumber(ParticleSystemState renderState) => 0f;
     }
-
-    /* Unaccounted for params:
-     * m_NamedValue
-     */
 }

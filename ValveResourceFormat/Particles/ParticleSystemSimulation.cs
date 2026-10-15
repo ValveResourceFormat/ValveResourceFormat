@@ -315,6 +315,8 @@ namespace ValveResourceFormat.Particles
 
             SetupChildParticles(Functions("m_Children"));
 
+            NamedValues = new ParticleNamedValues(rootData, childSimulations.ConvertAll(static child => child.NamedValues));
+
             PublishSnapshot(parse, particleSnapshot);
 
             particleCollection.PreserveOrderOnKill = IsOrderImportant(Functions("m_Renderers"));
@@ -343,6 +345,52 @@ namespace ValveResourceFormat.Particles
             }
 
             ResetFunctions();
+            ApplyNamedValueLocals();
+        }
+
+        /// <summary>The system's named values.</summary>
+        internal ParticleNamedValues NamedValues { get; }
+
+        /// <summary>Sets the default of every <c>m_NamedValueLocals</c> entry that has one, here and in every system below.</summary>
+        private void ApplyNamedValueLocals()
+        {
+            foreach (var (name, value) in NamedValues.Locals)
+            {
+                SetNamedValue(name, value);
+            }
+        }
+
+        /// <summary>
+        /// Sets a float named value on this system and every system below it. The value is read by
+        /// the next simulation step; after each step the system goes back to the value it held the
+        /// step before, so a value meant to hold is set again before every update.
+        /// </summary>
+        /// <param name="name">The named value, as the definition's <c>m_NamedValueLocals</c> or its inputs name it.</param>
+        /// <param name="value">The value.</param>
+        /// <returns>Whether this system declares the name with a type the value converts to.</returns>
+        public bool SetNamedValue(string name, float value) => SetNamedValue(name, ParticleNamedValue.FromFloat(value));
+
+        /// <inheritdoc cref="SetNamedValue(string, float)"/>
+        /// <remarks>A transform named value takes the vector as its position, with no rotation.</remarks>
+        public bool SetNamedValue(string name, Vector3 value) => SetNamedValue(name, ParticleNamedValue.FromVector(value));
+
+        /// <inheritdoc cref="SetNamedValue(string, float)"/>
+        /// <param name="name">The named value, as the definition's <c>m_NamedValueLocals</c> or its inputs name it.</param>
+        /// <param name="position">The transform's position.</param>
+        /// <param name="rotation">The transform's rotation. A vector named value takes only the position.</param>
+        public bool SetNamedValue(string name, Vector3 position, Quaternion rotation)
+            => SetNamedValue(name, ParticleNamedValue.FromTransform(position, rotation));
+
+        private bool SetNamedValue(string name, ParticleNamedValue value)
+        {
+            var result = NamedValues.Set(name, value);
+
+            foreach (var childSimulation in childSimulations)
+            {
+                childSimulation.SetNamedValue(name, value);
+            }
+
+            return result;
         }
 
         /// <summary>

@@ -84,6 +84,9 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
     /// <summary>Reads a bool property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly bool Boolean(string key, bool @default = default) => GetValueOrDefault(key, Boolean, @default);
 
+    /// <summary>Reads a string property, returning <paramref name="default"/> if the key is absent.</summary>
+    public readonly string String(string key, string @default = "") => Data.GetStringProperty(key, @default);
+
     private readonly Vector3 Vector3(string k)
     {
         // Some content authors vectors as space-separated strings ("0.7 0.5 0.25").
@@ -223,6 +226,8 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     return new RandomNumberProvider(parse, false);
                 case "PF_TYPE_RANDOM_BIASED":
                     return new RandomNumberProvider(parse, true);
+                case "PF_TYPE_NAMED_VALUE":
+                    return new NamedValueNumberProvider(parse);
                 case "PF_TYPE_COLLECTION_AGE":
                     return new CollectionAgeNumberProvider(parse);
                 case "PF_TYPE_ENDCAP_AGE":
@@ -268,7 +273,6 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                 case "PF_TYPE_PARTICLE_ROPE_SEGMENT_NORMALIZED":
                     return new RopeSegmentNormalizedNumberProvider(parse);
                 // KNOWN TYPES WE DON'T SUPPORT:
-                // PF_TYPE_NAMED_VALUE (needs game VData),
                 // PF_TYPE_CLOSEST_CAMERA_DISTANCE, PF_TYPE_CONCURRENT_DEF_COUNT, PF_TYPE_RANGE
                 default:
                     Logger.LogWarning("Number provider of type {Type} is not supported, using its literal value", type);
@@ -309,6 +313,8 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     return new LiteralVectorProvider(parse.Vector3("m_vLiteralValue"));
                 case "PVEC_TYPE_LITERAL_COLOR":
                     return new LiteralColorVectorProvider(parse.Vector3("m_LiteralColor"));
+                case "PVEC_TYPE_NAMED_VALUE":
+                    return new NamedValueVectorProvider(parse);
                 case "PVEC_TYPE_PARTICLE_VECTOR":
                     return new PerParticleVectorProvider(parse, initial: false);
                 case "PVEC_TYPE_PARTICLE_INITIAL_VECTOR":
@@ -339,10 +345,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     return new RandomUniformOffsetVectorProvider(parse);
                 case "PVEC_TYPE_CP_RELATIVE_RANDOM_DIR":
                     return new CPRelativeRandomDirectionProvider(parse);
-                /* UNSUPPORTED:
-                 * PVEC_TYPE_NAMED_VALUE - needs game VData
-                 * PVEC_TYPE_PARTICLE_GRAVITY - needs the game's gravity
-                 */
+                // UNSUPPORTED: PVEC_TYPE_PARTICLE_GRAVITY - needs the game's gravity
                 default:
                     Logger.LogWarning("Vector provider of type {Type} is not supported, using its literal value", type);
                     return new LiteralVectorProvider(parse.Vector3("m_vLiteralValue"));
@@ -379,8 +382,9 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     var endGrowthTime = parse.Float("m_flEndCPGrowthTime");
                     return new ControlPointTransformProvider(controlPoint, useOrientation, rangeMax, endGrowthTime);
                 }
-                case "PT_TYPE_INVALID":
                 case "PT_TYPE_NAMED_VALUE":
+                    return new NamedValueTransformProvider(parse);
+                case "PT_TYPE_INVALID":
                 default:
                     Logger.LogWarning("Transform type {Type} not supported, using identity transform", type);
                     return new IdentityTransformProvider();
