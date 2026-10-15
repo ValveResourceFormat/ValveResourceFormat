@@ -1,0 +1,54 @@
+//====== A small game data file that uses each thing a class can declare ======
+
+@include "sample_base.fgd"
+
+/* A block comment
+   over two lines */
+
+@PointClass base(Targetname, Sized) halfgridsnap
+	editormodel( "models/editor/sample", nobounds )
+	line(255 0 255, targetname, target)
+	sphere{ radius = "reach" color = [ 0, 255, 0 ] }
+	metadata{ entity_tool_name = "Sample" }
+	tags( Sample, base )
+	= sample_point : "A point entity " + "that shows everything."
+[
+	target(target_destination) : "Target"
+	model(studio) : "Model" : "models/sample.vmdl" : "The model to draw."
+	texture(resource:texture) : "Texture"
+	items(array:struct:sample_item) : "Items"
+	reach(float) [ group="Size", min="0", readonly ] : "Reach" : "128"
+	hinge(vecline) { editor_only = true } : "Hinge"
+	important(*integer) : "Important" : 3
+	kind(choices) : "Kind" : "More" = [ 2 : "More" : "Even more of it." ]
+	spawnflags(flags) = [ 1 : "First" : 1 2 : "Second" : 0 4 : "Third" : 1 ]
+	quoted(string) : "Quoted" : "say \"hi\"\tnow"
+	plain(integer)
+
+	input Enable(void) : "Turns it on."
+	input SetReach(float) { is_scripted = true }
+	output OnUsed(void)
+	output OnScript(api)
+]
+
+@SolidClass base(Uncolored) = sample_brush : """
+A description over
+two lines.
+"""
+[
+]
+
+@PointClass size(16 16 32) = sample_removed []
+
+@OverrideClass editormodel( "models/editor/other" ) cubemap() color(10 20 30) = sample_point
+[
+	target(string) : "Target Name"
+	plain(remove_key)
+	added(boolean) : "Added" : 1
+]
+
+@exclude sample_removed
+
+@entitygroup "Samples" { start_expanded = true }
+
+@gridnav( 64, 0, 0, 128 )

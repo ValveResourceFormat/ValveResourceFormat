@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using ValveKeyValue;
 using ValvePak;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using KVObject = ValveKeyValue.KVObject;
@@ -50,6 +51,7 @@ namespace ValveResourceFormat.IO
         private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
         private readonly Lock CachedShadersLock = new();
         private readonly HashSet<string> CurrentGameSearchPaths = [];
+        private readonly List<(string GameInfo, KVObject Hammer)> CurrentGameHammerBlocks = [];
         private readonly HashSet<string> CurrentGameOfficialAddonsPaths = [];
         private readonly HashSet<string> CurrentGameAddonsPaths = [];
         private ImmutableArray<Package> CurrentGamePackages = [];
@@ -382,22 +384,16 @@ namespace ValveResourceFormat.IO
         }
 
         /// <inheritdoc/>
-        public Stream? GetFileStream(string file)
-        {
-            var foundFile = FindFile(file);
+        public Stream? GetFileStream(string file) => OpenFoundFile(FindFile(file));
 
+        private static Stream? OpenFoundFile((string? PathOnDisk, Package? Package, PackageEntry? PackageEntry) foundFile)
+        {
             if (foundFile.PathOnDisk != null)
             {
                 return File.OpenRead(foundFile.PathOnDisk);
             }
-            else if (foundFile.PackageEntry != null)
-            {
-                return GetPackageEntryStream(foundFile.Package!, foundFile.PackageEntry);
-            }
-            else
-            {
-                return null;
-            }
+
+            return foundFile.PackageEntry != null ? GetPackageEntryStream(foundFile.Package!, foundFile.PackageEntry) : null;
         }
 
         /// <inheritdoc/>
@@ -456,6 +452,12 @@ namespace ValveResourceFormat.IO
 
             var gameName = gameInfo.TryGetValue("game", out var game) ? game.ToString() : null;
             Logger.LogInformation("Found \"{GameName}\" from \"{GameInfo}\"", gameName, gameinfoPath);
+
+            // The FGD files the game names for its tools, read when they are first needed
+            if (gameInfo.TryGetValue("Hammer", out var hammer) && hammer != null && !CurrentGameHammerBlocks.Exists(block => block.GameInfo == gameinfoPath))
+            {
+                CurrentGameHammerBlocks.Add((gameinfoPath, hammer));
+            }
 
             var fileSystem = gameInfo["FileSystem"];
 
@@ -626,6 +628,41 @@ namespace ValveResourceFormat.IO
             CurrentAddonSearchPaths.Insert(0, folder);
             Logger.LogInformation("Added addon folder \"{Folder}\" to search paths", folder);
         }
+
+        /// <summary>
+        /// Loads the classes the current game declares for its tools, from the FGD files its <c>gameinfo.gi</c>
+        /// names, opened through the folders and packages the game mounts. What cannot be read is passed over
+        /// and listed in the errors of the classes.
+        /// </summary>
+        /// <returns>
+        /// The classes, or <see langword="null"/> when no game was found or none of its FGD files are there.
+        /// They come with the tools of a game.
+        /// </returns>
+        public virtual ForgeGameData? LoadFgd()
+        {
+            foreach (var (gameInfoPath, hammer) in CurrentGameHammerBlocks)
+            {
+                try
+                {
+                    var fgd = new ForgeGameData(OpenFileQuietly);
+
+                    if (fgd.LoadGameFiles(hammer))
+                    {
+                        Logger.LogInformation("Loaded {Count} FGD classes from \"{GameInfo}\"", fgd.Classes.Count, gameInfoPath);
+                        return fgd;
+                    }
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    Logger.LogError(e, "Failed to load the FGD files of \"{GameInfo}\"", gameInfoPath);
+                }
+            }
+
+            return null;
+        }
+
+        // A game can name files it does not ship, which are not worth a warning
+        private Stream? OpenFileQuietly(string file) => OpenFoundFile(FindFile(file, logNotFound: false));
 
         /// <summary>
         /// Finds and loads search paths from gameinfo.gi files.
