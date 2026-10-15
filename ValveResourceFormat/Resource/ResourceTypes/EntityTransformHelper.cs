@@ -297,12 +297,13 @@ namespace ValveResourceFormat.ResourceTypes
         /// Parses a string representation of a Vector3.
         /// </summary>
         /// <param name="input">The input string.</param>
-        /// <returns>The parsed vector, or zero if the input is not three numbers.</returns>
+        /// <returns>The parsed vector, or zero if the input does not start with three numbers.</returns>
         public static Vector3 ParseVector3(string input)
             => TryParseVector3(input, out var value) ? value : default;
 
         /// <summary>
-        /// Parses a string representation of a Vector3, reporting whether it was one.
+        /// Parses a string representation of a Vector3, reporting whether it was one. Numbers after the third
+        /// are ignored, so a color with its alpha, such as "255 128 0 255", reads as its color.
         /// </summary>
         /// <remarks>
         /// Callers with a meaningful default need this rather than <see cref="ParseVector3"/>, whose zero
@@ -310,7 +311,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// than to one collapses the thing being scaled.
         /// </remarks>
         /// <param name="input">The input string.</param>
-        /// <param name="value">The parsed vector, or zero if the input is not three numbers.</param>
+        /// <param name="value">The parsed vector, or zero if the input does not start with three numbers.</param>
         /// <returns>Whether the input parsed.</returns>
         public static bool TryParseVector3(string input, out Vector3 value)
         {
@@ -323,7 +324,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var split = input.Split(' ');
 
-            if (split.Length != 3
+            if (split.Length < 3
                 || !float.TryParse(split[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
                 || !float.TryParse(split[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y)
                 || !float.TryParse(split[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var z))
