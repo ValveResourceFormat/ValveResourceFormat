@@ -18,6 +18,9 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly bool proportional; // offset proportional to radius 0/1
         private readonly RangeSampler rangeSampler;
 
+        private ParticleRandom.EvaluationKey? rotationCall;
+        private Matrix4x4 rotation;
+
         public PositionOffset(ParticleDefinitionParser parse) : base(parse)
         {
             offsetMin = parse.VectorProvider("m_OffsetMin", offsetMin);
@@ -32,6 +35,13 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
+            var call = particleSystemState.Random.Evaluation(-1);
+
+            if (localCoords && rotationCall != call)
+            {
+                rotationCall = call;
+                rotation = transformInput.NextTransform(particleSystemState);
+            }
 
             var posMin = offsetMin.NextVector(ref particle, particleSystemState);
             var posMax = offsetMax.NextVector(ref particle, particleSystemState);
@@ -45,7 +55,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (localCoords)
             {
-                offset = Vector3.TransformNormal(offset, transformInput.NextTransform(ref particle, particleSystemState));
+                offset = Vector3.TransformNormal(offset, rotation);
             }
 
             particle.Position += offset;

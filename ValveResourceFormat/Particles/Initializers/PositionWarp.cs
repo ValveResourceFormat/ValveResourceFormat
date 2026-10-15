@@ -25,9 +25,9 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public PositionWarp(ParticleDefinitionParser parse) : base(parse)
         {
-            warpMin = parse.VectorProvider("m_vecWarpMin", warpMin);
-            warpMax = parse.VectorProvider("m_vecWarpMax", warpMax);
-            controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
+            warpMin = parse.CollectionVectorProvider("m_vecWarpMin", warpMin);
+            warpMax = parse.CollectionVectorProvider("m_vecWarpMax", warpMax);
+            controlPointNumber = Math.Clamp(parse.Int32("m_nControlPointNumber", controlPointNumber), 0, ParticleSystemState.MaxControlPoint);
             scaleControlPointNumber = parse.Int32("m_nScaleControlPointNumber", scaleControlPointNumber);
             radiusComponent = Math.Clamp(parse.Int32("m_nRadiusComponent", radiusComponent), -1, 2);
             warpTime = parse.Float("m_flWarpTime", warpTime);
@@ -69,29 +69,24 @@ namespace ValveResourceFormat.Particles.Initializers
             }
             else
             {
-                var rampInput = particle.CreationTime;
+                var (rampInput, rampBase) = useCount
+                    ? (warpCount++, 0f)
+                    : (particle.CreationTime, particleSystemState.OperatorTimeBase);
 
-                if (useCount)
-                {
-                    rampInput = warpCount++;
-                }
-
-                var progress = MathUtils.RemapValClamped(rampInput, warpStartTime, warpStartTime + warpTime, 0f, 1f);
-                warp = Vector3.Lerp(rampStart, rampEnd, progress);
+                var rampStartTime = warpStartTime + rampBase;
+                var progress = MathUtils.RemapValClamped(rampInput, rampStartTime, rampStartTime + warpTime, 0f, 1f);
+                warp = ((rampEnd - rampStart) * progress) + rampStart;
             }
 
-            var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
-            var transform = Matrix4x4.CreateFromQuaternion(controlPoint.GetRotation())
-                * Matrix4x4.CreateTranslation(controlPoint.Position);
+            var frame = particleSystemState.GetControlPoint(controlPointNumber).GetBasisAtTime(particle.CreationTime);
+            var origin = frame.Translation;
+            var toLocal = Matrix4x4.Transpose(frame with { Translation = Vector3.Zero });
 
-            if (Matrix4x4.Invert(transform, out var inverse))
-            {
-                var local = Vector3.Transform(particle.Position, inverse);
-                particle.Position = Vector3.Transform(local * warp, transform);
+            var local = Vector3.TransformNormal(particle.Position - origin, toLocal);
+            particle.Position = Vector3.Transform(local * warp, frame);
 
-                var localPrevious = Vector3.Transform(particle.PositionPrevious, inverse);
-                particle.PositionPrevious = Vector3.Transform(localPrevious * warp * prevPosScale, transform);
-            }
+            var localPrevious = Vector3.TransformNormal(particle.PositionPrevious - origin, toLocal);
+            particle.PositionPrevious = Vector3.Transform(prevPosScale * warp * localPrevious, frame);
 
             if (radiusComponent >= 0)
             {

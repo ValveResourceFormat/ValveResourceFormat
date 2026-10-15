@@ -309,7 +309,7 @@ namespace ValveResourceFormat.Particles
 
             foreach (var initializer in initializers)
             {
-                initializer.Reset();
+                initializer.Initialize(systemState);
             }
 
             foreach (var particleOperator in operators)

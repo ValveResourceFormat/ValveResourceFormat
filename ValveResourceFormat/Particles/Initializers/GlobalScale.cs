@@ -2,8 +2,8 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Uniformly scales a particle's radius, spawn position and velocity by a literal scale,
-    /// optionally multiplied by the X component of a scale control point, which collapses the
-    /// particles while that control point is unset.
+    /// optionally multiplied by the X component of a scale control point. A scale control point
+    /// reading 0 is taken as unset and ignored, since games always set it and previews never do.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_GlobalScale">C_INIT_GlobalScale</seealso>
     class GlobalScale : ParticleFunctionInitializer
@@ -33,7 +33,12 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (scaleControlPoint >= 0)
             {
-                finalScale *= particleSystemState.GetControlPoint(scaleControlPoint).Position.X;
+                var controlPointScale = particleSystemState.GetControlPoint(scaleControlPoint).Position.X;
+
+                if (controlPointScale != 0f)
+                {
+                    finalScale *= controlPointScale;
+                }
             }
 
             if (finalScale == 1f)

@@ -6,8 +6,8 @@ namespace ValveResourceFormat.Particles.Initializers
     /// keeps the particle's velocity.
     /// </summary>
     /// <remarks>
-    /// The offset applies whether or not the trace hit, and <c>m_bOffsetonColOnly</c> only keeps the
-    /// radius offset off a miss.
+    /// The offset applies whether or not the trace hit, and the radius offset is a plain pull-back by
+    /// <c>m_flOffsetByRadiusFactor</c> times the radius, so <c>m_bOffsetonColOnly</c> has no effect.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_PositionPlaceOnGround">C_INIT_PositionPlaceOnGround</seealso>
     class PositionPlaceOnGround : ParticleFunctionInitializer
@@ -22,7 +22,6 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly bool setPreviousOnly;
         private readonly bool setNormal;
         private readonly ParticleField groundNormalAttribute = ParticleField.Normal;
-        private readonly bool offsetOnCollisionOnly;
         private readonly float offsetByRadiusFactor;
         private readonly int preserveOffsetControlPoint = -1;
 
@@ -36,7 +35,6 @@ namespace ValveResourceFormat.Particles.Initializers
             setPreviousOnly = parse.Boolean("m_bSetPXYZOnly", setPreviousOnly);
             setNormal = parse.Boolean("m_bSetNormal", setNormal);
             groundNormalAttribute = parse.ParticleField("m_nGroundNormalAttribute", groundNormalAttribute);
-            offsetOnCollisionOnly = parse.Boolean("m_bOffsetonColOnly", offsetOnCollisionOnly);
             offsetByRadiusFactor = parse.Float("m_flOffsetByRadiusFactor", offsetByRadiusFactor);
             preserveOffsetControlPoint = parse.Int32("m_nPreserveOffsetCP", preserveOffsetControlPoint);
         }
@@ -55,7 +53,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var start = value - (direction * StartBackoff);
             var end = start + (direction * length);
-            var hitGround = collision.TraceRay(start, end, out var hitPosition, out var hitNormal, out var fraction);
+            var hitGround = collision.TraceRay(start, end, out _, out var hitNormal, out var fraction);
 
             if (!hitGround)
             {
@@ -65,29 +63,19 @@ namespace ValveResourceFormat.Particles.Initializers
                         return particle;
                     case ParticleTraceMissBehavior.PARTICLE_TRACE_MISS_BEHAVIOR_KILL:
                         particle.Lifetime = -1f;
+
+                        if (setNormal)
+                        {
+                            particle.SetVector(groundNormalAttribute, hitNormal);
+                        }
+
                         return particle;
                 }
             }
 
-            var radiusOffset = Vector3.Zero;
-
-            if (offsetByRadiusFactor != 0f && (!offsetOnCollisionOnly || hitGround))
+            if (offsetByRadiusFactor != 0f)
             {
-                var radius = particle.Radius;
-                var facing = Vector3.Dot(direction, hitNormal);
-                var reach = MathF.Max(-facing * length, radius);
-
-                fraction = reach * fraction <= radius * 0.5f ? 0f : fraction - (radius * 0.5f / reach);
-
-                var away = MathUtils.SafeNormalize((MathUtils.SafeNormalize(Vector3.Reflect(direction, hitNormal)) * 0.5f) + hitNormal);
-                radiusOffset = away * radius * offsetByRadiusFactor;
-
-                if (collision.TraceRay(hitPosition, hitPosition + (radiusOffset * 0.5f), out _, out _, out _))
-                {
-                    particle.Lifetime = -1f;
-                }
-
-                pullBack += radius * offsetByRadiusFactor;
+                pullBack += offsetByRadiusFactor * particle.Radius;
             }
 
             if (preserveOffsetControlPoint > -1)
@@ -95,7 +83,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 pullBack += start.Z - particleSystemState.GetControlPoint(preserveOffsetControlPoint).Position.Z;
             }
 
-            var delta = (direction * ((length * fraction) - StartBackoff - pullBack)) + radiusOffset;
+            var delta = direction * ((length * fraction) - StartBackoff - pullBack);
 
             if (!setPreviousOnly)
             {

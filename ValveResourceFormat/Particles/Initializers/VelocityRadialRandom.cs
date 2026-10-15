@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Particles.Initializers
             speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);
             speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
             ignoreDelta = parse.Boolean("m_bIgnoreDelta", ignoreDelta);
-            controlPoint = Math.Clamp(parse.Int32("m_nControlPointNumber", controlPoint), 0, 63);
+            controlPoint = Math.Clamp(parse.Int32("m_nControlPointNumber", controlPoint), 0, ParticleSystemState.MaxControlPoint);
         }
 
         public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
@@ -65,20 +65,14 @@ namespace ValveResourceFormat.Particles.Initializers
         /// <summary>The local speed scale rotated into world space by the centre's basis.</summary>
         private Vector3 WorldSpeedScale(ref Particle particle, ParticleSystemState particleSystemState)
         {
-            Vector3 forward, left, up;
+            if (!perParticleCenter)
+            {
+                var basis = particleSystemState.GetControlPoint(controlPoint).GetBasisAtTime(particle.CreationTime);
+                return Vector3.TransformNormal(localSpeedScale, basis);
+            }
 
-            if (perParticleCenter)
-            {
-                forward = centerForward.NextVector(ref particle, particleSystemState);
-                (left, up) = BasisFromForward(forward);
-            }
-            else
-            {
-                var rotation = particleSystemState.GetControlPoint(controlPoint).GetRotation();
-                forward = Vector3.Transform(Vector3.UnitX, rotation);
-                left = Vector3.Transform(Vector3.UnitY, rotation);
-                up = Vector3.Transform(Vector3.UnitZ, rotation);
-            }
+            var forward = centerForward.NextVector(ref particle, particleSystemState);
+            var (left, up) = BasisFromForward(forward);
 
             return (forward * localSpeedScale.X) + (left * localSpeedScale.Y) + (up * localSpeedScale.Z);
         }

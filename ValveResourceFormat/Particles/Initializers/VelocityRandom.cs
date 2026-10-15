@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Particles.Initializers
             vectorMax = parse.VectorProvider("m_LocalCoordinateSystemSpeedMax", vectorMax);
             speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);
             speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
-            controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
+            controlPoint = Math.Clamp(parse.Int32("m_nControlPointNumber", controlPoint), 0, ParticleSystemState.MaxControlPoint);
             ignoreDT = parse.Boolean("m_bIgnoreDT", ignoreDT);
             rangeSampler = RangeSampler.Parse(parse);
         }
@@ -40,7 +40,8 @@ namespace ValveResourceFormat.Particles.Initializers
             if (vecMin != Vector3.Zero || vecMax != Vector3.Zero)
             {
                 var localSpeed = rangeSampler.NextVectorBetween(ref particle, particleSystemState, vecMin, vecMax);
-                velocity = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, localSpeed);
+                var basis = particleSystemState.GetControlPoint(controlPoint).GetBasisAtTime(particle.CreationTime);
+                velocity = Vector3.TransformNormal(localSpeed, basis);
             }
 
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);

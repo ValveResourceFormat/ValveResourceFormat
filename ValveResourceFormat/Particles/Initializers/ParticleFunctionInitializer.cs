@@ -25,6 +25,9 @@ namespace ValveResourceFormat.Particles.Initializers
         {
         }
 
+        /// <summary>Builds the running state when the system is created or replayed; <see cref="Reset"/> unless overridden.</summary>
+        public virtual void Initialize(ParticleSystemState particleSystemState) => Reset();
+
         /// <summary>Called when the system restarts; rebuilds the running state unless overridden.</summary>
         public virtual void Restart(ParticleSystemState particleSystemState) => Reset();
 

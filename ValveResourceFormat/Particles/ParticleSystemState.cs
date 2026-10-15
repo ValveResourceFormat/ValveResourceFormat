@@ -140,6 +140,15 @@ namespace ValveResourceFormat.Particles
         /// <summary>The scene lighting</summary>
         public IParticleLighting Lighting { get; set; } = IParticleLighting.Unlit;
 
+        /// <summary>
+        /// The control point the light in <see cref="TintCacheColor"/> was last sampled at for a random
+        /// colour tint, or -1 before any was. Child systems tinting by the same control point reuse it.
+        /// </summary>
+        internal int TintCacheControlPoint { get; set; } = -1;
+
+        /// <summary>The light last sampled at <see cref="TintCacheControlPoint"/>.</summary>
+        internal Vector3 TintCacheColor { get; set; }
+
         /// <summary>The world geometry the system's collision and ground placement trace against.</summary>
         public IParticleCollision Collision { get; set; } = IParticleCollision.None;
 
