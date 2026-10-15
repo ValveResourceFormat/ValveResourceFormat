@@ -141,6 +141,7 @@ namespace ValveResourceFormat.Particles
             // Below behavior version 6 the first writer of an attribute wins: a later initializer whose
             // declared write set is already fully initialized is skipped, up to firstMultipleOverride.
             var written = preWrittenFields;
+            systemState.InitializingParticles = true;
 
             foreach (var initializer in initializers)
             {
@@ -161,6 +162,8 @@ namespace ValveResourceFormat.Particles
                 initializer.Initialize(ref particleCollection.Current[index], particleCollection, systemState);
                 written |= fields;
             }
+
+            systemState.InitializingParticles = false;
 
             ref var emitted = ref particleCollection.Current[index];
 

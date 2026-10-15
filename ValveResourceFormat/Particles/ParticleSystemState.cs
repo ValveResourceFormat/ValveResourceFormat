@@ -57,6 +57,26 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         internal ParticleRandom Random { get; } = new();
 
+        /// <summary>
+        /// Whether the system is running its initializers over new particles. Inputs that read a
+        /// particle's initial value read its current one meanwhile, and particle numbers count spawns.
+        /// </summary>
+        internal bool InitializingParticles { get; set; }
+
+        /// <summary>
+        /// The state <paramref name="particle"/> was left in by its initializers, or the particle itself
+        /// while they still run or when no running system holds it.
+        /// </summary>
+        internal ref Particle InitialOf(ref Particle particle)
+        {
+            if (InitializingParticles || Data == null || (uint)particle.Index >= (uint)Data.Particles.Count)
+            {
+                return ref particle;
+            }
+
+            return ref Data.Particles.Initial[particle.Index];
+        }
+
         /// <summary>How many particles the system has spawned over its life.</summary>
         public long ParticleCount { get; set; }
         /// <summary>How long the system has been running, in seconds.</summary>
