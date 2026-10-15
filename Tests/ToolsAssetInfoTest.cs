@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat.ToolsAssetInfo;
@@ -9,7 +10,7 @@ namespace Tests
         [Test]
         public async Task ParseToolsAssetV16()
         {
-            var file = TestFixtures.Path("readonly_tools_asset_info_v16.bin");
+            var file = Path.Combine(TestContext.TestDirectory!, "Files", "readonly_tools_asset_info_v16.bin");
 
             var assetsInfo = new ToolsAssetInfo();
             assetsInfo.Read(file);
