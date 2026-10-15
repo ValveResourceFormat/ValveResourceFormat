@@ -31,12 +31,6 @@ namespace ValveResourceFormat.Particles.Utils
         public static float Square(float value) => value * value;
 
         /// <summary>
-        /// Raises <paramref name="x"/> to <paramref name="exponent"/> truncated toward zero to a
-        /// multiple of a quarter.
-        /// </summary>
-        public static float PowQuarter(float x, float exponent) => MathF.Pow(x, (int)(exponent * 4f) * 0.25f);
-
-        /// <summary>
         /// A subtraction from one and back, which the engine's alternate noise turbulence puts its
         /// target through. It is not an identity in floats: it moves about a third of inputs by a ulp.
         /// </summary>

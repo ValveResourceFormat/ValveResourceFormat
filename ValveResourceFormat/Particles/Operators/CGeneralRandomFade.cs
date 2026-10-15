@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             fadeTimeMin = parse.Float(fadeTimeKeyPrefix + "Min", fadeTimeMin);
             fadeTimeMax = parse.Float(fadeTimeKeyPrefix + "Max", fadeTimeMax);
-            randomExponent = Math.Clamp(parse.Float(fadeTimeKeyPrefix + "Exp", randomExponent), -255f, 255f);
+            randomExponent = parse.Float(fadeTimeKeyPrefix + "Exp", randomExponent);
             proportional = parse.Boolean("m_bProportional", proportional);
 
             if (randomFromZeroIsInstant && fadeTimeMin != fadeTimeMax && fadeTimeMin == 0f)
@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Particles.Operators
                 return fadeTimeMin;
             }
 
-            var draw = ParticleMath.PowQuarter(particleSystemState.Random.ForParticle(particle.ParticleId), randomExponent);
+            var draw = MathUtils.PowQuarterSteps(particleSystemState.Random.ForParticle(particle.ParticleId), randomExponent);
 
             return (draw * (fadeTimeMax - fadeTimeMin)) + fadeTimeMin;
         }

@@ -15,7 +15,8 @@ namespace ValveResourceFormat.Particles.Constraints
     /// planes through those hits, and a fast enough contact is confirmed by a real trace, which also adds
     /// its surface to the set.
     /// <see cref="ParticleCollisionMode.COLLISION_MODE_PER_PARTICLE_TRACE"/> traces each particle's
-    /// movement instead. <c>m_nCollisionModeMin</c> has no effect.
+    /// movement instead. A mode above the detail level drops to that level, though never below
+    /// <c>m_nCollisionModeMin</c>, and the lowest detail level disables collision unless that minimum asks for some.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_WorldTraceConstraint">C_OP_WorldTraceConstraint</seealso>
     class WorldTraceConstraint : ParticleFunctionConstraint
@@ -26,6 +27,7 @@ namespace ValveResourceFormat.Particles.Constraints
         private readonly int controlPoint;
         private readonly Vector3 controlPointOffset;
         private readonly ParticleCollisionMode collisionMode = ParticleCollisionMode.COLLISION_MODE_PER_PARTICLE_TRACE;
+        private readonly ParticleCollisionMode collisionModeMin = ParticleCollisionMode.COLLISION_MODE_DISABLED;
         private readonly float controlPointMovementTolerance = 5f;
         private readonly float retestRate = -1f;
         private readonly float confirmationSpeed = 24f;
@@ -47,6 +49,8 @@ namespace ValveResourceFormat.Particles.Constraints
             controlPoint = parse.Int32("m_nCP", controlPoint);
             controlPointOffset = parse.Vector3("m_vecCpOffset", controlPointOffset);
             collisionMode = parse.Enum("m_nCollisionMode", collisionMode);
+            collisionModeMin = parse.Enum("m_nCollisionModeMin", collisionModeMin);
+            collisionModeMin = collisionModeMin < collisionMode ? collisionModeMin : collisionMode;
             controlPointMovementTolerance = parse.Float("m_flCpMovementTolerance", controlPointMovementTolerance);
             retestRate = parse.Float("m_flRetestRate", retestRate);
             confirmationSpeed = parse.Float("m_flCollisionConfirmationSpeed", confirmationSpeed);
@@ -67,15 +71,16 @@ namespace ValveResourceFormat.Particles.Constraints
         public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState)
         {
             var collision = particleSystemState.Collision;
+            var mode = GetEffectiveCollisionMode(particleSystemState.DetailLevel);
 
-            if (collisionMode == ParticleCollisionMode.COLLISION_MODE_DISABLED || !collision.HasGeometry)
+            if (mode == ParticleCollisionMode.COLLISION_MODE_DISABLED || !collision.HasGeometry)
             {
                 return false;
             }
 
-            var planeSet = collisionMode == ParticleCollisionMode.COLLISION_MODE_PER_PARTICLE_TRACE
+            var planeSet = mode == ParticleCollisionMode.COLLISION_MODE_PER_PARTICLE_TRACE
                 ? null
-                : RefreshPlaneSet(collision, particleSystemState);
+                : RefreshPlaneSet(collision, mode, particleSystemState);
 
             var hitAny = false;
             var confirmations = 0;
@@ -180,15 +185,31 @@ namespace ValveResourceFormat.Particles.Constraints
             return hitAny;
         }
 
-        private CollisionPlaneSet RefreshPlaneSet(IParticleCollision collision, ParticleSystemState particleSystemState)
+        private ParticleCollisionMode GetEffectiveCollisionMode(ParticleDetailLevel detailLevel)
         {
-            var planeSet = particleSystemState.CollisionPlaneSets[(int)collisionMode] ??= new CollisionPlaneSet();
+            var levelMode = (ParticleCollisionMode)detailLevel;
+
+            if (detailLevel == ParticleDetailLevel.PARTICLEDETAIL_LOW)
+            {
+                levelMode = ParticleCollisionMode.COLLISION_MODE_DISABLED;
+            }
+            else if (collisionMode <= levelMode)
+            {
+                return collisionMode;
+            }
+
+            return collisionModeMin > levelMode ? collisionModeMin : levelMode;
+        }
+
+        private CollisionPlaneSet RefreshPlaneSet(IParticleCollision collision, ParticleCollisionMode mode, ParticleSystemState particleSystemState)
+        {
+            var planeSet = particleSystemState.CollisionPlaneSets[(int)mode] ??= new CollisionPlaneSet();
 
             var lastRefresh = planeSet.LastRefreshTime;
             var force = lastRefresh == -1f || (retestRate >= 0f && particleSystemState.Age > retestRate + lastRefresh);
             var origin = particleSystemState.GetControlPoint(controlPoint).Position + controlPointOffset;
 
-            planeSet.Refresh(collision, collisionMode, origin, controlPointMovementTolerance, force, particleSystemState.Age);
+            planeSet.Refresh(collision, mode, origin, controlPointMovementTolerance, force, particleSystemState.Age);
 
             return planeSet;
         }
