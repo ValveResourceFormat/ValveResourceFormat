@@ -18,7 +18,7 @@ namespace GUI.Types.Exporter
             var currentPackage = vrfGuiContext.CurrentPackage;
             if (currentPackage == null)
             {
-                Log.Error(nameof(ExportFile), "CurrentPackage is null, cannot extract file");
+                ErrorReport.ShowError(new InvalidOperationException("The package is not available, cannot extract file"), file.GetFullPath());
                 return;
             }
 
@@ -88,7 +88,7 @@ namespace GUI.Types.Exporter
 
                 if (extension == null)
                 {
-                    Log.Error(nameof(ExportFile), $"Export for \"{fileName}\" has no suitable extension");
+                    await AppMessageDialogs.ShowMessageAsync($"Exporting \"{fileName}\" is not supported.", "Failed to export", MessageIcon.Warning).ConfigureAwait(true);
                     return;
                 }
 

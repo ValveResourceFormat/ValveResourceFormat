@@ -1,7 +1,9 @@
 using System.Collections.Frozen;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -55,6 +57,8 @@ namespace GUI.Types.Exporter
         private string? lastCreatedDirectory;
         private int processed;
         private int filesFailedToExport;
+        private Exception? firstFailure;
+        private string? firstFailedFile;
         private GenericProgressForm? progress;
         private GltfModelExporter? gltfExporter;
 
@@ -175,7 +179,8 @@ namespace GUI.Types.Exporter
 
                 if (filesFailedToExport > 0)
                 {
-                    completedText += $", {filesFailedToExport} file{(filesFailedToExport == 1 ? "" : "s")} failed";
+                    var noun = filesFailedToExport == 1 ? "file" : "files";
+                    completedText += string.Create(CultureInfo.InvariantCulture, $", {filesFailedToExport} {noun} failed");
                 }
 
                 Log.Info(nameof(PackageExporter), completedText);
@@ -193,13 +198,46 @@ namespace GUI.Types.Exporter
         {
             await workCompletion.ConfigureAwait(true);
 
-            if (filesFailedToExport > 0)
+            if (filesFailedToExport == 0)
             {
-                _ = AppMessageDialogs.ShowMessageAsync(
-                    $"{filesFailedToExport} file{(filesFailedToExport == 1 ? "" : "s")} failed to extract, see the console for details.",
-                    "Export finished with errors",
-                    MessageIcon.Warning);
+                return;
             }
+
+            try
+            {
+                ShowFailureSummary();
+            }
+            catch (Exception e)
+            {
+                Log.Error(nameof(PackageExporter), $"Failed to show the export failure summary: {e}");
+            }
+        }
+
+        private void ShowFailureSummary()
+        {
+            Debug.Assert(firstFailure != null && firstFailedFile != null);
+
+            var noun = filesFailedToExport == 1 ? "file" : "files";
+            var text = new StringBuilder();
+            text.AppendLine(CultureInfo.InvariantCulture, $"{filesFailedToExport} {noun} failed to export, the first one was:");
+            text.AppendLine(firstFailedFile);
+            text.AppendLine(firstFailure.Message);
+
+            if (filesFailedToExport > 1)
+            {
+                var others = filesFailedToExport == 2 ? "failure is" : "failures are";
+                text.AppendLine();
+                text.AppendLine(CultureInfo.InvariantCulture, $"The other {others} listed in the console.");
+            }
+
+            // The context is either the package, or a file opened from it which already names the file
+            var guiContext = exportData.VrfGuiContext;
+            var context = firstFailedFile == guiContext.FileName ? guiContext.DisplayPath : $"{firstFailedFile} ← {guiContext.DisplayPath}";
+
+            var report = new StringBuilder();
+            ErrorReport.AppendExceptionWithVersion(report, firstFailure, context);
+
+            ErrorReport.ShowDialog("Some files failed to export", text.ToString().TrimEnd(), report.ToString());
         }
 
         private DialogResult ShowTypesDialog()
@@ -288,7 +326,7 @@ namespace GUI.Types.Exporter
 
             if (currentPackage == null)
             {
-                Log.Error(nameof(PackageExporter), "CurrentPackage is null, cannot extract files");
+                ReportFailure(exportData.VrfGuiContext.FileName, new InvalidOperationException("The package is not available, cannot extract files"));
                 return;
             }
 
@@ -373,6 +411,13 @@ namespace GUI.Types.Exporter
         private void ReportFailure(string fileName, Exception exception)
         {
             filesFailedToExport++;
+
+            if (firstFailure == null)
+            {
+                firstFailure = exception;
+                firstFailedFile = fileName;
+            }
+
             Log.Error(nameof(PackageExporter), $"Failed to extract '{fileName}': {exception}");
         }
 
@@ -384,7 +429,7 @@ namespace GUI.Types.Exporter
             {
                 if (gltfExporter == null)
                 {
-                    Log.Error(nameof(PackageExporter), "gltfExporter is null, cannot export to glTF format");
+                    ReportFailure(inFilePath, new InvalidOperationException("The glTF exporter is not available"));
                     return;
                 }
 
@@ -493,7 +538,7 @@ namespace GUI.Types.Exporter
 
                 if (contentSubFile.Extract == null)
                 {
-                    Log.Error(nameof(PackageExporter), $"Extract function is null for subfile '{contentSubFile.FileName}'");
+                    ReportFailure(contentSubFile.FileName, new InvalidOperationException("The subfile has no extract function"));
                     continue;
                 }
 
@@ -502,7 +547,7 @@ namespace GUI.Types.Exporter
                 {
                     subFileData = contentSubFile.Extract.Invoke();
                 }
-                catch (Exception e)
+                catch (Exception e) when (e is not OperationCanceledException)
                 {
                     ReportFailure(contentSubFile.FileName, e);
                     continue;
