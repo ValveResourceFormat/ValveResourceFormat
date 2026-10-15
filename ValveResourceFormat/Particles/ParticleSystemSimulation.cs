@@ -29,6 +29,9 @@ namespace ValveResourceFormat.Particles
 
         private readonly List<ParticleFunctionOperator> operators = [];
 
+        /// <summary>The enabled operators, in the order they run.</summary>
+        internal IReadOnlyList<ParticleFunctionOperator> Operators => operators;
+
         // Run by C_OP_BasicMovement (not the operator loop): each of its instances asks every force
         // generator to add accelerations into Particle.ForceAccumulator, then integrates and clears it.
         internal readonly List<ParticleFunctionForceGenerator> ForceGenerators = [];
