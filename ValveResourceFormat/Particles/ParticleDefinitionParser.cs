@@ -279,6 +279,10 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     return new LiteralNumberProvider(pfParameters.GetFloatProperty("m_flLiteralValue"));
             }
         }
+        else if (pfParameters.ValueType == KVValueType.String && string.IsNullOrEmpty((string)pfParameters))
+        {
+            return null;
+        }
         else
         {
             return new LiteralNumberProvider((float)pfParameters);
