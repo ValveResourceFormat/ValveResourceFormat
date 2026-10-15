@@ -1,5 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <PackageReference Include="SteamKit2" Version="3.4.0" />
-  </ItemGroup>
-</Project>
