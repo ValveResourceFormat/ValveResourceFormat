@@ -1883,11 +1883,17 @@ public class Renderer : ISpawnGroupHost
     /// <param name="framebuffer">What is drawn into, the size of the scene.</param>
     /// <param name="shader">The shader every draw is made with.</param>
     /// <param name="nodes">The nodes to draw. Those the last frame did not draw are left out.</param>
-    public void RenderNodes(Framebuffer framebuffer, Shader shader, IReadOnlySet<SceneNode> nodes)
+    /// <returns>Whether anything was drawn.</returns>
+    public bool RenderNodes(Framebuffer framebuffer, Shader shader, IReadOnlySet<SceneNode> nodes)
     {
         ArgumentNullException.ThrowIfNull(framebuffer);
         ArgumentNullException.ThrowIfNull(shader);
         ArgumentNullException.ThrowIfNull(nodes);
+
+        if (nodes.Count == 0)
+        {
+            return false;
+        }
 
         var renderContext = new Scene.RenderContext
         {
@@ -1902,6 +1908,7 @@ public class Renderer : ISpawnGroupHost
         SetViewportConstants(framebuffer.Width, framebuffer.Height, Vector2.One);
 
         var views = CollectViews(Camera);
+        var drewAny = false;
 
         // Backwards, so the sky is drawn first
         for (var i = views.Length - 1; i >= 0; i--)
@@ -1911,9 +1918,11 @@ public class Renderer : ISpawnGroupHost
             for (var j = states.Count - 1; j >= 0; j--)
             {
                 DrawThrough(views[i], states[j], ref renderContext);
-                states[j].RenderNodes(renderContext, nodes);
+                drewAny |= states[j].RenderNodes(renderContext, nodes);
             }
         }
+
+        return drewAny;
     }
 
     /// <summary>

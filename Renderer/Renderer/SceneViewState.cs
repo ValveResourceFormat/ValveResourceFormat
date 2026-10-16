@@ -105,9 +105,6 @@ public sealed class SceneViewState : IDisposable
     /// <summary>Surfaces drawn over the resolved opaque scene, for <see cref="RenderTranslucentDepthLayer"/>.</summary>
     private readonly List<MeshBatchRenderer.Request> translucentDepthDraws = [];
 
-    /// <summary>Fragments their aggregate draws all at once, kept so <see cref="RenderNodes"/> can draw one alone.</summary>
-    private readonly List<MeshBatchRenderer.Request> indirectFragmentDraws = [];
-
     /// <summary>The draws of the nodes given to <see cref="RenderNodes"/>.</summary>
     private readonly List<MeshBatchRenderer.Request> nodeDraws = [];
 
@@ -231,9 +228,8 @@ public sealed class SceneViewState : IDisposable
         if (renderPass == RenderPass.OpaqueFragments)
         {
             // Skip individual fragment draws if aggregate can be drawn with indirect draw
-            if (Scene.DrawMeshletsIndirect && request.Node is SceneAggregate.Fragment { Parent.CanDrawIndirect: true })
+            if (IsDrawnByAggregate(request.Node))
             {
-                indirectFragmentDraws.Add(request);
                 return;
             }
 
@@ -307,7 +303,6 @@ public sealed class SceneViewState : IDisposable
         alphaTestAggregateDraws.Clear();
         alphaTestOpaqueDraws.Clear();
         translucentDepthDraws.Clear();
-        indirectFragmentDraws.Clear();
 
         foreach (var bucket in depthOnlyDraws.Values)
         {
@@ -960,17 +955,13 @@ public sealed class SceneViewState : IDisposable
     /// </summary>
     /// <param name="renderContext">The render context, with the shader to draw with.</param>
     /// <param name="nodes">The nodes to draw.</param>
-    public void RenderNodes(Scene.RenderContext renderContext, IReadOnlySet<SceneNode> nodes)
+    /// <returns>Whether anything was drawn.</returns>
+    public bool RenderNodes(Scene.RenderContext renderContext, IReadOnlySet<SceneNode> nodes)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         Debug.Assert(renderContext.ReplacementShader != null);
 
         nodeDraws.Clear();
-
-        if (nodes.Count == 0)
-        {
-            return;
-        }
 
         foreach (var requests in renderLists.Values)
         {
@@ -984,32 +975,51 @@ public sealed class SceneViewState : IDisposable
 
         AddNodeDraws(alphaTestAggregateDraws, nodes);
         AddNodeDraws(alphaTestOpaqueDraws, nodes);
-        AddNodeDraws(indirectFragmentDraws, nodes);
+
+        // Listed once each, unlike their requests, which are queued in every pass they draw in
+        foreach (var node in customBufferNodes)
+        {
+            if (nodes.Contains(node))
+            {
+                nodeDraws.Add(new MeshBatchRenderer.Request { Node = node });
+            }
+        }
+
+        // Fragments drawn by their aggregate have no draws of their own queued
+        foreach (var node in nodes)
+        {
+            if (IsDrawnByAggregate(node) && node is SceneAggregate.Fragment fragment
+                && aggregatesWithVisibleFragments.Contains(fragment.Parent) && fragment.Parent.IsFragmentInActiveLod(fragment)
+                && !Scene.IsHiddenToolsMaterial(fragment.DrawCall.Material, fragment))
+            {
+                nodeDraws.Add(new MeshBatchRenderer.Request { Mesh = fragment.RenderMesh, Call = fragment.DrawCall, Node = fragment });
+            }
+        }
+
+        if (nodeDraws.Count == 0)
+        {
+            return false;
+        }
 
         renderContext.RenderPass = RenderPass.All;
         MeshBatchRenderer.Render(nodeDraws, renderContext);
+
+        return true;
     }
 
     private void AddNodeDraws(List<MeshBatchRenderer.Request> requests, IReadOnlySet<SceneNode> nodes)
     {
         foreach (var request in requests)
         {
-            if (!nodes.Contains(request.Node))
+            if (request.Call != null && nodes.Contains(request.Node))
             {
-                continue;
+                nodeDraws.Add(request);
             }
-
-            // A node that draws itself is queued in every pass it draws in, but draws all of itself at once
-            var node = request.Node;
-
-            if (request.Call == null && nodeDraws.Exists(draw => draw.Node == node))
-            {
-                continue;
-            }
-
-            nodeDraws.Add(request);
         }
     }
+
+    private bool IsDrawnByAggregate(SceneNode node)
+        => Scene.DrawMeshletsIndirect && node is SceneAggregate.Fragment { Parent.CanDrawIndirect: true };
 
     /// <inheritdoc/>
     public void Dispose()
