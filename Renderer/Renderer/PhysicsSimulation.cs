@@ -142,6 +142,50 @@ public sealed class PhysicsSimulation : IDisposable
     }
 
     /// <summary>
+    /// Shortens a reach along a ray so that a body held at its end fits in front of the world and
+    /// the movers there, rather than being asked to stand inside them. Other props are left out:
+    /// they get pushed aside.
+    /// </summary>
+    /// <param name="from">Ray start, the eyes.</param>
+    /// <param name="direction">Normalized ray direction.</param>
+    /// <param name="reach">How far along the ray the body would like to be held.</param>
+    /// <param name="body">The held body, whose bounds say how much room it needs.</param>
+    /// <returns>The reach, shortened when the ray meets something first.</returns>
+    public float ClearReach(Vector3 from, Vector3 direction, float reach, Body body)
+    {
+        Span<Shape> shapes = stackalloc Shape[body.ShapeCount];
+        var count = body.GetShapes(shapes);
+
+        if (count == 0)
+        {
+            return reach;
+        }
+
+        var bounds = shapes[0].Bounds;
+
+        for (var i = 1; i < count; i++)
+        {
+            bounds = bounds.Union(shapes[i].Bounds);
+        }
+
+        // How far the body's bounds stick out toward what the ray meets
+        var extent = Vector3.Dot(Vector3.Abs(direction), bounds.Extents);
+
+        var hit = World.RaycastClosest(from, direction * (reach + extent),
+            new QueryFilter(PlayerCategory, StaticCategory | MoverCategory));
+
+        if (!hit.Hit)
+        {
+            return reach;
+        }
+
+        return MathF.Min(reach, MathF.Max(Vector3.Distance(from, hit.Point) - extent, MinClearReach));
+    }
+
+    // However cramped, a held body is not pulled into the carrier's face
+    private const float MinClearReach = 16f;
+
+    /// <summary>
     /// Density conversion from the surface table to the solver. The table speaks kilograms per
     /// cubic meter, but shape volumes integrate in map units, so the density must come down by
     /// the cubed unit scale - otherwise every prop weighs tens of thousands of times too much

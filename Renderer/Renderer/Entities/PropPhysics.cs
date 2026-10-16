@@ -5,11 +5,12 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// A physically simulated prop, Source's <c>CPhysicsProp</c>: it falls, tumbles, and gets shoved by
-/// the player. The model and its collision shape come from <see cref="BaseModelEntity"/>; the movement comes from a dynamic body in
+/// A physically simulated prop, Source's <c>CPhysicsProp</c>: it falls, tumbles, gets shoved by the
+/// player, and can be picked up and carried with +USE the way Half-Life 2 does it. The model and its
+/// collision shape come from <see cref="BaseModelEntity"/>; the movement comes from a dynamic body in
 /// <see cref="PhysicsSimulation"/> whose pose the entity adopts every tick.
 /// </summary>
-public sealed class PropPhysics : BaseModelEntity
+public sealed class PropPhysics : BaseModelEntity, ICarryable
 {
     /// <summary>The <c>spawnflags</c> a physics prop reads, Source's <c>SF_PHYSPROP_*</c>.</summary>
     [Flags]
@@ -19,10 +20,14 @@ public sealed class PropPhysics : BaseModelEntity
         StartAsleep = 1,
 
         /// <summary>
-        /// The prop does not simulate until something enables its motion. Until then it stands as
-        /// a static obstacle other props collide with.
+        /// The prop does not simulate until something enables its motion; being grabbed counts,
+        /// the way the gravity gloves free a pinned prop. Until then it stands as a static
+        /// obstacle other props collide with.
         /// </summary>
         MotionDisabled = 8,
+
+        /// <summary>The player can never pick this prop up, as authored.</summary>
+        PreventPickup = 512,
     }
 
     /// <summary>Gets the rigid body simulating this prop. Only meaningful while <see cref="HasBody"/>.</summary>
@@ -33,6 +38,38 @@ public sealed class PropPhysics : BaseModelEntity
 
     /// <summary>Gets whether a rigid body was built; a prop whose model carries no collision has none.</summary>
     public bool HasBody { get; private set; }
+
+    /// <summary>
+    /// Gets whether the player can pick this prop up: it has a body, and the map did not forbid
+    /// it. A motion-disabled prop counts - grabbing it is what enables its motion, the way the
+    /// gravity gloves free a prop pinned in place.
+    /// </summary>
+    public bool CanBeCarried => HasBody && !HasSpawnFlags(PropSpawnFlags.PreventPickup);
+
+    /// <summary>Gets the player carrying this prop, or <see langword="null"/> when nobody is.</summary>
+    public PlayerEntity? Carrier { get; private set; }
+
+    // The carry steers the whole prop: its one body, orientation and all
+    Body ICarryable.CarryBody => body;
+
+    void ICarryable.BeginCarry(PlayerEntity carrier, float carryDistance, Body grabbedBody)
+        => BeginCarry(carrier, carryDistance);
+
+    (Vector3 Position, Quaternion? Rotation) ICarryable.ComputeHoldPose() => ComputeHoldPose();
+
+    void ICarryable.AdoptCarryRotation(float fraction) => AdoptCarryRotation(fraction);
+
+    /// <summary>Gets whether the player is carrying this prop right now.</summary>
+    public bool IsCarried => Carrier != null;
+
+    /// <summary>Gets how far ahead of the eyes the mass center is held while carried.</summary>
+    public float CarryDistance { get; private set; }
+
+    // The grab in the body's frame: where the mass center sits (the hold point steers the mass
+    // center, not the body origin, so the prop hangs centered under the crosshair) and how the body
+    // was oriented relative to the view when grabbed
+    private Vector3 carryLocalMassCenter;
+    private Quaternion carryRelativeRotation;
 
     // The body's sleep state as of the last tick, for the OnAwakened edge
     private bool wasAwake;
@@ -98,7 +135,7 @@ public sealed class PropPhysics : BaseModelEntity
     [EntityInput("Sleep")]
     private void InputSleep(EntityInputData data)
     {
-        if (HasBody)
+        if (HasBody && !IsCarried)
         {
             body.IsAwake = false;
         }
@@ -118,7 +155,7 @@ public sealed class PropPhysics : BaseModelEntity
     [EntityInput("DisableMotion")]
     private void InputDisableMotion(EntityInputData data)
     {
-        if (HasBody)
+        if (HasBody && !IsCarried)
         {
             body.Type = BodyType.Static;
         }
@@ -162,6 +199,70 @@ public sealed class PropPhysics : BaseModelEntity
         }
     }
 
+    /// <summary>
+    /// Puts the prop in the player's hands: gravity lets go, the pushing body stops colliding with
+    /// it, and the carry logic in <see cref="PlayerEntity"/> starts steering the body.
+    /// </summary>
+    /// <param name="carrier">The player doing the carrying.</param>
+    /// <param name="carryDistance">How far ahead of the eyes the mass center is held.</param>
+    public void BeginCarry(PlayerEntity carrier, float carryDistance)
+    {
+        // Grabbing a motion-disabled prop enables its motion, permanently: once freed it stays a
+        // simulating body, which is what the engine's EnableMotion on grab amounts to
+        if (body.Type != BodyType.Dynamic)
+        {
+            body.Type = BodyType.Dynamic;
+            EntitySystem.TriggerOutput(this, "OnMotionEnabled", carrier);
+        }
+
+        EntitySystem.TriggerOutput(this, "OnPlayerPickup", carrier);
+
+        Carrier = carrier;
+        CarryDistance = carryDistance;
+        carryLocalMassCenter = body.LocalCenterOfMass;
+        carryRelativeRotation = Quaternion.Inverse(ViewRotation(carrier.GetHoldView().ViewAngles)) * body.Rotation;
+
+        // Off the pushing body, so the held prop cannot wedge against its carrier
+        SetCollidesWithPlayer(false);
+
+        body.GravityScale = 0f;
+        body.CanSleep = false;
+        body.IsAwake = true;
+    }
+
+    /// <summary>
+    /// Lets go of the prop, restoring gravity and collision. The body keeps whatever velocity the
+    /// carry left it with, which is how a walking or turning player lends the prop their motion.
+    /// </summary>
+    public void EndCarry()
+    {
+        Carrier = null;
+        SetCollidesWithPlayer(true);
+
+        body.GravityScale = 1f;
+        body.CanSleep = true;
+        body.IsAwake = true;
+
+        // Back to plain interpolation next frame; snapping the history trims the one-frame hop
+        // from the camera-glued pose to the tick-lagged one when dropped mid-stride
+        SnapInterpolation();
+    }
+
+    /// <summary>
+    /// Relaxes the grip part way toward the body's current orientation, for when the world is
+    /// twisting the held prop away from the hold rotation: the twist gradually becomes the
+    /// carried orientation instead of an error the carry keeps fighting. Only the chase target
+    /// moves - the drawing reads the body itself - so nothing visible jumps.
+    /// </summary>
+    /// <param name="fraction">How much of the way to the body's orientation the grip moves.</param>
+    internal void AdoptCarryRotation(float fraction)
+    {
+        var view = ViewRotation(Carrier!.GetHoldView().ViewAngles);
+
+        carryRelativeRotation = Quaternion.Slerp(carryRelativeRotation,
+            Quaternion.Inverse(view) * body.Rotation, fraction);
+    }
+
     /// <inheritdoc/>
     protected override bool UpdatesRenderTransformEveryFrame => HasBody;
 
@@ -173,13 +274,68 @@ public sealed class PropPhysics : BaseModelEntity
     /// </summary>
     protected override void UpdateRenderTransform(float fraction)
     {
-        if (HasBody && body.IsAwake)
+        if (HasBody && (IsCarried || body.IsAwake))
         {
             SetRenderTransform(body.Position, body.Rotation);
             return;
         }
 
         base.UpdateRenderTransform(fraction);
+    }
+
+    /// <summary>
+    /// Where the carried body belongs, by the carrier's hold view.
+    /// </summary>
+    internal (Vector3 Position, Quaternion Rotation) ComputeHoldPose()
+    {
+        var (eyePosition, forward, viewAngles) = Carrier!.GetHoldView();
+
+        return ComputeHoldPose(eyePosition, forward, viewAngles);
+    }
+
+    /// <summary>
+    /// Where the carried body belongs for a given view: the mass center on the eye ray at the
+    /// carry distance, the grab orientation turned with the view. The distance shortens to keep
+    /// the prop in front of the world and the movers the ray meets, and lengthens again as room
+    /// opens, so aiming at the floor or into a wall holds the prop against it rather than asking
+    /// for a pose inside. Other props on the ray are not avoided; the carry pushes them aside.
+    /// </summary>
+    private (Vector3 Position, Quaternion Rotation) ComputeHoldPose(Vector3 eyePosition, Vector3 forward, Vector3 viewAngles)
+    {
+        var rotation = ViewRotation(viewAngles) * carryRelativeRotation;
+
+        // Offsetting by the rotated local mass center is what puts the *center* of the prop under
+        // the crosshair, wherever its body origin happens to sit. The body's own rotation, not the
+        // target's: while the turn is still catching up, aiming the origin with the target
+        // rotation would push the actual mass center off the ray and set position and rotation
+        // fighting each other.
+        var reach = EntitySystem.Physics.ClearReach(eyePosition, forward, CarryDistance, body);
+        var position = eyePosition + forward * reach
+            - Vector3.Transform(carryLocalMassCenter, body.Rotation);
+
+        return (position, rotation);
+    }
+
+    /// <summary>
+    /// The view as a rotation, pitch and yaw only, so a carried prop turns with the whole view
+    /// the way the gravgun's held objects do. Built from the view angles rather than the forward
+    /// vector: a reconstructed yaw degenerates looking straight down, and the whipping target
+    /// rotation used to spin the carried prop there.
+    /// </summary>
+    internal static Quaternion ViewRotation(Vector3 viewAngles)
+        => EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(viewAngles.X, viewAngles.Y, 0f));
+
+    private void SetCollidesWithPlayer(bool collide)
+    {
+        var collidesWith = collide ? ulong.MaxValue : ulong.MaxValue & ~PhysicsSimulation.PlayerCategory;
+
+        Span<Shape> shapes = stackalloc Shape[body.ShapeCount];
+        var count = body.GetShapes(shapes);
+
+        for (var i = 0; i < count; i++)
+        {
+            shapes[i].SetFilter(new CollisionFilter(PhysicsSimulation.PropCategory, collidesWith, 0), recomputeContacts: true);
+        }
     }
 
     /// <inheritdoc/>
