@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Threading;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
@@ -53,6 +54,7 @@ namespace ValveResourceFormat.ResourceTypes
         public Morph? MorphData { get; set; }
 
         private int? cachedBoneWeightCount;
+        private readonly Lock MorphDataLock = new();
 
         /// <summary>
         /// Gets how many bone weights each vertex carries, or zero when the mesh is not skinned.
@@ -235,16 +237,19 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="fileLoader">The file loader to use.</param>
         public void LoadExternalMorphData(IFileLoader fileLoader)
         {
-            if (MorphData == null)
+            lock (MorphDataLock)
             {
-                var morphSetPath = Data.GetStringProperty("m_morphSet");
-                if (!string.IsNullOrEmpty(morphSetPath))
+                if (MorphData == null)
                 {
-                    var morphSetResource = fileLoader.LoadFileCompiled(morphSetPath);
-                    if (morphSetResource != null)
+                    var morphSetPath = Data.GetStringProperty("m_morphSet");
+                    if (!string.IsNullOrEmpty(morphSetPath))
                     {
-                        // A standalone vmorf_c keeps the morph set in its DATA block, an embedded one in MRPH.
-                        MorphData = (morphSetResource.GetBlockByType(BlockType.MRPH) ?? morphSetResource.DataBlock) as Morph;
+                        var morphSetResource = fileLoader.LoadFileCompiled(morphSetPath);
+                        if (morphSetResource != null)
+                        {
+                            // A standalone vmorf_c keeps the morph set in its DATA block, an embedded one in MRPH.
+                            MorphData = (morphSetResource.GetBlockByType(BlockType.MRPH) ?? morphSetResource.DataBlock) as Morph;
+                        }
                     }
                 }
             }

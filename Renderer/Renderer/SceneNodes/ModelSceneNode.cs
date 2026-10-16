@@ -387,7 +387,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             foreach (var embeddedMesh in model.GetEmbeddedMeshes())
             {
                 embeddedMesh.Mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
-                model.SetExternalMorphData(embeddedMesh.Mesh.MorphData);
+                model.SetExternalMorphData(embeddedMesh.Mesh.MorphData, embeddedMesh.MeshIndex);
 
                 meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
             }
@@ -401,7 +401,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
 
                 mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
-                model.SetExternalMeshData(mesh);
+                model.SetExternalMeshData(mesh, refMesh.MeshIndex);
 
                 meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable));
             }

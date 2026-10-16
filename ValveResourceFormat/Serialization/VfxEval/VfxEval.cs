@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Serialization.VfxEval
@@ -190,7 +191,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private readonly Stack<uint> OffsetAtBranchExits = new();
         private readonly Dictionary<uint, string> LocalVariableNames = [];
 
-        // Names as spelled in this material, the global string token table is only a fallback
+        // Names as spelled in the expression's material or shader, the built-in string token table is only a fallback
         private readonly Dictionary<uint, string> TokenNames = [];
 
         /// <summary>
@@ -216,8 +217,10 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// <param name="omitReturnStatement">Whether to omit the return statement in the output.</param>
         /// <param name="features">The list of features.</param>
         /// <param name="enumMapper">The enum mapper function.</param>
-        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string>? features = null, Func<int, string>? enumMapper = null)
-            : this(binaryBlob, [], omitReturnStatement, features, enumMapper)
+        /// <param name="knownNames">Names the expression's attributes and parameters may have, such as the variables of its shader.</param>
+        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string>? features = null, Func<int, string>? enumMapper = null,
+            IEnumerable<string>? knownNames = null)
+            : this(binaryBlob, [], omitReturnStatement, features, enumMapper, knownNames)
         {
         }
 
@@ -229,20 +232,28 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// <param name="omitReturnStatement">Whether to omit the return statement in the output.</param>
         /// <param name="features">The list of features.</param>
         /// <param name="enumMapper">The enum mapper function.</param>
+        /// <param name="knownNames">Names the expression's attributes and parameters may have besides <paramref name="renderAttributesUsed"/>, such as those of its material.</param>
         public VfxEval(byte[] binaryBlob, IReadOnlyList<string> renderAttributesUsed,
             bool omitReturnStatement = false,
             IReadOnlyList<string>? features = null,
-            Func<int, string>? enumMapper = null)
+            Func<int, string>? enumMapper = null,
+            IEnumerable<string>? knownNames = null)
         {
             OmitReturnStatement = omitReturnStatement;
             Features = features;
             EnumMapper = enumMapper;
             RenderAttributesUsed = renderAttributesUsed;
 
-            foreach (var name in renderAttributesUsed)
+            foreach (var name in renderAttributesUsed.Concat(knownNames ?? []))
             {
-                TokenNames.TryAdd(StringToken.Store(name), name);
+                TokenNames.TryAdd(StringToken.Get(name), name);
+
+                if (VfxVariableDescription.GetNameWithoutTypePrefix(name) is { } unprefixedName)
+                {
+                    TokenNames.TryAdd(StringToken.Get(unprefixedName), unprefixedName);
+                }
             }
+
             ParseExpression(binaryBlob);
         }
 
@@ -467,7 +478,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private string ReadTokenName(BinaryReader dataReader, string unknownPrefix)
         {
             var token = dataReader.ReadUInt32();
-            return TokenNames.GetValueOrDefault(token) ?? StringToken.InvertedTable.GetValueOrDefault(token) ?? $"{unknownPrefix}[{token:x08}]";
+            return TokenNames.GetValueOrDefault(token) ?? StringToken.BuiltInTable.GetValueOrDefault(token) ?? $"{unknownPrefix}[{token:x08}]";
         }
 
         // A literal only names a value where an expression's value becomes the value of the whole

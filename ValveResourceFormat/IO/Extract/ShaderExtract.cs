@@ -104,6 +104,7 @@ public sealed class ShaderExtract
     public VfxProgramData? Raytracing => Shaders.Raytracing;
 
     private readonly string[] FeatureNames;
+    private readonly string[] VariableNames;
     private HashSet<string> VariantParameterNames = [];
     private HashSet<int> VariantParameterIndices = [];
 
@@ -123,6 +124,7 @@ public sealed class ShaderExtract
         }
 
         FeatureNames = [.. Features.StaticComboArray.Select(f => f.Name)];
+        VariableNames = [.. Shaders.SelectMany(program => program.VariableDescriptions).Select(variable => variable.Name)];
     }
 
     /// <summary>
@@ -936,6 +938,8 @@ public sealed class ShaderExtract
     private HashSet<string> GetStaticComboAttributes(VfxStaticComboData staticCombo, VfxVariableDescription[] variableDescriptions)
     {
         var attributes = new HashSet<string>(staticCombo.Attributes.Length);
+        string[]? expressionNames = null;
+
         foreach (var attribute in staticCombo.Attributes)
         {
             var type = ShaderUtilHelpers.GetVfxVariableTypeString(attribute.VfxType);
@@ -962,7 +966,8 @@ public sealed class ShaderExtract
             }
             else if (attribute.DynExpression!.Length > 0)
             {
-                value = new VfxEval(attribute.DynExpression, omitReturnStatement: true, features: FeatureNames).DynamicExpressionResult!;
+                expressionNames ??= [.. VariableNames, .. staticCombo.Attributes.Select(comboAttribute => comboAttribute.Name)];
+                value = new VfxEval(attribute.DynExpression, omitReturnStatement: true, features: FeatureNames, knownNames: expressionNames).DynamicExpressionResult!;
             }
             else
             {
@@ -1276,7 +1281,7 @@ public sealed class ShaderExtract
         string enumMapper(int v) => enumSource is null ? v.ToString(CultureInfo.InvariantCulture) : ShaderUtilHelpers.GetEnumName(enumSource, v);
 
         var stateValue = param.CompiledExpression.Length > 0
-            ? new VfxEval(param.CompiledExpression, omitReturnStatement: true, features: FeatureNames, enumMapper: enumMapper).DynamicExpressionResult
+            ? new VfxEval(param.CompiledExpression, omitReturnStatement: true, features: FeatureNames, enumMapper: enumMapper, knownNames: VariableNames).DynamicExpressionResult
             : enumMapper(param.IntDefs[0]);
 
         if (param.RegisterType == VfxRegisterType.RenderState)
@@ -1378,13 +1383,13 @@ public sealed class ShaderExtract
 
         if (param.CompiledExpression.Length > 0)
         {
-            var dynEx = GetDynamicExpressionStringShared(param.CompiledExpression, param, writer, FeatureNames);
+            var dynEx = GetDynamicExpressionStringShared(param.CompiledExpression, param, writer);
             annotations.Add($"Expression({dynEx});");
         }
 
         if (param.UiVisibilityExpression.Length > 0)
         {
-            var dynEx = GetDynamicExpressionStringShared(param.UiVisibilityExpression, param, writer, FeatureNames);
+            var dynEx = GetDynamicExpressionStringShared(param.UiVisibilityExpression, param, writer);
             annotations.Add($"UiVisibility({dynEx});");
         }
 
@@ -1519,9 +1524,9 @@ public sealed class ShaderExtract
             : string.Empty;
     }
 
-    private static string GetDynamicExpressionStringShared(byte[] bytecode, VfxVariableDescription param, IndentedTextWriter writer, string[] features)
+    private string GetDynamicExpressionStringShared(byte[] bytecode, VfxVariableDescription param, IndentedTextWriter writer)
     {
-        var dynEx = new VfxEval(bytecode, omitReturnStatement: true, features: features).DynamicExpressionResult;
+        var dynEx = new VfxEval(bytecode, omitReturnStatement: true, features: FeatureNames, knownNames: VariableNames).DynamicExpressionResult;
         dynEx = ReplaceIdentifier(dynEx, param.Name, "this");
         dynEx = dynEx.Replace("\n", "\n" + new string('\t', writer.Indent + 1), StringComparison.Ordinal);
         return dynEx;

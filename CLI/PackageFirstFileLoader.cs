@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
@@ -47,5 +48,10 @@ namespace CLI
 
             return entry != null ? GameFileLoader.GetPackageEntryStream(package, entry) : fallback.GetFileStream(file);
         }
+
+        public IEnumerable<string> FindFilesByName(string fileName)
+            => GameFileLoader.FindFilesByName([package], fileName).Concat(fallback.FindFilesByName(fileName)).Distinct();
+
+        public IReadOnlyDictionary<uint, string> GetSurfacePropertyNames() => fallback.GetSurfacePropertyNames();
     }
 }

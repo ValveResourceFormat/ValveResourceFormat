@@ -453,9 +453,14 @@ namespace ValveResourceFormat.CompiledShader
         public string AttributesStringDescription()
         {
             var attributesString = new StringBuilder();
+            string[] knownNames = [
+                .. Attributes.Select(attribute => attribute.Name),
+                .. ParentProgramData?.VariableDescriptions.Select(variable => variable.Name) ?? [],
+            ];
+
             foreach (var attribute in Attributes)
             {
-                attributesString.Append(attribute);
+                attributesString.Append(attribute.ToString(knownNames));
                 attributesString.Append('\n');
             }
             return attributesString.ToString();

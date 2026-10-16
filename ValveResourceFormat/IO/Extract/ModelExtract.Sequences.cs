@@ -518,11 +518,67 @@ partial class ModelExtract
         AddPoseParamNodes(lists, tables.PoseParams);
     }
 
+    private const string ClothStiffenEventClass = "AE_CL_CLOTH_STIFFEN";
+
+    /// <summary>
+    /// Whether <c>AE_CL_CLOTH_STIFFEN</c> events are written with <c>SpeedIn</c> and <c>SpeedOut</c> instead of
+    /// <c>Speed</c>. The ModelDoc upgrade from version 29 to 30 sets both from <c>Speed</c>, so a model with an
+    /// event whose speeds differ is written as version 30 and every other model as version 28.
+    /// </summary>
+    private bool writesClothStiffenSpeedInOut;
+
+    private static bool HasStiffenSpeedInOut(KVObject eventData)
+        => eventData.ContainsKey("SpeedIn") || eventData.ContainsKey("SpeedOut");
+
+    private static bool HasDistinctStiffenSpeeds(AnimationEvent animEvent)
+        => animEvent is { Name: ClothStiffenEventClass, EventData: { } eventData }
+            && HasStiffenSpeedInOut(eventData)
+            && eventData.GetFloatProperty("SpeedIn") != eventData.GetFloatProperty("SpeedOut");
+
+    /// <summary>
+    /// Returns the keys of a stiffen event in the form <see cref="writesClothStiffenSpeedInOut"/> selects.
+    /// A compiled <c>Speed</c> next to <c>SpeedIn</c> and <c>SpeedOut</c> is ignored.
+    /// </summary>
+    private KVObject GetClothStiffenEventKeys(KVObject eventData)
+    {
+        var hasSpeedInOut = HasStiffenSpeedInOut(eventData);
+
+        if (!hasSpeedInOut && !(writesClothStiffenSpeedInOut && eventData.ContainsKey("Speed")))
+        {
+            return eventData;
+        }
+
+        var speedIn = eventData.GetFloatProperty(hasSpeedInOut ? "SpeedIn" : "Speed");
+        var speedOut = eventData.GetFloatProperty(hasSpeedInOut ? "SpeedOut" : "Speed");
+        var keys = KVObject.ListCollection(eventData.Count);
+
+        foreach (var (name, value) in eventData.Children)
+        {
+            if (name is not ("Speed" or "SpeedIn" or "SpeedOut"))
+            {
+                keys.Add(name, value);
+            }
+        }
+
+        if (writesClothStiffenSpeedInOut)
+        {
+            keys.Add("SpeedIn", speedIn);
+            keys.Add("SpeedOut", speedOut);
+        }
+        else
+        {
+            keys.Add("Speed", speedIn);
+        }
+
+        return keys;
+    }
+
     private void AddAnimationNodes(ModelDocLists lists, SequenceTables tables)
     {
         if (AnimationsToExtract.Count > 0 || tables.BySequenceName.Count > 0)
         {
-            var animationToFolder = new Dictionary<string, KVObject>(AnimationsToExtract.Count);
+            var folders = new List<(KVObject Node, KVObject Children)>();
+            var animationToFolder = new Dictionary<string, (KVObject Node, KVObject Children)>(AnimationsToExtract.Count);
             if (tables.Block?.Data.GetSubCollection("m_keyValues") is KVObject sequenceKeyValues)
             {
                 if (sequenceKeyValues.GetSubCollection("faceposer_folders") is KVObject faceposerFolders)
@@ -531,23 +587,19 @@ partial class ModelExtract
                     {
                         var animationNames = faceposerFolders.GetArray<string>(folderName);
 
-                        var (folderNode, children) = MakeListNode("Folder");
-                        folderNode.Add("name", folderName);
-                        lists.Animations.Add(folderNode);
+                        var folder = MakeListNode("Folder");
+                        folder.Node.Add("name", folderName);
+                        folders.Add(folder);
 
                         foreach (var animationName in animationNames!)
                         {
-                            animationToFolder.Add(animationName, children);
+                            animationToFolder.Add(animationName, folder);
                         }
                     }
                 }
             }
 
-            void AddToFolderOrRoot(string name, KVObject node)
-            {
-                var folderOrRoot = animationToFolder.GetValueOrDefault(name, lists.Animations);
-                folderOrRoot.Add(node);
-            }
+            var sequenceNodes = new List<(string Name, KVObject Node)>();
 
             var nodeNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -649,11 +701,12 @@ partial class ModelExtract
                         bindPose.Add("children", bindPoseChildren);
                     }
 
-                    AddToFolderOrRoot(name, bindPose);
+                    sequenceNodes.Add((name, bindPose));
                 }
             }
 
             var sequences = AnimationsToExtract.Where(x => HasOwnAnimFileNode(x.Anim));
+            writesClothStiffenSpeedInOut = AnimationsToExtract.Any(x => x.Anim.Events.Any(HasDistinctStiffenSpeeds));
             var aliases = AliasedSequences;
 
             foreach (var animation in sequences)
@@ -674,7 +727,7 @@ partial class ModelExtract
                         blendNode.Add("weight_list_name", blendWeightList);
                     }
 
-                    AddToFolderOrRoot(animation.Anim.Name, blendNode);
+                    sequenceNodes.Add((animation.Anim.Name, blendNode));
                     continue;
                 }
 
@@ -753,8 +806,11 @@ partial class ModelExtract
 
                     if (animEvent.EventData != null)
                     {
-                        animEventNode.Add("event_keys", animEvent.EventData);
+                        animEventNode.Add("event_keys", animEvent.Name == ClothStiffenEventClass
+                            ? GetClothStiffenEventKeys(animEvent.EventData)
+                            : animEvent.EventData);
                     }
+
                     childrenKV.Add(animEventNode);
                 }
 
@@ -819,8 +875,90 @@ partial class ModelExtract
                     animationFile.Add("children", childrenKV);
                 }
 
-                AddToFolderOrRoot(animation.Anim.Name, animationFile);
+                sequenceNodes.Add((animation.Anim.Name, animationFile));
             }
+
+            AddSequenceNodesInCompiledOrder(lists.Animations, sequenceNodes, tables.LocalSequenceNames ?? [], folders, animationToFolder);
+        }
+    }
+
+    /// <summary>
+    /// Adds the sequence nodes in the order the model lists its sequences, since the compiler numbers
+    /// sequences in document order and sequence 0 is the model's default. A folder goes where its first
+    /// member does, and nodes for names the model does not list go last. The compiled folder list is
+    /// flat and leaves some nodes out, so a folder whose members come both before and after another
+    /// folder or an unlisted node is taken to contain it.
+    /// </summary>
+    static void AddSequenceNodesInCompiledOrder(KVObject animationList, List<(string Name, KVObject Node)> sequenceNodes,
+        string[] localSequenceNames, List<(KVObject Node, KVObject Children)> folders,
+        Dictionary<string, (KVObject Node, KVObject Children)> animationToFolder)
+    {
+        var sequenceIndex = new Dictionary<string, int>(localSequenceNames.Length);
+
+        for (var i = 0; i < localSequenceNames.Length; i++)
+        {
+            sequenceIndex.TryAdd(localSequenceNames[i], i);
+        }
+
+        var orderedNodes = sequenceNodes
+            .Select(x => (x.Name, x.Node, Index: sequenceIndex.GetValueOrDefault(x.Name, int.MaxValue)))
+            .OrderBy(x => x.Index)
+            .ToList();
+
+        var folderSpans = new Dictionary<KVObject, (int First, int Last)>(ReferenceEqualityComparer.Instance);
+
+        foreach (var (name, _, index) in orderedNodes)
+        {
+            if (index != int.MaxValue && animationToFolder.TryGetValue(name, out var folder))
+            {
+                folderSpans[folder.Node] = folderSpans.TryGetValue(folder.Node, out var span) ? (span.First, index) : (index, index);
+            }
+        }
+
+        (KVObject Node, KVObject Children)? FindEnclosingFolder(int first, int last)
+        {
+            (KVObject Node, KVObject Children)? parent = null;
+            var parentLength = int.MaxValue;
+
+            foreach (var candidate in folders)
+            {
+                if (folderSpans.TryGetValue(candidate.Node, out var outer)
+                    && outer.First < first && last < outer.Last && outer.Last - outer.First < parentLength)
+                {
+                    parent = candidate;
+                    parentLength = outer.Last - outer.First;
+                }
+            }
+
+            return parent;
+        }
+
+        var addedFolders = new HashSet<KVObject>(ReferenceEqualityComparer.Instance);
+
+        KVObject AddFolder((KVObject Node, KVObject Children) folder)
+        {
+            if (addedFolders.Add(folder.Node))
+            {
+                var container = folderSpans.TryGetValue(folder.Node, out var span) && FindEnclosingFolder(span.First, span.Last) is { } parent
+                    ? AddFolder(parent)
+                    : animationList;
+                container.Add(folder.Node);
+            }
+
+            return folder.Children;
+        }
+
+        foreach (var (name, node, index) in orderedNodes)
+        {
+            var container = animationToFolder.TryGetValue(name, out var folder)
+                ? AddFolder(folder)
+                : FindEnclosingFolder(index, index) is { } enclosing ? AddFolder(enclosing) : animationList;
+            container.Add(node);
+        }
+
+        foreach (var folder in folders)
+        {
+            AddFolder(folder);
         }
     }
 }
