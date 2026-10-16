@@ -270,7 +270,8 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
             data.Add("snapshot_file", particle.Snapshot);
         }
 
-        if (owner.EntitySystem.CreateEntity(data, Matrix4x4.Identity, owner.LayerName, owner.Scene, owner.NameFixup) is not InfoParticleSystem { Effect: { } effect } system)
+        if (owner.SpawnGroup is not { } spawnGroup
+            || owner.EntitySystem.SpawnEntity(data, owner.LayerName, spawnGroup) is not InfoParticleSystem { Effect: { } effect } system)
         {
             return;
         }
@@ -330,7 +331,7 @@ public sealed class PropPhysics : BaseModelEntity, ICarryable, IDamageable
                 data.Add("skin", skin);
             }
 
-            var created = owner.EntitySystem.CreateEntity(data, Matrix4x4.Identity, owner.LayerName, owner.Scene, owner.NameFixup);
+            var created = owner.SpawnGroup is { } spawnGroup ? owner.EntitySystem.SpawnEntity(data, owner.LayerName, spawnGroup) : null;
 
             // A placeholder piece - a door's null model - has nothing to simulate or draw
             if (created is not PropPhysics { HasBody: true } spawned)

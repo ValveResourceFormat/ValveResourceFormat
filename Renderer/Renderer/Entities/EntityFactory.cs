@@ -51,6 +51,7 @@ public static class EntityFactory
         Register<NpcVrCitizen>("npc_vr_citizen_female", static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo));
         Register<NpcVrCitizen>("npc_vr_citizen_male", static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo));
         Register<NpcBossTier3>("npc_boss_tier3", static (system, spawnInfo) => new NpcBossTier3(system, spawnInfo));
+        Register<RagdollProp>("prop_ragdoll", static (system, spawnInfo) => new RagdollProp(system, spawnInfo));
         Register<PhysBallSocket>("phys_ballsocket", static (system, spawnInfo) => new PhysBallSocket(system, spawnInfo));
         Register<PhysHinge>("phys_hinge", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: false));
         Register<PhysHinge>("phys_hinge_local", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: true));

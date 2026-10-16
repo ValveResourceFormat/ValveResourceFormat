@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>
 /// Something the player can pick up with +USE. The carry in <see cref="PlayerEntity"/> steers one
 /// rigid body toward a hold pose in front of the view; what that body is - a prop's whole body, or
-/// the one part grabbed of something simulating several - is the implementer's business.
+/// the one ragdoll part that was grabbed - is the implementer's business.
 /// </summary>
 public interface ICarryable
 {
@@ -29,8 +29,8 @@ public interface ICarryable
 
     /// <summary>
     /// Computes where the carried body belongs this frame. A <see langword="null"/> rotation
-    /// leaves the body's orientation unsteered: the body is held by position alone and swings free
-    /// on whatever else hangs off it.
+    /// leaves the body's orientation unsteered: a ragdoll part is held by position alone and
+    /// swings free, the rest of the ragdoll hanging off it by gravity and its joints.
     /// </summary>
     (Vector3 Position, Quaternion? Rotation) ComputeHoldPose();
 

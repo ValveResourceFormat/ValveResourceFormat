@@ -38,6 +38,17 @@ public interface IEntityToolVisuals
     /// <returns>The nodes.</returns>
     IEnumerable<SceneNode> CreateCollisionVisuals(Scene scene, PhysAggregateData physics, string name, BaseEntity? entity);
 
+    /// <summary>
+    /// Builds what the tool draws of one part of some collision, in the part's own space, for a body that moves
+    /// with the part alone, such as a ragdoll's. The node is not added to the scene.
+    /// </summary>
+    /// <param name="scene">The scene the node is for.</param>
+    /// <param name="physics">The collision.</param>
+    /// <param name="partIndex">The part.</param>
+    /// <param name="name">What the node is named.</param>
+    /// <returns>The node.</returns>
+    SceneNode CreatePartCollisionVisual(Scene scene, PhysAggregateData physics, int partIndex, string? name);
+
     /// <summary>Adds nodes relating the entities a world spawned into a scene, once all of them have spawned.</summary>
     /// <param name="scene">The scene they spawned into.</param>
     /// <param name="entities">The spawned entities.</param>

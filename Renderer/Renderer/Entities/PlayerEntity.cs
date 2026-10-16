@@ -341,9 +341,10 @@ public sealed class PlayerEntity : BaseEntity
             carryStrainTime = 0f;
         }
 
-        // A carry without orientation skips the contact softness altogether: whatever hangs off
-        // the held body reads as a permanent contact, and a chase capped to the soft acceleration
-        // could never hold that weight up. What hangs off it is the compliance a wall needs.
+        // A carry without orientation - a grabbed ragdoll part - skips the contact softness
+        // altogether: the rest of the ragdoll hangs off the held part through its joints, which
+        // reads as a permanent contact, and a chase capped to the soft acceleration could never
+        // hold that weight up. The chain itself is the compliance a wall needs.
         var soft = false;
 
         if (holdRotation is not null)
@@ -405,7 +406,7 @@ public sealed class PlayerEntity : BaseEntity
             return true;
         }
 
-        // Only when the carry steers the turn too; a body held by position alone swings free
+        // Only when the carry steers the turn too; a held ragdoll part swings on its joints
         return carryExpectedRotation is { } expected
             && RotationError(expected, body.Rotation).Length() > ContactAngleTolerance + (ContactStepTolerance * carryExpectedTurn);
     }
@@ -522,8 +523,8 @@ public sealed class PlayerEntity : BaseEntity
 
         // The sandbox gravgun's hold distance: a fixed reach plus how far the grabbed surface sits
         // from the mass center, so a big crate hangs further out than a soda can and neither clips
-        // the player's hull. The grabbed body's own center, which for something simulating several
-        // bodies is the one under the crosshair rather than the whole.
+        // the player's hull. The grabbed body's own center, which for a ragdoll is the one part
+        // under the crosshair rather than the whole body.
         Carried = carryable;
         carryStrainTime = 0f;
         carrySoftTime = 0f;
