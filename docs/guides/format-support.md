@@ -342,8 +342,8 @@ Particle functions that ask the game for wind, gravity, impulses or sound values
 or impulses, the standard world gravity and sound values of 0, and water is everything below
 z = 0. Model particles render in bind pose with default body groups, without `m_bAnimated` or
 `m_bManualAnimFrame` ([#716](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/716)).
-Functions that place particles on a model use the hitboxes, bones and sequence of the model a
-control point carries, but not its render mesh triangles, sequence activities, or the collision
+Functions that place particles on a model use the hitboxes, bones, render mesh triangles and
+sequence of the model a control point carries, but not its sequence activities, or the collision
 hull and snapshot hitbox fallbacks.
 Blob particles draw as a metaball mesh with their material, without material variables, and
 with texture coordinates only for materials that project them by `g_flTexCoordScale`.

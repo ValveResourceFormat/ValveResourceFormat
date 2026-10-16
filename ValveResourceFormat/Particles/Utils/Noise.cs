@@ -15,13 +15,9 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>Samples the noise lattice at a point, returning a value in [-1, 1].</summary>
         public static float Value3D(float x, float y, float z)
         {
-            var ix = (int)MathF.Floor(x);
-            var iy = (int)MathF.Floor(y);
-            var iz = (int)MathF.Floor(z);
-
-            var fx = x - ix;
-            var fy = y - iy;
-            var fz = z - iz;
+            var ix = Cell(x, out var fx);
+            var iy = Cell(y, out var fy);
+            var iz = Cell(z, out var fz);
 
             var c00 = float.Lerp(Hash(ix, iy, iz), Hash(ix + 1, iy, iz), fx);
             var c10 = float.Lerp(Hash(ix, iy + 1, iz), Hash(ix + 1, iy + 1, iz), fx);
@@ -41,13 +37,9 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         public static Vector3 ValueVector3(Vector3 position)
         {
-            var ix = (int)MathF.Floor(position.X);
-            var iy = (int)MathF.Floor(position.Y);
-            var iz = (int)MathF.Floor(position.Z);
-
-            var fx = position.X - ix;
-            var fy = position.Y - iy;
-            var fz = position.Z - iz;
+            var ix = Cell(position.X, out var fx);
+            var iy = Cell(position.Y, out var fy);
+            var iz = Cell(position.Z, out var fz);
 
             var c00 = Lerp(HashVector(ix, iy, iz), HashVector(ix + 1, iy, iz), fx);
             var c10 = Lerp(HashVector(ix, iy + 1, iz), HashVector(ix + 1, iy + 1, iz), fx);
@@ -58,6 +50,18 @@ namespace ValveResourceFormat.Particles.Utils
             var c1 = Lerp(c01, c11, fy);
 
             return Lerp(c0, c1, fz);
+        }
+
+        /// <summary>
+        /// Splits a coordinate into its lattice cell and the fraction within it. The fraction is taken
+        /// from the float floor, so it stays in [0, 1) past the int range, where every cell index
+        /// becomes <see cref="int.MinValue"/>.
+        /// </summary>
+        private static int Cell(float x, out float fraction)
+        {
+            var floor = MathF.Floor(x);
+            fraction = x - floor;
+            return floor is >= -2147483648f and < 2147483648f ? (int)floor : int.MinValue;
         }
 
         /// <summary>
@@ -120,13 +124,9 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         public static float Simplex3D(float x, float y, float z)
         {
-            var ix = (int)MathF.Floor(x);
-            var iy = (int)MathF.Floor(y);
-            var iz = (int)MathF.Floor(z);
-
-            var fx = x - ix;
-            var fy = y - iy;
-            var fz = z - iz;
+            var ix = Cell(x, out var fx);
+            var iy = Cell(y, out var fy);
+            var iz = Cell(z, out var fz);
 
             var u = Fade(fx);
             var v = Fade(fy);
@@ -175,13 +175,9 @@ namespace ValveResourceFormat.Particles.Utils
         {
             var seed = BitConverter.SingleToUInt32Bits(offset);
 
-            var ix = (int)MathF.Floor(position.X);
-            var iy = (int)MathF.Floor(position.Y);
-            var iz = (int)MathF.Floor(position.Z);
-
-            var fx = position.X - ix;
-            var fy = position.Y - iy;
-            var fz = position.Z - iz;
+            var ix = Cell(position.X, out var fx);
+            var iy = Cell(position.Y, out var fy);
+            var iz = Cell(position.Z, out var fz);
 
             var nearest = float.MaxValue;
 
@@ -224,13 +220,9 @@ namespace ValveResourceFormat.Particles.Utils
         {
             var seed = BitConverter.SingleToUInt32Bits(offset);
 
-            var ix = (int)MathF.Floor(position.X);
-            var iy = (int)MathF.Floor(position.Y);
-            var iz = (int)MathF.Floor(position.Z);
-
-            var fx = position.X - ix;
-            var fy = position.Y - iy;
-            var fz = position.Z - iz;
+            var ix = Cell(position.X, out var fx);
+            var iy = Cell(position.Y, out var fy);
+            var iz = Cell(position.Z, out var fz);
 
             var nearest = float.MaxValue;
             var best = Vector3.Zero;

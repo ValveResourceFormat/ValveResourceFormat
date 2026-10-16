@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Particles.Operators
                 if (MathF.Max(0f, particle.Age - frameTime) < fadeInTime)
                 {
                     var time = proportional
-                        ? MathUtils.Saturate(particle.Age / particle.Lifetime)
+                        ? MathUtils.Saturate(particle.NormalizedAge)
                         : particle.Age;
 
                     particle.Alpha = MathUtils.Smoothstep(0f, 1f, MathUtils.Saturate(time / fadeInTime))
