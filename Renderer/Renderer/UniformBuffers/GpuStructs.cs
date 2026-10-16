@@ -78,7 +78,7 @@ public struct InstanceDataStandard
     public uint TintAlpha;
     /// <summary>Index into the transform buffer.</summary>
     public uint TransformIndex;
-    /// <summary>The scene node drawn, used in selection and highlighting, and the index of its <see cref="ObjectDataStandard"/>.</summary>
+    /// <summary>The scene node drawn, which replacement shaders can tell draws apart by, and the index of its <see cref="ObjectDataStandard"/>.</summary>
     public uint Identification;
     /// <summary>Skinning of the mesh drawn: bit 31: enabled, bits 16-30: bone count, bits 0-15: mesh bone offset.</summary>
     public uint MeshBoneData;

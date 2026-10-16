@@ -836,7 +836,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             replacement.Use();
 
-            replacement.SetUniform1("meshId", 0u);
+            replacement.SetDrawIdentity(0, materialShader: null);
 
             // A tube or a card can turn either face toward the camera.
             using var _ = GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None);

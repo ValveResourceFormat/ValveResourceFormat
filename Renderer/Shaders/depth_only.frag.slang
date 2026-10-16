@@ -1,5 +1,7 @@
 #version 460
 
+#pragma IgnoreMaterialData
+
 #define F_ALPHA_TEST 0 // most shaders
 
 #if (F_ALPHA_TEST == 0)

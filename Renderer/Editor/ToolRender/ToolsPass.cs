@@ -1,4 +1,3 @@
-using System.Linq;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Editor.Selection;
 
@@ -16,43 +15,46 @@ public sealed class ToolsPass : IDisposable
     private static readonly ToolRenderLayer[] Layers = Enum.GetValues<ToolRenderLayer>();
 
     private readonly ToolShaders shaders;
-    private readonly SelectionOutline selectionOutline;
+    private readonly Framebuffer sceneFramebuffer;
+    private readonly Framebuffer output;
     private readonly List<(ToolSceneNode Node, float Distance)> nodes = [];
-    private Framebuffer? framebuffer;
 
     /// <summary>Initializes the pass.</summary>
     /// <param name="rendererContext">Renderer context for loading the tools shader.</param>
-    public ToolsPass(RendererContext rendererContext)
+    /// <param name="sceneFramebuffer">What the scene is rendered into, whose depth hides the shapes.</param>
+    public ToolsPass(RendererContext rendererContext, Framebuffer sceneFramebuffer)
     {
+        ArgumentNullException.ThrowIfNull(sceneFramebuffer);
+
         shaders = new ToolShaders(rendererContext);
-        selectionOutline = new SelectionOutline(rendererContext);
+        this.sceneFramebuffer = sceneFramebuffer;
+
+        output = Framebuffer.Prepare(nameof(ToolsPass), sceneFramebuffer.Width, sceneFramebuffer.Height, sceneFramebuffer.NumSamples,
+            ImageFormat.RGBA8888, sceneFramebuffer.DepthFormat);
+        output.IsColorSrgb = true;
+        output.Initialize();
     }
 
     /// <summary>
-    /// Post processes the scene, outlines the selected nodes, draws the tool shapes of the main scene and the given
-    /// ones over it, and puts the result in the target.
+    /// Post processes the scene, outlines the selected nodes, draws the tool shapes of the main scene and those of
+    /// the selection over it, and puts the result in the target.
     /// </summary>
     /// <param name="renderer">The renderer of the frame.</param>
-    /// <param name="sceneFramebuffer">What the scene was rendered into.</param>
     /// <param name="target">Where the final image goes.</param>
-    /// <param name="selectedNodes">The nodes outlined as selected.</param>
-    /// <param name="worldShapes">Shapes given in world space, such as those of what is selected.</param>
+    /// <param name="selection">What is selected, with its shapes in world space.</param>
     /// <param name="textRenderer">What the text among the shapes of the main scene is written with.</param>
-    public void Render(Renderer renderer, Framebuffer sceneFramebuffer, Framebuffer target, IReadOnlyList<SceneNode> selectedNodes,
-        IEnumerable<ToolGeometry> worldShapes, TextRenderer textRenderer)
+    public void Render(Renderer renderer, Framebuffer target, SelectionVisuals selection, TextRenderer textRenderer)
     {
         ArgumentNullException.ThrowIfNull(renderer);
-        ArgumentNullException.ThrowIfNull(sceneFramebuffer);
         ArgumentNullException.ThrowIfNull(target);
-        ArgumentNullException.ThrowIfNull(selectedNodes);
-        ArgumentNullException.ThrowIfNull(worldShapes);
+        ArgumentNullException.ThrowIfNull(selection);
         ArgumentNullException.ThrowIfNull(textRenderer);
 
-        var output = EnsureFramebuffer(sceneFramebuffer);
         var (width, height) = (sceneFramebuffer.Width, sceneFramebuffer.Height);
+        output.Resize(width, height, sceneFramebuffer.NumSamples);
 
         renderer.PostprocessRender(sceneFramebuffer, output);
-        selectionOutline.Render(renderer, sceneFramebuffer, output, selectedNodes);
+        selection.RenderOutline(renderer, sceneFramebuffer, output);
 
         using (new GLDebugGroup("Tools"))
         {
@@ -61,27 +63,21 @@ public sealed class ToolsPass : IDisposable
                 ClearBufferMask.DepthBufferBit, BlitFramebufferFilter.Nearest);
 
             output.Bind(FramebufferTarget.Framebuffer);
-            GL.Viewport(0, 0, width, height);
-
-            var shapes = worldShapes.Where(static geometry => !geometry.IsEmpty).ToList();
 
             // Blending happens on linear colors, as the shader gives them
             GL.Enable(EnableCap.FramebufferSrgb);
 
             using (GraphicsContext.RenderState.Scope(multisampleEnable: output.NumSamples > 1))
             {
-                renderer.DrawOverScenes(width, height, view =>
+                renderer.DrawOverScenes(output, context =>
                 {
+                    var view = context.View!;
                     CollectNodes(view);
 
-                    // Shapes given in world space are in the space of the main scene
-                    var isMainView = view == renderer.MainViewState;
-                    var viewShapes = isMainView ? shapes : [];
+                    // The shapes of the selection are in the space of the main scene
+                    var selectionShapes = view == renderer.MainViewState && !selection.Shapes.IsEmpty ? selection.Shapes : null;
 
-                    if (isMainView)
-                    {
-                        AddLabels(textRenderer, renderer.Camera, viewShapes);
-                    }
+                    AddLabels(textRenderer, renderer.Camera, selectionShapes);
 
                     foreach (var layer in Layers)
                     {
@@ -90,10 +86,7 @@ public sealed class ToolsPass : IDisposable
                             node.RenderTools(layer, shaders);
                         }
 
-                        foreach (var geometry in viewShapes)
-                        {
-                            geometry.DrawLayer(layer, shaders, objectId: 0);
-                        }
+                        selectionShapes?.DrawLayer(layer, shaders, objectId: 0);
                     }
                 });
             }
@@ -108,7 +101,7 @@ public sealed class ToolsPass : IDisposable
         target.Bind(FramebufferTarget.Framebuffer);
     }
 
-    private void AddLabels(TextRenderer textRenderer, Camera camera, List<ToolGeometry> worldShapes)
+    private void AddLabels(TextRenderer textRenderer, Camera camera, ToolGeometry? selectionShapes)
     {
         foreach (var (node, _) in nodes)
         {
@@ -118,12 +111,14 @@ public sealed class ToolsPass : IDisposable
             }
         }
 
-        foreach (var geometry in worldShapes)
+        if (selectionShapes == null)
         {
-            foreach (var label in geometry.Labels)
-            {
-                AddLabel(textRenderer, camera, label, Matrix4x4.Identity);
-            }
+            return;
+        }
+
+        foreach (var label in selectionShapes.Labels)
+        {
+            AddLabel(textRenderer, camera, label, Matrix4x4.Identity);
         }
     }
 
@@ -155,29 +150,6 @@ public sealed class ToolsPass : IDisposable
         nodes.Sort(static (a, b) => b.Distance.CompareTo(a.Distance));
     }
 
-    private Framebuffer EnsureFramebuffer(Framebuffer sceneFramebuffer)
-    {
-        var (width, height, samples) = (sceneFramebuffer.Width, sceneFramebuffer.Height, sceneFramebuffer.NumSamples);
-
-        if (framebuffer == null)
-        {
-            framebuffer = Framebuffer.Prepare(nameof(ToolsPass), width, height, samples, ImageFormat.RGBA8888, sceneFramebuffer.DepthFormat);
-            framebuffer.IsColorSrgb = true;
-            framebuffer.Initialize();
-        }
-        else
-        {
-            framebuffer.Resize(width, height, samples);
-        }
-
-        return framebuffer;
-    }
-
     /// <summary>Deletes the GL objects.</summary>
-    public void Dispose()
-    {
-        selectionOutline.Dispose();
-        framebuffer?.Delete();
-        framebuffer = null;
-    }
+    public void Dispose() => output.Delete();
 }
