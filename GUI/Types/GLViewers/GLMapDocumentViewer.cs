@@ -34,7 +34,7 @@ namespace GUI.Types.GLViewers
         {
             base.LoadScene();
 
-            loadedMapDocument = new MapDocumentLoader(mapDocument, Scene, Renderer.EntitySystem)
+            loadedMapDocument = new MapDocumentLoader(mapDocument, Scene, EntityVisuals)
             {
                 LoadingProgress = GuiContext.LoadingProgress,
                 DefaultEnabledLayers = { HammerEntityVisuals.MarkerLayerName },
@@ -50,9 +50,6 @@ namespace GUI.Types.GLViewers
                 Input.Camera.SetLocation(camera.Position);
                 Input.Camera.LookAt(camera.LookAt);
             }
-
-            // The world rests as it was authored
-            Renderer.EntitySystem.Enabled = false;
         }
 
         protected override void AddUiControls()

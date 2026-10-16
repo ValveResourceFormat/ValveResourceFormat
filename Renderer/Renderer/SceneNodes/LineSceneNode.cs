@@ -8,6 +8,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly SimpleVertex[] vertices;
 
         /// <summary>
+        /// Gets whether the lines are blended in the alpha of their colors, after the opaque scene, rather
+        /// than drawn opaque with it.
+        /// </summary>
+        public bool Translucent { get; init; }
+
+        /// <summary>
         /// Renders a single line segment.
         /// </summary>
         /// <param name="scene">The scene this node belongs to.</param>
@@ -42,7 +48,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <inheritdoc/>
-        protected override bool IsTranslucent => false;
+        protected override bool IsTranslucent => Translucent;
 
         /// <inheritdoc/>
         protected override List<SimpleVertex> BuildLines() => [.. vertices];

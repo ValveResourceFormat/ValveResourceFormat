@@ -1,5 +1,5 @@
 using System.Globalization;
-using ValveResourceFormat.Renderer.Editor.Entities;
+using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Editor;

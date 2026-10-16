@@ -14,7 +14,8 @@ public sealed class ToolsVisibility
 {
     // What only the editor draws, and the entities a template spawns, which are not in the world until it does
     private static readonly FrozenSet<string> ToolEntityLayerNames =
-        FrozenSet.Create(StringComparer.Ordinal, HammerEntityVisuals.MarkerLayerName, HammerEntityVisuals.ConnectionsLayerName, WorldLoader.TemplateLayerName);
+        FrozenSet.Create(StringComparer.Ordinal, HammerEntityVisuals.MarkerLayerName, HammerEntityVisuals.ConnectionsLayerName,
+            HammerEntityVisuals.HelpersLayerName, WorldLoader.TemplateLayerName);
 
     /// <summary>Gets or sets whether entities that only exist in the editor are drawn, while the world is not played.</summary>
     public bool ShowToolEntities { get; set; } = true;
