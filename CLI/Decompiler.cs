@@ -41,6 +41,7 @@ namespace CLI
         private int TotalFiles;
         private int FailedFiles;
         private int WrittenFiles;
+        private readonly ConcurrentDictionary<string, Lock> FileWriteLocks = new(StringComparer.OrdinalIgnoreCase);
         private bool LoggedExceptions;
         private bool AnyFileMatched;
 
@@ -1714,10 +1715,7 @@ namespace CLI
 
                 using var fileLoader = CreateGameFileLoader(package, package.FileName);
 
-                foreach (var type in package.Entries)
-                {
-                    ProcessVPKEntries(path, package, fileLoader, type.Key, manifestData);
-                }
+                ProcessVPKEntries(path, package, fileLoader, manifestData);
 
                 if (CachedManifest)
                 {
@@ -1782,176 +1780,216 @@ namespace CLI
             Console.WriteLine("Success.");
         }
 
-        private void ProcessVPKEntries(string parentPath, Package package,
-            IFileLoader fileLoader, string type, Dictionary<string, uint> manifestData)
+        private void ProcessVPKEntries(string parentPath, Package package, IFileLoader fileLoader, Dictionary<string, uint> manifestData)
         {
-            if (!MatchesExtensionFilter(type))
-            {
-                return;
-            }
-
             Debug.Assert(package.Entries != null);
 
-            if (!package.Entries.TryGetValue(type, out var entries))
-            {
-                Console.WriteLine("There are no files of type \"{0}\".", type);
+            // The manifest is checked up front, so only the decompilation itself runs concurrently
+            var queue = new ConcurrentQueue<(PackageEntry File, string FilePath, string Type, HashSet<string>? ShaderFilesToDecompile)>();
 
-                return;
+            foreach (var (type, entries) in package.Entries)
+            {
+                if (!MatchesExtensionFilter(type))
+                {
+                    continue;
+                }
+
+                var shaderFilesToDecompile = type == "vcs" ? GetShaderFilesToDecompile(entries) : null;
+
+                foreach (var (file, filePath) in FilteredEntries(entries))
+                {
+                    if (CachedManifest)
+                    {
+                        if (manifestData.TryGetValue(filePath, out var oldCrc32) && oldCrc32 == file.CRC32)
+                        {
+                            Console.WriteLine("--- Skipped (unchanged) \"{0}\"", filePath);
+                            continue;
+                        }
+
+                        manifestData[filePath] = file.CRC32;
+                    }
+
+                    queue.Enqueue((file, filePath, type, shaderFilesToDecompile));
+                }
             }
 
-            var gltfExporter = CreateGltfExporter(fileLoader);
-            var shaderFilesToDecompile = type == "vcs" ? GetShaderFilesToDecompile(entries) : null;
-
-            foreach (var (file, filePath) in FilteredEntries(entries))
+            // The exporter keeps state for the model being exported, so each thread needs its own
+            void ProcessQueue()
             {
-                var extension = type;
+                var gltfExporter = CreateGltfExporter(fileLoader);
 
-                if (OutputFile != null && CachedManifest)
+                while (queue.TryDequeue(out var item))
                 {
-                    if (manifestData.TryGetValue(filePath, out var oldCrc32) && oldCrc32 == file.CRC32)
+                    AcquireFileProcessingSlot();
+
+                    try
                     {
-                        Console.WriteLine("--- Skipped (unchanged) \"{0}\"", filePath);
-                        continue;
+                        ProcessVPKEntry(parentPath, package, fileLoader, gltfExporter, item.File, item.FilePath, item.Type, item.ShaderFilesToDecompile);
                     }
-
-                    manifestData[filePath] = file.CRC32;
+                    finally
+                    {
+                        ReleaseFileProcessingSlot();
+                    }
                 }
+            }
 
-                if (OutputFile == null)
-                {
-                    Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
-                }
+            var tasks = new List<Task>();
 
-                var totalLength = (int)file.TotalLength;
-                var rawFileData = ArrayPool<byte>.Shared.Rent(totalLength);
-                ContentFile? contentFile = null;
+            for (var n = 1; n < MaxParallelismThreads; n++)
+            {
+                tasks.Add(Task.Run(ProcessQueue));
+            }
 
-                // Must outlive DumpContentFile because content subfiles can be generated lazily from the resource.
-                Resource? resource = null;
+            // This thread works on the queue too, so packages processed concurrently can not starve the thread pool
+            ProcessQueue();
 
-                try
+            Task.WhenAll(tasks).GetAwaiter().GetResult();
+        }
+
+        private void ProcessVPKEntry(string parentPath, Package package, IFileLoader fileLoader, GltfModelExporter gltfExporter,
+            PackageEntry file, string filePath, string type, HashSet<string>? shaderFilesToDecompile)
+        {
+            var extension = type;
+
+            var totalLength = (int)file.TotalLength;
+            var rawFileData = ArrayPool<byte>.Shared.Rent(totalLength);
+            ContentFile? contentFile = null;
+
+            // Must outlive DumpContentFile because content subfiles can be generated lazily from the resource.
+            Resource? resource = null;
+
+            try
+            {
+                // The package reads from shared archive streams, which the file loader also locks the package for
+                lock (package)
                 {
                     package.ReadEntry(file, rawFileData);
+                }
 
-                    // Not a file that can be decompiled, or no decompilation was requested
-                    var isVcsFile = type == "vcs";
+                // Not a file that can be decompiled, or no decompilation was requested
+                var isVcsFile = type == "vcs";
 
-                    if (!Decompile || !type.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) && !isVcsFile)
-                    {
-                        if (OutputFile != null)
-                        {
-                            var outputFile = filePath;
-
-                            if (RecursiveSearchArchives)
-                            {
-                                outputFile = Path.Combine(parentPath, outputFile);
-                            }
-
-                            if (Decompile)
-                            {
-                                using var nonResourceStream = new MemoryStream(rawFileData, 0, totalLength);
-                                contentFile = FileExtract.ExtractNonResource(nonResourceStream, filePath);
-                            }
-
-                            if (contentFile != null)
-                            {
-                                DumpNonResourceContentFile(outputFile, contentFile);
-                            }
-                            else
-                            {
-                                DumpFile(GetOutputPath(outputFile), rawFileData.AsSpan()[..totalLength]);
-                            }
-                        }
-
-                        continue;
-                    }
-
-                    using var memory = new MemoryStream(rawFileData, 0, totalLength);
-
+                if (!Decompile || !type.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) && !isVcsFile)
+                {
                     if (OutputFile != null)
                     {
-                        string outputFile;
-                        // VCS files require multiple files to be decompiled together
-                        if (isVcsFile)
-                        {
-                            // The whole shader is decompiled once, from the highest shader model that was matched
-                            if (!shaderFilesToDecompile!.Contains(filePath))
-                            {
-                                continue;
-                            }
-
-                            // Remove the last part from the file name ("_features", ...)
-                            var fileName = Path.GetFileNameWithoutExtension(filePath);
-                            var newFileNameBase = fileName.AsSpan(0, fileName.LastIndexOf('_'));
-                            var directory = Path.GetDirectoryName(filePath);
-
-                            outputFile = Path.Combine(directory ?? string.Empty, string.Concat(newFileNameBase, ".vfx"));
-
-                            var collection = ShaderCollection.GetShaderCollection(filePath, package);
-                            contentFile = new ShaderExtract(collection).ToContentFile();
-                        }
-                        else
-                        {
-#pragma warning disable CA2000 // False positive, resource is disposed in the finally block
-                            resource = new Resource
-                            {
-                                FileName = filePath,
-                            };
-#pragma warning restore CA2000
-                            resource.Read(memory);
-
-                            if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
-                            {
-                                outputFile = filePath;
-
-                                if (RecursiveSearchArchives)
-                                {
-                                    outputFile = Path.Combine(parentPath, outputFile);
-                                }
-
-                                outputFile = GetOutputPath(outputFile);
-                                outputFile = Path.ChangeExtension(outputFile, GltfExportFormat);
-
-                                Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
-
-                                gltfExporter.Export(resource, outputFile);
-                                Interlocked.Increment(ref WrittenFiles);
-
-                                Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
-
-                                continue;
-                            }
-
-                            contentFile = DecompileResource(resource, fileLoader);
-
-                            outputFile = filePath;
-                            extension = FileExtract.GetExtension(resource) ?? type[..^2];
-                            if (type != extension)
-                            {
-                                outputFile = Path.ChangeExtension(outputFile, extension);
-                            }
-                        }
+                        var outputFile = filePath;
 
                         if (RecursiveSearchArchives)
                         {
                             outputFile = Path.Combine(parentPath, outputFile);
                         }
 
-                        outputFile = GetOutputPath(outputFile);
+                        if (Decompile)
+                        {
+                            using var nonResourceStream = new MemoryStream(rawFileData, 0, totalLength);
+                            contentFile = FileExtract.ExtractNonResource(nonResourceStream, filePath);
+                        }
 
-                        DumpContentFile(outputFile, contentFile, singleFileOutput: !OutputIsDirectory);
+                        if (contentFile != null)
+                        {
+                            DumpNonResourceContentFile(outputFile, contentFile);
+                        }
+                        else
+                        {
+                            DumpFile(GetOutputPath(outputFile), rawFileData.AsSpan()[..totalLength]);
+                        }
                     }
+
+                    return;
                 }
-                catch (Exception e)
+
+                using var memory = new MemoryStream(rawFileData, 0, totalLength);
+
+                if (OutputFile != null)
                 {
-                    LogException(e, filePath, parentPath);
+                    string outputFile;
+                    // VCS files require multiple files to be decompiled together
+                    if (isVcsFile)
+                    {
+                        // The whole shader is decompiled once, from the highest shader model that was matched
+                        if (!shaderFilesToDecompile!.Contains(filePath))
+                        {
+                            return;
+                        }
+
+                        // Remove the last part from the file name ("_features", ...)
+                        var fileName = Path.GetFileNameWithoutExtension(filePath);
+                        var newFileNameBase = fileName.AsSpan(0, fileName.LastIndexOf('_'));
+                        var directory = Path.GetDirectoryName(filePath);
+
+                        outputFile = Path.Combine(directory ?? string.Empty, string.Concat(newFileNameBase, ".vfx"));
+
+                        ShaderCollection collection;
+
+                        lock (package)
+                        {
+                            collection = ShaderCollection.GetShaderCollection(filePath, package);
+                        }
+
+                        contentFile = new ShaderExtract(collection).ToContentFile();
+                    }
+                    else
+                    {
+#pragma warning disable CA2000 // False positive, resource is disposed in the finally block
+                        resource = new Resource
+                        {
+                            FileName = filePath,
+                        };
+#pragma warning restore CA2000
+                        resource.Read(memory);
+
+                        if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
+                        {
+                            outputFile = filePath;
+
+                            if (RecursiveSearchArchives)
+                            {
+                                outputFile = Path.Combine(parentPath, outputFile);
+                            }
+
+                            outputFile = GetOutputPath(outputFile);
+                            outputFile = Path.ChangeExtension(outputFile, GltfExportFormat);
+
+                            Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
+
+                            gltfExporter.Export(resource, outputFile);
+                            Interlocked.Increment(ref WrittenFiles);
+
+                            Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
+
+                            return;
+                        }
+
+                        contentFile = DecompileResource(resource, fileLoader);
+
+                        outputFile = filePath;
+                        extension = FileExtract.GetExtension(resource) ?? type[..^2];
+                        if (type != extension)
+                        {
+                            outputFile = Path.ChangeExtension(outputFile, extension);
+                        }
+                    }
+
+                    if (RecursiveSearchArchives)
+                    {
+                        outputFile = Path.Combine(parentPath, outputFile);
+                    }
+
+                    outputFile = GetOutputPath(outputFile);
+
+                    DumpContentFile(outputFile, contentFile, singleFileOutput: !OutputIsDirectory);
                 }
-                finally
-                {
-                    contentFile?.Dispose();
-                    resource?.Dispose();
-                    ArrayPool<byte>.Shared.Return(rawFileData);
-                }
+            }
+            catch (Exception e)
+            {
+                LogException(e, filePath, parentPath);
+            }
+            finally
+            {
+                contentFile?.Dispose();
+                resource?.Dispose();
+                ArrayPool<byte>.Shared.Return(rawFileData);
             }
         }
 
@@ -2118,7 +2156,12 @@ namespace CLI
 
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
-            File.WriteAllBytes(path, data.ToArray());
+            // Files processed concurrently can write the same sub file, such as a texture shared by materials
+            lock (FileWriteLocks.GetOrAdd(path, static _ => new()))
+            {
+                File.WriteAllBytes(path, data);
+            }
+
             Interlocked.Increment(ref WrittenFiles);
 
             Console.WriteLine("--- Dump written to \"{0}\"", path);
