@@ -313,8 +313,8 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>
         /// Whether <paramref name="renderer"/> draws in <paramref name="pass"/> on <paramref name="layer"/>.
         /// A bloom-only renderer draws in the effects bloom layer and nowhere else, whatever pass its
-        /// material would otherwise pick. The outline pass owns no renderer of its own, so everything
-        /// else the system has draws in it.
+        /// material would otherwise pick. Every other renderer of the system draws in the pass that draws
+        /// everything at once.
         /// </summary>
         private static bool InPass(ParticleFunctionRenderer renderer, RenderPass pass, RenderLayer layer)
         {
@@ -328,7 +328,7 @@ namespace ValveResourceFormat.Renderer.Particles
             return pass switch
             {
                 RenderPass.DepthOnly => renderer.CanRenderDepth,
-                RenderPass.Outline => !renderer.OnlyRenderInEffectsWaterPass,
+                RenderPass.All => !renderer.OnlyRenderInEffectsWaterPass,
                 _ => renderer.Pass == pass && renderer.OnlyRenderInEffectsWaterPass == waterEffectsLayer,
             };
         }

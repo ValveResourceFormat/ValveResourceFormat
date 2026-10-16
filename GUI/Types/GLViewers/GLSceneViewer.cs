@@ -746,7 +746,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(toolsPass != null && selectionVisuals != null);
 
             // The tools are drawn over the final image, so they keep their colors whatever the exposure
-            toolsPass.Render(Renderer, MainFramebuffer, GLDefaultFramebuffer, [selectionVisuals.Shapes], TextRenderer);
+            toolsPass.Render(Renderer, MainFramebuffer, GLDefaultFramebuffer, Selection.Nodes, [selectionVisuals.Shapes], TextRenderer);
         }
 
         protected override void OnBufferSwapped(double blockedMs, double framePeriodMs)

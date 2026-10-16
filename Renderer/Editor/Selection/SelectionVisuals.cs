@@ -24,7 +24,7 @@ public enum LightingBindingDisplay
 /// Draws what is selected in a <see cref="SelectionSet"/> the way Hammer does: the shapes the helpers of a
 /// selected entity show while it is, in place of the ones they show while it is not, and one box around what is
 /// selected with the length of its edges, along with the name of each node and optionally the lighting it uses.
-/// The outline itself is drawn by the renderer for every node with <see cref="SceneNode.IsSelected"/>.
+/// The outline itself is drawn by <see cref="SelectionOutline"/>.
 /// </summary>
 public sealed class SelectionVisuals
 {

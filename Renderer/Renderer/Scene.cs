@@ -192,8 +192,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the GPU thinning of the scene's clutter, or <see langword="null"/> when it has none.</summary>
         internal ClutterCuller? ClutterCuller { get; private set; }
 
-        internal Shader? OutlineShader { get; private set; }
-
         internal LightBinner? ShadingLightBinner { get; set; }
 
         /// <summary>Gets the renderer context providing shared GPU resources and shader loading.</summary>
@@ -326,7 +324,6 @@ namespace ValveResourceFormat.Renderer
 
             UpdateBuffers();
 
-            OutlineShader = RendererContext.ShaderLoader.LoadShader("outline");
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("frustum_cull");
             CompactionShader = RendererContext.ShaderLoader.LoadShader("compact_indirect_draws");
 
@@ -1662,11 +1659,11 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Gets whether a draw of a node is hidden for using a tools material while those are hidden. A selected node
-        /// still shows its own.
+        /// Gets whether a draw of a node is hidden for using a tools material while those are hidden, unless the
+        /// node shows its own anyway.
         /// </summary>
         internal bool IsHiddenToolsMaterial(RenderMaterial material, SceneNode node)
-            => !ShowToolsMaterials && material.IsToolsMaterial && !node.IsSelected;
+            => !ShowToolsMaterials && material.IsToolsMaterial && !node.ShowsToolsMaterials;
 
         // Geometry that blocks light casts shadows even while hidden, and whatever its material says
         private bool CastsShadows(RenderMaterial material, SceneNode node)

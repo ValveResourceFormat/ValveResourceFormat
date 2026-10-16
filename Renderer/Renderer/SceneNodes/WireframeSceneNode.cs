@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             var pass = IsTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
 
-            if (context.RenderPass != pass && context.RenderPass != RenderPass.Outline)
+            if (context.RenderPass != pass && context.RenderPass != RenderPass.All)
             {
                 return;
             }

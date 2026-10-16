@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 
-namespace ValveResourceFormat.Renderer;
+namespace ValveResourceFormat.Renderer.Editor.Picking;
 
 /// <summary>
 /// Framebuffer for GPU-based object picking using unique object IDs. Rendering the scene into it with

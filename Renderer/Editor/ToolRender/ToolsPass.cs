@@ -1,11 +1,13 @@
 using System.Linq;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.Editor.Selection;
 
 namespace ValveResourceFormat.Renderer.Editor.ToolRender;
 
 /// <summary>
-/// Draws the tool shapes over the final image, as Hammer draws its tool layers: hidden by the scene and by
-/// each other unless their mode draws them over it, blended in linear space, and multisampled with the scene.
+/// Draws the selection outline and the tool shapes over the final image, as Hammer draws its tool layers: hidden
+/// by the scene and by each other unless their mode draws them over it, blended in linear space, and multisampled
+/// with the scene.
 /// </summary>
 public sealed class ToolsPass : IDisposable
 {
@@ -14,6 +16,7 @@ public sealed class ToolsPass : IDisposable
     private static readonly ToolRenderLayer[] Layers = Enum.GetValues<ToolRenderLayer>();
 
     private readonly ToolShaders shaders;
+    private readonly SelectionOutline selectionOutline;
     private readonly List<(ToolSceneNode Node, float Distance)> nodes = [];
     private Framebuffer? framebuffer;
 
@@ -22,22 +25,26 @@ public sealed class ToolsPass : IDisposable
     public ToolsPass(RendererContext rendererContext)
     {
         shaders = new ToolShaders(rendererContext);
+        selectionOutline = new SelectionOutline(rendererContext);
     }
 
     /// <summary>
-    /// Post processes the scene, draws the tool shapes of the main scene and the given ones over it, and puts
-    /// the result in the target.
+    /// Post processes the scene, outlines the selected nodes, draws the tool shapes of the main scene and the given
+    /// ones over it, and puts the result in the target.
     /// </summary>
     /// <param name="renderer">The renderer of the frame.</param>
     /// <param name="sceneFramebuffer">What the scene was rendered into.</param>
     /// <param name="target">Where the final image goes.</param>
+    /// <param name="selectedNodes">The nodes outlined as selected.</param>
     /// <param name="worldShapes">Shapes given in world space, such as those of what is selected.</param>
     /// <param name="textRenderer">What the text among the shapes of the main scene is written with.</param>
-    public void Render(Renderer renderer, Framebuffer sceneFramebuffer, Framebuffer target, IEnumerable<ToolGeometry> worldShapes, TextRenderer textRenderer)
+    public void Render(Renderer renderer, Framebuffer sceneFramebuffer, Framebuffer target, IReadOnlyList<SceneNode> selectedNodes,
+        IEnumerable<ToolGeometry> worldShapes, TextRenderer textRenderer)
     {
         ArgumentNullException.ThrowIfNull(renderer);
         ArgumentNullException.ThrowIfNull(sceneFramebuffer);
         ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(selectedNodes);
         ArgumentNullException.ThrowIfNull(worldShapes);
         ArgumentNullException.ThrowIfNull(textRenderer);
 
@@ -45,6 +52,7 @@ public sealed class ToolsPass : IDisposable
         var (width, height) = (sceneFramebuffer.Width, sceneFramebuffer.Height);
 
         renderer.PostprocessRender(sceneFramebuffer, output);
+        selectionOutline.Render(renderer, sceneFramebuffer, output, selectedNodes);
 
         using (new GLDebugGroup("Tools"))
         {
@@ -168,6 +176,7 @@ public sealed class ToolsPass : IDisposable
     /// <summary>Deletes the GL objects.</summary>
     public void Dispose()
     {
+        selectionOutline.Dispose();
         framebuffer?.Delete();
         framebuffer = null;
     }
