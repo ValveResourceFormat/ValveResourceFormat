@@ -13,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public int FrameIndex { get; set; } = 1;
 
         /// <summary>
-        /// Gets the bone transforms for this frame.
+        /// Gets the parent space bone transforms for this frame.
         /// </summary>
         public FrameBone[] Bones { get; }
 
@@ -88,6 +88,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
                 case AnimationChannelAttribute.Data:
                     Datas[bone] = data;
+                    break;
+
+                case AnimationChannelAttribute.User:
+                    // Named material-attribute channels have no consumer yet.
                     break;
 
 #if DEBUG

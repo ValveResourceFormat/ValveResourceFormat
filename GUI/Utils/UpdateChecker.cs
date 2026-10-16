@@ -82,6 +82,8 @@ static partial class UpdateChecker
     // The manifest describes both channels, so it is fetched once and re-evaluated when the channel changes
     private static Task<UpdateManifest?>? ManifestTask;
     private static readonly Lock CheckLock = new();
+    private static bool ErrorCheckStarted;
+    private static bool CheckedThisSession;
     /// <summary>Whether the selected channel offers a build to install, either newer or a switch to that channel.</summary>
     public static bool IsNewVersionAvailable { get; private set; }
     /// <summary>Whether the offered build is newer than the running one.</summary>
@@ -96,36 +98,99 @@ static partial class UpdateChecker
     public static long? DownloadSize { get; private set; }
     public static string? DownloadSha256 { get; private set; }
 
+    /// <summary>How the running build compares to the releases recorded by the last successful update check.</summary>
+    public enum UpdateStatus
+    {
+        /// <summary>No newer build is recorded, and no update check has completed this session to confirm it.</summary>
+        Unknown,
+        /// <summary>This build was not produced by the CI, so there is nothing to compare against.</summary>
+        LocalBuild,
+        /// <summary>An update check this session found the running build at least as new as both channels.</summary>
+        UpToDate,
+        /// <summary>A newer stable release exists.</summary>
+        NewerStable,
+        /// <summary>A newer dev build exists.</summary>
+        NewerDev,
+    }
+
     /// <summary>
-    /// The newest dev build known from this session's check, if it is newer than the running build, regardless of the selected channel.
+    /// Whether the selected channel has a build newer than the running one, according to the last successful update check.
+    /// </summary>
+    public static bool IsUpdateAvailable => Settings.Config.Update.Channel == Settings.UpdateChannel.Stable
+        ? GetUpdateStatus() == UpdateStatus.NewerStable
+        : GetUpdateStatus() == UpdateStatus.NewerDev;
+
+    /// <summary>
+    /// Compares the running build to the releases recorded by the last successful update check.
     /// Never performs a request, so it is safe to consult from error handlers.
     /// </summary>
-    public static int? NewerDevBuild
+    public static UpdateStatus GetUpdateStatus()
     {
-        get
+        var currentVersion = GetCurrentVersion();
+
+        if (IsLocalBuild(currentVersion))
         {
-            Task<UpdateManifest?>? manifestTask;
+            return UpdateStatus.LocalBuild;
+        }
 
-            using (CheckLock.EnterScope())
+        var state = Settings.Config.Update;
+        var stableIsNewer = IsStableNewer(state.LatestStableVersion, currentVersion);
+        var devIsNewer = IsDevNewer(state.LatestDevBuild, currentVersion);
+
+        if (state.Channel == Settings.UpdateChannel.Stable && stableIsNewer)
+        {
+            return UpdateStatus.NewerStable;
+        }
+
+        if (devIsNewer)
+        {
+            return UpdateStatus.NewerDev;
+        }
+
+        if (stableIsNewer)
+        {
+            return UpdateStatus.NewerStable;
+        }
+
+        // A release may have come out since the recorded check
+        return CheckedThisSession ? UpdateStatus.UpToDate : UpdateStatus.Unknown;
+    }
+
+    /// <summary>
+    /// Fetches the update manifest once per session after an error, if automatic checks are enabled, so that the recorded state is current.
+    /// Reuses the manifest when this session already fetched it. Never throws.
+    /// </summary>
+    public static void CheckAfterError()
+    {
+        if (!Settings.Config.Update.CheckAutomatically)
+        {
+            return;
+        }
+
+        using (CheckLock.EnterScope())
+        {
+            if (ErrorCheckStarted)
             {
-                manifestTask = ManifestTask;
+                return;
             }
 
-            if (manifestTask is not { IsCompletedSuccessfully: true })
-            {
-                return null;
-            }
+            ErrorCheckStarted = true;
+        }
 
-            var currentVersion = GetCurrentVersion();
+        _ = CheckAfterErrorAsync();
+    }
 
-            if (IsLocalBuild(currentVersion))
-            {
-                return null;
-            }
+    private static async Task CheckAfterErrorAsync()
+    {
+        try
+        {
+            await CheckForUpdates().ConfigureAwait(false);
 
-            var dev = manifestTask.Result?.Dev;
-
-            return dev is { BuildNumber: > 0 } && dev.BuildNumber > currentVersion.Build ? dev.BuildNumber : null;
+            ErrorReport.RefreshUpdateBadge();
+        }
+        catch (Exception e)
+        {
+            Log.Error(nameof(UpdateChecker), $"Failed to check for updates after an error: {e.Message}");
         }
     }
 
@@ -159,7 +224,7 @@ static partial class UpdateChecker
             throw;
         }
 
-        Evaluate(manifest, Settings.Config.Update.Channel);
+        Evaluate(manifest);
     }
 
     /// <summary>
@@ -167,7 +232,7 @@ static partial class UpdateChecker
     /// </summary>
     public static async Task CheckForUpdatesIfNecessary()
     {
-        if (!Settings.Config.Update.CheckAutomatically || Settings.Config.Update.UpdateAvailable)
+        if (!Settings.Config.Update.CheckAutomatically || IsUpdateAvailable)
         {
             return;
         }
@@ -210,13 +275,25 @@ static partial class UpdateChecker
 #endif
     }
 
-    private static void Evaluate(UpdateManifest? manifest, Settings.UpdateChannel channel)
+    private static bool IsStableNewer(string? stableVersion, Version currentVersion)
+    {
+        var releaseVersion = Version.TryParse(stableVersion, out var parsed) ? parsed : new Version(0, 0);
+
+        return releaseVersion > new Version(currentVersion.Major, currentVersion.Minor);
+    }
+
+    // Tag and branch builds share one run number sequence, so this compares across channels too
+    private static bool IsDevNewer(int devBuild, Version currentVersion)
+    {
+        return devBuild > 0 && devBuild > currentVersion.Build;
+    }
+
+    private static void Evaluate(UpdateManifest? manifest)
     {
         var currentVersion = GetCurrentVersion();
 
         if (IsLocalBuild(currentVersion))
         {
-            Settings.Config.Update.UpdateAvailable = false;
             IsNewVersionAvailable = false;
             IsNewVersionStableBuild = true;
             NewVersion = ":)";
@@ -232,13 +309,26 @@ static partial class UpdateChecker
         var stable = manifest.Stable;
         var dev = manifest.Dev;
 
+        if (stable is { Version.Length: > 0 })
+        {
+            Settings.Config.Update.LatestStableVersion = stable.Version;
+        }
+
+        if (dev is { BuildNumber: > 0 })
+        {
+            Settings.Config.Update.LatestDevBuild = dev.BuildNumber;
+        }
+
+        CheckedThisSession = true;
+
         // Release notes are always for the stable release, no matter which channel is selected
         ReleaseNotesUrl = stable?.ReleaseNotesUrl;
         ReleaseNotesVersion = stable?.Version;
 
+        var channel = Settings.Config.Update.Channel;
         IsNewVersionStableBuild = channel == Settings.UpdateChannel.Stable;
-        IsNewer = false;
         NewVersion = null;
+        IsNewer = false;
         Dictionary<string, UpdateAsset>? assets = null;
 
         if (IsNewVersionStableBuild)
@@ -246,17 +336,14 @@ static partial class UpdateChecker
             if (stable is { Version.Length: > 0 })
             {
                 NewVersion = stable.Version;
-                var releaseVersion = Version.TryParse(NewVersion, out var parsed) ? parsed : new Version(0, 0);
-                IsNewer = releaseVersion > new Version(currentVersion.Major, currentVersion.Minor);
+                IsNewer = IsStableNewer(stable.Version, currentVersion);
                 assets = stable.Assets;
             }
         }
         else if (dev is { BuildNumber: > 0 })
         {
             NewVersion = dev.BuildNumber.ToString(CultureInfo.InvariantCulture);
-
-            // Tag and branch builds share one run number sequence, so this compares across channels too
-            IsNewer = dev.BuildNumber > currentVersion.Build;
+            IsNewer = IsDevNewer(dev.BuildNumber, currentVersion);
             assets = dev.Assets;
         }
 
@@ -270,8 +357,6 @@ static partial class UpdateChecker
         DownloadUrl = asset?.Url?.StartsWith("https://", StringComparison.Ordinal) == true ? asset.Url : null;
         DownloadSize = asset?.Size;
         DownloadSha256 = asset?.Sha256;
-
-        Settings.Config.Update.UpdateAvailable = IsNewer;
     }
 
     private static async Task<UpdateManifest?> GetManifestAsync()

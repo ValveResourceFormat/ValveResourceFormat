@@ -58,8 +58,7 @@ namespace ValveResourceFormat.Particles.Initializers
         public override ulong WrittenFields => FieldMask(fieldOutput) | FieldMask(ParticleField.PositionPrevious);
 
         /// <summary>
-        /// The time window applies only when both bounds are set: a -1 sentinel on either bound
-        /// disables the gate entirely.
+        /// A -1 sentinel on either bound disables the time window.
         /// </summary>
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
@@ -81,9 +80,9 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             var value = new Vector3(
-                RemapComponent(position.X, inputMin.X, inputMax.X, outMin.X, outMax.X),
-                RemapComponent(position.Y, inputMin.Y, inputMax.Y, outMin.Y, outMax.Y),
-                RemapComponent(position.Z, inputMin.Z, inputMax.Z, outMin.Z, outMax.Z));
+                MathUtils.RemapValClamped(position.X, inputMin.X, inputMax.X, outMin.X, outMax.X),
+                MathUtils.RemapValClamped(position.Y, inputMin.Y, inputMax.Y, outMin.Y, outMax.Y),
+                MathUtils.RemapValClamped(position.Z, inputMin.Z, inputMax.Z, outMin.Z, outMax.Z));
 
             if (remapBias != 0.5f)
             {
@@ -117,10 +116,5 @@ namespace ValveResourceFormat.Particles.Initializers
 
             return particle;
         }
-
-        private static float RemapComponent(float input, float inputMin, float inputMax, float outputMin, float outputMax)
-            => inputMin == inputMax
-                ? (input - inputMax < 0f ? outputMin : outputMax)
-                : outputMin + (MathUtils.Saturate((input - inputMin) / (inputMax - inputMin)) * (outputMax - outputMin));
     }
 }

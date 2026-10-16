@@ -10,11 +10,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// source sound recompiles the phoneme data back into the <c>vsnd</c>.
         /// </summary>
         /// <remarks>
-        /// A compiled sound only stores the flat runtime phoneme stream, so the original word
-        /// grouping and plaintext cannot be recovered. All phonemes are emitted into a single
-        /// <c>WORD</c> block, which the compiler flattens back to the same stream.
-        /// A phoneme code is the unicode code point of its IPA symbol; the compiler keys off the
-        /// numeric code, so the symbol is written purely for readability.
+        /// A compiled sound only stores the flat runtime phoneme stream, so the word grouping and
+        /// plaintext are lost. All phonemes are emitted into a single <c>WORD</c> block, which the
+        /// compiler flattens back to the same stream. A phoneme code is the unicode code point of
+        /// its IPA symbol; the compiler only uses the numeric code, so the symbol is just for readability.
         /// </remarks>
         public string ToValveSentence()
         {

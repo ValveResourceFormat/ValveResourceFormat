@@ -1,4 +1,3 @@
-using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
@@ -29,14 +28,14 @@ internal sealed class SoundEventCSGOMega : SoundEvent
         var data = definition.Data;
 
         trackNames = GetStringOrArrayProperty(data, "vsnd_files_track_01");
-        childEventNames = data.GetBooleanProperty("enable_child_events")
+        childEventNames = data.GetSoundBool("enable_child_events")
             ? GetStringOrArrayProperty(data, "soundevent_01")
             : [];
 
-        volumeRandomMin = data.GetFloatProperty("volume_random_min");
-        volumeRandomMax = data.GetFloatProperty("volume_random_max");
-        pitchRandomMin = data.GetFloatProperty("pitch_random_min");
-        pitchRandomMax = data.GetFloatProperty("pitch_random_max");
+        volumeRandomMin = data.GetSoundFloat("volume_random_min");
+        volumeRandomMax = data.GetSoundFloat("volume_random_max");
+        pitchRandomMin = data.GetSoundFloat("pitch_random_min");
+        pitchRandomMax = data.GetSoundFloat("pitch_random_max");
         mixGroup = data.GetStringProperty("mixgroup", string.Empty);
 
         // None of these are gated on their "use_" flag: most events carry the curve without setting the

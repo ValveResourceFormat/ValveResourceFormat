@@ -30,7 +30,7 @@ namespace GUI.Controls
             fovInput.Value = Settings.Config.FieldOfView;
             viewmodelFovInput.Value = Settings.Config.ViewmodelFieldOfView;
             mouseSensitivitySlider.Value = (int)(Settings.Config.MouseSensitivity * 10f);
-            mouseSensitivityValueLabel.Text = Settings.Config.MouseSensitivity.ToString("0.0");
+            mouseSensitivityValueLabel.Text = Settings.Config.MouseSensitivity.ToString("0.0", CultureInfo.InvariantCulture);
 
             var volumePercent = Math.Clamp((int)MathF.Round(Settings.Config.Volume * 100f), 0, 100);
             volumeSlider.Value = volumePercent;

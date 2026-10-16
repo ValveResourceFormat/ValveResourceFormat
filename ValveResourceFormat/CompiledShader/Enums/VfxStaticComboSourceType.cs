@@ -20,5 +20,7 @@ public enum VfxStaticComboSourceType
     __SET_BY_FEATURE_NE__,
     S_EXECUTION_REORDERING,
     S_SUPPORTS_DX_11_1,
+    S_GPU_VENDOR_ID,
+    S_GPU_DEVICE_ID,
 #pragma warning restore CS1591
 }

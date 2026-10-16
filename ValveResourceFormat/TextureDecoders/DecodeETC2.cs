@@ -24,8 +24,8 @@ namespace ValveResourceFormat.TextureDecoders
             var dstWidth = res.Width;
             var dstHeight = res.Height;
 
-            var bcw = (width + 3) / 4;
-            var bch = (height + 3) / 4;
+            var bcw = MathUtils.DivideRoundUp(width, 4);
+            var bch = MathUtils.DivideRoundUp(height, 4);
             var blockSize = 8; // ETC2 blocks are 8 bytes
 
             for (int t = 0, d = 0; t < bch; t++)

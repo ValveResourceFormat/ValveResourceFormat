@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
+using ValveResourceFormat.Animation;
 using ValveResourceFormat.Serialization.KeyValues;
 using Node = ValveResourceFormat.Graphs.KVGraphNode;
 
@@ -9,6 +11,7 @@ namespace ValveResourceFormat.Graphs;
 /// Builds the node graph of a compiled AG2 animation graph (.vnmgraph): one card per node of the
 /// definition, wired by the pose and value pins the node constructors declare.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/CNmGraphDefinition">CNmGraphDefinition</seealso>
 /// <param name="graphDefinition">The compiled graph definition to read.</param>
 internal sealed class NmGraphBuilder(KVObject graphDefinition)
 {
@@ -42,9 +45,6 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
         CreateGraph(document);
     }
 
-    private struct Pose;
-    private struct Value;
-
     /// <summary>The value kinds wires actually carry in this graph, for the legend.</summary>
     private readonly HashSet<AnimGraphValueKind> usedValueKinds = [];
 
@@ -58,8 +58,9 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
 
     private void CreateGraph(GraphDocument document)
     {
-        var rootNodeIdx = graphDefinition.GetInt32Property("m_nRootNodeIdx");
-        var nodePaths = graphDefinition.GetArray<string>("m_nodePaths");
+        var graph = new GraphDefinition(graphDefinition);
+        var rootNodeIdx = graph.RootNodeIdx;
+        var nodePaths = graph.NodePaths;
         var nodes = graphDefinition.GetArray("m_nodes");
 
         usedValueKinds.Clear();
@@ -96,6 +97,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
         }
 
         Dictionary<int, Node> createdNodes = new(nodes.Count);
+        Dictionary<int, Animation.GraphNode?> definitions = new(nodes.Count);
 
         Node CreateNode(string[] nodePaths, IReadOnlyList<KVObject> nodes, int nodeIdx)
         {
@@ -144,10 +146,9 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
             return node;
         }
 
-        (Node, GraphSocket) CreateInputAndChild<ValueType>(Node parent, int nodeIdx, string? parentInputName = null, string? childOutputName = null, bool hub = false)
-            where ValueType : struct
+        (Node, GraphSocket) CreateInputAndChild(Node parent, int nodeIdx, string? parentInputName = null, string? childOutputName = null, bool hub = false)
         {
-            var (childNode, childNodeOutput) = CreateChild<ValueType>(nodeIdx, childOutputName);
+            var (childNode, childNodeOutput) = CreateChild(nodeIdx, childOutputName);
 
             // The input takes the created output's hue so both ends of the wire agree on the
             // value kind the child produces.
@@ -157,7 +158,15 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
             return (childNode, input);
         }
 
-        (Node, GraphSocket) CreateChild<ValueType>(int nodeIdx, string? childOutputName = null)
+        void AddOptionalInput(Node parent, int nodeIdx, string name)
+        {
+            if (nodeIdx != -1)
+            {
+                CreateInputAndChild(parent, nodeIdx, name);
+            }
+        }
+
+        (Node, GraphSocket) CreateChild(int nodeIdx, string? childOutputName = null)
         {
             var childNode = CreateNode(nodePaths, nodes, nodeIdx);
 
@@ -167,683 +176,881 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                 return (childNode, childNode.Outputs[0]);
             }
 
-            if (childNode.NodeType is "Clip" or "ReferencedGraph")
+            if (childNode.NodeType is "Clip" or "TimeControlledClip" or "ReferencedGraph")
             {
                 childOutputName = string.Empty;
             }
 
-            GraphHue outputHue;
+            // Every AG2 node constructor bakes its pin's value type; the type name tells which
+            // one, so wires carry their real kind's colour.
+            var kind = AnimGraphHues.AG2ValueKindOf(childNode.NodeType);
 
-            if (typeof(ValueType) == typeof(Value))
+            if (kind is not (AnimGraphValueKind.Pose or AnimGraphValueKind.Unknown))
             {
-                // Every AG2 node constructor bakes its pin's value type; the type name tells
-                // which one, so value wires carry their real kind's colour.
-                var kind = AnimGraphHues.AG2ValueKindOf(childNode.NodeType ?? string.Empty);
                 usedValueKinds.Add(kind);
-                outputHue = AnimGraphHues.HueOf(kind);
-            }
-            else
-            {
-                outputHue = PoseHue;
             }
 
-            var childNodeOutput = childNode.AddOutput(childOutputName ?? string.Empty, outputHue);
+            var childNodeOutput = childNode.AddOutput(childOutputName ?? string.Empty, AnimGraphHues.HueOf(kind));
 
-            TryCreateChildren(childNode, nodeIdx);
+            CreateChildren(childNode, nodeIdx);
 
             return (childNode, childNodeOutput);
         }
 
-        // A malformed index anywhere in the tree costs its own subtree, never the whole graph.
-        void TryCreateChildren(Node node, int nodeIdx)
+        void AddSourceState(Node node, int sourceStateNodeIdx)
+        {
+            if (sourceStateNodeIdx != -1)
+            {
+                node.AddText($"State: {GetName(sourceStateNodeIdx)}");
+            }
+        }
+
+        // The node as the graph library reads it, or null for a class it has no node for
+        Animation.GraphNode? GetDefinition(int nodeIdx)
+        {
+            if (!definitions.TryGetValue(nodeIdx, out var definition))
+            {
+                var data = nodes[nodeIdx];
+                definition = GraphNodeFactory.IsSupported(data.GetStringProperty("_class")) ? GraphNodeFactory.Create(data) : null;
+                definitions[nodeIdx] = definition;
+            }
+
+            return definition;
+        }
+
+        void CreateStateInputs(Node stateMachine, StateMachineNode definition, List<Node>? stateGraphNodes)
+        {
+            foreach (var stateDefinition in definition.StateDefinitions)
+            {
+                var stateNodeIdx = stateDefinition.StateNodeIdx;
+                var stateName = GetName(stateNodeIdx);
+                var input = stateMachine.AddInput(stateName, PoseHue, allowMultiple: true);
+
+                // The placeholder keeps the state list index-aligned with the transitions.
+                if (!IsValidNodeIndex(stateNodeIdx) || GetDefinition(stateNodeIdx) is not StateNode state)
+                {
+                    var missingState = CreateNode(nodePaths, nodes, stateNodeIdx);
+                    document.Connect(missingState.GetOrAddOutput(string.Empty, PoseHue), input);
+                    stateGraphNodes?.Add(missingState);
+                    continue;
+                }
+
+                // States materialize as their own nodes so transitions render as a statechart,
+                // or flatten into input sockets on the state machine node itself.
+                var target = stateMachine;
+                var childInput = input;
+
+                if (stateGraphNodes != null)
+                {
+                    target = document.AddNode(new Node(nodes[stateNodeIdx])
+                    {
+                        Name = $"({stateNodeIdx}) {stateName}",
+                        NodeType = "State",
+                        Category = GraphHue.Slate,
+                    });
+                    document.Connect(target.AddOutput(string.Empty, PoseHue), input);
+                    stateGraphNodes.Add(target);
+                }
+
+                if (state.ChildNodeIdx != -1)
+                {
+                    var (_, stateNodeOut) = CreateChild(state.ChildNodeIdx);
+                    document.Connect(stateNodeOut, stateGraphNodes != null ? target.AddInput(string.Empty, PoseHue, allowMultiple: true) : childInput);
+                }
+
+                if (stateDefinition.EntryConditionNodeIdx != -1)
+                {
+                    var (_, childOutput) = CreateChild(stateDefinition.EntryConditionNodeIdx, stateName);
+                    document.Connect(childOutput, target.AddInput("Entry condition", childOutput.Hue, allowMultiple: true));
+                }
+
+                // A state inside a state machine layer can carry the bone mask that layer
+                // blends with; the other per-state layer fields ship unused.
+                if (state.LayerBoneMaskNodeIdx != -1)
+                {
+                    var (_, maskOutput) = CreateChild(state.LayerBoneMaskNodeIdx, stateName);
+                    document.Connect(maskOutput, target.AddInput("Layer bone mask", maskOutput.Hue, allowMultiple: true));
+                }
+            }
+        }
+
+        void AddWeightedOptions(Node node, short parameterNodeIdx, short[] options, byte[] weights, bool hasWeightsSet)
+        {
+            CreateInputAndChild(node, parameterNodeIdx);
+
+            var totalWeight = hasWeightsSet ? Math.Max(1, weights.Sum(static w => (int)w)) : 0;
+
+            for (var i = 0; i < options.Length; i++)
+            {
+                var weightDesc = string.Empty;
+                if (hasWeightsSet)
+                {
+                    var weight = weights[i];
+                    var weightPercentage = weight / (float)totalWeight * 100;
+
+                    weightDesc = string.Create(CultureInfo.InvariantCulture, $"Weight: {weight} ({weightPercentage:F2}%)");
+                }
+
+                CreateInputAndChild(node, options[i], $"Option {i + 1} {weightDesc}");
+            }
+        }
+
+        void AddIdOptions(Node node, short parameterNodeIdx, short fallbackNodeIdx, short[] options, StringToken[] optionIds)
+        {
+            AddOptionalInput(node, parameterNodeIdx, "Parameter");
+            AddOptionalInput(node, fallbackNodeIdx, "Fallback");
+
+            // The option a given ID selects is positional, so the label carries the ID it matches.
+            for (var i = 0; i < options.Length; i++)
+            {
+                CreateInputAndChild(node, options[i], i < optionIds.Length ? optionIds[i].Name : $"Option {i + 1}");
+            }
+        }
+
+        void AddSwitchInputs(Node node, short switchValueNodeIdx, short trueNodeIdx, short falseNodeIdx)
+        {
+            AddOptionalInput(node, switchValueNodeIdx, "Switch");
+            AddOptionalInput(node, trueNodeIdx, "True");
+            AddOptionalInput(node, falseNodeIdx, "False");
+        }
+
+        void AddConditionalOptions(Node node, short[] options, short[] conditions)
+        {
+            // Select the first option for which the condition passes?
+            foreach (var (optionNodeIdx, conditionNodeIdx) in options.Zip(conditions))
+            {
+                var (_, optionInput) = CreateInputAndChild(node, optionNodeIdx, hub: true);
+                var (_, conditionOutput) = CreateChild(conditionNodeIdx);
+                document.Connect(conditionOutput, optionInput);
+            }
+        }
+
+        void AddBlendSources(Node node, short[] sourceNodeIndices, bool allowLooping)
+        {
+            for (var i = 0; i < sourceNodeIndices.Length; i++)
+            {
+                CreateInputAndChild(node, sourceNodeIndices[i], $"Option {i + 1}");
+            }
+
+            node.AddText($"Allow Looping: {allowLooping}");
+        }
+
+        void AddCachedValue(Node node, short inputValueNodeIdx, CachedValueMode mode)
+        {
+            CreateInputAndChild(node, inputValueNodeIdx, "Input");
+            node.AddText($"Mode: {mode}");
+        }
+
+        void AddIKSettings(Node node, float blendTimeSeconds, string format, IKBlendMode? blendMode, bool isTargetInWorldSpace)
+        {
+            node.AddText(string.Create(CultureInfo.InvariantCulture, $"Blend Time: {blendTimeSeconds.ToString(format, CultureInfo.InvariantCulture)}"));
+
+            if (blendMode != null)
+            {
+                node.AddText($"Blend Mode: {blendMode}");
+            }
+
+            node.AddText($"Worldspace: {isTargetInWorldSpace}");
+        }
+
+        void CreateChildren(Node node, int nodeIdx)
         {
             if (node.NodeType == "Missing" || !IsValidNodeIndex(nodeIdx))
             {
                 return;
             }
 
-            try
+            var data = nodes[nodeIdx];
+
+            switch (GetDefinition(nodeIdx))
             {
-                CreateChildren(node, nodeIdx);
-            }
-            catch (Exception e) when (e is IndexOutOfRangeException or ArgumentOutOfRangeException)
-            {
-                ProgressReporter?.Report($"Error creating children for {node.Name} (idx = {nodeIdx}).");
+                case StateMachineNode stateMachine when DrawStateMachines:
+                {
+                    var stateGraphNodes = new List<Node>(stateMachine.StateDefinitions.Length);
+                    CreateStateInputs(node, stateMachine, stateGraphNodes);
+
+                    // Dashed state-to-state transition wires labeled with their condition.
+                    for (var stateIndex = 0; stateIndex < stateMachine.StateDefinitions.Length; stateIndex++)
+                    {
+                        foreach (var transition in stateMachine.StateDefinitions[stateIndex].TransitionDefinitions)
+                        {
+                            if (transition.TargetStateIdx < 0 || transition.TargetStateIdx >= stateGraphNodes.Count)
+                            {
+                                continue;
+                            }
+
+                            var label = transition.ConditionNodeIdx != -1 ? GetName(transition.ConditionNodeIdx) : null;
+                            AnimGraphHues.ConnectTransition(document, stateGraphNodes[stateIndex], stateGraphNodes[transition.TargetStateIdx], label);
+                        }
+                    }
+
+                    break;
+                }
+
+                case StateMachineNode stateMachine:
+                    CreateStateInputs(node, stateMachine, stateGraphNodes: null);
+                    break;
+
+                case ParameterizedSelectorNode selector:
+                    AddWeightedOptions(node, selector.ParameterNodeIdx, selector.OptionNodeIndices, selector.OptionWeights, selector.HasWeightsSet);
+                    break;
+
+                case ParameterizedClipSelectorNode selector:
+                    AddWeightedOptions(node, selector.ParameterNodeIdx, selector.OptionNodeIndices, selector.OptionWeights, selector.HasWeightsSet);
+                    break;
+
+                case IDBasedSelectorNode selector:
+                    AddIdOptions(node, selector.ParameterNodeIdx, selector.FallbackNodeIdx, selector.OptionNodeIndices, selector.OptionIDs);
+                    break;
+
+                case IDBasedClipSelectorNode selector:
+                    AddIdOptions(node, selector.ParameterNodeIdx, selector.FallbackNodeIdx, selector.OptionNodeIndices, selector.OptionIDs);
+                    break;
+
+                case TargetSelectorNode selector:
+                    AddOptionalInput(node, selector.ParameterNodeIdx, "Target");
+
+                    foreach (var optionNodeIdx in selector.OptionNodeIndices)
+                    {
+                        CreateInputAndChild(node, optionNodeIdx);
+                    }
+
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Orientation Weight: {selector.OrientationScoreWeight:F2}"));
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Position Weight: {selector.PositionScoreWeight:F2}"));
+                    node.AddText($"Worldspace: {selector.IsWorldSpaceTarget}");
+                    break;
+
+                // A switch branch with no wired node is a constant, so show that constant in its place.
+                case FloatSwitchNode floatSwitch:
+                    AddSwitchInputs(node, floatSwitch.SwitchValueNodeIdx, floatSwitch.TrueValueNodeIdx, floatSwitch.FalseValueNodeIdx);
+                    if (floatSwitch.TrueValueNodeIdx == -1) { node.AddText(string.Create(CultureInfo.InvariantCulture, $"True: {floatSwitch.TrueValue:f}")); }
+                    if (floatSwitch.FalseValueNodeIdx == -1) { node.AddText(string.Create(CultureInfo.InvariantCulture, $"False: {floatSwitch.FalseValue:f}")); }
+                    break;
+
+                case IDSwitchNode idSwitch:
+                    AddSwitchInputs(node, idSwitch.SwitchValueNodeIdx, idSwitch.TrueValueNodeIdx, idSwitch.FalseValueNodeIdx);
+                    if (idSwitch.TrueValueNodeIdx == -1) { node.AddText($"True: '{idSwitch.TrueValue.Name}'"); }
+                    if (idSwitch.FalseValueNodeIdx == -1) { node.AddText($"False: '{idSwitch.FalseValue.Name}'"); }
+                    break;
+
+                case BoneMaskSwitchNode maskSwitch:
+                    AddSwitchInputs(node, maskSwitch.SwitchValueNodeIdx, maskSwitch.TrueValueNodeIdx, maskSwitch.FalseValueNodeIdx);
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Blend Time: {maskSwitch.BlendTimeSeconds:F2}"));
+                    node.AddText($"Switch Dynamically: {maskSwitch.SwitchDynamically}");
+                    break;
+
+                case BoneMaskSelectorNode maskSelector:
+                    AddOptionalInput(node, maskSelector.ParameterValueNodeIdx, "Parameter");
+                    AddOptionalInput(node, maskSelector.DefaultMaskNodeIdx, "Default");
+
+                    for (var i = 0; i < maskSelector.MaskNodeIndices.Length; i++)
+                    {
+                        var label = i < maskSelector.ParameterValues.Length ? maskSelector.ParameterValues[i].Name : $"Mask {i + 1}";
+                        CreateInputAndChild(node, maskSelector.MaskNodeIndices[i], label);
+                    }
+
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Blend Time: {maskSelector.BlendTimeSeconds:F2}"));
+                    node.AddText($"Switch Dynamically: {maskSelector.SwitchDynamically}");
+                    break;
+
+                case BoneMaskBlendNode maskBlend:
+                    AddOptionalInput(node, maskBlend.SourceMaskNodeIdx, "Source");
+                    AddOptionalInput(node, maskBlend.TargetMaskNodeIdx, "Target");
+                    AddOptionalInput(node, maskBlend.BlendWeightValueNodeIdx, "Blend Weight");
+                    break;
+
+                case OrientationWarpNode warp:
+                    AddOptionalInput(node, warp.ClipReferenceNodeIdx, "Clip");
+                    AddOptionalInput(node, warp.TargetValueNodeIdx, "Target");
+                    node.AddText($"Offset: {warp.IsOffsetNode}");
+                    node.AddText($"Relative To Character: {warp.IsOffsetRelativeToCharacter}");
+                    node.AddText($"Warp Translation: {warp.WarpTranslation}");
+                    node.AddText($"Alignment: {warp.AlignmentMode}");
+                    node.AddText($"Sampling: {warp.SamplingMode}");
+                    break;
+
+                case TargetWarpNode warp:
+                    AddOptionalInput(node, warp.ClipReferenceNodeIdx, "Clip");
+                    AddOptionalInput(node, warp.TargetValueNodeIdx, "Target");
+                    node.AddText($"Update Rule: {warp.TargetUpdateRule}");
+                    node.AddText($"Align At Last Warp Event: {warp.AlignWithTargetAtLastWarpEvent}");
+                    node.AddText($"Sampling: {warp.SamplingMode}");
+                    break;
+
+                case SelectorNode selector:
+                    AddConditionalOptions(node, selector.OptionNodeIndices, selector.ConditionNodeIndices);
+                    break;
+
+                case ClipSelectorNode selector:
+                    AddConditionalOptions(node, selector.OptionNodeIndices, selector.ConditionNodeIndices);
+                    break;
+
+                // The first condition that passes picks the value at its position.
+                case FloatSelectorNode selector:
+                    for (var i = 0; i < selector.ConditionNodeIndices.Length; i++)
+                    {
+                        CreateInputAndChild(node, selector.ConditionNodeIndices[i], i < selector.Values.Length
+                            ? string.Create(CultureInfo.InvariantCulture, $"= {selector.Values[i]:F2}")
+                            : null);
+                    }
+
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Default: {selector.DefaultValue:F2}"));
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Ease: {selector.EasingOp} {selector.EaseTime:F2}s"));
+                    break;
+
+                case IDSelectorNode selector:
+                    for (var i = 0; i < selector.ConditionNodeIndices.Length; i++)
+                    {
+                        CreateInputAndChild(node, selector.ConditionNodeIndices[i], i < selector.Values.Length ? $"= {selector.Values[i].Name}" : null);
+                    }
+
+                    node.AddText($"Default: '{selector.DefaultValue.Name}'");
+                    break;
+
+                case LayerBlendNode layerBlend:
+                {
+                    CreateInputAndChild(node, layerBlend.BaseNodeIdx, "Base", "Result");
+
+                    var layerInput = node.AddInput("Layers", PoseHue, allowMultiple: true);
+                    var layerData = data.GetArray("m_layerDefinition");
+
+                    for (var layerIndex = 0; layerIndex < layerBlend.LayerDefinition.Length; layerIndex++)
+                    {
+                        var layer = layerBlend.LayerDefinition[layerIndex];
+                        var layerNode = document.AddNode(new Node(layerData[layerIndex])
+                        {
+                            Name = $"Layer{layerIndex}",
+                            NodeType = LayerDefinitionType,
+                            Category = AnimGraphHues.HueOf(AnimGraphHues.CategoryOfAG2(LayerDefinitionType)),
+                        });
+
+                        document.Connect(layerNode.AddOutput(string.Empty, PoseHue), layerInput);
+                        CreateInputAndChild(layerNode, layer.InputNodeIdx);
+
+                        AddOptionalInput(layerNode, layer.WeightValueNodeIdx, "Weight");
+                        AddOptionalInput(layerNode, layer.BoneMaskValueNodeIdx, "Bone Mask");
+                        AddOptionalInput(layerNode, layer.RootMotionWeightValueNodeIdx, "Root Motion");
+
+                        layerNode.AddText($"Is Synchronized: {layer.IsSynchronized}");
+                        layerNode.AddText($"Ignore Events: {layer.IgnoreEvents}");
+                        layerNode.AddText($"Is State Machine Layer: {layer.IsStateMachineLayer}");
+                        layerNode.AddText($"Blend Mode: {layer.BlendMode}");
+                    }
+
+                    break;
+                }
+
+                case Blend2DNode blend:
+                    CreateInputAndChild(node, blend.InputParameterNodeIdx0, "Parameter A");
+                    CreateInputAndChild(node, blend.InputParameterNodeIdx1, "Parameter B");
+                    AddBlendSources(node, blend.SourceNodeIndices, blend.AllowLooping);
+                    break;
+
+                case ParameterizedBlendNode blend:
+                    CreateInputAndChild(node, blend.InputParameterValueNodeIdx, "Parameter");
+                    AddBlendSources(node, blend.SourceNodeIndices, blend.AllowLooping);
+                    break;
+
+                case BoneMaskNode boneMask:
+                    node.AddText(boneMask.BoneMaskID.Name);
+                    break;
+
+                case FixedWeightBoneMaskNode boneMask:
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Weight: {boneMask.BoneWeight:F2}"));
+                    break;
+
+                case CachedBoolNode cached:
+                    AddCachedValue(node, cached.InputValueNodeIdx, cached.Mode);
+                    break;
+
+                case CachedFloatNode cached:
+                    AddCachedValue(node, cached.InputValueNodeIdx, cached.Mode);
+                    break;
+
+                case CachedIDNode cached:
+                    AddCachedValue(node, cached.InputValueNodeIdx, cached.Mode);
+                    break;
+
+                case CachedTargetNode cached:
+                    AddCachedValue(node, cached.InputValueNodeIdx, cached.Mode);
+                    break;
+
+                case CachedVectorNode cached:
+                    AddCachedValue(node, cached.InputValueNodeIdx, cached.Mode);
+                    break;
+
+                case ConstTargetNode constTarget:
+                    node.AddText($"Bone: {constTarget.Value.BoneID.Name}");
+                    node.AddText($"Is Bone Target: {constTarget.Value.IsBoneTarget}");
+                    node.AddText($"Bone Space Offsets: {constTarget.Value.IsUsingBoneSpaceOffsets}");
+                    node.AddText($"Has Offsets: {constTarget.Value.HasOffsets}");
+                    node.AddText($"Is Set: {constTarget.Value.IsSet}");
+                    break;
+
+                case ConstFloatNode constFloat:
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"{constFloat.Value:F2}"));
+                    break;
+
+                case ConstBoolNode constBool:
+                    node.AddText($"{constBool.Value}");
+                    break;
+
+                case ConstIDNode constId:
+                    node.AddText($"'{constId.Value.Name}'");
+                    break;
+
+                case ConstVectorNode:
+                    node.AddText(Node.StringifyValue(data["m_value"]));
+                    break;
+
+                case SpeedScaleBaseNode speedScale:
+                {
+                    CreateInputAndChild(node, speedScale.ChildNodeIdx, "Input");
+
+                    var valueName = speedScale switch
+                    {
+                        DurationScaleNode => "Duration",
+                        VelocityBasedSpeedScaleNode => "Velocity",
+                        _ => "Scale Value",
+                    };
+
+                    AddOptionalInput(node, speedScale.InputValueNodeIdx, valueName);
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Default {valueName}: {speedScale.DefaultInputValue}"));
+                    break;
+                }
+
+                case NotNode not:
+                    CreateInputAndChild(node, not.InputValueNodeIdx, "Value");
+                    break;
+
+                case FloatCurveNode curve:
+                    CreateInputAndChild(node, curve.InputValueNodeIdx, "Value");
+                    break;
+
+                case IsTargetSetNode isTargetSet:
+                    CreateInputAndChild(node, isTargetSet.InputValueNodeIdx, "Value");
+                    break;
+
+                case VectorNegateNode negate:
+                    CreateInputAndChild(node, negate.InputValueNodeIdx, "Value");
+                    break;
+
+                case FloatClampNode clamp:
+                    CreateInputAndChild(node, clamp.InputValueNodeIdx, "Value");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"{clamp.ClampRange.Min:F2} - {clamp.ClampRange.Max:F2}"));
+                    break;
+
+                case FloatAngleMathNode angleMath:
+                    CreateInputAndChild(node, angleMath.InputValueNodeIdx, "Value");
+                    node.AddText(angleMath.Operation.ToString());
+                    break;
+
+                case VectorInfoNode vectorInfo:
+                    CreateInputAndChild(node, vectorInfo.InputValueNodeIdx, "Value");
+                    node.AddText(vectorInfo.DesiredInfo.ToString());
+                    break;
+
+                case TargetInfoNode targetInfo:
+                    CreateInputAndChild(node, targetInfo.InputValueNodeIdx, "Value");
+                    node.AddText(targetInfo.InfoType.ToString());
+                    node.AddText($"Worldspace: {targetInfo.IsWorldSpaceTarget}");
+                    break;
+
+                case TargetPointNode targetPoint:
+                    CreateInputAndChild(node, targetPoint.InputValueNodeIdx, "Value");
+                    node.AddText($"Worldspace: {targetPoint.IsWorldSpaceTarget}");
+                    break;
+
+                case TargetOffsetNode targetOffset:
+                    CreateInputAndChild(node, targetOffset.InputValueNodeIdx, "Target");
+                    node.AddText($"Bone Space: {targetOffset.IsBoneSpaceOffset}");
+                    node.AddText($"Rotation: {Node.StringifyValue(data["m_rotationOffset"])}");
+                    node.AddText($"Translation: {Node.StringifyValue(data["m_translationOffset"])}");
+                    break;
+
+                case VectorCreateNode vectorCreate:
+                    AddOptionalInput(node, vectorCreate.InputVectorValueNodeIdx, "Vector");
+                    AddOptionalInput(node, vectorCreate.InputValueXNodeIdx, "X");
+                    AddOptionalInput(node, vectorCreate.InputValueYNodeIdx, "Y");
+                    AddOptionalInput(node, vectorCreate.InputValueZNodeIdx, "Z");
+                    break;
+
+                case FloatEaseNode ease:
+                    CreateInputAndChild(node, ease.InputValueNodeIdx, "Value");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Ease: {ease.EasingOp} {ease.EaseTime:F2}s"));
+
+                    if (ease.UseStartValue)
+                    {
+                        node.AddText(string.Create(CultureInfo.InvariantCulture, $"Start Value: {ease.StartValue:F2}"));
+                    }
+
+                    break;
+
+                case FloatSpringNode spring:
+                    CreateInputAndChild(node, spring.InputValueNodeIdx, "Value");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Frequency: {spring.Hertz:F2} Hz"));
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Damping Ratio: {spring.DampingRatio:F2}"));
+
+                    if (spring.UseStartValue)
+                    {
+                        node.AddText(string.Create(CultureInfo.InvariantCulture, $"Start Value: {spring.StartValue:F2}"));
+                    }
+
+                    break;
+
+                case IDToFloatNode idToFloat:
+                    CreateInputAndChild(node, idToFloat.InputValueNodeIdx, "ID");
+
+                    for (var i = 0; i < idToFloat.IDs.Length && i < idToFloat.Values.Length; i++)
+                    {
+                        node.AddText(string.Create(CultureInfo.InvariantCulture, $"'{idToFloat.IDs[i].Name}': {idToFloat.Values[i]:F2}"));
+                    }
+
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Default: {idToFloat.DefaultValue:F2}"));
+                    break;
+
+                case FloatRemapNode remap:
+                    CreateInputAndChild(node, remap.InputValueNodeIdx, "Value");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"InputBegin: {remap.InputRange.Begin} InputEnd: {remap.InputRange.End}"));
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"OutputBegin: {remap.OutputRange.Begin} OutputEnd: {remap.OutputRange.End}"));
+                    break;
+
+                case FloatCurveEventNode curveEvent:
+                    AddOptionalInput(node, curveEvent.DefaultNodeIdx, "Default");
+                    node.AddText($"Event: '{curveEvent.EventID.Name}'");
+                    break;
+
+                case IDEventConditionNode eventCondition:
+                    AddSourceState(node, eventCondition.SourceStateNodeIdx);
+
+                    foreach (var eventId in eventCondition.EventIDs)
+                    {
+                        node.AddText($"Event: '{eventId.Name}'");
+                    }
+
+                    break;
+
+                case GraphEventConditionNode eventCondition:
+                    AddSourceState(node, eventCondition.SourceStateNodeIdx);
+
+                    foreach (var condition in eventCondition.Conditions)
+                    {
+                        node.AddText($"Event: '{condition.EventID.Name}' ({condition.EventTypeCondition})");
+                    }
+
+                    break;
+
+                case IDEventNode idEvent:
+                    AddSourceState(node, idEvent.SourceStateNodeIdx);
+                    node.AddText($"Default: '{idEvent.DefaultValue.Name}'");
+                    break;
+
+                case IDEventPercentageThroughNode idEvent:
+                    AddSourceState(node, idEvent.SourceStateNodeIdx);
+                    node.AddText($"Event: '{idEvent.EventID.Name}'");
+                    break;
+
+                case FootEventConditionNode footEvent:
+                    AddSourceState(node, footEvent.SourceStateNodeIdx);
+                    node.AddText($"Phase: {footEvent.PhaseCondition}");
+                    break;
+
+                case FootstepEventPercentageThroughNode footEvent:
+                    AddSourceState(node, footEvent.SourceStateNodeIdx);
+                    node.AddText($"Phase: {footEvent.PhaseCondition}");
+                    break;
+
+                case FootstepEventIDNode footEvent:
+                    AddSourceState(node, footEvent.SourceStateNodeIdx);
+                    break;
+
+                case TransitionEventConditionNode transitionEvent:
+                    AddSourceState(node, transitionEvent.SourceStateNodeIdx);
+                    node.AddText($"Rule: {transitionEvent.RuleCondition}");
+
+                    if (transitionEvent.RequireRuleID.Name.Length > 0)
+                    {
+                        node.AddText($"Rule ID: '{transitionEvent.RequireRuleID.Name}'");
+                    }
+
+                    break;
+
+                case SyncEventIndexConditionNode syncEvent:
+                    AddSourceState(node, syncEvent.SourceStateNodeIdx);
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"{syncEvent.TriggerMode}: {syncEvent.SyncEventIdx}"));
+                    break;
+
+                case CurrentSyncEventNode syncEvent:
+                    AddSourceState(node, syncEvent.SourceStateNodeIdx);
+                    node.AddText(syncEvent.InfoType.ToString());
+                    break;
+
+                case CurrentSyncEventIDNode syncEvent:
+                    AddSourceState(node, syncEvent.SourceStateNodeIdx);
+                    break;
+
+                case StateCompletedConditionNode stateCompleted:
+                    AddSourceState(node, stateCompleted.SourceStateNodeIdx);
+                    AddOptionalInput(node, stateCompleted.TransitionDurationOverrideNodeIdx, "Duration Override");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Transition Duration: {stateCompleted.TransitionDurationSeconds:F2}"));
+                    break;
+
+                case TimeConditionNode timeCondition:
+                    AddSourceState(node, timeCondition.SourceStateNodeIdx);
+                    AddOptionalInput(node, timeCondition.InputValueNodeIdx, "Time Value");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"{timeCondition.Type} {timeCondition.Operator} {timeCondition.Comparand:F2}"));
+                    break;
+
+                case IsExternalGraphSlotFilledNode slotFilled:
+                    node.AddText($"Slot: {GetName(slotFilled.ExternalGraphNodeIdx)}");
+                    break;
+
+                case IsExternalPoseSetNode poseSet:
+                    node.AddText($"Slot: {GetName(poseSet.ExternalPoseNodeIdx)}");
+                    break;
+
+                case FloatMathNode math:
+                    CreateInputAndChild(node, math.InputValueNodeIdxA, "A");
+                    node.AddText(math.Operator.ToString());
+
+                    if (math.InputValueNodeIdxB != -1)
+                    {
+                        CreateInputAndChild(node, math.InputValueNodeIdxB, "B");
+                    }
+                    else
+                    {
+                        node.AddText(string.Create(CultureInfo.InvariantCulture, $"{math.ValueB:f}"));
+                    }
+
+                    break;
+
+                case IDComparisonNode comparison:
+                    CreateInputAndChild(node, comparison.InputValueNodeIdx, GetName(comparison.InputValueNodeIdx));
+                    node.AddText(comparison.Comparison.ToString());
+
+                    foreach (var comparisonId in comparison.ComparisionIDs)
+                    {
+                        node.AddText($"'{comparisonId.Name}'");
+                    }
+
+                    break;
+
+                case FloatComparisonNode comparison:
+                    CreateInputAndChild(node, comparison.InputValueNodeIdx, GetName(comparison.InputValueNodeIdx));
+                    node.AddText(comparison.Comparison.ToString());
+
+                    if (comparison.ComparandValueNodeIdx != -1)
+                    {
+                        CreateInputAndChild(node, comparison.ComparandValueNodeIdx, "Comparand");
+                    }
+                    else
+                    {
+                        node.AddText(string.Create(CultureInfo.InvariantCulture, $"{comparison.ComparisonValue:f}"));
+                    }
+
+                    break;
+
+                case FloatRangeComparisonNode comparison:
+                    CreateInputAndChild(node, comparison.InputValueNodeIdx, GetName(comparison.InputValueNodeIdx));
+                    node.AddText(comparison.IsInclusiveCheck
+                        ? string.Create(CultureInfo.InvariantCulture, $"{comparison.Range.Min:f} <= x <= {comparison.Range.Max:f}")
+                        : string.Create(CultureInfo.InvariantCulture, $"{comparison.Range.Min:f} < x < {comparison.Range.Max:f}"));
+                    break;
+
+                case AndNode and:
+                    foreach (var condition in and.ConditionNodeIndices)
+                    {
+                        CreateInputAndChild(node, condition);
+                    }
+
+                    break;
+
+                case OrNode or:
+                    foreach (var condition in or.ConditionNodeIndices)
+                    {
+                        CreateInputAndChild(node, condition);
+                    }
+
+                    break;
+
+                case PassthroughNode passthrough:
+                    switch (passthrough)
+                    {
+                        case ScaleNode scale:
+                            CreateInputAndChild(node, scale.MaskNodeIdx, "Mask");
+                            CreateInputAndChild(node, scale.EnableNodeIdx, "Enable");
+                            break;
+
+                        case TwoBoneIKNode ik:
+                            node.AddText($"Bone: {ik.EffectorBoneID.Name}");
+                            CreateInputAndChild(node, ik.EffectorTargetNodeIdx, "Effector");
+
+                            if (ik.EnabledNodeIdx != -1)
+                            {
+                                CreateInputAndChild(node, ik.EnabledNodeIdx, "Enabled");
+                            }
+                            else
+                            {
+                                node.AddText("Enabled: true");
+                            }
+
+                            AddIKSettings(node, ik.BlendTimeSeconds, "f", ik.BlendMode, ik.IsTargetInWorldSpace);
+                            break;
+
+                        case FootIKNode ik:
+                            node.AddText($"Left Effector: {ik.LeftEffectorBoneID.Name}");
+                            node.AddText($"Right Effector: {ik.RightEffectorBoneID.Name}");
+
+                            CreateInputAndChild(node, ik.LeftTargetNodeIdx, "Left Target");
+                            CreateInputAndChild(node, ik.RightTargetNodeIdx, "Right Target");
+                            AddOptionalInput(node, ik.EnabledNodeIdx, "Enabled");
+
+                            AddIKSettings(node, ik.BlendTimeSeconds, "F2", ik.BlendMode, ik.IsTargetInWorldSpace);
+                            break;
+
+                        case ChainLookatNode lookat:
+                            node.AddText($"End Effector: {lookat.EndEffectorBoneID.Name}");
+                            node.AddText(string.Create(CultureInfo.InvariantCulture, $"Chain Length: {lookat.ChainLength}"));
+
+                            AddOptionalInput(node, lookat.LookatTargetNodeIdx, "Lookat Target");
+                            AddOptionalInput(node, lookat.EnabledNodeIdx, "Enabled");
+
+                            AddIKSettings(node, lookat.BlendTimeSeconds, "F2", blendMode: null, lookat.IsTargetInWorldSpace);
+                            break;
+
+                        case FollowBoneNode follow:
+                            node.AddText($"Bone: {follow.Bone.Name}");
+                            node.AddText($"Follow: {follow.FollowTargetBone.Name}");
+                            node.AddText($"Mode: {follow.Mode}");
+
+                            AddOptionalInput(node, follow.EnabledNodeIdx, "Enabled");
+                            break;
+
+                        case RootMotionOverrideNode rootMotion:
+                            AddOptionalInput(node, rootMotion.DesiredMovingVelocityNodeIdx, "Moving Velocity");
+                            AddOptionalInput(node, rootMotion.DesiredFacingDirectionNodeIdx, "Facing Direction");
+                            AddOptionalInput(node, rootMotion.LinearVelocityLimitNodeIdx, "Linear Velocity Limit");
+                            AddOptionalInput(node, rootMotion.AngularVelocityLimitNodeIdx, "Angular Velocity Limit");
+                            AddOptionalInput(node, rootMotion.EnabledNodeIdx, "Enabled");
+                            break;
+
+                        case BodyGroupNode bodyGroup:
+                            AddOptionalInput(node, bodyGroup.EnabledNodeIdx, "Enabled");
+                            break;
+                    }
+
+                    CreateInputAndChild(node, passthrough.ChildNodeIdx, "Input", "Result");
+                    break;
+
+                case ReferencedGraphNode referencedGraph:
+                {
+                    var dataSlotIdx = graph.ReferencedGraphSlots[referencedGraph.ReferencedGraphIdx].DataSlotIdx;
+
+                    if (referencedGraph.FallbackNodeIdx != -1)
+                    {
+                        node.AddSpace();
+                        CreateInputAndChild(node, referencedGraph.FallbackNodeIdx, "Fallback");
+                    }
+
+                    AddDataSlot(node, dataSlotIdx);
+                    break;
+                }
+
+                case ClipNode clip:
+                    node.AddSpace();
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Speed: {clip.SpeedMultiplier:F2}x"));
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"StartSyncEvent Offset: {clip.StartSyncEventOffset}"));
+                    node.AddText($"Sample RootMotion: {clip.SampleRootMotion}");
+                    node.AddText($"Allow Looping: {clip.AllowLooping}");
+
+                    AddOptionalInput(node, clip.PlayInReverseValueNodeIdx, "Play in reverse");
+                    AddOptionalInput(node, clip.ResetTimeValueNodeIdx, "Reset time");
+                    AddDataSlot(node, clip.DataSlotIdx);
+                    break;
+
+                case TimeControlledClipNode clip:
+                    node.AddSpace();
+                    node.AddText($"Sample RootMotion: {clip.SampleRootMotion}");
+
+                    AddOptionalInput(node, clip.TimeValueNodeIdx, "Time");
+                    AddOptionalInput(node, clip.PlayInReverseValueNodeIdx, "Play in reverse");
+                    AddDataSlot(node, clip.DataSlotIdx);
+                    break;
+
+                case AnimationPoseNode pose:
+                {
+                    node.AddSpace();
+
+                    AddOptionalInput(node, pose.PoseTimeValueNodeIdx, "Time");
+
+                    var remap = pose.InputTimeRemapRange;
+                    var remapMinDesc = remap.Min == float.MaxValue ? "None" : string.Create(CultureInfo.InvariantCulture, $"{remap.Min:f}");
+                    var remapMaxDesc = remap.Max == float.MinValue ? "None" : string.Create(CultureInfo.InvariantCulture, $"{remap.Max:f}");
+
+                    node.AddText($"Remap: {remapMinDesc} - {remapMaxDesc}");
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Const Time: {pose.UserSpecifiedTime:f}"));
+                    node.AddText($"Use frames: {pose.UseFramesAsInput}");
+                    AddDataSlot(node, pose.DataSlotIdx);
+                    break;
+                }
+
+                case ExternalPoseNode externalPose:
+                    node.AddText($"Sample RootMotion: {externalPose.ShouldSampleRootMotion}");
+                    break;
+
+                default:
+                    CreateUntypedChildren(node, data);
+                    break;
             }
         }
 
-        void CreateChildren(Node node, int nodeIdx)
+        void AddDataSlot(Node node, int dataSlotIdx)
         {
-            var data = nodes[nodeIdx];
-
-            if (node.NodeType == "StateMachine" && DrawStateMachines)
+            if (dataSlotIdx != -1)
             {
-                var children = data.GetArray("m_stateDefinitions");
-
-                // States materialize as their own nodes so transitions render as a statechart.
-                var stateGraphNodes = new List<Node>(children.Count);
-
-                foreach (var stateDefinition in children)
-                {
-                    var stateNodeIdx = stateDefinition.GetInt32Property("m_nStateNodeIdx");
-                    var entryConditionNodeIdx = stateDefinition.GetInt32Property("m_nEntryConditionNodeIdx"); // can be -1
-
-                    var stateName = GetName(stateNodeIdx);
-                    var input = node.AddInput(stateName, PoseHue, allowMultiple: true);
-
-                    // The placeholder keeps the state list index-aligned with the transitions.
-                    if (!IsValidNodeIndex(stateNodeIdx))
-                    {
-                        var missingState = CreateNode(nodePaths, nodes, stateNodeIdx);
-                        document.Connect(missingState.GetOrAddOutput(string.Empty, PoseHue), input);
-                        stateGraphNodes.Add(missingState);
-                        continue;
-                    }
-
-                    var stateNode = nodes[stateNodeIdx];
-                    var stateInputIdx = stateNode.GetInt32Property("m_nChildNodeIdx");
-
-                    var stateGraphNode = document.AddNode(new Node(stateNode)
-                    {
-                        Name = $"({stateNodeIdx}) {stateName}",
-                        NodeType = "State",
-                        Category = GraphHue.Slate,
-                    });
-                    document.Connect(stateGraphNode.AddOutput(string.Empty, PoseHue), input);
-                    stateGraphNodes.Add(stateGraphNode);
-
-                    if (stateInputIdx != -1)
-                    {
-                        var (_, stateNodeOut) = CreateChild<Pose>(stateInputIdx);
-                        document.Connect(stateNodeOut, stateGraphNode.AddInput(string.Empty, PoseHue, allowMultiple: true));
-                    }
-
-                    if (entryConditionNodeIdx != -1)
-                    {
-                        var (_, childOutput) = CreateChild<Value>(entryConditionNodeIdx, stateName);
-                        document.Connect(childOutput, stateGraphNode.AddInput("Entry condition", childOutput.Hue, allowMultiple: true));
-                    }
-
-                    // A state inside a state machine layer can carry the bone mask that layer
-                    // blends with; the other per-state layer fields ship unused.
-                    var layerBoneMaskNodeIdx = stateNode.GetInt32Property("m_nLayerBoneMaskNodeIdx", -1);
-
-                    if (layerBoneMaskNodeIdx != -1)
-                    {
-                        var (_, maskOutput) = CreateChild<Value>(layerBoneMaskNodeIdx, stateName);
-                        document.Connect(maskOutput, stateGraphNode.AddInput("Layer bone mask", maskOutput.Hue, allowMultiple: true));
-                    }
-                }
-
-                // Dashed state-to-state transition wires labeled with their condition.
-                for (var stateIndex = 0; stateIndex < children.Count; stateIndex++)
-                {
-                    var transitions = children[stateIndex].GetArray("m_transitionDefinitions");
-
-                    if (transitions == null)
-                    {
-                        continue;
-                    }
-
-                    var source = stateGraphNodes[stateIndex];
-
-                    foreach (var transition in transitions)
-                    {
-                        var targetStateIdx = transition.GetInt32Property("m_nTargetStateIdx");
-
-                        if (targetStateIdx < 0 || targetStateIdx >= stateGraphNodes.Count)
-                        {
-                            continue;
-                        }
-
-                        var conditionNodeIdx = transition.GetInt32Property("m_nConditionNodeIdx");
-                        var label = conditionNodeIdx != -1 ? GetName(conditionNodeIdx) : null;
-
-                        AnimGraphHues.ConnectTransition(document, source, stateGraphNodes[targetStateIdx], label);
-                    }
-                }
+                SetResourceReference(node, graph.Resources[dataSlotIdx]);
             }
-            else if (node.NodeType == "StateMachine")
+        }
+
+        // Nodes the graph library has no class for, such as the ones client code evaluates
+        void CreateUntypedChildren(Node node, KVObject data)
+        {
+            if (data.ContainsKey("m_nChildNodeIdx"))
             {
-                // Flattened form: each state is an input socket on the state machine node,
-                // with no separate state nodes and no transition wires.
-                var children = data.GetArray("m_stateDefinitions");
-
-                foreach (var stateDefinition in children)
+                if (node.NodeType is "AimCS")
                 {
-                    var stateNodeIdx = stateDefinition.GetInt32Property("m_nStateNodeIdx");
-                    var entryConditionNodeIdx = stateDefinition.GetInt32Property("m_nEntryConditionNodeIdx"); // can be -1
+                    AddOptionalInput(node, data.GetInt32Property("m_nVerticalAngleNodeIdx"), "Vertical Angle");
+                    AddOptionalInput(node, data.GetInt32Property("m_nHorizontalAngleNodeIdx"), "Horizontal Angle");
+                    AddOptionalInput(node, data.GetInt32Property("m_nWeaponCategoryNodeIdx"), "Weapon Category");
+                    AddOptionalInput(node, data.GetInt32Property("m_nWeaponTypeNodeIdx"), "Weapon Type");
+                    AddOptionalInput(node, data.GetInt32Property("m_nIsWeaponActionActiveNodeIdx", -1), "Is Weapon Action Active");
+                    AddOptionalInput(node, data.GetInt32Property("m_nWeaponActionNodeIdx", -1), "Weapon Action");
+                    AddOptionalInput(node, data.GetInt32Property("m_nWeaponDropNodeIdx", -1), "Weapon Drop");
+                    AddOptionalInput(node, data.GetInt32Property("m_nIsDefusingNodeIdx", -1), "Is Defusing");
+                    AddOptionalInput(node, data.GetInt32Property("m_nDisableHandIKNodeIdx", -1), "Disable Hand IK");
+                    AddOptionalInput(node, data.GetInt32Property("m_nCrouchWeightNodeIdx"), "Crouch Weight");
 
-                    var stateName = GetName(stateNodeIdx);
-                    var input = node.AddInput(stateName, PoseHue, allowMultiple: true);
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Hand IK Blend In: {data.GetFloatProperty("m_flHandIKBlendInTimeSeconds"):F2}"));
+                    node.AddText(string.Create(CultureInfo.InvariantCulture, $"Action Blend Time: {data.GetFloatProperty("m_flActionBlendTimeSeconds"):F2}"));
 
-                    if (!IsValidNodeIndex(stateNodeIdx))
+                    if (data.ContainsKey("m_flPlantingBlendTimeSeconds"))
                     {
-                        var missingState = CreateNode(nodePaths, nodes, stateNodeIdx);
-                        document.Connect(missingState.GetOrAddOutput(string.Empty, PoseHue), input);
-                        continue;
+                        node.AddText(string.Create(CultureInfo.InvariantCulture, $"Planting Blend Time: {data.GetFloatProperty("m_flPlantingBlendTimeSeconds"):F2}"));
                     }
-
-                    var stateNode = nodes[stateNodeIdx];
-                    var stateInputIdx = stateNode.GetInt32Property("m_nChildNodeIdx");
-
-                    if (stateInputIdx != -1)
-                    {
-                        var (_, stateNodeOut) = CreateChild<Pose>(stateInputIdx);
-                        document.Connect(stateNodeOut, input);
-                    }
-
-                    if (entryConditionNodeIdx != -1)
-                    {
-                        var (_, childOutput) = CreateChild<Value>(entryConditionNodeIdx, stateName);
-                        document.Connect(childOutput, node.AddInput("Entry condition", childOutput.Hue, allowMultiple: true));
-                    }
-
-                    var layerBoneMaskNodeIdx = stateNode.GetInt32Property("m_nLayerBoneMaskNodeIdx", -1);
-
-                    if (layerBoneMaskNodeIdx != -1)
-                    {
-                        var (_, maskOutput) = CreateChild<Value>(layerBoneMaskNodeIdx, stateName);
-                        document.Connect(maskOutput, node.AddInput("Layer bone mask", maskOutput.Hue, allowMultiple: true));
-                    }
-                }
-            }
-            else if (node.NodeType is "ParameterizedSelector" or "ParameterizedClipSelector")
-            {
-                var options = data.GetArray<int>("m_optionNodeIndices");
-
-                var parameterNodeIdx = data.GetInt32Property("m_parameterNodeIdx");
-                CreateInputAndChild<Value>(node, parameterNodeIdx);
-
-                var hasWeightsSet = data.GetBooleanProperty("m_bHasWeightsSet");
-                var totalWeight = 0;
-                var weights = data.GetArray<uint>("m_optionWeights");
-
-                if (hasWeightsSet)
-                {
-                    totalWeight = Math.Max(1, weights.Sum(w => (int)w));
-                }
-
-                var i = 0;
-                foreach (var optionNodeIdx in options)
-                {
-                    var weightDesc = string.Empty;
-                    if (hasWeightsSet)
-                    {
-                        var weight = weights[i];
-                        var weightPercentage = weight / (float)totalWeight * 100;
-
-                        weightDesc = $"Weight: {weight} ({weightPercentage:F2}%)";
-                    }
-
-                    CreateInputAndChild<Pose>(node, optionNodeIdx, $"Option {++i} {weightDesc}");
-                }
-            }
-            else if (node.NodeType is "IDBasedSelector" or "IDBasedClipSelector")
-            {
-                var idParameterNodeIdx = data.GetInt32Property("m_nParameterNodeIdx", -1);
-
-                if (idParameterNodeIdx != -1)
-                {
-                    CreateInputAndChild<Value>(node, idParameterNodeIdx, "Parameter");
-                }
-
-                var fallbackNodeIdx = data.GetInt32Property("m_nFallbackNodeIdx", -1);
-
-                if (fallbackNodeIdx != -1)
-                {
-                    CreateInputAndChild<Pose>(node, fallbackNodeIdx, "Fallback");
-                }
-
-                // The option a given ID selects is positional, so the label carries the ID it matches.
-                var options = data.GetArray<int>("m_optionNodeIndices");
-                var optionIds = data.GetArray<string>("m_optionIDs");
-
-                for (var i = 0; i < options.Length; i++)
-                {
-                    var label = optionIds != null && i < optionIds.Length ? optionIds[i] : $"Option {i + 1}";
-                    CreateInputAndChild<Pose>(node, options[i], label);
-                }
-            }
-            else if (node.NodeType is "FloatSwitch" or "IDSwitch" or "BoneMaskSwitch")
-            {
-                var switchValueNodeIdx = data.GetInt32Property("m_nSwitchValueNodeIdx", -1);
-
-                if (switchValueNodeIdx != -1)
-                {
-                    CreateInputAndChild<Value>(node, switchValueNodeIdx, "Switch");
-                }
-
-                // Either branch may be a constant instead of a wired node, in which case the
-                // constant it falls back to is worth showing in its place.
-                var trueNodeIdx = data.GetInt32Property("m_nTrueValueNodeIdx", -1);
-                var falseNodeIdx = data.GetInt32Property("m_nFalseValueNodeIdx", -1);
-
-                if (trueNodeIdx != -1)
-                {
-                    CreateInputAndChild<Value>(node, trueNodeIdx, "True");
-                }
-
-                if (falseNodeIdx != -1)
-                {
-                    CreateInputAndChild<Value>(node, falseNodeIdx, "False");
-                }
-
-                if (node.NodeType is "FloatSwitch")
-                {
-                    if (trueNodeIdx == -1) { node.AddText($"True: {data.GetFloatProperty("m_flTrueValue"):f}"); }
-                    if (falseNodeIdx == -1) { node.AddText($"False: {data.GetFloatProperty("m_flFalseValue"):f}"); }
-                }
-                else if (node.NodeType is "IDSwitch")
-                {
-                    if (trueNodeIdx == -1) { node.AddText($"True: '{data.GetStringProperty("m_trueValue")}'"); }
-                    if (falseNodeIdx == -1) { node.AddText($"False: '{data.GetStringProperty("m_falseValue")}'"); }
-                }
-                else
-                {
-                    node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):F2}");
-                    node.AddText($"Switch Dynamically: {data.GetBooleanProperty("m_bSwitchDynamically")}");
-                }
-            }
-            else if (node.NodeType is "OrientationWarp")
-            {
-                var clipReferenceNodeIdx = data.GetInt32Property("m_nClipReferenceNodeIdx", -1);
-                var targetValueNodeIdx = data.GetInt32Property("m_nTargetValueNodeIdx", -1);
-
-                if (clipReferenceNodeIdx != -1)
-                {
-                    CreateInputAndChild<Pose>(node, clipReferenceNodeIdx, "Clip");
-                }
-
-                if (targetValueNodeIdx != -1)
-                {
-                    CreateInputAndChild<Value>(node, targetValueNodeIdx, "Target");
-                }
-
-                node.AddText($"Offset: {data.GetBooleanProperty("m_bIsOffsetNode")}");
-                node.AddText($"Relative To Character: {data.GetBooleanProperty("m_bIsOffsetRelativeToCharacter")}");
-                node.AddText($"Warp Translation: {data.GetBooleanProperty("m_bWarpTranslation")}");
-                node.AddText($"Sampling: {data.GetStringProperty("m_samplingMode")}");
-            }
-            else if (node.NodeType is "Selector" or "ClipSelector")
-            {
-                // Select the first option for which the condition passes?
-                var options = data.GetArray<int>("m_optionNodeIndices");
-                var conditions = data.GetArray<int>("m_conditionNodeIndices");
-
-                foreach (var (optionNodeIdx, conditionNodeIdx) in options.Zip(conditions))
-                {
-                    var (_, optionInput) = CreateInputAndChild<Pose>(node, optionNodeIdx, hub: true);
-                    var (_, conditionOutput) = CreateChild<Value>(conditionNodeIdx);
-                    document.Connect(conditionOutput, optionInput);
-                }
-            }
-            else if (node.NodeType is "LayerBlend")
-            {
-                var baseNodeIdx = data.GetInt32Property("m_nBaseNodeIdx");
-                CreateInputAndChild<Pose>(node, baseNodeIdx, "Base", "Result");
-
-                var layerInput = node.AddInput("Layers", PoseHue, allowMultiple: true);
-
-                var layerDefinition = data.GetArray("m_layerDefinition");
-                var layerIndex = 0;
-                foreach (var layer in layerDefinition)
-                {
-                    var layerNode = document.AddNode(new Node(layerDefinition[layerIndex])
-                    {
-                        Name = $"Layer{layerIndex}",
-                        NodeType = LayerDefinitionType,
-                        Category = AnimGraphHues.HueOf(AnimGraphHues.CategoryOfAG2(LayerDefinitionType)),
-                    });
-
-                    var layerOutput = layerNode.AddOutput(string.Empty, PoseHue);
-                    document.Connect(layerOutput, layerInput);
-                    CreateInputAndChild<Pose>(layerNode, layer.GetInt32Property("m_nInputNodeIdx"));
-
-                    // Optional inputs
-                    var weightNodeIdx = layer.GetInt32Property("m_nWeightValueNodeIdx");
-                    var boneMaskNodeIdx = layer.GetInt32Property("m_nBoneMaskValueNodeIdx");
-                    var rootMotionNodeIdx = layer.GetInt32Property("m_nRootMotionWeightValueNodeIdx");
-
-                    if (weightNodeIdx != -1)
-                    {
-                        CreateInputAndChild<Value>(layerNode, weightNodeIdx, parentInputName: "Weight");
-                    }
-
-                    if (boneMaskNodeIdx != -1)
-                    {
-                        CreateInputAndChild<Pose>(layerNode, boneMaskNodeIdx, parentInputName: "Bone Mask");
-                    }
-
-                    if (rootMotionNodeIdx != -1)
-                    {
-                        CreateInputAndChild<Pose>(layerNode, rootMotionNodeIdx, parentInputName: "Root Motion");
-                    }
-
-                    layerNode.AddText($"Is Synchronized: {layer.GetBooleanProperty("m_bIsSynchronized")}");
-                    layerNode.AddText($"Ignore Events: {layer.GetBooleanProperty("m_bIgnoreEvents")}");
-                    layerNode.AddText($"Is State Machine Layer: {layer.GetBooleanProperty("m_bIsStateMachineLayer")}");
-                    layerNode.AddText($"Blend Mode: {layer.GetStringProperty("m_blendMode")}");
-                    layerIndex++;
-                }
-            }
-            else if (node.NodeType is "Blend1D" or "Blend2D")
-            {
-                var sourceNodeIndices = data.GetArray<int>("m_sourceNodeIndices");
-
-                if (node.NodeType == "Blend1D")
-                {
-                    var inputNodeIdx = data.GetInt32Property("m_nInputParameterValueNodeIdx");
-                    CreateInputAndChild<Value>(node, inputNodeIdx, "Parameter");
-                }
-                else if (node.NodeType == "Blend2D")
-                {
-                    var inputNodeIdxA = data.GetInt32Property("m_nInputParameterNodeIdx0");
-                    var inputNodeIdxB = data.GetInt32Property("m_nInputParameterNodeIdx1");
-
-                    CreateInputAndChild<Value>(node, inputNodeIdxA, "Parameter A");
-                    CreateInputAndChild<Value>(node, inputNodeIdxB, "Parameter B");
-                }
-
-                var optionIndex = 0;
-                foreach (var sourceNodeIdx in sourceNodeIndices)
-                {
-                    CreateInputAndChild<Pose>(node, sourceNodeIdx, $"Option {++optionIndex}");
-                }
-
-                node.AddText($"Allow Looping: {data.GetBooleanProperty("m_bAllowLooping")}");
-            }
-            else if (node.NodeType is "BoneMask")
-            {
-                node.AddText(data.GetStringProperty("m_boneMaskID"));
-            }
-            else if (node.NodeType is "CachedFloat")
-            {
-                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nInputValueNodeIdx"), "Input");
-                node.AddText($"Mode: {data.GetStringProperty("m_mode")}");
-            }
-            else if (node.NodeType is "ConstTarget")
-            {
-                var value = data.GetSubCollection("m_value");
-                var boneId = value.GetStringProperty("m_boneID");
-                var isBoneTarget = value.GetBooleanProperty("m_bIsBoneTarget");
-                var isUsingBoneSpaceOffsets = value.GetBooleanProperty("m_bIsUsingBoneSpaceOffsets");
-                var hasOffsets = value.GetBooleanProperty("m_bHasOffsets");
-                var isSet = value.GetBooleanProperty("m_bIsSet");
-
-                node.AddText($"Bone: {boneId}");
-                node.AddText($"Is Bone Target: {isBoneTarget}");
-                node.AddText($"Bone Space Offsets: {isUsingBoneSpaceOffsets}");
-                node.AddText($"Has Offsets: {hasOffsets}");
-                node.AddText($"Is Set: {isSet}");
-            }
-            else if (node.NodeType is "SpeedScale")
-            {
-                CreateInputAndChild<Pose>(node, data.GetInt32Property("m_nChildNodeIdx"), "Input");
-
-                var inputValueNodeIdx = data.GetInt32Property("m_nInputValueNodeIdx"); // can be -1
-                if (inputValueNodeIdx != -1)
-                {
-                    CreateInputAndChild<Value>(node, inputValueNodeIdx, "Scale Value");
-                }
-
-                node.AddText($"Default Scale: {data.GetFloatProperty("m_flDefaultInputValue")}");
-            }
-            else if (node.NodeType is "Not" or "FloatCurve")
-            {
-                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nInputValueNodeIdx"), "Value");
-
-                // curve
-            }
-            else if (node.NodeType is "FloatRemap")
-            {
-                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nInputValueNodeIdx"), "Value");
-                var inputRange = data.GetSubCollection("m_inputRange");
-                var outputRange = data.GetSubCollection("m_outputRange");
-                node.AddText($"InputBegin: {inputRange.GetFloatProperty("m_flBegin")} InputEnd: {inputRange.GetFloatProperty("m_flEnd")}");
-                node.AddText($"OutputBegin: {outputRange.GetFloatProperty("m_flBegin")} OutputEnd: {outputRange.GetFloatProperty("m_flEnd")}");
-            }
-            else if (node.NodeType is "IDEventCondition")
-            {
-                var eventIds = data.GetArray<string>("m_eventIDs");
-                var sourceStateNodeIdx = data.GetInt32Property("m_nSourceStateNodeIdx");
-                if (sourceStateNodeIdx != -1)
-                {
-                    node.AddText($"State: {GetName(sourceStateNodeIdx)}");
-                }
-
-                foreach (var eventId in eventIds)
-                {
-                    node.AddText($"Event: '{eventId}'");
-                }
-            }
-            else if (node.NodeType.EndsWith("Math", StringComparison.Ordinal))
-            {
-                var inputNodeIdxA = data.GetInt32Property("m_nInputValueNodeIdxA", -1);
-                var inputNodeIdxB = data.GetInt32Property("m_nInputValueNodeIdxB", -1);
-
-                CreateInputAndChild<Value>(node, inputNodeIdxA, "A");
-
-                var @operator = data.GetStringProperty("m_operator");
-                node.AddText(@operator);
-
-                if (inputNodeIdxB != -1)
-                {
-                    CreateInputAndChild<Value>(node, inputNodeIdxB, "B");
-                }
-                else
-                {
-                    if (node.NodeType == "FloatMath")
-                    {
-                        node.AddText($"{data.GetFloatProperty("m_flValueB"):f}");
-                    }
-                }
-            }
-            else if (node.NodeType.EndsWith("Comparison", StringComparison.Ordinal))
-            {
-                var childNodeIdx = data.GetInt32Property("m_nInputValueNodeIdx");
-                CreateInputAndChild<Value>(node, childNodeIdx, GetName(childNodeIdx));
-
-                if (data.ContainsKey("m_comparison"))
-                {
-                    var comparison = data.GetStringProperty("m_comparison");
-                    node.AddText(comparison);
-                }
-
-                if (node.NodeType is "IDComparison")
-                {
-                    var comparisonIds = data.GetArray<string>("m_comparisionIDs");
-                    foreach (var comparisonId in comparisonIds)
-                    {
-                        node.AddText($"'{comparisonId}'");
-                    }
-                }
-                else if (node.NodeType is "FloatComparison" or "IntComparison")
-                {
-                    var comparandNodeIdx = data.GetInt32Property("m_nComparandValueNodeIdx");
-                    if (comparandNodeIdx != -1)
-                    {
-                        CreateInputAndChild<Value>(node, comparandNodeIdx, "Comparand");
-                    }
-                    else
-                    {
-                        node.AddText($"{data.GetFloatProperty("m_flComparisonValue"):f}");
-                    }
-                }
-                else if (node.NodeType is "FloatRangeComparison")
-                {
-                    var range = data.GetSubCollection("m_range");
-                    var inclusive = data.GetBooleanProperty("m_bIsInclusiveCheck");
-
-                    node.AddText(inclusive
-                        ? $"{range.GetFloatProperty("m_flMin"):f} <= x <= {range.GetFloatProperty("m_flMax"):f}"
-                        : $"{range.GetFloatProperty("m_flMin"):f} < x < {range.GetFloatProperty("m_flMax"):f}");
-                }
-                else
-                {
-                    ProgressReporter?.Report($"Generic handled node: {node.NodeType} ({node.Name})");
-                }
-            }
-            else if (node.Data?.ContainsKey("m_conditionNodeIndices") ?? false) // Conditional node
-            {
-                var conditions = data.GetArray<int>("m_conditionNodeIndices");
-                foreach (var condition in conditions)
-                {
-                    CreateInputAndChild<Value>(node, condition);
-                }
-            }
-            else if (node.Data?.ContainsKey("m_nChildNodeIdx") ?? false)
-            {
-                void AddMaybeOptionalInput(string name, int idx)
-                {
-                    if (idx != -1)
-                    {
-                        CreateInputAndChild<Value>(node, idx, name);
-                    }
-                }
-
-                if (node.NodeType == "Scale")
-                {
-                    CreateInputAndChild<Pose>(node, data.GetInt32Property("m_nMaskNodeIdx"), "Mask");
-                    CreateInputAndChild<Value>(node, data.GetInt32Property("m_nEnableNodeIdx"), "Enable");
-                }
-                else if (node.NodeType == "TwoBoneIK")
-                {
-                    node.AddText($"Bone: {data.GetStringProperty("m_effectorBoneID")}");
-                    CreateInputAndChild<Pose>(node, data.GetInt32Property("m_nEffectorTargetNodeIdx"), "Effector");
-                    var enabledNodeIdx = data.GetInt32Property("m_nEnabledNodeIdx");
-                    if (enabledNodeIdx != -1)
-                    {
-                        CreateInputAndChild<Value>(node, enabledNodeIdx, "Enabled");
-                    }
-                    else
-                    {
-                        node.AddText("Enabled: true");
-                    }
-                    node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):f}");
-                    node.AddText($"Blend Mode: {data.GetStringProperty("m_blendMode")}");
-                    node.AddText($"Worldspace: {data.GetBooleanProperty("m_bIsTargetInWorldSpace")}");
-                }
-                else if (node.NodeType == "FootIK")
-                {
-                    node.AddText($"Left Effector: {data.GetStringProperty("m_leftEffectorBoneID")}");
-                    node.AddText($"Right Effector: {data.GetStringProperty("m_rightEffectorBoneID")}");
-
-                    var leftTargetIdx = data.GetInt32Property("m_nLeftTargetNodeIdx");
-                    var rightTargetIdx = data.GetInt32Property("m_nRightTargetNodeIdx");
-
-                    CreateInputAndChild<Pose>(node, leftTargetIdx, "Left Target");
-                    CreateInputAndChild<Pose>(node, rightTargetIdx, "Right Target");
-
-                    var enabledNodeIdx = data.GetInt32Property("m_nEnabledNodeIdx", -1);
-                    if (enabledNodeIdx != -1)
-                    {
-                        CreateInputAndChild<Value>(node, enabledNodeIdx, "Enabled");
-                    }
-
-                    node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):F2}");
-                    node.AddText($"Blend Mode: {data.GetStringProperty("m_blendMode")}");
-                    node.AddText($"Worldspace: {data.GetBooleanProperty("m_bIsTargetInWorldSpace")}");
-                }
-                else if (node.NodeType is "AimCS")
-                {
-                    AddMaybeOptionalInput("Vertical Angle", data.GetInt32Property("m_nVerticalAngleNodeIdx"));
-                    AddMaybeOptionalInput("Horizontal Angle", data.GetInt32Property("m_nHorizontalAngleNodeIdx"));
-                    AddMaybeOptionalInput("Weapon Category", data.GetInt32Property("m_nWeaponCategoryNodeIdx"));
-                    AddMaybeOptionalInput("Weapon Type", data.GetInt32Property("m_nWeaponTypeNodeIdx"));
-                    AddMaybeOptionalInput("Is Weapon Action Active", data.GetInt32Property("m_nIsWeaponActionActiveNodeIdx", -1));
-                    AddMaybeOptionalInput("Weapon Action", data.GetInt32Property("m_nWeaponActionNodeIdx", -1));
-                    AddMaybeOptionalInput("Weapon Drop", data.GetInt32Property("m_nWeaponDropNodeIdx", -1));
-                    AddMaybeOptionalInput("Is Defusing", data.GetInt32Property("m_nIsDefusingNodeIdx", -1));
-                    AddMaybeOptionalInput("Disable Hand IK", data.GetInt32Property("m_nDisableHandIKNodeIdx", -1));
-                    AddMaybeOptionalInput("Crouch Weight", data.GetInt32Property("m_nCrouchWeightNodeIdx"));
-
-                    node.AddText($"Hand IK Blend In: {data.GetFloatProperty("m_flHandIKBlendInTimeSeconds"):F2}");
-                    node.AddText($"Action Blend Time: {data.GetFloatProperty("m_flActionBlendTimeSeconds"):F2}");
                 }
                 else if (node.NodeType is "SnapWeapon")
                 {
-                    AddMaybeOptionalInput("Flashed Amount", data.GetInt32Property("m_nFlashedAmountNodeIdx"));
-                    AddMaybeOptionalInput("Weapon Category", data.GetInt32Property("m_nWeaponCategoryNodeIdx"));
-                    AddMaybeOptionalInput("Weapon Type", data.GetInt32Property("m_nWeaponTypeNodeIdx"));
+                    AddOptionalInput(node, data.GetInt32Property("m_nFlashedAmountNodeIdx"), "Flashed Amount");
+                    AddOptionalInput(node, data.GetInt32Property("m_nWeaponCategoryNodeIdx"), "Weapon Category");
+                    AddOptionalInput(node, data.GetInt32Property("m_nWeaponTypeNodeIdx"), "Weapon Type");
                 }
 
-                var childNodeIdx = data.GetInt32Property("m_nChildNodeIdx");
-                CreateInputAndChild<Pose>(node, childNodeIdx, "Input", "Result");
+                CreateInputAndChild(node, data.GetInt32Property("m_nChildNodeIdx"), "Input", "Result");
             }
-            else if (node.NodeType is "Clip" or "AnimationPose" or "ReferencedGraph")
+            else if (node.NodeType.StartsWith("ControlParameter", StringComparison.Ordinal)
+                || node.NodeType is "ZeroPose" or "ReferencePose" or "IsInactiveBranchCondition")
             {
-                // Debug.Assert output type is Pose
-                var resources = graphDefinition.GetArray<string>("m_resources");
-
-                var referencedGraphIdx = data.GetInt32Property("m_nReferencedGraphIdx");
-                var referencedGraphSlots = graphDefinition.GetArray("m_referencedGraphSlots");
-                var dataSlotIdx = data.GetInt32Property("m_nDataSlotIdx");
-
-                if (node.NodeType is "ReferencedGraph")
-                {
-                    dataSlotIdx = referencedGraphSlots[referencedGraphIdx].GetInt32Property("m_dataSlotIdx");
-
-                    var fallbackNodeIdx = data.GetInt32Property("m_nFallbackNodeIdx");
-                    if (fallbackNodeIdx != -1)
-                    {
-                        node.AddSpace();
-                        CreateInputAndChild<Pose>(node, fallbackNodeIdx, "Fallback");
-                    }
-                }
-                else if (node.NodeType is "Clip")
-                {
-                    node.AddSpace();
-                    node.AddText($"Speed: {data.GetFloatProperty("m_flSpeedMultiplier"):F2}x");
-                    node.AddText($"StartSyncEvent Offset: {data.GetInt32Property("m_nStartSyncEventOffset")}");
-                    node.AddText($"Sample RootMotion: {data.GetBooleanProperty("m_bSampleRootMotion")}");
-                    node.AddText($"Allow Looping: {data.GetBooleanProperty("m_bAllowLooping")}");
-
-                    var playInReverseNodeIdx = data.GetInt32Property("m_nPlayInReverseValueNodeIdx");
-                    if (playInReverseNodeIdx != -1)
-                    {
-                        CreateInputAndChild<Value>(node, playInReverseNodeIdx, "Play in reverse");
-                    }
-
-                    var resetTimeValueNodeIdx = data.GetInt32Property("m_nResetTimeValueNodeIdx");
-                    if (resetTimeValueNodeIdx != -1)
-                    {
-                        CreateInputAndChild<Value>(node, resetTimeValueNodeIdx, "Reset time");
-                    }
-                }
-                else if (node.NodeType is "AnimationPose")
-                {
-                    node.AddSpace();
-
-                    var poseTimeNodeIdx = data.GetInt32Property("m_nPoseTimeValueNodeIdx");
-                    if (poseTimeNodeIdx != -1)
-                    {
-                        CreateInputAndChild<Value>(node, poseTimeNodeIdx, "Time");
-                    }
-
-                    var timeRemapRange = data.GetSubCollection("m_inputTimeRemapRange");
-                    var remapMin = timeRemapRange.GetFloatProperty("m_flMin");
-                    var remapMax = timeRemapRange.GetFloatProperty("m_flMax");
-                    var remapMinDesc = remapMin == float.MaxValue ? "None" : $"{remapMin:f}";
-                    var remapMaxDesc = remapMax == float.MinValue ? "None" : $"{remapMax:f}";
-
-                    node.AddText($"Remap: {remapMinDesc} - {remapMaxDesc}");
-                    node.AddText($"Const Time: {data.GetFloatProperty("m_flUserSpecifiedTime"):f}");
-                    node.AddText($"Use frames: {data.GetBooleanProperty("m_bUseFramesAsInput")}");
-                }
-
-                if (dataSlotIdx != -1)
-                {
-                    SetResourceReference(node, resources[dataSlotIdx]);
-                }
-            }
-            else if (node.NodeType.StartsWith("ControlParameter", StringComparison.Ordinal))
-            {
-                // Graph input value set by game code.
-            }
-            else if (node.NodeType is "ZeroPose")
-            {
-                // Empty node
+                // Nothing to show: a value set from outside the graph, or a node with no settings
             }
             else
             {
@@ -866,7 +1073,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
         var rootOutput = root.AddOutput(string.Empty, PoseHue);
         document.Connect(rootOutput, finalPoseInput);
 
-        TryCreateChildren(root, rootNodeIdx);
+        CreateChildren(root, rootNodeIdx);
 
         // create some unreferenced nodes
         for (var i = 0; i < nodes.Count; i++)
@@ -908,7 +1115,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
             }
         }
 
-        ProgressReporter?.Report($"Created {createdNodes.Count} nodes (out of {nodes.Count}) or {createdNodes.Count / (float)nodes.Count:P}.");
+        ProgressReporter?.Report(string.Create(CultureInfo.InvariantCulture, $"Created {createdNodes.Count} nodes (out of {nodes.Count}) or {createdNodes.Count / (float)nodes.Count:P}."));
     }
 
     private static string ValueKindLabel(AnimGraphValueKind kind) => kind switch

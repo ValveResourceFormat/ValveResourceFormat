@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var samplePosition = (particle.Position + offsetLoc) * noiseScaleLoc;
 
-            // The engine's world time term ticks in milliseconds
+            // The world time term ticks in milliseconds
             var sampleTime = ((particle.CreationTime + offset) * noiseScale)
                 + (particleSystemState.WorldTime * 1000f * worldTimeScale);
             var noise = Noise.Value3D(samplePosition + new Vector3(sampleTime));
@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
             {
-                value = Math.Clamp(value, 0f, 1f);
+                value = MathUtils.Saturate(value);
             }
 
             particle.SetScalar(fieldOutput, value);

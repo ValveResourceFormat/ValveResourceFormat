@@ -29,20 +29,20 @@ namespace GUI.Types.Viewers
 
             var info = codec.Info.WithAlphaType(SKAlphaType.Unpremul);
             bitmap = SKBitmap.Decode(codec, info);
-            //VKTODO:
-            //var renderContext = vrfGuiContext.CreateRendererContext();
-            //try
-            //{
-            //    glViewer = new GLTextureViewer(vrfGuiContext, renderContext, bitmap);
-            //    glViewer.InitializeLoad();
-            //    bitmap = null;
-            //    renderContext = null;
-            //}
-            //finally
-            //{
-            //    bitmap?.Dispose();
-            //    renderContext?.Dispose();
-            //}
+
+            var renderContext = vrfGuiContext.CreateRendererContext();
+            try
+            {
+                glViewer = new GLTextureViewer(vrfGuiContext, renderContext, bitmap);
+                glViewer.InitializeLoad();
+                bitmap = null;
+                renderContext = null;
+            }
+            finally
+            {
+                bitmap?.Dispose();
+                renderContext?.Dispose();
+            }
         }
 
         public void Create(TabPage tab)

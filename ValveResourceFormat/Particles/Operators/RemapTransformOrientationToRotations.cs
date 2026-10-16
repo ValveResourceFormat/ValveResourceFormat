@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Particles.Operators
     }
 
     /// <summary>
-    /// The engine's transform-orientation-to-angles math, shared by the operator and initializer
+    /// Transform orientation to angles math, shared by the operator and initializer
     /// variants. Angles follow the Source pitch/yaw/roll convention with X as forward.
     /// </summary>
     static class TransformOrientationMath

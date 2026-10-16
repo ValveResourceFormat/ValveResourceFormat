@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Diagnostics;
 using System.IO;
 using ValveKeyValue;
 using ValveResourceFormat.Compression;
@@ -45,8 +44,9 @@ namespace ValveResourceFormat.ResourceTypes
                     outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
                     DecompressLZ4(reader, outputBuf.AsSpan(0, outBufferLength), compressedSize);
                 }
-                else if (encoding == KV3IDLookup.Get("binary"))
+                else if (encoding == KV3IDLookup.Get("binary") || encoding == KV3IDLookup.Get("binary_zstd") || encoding == KV3IDLookup.Get("binary_auto"))
                 {
+                    // Only block compression and LZ4 were ever implemented for this header, other binary encodings are stored as is
                     outBufferLength = (int)(Size - (reader.BaseStream.Position - Offset));
                     outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
                     reader.Read(outputBuf.AsSpan(0, outBufferLength));
@@ -93,33 +93,49 @@ namespace ValveResourceFormat.ResourceTypes
             var databyte = reader.ReadByte();
             var flagInfo = KVFlag.None;
 
-            if ((databyte & 0x80) > 0)
+            if ((databyte & 0x80) != 0)
             {
-                databyte &= 0x7F; // Remove the flag bit
-
-                flagInfo = (KVFlag)reader.ReadByte();
-
-                if (((int)flagInfo & 4) > 0) // Multiline string
-                {
-                    Debug.Assert(databyte == (int)KV3BinaryNodeType.STRING);
-                    flagInfo ^= (KVFlag)4;
-                }
-
-                // Strictly speaking there could be more than one flag set, but in practice it was seemingly never.
-                // Valve's new code just sets whichever flag is highest, new kv3 version does not support multiple flags at once.
-                flagInfo = (int)flagInfo switch
-                {
-                    0 => KVFlag.None,
-                    1 => KVFlag.Resource,
-                    2 => KVFlag.ResourceName,
-                    8 => KVFlag.Panorama,
-                    16 => KVFlag.SoundEvent,
-                    32 => KVFlag.SubClass,
-                    _ => throw new UnexpectedMagicException("Unexpected kv3 flag", (int)flagInfo, nameof(flagInfo))
-                };
+                flagInfo = ConvertLegacyFlags(reader.ReadByte());
             }
 
-            return ((KV3BinaryNodeType)databyte, flagInfo);
+            return ((KV3BinaryNodeType)(databyte & 0x7F), flagInfo);
+        }
+
+        // Before version 3 flags were a bit field
+        private static KVFlag ConvertLegacyFlags(byte flags)
+        {
+            if ((flags & 0x80) != 0)
+            {
+                throw new UnexpectedMagicException("Unexpected kv3 flag", flags, nameof(flags));
+            }
+
+            // Only one flag can be stored, the lowest set bit wins. Bit 4 marked multiline strings and is dropped.
+            if ((flags & 1) != 0)
+            {
+                return KVFlag.Resource;
+            }
+
+            if ((flags & 2) != 0)
+            {
+                return KVFlag.ResourceName;
+            }
+
+            if ((flags & 8) != 0)
+            {
+                return KVFlag.Panorama;
+            }
+
+            if ((flags & 16) != 0)
+            {
+                return KVFlag.SoundEvent;
+            }
+
+            if ((flags & 32) != 0)
+            {
+                return KVFlag.SubClass;
+            }
+
+            return KVFlag.None;
         }
 
         private static void LegacyParseBinaryKV3(Context context, BinaryReader reader, KVObject parent)
@@ -128,8 +144,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (!parent.IsArray)
             {
-                var stringID = reader.ReadInt32();
-                name = (stringID == -1) ? string.Empty : context.Strings[stringID];
+                name = GetString(context, reader.ReadInt32());
             }
 
             var (datatype, flagInfo) = LegacyReadType(reader);
@@ -137,7 +152,8 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (name != null)
             {
-                parent.Add(name, result);
+                // A repeated member name replaces the earlier value
+                parent[name] = result;
             }
             else
             {
@@ -188,8 +204,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case KV3BinaryNodeType.DOUBLE_ONE:
                     return 1.0D;
                 case KV3BinaryNodeType.STRING:
-                    var id = reader.ReadInt32();
-                    return id == -1 ? string.Empty : context.Strings[id];
+                    return GetString(context, reader.ReadInt32());
                 case KV3BinaryNodeType.BINARY_BLOB:
                     var length = reader.ReadInt32();
                     return reader.ReadBytes(length);

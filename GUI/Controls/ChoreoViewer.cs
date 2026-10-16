@@ -2,8 +2,11 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using GUI.Types.PackageViewer;
+using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Controls
@@ -11,7 +14,7 @@ namespace GUI.Controls
     class ChoreoViewer : TextControl
     {
         private readonly ChoreoSceneFileData choreoDataList;
-        private readonly ListView fileListView;
+        private readonly BetterListView fileListView;
 
         public ChoreoViewer(Resource resource)
         {
@@ -21,7 +24,7 @@ namespace GUI.Controls
 
             var fileName = Path.GetFileNameWithoutExtension(resource.FileName) + ".vcdlist";
 
-            fileListView = new ListView
+            fileListView = new BetterListView
             {
                 View = View.Details,
                 Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
@@ -32,20 +35,25 @@ namespace GUI.Controls
             };
             fileListView.ItemSelectionChanged += FileListView_ItemSelectionChanged;
 
-            fileListView.Columns.Add("Name", 250);
+            // The first column stretches to fill the list
+            fileListView.Columns.Add("Name");
             fileListView.Columns.Add("Version");
+            fileListView.Columns.Add("Duration (s)");
+            fileListView.Columns.Add("Sound duration (s)");
+            fileListView.Columns.Add("Has sounds");
 
-            AddListItem(null, fileName, choreoDataList.Version);
+            AddListItem(null, fileName, choreoDataList.Version, null);
             for (var i = 0; i < choreoDataList.Scenes.Length; i++)
             {
                 var scene = choreoDataList.Scenes[i];
-                AddListItem(i, scene.Name ?? string.Empty, scene.Version);
+                AddListItem(i, scene.Name ?? string.Empty, scene.Version, scene);
             }
 
+            Themer.ThemeControl(fileListView);
             AddControl(fileListView);
         }
 
-        private void AddListItem(int? index, string name, int version)
+        private void AddListItem(int? index, string name, int version, ChoreoScene? scene)
         {
             var item = fileListView.Items.Add(new ListViewItem
             {
@@ -56,7 +64,16 @@ namespace GUI.Controls
             var versionString = version.ToString(CultureInfo.InvariantCulture);
             item.SubItems.Add(versionString);
 
+            item.SubItems.Add(scene == null ? string.Empty : FormatMilliseconds(scene.Duration));
+            item.SubItems.Add(scene == null ? string.Empty : FormatMilliseconds(scene.SoundDuration));
+            item.SubItems.Add(scene == null ? string.Empty : (scene.HasSounds ? "Yes" : "No"));
+
             item.Tag = index;
+        }
+
+        private static string FormatMilliseconds(int milliseconds)
+        {
+            return (milliseconds / 1000f).ToString("0.000", CultureInfo.InvariantCulture);
         }
 
         private void FileListView_ItemSelectionChanged(object? sender, EventArgs e)

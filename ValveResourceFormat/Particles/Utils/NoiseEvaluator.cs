@@ -1,5 +1,3 @@
-using System.Numerics;
-
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
@@ -7,8 +5,7 @@ namespace ValveResourceFormat.Particles.Utils
     /// selected primitive over a scaled coordinate, a turbulence resample, a shaping modifier, and
     /// the output range. Turbulence overrides worley with fixed per-mode jitter and seed values, and
     /// its alternate mode swaps a worley input to a simplex resample and every other input to a
-    /// worley resample, exactly as the engine computes it. The octave sum is unweighted against
-    /// amplitude-falloff divisors, also engine behavior.
+    /// worley resample. The octave sum is unweighted against amplitude-falloff divisors.
     /// </summary>
     sealed class NoiseEvaluator
     {
@@ -60,7 +57,7 @@ namespace ValveResourceFormat.Particles.Utils
 
             var value = ApplyTurbulence(sum / OctaveDivisors[octaves - 1], coord);
 
-            return (Math.Clamp(ApplyModifier(value), 0f, 1f) * (outputMax - outputMin)) + outputMin;
+            return (MathUtils.Saturate(ApplyModifier(value)) * (outputMax - outputMin)) + outputMin;
         }
 
         private float SampleNoise(Vector3 coord, float jitter, float seed) => noiseType switch
@@ -128,14 +125,13 @@ namespace ValveResourceFormat.Particles.Utils
             ParticleNoiseModifier.PF_NOISE_MODIFIER_NONE => (value * 0.5f) + 0.5f,
             ParticleNoiseModifier.PF_NOISE_MODIFIER_LINES => ParticleMath.Square(MathF.Sin(value * (3f * MathF.PI))),
             ParticleNoiseModifier.PF_NOISE_MODIFIER_CLUMPS => Clumps(value),
-            ParticleNoiseModifier.PF_NOISE_MODIFIER_RINGS => Math.Clamp((MathF.Abs(MathF.Sin(value * MathF.PI)) + 0.25f) / 1.25f, 0f, 1f),
+            ParticleNoiseModifier.PF_NOISE_MODIFIER_RINGS => MathUtils.Saturate((MathF.Abs(MathF.Sin(value * MathF.PI)) + 0.25f) / 1.25f),
             _ => 1f,
         };
 
         /// <summary>
-        /// The 2.5x gain the clumps modifier applies, summed one halving divisor at a time as the
-        /// engine does rather than as a single multiply, which lands a ulp away over a third of the
-        /// time.
+        /// The 2.5x gain the clumps modifier applies, summed one halving divisor at a time rather than
+        /// as a single multiply, which lands a ulp away over a third of the time.
         /// </summary>
         private static float Clumps(float value)
         {

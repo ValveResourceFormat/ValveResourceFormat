@@ -1,11 +1,14 @@
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Sets a particle lifetime based on the configured animation frame rate.
+    /// Gives a particle exactly as long as its sheet sequence needs to play once at the configured
+    /// frame rate, so a clamping sequence reaches its last frame as the particle dies.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_SequenceLifeTime">C_INIT_SequenceLifeTime</seealso>
     class SequenceLifeTime : ParticleFunctionInitializer
     {
+        private const float LifetimeWithoutSequence = 1f;
+
         private readonly float frameRate = 30f;
 
         public SequenceLifeTime(ParticleDefinitionParser parse) : base(parse)
@@ -17,8 +20,18 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var rate = Math.Max(0.0001f, frameRate);
-            particle.Lifetime = 1f / rate;
+            var durations = particleSystemState.SequenceDurations;
+
+            if (frameRate == 0f || durations == null)
+            {
+                return particle;
+            }
+
+            var totalTime = particle.SequenceNumber >= 0 && particle.SequenceNumber < durations.Length
+                ? durations[particle.SequenceNumber]
+                : 0f;
+
+            particle.Lifetime = totalTime > 0f ? totalTime / frameRate : LifetimeWithoutSequence;
             return particle;
         }
     }

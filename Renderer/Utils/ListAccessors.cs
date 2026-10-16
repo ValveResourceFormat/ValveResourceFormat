@@ -11,5 +11,5 @@ class ListAccessors<T>
     /// <param name="list">A list.</param>
     /// <returns>The backing array of the list.</returns>
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_items")]
-    public extern static ref T[] GetBackingArray(List<T> list);
+    public static extern ref T[] GetBackingArray(List<T> list);
 }

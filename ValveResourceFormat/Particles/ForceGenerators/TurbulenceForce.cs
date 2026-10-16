@@ -5,9 +5,8 @@ namespace ValveResourceFormat.Particles.ForceGenerators;
 /// octave has its own frequency (<c>m_flNoiseCoordScale0..3</c>) and per-axis amplitude
 /// (<c>m_vecNoiseAmount0..3</c>).
 ///
-/// <para>An octave with a frequency of zero samples the lattice at the origin for every particle, so it
-/// contributes a constant offset to the whole system rather than nothing; the defaults leave the upper
-/// three octaves in exactly that state.</para>
+/// <para>A zero frequency samples the lattice at the origin for every particle, a constant offset
+/// rather than nothing. The defaults leave octaves 1 to 3 in that state.</para>
 ///
 /// <para>The operator fade strength is not applied, unlike <see cref="CurlNoiseForce"/>.</para>
 /// </summary>

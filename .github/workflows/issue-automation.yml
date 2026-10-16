@@ -2,7 +2,7 @@ name: Issue Automation
 
 on:
   issues:
-    types: [labeled]
+    types: [opened]
 
 permissions:
   issues: write
@@ -11,7 +11,7 @@ permissions:
 jobs:
   check-bug:
     runs-on: ubuntu-latest
-    if: github.event.label.name == 'Bug'
+    if: contains(github.event.issue.labels.*.name, 'Bug') || !contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"]'), github.event.issue.author_association)
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
@@ -22,15 +22,24 @@ jobs:
         run: |
           LABELS=""
 
-          # Detect Exporting issues
-          if echo "$ISSUE_BODY" | grep -qE 'ValveResourceFormat\.IO\.([A-Za-z]+Extract|GltfModelExporter|ContentFile)|GUI\.Types\.Exporter'; then
-            LABELS="$LABELS,Exporting"
-          fi
+          # Matches namespaces from stack traces and logs, keep in sync with .github/labeler.yml for PRs
+          add_label_if() {
+            if grep -qP "$2" <<< "${3-$ISSUE_BODY}"; then
+              LABELS="$LABELS,$1"
+            fi
+          }
 
-          # Detect Renderer issues
-          if echo "$ISSUE_BODY" | grep -qE 'ValveResourceFormat\.Renderer|GUI\.Types\.GLViewers|RendererContext|RenderLoop'; then
-            LABELS="$LABELS,Renderer"
-          fi
+          # First project frame of each exception and inner exception, where it was thrown.
+          # Parse errors often bubble up through viewer code, so the full trace would mislabel them as Renderer.
+          THROW_FRAMES=$(awk '/Exception[:(]|--->/ { want = 1 } want && /^[[:space:]]*at (ValveResourceFormat|GUI|CLI)\./ && !/ValveResourceFormat\.(Serialization|Utils)\./ { print; want = 0 }' <<< "$ISSUE_BODY")
+
+          add_label_if Exporting 'ValveResourceFormat\.IO\.((?!ShaderExtract)[A-Za-z]+Extract|GltfModelExporter|ContentFile|ContentFormats|Hammer)|GUI\.Types\.Exporter|GUI\.Forms\.(ExtractOutputTypesForm|SvgExportForm)'
+          add_label_if Renderer 'ValveResourceFormat\.Renderer\.(?!Audio\.|Sound\.)|GUI\.Types\.GLViewers|GUI\.Controls\.(GL|Renderer)|ThumbnailRenderers|ValveResourceFormat\.Particles' "$THROW_FRAMES"
+          add_label_if Animation 'ValveResourceFormat\.ResourceTypes\.(ModelAnimation|ModelFlex|Choreo|AnimGraph)|ValveResourceFormat\.IO\.(Nm[A-Za-z]+Extract|AnimationGraph|AnimationGroupLoader|ChoreoExtract|FlexSceneExtract)|ValveResourceFormat\.Renderer\.(Animation|BoneConstraintSolver|FlexStateManager)|ValveResourceFormat\.FlexSceneFile|GLAnimationViewer'
+          add_label_if Maps 'ValveResourceFormat\.IO\.(MapExtract|ContentFormats\.ValveMap|Hammer|GltfModelExporter\.(LoadWorldNodeModels|LoadEntityMeshes))|ValveResourceFormat\.Renderer\.(World|Entities)\.|ValveResourceFormat\.ResourceTypes\.(EntityLump|WorldNode|World)\b|GLWorldViewer'
+          add_label_if Particles 'ValveResourceFormat\.(Renderer\.)?Particles|ValveResourceFormat\.ResourceTypes\.ParticleSystem|GLParticleViewer|ThumbnailParticleRenderer'
+          add_label_if Shaders 'ValveResourceFormat\.CompiledShader|ValveResourceFormat\.IO\.ShaderExtract|Only VCS file versions'
+          add_label_if Audio 'ValveResourceFormat\.Renderer\.(Audio|Sound)\.|ValveResourceFormat\.ResourceTypes\.Sound|GUI\.Types\.(Viewers\.)?Audio\b|AudioPlaybackPanel'
 
           # Remove leading comma and add labels
           LABELS="${LABELS#,}"
@@ -42,14 +51,26 @@ jobs:
           fi
 
       - name: Check reported version
-        if: github.event.issue.author_association != 'MEMBER' && github.event.issue.author_association != 'COLLABORATOR'
+        if: ${{ !contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"]'), github.event.issue.author_association) }}
         run: |
-          VERSION_TEXT=$(echo "$ISSUE_BODY" | grep -A 3 '### What version of S2V are you using' | tail -n +2 | grep -m 1 . || true)
-          BUILD_NUMBER=$(echo "${VERSION_TEXT%% on *}" | grep -oP '\d+\.\d+\.\K\d+' | head -1 || true)
-          echo "Detected version text: $VERSION_TEXT"
-          echo "Detected build number: $BUILD_NUMBER"
+          BODY_TEXT=$(printf '%s\n' "$ISSUE_BODY" | tr -d '\r')
+          VERSION_TEXT=$(printf '%s\n' "$BODY_TEXT" | grep -A 3 '### What version of S2V are you using' | tail -n +2 | grep -m 1 . || true)
+          INPUT_BUILD=$(printf '%s\n' "${VERSION_TEXT%% on *}" | grep -oP '\d+\.\d+\.\K\d+' | head -1 || true)
 
-          LATEST_BUILD=$(gh run list --branch master --status success --workflow build.yml --limit 1 --json number --jq '.[0].number')
+          # Copied exceptions end with "S2V 20.0.1234 <commit> on <os>", and the console log starts with "Source 2 Viewer v20.0.1234+<commit>"
+          EXCEPTION_BUILD=$(printf '%s\n' "$BODY_TEXT" | grep -oP '(?:\bS2V|Source 2 Viewer) v?\d+\.\d+\.\K\d+' | sort -n | tail -1 || true)
+
+          echo "Detected version text: $VERSION_TEXT"
+          echo "Detected input build number: $INPUT_BUILD"
+          echo "Detected exception build number: $EXCEPTION_BUILD"
+
+          if [ "$INPUT_BUILD" = "0" ] || [ "$EXCEPTION_BUILD" = "0" ]; then
+            echo "Local build detected, skipping"
+            exit 0
+          fi
+
+          # Fork PRs from a branch named master also match --branch, and the newest run is not always listed first
+          LATEST_BUILD=$(gh run list --branch master --event push --status success --workflow build.yml --limit 20 --json number --jq 'map(.number) | max // empty')
           echo "Latest build number: $LATEST_BUILD"
 
           if [ -z "$LATEST_BUILD" ]; then
@@ -57,17 +78,28 @@ jobs:
             exit 0
           fi
 
+          BUILD_NUMBER="${INPUT_BUILD:-$EXCEPTION_BUILD}"
+          if [ -n "$INPUT_BUILD" ] && [ -n "$EXCEPTION_BUILD" ] && [ "$EXCEPTION_BUILD" -lt "$INPUT_BUILD" ]; then
+            BUILD_NUMBER="$EXCEPTION_BUILD"
+          fi
+
+          BODY=""
+
           if [ -z "$BUILD_NUMBER" ]; then
             BODY=$'Unable to determine the version of Source 2 Viewer from this issue.\nPlease provide the version by using the **copy version** button in the about window, and download the [latest dev build](https://s2v.app/dev/) to confirm that this issue still occurs.'
-          elif [ "$BUILD_NUMBER" -ge "$LATEST_BUILD" ]; then
-            echo "Version is up to date"
-            exit 0
-          elif [ "$BUILD_NUMBER" -eq 0 ]; then
-            echo "Local build detected, skipping"
-            exit 0
-          else
+          elif [ "$BUILD_NUMBER" -lt "$LATEST_BUILD" ]; then
             BUILDS_BEHIND=$((LATEST_BUILD - BUILD_NUMBER))
             BODY="The version of Source 2 Viewer reported in this issue is **$BUILDS_BEHIND** build(s) behind the latest dev build."$'\nPlease download the [latest dev build](https://s2v.app/dev/) and confirm that this issue still occurs.'
+          fi
+
+          if [ -n "$INPUT_BUILD" ] && [ -n "$EXCEPTION_BUILD" ] && [ "$INPUT_BUILD" -ne "$EXCEPTION_BUILD" ]; then
+            MISMATCH="The exception in this issue is from build **$EXCEPTION_BUILD**, but the reported version is build **$INPUT_BUILD**. Please make sure the exception is from the version you are reporting."
+            BODY="${BODY:+$BODY$'\n\n'}$MISMATCH"
+          fi
+
+          if [ -z "$BODY" ]; then
+            echo "Version is up to date"
+            exit 0
           fi
 
           gh issue comment "$ISSUE_NUMBER" --body "$BODY"

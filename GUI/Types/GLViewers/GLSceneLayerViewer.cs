@@ -3,7 +3,6 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
-//using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {
@@ -41,34 +40,30 @@ namespace GUI.Types.GLViewers
             Debug.Assert(UiControl != null);
 
             AddRenderModeSelectionControl();
-            //VKTODO:
-            //var layerNames = Scene.AllNodes.Select(static x => x.LayerName).OfType<string>().Distinct().ToList();
-            //var enabledLayers = new HashSet<string>(layerNames.Count);
 
-            //layersListBox = UiControl.AddMultiSelection(LayersControlName, (listBox) =>
-            //{
-            //    for (var i = 0; i < layerNames.Count; i++)
-            //    {
-            //        var enabled = IsLayerEnabledByDefault(i);
-            //        listBox.Items.Add(layerNames[i], enabled);
+            var layerNames = Scene.AllNodes.Select(static x => x.LayerName).OfType<string>().Distinct().ToList();
+            var enabledLayers = new HashSet<string>(layerNames.Count);
 
-            //        if (enabled)
-            //        {
-            //            enabledLayers.Add(layerNames[i]);
-            //        }
-            //    }
-            //}, (layers) =>
-            //{
-            //    SetEnabledLayers([.. layers]);
-            //});
+            layersListBox = UiControl.AddMultiSelection(LayersControlName, (listBox) =>
+            {
+                for (var i = 0; i < layerNames.Count; i++)
+                {
+                    var enabled = IsLayerEnabledByDefault(i);
+                    listBox.Items.Add(layerNames[i], enabled);
 
-            //SetEnabledLayers(enabledLayers);
+                    if (enabled)
+                    {
+                        enabledLayers.Add(layerNames[i]);
+                    }
+                }
+            }, (layers) =>
+            {
+                SetEnabledLayers([.. layers]);
+            });
+
+            SetEnabledLayers(enabledLayers);
 
             base.AddUiControls();
         }
-        //VKTODO:
-        //protected override void OnPicked(object? sender, PickingResponse pixelInfo)
-        //{
-        //}
     }
 }

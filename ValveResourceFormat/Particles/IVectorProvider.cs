@@ -1,4 +1,3 @@
-using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles
@@ -6,6 +5,7 @@ namespace ValveResourceFormat.Particles
     /// <summary>
     /// Provides a <see cref="Vector3"/> value that may vary per particle or per frame.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/CParticleVecInput">CParticleVecInput</seealso>
     internal interface IVectorProvider
     {
         /// <summary>
@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Particles
             => NextVector(ref Particle.Default, renderState);
     }
 
-    /// <summary>PVEC_TYPE_CLOSEST_CAMERA_POSITION. The single render camera is always the closest one.</summary>
+    /// <summary>The single render camera is always the closest one.</summary>
     class ClosestCameraPositionVectorProvider : IVectorProvider
     {
         public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => renderState.CameraPosition;
@@ -47,12 +47,6 @@ namespace ValveResourceFormat.Particles
         {
             // Literal colors are authored as 0-255; providers return normalized 0-1 colors
             this.value = value / 255.0f;
-        }
-
-        public LiteralColorVectorProvider(int[] value)
-        {
-            this.value = new Vector3(value[0], value[1], value[2]) / 255.0f;
-            // also, do linear to srgb
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => value;
@@ -135,7 +129,6 @@ namespace ValveResourceFormat.Particles
         }
     }
 
-    // CP Delta: the difference between two control point positions.
     readonly struct CPDeltaVectorProvider : IVectorProvider
     {
         private readonly int cp;

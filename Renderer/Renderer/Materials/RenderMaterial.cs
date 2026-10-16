@@ -7,7 +7,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.RHI;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.VfxEval;
-using ValveResourceFormat.Utils;
 using Vortice.Vulkan;
 
 namespace ValveResourceFormat.Renderer.Materials

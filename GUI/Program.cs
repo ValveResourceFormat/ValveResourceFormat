@@ -2,12 +2,12 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveResourceFormat.Renderer.RHI;
+using Windows.Win32;
+using Windows.Win32.System.LibraryLoader;
 
 namespace GUI
 {
@@ -37,6 +37,15 @@ namespace GUI
         [STAThread]
         internal static void Main(string[] args)
         {
+            // Stop system DLLs (e.g. dinput8.dll requested by GLFW) from being hijacked by a copy next to the exe.
+            PInvoke.SetDefaultDllDirectories(LOAD_LIBRARY_FLAGS.LOAD_LIBRARY_SEARCH_SYSTEM32);
+
+            if (args.Length == 3 && args[0] == UpdateInstaller.ElevatedInstallArgument)
+            {
+                Environment.ExitCode = UpdateInstaller.InstallElevated(args[1], args[2]);
+                return;
+            }
+
             AppDomain.CurrentDomain.UnhandledException += UnhandledException;
             Application.ThreadException += ThreadException;
 
@@ -62,6 +71,9 @@ namespace GUI
 
             S2vDevice.BeginCreateRenderDevice();
 
+            // The explorer and tab paths need the installed games, find them while the window is being created
+            _ = InstalledSteamGames.FindAsync();
+
             Assembly = Assembly.GetExecutingAssembly();
 
             // from winforms dep: Application.ProductVersion
@@ -69,7 +81,7 @@ namespace GUI
             Assembly? entryAssembly = Assembly.GetEntryAssembly();
             if (entryAssembly is not null)
             {
-                object[] attrs = entryAssembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false);
+                var attrs = entryAssembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false);
                 if (attrs is not null && attrs.Length > 0)
                 {
                     ProductVersion = ((AssemblyInformationalVersionAttribute)attrs[0]).InformationalVersion;
@@ -111,140 +123,12 @@ namespace GUI
 
         private static void ThreadException(object sender, ThreadExceptionEventArgs e)
         {
-            ShowError(e.Exception);
+            ErrorReport.ShowError(e.Exception);
         }
 
         private static void UnhandledException(object sender, UnhandledExceptionEventArgs ex)
         {
-            ShowError((Exception)ex.ExceptionObject);
-        }
-
-        public static void ShowError(Exception exception)
-        {
-            Log.Error(nameof(Program), exception.ToString());
-
-            if (exception is ValveResourceFormat.Renderer.Shaders.ShaderLoader.ShaderCompilerException)
-            {
-#pragma warning disable RS0030
-                // cant use the new api here because this must work when UI is broken or not yet initialized due to the callbacks
-                // finding a real fix here is a problem for future us when we know how the new UI works.
-                MessageBox.Show(exception.Message, "Failed to compile shader", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-#pragma warning restore RS0030
-                return;
-            }
-
-            var output = new StringBuilder(512);
-            AppendExceptionWithVersion(output, exception);
-            var outputText = output.ToString();
-
-            var copyButton = new TaskDialogButton("Copy to clipboard");
-
-            var firstLocation = string.Empty;
-
-            try
-            {
-                var stackTrace = new StackTrace(exception, true);
-                if (stackTrace.FrameCount > 0)
-                {
-                    var frame = stackTrace.GetFrame(0);
-                    if (frame != null)
-                    {
-                        var method = frame.GetMethod();
-                        var fileName = frame.GetFileName();
-                        var lineNumber = frame.GetFileLineNumber();
-
-                        if (method != null)
-                        {
-                            firstLocation = $"{Environment.NewLine}{method.DeclaringType?.FullName}.{method.Name}";
-
-                            if (!string.IsNullOrEmpty(fileName) && lineNumber > 0)
-                            {
-                                firstLocation += $" in {fileName}:{lineNumber}";
-                            }
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                //
-            }
-
-            ShowUpdateAfterError();
-
-            var page = new TaskDialogPage
-            {
-                Caption = $"Unhandled exception: {exception.GetType()}",
-                Text = $"{exception.Message}{firstLocation}{Environment.NewLine}{Environment.NewLine}Use copy button when sharing this error, and also mention your exact steps. Details also available in console.",
-                Icon = TaskDialogIcon.Error,
-                Buttons = { copyButton, TaskDialogButton.Close },
-                DefaultButton = TaskDialogButton.Close,
-                AllowCancel = false,
-                AllowMinimize = false,
-                Expander = new TaskDialogExpander
-                {
-                    Position = TaskDialogExpanderPosition.AfterFootnote,
-                    Text = outputText,
-                },
-                Footnote = new TaskDialogFootnote
-                {
-                    Text = $"S2V {Program.DisplayVersion}{Environment.NewLine}Try using latest dev build to see if the issue persists.",
-                    Icon = TaskDialogIcon.Information
-                }
-            };
-
-            var result = TaskDialog.ShowDialog(page);
-
-            if (result == copyButton)
-            {
-                if (MainForm != null && MainForm.InvokeRequired)
-                {
-                    MainForm.BeginInvoke(() => AppClipboard.SetText(outputText));
-                }
-                else
-                {
-                    AppClipboard.SetText(outputText);
-                }
-            }
-        }
-
-        private static void ShowUpdateAfterError()
-        {
-            var mainForm = MainForm;
-
-            if (mainForm is not { IsHandleCreated: true, IsDisposed: false })
-            {
-                return;
-            }
-
-            try
-            {
-                mainForm.BeginInvoke(mainForm.ShowUpdateAfterError);
-            }
-            catch (InvalidOperationException)
-            {
-                // The window is being destroyed
-            }
-        }
-
-        public static void AppendExceptionWithVersion(StringBuilder output, Exception exception)
-        {
-            var version = Program.ProductVersion;
-
-            output.AppendLine("```");
-            output.AppendLine(exception.ToString());
-            output.AppendLine("```");
-
-            output.Append("*S2V ");
-            output.Append(version.Replace('+', ' '));
-            output.Append(CultureInfo.InvariantCulture, $" on {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
-
-            if (S2vDevice.RenderDevice != null)
-            {
-                output.Append(CultureInfo.InvariantCulture, $" ({S2vDevice.RenderDevice.GpuRendererAndDriver})");
-            }
-
-            output.AppendLine("*");
+            ErrorReport.ShowError((Exception)ex.ExceptionObject);
         }
     }
 }

@@ -11,21 +11,21 @@
 	]
 	m_boneNames = 
 	[
-		resource:"root",
-		resource:"thigh_R",
-		resource:"knee_R",
-		resource:"thigh_L",
-		resource:"knee_L",
-		resource:"ankle_L",
-		resource:"spine1",
-		resource:"bicep_R",
-		resource:"elbow_R",
-		resource:"neck1",
-		resource:"bicep_L",
-		resource:"elbow_L",
-		resource:"wrist_L",
-		resource:"wrist_R",
-		resource:"ankle_R",
+		"root",
+		"thigh_R",
+		"knee_R",
+		"thigh_L",
+		"knee_L",
+		"ankle_L",
+		"spine1",
+		"bicep_R",
+		"elbow_R",
+		"neck1",
+		"bicep_L",
+		"elbow_L",
+		"wrist_L",
+		"wrist_R",
+		"ankle_R",
 	]
 	m_indexNames = 
 	[
@@ -4706,14 +4706,14 @@
 		]
 		m_CtrlName = 
 		[
-			resource:"back_fur_r0c0",
-			resource:"back_fur_r0c1",
-			resource:"back_fur_r1c0",
-			resource:"back_fur_r1c1",
-			resource:"back_fur_r2c0",
-			resource:"back_fur_r2c1",
-			resource:"back_fur_r3c0",
-			resource:"back_fur_r3c1",
+			"back_fur_r0c0",
+			"back_fur_r0c1",
+			"back_fur_r1c0",
+			"back_fur_r1c1",
+			"back_fur_r2c0",
+			"back_fur_r2c1",
+			"back_fur_r3c0",
+			"back_fur_r3c1",
 		]
 		m_nStaticNodeFlags = 3840
 		m_nDynamicNodeFlags = 7984
@@ -4798,8 +4798,8 @@
 			{
 				nNode = 
 				[
-					2, 3, 6, 6,
-					4, 5, 7, 7,
+					[ 2, 3, 6, 6 ],
+					[ 4, 5, 7, 7 ],
 				]
 				f4MaxDist = [ 15.566884, 15.566884, 20.0, 20.0 ]
 				f4MinDist = [ 0.778344, 0.778344, 1.0, 1.0 ]
@@ -4809,8 +4809,8 @@
 			{
 				nNode = 
 				[
-					5, 4, 4, 4,
-					7, 6, 6, 6,
+					[ 5, 4, 4, 4 ],
+					[ 7, 6, 6, 6 ],
 				]
 				f4MaxDist = [ 15.377592, 15.377592, 15.377592, 15.377592 ]
 				f4MinDist = [ 0.76888, 0.76888, 0.76888, 0.76888 ]
@@ -4820,8 +4820,8 @@
 			{
 				nNode = 
 				[
-					6, 4, 4, 4,
-					7, 5, 5, 5,
+					[ 6, 4, 4, 4 ],
+					[ 7, 5, 5, 5 ],
 				]
 				f4MaxDist = [ 20.0, 20.0, 20.0, 20.0 ]
 				f4MinDist = [ 1.0, 1.0, 1.0, 1.0 ]
@@ -5096,11 +5096,11 @@
 			m_CollisionGroup = 1977497166
 			m_InteractAs = [  ]
 			m_InteractWith = [  ]
-			m_CollisionGroupString = resource:"default"
+			m_CollisionGroupString = "default"
 			m_InteractAsStrings = [  ]
 			m_InteractWithStrings = [  ]
 		},
 	]
 	m_debugPartNames = [  ]
-	m_embeddedKeyvalues = resource:""
+	m_embeddedKeyvalues = ""
 }

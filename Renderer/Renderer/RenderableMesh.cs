@@ -3,8 +3,6 @@ using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
-using ValveResourceFormat.Renderer.Materials;
 
 namespace ValveResourceFormat.Renderer
 {

@@ -14,21 +14,20 @@ Double-click a `.vtex_c` to open the texture viewer. Features:
 
 - View individual channels: RGB, Red, Green, Blue, Alpha
 - Toggle between mip levels to see different resolutions
-- For cubemaps, view individual faces
+- For cubemaps, set **Projection type** to **None** to browse individual faces
 - For texture arrays, browse individual slices
-- HDR textures are tone-mapped for display
+- HDR textures are shown gamma encoded, so values above 1.0 clip
 
 ![Texture viewer with channel controls](./images/exporting-textures-viewer.png)
 
 ## Exporting
 
-1. Open a `.vtex_c` file in the viewer
-2. Right-click and select **Decompile & Export** (or use the save button in the viewer toolbar)
-3. Choose the output format in the save dialog: **PNG**, **JPG**, or **EXR** (for HDR textures)
+- Right-click a `.vtex_c` and select **Decompile & export** to write a `.vtex` compile config with the image next to it. HDR textures write `.exr`, others `.png`; textures stored as JPEG, PNG or WebP keep that format
+- Or open the texture and use the save button in the viewer toolbar to save just the image as **PNG**, **JPG**, or **EXR** (for HDR textures)
 
 For batch export:
 
-- Right-click a folder containing textures → **Decompile & Export** to export all textures at once
+- Right-click a folder containing textures → **Decompile & export**, and pick which file types to export in the dialog
 - Use the CLI for large-scale extraction:
 
 ```sh
@@ -54,5 +53,5 @@ Normal maps and mask textures may look wrong if you view only the RGB channels. 
 ## HDR and Cubemap Textures
 
 - HDR textures (used for skyboxes and environment probes) are stored in higher precision formats
-- Cubemap textures have 6 faces. Use the face selector in the viewer to browse them
-- HDR textures can be exported as EXR to preserve the full dynamic range, or as PNG/JPG (tone-mapped)
+- Cubemap textures have 6 faces. Set **Projection type** to **None** to browse them
+- HDR textures can be exported as EXR to preserve the full dynamic range, or as PNG/JPG, which clip values above 1.0

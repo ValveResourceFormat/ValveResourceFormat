@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
@@ -14,6 +13,32 @@ namespace ValveResourceFormat.ResourceTypes
     /// </summary>
     public class NTRO : Block
     {
+        private const byte PolymorphicStructFlag = 1;
+
+        private enum SpecialFieldBehavior
+        {
+            None,
+            BinaryBlob,
+            Rows,
+            Discard,
+        }
+
+        private readonly record struct SpecialField(SpecialFieldBehavior Behavior, int Columns = 0);
+
+        // Fields that are not converted as plain values: raw data kept as a blob (byte arrays always are),
+        // fixed size SIMD lane arrays split into rows, and data that is dropped
+        private static readonly Dictionary<(string Struct, string Field), SpecialField> SpecialFields = new()
+        {
+            [("FeEdgeDesc_t", "nSide")] = new(SpecialFieldBehavior.Rows, 2),
+            [("FeSimdTri_t", "nNode")] = new(SpecialFieldBehavior.Rows, 4),
+            [("FeSimdQuad_t", "nNode")] = new(SpecialFieldBehavior.Rows, 4),
+            [("FeSimdRodConstraint_t", "nNode")] = new(SpecialFieldBehavior.Rows, 4),
+            [("FeSimdAnimStrayRadius_t", "nNode")] = new(SpecialFieldBehavior.Rows, 4),
+            [("FeSimdSpringIntegrator_t", "nNode")] = new(SpecialFieldBehavior.Rows, 4),
+            [("AnimationResourceData_t", "m_frameData")] = new(SpecialFieldBehavior.Discard),
+            [("PostProcessingResource_t", "m_colorCorrectionVolumeData")] = new(SpecialFieldBehavior.BinaryBlob),
+        };
+
         /// <summary>
         /// Gets the output data.
         /// </summary>
@@ -66,13 +91,24 @@ namespace ValveResourceFormat.ResourceTypes
 
             var structEntry = KVObject.Collection();
 
-            ReadStructureFields(refStruct, startingOffset, structEntry);
+            // Polymorphic structs store the id of their concrete type at the start of the object
+            var concreteStruct = refStruct;
 
-            // Valve doesn't print the base struct's type, so we can't just call ReadStructure *sigh*
-            // Inheritance can be arbitrarily deep, and every ancestor lays its fields out at offsets
-            // relative to the same object, so keep appending fields while walking up the chain.
-            // The depth limit guards against manifests with an inheritance cycle.
-            var baseStructId = refStruct.BaseStructId;
+            if ((refStruct.StructFlags & PolymorphicStructFlag) != 0)
+            {
+                Reader.BaseStream.Position = startingOffset;
+                concreteStruct = IntrospectionManifest.GetStructById(Reader.ReadUInt32()) ?? refStruct;
+
+                // Same key KV3 uses to name the type of polymorphic objects
+                structEntry.Add("_class", concreteStruct.Name);
+            }
+
+            ReadStructureFields(concreteStruct, startingOffset, structEntry);
+
+            // The base struct type is not written out, so ReadStructure cannot be used for it.
+            // Ancestor fields use offsets from the same object, so keep appending up the chain.
+            // The depth limit guards against cycles.
+            var baseStructId = concreteStruct.BaseStructId;
 
             for (var depth = 0; baseStructId != 0 && depth < 16; depth++)
             {
@@ -106,148 +142,120 @@ namespace ValveResourceFormat.ResourceTypes
 
                 Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
 
-                ReadFieldIntrospection(field, structEntry);
+                ReadFieldIntrospection(refStruct, field, structEntry);
             }
         }
 
-        private void ReadFieldIntrospection(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, KVObject structEntry)
+        private void ReadFieldIntrospection(ResourceIntrospectionManifest.ResourceDiskStruct refStruct, ResourceIntrospectionManifest.ResourceDiskStruct.Field field, KVObject structEntry)
         {
-            var count = field.Count > 0 ? (uint)field.Count : 1;
+            SpecialFields.TryGetValue((refStruct.Name, field.FieldName), out var special);
 
-            long prevOffset = 0;
-
-            if (field.Indirections.Count == 1)
+            if (special.Behavior == SpecialFieldBehavior.Discard)
             {
-                var indirection = (SchemaIndirectionType)field.Indirections[0];
-
-                var offset = Reader.ReadUInt32();
-
-                if (indirection == SchemaIndirectionType.ResourcePointer)
-                {
-                    if (offset == 0)
-                    {
-                        structEntry.Add(field.FieldName, KVObject.Null()); // :shrug:
-
-                        return;
-                    }
-
-                    prevOffset = Reader.BaseStream.Position;
-
-                    Reader.BaseStream.Position += offset - 4;
-                }
-                else if (indirection == SchemaIndirectionType.ResourceArray)
-                {
-                    count = Reader.ReadUInt32();
-
-                    prevOffset = Reader.BaseStream.Position;
-
-                    if (count > 0)
-                    {
-                        Reader.BaseStream.Position += offset - 8;
-                    }
-                }
-                else
-                {
-                    throw new UnexpectedMagicException("Unsupported indirection", (int)indirection, nameof(indirection));
-                }
+                return;
             }
-            else if (field.Indirections.Count == 2)
-            {
-                var indirection0 = (SchemaIndirectionType)field.Indirections[0];
-                var indirection1 = (SchemaIndirectionType)field.Indirections[1];
 
-                if (indirection0 == SchemaIndirectionType.ResourceArray && indirection1 == SchemaIndirectionType.ResourcePointer)
-                {
-                    var arrayOffset = Reader.ReadUInt32();
-                    var arrayCount = Reader.ReadUInt32();
-
-                    prevOffset = Reader.BaseStream.Position;
-
-                    if (arrayCount == 0)
-                    {
-                        structEntry.Add(field.FieldName, KVObject.Array());
-                        return;
-                    }
-
-                    Reader.BaseStream.Position += arrayOffset - 8;
-
-                    // Array of pointers
-                    var arrayValues = KVObject.Array();
-
-                    for (var i = 0; i < arrayCount; i++)
-                    {
-                        var pointerOffset = Reader.ReadUInt32();
-
-                        if (pointerOffset == 0)
-                        {
-                            arrayValues.Add(KVObject.Null());
-                        }
-                        else
-                        {
-                            var pointerPrevOffset = Reader.BaseStream.Position;
-                            Reader.BaseStream.Position += pointerOffset - 4;
-
-                            arrayValues.Add(ReadField(field));
-
-                            Reader.BaseStream.Position = pointerPrevOffset;
-                        }
-                    }
-
-                    structEntry.Add(field.FieldName, arrayValues);
-                    Reader.BaseStream.Position = prevOffset;
-
-                    return;
-                }
-                else
-                {
-                    throw new NotImplementedException($"Unsupported 2-level indirection: {indirection0}, {indirection1}");
-                }
-            }
-            else if (field.Indirections.Count > 2)
-            {
-                throw new NotImplementedException($"More than 2 levels of indirection not supported (found {field.Indirections.Count})");
-            }
+            var asBlob = special.Behavior == SpecialFieldBehavior.BinaryBlob;
 
             KVObject fieldValue;
 
-            if (field.Count > 0 || field.Indirections.Count == 1 && (SchemaIndirectionType)field.Indirections[0] == SchemaIndirectionType.ResourceArray)
+            if (field.Type == SchemaFieldType.Char && field.Count > 1 && field.Indirections.Count == 0)
             {
-                if (field.Type == SchemaFieldType.Byte || field.Type == SchemaFieldType.Color)
+                // Inline char arrays are written as a single string offset, the count is only the buffer capacity
+                fieldValue = Reader.ReadOffsetString(Encoding.UTF8);
+            }
+            else if (special.Behavior == SpecialFieldBehavior.Rows && field.Indirections.Count == 0 && field.Count % special.Columns == 0)
+            {
+                fieldValue = KVObject.Array();
+
+                for (var row = 0; row < field.Count / special.Columns; row++)
                 {
-                    var size = field.Type switch
-                    {
-                        SchemaFieldType.Byte => 1,
-                        SchemaFieldType.Color => 4,
-                        _ => 0,
-                    };
-
-                    //special case for byte arrays for faster access
-                    fieldValue = KVObject.Blob(Reader.ReadBytes((int)count * size));
+                    fieldValue.Add(ReadElements(field, 0, special.Columns, asBlob));
                 }
-                else
-                {
-                    //var ntroValues = new NTROArray(field.Type, (int)count, pointer, field.Indirections.Count > 0);
-                    var ntroValues = KVObject.Array();
-
-                    for (var i = 0; i < count; i++)
-                    {
-                        ntroValues.Add(ReadField(field));
-                    }
-
-                    fieldValue = ntroValues;
-                }
+            }
+            else if (field.Count > 1)
+            {
+                // Fixed size arrays repeat the whole value inline, including any indirections
+                fieldValue = ReadElements(field, 0, field.Count, asBlob);
             }
             else
             {
-                fieldValue = ReadField(field);
+                fieldValue = ReadIndirection(field, 0, asBlob);
             }
 
             structEntry.Add(field.FieldName, fieldValue);
+        }
 
-            if (prevOffset > 0)
+        /// <summary>
+        /// Reads the value at the given indirection level, each level wraps all the levels after it.
+        /// Leaves the reader right after the value at this level.
+        /// </summary>
+        private KVObject ReadIndirection(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, int level, bool asBlob)
+        {
+            if (level == field.Indirections.Count)
             {
-                Reader.BaseStream.Position = prevOffset;
+                return ReadField(field);
             }
+
+            var indirection = (SchemaIndirectionType)field.Indirections[level];
+            var slotOffset = Reader.BaseStream.Position;
+
+            switch (indirection)
+            {
+                case SchemaIndirectionType.ResourcePointer:
+                {
+                    var offset = Reader.ReadInt32();
+
+                    if (offset == 0)
+                    {
+                        return KVObject.Null();
+                    }
+
+                    Reader.BaseStream.Position = slotOffset + offset;
+
+                    var value = ReadIndirection(field, level + 1, asBlob);
+
+                    Reader.BaseStream.Position = slotOffset + 4;
+
+                    return value;
+                }
+
+                case SchemaIndirectionType.ResourceArray:
+                {
+                    var offset = Reader.ReadInt32();
+                    var count = Reader.ReadInt32();
+
+                    Reader.BaseStream.Position = slotOffset + offset;
+
+                    var value = ReadElements(field, level + 1, count, asBlob);
+
+                    Reader.BaseStream.Position = slotOffset + 8;
+
+                    return value;
+                }
+
+                default:
+                    throw new UnexpectedMagicException("Unsupported indirection", (int)indirection, nameof(indirection));
+            }
+        }
+
+        private KVObject ReadElements(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, int level, int count, bool asBlob)
+        {
+            if (level == field.Indirections.Count && (asBlob || field.Type is SchemaFieldType.Byte or SchemaFieldType.UChar))
+            {
+                var size = field.Type == SchemaFieldType.Color ? 4 : 1;
+
+                return KVObject.Blob(Reader.ReadBytes(count * size));
+            }
+
+            var values = KVObject.Array();
+
+            for (var i = 0; i < count; i++)
+            {
+                values.Add(ReadIndirection(field, level, asBlob));
+            }
+
+            return values;
         }
 
         private KVObject ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field)
@@ -257,7 +265,8 @@ namespace ValveResourceFormat.ResourceTypes
             switch (field.Type)
             {
                 case SchemaFieldType.Struct:
-                    var newStruct = IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
+                    var newStruct = IntrospectionManifest.GetStructById(field.TypeData)
+                        ?? throw new InvalidDataException($"Could not find struct {field.TypeData} for field '{field.FieldName}'.");
                     return ReadStructure(newStruct, Reader.BaseStream.Position);
 
                 case SchemaFieldType.Enum:
@@ -275,9 +284,12 @@ namespace ValveResourceFormat.ResourceTypes
                     return enumValue;
                 }
 
+                // A char that is not an inline char array is a single character
+                case SchemaFieldType.Char:
                 case SchemaFieldType.SByte:
                     return (int)Reader.ReadSByte();
 
+                case SchemaFieldType.UChar:
                 case SchemaFieldType.Byte:
                     return (uint)Reader.ReadByte();
 
@@ -302,10 +314,16 @@ namespace ValveResourceFormat.ResourceTypes
                 case SchemaFieldType.Float:
                     return (double)Reader.ReadSingle(); // TODO: Could actually be float
 
+                case SchemaFieldType.Double:
+                case SchemaFieldType.Float64:
+                    return Reader.ReadDouble();
+
                 case SchemaFieldType.Int64:
                     return Reader.ReadInt64();
 
+                // Type 41 is a deferred resource reference, stored the same way as an external reference
                 case SchemaFieldType.ExternalReference:
+                case SchemaFieldType.Unused:
                     var id = Reader.ReadUInt64();
                     var value = id > 0
                         ? Resource.ExternalReferences?.ResourceRefInfoList.FirstOrDefault(c => c.Id == id)?.Name
@@ -316,15 +334,18 @@ namespace ValveResourceFormat.ResourceTypes
                         return KVObject.Null();
                     }
 
-                    KVObject resourceNameValue = value;
-                    resourceNameValue.Flag = KVFlag.ResourceName;
-                    return resourceNameValue;
+                    KVObject resourceValue = value;
+                    resourceValue.Flag = KVFlag.Resource;
+                    return resourceValue;
 
                 case SchemaFieldType.UInt64:
                     return (ulong)Reader.ReadUInt64();
 
                 case SchemaFieldType.Vector3D:
                 case SchemaFieldType.QAngle:
+                case SchemaFieldType.RadianEuler:
+                case SchemaFieldType.DegreeEuler:
+                case SchemaFieldType.RotationVector:
                 {
                     var arrayObject = KVObject.Array();
                     arrayObject.Add(Reader.ReadSingle());
@@ -345,26 +366,6 @@ namespace ValveResourceFormat.ResourceTypes
                     return arrayObject;
                 }
 
-                case SchemaFieldType.FourVectors:
-                {
-                    // Three fltx4 laid out as x[4], y[4], z[4], which is four vectors in structure of arrays form
-                    Span<float> components = stackalloc float[12];
-                    Reader.BaseStream.ReadExactly(MemoryMarshal.AsBytes(components));
-
-                    var arrayObject = KVObject.Array();
-
-                    for (var i = 0; i < 4; i++)
-                    {
-                        var vector = KVObject.Array();
-                        vector.Add(components[i]);
-                        vector.Add(components[4 + i]);
-                        vector.Add(components[8 + i]);
-                        arrayObject.Add(vector);
-                    }
-
-                    return arrayObject;
-                }
-
                 case SchemaFieldType.Color:
                 {
                     var arrayObject = KVObject.Array();
@@ -375,13 +376,11 @@ namespace ValveResourceFormat.ResourceTypes
                     return arrayObject;
                 }
 
-                case SchemaFieldType.Char:
-                    return Reader.ReadOffsetString(Encoding.UTF8);
+                case SchemaFieldType.UniqueId:
+                    return KVObject.Blob(Reader.ReadBytes(16));
 
                 case SchemaFieldType.ResourceString:
-                    KVObject resourceValue = Reader.ReadOffsetString(Encoding.UTF8);
-                    resourceValue.Flag = KVFlag.Resource;
-                    return resourceValue;
+                    return Reader.ReadOffsetString(Encoding.UTF8);
 
                 case SchemaFieldType.Vector2D:
                 {
@@ -391,8 +390,10 @@ namespace ValveResourceFormat.ResourceTypes
                     return arrayObject;
                 }
 
+                // FourVectors stays in its structure of arrays order: x[4], y[4], z[4]
                 case SchemaFieldType.Matrix3x4:
                 case SchemaFieldType.Matrix3x4a:
+                case SchemaFieldType.FourVectors:
                 {
                     var arrayObject = KVObject.Array();
                     arrayObject.Add(Reader.ReadSingle());
@@ -409,6 +410,13 @@ namespace ValveResourceFormat.ResourceTypes
                     arrayObject.Add(Reader.ReadSingle());
                     return arrayObject;
                 }
+
+                case SchemaFieldType.VMatrix:
+                    return ReadFloats(16);
+
+                // Mins followed by maxs
+                case SchemaFieldType.AABB:
+                    return ReadFloats(6);
 
                 case SchemaFieldType.Transform:
                 {
@@ -427,6 +435,18 @@ namespace ValveResourceFormat.ResourceTypes
                 default:
                     throw new NotImplementedException($"Unknown data type: {field.Type} (name: {field.FieldName})");
             }
+        }
+
+        private KVObject ReadFloats(int count)
+        {
+            var arrayObject = KVObject.Array();
+
+            for (var i = 0; i < count; i++)
+            {
+                arrayObject.Add(Reader.ReadSingle());
+            }
+
+            return arrayObject;
         }
 
         /// <inheritdoc/>

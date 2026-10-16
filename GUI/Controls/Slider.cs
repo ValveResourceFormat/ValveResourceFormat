@@ -2,7 +2,6 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using GUI.Utils;
-using ValveResourceFormat.Renderer.Utils;
 
 namespace GUI.Controls;
 
@@ -22,6 +21,7 @@ internal class Slider : UserControl
     public Slider()
     {
         DoubleBuffered = true;
+        ResizeRedraw = true;
     }
 
     protected override void OnHandleCreated(EventArgs e)
@@ -49,7 +49,7 @@ internal class Slider : UserControl
         var sliderStartX = knobRadius;
         var sliderWidth = width - KnobSize;
 
-        var knobCenterX = sliderStartX + Value * sliderWidth + knobRadius;
+        var knobCenterX = sliderStartX + Value * sliderWidth;
         var filledWidth = knobCenterX - sliderStartX;
         var unfilledWidth = sliderWidth - filledWidth;
 
@@ -94,13 +94,10 @@ internal class Slider : UserControl
 
         var mousePos = ClipPointToRect(PointToClient(Cursor.Position), ClientRectangle);
 
-        var knobSize = (int)(Height / 1.5);
-        var knobRadius = knobSize / 2;
-        var penWidth = Themer.AdjustForDPI(this, 2);
-        var halfPenWidth = (int)Math.Ceiling(penWidth / 2f);
-        var effectiveWidth = Width - knobSize - halfPenWidth * 2;
+        var knobRadius = KnobSize / 2;
+        var trackWidth = Width - KnobSize;
 
-        Value = MathUtils.Saturate((mousePos.X - knobRadius - halfPenWidth) / (float)effectiveWidth);
+        Value = trackWidth > 0 ? MathUtils.Saturate(MathUtils.Remap(mousePos.X - knobRadius, 0f, trackWidth)) : 0f;
 
         ValueChanged?.Invoke(Value);
     }

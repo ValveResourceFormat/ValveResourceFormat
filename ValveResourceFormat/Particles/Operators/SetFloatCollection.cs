@@ -1,15 +1,14 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Sets a scalar particle attribute from a value read once for the whole collection, blended
-    /// toward by an interpolation factor that is also read once, so the whole collection moves
-    /// toward the same target each frame.
+    /// Sets a scalar particle attribute from a collection-wide value and interpolation factor, so
+    /// every particle moves toward the same target each frame.
     /// </summary>
     /// <remarks>
-    /// The collection-scoped counterpart of <see cref="SetFloat"/>, and not simply that operator with
-    /// a wider input. The run strength multiplies both the value and the interpolation factor before
-    /// either is used, rather than blending the finished result, so strength acts on the outcome
-    /// twice over. An angle output is stored as authored rather than converted from degrees.
+    /// The collection-scoped counterpart of <see cref="SetFloat"/>, not that operator with a wider input.
+    /// Strength multiplies both the value and the interpolation factor rather than the finished result,
+    /// so it acts on the outcome twice.
+    /// An angle output is stored as authored, not converted from degrees.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetFloatCollection">C_OP_SetFloatCollection</seealso>
     class SetFloatCollection : ParticleFunctionOperator
@@ -38,8 +37,7 @@ namespace ValveResourceFormat.Particles.Operators
             var blend = MathUtils.Saturate(lerp.NextNumber(particleSystemState) * strength);
             var (min, max) = outputField.SetFloatRange();
 
-            // Replacing resolves to one number for the whole collection, taken from the first
-            // particle's value alone, which every other particle then receives regardless of its own
+            // Replace lerps from the first particle's value, and all particles get that result
             if (setMethod == ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE)
             {
                 var first = particles.Current[0].GetScalar(outputField);

@@ -41,7 +41,7 @@ internal class ThumbnailTextureRenderer : ThumbnailRenderer
 
         using var decoded = textureData.GenerateBitmap(mipLevel: (uint)mipLevel);
 
-        // A raw cubemap face decodes 90° counter-clockwise, so rotate it upright.
+        // A raw cubemap face decodes 90 degrees counter-clockwise, so rotate it upright.
         using var rotated = isCubemap ? RotateClockwise90(decoded) : null;
         var bitmap = rotated ?? decoded;
 

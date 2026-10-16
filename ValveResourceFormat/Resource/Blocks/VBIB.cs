@@ -29,6 +29,26 @@ namespace ValveResourceFormat.Blocks
         /// </summary>
         public List<OnDiskBufferData> IndexBuffers { get; }
 
+        /// <summary>
+        /// Gets the tools-only vertex buffers (e.g. vertex paint), absent from most meshes.
+        /// </summary>
+        public IReadOnlyList<OnDiskBufferData> ToolsBuffers => toolsBuffers;
+
+        private readonly List<OnDiskBufferData> toolsBuffers;
+
+        /// <summary>
+        /// Adds the tools buffers a model's separate TBUF block carries for this mesh.
+        /// </summary>
+        internal void AddToolsBuffers(IEnumerable<OnDiskBufferData> buffers) => toolsBuffers.AddRange(buffers);
+
+        internal void AddVertexBuffers(IEnumerable<KVObject> buffers)
+        {
+            foreach (var buffer in buffers)
+            {
+                VertexBuffers.Add(BufferDataFromDATA(buffer, isVertex: true));
+            }
+        }
+
 #pragma warning disable CA1051 // Do not declare visible instance fields
         /// <summary>
         /// Represents buffer data stored on disk.
@@ -129,6 +149,7 @@ namespace ValveResourceFormat.Blocks
         {
             VertexBuffers = [];
             IndexBuffers = [];
+            toolsBuffers = [];
         }
 
         /// <summary>
@@ -149,6 +170,19 @@ namespace ValveResourceFormat.Blocks
             {
                 var indexBuffer = BufferDataFromDATA(ib, isVertex: false);
                 IndexBuffers.Add(indexBuffer);
+            }
+
+            var compiledToolsBuffers = data.GetArray("m_toolsBuffers") ?? [];
+            foreach (var tb in compiledToolsBuffers)
+            {
+                // Shipped models keep the tools buffer's layout but strip its data.
+                if (!tb.ContainsKey("m_pData") && tb.GetInt32Property("m_nBlockIndex") < 0)
+                {
+                    continue;
+                }
+
+                var toolsBuffer = BufferDataFromDATA(tb, isVertex: true);
+                toolsBuffers.Add(toolsBuffer);
             }
         }
 
@@ -254,7 +288,7 @@ namespace ValveResourceFormat.Blocks
             return buffer;
         }
 
-        private static byte[] DecompressData(OnDiskBufferData buffer, Span<byte> span, int decompressedSize, bool isVertex, bool isZstdCompressed, bool isMeshoptCompressed)
+        private static byte[] DecompressData(OnDiskBufferData buffer, ReadOnlySpan<byte> span, int decompressedSize, bool isVertex, bool isZstdCompressed, bool isMeshoptCompressed)
         {
             byte[]? tempZstd = null;
 
@@ -369,8 +403,12 @@ namespace ValveResourceFormat.Blocks
                 {
                     Debug.Assert(Resource.Reader != null);
                     var span = temp.AsSpan(0, compressedSize);
-                    Resource.Reader.BaseStream.Position = dataBlock.Offset;
-                    Resource.Reader.Read(span);
+
+                    lock (Resource.ReaderLock)
+                    {
+                        Resource.Reader.BaseStream.Position = dataBlock.Offset;
+                        Resource.Reader.Read(span);
+                    }
 
                     if (isZstdCompressed || isMeshoptCompressed)
                     {
@@ -770,7 +808,9 @@ namespace ValveResourceFormat.Blocks
             {
                 for (var i = 0; i < indices.Length; i++)
                 {
-                    indices[i] = checked((ushort)remapTable[indices[i]]);
+                    // An unskinned mesh still carries a BLENDINDICES stream, and a per-joint-format
+                    // padding slot can hold a value the remap table has no entry for. Both clamp to joint 0.
+                    indices[i] = indices[i] < remapTable.Length ? checked((ushort)remapTable[indices[i]]) : (ushort)0;
                 }
             }
 
@@ -931,7 +971,7 @@ namespace ValveResourceFormat.Blocks
 
                 // If Z is negative, X and Y have had extra amounts (TODO: find the logic behind this value) added into them so they would add up to over 1.0
                 // Thus, we take the negative components of Z and add them back into XY to get the correct original values.
-                var negativeZCompensation = Math.Clamp(-derivedNormalZ, 0.0f, 1.0f); // Isolate the negative 0..1 range of derived Z
+                var negativeZCompensation = MathUtils.Saturate(-derivedNormalZ); // Isolate the negative 0..1 range of derived Z
 
                 var unpackedNormalXPositive = unpackedNormal.X >= 0.0f ? 1.0f : 0.0f;
                 var unpackedNormalYPositive = unpackedNormal.Y >= 0.0f ? 1.0f : 0.0f;

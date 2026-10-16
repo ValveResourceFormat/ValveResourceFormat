@@ -40,10 +40,10 @@ public class VfxShaderFileDXIL : VfxShaderFile
 
     /// <inheritdoc/>
     /// <remarks>
-    /// DXIL decompilation is not supported. This method always throws an InvalidOperationException.
+    /// DXIL decompilation is not supported, so only the shader hash is shown.
     /// </remarks>
     public override string GetDecompiledFile()
     {
-        throw new InvalidOperationException("DXIL decompilation is not supported.");
+        return $"Shader hash: {HashMD5}\n\nDXIL decompilation is currently not supported.";
     }
 }

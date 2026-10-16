@@ -33,7 +33,10 @@ namespace ValveResourceFormat.ResourceTypes
                 return Vector2.One;
             }
 
-            return worldLightingInfo.GetSubCollection("m_vLightmapUvScale")?.ToVector2() ?? Vector2.One;
+            var scale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale")?.ToVector2() ?? Vector2.One;
+
+            // Non-positive components are treated as unscaled
+            return new Vector2(scale.X > 0f ? scale.X : 1f, scale.Y > 0f ? scale.Y : 1f);
         }
 
         /// <summary>

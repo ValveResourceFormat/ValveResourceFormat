@@ -19,9 +19,8 @@ public static class ParticleUpgradeTrace
     public sealed record TracedFunction(string Class, string? OriginalClass, bool RemovedByUpgrade);
 
     /// <summary>
-    /// The upgraded document the trace was taken from, and the traced entries keyed by function
-    /// list member name. The upgraded root is the same tree the trace describes, so callers that
-    /// need both do not have to run the chain twice.
+    /// The upgraded root the trace was taken from, and the traced entries keyed by function list
+    /// member name. Callers needing both need not run the chain twice.
     /// </summary>
     public sealed record TraceResult(KVObject UpgradedRoot, IReadOnlyDictionary<string, IReadOnlyList<TracedFunction>> Functions);
 

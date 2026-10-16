@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.IO;
-using System.IO.Enumeration;
 using System.Linq;
 using System.Text;
 using ValveKeyValue;
@@ -11,6 +10,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents an entity lump resource containing entity definitions and their properties.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/PermEntityLumpData_t">PermEntityLumpData_t</seealso>
     public class EntityLump : KeyValuesOrNTRO
     {
         /// <summary>
@@ -32,9 +32,9 @@ namespace ValveResourceFormat.ResourceTypes
             /// </summary>
             public string? TargetName => this.GetStringProperty("targetname");
             /// <summary>
-            /// Gets the target name of the entity without the PR# prefix.
+            /// Gets the target name of the entity with its name fixup markers removed, as the map spawns it.
             /// </summary>
-            public string? FriendlyTargetName => RemoveTargetnamePrefix(this.GetStringProperty("targetname"));
+            public string? FriendlyTargetName => TargetName is { } targetName ? ApplyNameFixup(targetName, string.Empty, string.Empty) : null;
 
             /// <summary>
             /// Gets a Vector2 property value by name.
@@ -154,6 +154,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Represents a IO connection.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/EntityIOConnectionData_t">EntityIOConnectionData_t</seealso>
         public class Connection
         {
             /// <summary>
@@ -188,6 +189,15 @@ namespace ValveResourceFormat.ResourceTypes
             /// Gets the connection target type (m_targetType).
             /// </summary>
             public required EntityIOTargetType TargetType { get; init; }
+            /// <summary>
+            /// Gets the input parameter mapping (m_paramMap), or null when the connection has none. An empty table maps nothing.
+            /// </summary>
+            /// <remarks>
+            /// Keyed by the input's parameter name, each entry is either <c>{ value = literal }</c> or
+            /// <c>{ src = "output param name" }</c>. A <c>--forward-all-args--</c> boolean forwards output
+            /// params to input params of the same name.
+            /// </remarks>
+            public KVObject? ParamMap { get; init; }
         }
 
         /// <summary>
@@ -246,6 +256,9 @@ namespace ValveResourceFormat.ResourceTypes
                     Delay = connection.GetFloatProperty("m_flDelay"),
                     TimesToFire = connection.GetInt32Property("m_nTimesToFire"),
                     TargetType = connection.GetEnumValue<EntityIOTargetType>("m_targetType"),
+                    ParamMap = connection.TryGetValue("m_paramMap", out var paramMap) && paramMap.ValueType == KVValueType.Collection
+                        ? paramMap
+                        : null,
                 }).ToList();
             }
 
@@ -272,6 +285,9 @@ namespace ValveResourceFormat.ResourceTypes
             return entity;
         }
 
+        // TODO: Keep the original casing once entity property lookups are case-insensitive
+        private static string ToPropertyKey(string name) => name.ToLowerInvariant();
+
         private static KVObject MakeColor32(byte[] bytes)
             => KVObject.Array(bytes.Select(b => (KVObject)(long)b));
 
@@ -289,11 +305,8 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var child in values.Children)
             {
-                // All entity property keys will be stored in lowercase
-                var lowercaseKey = child.Key.ToLowerInvariant();
-
-                var hash = StringToken.Store(lowercaseKey);
-                entity.Add(lowercaseKey, child.Value);
+                StringToken.Store(child.Key);
+                entity.Add(ToPropertyKey(child.Key), child.Value);
             }
         }
 
@@ -334,7 +347,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (keyName == null)
                 {
-                    keyName = StringToken.GetKnownString(keyHash);
+                    keyName = ToPropertyKey(StringToken.GetKnownString(keyHash));
                 }
                 else
                 {
@@ -380,6 +393,8 @@ namespace ValveResourceFormat.ResourceTypes
             var builder = new StringBuilder();
             var unknownKeys = new Dictionary<uint, uint>();
 
+            using var valueStream = new MemoryStream();
+
             var index = 0;
             foreach (var entity in GetEntities())
             {
@@ -387,7 +402,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 foreach (var property in entity.Children)
                 {
-                    var value = StringifyValue(property.Value);
+                    var value = StringifyValue(property.Value, valueStream);
 
                     builder.AppendLine(CultureInfo.InvariantCulture, $"{property.Key,-30} {value}");
                 }
@@ -429,6 +444,12 @@ namespace ValveResourceFormat.ResourceTypes
                         {
                             builder.Append(' ');
                             builder.Append(param);
+                        }
+
+                        if (connection.ParamMap is { Count: > 0 })
+                        {
+                            builder.Append(' ');
+                            builder.Append(FormatParamMap(connection.ParamMap));
                         }
 
                         builder.AppendLine();
@@ -570,6 +591,38 @@ namespace ValveResourceFormat.ResourceTypes
             return builder.ToString();
         }
 
+        private static string FormatParamMap(KVObject paramMap)
+        {
+            var parts = new List<string>();
+
+            foreach (var (name, entry) in paramMap.Children)
+            {
+                if (name == "--forward-all-args--")
+                {
+                    if (entry.ValueType == KVValueType.Boolean && (bool)entry)
+                    {
+                        parts.Add("forward-all-args");
+                    }
+
+                    continue;
+                }
+
+                if (entry.IsCollection && entry.TryGetValue("src", out var source))
+                {
+                    parts.Add($"{name}<-{source}");
+                    continue;
+                }
+
+                var literal = entry.IsCollection && entry.TryGetValue("value", out var value) ? value : entry;
+                parts.Add($"{name}={CollapseWhitespace(StringifyValue(literal))}");
+            }
+
+            return $"{{{string.Join(", ", parts)}}}";
+
+            static string CollapseWhitespace(string value)
+                => string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        }
+
         /// <summary>
         /// Return a string representation of an entity property.
         /// </summary>
@@ -577,59 +630,143 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Stringified value.</returns>
         public static string StringifyValue(object? value)
         {
+            using var ms = new MemoryStream();
+            return StringifyValue(value, ms);
+        }
+
+        private static readonly KVSerializer ValueSerializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
+        private static readonly KVSerializerOptions ValueSerializerOptions = new() { SkipHeader = true };
+
+        private static string StringifyValue(object? value, MemoryStream ms)
+        {
             var valueStr = string.Empty;
 
             if (value is KVObject kvObject)
             {
-                using var ms = new MemoryStream();
-                var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
-                serializer.Serialize(ms, new KVDocument(null, null, kvObject), new KVSerializerOptions
-                {
-                    SkipHeader = true
-                });
-                ms.Position = 0;
-                using var reader = new StreamReader(ms);
-                valueStr = reader.ReadToEnd();
+                ms.SetLength(0);
+                ValueSerializer.Serialize(ms, new KVDocument(null, null, kvObject), ValueSerializerOptions);
+                valueStr = Encoding.UTF8.GetString(ms.GetBuffer(), 0, (int)ms.Length);
             }
             else if (value is not null)
             {
-                valueStr = value.ToString() ?? string.Empty;
+                valueStr = Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
             }
 
             return valueStr.Trim();
         }
 
         /// <summary>
-        /// Return a string without [PR#] prefix.
+        /// The marker a compiled name carries where its spawn group's parent fixup goes, such as the prefix
+        /// that tells apart the instances of a prefab.
         /// </summary>
-        /// <param name="value">Entity targetname.</param>
-        /// <returns>Friendly targetname.</returns>
-        public static string RemoveTargetnamePrefix(string? value)
+        public const string ParentNameFixupMarker = "[PR#]";
+
+        /// <summary>
+        /// The marker a compiled name carries where its spawn group's local fixup goes, such as the suffix that
+        /// tells apart the entities each spawn of a template makes.
+        /// </summary>
+        public const string LocalNameFixupMarker = "&0000";
+
+        /// <summary>
+        /// Replaces the first <see cref="ParentNameFixupMarker"/> and the first <see cref="LocalNameFixupMarker"/>
+        /// in a compiled name, applied to every name an entity is spawned with.
+        /// </summary>
+        /// <param name="name">A name as compiled, such as a targetname or a connection's target.</param>
+        /// <param name="parentFixup">What replaces <see cref="ParentNameFixupMarker"/>.</param>
+        /// <param name="localFixup">What replaces <see cref="LocalNameFixupMarker"/>.</param>
+        /// <returns>The name with its markers replaced, or <paramref name="name"/> when it has none.</returns>
+        public static string ApplyNameFixup(string name, string parentFixup, string localFixup)
         {
-            if (string.IsNullOrEmpty(value))
+            ArgumentNullException.ThrowIfNull(name);
+            ArgumentNullException.ThrowIfNull(parentFixup);
+            ArgumentNullException.ThrowIfNull(localFixup);
+
+            var parentAt = name.IndexOf(ParentNameFixupMarker, StringComparison.OrdinalIgnoreCase);
+            var localAt = name.IndexOf(LocalNameFixupMarker, StringComparison.OrdinalIgnoreCase);
+
+            // Both markers are found in the name as compiled, never in a fixup. Whichever comes later is
+            // replaced first, so the other is still where it was found.
+            if (parentAt > localAt)
             {
-                return string.Empty;
+                name = ReplaceAt(name, parentAt, ParentNameFixupMarker.Length, parentFixup);
+                parentAt = -1;
             }
 
-            const string Prefix = "[PR#]";
-
-            if (!value.StartsWith(Prefix, StringComparison.Ordinal))
+            if (localAt >= 0)
             {
-                return value;
+                name = ReplaceAt(name, localAt, LocalNameFixupMarker.Length, localFixup);
             }
 
-            return value[Prefix.Length..];
+            if (parentAt >= 0)
+            {
+                name = ReplaceAt(name, parentAt, ParentNameFixupMarker.Length, parentFixup);
+            }
+
+            return name;
+
+            static string ReplaceAt(string name, int at, int length, string replacement)
+                => string.Concat(name.AsSpan(0, at), replacement, name.AsSpan(at + length));
         }
 
         /// <summary>
         /// Compares an entity targetname against a target string that may contain wildcards.
+        /// Letters compare ignoring ASCII case only, and there is no escape character.
         /// </summary>
         /// <param name="pattern">Targetname to match against, may contain wildcards: `*` and `?` (e.g. <c>door_*</c>).</param>
         /// <param name="targetName">Entity targetname.</param>
         /// <returns>Whether the targetname matches.</returns>
         public static bool EntityNameMatches(string pattern, string targetName)
         {
-            return FileSystemName.MatchesSimpleExpression(pattern, targetName, true);
+            var patternIndex = 0;
+            var nameIndex = 0;
+            var starIndex = -1;
+            var starNameIndex = 0;
+
+            while (nameIndex < targetName.Length)
+            {
+                if (patternIndex < pattern.Length && pattern[patternIndex] == '*')
+                {
+                    while (patternIndex < pattern.Length && pattern[patternIndex] == '*')
+                    {
+                        patternIndex++;
+                    }
+
+                    if (patternIndex == pattern.Length)
+                    {
+                        return true;
+                    }
+
+                    starIndex = patternIndex;
+                    starNameIndex = nameIndex;
+                }
+                else if (patternIndex < pattern.Length
+                    && (pattern[patternIndex] == '?' || ToUpperAscii(pattern[patternIndex]) == ToUpperAscii(targetName[nameIndex])))
+                {
+                    patternIndex++;
+                    nameIndex++;
+                }
+                else if (starIndex >= 0)
+                {
+                    patternIndex = starIndex;
+                    nameIndex = ++starNameIndex;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            while (patternIndex < pattern.Length && pattern[patternIndex] == '*')
+            {
+                patternIndex++;
+            }
+
+            return patternIndex == pattern.Length;
         }
+
+        /// <summary>
+        /// Uppercases ASCII letters and leaves every other character unchanged.
+        /// </summary>
+        internal static char ToUpperAscii(char c) => char.IsAsciiLetterLower(c) ? (char)(c - ('a' - 'A')) : c;
     }
 }

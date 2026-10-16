@@ -20,7 +20,7 @@ public class SampleProviderMulti : AudioSampleProvider
         evaluateFadeIn = EvaluateFadeIn;
     }
 
-    /// <summary>Adds a provider to the mix. Idempotent: providers get auto-removed when they run dry and re-added when they resume (e.g. retriggered child events), which must not create duplicates.</summary>
+    /// <summary>Adds a provider to the mix. Idempotent: providers auto-removed when they run dry are re-added when they resume (e.g. retriggered child events).</summary>
     public void AddProvider(IAudioSampleProvider provider)
     {
         lock (providers)
@@ -87,7 +87,7 @@ public class SampleProviderMulti : AudioSampleProvider
     public float LiveVolume
     {
         get => liveVolume;
-        set => liveVolume = Math.Clamp(value, 0f, 1f);
+        set => liveVolume = MathUtils.Saturate(value);
     }
 
     /// <summary>
@@ -113,7 +113,7 @@ public class SampleProviderMulti : AudioSampleProvider
     /// <summary>
     /// Starts fading the mix in from silence over <paramref name="seconds"/>, eased rather than linear so
     /// a freshly started event (e.g. entering a soundscape with none previously active) doesn't jump
-    /// straight to full volume. Harmless to call more than once; only the first call takes effect.
+    /// straight to full volume. Harmless to call more than once; calls made while fading in are ignored.
     /// </summary>
     public void BeginFadeIn(float seconds, int sampleRate)
     {
@@ -168,13 +168,12 @@ public class SampleProviderMulti : AudioSampleProvider
             return Math.Max(fadeCurve.Evaluate((float)seconds), 0f);
         }
 
-        return Math.Clamp(1f - (float)(seconds / fadeDuration), 0f, 1f);
+        return MathUtils.Saturate(1f - (float)(seconds / fadeDuration));
     }
 
     private float EvaluateFadeIn(double seconds)
     {
-        var t = Math.Clamp((float)(seconds / fadeInDuration), 0f, 1f);
-        return t * t * (3f - 2f * t);
+        return MathUtils.Smoothstep(0f, 1f, (float)(seconds / fadeInDuration));
     }
 
     /// <summary>Removes all providers from the mix.</summary>

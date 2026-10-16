@@ -20,7 +20,7 @@ namespace ValveResourceFormat.TextureDecoders
             DecodeLdr(pixels, inputPixels);
         }
 
-        private static void DecodeHdr(SKPixmap pixels, Span<RGB323232F> inputPixels)
+        private static void DecodeHdr(SKPixmap pixels, ReadOnlySpan<RGB323232F> inputPixels)
         {
             var hdrColors = pixels.GetPixelSpan<SKColorF>();
 
@@ -31,7 +31,7 @@ namespace ValveResourceFormat.TextureDecoders
             }
         }
 
-        private static void DecodeLdr(SKPixmap pixels, Span<RGB323232F> inputPixels)
+        private static void DecodeLdr(SKPixmap pixels, ReadOnlySpan<RGB323232F> inputPixels)
         {
             var ldrColors = pixels.GetPixelSpan<SKColor>();
 

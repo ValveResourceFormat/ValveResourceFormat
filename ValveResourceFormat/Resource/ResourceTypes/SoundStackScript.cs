@@ -21,14 +21,10 @@ namespace ValveResourceFormat.ResourceTypes
         {
             reader.BaseStream.Position = Offset;
 
-            var version = reader.ReadInt32();
-
-            if (version != 8)
-            {
-                throw new UnexpectedMagicException("Unknown version", version, nameof(version));
-            }
-
+            var entriesOffset = reader.ReadInt32();
             var count = reader.ReadInt32();
+
+            reader.BaseStream.Position = Offset + entriesOffset;
 
             for (var i = 0; i < count; i++)
             {

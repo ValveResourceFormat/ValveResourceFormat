@@ -12,6 +12,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a mesh resource containing geometry and vertex buffer data.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CRenderMesh">CRenderMesh</seealso>
     public class Mesh : KeyValuesOrNTRO
     {
         /// <summary>
@@ -50,6 +51,40 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets or sets the morph data for this mesh.
         /// </summary>
         public Morph? MorphData { get; set; }
+
+        private int? cachedBoneWeightCount;
+
+        /// <summary>
+        /// Gets how many bone weights each vertex carries, or zero when the mesh is not skinned.
+        /// </summary>
+        /// <remarks>
+        /// Read off the vertex buffers rather than the skeleton's own <c>m_nBoneWeightCount</c>. A buffer
+        /// with blend indices but no weights is skinned to one bone per vertex.
+        /// </remarks>
+        public int BoneWeightCount => cachedBoneWeightCount ??= ReadBoneWeightCount();
+
+        private int ReadBoneWeightCount()
+        {
+            var declared = Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
+
+            if (declared == 0)
+            {
+                return 0;
+            }
+
+            foreach (var buffer in VBIB.VertexBuffers)
+            {
+                foreach (var field in buffer.InputLayoutFields)
+                {
+                    if (field.SemanticName == "BLENDINDICES")
+                    {
+                        return declared;
+                    }
+                }
+            }
+
+            return 0;
+        }
 
         private VBIB? cachedVBIB { get; set; }
 
@@ -123,12 +158,8 @@ namespace ValveResourceFormat.ResourceTypes
                 var localMin = sceneObjects[i].GetSubCollection("m_vMinBounds").ToVector3();
                 var localMax = sceneObjects[i].GetSubCollection("m_vMaxBounds").ToVector3();
 
-                minBounds.X = Math.Min(minBounds.X, localMin.X);
-                minBounds.Y = Math.Min(minBounds.Y, localMin.Y);
-                minBounds.Z = Math.Min(minBounds.Z, localMin.Z);
-                maxBounds.X = Math.Max(maxBounds.X, localMax.X);
-                maxBounds.Y = Math.Max(maxBounds.Y, localMax.Y);
-                maxBounds.Z = Math.Max(maxBounds.Z, localMax.Z);
+                minBounds = Vector3.Min(minBounds, localMin);
+                maxBounds = Vector3.Max(maxBounds, localMax);
             }
 
             MinBounds = minBounds;
@@ -186,6 +217,17 @@ namespace ValveResourceFormat.ResourceTypes
         public static bool IsOccluder(KVObject drawCall)
             => drawCall.ContainsKey("m_bIsOccluder")
                 && drawCall.GetBooleanProperty("m_bIsOccluder");
+
+        /// <summary>
+        /// Gets the material a draw call renders with, or <see langword="null"/> when it names none.
+        /// </summary>
+        /// <param name="drawCall">The draw call to read.</param>
+        public static string? GetMaterialName(KVObject drawCall)
+        {
+            ArgumentNullException.ThrowIfNull(drawCall);
+
+            return drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial");
+        }
 
         /// <summary>
         /// Loads external morph data from the file loader.

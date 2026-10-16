@@ -19,5 +19,6 @@ public enum VfxRegisterType
     PushConstantBuffer,
     TextureIndex,
     SamplerIndex,
+    SpecConstant,
 #pragma warning restore CS1591
 }

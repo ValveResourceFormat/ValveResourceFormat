@@ -25,17 +25,11 @@ namespace ValveResourceFormat.Compression
 
         private static int GetVertexBlockSize(int vertexSize)
         {
-            // make sure the entire block fits into the scratch buffer and is aligned to byte group size
-            // note: the block size is implicitly part of the format, so we can't change it without breaking compatibility
+            // fit the block into the scratch buffer, aligned to the byte group size
+            // block size is part of the format; changing it breaks compatibility
             var result = (VertexBlockSizeBytes / vertexSize) & ~(ByteGroupSize - 1);
 
             return result < VertexBlockMaxSize ? result : VertexBlockMaxSize;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint Rotate32(uint v, int r)
-        {
-            return (v << r) | (v >> ((32 - r) & 31));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -190,7 +184,7 @@ namespace ValveResourceFormat.Compression
             }
 
             // round number of groups to 4 to get number of header bytes
-            var headerSize = ((buffer.Length / ByteGroupSize) + 3) / 4;
+            var headerSize = MathUtils.DivideRoundUp(buffer.Length / ByteGroupSize, 4);
 
             if (data.Length < headerSize)
             {
@@ -224,8 +218,8 @@ namespace ValveResourceFormat.Compression
             {
                 var vertexOffset = k;
 
-                // upstream is templated on the element type; uint is used for every size here because
-                // only the low bytes are stored, so the untruncated high bits never affect the result
+                // uint is used for every size since only the low bytes are stored, so the untruncated high
+                // bits never affect the result
                 uint p = lastVertex[0];
                 for (var j = 1; j < size; ++j)
                 {
@@ -244,7 +238,7 @@ namespace ValveResourceFormat.Compression
                     {
                         1 => Unzigzag8((byte)v) + p,
                         2 => Unzigzag16((ushort)v) + p,
-                        4 => Rotate32(v, rot) ^ p,
+                        4 => BitOperations.RotateLeft(v, rot) ^ p,
                         _ => throw new UnreachableException(),
                     };
 
@@ -271,7 +265,7 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException("Expected vertexCount to be between 0 and VertexMaxBlockSize");
             }
 
-            var vertexCountAligned = (vertexCount + ByteGroupSize - 1) & ~(ByteGroupSize - 1);
+            var vertexCountAligned = MathUtils.AlignUp(vertexCount, ByteGroupSize);
             var controlSize = version == 0 ? 0 : vertexSize / 4;
 
             if (data.Length < controlSize)

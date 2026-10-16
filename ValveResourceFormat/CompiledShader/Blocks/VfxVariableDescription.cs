@@ -51,10 +51,9 @@ public class VfxVariableDescription : ShaderDataBlock
     public VariableFlags Flags => (VariableFlags)((ContextStateAffectedByVariable >> 8) & 0xFF);
 
     /// <summary>
-    /// Gets the context state affected by this variable. Only stored since version 64,
-    /// so a zero value on older files means unknown rather than no affected state.
+    /// Gets the context state affected by this variable. Only stored since version 64, older files have -1.
     /// </summary>
-    public int ContextStateAffectedByVariable { get; }
+    public int ContextStateAffectedByVariable { get; } = -1;
 
     /// <summary>Gets the register offset. Only stored in KV3 resources; 0 for binary vcs files.</summary>
     public uint RegisterOffset { get; }
@@ -69,8 +68,8 @@ public class VfxVariableDescription : ShaderDataBlock
     public bool SrgbRead => (TypeSpecificBits & 0x01) == 1;
 
     /// <summary>
-    /// Gets bits whose meaning depends on the variable type, such as the external constant buffer ID.
-    /// It is -1 for variables that carry no type specific data.
+    /// Gets type-specific bits, such as the external constant buffer ID or specialization constant ID.
+    /// -1 when there is none.
     /// </summary>
     public int TypeSpecificBits { get; }
 
@@ -248,7 +247,7 @@ public class VfxVariableDescription : ShaderDataBlock
 
         SourceIndex = datareader.ReadInt32();
 
-        // check to see if this reads 'SBMS' (unknown what this is, instance found in v65 hero_pc_40_features.vcs file)
+        // 'SBMS' in place of the source index marks an expression block, followed by the real source index
         if (SourceIndex == 0x534D4253)
         {
             var dynExpLen = datareader.ReadInt32();
@@ -337,8 +336,7 @@ public class VfxVariableDescription : ShaderDataBlock
     /// </summary>
     public static IReadOnlyList<string> TypePrefixes { get; } = ["g_fl", "g_f", "g_v", "g_n", "g_b", "g_t"];
 
-    // Dynamic expressions refer to variables by the hash of their name, and some of them hash
-    // the name without the type prefix it is declared with.
+    // Dynamic expressions refer to variables by name hash; some hash the name without its type prefix.
     private static string RegisterName(string name)
     {
         StringToken.Store(name);

@@ -1,5 +1,3 @@
-using ValveResourceFormat.Renderer.Utils;
-
 namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 
 /// <summary>

@@ -516,7 +516,7 @@ namespace ValveResourceFormat.CompiledShader
                 return "+";
             }
 
-            return $"{val}";
+            return val.ToString(CultureInfo.InvariantCulture);
         }
 
         private static string Fmt(int val)

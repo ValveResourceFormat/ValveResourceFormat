@@ -1,12 +1,13 @@
 using System.IO;
+using System.IO.Hashing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using SkiaSharp;
 using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.ThirdParty;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace ValveResourceFormat.IO;
@@ -187,7 +188,6 @@ public partial class GltfModelExporter
         }
 
         // ORM is a texture that may be compiled from multiple inputs
-        using var occlusionRoughnessMetal = new TextureExtract.TexturePacker { DefaultColor = new SKColor(255, 255, 0, 255) };
         var ormTextureInstructions = new Dictionary<string, List<RemapInstruction>>();
         var ormRedChannelForOcclusion = false;
 
@@ -257,7 +257,7 @@ public partial class GltfModelExporter
             // Generate consistent file name for the ORM
             var ormTexturePaths = ormTextureInstructions.Keys.ToArray();
             Array.Sort(ormTexturePaths);
-            var ormHash = MurmurHash2.Hash(string.Join("|", ormTexturePaths), StringToken.MURMUR2SEED);
+            var ormHash = XxHash32.HashToUInt32(MemoryMarshal.AsBytes(string.Join("|", ormTexturePaths).AsSpan()));
             var ormFileName = Path.GetFileNameWithoutExtension(ormTexturePaths[0]) + $"_orm_{ormHash}.png";
 
             if (!ExportedTextures.TryGetValue(ormFileName, out var texture))
@@ -351,6 +351,8 @@ public partial class GltfModelExporter
         {
             await Task.Yield();
 
+            using var occlusionRoughnessMetal = new TextureExtract.TexturePacker { DefaultColor = new SKColor(255, 255, 0, 255) };
+
             // Collect channels for the ORM texture
             foreach (var (texturePath, instructions) in ormTextureInstructions)
             {
@@ -395,19 +397,7 @@ public partial class GltfModelExporter
 
         List<RemapInstruction> GetGltfChannels(VMaterial renderMaterial, string textureKey)
         {
-            List<(ChannelMapping Channel, string Name)>? inputImages = null;
-            try
-            {
-                inputImages = [.. shaderDataProvider.GetInputsForTexture(textureKey, renderMaterial)];
-            }
-            catch (Exception e)
-            {
-                // Shaders are complicated, so do not stop exporting if they throw
-                ProgressReporter?.Report($"Failed to get texture inputs for \"{textureKey}\": {e.Message}");
-                Console.Error.WriteLine(e.ToString());
-            }
-
-            inputImages ??= [.. shaderDataProviderFallback.GetInputsForTexture(textureKey, renderMaterial)];
+            List<(ChannelMapping Channel, string Name)> inputImages = [.. shaderDataProvider.GetInputsForTexture(textureKey, renderMaterial)];
             var remapInstructions = RemapValveChannelsToGltf(inputImages);
             return remapInstructions;
         }

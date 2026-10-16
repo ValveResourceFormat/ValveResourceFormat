@@ -1,5 +1,3 @@
-using ValveResourceFormat.Particles.Utils;
-
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -46,7 +44,7 @@ namespace ValveResourceFormat.Particles.Operators
                 direction = ControlPointTransformProvider.TransformDirection(particleSystemState, cp, direction);
             }
 
-            var planeNormal = ParticleMath.Normalize(direction);
+            var planeNormal = MathUtils.SafeNormalize(direction);
 
             foreach (ref var particle in particles.Current)
             {

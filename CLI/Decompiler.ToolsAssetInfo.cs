@@ -7,7 +7,7 @@ namespace CLI;
 
 public partial class Decompiler
 {
-    public void ParseToolsAssetInfo(string path, Stream stream)
+    public void ParseToolsAssetInfo(string path, Stream stream, string? originalPath)
     {
         var assetsInfo = new ToolsAssetInfo();
 
@@ -17,9 +17,7 @@ public partial class Decompiler
 
             if (CollectStats)
             {
-                var id = $"ToolsAssetInfo version {assetsInfo.Version}";
-
-                AddStat(id, id, path);
+                AddNonResourceStat($"ToolsAssetInfo version {assetsInfo.Version}", path, originalPath);
 
                 return;
             }
@@ -56,7 +54,7 @@ public partial class Decompiler
         }
         catch (Exception e)
         {
-            LogException(e, path);
+            LogException(e, path, originalPath);
         }
     }
 

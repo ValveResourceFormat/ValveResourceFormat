@@ -1,18 +1,4 @@
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using Microsoft.Extensions.Logging;
-using ValveKeyValue;
-using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Particles.Constraints;
-using ValveResourceFormat.Particles.Emitters;
-using ValveResourceFormat.Particles.ForceGenerators;
-using ValveResourceFormat.Particles.Initializers;
-using ValveResourceFormat.Particles.Operators;
-using ValveResourceFormat.Particles.PreEmissionOperators;
 using ValveResourceFormat.Particles.Utils;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles
 {
@@ -203,6 +189,36 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
+        /// Stops emission on the system and its children within the current frame, optionally starting
+        /// the endcap and dropping every live particle in the tree.
+        /// </summary>
+        internal void StopEmission(bool destroyImmediately, bool playEndCap)
+        {
+            Stop();
+
+            if (playEndCap)
+            {
+                PlayEndCap();
+            }
+
+            if (destroyImmediately)
+            {
+                DestroyParticles();
+            }
+        }
+
+        private void DestroyParticles()
+        {
+            particleCollection.Clear();
+            systemState.ParticleCount = 0;
+
+            foreach (var childSimulation in childSimulations)
+            {
+                childSimulation.DestroyParticles();
+            }
+        }
+
+        /// <summary>
         /// Starts the endcap on this system and everything below it, stamping each with its own age so
         /// a child's endcap timers run on the child's clock.
         /// </summary>
@@ -323,14 +339,15 @@ namespace ValveResourceFormat.Particles
 
         private void ClearParticles()
         {
-            particleCollection.Clear();
-            systemState.ParticleCount = 0;
+            DestroyParticles();
             particlesEmitted = 0;
 
             // A replay stands in for the effect playing again, so the system takes a fresh random
             // identity along with a rewound clock; no particle survives it
             systemState.Random.Reseed();
             systemState.Age = 0f;
+            systemState.RestartAge = 0f;
+            systemState.RewindControlPointChanges();
             targetDrawTime = 0f;
             previousSimTime = 1e23f;
 
@@ -351,6 +368,7 @@ namespace ValveResourceFormat.Particles
 
             systemState.EndEarly = false;
             systemState.ClearEndCap();
+            systemState.RestartAge = systemState.Age;
             simulatedFrames = 0;
             RearmSelf();
 
@@ -420,16 +438,25 @@ namespace ValveResourceFormat.Particles
                 remaining = 0f;
             }
 
+            var frameLength = 0f;
+
+            for (var left = remaining; left > 0f;)
+            {
+                var step = SubstepLength(left, maximumStep);
+                frameLength += step;
+                left -= step;
+            }
+
+            systemState.BeginFrame(frameLength);
+
             while (remaining > 0f)
             {
-                var step = remaining > maximumStep
-                    ? maximumStep
-                    : MathF.Max(remaining, minimumTimeStep);
+                var step = SubstepLength(remaining, maximumStep);
 
                 remaining -= step;
 
-                // Renderer state and bounds are refreshed by the final substep only, as the engine
-                // does that bookkeeping once per frame rather than once per step
+                // Renderer state and bounds are refreshed by the final substep only, once per frame
+                // rather than once per step
                 Simulate(step, presimulating: presimulating || remaining > 0f);
             }
 
@@ -453,6 +480,9 @@ namespace ValveResourceFormat.Particles
                 childSimulation.UpdateFrame(frameTime, presimulating);
             }
         }
+
+        private float SubstepLength(float remaining, float maximumStep)
+            => remaining > maximumStep ? maximumStep : MathF.Max(remaining, minimumTimeStep);
 
         private void Simulate(float frameTime, bool presimulating)
         {
@@ -555,26 +585,7 @@ namespace ValveResourceFormat.Particles
             // TODO: Is this the correct place for this because child particle renderers also check this
             if (systemState.EndEarly && systemState.Age > systemState.EndTime)
             {
-                if (systemState.RestartOnEnd)
-                {
-                    Restart();
-                }
-                else
-                {
-                    Stop();
-
-                    if (systemState.PlayEndCapOnEnd)
-                    {
-                        PlayEndCap();
-                    }
-
-                    // "Destroy immediately" drops the particles still alive; without it they are left
-                    // to finish their lifetimes and only emission stops.
-                    if (systemState.DestroyInstantlyOnEnd)
-                    {
-                        particleCollection.Clear();
-                    }
-                }
+                Restart();
             }
 
             systemState.ParticleCount = particleCollection.Count;

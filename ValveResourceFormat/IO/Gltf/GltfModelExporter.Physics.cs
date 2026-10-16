@@ -41,7 +41,7 @@ public partial class GltfModelExporter
                     var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
                     // Process sphere shapes with matching properties
-                    foreach (var sphere in shape.Spheres.Where(s => s.CollisionAttributeIndex == collisionAttrIndex && s.SurfacePropertyIndex == surfacePropIndex))
+                    foreach (var sphere in shape.GetAllSpheres().Where(s => s.CollisionAttributeIndex == collisionAttrIndex && s.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var center = Vector3.Transform(sphere.Shape.Center, pose);
                         var radius = sphere.Shape.Radius;
@@ -49,7 +49,7 @@ public partial class GltfModelExporter
                     }
 
                     // Process capsule shapes with matching properties
-                    foreach (var capsule in shape.Capsules.Where(c => c.CollisionAttributeIndex == collisionAttrIndex && c.SurfacePropertyIndex == surfacePropIndex))
+                    foreach (var capsule in shape.GetAllCapsules().Where(c => c.CollisionAttributeIndex == collisionAttrIndex && c.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var center = capsule.Shape.Center;
                         var start = Vector3.Transform(center[0], pose);
@@ -59,7 +59,7 @@ public partial class GltfModelExporter
                     }
 
                     // Process hull shapes with matching properties
-                    foreach (var hull in shape.Hulls.Where(h => h.CollisionAttributeIndex == collisionAttrIndex && h.SurfacePropertyIndex == surfacePropIndex))
+                    foreach (var hull in shape.GetAllHulls().Where(h => h.CollisionAttributeIndex == collisionAttrIndex && h.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var vertexPositions = hull.Shape.GetVertexPositions();
                         var transformedPositions = TransformVertices(vertexPositions, pose);
@@ -69,7 +69,7 @@ public partial class GltfModelExporter
                     }
 
                     // Process mesh shapes with matching properties
-                    foreach (var mesh in shape.Meshes.Where(m => m.CollisionAttributeIndex == collisionAttrIndex && m.SurfacePropertyIndex == surfacePropIndex))
+                    foreach (var mesh in shape.GetAllMeshes().Where(m => m.CollisionAttributeIndex == collisionAttrIndex && m.SurfacePropertyIndex == surfacePropIndex))
                     {
                         var triangles = mesh.Shape.GetTriangles();
                         var vertices = mesh.Shape.GetVertices();
@@ -100,12 +100,12 @@ public partial class GltfModelExporter
                     node.Mesh = gltfMesh;
                     node.WorldMatrix = transform * TransformSourceToGltf;
 
-                    var interactAsStrings = collisionAttributes[collisionAttrIndex].GetArray<string>("m_InteractAsStrings");
-                    var interactAsArray = new System.Text.Json.Nodes.JsonArray([.. interactAsStrings!]);
+                    var interactAsArray = new System.Text.Json.Nodes.JsonArray([.. PhysAggregateData.GetInteractAsTags(collisionAttributes[collisionAttrIndex])]);
 
                     node.Extras = new System.Text.Json.Nodes.JsonObject
                     {
                         ["SurfaceProperty"] = surfaceProperty,
+                        ["CollisionGroup"] = collisionAttributes[collisionAttrIndex].GetStringProperty("m_CollisionGroupString"),
                         ["InteractAs"] = interactAsArray,
                     };
                 }
@@ -135,24 +135,9 @@ public partial class GltfModelExporter
     {
         foreach (var face in faces)
         {
-            var startEdge = face.Edge;
-
-            for (var edge = edges[startEdge].Next; edge != startEdge;)
+            foreach (var (a, b, c) in GetFaceTriangles(edges, face))
             {
-                var nextEdge = edges[edge].Next;
-
-                if (nextEdge == startEdge)
-                {
-                    break;
-                }
-
-                var a = transformedPositions[edges[startEdge].Origin];
-                var b = transformedPositions[edges[edge].Origin];
-                var c = transformedPositions[edges[nextEdge].Origin];
-
-                AddTriangleWithNormal(a, b, c, verts, normals, uvs, indices);
-
-                edge = nextEdge;
+                AddTriangleWithNormal(transformedPositions[a], transformedPositions[b], transformedPositions[c], verts, normals, uvs, indices);
             }
         }
     }
@@ -207,7 +192,7 @@ public partial class GltfModelExporter
 
     private static string GetPhysicsMeshName(KVObject attributes, string surfacePropertyName)
     {
-        var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
+        var tags = PhysAggregateData.GetInteractAsTags(attributes);
         var group = attributes.GetStringProperty("m_CollisionGroupString");
 
         var meshName = "physics_group";
@@ -228,12 +213,9 @@ public partial class GltfModelExporter
         return meshName;
     }
 
-    private static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)
-    {
-        var side1 = b - a;
-        var side2 = c - a;
-        return Vector3.Normalize(Vector3.Cross(side1, side2));
-    }
+    // Degenerate triangles have no direction, but glTF requires every normal to be unit length
+    internal static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)
+        => MathUtils.SafeNormalize(MathUtils.TriangleCross(a, b, c), Vector3.UnitZ, 1e-12f);
 
     /// <summary>
     /// Generates a procedural sphere mesh with proper normals and spherical UV coordinates.
@@ -309,8 +291,10 @@ public partial class GltfModelExporter
     /// </summary>
     private static void CreateCapsuleMesh(List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices, Vector3 start, Vector3 end, float radius)
     {
-        var direction = Vector3.Normalize(end - start);
         var length = Vector3.Distance(start, end);
+
+        // A capsule with both ends at the same point is a sphere, so any axis works
+        var direction = MathUtils.SafeNormalize(end - start, Vector3.UnitZ, 1e-12f);
         var center = (start + end) * 0.5f;
 
         // Find perpendicular vectors
@@ -341,11 +325,9 @@ public partial class GltfModelExporter
             for (var seg = 0; seg <= segments; seg++)
             {
                 var angle = seg * MathF.Tau / segments;
-                var x = MathF.Cos(angle) * radius;
-                var z = MathF.Sin(angle) * radius;
 
-                var normal = right * x + up * z;
-                normal = Vector3.Normalize(normal);
+                // Right and up are perpendicular unit vectors, so this is unit length even for a zero radius
+                var normal = right * MathF.Cos(angle) + up * MathF.Sin(angle);
 
                 // Generate cylindrical UV coordinates
                 var u = (float)seg / segments;
@@ -388,7 +370,7 @@ public partial class GltfModelExporter
     /// </summary>
     private static Vector2 GeneratePlanarUV(Vector3 position, Vector3 normal)
     {
-        var absNormal = new Vector3(Math.Abs(normal.X), Math.Abs(normal.Y), Math.Abs(normal.Z));
+        var absNormal = Vector3.Abs(normal);
         const float uvScale = 0.02f; // Scale factor for reasonable texture tiling
 
         // Choose the best projection plane based on the dominant normal component
@@ -439,8 +421,8 @@ public partial class GltfModelExporter
             var material = exportedModel.CreateMaterial($"{meshName}_material");
 
             // Try to load and use tool material first
-            var tags = collisionAttributes.GetArray<string>("m_InteractAsStrings") ?? collisionAttributes.GetArray<string>("m_PhysicsTagStrings");
-            var toolTextureName = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags!]);
+            var tags = PhysAggregateData.GetInteractAsTags(collisionAttributes);
+            var toolTextureName = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags]);
             var usedToolMaterial = false;
 
             if (classname != null)

@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Particles.Emitters
     /// Base class for all particle emitters. Emitters are responsible for spawning new particles
     /// into a particle system over time.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CParticleFunctionEmitter">CParticleFunctionEmitter</seealso>
     abstract class ParticleFunctionEmitter : ParticleFunction
     {
         protected ParticleFunctionEmitter(ParticleDefinitionParser parse) : base(parse)
@@ -62,7 +63,7 @@ namespace ValveResourceFormat.Particles.Emitters
         }
 
         /// <summary>
-        /// The engine's sub-frame emission accumulator, shared by the rate-driven emitters: charge it
+        /// Sub-frame emission accumulator, shared by the rate-driven emitters: charge it
         /// over the active part of a frame and it spawns whole particles, staggering their creation
         /// times evenly across the charged interval so a frame's worth of particles are not coincident.
         /// </summary>
@@ -85,19 +86,30 @@ namespace ValveResourceFormat.Particles.Emitters
             }
 
             /// <summary>Accumulates <paramref name="rate"/> particles per second across the window and spawns whatever came due.</summary>
-            public void Charge(float rate, float windowStart, float windowEnd, float frameEnd, Action<float>? emit)
+            /// <param name="rate">Particles per second.</param>
+            /// <param name="windowStart">Start of the charged interval.</param>
+            /// <param name="windowEnd">End of the charged interval.</param>
+            /// <param name="frameEnd">Time the creation times are measured back from.</param>
+            /// <param name="emit">Spawns one particle of the given age.</param>
+            /// <param name="minimum">Particles spawned even when fewer came due; they are taken from later charges.</param>
+            /// <param name="limit">Most particles spawned by this charge when positive; the rest stay due for later charges.</param>
+            public void Charge(float rate, float windowStart, float windowEnd, float frameEnd, Action<float>? emit, int minimum = 0, int limit = 0)
             {
                 pending += Math.Max(0f, rate) * (windowEnd - windowStart);
 
-                var flushTo = (long)Math.Floor(pending + floorEpsilon);
-                var toEmit = flushTo - flushed;
+                var toEmit = Math.Max((long)Math.Floor(pending + floorEpsilon) - flushed, minimum);
+
+                if (limit > 0)
+                {
+                    toEmit = Math.Min(toEmit, limit);
+                }
 
                 if (toEmit <= 0)
                 {
                     return;
                 }
 
-                flushed = flushTo;
+                flushed += toEmit;
 
                 var step = (windowEnd - windowStart) / toEmit;
 

@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Utils;
 
 namespace GUI.Forms
 {
@@ -133,8 +135,8 @@ namespace GUI.Forms
         internal static string FormatTime(TimeSpan time)
         {
             return time.TotalHours >= 1
-                ? time.ToString(@"h\:mm\:ss")
-                : time.ToString(@"m\:ss");
+                ? time.ToString(@"h\:mm\:ss", CultureInfo.InvariantCulture)
+                : time.ToString(@"m\:ss", CultureInfo.InvariantCulture);
         }
 
         protected override void OnShown(EventArgs e)
@@ -162,7 +164,7 @@ namespace GUI.Forms
                         {
                             if (exception is not OperationCanceledException)
                             {
-                                Program.ShowError(exception);
+                                ErrorReport.ShowError(exception);
                             }
                         }
                     }

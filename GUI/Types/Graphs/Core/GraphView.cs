@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Windows.Forms;
 using SkiaSharp;
 using ValveResourceFormat.Graphs;
@@ -567,6 +566,7 @@ partial class GraphView : IDisposable
         OnGraphChanged();
     }
 
+    /// <summary>
     /// Atomically discards the current graph document and derived state, then runs
     /// <paramref name="build"/> to repopulate it, holding the state lock across the whole
     /// swap so a concurrent render never sees a half-built graph.

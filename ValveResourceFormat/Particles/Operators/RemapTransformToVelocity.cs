@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Particles.Operators
     /// its orientation is unused.
     /// </summary>
     /// <remarks>
-    /// The engine implementation never reads operator strength, so the strength passed to
+    /// Operator strength is never read, so the strength passed to
     /// <see cref="Operate"/> is ignored and the prior velocity is fully discarded.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapTransformToVelocity">C_OP_RemapTransformToVelocity</seealso>

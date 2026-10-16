@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
-using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
@@ -14,10 +13,10 @@ namespace GUI.Types.Viewers
 {
     class CompiledShader : IDisposable, IViewer
     {
-        private TextControl control;
-        private TreeView fileListView;
+        private readonly TextControl control;
+        private readonly TreeView fileListView;
         private readonly Container components;
-        private ThemedContextMenuStrip shaderFileContextMenu;
+        private readonly ThemedContextMenuStrip shaderFileContextMenu;
         private readonly VrfGuiContext vrfGuiContext;
         private VfxProgramData? featuresProgram;
 
@@ -124,7 +123,7 @@ namespace GUI.Types.Viewers
 
                     if (leadFeatureParams != null)
                     {
-                        leadStaticComboId = ShaderDataProvider.GetStaticConfiguration_ForFeatureState(shaderCollection.Features, program, leadFeatureParams).StaticComboId;
+                        leadStaticComboId = ShaderDataProvider.ResolveStaticConfiguration(shaderCollection.Features, program, leadFeatureParams).StaticComboId;
                     }
 
                     foreach (var staticComboEntry in program.StaticComboEntries)
@@ -213,7 +212,7 @@ namespace GUI.Types.Viewers
                 var shaderExtract = new ShaderExtract(shaderCollection);
 
                 collectionNode.Tag = shaderExtract;
-                DisplayExtractedVfx(shaderExtract);
+                TryDisplayNode(collectionNode);
             }
         }
 
@@ -252,32 +251,60 @@ namespace GUI.Types.Viewers
                 return;
             }
 
-            if (e.Node.Tag is ShaderExtract shaderExtract)
+            TryDisplayNode(e.Node);
+        }
+
+        private void TryDisplayNode(TreeNode node)
+        {
+            try
             {
-                DisplayExtractedVfx(shaderExtract);
+                control.TextBox.ClearException();
+                DisplayNode(node);
             }
-            else if (e.Node.Tag is VfxProgramData program)
+            catch (Exception ex)
+            {
+                var context = $"{node.Text} in {vrfGuiContext.DisplayPath}";
+                Log.Error(nameof(CompiledShader), $"Failed to display \"{context}\": {ex}");
+
+                control.TextBox.ShowException(ex, context);
+            }
+        }
+
+        private void DisplayNode(TreeNode node)
+        {
+            if (node.Tag is ShaderExtract shaderExtract)
+            {
+                control.TextBox.Text = shaderExtract.ToVFX();
+            }
+            else if (node.Tag is VfxProgramData program)
             {
                 using var output = new IndentedTextWriter();
                 program.PrintSummary(output, featuresProgram);
                 control.TextBox.Text = output.ToString();
             }
-            else if (e.Node.Tag is VfxStaticComboVcsEntry comboEntry)
+            else if (node.Tag is VfxStaticComboVcsEntry comboEntry)
             {
                 var combo = comboEntry.Unserialize();
-                e.Node.Tag = combo; // Replace the entry with unserialized combo data
+                node.Tag = combo; // Replace the entry with unserialized combo data
 
                 DisplayStaticCombo(combo);
 
                 fileListView.BeginUpdate();
-                CreateStaticComboNodes(combo, e.Node);
-                fileListView.EndUpdate();
+
+                try
+                {
+                    CreateStaticComboNodes(combo, node);
+                }
+                finally
+                {
+                    fileListView.EndUpdate();
+                }
             }
-            else if (e.Node.Tag is VfxStaticComboData combo)
+            else if (node.Tag is VfxStaticComboData combo)
             {
                 DisplayStaticCombo(combo);
             }
-            else if (e.Node.Tag is VfxShaderFile shaderFile)
+            else if (node.Tag is VfxShaderFile shaderFile)
             {
                 // TODO: Perhaps these tabs can also be removed, but currently required for the byte viewer
                 control.TextBox.Text = shaderFile.GetDecompiledFile();
@@ -381,18 +408,6 @@ namespace GUI.Types.Viewers
             }
 
             treeNode.Expand();
-        }
-
-        private void DisplayExtractedVfx(ShaderExtract shaderExtract)
-        {
-            try
-            {
-                control.TextBox.Text = shaderExtract.ToVFX();
-            }
-            catch (Exception ex)
-            {
-                control.TextBox.Text = ex.ToString();
-            }
         }
 
         private void DisplayStaticCombo(VfxStaticComboData combo)

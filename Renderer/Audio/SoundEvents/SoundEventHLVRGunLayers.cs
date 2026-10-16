@@ -41,16 +41,16 @@ internal sealed class SoundEventHLVRGunLayers : SoundEvent
             {
                 list.Add((
                     file,
-                    data.GetFloatProperty($"volume_{layer}", 1f),
-                    data.GetFloatProperty($"volume_falloff_{layer}_min"),
-                    data.GetFloatProperty($"volume_falloff_{layer}_max")));
+                    data.GetSoundFloat($"volume_{layer}", 1f),
+                    data.GetSoundFloat($"volume_falloff_{layer}_min"),
+                    data.GetSoundFloat($"volume_falloff_{layer}_max", 500f)));
             }
         }
 
         layers = [.. list];
         mixGroup = data.GetStringProperty("mixgroup", string.Empty);
-        pitchRandMin = data.GetFloatProperty("pitch_rand_min");
-        pitchRandMax = data.GetFloatProperty("pitch_rand_max");
+        pitchRandMin = data.GetSoundFloat("pitch_rand_min");
+        pitchRandMax = data.GetSoundFloat("pitch_rand_max");
     }
 
     protected override void DoStart()
@@ -60,7 +60,7 @@ internal sealed class SoundEventHLVRGunLayers : SoundEvent
             return;
         }
 
-        startBaseVolume = Math.Clamp(VolumeOverride ?? Definition.Volume, 0f, 1f) * Mixer.Player.GetMixGroupVolume(mixGroup);
+        startBaseVolume = MathUtils.Saturate(VolumeOverride ?? Definition.Volume) * Mixer.Player.GetMixGroupVolume(mixGroup);
 
         StartChildren(Definition.ChildDefinitions ??= BuildLayerDefinitions(), applyLayer);
     }
@@ -87,13 +87,15 @@ internal sealed class SoundEventHLVRGunLayers : SoundEvent
         {
             var (file, _, falloffMin, falloffMax) = layers[i];
 
-            var wrapper = new KVObject();
-            wrapper.Add("type", "hlvr_default_3d");
-            wrapper.Add("vsnd_files", file);
-            wrapper.Add("delay", Definition.Delay);
-            wrapper.Add("pitch", Definition.Pitch);
-            wrapper.Add("pitch_rand_min", pitchRandMin);
-            wrapper.Add("pitch_rand_max", pitchRandMax);
+            var wrapper = new KVObject
+            {
+                { "type", "hlvr_default_3d" },
+                { "vsnd_files", file },
+                { "delay", Definition.Delay },
+                { "pitch", Definition.Pitch },
+                { "pitch_rand_min", pitchRandMin },
+                { "pitch_rand_max", pitchRandMax }
+            };
 
             if (falloffMax > 0f)
             {

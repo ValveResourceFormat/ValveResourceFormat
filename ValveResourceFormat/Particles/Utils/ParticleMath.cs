@@ -28,17 +28,6 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         public static float HalfWave(float t) => (4f - (4f * t)) * t;
 
-        /// <summary>
-        /// Scales <paramref name="value"/> to unit length, returning <see cref="Vector3.Zero"/> for a
-        /// vector with no length rather than the NaN a plain divide would give.
-        /// </summary>
-        public static Vector3 Normalize(Vector3 value)
-        {
-            var lengthSquared = value.LengthSquared();
-
-            return lengthSquared == 0f ? Vector3.Zero : value / MathF.Sqrt(lengthSquared);
-        }
-
         public static float Square(float value) => value * value;
 
         /// <summary>
@@ -62,10 +51,9 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
-        /// The engine's approximation of the sine and cosine of an angle in radians, used by the
-        /// initializers that draw a random direction. It is <see cref="HalfWave"/> with a correction
-        /// term that brings the peak error down to 0.0011, and the cosine is taken from the sine
-        /// rather than approximated separately.
+        /// Approximates the sine and cosine of an angle in radians, for the initializers that draw a random
+        /// direction. It is <see cref="HalfWave"/> plus a correction term that brings the peak error to 0.0011,
+        /// and the cosine is derived from the sine.
         /// </summary>
         public static (float Sin, float Cos) SinCos(float radians)
         {
@@ -121,8 +109,8 @@ namespace ValveResourceFormat.Particles.Utils
             if (biasType == ParticleFloatBiasType.PF_BIAS_TYPE_EXPONENTIAL)
             {
                 var exponent = biasParameter >= 0f
-                    ? 1f - Math.Clamp(biasParameter, 0f, 1f)
-                    : 20f - (Math.Clamp(biasParameter + 1f, 0f, 1f) * 19f);
+                    ? 1f - MathUtils.Saturate(biasParameter)
+                    : 20f - (MathUtils.Saturate(biasParameter + 1f) * 19f);
 
                 if (exponent <= 0f)
                 {
@@ -148,7 +136,7 @@ namespace ValveResourceFormat.Particles.Utils
                 return 0f;
             }
 
-            var bias = Math.Clamp((biasParameter + 1f) * 0.5f, 0f, 1f);
+            var bias = MathUtils.Saturate((biasParameter + 1f) * 0.5f);
 
             if (bias <= 0f)
             {

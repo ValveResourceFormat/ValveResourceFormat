@@ -1,0 +1,1010 @@
+using System.Linq;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+using static ValveResourceFormat.IO.FeModelIndex;
+
+namespace ValveResourceFormat.IO
+{
+    internal sealed partial class ClothReconstruction
+    {
+        private const float ElementMassPerUnitLength = 4f;
+        private const float RodMassPerUnitLength = 8f;
+        private const float VolumetricMassPerUnitExtent = 12f;
+        private const float MinVolumetricSolveStrength = 1.1920929e-7f;
+        private const float VoronoiAreaScale = 0.125f;
+        private const float VoronoiMassWitnessMargin = 1e-4f;
+
+        private const float MinRecoverableMassPaintTerm = 0.05f;
+        private const float MaxRecoverableMassPaintTerm = 1e6f;
+        private const float NegligibleMassPaint = -30f;
+        private const int MassPaintRefineSweeps = 400;
+        private const float UniformMassPaintSteps = 16f;
+
+        private const float MassMultiplierTolerance = 1e-3f;
+        private const float MotionBiasTolerance = 1e-3f;
+
+        /// <summary>The smallest inverse mass an <c>explicit_masses</c> node carries.</summary>
+        private const float MinExplicitInverseMass = 0.05f;
+
+        /// <summary>The largest inverse mass an <c>explicit_masses</c> node carries.</summary>
+        private const float MaxExplicitInverseMass = 20f;
+
+        /// <summary>How far, relative to the mass, an <c>explicit_masses</c> mass may sit from two decimals.</summary>
+        private const float ExplicitMassRoundingTolerance = 1e-3f;
+
+        /// <summary>How far, relative to the larger, two inverse masses may differ and still count as equal.</summary>
+        private const float InverseMassAgreement = 1e-6f;
+
+        /// <summary>
+        /// How far a rod's <c>flWeight0</c> may sit from its endpoints' inverse-mass share <c>a / (a + b)</c> and still read
+        /// as mass-proportional.
+        /// </summary>
+        private const float MassProportionalWeightTolerance = 2e-5f;
+
+        /// <summary>
+        /// Recovers the <c>cloth_mass</c> paint of an authored-face proxy sheet from what each node's mass carries beyond
+        /// its geometric term, or null when there is none. Under the <see cref="HasVoronoiElementMasses">Voronoi element
+        /// mass pass</see> sheets of compiled elements are read too, and vertices without a reading get a negligible paint.
+        /// </summary>
+        internal float[]? RecoverMassPaint(ProxyMesh proxy)
+        {
+            if (HasExplicitMasses)
+            {
+                return null;
+            }
+
+            var voronoi = HasVoronoiElementMasses;
+            if (!proxy.UsesAuthoredFaces && !voronoi)
+            {
+                return null;
+            }
+
+            var count = proxy.Positions.Length;
+            var geometric = voronoi ? VoronoiMasses.Mass : GeometricMasses;
+            var paint = new float[count];
+            if (voronoi)
+            {
+                Array.Fill(paint, NegligibleMassPaint);
+            }
+
+            var painted = new List<(int Vertex, float Tolerance)>();
+            var clamped = 0;
+
+            for (var v = 0; v < count; v++)
+            {
+                var node = proxy.NodeIndices[v];
+                var invMass = InverseMassOf(node);
+                if (invMass <= 0f || invMass >= 1f)
+                {
+                    continue;
+                }
+
+                if (node >= geometric.Length || geometric[node] <= 0f)
+                {
+                    clamped++;
+                    continue;
+                }
+
+                var residual = 1f / invMass - geometric[node];
+
+                if (residual <= MinRecoverableMassPaintTerm || residual > MaxRecoverableMassPaintTerm)
+                {
+                    clamped++;
+                    continue;
+                }
+
+                paint[v] = MathF.Log(residual);
+                painted.Add((v, (MathF.BitIncrement(invMass) - invMass) / (invMass * invMass) / residual));
+            }
+
+            if (voronoi ? painted.Count == 0 : painted.Count <= clamped)
+            {
+                return null;
+            }
+
+            if (voronoi)
+            {
+                return PinVoronoiMassPaint(proxy, paint, painted, VoronoiMasses.Bracketed);
+            }
+
+            if (UniformMassPaint([.. painted.Select(p => (paint[p.Vertex], p.Tolerance))]) is { } shared)
+            {
+                foreach (var (vertex, _) in painted)
+                {
+                    paint[vertex] = shared;
+                }
+            }
+            else
+            {
+                var vertexOfNode = new Dictionary<int, int>();
+                foreach (var (vertex, _) in painted)
+                {
+                    vertexOfNode[proxy.NodeIndices[vertex]] = vertex;
+                }
+
+                paint = RefineMassPaint(paint, painted, FaceRodsBetween(vertexOfNode));
+            }
+
+            return paint;
+        }
+
+        /// <summary>
+        /// Solves the <c>cloth_mass</c> paint of a sheet under the Voronoi element mass pass from its face rods, whose
+        /// weights depend only on the endpoints' mass paint, so each states <c>paint[b] - paint[a] = ln(w / (1 - w))</c>.
+        /// Each connected set is shifted by the median offset of its readings on nodes outside bracketed elements; a set
+        /// without such a reading keeps its readings.
+        /// </summary>
+        private float[] PinVoronoiMassPaint(ProxyMesh proxy, float[] paint, List<(int Vertex, float Tolerance)> painted,
+            HashSet<int> bracketed)
+        {
+            var vertexOfNode = new Dictionary<int, int>();
+            for (var v = 0; v < proxy.NodeIndices.Length; v++)
+            {
+                var node = proxy.NodeIndices[v];
+                if (InverseMassOf(node) is > 0f and < 1f)
+                {
+                    vertexOfNode[node] = v;
+                }
+            }
+
+            var neighbours = MassPaintNeighbours(FaceRodsBetween(vertexOfNode), static _ => true);
+            var anchors = painted.Select(static p => p.Vertex)
+                .Where(vertex => !bracketed.Contains(proxy.NodeIndices[vertex]))
+                .ToHashSet();
+            var pinned = (float[])paint.Clone();
+            foreach (var (component, value) in MassPaintComponents(neighbours, static _ => 0.0))
+            {
+                RelaxMassPaint(component, neighbours, value, null);
+                var offsets = component.Where(anchors.Contains).Select(vertex => paint[vertex] - value[vertex]).Order().ToList();
+                if (offsets.Count == 0)
+                {
+                    continue;
+                }
+
+                var offset = offsets[(offsets.Count - 1) / 2];
+                foreach (var vertex in component)
+                {
+                    pinned[vertex] = (float)(value[vertex] + offset);
+                }
+            }
+
+            return pinned;
+        }
+
+        /// <summary>Gets the authored face rods between the nodes of <paramref name="vertexOfNode"/>, as weighted vertex pairs.</summary>
+        private List<(int A, int B, float Weight0)> FaceRodsBetween(Dictionary<int, int> vertexOfNode)
+        {
+            var rods = new List<(int A, int B, float Weight0)>();
+            foreach (var (_, _, rod) in AuthoredFaceRods([.. vertexOfNode.Keys]))
+            {
+                if (vertexOfNode.TryGetValue(rod.NodeA, out var a) && vertexOfNode.TryGetValue(rod.NodeB, out var b))
+                {
+                    rods.Add((a, b, rod.Weight0));
+                }
+            }
+
+            return rods;
+        }
+
+        /// <summary>
+        /// Refines <c>cloth_mass</c> readings with the face rods between painted vertices, each of which states
+        /// <c>paint[b] - paint[a] = ln(w / (1 - w))</c>. A connected set keeps its readings unless every refined value
+        /// stays within <see cref="UniformMassPaintSteps"/> of them.
+        /// </summary>
+        internal static float[] RefineMassPaint(float[] paint, IReadOnlyList<(int Vertex, float Tolerance)> painted,
+            IReadOnlyList<(int A, int B, float Weight0)> rods)
+        {
+            var tolerance = new Dictionary<int, float>(painted.Count);
+            foreach (var (vertex, step) in painted)
+            {
+                tolerance[vertex] = step;
+            }
+
+            var neighbours = MassPaintNeighbours(rods, tolerance.ContainsKey);
+            var refined = (float[])paint.Clone();
+            foreach (var (component, value) in MassPaintComponents(neighbours, start => paint[start]))
+            {
+                RelaxMassPaint(component, neighbours, value, component.Average(vertex => (double)paint[vertex]));
+                if (component.TrueForAll(vertex =>
+                    Math.Abs(value[vertex] - paint[vertex]) <= UniformMassPaintSteps * tolerance[vertex]))
+                {
+                    foreach (var vertex in component)
+                    {
+                        refined[vertex] = (float)value[vertex];
+                    }
+                }
+            }
+
+            return refined;
+        }
+
+        /// <summary>
+        /// Gets each painted vertex's face-rod neighbours with the paint difference <c>ln(w / (1 - w))</c> the rod states.
+        /// </summary>
+        private static Dictionary<int, List<(int Other, double Difference)>> MassPaintNeighbours(
+            IEnumerable<(int A, int B, float Weight0)> rods, Func<int, bool> painted)
+        {
+            var neighbours = new Dictionary<int, List<(int Other, double Difference)>>();
+            foreach (var (a, b, weight) in rods)
+            {
+                if (a == b || !painted(a) || !painted(b) || !float.IsFinite(weight) || weight <= 0f || weight >= 1f)
+                {
+                    continue;
+                }
+
+                var difference = Math.Log(weight / (1.0 - weight));
+                GetOrAdd(neighbours, a).Add((b, difference));
+                GetOrAdd(neighbours, b).Add((a, -difference));
+            }
+
+            return neighbours;
+        }
+
+        /// <summary>
+        /// Walks each connected set of <paramref name="neighbours"/> from its lowest vertex, giving every vertex the value its
+        /// path of rod differences reaches from <paramref name="seed"/>.
+        /// </summary>
+        private static IEnumerable<(List<int> Component, Dictionary<int, double> Value)> MassPaintComponents(
+            Dictionary<int, List<(int Other, double Difference)>> neighbours, Func<int, double> seed)
+        {
+            var seen = new HashSet<int>();
+            foreach (var start in neighbours.Keys.Order())
+            {
+                if (!seen.Add(start))
+                {
+                    continue;
+                }
+
+                var value = new Dictionary<int, double> { [start] = seed(start) };
+                var component = new List<int> { start };
+                for (var i = 0; i < component.Count; i++)
+                {
+                    foreach (var (other, difference) in neighbours[component[i]])
+                    {
+                        if (seen.Add(other))
+                        {
+                            value[other] = value[component[i]] + difference;
+                            component.Add(other);
+                        }
+                    }
+                }
+
+                yield return (component, value);
+            }
+        }
+
+        /// <summary>
+        /// Relaxes a component's values towards every rod difference at once, keeping their mean at
+        /// <paramref name="mean"/> when one is given.
+        /// </summary>
+        private static void RelaxMassPaint(List<int> component, Dictionary<int, List<(int Other, double Difference)>> neighbours,
+            Dictionary<int, double> value, double? mean)
+        {
+            for (var sweep = 0; sweep < MassPaintRefineSweeps; sweep++)
+            {
+                var moved = 0.0;
+                foreach (var vertex in component)
+                {
+                    var next = neighbours[vertex].Average(edge => value[edge.Other] - edge.Difference);
+                    moved = Math.Max(moved, Math.Abs(next - value[vertex]));
+                    value[vertex] = next;
+                }
+
+                if (mean is { } anchor)
+                {
+                    var shift = anchor - component.Average(vertex => value[vertex]);
+                    foreach (var vertex in component)
+                    {
+                        value[vertex] += shift;
+                    }
+                }
+
+                if (moved < 1e-12)
+                {
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the median of the <c>cloth_mass</c> readings when every reading lies within
+        /// <see cref="UniformMassPaintSteps"/> of its tolerance from it, else null.
+        /// </summary>
+        internal static float? UniformMassPaint(IReadOnlyList<(float Value, float Tolerance)> readings)
+        {
+            if (readings.Count < 2)
+            {
+                return null;
+            }
+
+            var sorted = readings.Select(static reading => reading.Value).Order().ToList();
+            var median = sorted[(sorted.Count - 1) / 2];
+            foreach (var (value, tolerance) in readings)
+            {
+                if (MathF.Abs(value - median) > UniformMassPaintSteps * tolerance)
+                {
+                    return null;
+                }
+            }
+
+            return median;
+        }
+
+        /// <summary>
+        /// Recovers the authored <c>mass</c> multiplier of a cloth node, or null when it is the default 1 or cannot be read.
+        /// </summary>
+        internal float? RecoverMassMultiplier(int node)
+        {
+            var multiplier = HasExplicitMasses ? ExplicitMassOf(node) : MassMultiplierOf(node);
+            return multiplier is { } value && MathF.Abs(value - 1f) > MassMultiplierTolerance
+                ? value
+                : null;
+        }
+
+        /// <summary>Gets whether the model was compiled with <c>ClothParams explicit_masses</c>.</summary>
+        internal bool HasExplicitMasses => hasExplicitMasses ??= ComputeHasExplicitMasses();
+
+        private bool? hasExplicitMasses;
+
+        private bool ComputeHasExplicitMasses()
+        {
+            var end = FirstPositionDrivenNode > 0 && FirstPositionDrivenNode <= Fe.NodeInvMasses.Length
+                ? FirstPositionDrivenNode
+                : Fe.NodeInvMasses.Length;
+
+            bool Simulated(int node) => node >= Fe.StaticNodes && node < end && Fe.NodeInvMasses[node] > 0f;
+
+            float? shared = null;
+            var uniform = true;
+            var simulated = 0;
+            for (var node = Fe.StaticNodes; node < end; node++)
+            {
+                var invMass = Fe.NodeInvMasses[node];
+                if (invMass <= 0f)
+                {
+                    continue;
+                }
+
+                var mass = 1f / invMass;
+                if (invMass < MinExplicitInverseMass || invMass > MaxExplicitInverseMass
+                    || MathF.Abs(mass - MathF.Round(mass, 2)) > ExplicitMassRoundingTolerance * MathF.Max(1f, mass))
+                {
+                    return false;
+                }
+
+                if (shared is { } first && MathF.Abs(invMass - first) > InverseMassAgreement * MathF.Max(invMass, first))
+                {
+                    uniform = false;
+                }
+
+                shared ??= invMass;
+                simulated++;
+            }
+
+            var anyRod = false;
+            var unequal = 0;
+            var proportional = 0;
+            foreach (var rod in Index.Rods)
+            {
+                anyRod = true;
+                if (!Simulated(rod.NodeA) || !Simulated(rod.NodeB))
+                {
+                    continue;
+                }
+
+                var (a, b) = (Fe.NodeInvMasses[rod.NodeA], Fe.NodeInvMasses[rod.NodeB]);
+                if (MathF.Abs(a - b) <= InverseMassAgreement * MathF.Max(a, b))
+                {
+                    continue;
+                }
+
+                unequal++;
+                if (MathF.Abs(rod.Weight0 - a / (a + b)) <= MassProportionalWeightTolerance)
+                {
+                    proportional++;
+                }
+            }
+
+            return simulated > 0 && anyRod && (unequal > 0 ? proportional > 0 : uniform);
+        }
+
+        private float? ExplicitMassOf(int node)
+            => node >= 0 && node < Fe.NodeInvMasses.Length && Fe.NodeInvMasses[node] > 0f ? 1f / Fe.NodeInvMasses[node] : null;
+
+        /// <summary>
+        /// Recovers the authored <c>mass</c> of a chain joint from its node and ring nodes, or null when none can be read
+        /// or they disagree.
+        /// </summary>
+        internal float? RecoverJointMassMultiplier(int joint)
+        {
+            float? multiplier = null;
+            foreach (var node in JointMassNodes(joint))
+            {
+                if (Index.IsStatic(node) || (!HasExplicitMasses && InverseMassOf(node) == 1f))
+                {
+                    continue;
+                }
+
+                if ((HasExplicitMasses ? ExplicitMassOf(node) : MassMultiplierOf(node, chainJoint: true))
+                    is not { } nodeMultiplier)
+                {
+                    return null;
+                }
+
+                if (multiplier is { } first && MathF.Abs(nodeMultiplier - first) > MassMultiplierTolerance * first)
+                {
+                    return null;
+                }
+
+                multiplier ??= nodeMultiplier;
+            }
+
+            return multiplier;
+        }
+
+        /// <summary>
+        /// Gets the <c>mass</c> a chain joint's row has to state, or null where <paramref name="chainDefault"/> already
+        /// covers it.
+        /// </summary>
+        internal float? RecoverJointMass(int joint, float chainDefault)
+            => RecoverJointMassMultiplier(joint) is { } value
+                && MathF.Abs(value - chainDefault) > MassMultiplierTolerance * chainDefault
+                ? value
+                : null;
+
+        /// <summary>Gets the <c>mass</c> shared by more than half of the chain's readable joints, else 1.</summary>
+        internal float RecoverChainMassDefault(BoneChain chain)
+        {
+            var readings = new List<float>();
+            foreach (var joint in chain.Joints)
+            {
+                if (RecoverJointMassMultiplier(joint.Node) is { } value)
+                {
+                    readings.Add(value);
+                }
+            }
+
+            var common = 1f;
+            var best = 0;
+            foreach (var candidate in readings)
+            {
+                var shared = 0;
+                foreach (var value in readings)
+                {
+                    if (MathF.Abs(value - candidate) <= MassMultiplierTolerance * candidate)
+                    {
+                        shared++;
+                    }
+                }
+
+                if (shared > best)
+                {
+                    (best, common) = (shared, candidate);
+                }
+            }
+
+            return best * 2 > readings.Count ? common : 1f;
+        }
+
+        /// <summary>
+        /// Gets the mass multiplier of a node over its geometric mass. A rod endpoint is read against the rod mass pass
+        /// only for a chain joint or on a cloth without proxy-sheet nodes.
+        /// </summary>
+        private float? MassMultiplierOf(int node, bool chainJoint = false)
+        {
+            if (node < 0 || node >= Fe.NodeInvMasses.Length)
+            {
+                return null;
+            }
+
+            var invMass = Fe.NodeInvMasses[node];
+            if (invMass <= 0f || invMass == 1f)
+            {
+                return null;
+            }
+
+            float[] geometric;
+            if (!RodEndpoints.Contains(node))
+            {
+                geometric = GeometricMasses;
+            }
+            else if (chainJoint || !HasProxyMeshNodes)
+            {
+                geometric = RodMassPass;
+            }
+            else
+            {
+                return null;
+            }
+
+            if (node >= geometric.Length || geometric[node] <= 0f)
+            {
+                return null;
+            }
+
+            var ratio = 1f / invMass / geometric[node];
+            return ratio > 0f ? MathF.Sqrt(ratio) : null;
+        }
+
+        private IEnumerable<int> JointMassNodes(int joint)
+        {
+            yield return joint;
+            if (RingNodesByParent.TryGetValue(joint, out var rings))
+            {
+                foreach (var node in rings)
+                {
+                    yield return node;
+                }
+            }
+        }
+
+        /// <summary>Gets the <c>$cc</c> ring nodes under each <see cref="ParentNodeOf"/> parent, in node order.</summary>
+        private Dictionary<int, List<int>> RingNodesByParent => ringNodesByParent ??= BuildRingNodesByParent();
+
+        private Dictionary<int, List<int>>? ringNodesByParent;
+
+        private Dictionary<int, List<int>> BuildRingNodesByParent()
+        {
+            var rings = new Dictionary<int, List<int>>();
+            for (var node = 0; node < Fe.CtrlName.Length; node++)
+            {
+                if (IsRingNode(node))
+                {
+                    GetOrAdd(rings, ParentNodeOf(node)).Add(node);
+                }
+            }
+
+            return rings;
+        }
+
+        private float[] GeometricMasses => geometricMasses ??= GeometricNodeMasses();
+
+        private float[]? geometricMasses;
+
+        private float[] RodMassPass => rodMassPass ??= GeometricNodeMassesWithRods();
+
+        private float[]? rodMassPass;
+
+        private bool HasProxyMeshNodes => hasProxyMeshNodes ??= Fe.CtrlName.Any(static name => name.StartsWith(ProxyNamePrefix, StringComparison.Ordinal));
+
+        private bool? hasProxyMeshNodes;
+
+        private HashSet<int> RodEndpoints => rodEndpoints ??= [.. Index.Rods.SelectMany(static rod => new[] { rod.NodeA, rod.NodeB })];
+
+        private HashSet<int>? rodEndpoints;
+
+        /// <summary>
+        /// Gets the mass the compiler derives from the cloth's geometry per control node: the solve elements, the rods
+        /// built from the authored elements that did not stay solve elements, and the volumetric selections.
+        /// </summary>
+        private float[] GeometricNodeMasses()
+        {
+            var mass = new float[Index.InitPosePositions.Length];
+            AddElementNodeMasses(mass, MassElements);
+            AddAuthoredRodNodeMasses(mass, MassElements);
+            AddVolumetricNodeMasses(mass);
+            return mass;
+        }
+
+        /// <summary>
+        /// Gets whether the element mass pass lumped mixed Voronoi areas, as it can on models compiled without
+        /// <c>m_SkelParents</c>. A proxy sheet node lighter than its corner-pair element term alone reveals it.
+        /// </summary>
+        private bool HasVoronoiElementMasses => hasVoronoiElementMasses ??= ComputeHasVoronoiElementMasses();
+
+        private bool? hasVoronoiElementMasses;
+
+        private bool ComputeHasVoronoiElementMasses()
+        {
+            if (HasCompiledSkelParents)
+            {
+                return false;
+            }
+
+            var term = new float[Index.InitPosePositions.Length];
+            AddElementNodeMasses(term, MassElements);
+            for (var node = 0; node < term.Length && node < Fe.NodeInvMasses.Length && node < Fe.CtrlName.Length; node++)
+            {
+                var invMass = Fe.NodeInvMasses[node];
+                if (invMass > 0f && Fe.CtrlName[node].StartsWith(ProxyNamePrefix, StringComparison.Ordinal)
+                    && 1f / invMass < term[node] * (1f - VoronoiMassWitnessMargin))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the geometric masses under the Voronoi element mass pass: each element's lumped area plus the authored rod
+        /// term, with no volumetric term. A quad whose corner cycle may have turned after the mass pass (one with a static
+        /// corner, or one merged back from its split halves) takes the mean of both fan diagonals and lists its corners as
+        /// bracketed.
+        /// </summary>
+        private (float[] Mass, HashSet<int> Bracketed) VoronoiMasses => voronoiMasses ??= VoronoiNodeMasses();
+
+        private (float[] Mass, HashSet<int> Bracketed)? voronoiMasses;
+
+        private (float[] Mass, HashSet<int> Bracketed) VoronoiNodeMasses()
+        {
+            var mass = new float[Index.InitPosePositions.Length];
+            var bracketed = new HashSet<int>();
+            var elements = MassElements;
+            for (var e = 0; e < elements.Count; e++)
+            {
+                var element = elements[e];
+                if (Array.Exists(element, node => node < 0 || node >= mass.Length))
+                {
+                    continue;
+                }
+
+                if (element[2] == element[3] || (e < Index.Quads.Length && !Array.Exists(element, Index.IsStatic)))
+                {
+                    AddVoronoiFan(mass, element, 1f);
+                    continue;
+                }
+
+                AddVoronoiFan(mass, element, 0.5f);
+                AddVoronoiFan(mass, [element[1], element[2], element[3], element[0]], 0.5f);
+                bracketed.UnionWith(element);
+            }
+
+            AddAuthoredRodNodeMasses(mass, elements);
+            return (mass, bracketed);
+        }
+
+        private void AddVoronoiFan(float[] mass, int[] corners, float share)
+        {
+            AddVoronoiTriangle(mass, corners[0], corners[1], corners[2], share);
+            AddVoronoiTriangle(mass, corners[0], corners[2], corners[3], share);
+        }
+
+        private void AddVoronoiTriangle(float[] mass, int a, int b, int c, float share)
+        {
+            if (b == c)
+            {
+                return;
+            }
+
+            var ab = Index.InitPosePositions[b] - Index.InitPosePositions[a];
+            var ac = Index.InitPosePositions[c] - Index.InitPosePositions[a];
+            var bc = Index.InitPosePositions[c] - Index.InitPosePositions[b];
+            var n = Vector3.Cross(ab, ac).Length();
+            if (n <= 0f)
+            {
+                return;
+            }
+
+            var cotA = Vector3.Dot(ab, ac) / n;
+            var cotB = Vector3.Dot(-ab, bc) / n;
+            var cotC = Vector3.Dot(bc, ac) / n;
+            if (cotA <= 0f || cotB <= 0f || cotC <= 0f)
+            {
+                var quarter = n * VoronoiAreaScale * share;
+                mass[a] += quarter;
+                mass[b] += quarter;
+                mass[c] += quarter;
+                mass[cotA <= cotB ? (cotA <= cotC ? a : c) : (cotB <= cotC ? b : c)] += quarter;
+                return;
+            }
+
+            var eAB = ab.LengthSquared() * cotC * VoronoiAreaScale;
+            var eAC = ac.LengthSquared() * cotB * VoronoiAreaScale;
+            var eBC = bc.LengthSquared() * cotA * VoronoiAreaScale;
+            mass[a] += share * (eAB + eAC);
+            mass[b] += share * (eBC + eAB);
+            mass[c] += share * (eBC + eAC);
+        }
+
+        private void AddElementNodeMasses(float[] mass, IReadOnlyList<int[]> elements)
+        {
+            foreach (var element in elements)
+            {
+                for (var k = 1; k < 4; k++)
+                {
+                    for (var j = 0; j < k; j++)
+                    {
+                        var (a, b) = (element[j], element[k]);
+                        if (a == b || a < 0 || b < 0 || a >= mass.Length || b >= mass.Length)
+                        {
+                            continue;
+                        }
+
+                        var term = ElementMassPerUnitLength
+                            * Index.RestDistance(a, b);
+                        mass[a] += term;
+                        mass[b] += term;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the geometric masses of a cloth with no proxy sheet, where every shipped rod weighs except those the
+        /// compiler folded across shared edges or left unbounded.
+        /// </summary>
+        private float[] GeometricNodeMassesWithRods()
+        {
+            var mass = new float[Index.InitPosePositions.Length];
+            AddElementNodeMasses(mass, MassElements);
+            AddVolumetricNodeMasses(mass);
+
+            var cycles = new List<int[]>();
+            foreach (var face in Index.SourceFaces)
+            {
+                if (face.Length is 3 or 4)
+                {
+                    cycles.Add(CompiledElementOrder(face, Index.IsStatic, RestPositionOf));
+                }
+            }
+
+            var derived = new HashSet<(int, int)>(SurfaceFanPairs);
+
+            foreach (var cycle in cycles)
+            {
+                for (var j = 0; j < cycle.Length; j++)
+                {
+                    var (p, q) = (cycle[j], cycle[(j + 1) % cycle.Length]);
+                    var edge = UnorderedPair(p, q);
+                    if (RodsByPair.TryGetValue(edge, out var rods) && rods.Count == 1 && !IsSurfaceFold(rods[0]))
+                    {
+                        derived.Remove(edge);
+                    }
+                }
+            }
+
+            foreach (var rod in Index.Rods)
+            {
+                var (a, b) = rod.Pair;
+                if (b >= mass.Length
+                    || rod.MaxDist >= UnboundedRodDistance || (FoldedAfterMass(rod) && derived.Remove((a, b))))
+                {
+                    continue;
+                }
+
+                var term = RodMassPerUnitLength * Index.RestDistance(a, b);
+                mass[a] += term;
+                mass[b] += term;
+            }
+
+            return mass;
+
+            Vector3 RestPositionOf(int node)
+                => node >= 0 && node < Index.InitPosePositions.Length ? Index.InitPosePositions[node] : Vector3.Zero;
+        }
+
+        /// <summary>Gets the solve elements in the corner order the compiler's fold walk meets them, a triangle as its three corners.</summary>
+        private List<int[]> FoldWalkSolveElements()
+        {
+            var rings = new Dictionary<string, Dictionary<int, int>>(StringComparer.Ordinal);
+            for (var node = 0; node < Fe.CtrlName.Length; node++)
+            {
+                if (TryParseRingNodeName(Fe.CtrlName[node], out var owner, out var index) && index >= 0)
+                {
+                    GetOrAdd(rings, owner)[index] = node;
+                }
+            }
+
+            Dictionary<int, int>? TwoWideRingOf(int a, int b)
+            {
+                return TryParseRingNodeName(Fe.CtrlName[a], out var owner, out var index) && index >= 0
+                    && rings.TryGetValue(owner, out var members)
+                    && members.Count == 2 && members.ContainsKey(0) && members.ContainsKey(1)
+                    && members.ContainsValue(a) && members.ContainsValue(b) && a != b
+                    ? members
+                    : null;
+            }
+
+            var elements = new List<int[]>(MassElements);
+            for (var i = 0; i < elements.Count; i++)
+            {
+                var quad = elements[i];
+                if (quad.Length == 4 && quad[2] == quad[3])
+                {
+                    elements[i] = quad[..3];
+                    continue;
+                }
+
+                if (quad.Length == 4 && quad.Distinct().Count() == 4 && quad.All(node => node >= 0 && node < Fe.CtrlName.Length)
+                    && TwoWideRingOf(quad[0], quad[1]) is not null && TwoWideRingOf(quad[2], quad[3]) is { } far)
+                {
+                    elements[i] = [quad[0], quad[1], far[1], far[0]];
+                }
+            }
+
+            return elements;
+        }
+
+        /// <summary>
+        /// Gets the faces the importer built into rods, in the order and corner order the compiler walks them for its
+        /// fold rods. <c>m_SourceElems</c> packs each corner-count group from its end, so every group is read backwards.
+        /// </summary>
+        private IEnumerable<int[]> SourceElementWalk()
+            => Index.SourceFaces.Where(static face => face.Length == 3).Reverse()
+                .Concat(Index.SourceFaces.Where(static face => face.Length == 4).Reverse());
+
+        /// <summary>
+        /// Credits both ends of every distinct corner pair of the authored elements that are not solve elements with
+        /// <see cref="RodMassPerUnitLength"/> per unit of rest length.
+        /// </summary>
+        private void AddAuthoredRodNodeMasses(float[] mass, IReadOnlyList<int[]> elements)
+        {
+            var solved = new HashSet<(int, int, int, int)>(elements.Count);
+            foreach (var element in elements)
+            {
+                solved.Add(CornerKey(element));
+            }
+
+            var unbuilt = UnbuiltFaceDiagonals().ToHashSet();
+            var rods = new Dictionary<(int A, int B), float>();
+            foreach (var face in Index.SourceFaces)
+            {
+                if (face.Length < 3 || solved.Contains(CornerKey(face)))
+                {
+                    continue;
+                }
+
+                for (var i = 0; i < face.Length; i++)
+                {
+                    for (var j = i + 1; j < face.Length; j++)
+                    {
+                        var (a, b) = UnorderedPair(face[i], face[j]);
+                        if (a == b || a < 0 || b >= mass.Length || unbuilt.Contains((a, b)))
+                        {
+                            continue;
+                        }
+
+                        rods[(a, b)] = Index.RestDistance(a, b);
+                    }
+                }
+            }
+
+            foreach (var ((a, b), length) in rods)
+            {
+                var term = RodMassPerUnitLength * length;
+                mass[a] += term;
+                mass[b] += term;
+            }
+        }
+
+        private static (int, int, int, int) CornerKey(int[] corners)
+        {
+            var sorted = corners.Distinct().Order().ToArray();
+            return (sorted.Length > 0 ? sorted[0] : -1, sorted.Length > 1 ? sorted[1] : -1,
+                sorted.Length > 2 ? sorted[2] : -1, sorted.Length > 3 ? sorted[3] : -1);
+        }
+
+        /// <summary>
+        /// Gets the elements the mass pass ran over as four corners each, a triangle repeating its last, with every
+        /// over-bent quad the compiler split into two triangles merged back.
+        /// </summary>
+        private IReadOnlyList<int[]> MassElements => massElements ??= BuildMassElements();
+
+        private List<int[]>? massElements;
+
+        private List<int[]> BuildMassElements()
+        {
+            var elements = new List<int[]>(Index.Quads.Length + Index.Tris.Length);
+            elements.AddRange(Index.Quads);
+
+            var (splitQuads, splitHalves) = MergeSplitQuads();
+            foreach (var tri in Index.Tris)
+            {
+                var key = SortedTriKey(tri);
+                if (splitHalves.Contains(key))
+                {
+                    continue;
+                }
+
+                elements.Add(splitQuads.TryGetValue(key, out var quad) ? quad : [tri[0], tri[1], tri[2], tri[2]]);
+            }
+
+            return elements;
+        }
+
+        /// <summary>
+        /// Credits every node a volumetric selection covers with <see cref="VolumetricMassPerUnitExtent"/> per unit of the
+        /// summed bounding-box extent of the selection, scaled by the node's weight in it. A selection that is not solved
+        /// volumetrically weighs nothing.
+        /// </summary>
+        private void AddVolumetricNodeMasses(float[] mass)
+        {
+            foreach (var map in VertexMaps)
+            {
+                if (map.VolumetricSolveStrength < MinVolumetricSolveStrength)
+                {
+                    continue;
+                }
+
+                var min = new Vector3(float.MaxValue);
+                var max = new Vector3(float.MinValue);
+                var covered = false;
+                for (var i = 0; i < map.Weights.Length; i++)
+                {
+                    var node = map.VertexBase + i;
+                    if (map.Weights[i] <= 0f || node < 0 || node >= mass.Length)
+                    {
+                        continue;
+                    }
+
+                    min = Vector3.Min(min, Index.InitPosePositions[node]);
+                    max = Vector3.Max(max, Index.InitPosePositions[node]);
+                    covered = true;
+                }
+
+                if (!covered)
+                {
+                    continue;
+                }
+
+                var extent = max - min;
+                var term = VolumetricMassPerUnitExtent * (extent.X + extent.Y + extent.Z);
+                for (var i = 0; i < map.Weights.Length; i++)
+                {
+                    var node = map.VertexBase + i;
+                    if (map.Weights[i] > 0f && node >= 0 && node < mass.Length)
+                    {
+                        mass[node] += map.Weights[i] * term;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Recovers the <c>motion_bias</c> of a chain joint from the weights of the rods between it and its parent, and the
+        /// bounded rods between their simulated <c>$cc</c> rings, or null where they carry no reading.
+        /// </summary>
+        internal float? GetMotionBias(BoneChainJoint joint)
+        {
+            if (joint.ParentNode < 0)
+            {
+                return null;
+            }
+
+            if (InverseMassOf(joint.ParentNode) <= 0f || InverseMassOf(joint.Node) <= 0f)
+            {
+                return null;
+            }
+
+            var parentMultiplier = HasExplicitMasses ? 1f : RecoverJointMassMultiplier(joint.ParentNode) ?? 1f;
+            var jointMultiplier = HasExplicitMasses ? 1f : RecoverJointMassMultiplier(joint.Node) ?? 1f;
+            var parentEnds = SpanEnds(joint.ParentNode);
+            var jointEnds = SpanEnds(joint.Node);
+
+            float? bias = null;
+            var spanRods = Index.Rods.Select(static rod => (rod.NodeA, rod.NodeB, rod.Weight0, Bounded: rod.MaxDist < UnboundedRodDistance))
+                .Concat(Index.AnimRods.Select(static rod => (rod.NodeA, rod.NodeB, rod.Weight0, Bounded: true)));
+            foreach (var (nodeA, nodeB, weight0, bounded) in spanRods)
+            {
+                var (parentEnd, jointEnd, weight) = parentEnds.Contains(nodeA) && jointEnds.Contains(nodeB) ? (nodeA, nodeB, weight0)
+                    : parentEnds.Contains(nodeB) && jointEnds.Contains(nodeA) ? (nodeB, nodeA, 1f - weight0)
+                    : (-1, -1, float.NaN);
+                if (float.IsNaN(weight) || (!bounded && (parentEnd != joint.ParentNode || jointEnd != joint.Node)))
+                {
+                    continue;
+                }
+
+                var reading = weight <= 0f ? 1f : weight >= 1f ? -1f : Bias(weight, parentEnd, jointEnd);
+                if (bias is { } seen && MathF.Abs(seen - reading) > MotionBiasTolerance)
+                {
+                    return null;
+                }
+
+                bias ??= reading;
+            }
+
+            return bias is { } value && MathF.Abs(value) > MotionBiasTolerance ? value : null;
+
+            HashSet<int> SpanEnds(int jointNode)
+                => [jointNode, .. ProxyRingOf(jointNode).Where(node => !Index.IsStatic(node))];
+
+            float Bias(float weight, int parentEnd, int jointEnd)
+            {
+                var parentMass = HasExplicitMasses ? InverseMassOf(parentEnd) : 1f / parentMultiplier;
+                var jointMass = HasExplicitMasses ? InverseMassOf(jointEnd) : 1f / jointMultiplier;
+                var ratio = weight * jointMass / ((1f - weight) * parentMass);
+                return ratio <= 1f ? 1f - ratio : -(1f - (1f / ratio));
+            }
+        }
+    }
+}

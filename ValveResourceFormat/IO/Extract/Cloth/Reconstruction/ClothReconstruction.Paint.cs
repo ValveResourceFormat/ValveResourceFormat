@@ -1,0 +1,560 @@
+using System.Linq;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
+using ValveResourceFormat.Utils;
+using static ValveResourceFormat.IO.FeModelIndex;
+
+namespace ValveResourceFormat.IO
+{
+    internal sealed partial class ClothReconstruction
+    {
+        private const float FaceRodRestTolerance = 1e-3f;
+        private const float PaintSolveTolerance = 2e-3f;
+
+        /// <summary>The <c>cloth_antishrink</c> of a proxy-sheet vertex that is not painted.</summary>
+        private const float SheetAntishrinkDefault = 0.75f;
+
+        /// <summary>The largest <c>cloth_shear_resistance</c> a vertex can state.</summary>
+        private const float MaxStatedShearResistance = 2f;
+
+        /// <summary>
+        /// The largest <c>cloth_stretch</c> a compiled sheet can state. The compiler clamps the cube of one minus the
+        /// endpoints' mean, so one vertex may sit above 1 as long as its partner sits below.
+        /// </summary>
+        private const float MaxStatedStretch = 2f;
+
+        /// <summary>
+        /// The largest <c>cloth_stray_radius_stretchiness</c> a proxy vertex can have and keep its stray radius;
+        /// at or above it the compiler cancels the radius instead of relaxing it.
+        /// </summary>
+        private const float MaxProxyStrayStretchiness = 0.9999998f;
+
+        private Dictionary<(int, int), List<Rod>>? rodsByPair;
+        private List<FaceRod>? sheetFaceRods;
+        private HashSet<int>? sheetNodes;
+        private Solved<(Dictionary<int, float> Paint, float BaseRelaxation)?>? shearResistance;
+        private Solved<Dictionary<int, float>?>? stretchPaint;
+
+        /// <summary>A lazily computed value that may itself be null.</summary>
+        private sealed record Solved<T>(T Value);
+
+        /// <summary>The rod on an edge or diagonal of an authored face.</summary>
+        private readonly record struct FaceRod((int A, int B) Pair, bool Diagonal, Rod Rod);
+
+        /// <summary>Recovers each proxy vertex's normal as the local +Z of its rest orientation.</summary>
+        internal Vector3[] RecoverRestNormals(ProxyMesh proxy)
+        {
+            var normals = new Vector3[proxy.Positions.Length];
+            for (var v = 0; v < normals.Length; v++)
+            {
+                var node = v < proxy.NodeIndices.Length ? proxy.NodeIndices[v] : -1;
+                var rotation = node >= 0 && node < Index.InitPoseRotations.Length
+                    ? Index.InitPoseRotations[node]
+                    : Quaternion.Identity;
+
+                var axis = Vector3.Transform(Vector3.UnitZ, rotation);
+                normals[v] = MathUtils.SafeNormalize(axis, Vector3.UnitZ, 1e-12f);
+            }
+
+            return normals;
+        }
+
+        /// <summary>
+        /// Gets the rod of each edge and diagonal of the authored faces within <paramref name="nodes"/>: the record on
+        /// that pair whose maximum is the endpoints' rest distance.
+        /// </summary>
+        private List<FaceRod> AuthoredFaceRods(HashSet<int> nodes)
+        {
+            var kinds = new Dictionary<(int, int), bool>();
+            foreach (var face in Index.SourceFaces)
+            {
+                if (face.Length is not (3 or 4) || !Array.TrueForAll(face, nodes.Contains))
+                {
+                    continue;
+                }
+
+                for (var i = 0; i < face.Length; i++)
+                {
+                    Add(face[i], face[(i + 1) % face.Length], false);
+                }
+
+                if (face.Length == 4)
+                {
+                    Add(face[0], face[2], true);
+                    Add(face[1], face[3], true);
+                }
+            }
+
+            var found = new List<FaceRod>(kinds.Count);
+            foreach (var (pair, diagonal) in kinds)
+            {
+                if (!RodsByPair.TryGetValue(pair, out var candidates))
+                {
+                    continue;
+                }
+
+                var rest = Index.RestDistance(pair.Item1, pair.Item2);
+                var authored = candidates.MinBy(r => MathF.Abs(r.MaxDist - rest));
+                if (MathF.Abs(authored.MaxDist - rest) <= FaceRodRestTolerance * MathF.Max(1f, rest))
+                {
+                    found.Add(new FaceRod(pair, diagonal, authored));
+                }
+            }
+
+            return found;
+
+            void Add(int x, int y, bool diagonal)
+            {
+                if (x != y && x >= 0 && y >= 0 && x < Index.InitPosePositions.Length && y < Index.InitPosePositions.Length)
+                {
+                    kinds[UnorderedPair(x, y)] = diagonal;
+                }
+            }
+        }
+
+        /// <summary>Gets the rods on each unordered node pair, in <see cref="FeModelIndex.Rods"/> order.</summary>
+        internal Dictionary<(int, int), List<Rod>> RodsByPair => rodsByPair ??= BuildRodsByPair();
+
+        private Dictionary<(int, int), List<Rod>> BuildRodsByPair()
+        {
+            var byPair = new Dictionary<(int, int), List<Rod>>();
+            foreach (var rod in Index.Rods)
+            {
+                GetOrAdd(byPair, rod.Pair).Add(rod);
+            }
+
+            return byPair;
+        }
+
+        /// <summary>Gets the <see cref="AuthoredFaceRods"/> of the <see cref="SheetNodes"/>.</summary>
+        private List<FaceRod> SheetFaceRods => sheetFaceRods ??= AuthoredFaceRods(SheetNodes);
+
+        /// <summary>
+        /// Solves a per-node paint from pair sums <c>p[a] + p[b] = stated</c>, or null when they contradict each other
+        /// or force a value outside <c>[0, <paramref name="upper"/>]</c>.
+        /// </summary>
+        /// <param name="stated">The pair sums, one per node pair.</param>
+        /// <param name="fallback">The value an unpainted vertex has.</param>
+        /// <param name="upper">The largest value a vertex may take.</param>
+        /// <param name="chooseFree">
+        /// Picks a component's free parameter from each node's sign and offset (<c>value = sign * free + offset</c>), or
+        /// returns null to take the choice closest to <paramref name="fallback"/>.
+        /// </param>
+        private static Dictionary<int, float>? SolvePairSumPaint(Dictionary<(int A, int B), float> stated,
+            float fallback, float upper,
+            Func<IReadOnlyDictionary<int, float>, IReadOnlyDictionary<int, float>, float?>? chooseFree = null)
+        {
+            var adjacency = ClothMath.PairSumAdjacency(stated.Select(static entry => (entry.Key.A, entry.Key.B, entry.Value)));
+            if (ClothMath.PairSumComponents(adjacency, adjacency.Keys, PaintSolveTolerance, depthFirst: true) is not { } components)
+            {
+                return null;
+            }
+
+            var solved = new Dictionary<int, float>(adjacency.Count);
+            foreach (var (component, sign, offset, forced) in components)
+            {
+                float? pinned = forced.Count > 0 ? forced[0] : null;
+                if (forced.Exists(value => MathF.Abs(forced[0] - value) > PaintSolveTolerance))
+                {
+                    return null;
+                }
+
+                var free = pinned ?? chooseFree?.Invoke(sign, offset)
+                    ?? component.Sum(node => sign[node] * (fallback - offset[node])) / component.Count;
+                foreach (var node in component)
+                {
+                    var value = sign[node] * free + offset[node];
+                    if (!float.IsFinite(value) || value < -PaintSolveTolerance || value > upper + PaintSolveTolerance)
+                    {
+                        return null;
+                    }
+
+                    solved[node] = Math.Clamp(value, 0f, upper);
+                }
+            }
+
+            return solved;
+        }
+
+        /// <summary>Gets the control nodes that are proxy-sheet vertices.</summary>
+        private HashSet<int> SheetNodes => sheetNodes ??= BuildSheetNodes();
+
+        private HashSet<int> BuildSheetNodes()
+        {
+            var nodes = new HashSet<int>();
+            for (var node = 0; node < Fe.CtrlName.Length; node++)
+            {
+                if (IsProxyMeshNode(node))
+                {
+                    nodes.Add(node);
+                }
+            }
+
+            return nodes;
+        }
+
+        /// <summary>
+        /// Maps a per-node value onto <paramref name="proxy"/>'s vertices, or returns null when no vertex counts as
+        /// <paramref name="painted"/>.
+        /// </summary>
+        internal static float[]? PaintPerVertex(ProxyMesh proxy, Func<int, float> valueOf, Func<float, bool> painted)
+        {
+            var paint = new float[proxy.NodeIndices.Length];
+            var count = 0;
+            for (var v = 0; v < paint.Length; v++)
+            {
+                paint[v] = valueOf(proxy.NodeIndices[v]);
+                if (painted(paint[v]))
+                {
+                    count++;
+                }
+            }
+
+            return count > 0 ? paint : null;
+        }
+
+        /// <summary>
+        /// Recovers the <c>cloth_antishrink</c> paint of a proxy sheet from its face rods, or null when it is uniformly
+        /// <see cref="SheetAntishrinkDefault"/> or the rods contradict each other.
+        /// </summary>
+        internal float[]? RecoverAntishrinkPaint(ProxyMesh proxy)
+        {
+            var nodes = new HashSet<int>(proxy.NodeIndices);
+            var stated = new Dictionary<(int A, int B), float>();
+            foreach (var (pair, _, rod) in AuthoredFaceRods(nodes))
+            {
+                if (rod.MaxDist > FaceRodRestTolerance)
+                {
+                    stated[pair] = 2f * (rod.MinDist / rod.MaxDist);
+                }
+            }
+
+            if (stated.Count == 0 || SolvePairSumPaint(stated, SheetAntishrinkDefault, 1f) is not { } solved)
+            {
+                return null;
+            }
+
+            return PaintPerVertex(proxy, node => solved.TryGetValue(node, out var value) ? value : SheetAntishrinkDefault,
+                static value => MathF.Abs(value - SheetAntishrinkDefault) > PaintSolveTolerance);
+        }
+
+        /// <summary>
+        /// Gets the per-node <c>cloth_shear_resistance</c> of the proxy sheets relative to the stiffest face diagonal's
+        /// relaxation, or null when every diagonal states one value.
+        /// </summary>
+        internal (Dictionary<int, float> Paint, float BaseRelaxation)? ShearResistance
+            => (shearResistance ??= new(SolveShearResistance())).Value;
+
+        private (Dictionary<int, float>, float)? SolveShearResistance()
+        {
+            var faceRods = SheetFaceRods;
+            var diagonals = faceRods.Where(static entry => entry.Diagonal).ToList();
+            var baseRelaxation = 0f;
+            foreach (var (_, _, rod) in diagonals)
+            {
+                baseRelaxation = MathF.Max(baseRelaxation, UnstretchedRelaxation(rod));
+            }
+
+            if (baseRelaxation <= 0f)
+            {
+                return null;
+            }
+
+            var stated = new Dictionary<(int A, int B), float>(diagonals.Count);
+            foreach (var (pair, _, rod) in diagonals)
+            {
+                stated[pair] = 2f * MathF.Cbrt(MathUtils.Saturate(UnstretchedRelaxation(rod) / baseRelaxation));
+            }
+
+            var unbuilt = new HashSet<int>();
+            foreach (var pair in UnbuiltFaceDiagonals())
+            {
+                stated[pair] = 0f;
+                unbuilt.Add(pair.A);
+                unbuilt.Add(pair.B);
+            }
+
+            float? ZeroAtUnbuilt(IReadOnlyDictionary<int, float> sign, IReadOnlyDictionary<int, float> offset)
+            {
+                foreach (var node in unbuilt)
+                {
+                    if (sign.TryGetValue(node, out var nodeSign))
+                    {
+                        return -offset[node] * nodeSign;
+                    }
+                }
+
+                return null;
+            }
+
+            if (SolvePairSumPaint(stated, 1f, MaxStatedShearResistance, unbuilt.Count > 0 ? ZeroAtUnbuilt : null) is not { } solved
+                || solved.Values.All(static value => MathF.Abs(value - 1f) <= PaintSolveTolerance))
+            {
+                return null;
+            }
+
+            return (solved, baseRelaxation);
+        }
+
+        /// <summary>
+        /// The diagonals without any rod on proxy quads that built all four edges. A span between two static nodes is never
+        /// built, so it neither counts against the face nor states anything itself.
+        /// </summary>
+        private IEnumerable<(int A, int B)> UnbuiltFaceDiagonals()
+        {
+            var nodes = SheetNodes;
+            var edges = SheetFaceRods.Where(static entry => !entry.Diagonal).Select(static entry => entry.Pair).ToHashSet();
+            bool BothStatic((int A, int B) pair) => Index.IsStatic(pair.A) && Index.IsStatic(pair.B);
+            bool Spans((int, int) pair) => edges.Contains(pair) || BothStatic(pair);
+
+            foreach (var face in Index.SourceFaces)
+            {
+                if (face.Length != 4 || !Array.TrueForAll(face, nodes.Contains)
+                    || !Spans(UnorderedPair(face[0], face[1])) || !Spans(UnorderedPair(face[1], face[2]))
+                    || !Spans(UnorderedPair(face[2], face[3])) || !Spans(UnorderedPair(face[3], face[0])))
+                {
+                    continue;
+                }
+
+                foreach (var diagonal in new[] { UnorderedPair(face[0], face[2]), UnorderedPair(face[1], face[3]) })
+                {
+                    if (!RodsByPair.ContainsKey(diagonal) && !BothStatic(diagonal))
+                    {
+                        yield return diagonal;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Recovers the per-vertex <c>cloth_shear_resistance</c> paint of a proxy sheet, or null when the
+        /// sheet's diagonals state one uniform value. See <see cref="ShearResistance"/>.
+        /// </summary>
+        internal float[]? RecoverShearResistancePaint(ProxyMesh proxy)
+            => ShearResistance is { } shear
+                ? PaintPerVertex(proxy, node => shear.Paint.TryGetValue(node, out var value) ? value : 1f,
+                    static value => MathF.Abs(value - 1f) > PaintSolveTolerance)
+                : null;
+
+        /// <summary>
+        /// Gets the per-node <c>cloth_stretch</c> of the proxy sheets solved from their face edges, or null where they
+        /// state none.
+        /// </summary>
+        internal Dictionary<int, float>? StretchPaint => (stretchPaint ??= new(SolveStretchPaint())).Value;
+
+        private Dictionary<int, float>? SolveStretchPaint()
+        {
+            var thread = Index.SurfaceStretchScale;
+            var stated = new Dictionary<(int A, int B), float>();
+            var diagonals = new List<(int A, int B, float Relaxation)>();
+            foreach (var (pair, diagonal, rod) in SheetFaceRods)
+            {
+                if (!diagonal)
+                {
+                    stated[pair] = 2f * (1f - MathF.Cbrt(MathUtils.Saturate(rod.RelaxationFactor / thread)));
+                }
+                else
+                {
+                    diagonals.Add((pair.A, pair.B, rod.RelaxationFactor));
+                }
+            }
+
+            if (stated.Count == 0
+                || SolvePairSumPaint(stated, 0f, MaxStatedStretch, (sign, offset) => DiagonalStretchFree(diagonals, sign, offset)) is not { } solved
+                || solved.Values.All(static value => value <= PaintSolveTolerance))
+            {
+                return null;
+            }
+
+            return solved;
+        }
+
+        /// <summary>
+        /// Reads the free parameter the face edges leave on the stretch paint off the face diagonals, or null unless
+        /// diagonals of both colours state one consistent value.
+        /// </summary>
+        private static float? DiagonalStretchFree(List<(int A, int B, float Relaxation)> diagonals,
+            IReadOnlyDictionary<int, float> sign, IReadOnlyDictionary<int, float> offset)
+        {
+            double aa = 0, ab = 0, bb = 0, ay = 0, by = 0;
+            var rows = new List<(double Open, double Colour, double Root)>();
+            var colours = new HashSet<float>();
+            foreach (var (a, b, relaxation) in diagonals)
+            {
+                if (relaxation <= 0f || !sign.TryGetValue(a, out var signA) || !sign.TryGetValue(b, out var signB) || signA != signB)
+                {
+                    continue;
+                }
+
+                var open = 1.0 - (0.5 * (offset[a] + offset[b]));
+                double colour = -signA;
+                var root = Math.Cbrt(relaxation);
+                rows.Add((open, colour, root));
+                colours.Add(signA);
+                aa += open * open;
+                ab += open * colour;
+                bb += colour * colour;
+                ay += open * root;
+                by += colour * root;
+            }
+
+            var determinant = (aa * bb) - (ab * ab);
+            if (colours.Count < 2 || Math.Abs(determinant) < 1e-12)
+            {
+                return null;
+            }
+
+            var factor = ((ay * bb) - (by * ab)) / determinant;
+            var shifted = ((by * aa) - (ay * ab)) / determinant;
+            if (factor <= 1e-6)
+            {
+                return null;
+            }
+
+            foreach (var (open, colour, root) in rows)
+            {
+                if (Math.Abs((factor * open) + (shifted * colour) - root) > PaintSolveTolerance * factor)
+                {
+                    return null;
+                }
+            }
+
+            return (float)(shifted / factor);
+        }
+
+        /// <summary>
+        /// A sheet rod's relaxation with the recovered <c>cloth_stretch</c> factor divided back out, leaving only its shear
+        /// terms and the model's own stretch scalars.
+        /// </summary>
+        private float UnstretchedRelaxation(Rod rod)
+        {
+            if (StretchPaint is not { } paint)
+            {
+                return rod.RelaxationFactor;
+            }
+
+            var open = 1f - (0.5f * (paint.GetValueOrDefault(rod.NodeA) + paint.GetValueOrDefault(rod.NodeB)));
+            var factor = MathUtils.Saturate(open * open * open);
+            return factor > 0f ? MathF.Min(1f, rod.RelaxationFactor / factor) : rod.RelaxationFactor;
+        }
+
+        /// <summary>
+        /// Recovers the per-vertex <c>cloth_stretch</c> paint of a proxy sheet, or null when the sheet carries none.
+        /// See <see cref="StretchPaint"/>.
+        /// </summary>
+        internal float[]? RecoverStretchPaint(ProxyMesh proxy)
+            => StretchPaint is { } byNode
+                ? PaintPerVertex(proxy, byNode.GetValueOrDefault, static value => value > PaintSolveTolerance)
+                : null;
+
+        /// <summary>
+        /// Recovers the <c>cloth_stray_radius</c> paint of a proxy sheet, or null when none of its vertices has one.
+        /// Vertices owned by an independent chain are skipped.
+        /// </summary>
+        internal float[]? RecoverStrayRadiusPaint(ProxyMesh proxy)
+            => StrayPaint(proxy, node => Index.AnimStrayRadii[node].MaxDistance);
+
+        /// <summary>
+        /// Recovers the <c>cloth_stray_radius_stretchiness</c> paint of a proxy sheet, or null when none of its vertices
+        /// has one. Vertices owned by an independent chain are skipped.
+        /// </summary>
+        internal float[]? RecoverStrayStretchinessPaint(ProxyMesh proxy)
+            => StrayPaint(proxy, node =>
+            {
+                var slack = 1f - GetStrayRelaxationFactor(node);
+                var squared = slack * slack;
+                var stretchiness = squared * squared;
+                stretchiness *= stretchiness;
+                stretchiness *= stretchiness;
+                return stretchiness > 0f ? MathF.Min(stretchiness, MaxProxyStrayStretchiness) : null;
+            });
+
+        /// <summary>
+        /// Paints each vertex with a stray radius, outside the independent chains, with <paramref name="valueOf"/>, or
+        /// returns null when no vertex is painted. A null value leaves the vertex unpainted.
+        /// </summary>
+        private float[]? StrayPaint(ProxyMesh proxy, Func<int, float?> valueOf)
+        {
+            if (Index.AnimStrayRadii.Count == 0)
+            {
+                return null;
+            }
+
+            var chainNodes = IndependentChainCoveredNodes();
+            var paint = new float[proxy.NodeIndices.Length];
+            var painted = 0;
+            for (var v = 0; v < paint.Length; v++)
+            {
+                var node = proxy.NodeIndices[v];
+                if (!chainNodes.Contains(node) && Index.AnimStrayRadii.ContainsKey(node) && valueOf(node) is { } value)
+                {
+                    paint[v] = value;
+                    painted++;
+                }
+            }
+
+            return painted > 0 ? paint : null;
+        }
+
+        /// <summary>
+        /// Gets the joints of the <see cref="IndependentBoneChains"/> and the <c>$cc</c> nodes parented to them.
+        /// </summary>
+        private HashSet<int> IndependentChainCoveredNodes()
+        {
+            var chainBoneNodes = IndependentChainJointNodes();
+            if (chainBoneNodes.Count == 0)
+            {
+                return chainBoneNodes;
+            }
+
+            var covered = new HashSet<int>(chainBoneNodes);
+            foreach (var joint in chainBoneNodes)
+            {
+                if (RingNodesByParent.TryGetValue(joint, out var rings))
+                {
+                    covered.UnionWith(rings);
+                }
+            }
+
+            return covered;
+        }
+
+        /// <summary>
+        /// Gets the authored <c>additional_shear_stretch</c> from the slackest rod between two sheet vertices, or from the
+        /// <see cref="ShearResistance"/> base relaxation where the diagonals disagree.
+        /// </summary>
+        internal float AdditionalShearStretch
+        {
+            get
+            {
+                var slackest = float.MaxValue;
+                if (ShearResistance is { } shear)
+                {
+                    slackest = shear.BaseRelaxation;
+                }
+                else
+                {
+                    foreach (var rod in Index.Rods)
+                    {
+                        if (!IsProxyMeshNode(rod.NodeA) || !IsProxyMeshNode(rod.NodeB))
+                        {
+                            continue;
+                        }
+
+                        var relaxation = UnstretchedRelaxation(rod);
+                        if (relaxation > 0f && relaxation < slackest)
+                        {
+                            slackest = relaxation;
+                        }
+                    }
+                }
+
+                if (slackest is float.MaxValue or >= 1f)
+                {
+                    return 0f;
+                }
+
+                return MathF.Max(0f, -MathF.Log(slackest) - Fe.DefaultSurfaceStretch);
+            }
+        }
+    }
+}

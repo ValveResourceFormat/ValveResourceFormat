@@ -81,6 +81,14 @@ static class ViewerFactory
             await viewer.LoadAsync(stream).ConfigureAwait(false);
             return viewer;
         }
+#if VKTODO
+        else if (NavSpaceView.IsAccepted(magic))
+        {
+            var viewer = new NavSpaceView(vrfGuiContext);
+            await viewer.LoadAsync(stream).ConfigureAwait(false);
+            return viewer;
+        }
+#endif
         else if (BinaryKeyValues3.IsAccepted(magic))
         {
             var viewer = new BinaryKeyValues3(vrfGuiContext);
@@ -101,13 +109,14 @@ static class ViewerFactory
         }
         else if (Resource.IsAccepted(magicResourceVersion))
         {
-            var viewer = new Resource(vrfGuiContext, viewMode, verifyFileSize: entry == null || entry.CRC32 > 0);
+            var viewer = new Resource(vrfGuiContext, viewMode);
             await viewer.LoadAsync(stream).ConfigureAwait(false);
             return viewer;
         }
         // Raw images and audio files do not really appear in Source 2 projects, but we support viewing them anyway.
         // As some detections rely on the file extension instead of magic bytes,
         // they should be detected at the bottom here, after failing to detect a proper resource file.
+#if VKTODO
         else if (Image.IsAccepted(magic))
         {
             var viewer = new Image(vrfGuiContext);
@@ -120,6 +129,7 @@ static class ViewerFactory
             await viewer.LoadAsync(stream).ConfigureAwait(false);
             return viewer;
         }
+#endif
         else if (Audio.IsAccepted(magic, vrfGuiContext.FileName))
         {
             var viewer = new Audio(vrfGuiContext, viewMode == ResourceViewMode.ViewerOnly);

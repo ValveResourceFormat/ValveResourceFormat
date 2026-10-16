@@ -1,7 +1,7 @@
 using GUI.Utils;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Renderer;
-//using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.SceneNodes;
 
 namespace GUI.Types.GLViewers
 {
@@ -19,7 +19,9 @@ namespace GUI.Types.GLViewers
 
         protected override void LoadScene()
         {
-            //NavMeshSceneNode.AddNavNodesToScene(navMeshFile, Scene);
+#if VKTODO
+            NavMeshSceneNode.AddNavNodesToScene(navMeshFile, Scene, NavHullNames.Read(Scene.RendererContext.FileLoader, navMeshFile.GenerationParams?.HullPresetName));
+#endif
         }
     }
 }

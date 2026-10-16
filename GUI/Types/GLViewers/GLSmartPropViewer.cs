@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
-//using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -34,9 +34,9 @@ namespace GUI.Types.GLViewers
                         Debug.Assert(resource != null);
                         var model = (Model?)resource.DataBlock;
                         Debug.Assert(model != null);
-                        //VKTODO:
-                        //var modelSceneNode = new ModelSceneNode(Scene, model);
-                        //Scene.Add(modelSceneNode, true);
+
+                        var modelSceneNode = new ModelSceneNode(Scene, model);
+                        Scene.Add(modelSceneNode, true);
 
                         break;
                     }
@@ -65,9 +65,9 @@ namespace GUI.Types.GLViewers
                             Debug.Assert(resource != null);
                             var model = (Model?)resource.DataBlock;
                             Debug.Assert(model != null);
-                            //VKTODO:
-                            //var modelSceneNode = new ModelSceneNode(Scene, model);
-                            //Scene.Add(modelSceneNode, true);
+
+                            var modelSceneNode = new ModelSceneNode(Scene, model);
+                            Scene.Add(modelSceneNode, true);
                         }
 
                         break;

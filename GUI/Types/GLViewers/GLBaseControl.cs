@@ -12,7 +12,6 @@ using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
 
-//using ValveResourceFormat.Renderer.Input;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 

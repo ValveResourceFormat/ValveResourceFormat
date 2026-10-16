@@ -28,7 +28,7 @@ namespace ValveResourceFormat.ValveFont
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         public byte[] Read(Stream input)
         {
-            using var reader = new BinaryReader(input);
+            using var reader = new BinaryReader(input, Encoding.ASCII, leaveOpen: true);
             // Magic is at the end
             reader.BaseStream.Seek(-MAGIC.Length, SeekOrigin.End);
 

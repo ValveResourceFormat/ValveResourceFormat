@@ -42,7 +42,7 @@ internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
         {
             var suffix = i.ToString("D2", CultureInfo.InvariantCulture);
             var file = data.GetStringProperty($"vsnd_file_{suffix}");
-            var weight = data.GetFloatProperty($"vsnd_vol_{suffix}");
+            var weight = data.GetSoundFloat($"vsnd_vol_{suffix}");
 
             if (!string.IsNullOrEmpty(file) && weight > 0f)
             {
@@ -52,8 +52,8 @@ internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
 
         layers = [.. list];
         mixGroup = data.GetStringProperty("mixgroup", string.Empty);
-        falloffMin = data.GetFloatProperty("volume_falloff_min");
-        falloffMax = data.ContainsKey("volume_falloff_max") ? data.GetFloatProperty("volume_falloff_max") : data.GetFloatProperty("radius", 1000f);
+        falloffMin = data.GetSoundFloat("volume_falloff_min");
+        falloffMax = data.ContainsKey("volume_falloff_max") ? data.GetSoundFloat("volume_falloff_max") : data.GetSoundFloat("radius", 1000f);
     }
 
     protected override void DoStart()
@@ -63,7 +63,7 @@ internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
             return;
         }
 
-        startBaseVolume = Math.Clamp(VolumeOverride ?? Definition.Volume, 0f, 1f) * Mixer.Player.GetMixGroupVolume(mixGroup);
+        startBaseVolume = MathUtils.Saturate(VolumeOverride ?? Definition.Volume) * Mixer.Player.GetMixGroupVolume(mixGroup);
         var delay = DelayOverride ?? Definition.Delay;
 
         var childDefinitions = Definition.ChildDefinitions ??= BuildLayerDefinitions(delay);
@@ -88,12 +88,10 @@ internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
     }
 
     /// <summary>
-    /// Wraps each layer as an anonymous "hlvr_default_3d" child. The resolved start delay (own
-    /// <see cref="SoundEvent.DelayOverride"/>, e.g. a quad channel's phase stagger, falling back to this
-    /// definition's own authored delay) is baked directly into each synthetic child's "delay" property
-    /// rather than threaded through as a per-instance override: this method only ever runs once per
-    /// instance (cached on <see cref="SoundEventDefinition.ChildDefinitions"/>), matching every other
-    /// child-definition-resolving type here.
+    /// Wraps each layer as an anonymous "hlvr_default_3d" child. The start delay
+    /// (<see cref="SoundEvent.DelayOverride"/>, e.g. a quad channel's phase stagger, else the authored
+    /// delay) is baked into the "delay" property, not passed per instance, since this runs once per
+    /// instance (cached on <see cref="SoundEventDefinition.ChildDefinitions"/>).
     /// </summary>
     private SoundEventDefinition[] BuildLayerDefinitions(float delay)
     {

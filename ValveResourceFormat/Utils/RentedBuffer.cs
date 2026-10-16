@@ -9,8 +9,7 @@ namespace ValveResourceFormat.Utils
     /// shared <see cref="byte"/> pool.
     /// </summary>
     /// <remarks>
-    /// Renting bytes for every element type keeps all scratch buffers in the same pool buckets
-    /// instead of one set of buckets per element type.
+    /// Renting bytes for every element type shares one set of pool buckets across all element types.
     /// Dispose (preferably with <see langword="using"/>) to return the array to the pool.
     /// </remarks>
     /// <typeparam name="T">Element type the buffer is written as.</typeparam>

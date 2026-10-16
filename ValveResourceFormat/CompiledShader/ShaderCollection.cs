@@ -97,7 +97,7 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
 
                     try
                     {
-                        stream = new FileStream(vcsFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        stream = new FileStream(vcsFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                         program = new VfxProgramData();
                         program.Read(Path.GetFileName(vcsFile), stream);
                         shaderCollection.Add(program);

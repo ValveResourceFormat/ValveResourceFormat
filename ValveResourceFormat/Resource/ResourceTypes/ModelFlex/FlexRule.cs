@@ -33,8 +33,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
         }
 
         /// <summary>
-        /// Gets the number of flex value slots needed to evaluate a set of rules, one more than the
-        /// highest flex ID among them.
+        /// Gets the flex value count for a set of rules, one more than the highest flex ID.
         /// </summary>
         public static int GetFlexValueCount(IReadOnlyCollection<FlexRule> rules)
         {

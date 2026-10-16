@@ -69,6 +69,7 @@ public class CMapRootElement : DMElement
     /// <summary>
     /// Per node hidden state.
     /// </summary>
+    [DMProperty(name: "visbility")]
     public CVisibilityMgr Visibility { get; init; } = [];
 
     /// <summary>
@@ -87,7 +88,7 @@ public class CMapRootElement : DMElement
     /// Mesh snapshots the map references.
     /// </summary>
     [DMProperty(name: "m_ReferencedMeshSnapshots")]
-    public Datamodel.ElementArray ReferencedMeshSnapshots { get; } = [];
+    public Datamodel.ElementArray ReferencedMeshSnapshots { get; init; } = [];
 
     /// <summary>
     /// Whether the cordon is active.
@@ -105,7 +106,7 @@ public class CMapRootElement : DMElement
     /// Per node instance data.
     /// </summary>
     [DMProperty(name: "nodeInstanceData")]
-    public Datamodel.ElementArray NodeInstanceData { get; } = [];
+    public Datamodel.ElementArray NodeInstanceData { get; init; } = [];
 }
 
 /// <summary>
@@ -140,7 +141,7 @@ public class CStoredCameras : DMElement
     /// <summary>
     /// List of <see cref="CStoredCamera"/> elements.
     /// </summary>
-    public Datamodel.ElementArray Cameras { get; } = [];
+    public Datamodel.ElementArray Cameras { get; init; } = [];
 }
 
 /// <summary>
@@ -177,7 +178,7 @@ public abstract class MapNode : DMElement
     /// <summary>
     /// Child nodes parented to this one.
     /// </summary>
-    public Datamodel.ElementArray Children { get; } = [];
+    public Datamodel.ElementArray Children { get; init; } = [];
 
     /// <summary>
     /// Whether the node is stripped at compile time.
@@ -198,17 +199,18 @@ public abstract class MapNode : DMElement
     /// <summary>
     /// Entity keys driven by a map variable, parallel to <see cref="VariableNames"/>.
     /// </summary>
-    public Datamodel.StringArray VariableTargetKeys { get; } = [];
+    public Datamodel.StringArray VariableTargetKeys { get; init; } = [];
 
     /// <summary>
     /// Map variables driving <see cref="VariableTargetKeys"/>.
     /// </summary>
-    public Datamodel.StringArray VariableNames { get; } = [];
+    public Datamodel.StringArray VariableNames { get; init; } = [];
 }
 
 /// <summary>
 /// References another map file and places its contents at this node.
 /// </summary>
+[CamelCaseProperties]
 public class CMapPrefab : MapNode
 {
     /// <summary>
@@ -246,18 +248,18 @@ public abstract class BaseEntity : MapNode
     /// <summary>
     /// Output plugs this entity fires through, one per entity IO connection.
     /// </summary>
-    public DmePlugList RelayPlugData { get; } = [];
+    public DmePlugList RelayPlugData { get; init; } = [];
 
     /// <summary>
     /// List of <see cref="DmeConnectionData"/> elements, one per entity IO connection.
     /// </summary>
-    public Datamodel.ElementArray ConnectionsData { get; } = [];
+    public Datamodel.ElementArray ConnectionsData { get; init; } = [];
 
     /// <summary>
     /// The entity key values, including "classname".
     /// </summary>
     [DMProperty(name: "entity_properties")]
-    public EditGameClassProps EntityProperties { get; } = [];
+    public EditGameClassProps EntityProperties { get; init; } = [];
 
     /// <summary>
     /// Sets one entity key value and returns this entity.
@@ -301,22 +303,22 @@ public class DmePlugList : DMElement
     /// <summary>
     /// Plug names.
     /// </summary>
-    public Datamodel.StringArray Names { get; } = [];
+    public Datamodel.StringArray Names { get; init; } = [];
 
     /// <summary>
     /// Data type of each plug.
     /// </summary>
-    public Datamodel.IntArray DataTypes { get; } = [];
+    public Datamodel.IntArray DataTypes { get; init; } = [];
 
     /// <summary>
     /// Kind of each plug, input or output.
     /// </summary>
-    public Datamodel.IntArray PlugTypes { get; } = [];
+    public Datamodel.IntArray PlugTypes { get; init; } = [];
 
     /// <summary>
     /// Description of each plug.
     /// </summary>
-    public Datamodel.StringArray Descriptions { get; } = [];
+    public Datamodel.StringArray Descriptions { get; init; } = [];
 }
 
 /// <summary>
@@ -407,12 +409,12 @@ public class CVisibilityMgr : MapNode
     /// <summary>
     /// The nodes whose visibility is tracked.
     /// </summary>
-    public Datamodel.ElementArray Nodes { get; } = [];
+    public Datamodel.ElementArray Nodes { get; init; } = [];
 
     /// <summary>
     /// Hidden flags, one per entry of <see cref="Nodes"/>.
     /// </summary>
-    public Datamodel.IntArray HiddenFlags { get; } = [];
+    public Datamodel.IntArray HiddenFlags { get; init; } = [];
 }
 
 /// <summary>
@@ -424,28 +426,28 @@ public class CMapVariableSet : DMElement
     /// <summary>
     /// Variable names.
     /// </summary>
-    public Datamodel.StringArray VariableNames { get; } = [];
+    public Datamodel.StringArray VariableNames { get; init; } = [];
 
     /// <summary>
     /// Variable values.
     /// </summary>
-    public Datamodel.StringArray VariableValues { get; } = [];
+    public Datamodel.StringArray VariableValues { get; init; } = [];
 
     /// <summary>
     /// Variable type names.
     /// </summary>
-    public Datamodel.StringArray VariableTypeNames { get; } = [];
+    public Datamodel.StringArray VariableTypeNames { get; init; } = [];
 
     /// <summary>
     /// Parameters of the variable types, such as the options of a choice.
     /// </summary>
-    public Datamodel.StringArray VariableTypeParameters { get; } = [];
+    public Datamodel.StringArray VariableTypeParameters { get; init; } = [];
 
     /// <summary>
     /// Groups the choice variables are presented in.
     /// </summary>
     [DMProperty(name: "m_ChoiceGroups")]
-    public Datamodel.ElementArray ChoiceGroups { get; } = [];
+    public Datamodel.ElementArray ChoiceGroups { get; init; } = [];
 }
 
 /// <summary>
@@ -457,7 +459,7 @@ public class CMapSelectionSet : DMElement
     /// <summary>
     /// Nested selection sets.
     /// </summary>
-    public Datamodel.ElementArray Children { get; } = [];
+    public Datamodel.ElementArray Children { get; init; } = [];
 
     /// <summary>
     /// Name shown in Hammer.
@@ -465,9 +467,15 @@ public class CMapSelectionSet : DMElement
     public string SelectionSetName { get; set; } = string.Empty;
 
     /// <summary>
-    /// The nodes this set selects.
+    /// What this set selects: a <see cref="CObjectSelectionSetDataElement"/>, or a face, edge or vertex selection in maps from newer Hammer versions.
     /// </summary>
-    public CObjectSelectionSetDataElement SelectionSetData { get; } = [];
+    public DMElement? SelectionSetData { get; init; } = new CObjectSelectionSetDataElement();
+
+    /// <summary>
+    /// Gets <see cref="SelectionSetData"/> as the node selection that sets created by VRF use.
+    /// </summary>
+    [DMIgnore]
+    public CObjectSelectionSetDataElement ObjectSelection => (CObjectSelectionSetDataElement)SelectionSetData!;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CMapSelectionSet"/> class.
@@ -493,7 +501,7 @@ public class CObjectSelectionSetDataElement : DMElement
     /// <summary>
     /// The selected nodes.
     /// </summary>
-    public Datamodel.ElementArray SelectedObjects { get; } = [];
+    public Datamodel.ElementArray SelectedObjects { get; init; } = [];
 }
 
 /// <summary>
@@ -511,6 +519,145 @@ public class CMapEntity : BaseEntity
     /// Whether the entity was generated by a tool rather than placed by hand.
     /// </summary>
     public bool IsProceduralEntity { get; set; }
+}
+
+/// <summary>
+/// Extra vertex streams for props.
+/// </summary>
+public class CDmExtraVertexData : DMElement
+{
+    /// <summary>
+    /// The painted streams, each a <see cref="CDmExtraVertexStream"/>.
+    /// </summary>
+    [DMProperty(name: "m_ExtraStreams")]
+    public Datamodel.ElementArray ExtraStreams { get; init; } = [];
+}
+
+/// <summary>
+/// Vertex data painted onto one draw call of a prop.
+/// </summary>
+public class CDmExtraVertexStream : DMElement
+{
+    /// <summary>
+    /// Index of the draw call within the mesh.
+    /// </summary>
+    [DMProperty(name: "m_nDrawCallIndex")]
+    public int DrawCallIndex { get; set; }
+
+    /// <summary>
+    /// Index of the mesh within the model.
+    /// </summary>
+    [DMProperty(name: "m_nMeshIndex")]
+    public int MeshIndex { get; set; }
+
+    /// <summary>
+    /// The painted values, one per vertex of the draw call.
+    /// </summary>
+    [DMProperty(name: "m_pVertexData")]
+    public DmxModel.DmeVertexData VertexData { get; init; } = [];
+}
+
+/// <summary>
+/// A path: an ordered chain of <see cref="CMapPathNode"/> children that Hammer edits as one spline,
+/// carrying the entity keys of the path class it was placed as. The map compiler flattens the chain
+/// into the entity's own <c>pathNodes</c> key and drops the children.
+/// </summary>
+[CamelCaseProperties]
+public class CMapPath : CMapEntity
+{
+    /// <summary>How the spline runs between its nodes.</summary>
+    public int InterpolationType { get; set; } = 1;
+
+    /// <summary>Whether the last node joins back onto the first.</summary>
+    public bool ClosedLoop { get; set; }
+
+    /// <summary>Distance, in units, between the points of the particle snapshot a path can generate.</summary>
+    public float ParticleSnapshotSpacing { get; set; } = 16f;
+}
+
+/// <summary>
+/// One node of a <see cref="CMapPath"/>: a point on the spline, its two handles, and the entity keys
+/// of the path node class the parent path declares.
+/// </summary>
+[CamelCaseProperties]
+public class CMapPathNode : CMapEntity
+{
+    /// <summary>Name entity IO addresses this node by.</summary>
+    public string PathNodeName { get; set; } = string.Empty;
+
+    /// <summary>Incoming spline handle, relative to <see cref="MapNode.Origin"/>.</summary>
+    public Vector3 InTangent { get; set; }
+
+    /// <summary>Outgoing spline handle, relative to <see cref="MapNode.Origin"/>.</summary>
+    public Vector3 OutTangent { get; set; }
+
+    /// <summary>How Hammer derives the incoming handle.</summary>
+    public int InTangentType { get; set; } = 1;
+
+    /// <summary>How Hammer derives the outgoing handle.</summary>
+    public int OutTangentType { get; set; } = 1;
+
+    /// <summary>Colour this node tints the path with, written to the path's <c>pathNodeColors</c>.</summary>
+    public Datamodel.Color TintColor { get; set; } = new Datamodel.Color(255, 255, 255, 255);
+
+    /// <summary>Whether a simulated path is held in place at this node.</summary>
+    public bool PinEnabled { get; set; } = true;
+
+    /// <summary>Multiplier on the path's radius at this node.</summary>
+    public float RadiusScale { get; set; } = 1f;
+}
+
+/// <summary>
+/// A cable: a path the map compiler turns into a tube mesh, with the tube's shape and texturing
+/// carried on the path itself.
+/// </summary>
+[CamelCaseProperties]
+public class CMapCable : CMapPath
+{
+    /// <summary>Material of the tube mesh.</summary>
+    public string MaterialName { get; set; } = string.Empty;
+
+    /// <summary>Colour a cable_dynamic renders with, written to its <c>rendercolor</c> key.</summary>
+    public Datamodel.Color TintColor { get; set; } = new Datamodel.Color(255, 255, 255, 255);
+
+    /// <summary>Name of the entity the cable takes its lighting origin from.</summary>
+    public string LightingOriginName { get; set; } = string.Empty;
+
+    /// <summary>Vertices around the tube.</summary>
+    public int NumSides { get; set; } = 8;
+
+    /// <summary>Distance, in units, between the rings along the tube.</summary>
+    public float TessellationSpacing { get; set; } = 16f;
+
+    /// <summary>Tube radius, in units, before the per-node radius scale.</summary>
+    public float Radius { get; set; } = 16f;
+
+    /// <summary>Whether the tube faces inwards.</summary>
+    public bool FlipFaces { get; set; }
+
+    /// <summary>0 runs U along the path, 1 runs V along the path.</summary>
+    public int TextureOrientation { get; set; }
+
+    /// <summary>Units of path per texture repeat, divided by the texture's size in pixels.</summary>
+    public float TextureScale { get; set; } = 0.25f;
+
+    /// <summary>Texture repeats around the tube.</summary>
+    public float TextureRepeatsCircumference { get; set; } = 1f;
+
+    /// <summary>Texture offset along the path, in repeats.</summary>
+    public float TextureOffsetAlongPath { get; set; }
+
+    /// <summary>Texture offset around the tube, in repeats.</summary>
+    public float TextureOffsetCircumference { get; set; }
+
+    /// <summary>Whether a collision tube is generated.</summary>
+    public bool CollisionEnabled { get; set; } = true;
+
+    /// <summary>Simplification error allowed on the collision tube; 0 keeps every ring.</summary>
+    public float PhysicsSimplificationError { get; set; } = 2f;
+
+    /// <summary>Whether the tube occludes visibility.</summary>
+    public bool VisOccluder { get; set; }
 }
 
 /// <summary>
@@ -612,9 +759,9 @@ public class CMapMesh : MapNode
     public bool RenderToCubemaps { get; set; } = true;
 
     /// <summary>
-    /// Whether the mesh casts no shadows.
+    /// Which shadows the mesh casts: 0 all, 1 none, 2 only realtime, 3 only baked.
     /// </summary>
-    public bool DisableShadows { get; set; }
+    public int DisableShadows { get; set; }
 
     /// <summary>
     /// Angle below which adjacent faces are shaded smooth, in degrees.
@@ -650,7 +797,7 @@ public class CMapMesh : MapNode
     /// <summary>
     /// Collision categories the mesh collides with.
     /// </summary>
-    public string PhysicsInteractWsith { get; set; } = string.Empty;
+    public string PhysicsInteractsWith { get; set; } = string.Empty;
 
     /// <summary>
     /// Collision categories the mesh never collides with.
@@ -687,7 +834,7 @@ public class CMapStaticOverlay : CMapMesh
     /// <summary>
     /// Node ids of the nodes the overlay projects onto.
     /// </summary>
-    public Datamodel.IntArray ProjectionTargets { get; } = [];
+    public Datamodel.IntArray ProjectionTargets { get; init; } = [];
 
     /// <summary>
     /// Order the overlay is drawn in where overlays stack, higher on top.
@@ -713,7 +860,7 @@ public class CMapStaticOverlay : CMapMesh
     /// Adjustments applied to the decal material.
     /// </summary>
     [DMProperty(name: "MaterialAdjustmentParamsStruct")]
-    public CMapOverlayMaterialAdjustmentParams MaterialAdjustmentParamsStruct { get; } = [];
+    public DMElement MaterialAdjustmentParamsStruct { get; init; } = new CMapOverlayMaterialAdjustmentParams();
 
     /// <summary>
     /// Whether the overlay also lands on faces turned away from it.
@@ -778,87 +925,87 @@ public class CMapOverlayMaterialAdjustmentParams : DMElement
 /// Hammer's editable mesh, stored as a half edge mesh with parallel index arrays and data streams.
 /// </summary>
 [CamelCaseProperties]
-public class CDmePolygonMesh : MapNode
+public class CDmePolygonMesh : DMElement
 {
     /// <summary>
     /// Index to one of the edges stemming from this vertex.
     /// </summary>
-    public Datamodel.IntArray VertexEdgeIndices { get; } = [];
+    public Datamodel.IntArray VertexEdgeIndices { get; init; } = [];
 
     /// <summary>
     /// Index to the <see cref="VertexData"/> streams.
     /// </summary>
-    public Datamodel.IntArray VertexDataIndices { get; } = [];
+    public Datamodel.IntArray VertexDataIndices { get; init; } = [];
 
     /// <summary>
     /// The destination vertex of this edge.
     /// </summary>
-    public Datamodel.IntArray EdgeVertexIndices { get; } = [];
+    public Datamodel.IntArray EdgeVertexIndices { get; init; } = [];
 
     /// <summary>
     /// Index to the opposite/twin edge.
     /// </summary>
-    public Datamodel.IntArray EdgeOppositeIndices { get; } = [];
+    public Datamodel.IntArray EdgeOppositeIndices { get; init; } = [];
 
     /// <summary>
     /// Index to the next edge in the loop, in counter-clockwise order.
     /// </summary>
-    public Datamodel.IntArray EdgeNextIndices { get; } = [];
+    public Datamodel.IntArray EdgeNextIndices { get; init; } = [];
 
     /// <summary>
     /// Per half-edge index to the adjacent face. -1 if void (open edge).
     /// </summary>
-    public Datamodel.IntArray EdgeFaceIndices { get; } = [];
+    public Datamodel.IntArray EdgeFaceIndices { get; init; } = [];
 
     /// <summary>
     /// Per half-edge index to the <see cref="EdgeData"/> streams.
     /// </summary>
-    public Datamodel.IntArray EdgeDataIndices { get; } = [];
+    public Datamodel.IntArray EdgeDataIndices { get; init; } = [];
 
     /// <summary>
     /// Per half-edge index to the <see cref="FaceVertexData"/> streams.
     /// </summary>
-    public Datamodel.IntArray EdgeVertexDataIndices { get; } = [];
+    public Datamodel.IntArray EdgeVertexDataIndices { get; init; } = [];
 
     /// <summary>
     /// Per face index to one of the *inner* edges encapsulating this face.
     /// </summary>
-    public Datamodel.IntArray FaceEdgeIndices { get; } = [];
+    public Datamodel.IntArray FaceEdgeIndices { get; init; } = [];
 
     /// <summary>
     /// Per face index to the <see cref="FaceData"/> streams.
     /// </summary>
-    public Datamodel.IntArray FaceDataIndices { get; } = [];
+    public Datamodel.IntArray FaceDataIndices { get; init; } = [];
 
     /// <summary>
     /// List of material names. Indexed by the 'meshindex' <see cref="FaceData"/> stream.
     /// </summary>
-    public Datamodel.StringArray Materials { get; } = [];
+    public Datamodel.StringArray Materials { get; init; } = [];
 
     /// <summary>
     /// Stores vertex positions.
     /// </summary>
-    public CDmePolygonMeshDataArray VertexData { get; } = [];
+    public CDmePolygonMeshDataArray VertexData { get; init; } = [];
 
     /// <summary>
     /// Stores vertex uv, normal, tangent, etc. Two per vertex (for each half?).
     /// </summary>
-    public CDmePolygonMeshDataArray FaceVertexData { get; } = [];
+    public CDmePolygonMeshDataArray FaceVertexData { get; init; } = [];
 
     /// <summary>
     /// Stores edge data such as soft or hard normals.
     /// </summary>
-    public CDmePolygonMeshDataArray EdgeData { get; } = [];
+    public CDmePolygonMeshDataArray EdgeData { get; init; } = [];
 
     /// <summary>
     /// Stores face data such as texture scale, UV offset, material, lightmap bias.
     /// </summary>
-    public CDmePolygonMeshDataArray FaceData { get; } = [];
+    public CDmePolygonMeshDataArray FaceData { get; init; } = [];
 
     /// <summary>
     /// Stores the subdivision level of each half-edge.
     /// </summary>
-    public CDmePolygonMeshSubdivisionData SubdivisionData { get; } = [];
+    public CDmePolygonMeshSubdivisionData SubdivisionData { get; init; } = [];
 }
 
 /// <summary>
@@ -873,9 +1020,9 @@ public class CDmePolygonMeshDataArray : DMElement
     public int Size { get; set; }
 
     /// <summary>
-    /// Array of <see cref="CDmePolygonMeshDataStream{T}"/>.
+    /// Array of <see cref="CDmePolygonMeshDataStream"/>.
     /// </summary>
-    public Datamodel.ElementArray Streams { get; } = [];
+    public Datamodel.ElementArray Streams { get; init; } = [];
 }
 
 /// <summary>
@@ -887,20 +1034,19 @@ public class CDmePolygonMeshSubdivisionData : DMElement
     /// <summary>
     /// Subdivision level per half edge.
     /// </summary>
-    public Datamodel.IntArray SubdivisionLevels { get; } = [];
+    public Datamodel.IntArray SubdivisionLevels { get; init; } = [];
 
     /// <summary>
-    /// Array of <see cref="CDmePolygonMeshDataStream{T}"/>.
+    /// Array of <see cref="CDmePolygonMeshDataStream"/>.
     /// </summary>
-    public Datamodel.ElementArray Streams { get; } = [];
+    public Datamodel.ElementArray Streams { get; init; } = [];
 }
 
 /// <summary>
 /// One named data stream of a <see cref="CDmePolygonMeshDataArray"/>, such as position, uv, or material index.
 /// </summary>
-/// <typeparam name="T">Element type of <see cref="Data"/>.</typeparam>
 [CamelCaseProperties]
-public class CDmePolygonMeshDataStream<T> : DMElement
+public class CDmePolygonMeshDataStream : DMElement
 {
     /// <summary>
     /// Name Hammer knows this stream by, for example "position" or "texcoord".
@@ -933,7 +1079,8 @@ public class CDmePolygonMeshDataStream<T> : DMElement
     public DMElement? SubdivisionBinding { get; init; }
 
     /// <summary>
-    /// An int, vector2, vector3, or vector4 array.
+    /// An int, vector2, vector3, or vector4 array: <see cref="Datamodel.IntArray"/>, <see cref="Datamodel.Vector2Array"/>,
+    /// <see cref="Datamodel.Vector3Array"/> or <see cref="Datamodel.Vector4Array"/>.
     /// </summary>
-    public required Datamodel.Array<T> Data { get; init; }
+    public System.Collections.IList? Data { get; init; }
 }

@@ -1,4 +1,3 @@
-using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Particles
@@ -6,6 +5,7 @@ namespace ValveResourceFormat.Particles
     /// <summary>
     /// Provides a transformation matrix that may be derived from a control point or other source.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/CParticleTransformInput">CParticleTransformInput</seealso>
     internal interface ITransformProvider
     {
         /// <summary>
@@ -20,13 +20,12 @@ namespace ValveResourceFormat.Particles
             => NextTransform(ref Particle.Default, renderState);
 
         /// <summary>
-        /// Gets just the position component of the transform.
+        /// Returns the transform as it stood at <paramref name="time"/> within the frame being simulated, so a
+        /// particle spawned part way through a frame starts from where its source was at that moment.
+        /// Providers without a history answer with their current transform.
         /// </summary>
-        Vector3 GetPosition(ref Particle particle, ParticleSystemState renderState)
-        {
-            var transform = NextTransform(ref particle, renderState);
-            return transform.Translation;
-        }
+        Matrix4x4 NextTransformAtTime(ref Particle particle, ParticleSystemState renderState, float time)
+            => NextTransform(ref particle, renderState);
 
         /// <summary>
         /// Gets the orientation, meaning the forward direction, that this provider carries.
@@ -34,8 +33,7 @@ namespace ValveResourceFormat.Particles
         /// <remarks>
         /// Providers that only place things answer <see langword="false"/> rather than reporting the +X an
         /// identity rotation would give, so a caller does not overwrite a direction with a meaningless one.
-        /// That is the default, so a provider has to opt in to having an orientation rather than remember
-        /// to opt out of reporting a bogus one.
+        /// Returning false is the default, so a provider opts in to having an orientation.
         /// </remarks>
         /// <returns>Whether the provider has an orientation to report.</returns>
         bool TryGetOrientation(ref Particle particle, ParticleSystemState renderState, out Vector3 orientation)
@@ -94,6 +92,30 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <inheritdoc/>
+        public Matrix4x4 NextTransformAtTime(ref Particle particle, ParticleSystemState renderState, float time)
+        {
+            var cp = renderState.GetControlPoint(controlPoint);
+            var fraction = cp.StepFraction(renderState, time);
+
+            if (fraction >= 1f)
+            {
+                return NextTransform(ref particle, renderState);
+            }
+
+            var position = Vector3.Lerp(cp.PositionPrevious, cp.Position, fraction);
+
+            if (!HasOrientation(cp))
+            {
+                return Matrix4x4.CreateTranslation(position);
+            }
+
+            var rotation = cp.HasPreviousOrientation
+                ? Quaternion.Slerp(cp.GetPreviousRotation(), cp.GetRotation(), fraction)
+                : cp.GetRotation();
+            return Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
+        }
+
+        /// <inheritdoc/>
         public bool TryGetOrientation(ref Particle particle, ParticleSystemState renderState, out Vector3 orientation)
         {
             var cp = renderState.GetControlPoint(controlPoint);
@@ -108,7 +130,7 @@ namespace ValveResourceFormat.Particles
             // direction itself, so there is nothing to build here.
             orientation = cp.Rotation is { } fullRotation
                 ? Vector3.Transform(Vector3.UnitX, fullRotation)
-                : ParticleMath.Normalize(cp.Orientation);
+                : MathUtils.SafeNormalize(cp.Orientation);
 
             return true;
         }

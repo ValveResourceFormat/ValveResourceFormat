@@ -64,6 +64,12 @@ namespace ValveResourceFormat.Renderer
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
 
         /// <summary>
+        /// Turns a quad in the view plane to face the camera: the rotation half of
+        /// <see cref="CameraViewMatrix"/>, inverted.
+        /// </summary>
+        public Matrix4x4 BillboardMatrix { get; private set; }
+
+        /// <summary>
         /// Frustum derived from the current view-projection matrix, used for culling.
         /// </summary>
         public Frustum ViewFrustum { get; } = new Frustum();
@@ -101,6 +107,13 @@ namespace ValveResourceFormat.Renderer
 
             CameraViewMatrix = Matrix4x4.CreateLookAt(location, location + Forward, Up);
             ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
+
+            // The view is a rotation and a translation, so inverting its rotation is transposing it
+            BillboardMatrix = new Matrix4x4(
+                CameraViewMatrix.M11, CameraViewMatrix.M21, CameraViewMatrix.M31, 0f,
+                CameraViewMatrix.M12, CameraViewMatrix.M22, CameraViewMatrix.M32, 0f,
+                CameraViewMatrix.M13, CameraViewMatrix.M23, CameraViewMatrix.M33, 0f,
+                0f, 0f, 0f, 1f);
             ViewFrustum.Update(ViewProjectionMatrix);
         }
 
@@ -109,26 +122,38 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void RecalculateDirectionVectors()
         {
-            var (yawSin, yawCos) = MathF.SinCos(Yaw);
-            var (pitchSin, pitchCos) = MathF.SinCos(Pitch);
+            (Forward, Up, Right) = GetDirectionVectors(Pitch, Yaw, Roll);
+        }
 
-            Forward = new Vector3(yawCos * pitchCos, yawSin * pitchCos, -pitchSin);
-            Up = new Vector3(yawCos * pitchSin, yawSin * pitchSin, pitchCos);
+        /// <summary>
+        /// Computes the forward, up, and right vectors a camera with the given orientation would have.
+        /// </summary>
+        /// <param name="pitch">Pitch in radians.</param>
+        /// <param name="yaw">Yaw in radians.</param>
+        /// <param name="roll">Roll in radians.</param>
+        public static (Vector3 Forward, Vector3 Up, Vector3 Right) GetDirectionVectors(float pitch, float yaw, float roll)
+        {
+            var (yawSin, yawCos) = MathF.SinCos(yaw);
+            var (pitchSin, pitchCos) = MathF.SinCos(pitch);
 
-            // Cross(Forward, Up) worked through by hand: it comes out as yaw shifted a quarter turn, with
-            // no pitch term at all, so there is still a right to point along when looking straight down.
-            Right = new Vector3(yawSin, -yawCos, 0);
+            var forward = new Vector3(yawCos * pitchCos, yawSin * pitchCos, -pitchSin);
+            var up = new Vector3(yawCos * pitchSin, yawSin * pitchSin, pitchCos);
 
-            if (Roll != 0f)
+            // Cross(Forward, Up) is yaw shifted a quarter turn with no pitch term, so right is defined
+            // even when looking straight down.
+            var right = new Vector3(yawSin, -yawCos, 0);
+
+            if (roll != 0f)
             {
-                // Rolling turns Up and Right about Forward, which both are perpendicular to, so the
-                // rotation is just the pair leaning into each other
-                var (rollSin, rollCos) = MathF.SinCos(Roll);
-                var rolledUp = (Up * rollCos) + (Right * rollSin);
+                // Up and Right are both perpendicular to Forward, so rolling is a 2D rotation of that pair
+                var (rollSin, rollCos) = MathF.SinCos(roll);
+                var rolledUp = (up * rollCos) + (right * rollSin);
 
-                Right = (Right * rollCos) - (Up * rollSin);
-                Up = rolledUp;
+                right = (right * rollCos) - (up * rollSin);
+                up = rolledUp;
             }
+
+            return (forward, up, right);
         }
 
         /// <summary>
@@ -157,10 +182,11 @@ namespace ValveResourceFormat.Renderer
             viewConstants.CameraDirWs = Forward;
             viewConstants.CameraUpDirWs = Up;
 
+#if VKTODO
             // todo: these change per scene, move to the other buffer
-            //VKTODO
-            //viewConstants.ViewportMinZ = Renderer.DepthRange.Scene.Near;
-            //viewConstants.ViewportMaxZ = Renderer.DepthRange.Scene.Far;
+            viewConstants.ViewportMinZ = Renderer.DepthRange.Scene.Near;
+            viewConstants.ViewportMaxZ = Renderer.DepthRange.Scene.Far;
+#endif
         }
 
         /// <summary>
@@ -286,9 +312,9 @@ namespace ValveResourceFormat.Renderer
         /// Adopts the orientation of a Source QAngle, as read from an entity's "angles" keyvalue.
         /// </summary>
         /// <remarks>
-        /// Only the degrees to radians conversion; the camera holds these the same way round as the engine
-        /// does. All three are adopted, so angles that carry no roll clear whatever roll was there rather
-        /// than leaving it to show through. Not clamped, so an entity may point the camera anywhere.
+        /// Only the degrees to radians conversion, keeping the QAngle's order and signs. All three are
+        /// adopted, so angles that carry no roll clear whatever roll was there rather than leaving it to
+        /// show through. Not clamped, so an entity may point the camera anywhere.
         /// </remarks>
         /// <param name="anglesDegrees">The QAngle, as (pitch, yaw, roll) in degrees.</param>
         public void SetFromQAngle(Vector3 anglesDegrees)
@@ -315,8 +341,7 @@ namespace ValveResourceFormat.Renderer
             var direction = target - Location;
 
             // A direction carries no roll, so adopting these angles levels the camera too
-            SetFromQAngle(EntityTransformHelper.ForwardDirectionToEulerAngles(
-                direction == Vector3.Zero ? direction : Vector3.Normalize(direction)));
+            SetFromQAngle(EntityTransformHelper.ForwardDirectionToEulerAngles(MathUtils.SafeNormalize(direction)));
 
             ClampRotation();
         }
@@ -344,41 +369,58 @@ namespace ValveResourceFormat.Renderer
 
             RecalculateDirectionVectors();
 
-            var fov = GetFOV();
-            var halfFovVertical = fov * 0.5f;
-            var halfFovHorizontal = MathF.Atan(MathF.Tan(halfFovVertical) * AspectRatio);
+            Location = objectPosition - Forward * GetFramingDistance(new Vector3(width, height, depth), Right, Up);
 
-            var halfWidth = width * 0.5f;
-            var halfHeight = height * 0.5f;
-            var halfDepth = depth * 0.5f;
+            LookAt(objectPosition);
+        }
 
-            // this calculates the apparent size in screen space by projecting onto camera axis
-            var maxHorizontalExtent = 0f;
-            var maxVerticalExtent = 0f;
+        /// <summary>
+        /// How far from its center a box has to be viewed from for all of it to fit on screen.
+        /// </summary>
+        /// <param name="size">The box's dimensions.</param>
+        /// <param name="right">The camera's right vector at the angle it frames the box from.</param>
+        /// <param name="up">The camera's up vector at that angle.</param>
+        public float GetFramingDistance(Vector3 size, Vector3 right, Vector3 up)
+        {
+            var tanVertical = MathF.Tan(GetFOV() * 0.5f);
+            var tanHorizontal = tanVertical * AspectRatio;
+
+            var forward = Vector3.Cross(up, right);
+            var half = size * 0.5f;
+
+            var distance = 0f;
+            var nearestCorner = 0f;
 
             for (var i = 0; i < 8; i++)
             {
                 var corner = new Vector3(
-                    (i & 1) != 0 ? halfWidth : -halfWidth,
-                    (i & 2) != 0 ? halfHeight : -halfHeight,
-                    (i & 4) != 0 ? halfDepth : -halfDepth
+                    (i & 1) != 0 ? half.X : -half.X,
+                    (i & 2) != 0 ? half.Y : -half.Y,
+                    (i & 4) != 0 ? half.Z : -half.Z
                 );
 
-                var horizontalDist = MathF.Abs(Vector3.Dot(corner, Right));
-                var verticalDist = MathF.Abs(Vector3.Dot(corner, Up));
+                // The frustum widens with depth, so a corner in front of the center has less of it to fit into
+                var depth = Vector3.Dot(corner, forward);
 
-                maxHorizontalExtent = MathF.Max(maxHorizontalExtent, horizontalDist);
-                maxVerticalExtent = MathF.Max(maxVerticalExtent, verticalDist);
+                distance = MathF.Max(distance, MathF.Abs(Vector3.Dot(corner, right)) / tanHorizontal - depth);
+                distance = MathF.Max(distance, MathF.Abs(Vector3.Dot(corner, up)) / tanVertical - depth);
+
+                nearestCorner = MathF.Min(nearestCorner, depth);
             }
 
-            var distanceForVerticalFov = maxVerticalExtent / MathF.Tan(halfFovVertical);
-            var distanceForHorizontalFov = maxHorizontalExtent / MathF.Tan(halfFovHorizontal);
+            // Standing inside the bounds fits nothing, however little of the view they take up
+            return MathF.Max(distance, NearPlane - nearestCorner);
+        }
 
-            var distance = MathF.Max(distanceForVerticalFov, distanceForHorizontalFov);
+        /// <inheritdoc cref="GetFramingDistance(Vector3, Vector3, Vector3)"/>
+        /// <param name="size">The box's dimensions.</param>
+        /// <param name="forward">Unit direction the camera looks along, in place of its own.</param>
+        public float GetFramingDistance(Vector3 size, Vector3 forward)
+        {
+            // A camera that frames something is level, so its right is horizontal
+            var right = MathUtils.SafeNormalize(Vector3.Cross(forward, Vector3.UnitZ), Vector3.UnitX);
 
-            Location = objectPosition - Forward * distance;
-
-            LookAt(objectPosition);
+            return GetFramingDistance(size, right, Vector3.Cross(right, forward));
         }
 
         /// <summary>
@@ -411,7 +453,7 @@ namespace ValveResourceFormat.Renderer
 
             // Forward is the matrix's first row. The helper is scale invariant, which matters because an
             // entity's "scales" is baked in here, but it cannot answer for a row that is entirely zero.
-            var dir = new Vector3(matrix.M11, matrix.M12, matrix.M13);
+            var dir = matrix.GetRow(0).AsVector3();
 
             if (dir == Vector3.Zero)
             {
@@ -426,13 +468,12 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void ClampRotation()
         {
-            // Straight down is as far as it goes, and it is reachable: the direction vectors have no
-            // singularity there, so the limit is where looking would tip over rather than where the maths
-            // would give out.
+            // Straight down is reachable (the direction vectors have no singularity there), so the limit is
+            // where looking would tip over rather than where the maths gives out.
             Pitch = Math.Clamp(Pitch, -MathF.PI / 2f, MathF.PI / 2f);
 
-            // Mouse look accumulates yaw without bound, and sin and cos of a few million radians are not
-            // the ones asked for, so keep it to one turn
+            // Mouse look accumulates yaw without bound, and sin and cos lose accuracy at a few million
+            // radians, so keep it to one turn
             Yaw = MathF.IEEERemainder(Yaw, MathF.Tau);
         }
 
@@ -449,8 +490,7 @@ namespace ValveResourceFormat.Renderer
         /// Converts a horizontal field of view at a 4:3 aspect ratio to the equivalent vertical field of view in radians.
         /// The result is used directly as the vertical FOV in <see cref="CreatePerspectiveFieldOfView_ReverseZ"/> regardless
         /// of the actual aspect ratio, so a wider screen sees more to the sides rather than less above and
-        /// below (Hor+ scaling). The engine reaches the same place by scaling the horizontal field of view
-        /// by the aspect ratio and then dividing it back out again.
+        /// below (Hor+ scaling).
         /// </summary>
         /// <param name="horizontalDegreesAt4By3">Horizontal field of view in degrees at a 4:3 aspect ratio.</param>
         public static float Calculate4By3Fov(float horizontalDegreesAt4By3)

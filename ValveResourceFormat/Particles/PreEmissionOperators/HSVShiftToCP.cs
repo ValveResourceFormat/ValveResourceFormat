@@ -78,8 +78,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         /// </summary>
         private static Vector3 RgbToHsv(Vector3 rgb)
         {
-            var max = MathF.Max(rgb.X, MathF.Max(rgb.Y, rgb.Z));
-            var min = MathF.Min(rgb.X, MathF.Min(rgb.Y, rgb.Z));
+            var max = rgb.MaxComponent();
+            var min = rgb.MinComponent();
             var chroma = max - min;
 
             var value = max;

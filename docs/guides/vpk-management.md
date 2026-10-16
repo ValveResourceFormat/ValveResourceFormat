@@ -15,7 +15,7 @@ There are several ways to extract files from a VPK:
 
 ### Extract individual files
 
-- Right-click a file → **Export as is** (raw format) or **Decompile & Export** (converted format)
+- Right-click a file → **Export as is** (raw format) or **Decompile & export** (converted format)
 
 ### Extract folders
 
@@ -38,6 +38,8 @@ Add `-d` to decompile files during extraction:
 ```sh
 Source2Viewer-CLI -i "pak01_dir.vpk" -o "output_folder/" -d
 ```
+
+Create a VPK from a folder with `--vpk_create`, or check a package with `--vpk_verify`. See the [command-line utility](./command-line.md).
 
 ## Creating VPK Archives
 

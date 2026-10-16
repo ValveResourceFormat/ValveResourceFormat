@@ -82,7 +82,7 @@ internal static class MsAdpcmDecoder
         return outputIndex;
     }
 
-    private static int DecodeNibble(int nibble, Span<int> coeff1, Span<int> coeff2, Span<int> delta, Span<int> sample1, Span<int> sample2, int channel)
+    private static int DecodeNibble(int nibble, ReadOnlySpan<int> coeff1, ReadOnlySpan<int> coeff2, Span<int> delta, Span<int> sample1, Span<int> sample2, int channel)
     {
         var signed = nibble >= 8 ? nibble - 16 : nibble;
 

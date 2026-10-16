@@ -2,7 +2,7 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Sets the particle color to a random value interpolated between two configurable colors,
-    /// optionally blended toward a tint carried on a control point.
+    /// optionally tinted by the light arriving at a control point.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomColor">C_INIT_RandomColor</seealso>
     class RandomColor : ParticleFunctionInitializer
@@ -13,8 +13,15 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly Vector3 tintMax = Vector3.One;
         private readonly float tintPercentage;
         private readonly int tintControlPoint;
-        private readonly ParticleColorBlendType tintBlendMode = ParticleColorBlendType.PARTICLE_COLOR_BLEND_MULTIPLY;
+        private readonly float updateThreshold = 32f;
+        private readonly float lightAmplification = 1f;
+        private readonly ParticleColorBlendMode tintBlendMode = ParticleColorBlendMode.PARTICLEBLEND_DEFAULT;
         private readonly ParticleField fieldOutput = ParticleField.Color;
+
+        // Light last sampled at the tint control point, and where that point was. Starting infinitely
+        // far away forces the first sample.
+        private Vector3 sampledPosition = new(float.PositiveInfinity);
+        private Vector3 sampledLight = Vector3.One;
 
         public RandomColor(ParticleDefinitionParser parse) : base(parse)
         {
@@ -24,7 +31,9 @@ namespace ValveResourceFormat.Particles.Initializers
             tintMax = parse.Color24("m_TintMax", tintMax);
             tintPercentage = parse.Float("m_flTintPerc", tintPercentage);
             tintControlPoint = parse.Int32("m_nTintCP", tintControlPoint);
-            tintBlendMode = parse.EnumNormalized<ParticleColorBlendType>("m_nTintBlendMode", tintBlendMode);
+            updateThreshold = parse.Float("m_flUpdateThreshold", updateThreshold);
+            lightAmplification = parse.Float("m_flLightAmplification", lightAmplification);
+            tintBlendMode = parse.EnumNormalized("m_nTintBlendMode", tintBlendMode);
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
         }
 
@@ -34,15 +43,10 @@ namespace ValveResourceFormat.Particles.Initializers
         {
             var color = particleSystemState.Random.NextBetween(colorMin, colorMax);
 
-            // Tinting is off unless the effect asks for it; the tint colour itself is driven onto a
-            // control point game-side and clamped here to the authored range.
             if (tintPercentage > 0f)
             {
-                var tint = Vector3.Clamp(particleSystemState.GetControlPoint(tintControlPoint).Position, tintMin, tintMax);
-
-                var tinted = tintBlendMode == ParticleColorBlendType.PARTICLE_COLOR_BLEND_ADD
-                    ? color + tint
-                    : color * tint;
+                var tint = Vector3.Clamp(SampleLight(particleSystemState) * lightAmplification, tintMin, tintMax);
+                var tinted = tintBlendMode.Blend(color, tint);
 
                 color = Vector3.Lerp(color, tinted, MathUtils.Saturate(tintPercentage));
             }
@@ -50,6 +54,20 @@ namespace ValveResourceFormat.Particles.Initializers
             particle.SetVector(fieldOutput, color);
 
             return particle;
+        }
+
+        // Re-sampled only once the control point moves past m_flUpdateThreshold from the last sample.
+        private Vector3 SampleLight(ParticleSystemState particleSystemState)
+        {
+            var position = particleSystemState.GetControlPoint(tintControlPoint).Position;
+
+            if (Vector3.DistanceSquared(position, sampledPosition) > updateThreshold * updateThreshold)
+            {
+                sampledLight = particleSystemState.Lighting.SampleAmbientLight(position);
+                sampledPosition = position;
+            }
+
+            return sampledLight;
         }
     }
 }

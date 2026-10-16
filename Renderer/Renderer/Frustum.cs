@@ -1,5 +1,3 @@
-//I'd love to know why Renderer1 didn't need it.
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -86,8 +84,8 @@ namespace ValveResourceFormat.Renderer
         /// <returns><see langword="true"/> if the box is at least partially inside the frustum.</returns>
         public bool Intersects(in AABB box)
         {
-            var center = new Vector4((box.Max + box.Min) * 0.5f, 1f);
-            var extent = (box.Max - box.Min) * 0.5f;
+            var center = new Vector4(box.Center, 1f);
+            var extent = box.Size * 0.5f;
 
             foreach (ref readonly var plane in Planes.AsSpan())
             {

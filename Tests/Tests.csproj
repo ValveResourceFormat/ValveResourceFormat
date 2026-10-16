@@ -1,12 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
     <RollForward>LatestMajor</RollForward>
     <OutputType>Exe</OutputType>
     <PublishReadyToRun>false</PublishReadyToRun>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="TUnit" Version="1.66.16" />
+    <PackageReference Include="TUnit" Version="1.73.5" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
@@ -22,5 +21,9 @@
     <Compile Remove="Renderer\AnimationControllerTest.cs" />
     <Compile Remove="Renderer\SampledAnimationEventsTest.cs" />
     <Compile Remove="Renderer\ShaderRegistryTest.cs" />
+    <Compile Remove="Renderer\AnimGraphTest.cs" />
+    <Compile Remove="Renderer\PlayerAnimationStateTest.cs" />
+    <Compile Remove="Renderer\SkyTransformTest.cs" />
+    <Compile Remove="Renderer\SpawnGroupTest.cs" />
   </ItemGroup>
 </Project>

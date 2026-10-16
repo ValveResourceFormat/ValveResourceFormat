@@ -1,12 +1,12 @@
 using System.Collections;
+using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
-    /// The half of <c>C_INIT_InitFromCPSnapshot</c> and <c>C_OP_SetFromCPSnapshot</c> that is the same
-    /// on both: which snapshot to read, which of its columns, which particle attribute to write, and
-    /// how to walk the rows. What is left to each of them is when the write happens and the handful of
-    /// keys only one of them carries.
+    /// Shared half of <c>C_INIT_InitFromCPSnapshot</c> and <c>C_OP_SetFromCPSnapshot</c>: which
+    /// snapshot to read, which of its columns, which particle attribute to write, and how to walk
+    /// the rows. Each function adds when the write happens and the keys only it carries.
     /// </summary>
     class SnapshotRead
     {
@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Particles.Utils
         // Advanced once per random draw, so a fixed seed still walks the table rather than repeating
         private int sampleCounter;
 
-        private bool columnResolved;
+        private ParticleSnapshot? columnSnapshot;
         private IEnumerable? column;
 
         /// <summary>The particle attribute the snapshot value is written to.</summary>
@@ -44,14 +44,17 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
-        /// The column to read, resolved on first use and null when the bound snapshot is missing or
-        /// carries no such column. A null column means the function has nothing to do.
+        /// The column to read, looked up again whenever the bound snapshot is replaced, and null when
+        /// the snapshot is missing or carries no such column. A null column means the function has
+        /// nothing to do.
         /// </summary>
         public IEnumerable? Column(ParticleSystemState particleSystemState)
         {
-            if (!columnResolved)
+            var snapshot = binding.Resolve(particleSystemState);
+
+            if (!ReferenceEquals(snapshot, columnSnapshot))
             {
-                columnResolved = true;
+                columnSnapshot = snapshot;
                 column = binding.ResolveAttribute(particleSystemState, AttributeToRead);
             }
 

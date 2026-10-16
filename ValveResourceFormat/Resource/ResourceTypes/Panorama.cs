@@ -34,7 +34,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets the image mapping table listing images referenced by this file with their original dimensions.
+        /// Gets the referenced images with their original dimensions.
         /// </summary>
         public List<ImageEntry> Images { get; } = [];
 

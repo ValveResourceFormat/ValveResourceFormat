@@ -144,11 +144,10 @@ internal static class GraphLayout
     }
 
     /// <summary>
-    /// Splits a layout budget across the islands of one layout, so the first island cannot spend
-    /// all of it. Islands of fewer than two nodes get nothing, every other island gets a floor plus
-    /// a share of what is left in proportion to its node count, and the slices together stay inside
-    /// <paramref name="totalMs"/>. A zero total stays zero, which means unlimited; a slice is never
-    /// rounded down to zero, which would mean the same thing.
+    /// Splits a layout budget across islands so the first cannot spend all of it. Islands of
+    /// fewer than two nodes get nothing; others get a floor plus a share of the rest by node
+    /// count, with the slices together staying within <paramref name="totalMs"/>. A zero total
+    /// stays zero (unlimited); a slice never rounds down to zero, which would also mean unlimited.
     /// </summary>
     /// <param name="nodeCounts">Node count of each island, in the order they will be laid out.</param>
     /// <param name="totalMs">Milliseconds the whole layout may spend, or zero for unlimited.</param>
@@ -368,14 +367,12 @@ internal static class GraphLayout
 
             RepairCrossings(positions, sizes, edges, options, deadline);
 
-            // The repair moves cards, so the lanes the long wires run through are re-derived from
-            // where the cards ended up rather than from where they were placed.
+            // The repair moves cards, so long-wire lanes are re-derived from where the cards ended up.
             AssignDummyHeights();
             EmitRoutes();
         }
 
-        // DFS back-edge detection; the edges it finds are reversed for ranking so the rest of
-        // the pipeline sees an acyclic graph.
+        // DFS back-edge detection. Reversing those edges for ranking leaves an acyclic graph.
         private void FindBackWires(List<int> crossWires)
         {
             var outgoing = new List<int>[realCount];

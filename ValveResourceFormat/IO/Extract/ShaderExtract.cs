@@ -112,16 +112,6 @@ public sealed class ShaderExtract
     /// <summary>
     /// Initializes a new instance of the <see cref="ShaderExtract"/> class.
     /// </summary>
-    public ShaderExtract(Resource resource)
-        : this((SboxShader)resource.GetBlockByType(BlockType.SPRV)!)
-    { }
-
-    /// <inheritdoc cref="ShaderExtract(Resource)"/>
-    public ShaderExtract(SboxShader sboxShaderCollection)
-        : this(sboxShaderCollection.Shaders)
-    { }
-
-    /// <inheritdoc cref="ShaderExtract(Resource)"/>
     public ShaderExtract(ShaderCollection shaderCollection)
     {
         Shaders = shaderCollection;
@@ -274,7 +264,6 @@ public sealed class ShaderExtract
             .Where(s => s.VcsProgramType != VcsProgramType.Features)
             .Select(s => ShaderUtilHelpers.ComputeVcsProgramType(s.VcsProgramType));
         writer.WriteLine();
-        writer.WriteLine($"// VcsVersion: {Features.VcsVersion}");
         writer.WriteLine($"// Platform: {Features.VcsPlatformType}_SM{Features.VcsShaderModelType}");
         writer.WriteLine($"// Programs: {string.Join(", ", programs)}");
 
@@ -388,8 +377,7 @@ public sealed class ShaderExtract
                 var renderState = staticCombo.DynamicComboRenderStates[i];
                 var dynamicConfigState = dynamicConfig.GetConfigState(renderState.DynamicComboId);
 
-                // VsInputSignatureIndices is one entry per dynamic combo, indexed positionally.
-                var vsInputId = staticCombo.VsInputSignatureIndices[i];
+                var vsInputId = staticCombo.GetVsInputSignatureIndex(renderState.DynamicComboId);
 
                 for (var j = 0; j < staticConfigState.Length; j++)
                 {
@@ -700,9 +688,10 @@ public sealed class ShaderExtract
                     variant0Source.Append(glsl.GetDecompiledFile());
                     variant0Source.AppendLine("// ---------  GLSL source end  --------- ");
                 }
-                else if (gpuSource is VfxShaderFileVulkan spirv && !spirv.IsEmpty() && ShaderUtilHelpers.IsSpirvCrossAvailable())
+                else if (gpuSource is VfxShaderFileVulkan spirv && !spirv.IsEmpty() && ShaderUtilHelpers.IsSpirvCrossAvailable()
+                    && spirv.TryGetDecompiledFile(out var decompiledSpirv))
                 {
-                    variant0Source.Append(spirv.GetDecompiledFile());
+                    variant0Source.Append(decompiledSpirv);
                     variant0Source.AppendLine("// ---------  SPIRV -> HLSL end  --------- ");
                 }
             }
@@ -1113,7 +1102,7 @@ public sealed class ShaderExtract
 
                 if (Value != -1)
                 {
-                    constrainedNames.Add($"{name}={Value}");
+                    constrainedNames.Add($"{name}=={Value}");
                 }
                 else
                 {
@@ -1122,7 +1111,7 @@ public sealed class ShaderExtract
             }
 
             // By value constraint
-            // e.g. FeatureRule( Requires( F_REFRACT, F_TEXTURE_LAYERS=0, F_TEXTURE_LAYERS=1 ), "Refract requires Less than 2 Layers due to DX9" );
+            // e.g. FeatureRule( Requires( F_REFRACT, F_TEXTURE_LAYERS==0, F_TEXTURE_LAYERS==1 ), "Refract requires Less than 2 Layers due to DX9" );
 
             var ruleName = constraint.RuleMethod == VfxRuleMethod.AllowNum
                 ? $"Allow{constraint.ExtraRuleData[0]}"
@@ -1194,15 +1183,19 @@ public sealed class ShaderExtract
         {
             WriteState(writer, param);
         }
-        else if (param.RegisterType is VfxRegisterType.SamplerState)
+        else if (param.RegisterType is VfxRegisterType.SamplerState or VfxRegisterType.SamplerIndex)
         {
             //WriteState(writer, param);
+        }
+        else if (param.RegisterType is VfxRegisterType.ConstantBuffer or VfxRegisterType.PushConstantBuffer)
+        {
+            // Declared in the shader code itself, not as a parameter
         }
         else if (param.RegisterType is VfxRegisterType.InputTexture)
         {
             WriteInputTexture(writer, param);
         }
-        else if (param.TypeSpecificBits == -1)
+        else if (param.TypeSpecificBits == -1 || param.RegisterType is VfxRegisterType.SpecConstant)
         {
             WriteVariable(param, variableDescriptions, writer, annotations);
         }
@@ -1215,6 +1208,10 @@ public sealed class ShaderExtract
             }
 
             WriteTexture(param, variableDescriptions, channelProcessors, writer, annotations);
+        }
+        else
+        {
+            throw new UnexpectedMagicException($"Unhandled register type for parameter {param.Name}", (int)param.RegisterType, nameof(param.RegisterType));
         }
     }
 
@@ -1310,12 +1307,12 @@ public sealed class ShaderExtract
         {
             if (floatDefsCutOff <= intDefsCutOff)
             {
-                var defaults = string.Join(", ", param.FloatDefs[..^floatDefsCutOff]);
+                var defaults = string.Join(", ", param.FloatDefs[..^floatDefsCutOff].Select(static value => value.ToString(CultureInfo.InvariantCulture)));
                 annotations.Add($"{GetFuncName("Default", floatDefsCutOff)}({defaults});");
             }
             else
             {
-                var defaults = string.Join(", ", param.IntDefs[..^intDefsCutOff]);
+                var defaults = string.Join(", ", param.IntDefs[..^intDefsCutOff].Select(static value => value.ToString(CultureInfo.InvariantCulture)));
                 annotations.Add($"{GetFuncName("Default", intDefsCutOff)}({defaults});");
             }
         }
@@ -1339,14 +1336,14 @@ public sealed class ShaderExtract
         {
             if (floatRangeCutOff <= 3 && param.FloatMins[0] != -VfxVariableDescription.FloatInf)
             {
-                var mins = string.Join(", ", param.FloatMins[..^floatRangeCutOff]);
-                var maxs = string.Join(", ", param.FloatMaxs[..^floatRangeCutOff]);
+                var mins = string.Join(", ", param.FloatMins[..^floatRangeCutOff].Select(static value => value.ToString(CultureInfo.InvariantCulture)));
+                var maxs = string.Join(", ", param.FloatMaxs[..^floatRangeCutOff].Select(static value => value.ToString(CultureInfo.InvariantCulture)));
                 annotations.Add($"{GetFuncName("Range", floatRangeCutOff)}({mins}, {maxs});");
             }
             else
             {
-                var mins = string.Join(", ", param.IntMins[..^intRangeCutOff]);
-                var maxs = string.Join(", ", param.IntMaxs[..^intRangeCutOff]);
+                var mins = string.Join(", ", param.IntMins[..^intRangeCutOff].Select(static value => value.ToString(CultureInfo.InvariantCulture)));
+                var maxs = string.Join(", ", param.IntMaxs[..^intRangeCutOff].Select(static value => value.ToString(CultureInfo.InvariantCulture)));
                 annotations.Add($"{GetFuncName("Range", intRangeCutOff)}({mins}, {maxs});");
             }
         }
@@ -1355,7 +1352,7 @@ public sealed class ShaderExtract
 
         if (param.UiStep > 0f)
         {
-            annotations.Add($"UiStep({param.UiStep});");
+            annotations.Add(string.Create(CultureInfo.InvariantCulture, $"UiStep({param.UiStep});"));
         }
 
         if (param.UiType != UiType.None)
@@ -1385,7 +1382,24 @@ public sealed class ShaderExtract
             annotations.Add($"UiVisibility({dynEx});");
         }
 
-        writer.WriteLine($"{ShaderUtilHelpers.GetVfxVariableTypeString(param.VfxType)} {param.Name}{GetVfxAttributes(annotations)};");
+        writer.WriteLine($"{GetDeclarationAttributes(param)}{ShaderUtilHelpers.GetVfxVariableTypeString(param.VfxType)} {param.Name}{GetVfxAttributes(annotations)};");
+    }
+
+    private static string GetDeclarationAttributes(VfxVariableDescription param)
+    {
+        var attributes = string.Empty;
+
+        if (param.IsLayerConstant)
+        {
+            attributes += "[[layer_constant]] ";
+        }
+
+        if (param.RegisterType is VfxRegisterType.SpecConstant)
+        {
+            attributes += $"[[vk::constant_id({param.TypeSpecificBits})]] ";
+        }
+
+        return attributes;
     }
 
     private static void WriteInputTexture(IndentedTextWriter writer, VfxVariableDescription param)
@@ -1408,7 +1422,7 @@ public sealed class ShaderExtract
             : string.Empty;
 
         var defaultValue = string.IsNullOrEmpty(param.DefaultInputTexture)
-            ? $"Default4({string.Join(", ", param.FloatDefs)})"
+            ? $"Default4({string.Join(", ", param.FloatDefs.Select(static value => value.ToString(CultureInfo.InvariantCulture)))})"
             : $"\"{param.DefaultInputTexture}\"";
 
         writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.MinPrecisionBits}, \"{param.InputProcessingCommand}\", \"{imageSuffix}\", \"{param.UiGroup}\", {defaultValue});");
@@ -1461,7 +1475,7 @@ public sealed class ShaderExtract
             typeString = typeString[..^Index.Length];
         }
 
-        writer.WriteLine($"{typeString} {param.Name}{GetVfxAttributes(annotations)};");
+        writer.WriteLine($"{GetDeclarationAttributes(param)}{typeString} {param.Name}{GetVfxAttributes(annotations)};");
     }
 
     private static void HandleParameterAttribute(VfxVariableDescription param, VfxVariableDescription[] variableDescriptions, List<string> annotations)

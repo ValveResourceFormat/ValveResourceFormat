@@ -17,9 +17,11 @@ namespace GUI.Types.GLViewers
         protected override void LoadScene()
         {
             base.LoadScene();
-            //VKTODO:
-            //var meshSceneNode = new MeshSceneNode(Scene, mesh, 0);
-            //Scene.Add(meshSceneNode, false);
+
+#if VKTODO
+            var meshSceneNode = new MeshSceneNode(Scene, mesh, 0);
+            Scene.Add(meshSceneNode, false);
+#endif
         }
     }
 }

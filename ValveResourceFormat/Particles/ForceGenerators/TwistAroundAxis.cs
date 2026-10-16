@@ -33,7 +33,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
             ? ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, twistAxis)
             : twistAxis;
 
-        axis = axis == Vector3.Zero ? Vector3.UnitZ : Vector3.Normalize(axis);
+        axis = MathUtils.SafeNormalize(axis, Vector3.UnitZ);
 
         var center = particleSystemState.GetControlPoint(controlPoint).Position;
         var amount = forceAmount * strength;
@@ -47,7 +47,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
                 continue;
             }
 
-            var direction = ParticleMath.Normalize(delta);
+            var direction = MathUtils.SafeNormalize(delta);
             var alignment = 1f - Vector3.Dot(direction, axis);
 
             if (alignment * alignment <= ParticleMath.MinimumLengthSquared)

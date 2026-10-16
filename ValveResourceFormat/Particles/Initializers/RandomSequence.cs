@@ -1,12 +1,11 @@
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Initializes the particle animation sequence to a value between a min and max sequence index.
-    /// Supports sequential (linear), shuffled, or pure-random selection modes.
+    /// Sets the sequence to a value between min and max, picked linearly, shuffled, or purely at random.
     /// </summary>
     /// <remarks>
-    /// A weighted list, where one is authored, replaces the range entirely: the sequences come from the
-    /// list and are picked in proportion to their weights, and the min and max are widened to span them.
+    /// A weighted list replaces the range entirely: sequences are picked in proportion to weight,
+    /// and min and max widen to span them.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomSequence">C_INIT_RandomSequence</seealso>
     class RandomSequence : ParticleFunctionInitializer
@@ -112,8 +111,8 @@ namespace ValveResourceFormat.Particles.Initializers
         }
 
         /// <summary>
-        /// Picks the next entry from the weighted list. A linear list walks it with the running cursor
-        /// and takes no random draw at all; otherwise a single draw is scaled by the total weight.
+        /// Picks the next weighted entry. A linear list walks it with the cursor and draws no random value;
+        /// otherwise one draw is scaled by the total weight.
         /// </summary>
         private int NextWeightedSequence(ParticleSystemState particleSystemState)
         {

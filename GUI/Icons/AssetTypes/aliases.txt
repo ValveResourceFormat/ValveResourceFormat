@@ -7,6 +7,7 @@ cfg ini
 conf ini
 clip anim
 csv txt
+dsp mix
 fbx mdl
 raw bin
 gameevents vdf
@@ -15,6 +16,7 @@ html xml
 jpg png
 lst vdf
 mp3 wav
+navspace nav
 nmclip anim
 nmgrph anmgrph
 nmskel skel

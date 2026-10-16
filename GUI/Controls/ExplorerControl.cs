@@ -30,7 +30,6 @@ namespace GUI.Controls
         private readonly TaskCompletionSource handleCreated = new();
         private readonly List<TreeDataNode> TreeData = [];
         private static readonly ConcurrentDictionary<string, string> WorkshopAddons = new();
-        public static readonly List<GameFolderLocator.SteamLibraryGameInfo> SteamGames = [];
 
         public ExplorerControl()
         {
@@ -116,7 +115,7 @@ namespace GUI.Controls
                 await handleCreated.Task.ConfigureAwait(false);
                 await treeView.InvokeAsync(() =>
                 {
-                    scanningTreeNode.Text = t.Exception.Message;
+                    scanningTreeNode.Text = "Failed to scan game folders, see the console for details.";
                 }).ConfigureAwait(false);
             }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
             scanTask.ContinueWith(async t =>
@@ -185,18 +184,9 @@ namespace GUI.Controls
                 //
             }
 
-            if (SteamGames.Count == 0)
-            {
-                var steamGames = GameFolderLocator.FindAllSteamGames()
-                    // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
-                    .Where(static gameInfo => gameInfo.AppID is not (1237970 or 1454890 or 1172470))
-                    .OrderBy(static gameInfo => gameInfo.AppID)
-                    .ToList();
+            var steamGames = await InstalledSteamGames.FindAsync().ConfigureAwait(false);
 
-                SteamGames.AddRange(steamGames);
-            }
-
-            if (SteamGames.Count == 0)
+            if (steamGames.Count == 0)
             {
                 return;
             }
@@ -230,7 +220,9 @@ namespace GUI.Controls
                 return !File.Exists(fixedPackage);
             }
 
-            var gamesToScan = SteamGames
+            var gamesToScan = steamGames
+                // Ignore Apex Legends, Titanfall, Titanfall 2 because Respawn has customized VPK format and VRF can't open it
+                .Where(static gameInfo => gameInfo.AppID is not (1237970 or 1454890 or 1172470))
                 .DistinctBy(static game => game.GamePath, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -285,19 +277,13 @@ namespace GUI.Controls
                 // Find workshop content
                 try
                 {
-                    var workshopManifest = Path.Join(steamPath, "workshop", $"appworkshop_{appID}.acf");
+                    var workshopManifest = GameFolderLocator.ReadSteamKeyValues(Path.Join(steamPath, "workshop", $"appworkshop_{appID}.acf"));
 
-                    if (File.Exists(workshopManifest))
+                    if (workshopManifest != null && GameFolderLocator.GetChild(workshopManifest, "WorkshopItemsInstalled") is { } installedItems)
                     {
                         var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
-                        KVObject workshopInfo;
 
-                        using (var stream = File.OpenRead(workshopManifest))
-                        {
-                            workshopInfo = kvDeserializer.Deserialize(stream);
-                        }
-
-                        foreach (var item in workshopInfo["WorkshopItemsInstalled"].Children)
+                        foreach (var item in installedItems.Children)
                         {
                             var addonPath = Path.Join(steamPath, "workshop", "content", appID.ToString(CultureInfo.InvariantCulture), item.Key);
                             var publishDataPath = Path.Join(addonPath, "publish_data.txt");
@@ -313,10 +299,22 @@ namespace GUI.Controls
                                 }
                             }
 
-                            using var stream = File.OpenRead(publishDataPath);
-                            var publishData = kvDeserializer.Deserialize(stream);
-                            var addonTitle = publishData["title"];
-                            var displayTitle = $"[Workshop {item.Key}] {addonTitle}";
+                            var displayTitle = $"[Workshop {item.Key}]";
+
+                            try
+                            {
+                                using var stream = File.OpenRead(publishDataPath);
+                                var publishData = kvDeserializer.Deserialize(stream);
+
+                                if (publishData.Root.TryGetValue("title", out var addonTitle))
+                                {
+                                    displayTitle = $"{displayTitle} {addonTitle}";
+                                }
+                            }
+                            catch (Exception e) when (e is IOException or KeyValueException)
+                            {
+                                //
+                            }
 
                             foundFiles.Add(new TreeNode(displayTitle)
                             {
@@ -394,13 +392,9 @@ namespace GUI.Controls
             // to instantly load their icons before rendering the list
             foreach (var path in Settings.Config.RecentFiles.Concat(Settings.Config.BookmarkedFiles))
             {
-                foreach (var game in SteamGames)
+                if (GameFolderLocator.FindSteamGameContainingPath(path, steamGames) is { } game)
                 {
-                    if (path.StartsWith(game.GamePath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        await GetOrLoadAppImage(game.AppID, libraryAssetsKv, libraryCachePath).ConfigureAwait(false);
-                        break;
-                    }
+                    await GetOrLoadAppImage(game.AppID, libraryAssetsKv, libraryCachePath).ConfigureAwait(false);
                 }
             }
 
@@ -606,21 +600,13 @@ namespace GUI.Controls
                     }
                 }
 
-                foreach (var game in SteamGames)
+                if (GameFolderLocator.FindSteamGameContainingPath(path, InstalledSteamGames.Games) is { } game)
                 {
-                    if (path.StartsWith(game.GamePath, StringComparison.OrdinalIgnoreCase))
+                    pathDisplay = $"[{game.AppName}] {pathDisplay.AsSpan(Math.Min(game.GamePath.Length, pathDisplay.Length))}";
+
+                    if (isVpk && !AppIcons.GameIcons.TryGetValue(game.AppID, out imageIndexGame))
                     {
-                        pathDisplay = $"[{game.AppName}] {pathDisplay.AsSpan(game.GamePath.Length)}";
-
-                        if (isVpk)
-                        {
-                            if (!AppIcons.GameIcons.TryGetValue(game.AppID, out imageIndexGame))
-                            {
-                                imageIndexGame = -1;
-                            }
-                        }
-
-                        break;
+                        imageIndexGame = -1;
                     }
                 }
 

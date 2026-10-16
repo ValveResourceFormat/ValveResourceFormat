@@ -12,10 +12,14 @@ partial class HalfEdgeMesh
     public static int ComputeNumEdgesConnectedToVertex(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
+        {
             return 0;
+        }
 
         if (hVertex.Edge == HalfEdgeHandle.Invalid)
+        {
             return 0;
+        }
 
         var nEdgeCount = 0;
         var hCurrentEdge = hVertex.Edge;
@@ -35,10 +39,14 @@ partial class HalfEdgeMesh
     public static int ComputeNumFacesConnectedToVertex(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
+        {
             return 0;
+        }
 
         if (hVertex.Edge == HalfEdgeHandle.Invalid)
+        {
             return 0;
+        }
 
         var nFaceCount = 0;
         var hCurrentEdge = hVertex.Edge;
@@ -46,7 +54,9 @@ partial class HalfEdgeMesh
         {
             var hAdjEdge = hCurrentEdge.OppositeEdge;
             if ((hCurrentEdge.Face != FaceHandle.Invalid) && (hCurrentEdge.Face != hAdjEdge.Face))
+            {
                 ++nFaceCount;
+            }
 
             hCurrentEdge = hAdjEdge.NextEdge;
         }
@@ -56,7 +66,9 @@ partial class HalfEdgeMesh
         {
             var pEdge = hVertex.Edge;
             if (pEdge.Face != FaceHandle.Invalid)
+            {
                 nFaceCount = 1;
+            }
 
             Debug.Assert(pEdge.OppositeEdge.Face == pEdge.Face);
         }
@@ -65,22 +77,28 @@ partial class HalfEdgeMesh
     }
 
     /// <summary>
-    /// Whether every edge at the vertex borders two faces.
+    /// Whether any edge at the vertex has the same face on both sides.
     /// </summary>
     public static bool IsVertexInternal(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
+        {
             return false;
+        }
 
         if (hVertex.Edge == HalfEdgeHandle.Invalid)
+        {
             return false;
+        }
 
         var hCurrentEdge = hVertex.Edge;
         do
         {
             var hOppositeEdge = hCurrentEdge.OppositeEdge;
             if (hCurrentEdge.Face == hOppositeEdge.Face)
+            {
                 return true;
+            }
 
             hCurrentEdge = hOppositeEdge.NextEdge;
         }
@@ -95,7 +113,9 @@ partial class HalfEdgeMesh
     public static HalfEdgeHandle GetFirstEdgeInVertexLoop(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
+        {
             return HalfEdgeHandle.Invalid;
+        }
 
         return hVertex.Edge;
     }
@@ -106,7 +126,9 @@ partial class HalfEdgeMesh
     public static HalfEdgeHandle GetNextEdgeInVertexLoop(HalfEdgeHandle hHalfEdge)
     {
         if (hHalfEdge.IsValid)
+        {
             return hHalfEdge.OppositeEdge.NextEdge;
+        }
 
         return HalfEdgeHandle.Invalid;
     }
@@ -117,7 +139,9 @@ partial class HalfEdgeMesh
     public static HalfEdgeHandle FindPreviousEdgeInVertexLoop(HalfEdgeHandle hEdge)
     {
         if (!hEdge.IsValid)
+        {
             return HalfEdgeHandle.Invalid;
+        }
 
         var hCurrentEdge = hEdge;
         HalfEdgeHandle hPreviousEdge;
@@ -136,14 +160,18 @@ partial class HalfEdgeMesh
     /// </summary>
     public bool GetFullEdgesConnectedToVertex(VertexHandle hVertex, out List<HalfEdgeHandle> edges, EdgeConnectivityType nEdgeType = EdgeConnectivityType.Any)
     {
-        edges = new List<HalfEdgeHandle>();
+        edges = [];
 
         if (!hVertex.IsValid)
+        {
             return false;
+        }
 
         var nNumEdges = ComputeNumEdgesConnectedToVertex(hVertex);
         if (nNumEdges <= 0)
+        {
             return false;
+        }
 
         edges.EnsureCapacity(nNumEdges);
 
@@ -169,14 +197,18 @@ partial class HalfEdgeMesh
     /// </summary>
     public static bool GetOutgoingHalfEdgesConnectedToVertex(VertexHandle hVertex, out List<HalfEdgeHandle> edges)
     {
-        edges = new List<HalfEdgeHandle>();
+        edges = [];
 
         if (!hVertex.IsValid)
+        {
             return false;
+        }
 
         var nNumEdges = ComputeNumEdgesConnectedToVertex(hVertex);
         if (nNumEdges <= 0)
+        {
             return false;
+        }
 
         edges.EnsureCapacity(nNumEdges);
 
@@ -197,14 +229,18 @@ partial class HalfEdgeMesh
     /// </summary>
     public static bool GetIncomingHalfEdgesConnectedToVertex(VertexHandle hVertex, out List<HalfEdgeHandle> edges)
     {
-        edges = new List<HalfEdgeHandle>();
+        edges = [];
 
         if (!hVertex.IsValid)
+        {
             return false;
+        }
 
         var nNumEdges = ComputeNumEdgesConnectedToVertex(hVertex);
         if (nNumEdges <= 0)
+        {
             return false;
+        }
 
         edges.EnsureCapacity(nNumEdges);
 
@@ -226,14 +262,18 @@ partial class HalfEdgeMesh
     /// </summary>
     public static bool GetVerticesConnectedToVertexByEdge(VertexHandle hVertex, out List<VertexHandle> vertices)
     {
-        vertices = new List<VertexHandle>();
+        vertices = [];
 
         if (!hVertex.IsValid)
+        {
             return false;
+        }
 
         var nNumVertices = ComputeNumEdgesConnectedToVertex(hVertex);
         if (nNumVertices <= 0)
+        {
             return false;
+        }
 
         vertices.EnsureCapacity(nNumVertices);
 
@@ -254,14 +294,18 @@ partial class HalfEdgeMesh
     /// </summary>
     public static bool GetFacesConnectedToVertex(VertexHandle hVertex, out List<FaceHandle> faces)
     {
-        faces = new List<FaceHandle>();
+        faces = [];
 
         if (!hVertex.IsValid)
+        {
             return false;
+        }
 
-        int nNumFaces = ComputeNumFacesConnectedToVertex(hVertex);
+        var nNumFaces = ComputeNumFacesConnectedToVertex(hVertex);
         if (nNumFaces <= 0)
+        {
             return false;
+        }
 
         faces.EnsureCapacity(nNumFaces);
 
@@ -270,7 +314,9 @@ partial class HalfEdgeMesh
         {
             var hAdjEdge = hCurrentEdge.OppositeEdge;
             if ((hCurrentEdge.Face != FaceHandle.Invalid) && (hCurrentEdge.Face != hAdjEdge.Face))
+            {
                 faces.Add(hCurrentEdge.Face);
+            }
 
             hCurrentEdge = hAdjEdge.NextEdge;
         }
@@ -280,7 +326,9 @@ partial class HalfEdgeMesh
         {
             var pEdge = hVertex.Edge;
             if (pEdge.Face != FaceHandle.Invalid)
+            {
                 faces.Add(pEdge.Face);
+            }
 
             Debug.Assert(pEdge.OppositeEdge.Face == pEdge.Face);
         }
@@ -295,16 +343,22 @@ partial class HalfEdgeMesh
     public static HalfEdgeHandle FindHalfEdgeConnectingVertices(VertexHandle hVertexA, VertexHandle hVertexB)
     {
         if (!hVertexA.IsValid)
+        {
             return HalfEdgeHandle.Invalid;
+        }
 
         var hEdge = hVertexA.Edge;
         if (!hEdge.IsValid)
+        {
             return HalfEdgeHandle.Invalid;
+        }
 
         do
         {
             if (hEdge.Vertex == hVertexB)
+            {
                 return hEdge;
+            }
 
             hEdge = GetOppositeHalfEdge(hEdge).NextEdge;
         }
@@ -336,11 +390,15 @@ partial class HalfEdgeMesh
     {
         var hFirstEdgeA = GetFirstEdgeInVertexLoop(hVertexA);
         if (hFirstEdgeA == HalfEdgeHandle.Invalid)
+        {
             return FaceHandle.Invalid;
+        }
 
         var hFirstEdgeB = GetFirstEdgeInVertexLoop(hVertexB);
         if (hFirstEdgeB == HalfEdgeHandle.Invalid)
+        {
             return FaceHandle.Invalid;
+        }
 
         var hCurrentEdgeA = hFirstEdgeA;
 
@@ -357,10 +415,14 @@ partial class HalfEdgeMesh
                 var hFaceB2 = hCurrentEdgeB.OppositeEdge.Face;
 
                 if ((hFaceA1 != FaceHandle.Invalid) && ((hFaceA1 == hFaceB1) || (hFaceA1 == hFaceB2)))
+                {
                     return hFaceA1;
+                }
 
                 if ((hFaceA2 != FaceHandle.Invalid) && ((hFaceA2 == hFaceB1) || (hFaceA2 == hFaceB2)))
+                {
                     return hFaceA2;
+                }
 
                 hCurrentEdgeB = GetNextEdgeInVertexLoop(hCurrentEdgeB);
             }
@@ -390,10 +452,14 @@ partial class HalfEdgeMesh
         {
             var hFace = connectedFacesA[i];
             if (!hFace.IsValid)
+            {
                 continue;
+            }
 
             if (connectedFacesB.Contains(hFace))
+            {
                 faces.Add(hFace);
+            }
         }
 
         return faces.Count > 0;
@@ -401,8 +467,10 @@ partial class HalfEdgeMesh
 
     internal static int FindFaceInSetSharedByVertices(VertexHandle hVertexA, VertexHandle hVertexB, List<FaceHandle> faceList)
     {
-        if ((IsVertexInMesh(hVertexA) == false) || (IsVertexInMesh(hVertexB) == false))
+        if (!IsVertexInMesh(hVertexA) || !IsVertexInMesh(hVertexB))
+        {
             return -1;
+        }
 
         var hFirstEdgeA = GetFirstEdgeInVertexLoop(hVertexA);
         var hCurrentEdgeA = hFirstEdgeA;
@@ -422,16 +490,20 @@ partial class HalfEdgeMesh
 
                 if ((hFaceA1 != FaceHandle.Invalid) && ((hFaceA1 == hFaceB1) || (hFaceA1 == hFaceB2)))
                 {
-                    int nIndex = faceList.IndexOf(hFaceA1);
+                    var nIndex = faceList.IndexOf(hFaceA1);
                     if (nIndex != -1)
+                    {
                         return nIndex;
+                    }
                 }
 
                 if ((hFaceA2 != FaceHandle.Invalid) && ((hFaceA2 == hFaceB1) || (hFaceA2 == hFaceB2)))
                 {
-                    int nIndex = faceList.IndexOf(hFaceA2);
+                    var nIndex = faceList.IndexOf(hFaceA2);
                     if (nIndex != -1)
+                    {
                         return nIndex;
+                    }
                 }
 
                 hCurrentEdgeB = GetNextEdgeInVertexLoop(hCurrentEdgeB);
@@ -455,12 +527,16 @@ partial class HalfEdgeMesh
         for (var i = 0; i < nNumVertices; ++i)
         {
             if (!GetFacesConnectedToVertex(hVertices[i], out var facesConnectedToVertex))
+            {
                 continue;
+            }
 
             foreach (var hFace in facesConnectedToVertex)
             {
                 if (!uniqueFaces.ContainsKey(hFace))
+                {
                     uniqueFaces.Add(hFace, uniqueFaces.Count);
+                }
             }
         }
 
@@ -477,7 +553,9 @@ partial class HalfEdgeMesh
         for (var iVertex = 0; iVertex < nNumVertices; ++iVertex)
         {
             if (!GetFacesConnectedToVertex(hVertices[iVertex], out var facesConnectedToVertex))
+            {
                 continue;
+            }
 
             var nNumFaces = facesConnectedToVertex.Count;
             for (var iFace = 0; iFace < nNumFaces; ++iFace)
@@ -500,12 +578,16 @@ partial class HalfEdgeMesh
         for (var iVertex = 0; iVertex < nNumVertices; ++iVertex)
         {
             if (!GetFullEdgesConnectedToVertex(hVertices[iVertex], out var edgesConnectedToVertex, EdgeConnectivityType.Any))
+            {
                 continue;
+            }
 
             foreach (var hEdge in edgesConnectedToVertex)
             {
                 if (!uniqueEdges.ContainsKey(hEdge))
+                {
                     uniqueEdges.Add(hEdge, uniqueEdges.Count);
+                }
             }
         }
 
@@ -522,7 +604,9 @@ partial class HalfEdgeMesh
         for (var iVertex = 0; iVertex < nNumVertices; ++iVertex)
         {
             if (!GetFullEdgesConnectedToVertex(hVertices[iVertex], out var edgesConnectedToVertex, EdgeConnectivityType.Any))
+            {
                 continue;
+            }
 
             var nNumEdges = edgesConnectedToVertex.Count;
             for (var iEdge = 0; iEdge < nNumEdges; ++iEdge)
@@ -540,7 +624,7 @@ partial class HalfEdgeMesh
     /// </summary>
     public static void FindVertexIslands(IReadOnlyList<VertexHandle> hVertices, int nNumVertices, out List<List<VertexHandle>> pOutVertexList)
     {
-        pOutVertexList = new List<List<VertexHandle>>();
+        pOutVertexList = [];
         var vertexSearchList = hVertices.Take(nNumVertices).ToList();
 
         while (vertexSearchList.Count > 0)
@@ -548,8 +632,10 @@ partial class HalfEdgeMesh
             var hStartVertex = vertexSearchList[0];
             vertexSearchList.RemoveAt(0);
 
-            if (IsVertexInMesh(hStartVertex) == false)
+            if (!IsVertexInMesh(hStartVertex))
+            {
                 continue;
+            }
 
             var islandVertexList = new List<VertexHandle>(32)
             {
@@ -571,7 +657,9 @@ partial class HalfEdgeMesh
                 {
                     var hConnectedVertex = verticesConnectedToVertex[iVertex];
                     if (hConnectedVertex == hCurrentVertex)
+                    {
                         continue;
+                    }
 
                     var nIndexInSearchList = vertexSearchList.IndexOf(hConnectedVertex);
                     if (nIndexInSearchList != -1)

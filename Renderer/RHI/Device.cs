@@ -1,6 +1,5 @@
 global using static ValveResourceFormat.Renderer.RHI.S2vDevice;
 using System.Runtime.InteropServices;
-//using SDL;
 using Vortice.Vulkan;
 //using static SDL.SDL3;
 using static Vortice.Vulkan.Vma;

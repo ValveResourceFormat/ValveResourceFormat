@@ -6,11 +6,13 @@ namespace ValveResourceFormat.Particles
     /// <summary>
     /// Particle attribute remapping handler.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/CParticleFloatInput">CParticleFloatInput</seealso>
     class AttributeMapping
     {
         /// <summary>
         /// Input handling modes for attribute mapping operations.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/ParticleFloatInputMode_t">ParticleFloatInputMode_t</seealso>
         internal enum PfInputMode
         {
             /// <summary>Invalid input mode.</summary>
@@ -24,6 +26,7 @@ namespace ValveResourceFormat.Particles
         /// <summary>
         /// Attribute mapping transformation types.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/ParticleFloatMapType_t">ParticleFloatMapType_t</seealso>
         internal enum PfMapType
         {
             /// <summary>Invalid mapping type.</summary>
@@ -42,11 +45,18 @@ namespace ValveResourceFormat.Particles
             Notched,
             /// <summary>Rounds the input value using the configured rounding mode.</summary>
             Round,
+            /// <summary>Takes the smaller of the input value and the compare value.</summary>
+            Min,
+            /// <summary>Takes the larger of the input value and the compare value.</summary>
+            Max,
+            /// <summary>Takes the remainder of the input value divided by the compare value, or the input itself when that is 0.</summary>
+            Mod,
         };
 
         /// <summary>
         /// Rounding modes for <see cref="PfMapType.Round"/>.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/ParticleFloatRoundType_t">ParticleFloatRoundType_t</seealso>
         internal enum PfRoundType
         {
             /// <summary>Invalid rounding mode.</summary>
@@ -79,6 +89,8 @@ namespace ValveResourceFormat.Particles
         private readonly float biasParameter;
 
         private readonly PiecewiseCurve? curve;
+
+        private readonly float compareValue;
 
         public AttributeMapping(ParticleDefinitionParser parse)
         {
@@ -135,6 +147,12 @@ namespace ValveResourceFormat.Particles
                     roundType = parse.EnumNormalized<PfRoundType>("m_nRoundType", roundType);
                     break;
 
+                case PfMapType.Min:
+                case PfMapType.Max:
+                case PfMapType.Mod:
+                    compareValue = parse.Float("m_flCompareValue");
+                    break;
+
                 default:
                     break;
 
@@ -186,6 +204,16 @@ namespace ValveResourceFormat.Particles
                         _ => MathF.Round(value),
                     };
 
+                case PfMapType.Min:
+                    return MathF.Min(value, compareValue);
+
+                case PfMapType.Max:
+                    return MathF.Max(value, compareValue);
+
+                case PfMapType.Mod:
+                    // Truncated remainder, keeping the sign of the input
+                    return compareValue == 0f ? value : value % compareValue;
+
                 default:
                     return value;
             }
@@ -207,6 +235,6 @@ namespace ValveResourceFormat.Particles
         }
 
         private float ClampToOutputRange(float value)
-            => Math.Clamp(value, MathF.Min(output0, output1), MathF.Max(output0, output1));
+            => MathUtils.Clamp(value, output0, output1);
     }
 }

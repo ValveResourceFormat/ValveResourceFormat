@@ -50,19 +50,10 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unknown size", Size, nameof(Size));
             }
 
-            var version = reader.ReadInt32();
-
-            if (version != 8)
-            {
-                if (version == 0 && reader.ReadInt32() == 0)
-                {
-                    return;
-                }
-
-                throw new UnexpectedMagicException("Unknown version", version, nameof(version));
-            }
-
+            var blocksOffset = reader.ReadInt32();
             var blockCount = reader.ReadInt32();
+
+            reader.BaseStream.Position = Offset + blocksOffset;
 
             for (var block = 0; block < blockCount; block++)
             {

@@ -1,5 +1,3 @@
-using ValveResourceFormat.Particles.Utils;
-
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -38,7 +36,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (normalize && normal != Vector3.Zero)
             {
-                normal = ParticleMath.Normalize(normal);
+                normal = MathUtils.SafeNormalize(normal);
             }
 
             particle.SetVector(ParticleField.Normal, normal);

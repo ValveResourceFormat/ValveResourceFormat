@@ -4,8 +4,6 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.RHI;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;

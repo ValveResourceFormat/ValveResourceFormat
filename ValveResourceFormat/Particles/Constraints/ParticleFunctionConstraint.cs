@@ -5,6 +5,7 @@ namespace ValveResourceFormat.Particles.Constraints
     /// relax particle positions to satisfy a geometric condition (distance, rope spring, plane, world
     /// collision, ...). They are built from the system's <c>m_Constraints</c> block.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CParticleFunctionConstraint">CParticleFunctionConstraint</seealso>
     abstract class ParticleFunctionConstraint : ParticleFunction
     {
         protected ParticleFunctionConstraint(ParticleDefinitionParser parse) : base(parse)

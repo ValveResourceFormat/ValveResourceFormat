@@ -16,8 +16,8 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
         /// <summary>
-        /// Reads the distance the particle moved this frame instead of its speed: the engine divides
-        /// the step by the frame time, and this leaves the divisor at one.
+        /// Reads the distance the particle moved this frame instead of its speed: speed is the step
+        /// divided by the frame time, and this leaves the divisor at one.
         /// </summary>
         private readonly bool ignoreDelta;
 

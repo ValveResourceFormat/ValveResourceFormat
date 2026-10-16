@@ -53,6 +53,11 @@ namespace ValveResourceFormat.CompiledShader
         public VcsPlatformType VcsPlatformType { get; private set; } = VcsPlatformType.Undetermined;
 
         /// <summary>
+        /// Gets whether this program targets mobile Vulkan, whose engine builds lay out bindings and blob metadata differently.
+        /// </summary>
+        internal bool IsMobileVulkan => VcsPlatformType is VcsPlatformType.ANDROID_VULKAN or VcsPlatformType.IOS_VULKAN;
+
+        /// <summary>
         /// Gets the VCS shader model type (e.g., 4.0, 5.0, 6.0).
         /// </summary>
         public VcsShaderModelType VcsShaderModelType { get; private set; } = VcsShaderModelType.Undetermined;
@@ -76,11 +81,6 @@ namespace ValveResourceFormat.CompiledShader
         /// Gets flags indicating which additional files are present.
         /// </summary>
         public VcsAdditionalFileFlags AdditionalFiles { get; private set; }
-
-        /// <summary>
-        /// Gets whether this is an S&amp;box shader.
-        /// </summary>
-        public bool IsSbox { get; init; }
 
         /// <summary>
         /// Gets the maximum variable source value; grows as values are added to <see cref="VfxVariableSourceType"/>.
@@ -138,8 +138,7 @@ namespace ValveResourceFormat.CompiledShader
         /// Gets the static combo entries, keyed by static combo ID.
         /// </summary>
         /// <remarks>
-        /// Each entry holds the information needed to locate and decompress its static combo;
-        /// to save processing, static combos are only decompressed on request.
+        /// Each entry locates its static combo; decompression happens only on request, to save processing.
         /// </remarks>
         public SortedDictionary<long, VfxStaticComboVcsEntry> StaticComboEntries { get; } = [];
 
@@ -195,7 +194,7 @@ namespace ValveResourceFormat.CompiledShader
         /// <param name="filenamepath">The file to open and read.</param>
         public void Read(string filenamepath)
         {
-            var stream = new FileStream(filenamepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var stream = new FileStream(filenamepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
             try
             {
@@ -232,7 +231,7 @@ namespace ValveResourceFormat.CompiledShader
                 };
 
                 input.Position -= 4;
-                resource.Read(input, false, leaveOpen: true);
+                resource.Read(input, leaveOpen: true);
 
                 VfxCreateFromResource(resource);
             }
@@ -278,36 +277,21 @@ namespace ValveResourceFormat.CompiledShader
                 programTypesCount -= 1;
             }
 
-            if (IsSbox)
-            {
-                _ = DataReader.ReadInt32(); // ABI current version
-                Debug.Assert(VcsVersion == 65);
-                VcsVersion = 64;
-            }
-
             // I guess the idea with this change is that they only store a flag for each shader type that is present
             // but they should have just changed all program types to be flags, instead of only the new ones
             if (VcsVersion >= 64)
             {
                 AdditionalFiles = (VcsAdditionalFileFlags)DataReader.ReadUInt32();
 
-                if ((AdditionalFiles & VcsAdditionalFileFlags.HasMeshShader) != 0)
-                {
-                    programTypesCount += 3;
-                }
-                else if ((AdditionalFiles & VcsAdditionalFileFlags.HasRaytracing) != 0)
-                {
-                    programTypesCount += 2;
-                }
-                else if ((AdditionalFiles & VcsAdditionalFileFlags.HasPixelShaderRenderState) != 0)
-                {
-                    programTypesCount += 1;
-                }
+                const VcsAdditionalFileFlags KnownFlags = VcsAdditionalFileFlags.HasPixelShaderRenderState | VcsAdditionalFileFlags.HasRaytracing | VcsAdditionalFileFlags.HasMeshShader;
 
-                if (AdditionalFiles > VcsAdditionalFileFlags.HasMeshShader)
+                if ((AdditionalFiles & ~KnownFlags) != 0)
                 {
                     throw new UnexpectedMagicException("Unexpected additional files", (int)AdditionalFiles, nameof(AdditionalFiles));
                 }
+
+                // Optional program slots are appended in flag order, so the highest flag decides how many there are
+                programTypesCount += 32 - BitOperations.LeadingZeroCount((uint)AdditionalFiles);
             }
 
             UnserializeVfxProgramData(programTypesCount);
@@ -559,8 +543,8 @@ namespace ValveResourceFormat.CompiledShader
 
         private static void ThrowIfNotSupported(int vcsFileVersion)
         {
-            const int earliest = 59;
-            const int latest = 71;
+            const int earliest = 58;
+            const int latest = 72;
 
             if (vcsFileVersion < earliest || vcsFileVersion > latest)
             {

@@ -125,8 +125,165 @@ namespace GUI.Controls
             minTabWidth = horizontalPadding + iconSize + horizontalPadding;
         }
 
+        private Rectangle[] displayRects = [];
+        private (int Tabs, int Rows, int Selected, int Width) rowLayoutKey;
+
+        private bool RowsAreReordered => RowCount > 1;
+
+        /// <summary>
+        /// Bounds of a tab with the rows kept in tab order. A multiline tab control moves the row
+        /// holding the selected tab next to the page, taking every other row with it.
+        /// </summary>
+        public Rectangle GetDisplayTabRect(int index)
+        {
+            if (RowsAreReordered)
+            {
+                UpdateRowLayout();
+
+                if (index < displayRects.Length)
+                {
+                    return displayRects[index];
+                }
+            }
+
+            return GetTabRect(index);
+        }
+
+        /// <summary>
+        /// Index of the tab drawn at <paramref name="point"/>, or -1 when no tab is drawn there.
+        /// </summary>
+        public int GetDisplayTabAt(Point point)
+        {
+            for (var i = 0; i < TabCount; i++)
+            {
+                if (GetDisplayTabRect(i).Contains(point))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private int GetTabAt(Point point)
+        {
+            for (var i = 0; i < TabCount; i++)
+            {
+                if (GetTabRect(i).Contains(point))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private void UpdateRowLayout()
+        {
+            var key = (TabCount, RowCount, SelectedIndex, ClientSize.Width);
+
+            if (key == rowLayoutKey && displayRects.Length == TabCount)
+            {
+                return;
+            }
+
+            rowLayoutKey = key;
+
+            if (displayRects.Length != TabCount)
+            {
+                displayRects = new Rectangle[TabCount];
+            }
+
+            var minTop = int.MaxValue;
+            var maxTop = int.MinValue;
+            var previousTop = int.MinValue;
+            var rows = 0;
+
+            for (var i = 0; i < TabCount; i++)
+            {
+                var rect = GetTabRect(i);
+                displayRects[i] = rect;
+
+                if (i > 0 && rect.Y != previousTop)
+                {
+                    rows++;
+                }
+
+                previousTop = rect.Y;
+                minTop = Math.Min(minTop, rect.Y);
+                maxTop = Math.Max(maxTop, rect.Y);
+            }
+
+            var rowHeight = rows > 0 ? (maxTop - minTop) / rows : 0;
+            var row = 0;
+            previousTop = int.MinValue;
+
+            for (var i = 0; i < TabCount; i++)
+            {
+                var rect = displayRects[i];
+
+                if (i > 0 && rect.Y != previousTop)
+                {
+                    row++;
+                }
+
+                previousTop = rect.Y;
+                rect.Y = minTop + row * rowHeight;
+                displayRects[i] = rect;
+            }
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            switch ((uint)m.Msg)
+            {
+                case PInvoke.WM_NCHITTEST:
+                    // comctl32 answers HTTRANSPARENT wherever its own row order has no tab.
+                    if (RowsAreReordered && GetDisplayTabAt(PointToClient(MainForm.LParamToPoint(m.LParam))) >= 0)
+                    {
+                        m.Result = (nint)PInvoke.HTCLIENT;
+                        return;
+                    }
+
+                    break;
+
+                case PInvoke.WM_LBUTTONDOWN:
+                case PInvoke.WM_LBUTTONDBLCLK:
+                    if (!RowsAreReordered)
+                    {
+                        break;
+                    }
+
+                    var point = MainForm.LParamToPoint(m.LParam);
+                    var index = GetDisplayTabAt(point);
+
+                    if (index < 0)
+                    {
+                        // Beside the drawn tabs, but over one of them in the control's row order.
+                        if (GetTabAt(point) >= 0)
+                        {
+                            m.Result = 0;
+                            return;
+                        }
+
+                        break;
+                    }
+
+                    var nativeY = point.Y - GetDisplayTabRect(index).Y + GetTabRect(index).Y;
+                    m.LParam = (nint)((nativeY << 16) | (point.X & 0xffff));
+                    break;
+            }
+
+            base.WndProc(ref m);
+        }
+
         private void UpdateCachedMetrics()
         {
+            if (IsDisposed || Disposing)
+            {
+                return;
+            }
+
             // Cache padding and gap values by examining actual tab positions
             if (TabPages.Count >= 1)
             {
@@ -270,7 +427,7 @@ namespace GUI.Controls
 
             for (var i = 0; i < TabCount; i++)
             {
-                var tabRect = GetTabRect(i);
+                var tabRect = GetDisplayTabRect(i);
                 if (tabRect.Contains(e.Location))
                 {
                     HoveredIndex = i;
@@ -294,21 +451,39 @@ namespace GUI.Controls
             }
         }
 
+        private int StripHeight => HideTabHeader ? 0 : Math.Min(base.DisplayRectangle.Top, Height);
+
         protected override void OnPaint(PaintEventArgs e)
         {
-            var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+            var stripHeight = StripHeight;
 
-            using (var bgBrush = new SolidBrush(BackColor))
+            if (stripHeight < Height)
             {
-                g.FillRectangle(bgBrush, ClientRectangle);
+                using var bgBrush = new SolidBrush(BackColor);
+                e.Graphics.FillRectangle(bgBrush, new Rectangle(0, stripHeight, Width, Height - stripHeight));
             }
 
-            if (HideTabHeader)
+            if (stripHeight == 0 || Width == 0)
             {
                 return;
             }
+
+            // comctl32 repaints the strip through a device context of its own, which bypasses the WinForms back buffer.
+            using var buffer = BufferedGraphicsManager.Current.Allocate(e.Graphics, new Rectangle(0, 0, Width, stripHeight));
+            DrawStrip(buffer.Graphics, stripHeight);
+            buffer.Render();
+        }
+
+        protected virtual void DrawStrip(Graphics g, int stripHeight)
+        {
+            // The buffer starts out black, an antialiased fill would leave its edge rows half covered.
+            using (var bgBrush = new SolidBrush(BackColor))
+            {
+                g.FillRectangle(bgBrush, new Rectangle(0, 0, Width, stripHeight));
+            }
+
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
             for (var i = 0; i < TabCount; i++)
             {
@@ -318,7 +493,7 @@ namespace GUI.Controls
 
         private void DrawTab(Graphics g, int index)
         {
-            var tabRect = GetTabRect(index);
+            var tabRect = GetDisplayTabRect(index);
             var tabColor = BackColor;
             var isSelected = SelectedIndex == index;
             var isHovered = HoveredIndex == index;

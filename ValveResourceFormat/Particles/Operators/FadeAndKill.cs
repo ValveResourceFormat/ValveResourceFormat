@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Fades a particle's alpha in over a configurable time window and then fades it out, killing the particle at the end of the fade-out.
+    /// Fades a particle's alpha in over a configurable time window and then fades it out, killing the particle when its lifetime ends.
     /// </summary>
     /// <remarks>
     /// "Alpha Fade and Decay" in the particle editor: essentially combines the operators

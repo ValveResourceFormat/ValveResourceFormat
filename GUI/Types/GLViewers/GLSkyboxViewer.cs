@@ -1,7 +1,9 @@
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
-//using ValveResourceFormat.Renderer.SceneEnvironment;
+#if VKTODO
+using ValveResourceFormat.Renderer.SceneEnvironment;
+#endif
 
 namespace GUI.Types.GLViewers
 {
@@ -24,12 +26,9 @@ namespace GUI.Types.GLViewers
 
         protected override void LoadScene()
         {
-            //VKTODO:
-            //Renderer.Skybox2D = new SceneSkybox2D(Scene.RendererContext.MaterialLoader.LoadMaterial(materialResource));
+#if VKTODO
+            Renderer.Skybox2D = new SceneSkybox2D(Scene.RendererContext.MaterialLoader.LoadMaterial(materialResource));
+#endif
         }
-        //VKTODO:
-        //protected override void OnPicked(object? sender, PickingTexture.PickingResponse pixelInfo)
-        //{
-        //}
     }
 }

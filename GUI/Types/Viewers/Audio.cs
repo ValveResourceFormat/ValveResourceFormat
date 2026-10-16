@@ -57,7 +57,7 @@ namespace GUI.Types.Viewers
             Debug.Assert(waveStream is not null);
 
             var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
-            var audio = new AudioPlaybackPanel(waveStream, isPreview && autoPlay, (0, 0));
+            var audio = new AudioPlaybackPanel(waveStream, vrfGuiContext.DisplayPath, isPreview && autoPlay, (0, 0));
             tab.Controls.Add(audio);
 
             waveStream = null;

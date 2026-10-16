@@ -31,11 +31,11 @@
 			m_vMaxBounds = [ 9216.0, 8323.829102, 3584.0 ]
 			m_flMinimumDistance = -1.0
 			m_ChildNodeIndices = [  ]
-			m_worldNodePrefix = resource:"maps\\dota\\worldnodes\\node000"
+			m_worldNodePrefix = "maps\\dota\\worldnodes\\node000"
 		},
 	]
 	m_entityLumps = 
 	[
-		resource_name:"maps/dota/entities/default_ents.vents",
+		resource:"maps/dota/entities/default_ents.vents",
 	]
 }

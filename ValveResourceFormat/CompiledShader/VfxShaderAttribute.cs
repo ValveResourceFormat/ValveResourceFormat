@@ -3,7 +3,6 @@ using System.IO;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.ThirdParty;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -102,7 +101,7 @@ public class VfxShaderAttribute
 
     /// <inheritdoc/>
     /// <remarks>
-    /// Returns a formatted string with the attribute name, hash, type, variable binding, and either the dynamic expression or constant value.
+    /// Formats the name, hash, type, variable binding, and dynamic expression or constant value.
     /// </remarks>
     public override string ToString()
     {
@@ -112,7 +111,7 @@ public class VfxShaderAttribute
         }
         else
         {
-            return $"{Name,-40} 0x{Murmur32:x08}  {VfxType,-15} {VariableBinding,-3}  {ConstValue}";
+            return string.Create(CultureInfo.InvariantCulture, $"{Name,-40} 0x{Murmur32:x08}  {VfxType,-15} {VariableBinding,-3}  {ConstValue}");
         }
     }
 }

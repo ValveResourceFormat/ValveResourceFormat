@@ -1,4 +1,3 @@
-using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -21,8 +20,8 @@ namespace ValveResourceFormat.Particles
         /// Never index the random table with it: consecutive particles would read consecutive slots.
         /// </summary>
         /// <remarks>
-        /// The engine calls this <c>m_nUniqueParticleId</c>. Despite the name it is a plain counter,
-        /// and it is <b>not</b> the engine's particle id attribute, which is <see cref="ParticleId"/>.
+        /// Despite the name, this is a plain counter and <b>not</b> the particle id attribute,
+        /// which is <see cref="ParticleId"/>.
         /// </remarks>
         public int UniqueParticleId { get; set; }
 
@@ -35,9 +34,8 @@ namespace ValveResourceFormat.Particles
         /// it an arbitrary large number, not a position.
         /// </summary>
         /// <remarks>
-        /// This is the engine's particle id <i>attribute</i>, the one <c>PF_TYPE_PARTICLE_ID</c>
-        /// reads, not its <c>m_nUniqueParticleId</c> counter, which is
-        /// <see cref="UniqueParticleId"/>.
+        /// This is the particle id <i>attribute</i>, the one <c>PF_TYPE_PARTICLE_ID</c> reads, not the
+        /// spawn-order counter <see cref="UniqueParticleId"/>.
         /// </remarks>
         public int ParticleId { get; set; }
 
@@ -106,11 +104,11 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>Gets the particle's age as a fraction of its lifetime. May exceed 1 if the particle outlives its lifetime.</summary>
         public readonly float NormalizedAge => Age / Math.Max(0.0001f, Lifetime); //Old version: 1 - (Lifetime / ConstantLifetime);
-        /// <summary>Gets or sets the scalar speed (magnitude) of the particle; setting it rescales the velocity to the new length while preserving its direction.</summary>
+        /// <summary>Gets or sets the speed (magnitude); setting it rescales the velocity to that length, keeping its direction.</summary>
         public float Speed
         {
             readonly get => Velocity.Length();
-            set => Velocity = ParticleMath.Normalize(Velocity) * value;
+            set => Velocity = MathUtils.SafeNormalize(Velocity) * value;
         }
         /// <summary>
         /// Gets or sets the acceleration accumulated by force generators this frame; consumed and
@@ -124,14 +122,18 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         public int SequenceNumber { get; set; } = 0;
 
-        /// <summary>Gets or sets the manually selected animation frame index.</summary>
-        public int ManualAnimationFrame { get; set; } = 0;
+        /// <summary>
+        /// Gets or sets the sprite sheet playback position an operator drives by hand, in sequence
+        /// loops: 0.5 is halfway through the sequence and 2.0 has played it twice.
+        /// </summary>
+        public float ManualAnimationFrame { get; set; }
 
         // Varying properties that we don't really support but are here in case they're used across operators
         /// <summary>
-        /// Gets or sets the second sprite sheet sequence, which the engine's spritecard can sample
-        /// alongside <see cref="SequenceNumber"/>. Authored as <c>m_nConstantSequenceNumber1</c>, so the
-        /// engine's suffix is 1 where this is the second. No renderer reads it yet.
+        /// Gets or sets the second sprite sheet sequence, which spritecard can sample alongside
+        /// <see cref="SequenceNumber"/>.
+        /// Authored as <c>m_nConstantSequenceNumber1</c>, where the 1 suffix marks the second sequence.
+        /// No renderer reads it yet.
         /// </summary>
         public int SecondSequenceNumber { get; set; } = 0;
 
@@ -164,9 +166,9 @@ namespace ValveResourceFormat.Particles
         public float BoxFlags { get; set; } = 0f;
 
         /// <summary>
-        /// Gets or sets the per-segment payload carried alongside <see cref="RopeSegmentId"/>. Three
-        /// components, of which the engine's debug overlay prints X and Z as a segment position and
-        /// count, and <c>PF_TYPE_PARTICLE_ROPE_SEGMENT_NORMALIZED</c> reads Y.
+        /// Gets or sets the per-segment payload carried alongside <see cref="RopeSegmentId"/>.
+        /// X and Z are a segment position and count, and <c>PF_TYPE_PARTICLE_ROPE_SEGMENT_NORMALIZED</c>
+        /// reads Y.
         /// </summary>
         public Vector3 RopeSegmentData { get; set; } = Vector3.Zero;
 
@@ -188,6 +190,14 @@ namespace ValveResourceFormat.Particles
         public Vector3 ScratchVector { get; set; } = Vector3.Zero;
         /// <summary>Gets or sets a second general-purpose scratch vector.</summary>
         public Vector3 ScratchVector2 { get; set; } = Vector3.Zero;
+        /// <summary>Gets or sets the glow color attribute.</summary>
+        public Vector3 GlowRgb { get; set; } = Vector3.Zero;
+        /// <summary>Gets or sets the glow alpha attribute.</summary>
+        public float GlowAlpha { get; set; }
+        /// <summary>Gets or sets the first free value handed to the renderer's shader.</summary>
+        public float ShaderExtraData1 { get; set; }
+        /// <summary>Gets or sets the second free value handed to the renderer's shader.</summary>
+        public float ShaderExtraData2 { get; set; }
         /// <summary>Gets or sets the system time at which this particle was created.</summary>
         public float CreationTime { get; set; } // todo
 

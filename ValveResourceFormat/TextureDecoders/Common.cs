@@ -175,22 +175,12 @@ namespace ValveResourceFormat.TextureDecoders
 
         public static byte ClampColor(int a)
         {
-            if (a > 255)
-            {
-                return 255;
-            }
-
-            return a < 0 ? (byte)0 : (byte)a;
+            return (byte)Math.Clamp(a, 0, 255);
         }
 
         public static float ClampHighRangeColor(float a)
         {
-            if (a > 1f)
-            {
-                return 1;
-            }
-
-            return a < 0f ? 0f : a;
+            return MathUtils.Saturate(a);
         }
 
         public static byte ToClampedLdrColor(float a)

@@ -8,13 +8,9 @@ using GUI.Types.Audio;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer;
-using ValveResourceFormat.Renderer.RHI;
-//using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Renderer.Input;
-//using ValveResourceFormat.Renderer.Materials;
-//using ValveResourceFormat.Renderer.SceneNodes;
-//using ValveResourceFormat.Renderer.Utils;
-//using static ValveResourceFormat.Renderer.PickingTexture;
+using ValveResourceFormat.Renderer.RHI;
+using ValveResourceFormat.Renderer.Utils;
 
 namespace GUI.Types.GLViewers
 {

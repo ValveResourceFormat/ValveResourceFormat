@@ -1,22 +1,14 @@
-using System.Numerics;
-
 namespace ValveResourceFormat.Particles.Utils
 {
     /// <summary>
     /// The engine's particle noise primitives. The default is a value-noise lattice whose corners come
     /// from a packed-index integer hash, trilinearly interpolated with unsmoothed weights, returning
-    /// [-1, 1]. The hash is a MurmurHash3 mixing round followed by the engine's own finalizer. The
+    /// [-1, 1]. The hash is a MurmurHash3 mixing round followed by a finalizer. The
     /// gradient and cellular primitives share the corner packing with a shorter hash chain; the curl
     /// primitive interpolates a table-driven vector lattice instead.
     /// </summary>
     static class Noise
     {
-        /// <summary>
-        /// Samples the noise lattice. Operators that only vary one input sample the x=y=z diagonal,
-        /// which is what the engine does when no world noise control point is set.
-        /// </summary>
-        public static float ValueDiagonal(float t) => Value3D(t, t, t);
-
         /// <inheritdoc cref="Value3D(float, float, float)"/>
         public static float Value3D(Vector3 position) => Value3D(position.X, position.Y, position.Z);
 
@@ -220,7 +212,7 @@ namespace ValveResourceFormat.Particles.Utils
                 }
             }
 
-            return (MathF.Min(1f, MathF.Max(0f, nearest)) * 2f) - 1f;
+            return (MathUtils.Saturate(nearest) * 2f) - 1f;
         }
 
         /// <summary>
@@ -288,7 +280,7 @@ namespace ValveResourceFormat.Particles.Utils
         {
             var remainder = MathF.IEEERemainder(noiseOffset + 1.7233999967575073f, 0.6483259797096252f);
 
-            return (MathF.Min(1f, MathF.Max(0f, remainder)) * 0.19999998807907104f) + 0.75f;
+            return (MathUtils.Saturate(remainder) * 0.19999998807907104f) + 0.75f;
         }
 
         /// <summary>

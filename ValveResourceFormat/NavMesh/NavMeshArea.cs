@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 
 namespace ValveResourceFormat.NavMesh
@@ -39,9 +38,23 @@ namespace ValveResourceFormat.NavMesh
         public Vector3[] Corners { get; set; } = [];
 
         /// <summary>
+        /// Gets or sets the gravity direction at each corner, parallel to <see cref="Corners"/>,
+        /// or <see langword="null"/> when the file does not store gravity directions.
+        /// </summary>
+        public Vector3[]? CornerGravity { get; set; }
+
+        /// <summary>
         /// Gets or sets the connections to other areas.
         /// </summary>
         public NavMeshConnection[][] Connections { get; set; } = [];
+
+        /// <summary>
+        /// Gets or sets the hiding spots inside this area.
+        /// </summary>
+        /// <remarks>
+        /// Counter-Strike 2 stores its hiding spots in <see cref="NavMeshFile.CustomData"/>, they are also read from there.
+        /// </remarks>
+        public NavMeshHidingSpot[] HidingSpots { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the ladders above this area.
@@ -87,6 +100,7 @@ namespace ValveResourceFormat.NavMesh
                 var polygonIndex = binaryReader.ReadUInt32();
                 var polygon = polygons[polygonIndex];
                 Corners = polygon.Corners;
+                CornerGravity = polygon.CornerGravity;
                 MovableMeshId = polygon.MovableMeshId;
             }
             else
@@ -100,7 +114,8 @@ namespace ValveResourceFormat.NavMesh
                 }
             }
 
-            binaryReader.ReadSingle(); //almost always 0
+            // Not used, current versions always write zero
+            binaryReader.ReadSingle();
 
             Connections = new NavMeshConnection[Corners.Length][];
             for (var i = 0; i < Corners.Length; i++)
@@ -108,10 +123,21 @@ namespace ValveResourceFormat.NavMesh
                 Connections[i] = ReadConnections(binaryReader);
             }
 
-            var unk2 = binaryReader.ReadByte(); //probably LegacyHidingSpotData count (always 0)
-            Debug.Assert(unk2 == 0);
-            var unk3 = binaryReader.ReadUInt32(); //probably LegacySpotEncounterData count (always 0)
-            Debug.Assert(unk3 == 0);
+            var hidingSpotCount = binaryReader.ReadByte();
+            if (hidingSpotCount > 0)
+            {
+                HidingSpots = new NavMeshHidingSpot[hidingSpotCount];
+                for (var i = 0; i < hidingSpotCount; i++)
+                {
+                    HidingSpots[i] = NavMeshHidingSpot.Read(binaryReader);
+                }
+            }
+
+            var encounterPathCount = binaryReader.ReadUInt32();
+            if (encounterPathCount != 0)
+            {
+                throw new UnexpectedMagicException("Unsupported nav area encounter paths", encounterPathCount, nameof(encounterPathCount));
+            }
 
             var ladderAboveCount = binaryReader.ReadUInt32();
             LaddersAbove = new uint[ladderAboveCount];

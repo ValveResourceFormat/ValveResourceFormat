@@ -3,8 +3,8 @@ using ValveResourceFormat.Particles.Utils;
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Remaps a running count of the particles this initializer has seen to a scalar output field.
-    /// The input count range is mapped to a configurable output range, with optional bias, wrap, and invert controls.
+    /// Remaps the running count of particles this initializer has seen from an input range to a
+    /// configurable output range, with optional bias, wrap and invert.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RemapParticleCountToScalar">C_INIT_RemapParticleCountToScalar</seealso>
     class RemapParticleCountToScalar : ParticleFunctionInitializer
@@ -52,8 +52,8 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
             {
-                outputMin = Math.Clamp(outputMin, 0f, 1f);
-                outputMax = Math.Clamp(outputMax, 0f, 1f);
+                outputMin = MathUtils.Saturate(outputMin);
+                outputMax = MathUtils.Saturate(outputMax);
             }
         }
 

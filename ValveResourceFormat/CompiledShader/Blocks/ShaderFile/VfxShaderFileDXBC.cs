@@ -42,6 +42,6 @@ public class VfxShaderFileDXBC : VfxShaderFile
     /// </remarks>
     public override string GetDecompiledFile()
     {
-        return $"Shader hash: {new Guid(Bytecode.AsSpan(4, 16)).ToString()}\n\nDXBC decompilation is currently not supported.";
+        return $"Shader hash: {new Guid(Bytecode.AsSpan(4, 16))}\n\nDXBC decompilation is currently not supported.";
     }
 }

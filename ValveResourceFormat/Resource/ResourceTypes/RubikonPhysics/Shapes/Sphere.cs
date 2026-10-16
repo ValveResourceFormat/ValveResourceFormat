@@ -6,6 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
     /// <summary>
     /// Represents a sphere shape.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/hlvr/physicslib/RnSphere_t">RnSphere_t</seealso>
     public struct Sphere
     {
         /// <summary>

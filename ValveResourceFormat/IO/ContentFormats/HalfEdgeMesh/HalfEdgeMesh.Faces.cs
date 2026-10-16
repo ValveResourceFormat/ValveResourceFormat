@@ -32,7 +32,9 @@ partial class HalfEdgeMesh
     public static HalfEdgeHandle GetFirstEdgeInFaceLoop(FaceHandle hFace)
     {
         if (!hFace.IsValid)
+        {
             return HalfEdgeHandle.Invalid;
+        }
 
         return hFace.Edge;
     }
@@ -43,7 +45,9 @@ partial class HalfEdgeMesh
     public static HalfEdgeHandle GetNextEdgeInFaceLoop(HalfEdgeHandle hEdge)
     {
         if (!hEdge.IsValid)
+        {
             return HalfEdgeHandle.Invalid;
+        }
 
         return hEdge.NextEdge;
     }
@@ -54,13 +58,17 @@ partial class HalfEdgeMesh
     public static HalfEdgeHandle FindPreviousEdgeInFaceLoop(HalfEdgeHandle hEdge)
     {
         if (!hEdge.IsValid)
+        {
             return HalfEdgeHandle.Invalid;
+        }
 
         var hCurrentEdge = hEdge;
         do
         {
             if (hCurrentEdge.NextEdge == hEdge)
+            {
                 return hCurrentEdge;
+            }
 
             hCurrentEdge = hCurrentEdge.NextEdge;
         }
@@ -75,7 +83,9 @@ partial class HalfEdgeMesh
     public static HalfEdgeHandle FindEdgeConnectedToFaceEndingAtVertex(FaceHandle hFace, VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
+        {
             return HalfEdgeHandle.Invalid;
+        }
 
         var hFirstEdge = GetFirstEdgeInVertexLoop(hVertex);
         var hOutgoingEdge = hFirstEdge;
@@ -84,7 +94,9 @@ partial class HalfEdgeMesh
         {
             var hIncomingEdge = hOutgoingEdge.OppositeEdge;
             if (hIncomingEdge.Face == hFace)
+            {
                 return hIncomingEdge;
+            }
 
             hOutgoingEdge = hIncomingEdge.NextEdge;
         }
@@ -99,13 +111,17 @@ partial class HalfEdgeMesh
     public HalfEdgeHandle FindEdgeConnectingFaces(FaceHandle hFaceA, FaceHandle hFaceB)
     {
         if (!hFaceA.IsValid)
+        {
             return HalfEdgeHandle.Invalid;
+        }
 
         var hCurrentEdge = hFaceA.Edge;
         do
         {
             if (hCurrentEdge.OppositeEdge.Face == hFaceB)
+            {
                 return GetFullEdgeForHalfEdge(hCurrentEdge);
+            }
 
             hCurrentEdge = hCurrentEdge.NextEdge;
         }
@@ -122,15 +138,19 @@ partial class HalfEdgeMesh
         hEdges = null;
 
         if (!hFace.IsValid)
+        {
             return false;
+        }
 
         var nNumEdges = ComputeNumEdgesInFace(hFace);
         if (nNumEdges <= 0)
+        {
             return false;
+        }
 
         hEdges = new HalfEdgeHandle[nNumEdges];
 
-        int i = 0;
+        var i = 0;
         var hEdge = hFace.Edge;
         do
         {
@@ -147,14 +167,18 @@ partial class HalfEdgeMesh
     /// </summary>
     public bool GetFullEdgesConnectedToFace(FaceHandle hFace, out List<HalfEdgeHandle> edges)
     {
-        edges = new List<HalfEdgeHandle>();
+        edges = [];
 
         if (!hFace.IsValid)
+        {
             return false;
+        }
 
-        int nNumEdges = ComputeNumEdgesInFace(hFace);
+        var nNumEdges = ComputeNumEdgesInFace(hFace);
         if (nNumEdges <= 0)
+        {
             return false;
+        }
 
         edges.EnsureCapacity(nNumEdges);
 
@@ -178,11 +202,15 @@ partial class HalfEdgeMesh
         vertices = null;
 
         if (!hFace.IsValid)
+        {
             return false;
+        }
 
-        int nNumVertices = ComputeNumEdgesInFace(hFace);
+        var nNumVertices = ComputeNumEdgesInFace(hFace);
         if (nNumVertices <= 0)
+        {
             return false;
+        }
 
         vertices = new VertexHandle[nNumVertices];
 
@@ -211,13 +239,17 @@ partial class HalfEdgeMesh
             var hStartEdge = GetFirstEdgeInFaceLoop(hFace);
 
             if (!hStartEdge.IsValid)
+            {
                 continue;
+            }
 
             var hCurrentEdge = hStartEdge;
             do
             {
                 if (!uniqueVertices.ContainsKey(hCurrentEdge.Vertex))
+                {
                     uniqueVertices.Add(hCurrentEdge.Vertex, i++);
+                }
 
                 hCurrentEdge = GetNextEdgeInFaceLoop(hCurrentEdge);
             }
@@ -226,7 +258,9 @@ partial class HalfEdgeMesh
 
         outVertices = new VertexHandle[uniqueVertices.Count];
         foreach (var hVertex in uniqueVertices)
+        {
             outVertices[hVertex.Value] = hVertex.Key;
+        }
     }
 
     /// <summary>
@@ -247,14 +281,18 @@ partial class HalfEdgeMesh
             var hFace = pFaceList[iFace];
             var hStartEdge = GetFirstEdgeInFaceLoop(hFace);
             if (hStartEdge == HalfEdgeHandle.Invalid)
+            {
                 continue;
+            }
 
             var hCurrentEdge = hStartEdge;
             do
             {
                 var hFullEdge = GetFullEdgeForHalfEdge(hCurrentEdge);
                 if (!uniqueEdges.ContainsKey(hFullEdge))
+                {
                     uniqueEdges.Add(hFullEdge, uniqueEdges.Count);
+                }
 
                 hCurrentEdge = GetNextEdgeInFaceLoop(hCurrentEdge);
             }
@@ -276,7 +314,9 @@ partial class HalfEdgeMesh
             var hFace = pFaceList[iFace];
             var hStartEdge = GetFirstEdgeInFaceLoop(hFace);
             if (hStartEdge == HalfEdgeHandle.Invalid)
+            {
                 continue;
+            }
 
             var hCurrentEdge = hStartEdge;
             do
@@ -301,11 +341,15 @@ partial class HalfEdgeMesh
         faces = [];
 
         if (!hFace.IsValid)
+        {
             return false;
+        }
 
-        int edgeCount = ComputeNumEdgesInFace(hFace);
+        var edgeCount = ComputeNumEdgesInFace(hFace);
         if (edgeCount <= 0)
+        {
             return false;
+        }
 
         faces.EnsureCapacity(edgeCount);
 
@@ -332,9 +376,9 @@ partial class HalfEdgeMesh
     {
         outClosedFaces = new List<FaceHandle>(faceList.Count);
 
-        for (int iFace = 0; iFace < faceList.Count; ++iFace)
+        for (var iFace = 0; iFace < faceList.Count; ++iFace)
         {
-            bool isClosed = true;
+            var isClosed = true;
 
             var hFace = faceList[iFace];
             var hStartEdge = GetFirstEdgeInFaceLoop(hFace);
@@ -369,11 +413,11 @@ partial class HalfEdgeMesh
     {
         FindFullEdgesConnectedToFaces(faceList, numFaces, out var allConnectedEdges, out var edgeFaceCounts);
 
-        int numConnectedEdges = allConnectedEdges.Length;
+        var numConnectedEdges = allConnectedEdges.Length;
 
         outBoundaryEdges = new List<HalfEdgeHandle>(numConnectedEdges);
 
-        for (int iEdge = 0; iEdge < numConnectedEdges; ++iEdge)
+        for (var iEdge = 0; iEdge < numConnectedEdges; ++iEdge)
         {
             if (edgeFaceCounts[iEdge] != 2)
             {

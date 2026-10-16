@@ -35,7 +35,7 @@ jobs:
     - name: Dotnet Setup
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: 10.x
+        global-json-file: global.json
 
     - name: Install docfx
       run: dotnet tool update -g docfx

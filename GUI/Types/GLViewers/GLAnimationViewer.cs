@@ -5,7 +5,9 @@ using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
-//using ValveResourceFormat.Renderer.SceneNodes;
+#if VKTODO
+using ValveResourceFormat.Renderer.SceneNodes;
+#endif
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
@@ -26,10 +28,12 @@ namespace GUI.Types.GLViewers
             else if (resource.DataBlock is AnimationClip animationClip)
             {
                 clip = animationClip;
-                //VKTODO:
-                //var skeletonResource = scene.FileLoader.LoadFileCompiled(animationClip.SkeletonName);
-                //Debug.Assert(skeletonResource != null);
-                //SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
+
+#if VKTODO
+                var skeletonResource = rendererContext.FileLoader.LoadFileCompiled(animationClip.SkeletonName);
+                Debug.Assert(skeletonResource != null);
+                SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
+#endif
             }
             else
             {
@@ -39,27 +43,28 @@ namespace GUI.Types.GLViewers
 
         private void LoadSkeleton(bool firstTime)
         {
-            //VKTODO:
-            //var skeleton = Skeleton.FromSkeletonData(SkeletonData);
-            //animationController = new AnimationController(skeleton, []);
+#if VKTODO
+            var skeleton = Skeleton.FromSkeletonData(SkeletonData);
+            animationController = new AnimationController(skeleton, []);
 
-            //if (!firstTime && skeletonSceneNode != null)
-            //{
-            //    skeletonSceneNode.ShowBones = false; // scene.Remove?
-            //}
+            if (!firstTime && skeletonSceneNode != null)
+            {
+                skeletonSceneNode.ShowBones = false; // scene.Remove?
+            }
 
-            //skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, skeleton)
-            //{
-            //    ShowBones = true,
-            //};
+            skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, skeleton)
+            {
+                ShowBones = true,
+            };
 
-            //Scene.Add(skeletonSceneNode, true);
-            //skeletonSceneNode.Update(new Scene.UpdateContext
-            //{
-            //    TextRenderer = TextRenderer,
-            //    Timestep = 0f,
-            //    Camera = Renderer.Camera,
-            //}); // update bbox for viewer
+            Scene.Add(skeletonSceneNode, true);
+            skeletonSceneNode.Update(new Scene.UpdateContext
+            {
+                TextRenderer = TextRenderer,
+                Timestep = 0f,
+                Camera = Renderer.Camera,
+            }); // update bbox for viewer
+#endif
         }
 
         private void LoadClipScene(AnimationClip clipToLoad, bool firstTime)
@@ -68,9 +73,10 @@ namespace GUI.Types.GLViewers
             Debug.Assert(skeletonResource != null);
             SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
             LoadSkeleton(firstTime);
-            //VKTODO:
-            //Debug.Assert(animationController != null);
-            //animationController.SetAnimation(new ClipAnimation(clipToLoad));
+#if VKTODO
+            Debug.Assert(animationController != null);
+            animationController.SetAnimation(new ClipAnimation(clipToLoad));
+#endif
         }
 
         protected override void LoadScene()
@@ -93,62 +99,65 @@ namespace GUI.Types.GLViewers
 
             if (clip != null)
             {
-                //// A clip has no animation list to pick from; the base list combo would stay empty.
-                //AddAnimationControls(includeAnimationList: false);
+#if VKTODO
+                // A clip has no animation list to pick from; the base list combo would stay empty.
+                AddAnimationControls(includeAnimationList: false);
 
-                //void BindAnimationUi()
-                //{
-                //    Debug.Assert(animationController != null);
+                void BindAnimationUi()
+                {
+                    Debug.Assert(animationController != null);
 
-                //    SetAnimationControllerUpdateHandler();
+                    SetAnimationControllerUpdateHandler();
 
-                //    // Set trackbar length to the animation length
-                //    animationController.SetAnimation(animationController.ActiveAnimation);
+                    // Set trackbar length to the animation length
+                    animationController.SetAnimation(animationController.ActiveAnimation);
 
-                //    SyncAnimationToggles();
-                //}
+                    SyncAnimationToggles();
+                }
 
-                //if (animationPlayPause != null)
-                //{
-                //    animationPlayPause.Enabled = true;
-                //}
+                if (animationPlayPause != null)
+                {
+                    animationPlayPause.Enabled = true;
+                }
 
-                //if (clip.SecondaryAnimations.Length > 0)
-                //{
-                //    animationComboBox = UiControl.AddSelection("Secondary", (_, index) =>
-                //    {
-                //        var newClip = index == 0
-                //            ? clip
-                //            : clip.SecondaryAnimations[index - 1];
+                if (clip.SecondaryAnimations.Length > 0)
+                {
+                    animationComboBox = UiControl.AddSelection("Secondary", (_, index) =>
+                    {
+                        var newClip = index == 0
+                            ? clip
+                            : clip.SecondaryAnimations[index - 1];
 
-                //        {
-                //            using var lockedGl = MakeCurrent();
-                //            LoadClipScene(newClip, firstTime: false);
-                //        }
-                //        BindAnimationUi();
+                        {
+                            using var lockedGl = MakeCurrent();
+                            LoadClipScene(newClip, firstTime: false);
+                        }
+                        BindAnimationUi();
 
-                //        if (animationPlayPause != null)
-                //        {
-                //            animationPlayPause.Enabled = true;
-                //        }
-                //    });
+                        if (animationPlayPause != null)
+                        {
+                            animationPlayPause.Enabled = true;
+                        }
+                    });
 
-                //    var defaultSkeleton = Path.GetFileNameWithoutExtension(clip.SkeletonName);
-                //    var secondarySkeletonIdentifiers = clip.SecondaryAnimations.Select(x => Path.GetFileNameWithoutExtension(x.SkeletonName)).ToArray();
-                //    animationComboBox.Items.AddRange([defaultSkeleton, .. secondarySkeletonIdentifiers]);
-                //    animationComboBox.SelectedIndex = 0;
-                //}
+                    var defaultSkeleton = Path.GetFileNameWithoutExtension(clip.SkeletonName);
+                    var secondarySkeletonIdentifiers = clip.SecondaryAnimations.Select(x => Path.GetFileNameWithoutExtension(x.SkeletonName)).ToArray();
+                    animationComboBox.Items.AddRange([defaultSkeleton, .. secondarySkeletonIdentifiers]);
+                    animationComboBox.SelectedIndex = 0;
+                }
 
-                //BindAnimationUi();
+                BindAnimationUi();
+#endif
             }
         }
 
         protected override void OnPaint(float frameTime)
         {
-            //VKTODO:
-            //Debug.Assert(animationController != null);
+#if VKTODO
+            Debug.Assert(animationController != null);
 
-            //animationController.Update(frameTime);
+            animationController.Update(frameTime);
+#endif
             base.OnPaint(frameTime);
         }
     }

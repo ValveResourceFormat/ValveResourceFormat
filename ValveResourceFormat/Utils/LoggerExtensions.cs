@@ -27,10 +27,9 @@ public static class LoggerExtensions
     }
 
     /// <summary>
-    /// Logs a warning the first time it occurs for <paramref name="identity"/>, for warnings whose
-    /// message also carries context that varies per occurrence - which event asked for it, which file
-    /// hit it - without that context making it a warning you have not already seen. The full message is
-    /// formatted either way; only <paramref name="identity"/> decides whether it is logged.
+    /// Logs a warning the first time it occurs for <paramref name="identity"/>, ignoring varying
+    /// context in the message such as which event or file hit it. The full message is formatted
+    /// either way; only <paramref name="identity"/> decides whether it is logged.
     /// </summary>
     /// <param name="logger">Logger to warn through.</param>
     /// <param name="identity">The values that, together with <paramref name="message"/>, identify the warning.</param>

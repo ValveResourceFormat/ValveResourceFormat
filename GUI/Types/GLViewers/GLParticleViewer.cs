@@ -4,13 +4,14 @@ using System.IO;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
-using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Upgrade;
 using ValveResourceFormat.Renderer;
-//using ValveResourceFormat.Renderer.Particles;
-//using ValveResourceFormat.Renderer.SceneNodes;
+#if VKTODO
+using ValveResourceFormat.Renderer.Particles;
+using ValveResourceFormat.Renderer.SceneNodes;
+#endif
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -38,19 +39,22 @@ namespace GUI.Types.GLViewers
             ("Operators", "m_Operators", ParticleSupportInfo.IsOperatorSupported),
             ("Force Generators", "m_ForceGenerators", ParticleSupportInfo.IsForceGeneratorSupported),
             ("Constraints", "m_Constraints", ParticleSupportInfo.IsConstraintSupported),
-            //VKTODO:
-            //("Renderers", "m_Renderers", ParticleRendererFactory.IsSupported),
+#if VKTODO
+            ("Renderers", "m_Renderers", ParticleRendererFactory.IsSupported),
+#endif
         ];
 
         private readonly ParticleSystem particleSystem;
         private readonly ParticleSnapshot? particleSnapshot;
         private IReadOnlyDictionary<string, IReadOnlyList<ParticleUpgradeTrace.TracedFunction>>? functionLists;
-        //private ParticleSceneNode? particleSceneNode;
+#if VKTODO
+        private ParticleSceneNode? particleSceneNode;
+#endif
         private GLViewerSliderControl? slowmodeTrackBar;
         private ThemedButton? restartButton;
+        private ThemedButton? pauseButton;
         private ThemedButton? endCapButton;
         private float screenSize = SnapshotParticleSystem.DefaultScreenSize;
-        private bool ShowRenderBounds { get; set; }
 
         public GLParticleViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, ParticleSystem particleSystem, ParticleSnapshot? particleSnapshot = null)
             : base(vrfGuiContext, rendererContext, Frustum.CreateEmpty())
@@ -65,6 +69,7 @@ namespace GUI.Types.GLViewers
 
             slowmodeTrackBar?.Dispose();
             restartButton?.Dispose();
+            pauseButton?.Dispose();
             endCapButton?.Dispose();
         }
 
@@ -72,60 +77,62 @@ namespace GUI.Types.GLViewers
         {
             InitializeSoundPlayer();
             LoadDefaultLighting();
-            //VKTODO:
-            //Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
+#if VKTODO
+            Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
 
-            //// Taken before the scene node reads the upgraded tree, so the chain runs once and the
-            //// function list describes the tree that is being simulated.
-            //functionLists = particleSystem.GetUpgradeTrace();
+            // Taken before the scene node reads the upgraded tree, so the chain runs once and the
+            // function list describes the tree that is being simulated.
+            functionLists = particleSystem.GetUpgradeTrace();
 
-            //particleSceneNode = new ParticleSceneNode(Scene, particleSystem, particleSnapshot, true)
-            //{
-            //    Transform = Matrix4x4.Identity
-            //};
+            particleSceneNode = new ParticleSceneNode(Scene, particleSystem, particleSnapshot, true)
+            {
+                Transform = Matrix4x4.Identity
+            };
 
-            //if (particleSnapshot != null)
-            //{
-            //    particleSceneNode.SetTextureOverride(Scene.RendererContext.MaterialLoader.GetDefaultColor());
-            //}
+            if (particleSnapshot != null)
+            {
+                particleSceneNode.SetTextureOverride(Scene.RendererContext.MaterialLoader.GetDefaultColor());
+            }
 
-            //Scene.Add(particleSceneNode, true);
+            Scene.Add(particleSceneNode, true);
+#endif
         }
 
         protected override void OnGLLoad()
         {
             base.OnGLLoad();
-            //VKTODO:
-            //if (particleSnapshot != null)
-            //{
-            //    var bounds = SnapshotParticleSystem.GetBounds(particleSnapshot);
-            //    var size = bounds.Size;
 
-            //    Input.Camera.FrameObject(bounds.Center, size.X, size.Y, size.Z);
-            //    Input.OrbitTargetProvider = () => bounds.Center;
+#if VKTODO
+            if (particleSnapshot != null)
+            {
+                var bounds = SnapshotParticleSystem.GetBounds(particleSnapshot);
+                var size = bounds.Size;
 
-            //    ApplyScreenSize();
-            //    return;
-            //}
+                Input.Camera.FrameObject(bounds.Center, size.X, size.Y, size.Z);
+                Input.OrbitTargetProvider = () => bounds.Center;
 
-            //Input.Camera.SetLocation(new Vector3(200, 200, 200));
-            //Input.Camera.LookAt(Vector3.Zero);
+                ApplyScreenSize();
+                return;
+            }
+
+            Input.Camera.SetLocation(new Vector3(200, 200, 200));
+            Input.Camera.LookAt(Vector3.Zero);
+#endif
         }
 
         private void ApplyScreenSize()
         {
-            //VKTODO:
-            //if (particleSceneNode != null && particleSnapshot != null && SnapshotParticleSystem.UsesConstantScreenSize(particleSnapshot))
-            //{
-            //    SnapshotParticleSystem.SetScreenSize(particleSceneNode.GetControlPoint(SnapshotParticleSystem.ScreenSizeControlPoint), screenSize, Input.Camera.GetFOV());
-            //}
+#if VKTODO
+            if (particleSceneNode != null && particleSnapshot != null && SnapshotParticleSystem.UsesConstantScreenSize(particleSnapshot))
+            {
+                SnapshotParticleSystem.SetScreenSize(particleSceneNode.GetControlPoint(SnapshotParticleSystem.ScreenSizeControlPoint), screenSize, Input.Camera.GetFOV());
+            }
+#endif
         }
 
         protected override void AddUiControls()
         {
             Debug.Assert(UiControl != null);
-            //VKTODO:
-            //Debug.Assert(SelectedNodeRenderer != null);
 
             AddRenderModeSelectionControl();
 
@@ -135,10 +142,12 @@ namespace GUI.Types.GLViewers
                 {
                     return;
                 }
-                //VKTODO:
-                //using var lockedGl = MakeCurrent();
-                //particleSceneNode?.SetDetailLevel((ParticleDetailLevel)i);
-                //particleSceneNode?.Restart();
+
+#if VKTODO
+                using var lockedGl = MakeCurrent();
+                particleSceneNode?.SetDetailLevel((ParticleDetailLevel)i);
+                particleSceneNode?.Restart();
+#endif
             }, horizontal: true, fill: true);
             detailLevelComboBox.Items.AddRange(["Low", "Medium", "High", "Ultra"]);
             detailLevelComboBox.SelectedIndex = (int)ParticleDetailLevel.PARTICLEDETAIL_ULTRA;
@@ -152,8 +161,28 @@ namespace GUI.Types.GLViewers
             };
             restartButton.Click += (_, _) =>
             {
-                //using var lockedGl = MakeCurrent();
-                //particleSceneNode?.Restart();
+#if VKTODO
+                using var lockedGl = MakeCurrent();
+                particleSceneNode?.Restart();
+#endif
+            };
+
+            pauseButton = new ThemedButton
+            {
+                Text = "Pause",
+                AutoSize = true,
+            };
+            pauseButton.Click += (_, _) =>
+            {
+#if VKTODO
+                if (particleSceneNode == null)
+                {
+                    return;
+                }
+
+                particleSceneNode.IsPaused = !particleSceneNode.IsPaused;
+                pauseButton.Text = particleSceneNode.IsPaused ? "Resume" : "Pause";
+#endif
             };
 
             endCapButton = new ThemedButton
@@ -163,53 +192,71 @@ namespace GUI.Types.GLViewers
             };
             endCapButton.Click += (_, _) =>
             {
-                //using var lockedGl = MakeCurrent();
-                //particleSceneNode?.PlayEndCap();
+#if VKTODO
+                using var lockedGl = MakeCurrent();
+                particleSceneNode?.PlayEndCap();
+#endif
             };
 
             using (UiControl.BeginGroup("Playback"))
             {
                 var playbackModeComboBox = UiControl.AddSelection("Mode", (_, i) =>
                 {
-                    //VKTODO:
-                    //if (i < 0 || particleSceneNode == null)
-                    //{
-                    //    return;
-                    //}
+#if VKTODO
+                    if (i < 0 || particleSceneNode == null)
+                    {
+                        return;
+                    }
 
-                    //using var lockedGl = MakeCurrent();
-                    //particleSceneNode.PlaybackMode = (ParticlePlaybackMode)i;
-                    //particleSceneNode.Restart();
+                    using var lockedGl = MakeCurrent();
+                    particleSceneNode.PlaybackMode = (ParticlePlaybackMode)i;
+                    particleSceneNode.Restart();
+#endif
                 }, horizontal: true, fill: true);
                 playbackModeComboBox.Items.AddRange(["Normal + Endcap", "Normal", "Endcap Only"]);
-                //VKTODO:
-                //playbackModeComboBox.SelectedIndex = (int)ParticlePlaybackMode.NormalWithEndCap;
+#if VKTODO
+                playbackModeComboBox.SelectedIndex = (int)ParticlePlaybackMode.NormalWithEndCap;
 
-                //UiControl.AddCheckBox("Loop", true, value =>
-                //{
-                //    if (particleSceneNode == null)
-                //    {
-                //        return;
-                //    }
+                UiControl.AddCheckBox("Loop", true, value =>
+                {
+                    if (particleSceneNode == null)
+                    {
+                        return;
+                    }
 
-                //    using var lockedGl = MakeCurrent();
-                //    particleSceneNode.Loop = value;
-                //    particleSceneNode.Restart();
-                //});
+                    using var lockedGl = MakeCurrent();
+                    particleSceneNode.Loop = value;
+                    particleSceneNode.Restart();
+                });
+#endif
+
+#if VKTODO
+                UiControl.AddCheckBox("Collide With Floor", false, value =>
+                {
+                    Renderer.EntitySystem.PhysicsWorld.GroundPlane = value ? 0f : null;
+
+                    using var lockedGl = MakeCurrent();
+                    particleSceneNode?.Restart();
+                });
+#endif
 
                 UiControl.AddControl(restartButton);
+                UiControl.AddControl(pauseButton);
                 UiControl.AddControl(endCapButton);
 
-                //slowmodeTrackBar = UiControl.AddTrackBar(value =>
-                //{
-                //    particleSceneNode?.FrametimeMultiplier = value;
-                //}, particleSceneNode?.FrametimeMultiplier ?? 1f);
+#if VKTODO
+                slowmodeTrackBar = UiControl.AddTrackBar(value =>
+                {
+                    particleSceneNode?.FrametimeMultiplier = value;
+                }, particleSceneNode?.FrametimeMultiplier ?? 1f);
+#endif
             }
 
             using (UiControl.BeginGroup("Display"))
             {
-                //VKTODO:
-                //UiControl.AddCheckBox("Show Render Bounds", ShowRenderBounds, value => SelectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
+#if VKTODO
+                UiControl.AddCheckBox("Show Render Bounds", false, value => Selection.Select(value ? particleSceneNode : null));
+#endif
 
                 // Only when the snapshot stores no radius, in which case the preview invents a size.
                 if (particleSnapshot != null && SnapshotParticleSystem.UsesConstantScreenSize(particleSnapshot))
@@ -427,10 +474,5 @@ namespace GUI.Types.GLViewers
         private sealed record ParticleFunctionItem(string Text, FunctionSupport Support);
 
         private sealed record ChildSystemItem(string Text, string ChildRef, bool Disabled);
-        //VKTODO:
-        //protected override void OnPicked(object? sender, PickingTexture.PickingResponse pixelInfo)
-        //{
-        //    //
-        //}
     }
 }

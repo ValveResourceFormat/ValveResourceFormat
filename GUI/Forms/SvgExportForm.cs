@@ -34,7 +34,7 @@ namespace GUI.Forms
         public SvgExportFormat SelectedFormat => formats[formatComboBox.SelectedIndex];
 
         // Guard against a degenerate zero-size svg so the scale math never divides by zero.
-        private float SourceLongEdge => MathF.Max(MathF.Max(sourceWidth, sourceHeight), 1f);
+        private float SourceLongEdge => MathUtils.Max(sourceWidth, sourceHeight, 1f);
 
         /// <summary>The scale to rasterize at, relative to the svg's native resolution (1 = native).</summary>
         public float SelectedScale => ChosenLongEdge / SourceLongEdge;

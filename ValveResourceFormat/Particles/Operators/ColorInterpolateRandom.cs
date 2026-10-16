@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
-    /// Interpolates a particle's color toward a per-particle randomly chosen target color (between a min and max fade color) over a normalized age range.
+    /// Interpolates color toward a per-particle random fade color between min and max over a normalized age range.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ColorInterpolateRandom">C_OP_ColorInterpolateRandom</seealso>
     class ColorInterpolateRandom : ParticleFunctionOperator
@@ -45,12 +45,9 @@ namespace ValveResourceFormat.Particles.Operators
                         particleSystemState.Random.ForParticleBetween(particle.ParticleId, BlueOffset, colorFadeMin.Z, colorFadeMax.Z))
                     : particleSystemState.Random.ForParticleBetween(particle.ParticleId, RedOffset, colorFadeMin, colorFadeMax);
 
-                var t = MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, fadeStartTime, fadeEndTime));
-
-                if (easeInOut)
-                {
-                    t = t * t * (3 - 2 * t);
-                }
+                var t = easeInOut
+                    ? MathUtils.Smoothstep(fadeStartTime, fadeEndTime, particle.NormalizedAge)
+                    : MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, fadeStartTime, fadeEndTime));
 
                 var initialColor = particle.GetInitialVector(particles, fieldOutput);
 

@@ -116,4 +116,4 @@ A maintainer will review your pull request and may suggest changes. Once approve
 
 ## Need help?
 
-If you have questions or want to discuss a guide idea before writing, join our Discord.
+If you have questions or want to discuss a guide idea before writing, join our [Discord](https://discord.gg/s9QQ7Wg7r4).

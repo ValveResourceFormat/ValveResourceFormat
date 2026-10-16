@@ -17,6 +17,7 @@ namespace GUI.Utils
     public class VrfGuiContext : GameFileLoader
     {
         public static ILogger Logger { get; } = MakeLogger();
+        private static readonly ILogger FileLoaderLogger = new GuiLoggerAdapter(nameof(GameFileLoader));
 
         public string FileName { get; }
 
@@ -35,6 +36,37 @@ namespace GUI.Utils
 
         public VrfGuiContext? ParentGuiContext { get; }
         public ToolsAssetInfo? ToolsAssetInfo { get; private set; }
+
+        /// <summary>
+        /// File name followed by the chain of parent files it was opened from,
+        /// with paths on disk made relative to their Steam app when they are inside of one.
+        /// </summary>
+        public string DisplayPath
+        {
+            get
+            {
+                var path = GetDisplayPath(FileName);
+
+                for (var parentContext = ParentGuiContext; parentContext != null; parentContext = parentContext.ParentGuiContext)
+                {
+                    path = $"{path} ← {GetDisplayPath(parentContext.FileName)}";
+                }
+
+                return path;
+            }
+        }
+
+        /// <summary>
+        /// Converts a path on disk to a path relative to its Steam app when it is inside of one.
+        /// </summary>
+        public static string GetDisplayPath(string path) => Path.IsPathRooted(path) ? GetSteamAppPath(path) ?? path : path;
+
+        /// <summary>
+        /// Converts a full path inside of an installed Steam app to a portable <c>steam:&lt;appid&gt;/&lt;path&gt;</c> path.
+        /// </summary>
+        /// <returns>The portable path, or <c>null</c> if the path is not inside of an installed app.</returns>
+        public static string? GetSteamAppPath(string fullPath) => GameFolderLocator.GetSteamAppPath(fullPath, InstalledSteamGames.Games);
+
         private bool ToolsAssetInfoLoaded;
 
         // This is a hack to set camera and properties when clicking a mesh from a model or map
@@ -45,8 +77,9 @@ namespace GUI.Utils
 
         private int Children;
         private bool WantsToBeDisposed;
+        private bool Disposed;
         private readonly ConcurrentDictionary<string, Resource> CachedResources = [];
-        private readonly ConcurrentBag<RendererContext> rendererContexts = [];
+        private readonly ConcurrentQueue<RendererContext> rendererContexts = [];
 
 #if DEBUG
         private int TotalChildren;
@@ -54,7 +87,7 @@ namespace GUI.Utils
         private readonly int ContextId = ++LastContextId;
 #endif
 
-        public VrfGuiContext(string fileName, VrfGuiContext? parentGuiContext) : base(null, fileName)
+        public VrfGuiContext(string fileName, VrfGuiContext? parentGuiContext, bool loadSearchPaths = true) : base(null, fileName, FileLoaderLogger)
         {
 #if DEBUG
             Log.Debug(nameof(VrfGuiContext), $"#{ContextId} created");
@@ -64,11 +97,17 @@ namespace GUI.Utils
 
             ParentGuiContext?.AddChildren();
 
-            if (ParentGuiContext != null)
+            if (ParentGuiContext != null || !loadSearchPaths)
             {
                 return;
             }
 
+            LoadSearchPaths();
+        }
+
+        /// <summary>Adds the game search paths from settings.</summary>
+        public void LoadSearchPaths()
+        {
             var paths = Settings.Config.GameSearchPaths.ToList(); // Make a copy
 
             try
@@ -155,14 +194,14 @@ namespace GUI.Utils
 
         public void ClearCache() => ClearCache(disposeStreamingResources: false);
 
-        /// <param name="disposeStreamingResources">Only safe once every renderer context on this loader has been
-        /// disposed, since that is what waits for the streaming reads still holding these resources.</param>
+        /// <param name="disposeStreamingResources">Only safe once all renderer contexts on this loader are disposed, since disposal
+        /// waits for streaming reads still holding these resources.</param>
         private void ClearCache(bool disposeStreamingResources)
         {
             foreach (var (path, resource) in CachedResources)
             {
-
-                if (!disposeStreamingResources && resource is { ResourceType: ResourceType.Texture })
+                // Texture mips and sounds are still read on background threads after the scene has loaded
+                if (!disposeStreamingResources && resource is { ResourceType: ResourceType.Texture or ResourceType.Sound })
                 {
                     continue;
                 }
@@ -177,7 +216,8 @@ namespace GUI.Utils
         [SuppressMessage("Usage", "CA2215:Dispose methods should call base class dispose", Justification = "Deferred to StopLoadingAndDispose, which waits for the loaders first")]
         protected override void Dispose(bool disposing)
         {
-            if (!disposing)
+            // A package tab's context is disposed by both its tree view and its tab
+            if (!disposing || Disposed)
             {
                 return;
             }
@@ -195,6 +235,7 @@ namespace GUI.Utils
 #if DEBUG
             Log.Debug(nameof(VrfGuiContext), $"#{ContextId} Dispose (total children: {TotalChildren}, has parent: {ParentGuiContext != null}, prev: {WantsToBeDisposed})");
 #endif
+            Disposed = true;
             ParentGuiContext?.RemoveChildren();
 
             StopLoadingAndDispose(disposing);
@@ -209,13 +250,13 @@ namespace GUI.Utils
                 MaxTextureSize = Settings.Config.MaxTextureSize,
             };
 
-            rendererContexts.Add(context);
+            rendererContexts.Enqueue(context);
 
             return context;
         }
 
-        // Whoever disposes the resources has to be the one that guarantees nobody is still reading them.
-        // Leaving that to callers means every disposal path has to get the order right, and they do not.
+        // Disposal has to wait for readers itself: callers would need the order right on every path,
+        // and they do not.
         private void StopLoadingAndDispose(bool disposing)
         {
             foreach (var context in rendererContexts)

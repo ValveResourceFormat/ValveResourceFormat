@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Particles.Initializers
             if (fractionalIncrement)
             {
                 ref var nextParent = ref parentParticles[Math.Clamp((int)MathF.Ceiling(walkIndex), 0, lastIndex)];
-                var blend = walkIndex - MathF.Floor(walkIndex);
+                var blend = MathUtils.Fract(walkIndex);
                 parentPosition = Vector3.Lerp(parentPosition, nextParent.Position, blend);
                 parentPositionPrevious = Vector3.Lerp(parentPositionPrevious, nextParent.PositionPrevious, blend);
             }
@@ -124,12 +124,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var currentTime = particleSystemState.Age;
             var previousTime = currentTime - particles.CurrentFrameTime;
 
-            if (previousTime == currentTime)
-            {
-                return particle.CreationTime >= currentTime ? 1f : 0f;
-            }
-
-            return Math.Clamp((particle.CreationTime - previousTime) / (currentTime - previousTime), 0f, 1f);
+            return MathUtils.RemapValClamped(particle.CreationTime, previousTime, currentTime, 0f, 1f);
         }
 
         /// <summary>

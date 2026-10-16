@@ -1,6 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using ValveResourceFormat.IO;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -29,7 +30,7 @@ internal class Ipc
         var absoluteArgs = new string[args.Length];
         for (var i = 0; i < args.Length; i++)
         {
-            if (!args[i].StartsWith("vpk:", StringComparison.InvariantCulture) && File.Exists(args[i]))
+            if (!VpkLink.IsVpkLink(args[i]) && File.Exists(args[i]))
             {
                 absoluteArgs[i] = Path.GetFullPath(args[i]);
             }

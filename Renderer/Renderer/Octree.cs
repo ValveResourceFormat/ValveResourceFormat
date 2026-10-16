@@ -279,7 +279,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     foreach (var element in Elements!)
                     {
-                        if (frustum.Intersects(element.BoundingBox) || (element.Flags & ObjectTypeFlags.DisableVisCulling) != 0)
+                        if (frustum.Intersects(element.BoundingBox))
                         {
                             results.Add(element);
                         }
@@ -340,8 +340,10 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public bool Dirty { get; set; } = true;
 
+#if VKTODO
         /// <summary>Gets or sets an optional debug renderer that visualizes this octree.</summary>
-        //VKTODO: public OctreeDebugRenderer? DebugRenderer { get; set; }
+        public OctreeDebugRenderer? DebugRenderer { get; set; }
+#endif
 
         /// <summary>
         /// Initializes a new octree with the specified size.

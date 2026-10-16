@@ -20,8 +20,10 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets whether the set needs rebuilding from the scene's node list.</summary>
         public bool Dirty { get; set; } = true;
 
+#if VKTODO
         /// <summary>Gets or sets the debug visualization renderer for this set.</summary>
-        //VKTODO: public SpatialNodeSetDebugRenderer? DebugRenderer { get; set; }
+        public SpatialNodeSetDebugRenderer? DebugRenderer { get; set; }
+#endif
 
         /// <summary>Removes every node from the set.</summary>
         public void Clear()
@@ -69,8 +71,8 @@ namespace ValveResourceFormat.Renderer
 
         private void WriteBounds(int index, in AABB bounds)
         {
-            var center = (bounds.Min + bounds.Max) * 0.5f;
-            var extent = (bounds.Max - bounds.Min) * 0.5f;
+            var center = bounds.Center;
+            var extent = bounds.Size * 0.5f;
 
             centerX[index] = center.X;
             centerY[index] = center.Y;
@@ -89,7 +91,7 @@ namespace ValveResourceFormat.Renderer
 
             // Rounded up to a whole vector so the SIMD pass never reads past the end of a live lane
             var capacity = Math.Max(required, nodes.Length == 0 ? 64 : nodes.Length * 2);
-            capacity = (capacity + Vector<float>.Count - 1) / Vector<float>.Count * Vector<float>.Count;
+            capacity = MathUtils.AlignUp(capacity, Vector<float>.Count);
 
             Array.Resize(ref nodes, capacity);
             Array.Resize(ref centerX, capacity);
@@ -166,6 +168,51 @@ namespace ValveResourceFormat.Renderer
                     results.Add(nodes[i]);
                 }
             }
+        }
+
+        /// <summary>
+        /// Returns the node with the lowest index whose bounds contain the point, or <see langword="null"/>
+        /// when none do. Insert in priority order and that is the highest priority hit.
+        /// </summary>
+        /// <param name="point">The point to test against every node's bounds.</param>
+        public SceneNode? FindContaining(Vector3 point)
+        {
+            var width = Vector<float>.Count;
+            var px = new Vector<float>(point.X);
+            var py = new Vector<float>(point.Y);
+            var pz = new Vector<float>(point.Z);
+            var i = 0;
+
+            for (; i <= Count - width; i += width)
+            {
+                // A box holds the point when it is inside the extent on every axis
+                var inside = Vector.LessThanOrEqual(Vector.Abs(new Vector<float>(centerX, i) - px), new Vector<float>(extentX, i))
+                    & Vector.LessThanOrEqual(Vector.Abs(new Vector<float>(centerY, i) - py), new Vector<float>(extentY, i))
+                    & Vector.LessThanOrEqual(Vector.Abs(new Vector<float>(centerZ, i) - pz), new Vector<float>(extentZ, i));
+
+                if (Vector.EqualsAll(inside, Vector<int>.Zero))
+                {
+                    continue; // whole vector missed
+                }
+
+                for (var lane = 0; lane < width; lane++)
+                {
+                    if (inside[lane] != 0)
+                    {
+                        return nodes[i + lane];
+                    }
+                }
+            }
+
+            for (; i < Count; i++)
+            {
+                if (GetBounds(i).Contains(point))
+                {
+                    return nodes[i];
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

@@ -158,11 +158,15 @@ public sealed class PolygonMesh
     public VertexHandle[] AddVertices(ReadOnlySpan<Vector3> positions)
     {
         if (positions.Length <= 0)
+        {
             return [];
+        }
 
         var hVertices = Topology.AddVertices(positions.Length).ToArray();
         for (var i = 0; i < positions.Length; i++)
+        {
             Positions[hVertices[i]] = positions[i];
+        }
 
         return hVertices;
     }
@@ -174,7 +178,9 @@ public sealed class PolygonMesh
     {
         var hFace = Topology.AddFace(hVertices);
         if (!hFace.IsValid)
+        {
             return hFace;
+        }
 
         MaterialIndex[hFace] = -1;
 
@@ -228,7 +234,9 @@ public sealed class PolygonMesh
     public void SetVertexPosition(VertexHandle hVertex, Vector3 position)
     {
         if (!hVertex.IsValid)
+        {
             return;
+        }
 
         Positions[hVertex] = position;
     }
@@ -382,7 +390,9 @@ public sealed class PolygonMesh
         while (hEdge != hFace.Edge);
 
         if (count > 0)
+        {
             AccumulateNewellPair(ref vNormal, prev, first);
+        }
 
         FinaliseNewellNormal(vNormal, refpt, count, out pOutNormal, out pOutPlaneDistance);
     }
@@ -409,7 +419,9 @@ public sealed class PolygonMesh
 
         var face = HalfEdgeMesh.GetFaceConnectedToHalfEdge(targetHalfEdge);
         if (face == FaceHandle.Invalid)
+        {
             return false;
+        }
 
         Span<Vector3> positions = stackalloc Vector3[3];
         Span<Vector2> texcoords = stackalloc Vector2[3];
@@ -430,7 +442,9 @@ public sealed class PolygonMesh
 
             var targetToCurrent = Vector3.Normalize(positions[2] - positions[0]);
             if (Vector3.Dot(targetToCurrent, prevToTarget) < CollinearTolerance)
+            {
                 break;
+            }
 
             currentHalfEdge = currentHalfEdge.NextEdge;
         }
@@ -483,8 +497,8 @@ public sealed class PolygonMesh
             tVect.Z += -cross.Z / cross.X;
         }
 
-        if (sVect.LengthSquared() > 0.0f) sVect = Vector3.Normalize(sVect);
-        if (tVect.LengthSquared() > 0.0f) tVect = Vector3.Normalize(tVect);
+        sVect = MathUtils.SafeNormalize(sVect);
+        tVect = MathUtils.SafeNormalize(tVect);
     }
 
     private static void BuildBasis(Vector3 normal, out Vector3 tangent, out Vector3 bitangent)
@@ -607,7 +621,9 @@ public sealed class PolygonMesh
     public void ComputeFaceTextureCoordinatesFromParameters(FaceHandle hFace, Vector2 textureSize, float defaultScale = DefaultTextureScale)
     {
         if (!hFace.IsValid)
+        {
             return;
+        }
 
         var axisU = TextureUAxis[hFace];
         var axisV = TextureVAxis[hFace];
@@ -642,7 +658,9 @@ public sealed class PolygonMesh
     public void ComputeFaceTextureParametersFromCoordinates(FaceHandle hFace, Vector2 textureSize)
     {
         if (!hFace.IsValid)
+        {
             return;
+        }
 
         var facePositions = new List<Vector3>();
         var faceTexCoords = new List<Vector2>();
@@ -664,8 +682,8 @@ public sealed class PolygonMesh
             ComputeFaceTextureParametersFromUVs(bestPositions, bestTexCoords, textureSize,
                 out var axisU, out var axisV, out var scale);
 
-            TextureUAxis[hFace] = new Vector3(axisU.X, axisU.Y, axisU.Z);
-            TextureVAxis[hFace] = new Vector3(axisV.X, axisV.Y, axisV.Z);
+            TextureUAxis[hFace] = axisU.AsVector3();
+            TextureVAxis[hFace] = axisV.AsVector3();
             TextureOffset[hFace] = new Vector2(axisU.W, axisV.W);
             TextureScale[hFace] = scale;
         }
@@ -686,17 +704,23 @@ public sealed class PolygonMesh
         vOutV = new Vector3(0.0f, 1.0f, 0.0f);
 
         if (vVertPos.Length < 3 || vTexCoord.Length < 3)
+        {
             return false;
+        }
 
         Vector3[] E = [vVertPos[1] - vVertPos[0], vVertPos[2] - vVertPos[0]];
         Vector2[] T = [vTexCoord[1] - vTexCoord[0], vTexCoord[2] - vTexCoord[0]];
 
         if (T[0].LengthSquared() < flEpsilon && T[1].LengthSquared() < flEpsilon)
+        {
             return false;
+        }
 
         var eDet = T[0].X * T[1].Y - T[1].X * T[0].Y;
         if (MathF.Abs(eDet) < flEpsilon)
+        {
             eDet = flEpsilon;
+        }
 
         var textureU = 1.0f / eDet * (T[1].Y * E[0] - T[0].Y * E[1]);
         var textureV = 1.0f / eDet * (-T[1].X * E[0] + T[0].X * E[1]);
@@ -710,8 +734,8 @@ public sealed class PolygonMesh
 
         if (Matrix4x4.Invert(mTextureToWorld, out var mWorldToTexture))
         {
-            vOutU = new Vector3(mWorldToTexture.M11, mWorldToTexture.M12, mWorldToTexture.M13);
-            vOutV = new Vector3(mWorldToTexture.M21, mWorldToTexture.M22, mWorldToTexture.M23);
+            vOutU = mWorldToTexture.GetRow(0).AsVector3();
+            vOutV = mWorldToTexture.GetRow(1).AsVector3();
             return true;
         }
 
@@ -750,13 +774,27 @@ public sealed class PolygonMesh
         var uvOffset = vTexCoordFrac - vWorldOffsetFrac;
         uvOffset.X -= (int)uvOffset.X;
         uvOffset.Y -= (int)uvOffset.Y;
-        if (uvOffset.X < 0) uvOffset.X += 1.0f;
-        if (uvOffset.Y < 0) uvOffset.Y += 1.0f;
+        if (uvOffset.X < 0)
+        {
+            uvOffset.X += 1.0f;
+        }
+
+        if (uvOffset.Y < 0)
+        {
+            uvOffset.Y += 1.0f;
+        }
 
         var uOffset = uvOffset.X * vTextureDimensions.X;
         var vOffset = uvOffset.Y * vTextureDimensions.Y;
-        if (uOffset >= vTextureDimensions.X) uOffset -= vTextureDimensions.X;
-        if (vOffset >= vTextureDimensions.Y) vOffset -= vTextureDimensions.Y;
+        if (uOffset >= vTextureDimensions.X)
+        {
+            uOffset -= vTextureDimensions.X;
+        }
+
+        if (vOffset >= vTextureDimensions.Y)
+        {
+            vOffset -= vTextureDimensions.Y;
+        }
 
         pAxisU.W = uOffset;
         pAxisV.W = vOffset;
@@ -768,7 +806,9 @@ public sealed class PolygonMesh
         pOutTexCoords = new Vector2[3];
 
         if (nNumPositions < 3)
+        {
             return;
+        }
 
         var nBestVert = 0;
         var flBestHeuristic = -1.0f;
@@ -851,7 +891,9 @@ public sealed class PolygonMesh
         var flTolerance = MathF.Cos(MathF.Min(flAngleToleranceInDegrees, 180.0f) * (MathF.PI / 180f));
 
         if ((hEdgeA == HalfEdgeHandle.Invalid) || (hEdgeB == HalfEdgeHandle.Invalid))
+        {
             return false;
+        }
 
         GetEdgeVertexPositions(hEdgeA, out var vPositionA1, out var vPositionA2);
         GetEdgeVertexPositions(hEdgeB, out var vPositionB1, out var vPositionB2);
@@ -895,7 +937,9 @@ public sealed class PolygonMesh
 
             var remaining = FaceHandles.Count();
             if (remaining >= faceCount)
+            {
                 break;
+            }
 
             faceCount = remaining;
         }
@@ -911,20 +955,28 @@ public sealed class PolygonMesh
 
             // each full edge once
             if (hEdge.Index > hOpposite.Index)
+            {
                 continue;
+            }
 
             var hFaceA = hEdge.Face;
             var hFaceB = hOpposite.Face;
 
             if (!hFaceA.IsValid || !hFaceB.IsValid || hFaceA == hFaceB)
+            {
                 continue;
+            }
 
             if (MaterialIndex[hFaceA] != MaterialIndex[hFaceB])
+            {
                 continue;
+            }
 
             if (!TextureMappingContinues(hFaceA, hFaceB, textureCoordinateTolerance)
              || !TextureMappingContinues(hFaceB, hFaceA, textureCoordinateTolerance))
+            {
                 continue;
+            }
 
             edges.Add(hEdge);
         }
@@ -951,7 +1003,9 @@ public sealed class PolygonMesh
         GetBestThreeTextureBasisVerticies(positions, texCoords, positions.Count, out var bestPositions, out var bestTexCoords);
 
         if (!CalcTextureBasisFromUVs(bestPositions, bestTexCoords, out var worldU, out var worldV))
+        {
             return false;
+        }
 
         hFaceVertex = hFaceB.Edge;
         do
@@ -960,7 +1014,9 @@ public sealed class PolygonMesh
             var predicted = bestTexCoords[0] + new Vector2(Vector3.Dot(worldU, offset), Vector3.Dot(worldV, offset));
 
             if (Vector2.Distance(predicted, TextureCoords[hFaceVertex]) > tolerance)
+            {
                 return false;
+            }
 
             hFaceVertex = hFaceVertex.NextEdge;
         }
@@ -999,21 +1055,27 @@ public sealed class PolygonMesh
             // edge vertices will left behind will be removed to prevent the creation of a non-planar polygon.
             HalfEdgeMesh.GetFacesConnectedToFullEdge(hEdge, out var hFaceA, out var hFaceB);
             if ((hFaceA == FaceHandle.Invalid) || (hFaceB == FaceHandle.Invalid))
+            {
                 continue;
+            }
 
             ComputeFaceNormal(hFaceA, out var normalA);
             ComputeFaceNormal(hFaceB, out var normalB);
 
             var flFaceAngle = Vector3.Dot(normalA, normalB);
             if (bFaceMustBePlanar && (flFaceAngle < (1.0f - flPlanarTolerance)))
+            {
                 continue;
+            }
 
             // Get the vertices connected to the edge
             HalfEdgeMesh.GetVerticesConnectedToFullEdge(hEdge, out var hVertexA, out var hVertexB);
 
             // Dissolve the edge
             if (!Topology.DissolveEdge(hEdge, out var hFace))
+            {
                 continue;
+            }
 
             // Determine if the vertices at the ends of the edge should be removed. A vertex should be
             // removed if after the edge is dissolved it has only 2 edges connected to it and it passes
@@ -1057,10 +1119,14 @@ public sealed class PolygonMesh
     private bool ShouldDissolveRemoveVertex(VertexHandle hVertex, DissolveRemoveVertexCondition removeCondition, float flColinearTolerance)
     {
         if (removeCondition == DissolveRemoveVertexCondition.None)
+        {
             return false;
+        }
 
         if (!hVertex.IsValid || HalfEdgeMesh.ComputeNumEdgesConnectedToVertex(hVertex) != 2)
+        {
             return false;
+        }
 
         Topology.GetFullEdgesConnectedToVertex(hVertex, out var connectedEdges);
         var bInterior = !HalfEdgeMesh.IsFullEdgeOpen(connectedEdges[0]);
@@ -1078,12 +1144,16 @@ public sealed class PolygonMesh
     private void RemoveVerticesFromColinearEdgesInFace(FaceHandle hFace, float flColinearAngleTolerance)
     {
         if (!hFace.IsValid)
+        {
             return;
+        }
 
         // Get all of the vertices in the face
         HalfEdgeMesh.GetVerticesConnectedToFace(hFace, out var verticesInFace);
         if (verticesInFace is null || verticesInFace.Length == 0)
+        {
             return;
+        }
 
         // Iterate over all of the vertices connected to the face, find the ones which are only connected
         // to two edges and determine if those two edges are co-linear, if so remove the vertex.
@@ -1100,7 +1170,9 @@ public sealed class PolygonMesh
     public bool RemoveColinearVertex(VertexHandle hVertex, float flColinearAngleTolerance = 5.0f)
     {
         if (!hVertex.IsValid)
+        {
             return false;
+        }
 
         Topology.GetFullEdgesConnectedToVertex(hVertex, out var edgesConnectedToVertex);
 
@@ -1153,7 +1225,9 @@ public sealed class PolygonMesh
         hOutNewEdge = HalfEdgeHandle.Invalid;
 
         if (!HalfEdgeMesh.GetEdgeMergeVertexPairs(hEdgeA, hEdgeB, out var hVertexPairA1, out var hVertexPairA2, out var hVertexPairB1, out var hVertexPairB2))
+        {
             return false;
+        }
 
         // Check to see of the edges share a single vertex,
         // if so just merge the other vertex instead of the edge.
@@ -1177,7 +1251,9 @@ public sealed class PolygonMesh
         if (hSharedVertex != VertexHandle.Invalid)
         {
             if (!MergeVertices(hMergeVertexA, hMergeVertexB, 0.5f, out var hNewVertex))
+            {
                 return false;
+            }
 
             hOutNewEdge = FindEdgeConnectingVertices(hNewVertex, hSharedVertex);
 
@@ -1211,7 +1287,9 @@ public sealed class PolygonMesh
 
         var hEdge = HalfEdgeMesh.FindHalfEdgeConnectingVertices(hVertexA, hVertexB);
         if (!hEdge.IsValid)
+        {
             return false;
+        }
 
         var hPrevEdge = HalfEdgeMesh.FindPreviousEdgeInFaceLoop(hEdge);
         var hOpposite = HalfEdgeMesh.GetOppositeHalfEdge(hEdge);
@@ -1219,7 +1297,9 @@ public sealed class PolygonMesh
 
         // Add the new vertex to the edge, this will result in the edge being split into two edges.
         if (!Topology.AddVertexToEdge(hEdge, out var hNewVertex))
+        {
             return false;
+        }
 
         // Interpolate the values of the vertices to compute the value of the new vertex
         InterpolateVertexData(hNewVertex, hVertexA, hVertexB, flParam);
@@ -1242,7 +1322,9 @@ public sealed class PolygonMesh
     private void InterpolateVertexData(VertexHandle hDstVertex, VertexHandle hVertexA, VertexHandle hVertexB, float param)
     {
         if (!hDstVertex.IsValid || !hVertexA.IsValid || !hVertexB.IsValid)
+        {
             return;
+        }
 
         SetVertexPosition(hDstVertex, Vector3.Lerp(GetVertexPosition(hVertexA), GetVertexPosition(hVertexB), param));
     }
@@ -1250,7 +1332,9 @@ public sealed class PolygonMesh
     private void InterpolateFaceVertexData(HalfEdgeHandle hDstFaceVertex, HalfEdgeHandle hFaceVertexA, HalfEdgeHandle hFaceVertexB, float param)
     {
         if (!hDstFaceVertex.IsValid || !hFaceVertexA.IsValid || !hFaceVertexB.IsValid)
+        {
             return;
+        }
 
         TextureCoords[hDstFaceVertex] = Vector2.Lerp(TextureCoords[hFaceVertexA], TextureCoords[hFaceVertexB], param);
         TextureCoords1[hDstFaceVertex] = Vector2.Lerp(TextureCoords1[hFaceVertexA], TextureCoords1[hFaceVertexB], param);
@@ -1320,7 +1404,9 @@ public sealed class PolygonMesh
         var hPartnerFaceEdge = hOpenPartner.OppositeEdge;
 
         if (!hFaceEdge.Face.IsValid || !hPartnerFaceEdge.Face.IsValid)
+        {
             return false;
+        }
 
         var hFaceEdgeStart = HalfEdgeMesh.FindPreviousEdgeInFaceLoop(hFaceEdge);
         var hPartnerFaceEdgeStart = HalfEdgeMesh.FindPreviousEdgeInFaceLoop(hPartnerFaceEdge);

@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
-using ValveResourceFormat.Renderer.Utils;
 
 namespace GUI.Controls
 {
@@ -115,7 +114,9 @@ namespace GUI.Controls
         protected override void OnMouseUp(MouseEventArgs mevent)
         {
             if (mevent.Button == MouseButtons.Middle)
+            {
                 MiddleMouseDown = false;
+            }
 
             base.OnMouseUp(mevent);
         }
@@ -136,7 +137,7 @@ namespace GUI.Controls
 
     public class ThemedColorNumeric : ThemedAbstractNumeric<Color>
     {
-        protected override string ConvertToText(Color value) => ColorTranslator.ToHtml(value).Replace("#", "");
+        protected override string ConvertToText(Color value) => ColorTranslator.ToHtml(value).TrimStart('#');
 
         protected override Color Parse(string text)
         {
@@ -177,15 +178,7 @@ namespace GUI.Controls
 
         protected override int Parse(string text)
         {
-            try
-            {
-                return Clamp(int.Parse(text));
-            }
-            catch (Exception)
-            {
-            }
-
-            return Value;
+            return int.TryParse(text, CultureInfo.InvariantCulture, out var value) ? Clamp(value) : Value;
         }
 
         protected override int Clamp(int value)
@@ -225,15 +218,7 @@ namespace GUI.Controls
 
         protected override float Parse(string text)
         {
-            try
-            {
-                return Clamp(float.Parse(text));
-            }
-            catch (Exception)
-            {
-            }
-
-            return Value;
+            return float.TryParse(text, CultureInfo.InvariantCulture, out var value) ? Clamp(value) : Value;
         }
 
         protected override float Clamp(float value)

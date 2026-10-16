@@ -9,9 +9,9 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// event has none (as when played unspatialized for a scripted soundscape's ambient bed).
 /// </summary>
 /// <remarks>
-/// Only the "01" slot has been observed in practice; if a real event ever authors "_02"/"_03" siblings
-/// (matching the numbered-slot convention <see cref="SoundEventHLVRMulti"/> uses for its children), this
-/// only needs a loop over these fields added, not a redesign.
+/// Only the "01" slot has been observed. If events author "_02"/"_03" siblings
+/// (numbered as in <see cref="SoundEventHLVRMulti"/>), only a loop over these fields is needed,
+/// not a redesign.
 /// </remarks>
 internal sealed class SoundEventHLVRAmbientRand : SoundEvent
 {
@@ -31,11 +31,11 @@ internal sealed class SoundEventHLVRAmbientRand : SoundEvent
         var data = definition.Data;
 
         childEventName = data.GetStringProperty("random_soundevent_01_name", string.Empty);
-        timerMin = data.GetFloatProperty("random_soundevent_01_timer_min", 6f);
-        timerMax = data.GetFloatProperty("random_soundevent_01_timer_max", 12f);
-        radiusMin = data.GetFloatProperty("rand_radius_min");
-        radiusMax = data.GetFloatProperty("rand_radius_max");
-        positionRandom = data.GetFloatProperty("position_random") != 0f;
+        timerMin = data.GetSoundFloat("random_soundevent_01_timer_min", 4f);
+        timerMax = data.GetSoundFloat("random_soundevent_01_timer_max", 10f);
+        radiusMin = data.GetSoundFloat("rand_radius_min");
+        radiusMax = data.GetSoundFloat("rand_radius_max", 250f);
+        positionRandom = data.GetSoundFloat("position_random") > 0f;
     }
 
     protected override void DoStart()

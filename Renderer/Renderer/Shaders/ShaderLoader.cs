@@ -1,13 +1,10 @@
-//using System.Globalization;
 using System.IO.Hashing;
-//using System.Runtime.InteropServices;
-//using System.Text;
-//using System.Text.RegularExpressions;
-//using Microsoft.Extensions.Logging;
-
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.RHI;
 using ValveResourceFormat.Renderer.RHI.ShaderCompile;
@@ -674,7 +671,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         //VKTODO: All of this seems a little sketch to me.
         private static ulong CalculateShaderCacheHash(string shaderName, IReadOnlyDictionary<string, byte>? arguments)
         {
-            var hash = new XxHash3(StringToken.MURMUR2SEED);
+            var hash = new XxHash3();
             hash.Append(MemoryMarshal.AsBytes(shaderName.AsSpan()));
 
             //VKTODO: var argsOrdered = SortAndFilterArguments(defines, arguments);

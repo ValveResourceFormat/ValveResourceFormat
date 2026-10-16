@@ -34,7 +34,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
             }
             else if (tCurrent < t2)
             {
-                outValue = float.Lerp(0, value, (tCurrent - t1) / (t2 - t1));
+                outValue = MathUtils.RemapRange(tCurrent, t1, t2, 0f, value);
             }
             else if (tCurrent < t3)
             {
@@ -42,7 +42,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
             }
             else if (tCurrent < t4)
             {
-                outValue = float.Lerp(value, 0, (tCurrent - t3) / (t4 - t3));
+                outValue = MathUtils.RemapRange(tCurrent, t3, t4, value, 0f);
             }
             else
             {

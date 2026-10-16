@@ -1,5 +1,3 @@
-using ValveResourceFormat.Particles.Utils;
-
 namespace ValveResourceFormat.Particles
 {
     /// <summary>

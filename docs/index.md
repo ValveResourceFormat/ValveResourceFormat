@@ -23,11 +23,12 @@ Source 2 Viewer is a modern, actively maintained tool for browsing, extracting, 
 
 ## What is ValveResourceFormat?
 
-ValveResourceFormat (VRF) is the underlying library that powers Source 2 Viewer. It's a comprehensive Source 2 resource file format parser, decompiler, and exporter. The project consists of three main components:
+ValveResourceFormat (VRF) is the underlying library that powers Source 2 Viewer. It's a comprehensive Source 2 resource file format parser, decompiler, and exporter. The project consists of four main components:
 
 1. **Library** - Public API for parsing and decompiling Source 2 resources
 2. **GUI Viewer (Source 2 Viewer)** - User-friendly interface for browsing VPK archives and viewing assets
 3. **CLI Decompiler** - Command-line tool for batch processing and automation
+4. **Renderer** - OpenGL renderer library, published to NuGet as `ValveResourceFormat.Renderer`
 
 Developers can integrate ValveResourceFormat into their own projects via [NuGet](https://www.nuget.org/packages/ValveResourceFormat/) to programmatically work with Source 2 game files.
 
@@ -92,6 +93,8 @@ Source 2 Viewer is the result of years of reverse engineering by many contributo
 Source 2 Viewer is currently a .NET WinForms application, as a result it only works on Windows. However you can run it using Wine.
 The command-line utility is completely cross-platform.
 
+If it crashes on startup under Wine or Proton with a `stack overflow` error, check whether `DOTNET_BUNDLE_EXTRACT_BASE_DIR` is set in your environment. Wine passes it to the app as a Linux path, which the .NET host fails to create. Create the directory it points to, for example `mkdir -p ~/.cache/dotnet_bundle_extract`.
+
 ### How do I open VPK files?
 
 Simply launch Source 2 Viewer and use the Game Explorer to automatically detect installed games, or use File > Open to manually browse for .vpk files.
@@ -114,7 +117,7 @@ If you double click the executable and nothing happens, the most likely cause is
 
 ### How do I extract models for use in Blender or other 3D software?
 
-Source 2 Viewer can export .vmdl, .vmesh, .vwrld, .vwnod, and .vmap files into a standard glTF format which is supported by a lot of software including Blender.
+Source 2 Viewer can export models, meshes, maps, physics shapes, animation clips and navigation meshes into a standard glTF format which is supported by a lot of software including Blender.
 
 ### Does Source 2 Viewer support Source 1 games like Team Fortress 2 or Half-Life 2?
 
@@ -145,7 +148,7 @@ GCFScape was a popular utility created by Nem for extracting and browsing Valve 
 
 ### Contribute
 
-Source 2 Viewer is open-source and welcomes contributions! Whether you're a developer, designer, or documentation writer, check out the [Contributing Guide](https://github.com/ValveResourceFormat/ValveResourceFormat/blob/master/CONTRIBUTING.md).
+Source 2 Viewer is open-source and welcomes contributions! Whether you're a developer, designer, or documentation writer, check out the [Contributing Guide](https://github.com/ValveResourceFormat/ValveResourceFormat#contributing).
 
 ### Links
 

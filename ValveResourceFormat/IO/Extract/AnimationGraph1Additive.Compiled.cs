@@ -52,11 +52,9 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        // Walks down from an additive slot in a compiled graph, gathering the sequences of every node
-        // it reaches. Nodes under an additive input hold delta content, so every m_hSequence in the
-        // subtree is collected regardless of the node class carrying it. Subtract nodes are the
-        // exception: they derive the delta at runtime from absolute inputs (action minus reference
-        // pose), so the sequences below them are absolute content and are not collected.
+        // Walks down from an additive slot, collecting the m_hSequence of every node reached. Nodes under
+        // an additive input hold delta content, whatever their class. Subtract nodes derive the delta at
+        // runtime from absolute inputs (action minus reference pose), so sequences below them are skipped.
         private static void CollectCompiledSequenceNames(int nodeIndex, IReadOnlyList<KVObject> nodes, HashSet<int> visited, AnimGraphModelInfo modelInfo, HashSet<string> result)
         {
             if (nodeIndex < 0 || nodeIndex >= nodes.Count || !visited.Add(nodeIndex))

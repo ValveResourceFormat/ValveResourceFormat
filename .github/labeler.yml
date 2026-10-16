@@ -1,0 +1,69 @@
+# Issues are labeled from stack trace namespaces in workflows/issue-automation.yml, keep both in sync
+Renderer:
+- any:
+  - changed-files:
+    - all-globs-to-any-file:
+      - Renderer/**
+      - '!Renderer/Audio/**'
+    - any-glob-to-any-file:
+      - GUI/Types/GLViewers/**
+      - ValveResourceFormat/Particles/**
+
+Exporting:
+- any:
+  - changed-files:
+    - all-globs-to-any-file:
+      - ValveResourceFormat/IO/**
+      - '!ValveResourceFormat/IO/Loaders/**'
+    - any-glob-to-any-file:
+      - GUI/Types/Exporter/**
+      - '**/*.Export.cs'
+      - Tests/IO/**
+
+Animation:
+- any:
+  - changed-files:
+    - all-globs-to-any-file:
+      - '**/*{Anim,Choreo}*'
+      - '!**/Particle*'
+    - any-glob-to-any-file:
+      - '**/*{Anim,Choreo}*/**'
+      - '**/Nm*'
+
+Maps:
+- any:
+  - changed-files:
+    - all-globs-to-any-file:
+      - Renderer/Renderer/World/**
+      - '!**/WorldLightingInfo.cs'
+    - any-glob-to-any-file:
+      - ValveResourceFormat/IO/{Extract/MapExtract,ContentFormats/ValveMap}*
+      - ValveResourceFormat/IO/Hammer/**
+      - ValveResourceFormat/NavMesh/**
+      - ValveResourceFormat/Resource/ResourceTypes/World*
+      - GUI/Controls/Entity*
+      - '**/EntityLump*'
+
+Particles:
+- any:
+  - changed-files:
+    - all-globs-to-any-file:
+      - '**/*Particle*'
+      - '!**/ThumbnailParticleRenderer.cs'
+    - any-glob-to-any-file:
+      - '**/Particles/**'
+      - Renderer/Shaders/particle_*
+
+Shaders:
+- changed-files:
+  - any-glob-to-any-file:
+    - ValveResourceFormat/CompiledShader/**
+    - '**/*{CompiledShader,ShaderExtract,Decompiler.Shaders}*'
+
+Audio:
+- changed-files:
+  - any-glob-to-any-file:
+    - '**/Audio/**'
+    - GUI/Controls/AudioPlaybackPanel*
+    - GUI/Types/Viewers/Audio.cs
+    - ValveResourceFormat/Resource/ResourceTypes/Sound*

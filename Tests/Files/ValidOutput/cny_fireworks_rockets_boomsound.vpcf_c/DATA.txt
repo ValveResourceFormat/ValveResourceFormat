@@ -1,0 +1,238 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	_class = "CParticleSystemDefinition"
+	m_nInitialParticles = 0
+	m_BoundingBoxMin = [ -10.0, -10.0, -10.0 ]
+	m_BoundingBoxMax = [ 10.0, 10.0, 10.0 ]
+	m_nSnapshotControlPoint = 0
+	m_pszSnapshotName = ""
+	m_pszTargetLayerID = ""
+	m_hReferenceReplacement = null
+	m_pszCullReplacementName = ""
+	m_flCullRadius = 0.0
+	m_flCullFillCost = 1.0
+	m_nCullControlPoint = 0
+	m_flMaxRecreationTime = -1.0
+	m_hFallback = null
+	m_nFallbackMaxCount = -1
+	m_hLowViolenceDef = null
+	m_ConstantColor = [ 255, 255, 255, 255 ]
+	m_ConstantNormal = [ 0.0, 0.0, 1.0 ]
+	m_flConstantRadius = 15.0
+	m_flConstantRotation = 0.0
+	m_flConstantRotationSpeed = 0.0
+	m_flConstantLifespan = 1.0
+	m_nConstantSequenceNumber = 0
+	m_nConstantSequenceNumber1 = 0
+	m_nGroupID = 0
+	m_flMaximumTimeStep = 0.1
+	m_flMaximumSimTime = 0.0
+	m_flMinimumSimTime = 0.0
+	m_flMinimumTimeStep = 0.0
+	m_nMinimumFrames = 0
+	m_nMinCPULevel = 0
+	m_nMinGPULevel = 0
+	m_bViewModelEffect = false
+	m_bScreenSpaceEffect = false
+	m_bDrawThroughLeafSystem = true
+	m_flMaxDrawDistance = 100000.0
+	m_flStartFadeDistance = 200000.0
+	m_flNoDrawTimeToGoToSleep = 1000.0
+	m_nMaxParticles = 10
+	m_nSkipRenderControlPoint = -1
+	m_nAllowRenderControlPoint = -1
+	m_nAggregationMinAvailableParticles = 0
+	m_flAggregateRadius = 0.0
+	m_flStopSimulationAfterTime = 1000000000.0
+	m_vControlPoint1DefaultOffsetRelativeToControlPoint0 = [ 0.0, 0.0, 0.0 ]
+	m_Name = "particles/themed_fx/cny_fireworks_rockets_boomsound.vpcf"
+	m_Operators = 
+	[
+		{
+			_class = "C_OP_Decay"
+			m_bDisableOperator = false
+			m_flOpStartFadeInTime = 0.0
+			m_flOpEndFadeInTime = 0.0
+			m_flOpStartFadeOutTime = 0.0
+			m_flOpEndFadeOutTime = 0.0
+			m_flOpFadeOscillatePeriod = 0.0
+			m_flOpTimeOffsetMin = 0.0
+			m_flOpTimeOffsetMax = 0.0
+			m_nOpTimeOffsetSeed = 0
+			m_nOpStrengthScaleSeed = 0
+			m_flOpStrengthMinScale = 1.0
+			m_flOpStrengthMaxScale = 1.0
+			m_nOpTimeScaleSeed = 0
+			m_flOpTimeScaleMin = 1.0
+			m_flOpTimeScaleMax = 1.0
+			m_nOpEndCapState = -1
+			m_nOpScaleCP = -1
+			m_Notes = ""
+		},
+	]
+	m_Renderers = 
+	[
+		{
+			_class = "C_OP_RenderSound"
+			m_flDurationScale = 1.0
+			m_flSndLvlScale = 200.0
+			m_flPitchScale = 100.0
+			m_flVolumeScale = 1.0
+			m_nSndLvlField = 19
+			m_nDurationField = 19
+			m_nPitchField = 19
+			m_nVolumeField = 19
+			m_nChannel = 0
+			m_pszSoundName = "#ParticleDriven.Rocket.Explode"
+			VisibilityInputs = 
+			{
+				m_flCameraBias = 0.0
+				m_flInputMin = 0.0
+				m_flInputMax = 0.0
+				m_flAlphaScaleMin = 0.0
+				m_flAlphaScaleMax = 1.0
+				m_flRadiusScaleMin = 1.0
+				m_flRadiusScaleMax = 1.0
+				m_flRadiusScaleFOVBase = 0.0
+				m_flProxyRadius = 1.0
+				m_flDistanceInputMin = 0.0
+				m_flDistanceInputMax = 0.0
+				m_flDotInputMin = 0.0
+				m_flDotInputMax = 0.0
+				m_flNoPixelVisibilityFallback = 1.0
+				m_nCPin = -1
+			}
+			m_source1MaterialName = ""
+			m_bDisableOperator = false
+			m_flOpStartFadeInTime = 0.0
+			m_flOpEndFadeInTime = 0.0
+			m_flOpStartFadeOutTime = 0.0
+			m_flOpEndFadeOutTime = 0.0
+			m_flOpFadeOscillatePeriod = 0.0
+			m_flOpTimeOffsetMin = 0.0
+			m_flOpTimeOffsetMax = 0.0
+			m_nOpTimeOffsetSeed = 0
+			m_nOpStrengthScaleSeed = 0
+			m_flOpStrengthMinScale = 1.0
+			m_flOpStrengthMaxScale = 1.0
+			m_nOpTimeScaleSeed = 0
+			m_flOpTimeScaleMin = 1.0
+			m_flOpTimeScaleMax = 1.0
+			m_nOpEndCapState = -1
+			m_nOpScaleCP = -1
+			m_Notes = ""
+		},
+	]
+	m_Initializers = 
+	[
+		{
+			_class = "C_INIT_RandomLifeTime"
+			m_fLifetimeMin = 3.0
+			m_fLifetimeMax = 3.0
+			m_fLifetimeRandExponent = 1.0
+			m_bRunForParentApplyKillList = true
+			m_bDisableOperator = false
+			m_flOpStartFadeInTime = 0.0
+			m_flOpEndFadeInTime = 0.0
+			m_flOpStartFadeOutTime = 0.0
+			m_flOpEndFadeOutTime = 0.0
+			m_flOpFadeOscillatePeriod = 0.0
+			m_flOpTimeOffsetMin = 0.0
+			m_flOpTimeOffsetMax = 0.0
+			m_nOpTimeOffsetSeed = 0
+			m_nOpStrengthScaleSeed = 0
+			m_flOpStrengthMinScale = 1.0
+			m_flOpStrengthMaxScale = 1.0
+			m_nOpTimeScaleSeed = 0
+			m_flOpTimeScaleMin = 1.0
+			m_flOpTimeScaleMax = 1.0
+			m_nOpEndCapState = -1
+			m_nOpScaleCP = -1
+			m_Notes = ""
+		},
+		{
+			_class = "C_INIT_InitFromParentKilled"
+			m_nAttributeToCopy = 0
+			m_bRunForParentApplyKillList = true
+			m_bDisableOperator = false
+			m_flOpStartFadeInTime = 0.0
+			m_flOpEndFadeInTime = 0.0
+			m_flOpStartFadeOutTime = 0.0
+			m_flOpEndFadeOutTime = 0.0
+			m_flOpFadeOscillatePeriod = 0.0
+			m_flOpTimeOffsetMin = 0.0
+			m_flOpTimeOffsetMax = 0.0
+			m_nOpTimeOffsetSeed = 0
+			m_nOpStrengthScaleSeed = 0
+			m_flOpStrengthMinScale = 1.0
+			m_flOpStrengthMaxScale = 1.0
+			m_nOpTimeScaleSeed = 0
+			m_flOpTimeScaleMin = 1.0
+			m_flOpTimeScaleMax = 1.0
+			m_nOpEndCapState = -1
+			m_nOpScaleCP = -1
+			m_Notes = ""
+		},
+		{
+			_class = "C_INIT_InitFromParentKilled"
+			m_nAttributeToCopy = 2
+			m_bRunForParentApplyKillList = true
+			m_bDisableOperator = false
+			m_flOpStartFadeInTime = 0.0
+			m_flOpEndFadeInTime = 0.0
+			m_flOpStartFadeOutTime = 0.0
+			m_flOpEndFadeOutTime = 0.0
+			m_flOpFadeOscillatePeriod = 0.0
+			m_flOpTimeOffsetMin = 0.0
+			m_flOpTimeOffsetMax = 0.0
+			m_nOpTimeOffsetSeed = 0
+			m_nOpStrengthScaleSeed = 0
+			m_flOpStrengthMinScale = 1.0
+			m_flOpStrengthMaxScale = 1.0
+			m_nOpTimeScaleSeed = 0
+			m_flOpTimeScaleMin = 1.0
+			m_flOpTimeScaleMax = 1.0
+			m_nOpEndCapState = -1
+			m_nOpScaleCP = -1
+			m_Notes = ""
+		},
+	]
+	m_Emitters = 
+	[
+		{
+			_class = "C_OP_InstantaneousEmitter"
+			m_nParticlesToEmit = 1
+			m_nMinParticlesToEmit = -1
+			m_flStartTime = 0.0
+			m_flStartTimeMax = -1.0
+			m_flInitFromKilledParentParticles = 1.0
+			m_nMaxEmittedPerFrame = -1
+			m_nScaleControlPoint = -1
+			m_nScaleControlPointField = 0
+			m_nSnapshotControlPoint = -1
+			m_bDisableOperator = false
+			m_flOpStartFadeInTime = 0.0
+			m_flOpEndFadeInTime = 0.0
+			m_flOpStartFadeOutTime = 0.0
+			m_flOpEndFadeOutTime = 0.0
+			m_flOpFadeOscillatePeriod = 0.0
+			m_flOpTimeOffsetMin = 0.0
+			m_flOpTimeOffsetMax = 0.0
+			m_nOpTimeOffsetSeed = 0
+			m_nOpStrengthScaleSeed = 0
+			m_flOpStrengthMinScale = 1.0
+			m_flOpStrengthMaxScale = 1.0
+			m_nOpTimeScaleSeed = 0
+			m_flOpTimeScaleMin = 1.0
+			m_flOpTimeScaleMax = 1.0
+			m_nOpEndCapState = -1
+			m_nOpScaleCP = -1
+			m_Notes = ""
+		},
+	]
+	m_ForceGenerators = [  ]
+	m_Constraints = [  ]
+	m_Children = [  ]
+	m_bShouldSort = true
+	m_bShouldBatch = false
+}

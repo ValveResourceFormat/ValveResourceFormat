@@ -1,6 +1,8 @@
+using System.Collections;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
@@ -12,6 +14,10 @@ namespace ValveResourceFormat
     /// <summary>
     /// Represents a Valve resource.
     /// </summary>
+    /// <remarks>
+    /// Blocks and the data they expose are read from the input stream when first accessed, so the
+    /// resource must stay undisposed and its input stream open for as long as its blocks are used.
+    /// </remarks>
     public class Resource : IDisposable
     {
         /// <summary>
@@ -20,6 +26,9 @@ namespace ValveResourceFormat
         public const ushort KnownHeaderVersion = 12;
 
         private FileStream? FileStream;
+
+        // Serializes reads through Reader after Read returns: on-demand blocks and lazily decoded buffers
+        internal Lock ReaderLock { get; } = new();
 
         /// <summary>
         /// Gets the binary reader. USE AT YOUR OWN RISK!
@@ -48,10 +57,17 @@ namespace ValveResourceFormat
         /// </summary>
         public ushort Version { get; private set; }
 
+        private readonly BlockList blocks = new();
+
         /// <summary>
-        /// Gets the list of blocks this resource contains.
+        /// Gets the blocks this resource contains, each parsed by the time it is returned.
         /// </summary>
-        public List<Block> Blocks { get; } = [];
+        public IReadOnlyList<Block> Blocks => blocks;
+
+        /// <summary>
+        /// Gets the blocks without parsing the ones a <see cref="ReadMode.Deferred"/> read left unparsed.
+        /// </summary>
+        internal List<Block> UnparsedBlocks => blocks.Items;
 
         /// <summary>
         /// Gets the type of the resource.
@@ -62,7 +78,16 @@ namespace ValveResourceFormat
         /// <summary>
         /// Gets the <see cref="ResourceEditInfo"/> block.
         /// </summary>
-        public ResourceEditInfo? EditInfo { get; private set; }
+        public ResourceEditInfo? EditInfo
+        {
+            get
+            {
+                editInfo?.EnsureRead();
+                return editInfo;
+            }
+        }
+
+        private ResourceEditInfo? editInfo;
 
         /// <summary>
         /// Gets the <see cref="ResourceExtRefList"/> block.
@@ -85,11 +110,6 @@ namespace ValveResourceFormat
             get
             {
                 var size = FileSize;
-
-                if (DataBlock == null)
-                {
-                    return size;
-                }
 
                 if (ResourceType == ResourceType.Sound && DataBlock is Sound dataSound)
                 {
@@ -158,25 +178,26 @@ namespace ValveResourceFormat
         /// The file is held open until the object is disposed.
         /// </summary>
         /// <param name="filename">The file to open and read.</param>
-        public void Read(string filename)
+        /// <param name="mode">When the blocks are parsed.</param>
+        public void Read(string filename, ReadMode mode = ReadMode.Runtime)
         {
             FileName = filename;
-            FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
 
-            Read(FileStream);
+            Read(FileStream, mode: mode);
         }
 
         /// <summary>
         /// Reads the given <see cref="Stream"/>.
         /// </summary>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
-        /// <param name="verifyFileSize">Whether to verify that the stream was correctly consumed.</param>
         /// <param name="leaveOpen">Whether to leave the stream open after the object is disposed.</param>
+        /// <param name="mode">When the blocks are parsed.</param>
         /// <remarks>
         /// The input stream must remain open while accessing data from this resource,
         /// as some operations may perform reads lazily from the stream at call time.
         /// </remarks>
-        public void Read(Stream input, bool verifyFileSize = true, bool leaveOpen = false)
+        public void Read(Stream input, bool leaveOpen = false, ReadMode mode = ReadMode.Runtime)
         {
             Reader = new BinaryReader(input, Encoding.UTF8, leaveOpen);
 
@@ -211,7 +232,7 @@ namespace ValveResourceFormat
 
             Reader.BaseStream.Position += blockOffset - 8; // 8 is 2 uint32s we just read
 
-            Blocks.EnsureCapacity((int)blockCount);
+            blocks.Items.EnsureCapacity((int)blockCount);
 
             for (var i = 0; i < blockCount; i++)
             {
@@ -221,11 +242,6 @@ namespace ValveResourceFormat
                 var offset = (uint)position + Reader.ReadUInt32();
                 var size = Reader.ReadUInt32();
                 Block? block = null;
-
-                if (size == 0)
-                {
-                    continue;
-                }
 
                 // Peek data to detect VKV3
                 // Valve has deprecated NTRO as reported by resourceinfo.exe
@@ -254,24 +270,21 @@ namespace ValveResourceFormat
                 block.Offset = offset;
                 block.Size = size;
 
-                Blocks.Add(block);
+                blocks.Items.Add(block);
+                block.MarkDeferred();
 
-                if (block.Type is BlockType.NTRO)
+                if (block is ResourceEditInfo blockEditInfo)
                 {
-                    block.Read(Reader);
-                }
-
-                if (block.Type is BlockType.RED2 or BlockType.REDI)
-                {
-                    block.Read(Reader);
-                    EditInfo = (ResourceEditInfo)block;
+                    editInfo = blockEditInfo;
 
                     // Try to determine resource type by looking at the compiler identifiers
                     // This must be done right after reading EditInfo because future DATA block
                     // will depend on knowing the resource type to construct the correct block in ConstructResourceType()
                     if (ResourceType == ResourceType.Unknown)
                     {
-                        foreach (var specialDep in EditInfo.SpecialDependencies)
+                        block.EnsureRead();
+
+                        foreach (var specialDep in editInfo.SpecialDependencies)
                         {
                             ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDep);
 
@@ -282,9 +295,9 @@ namespace ValveResourceFormat
                         }
 
                         // Try to determine resource type by looking at the input dependency if there is only one
-                        if (ResourceType == ResourceType.Unknown && EditInfo.InputDependencies.Count == 1)
+                        if (ResourceType == ResourceType.Unknown && editInfo.InputDependencies.Count == 1)
                         {
-                            ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(EditInfo.InputDependencies[0].ContentRelativeFilename));
+                            ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(editInfo.InputDependencies[0].ContentRelativeFilename));
                         }
                     }
                 }
@@ -292,24 +305,17 @@ namespace ValveResourceFormat
                 Reader.BaseStream.Position = position + 8;
             }
 
-            foreach (var block in Blocks)
+            if (mode != ReadMode.Deferred)
             {
-                if (block.Type is not BlockType.REDI and not BlockType.RED2 and not BlockType.NTRO)
+                foreach (var block in blocks.Items)
                 {
-                    block.Read(Reader);
-                }
-            }
+                    // Skip some blocks
+                    if (mode == ReadMode.Runtime && block.Type is (BlockType.REDI or BlockType.RED2 or BlockType.STAT))
+                    {
+                        continue;
+                    }
 
-            if (ResourceType == ResourceType.Sound && ContainsBlockType(BlockType.CTRL)) // Version >= 5, but other ctrl-type sounds have version 0
-            {
-                var block = new Sound
-                {
-                    Resource = this,
-                };
-
-                if (block.ConstructFromCtrl())
-                {
-                    Blocks.Add(block);
+                    block.EnsureRead();
                 }
             }
 
@@ -318,41 +324,7 @@ namespace ValveResourceFormat
                 && DataBlock is BinaryKV3 vdataBlock
                 && GenericData.Construct(vdataBlock) is { } specializedData)
             {
-                Blocks[Blocks.IndexOf(vdataBlock)] = specializedData;
-            }
-
-            var fullFileSize = FullFileSize;
-
-            if (verifyFileSize && Reader.BaseStream.Length != fullFileSize)
-            {
-                if (ResourceType == ResourceType.Texture)
-                {
-                    var data = (Texture?)DataBlock;
-
-                    // TODO: We do not currently have a way of calculating buffer size for these types
-                    // Texture.GenerateBitmap also just reads until end of the buffer
-                    if (data == null || data.IsRawJpeg)
-                    {
-                        return;
-                    }
-
-                    // TODO: Valve added null bytes after the png for whatever reason,
-                    // so assume we have the full file if the buffer is bigger than the size we calculated
-                    if (data.IsRawPng)
-                    {
-                        if (Reader.BaseStream.Length > fullFileSize)
-                        {
-                            return;
-                        }
-                    }
-                }
-
-                if (ResourceType == ResourceType.Shader)
-                {
-                    return;
-                }
-
-                throw new InvalidDataException($"File size ({Reader.BaseStream.Length}) does not match size specified in file ({fullFileSize}) ({ResourceType}).");
+                blocks.Items[blocks.Items.IndexOf(vdataBlock)] = specializedData;
             }
         }
 
@@ -478,10 +450,11 @@ namespace ValveResourceFormat
         /// <returns>The first block of the specified type, or null if not found.</returns>
         public Block? GetBlockByType(BlockType type)
         {
-            foreach (var block in Blocks)
+            foreach (var block in blocks.Items)
             {
                 if (block.Type == type)
                 {
+                    block.EnsureRead();
                     return block;
                 }
             }
@@ -496,7 +469,7 @@ namespace ValveResourceFormat
         /// <returns>True if a block of the specified type exists; otherwise, false.</returns>
         public bool ContainsBlockType(BlockType type)
         {
-            foreach (var block in Blocks)
+            foreach (var block in blocks.Items)
             {
                 if (block.Type == type)
                 {
@@ -537,7 +510,6 @@ namespace ValveResourceFormat
                 BlockType.ASEQ => new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t") { Resource = this },
                 BlockType.AGRP => new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t") { Resource = this },
                 BlockType.PHYS => new PhysAggregateData(BlockType.PHYS) { Resource = this },
-                BlockType.SPRV => new SboxShader(BlockType.SPRV) { Resource = this },
                 _ => throw new ArgumentException($"Unrecognized block type '{Encoding.ASCII.GetString(BitConverter.GetBytes((uint)blockType))}'"),
             };
         }
@@ -565,7 +537,6 @@ namespace ValveResourceFormat
                 ResourceType.ResourceManifest => new ResourceManifest() { Resource = this },
                 ResourceType.ResponseRules => new ResponseRules() { Resource = this },
                 ResourceType.SboxManagedResource or ResourceType.ArtifactItem or ResourceType.DotaHeroList => new Plaintext() { Resource = this },
-                ResourceType.SboxShader => new SboxShader() { Resource = this },
                 ResourceType.SmartProp => new SmartProp() { Resource = this },
                 ResourceType.Sound => new Sound() { Resource = this },
                 ResourceType.SoundStackScript => new SoundStackScript() { Resource = this },
@@ -651,6 +622,34 @@ namespace ValveResourceFormat
             }
 
             return resourceType;
+        }
+
+        private sealed class BlockList : IReadOnlyList<Block>
+        {
+            public List<Block> Items { get; } = [];
+
+            public int Count => Items.Count;
+
+            public Block this[int index]
+            {
+                get
+                {
+                    var block = Items[index];
+                    block.EnsureRead();
+                    return block;
+                }
+            }
+
+            public IEnumerator<Block> GetEnumerator()
+            {
+                foreach (var block in Items)
+                {
+                    block.EnsureRead();
+                    yield return block;
+                }
+            }
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
     }
 }

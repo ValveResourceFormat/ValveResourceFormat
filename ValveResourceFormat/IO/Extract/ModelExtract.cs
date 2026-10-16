@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -16,13 +17,7 @@ public partial class ModelExtract
     private readonly PhysAggregateData? physAggregateData;
     private readonly IFileLoader? fileLoader;
     private readonly string fileName;
-
-    /// <summary>
-    /// Filter configuration for import operations.
-    /// </summary>
-#pragma warning disable CA2227 // Collection properties should be read only
-    public record struct ImportFilter(bool ExcludeByDefault, HashSet<string> Filter);
-#pragma warning restore CA2227 // Collection properties should be read only
+    private ClothExtract? cloth;
 
     /// <summary>
     /// Specifies the type of model extraction.
@@ -41,6 +36,12 @@ public partial class ModelExtract
 
     /// <summary>Optional sink for non-fatal progress and warning messages.</summary>
     public IProgress<string>? ProgressReporter { get; init; }
+
+    /// <summary>
+    /// Gets whether to reconstruct the model's soft-body (cloth) physics. When false, the model is extracted as if it
+    /// had no cloth.
+    /// </summary>
+    public bool ReconstructSoftbody { get; init; } = true;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ModelExtract"/> class.
@@ -123,11 +124,21 @@ public partial class ModelExtract
                 renderMesh.Mesh.LoadExternalMorphData(fileLoader);
             }
 
+            if (renderMesh.Mesh.MorphData is { HasMissingAtlas: true } morphData)
+            {
+                ProgressReporter?.Report(
+                    $"Morph atlas '{morphData.AtlasPath}' was not found, the {morphData.GetMorphCount()} morph target(s) of "
+                    + $"{Path.GetFileName(renderMesh.FileName)} will be written with no deltas.");
+            }
+
             var options = new DatamodelRenderMeshExtractOptions
             {
                 MaterialInputSignatures = MaterialInputSignatures,
                 BoneRemapTable = renderMesh.BoneRemapTable,
                 Skeleton = renderMesh.Skeleton,
+                BonePositions = Cloth.RestBonePositions,
+                ClothSurface = Cloth.RenderBindingSurface,
+                ReconstructCloth = ReconstructsCloth,
             };
 
             vmdl.AddSubFile(
@@ -140,7 +151,7 @@ public partial class ModelExtract
         {
             vmdl.AddSubFile(
                 Path.GetFileName(physHull.FileName),
-                () => ToDmxMesh(physHull.Hull)
+                () => ToDmxMesh(physHull.Hull, physHull.BindPose)
             );
         }
 
@@ -148,18 +159,25 @@ public partial class ModelExtract
         {
             vmdl.AddSubFile(
                 Path.GetFileName(physMesh.FileName),
-                () => ToDmxMesh(physMesh.Mesh)
+                () => ToDmxMesh(physMesh.Mesh, physMesh.BindPose)
             );
         }
 
+        Cloth.AddSubFiles(vmdl);
+
         foreach (var anim in AnimationsToExtract)
         {
+            if (!WritesOwnAnimation(anim.Anim))
+            {
+                continue;
+            }
+
             vmdl.AddSubFile(
                 Path.GetFileName(anim.FileName),
                 () =>
                 {
                     Debug.Assert(model is not null, "model should not be null when AnimationsToExtract has items");
-                    return ToDmxAnim(model, anim.Anim);
+                    return ToDmxAnim(model.Skeleton, model.FlexControllers, anim.Anim, [], nmSkelAxisFixup: false, keepClothProxyBones: !ReconstructsCloth);
                 }
             );
         }
@@ -173,4 +191,71 @@ public partial class ModelExtract
     /// Gets the model name from either the model resource or the file name.
     /// </summary>
     public string ModelName => model?.Name ?? fileName;
+
+    /// <summary>Gets the model's cloth reconstruction, empty when <see cref="ReconstructsCloth"/> is false.</summary>
+    internal ClothExtract Cloth
+    {
+        get
+        {
+            EnsureCloth();
+            return cloth;
+        }
+    }
+
+    /// <summary>
+    /// Gets whether cloth is reconstructed: it was requested and the model has some.
+    /// </summary>
+    private bool ReconstructsCloth
+    {
+        get
+        {
+            EnsureCloth();
+            return cloth.Reconstruction is not null;
+        }
+    }
+
+    /// <summary>
+    /// Builds the cloth on first use.
+    /// </summary>
+    [MemberNotNull(nameof(cloth))]
+    private void EnsureCloth()
+    {
+        if (cloth is not null)
+        {
+            return;
+        }
+
+        cloth = ReconstructSoftbody ? new ClothExtract(model, physAggregateData) : new ClothExtract(null, null);
+        cloth.Build(fileName, GetDmxFileName_ForCloth);
+    }
+
+    /// <summary>
+    /// Gets the DMX file name for cloth file <paramref name="name"/>, suffixed when a mesh, animation or earlier cloth
+    /// file already uses it.
+    /// </summary>
+    private string GetDmxFileName_ForCloth(string name)
+    {
+        var dmxFileName = GetDmxFileName_ForEmbeddedMesh(name);
+        for (var suffix = 1; IsDmxFileNameTaken(dmxFileName, includePhysics: true, includeAnimations: true); suffix++)
+        {
+            dmxFileName = GetDmxFileName_ForEmbeddedMesh(FormattableString.Invariant($"{name}_{suffix}"));
+        }
+
+        return dmxFileName;
+    }
+
+    /// <summary>
+    /// Whether a queued render mesh or cloth file already uses <paramref name="name"/>, and optionally a queued physics or
+    /// animation file.
+    /// </summary>
+    private bool IsDmxFileNameTaken(string name, bool includePhysics, bool includeAnimations)
+    {
+        bool Same(string fileName) => string.Equals(fileName, name, StringComparison.OrdinalIgnoreCase);
+
+        return RenderMeshesToExtract.Exists(mesh => Same(mesh.FileName))
+            || (includePhysics && (PhysHullsToExtract.Exists(hull => Same(hull.FileName))
+                || PhysMeshesToExtract.Exists(mesh => Same(mesh.FileName))))
+            || (cloth is not null && cloth.ProxyMeshes.Exists(proxy => Same(proxy.FileName)))
+            || (includeAnimations && AnimationsToExtract.Exists(entry => Same(entry.FileName)));
+    }
 }

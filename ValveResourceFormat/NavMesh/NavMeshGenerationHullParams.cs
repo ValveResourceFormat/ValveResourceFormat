@@ -77,6 +77,24 @@ namespace ValveResourceFormat.NavMesh
         public int BorderErosion { get; set; }
 
         /// <summary>
+        /// Gets or sets the name of this hull in the hull definitions file.
+        /// Only stored in version 36 and newer.
+        /// </summary>
+        public string? Name { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether hierarchical (super node) navigation information is generated for this hull.
+        /// Only stored in version 36 and newer.
+        /// </summary>
+        public bool FlowMapEnabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets the maximum radius of a super node when <see cref="FlowMapEnabled"/> is <see langword="true"/>,
+        /// larger values give a lower resolution. Only stored in version 36 and newer.
+        /// </summary>
+        public float FlowMapNodeMaxRadius { get; set; }
+
+        /// <summary>
         /// Reads hull parameters from a binary reader.
         /// </summary>
         public void Read(BinaryReader binaryReader, NavMeshGenerationParams generationParams)
@@ -88,7 +106,7 @@ namespace ValveResourceFormat.NavMesh
 
             Radius = binaryReader.ReadSingle();
             Height = binaryReader.ReadSingle();
-            if (generationParams.NavGenVersion >= 9)
+            if (generationParams.NavGenVersion >= 8)
             {
                 ShortHeightEnabled = binaryReader.ReadByte() > 0;
                 ShortHeight = binaryReader.ReadSingle();

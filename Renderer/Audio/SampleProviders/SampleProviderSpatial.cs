@@ -38,8 +38,8 @@ public abstract class SampleProviderSpatial : SampleProvider2D
             buffer[offset + i] = float.Lerp(buffer[offset + i] * lastVolume, buffer[offset + i] * volume, (float)i / lastIndex);
         }
 
-        // Where the sound is above, below or behind the listener, which no arrangement of the two gains
-        // above can express. Skipped outright for the common case of a sound at ear level in front of them.
+        // Elevation and front/back cues, which no arrangement of the two gains can express.
+        // Skipped outright for a sound at ear level in front.
         if (cueSampleRate > 0 && cueFilters.Update(cueSampleRate, read / 2))
         {
             cueFilters.Process(buffer, offset, read);
@@ -59,18 +59,16 @@ public abstract class SampleProviderSpatial : SampleProvider2D
     private bool volumesInitialized;
 
     /// <summary>
-    /// How much of a sound behind the listener survives the fold into the front pair, for when the
-    /// spectral cues are turned off. Stereo output has no rear speakers to pan to, so the engine mixes
-    /// what would go to them in at three quarters. A broadband trim is a blunt stand-in for what the ear
-    /// actually does to a sound from behind - see <see cref="SpectralCueFilters"/> - but it is what the
-    /// engine's own stereo path does.
+    /// How much of a sound behind the listener survives the fold into the front pair when the spectral
+    /// cues are turned off. Stereo output has no rear speakers, so the rear is mixed in at three quarters.
+    /// A broadband trim is a blunt stand-in for what the ear does to a sound from behind, see
+    /// <see cref="SpectralCueFilters"/>.
     /// </summary>
     private const float RearVolumeScale = 0.75f;
 
     private readonly SpectralCueFilters cueFilters = new();
 
-    // Set alongside the filter targets; 0 until the first update, so Read leaves untouched anything that
-    // has not been spatialized yet
+    // Set with the filter targets; 0 until the first update, so Read leaves unspatialized audio unfiltered
     private int cueSampleRate;
 
     /// <summary>
@@ -93,9 +91,9 @@ public abstract class SampleProviderSpatial : SampleProvider2D
 
         if (listener.SpectralCueStrength > 0f)
         {
-            // Elevation and front/back are both spectral, so they are voiced by the filters instead - see
-            // SpectralCueFilters on why a rear sound is not simply a quieter one. Measured against the
-            // listener's own up, so it follows their pitch rather than the world's.
+            // Elevation and front/back are spectral, so the filters voice them. See SpectralCueFilters
+            // on why a rear sound is not just quieter. Measured against the listener's up, so it
+            // follows their pitch.
             var upDot = Math.Clamp(Vector3.Dot(listenerToSound, listener.Up), -1f, 1f);
 
             cueFilters.SetTarget(

@@ -1,4 +1,3 @@
-using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -30,17 +29,19 @@ internal sealed class SoundEventHLVRAmbientFixedRotation : SoundEvent
         trackNames = GetStringOrArrayProperty(data, "vsnd_files");
         mixGroup = data.GetStringProperty("mixgroup", string.Empty);
 
-        var radius = data.GetFloatProperty("radius");
-        var yaw = data.GetFloatProperty("rotation_angle");
-        var pitch = data.GetFloatProperty("vertical_rotation_angle");
+        var radius = data.GetSoundFloat("radius", 100f);
+        var yaw = data.GetSoundFloat("rotation_angle");
+        var pitch = data.GetSoundFloat("vertical_rotation_angle");
 
         rotationOffset = radius * EntityTransformHelper.EulerAnglesToForwardDirection(new Vector3(pitch, yaw, 0f));
 
+        // TODO: The type's own falloff defaults (100 to 2500) are not applied when the keys are absent;
+        // confirm the falloff curve shape they drive before defaulting to a linear curve
         if (data.ContainsKey("volume_falloff_max"))
         {
             distanceVolumeCurve = SoundEventCurve.Linear(
-                data.GetFloatProperty("volume_falloff_min"), 1f,
-                data.GetFloatProperty("volume_falloff_max"), 0f);
+                data.GetSoundFloat("volume_falloff_min"), 1f,
+                data.GetSoundFloat("volume_falloff_max"), 0f);
         }
 
         range = distanceVolumeCurve is { MaxX: > 0f } ? distanceVolumeCurve.MaxX
@@ -53,7 +54,7 @@ internal sealed class SoundEventHLVRAmbientFixedRotation : SoundEvent
         // On top of the definition's own offset the base already applied
         PositionOffset += rotationOffset;
 
-        var volume = Math.Clamp(VolumeOverride ?? Definition.Volume, 0f, 1f) * VolumeScale * Mixer.Player.GetMixGroupVolume(mixGroup);
+        var volume = MathUtils.Saturate(VolumeOverride ?? Definition.Volume) * VolumeScale * Mixer.Player.GetMixGroupVolume(mixGroup);
 
         StartTrack(trackNames, volume, Definition.Pitch, range, distanceVolumeCurve);
 

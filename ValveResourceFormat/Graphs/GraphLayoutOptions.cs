@@ -90,11 +90,10 @@ internal sealed class GraphLayoutOptions
     public float CrossingSlideStep { get; set; } = 14f;
 
     /// <summary>
-    /// Wall-clock milliseconds the whole layout may spend refining before it stops and keeps what
-    /// it has. Covers both the ordering sweeps and the crossing repair, which share one deadline
-    /// per island. Zero removes the limit, which is what the manual full-quality command uses. The
-    /// caller splits it across the islands with <see cref="GraphLayout.SplitBudget"/> and passes
-    /// each island its own share.
+    /// Wall-clock milliseconds the layout may spend refining before it keeps what it has. The
+    /// ordering sweeps and crossing repair share one deadline per island. Zero removes the limit,
+    /// as the manual full-quality command does. The caller splits it across islands with
+    /// <see cref="GraphLayout.SplitBudget"/>.
     /// </summary>
     public int LayoutBudgetMs { get; set; } = 4000;
 

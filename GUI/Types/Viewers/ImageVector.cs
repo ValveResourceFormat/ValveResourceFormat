@@ -29,20 +29,20 @@ namespace GUI.Types.Viewers
             {
                 svg.Load(vrfGuiContext.FileName!);
             }
-            //VKTODO:
-            //var renderContext = vrfGuiContext.CreateRendererContext();
-            //try
-            //{
-            //    textureControl = new GLTextureViewer(vrfGuiContext, renderContext, svg);
-            //    textureControl.InitializeLoad();
-            //    svg = null;
-            //    renderContext = null;
-            //}
-            //finally
-            //{
-            //    svg?.Dispose();
-            //    renderContext?.Dispose();
-            //}
+
+            var renderContext = vrfGuiContext.CreateRendererContext();
+            try
+            {
+                textureControl = new GLTextureViewer(vrfGuiContext, renderContext, svg);
+                textureControl.InitializeLoad();
+                svg = null;
+                renderContext = null;
+            }
+            finally
+            {
+                svg?.Dispose();
+                renderContext?.Dispose();
+            }
         }
 
         public void Create(TabPage tab)

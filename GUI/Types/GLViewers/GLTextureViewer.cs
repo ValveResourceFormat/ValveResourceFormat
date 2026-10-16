@@ -13,10 +13,9 @@ using Svg.Skia;
 using ValveResourceFormat;
 using ValveResourceFormat.Graphs;
 using ValveResourceFormat.Renderer;
-//using ValveResourceFormat.Renderer.Input;
-//using ValveResourceFormat.Renderer.Materials;
-//using ValveResourceFormat.Renderer.Shaders;
-//using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Renderer.Materials;
+using ValveResourceFormat.Renderer.Shaders;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 

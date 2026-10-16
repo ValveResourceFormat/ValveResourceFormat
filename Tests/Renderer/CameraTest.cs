@@ -2,12 +2,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 
 namespace Tests.Renderer
 {
     /// <summary>
-    /// The camera holds pitch and yaw the way the engine does, and derives its direction vectors from them
+    /// The camera holds pitch and yaw in QAngle convention, and derives its direction vectors from them
     /// analytically. These pin that the two agree, and that the derivation survives looking straight down,
     /// which is where an euler representation is usually expected to give out.
     /// </summary>
@@ -70,8 +69,8 @@ namespace Tests.Renderer
         }
 
         /// <summary>
-        /// Angles that carry no roll level the camera, rather than leaving whatever roll was there to show
-        /// through. A viewer opened while the view is punched used to inherit that punch for a frame.
+        /// Angles that carry no roll level the camera, rather than leaving whatever roll was there
+        /// to show through.
         /// </summary>
         [Test]
         public async Task SetFromQAngleClearsAnExistingRoll()
@@ -275,6 +274,42 @@ namespace Tests.Renderer
             await Assert.That(cross.X).IsEqualTo(camera.Right.X).Within(Tolerance).Because($"right is Cross(forward, up), X, for {context}");
             await Assert.That(cross.Y).IsEqualTo(camera.Right.Y).Within(Tolerance).Because($"right is Cross(forward, up), Y, for {context}");
             await Assert.That(cross.Z).IsEqualTo(camera.Right.Z).Within(Tolerance).Because($"right is Cross(forward, up), Z, for {context}");
+        }
+
+        /// <summary>
+        /// The billboard matrix turns a quad in the view plane to face the camera, which is the rotation
+        /// half of the view matrix inverted. Transposing that block is the same thing, so pin the two
+        /// against each other for every angle, the straight up and down ones included.
+        /// </summary>
+        [Test]
+        public async Task BillboardMatrixInvertsTheViewRotation()
+        {
+            foreach (var angles in Angles)
+            {
+                var camera = MakeCamera(angles);
+                camera.RecalculateMatrices();
+
+                var decomposed = Matrix4x4.Decompose(camera.CameraViewMatrix, out _, out var viewRotation, out _);
+
+                await Assert.That(decomposed).IsTrue().Because($"the view is decomposable for {angles}");
+
+                var expected = Matrix4x4.CreateFromQuaternion(Quaternion.Inverse(viewRotation));
+                var actual = camera.BillboardMatrix;
+
+                await AssertMatrixClose(actual, expected, $"billboard for {angles}");
+            }
+        }
+
+        private static async Task AssertMatrixClose(Matrix4x4 actual, Matrix4x4 expected, string context)
+        {
+            for (var row = 0; row < 4; row++)
+            {
+                for (var column = 0; column < 4; column++)
+                {
+                    await Assert.That(actual[row, column]).IsEqualTo(expected[row, column]).Within(Tolerance)
+                        .Because($"{context}, element {row}{column}");
+                }
+            }
         }
 
         private static float NormalizeDegrees(float degrees)

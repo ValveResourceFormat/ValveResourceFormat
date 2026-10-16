@@ -1,6 +1,5 @@
 using SkiaSharp;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
 namespace ValveResourceFormat.TextureDecoders;

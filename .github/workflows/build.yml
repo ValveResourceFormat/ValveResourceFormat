@@ -51,6 +51,8 @@ jobs:
 
     - name: Run tests
       run: dotnet test --project ./Tests/Tests.csproj --configuration Release --minimum-expected-tests 400 ${{ env.SKIP_ANALYSIS }} ${{ matrix.coverage }}
+      env:
+        TUNIT_ENABLE_JUNIT_REPORTER: 1
 
 #    - name: Check formatting
 #      if: matrix.os == 'ubuntu-latest'
@@ -153,8 +155,18 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./TestResults/coverage.cobertura.xml
+        disable_search: true
         fail_ci_if_error: true
         verbose: true
+
+    - name: Upload test results
+      uses: codecov/codecov-action@v7
+      if: ${{ !cancelled() && matrix.os == 'ubuntu-latest' }}
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        report_type: test_results
+        files: ./TestResults/Tests-junit.xml
+        disable_search: true
 
   source2viewer-rel:
     name: Source2Viewer (win-x64)

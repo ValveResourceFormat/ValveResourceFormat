@@ -1,9 +1,9 @@
 using System.IO;
+using System.Linq;
 using Datamodel;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
-using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.IO;
@@ -15,14 +15,82 @@ partial class ModelExtract
     /// </summary>
     public List<(SequenceAnimation Anim, string FileName)> AnimationsToExtract { get; } = [];
 
+    private readonly HashSet<SequenceAnimation> animationGroupAnimations = [];
+    private SequenceTables? sequenceTables;
+    private Dictionary<string, string>? aliasedSequences;
+
+    /// <summary>
+    /// The model's sequence tables, read from its ASEQ block on first use.
+    /// </summary>
+    private SequenceTables Sequences => sequenceTables ??= ReadSequenceTables();
+
+    /// <summary>
+    /// Every sequence that exists only to give a second name to an animation another sequence already
+    /// declares, mapped to that animation's own name. Resolved from the sequence tables.
+    /// </summary>
+    private Dictionary<string, string> AliasedSequences
+        => aliasedSequences ??= Sequences.CanResolveReferences
+            ? FindAliasedSequences([.. AnimationsToExtract.Where(x => HasOwnAnimFileNode(x.Anim)).Select(x => x.Anim)])
+            : [];
+
+    /// <summary>
+    /// Whether an animation stands for a node of its own in the model doc, rather than being an
+    /// intermediate one that a sequence references.
+    /// </summary>
+    private bool HasOwnAnimFileNode(SequenceAnimation animation)
+        => animation.FromSequence || animationGroupAnimations.Contains(animation);
+
+    /// <summary>
+    /// Returns whether a sequence has an animation of its own to write out. A blend has none, nor does
+    /// a sequence that only renames one another node already declares.
+    /// </summary>
+    private bool WritesOwnAnimation(SequenceAnimation animation)
+        => !animation.IsBlend && !AliasedSequences.ContainsKey(animation.Name);
+
     private void EnqueueAnimations()
     {
-        if (model != null)
+        if (model == null)
         {
-            foreach (var anim in model.GetEmbeddedAnimations())
+            return;
+        }
+
+        foreach (var anim in model.GetEmbeddedAnimations())
+        {
+            AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
+        }
+
+        EnqueueAnimationGroups(model);
+    }
+
+    /// <summary>
+    /// Queues the animations a model reaches through the standalone animation groups it references.
+    /// Those groups are child resources of the model, and come back as its own anim files. A group that
+    /// cannot be read is skipped.
+    /// </summary>
+    private void EnqueueAnimationGroups(Model model)
+    {
+        if (fileLoader == null)
+        {
+            return;
+        }
+
+        var names = new HashSet<string>(AnimationsToExtract.Count, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (anim, _) in AnimationsToExtract)
+        {
+            names.Add(anim.Name);
+        }
+
+        foreach (var anim in model.GetAnimationGroupAnimations(fileLoader))
+        {
+            // Several groups can carry an animation of the same name, and the doc holds one node.
+            if (!names.Add(anim.Name))
             {
-                AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
+                continue;
             }
+
+            animationGroupAnimations.Add(anim);
+            AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
         }
     }
 
@@ -40,18 +108,10 @@ partial class ModelExtract
                 continue;
             }
 
-            try
-            {
-                var clipContent = new NmClipExtract(clip.Resource, fileLoader).ToContentFile();
-                clipContent.FileName = animation.Name;
-                clipContent.KeepFullPath = true;
-                vmdl.AdditionalFiles.Add(clipContent);
-            }
-            catch (Exception e)
-            {
-                // A single malformed clip shouldn't fail the whole model export.
-                ProgressReporter?.Report($"Skipping animation graph clip '{animation.Name}': {e.Message}");
-            }
+            var clipContent = new NmClipExtract(clip.Resource, fileLoader).ToContentFile();
+            clipContent.FileName = animation.Name;
+            clipContent.KeepFullPath = true;
+            vmdl.AdditionalFiles.Add(clipContent);
         }
     }
 
@@ -69,8 +129,7 @@ partial class ModelExtract
         var candidate = baseName + ".dmx";
         var suffix = 0;
 
-        while (RenderMeshesToExtract.Exists(m => m.FileName == candidate)
-            || AnimationsToExtract.Exists(a => a.FileName == candidate))
+        while (IsDmxFileNameTaken(candidate, includePhysics: false, includeAnimations: true))
         {
             candidate = FormattableString.Invariant($"{baseName}_anim{(suffix > 0 ? suffix : string.Empty)}.dmx");
             suffix++;
@@ -80,42 +139,21 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Produces a skeleton DMX file. <paramref name="nmLowLodBoneCount"/> is the skeleton's
-    /// m_numBonesToSampleAtLowLOD; when non-negative, DAG siblings are ordered to reproduce the
-    /// compiled NM bone order.
+    /// The frame rate to divide frame timings by. Only zero and negative rates are replaced; a
+    /// fractional positive rate passes through unclamped.
     /// </summary>
-    public static byte[] ToDmxSkeleton(Skeleton skeleton, bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1)
-    {
-        using var dmx = new Datamodel.Datamodel("model", 22);
-
-        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms, nmSkelAxisFixup, nmLowLodBoneCount);
-
-        using var stream = new MemoryStream();
-
-        dmx.Root = new Element(dmx, "root", null, "DmElement")
-        {
-            ["skeleton"] = dmeSkeleton,
-            ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
-            {
-                ["app"] = "sfm", // maya
-                ["source"] = $"Generated with {StringToken.VRF_GENERATOR}",
-            }
-        };
-
-        dmx.Save(stream, "keyvalues2", 4);
-        return stream.ToArray();
-    }
+    private static float EffectiveFps(float fps) => fps > 0f ? fps : 1f;
 
     /// <summary>
     /// Converts an animation to DMX format.
     /// </summary>
-    public static byte[] ToDmxAnim(Model model, Animation anim)
+    public static byte[] ToDmxAnim(Model model, AnimationBase anim)
         => ToDmxAnim(model.Skeleton, model.FlexControllers, anim);
 
     /// <summary>
     /// Converts an animation to DMX format using skeleton and flex controllers.
     /// </summary>
-    public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim, bool nmSkelAxisFixup = false)
+    public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, AnimationBase anim, bool nmSkelAxisFixup = false)
         => ToDmxAnim(skeleton, flexControllers, anim, [], nmSkelAxisFixup);
 
     /// <summary>
@@ -123,15 +161,23 @@ partial class ModelExtract
     /// (an NM clip's tracks for further skeletons, e.g. the weapon of a viewmodel clip) are written
     /// into the same DMX, their joints appended beside the primary skeleton's.
     /// </summary>
-    public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim,
-        IReadOnlyList<(Skeleton Skeleton, Animation Animation)> secondaryAnimations, bool nmSkelAxisFixup = false)
+    public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, AnimationBase anim,
+        IReadOnlyList<(Skeleton Skeleton, AnimationBase Animation)> secondaryAnimations, bool nmSkelAxisFixup = false)
+        => ToDmxAnim(skeleton, flexControllers, anim, secondaryAnimations, nmSkelAxisFixup, keepClothProxyBones: true);
+
+    /// <summary>
+    /// Converts an animation to DMX format. Generated cloth proxy bones are written as ordinary joints only when
+    /// <paramref name="keepClothProxyBones"/> is set.
+    /// </summary>
+    internal static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, AnimationBase anim,
+        IReadOnlyList<(Skeleton Skeleton, AnimationBase Animation)> secondaryAnimations, bool nmSkelAxisFixup, bool keepClothProxyBones)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
 
         var rootMotionBone = skeleton["root_motion"];
 
         // The frames below get the axis fixup, so the bind pose it is written against has to have it too
-        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms, nmSkelAxisFixup);
+        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms, nmSkelAxisFixup, keepClothProxyBones: keepClothProxyBones);
 
         var animationList = new DmeAnimationList();
         var clip = new DmeChannelsClip
@@ -139,9 +185,11 @@ partial class ModelExtract
             FrameRate = anim.Fps
         };
 
+        var fps = EffectiveFps(anim.Fps);
+
         if (anim.FrameCount > 0)
         {
-            clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / MathF.Max(1f, anim.Fps));
+            clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / fps);
 
             var frames = new Frame[anim.FrameCount];
             for (var i = 0; i < anim.FrameCount; i++)
@@ -166,7 +214,7 @@ partial class ModelExtract
             }
 
             ProcessRootMotionChannel(anim, dmeSkeleton, clip);
-            ProcessBoneChannels(skeleton, anim, transforms, clip, frames);
+            ProcessBoneChannels(skeleton, anim, transforms, clip, frames, keepClothProxyBones);
             ProcessFlexChannels(flexControllers, anim, clip, frames);
         }
 
@@ -177,7 +225,7 @@ partial class ModelExtract
                 continue;
             }
 
-            var secondaryTransforms = AppendDmeSkeletonJoints(dmeSkeleton, secondarySkeleton);
+            var secondaryTransforms = AppendDmeSkeletonJoints(dmeSkeleton, secondarySkeleton, keepClothProxyBones: keepClothProxyBones);
 
             var secondaryFrames = new Frame[secondaryAnimation.FrameCount];
             for (var i = 0; i < secondaryAnimation.FrameCount; i++)
@@ -190,7 +238,7 @@ partial class ModelExtract
                 secondaryFrames[i] = frame;
             }
 
-            ProcessBoneChannels(secondarySkeleton, secondaryAnimation, secondaryTransforms, clip, secondaryFrames);
+            ProcessBoneChannels(secondarySkeleton, secondaryAnimation, secondaryTransforms, clip, secondaryFrames, keepClothProxyBones);
         }
 
         animationList.Animations.Add(clip);
@@ -213,197 +261,11 @@ partial class ModelExtract
         return stream.ToArray();
     }
 
-    private static readonly Quaternion NmSkelRotationFixup = new(-0.5f, -0.5f, -0.5f, 0.5f);
-    private static readonly Quaternion NmSkelRotationFixupInverse = Quaternion.Inverse(NmSkelRotationFixup);
-
-    /// <summary>
-    /// NM skeletons compile the bones under root_motion in a permuted axis frame. This re-frames one of
-    /// them, in root_motion's space, which is why the rotation is multiplied on the left.
-    /// </summary>
-    private static (Vector3 Position, Quaternion Rotation) NmAxisFixupChild(Vector3 position, Quaternion rotation)
-        => (Vector3.Transform(position, NmSkelRotationFixup), NmSkelRotationFixup * rotation);
-
-    /// <summary>
-    /// The other half of <see cref="NmAxisFixupChild"/>. root_motion takes the inverse, so what its children
-    /// gained cancels against it and the subtree below them does not move.
-    /// </summary>
-    /// <remarks>
-    /// Both halves have to be applied to the bind pose and to every frame alike, since a clip writes a
-    /// channel for each of these bones and the frame values override what the bind pose declared.
-    /// </remarks>
-    private static Quaternion NmAxisFixupRootMotion(Quaternion rotation)
-        => rotation * NmSkelRotationFixupInverse;
-
-    /// <summary>Emits cloth bones with the '_' prefix the compiler sanitizes '$' to, so round-trips don't duplicate them.</summary>
-    internal static string GetExportBoneName(Bone bone)
-        => bone.IsProceduralCloth && bone.Name.StartsWith('$')
-            ? $"_{bone.Name[1..]}"
-            : bone.Name;
-
-    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms, bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1)
+    private static DmeChannel BuildDmeChannel(string name, Element toElement, string toAttribute, DmeLog log, DmeLogLayer layer)
     {
-        var dmeSkeleton = new DmeModel();
+        log.Layers.Add(layer);
 
-        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, nmLowLodBoneCount);
-
-        var rootMotionBone = skeleton["root_motion"];
-
-        if (nmSkelAxisFixup && rootMotionBone != null)
-        {
-            // dmeSkeleton.AxisSystem.UpAxis = 2;
-            // dmeSkeleton.AxisSystem.ForwardParity = -1;
-            // dmeSkeleton.AxisSystem.CoordSys = 2;
-
-            transforms[rootMotionBone.Index].Orientation = NmAxisFixupRootMotion(transforms[rootMotionBone.Index].Orientation);
-
-            foreach (var root in rootMotionBone.Children)
-            {
-                (transforms[root.Index].Position, transforms[root.Index].Orientation)
-                    = NmAxisFixupChild(transforms[root.Index].Position, transforms[root.Index].Orientation);
-            }
-        }
-
-        return dmeSkeleton;
-    }
-
-    /// <summary>
-    /// Adds one skeleton's joints to a DmeModel, its roots as children of the model, and returns the
-    /// joint transforms indexed by bone index. When <paramref name="nmLowLodBoneCount"/> is
-    /// non-negative, DAG siblings are ordered to reproduce the skeleton's compiled NM bone order;
-    /// otherwise they are appended in bone index order.
-    /// </summary>
-    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton, int nmLowLodBoneCount = -1)
-    {
-        int[]? minLow = null;
-        int[]? minHigh = null;
-
-        if (nmLowLodBoneCount >= 0)
-        {
-            (minLow, minHigh) = NmLodSubtreeMins(skeleton, nmLowLodBoneCount);
-        }
-
-        var transforms = new DmeTransform[skeleton.Bones.Length];
-        var boneDags = new DmeJoint[skeleton.Bones.Length];
-
-        foreach (var bone in skeleton.Bones)
-        {
-            var boneName = GetExportBoneName(bone);
-            var dag = new DmeJoint
-            {
-                Name = boneName
-            };
-
-            dag.Transform.Name = boneName;
-            dag.Transform.Position = bone.Position;
-            dag.Transform.Orientation = bone.Angle;
-
-            boneDags[bone.Index] = dag;
-            transforms[bone.Index] = dag.Transform;
-
-            dmeSkeleton.JointList.Add(dag);
-        }
-
-        foreach (var bone in skeleton.Bones)
-        {
-            foreach (var child in OrderSiblings(bone.Children, minLow, minHigh))
-            {
-                boneDags[bone.Index].Children.Add(boneDags[child.Index]);
-            }
-        }
-
-        foreach (var root in OrderSiblings(skeleton.Roots, minLow, minHigh))
-        {
-            dmeSkeleton.Children.Add(boneDags[root.Index]);
-        }
-
-        return transforms;
-    }
-
-    /// <summary>
-    /// Per-bone minimum compiled index within the bone's subtree, split into a low-LOD part
-    /// (indices below <paramref name="nmLowLodBoneCount"/>) and a high-LOD part; entries are
-    /// <see cref="int.MaxValue"/> where the subtree has no bone of that kind.
-    /// </summary>
-    private static (int[] MinLow, int[] MinHigh) NmLodSubtreeMins(Skeleton skeleton, int nmLowLodBoneCount)
-    {
-        var boneCount = skeleton.Bones.Length;
-        var minLow = new int[boneCount];
-        var minHigh = new int[boneCount];
-        Array.Fill(minLow, int.MaxValue);
-        Array.Fill(minHigh, int.MaxValue);
-
-        for (var i = boneCount - 1; i >= 0; i--)
-        {
-            if (i < nmLowLodBoneCount)
-            {
-                minLow[i] = Math.Min(minLow[i], i);
-            }
-            else
-            {
-                minHigh[i] = Math.Min(minHigh[i], i);
-            }
-
-            var parent = skeleton.Bones[i].Parent;
-            if (parent != null)
-            {
-                minLow[parent.Index] = Math.Min(minLow[parent.Index], minLow[i]);
-                minHigh[parent.Index] = Math.Min(minHigh[parent.Index], minHigh[i]);
-            }
-        }
-
-        return (minLow, minHigh);
-    }
-
-    /// <summary>
-    /// CompileNmSkeleton emits bones as a hierarchy walk filtered to the first
-    /// m_numBonesToSampleAtLowLOD bones, then the same walk filtered to the rest. Orders one
-    /// sibling group so that walk reproduces the skeleton's compiled bone order. Without the
-    /// subtree tables from <see cref="NmLodSubtreeMins"/> the group is returned unchanged, in
-    /// bone index order.
-    /// </summary>
-    private static IReadOnlyList<Bone> OrderSiblings(IReadOnlyList<Bone> siblings, int[]? minLow, int[]? minHigh)
-    {
-        if (minLow == null || minHigh == null || siblings.Count < 2)
-        {
-            return siblings;
-        }
-
-        var lowContaining = new List<Bone>();
-        var highOnly = new List<Bone>();
-
-        foreach (var sibling in siblings)
-        {
-            (minLow[sibling.Index] != int.MaxValue ? lowContaining : highOnly).Add(sibling);
-        }
-
-        lowContaining.Sort((a, b) => minLow[a.Index].CompareTo(minLow[b.Index]));
-        highOnly.Sort((a, b) => minHigh[a.Index].CompareTo(minHigh[b.Index]));
-
-        var merged = new List<Bone>(siblings.Count);
-        var next = 0;
-
-        foreach (var sibling in lowContaining)
-        {
-            if (minHigh[sibling.Index] != int.MaxValue)
-            {
-                while (next < highOnly.Count && minHigh[highOnly[next].Index] < minHigh[sibling.Index])
-                {
-                    merged.Add(highOnly[next++]);
-                }
-            }
-
-            merged.Add(sibling);
-        }
-
-        merged.AddRange(highOnly.GetRange(next, highOnly.Count - next));
-        return merged;
-    }
-
-    private static DmeChannel BuildDmeChannel<T>(string name, Element toElement, string toAttribute, out DmeLog<T> log)
-    {
-        log = [];
-
-        var channel = new DmeChannel
+        return new DmeChannel
         {
             Name = name,
             ToElement = toElement,
@@ -411,13 +273,9 @@ partial class ModelExtract
             Mode = 3,
             Log = log
         };
-
-        log.AddLayer(new DmeLogLayer<T>());
-
-        return channel;
     }
 
-    private static void ProcessBoneFrameForDmeChannel(Bone bone, Frame frame, TimeSpan time, DmeLogLayer<Vector3> positionLayer, DmeLogLayer<Quaternion> orientationLayer, bool dropVertical)
+    private static void ProcessBoneFrameForDmeChannel(Bone bone, Frame frame, TimeSpan time, DmeVector3LogLayer positionLayer, DmeQuaternionLogLayer orientationLayer, bool dropVertical)
     {
         var frameBone = frame.Bones[bone.Index];
 
@@ -435,7 +293,7 @@ partial class ModelExtract
         orientationLayer.LayerValues[frame.FrameIndex] = frameBone.Angle;
     }
 
-    private static void ProcessFlexFrameForDmeChannel(int flexId, Frame frame, TimeSpan time, DmeLogLayer<float> flexLayer)
+    private static void ProcessFlexFrameForDmeChannel(int flexId, Frame frame, TimeSpan time, DmeFloatLogLayer flexLayer)
     {
         var flexValue = frame.Datas[flexId];
 
@@ -443,23 +301,30 @@ partial class ModelExtract
         flexLayer.LayerValues[frame.FrameIndex] = flexValue;
     }
 
-    private static void ProcessRootMotionChannel(Animation anim, DmeModel skeleton, DmeChannelsClip clip)
+    /// <summary>
+    /// Whether the animation's root motion should be written out for recompiling. All-zero movement
+    /// is skipped, since extracting motion from it on recompile would turn the root bone's sway into
+    /// real movement.
+    /// </summary>
+    private static bool ShouldExtractMotion(AnimationBase anim)
+        => anim.HasMovementData() && (anim is not SequenceAnimation sequence || sequence.HasNonZeroMovementData());
+
+    private static void ProcessRootMotionChannel(AnimationBase anim, DmeModel skeleton, DmeChannelsClip clip)
     {
-        if (!anim.HasMovementData())
+        if (!ShouldExtractMotion(anim))
         {
             return;
         }
-        var rootPositionChannel = BuildDmeChannel<Vector3>($"_p", skeleton.Transform, "position", out var rootPositionLog);
-        var rootPositionLayer = rootPositionLog.GetLayer(0);
-        rootPositionLayer.LayerValues = new Vector3[anim.FrameCount];
 
-        var rootOrientationChannel = BuildDmeChannel<Quaternion>($"_o", skeleton.Transform, "orientation", out var rootOrientationLog);
-        var rootOrientationLayer = rootOrientationLog.GetLayer(0);
-        rootOrientationLayer.LayerValues = new Quaternion[anim.FrameCount];
+        var rootPositionLayer = new DmeVector3LogLayer { LayerValues = new Vector3[anim.FrameCount] };
+        var rootPositionChannel = BuildDmeChannel("_p", skeleton.Transform, "position", new DmeVector3Log(), rootPositionLayer);
+
+        var rootOrientationLayer = new DmeQuaternionLogLayer { LayerValues = new Quaternion[anim.FrameCount] };
+        var rootOrientationChannel = BuildDmeChannel("_o", skeleton.Transform, "orientation", new DmeQuaternionLog(), rootOrientationLayer);
 
         for (var i = 0; i < anim.FrameCount; i++)
         {
-            var time = i / MathF.Max(1f, anim.Fps);
+            var time = i / EffectiveFps(anim.Fps);
             var timespan = TimeSpan.FromSeconds(time);
 
             var movement = anim.GetMovementOffsetData(time);
@@ -479,7 +344,7 @@ partial class ModelExtract
         clip.Channels.Add(rootOrientationChannel);
     }
 
-    private static void ProcessFlexChannels(FlexController[] flexControllers, Animation anim, DmeChannelsClip clip, Frame[] frames)
+    private static void ProcessFlexChannels(FlexController[] flexControllers, AnimationBase anim, DmeChannelsClip clip, Frame[] frames)
     {
         for (var flexId = 0; flexId < flexControllers.Length; flexId++)
         {
@@ -491,43 +356,45 @@ partial class ModelExtract
             };
             flexElement.Add("flexWeight", 0f);
 
-            var flexChannel = BuildDmeChannel<float>($"{flexController.Name}_flex_channel", flexElement, "flexWeight", out var flexLog);
-            var flexLogLayer = flexLog.GetLayer(0);
-            flexLogLayer.LayerValues = new float[anim.FrameCount];
+            var flexLogLayer = new DmeFloatLogLayer { LayerValues = new float[anim.FrameCount] };
+            var flexChannel = BuildDmeChannel($"{flexController.Name}_flex_channel", flexElement, "flexWeight", new DmeFloatLog(), flexLogLayer);
 
             for (var i = 0; i < anim.FrameCount; i++)
             {
                 var frame = frames[i];
-                var time = TimeSpan.FromSeconds((double)i / MathF.Max(1f, anim.Fps));
+                var time = TimeSpan.FromSeconds((double)i / EffectiveFps(anim.Fps));
                 ProcessFlexFrameForDmeChannel(flexId, frame, time, flexLogLayer);
             }
             clip.Channels.Add(flexChannel);
         }
     }
 
-    private static void ProcessBoneChannels(Skeleton skeleton, Animation anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames)
+    private static void ProcessBoneChannels(Skeleton skeleton, AnimationBase anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames,
+        bool keepClothProxyBones)
     {
         var rootMotionBone = skeleton["root_motion"];
 
         foreach (var bone in skeleton.Bones)
         {
+            if (!keepClothProxyBones && ClothBones.IsGeneratedProxyBone(bone))
+            {
+                continue;
+            }
+
             var transform = transforms[bone.Index];
             var boneName = GetExportBoneName(bone);
 
-            var positionChannel = BuildDmeChannel<Vector3>($"{boneName}_p", transform, "position", out var positionLog);
-            var orientationChannel = BuildDmeChannel<Quaternion>($"{boneName}_o", transform, "orientation", out var orientationLog);
+            var positionLogLayer = new DmeVector3LogLayer { LayerValues = new Vector3[anim.FrameCount] };
+            var orientationLogLayer = new DmeQuaternionLogLayer { LayerValues = new Quaternion[anim.FrameCount] };
 
-            var positionLogLayer = positionLog.GetLayer(0);
-            var orientationLogLayer = orientationLog.GetLayer(0);
-
-            positionLogLayer.LayerValues = new Vector3[anim.FrameCount];
-            orientationLogLayer.LayerValues = new Quaternion[anim.FrameCount];
+            var positionChannel = BuildDmeChannel($"{boneName}_p", transform, "position", new DmeVector3Log(), positionLogLayer);
+            var orientationChannel = BuildDmeChannel($"{boneName}_o", transform, "orientation", new DmeQuaternionLog(), orientationLogLayer);
 
             for (var i = 0; i < anim.FrameCount; i++)
             {
                 var frame = frames[i];
 
-                var time = TimeSpan.FromSeconds((double)i / MathF.Max(1f, anim.Fps));
+                var time = TimeSpan.FromSeconds((double)i / EffectiveFps(anim.Fps));
 
                 ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer, bone == rootMotionBone);
             }
@@ -542,7 +409,7 @@ partial class ModelExtract
     /// <summary>
     /// Workaround for ModelDoc ignoring animation data on bone when bone doesn't have any motion
     /// </summary>
-    private static void ApplyModelDocHack(DmeLogLayer<Vector3> logLayer)
+    private static void ApplyModelDocHack(DmeVector3LogLayer logLayer)
     {
         // I guess this means there is actually no animation data?
         if (logLayer.LayerValues.Length == 0)
@@ -575,7 +442,7 @@ partial class ModelExtract
         logLayer.Times.AddRange(newTimes);
     }
 
-    private static bool DoesLayerHaveMotion(DmeLogLayer<Vector3> logLayer)
+    private static bool DoesLayerHaveMotion(DmeVector3LogLayer logLayer)
     {
         if (logLayer.LayerValues.Length == 1)
         {
@@ -587,7 +454,7 @@ partial class ModelExtract
         {
             var currentVal = logLayer.LayerValues[i];
 
-            if ((lastVal - currentVal).Length() >= 0.01f)
+            if (Vector3.Distance(lastVal, currentVal) >= 0.01f)
             {
                 return true;
             }

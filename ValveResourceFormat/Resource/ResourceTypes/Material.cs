@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using ValveKeyValue;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Serialization.VfxEval;
 
@@ -11,6 +12,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a material resource containing shader parameters and texture references.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/materialsystem2/MaterialResourceData_t">MaterialResourceData_t</seealso>
     public class Material : KeyValuesOrNTRO
     {
         /// <summary>
@@ -64,9 +66,27 @@ namespace ValveResourceFormat.ResourceTypes
         public Dictionary<string, string> StringAttributes { get; } = [];
 
         /// <summary>
-        /// Gets the evaluated dynamic expressions for dynamic scalar and texture parameters.
+        /// Gets the compiled expressions of the dynamic scalar and vector parameters, by parameter name.
         /// </summary>
-        public Dictionary<string, string> DynamicExpressions { get; } = [];
+        public Dictionary<string, byte[]> DynamicParams { get; } = [];
+
+        /// <summary>
+        /// Gets the compiled expressions of the dynamic texture parameters, by parameter name.
+        /// </summary>
+        public Dictionary<string, byte[]> DynamicTextureParams { get; } = [];
+
+        /// <summary>
+        /// Gets the render attributes that the compiled expressions might have used.
+        /// </summary>
+        public string[] RenderAttributesUsed { get; private set; } = [];
+
+        /// <summary>
+        /// Gets <see cref="DynamicParams"/> and <see cref="DynamicTextureParams"/> decompiled to readable source.
+        /// Nothing evaluates them; a parameter driven by one keeps its static baked value.
+        /// </summary>
+        public Dictionary<string, string> DynamicExpressions => dynamicExpressions ??= DecompileDynamicExpressions();
+
+        private Dictionary<string, string>? dynamicExpressions;
 
         private VsInputSignature? inputSignature;
 
@@ -85,6 +105,21 @@ namespace ValveResourceFormat.ResourceTypes
 
                 return inputSignature.Value;
             }
+        }
+
+        /// <summary>
+        /// Loads a material's vertex shader input signature, which maps its DirectX semantics to engine
+        /// ones. Returns <see cref="VsInputSignature.Empty"/> for a material that cannot be loaded.
+        /// </summary>
+        /// <param name="fileLoader">Loader for the material resource.</param>
+        /// <param name="materialPath">Resource path of the material, e.g. <c>materials/foo.vmat</c>.</param>
+        public static VsInputSignature LoadInputSignature(IFileLoader fileLoader, string materialPath)
+        {
+            ArgumentNullException.ThrowIfNull(fileLoader);
+
+            using var resource = fileLoader.LoadFileCompiled(materialPath);
+
+            return resource?.DataBlock is Material material ? material.InputSignature : VsInputSignature.Empty;
         }
 
         /// <inheritdoc/>
@@ -142,26 +177,35 @@ namespace ValveResourceFormat.ResourceTypes
                 Console.WriteLine("unexpected textureAttributes length");
             }
 
-            var renderAttributesUsed = Data.GetArray<string>("m_renderAttributesUsed");
+            RenderAttributesUsed = Data.GetArray<string>("m_renderAttributesUsed") ?? [];
 
             // s&box removed m_dynamicParams + m_dynamicTextureParams from the material schema
             // so guard against nulls here
 
             foreach (var kvp in Data.GetArray("m_dynamicParams") ?? [])
             {
-                var dynamicParamName = kvp.GetStringProperty("m_name");
-                var dynamicParamBytes = kvp.GetArray<byte>("m_value");
-                var vfxEval = new VfxEval(dynamicParamBytes, renderAttributesUsed);
-                DynamicExpressions.Add(dynamicParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
+                DynamicParams.Add(kvp.GetStringProperty("m_name"), kvp.GetArray<byte>("m_value"));
             }
 
             foreach (var kvp in Data.GetArray("m_dynamicTextureParams") ?? [])
             {
-                var dynamicTextureParamName = kvp.GetStringProperty("m_name");
-                var dynamicTextureParamBytes = kvp.GetArray<byte>("m_value");
-                var vfxEval = new VfxEval(dynamicTextureParamBytes, renderAttributesUsed);
-                DynamicExpressions.Add(dynamicTextureParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
+                DynamicTextureParams.Add(kvp.GetStringProperty("m_name"), kvp.GetArray<byte>("m_value"));
             }
+
+            Data = null;
+        }
+
+        private Dictionary<string, string> DecompileDynamicExpressions()
+        {
+            var expressions = new Dictionary<string, string>(DynamicParams.Count + DynamicTextureParams.Count);
+
+            foreach (var (name, expression) in DynamicParams.Concat(DynamicTextureParams))
+            {
+                var vfxEval = new VfxEval(expression, RenderAttributesUsed);
+                expressions.Add(name, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
+            }
+
+            return expressions;
         }
 
         /// <summary>
@@ -274,6 +318,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Represents a single element in the vertex shader input signature.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/VsInputSignatureElement_t">VsInputSignatureElement_t</seealso>
         [DebuggerDisplay("{Name,nq} ({Semantic,nq})")]
         public readonly struct InputSignatureElement
         {

@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO;
 
@@ -64,4 +65,12 @@ internal class KVHelpers
 
     internal static KVObject ToKVArray(Quaternion q)
         => MakeArray(q.X, q.Y, q.Z, q.W);
+
+    internal static void AddIfPresent(KVObject target, string targetKey, KVObject? source, string sourceKey)
+    {
+        if (source?.ContainsKey(sourceKey) == true)
+        {
+            target.Add(targetKey, source[sourceKey]);
+        }
+    }
 }

@@ -133,7 +133,7 @@ namespace ValveResourceFormat.IO
                 var b = positions[triangles[t * 3 + 1]];
                 var c = positions[triangles[t * 3 + 2]];
 
-                var cross = Vector3.Cross(b - a, c - a);
+                var cross = MathUtils.TriangleCross(a, b, c);
                 var doubleArea = cross.Length();
 
                 if (doubleArea < 1e-4f)
@@ -152,7 +152,7 @@ namespace ValveResourceFormat.IO
                 var e1 = c - a;
                 var t0 = texCoords[triangles[t * 3 + 1]] - texCoords[triangles[t * 3]];
                 var t1 = texCoords[triangles[t * 3 + 2]] - texCoords[triangles[t * 3]];
-                var det = t0.X * t1.Y - t1.X * t0.Y;
+                var det = Vector2.Cross(t0, t1);
 
                 if (MathF.Abs(det) > 1e-9f)
                 {
@@ -197,12 +197,12 @@ namespace ValveResourceFormat.IO
             {
                 if (hasGradients[t])
                 {
-                    uDirection += areas[t] * (gradientsU[t] - direction * Vector3.Dot(gradientsU[t], direction));
+                    uDirection += areas[t] * MathUtils.ProjectOntoPlane(gradientsU[t], direction);
                 }
             }
 
             var xAxis = uDirection.LengthSquared() > 1e-6f ? uDirection : AnyPerpendicular(direction);
-            xAxis = Vector3.Normalize(xAxis - direction * Vector3.Dot(xAxis, direction));
+            xAxis = Vector3.Normalize(MathUtils.ProjectOntoPlane(xAxis, direction));
             var yAxis = Vector3.Cross(direction, xAxis);
 
             // lift the triangles onto the overlay's plane, keeping their texture coordinates
@@ -328,7 +328,7 @@ namespace ValveResourceFormat.IO
                 Origin = origin + nudge,
                 Angles = EntityTransformHelper.ToEulerAngles(rotation),
                 ProjectionFar = MathF.Ceiling(MeshHeight + (top - bottom) + ProjectionMargin),
-                BackFacingAngle = MathF.Min(90f, MathF.Ceiling(float.RadiansToDegrees(MathF.Acos(Math.Clamp(steepestCos, -1f, 1f))) + ProjectionMargin)),
+                BackFacingAngle = MathF.Min(90f, MathF.Ceiling(float.RadiansToDegrees(MathUtils.SafeAcos(steepestCos)) + ProjectionMargin)),
             };
         }
 
@@ -610,7 +610,7 @@ namespace ValveResourceFormat.IO
                 var b = positions[triangles[t * 3 + 1]];
                 var c = positions[triangles[t * 3 + 2]];
 
-                var cross = Vector3.Cross(b - a, c - a);
+                var cross = MathUtils.TriangleCross(a, b, c);
                 var doubleArea = cross.Length();
 
                 if (doubleArea < 1e-6f)
@@ -1071,8 +1071,8 @@ namespace ValveResourceFormat.IO
             {
                 var current = polygon[i];
                 var next = polygon[(i + 1) % polygon.Count];
-                var currentSide = edge.X * (current.Y - p0.Y) - edge.Y * (current.X - p0.X);
-                var nextSide = edge.X * (next.Y - p0.Y) - edge.Y * (next.X - p0.X);
+                var currentSide = Vector2.Cross(edge, current - p0);
+                var nextSide = Vector2.Cross(edge, next - p0);
                 var currentKept = keepInside ? currentSide >= 0f : currentSide <= 0f;
                 var nextKept = keepInside ? nextSide >= 0f : nextSide <= 0f;
 
@@ -1099,7 +1099,7 @@ namespace ValveResourceFormat.IO
             {
                 var u = polygon[i] - polygon[0];
                 var v = polygon[i + 1] - polygon[0];
-                doubleArea += u.X * v.Y - u.Y * v.X;
+                doubleArea += Vector2.Cross(u, v);
             }
 
             return MathF.Abs(doubleArea) / 2f;
@@ -1120,7 +1120,7 @@ namespace ValveResourceFormat.IO
         // barycentric weights without an inside check, for interpolating a triangle's attributes at any point
         private static Vector3 UnclampedBarycentricWeights(ReadOnlySpan<Vector2> corners, Vector2 point)
         {
-            var doubleArea = (corners[1].X - corners[0].X) * (corners[2].Y - corners[0].Y) - (corners[2].X - corners[0].X) * (corners[1].Y - corners[0].Y);
+            var doubleArea = Vector2.Cross(corners[1] - corners[0], corners[2] - corners[0]);
 
             if (MathF.Abs(doubleArea) < 1e-8f)
             {
@@ -1139,7 +1139,7 @@ namespace ValveResourceFormat.IO
         // barycentric weights of a point against a 2d triangle, null when the point lies outside it
         private static Vector3? BarycentricWeights(ReadOnlySpan<Vector2> corners, Vector2 point)
         {
-            var doubleArea = (corners[1].X - corners[0].X) * (corners[2].Y - corners[0].Y) - (corners[2].X - corners[0].X) * (corners[1].Y - corners[0].Y);
+            var doubleArea = Vector2.Cross(corners[1] - corners[0], corners[2] - corners[0]);
 
             if (MathF.Abs(doubleArea) < 1e-8f)
             {

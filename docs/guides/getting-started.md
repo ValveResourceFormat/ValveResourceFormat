@@ -15,10 +15,12 @@ Source 2 Viewer is portable and requires no installation. Just run the executabl
 
 The **Explorer** tab is the main way to browse game files. It opens by default on launch (this can be disabled in settings) and is accessible from the top bar. It automatically discovers all installed Steam games and their VPK archives, including workshop content. Click a game to expand it and browse its files.
 
+Files opened from a game folder load the textures, materials and other files they reference from that game. For files outside of a game folder, see [game search paths](./game-search-paths.md).
+
 The Explorer also shows:
 
 - **Recent files** at the top, so you can quickly reopen files you've worked with before
-- **Bookmarks** for files you've saved for later. Right-click any file and select bookmark to add it
+- **Bookmarks** for files you've saved for later. Right-click any file and choose **Add to Bookmarks** to add it
 
 ![Explorer showing detected Steam games](./images/getting-started-game-explorer.png)
 
@@ -28,6 +30,21 @@ There are several ways to open files:
 
 - Use **File → Open** (<kbd>Ctrl</kbd>+<kbd>O</kbd>) to browse for any `.vpk` file or individual Source 2 files (`.vmdl_c`, `.vtex_c`, etc.)
 - Drag and drop files or folders directly onto the window
+
+### Opening VPK Links
+
+A file inside a VPK can be opened directly with a `vpk:` link, made of the package path, a colon, and the path inside it:
+
+```
+vpk:steam:730/game/csgo/maps/de_dust2.vpk:maps/de_dust2.vmap_c
+```
+
+- The package path is either a full path, or relative to an installed Steam app as `steam:<appid>/`, which works on any computer with that game installed.
+- Right-click a file and choose **Copy URL** to get its link. It uses the `steam:` form when the package belongs to an installed Steam app.
+- Pass the link to `Source2Viewer.exe` on the command line to open the file.
+- After **Register .vpk file association** in settings, clicking a `vpk:` link anywhere opens it in Source 2 Viewer.
+- A file in a VPK nested inside another uses one more colon: `vpk:outer_dir.vpk:maps/inner.vpk:models/file.vmdl_c`.
+- A `%` in a path is written as `%25`.
 
 ## Searching
 
@@ -62,11 +79,11 @@ Relevant keyboard shortcuts are shown at the bottom of each viewer.
 Right-click a file to access two export modes:
 
 - **Export as is** saves the raw compiled file without any conversion. Use this when you need the original Source 2 format.
-- **Decompile & export** converts files to standard editable formats. The output format can be chosen in the save dialog:
-    - Models → glTF (.gltf/.glb) or decompiled .vmdl
+- **Decompile & export** converts files to standard editable formats:
+    - Models → glTF (.gltf/.glb) or decompiled .vmdl, picked in the save dialog
     - Maps → glTF or decompiled .vmap (for Hammer Editor)
-    - Textures → PNG, JPG, or EXR (for HDR textures)
-    - Sounds → WAV or MP3
+    - Textures → PNG, or EXR for HDR textures. Textures stored as JPEG or WebP keep that format
+    - Sounds → WAV or MP3, matching the stored audio
     - Materials → .vmat
     - Physics (`.vphys_c`) and navigation meshes (`.nav`) → glTF
     - Other resources → Their decompiled text format
@@ -86,6 +103,6 @@ For large batch exports, consider using the [command-line utility](./command-lin
 
 ## Issues
 
-If you have questions or want to chat, join the Discord server.
+If you have questions or want to chat, join the [Discord server](https://discord.gg/s9QQ7Wg7r4).
 
 If you want to report a bug or request a feature, see the [reporting issues guide](./reporting-issues.md).

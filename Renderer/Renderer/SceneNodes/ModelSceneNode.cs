@@ -6,9 +6,9 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
+using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>
         /// A collection of animations available for playback on this model.
         /// </summary>
-        public Dictionary<string, Animation> Animations { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, AnimationBase> Animations { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Attachment points from model data.
@@ -78,7 +78,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly string[] meshGroups;
         private readonly long[]? meshGroupMasks;
         private readonly ModelLodInfo lodInfo;
-        private readonly List<(int MeshIndex, string MeshName, long LoDMask)> referenceMeshes;
+        private readonly List<ModelMeshReference> referenceMeshes;
         private int? lodOverride;
         private int resolvedLod;
 
@@ -93,7 +93,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             : base(scene)
         {
             materialGroups = model.GetMaterialGroups().ToArray();
-            meshGroups = model.GetMeshGroups().ToArray();
+            meshGroups = model.MeshGroups.Names.ToArray();
 
             if (meshGroups.Length > 1)
             {
@@ -483,7 +483,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private void LoadMeshes(Model model)
         {
             // All LoD levels are loaded; the active one is picked at render time.
-            foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD())
+            foreach (var embeddedMesh in model.GetEmbeddedMeshes())
             {
                 //VKTODO: embeddedMesh.Mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
                 model.SetExternalMorphData(embeddedMesh.Mesh.MorphData);
@@ -506,7 +506,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             //    meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable));
             //}
 
-            SetActiveMeshGroups(model.GetDefaultMeshGroups());
+            SetActiveMeshGroups(model.MeshGroups.Defaults);
         }
 
         //VKTODO: private void SetupBoneMatrixBuffers()
@@ -664,7 +664,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
 #pragma warning disable CA1024 // Use properties where appropriate
         /// <summary>Returns every external reference mesh name and its LoD mask, across all levels.</summary>
-        public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshes()
+        public IEnumerable<ModelMeshReference> GetReferenceMeshes()
             => referenceMeshes;
 
         /// <summary>Returns all mesh group names defined by this model.</summary>
@@ -868,6 +868,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             //VKTODO: boneMatricesGpu?.Delete();
         }
 
+#if VKTODO
         private DotToMorphConstraint[] dotToMorphConstraints = [];
         private float[] dotToMorphValues = [];
 
@@ -1032,5 +1033,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             return [.. constraints];
         }
+#endif
     }
 }

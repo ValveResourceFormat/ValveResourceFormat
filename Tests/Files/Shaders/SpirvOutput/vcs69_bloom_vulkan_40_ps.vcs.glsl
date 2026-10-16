@@ -1,5 +1,5 @@
 // VRF-TEST
-// SPIR-V source (904 bytes), HLSL reflection with SPIRV-Cross by KhronosGroup
+// SPIR-V source, HLSL reflection with SPIRV-Cross by KhronosGroup
 
 cbuffer _Globals_ : register(b0, space1)
 {

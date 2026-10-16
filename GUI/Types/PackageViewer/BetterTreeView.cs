@@ -100,6 +100,8 @@ namespace GUI.Types.PackageViewer
         /// <summary>
         /// Performs a depth-first search on the virtual package node tree, adding entries for which the match function returns true. The matching conditions are based on the passed function.
         /// </summary>
+        /// <param name="node">Node whose subtree is searched.</param>
+        /// <param name="results">List that receives the matching entries.</param>
         /// <param name="matchFunction">Function which performs matching on each PackageEntry. Returns true if there's a match.</param>
         private static void Search(VirtualPackageNode node, List<PackageEntry> results, Func<PackageEntry, bool> matchFunction)
         {
@@ -183,7 +185,7 @@ namespace GUI.Types.PackageViewer
                 {
                     var fileName = $"{VrfGuiContext.CurrentPackage.FileName}{(VrfGuiContext.CurrentPackage.IsDirVPK ? "_dir" : "")}.vpk";
 
-                    progressDialog.SetProgress($"Searching '{fileName}'");
+                    progressDialog.SetProgress($"Searching '{Path.GetFileName(fileName)}'");
 
                     var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesInDirVpk);
                     results.AddRange(archiveMatches);
@@ -203,9 +205,16 @@ namespace GUI.Types.PackageViewer
                         },
                         archiveIndex =>
                         {
+                            // Archives that only hold empty entries are never read
+                            if (!sortedEntriesPerArchive.TryGetValue(archiveIndex, out var archiveEntries))
+                            {
+                                Interlocked.Increment(ref archivesScanned);
+                                return;
+                            }
+
                             var fileName = $"{VrfGuiContext.CurrentPackage.FileName}_{archiveIndex:D3}.vpk";
 
-                            var archiveMatches = SearchForContentsInFile(fileName, pattern, sortedEntriesPerArchive[archiveIndex]);
+                            var archiveMatches = SearchForContentsInFile(fileName, pattern, archiveEntries);
 
                             if (archiveMatches.Count > 0)
                             {

@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         private Vector3 currentPosition = Vector3.Zero;
 
         /// <summary>
-        /// The current position, rotated and translated by the head control point, unless world location is used, in which case the position is returned as-is.
+        /// Current position rotated and translated by the head control point, or as-is with world location.
         /// </summary>
         private Vector3 GetTargetPosition(ParticleSystemState particleSystemState) => useWorldLocation
             ? currentPosition

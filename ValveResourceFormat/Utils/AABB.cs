@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace ValveResourceFormat.Utils
 {
     /// <summary>
@@ -80,6 +82,14 @@ namespace ValveResourceFormat.Utils
                 Min.X <= point.X && point.X <= Max.X &&
                 Min.Y <= point.Y && point.Y <= Max.Y &&
                 Min.Z <= point.Z && point.Z <= Max.Z;
+        }
+
+        /// <summary>Returns the squared distance from the point to this box, zero if contained. </summary>
+        public readonly float DistanceSquared(Vector3 point)
+        {
+            var outside = Vector3.Max(Min - point, Vector3.Zero) + Vector3.Max(point - Max, Vector3.Zero);
+
+            return outside.LengthSquared();
         }
 
         /// <summary>
@@ -165,7 +175,7 @@ namespace ValveResourceFormat.Utils
         /// <inheritdoc/>
         public override readonly string ToString()
         {
-            return $"AABB [({Min.X},{Min.Y},{Min.Z}) -> ({Max.X},{Max.Y},{Max.Z}))";
+            return string.Create(CultureInfo.InvariantCulture, $"AABB [({Min.X},{Min.Y},{Min.Z}) -> ({Max.X},{Max.Y},{Max.Z}))");
         }
 
         /// <inheritdoc/>

@@ -86,7 +86,7 @@ public sealed class HalfEdgeData<TData> : ComponentData<TData> where TData : str
 /// <typeparam name="T">Type stored per component.</typeparam>
 public abstract class ComponentData<T> : IEnumerable<T>, IDataStream where T : struct
 {
-    internal readonly List<T> _list = new();
+    internal readonly List<T> _list = [];
 
     /// <summary>
     /// Returns an enumerator over every entry, including entries of deallocated components.
@@ -109,7 +109,9 @@ public abstract class ComponentData<T> : IEnumerable<T>, IDataStream where T : s
         set
         {
             if (index >= 0 && index < Count)
+            {
                 _list[index] = value;
+            }
         }
     }
 
@@ -119,9 +121,11 @@ public abstract class ComponentData<T> : IEnumerable<T>, IDataStream where T : s
     /// <param name="source">Values to copy in.</param>
     public void CopyFrom(T[] source)
     {
-        int count = Math.Min(_list.Count, source.Length);
-        for (int i = 0; i < count; i++)
+        var count = Math.Min(_list.Count, source.Length);
+        for (var i = 0; i < count; i++)
+        {
             _list[i] = source[i];
+        }
     }
 
 #pragma warning disable CA1033
@@ -132,9 +136,11 @@ public abstract class ComponentData<T> : IEnumerable<T>, IDataStream where T : s
 
     void IDataStream.AllocateMultiple(int count)
     {
-        _list.Capacity += count;
+        _list.EnsureCapacity(_list.Count + count);
         for (var i = 0; i < count; i++)
+        {
             _list.Add(default);
+        }
     }
 #pragma warning restore CA1033
 }
@@ -145,9 +151,9 @@ public abstract class ComponentData<T> : IEnumerable<T>, IDataStream where T : s
 /// <typeparam name="T">Component type, one of vertex, face, or half edge.</typeparam>
 public class ComponentList<T> : IEnumerable<T>
 {
-    private readonly List<T> _list = new();
-    private readonly List<bool> _active = new();
-    private readonly Dictionary<string, IDataStream> _streams = new();
+    private readonly List<T> _list = [];
+    private readonly List<bool> _active = [];
+    private readonly Dictionary<string, IDataStream> _streams = [];
 
     /// <summary>
     /// Number of slots, counting deallocated ones.
@@ -187,7 +193,9 @@ public class ComponentList<T> : IEnumerable<T>
         _active.Add(true);
 
         foreach (var stream in _streams.Values)
+        {
             stream.Allocate(sourceIndex);
+        }
 
         return Count - 1;
     }
@@ -199,7 +207,7 @@ public class ComponentList<T> : IEnumerable<T>
     /// <param name="component">Component to copy into each slot.</param>
     public void AllocateMultiple(int count, T component)
     {
-        _list.Capacity += count;
+        _list.EnsureCapacity(_list.Count + count);
         for (var i = 0; i < count; i++)
         {
             _list.Add(component);
@@ -207,7 +215,9 @@ public class ComponentList<T> : IEnumerable<T>
         }
 
         foreach (var stream in _streams.Values)
+        {
             stream.AllocateMultiple(count);
+        }
     }
 
     /// <summary>
@@ -226,7 +236,9 @@ public class ComponentList<T> : IEnumerable<T>
     public bool IsAllocated(int index)
     {
         if (index < 0 || index >= _active.Count)
+        {
             return false;
+        }
 
         return _active[index];
     }
@@ -240,7 +252,9 @@ public class ComponentList<T> : IEnumerable<T>
     public TDataStream CreateDataStream<TDataStream>(string name) where TDataStream : IDataStream, new()
     {
         if (_streams.ContainsKey(name))
+        {
             throw new ArgumentException("A stream with the same name already exists.", nameof(name));
+        }
 
         var stream = new TDataStream();
         stream.AllocateMultiple(_list.Count);

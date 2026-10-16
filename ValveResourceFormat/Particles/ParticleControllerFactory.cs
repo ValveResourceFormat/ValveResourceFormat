@@ -27,11 +27,13 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_ChooseRandomChildrenInGroup"] = preEmissionOperatorInfo => new ChooseRandomChildrenInGroup(preEmissionOperatorInfo),
                 ["C_OP_DistanceBetweenCPsToCP"] = preEmissionOperatorInfo => new DistanceBetweenCPsToCP(preEmissionOperatorInfo),
                 ["C_OP_HSVShiftToCP"] = preEmissionOperatorInfo => new HSVShiftToCP(preEmissionOperatorInfo),
+                ["C_OP_LightningSnapshotGenerator"] = preEmissionOperatorInfo => new LightningSnapshotGenerator(preEmissionOperatorInfo),
                 ["C_OP_RampCPLinearRandom"] = preEmissionOperatorInfo => new RampCPLinearRandom(preEmissionOperatorInfo),
                 ["C_OP_RemapSpeedtoCP"] = preEmissionOperatorInfo => new RemapSpeedtoCP(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointPositions"] = preEmissionOperatorInfo => new SetControlPointPositions(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointRotation"] = preEmissionOperatorInfo => new SetControlPointRotation(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointToCenter"] = preEmissionOperatorInfo => new SetControlPointToCenter(preEmissionOperatorInfo),
+                ["C_OP_SetControlPointToPlayer"] = preEmissionOperatorInfo => new SetControlPointToPlayer(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointToVectorExpression"] = preEmissionOperatorInfo => new SetControlPointToVectorExpression(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointOrientation"] = preEmissionOperatorInfo => new SetControlPointOrientation(preEmissionOperatorInfo),
                 ["C_OP_PlayEndCapWhenFinished"] = preEmissionOperatorInfo => new PlayEndCapWhenFinished(preEmissionOperatorInfo),
@@ -47,6 +49,7 @@ namespace ValveResourceFormat.Particles
             {
                 ["C_OP_InstantaneousEmitter"] = (emitterInfo) => new InstantaneousEmitter(emitterInfo),
                 ["C_OP_ContinuousEmitter"] = (emitterInfo) => new ContinuousEmitter(emitterInfo),
+                ["C_OP_MaintainEmitter"] = emitterInfo => new MaintainEmitter(emitterInfo),
                 ["C_OP_NoiseEmitter"] = (emitterInfo) => new NoiseEmitter(emitterInfo),
             };
 
@@ -60,6 +63,7 @@ namespace ValveResourceFormat.Particles
                 ["C_INIT_CreateSequentialPath"] = initializerInfo => new CreateSequentialPath(initializerInfo),
                 ["C_INIT_CreateSequentialPathV2"] = initializerInfo => new CreateSequentialPathV2(initializerInfo),
                 ["C_INIT_CreateWithinBox"] = initializerInfo => new CreateWithinBox(initializerInfo),
+                ["C_INIT_CreateWithinCone"] = initializerInfo => new CreateWithinCone(initializerInfo),
                 ["C_INIT_CreateWithinSphereTransform"] = initializerInfo => new CreateWithinSphereTransform(initializerInfo),
                 ["C_INIT_CreateFromCPs"] = initializerInfo => new CreateFromCPs(initializerInfo),
                 ["C_INIT_CreateFromParentParticles"] = initializerInfo => new CreateFromParentParticles(initializerInfo),
@@ -74,14 +78,17 @@ namespace ValveResourceFormat.Particles
                 ["C_INIT_InitialVelocityNoise"] = initializerInfo => new InitialVelocityNoise(initializerInfo),
                 ["C_INIT_PointList"] = initializerInfo => new PointList(initializerInfo),
                 ["C_INIT_PositionOffset"] = initializerInfo => new PositionOffset(initializerInfo),
+                ["C_INIT_PositionPlaceOnGround"] = initializerInfo => new PositionPlaceOnGround(initializerInfo),
                 ["C_INIT_PositionWarp"] = initializerInfo => new PositionWarp(initializerInfo),
                 ["C_INIT_RandomColor"] = initializerInfo => new RandomColor(initializerInfo),
                 ["C_INIT_RandomSequence"] = initializerInfo => new RandomSequence(initializerInfo),
+                ["C_INIT_ScaleVelocity"] = initializerInfo => new ScaleVelocity(initializerInfo),
                 ["C_INIT_SequenceLifeTime"] = initializerInfo => new SequenceLifeTime(initializerInfo),
                 ["C_INIT_RandomSecondSequence"] = initializerInfo => new RandomSecondSequence(initializerInfo),
                 ["C_INIT_RandomVectorComponent"] = initializerInfo => new RandomVectorComponent(initializerInfo),
                 ["C_INIT_RandomYawFlip"] = initializerInfo => new RandomYawFlip(initializerInfo),
                 ["C_INIT_NormalAlignToCP"] = initializerInfo => new NormalAlignToCP(initializerInfo),
+                ["C_INIT_MoveBetweenPoints"] = initializerInfo => new MoveBetweenPoints(initializerInfo),
                 ["C_INIT_NormalOffset"] = initializerInfo => new NormalOffset(initializerInfo),
                 ["C_INIT_RemapInitialDirectionToTransformToVector"] = initializerInfo => new RemapInitialDirectionToTransformToVector(initializerInfo),
                 ["C_INIT_RemapInitialTransformDirectionToRotation"] = initializerInfo => new RemapInitialTransformDirectionToRotation(initializerInfo),
@@ -92,6 +99,7 @@ namespace ValveResourceFormat.Particles
                 ["C_INIT_RingWave"] = initializerInfo => new RingWave(initializerInfo),
                 ["C_INIT_VelocityFromCP"] = initializerInfo => new VelocityFromCP(initializerInfo),
                 ["C_INIT_InheritVelocity"] = initializerInfo => new InheritVelocity(initializerInfo),
+                ["C_INIT_VelocityFromNormal"] = initializerInfo => new VelocityFromNormal(initializerInfo),
                 ["C_INIT_VelocityRadialRandom"] = initializerInfo => new VelocityRadialRandom(initializerInfo),
                 ["C_INIT_VelocityRandom"] = initializerInfo => new VelocityRandom(initializerInfo),
             };
@@ -107,6 +115,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_ColorInterpolateRandom"] = operatorInfo => new ColorInterpolateRandom(operatorInfo),
                 ["C_OP_Cull"] = operatorInfo => new Cull(operatorInfo),
                 ["C_OP_CycleScalar"] = operatorInfo => new CycleScalar(operatorInfo),
+                ["C_OP_ControlpointLight"] = operatorInfo => new ControlpointLight(operatorInfo),
                 ["C_OP_CylindricalDistanceToTransform"] = operatorInfo => new CylindricalDistanceToTransform(operatorInfo),
                 ["C_OP_DampenToCP"] = operatorInfo => new DampenToCP(operatorInfo),
                 ["C_OP_Decay"] = operatorInfo => new Decay(operatorInfo),
@@ -132,8 +141,11 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_LockToSavedSequentialPathV2"] = operatorInfo => new LockToSavedSequentialPathV2(operatorInfo),
                 ["C_OP_MaintainSequentialPath"] = operatorInfo => new MaintainSequentialPath(operatorInfo),
                 ["C_OP_MaxVelocity"] = operatorInfo => new MaxVelocity(operatorInfo),
+                ["C_OP_MovementPlaceOnGround"] = operatorInfo => new MovementPlaceOnGround(operatorInfo),
                 ["C_OP_MovementRotateParticleAroundAxis"] = operatorInfo => new MovementRotateParticleAroundAxis(operatorInfo),
                 ["C_OP_Noise"] = operatorInfo => new Noise(operatorInfo),
+                ["C_OP_RadiusDecay"] = operatorInfo => new RadiusDecay(operatorInfo),
+                ["C_OP_RemapDotProductToScalar"] = operatorInfo => new RemapDotProductToScalar(operatorInfo),
                 ["C_OP_VectorNoise"] = operatorInfo => new VectorNoise(operatorInfo),
                 ["C_OP_NormalLock"] = operatorInfo => new NormalLock(operatorInfo),
                 ["C_OP_NormalizeVector"] = operatorInfo => new NormalizeVector(operatorInfo),
@@ -170,6 +182,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_RemapTransformVisibilityToVector"] = operatorInfo => new RemapTransformVisibilityToVector(operatorInfo),
                 ["C_OP_RotateVector"] = operatorInfo => new RotateVector(operatorInfo),
                 ["C_OP_SetAttributeToScalarExpression"] = operatorInfo => new SetAttributeToScalarExpression(operatorInfo),
+                ["C_OP_SetChildControlPoints"] = operatorInfo => new SetChildControlPoints(operatorInfo),
                 ["C_OP_SetFloat"] = operatorInfo => new SetFloat(operatorInfo),
                 ["C_OP_SetFloatCollection"] = operatorInfo => new SetFloatCollection(operatorInfo),
                 ["C_OP_SetFromCPSnapshot"] = operatorInfo => new SetFromCPSnapshot(operatorInfo),
@@ -187,8 +200,10 @@ namespace ValveResourceFormat.Particles
             {
                 ["C_OP_AttractToControlPoint"] = forceGeneratorInfo => new AttractToControlPoint(forceGeneratorInfo),
                 ["C_OP_CurlNoiseForce"] = forceGeneratorInfo => new CurlNoiseForce(forceGeneratorInfo),
+                ["C_OP_LocalAccelerationForce"] = forceGeneratorInfo => new LocalAccelerationForce(forceGeneratorInfo),
                 ["C_OP_PerParticleForce"] = forceGeneratorInfo => new PerParticleForce(forceGeneratorInfo),
                 ["C_OP_RandomForce"] = forceGeneratorInfo => new RandomForce(forceGeneratorInfo),
+                ["C_OP_TimeVaryingForce"] = forceGeneratorInfo => new TimeVaryingForce(forceGeneratorInfo),
                 ["C_OP_TurbulenceForce"] = forceGeneratorInfo => new TurbulenceForce(forceGeneratorInfo),
                 ["C_OP_TwistAroundAxis"] = forceGeneratorInfo => new TwistAroundAxis(forceGeneratorInfo),
             };
@@ -198,12 +213,13 @@ namespace ValveResourceFormat.Particles
             = new()
             {
                 ["C_OP_ConstrainDistance"] = constraintInfo => new ConstrainDistance(constraintInfo),
+                ["C_OP_PlanarConstraint"] = constraintInfo => new PlanarConstraint(constraintInfo),
                 ["C_OP_RopeSpringConstraint"] = constraintInfo => new RopeSpringConstraint(constraintInfo),
+                ["C_OP_WorldTraceConstraint"] = constraintInfo => new WorldTraceConstraint(constraintInfo),
             };
 
         /// <summary>
-        /// Shared lookup+construct logic behind every TryCreateX method below,
-        /// which needs extra renderer-only constructor arguments.
+        /// Shared lookup+construct logic behind every TryCreateX method below.
         /// </summary>
         private static bool TryCreate<TFunction>(
             Dictionary<string, Func<ParticleDefinitionParser, TFunction>> dictionary,

@@ -157,6 +157,17 @@ namespace ValveResourceFormat.IO
     }
 
     /// <summary>
+    /// Options for <see cref="FileExtract.Extract(Resource, IFileLoader, IProgress{string}?, FileExtractOptions)"/>.
+    /// </summary>
+    public sealed record FileExtractOptions
+    {
+        /// <summary>
+        /// Gets whether models, and the models a map extracts, reconstruct their soft-body (cloth) physics. Defaults to true.
+        /// </summary>
+        public bool ReconstructSoftbody { get; init; } = true;
+    }
+
+    /// <summary>
     /// Provides methods for extracting content files from compiled resources.
     /// </summary>
     public static class FileExtract
@@ -168,18 +179,30 @@ namespace ValveResourceFormat.IO
         /// <param name="fileLoader">The file loader for resolving dependencies.</param>
         /// <param name="progress">Optional progress reporter.</param>
         public static ContentFile Extract(Resource resource, IFileLoader fileLoader, IProgress<string>? progress = null)
+            => Extract(resource, fileLoader, progress, new FileExtractOptions());
+
+        /// <summary>
+        /// Extract content file from a compiled resource.
+        /// </summary>
+        /// <param name="resource">The resource to be extracted or decompiled.</param>
+        /// <param name="fileLoader">The file loader for resolving dependencies.</param>
+        /// <param name="progress">Optional progress reporter.</param>
+        /// <param name="options">Options that control how resources are extracted.</param>
+        public static ContentFile Extract(Resource resource, IFileLoader fileLoader, IProgress<string>? progress, FileExtractOptions options)
         {
+            ArgumentNullException.ThrowIfNull(options);
+
             var contentFile = new ContentFile();
 
             switch (resource.ResourceType)
             {
                 case ResourceType.Map:
                 case ResourceType.World:
-                    contentFile = new MapExtract(resource, fileLoader) { ProgressReporter = progress }.ToContentFile();
+                    contentFile = new MapExtract(resource, fileLoader) { ProgressReporter = progress, ReconstructSoftbody = options.ReconstructSoftbody }.ToContentFile();
                     break;
 
                 case ResourceType.Model:
-                    contentFile = new ModelExtract(resource, fileLoader) { ProgressReporter = progress }.ToContentFile();
+                    contentFile = new ModelExtract(resource, fileLoader) { ProgressReporter = progress, ReconstructSoftbody = options.ReconstructSoftbody }.ToContentFile();
                     break;
 
                 case ResourceType.AnimationGraph:
@@ -203,11 +226,9 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Sound:
-                    if (resource.DataBlock is Sound soundData)
+                    if (resource.DataBlock is Sound { StreamingDataSize: > 0 } soundData)
                     {
-                        using var soundStream = soundData.GetSoundStream();
-                        soundStream.TryGetBuffer(out var buffer);
-                        contentFile.Data = [.. buffer];
+                        contentFile.Data = soundData.GetSound();
 
                         // Lip-sync phoneme data; the compiler bakes this back in when the txt sits next to the source sound.
                         if (soundData.Sentence != null)
@@ -255,10 +276,6 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.Material:
                     contentFile = new MaterialExtract(resource, fileLoader).ToContentFile();
-                    break;
-
-                case ResourceType.SboxShader:
-                    contentFile = new ShaderExtract(resource).ToContentFile();
                     break;
 
                 case ResourceType.EntityLump:
@@ -332,6 +349,23 @@ namespace ValveResourceFormat.IO
         /// <param name="fileName">The file name for context.</param>
         public static ContentFile? ExtractNonResource(Stream stream, string fileName)
         {
+            // Fonts have no magic at the start of the file
+            var extension = Path.GetExtension(fileName);
+
+            if (extension.Equals(".vfont", StringComparison.OrdinalIgnoreCase))
+            {
+                return new ContentFile
+                {
+                    Data = new ValveFont.ValveFont().Read(stream),
+                    FileName = Path.ChangeExtension(fileName, ".ttf"),
+                };
+            }
+
+            if (extension.Equals(".uifont", StringComparison.OrdinalIgnoreCase))
+            {
+                return ExtractUIFont(stream, fileName);
+            }
+
             Span<byte> buffer = stackalloc byte[4];
             var read = stream.Read(buffer);
             stream.Seek(-read, SeekOrigin.Current);
@@ -347,8 +381,53 @@ namespace ValveResourceFormat.IO
                 FlexSceneFile.FlexSceneFile.MAGIC => new FlexSceneExtract(stream).ToContentFile(),
                 ClosedCaptions.ClosedCaptions.MAGIC => new ClosedCaptionsExtract(stream, fileName).ToContentFile(),
                 NavMesh.NavMeshFile.MAGIC => ExtractNavMesh(stream, fileName),
+                MapFormats.GridNavFile.MAGIC => ExtractGridNav(stream, fileName),
                 _ => null,
             };
+        }
+
+        private static ContentFile ExtractGridNav(Stream stream, string fileName)
+        {
+            var gridNav = new MapFormats.GridNavFile();
+            gridNav.Read(stream);
+
+            return new ContentFile
+            {
+                Data = Encoding.UTF8.GetBytes(gridNav.ToString()),
+                FileName = Path.ChangeExtension(fileName, ".txt"),
+            };
+        }
+
+        private static ContentFile ExtractUIFont(Stream stream, string fileName)
+        {
+            var data = new byte[stream.Length - stream.Position];
+            stream.ReadExactly(data);
+
+            var fontPackage = new ValveFont.UIFontFilePackage();
+            fontPackage.Read(data);
+
+            if (fontPackage.FontFiles.Count == 1)
+            {
+                var fontFile = fontPackage.FontFiles[0];
+
+                return new ContentFile
+                {
+                    Data = fontFile.OpenTypeFontData,
+                    FileName = Path.ChangeExtension(fileName, Path.GetExtension(fontFile.FileName)),
+                };
+            }
+
+            var contentFile = new ContentFile
+            {
+                FileName = fileName,
+            };
+
+            foreach (var fontFile in fontPackage.FontFiles)
+            {
+                contentFile.AddSubFile(fontFile.FileName, () => fontFile.OpenTypeFontData);
+            }
+
+            return contentFile;
         }
 
         private static ContentFile ExtractNavMesh(Stream stream, string fileName)
@@ -356,10 +435,7 @@ namespace ValveResourceFormat.IO
             var navMesh = new NavMesh.NavMeshFile();
             navMesh.Read(stream);
 
-            var exporter = new GltfModelExporter(new NullFileLoader())
-            {
-                ProgressReporter = new Progress<string>(_ => { }),
-            };
+            var exporter = new GltfModelExporter(new NullFileLoader());
             var glbStream = new MemoryStream();
             var resourceName = Path.GetFileNameWithoutExtension(fileName);
             exporter.Export(navMesh, resourceName, glbStream);
@@ -395,9 +471,10 @@ namespace ValveResourceFormat.IO
             {
                 case ResourceType.Texture:
                 {
-                    if (IsChildResource(resource))
+                    var texture = (Texture)resource.DataBlock!;
+
+                    if (IsChildResource(resource) || texture.IsRawAnyImage)
                     {
-                        var texture = (Texture)resource.DataBlock!;
                         return TextureExtract.GetImageOutputExtension(texture);
                     }
 
@@ -405,12 +482,13 @@ namespace ValveResourceFormat.IO
                 }
 
                 case ResourceType.Sound:
-                    if (resource.DataBlock is Sound soundData)
+                    if (resource.DataBlock is Sound { StreamingDataSize: > 0 } soundData)
                     {
                         switch (soundData.SoundType)
                         {
                             case Sound.AudioFileType.MP3: return "mp3";
                             case Sound.AudioFileType.WAV: return "wav";
+                            case Sound.AudioFileType.AAC: return "aac";
                         }
                     }
                     else

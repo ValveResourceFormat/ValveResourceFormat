@@ -60,9 +60,9 @@ namespace GUI.Utils
 
             [ViewerType.WorldViewer] =
             [
+                new("Q/Z", "Up/Down"),
                 new("X", "Walk"),
                 //new("WASD", "Move"),
-                new("Q/Z", "Up/Down"),
                 new("Alt", "Orbit"),
                 new("Shift", "Pan"),
                 new("Click", "Pick"),

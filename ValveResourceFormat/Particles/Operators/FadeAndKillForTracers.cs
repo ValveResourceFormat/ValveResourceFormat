@@ -6,9 +6,8 @@ namespace ValveResourceFormat.Particles.Operators
     /// </summary>
     /// <remarks>
     /// The tracer counterpart of <see cref="FadeAndKill"/>. A particle that runs out mid-frame is
-    /// first pulled back along its own step to the point it ran out at, and only dies on the frame
-    /// after, so the tracer it draws ends where the particle expired rather than wherever the
-    /// frame's movement carried it. It carries no particle-order option.
+    /// pulled back along its step to where it ran out and dies a frame later, so its tracer ends there.
+    /// It has no particle-order option.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_FadeAndKillForTracers">C_OP_FadeAndKillForTracers</seealso>
     class FadeAndKillForTracers : FadeAndKill

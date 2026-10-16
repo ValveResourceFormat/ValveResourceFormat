@@ -1,16 +1,5 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using Microsoft.Extensions.Logging;
 using ValveKeyValue;
-using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Particles.Constraints;
-using ValveResourceFormat.Particles.Emitters;
-using ValveResourceFormat.Particles.ForceGenerators;
-using ValveResourceFormat.Particles.Initializers;
-using ValveResourceFormat.Particles.Operators;
-using ValveResourceFormat.Particles.PreEmissionOperators;
-using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -84,16 +73,16 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>
-        /// Schedules every direct child tagged with <paramref name="groupId"/> to replay after
-        /// <paramref name="duration"/>. This system and children in other groups keep running.
+        /// Schedules every direct child tagged with <paramref name="groupId"/> to replay on its next
+        /// update. This system and children in other groups keep running.
         /// </summary>
-        internal void RestartChildrenInGroup(int groupId, float duration)
+        internal void RestartChildrenInGroup(int groupId)
         {
             foreach (var child in childSimulations)
             {
                 if (child.groupId == groupId)
                 {
-                    child.systemState.SetRestartTime(duration);
+                    child.systemState.SetRestartTime(0f);
                 }
             }
         }
@@ -117,20 +106,38 @@ namespace ValveResourceFormat.Particles
                     continue;
                 }
 
+                if (IsSelfOrAncestor(childResource.FileName))
+                {
+                    logger.LogUniqueWarning("Skipped child {Child} of particle system {File}, because it is that system or one of its parents", childName, Name);
+                    continue;
+                }
+
                 var childSystemDefinition = (ParticleSystem?)childResource.DataBlock;
                 Debug.Assert(childSystemDefinition != null);
 
                 var childSystem = new ParticleSystemSimulation(childSystemDefinition, fileLoader, logger, null, systemState)
                 {
-                    MainControlPoint = MainControlPoint
+                    MainControlPoint = MainControlPoint,
+                    startDelay = parse.Float("m_flDelay", 0f),
+                    isEndCapChild = parse.Boolean("m_bEndCap", false),
+                    detailLevel = parse.Enum("m_nDetailLevel", ParticleDetailLevel.PARTICLEDETAIL_LOW)
                 };
-
-                childSystem.startDelay = parse.Float("m_flDelay", 0f);
-                childSystem.isEndCapChild = parse.Boolean("m_bEndCap", false);
-                childSystem.detailLevel = parse.Enum("m_nDetailLevel", ParticleDetailLevel.PARTICLEDETAIL_LOW);
 
                 childSimulations.Add(childSystem);
             }
+        }
+
+        private bool IsSelfOrAncestor(string? fileName)
+        {
+            for (var state = systemState; state != null; state = state.ParentSystem)
+            {
+                if (string.Equals(state.Data?.Name, fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

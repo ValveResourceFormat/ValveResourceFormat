@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Particles.Operators
                 // comes out pointing along Z rather than staying at zero
                 vector.Z += ParticleMath.FloatEpsilon;
 
-                vector = ParticleMath.Normalize(vector) * scale;
+                vector = MathUtils.SafeNormalize(vector) * scale;
 
                 particle.SetVector(outputField, vector);
             }

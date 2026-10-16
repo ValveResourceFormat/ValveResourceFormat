@@ -1,0 +1,17 @@
+VTEX Version = 0
+Width        = 8
+Height       = 8
+Depth        = 1
+DisplayRectW = 0
+DisplayRectH = 0
+MotionVecMax = 0
+RangeMin     = ( 0.000000, 0.000000, 0.000000, 0.000000 )
+RangeMax     = ( 0.000000, 0.000000, 0.000000, 0.000000 )
+Reflectivity = ( 0.864951, 0.877083, 0.864951, 1.000000 )
+NumMipLevels = 2
+Picmip0Res   = 0
+Format       = 1 (VTEX_FORMAT_DXT1)
+Flags        = 0x00000000
+Extra Data   = 0 entries:
+Mip level 0 - buffer size: 32
+Mip level 1 - buffer size: 8

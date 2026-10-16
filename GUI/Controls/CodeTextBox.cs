@@ -11,6 +11,9 @@ namespace GUI.Controls
     internal partial class CodeTextBox : FastColoredTextBox
     {
         private string? LazyText;
+        private int HeaderLineCount;
+        private static SolidBrush? AttentionBrush;
+        private static TextStyle? AttentionStyle;
 
         public static Font GetMonospaceFont()
         {
@@ -140,31 +143,97 @@ namespace GUI.Controls
             return new CodeTextBox(text, language, sourceMap);
         }
 
-        public static CodeTextBox CreateFromException(Exception exception, string? context = null)
+        /// <summary>
+        /// Creates a control showing the exception, and logs it with the context of the file that failed.
+        /// </summary>
+        public static CodeTextBox CreateFromException(Exception exception, string context)
+        {
+            Log.Error(nameof(CodeTextBox), $"Failed to open \"{context}\": {exception}");
+
+            var control = new CodeTextBox(string.Empty, HighlightLanguage.None);
+            control.ShowException(exception, context);
+            return control;
+        }
+
+        /// <summary>
+        /// Replaces the text with the exception report, with the heading and advice highlighted, and turns on word wrap.
+        /// </summary>
+        public void ShowException(Exception exception, string context)
+        {
+            ErrorReport.ShowUpdateAfterError();
+
+            var text = BuildExceptionText(exception, context, out var headerLineCount);
+            HeaderLineCount = headerLineCount;
+            WordWrap = true;
+            SetTextAndStyleHeader(text);
+        }
+
+        /// <summary>
+        /// Removes what <see cref="ShowException"/> set up, so that the next text is shown normally.
+        /// </summary>
+        public void ClearException()
+        {
+            // Replacing the text can keep line objects, and with them the background
+            for (var i = 0; i < HeaderLineCount; i++)
+            {
+                this[i].BackgroundBrush = null;
+            }
+
+            HeaderLineCount = 0;
+            WordWrap = false;
+        }
+
+        private static string BuildExceptionText(Exception exception, string context, out int headerLineCount)
         {
             var output = new StringBuilder(512);
-            output.AppendLine("Unhandled exception occurred while trying to open this file:");
+            output.AppendLine(ErrorReport.GetHeading(exception));
+            headerLineCount = 1;
+
+            var advice = ErrorReport.GetAdvice();
+            if (advice.Length > 0)
+            {
+                output.AppendLine(advice);
+                headerLineCount++;
+            }
+
+            output.AppendLine();
             output.AppendLine(exception.Message);
             output.AppendLine();
 
-            output.AppendLine("Try using latest dev build to see if the issue persists.");
-            output.AppendLine();
+            ErrorReport.AppendExceptionWithVersion(output, exception, context);
 
-            if (context != null)
+            return output.ToString();
+        }
+
+        private void SetTextAndStyleHeader(string text)
+        {
+            Text = text;
+
+            if (HeaderLineCount == 0)
             {
-                output.Append("Context: ");
-                output.AppendLine(context);
-                output.AppendLine();
+                return;
             }
 
-            Program.AppendExceptionWithVersion(output, exception);
+            // Created on first use so that it picks up the loaded theme
+            AttentionBrush ??= new SolidBrush(Themer.CurrentThemeColors.Attention);
+            AttentionStyle ??= new TextStyle(Brushes.White, null, FontStyle.Bold);
 
-            var text = output.ToString();
-            var control = new CodeTextBox(text, HighlightLanguage.None)
+            // The report is not code, so drop the highlighting a reused text box applied to it
+            Range.ClearStyle(StyleIndex.All);
+
+            var lastLine = HeaderLineCount - 1;
+            var start = new Place(0, 0);
+            var end = new Place(Lines[lastLine].Length, lastLine);
+            GetRange(start, end).SetStyle(AttentionStyle);
+
+            // A line background spans the full width, a style background only covers the characters
+            for (var i = 0; i < HeaderLineCount; i++)
             {
-                WordWrap = true,
-            };
-            return control;
+                this[i].BackgroundBrush = AttentionBrush;
+            }
+
+            // The current line highlight would dull the header
+            Selection.Start = new Place(0, HeaderLineCount);
         }
 
         private void OnDisposed(object? sender, EventArgs e)

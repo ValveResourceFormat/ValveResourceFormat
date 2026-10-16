@@ -6,9 +6,9 @@ namespace ValveResourceFormat.Particles.Upgrade;
 /// Renames C_INIT_CreateWithinSphere to C_INIT_CreateWithinSphereTransform with a CP-range
 /// transform input and folds the control point of C_INIT_PositionOffset, C_OP_PositionLock and
 /// C_OP_MovementRotateParticleAroundAxis into m_TransformInput. Negative control points clamp
-/// to zero in this step. The engine removes the three sphere legacy keys from the transform
-/// input instead of the operator, so they survive on the operator and the transform input
-/// never carries the end-CP growth time.
+/// to zero in this step. The three sphere legacy keys are removed from the transform input
+/// instead of the operator, so they survive on the operator and the transform input never
+/// carries the end-CP growth time.
 /// </summary>
 internal sealed class Vpcf49ToVpcf50 : ParticleUpgradeStep
 {

@@ -7,6 +7,7 @@ namespace ValveResourceFormat.NavMesh
     /// These values apply to nav version 35 and newer, older versions store a different set of flags which is not mapped here.
     /// Bits 19 and above are game specific attributes.
     /// </remarks>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/navlib/NavAttributeEnum">NavAttributeEnum</seealso>
     [Flags]
     public enum NavAttributeFlags : long
     {

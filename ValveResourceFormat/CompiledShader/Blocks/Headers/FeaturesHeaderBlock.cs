@@ -12,15 +12,18 @@ namespace ValveResourceFormat.CompiledShader;
 public class FeaturesHeaderBlock : ShaderDataBlock
 {
     /// <summary>
-    /// Gets the version of the shader source this file was compiled from. It increments whenever the source changes,
-    /// and is identical across all platforms and shader models the shader was compiled for.
+    /// Gets the shader source version. It increments whenever the source changes and is identical
+    /// across all platforms and shader models.
     /// </summary>
     public int Version { get; }
     /// <summary>Gets the file description.</summary>
     public string FileDescription { get; }
     /// <summary>Gets whether this is a development shader.</summary>
     public bool DevShader { get; }
-    /// <summary>Gets which program types are present, indexed by program type.</summary>
+    /// <summary>
+    /// Gets which programs are present, indexed by the file's program slot. Slots match <see cref="VcsProgramType"/>
+    /// before version 68, which removed the hull and domain shader slots.
+    /// </summary>
     public bool[] AvailablePrograms { get; }
     /// <summary>Gets the list of shader modes.</summary>
     public List<(string Name, string ShaderFallback, string StaticComboName, int StaticComboValue)> Modes { get; } = [];

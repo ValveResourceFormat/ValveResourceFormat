@@ -295,14 +295,18 @@ internal class RenderTestWindow : GameWindow
         }
 
         var mapPath = vmaps[0].GetFullPath();
-        var loadedMap = WorldLoader.LoadMap(mapPath, scene);
+        var loadedMap = WorldLoader.LoadMap(mapPath, scene, SceneRenderer.EntitySystem);
 
-        SceneRenderer.SkyboxScene = loadedMap.SkyboxScene;
-        SceneRenderer.Skybox2D = loadedMap.Skybox2D;
+        foreach (var spawnGroup in loadedMap.SpawnGroups)
+        {
+            SceneRenderer.AddSpawnGroup(spawnGroup);
+        }
 
         // Initialize scene (creates lighting buffers, octrees, etc.)
-        SceneRenderer.Scene.Initialize();
-        SceneRenderer.SkyboxScene?.Initialize();
+        foreach (var initializing in SceneRenderer.Scenes)
+        {
+            initializing.Initialize();
+        }
 
         // Set initial camera position
         if (scene.AllNodes.Any())

@@ -55,7 +55,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         /// <param name="anim">The animation to interpolate.</param>
         /// <param name="time">The time to get the frame for.</param>
-        public Frame GetInterpolatedFrame(Animation anim, float time)
+        public Frame GetInterpolatedFrame(AnimationBase anim, float time)
         {
             if (anim.FrameCount <= 1)
             {
@@ -79,9 +79,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 var frame1Bone = frame1.Bones[i];
                 var frame2Bone = frame2.Bones[i];
-                InterpolatedFrame.Bones[i].Position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
-                InterpolatedFrame.Bones[i].Angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
-                InterpolatedFrame.Bones[i].Scale = float.Lerp(frame1Bone.Scale, frame2Bone.Scale, t);
+                InterpolatedFrame.Bones[i] = frame1Bone.Blend(frame2Bone, t);
             }
 
             for (var i = 0; i < frame1.Datas.Length; i++)
@@ -106,7 +104,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Get the animation frame at a given index.
         /// </summary>
-        public Frame GetFrame(Animation anim, int frameIndex)
+        public Frame GetFrame(AnimationBase anim, int frameIndex)
         {
             // Try to lookup cached (precomputed) frame - happens when GUI Autoplay runs faster than animation FPS
             if (frameIndex == PrevFrame.FrameIndex)

@@ -205,7 +205,7 @@ namespace GUI.Types.PackageViewer
 #if DEBUG
             ScanForResourceDependencies();
 
-            // Fire-and-forget on purpose: this is a dev-only prompt, and AddFiles has no reason to wait for it.
+            // Fire-and-forget: this dev-only prompt need not hold up AddFiles.
             async void ScanForResourceDependencies()
             {
                 if (resourceEntries.Count == 0 || !await AppMessageDialogs.ConfirmAsync(
@@ -229,7 +229,7 @@ namespace GUI.Types.PackageViewer
                     using var entryStream = new MemoryStream(output);
 
                     using var resource = new ValveResourceFormat.Resource();
-                    resource.Read(entryStream);
+                    resource.Read(entryStream, mode: ReadMode.Deferred);
 
                     if (resource.ExternalReferences is null)
                     {
@@ -262,7 +262,7 @@ namespace GUI.Types.PackageViewer
 
                         if (!File.Exists(file))
                         {
-                            Log.Warn(nameof(PackageViewer), $"Failed to find file: {file}");
+                            Log.Warn(nameof(PackageViewer), $"Failed to find file: {reference.Name}");
                             continue;
                         }
                     }
@@ -316,7 +316,15 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            vrfGuiContext.CurrentPackage.Write(fileName);
+            try
+            {
+                vrfGuiContext.CurrentPackage.Write(fileName);
+            }
+            catch (Exception e)
+            {
+                ErrorReport.ShowError(e, fileName);
+                return;
+            }
 
             var fileCount = 0;
             var fileSize = 0u;
@@ -423,7 +431,7 @@ namespace GUI.Types.PackageViewer
                             package.ReadEntry(newEntry, bytes, validateCrc: false);
                             using var stream = new MemoryStream(bytes, 0, (int)newEntry.TotalLength);
                             using var resource = new ValveResourceFormat.Resource();
-                            resource.Read(stream, verifyFileSize: false);
+                            resource.Read(stream, mode: ReadMode.Deferred);
 
                             var fileSize = resource.FullFileSize;
 
@@ -479,7 +487,7 @@ namespace GUI.Types.PackageViewer
                         }
                         catch (Exception ex)
                         {
-                            Log.Debug(nameof(PackageViewer), $"File {hiddenIndex} - {ex.Message}");
+                            Log.Debug(nameof(PackageViewer), $"Failed to parse \"{newEntry.FileName}\": {ex.Message}");
 
                             newEntry.FileName += $" ({length} bytes)";
 
@@ -529,14 +537,15 @@ namespace GUI.Types.PackageViewer
                 if (archiveIndex != short.MaxValue)
                 {
                     var archiveFileSize = nextOffset;
+                    var archiveFileName = $"{package.FileName}_{archiveIndex:D3}.vpk";
 
                     try
                     {
-                        archiveFileSize = (uint)new FileInfo($"{package.FileName}_{archiveIndex:D3}.vpk").Length;
+                        archiveFileSize = (uint)new FileInfo(archiveFileName).Length;
                     }
                     catch (Exception e)
                     {
-                        Log.Debug(nameof(PackageViewer), e.Message);
+                        Log.Debug(nameof(PackageViewer), $"Failed to get size of \"{Path.GetFileName(archiveFileName)}\": {e.Message}");
                     }
 
                     if (archiveFileSize != nextOffset)

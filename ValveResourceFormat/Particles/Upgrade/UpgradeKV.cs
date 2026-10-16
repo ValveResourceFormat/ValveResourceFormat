@@ -5,9 +5,9 @@ using ValveKeyValue;
 namespace ValveResourceFormat.Particles.Upgrade;
 
 /// <summary>
-/// KV3 tree accessors and editors matching the engine's KeyValues3 member helpers:
-/// reads coerce numeric, boolean and string values and fall back to the default for other
-/// types, writes replace existing members in place and append new members at the object tail.
+/// KV3 tree accessors and editors: reads coerce numeric, boolean and string values and fall
+/// back to the default for other types, writes replace existing members in place and append
+/// new members at the object tail.
 /// </summary>
 internal static class UpgradeKV
 {
@@ -122,9 +122,9 @@ internal static class UpgradeKV
     }
 
     /// <summary>
-    /// Coerces a string like the engine's int getter: a base-10 prefix parse where trailing
-    /// garbage keeps the consumed prefix truncated to 32 bits, while an unparsable string, an
-    /// empty string, or a fully parsed value outside the int32 range yields zero.
+    /// Coerces a string: a base-10 prefix parse where trailing garbage keeps the consumed prefix
+    /// truncated to 32 bits, while an unparsable string, an empty string, or a fully parsed value
+    /// outside the int32 range yields zero.
     /// </summary>
     private static long StringToInt(string text)
     {
@@ -144,9 +144,8 @@ internal static class UpgradeKV
     }
 
     /// <summary>
-    /// Coerces a string like the engine's float getter: leading whitespace and one leading plus
-    /// sign are skipped, the rest must parse fully as a decimal or scientific-notation number,
-    /// and anything else yields zero.
+    /// Coerces a string: leading whitespace and one leading plus sign are skipped, the rest must
+    /// parse fully as a decimal or scientific-notation number, and anything else yields zero.
     /// </summary>
     private static double StringToFloat64(string text)
     {
@@ -179,8 +178,8 @@ internal static class UpgradeKV
     }
 
     /// <summary>
-    /// Coerces a string like the engine's bool getter: case-insensitive true/yes and false/no
-    /// literals, then a full base-10 parse compared against zero, and false for anything else.
+    /// Coerces a string: case-insensitive true/yes and false/no literals, then a full base-10
+    /// parse compared against zero, and false for anything else.
     /// </summary>
     private static bool StringToBool(string text)
     {

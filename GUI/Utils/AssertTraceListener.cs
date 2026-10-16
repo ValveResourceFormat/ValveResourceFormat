@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.ExceptionServices;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 
 namespace GUI.Utils
 {
@@ -32,11 +33,17 @@ namespace GUI.Utils
             }
 
             var exception = new AssertFailedException(text);
+
+            // Asserts fire mid update, while the graph that tripped them can still describe itself
+            if (AnimationGraph.DescribeUpdatingGraph() is { } graphState)
+            {
+                exception.Data[AnimationGraph.ExceptionDataKey] = graphState;
+            }
             ExceptionDispatchInfo.SetRemoteStackTrace(exception, new StackTrace(fNeedFileInfo: true).ToString());
 
             try
             {
-                Program.ShowError(exception);
+                ErrorReport.ShowError(exception);
             }
             catch
             {

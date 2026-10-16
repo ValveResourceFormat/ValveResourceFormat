@@ -148,12 +148,11 @@ namespace ValveResourceFormat.FlexSceneFile
 
         /// <summary>
         /// Opens the given file and reads its contents.
-        /// The underlying FileStream is not retained or explicitly closed by this instance.
         /// </summary>
         /// <param name="filename">The file to open and read.</param>
         public void Read(string filename)
         {
-            var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
             Read(fs);
         }

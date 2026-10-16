@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using ValveKeyValue;
+using ValveResourceFormat.Animation;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -15,8 +16,8 @@ public sealed partial class NmGraphExtract
         public KVObject Graph { get; }
         public string VariationId { get; }
         public KVObject?[] CompiledNodes { get; }
-        public KVObject[] ReferencedGraphSlots { get; }
-        public string[] Resources { get; }
+        private readonly Dictionary<int, Animation.GraphNode?> definitions = [];
+        public GraphDefinition Definition { get; }
 
         public VariationGraph(Resource resource)
         {
@@ -28,26 +29,33 @@ public sealed partial class NmGraphExtract
             VariationId = Graph.GetRequiredStringProperty("m_variationID");
             CompiledNodes = Graph.GetArray("m_nodes")?.Select(value => value).ToArray()
                 ?? throw new InvalidDataException("Variation NmGraph is missing m_nodes.");
-            ReferencedGraphSlots = Graph.GetArray("m_referencedGraphSlots")?.ToArray() ?? [];
-            Resources = Graph.GetArray<string>("m_resources")?.ToArray() ?? [];
+            Definition = new GraphDefinition(Graph);
         }
 
         public KVObject? GetCompiledNode(int nodeIndex)
             => nodeIndex >= 0 && nodeIndex < CompiledNodes.Length ? CompiledNodes[nodeIndex] : null;
 
-        public string GetResourcePath(int dataSlotIndex)
-            => dataSlotIndex >= 0 && dataSlotIndex < Resources.Length ? Resources[dataSlotIndex] : string.Empty;
-
-        public string GetReferencedGraphPath(int referencedGraphIndex)
+        public Animation.GraphNode? GetDefinition(int nodeIndex)
         {
-            if (referencedGraphIndex < 0 || referencedGraphIndex >= ReferencedGraphSlots.Length)
+            if (GetCompiledNode(nodeIndex) is not { } compiledNode)
             {
-                return string.Empty;
+                return null;
             }
 
-            var dataSlotIndex = (int)ReferencedGraphSlots[referencedGraphIndex].GetInt64Property("m_dataSlotIdx", -1);
-            return GetResourcePath(dataSlotIndex);
+            if (!definitions.TryGetValue(nodeIndex, out var definition))
+            {
+                definition = CreateDefinition(compiledNode);
+                definitions[nodeIndex] = definition;
+            }
+
+            return definition;
         }
+
+        public string GetResourcePath(int dataSlotIndex)
+            => NmGraphExtract.GetResourcePath(Definition, dataSlotIndex);
+
+        public string GetReferencedGraphPath(int referencedGraphIndex)
+            => NmGraphExtract.GetReferencedGraphPath(Definition, referencedGraphIndex);
 
         public void Dispose()
             => Resource.Dispose();
@@ -60,7 +68,7 @@ public sealed partial class NmGraphExtract
         var defaultVariation = KVObject.Collection();
         defaultVariation.Add("m_ID", "Default");
         defaultVariation.Add("m_parentID", string.Empty);
-        defaultVariation.Add("m_skeleton", GetOptionalString(_graph, "m_skeleton"));
+        defaultVariation.Add("m_skeleton", _definition.Skeleton ?? string.Empty);
         variations.Add(defaultVariation);
 
         var variationId = _graph.GetRequiredStringProperty("m_variationID");
@@ -81,7 +89,7 @@ public sealed partial class NmGraphExtract
                 var variation = KVObject.Collection();
                 variation.Add("m_ID", variationGraph.VariationId);
                 variation.Add("m_parentID", "Default");
-                variation.Add("m_skeleton", GetOptionalString(variationGraph.Graph, "m_skeleton"));
+                variation.Add("m_skeleton", variationGraph.Definition.Skeleton ?? string.Empty);
 
                 if (variationGraph.Graph.TryGetValue("m_pUserData", out var variationUserData) && !variationUserData.IsNull)
                 {
@@ -96,7 +104,7 @@ public sealed partial class NmGraphExtract
             var variation = KVObject.Collection();
             variation.Add("m_ID", variationId);
             variation.Add("m_parentID", "Default");
-            variation.Add("m_skeleton", GetOptionalString(_graph, "m_skeleton"));
+            variation.Add("m_skeleton", _definition.Skeleton ?? string.Empty);
 
             if (_graph.TryGetValue("m_pUserData", out var userData) && !userData.IsNull)
             {
@@ -158,54 +166,62 @@ public sealed partial class NmGraphExtract
     private static bool VariationDataEquals(KVObject left, KVObject right)
         => left.ToKV3String() == right.ToKV3String();
 
-    private static KVObject CreateReferencedGraphVariationData(KVObject compiledNode, Func<int, string> getReferencedGraphPath)
+    private static KVObject CreateReferencedGraphVariationData(ReferencedGraphNode definition, Func<int, string> getReferencedGraphPath)
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CNmGraphDocReferencedGraphNode::CData");
-        variationData.Add("m_variation", getReferencedGraphPath((int)compiledNode.GetInt64Property("m_nReferencedGraphIdx")));
+        variationData.Add("m_variation", getReferencedGraphPath(definition.ReferencedGraphIdx));
         return variationData;
     }
 
-    private static KVObject CreateSelectorVariationData(string dataClassName, KVObject compiledNode)
+    private static KVObject CreateSelectorVariationData(string dataClassName, byte[] optionWeights)
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", dataClassName);
-        variationData.Add("m_optionWeights", CloneArray("m_optionWeights", compiledNode));
+        variationData.Add("m_optionWeights", CloneValueArray(optionWeights));
         return variationData;
     }
 
-    private static KVObject CreateClipVariationData(KVObject compiledNode, Func<int, string> getResourcePath)
+    private static KVObject CreateClipVariationData(ClipNode definition, Func<int, string> getResourcePath)
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CNmGraphDocClipNode::CData");
-        variationData.Add("m_clip", getResourcePath((int)compiledNode.GetInt64Property("m_nDataSlotIdx")));
-        variationData.Add("m_flSpeedMultiplier", compiledNode.GetRequiredFloatProperty("m_flSpeedMultiplier"));
-        variationData.Add("m_nStartSyncEventOffset", compiledNode.GetInt64Property("m_nStartSyncEventOffset"));
+        variationData.Add("m_clip", getResourcePath(definition.DataSlotIdx));
+        variationData.Add("m_flSpeedMultiplier", definition.SpeedMultiplier);
+        variationData.Add("m_nStartSyncEventOffset", definition.StartSyncEventOffset);
         return variationData;
     }
 
-    private static KVObject CreateAnimationPoseVariationData(KVObject compiledNode, Func<int, string> getResourcePath)
+    private static KVObject CreateTimeControlledClipVariationData(TimeControlledClipNode definition, Func<int, string> getResourcePath)
+    {
+        var variationData = KVObject.Collection();
+        variationData.Add("_class", "CNmGraphDocTimeControlledClipNode::CData");
+        variationData.Add("m_clip", getResourcePath(definition.DataSlotIdx));
+        return variationData;
+    }
+
+    private static KVObject CreateAnimationPoseVariationData(AnimationPoseNode definition, Func<int, string> getResourcePath)
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CNmGraphDocAnimationPoseNode::CData");
-        variationData.Add("m_clip", getResourcePath((int)compiledNode.GetInt64Property("m_nDataSlotIdx")));
+        variationData.Add("m_clip", getResourcePath(definition.DataSlotIdx));
         variationData.Add("m_variationTimeValue", -1.0f);
         return variationData;
     }
 
-    private static KVObject CreateIDComparisonVariationData(KVObject compiledNode)
+    private static KVObject CreateIDComparisonVariationData(IDComparisonNode definition)
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CNmGraphDocVariationIDComparisonNode::CData");
-        variationData.Add("m_values", CloneArray("m_comparisionIDs", compiledNode));
+        variationData.Add("m_values", CloneStringArray(GetNames(definition.ComparisionIDs)));
         return variationData;
     }
 
-    private static KVObject CreateConstFloatVariationData(KVObject compiledNode)
+    private static KVObject CreateConstFloatVariationData(ConstFloatNode definition)
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CnmGraphDocVariationConstFloatNode::CData");
-        variationData.Add("m_flValue", GetConstValue(compiledNode, "Float"));
+        variationData.Add("m_flValue", definition.Value);
         return variationData;
     }
 
@@ -217,50 +233,67 @@ public sealed partial class NmGraphExtract
         return variationData;
     }
 
-    private static KVObject CreateFootIkVariationData(KVObject compiledNode)
+    private static KVObject CreateFootIkVariationData(FootIKNode definition)
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CnmGraphDocFootIKNode::CData");
-        variationData.Add("m_leftEffectorBoneName", GetOptionalString(compiledNode, "m_leftEffectorBoneID"));
-        variationData.Add("m_rightEffectorBoneName", GetOptionalString(compiledNode, "m_rightEffectorBoneID"));
-        variationData.Add("m_flBlendTimeSeconds", compiledNode.GetRequiredFloatProperty("m_flBlendTimeSeconds"));
+        variationData.Add("m_leftEffectorBoneName", definition.LeftEffectorBoneID.Name);
+        variationData.Add("m_rightEffectorBoneName", definition.RightEffectorBoneID.Name);
+        variationData.Add("m_flBlendTimeSeconds", definition.BlendTimeSeconds);
         return variationData;
     }
 
-    private static KVObject CreateTwoBoneIkVariationData(KVObject compiledNode)
+    private static KVObject CreateTwoBoneIkVariationData(TwoBoneIKNode definition)
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CnmGraphDocTwoBoneIKNode::CData");
-        variationData.Add("m_effectorBoneName", GetOptionalString(compiledNode, "m_effectorBoneID"));
-        variationData.Add("m_flBlendTimeSeconds", compiledNode.GetRequiredFloatProperty("m_flBlendTimeSeconds"));
+        variationData.Add("m_effectorBoneName", definition.EffectorBoneID.Name);
+        variationData.Add("m_flBlendTimeSeconds", definition.BlendTimeSeconds);
         return variationData;
     }
 
-    private static KVObject CreateFollowBoneVariationData(KVObject compiledNode)
+    private static KVObject CreateFollowBoneVariationData(FollowBoneNode definition)
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CnmGraphDocFollowBoneNode::CData");
-        variationData.Add("m_boneName", GetOptionalString(compiledNode, "m_bone"));
-        variationData.Add("m_followTargetBoneName", GetOptionalString(compiledNode, "m_followTargetBone"));
+        variationData.Add("m_boneName", definition.Bone.Name);
+        variationData.Add("m_followTargetBoneName", definition.FollowTargetBone.Name);
         return variationData;
     }
 
-    private static KVObject CreateChainLookatVariationData(KVObject compiledNode)
+    private static KVObject CreateBodyGroupVariationData(BodyGroupNode definition)
+    {
+        var variationData = KVObject.Collection();
+        variationData.Add("_class", "CNmGraphDocBodyGroupNode::CData");
+        variationData.Add("m_groupName", definition.Event.GroupName);
+        variationData.Add("m_choiceName", definition.Event.ChoiceName);
+        return variationData;
+    }
+
+    private static KVObject CreateChainLookatVariationData(ChainLookatNode definition)
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CnmGraphDocChainLookatNode::CData");
-        variationData.Add("m_chainEndBoneName", GetOptionalString(compiledNode, "m_chainEndBoneID"));
-        variationData.Add("m_chainForwardDir", CloneVector3(compiledNode.GetArray("m_chainForwardDir")?.ToArray()));
-        variationData.Add("m_nChainLength", compiledNode.GetInt64Property("m_nChainLength", 2));
-        variationData.Add("m_flBlendTimeSeconds", compiledNode.GetFloatProperty("m_flBlendTimeSeconds"));
+        variationData.Add("m_chainEndBoneName", definition.EndEffectorBoneID.Name);
+        variationData.Add("m_chainForwardDir", CloneVector3(definition.EndEffectorForwardAxis));
+        variationData.Add("m_nChainLength", definition.ChainLength);
+        variationData.Add("m_flBlendTimeSeconds", definition.BlendTimeSeconds);
         return variationData;
     }
 
-    private static KVObject CreateTargetWarpVariationData(KVObject compiledNode)
+    private static KVObject CreateTargetWarpVariationData(TargetWarpNode definition)
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CNmGraphDocTargetWarpNode::CData");
-        variationData.Add("m_strAlignmentBoneName", GetOptionalString(compiledNode, "m_alignmentBoneID"));
+        variationData.Add("m_strAlignmentBoneName", definition.AlignmentBoneID.Name);
+        return variationData;
+    }
+
+    private static KVObject CreateTargetSelectorVariationData(TargetSelectorNode definition)
+    {
+        var variationData = KVObject.Collection();
+        variationData.Add("_class", "CNmGraphDocTargetSelectorNode::CData");
+        variationData.Add("m_strAlignmentBoneName", definition.AlignmentBoneID.Name);
         return variationData;
     }
 }

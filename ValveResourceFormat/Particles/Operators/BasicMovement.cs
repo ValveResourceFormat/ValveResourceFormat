@@ -21,8 +21,7 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            // The force generators run from inside this operator: it seeds a fresh
-            // acceleration buffer with gravity and asks each generator to add to it before integrating.
+            // Force generators run from here and add to ForceAccumulator before integration.
             var forceGenerators = particleSystemState.Data?.ForceGenerators;
             if (forceGenerators != null)
             {
@@ -41,7 +40,6 @@ namespace ValveResourceFormat.Particles.Operators
 
             var timeStepSquared = frameTime * frameTime;
             var gravityMovement = gravity.NextVector(particleSystemState) * timeStepSquared;
-            // Clamp drag to just under 1.
             var dragValue = Math.Clamp(drag.NextNumber(particleSystemState), 0.0f, 0.9999999f);
             var dragFactor = MathF.Exp(MathF.Log(1.0f - dragValue) / (1.0f / 30.0f) * frameTime);
             // Scale the inertia term by the current-to-previous step ratio so momentum stays

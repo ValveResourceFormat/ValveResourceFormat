@@ -47,9 +47,9 @@ internal sealed class SpectralCueFilters
     private const float MinNotchDecibels = 0.1f;
     private const float MinShelfDecibels = 0.05f;
 
-    // Targets: written on the game thread from the spatializer, read on the mixing thread. Each is a
-    // single float, so the mixing thread can only ever see an old value, never half of a new one - which
-    // matters, because a biquad handed a torn set of coefficients can go unstable rather than just sound wrong.
+    // Targets: written by the spatializer on the game thread, read on the mixing thread.
+    // Each is one float, so readers see an old or new value, never a torn one. A biquad given
+    // torn coefficients can go unstable.
     private float targetNotchHz = ReferenceNotchHz;
     private float targetNotchDecibels;
     private float targetShelfDecibels;
@@ -87,7 +87,7 @@ internal sealed class SpectralCueFilters
 
         targetNotchHz = NotchFrequency(elevationDegrees);
         targetNotchDecibels = -depth;
-        targetShelfDecibels = RearShelfDecibels * strength * Math.Clamp(rearAmount, 0f, 1f);
+        targetShelfDecibels = RearShelfDecibels * strength * MathUtils.Saturate(rearAmount);
     }
 
     /// <summary>Interpolates <see cref="NotchFrequencies"/>, holding the end values beyond the measured range.</summary>
@@ -102,7 +102,7 @@ internal sealed class SpectralCueFilters
         {
             if (elevationDegrees <= NotchElevations[i])
             {
-                var t = (elevationDegrees - NotchElevations[i - 1]) / (NotchElevations[i] - NotchElevations[i - 1]);
+                var t = MathUtils.Remap(elevationDegrees, NotchElevations[i - 1], NotchElevations[i]);
                 return float.Lerp(NotchFrequencies[i - 1], NotchFrequencies[i], t);
             }
         }
@@ -119,7 +119,7 @@ internal sealed class SpectralCueFilters
     public bool Update(int sampleRate, int frames)
     {
         var elapsed = (float)frames / Math.Max(sampleRate, 1);
-        var smoothing = 1f - MathF.Exp(-elapsed / SmoothingSeconds);
+        var smoothing = MathUtils.ExponentialSmoothing(elapsed, SmoothingSeconds);
 
         notchHz = float.Lerp(notchHz, targetNotchHz, smoothing);
         notchDecibels = float.Lerp(notchDecibels, targetNotchDecibels, smoothing);

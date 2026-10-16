@@ -1,5 +1,3 @@
-using ValveResourceFormat.Serialization.KeyValues;
-
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>

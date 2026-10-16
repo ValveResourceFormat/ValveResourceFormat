@@ -32,6 +32,21 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// Converts a linear RGB color to gamma space with a plain 2.2 exponent, the curve the map compiler
+        /// bakes draw call tints with.
+        /// </summary>
+        public static Vector3 LinearToGamma22(Vector3 vLinearColor)
+        {
+            const float power = 1.0f / 2.2f;
+
+            return new Vector3(
+                MathF.Pow(vLinearColor.X, power),
+                MathF.Pow(vLinearColor.Y, power),
+                MathF.Pow(vLinearColor.Z, power)
+            );
+        }
+
+        /// <summary>
         /// Converts an sRGB gamma space color to linear RGB.
         /// </summary>
         public static Vector3 SrgbGammaToLinear(Vector3 vSrgbGammaColor)
@@ -52,6 +67,26 @@ namespace ValveResourceFormat.Utils
             );
 
             return vLinearColor;
+        }
+
+        /// <summary>
+        /// Converts a color temperature to an sRGB gamma space color, the way light entities with a color temperature do.
+        /// </summary>
+        /// <param name="kelvin">Color temperature in Kelvin.</param>
+        public static Vector3 ColorTemperatureToSrgb(float kelvin)
+        {
+            var t = kelvin / 100f;
+
+            var red = t > 66f ? 329.69873f * MathF.Pow(t - 60f, -0.13320476f) : 255f;
+            var green = t > 66f
+                ? 288.12216f * MathF.Pow(t - 60f, -0.075514846f)
+                : 99.4708f * MathF.Log(t) - 161.11957f;
+            var blue = t < 66f ? 138.51773f * MathF.Log(t - 10f) - 305.0448f : 255f;
+
+            // MaxNumber turns the NaN of a logarithm below its domain into zero
+            static float Channel(float value) => float.MinNumber(float.MaxNumber(value, 0f), 255f) / 255f;
+
+            return new Vector3(Channel(red), Channel(green), Channel(blue));
         }
     }
 }

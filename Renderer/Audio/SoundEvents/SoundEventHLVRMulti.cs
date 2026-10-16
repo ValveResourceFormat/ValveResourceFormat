@@ -32,8 +32,8 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
         var data = definition.Data;
 
         hasRandomDelay = data.ContainsKey("rand_delay_min") || data.ContainsKey("rand_delay_max");
-        randDelayMin = data.GetFloatProperty("rand_delay_min");
-        randDelayMax = data.GetFloatProperty("rand_delay_max");
+        randDelayMin = data.GetSoundFloat("rand_delay_min");
+        randDelayMax = data.GetSoundFloat("rand_delay_max");
         applyChild = ApplyChild;
 
         // Collected here rather than alongside the bank lookup: that one only runs for whichever instance
@@ -89,7 +89,7 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
 
             var damage = data.GetStringProperty("soundevent_damage");
 
-            if (!string.IsNullOrEmpty(damage) && data.GetFloatProperty("use_soundevent_damage") != 0f)
+            if (!string.IsNullOrEmpty(damage) && data.GetSoundFloat("use_soundevent_damage") > 0f)
             {
                 names.Add(damage);
                 volumes.Add(-1f);
@@ -109,7 +109,7 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
             // Only the first few slots carry an optional "use_NN" toggle; a missing flag means enabled.
             var useKey = $"use_{suffix}";
 
-            if (data.ContainsKey(useKey) && data.GetFloatProperty(useKey) == 0f)
+            if (data.ContainsKey(useKey) && data.GetSoundFloat(useKey) <= 0f)
             {
                 continue;
             }
@@ -117,10 +117,12 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
             names.Add(name);
 
             // Negative means unauthored, leaving the child's own volume alone
+            // TODO: "hlvr_start_multi_24" defaults these to 1 rather than leaving them unauthored; confirm
+            // whether that overrides the child's own volume before applying it
             var volumeKey = $"volume_soundevent_{suffix}";
 
             volumes.Add(data.ContainsKey(volumeKey)
-                ? data.GetFloatProperty(volumeKey)
+                ? data.GetSoundFloat(volumeKey)
                 : -1f);
         }
 

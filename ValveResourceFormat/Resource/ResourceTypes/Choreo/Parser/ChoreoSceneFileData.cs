@@ -1,8 +1,8 @@
 using System.IO;
 using System.Text;
+using ValveResourceFormat.Compression;
 using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.ResourceTypes.Choreo.Parser;
-using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -111,12 +111,9 @@ namespace ValveResourceFormat.ResourceTypes
             var uncompressedLength = reader.ReadInt32();
             var compressedLength = reader.ReadInt32();
 
-            var lzmaDecoder = new LzmaDecoder();
-            lzmaDecoder.SetDecoderProperties(reader.ReadBytes(5));
-
-            using var outStream = new MemoryStream(uncompressedLength);
-            lzmaDecoder.Code(reader.BaseStream, outStream, compressedLength, uncompressedLength, null);
-            return outStream.ToArray();
+            var output = new byte[uncompressedLength];
+            LzmaDecoder.Decode(reader.BaseStream, compressedLength, output);
+            return output;
         }
 
         private static string[] ReadStrings(BinaryReader reader)

@@ -4,13 +4,18 @@ using ValveResourceFormat.Renderer.Shaders;
 
 internal class ShaderValidator
 {
+#if DEBUG
     private sealed class ConsoleProgress : IProgress<string>
     {
         public void Report(string str) => Console.WriteLine(str);
     }
+#endif
 
     public static int Main(string[] args)
     {
+#if !DEBUG
+        throw new InvalidOperationException("ShaderValidator requires a Debug build, shader validation is only compiled into the Debug renderer.");
+#else
         // Warning level hides the per-variant "compiled successfully" spam, progress is reported directly instead
         using var loggerFactory = LoggerFactory.Create(builder => builder
             .SetMinimumLevel(LogLevel.Warning)
@@ -41,5 +46,6 @@ internal class ShaderValidator
         }
 
         return 0;
+#endif
     }
 }

@@ -37,7 +37,7 @@ public class ThemedToolStripMenuItem : ToolStripMenuItem
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool Highlighted
     {
-        get => field;
+        get;
         set
         {
             field = value;
@@ -58,7 +58,7 @@ public class ThemedToolStripMenuItem : ToolStripMenuItem
     [Description("Will override the image from the designer"), Category("Appearance")]
     public string SVGImageResourceName
     {
-        get => field;
+        get;
         set
         {
             field = value;

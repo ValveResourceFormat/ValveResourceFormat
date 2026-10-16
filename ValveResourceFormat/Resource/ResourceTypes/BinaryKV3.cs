@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -76,7 +77,28 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the deserialized KeyValues3 data.
         /// </summary>
-        public KVDocument Data { get; protected set; } = null!;
+        /// <remarks>Can be set to null to release the data. Next probe will deserialize again.</remarks>
+        [AllowNull]
+        public KVDocument Data
+        {
+            get
+            {
+                if (data == null)
+                {
+                    lock (Resource.ReaderLock)
+                    {
+                        var reader = Resource.Reader ?? throw new InvalidOperationException($"Cannot read block {Type} because the resource's reader is not available.");
+                        ReadDocument(reader);
+                    }
+                }
+
+                return data!;
+            }
+
+            set => data = value;
+        }
+
+        private KVDocument? data;
 
         /// <summary>
         /// Gets or sets the binary KV3 version used when serializing this block. Supported values are 4 and 5.
@@ -138,7 +160,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
-        public override void Read(BinaryReader reader)
+        public override void Read(BinaryReader reader) => ReadDocument(reader);
+
+        private void ReadDocument(BinaryReader reader)
         {
             if (KVBlockType != BlockType.Undefined)
             {
@@ -169,14 +193,14 @@ namespace ValveResourceFormat.ResourceTypes
             ReadBuffer((int)version, reader);
         }
 
-        private static void DecompressLZ4(BinaryReader reader, Span<byte> output, int compressedSize)
+        internal static void DecompressLZ4(BinaryReader reader, Span<byte> output, int compressedSize)
         {
             var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
 
             try
             {
                 var input = inputBuf.AsSpan(0, compressedSize);
-                reader.Read(input);
+                reader.BaseStream.ReadExactly(input);
 
                 var written = LZ4Codec.Decode(input, output);
 
@@ -191,14 +215,14 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private static void DecompressZSTD(ZstdSharp.Decompressor zstdDecompressor, BinaryReader reader, Span<byte> output, int compressedSize)
+        internal static void DecompressZSTD(ZstdSharp.Decompressor zstdDecompressor, BinaryReader reader, Span<byte> output, int compressedSize)
         {
             var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
 
             try
             {
                 var input = inputBuf.AsSpan(0, compressedSize);
-                reader.Read(input);
+                reader.BaseStream.ReadExactly(input);
 
                 if (!zstdDecompressor.TryUnwrap(input, output, out var written) || output.Length != written)
                 {
@@ -300,10 +324,11 @@ namespace ValveResourceFormat.ResourceTypes
                 countBytes2_buffer2 = reader.ReadInt32();
                 countBytes4_buffer2 = reader.ReadInt32();
                 countBytes8_buffer2 = reader.ReadInt32();
-                var unk13 = reader.ReadInt32();
+                // The node and element counts are only allocation hints, the data itself is self-describing
+                var countNodes = reader.ReadInt32();
                 countObjects_buffer2 = reader.ReadInt32();
                 countArrays_buffer2 = reader.ReadInt32();
-                var unk16 = reader.ReadInt32();
+                var countArrayElements = reader.ReadInt32();
 
                 Debug.Assert(sizeUncompressedTotal == sizeUncompressedBuffer1 + sizeUncompressedBuffer2);
             }
@@ -313,10 +338,12 @@ namespace ValveResourceFormat.ResourceTypes
                 sizeUncompressedBuffer1 = sizeUncompressedTotal;
             }
 
-            var buffer1Raw = ArrayPool<byte>.Shared.Rent(
-                version < 5 && compressionMethod == KV3BinaryCompressionMethod.Zstd
-                    ? sizeUncompressedBuffer1 + sizeBinaryBlobsBytes
-                    : sizeUncompressedBuffer1);
+            // Before version 5, zstd stores the buffer and the binary blobs as two consecutive frames,
+            // and the compressed size covers both, so they are decompressed together
+            var sizeDecompressedBuffer1 = version < 5 && compressionMethod == KV3BinaryCompressionMethod.Zstd
+                ? sizeUncompressedBuffer1 + sizeBinaryBlobsBytes
+                : sizeUncompressedBuffer1;
+            var buffer1Raw = ArrayPool<byte>.Shared.Rent(sizeDecompressedBuffer1);
             byte[]? buffer2Raw = null;
             byte[]? binaryBlobsRaw = null;
             ZstdSharp.Decompressor? zstdDecompressor = null;
@@ -384,17 +411,9 @@ namespace ValveResourceFormat.ResourceTypes
 
                         Debug.Assert(sizeCompressedBuffer1 > 0);
 
-                        var outBufferLength = sizeUncompressedBuffer1;
-
-                        // Before version 5, when using zstd, both the buffer and binary blobs were compressed together
-                        if (version < 5)
-                        {
-                            outBufferLength += sizeBinaryBlobsBytes;
-                        }
-
                         zstdDecompressor = new ZstdSharp.Decompressor();
 
-                        DecompressZSTD(zstdDecompressor, reader, buffer1Raw.AsSpan(0, outBufferLength), sizeCompressedBuffer1);
+                        DecompressZSTD(zstdDecompressor, reader, buffer1Raw.AsSpan(0, sizeDecompressedBuffer1), sizeCompressedBuffer1);
                     }
                     var buffer1 = new Buffers();
 
@@ -435,7 +454,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                     else if (version < 5)
                     {
-                        // For some reason V5 does not align this when empty, but earlier versions did
+                        // Before version 5 empty lanes are still aligned, empty 2 and 4 byte lanes are covered by this too
                         Align(ref offset, 8);
                     }
 
@@ -445,10 +464,11 @@ namespace ValveResourceFormat.ResourceTypes
                     buffer1.Bytes4 = buffer1.Bytes4[sizeof(int)..];
                     context.Strings = new string[countStrings];
 
+                    // Before version 5 there is only one buffer, so auxiliary reads use it as well
+                    context.AuxiliaryBuffer = buffer1;
+
                     if (version >= 5)
                     {
-                        context.AuxiliaryBuffer = buffer1;
-
                         var readStringBytes = 0;
 
                         for (var i = 0; i < countStrings; i++)
@@ -577,6 +597,8 @@ namespace ValveResourceFormat.ResourceTypes
                         var trailer = MemoryMarshal.Read<uint>(buffer2Span[offset..]);
                         offset += 4;
                         UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
+
+                        Debug.Assert(buffer2Span.Count == offset + sizeBlockCompressedSizesBytes);
                     }
                     else
                     {
@@ -610,37 +632,42 @@ namespace ValveResourceFormat.ResourceTypes
                         binaryBlobsRaw = ArrayPool<byte>.Shared.Rent(sizeBinaryBlobsBytes);
                         context.BinaryBlobs = new ArraySegment<byte>(binaryBlobsRaw, 0, sizeBinaryBlobsBytes);
 
+                        // Each blob is split into frames of up to compressionFrameSize bytes, a frame never spans two blobs,
+                        // and the frames are chained so that later frames can reference earlier blobs
                         using var lz4decoder = new LZ4ChainDecoder(compressionFrameSize, 0);
+                        var inputBuf = ArrayPool<byte>.Shared.Rent(ushort.MaxValue);
 
-                        var decompressedOffset = 0;
-
-                        while (bufferWithBinaryBlobSizes.Count > 0)
+                        try
                         {
-                            var compressedBlockLength = MemoryMarshal.Read<ushort>(bufferWithBinaryBlobSizes);
-                            bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(ushort)..];
+                            var blobOffset = 0;
 
-                            var inputBuf = ArrayPool<byte>.Shared.Rent(compressedBlockLength);
-
-                            try
+                            foreach (var blobLength in MemoryMarshal.Cast<byte, int>(context.BinaryBlobLengths.AsSpan()))
                             {
-                                var decodedFrameSize = decompressedOffset + compressionFrameSize > sizeBinaryBlobsBytes ? sizeBinaryBlobsBytes - decompressedOffset : compressionFrameSize;
-                                var output = context.BinaryBlobs.AsSpan(decompressedOffset, decodedFrameSize);
+                                var blobEnd = blobOffset + blobLength;
 
-                                var input = inputBuf.AsSpan(0, compressedBlockLength);
-                                reader.Read(input);
-
-                                if (!lz4decoder.DecodeAndDrain(input, output, out var decoded) || decoded < 1)
+                                while (blobOffset < blobEnd)
                                 {
-                                    throw new InvalidOperationException("LZ4 decode drain failed, this is likely a bug.");
-                                }
+                                    var compressedBlockLength = MemoryMarshal.Read<ushort>(bufferWithBinaryBlobSizes);
+                                    bufferWithBinaryBlobSizes = bufferWithBinaryBlobSizes[sizeof(ushort)..];
 
-                                decompressedOffset += decoded;
-                            }
-                            finally
-                            {
-                                ArrayPool<byte>.Shared.Return(inputBuf);
+                                    var input = inputBuf.AsSpan(0, compressedBlockLength);
+                                    reader.Read(input);
+
+                                    if (!lz4decoder.DecodeAndDrain(input, context.BinaryBlobs.AsSpan(blobOffset, blobEnd - blobOffset), out var decoded) || decoded < 1)
+                                    {
+                                        throw new InvalidDataException("Failed to decompress LZ4 binary blob frame");
+                                    }
+
+                                    blobOffset += decoded;
+                                }
                             }
                         }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(inputBuf);
+                        }
+
+                        Debug.Assert(bufferWithBinaryBlobSizes.Count == 0);
                     }
                     else if (compressionMethod == KV3BinaryCompressionMethod.Zstd)
                     {
@@ -659,9 +686,7 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                         else
                         {
-                            // This is supposed to be a streaming decompress using ZSTD_decompressStream,
-                            // but as it turns out, zstd unwrap above already decompressed all of the blocks for us.
-                            // It's possible that Valve's code needs extra decompress because they set ZSTD_d_stableOutBuffer parameter.
+                            // The blob frame was already decompressed together with the buffer frame above
                             context.BinaryBlobs = new ArraySegment<byte>(buffer1Raw, sizeUncompressedBuffer1, sizeBinaryBlobsBytes);
                         }
                     }
@@ -672,7 +697,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
 
                 var (rootType, rootFlag) = ReadType(context);
-                var root = ReadBinaryValue(context, rootType, rootFlag);
+                var root = ReadBinaryValue(context, rootType, rootFlag, context.Buffer);
                 Data = new KVDocument(new KVHeader { Format = format }, null, root);
 
                 Debug.Assert(context.Types.Count == 0);
@@ -718,47 +743,45 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (context.Version >= 3)
             {
-                if ((databyte & 0x80) > 0)
+                if ((databyte & 0x80) != 0)
                 {
-                    databyte &= 0x3F; // Remove the flag bit
-
                     flagInfo = (KVFlag)context.Types[0];
                     context.Types = context.Types[1..];
 
-                    if (flagInfo > KVFlag.EntityName)
+                    if (flagInfo == KVFlag.None || !Enum.IsDefined(flagInfo))
                     {
                         throw new UnexpectedMagicException("Unexpected kv3 flag", (int)flagInfo, nameof(flagInfo));
                     }
                 }
-            }
-            else if ((databyte & 0x80) > 0) // TODO: Valve's new code also checks for 0x40 even for old kv3 version
-            {
-                databyte &= 0x7F; // Remove the flag bit
 
-                flagInfo = (KVFlag)context.Types[0];
-                context.Types = context.Types[1..];
-
-                if (((int)flagInfo & 4) > 0) // Multiline string
+                // No known writer sets this bit, readers skip the extra byte that follows
+                if ((databyte & 0x40) != 0)
                 {
-                    Debug.Assert(databyte == (int)KV3BinaryNodeType.STRING);
-                    flagInfo ^= (KVFlag)4;
+                    context.Types = context.Types[1..];
                 }
 
-                // Strictly speaking there could be more than one flag set, but in practice it was seemingly never.
-                // Valve's new code just sets whichever flag is highest, new kv3 version does not support multiple flags at once.
-                flagInfo = (int)flagInfo switch
+                databyte &= 0x3F;
+            }
+            else
+            {
+                if ((databyte & 0x80) != 0)
                 {
-                    0 => KVFlag.None,
-                    1 => KVFlag.Resource,
-                    2 => KVFlag.ResourceName,
-                    8 => KVFlag.Panorama,
-                    16 => KVFlag.SoundEvent,
-                    32 => KVFlag.SubClass,
-                    _ => throw new UnexpectedMagicException("Unexpected kv3 flag", (int)flagInfo, nameof(flagInfo))
-                };
+                    flagInfo = ConvertLegacyFlags(context.Types[0]);
+                    context.Types = context.Types[1..];
+                }
+
+                databyte &= 0x7F;
             }
 
+            // Flags are not validated against the value type: subclass is only valid on objects,
+            // and every other flag is only valid on strings
             return ((KV3BinaryNodeType)databyte, flagInfo);
+        }
+
+        private static string GetString(Context context, int id)
+        {
+            // Negative and out of range ids, including -1 for an empty string, resolve to an empty string
+            return (uint)id < (uint)context.Strings.Length ? context.Strings[id] : string.Empty;
         }
 
         private static void ParseBinaryKV3(Context context, KVObject parent)
@@ -767,20 +790,26 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (parent.IsArray)
             {
-                parent.Add(ReadBinaryValue(context, datatype, flagInfo));
+                parent.Add(ReadBinaryValue(context, datatype, flagInfo, context.Buffer));
                 return;
             }
 
-            var stringID = MemoryMarshal.Read<int>(context.Buffer.Bytes4);
-            context.Buffer.Bytes4 = context.Buffer.Bytes4[sizeof(int)..];
+            var name = GetString(context, ReadLane<int>(ref context.Buffer.Bytes4));
 
-            var name = (stringID == -1) ? string.Empty : context.Strings[stringID];
-            parent.Add(name, ReadBinaryValue(context, datatype, flagInfo));
+            // A repeated member name replaces the earlier value
+            parent[name] = ReadBinaryValue(context, datatype, flagInfo, context.Buffer);
         }
 
-        private static KVObject ReadBinaryValue(Context context, KV3BinaryNodeType datatype, KVFlag flagInfo)
+        private static T ReadLane<T>(ref ArraySegment<byte> lane) where T : unmanaged
         {
-            var result = ReadValue(context, datatype);
+            var value = MemoryMarshal.Read<T>(lane);
+            lane = lane[Unsafe.SizeOf<T>()..];
+            return value;
+        }
+
+        private static KVObject ReadBinaryValue(Context context, KV3BinaryNodeType datatype, KVFlag flagInfo, Buffers lane)
+        {
+            var result = ReadValue(context, datatype, lane);
 
             if (flagInfo != KVFlag.None)
             {
@@ -790,7 +819,9 @@ namespace ValveResourceFormat.ResourceTypes
             return result;
         }
 
-        private static KVObject ReadValue(Context context, KV3BinaryNodeType datatype)
+        // Primitive values are read from the given lane, which is the auxiliary buffer for elements of
+        // ARRAY_TYPE_AUXILIARY_BUFFER. Strings, blobs and container lengths always come from the main buffer.
+        private static KVObject ReadValue(Context context, KV3BinaryNodeType datatype, Buffers lane)
         {
             var buffer = context.Buffer;
 
@@ -811,111 +842,57 @@ namespace ValveResourceFormat.ResourceTypes
                     return 0.0D;
                 case KV3BinaryNodeType.DOUBLE_ONE:
                     return 1.0D;
+                case KV3BinaryNodeType.UINT32_ZERO:
+                    return 0U;
+                case KV3BinaryNodeType.UINT32_ONE:
+                    return 1U;
 
                 // 1 byte values
                 case KV3BinaryNodeType.BOOLEAN:
-                {
-                    var value = buffer.Bytes1[0] == 1;
-                    buffer.Bytes1 = buffer.Bytes1[1..];
-
-                    return value;
-                }
-                // TODO: 22 might be INT32_AS_BYTE, and 23 is UINT32_AS_BYTE
-                case KV3BinaryNodeType.INT32_AS_BYTE:
-                {
+                    return ReadLane<byte>(ref lane.Bytes1) != 0;
+                case KV3BinaryNodeType.INT8:
                     Debug.Assert(context.Version >= 4);
-
-                    var value = (int)buffer.Bytes1[0];
-                    buffer.Bytes1 = buffer.Bytes1[1..];
-
-                    return value;
-                }
+                    return (int)ReadLane<sbyte>(ref lane.Bytes1);
+                case KV3BinaryNodeType.UINT8:
+                    Debug.Assert(context.Version >= 4);
+                    return (uint)ReadLane<byte>(ref lane.Bytes1);
 
                 // 2 byte values
                 case KV3BinaryNodeType.INT16:
-                {
                     Debug.Assert(context.Version >= 4);
-
-                    var value = MemoryMarshal.Read<short>(buffer.Bytes2);
-                    buffer.Bytes2 = buffer.Bytes2[sizeof(short)..];
-
-                    return value;
-                }
+                    return ReadLane<short>(ref lane.Bytes2);
                 case KV3BinaryNodeType.UINT16:
-                {
                     Debug.Assert(context.Version >= 4);
-
-                    var value = MemoryMarshal.Read<ushort>(buffer.Bytes2);
-                    buffer.Bytes2 = buffer.Bytes2[sizeof(ushort)..];
-
-                    return value;
-                }
+                    return ReadLane<ushort>(ref lane.Bytes2);
 
                 // 4 byte values
                 case KV3BinaryNodeType.INT32:
-                {
-                    var value = MemoryMarshal.Read<int>(buffer.Bytes4);
-                    buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
-
-                    return value;
-                }
+                    return ReadLane<int>(ref lane.Bytes4);
                 case KV3BinaryNodeType.UINT32:
-                {
-                    var value = MemoryMarshal.Read<uint>(buffer.Bytes4);
-                    buffer.Bytes4 = buffer.Bytes4[sizeof(uint)..];
-
-                    return value;
-                }
+                    return ReadLane<uint>(ref lane.Bytes4);
                 case KV3BinaryNodeType.FLOAT:
-                {
                     Debug.Assert(context.Version >= 4);
-
-                    var value = MemoryMarshal.Read<float>(buffer.Bytes4);
-                    buffer.Bytes4 = buffer.Bytes4[sizeof(float)..];
-
-                    return value;
-                }
+                    return ReadLane<float>(ref lane.Bytes4);
 
                 // 8 byte values
                 case KV3BinaryNodeType.INT64:
-                {
-                    var value = MemoryMarshal.Read<long>(buffer.Bytes8);
-                    buffer.Bytes8 = buffer.Bytes8[sizeof(long)..];
-
-                    return value;
-                }
+                    return ReadLane<long>(ref lane.Bytes8);
                 case KV3BinaryNodeType.UINT64:
-                {
-                    var value = MemoryMarshal.Read<ulong>(buffer.Bytes8);
-                    buffer.Bytes8 = buffer.Bytes8[sizeof(ulong)..];
-
-                    return value;
-                }
+                    return ReadLane<ulong>(ref lane.Bytes8);
                 case KV3BinaryNodeType.DOUBLE:
-                {
-                    var value = MemoryMarshal.Read<double>(buffer.Bytes8);
-                    buffer.Bytes8 = buffer.Bytes8[sizeof(double)..];
-
-                    return value;
-                }
+                    return ReadLane<double>(ref lane.Bytes8);
 
                 // Custom types
                 case KV3BinaryNodeType.STRING:
-                {
-                    var id = MemoryMarshal.Read<int>(buffer.Bytes4);
-                    buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
-
-                    return id == -1 ? string.Empty : context.Strings[id];
-                }
+                    return GetString(context, ReadLane<int>(ref buffer.Bytes4));
                 case KV3BinaryNodeType.BINARY_BLOB when context.Version < 2:
                 {
-                    var blockLength = MemoryMarshal.Read<int>(buffer.Bytes4);
-                    buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
+                    var blockLength = ReadLane<int>(ref buffer.Bytes4);
                     byte[] output;
 
                     if (blockLength > 0)
                     {
-                        output = [.. buffer.Bytes1[..blockLength]]; // explicit copy
+                        output = buffer.Bytes1.AsSpan(0, blockLength).ToArray();
                         buffer.Bytes1 = buffer.Bytes1[blockLength..];
                     }
                     else
@@ -927,13 +904,12 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 case KV3BinaryNodeType.BINARY_BLOB:
                 {
-                    var blockLength = MemoryMarshal.Read<int>(context.BinaryBlobLengths);
-                    context.BinaryBlobLengths = context.BinaryBlobLengths[sizeof(int)..];
+                    var blockLength = ReadLane<int>(ref context.BinaryBlobLengths);
                     byte[] output;
 
                     if (blockLength > 0)
                     {
-                        output = [.. context.BinaryBlobs[..blockLength]]; // explicit copy
+                        output = context.BinaryBlobs.AsSpan(0, blockLength).ToArray();
                         context.BinaryBlobs = context.BinaryBlobs[blockLength..];
                     }
                     else
@@ -945,9 +921,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 case KV3BinaryNodeType.ARRAY:
                 {
-                    var arrayLength = MemoryMarshal.Read<int>(buffer.Bytes4);
-                    buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
-
+                    var arrayLength = ReadLane<int>(ref buffer.Bytes4);
                     var array = KVObject.Array(arrayLength);
 
                     for (var i = 0; i < arrayLength; i++)
@@ -959,68 +933,34 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 case KV3BinaryNodeType.ARRAY_TYPED:
                 case KV3BinaryNodeType.ARRAY_TYPE_BYTE_LENGTH:
-                {
-                    int arrayLength;
-
-                    if (datatype == KV3BinaryNodeType.ARRAY_TYPE_BYTE_LENGTH)
-                    {
-                        arrayLength = buffer.Bytes1[0];
-                        buffer.Bytes1 = buffer.Bytes1[1..];
-                    }
-                    else
-                    {
-                        arrayLength = MemoryMarshal.Read<int>(buffer.Bytes4);
-                        buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
-                    }
-
-                    var (subType, subFlagInfo) = ReadType(context);
-                    var typedArray = KVObject.Array(arrayLength);
-
-                    for (var i = 0; i < arrayLength; i++)
-                    {
-                        typedArray.Add(ReadBinaryValue(context, subType, subFlagInfo));
-                    }
-
-                    return typedArray;
-                }
                 case KV3BinaryNodeType.ARRAY_TYPE_AUXILIARY_BUFFER:
                 {
-                    Debug.Assert(context.Version >= 5);
+                    var arrayLength = datatype == KV3BinaryNodeType.ARRAY_TYPED
+                        ? ReadLane<int>(ref buffer.Bytes4)
+                        : ReadLane<byte>(ref buffer.Bytes1);
 
-                    var arrayLength = buffer.Bytes1[0];
-                    buffer.Bytes1 = buffer.Bytes1[1..];
+                    if (arrayLength == 0 && context.Version >= 2)
+                    {
+                        throw new InvalidDataException("Typed KV3 arrays can not be empty");
+                    }
 
                     var (subType, subFlagInfo) = ReadType(context);
                     var typedArray = KVObject.Array(arrayLength);
-
-                    // Swap the buffers and simply call read again instead of reimplementing the switch here
-                    (context.AuxiliaryBuffer, context.Buffer) = (context.Buffer, context.AuxiliaryBuffer);
+                    var elementLane = datatype == KV3BinaryNodeType.ARRAY_TYPE_AUXILIARY_BUFFER ? context.AuxiliaryBuffer : buffer;
 
                     for (var i = 0; i < arrayLength; i++)
                     {
-                        typedArray.Add(ReadBinaryValue(context, subType, subFlagInfo));
+                        typedArray.Add(ReadBinaryValue(context, subType, subFlagInfo, elementLane));
                     }
-
-                    (context.AuxiliaryBuffer, context.Buffer) = (context.Buffer, context.AuxiliaryBuffer);
 
                     return typedArray;
                 }
 
                 case KV3BinaryNodeType.OBJECT:
                 {
-                    int objectLength;
-
-                    if (context.Version >= 5)
-                    {
-                        objectLength = MemoryMarshal.Read<int>(context.ObjectLengths);
-                        context.ObjectLengths = context.ObjectLengths[sizeof(int)..];
-                    }
-                    else
-                    {
-                        objectLength = MemoryMarshal.Read<int>(buffer.Bytes4);
-                        buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
-                    }
-
+                    var objectLength = context.Version >= 5
+                        ? ReadLane<int>(ref context.ObjectLengths)
+                        : ReadLane<int>(ref buffer.Bytes4);
                     var newObject = KVObject.Collection(objectLength);
 
                     for (var i = 0; i < objectLength; i++)
@@ -1058,9 +998,7 @@ namespace ValveResourceFormat.ResourceTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Align(ref int offset, int alignment)
         {
-            alignment -= 1;
-            offset += alignment;
-            offset &= ~alignment;
+            offset = MathUtils.AlignUp(offset, alignment);
         }
 
         /// <summary>

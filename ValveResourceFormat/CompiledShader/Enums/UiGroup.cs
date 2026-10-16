@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace ValveResourceFormat.CompiledShader;
 
 /// <summary>
@@ -41,7 +43,7 @@ public struct UiGroup
         GroupOrder = groupOrder;
         VariableOrder = variableOrder;
 
-        CompactString = $"{heading},{headingOrder}/{group},{groupOrder}/{variableOrder}";
+        CompactString = string.Create(CultureInfo.InvariantCulture, $"{heading},{headingOrder}/{group},{groupOrder}/{variableOrder}");
     }
 
     /// <summary>

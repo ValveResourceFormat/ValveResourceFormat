@@ -86,7 +86,7 @@ public class VfxCombo : ShaderDataBlock
             }
         }
 
-        if (ComboSourceType is ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__) or ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_NE__))
+        if (vcsVersion >= 59 && ComboSourceType is ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__) or ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_NE__))
         {
             FeatureComparisonValue = datareader.ReadInt32();
         }
@@ -94,11 +94,17 @@ public class VfxCombo : ShaderDataBlock
 
     private int NormalizeComboSourceType(int comboSourceType, int vcsVersion)
     {
-        if (vcsVersion >= 71 && ComboType == VfxComboType.Static && comboSourceType >= (int)VfxStaticComboSourceType.S_BINDLESS_RUNTIME)
+        if (vcsVersion >= 71 && ComboType == VfxComboType.Static)
         {
-            comboSourceType += 2;
+            return NormalizeStaticComboSourceType(comboSourceType);
         }
 
         return comboSourceType;
     }
+
+    /// <summary>
+    /// Maps a static combo source type from version 71 and newer, which dropped two entries, onto <see cref="VfxStaticComboSourceType"/>.
+    /// </summary>
+    internal static int NormalizeStaticComboSourceType(int comboSourceType)
+        => comboSourceType >= (int)VfxStaticComboSourceType.S_BINDLESS_RUNTIME ? comboSourceType + 2 : comboSourceType;
 }

@@ -4,7 +4,6 @@ using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
-using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO;
@@ -37,7 +36,7 @@ public class NmSkeletonExtract
 
         var dmxFile = Path.ChangeExtension(resource.FileName, "dmx");
         Debug.Assert(dmxFile != null);
-        kv.Add("m_sourceFileName", dmxFile);
+        kv.Add("m_sourceFilename", FindAuthoredSourceFile() ?? dmxFile.Replace('\\', '/'));
 
         var rootBoneName = skel.Roots.Length == 1
             ? skel.Roots[0].Name
@@ -68,5 +67,37 @@ public class NmSkeletonExtract
             return ModelExtract.ToDmxSkeleton(skel, nmSkelAxisFixup: true, nmLowLodBoneCount: numLowLODBones);
         });
         return contentFile;
+    }
+
+    /// <summary>
+    /// Finds the mesh the skeleton was authored from, an input dependency beside the skeleton document.
+    /// </summary>
+    private string? FindAuthoredSourceFile()
+    {
+        if (resource.EditInfo == null)
+        {
+            return null;
+        }
+
+        string? sourceFileName = null;
+
+        foreach (var dependency in resource.EditInfo.InputDependencies)
+        {
+            var file = dependency.ContentRelativeFilename.Replace('\\', '/');
+
+            if (file.EndsWith(".vnmskel", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (sourceFileName != null)
+            {
+                return null;
+            }
+
+            sourceFileName = file;
+        }
+
+        return sourceFileName;
     }
 }

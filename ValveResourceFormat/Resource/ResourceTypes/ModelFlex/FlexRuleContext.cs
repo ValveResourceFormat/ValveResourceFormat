@@ -1,5 +1,3 @@
-using ValveResourceFormat.Utils;
-
 namespace ValveResourceFormat.ResourceTypes.ModelFlex
 {
     /// <summary>

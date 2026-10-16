@@ -58,14 +58,18 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
             var unweighted = Flags.HasFlag(BezierFlags.Unweighted);
             kv.Add("unweighted", unweighted);
 
-            var inKV = new KVObject();
-            inKV.Add("deg", InDegrees);
-            inKV.Add("weight", InWeight);
+            var inKV = new KVObject
+            {
+                { "deg", InDegrees },
+                { "weight", InWeight }
+            };
             kv.Add("in", inKV);
 
-            var outKV = new KVObject();
-            outKV.Add("deg", OutDegrees);
-            outKV.Add("weight", OutWeight);
+            var outKV = new KVObject
+            {
+                { "deg", OutDegrees },
+                { "weight", OutWeight }
+            };
             kv.Add("out", outKV);
 
             return kv;

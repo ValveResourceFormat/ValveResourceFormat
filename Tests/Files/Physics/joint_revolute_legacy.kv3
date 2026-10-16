@@ -1,0 +1,133 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	m_nFlags = 0
+	m_nRefCounter = 0
+	m_bonesHash = [ 1, 2 ]
+	m_boneNames = [ "b_parent", "b_child" ]
+	m_indexNames = [ 0, 1 ]
+	m_indexHash = [ 0, 1 ]
+	m_bindPose = 
+	[
+		[ 0.925417, -0.21461, 0.312325, 1.0, 0.336824, 0.843493, -0.418412, 2.0, -0.173648, 0.492404, 0.852868, 3.0 ],
+		[ 0.918595, 0.195662, 0.343364, 9.242592, 0.143095, 0.645212, -0.750484, 3.014275, -0.368384, 0.738524, 0.56469, 2.824148 ],
+	]
+	m_parts = 
+	[
+		{
+			m_nFlags = 0
+			m_flMass = 0.0
+			m_rnShape =
+			{
+				m_spheres =
+				[
+					{
+						m_nCollisionAttributeIndex = 0
+						m_nSurfacePropertyIndex = 0
+						m_UserFriendlyName = ""
+						m_bUserFriendlyNameSealed = false
+						m_bUserFriendlyNameLong = false
+						m_nToolMaterialHash = 0
+						m_Sphere =
+						{
+							m_vCenter = [ 0.0, 0.0, 0.0 ]
+							m_flRadius = 2.0
+						}
+					},
+				]
+				m_capsules = [  ]
+				m_hulls = [  ]
+				m_meshes = [  ]
+				m_CollisionAttributeIndices = [  ]
+			}
+			m_nCollisionAttributeIndex = 0
+			m_nReserved = 0
+			m_flInertiaScale = 1.0
+			m_flLinearDamping = 0.0
+			m_flAngularDamping = 0.0
+			m_bOverrideMassCenter = false
+			m_vMassCenterOverride = [ 0.0, 0.0, 0.0 ]
+		},
+		{
+			m_nFlags = 0
+			m_flMass = 0.0
+			m_rnShape =
+			{
+				m_spheres =
+				[
+					{
+						m_nCollisionAttributeIndex = 0
+						m_nSurfacePropertyIndex = 0
+						m_UserFriendlyName = ""
+						m_bUserFriendlyNameSealed = false
+						m_bUserFriendlyNameLong = false
+						m_nToolMaterialHash = 0
+						m_Sphere =
+						{
+							m_vCenter = [ 0.0, 0.0, 0.0 ]
+							m_flRadius = 2.0
+						}
+					},
+				]
+				m_capsules = [  ]
+				m_hulls = [  ]
+				m_meshes = [  ]
+				m_CollisionAttributeIndices = [  ]
+			}
+			m_nCollisionAttributeIndex = 0
+			m_nReserved = 0
+			m_flInertiaScale = 1.0
+			m_flLinearDamping = 0.0
+			m_flAngularDamping = 0.0
+			m_bOverrideMassCenter = false
+			m_vMassCenterOverride = [ 0.0, 0.0, 0.0 ]
+		},
+	]
+	m_shapeMarkups = [  ]
+	m_constraints2 = [  ]
+	m_joints = 
+	[
+		{
+			m_nType = 3
+			m_nBody1 = 0
+			m_nBody2 = 1
+			m_nFlags = 0
+			m_Frame1 = [ 0.0, 0.0, 0.0, 0.0, -0.0, 0.793353, 0.608761 ]
+			m_Frame2 = [ -7.781524, -2.137313, -1.969714, -0.16542, 0.145625, 0.779558, 0.586276 ]
+			m_bEnableCollision = false
+			m_bEnableLinearLimit = false
+			m_LinearLimit = 
+			{
+				m_flMin = 0.0
+				m_flMax = 0.0
+			}
+			m_bEnableLinearMotor = false
+			m_vLinearTargetVelocity = [ 0.0, 0.0, 0.0 ]
+			m_flMaxForce = 0.0
+			m_bEnableSwingLimit = false
+			m_SwingLimit = 
+			{
+				m_flMin = 0.0
+				m_flMax = 0.0
+			}
+			m_bEnableTwistLimit = true
+			m_TwistLimit = 
+			{
+				m_flMin = -0.785398
+				m_flMax = 0.785398
+			}
+			m_bEnableAngularMotor = false
+			m_vAngularTargetVelocity = [ 0.0, 0.0, 0.0 ]
+			m_flMaxTorque = 0.0
+			m_flLinearFrequency = 0.0
+			m_flLinearDampingRatio = 0.0
+			m_flAngularFrequency = 0.0
+			m_flAngularDampingRatio = 0.0
+		},
+	]
+	m_pFeModel = null
+	m_boneParents = [ 0, 1 ]
+	m_surfacePropertyHashes = [ 1977497166 ]
+	m_collisionAttributes = [  ]
+	m_debugPartNames = [  ]
+	m_embeddedKeyvalues = ""
+}

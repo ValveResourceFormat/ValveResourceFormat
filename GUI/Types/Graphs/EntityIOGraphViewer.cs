@@ -5,12 +5,10 @@ using GUI.Types.GLViewers;
 using GUI.Types.Graphs.Core;
 using GUI.Utils;
 using SkiaSharp;
-using ValveResourceFormat;
 using ValveResourceFormat.Graphs;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using Connection = ValveResourceFormat.ResourceTypes.EntityLump.Connection;
 
 namespace GUI.Types.Graphs;
 
@@ -30,17 +28,18 @@ internal class EntityIOGraphViewer : GLGraphViewer
     private readonly int entityCount;
 
     public EntityIOGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, EntityLump entityLump)
-        : this(vrfGuiContext, rendererContext, CollectEntities(entityLump, rendererContext), showInMap: null)
+        : this(vrfGuiContext, rendererContext, CollectEntities(vrfGuiContext, entityLump, rendererContext), showInMap: null)
     {
     }
 
     // A lump opened on its own still references entities of its child lumps (templates,
     // spawners), so resolve targets across the whole lump tree.
-    private static List<EntityLump.Entity> CollectEntities(EntityLump entityLump, RendererContext rendererContext)
+    private static List<EntityLump.Entity> CollectEntities(VrfGuiContext vrfGuiContext, EntityLump entityLump, RendererContext rendererContext)
     {
         try
         {
             var entities = new List<EntityLump.Entity>();
+
             foreach (var traversed in EntityLumpTraversal.EnumerateEntities(entityLump, rendererContext.FileLoader, Matrix4x4.Identity))
             {
                 entities.Add(traversed.Entity);
@@ -50,7 +49,7 @@ internal class EntityIOGraphViewer : GLGraphViewer
         }
         catch (Exception e)
         {
-            Log.Warn(nameof(EntityIOGraphViewer), $"Failed to traverse child entity lumps: {e.Message}");
+            Log.Warn(nameof(EntityIOGraphViewer), $"Failed to traverse child entity lumps of \"{entityLump.Name}\" in {vrfGuiContext.DisplayPath}: {e.Message}");
             return entityLump.GetEntities();
         }
     }

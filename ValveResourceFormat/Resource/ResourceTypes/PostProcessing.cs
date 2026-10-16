@@ -7,6 +7,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a post-processing resource.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/materialsystem2/PostProcessingResource_t">PostProcessingResource_t</seealso>
     public class PostProcessing : KeyValuesOrNTRO
     {
         /// <summary>
@@ -120,8 +121,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public string ToValvePostProcessing(bool preloadLookupTable = false, string lutFileName = "")
         {
-            var outKV3 = new KVObject();
-            outKV3.Add("_class", "CPostProcessData");
+            var outKV3 = new KVObject
+            {
+                { "_class", "CPostProcessData" }
+            };
 
             var layers = KVObject.Array();
 

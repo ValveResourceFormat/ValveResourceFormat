@@ -2,15 +2,14 @@ using GUI.Utils;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneNodes;
-//using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {
     class GLVoxelVisibilityViewer : GLSceneViewer
     {
-        private readonly VoxelVisibility voxelVisibility;
+        private readonly IWorldVisibility voxelVisibility;
 
-        public GLVoxelVisibilityViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, VoxelVisibility voxelVisibility)
+        public GLVoxelVisibilityViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, IWorldVisibility voxelVisibility)
             : base(vrfGuiContext, rendererContext)
         {
             this.voxelVisibility = voxelVisibility;
@@ -18,16 +17,13 @@ namespace GUI.Types.GLViewers
 
         protected override void LoadScene()
         {
-            //VKTODO:
-            //var sceneNode = new VisibilitySceneNode(Scene, voxelVisibility)
-            //{
-            //    LayerName = "Visibility clusters",
-            //};
-            //Scene.Add(sceneNode, false);
+#if VKTODO
+            var sceneNode = new VisibilitySceneNode(Scene, voxelVisibility)
+            {
+                LayerName = "Visibility clusters",
+            };
+            Scene.Add(sceneNode, false);
+#endif
         }
-
-        //protected override void OnPicked(object? sender, PickingResponse pixelInfo)
-        //{
-        //}
     }
 }

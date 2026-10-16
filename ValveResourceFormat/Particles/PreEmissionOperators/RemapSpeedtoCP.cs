@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
         public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
         {
-            // The engine's control point writer takes the field index unsigned and rejects anything
+            // The control point writer takes the field index unsigned and rejects anything
             // above 3, and index 3 addresses a component the position vector does not have
             if (outControlPoint < 0 || field < 0 || field > 2 || frameTime <= 0f)
             {
@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             if (useDeltaV)
             {
-                speed = (velocity - previousVelocity).Length();
+                speed = Vector3.Distance(velocity, previousVelocity);
                 previousVelocity = velocity;
             }
             else
@@ -62,17 +62,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 speed = velocity.Length();
             }
 
-            float output;
-
-            if (inputMin == inputMax)
-            {
-                output = speed < inputMax ? outputMin : outputMax;
-            }
-            else
-            {
-                var remapped = MathUtils.Saturate((speed - inputMin) / (inputMax - inputMin));
-                output = outputMin + (remapped * (outputMax - outputMin));
-            }
+            var output = MathUtils.RemapValClamped(speed, inputMin, inputMax, outputMin, outputMax);
 
             particleSystemState.SetControlPointValueComponent(outControlPoint, field, output);
         }

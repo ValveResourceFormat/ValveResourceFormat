@@ -83,7 +83,7 @@ internal class MainTabs : ThemedTabControl
 
         for (var i = 1; i < TabCount; i++)
         {
-            var tabRect = GetTabRect(i);
+            var tabRect = GetDisplayTabRect(i);
 
             if (tabRect.Contains(e.Location))
             {
@@ -191,9 +191,9 @@ internal class MainTabs : ThemedTabControl
         return new Rectangle(tabRect.Right - closeButtonCenteringOffset - closeButtonSize, closeButtonCenteringOffset, closeButtonSize, closeButtonSize);
     }
 
-    protected override void OnPaint(PaintEventArgs e)
+    protected override void DrawStrip(Graphics g, int stripHeight)
     {
-        base.OnPaint(e);
+        base.DrawStrip(g, stripHeight);
 
         // skip first tab as it can never be closed
         for (var i = 1; i < TabCount; i++)
@@ -201,9 +201,9 @@ internal class MainTabs : ThemedTabControl
             var isSelected = SelectedIndex == i;
             var isHovered = HoveredIndex == i;
 
-            e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            g.CompositingQuality = CompositingQuality.HighQuality;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
 
             var textColor = ForeColor;
 
@@ -217,7 +217,7 @@ internal class MainTabs : ThemedTabControl
 
             if (CloseButtonHoveredIndex == i)
             {
-                var closeButtonRectCircle = GetCloseButtonRect(GetTabRect(i), this.AdjustForDPI(10));
+                var closeButtonRectCircle = GetCloseButtonRect(GetDisplayTabRect(i), this.AdjustForDPI(10));
 
                 var closeButtonCircleColor = BackColor;
 
@@ -235,12 +235,12 @@ internal class MainTabs : ThemedTabControl
                     : ControlPaint.Dark(closeButtonCircleColor, 0.01f);
 
                 using Brush closeButtonCircleBrush = new SolidBrush(closeButtonCircleColor);
-                e.Graphics.FillEllipse(closeButtonCircleBrush, closeButtonRectCircle);
+                g.FillEllipse(closeButtonCircleBrush, closeButtonRectCircle);
             }
-            var closeButtonRectX = GetCloseButtonRect(GetTabRect(i));
+            var closeButtonRectX = GetCloseButtonRect(GetDisplayTabRect(i));
 
-            e.Graphics.DrawLine(closeButtonPen, closeButtonRectX.X, closeButtonRectX.Y, closeButtonRectX.Right, closeButtonRectX.Bottom);
-            e.Graphics.DrawLine(closeButtonPen, closeButtonRectX.X, closeButtonRectX.Bottom, closeButtonRectX.Right, closeButtonRectX.Top);
+            g.DrawLine(closeButtonPen, closeButtonRectX.X, closeButtonRectX.Y, closeButtonRectX.Right, closeButtonRectX.Bottom);
+            g.DrawLine(closeButtonPen, closeButtonRectX.X, closeButtonRectX.Bottom, closeButtonRectX.Right, closeButtonRectX.Top);
         }
     }
 

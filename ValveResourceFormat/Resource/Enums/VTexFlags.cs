@@ -17,6 +17,7 @@ namespace ValveResourceFormat
         PANORAMA_DILATE_COLOR = 1 << 7,
         PANORAMA_CONVERT_TO_YCOCG_DXT5 = 1 << 8,
         CREATE_LINEAR_API_TEXTURE = 1 << 9,
+        VIRTUAL_TEXTURE = 1 << 10,
 #pragma warning restore CS1591
     }
 }

@@ -1,6 +1,9 @@
-//using ValveResourceFormat.Renderer.SceneEnvironment;
+using System.Globalization;
+using ValveResourceFormat.Blocks;
+#if VKTODO
+using ValveResourceFormat.Renderer.SceneEnvironment;
+#endif
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -16,6 +19,20 @@ namespace ValveResourceFormat.Renderer
         Parallel,
     }
 
+    /// <summary>Additional flags for <see cref="SceneNode"/>s.</summary>
+    [Flags]
+    public enum SceneNodeFlags
+    {
+        /// <summary>No flags set.</summary>
+        None = 0,
+
+        /// <summary>
+        /// The node's vertices are already in world space, so it draws with the identity transform while its
+        /// <see cref="SceneNode.Transform"/> only places it.
+        /// </summary>
+        PreTransformedVertices = 1 << 0,
+    }
+
     /// <summary>
     /// Base class for all objects in the scene graph.
     /// </summary>
@@ -24,6 +41,23 @@ namespace ValveResourceFormat.Renderer
 #endif
     public abstract class SceneNode
     {
+        /// <summary>Gets or sets the color multiplier this node draws with, in gamma space.</summary>
+        public Vector3 Tint { get; set; } = Vector3.One;
+
+        /// <summary>Gets or sets the opacity this node draws with.</summary>
+        public float Alpha { get; set; } = 1f;
+
+        /// <summary>Gets or sets <see cref="Tint"/> in XYZ and <see cref="Alpha"/> in W.</summary>
+        public Vector4 TintAlpha
+        {
+            get => new(Tint, Alpha);
+            set
+            {
+                Tint = new Vector3(value.X, value.Y, value.Z);
+                Alpha = value.W;
+            }
+        }
+
         /// <summary>
         /// Gets or sets the world transform. Setting this also updates <see cref="BoundingBox"/>.
         /// </summary>
@@ -47,16 +81,17 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public virtual bool LayerEnabled
         {
-            get => field;
+            get;
             set
             {
                 var valueChanged = value != field;
                 field = value;
+#if VKTODO
                 if (valueChanged)
                 {
-                    //VKTODO:
-                    //Scene.MarkParentOctreeDirty(this);
+                    Scene.MarkParentOctreeDirty(this);
                 }
+#endif
             }
         } = true;
 
@@ -101,14 +136,27 @@ namespace ValveResourceFormat.Renderer
         public bool IsSelected { get; set; }
 
         /// <summary>
-        /// Gets or sets the object type flags used for filtering.
+        /// Gets whether this node is a fixed-size marker standing in for a point, so its bounds describe
+        /// the marker rather than anything in the world.
+        /// </summary>
+        public virtual bool IsPointMarker => false;
+
+        /// <summary>
+        /// Gets or sets the object type flags.
         /// </summary>
         public ObjectTypeFlags Flags { get; set; }
 
         /// <summary>
+        /// Gets or sets additional non-standard flags.
+        /// </summary>
+        public SceneNodeFlags AdditionalFlags { get; set; }
+
+#if VKTODO
+        /// <summary>
         /// Flags for when should this node be drawn and where.
         /// </summary>
-        //VKTODO: public CustomRenderPasses RenderPasses { get; set; } = CustomRenderPasses.Default;
+        public CustomRenderPasses RenderPasses { get; set; } = CustomRenderPasses.Default;
+#endif
 
         /// <summary>Uploads this node's buffers. Called on visible nodes only, before any pass draws.</summary>
         /// <param name="camera">The camera the frame is drawn with.</param>
@@ -120,7 +168,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Gets a human-readable debug name including type, name, id, and position.
         /// </summary>
-        public string DebugName => $"{GetType().Name.Replace("SceneNode", "", StringComparison.Ordinal)}{(string.IsNullOrEmpty(Name) ? "" : " ")}{Name} ({Id}) at {BoundingBox.Center.X:F2} {BoundingBox.Center.Y:F2} {BoundingBox.Center.Z:F2}";
+        public string DebugName => string.Create(CultureInfo.InvariantCulture, $"{GetType().Name.Replace("SceneNode", "", StringComparison.Ordinal)}{(string.IsNullOrEmpty(Name) ? "" : " ")}{Name} ({Id}) at {BoundingBox.Center.X:F2} {BoundingBox.Center.Y:F2} {BoundingBox.Center.Z:F2}");
 #endif
 
         /// <summary>
@@ -129,19 +177,137 @@ namespace ValveResourceFormat.Renderer
         public Scene Scene { get; }
 
         /// <summary>
-        /// The parent node.
+        /// Gets or sets whether this node is a marker drawn at the same size in every scene, rather than
+        /// magnified with a scene such as a 3D sky. A line joining two markers is not one, since it has to
+        /// span the distance between them.
+        /// </summary>
+        public bool KeepsMarkerSize { get; set; }
+
+        /// <summary>
+        /// How large this node is drawn next to whatever places it. Only a marker differs, and only where its
+        /// scene is magnified.
+        /// </summary>
+#if VKTODO
+        internal float PlacementScale => KeepsMarkerSize ? Scene.MarkerScale : 1f;
+#else
+        internal static float PlacementScale => 1f;
+#endif
+
+        /// <summary>Shrinks a transform this node is placed at by <see cref="PlacementScale"/>.</summary>
+        internal Matrix4x4 ApplyPlacementScale(in Matrix4x4 transform)
+            => PlacementScale == 1f ? transform : Matrix4x4.CreateScale(PlacementScale) * transform;
+
+        /// <summary>
+        /// Gets or sets the node that updates this one, so the scene does not update it on its own. Set by
+        /// <see cref="SetParent"/>, or directly by a node that places and updates its parts itself.
         /// </summary>
         public SceneNode? Parent { get; set; }
 
+        /// <summary>Gets the nodes attached with <see cref="SetParent"/>, which follow this one.</summary>
+        public IReadOnlyList<SceneNode> Children => children;
+
+        /// <summary>
+        /// Gets the attachment point or bone of <see cref="Parent"/> this node follows, or <see langword="null"/>
+        /// for the parent itself.
+        /// </summary>
+        public string? ParentAttachment { get; private set; }
+
+        /// <summary>
+        /// Gets or sets this node's transform relative to the frame it follows, which <see cref="Transform"/> is
+        /// rebuilt from whenever the parent updates. Only meaningful while attached with <see cref="SetParent"/>.
+        /// </summary>
+        public Matrix4x4 LocalTransform { get; set; } = Matrix4x4.Identity;
+
+        private readonly List<SceneNode> children = [];
+
+        /// <summary>
+        /// Attaches this node to <paramref name="parent"/>, or detaches it when <see langword="null"/>. From
+        /// then on the parent places it after every update, at <see cref="LocalTransform"/> in the frame of
+        /// <paramref name="attachmentName"/>, and updates it.
+        /// </summary>
+        /// <param name="parent">The node to follow, or <see langword="null"/> to stand alone again.</param>
+        /// <param name="attachmentName">An attachment point or bone of a model parent, or <see langword="null"/> for the parent itself.</param>
+        /// <param name="localTransform">The transform in that frame, or <see langword="null"/> to keep the current world transform.</param>
+        public void SetParent(SceneNode? parent, string? attachmentName = null, Matrix4x4? localTransform = null)
+        {
+            Parent?.children.Remove(this);
+
+            Parent = parent;
+            ParentAttachment = parent == null ? null : attachmentName;
+
+            if (parent == null)
+            {
+                LocalTransform = Matrix4x4.Identity;
+                return;
+            }
+
+            parent.children.Add(this);
+
+            var frame = parent.GetChildFrame(ParentAttachment);
+
+            LocalTransform = localTransform
+                ?? (Matrix4x4.Invert(frame, out var worldToFrame) ? Transform * worldToFrame : Matrix4x4.Identity);
+
+            Transform = LocalTransform * frame;
+        }
+
+        /// <summary>
+        /// Gets the world frame a child attached at <paramref name="attachmentName"/> follows: this node's
+        /// transform without its scale. A model resolves attachment points and bones.
+        /// </summary>
+        /// <param name="attachmentName">The attachment point or bone, or <see langword="null"/> for the node itself.</param>
+        public virtual Matrix4x4 GetChildFrame(string? attachmentName) => GetRigidTransform(Transform);
+
+        // A node leaving the scene stops following, while a parent that only sets Parent keeps managing it
+        internal void DetachFromParent()
+        {
+            if (Parent != null && Parent.children.Remove(this))
+            {
+                Parent = null;
+                ParentAttachment = null;
+            }
+        }
+
+        /// <summary>Updates this node, then places and updates everything attached to it, depth first.</summary>
+        /// <param name="context">The current update context.</param>
+        public void UpdateHierarchy(Scene.UpdateContext context)
+        {
+#if VKTODO
+            if (Scene.IsPendingRemoval(this))
+            {
+                return;
+            }
+#endif
+
+            Update(context);
+
+            foreach (var child in children)
+            {
+                child.Transform = child.LocalTransform * GetChildFrame(child.ParentAttachment);
+                child.UpdateHierarchy(context);
+            }
+        }
+
+        /// <summary>Removes the scale from a transform, keeping its rotation and translation.</summary>
+        protected static Matrix4x4 GetRigidTransform(Matrix4x4 transform)
+        {
+            Matrix4x4.Decompose(transform, out _, out var rotation, out var translation);
+            return Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(translation);
+        }
+
+#if VKTODO
         /// <summary>
         /// Gets the environment maps affecting this node.
         /// </summary>
-        //VKTODO: public List<SceneEnvMap> EnvMaps { get; private set; } = [];
+        public List<SceneEnvMap> EnvMaps { get; private set; } = [];
+#endif
 
+#if VKTODO
         /// <summary>
-        /// Gets or sets the precomputed environment map visibility bitfield for shaders.
+        /// Gets or sets the environment map visibility bitfield for shaders.
         /// </summary>
-        //VKTODO: public SceneEnvMap.EnvMapVisibility128 ShaderEnvMapVisibility { get; set; }
+        public SceneEnvMap.EnvMapVisibility128 ShaderEnvMapVisibility { get; set; } = SceneEnvMap.EnvMapVisibility128.Full;
+#endif
 
         /// <summary>
         /// Gets or sets a custom lighting origin override for environment map and light probe sampling.
@@ -163,30 +329,103 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public int LightProbeVolumePrecomputedHandshake { get; set; }
 
+#if VKTODO
         /// <summary>
         /// Gets or sets the bound light probe for this node.
         /// </summary>
-        //VKTODO: public SceneLightProbe? LightProbeBinding { get; set; }
+        public SceneLightProbe? LightProbeBinding { get; set; }
+#endif
 
         /// <summary>
         /// Gets or sets the associated entity data from the map.
         /// </summary>
         public EntityLump.Entity? EntityData { get; set; }
 
+#if VKTODO
         /// <summary>
         /// Gets the entity that owns this node and drives its transform, or <see langword="null"/> when
         /// nothing simulates it. Where <see cref="EntityData"/> is what the map authored, this is the live
         /// entity built from it.
         /// </summary>
-        //VKTODO: public Entities.BaseEntity? EntityInstance { get; internal set; }
+        public Entities.BaseEntity? EntityInstance { get; internal set; }
+#endif
 
         private AABB localBoundingBox;
         private Matrix4x4 transform = Matrix4x4.Identity;
+
+        private ushort[]? visClusters;
+        private int visClusterCount;
+        private AABB visClusterBounds;
 
         /// <summary>
         /// This node's slot in the scene's <see cref="Scene.DynamicOctree"/>, or -1 when it is not in one.
         /// </summary>
         internal int DynamicSetIndex { get; set; } = -1;
+
+        /// <summary>
+        /// Gets or sets the visibility clusters the map compiler assigned to this node, which replace the
+        /// clusters its bounding box overlaps. <see langword="null"/> when it has none.
+        /// </summary>
+        internal ushort[]? PrecomputedVisClusters { get; set; }
+
+        /// <summary>
+        /// Gets the precomputed visibility clusters of this node when it has them, otherwise the clusters its
+        /// bounding box overlaps, recomputing them when it has moved or grown since the last query. A node
+        /// with no clusters at all is not vis culled.
+        /// </summary>
+        /// <param name="voxelVisibility">The scene's visibility data.</param>
+        /// <param name="worldToVisibility">The transform from scene space into visibility space.</param>
+        internal ReadOnlySpan<ushort> GetVisClusters(IWorldVisibility voxelVisibility, in Matrix4x4 worldToVisibility)
+        {
+            if (PrecomputedVisClusters != null)
+            {
+                return PrecomputedVisClusters;
+            }
+
+            if (visClusters != null && visClusterBounds.Equals(BoundingBox))
+            {
+                return visClusters.AsSpan(0, visClusterCount);
+            }
+
+            var wordCount = voxelVisibility.ClusterBitfieldWordCount;
+            Span<uint> scratch = stackalloc uint[VoxelVisibility.ClusterBitfieldWords];
+
+            var clusterBits = wordCount <= scratch.Length ? scratch[..wordCount] : new uint[wordCount];
+
+            var bounds = worldToVisibility.IsIdentity ? BoundingBox : BoundingBox.Transform(worldToVisibility);
+            voxelVisibility.GetVisClustersForBox(bounds.Min, bounds.Max, clusterBits);
+
+            var count = 0;
+
+            foreach (var word in clusterBits)
+            {
+                count += BitOperations.PopCount(word);
+            }
+
+            // Anything that moves requeries every frame, so grow the list rather than replacing it
+            if (visClusters == null || visClusters.Length < count)
+            {
+                visClusters = new ushort[count];
+            }
+
+            visClusterCount = count;
+            count = 0;
+
+            for (var i = 0; i < clusterBits.Length; i++)
+            {
+                var word = clusterBits[i];
+
+                while (word != 0)
+                {
+                    visClusters[count++] = (ushort)(i * 32 + BitOperations.TrailingZeroCount(word));
+                    word &= word - 1;
+                }
+            }
+
+            visClusterBounds = BoundingBox;
+
+            return visClusters.AsSpan(0, visClusterCount);
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SceneNode"/> class.
@@ -212,13 +451,15 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public NodeSimulation Simulation { get; protected set; }
 
+#if VKTODO
         /// <summary>
         /// Called each frame to render this node.
         /// </summary>
         /// <param name="context">The current render context.</param>
-        //VKTODO: public virtual void Render(Scene.RenderContext context)
-        //{
-        //}
+        public virtual void Render(Scene.RenderContext context)
+        {
+        }
+#endif
 
         /// <summary>
         /// Returns the render modes supported by this node.
@@ -256,7 +497,7 @@ namespace ValveResourceFormat.Renderer
         /// <returns>The squared distance to the camera.</returns>
         public float GetCameraDistance(Camera camera)
         {
-            return (BoundingBox.Center - camera.Location).LengthSquared();
+            return Vector3.DistanceSquared(BoundingBox.Center, camera.Location);
         }
     }
 }

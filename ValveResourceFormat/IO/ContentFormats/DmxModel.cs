@@ -30,7 +30,7 @@ public class DmeModel : DMElement
     public Datamodel.ElementArray Children { get; } = [];
 
     /// <summary>
-    /// List of <see cref="DmeTransform"/> elements, one per bone, in skinning order.
+    /// List of <see cref="DmeDag"/> elements, one per bone, in skinning order.
     /// </summary>
     public Datamodel.ElementArray JointList { get; init; } = [];
 
@@ -510,76 +510,26 @@ public class DmeChannel : DMElement
     /// </summary>
     public int Mode { get; set; }
 
-    private DMElement? _log;
-
     /// <summary>
     /// Gets or sets the animation log data.
     /// </summary>
-    public DMElement? Log
-    {
-        get
-        {
-            return _log;
-        }
-        init
-        {
-            if (value is null)
-            {
-                _log = null;
-                return;
-            }
-
-            var logType = value.GetType();
-            if (logType.GetGenericTypeDefinition() != typeof(DmeLog<>))
-            {
-                throw new ArgumentException($"DmeChannel.Log can only contain DmeLog types");
-            }
-
-            _log = value;
-        }
-    }
+    public DmeLog? Log { get; init; }
 }
 
 /// <summary>
-/// Base class for typed animation logs.
-/// </summary>
-public abstract class DmeTypedLog<T> : DMElement
-{
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DmeTypedLog{T}"/> class.
-    /// </summary>
-    protected DmeTypedLog(string namePostfix)
-    {
-        string typeName;
-        if (typeof(T) == typeof(float)) //Name would be 'Single' without this
-        {
-            typeName = "Float";
-        }
-        else
-        {
-            typeName = typeof(T).Name;
-        }
-
-        if (char.IsLower(typeName[0]))
-        {
-            typeName = char.ToUpperInvariant(typeName[0]) + typeName[1..];
-        }
-
-        ClassName = $"Dme{typeName}{namePostfix}";
-        Name = $"{typeName.ToLowerInvariant()} log";
-    }
-}
-
-/// <summary>
-/// Represents an animation log with keyframe data.
+/// Base class for animation logs, which hold their keyframe data in layers.
 /// </summary>
 [CamelCaseProperties]
-public class DmeLog<T> : DmeTypedLog<T>
+public abstract class DmeLog : DMElement
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="DmeLog{T}"/> class.
+    /// Initializes a new instance of the <see cref="DmeLog"/> class.
     /// </summary>
-    public DmeLog() : base("Log") { }
+    /// <param name="valueTypeName">Lowercase name of the logged value type, such as "vector3".</param>
+    protected DmeLog(string valueTypeName)
+    {
+        Name = $"{valueTypeName} log";
+    }
 
     /// <summary>
     /// Gets or sets the log layers containing keyframe data.
@@ -600,12 +550,6 @@ public class DmeLog<T> : DmeTypedLog<T>
     public bool UseDefaultValue { get; set; }
 
     /// <summary>
-    /// Gets or sets the default value.
-    /// </summary>
-    [DMProperty("defaultvalue")]
-    public T? DefaultValue { get; set; }
-
-    /// <summary>
     /// Gets the X-axis bookmarks.
     /// </summary>
     public Datamodel.TimeSpanArray BookmarksX { get; } = [];
@@ -619,39 +563,73 @@ public class DmeLog<T> : DmeTypedLog<T>
     /// Gets the Z-axis bookmarks.
     /// </summary>
     public Datamodel.TimeSpanArray BookmarksZ { get; } = [];
-
-    /// <summary>
-    /// Gets the log layer at the specified index.
-    /// </summary>
-    public DmeLogLayer<T> GetLayer(int index)
-    {
-        return (DmeLogLayer<T>)Layers[index];
-    }
-
-    /// <summary>
-    /// Adds a log layer.
-    /// </summary>
-    public void AddLayer(DmeLogLayer<T> layer)
-    {
-        Layers.Add(layer);
-    }
-
-    /// <summary>
-    /// Gets the number of layers.
-    /// </summary>
-    public int LayerCount => Layers.Count;
 }
 
 /// <summary>
-/// Represents a layer of keyframe data in an animation log.
+/// Represents an animation log of float values.
 /// </summary>
-[CamelCaseProperties]
-public class DmeLogLayer<T> : DmeTypedLog<T>
+public class DmeFloatLog : DmeLog
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="DmeLogLayer{T}"/> class.
+    /// Initializes a new instance of the <see cref="DmeFloatLog"/> class.
     /// </summary>
-    public DmeLogLayer() : base("LogLayer") { }
+    public DmeFloatLog() : base("float") { }
+
+    /// <summary>
+    /// Gets or sets the default value.
+    /// </summary>
+    [DMProperty("defaultvalue")]
+    public float DefaultValue { get; set; }
+}
+
+/// <summary>
+/// Represents an animation log of vector values.
+/// </summary>
+public class DmeVector3Log : DmeLog
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DmeVector3Log"/> class.
+    /// </summary>
+    public DmeVector3Log() : base("vector3") { }
+
+    /// <summary>
+    /// Gets or sets the default value.
+    /// </summary>
+    [DMProperty("defaultvalue")]
+    public Vector3 DefaultValue { get; set; }
+}
+
+/// <summary>
+/// Represents an animation log of quaternion values.
+/// </summary>
+public class DmeQuaternionLog : DmeLog
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DmeQuaternionLog"/> class.
+    /// </summary>
+    public DmeQuaternionLog() : base("quaternion") { }
+
+    /// <summary>
+    /// Gets or sets the default value.
+    /// </summary>
+    [DMProperty("defaultvalue")]
+    public Quaternion DefaultValue { get; set; }
+}
+
+/// <summary>
+/// Base class for a layer of keyframe data in an animation log.
+/// </summary>
+[CamelCaseProperties]
+public abstract class DmeLogLayer : DMElement
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DmeLogLayer"/> class.
+    /// </summary>
+    /// <param name="valueTypeName">Lowercase name of the logged value type, such as "vector3".</param>
+    protected DmeLogLayer(string valueTypeName)
+    {
+        Name = $"{valueTypeName} log";
+    }
 
     /// <summary>
     /// Gets or sets the keyframe times.
@@ -663,47 +641,55 @@ public class DmeLogLayer<T> : DmeTypedLog<T>
     /// </summary>
     [DMProperty("curvetypes")]
     public Datamodel.IntArray CurveTypes { get; } = [];
+}
+
+/// <summary>
+/// Represents a layer of float keyframes.
+/// </summary>
+public class DmeFloatLogLayer : DmeLogLayer
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DmeFloatLogLayer"/> class.
+    /// </summary>
+    public DmeFloatLogLayer() : base("float") { }
 
     /// <summary>
     /// Gets or sets the keyframe values.
     /// </summary>
     [DMProperty("values")]
-    public T[] LayerValues { get; set; } = [];
+    public float[] LayerValues { get; set; } = [];
+}
+
+/// <summary>
+/// Represents a layer of vector keyframes.
+/// </summary>
+public class DmeVector3LogLayer : DmeLogLayer
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DmeVector3LogLayer"/> class.
+    /// </summary>
+    public DmeVector3LogLayer() : base("vector3") { }
 
     /// <summary>
-    /// Checks if this layer only contains default/zero values.
+    /// Gets or sets the keyframe values.
     /// </summary>
-    public bool IsLayerZero()
-    {
-        if (LayerValues.Length == 0)
-        {
-            return true;
-        }
+    [DMProperty("values")]
+    public Vector3[] LayerValues { get; set; } = [];
+}
 
-        object? defaultValue;
+/// <summary>
+/// Represents a layer of quaternion keyframes.
+/// </summary>
+public class DmeQuaternionLogLayer : DmeLogLayer
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DmeQuaternionLogLayer"/> class.
+    /// </summary>
+    public DmeQuaternionLogLayer() : base("quaternion") { }
 
-        //quaternions initialize to all 0s
-        if (typeof(T) == typeof(Quaternion))
-        {
-            defaultValue = Quaternion.Identity;
-        }
-        else
-        {
-            defaultValue = default(T);
-        }
-
-        foreach (var item in LayerValues)
-        {
-            if (item is null && defaultValue is null)
-            {
-                continue;
-            }
-            if (item is null || !item.Equals(defaultValue))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    /// <summary>
+    /// Gets or sets the keyframe values.
+    /// </summary>
+    [DMProperty("values")]
+    public Quaternion[] LayerValues { get; set; } = [];
 }

@@ -1,6 +1,9 @@
 // Run this with `dotnet run`. Place the exe and ttf in the same working directory.
 
 using System.Diagnostics;
+using System.Globalization;
+
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 
 var msdfgenPath = "./msdf-atlas-gen.exe";
 var fontFilePath = "./JetBrainsMono-Regular.ttf";

@@ -10,8 +10,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private static float RgbSaturation(Vector3 rgb)
         {
-            var max = MathF.Max(MathF.Max(rgb.X, rgb.Y), rgb.Z);
-            var min = MathF.Min(MathF.Min(rgb.X, rgb.Y), rgb.Z);
+            var max = rgb.MaxComponent();
+            var min = rgb.MinComponent();
             return max == 0f ? 0f : (max - min) / max;
         }
 
@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             var angle = MathF.Atan2(cross.Length(), Vector3.Dot(LuminanceCoefficientsNormalised, Vector3.UnitZ));
             var rotation = Matrix4x4.CreateFromAxisAngle(Vector3.Normalize(cross), angle);
 
-            // T(-offset) × Scale(contrast) × T(offset) × Scale(brightness) × Scale(lum) × R × Scale(sat,sat,1) × R⁻¹ × Scale(1/lum)
+            // T(-offset) * Scale(contrast) * T(offset) * Scale(brightness) * Scale(lum) * R * Scale(sat,sat,1) * R^-1 * Scale(1/lum)
             var result = Matrix4x4.CreateTranslation(-colorOffset) * Matrix4x4.CreateScale(CSB.X) * Matrix4x4.CreateTranslation(colorOffset);
             result *= Matrix4x4.CreateScale(CSB.Z);
             result *= Matrix4x4.CreateScale(LuminanceCoefficientsNormalised);
@@ -56,7 +56,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             var desatXY = 1f - saturation;
             var satFactor = 1f - saturation * saturation * strength;
 
-            // Scale(lum) × R × T(-gray) × Scale(desatXY,desatXY,satFactor) × T(gray') × R⁻¹ × Scale(1/lum)
+            // Scale(lum) * R * T(-gray) * Scale(desatXY,desatXY,satFactor) * T(gray') * R^-1 * Scale(1/lum)
             var result = lumScale * rotation;
             result *= Matrix4x4.CreateTranslation(-gray.X, -gray.Y, 0f);
             result *= Matrix4x4.CreateScale(desatXY, desatXY, satFactor);

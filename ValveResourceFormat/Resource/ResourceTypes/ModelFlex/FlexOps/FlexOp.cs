@@ -104,7 +104,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
                 FlexOpCode.Cos => new FlexOpCos(floatData),
                 FlexOpCode.Abs => new FlexOpAbs(floatData),
 
-                // The engine switch has no case for these, so they never reach a compiled op stream.
+                // These never reach a compiled op stream.
                 FlexOpCode.Exp or FlexOpCode.Open or FlexOpCode.Close or FlexOpCode.Comma => new FlexOpNop(floatData),
                 _ => (FlexOp?)null,
             };

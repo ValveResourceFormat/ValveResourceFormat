@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using ValveKeyValue;
 using ValveKeyValue.KeyValues3;
@@ -16,9 +17,25 @@ namespace ValveResourceFormat.ResourceTypes
         public override BlockType Type => KVBlockType;
 
         /// <summary>
-        /// Gets the parsed data as a <see cref="KVObject"/>.
+        /// Gets or sets the parsed data as a <see cref="KVObject"/>.
         /// </summary>
-        public KVObject Data { get; protected set; } = null!;
+        /// <remarks>Can be set to null to release KV3 data. Next probe will deserialize again.</remarks>
+        [AllowNull]
+        public KVObject Data
+        {
+            get => BackingData is BinaryKV3 kv3 ? kv3.Data : ((NTRO)BackingData).Output;
+            set
+            {
+                if (BackingData is BinaryKV3 kv3)
+                {
+                    kv3.Data = value == null ? null : new KVDocument(kv3.Data.Header, kv3.Data.Name, value);
+                }
+                else if (value != null)
+                {
+                    BackingData = new BinaryKV3(value, KV3IDLookup.Get("generic"), KVBlockType) { Resource = Resource };
+                }
+            }
+        }
 
         /// <summary>
         /// Gets the KV3 format id the data was serialized with, or null for NTRO-backed data.
@@ -59,7 +76,6 @@ namespace ValveResourceFormat.ResourceTypes
                     Resource = Resource,
                 };
                 kv3.Read(reader);
-                Data = kv3.Data;
                 BackingData = kv3;
             }
             else
@@ -72,7 +88,6 @@ namespace ValveResourceFormat.ResourceTypes
                     Resource = Resource,
                 };
                 ntro.Read(reader);
-                Data = ntro.Output;
                 BackingData = ntro;
             }
         }

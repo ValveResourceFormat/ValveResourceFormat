@@ -2,8 +2,8 @@ namespace ValveResourceFormat
 {
     /// <summary>
     /// Flags describing how root motion is applied from an animation segment.
-    /// Corresponds to the <c>motionflags</c> field in <c>CAnimMovement</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimMovement">CAnimMovement</seealso>
     [Flags]
     public enum ModelAnimationMotionFlags
     {

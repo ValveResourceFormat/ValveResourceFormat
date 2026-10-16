@@ -1,6 +1,9 @@
 <Project>
   <PropertyGroup>
-    <ProjectBaseVersion>20.0</ProjectBaseVersion>
+    <!-- The SDK version is pinned in global.json -->
+    <TargetFramework>net10.0</TargetFramework>
+
+    <ProjectBaseVersion>20.1</ProjectBaseVersion>
     <ProjectVersion Condition="'$(GITHUB_RUN_NUMBER)' != ''">$(ProjectBaseVersion).$(GITHUB_RUN_NUMBER)</ProjectVersion>
     <ProjectVersion Condition="'$(GITHUB_RUN_NUMBER)' == ''">$(ProjectBaseVersion).0</ProjectVersion>
     <DefineConstants Condition="'$(GITHUB_REF_TYPE)' == 'tag'">$(DefineConstants);CI_RELEASE_BUILD</DefineConstants>
@@ -28,6 +31,7 @@
     <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
     <AnalysisMode Condition="'$(Configuration)' == 'Release'">All</AnalysisMode>
     <AnalysisMode Condition="'$(Configuration)' != 'Release'">Recommended</AnalysisMode>
+    <EnforceCodeStyleInBuild Condition="'$(Configuration)' == 'Release'">true</EnforceCodeStyleInBuild>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 

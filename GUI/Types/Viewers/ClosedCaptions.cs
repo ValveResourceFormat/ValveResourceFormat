@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using GUI.Utils;
-using ValveResourceFormat.ClosedCaptions;
 
 namespace GUI.Types.Viewers
 {

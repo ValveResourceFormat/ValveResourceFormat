@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using NLayer;
 
 namespace ValveResourceFormat.Renderer.Audio.Decoders;
@@ -255,7 +256,7 @@ internal sealed class MpegFrameWalker : IMpegFrame
         }
 
         position += 4;
-        var flags = (data[position] << 24) | (data[position + 1] << 16) | (data[position + 2] << 8) | data[position + 3];
+        var flags = BinaryPrimitives.ReadInt32BigEndian(data.AsSpan(position));
         position += 4;
 
         if ((flags & 1) != 0) // frame count
@@ -265,7 +266,7 @@ internal sealed class MpegFrameWalker : IMpegFrame
                 return false;
             }
 
-            frameCount = (data[position] << 24) | (data[position + 1] << 16) | (data[position + 2] << 8) | data[position + 3];
+            frameCount = BinaryPrimitives.ReadInt32BigEndian(data.AsSpan(position));
             position += 4;
         }
 

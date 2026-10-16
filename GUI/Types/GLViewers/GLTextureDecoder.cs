@@ -164,10 +164,10 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
                 var isDecoded = DecodeTexture(decodeRequest);
                 decodeRequest.MarkAsDone(isDecoded);
             }
-            catch
+            catch (Exception e)
             {
+                RendererContext.Logger.LogError(e, "Failed to decode texture \"{FileName}\" on the GPU", decodeRequest.Resource.FileName);
                 decodeRequest.MarkAsDone(false);
-                throw;
             }
         }
     }
@@ -176,6 +176,18 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         var inputTexture = RendererContext.MaterialLoader.LoadTexture(request.Resource);
 
+        try
+        {
+            return DrawAndReadBack(request, inputTexture);
+        }
+        finally
+        {
+            inputTexture.Delete();
+        }
+    }
+
+    private bool DrawAndReadBack(DecodeRequest request, RenderTexture inputTexture)
+    {
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
 
         var framebufferFormat = request.Bitmap.ColorType switch
@@ -234,8 +246,6 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         // full screen triangle
         GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-
-        inputTexture.Delete();
 
         var pixels = request.Bitmap.GetPixels(out var outputLength);
         var isHdr = Framebuffer.ColorFormat == ImageFormat.RGBA32323232F;

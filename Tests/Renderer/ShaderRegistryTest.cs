@@ -1,13 +1,9 @@
-using System;
 using System.IO;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Shaders;
-using ValveResourceFormat.Renderer.Utils;
 
 namespace Tests.Renderer
 {

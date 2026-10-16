@@ -57,6 +57,10 @@ export default defineConfig({
                             link: "/guides/getting-started",
                         },
                         {
+                            text: "Game Search Paths",
+                            link: "/guides/game-search-paths",
+                        },
+                        {
                             text: "Format Support",
                             link: "/guides/format-support",
                         },

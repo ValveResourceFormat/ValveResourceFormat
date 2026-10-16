@@ -1,5 +1,5 @@
 * text=auto
-*.cs text=auto diff=csharp
+*.cs text=auto eol=lf diff=csharp
 
 *.png binary
 *.ico binary

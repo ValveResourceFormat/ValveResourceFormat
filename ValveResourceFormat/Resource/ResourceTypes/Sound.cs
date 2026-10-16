@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using ValveKeyValue;
@@ -80,6 +81,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public enum AudioFileType
         {
+            /// <summary>No audio data, such as containers that only reference other sounds.</summary>
+            None = -1,
             /// <summary>Advanced Audio Coding container.</summary>
             AAC = 0,
             /// <summary>Waveform Audio File Format container.</summary>
@@ -124,7 +127,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the audio file type.
         /// </summary>
         /// <value>The file type.</value>
-        public AudioFileType SoundType { get; private set; }
+        public AudioFileType SoundType { get; private set; } = AudioFileType.None;
 
         /// <summary>
         /// Gets the samples per second.
@@ -195,6 +198,17 @@ namespace ValveResourceFormat.ResourceTypes
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
+            // Version 5 sounds have an empty DATA block and store their info in CTRL
+            if (ReadFromCtrl())
+            {
+                return;
+            }
+
+            if (Size == 0)
+            {
+                return;
+            }
+
             reader.BaseStream.Position = Offset;
 
             if (Resource.Version > 4)
@@ -214,22 +228,32 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var bitpackedSoundInfo = reader.ReadUInt32();
                 var type = ExtractSub(bitpackedSoundInfo, 0, 2);
+                var bits = ExtractSub(bitpackedSoundInfo, 2, 5);
+                // Bits 9-11 are the bytes per sample frame, channels times bytes per sample
+                var waveFormat = (WaveAudioFormat)ExtractSub(bitpackedSoundInfo, 12, 2);
 
-                if (type > 2)
+                var soundFormat = (AudioFileType)type switch
                 {
-                    throw new InvalidDataException($"Unknown sound type in old vsnd version: {type}");
-                }
+                    AudioFileType.MP3 => AudioFormatV4.MP3,
+                    AudioFileType.WAV when waveFormat == WaveAudioFormat.ADPCM => AudioFormatV4.ADPCM,
+                    AudioFileType.WAV when bits == 8 => AudioFormatV4.PCM8,
+                    AudioFileType.WAV => AudioFormatV4.PCM16,
+                    AudioFileType.AAC => AudioFormatV4.PCM16, // The engine plays this type as 16-bit PCM
+                    _ => throw new InvalidDataException($"Unknown sound type in old vsnd version: {type}"),
+                };
 
-                SoundType = (AudioFileType)type;
-                Bits = ExtractSub(bitpackedSoundInfo, 2, 5);
+                SetSoundFormatBits(soundFormat);
                 Channels = ExtractSub(bitpackedSoundInfo, 7, 2);
-                SampleSize = ExtractSub(bitpackedSoundInfo, 9, 3);
-                AudioFormat = (WaveAudioFormat)ExtractSub(bitpackedSoundInfo, 12, 2);
-                SampleRate = ExtractSub(bitpackedSoundInfo, 14, 17);
+                SampleRate = ExtractSub(bitpackedSoundInfo, 14, 16);
             }
 
             LoopStart = reader.ReadInt32();
             SampleCount = reader.ReadUInt32();
+
+            if (Resource.Version < 3 && SoundType == AudioFileType.MP3)
+            {
+                LoopStart = -1;
+            }
             Duration = reader.ReadSingle();
 
             var sentencePosition = reader.BaseStream.Position;
@@ -245,30 +269,17 @@ namespace ValveResourceFormat.ResourceTypes
                 sentenceOffset = (uint)(sentencePosition + sentenceOffset);
             }
 
+            // An array the engine relocates but never reads
             if (Resource.Version >= 1)
             {
-                var d = reader.ReadUInt32();
-                if (d != 0)
-                {
-                    throw new UnexpectedMagicException("Unexpected", d, nameof(d));
-                }
-
-                var e = reader.ReadUInt32();
-                if (e != 0)
-                {
-                    throw new UnexpectedMagicException("Unexpected", e, nameof(e));
-                }
+                reader.ReadInt32(); // offset
+                reader.ReadInt32(); // count
             }
 
-            // v2 and v3 are the same?
-            // likely CAudioMorphData (m_morphData inside CAudioSentence)
+            // Pointer to CAudioMorphData, v3 adds no new fields
             if (Resource.Version >= 2)
             {
-                var f = reader.ReadUInt32();
-                if (f != 0)
-                {
-                    throw new UnexpectedMagicException("Unexpected", f, nameof(f));
-                }
+                reader.ReadInt32();
             }
 
             if (Resource.Version >= 4)
@@ -288,13 +299,8 @@ namespace ValveResourceFormat.ResourceTypes
             ReadPhonemeStream(reader, sentenceOffset);
         }
 
-        /// <summary>
-        /// Constructs sound data from the control block.
-        /// </summary>
-        public bool ConstructFromCtrl()
+        private bool ReadFromCtrl()
         {
-            Offset = Resource.FileSize;
-
             if (Resource.GetBlockByType(BlockType.CTRL) is not BinaryKV3 obj)
             {
                 return false;
@@ -482,6 +488,53 @@ namespace ValveResourceFormat.ResourceTypes
             };
         }
 
+        /// <summary>
+        /// Returns human readable label and value pairs describing this sound: its duration,
+        /// container and encoding, channel layout, sample rate, bit depth, sample count, loop
+        /// points when the sound loops, and the size of the streaming audio data.
+        /// </summary>
+        /// <returns>The metadata rows, in display order.</returns>
+        public IReadOnlyList<(string Label, string Value)> GetInfoRows()
+        {
+            var duration = TimeSpan.FromSeconds(Duration);
+            var durationFormat = duration.TotalHours >= 1d ? @"h\:mm\:ss\.fff" : @"m\:ss\.fff";
+
+            var format = AudioFormat == WaveAudioFormat.Unknown
+                ? SoundType.ToString()
+                : $"{SoundType} {AudioFormat}";
+
+            var channels = Channels switch
+            {
+                1 => "Mono",
+                2 => "Stereo",
+                _ => Channels.ToString(CultureInfo.InvariantCulture),
+            };
+
+            var rows = new List<(string Label, string Value)>
+            {
+                ("Duration", duration.ToString(durationFormat, CultureInfo.InvariantCulture)),
+                ("Format", format),
+                ("Channels", channels),
+                ("Sample rate", $"{SampleRate.ToString(CultureInfo.InvariantCulture)} Hz"),
+            };
+
+            if (Bits > 0)
+            {
+                rows.Add(("Bit depth", $"{Bits.ToString(CultureInfo.InvariantCulture)}-bit"));
+            }
+
+            rows.Add(("Samples", SampleCount.ToString("N0", CultureInfo.InvariantCulture)));
+
+            if (LoopStart >= 0 && LoopEnd > LoopStart)
+            {
+                rows.Add(("Loop", $"{LoopStart.ToString("N0", CultureInfo.InvariantCulture)} to {LoopEnd.ToString("N0", CultureInfo.InvariantCulture)}"));
+            }
+
+            rows.Add(("Streaming data", $"{StreamingDataSize.ToString("N0", CultureInfo.InvariantCulture)} bytes"));
+
+            return rows;
+        }
+
         private static uint ExtractSub(uint l, byte offset, byte nrBits)
         {
             var rightShifted = l >> offset;
@@ -506,20 +559,22 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Reads the raw streaming sound data - the samples exactly as stored, without the container
-        /// header <see cref="GetSoundStream"/> synthesizes - into <paramref name="buffer"/>, which must be
-        /// exactly <see cref="StreamingDataSize"/> bytes. The stored format is described by
-        /// <see cref="SoundType"/>, <see cref="AudioFormat"/>, <see cref="Bits"/>, <see cref="Channels"/>,
-        /// <see cref="SampleRate"/> and (for ADPCM) <see cref="Header"/>, so decoders can consume the data
-        /// directly instead of round-tripping through a synthesized RIFF header.
+        /// Reads the raw streaming data as stored, without the container header <see cref="GetSoundStream"/> synthesizes,
+        /// into <paramref name="buffer"/>, which must be exactly <see cref="StreamingDataSize"/> bytes.
+        /// The format is given by <see cref="SoundType"/>, <see cref="AudioFormat"/>, <see cref="Bits"/>,
+        /// <see cref="Channels"/>, <see cref="SampleRate"/> and (for ADPCM) <see cref="Header"/>, so decoders
+        /// can use the data directly without a round-trip through a synthesized RIFF header.
         /// </summary>
         public void ReadStreamingData(Span<byte> buffer)
         {
             Debug.Assert(buffer.Length == StreamingDataSize);
             Debug.Assert(Reader != null);
 
-            Reader.BaseStream.Position = Offset + Size;
-            Reader.BaseStream.ReadExactly(buffer);
+            lock (Resource.ReaderLock)
+            {
+                Reader.BaseStream.Position = Resource.FileSize;
+                Reader.BaseStream.ReadExactly(buffer);
+            }
         }
 
         /// <summary>
@@ -576,8 +631,11 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             Debug.Assert(Reader != null);
-            Reader.BaseStream.Position = Offset + Size;
-            Reader.BaseStream.CopyTo(stream);
+            lock (Resource.ReaderLock)
+            {
+                Reader.BaseStream.Position = Resource.FileSize;
+                Reader.BaseStream.CopyTo(stream);
+            }
             Debug.Assert(stream.Length == totalSize);
 
             // Flush and reset position so that consumers can read it
@@ -607,14 +665,23 @@ namespace ValveResourceFormat.ResourceTypes
             writer.WriteLine($"Format: {AudioFormat}");
             writer.WriteLine($"Channels: {Channels}");
 
-            var loopStart = TimeSpan.FromSeconds((double)LoopStart / SampleRate);
-            writer.WriteLine($"LoopStart: {LoopStart} ({loopStart})");
+            // Containers that only reference other sounds have a sample rate of zero
+            if (SampleRate > 0)
+            {
+                var loopStart = TimeSpan.FromSeconds((double)LoopStart / SampleRate);
+                writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"LoopStart: {LoopStart} ({loopStart})"));
 
-            var loopEnd = TimeSpan.FromSeconds((double)LoopEnd / SampleRate);
-            writer.WriteLine($"LoopEnd: {LoopEnd} ({loopEnd})");
+                var loopEnd = TimeSpan.FromSeconds((double)LoopEnd / SampleRate);
+                writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"LoopEnd: {LoopEnd} ({loopEnd})"));
+            }
+            else
+            {
+                writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"LoopStart: {LoopStart}"));
+                writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"LoopEnd: {LoopEnd}"));
+            }
 
             var duration = TimeSpan.FromSeconds(Duration);
-            writer.WriteLine($"Duration: {duration} ({Duration})");
+            writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Duration: {duration} ({Duration})"));
 
             writer.WriteLine($"StreamingDataSize: {StreamingDataSize}");
 
@@ -624,11 +691,11 @@ namespace ValveResourceFormat.ResourceTypes
                 writer.Indent++;
                 foreach (var phoneme in Sentence.RunTimePhonemes)
                 {
-                    writer.WriteLine($"PhonemeTag(StartTime={phoneme.StartTime}, EndTime={phoneme.EndTime}, PhonemeCode={phoneme.PhonemeCode})");
+                    writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"PhonemeTag(StartTime={phoneme.StartTime}, EndTime={phoneme.EndTime}, PhonemeCode={phoneme.PhonemeCode})"));
                 }
                 foreach (var sample in Sentence.EmphasisSamples)
                 {
-                    writer.WriteLine($"EmphasisSample(Time={sample.Time}, Value={sample.Value})");
+                    writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"EmphasisSample(Time={sample.Time}, Value={sample.Value})"));
                 }
                 writer.Indent--;
             }

@@ -1,7 +1,8 @@
-using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Entities;
+#if VKTODO
+using ValveResourceFormat.Renderer.Gameplay;
+#endif
 using ValveResourceFormat.Renderer.SceneNodes;
-using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Input;
 
@@ -41,13 +42,15 @@ public class UserInput
     /// <summary>Gets the internal camera whose location and angles are updated by input processing.</summary>
     public Camera Camera { get; }
     /// <summary>Gets or sets the physics world used for orbit-target and player-movement ray traces.</summary>
-    public Rubikon? PhysicsWorld { get; set; }
+    public PhysicsWorld? PhysicsWorld { get; set; }
 
+#if VKTODO
     /// <summary>
     /// Gets or sets the entity world whose solid entities the player collides with, on top of
     /// <see cref="PhysicsWorld"/>. Brush entities move, so they are traced separately from the static world.
     /// </summary>
-    //VKTODO: public EntitySystem? EntitySystem { get; set; }
+    public EntitySystem? EntitySystem { get; set; }
+#endif
 
     private Vector3? _orbitTarget;
     private bool _forceUpdate = true;
@@ -96,12 +99,16 @@ public class UserInput
     /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
     public bool NoClip => !WalkMode;
 
+    /// <summary>Gets whether the mouse turns the camera without a button held. Toggled with Z while no mouse button is held, off with escape.</summary>
+    public bool MouseLook { get; private set; }
+
     /// <summary>
-    /// Gets a value indicating whether the walk mode crosshair should be drawn. The viewmodel already
-    /// hides itself outside walk mode and while the camera is detached, so it decides; without one
-    /// there is nothing to aim, so no crosshair.
+    /// Gets whether to draw the walk mode crosshair. The viewmodel hides itself outside walk mode and while
+    /// the camera is detached, so it decides. With no viewmodel there is nothing to aim at.
     /// </summary>
-    //VKTODO: public bool ShowCrosshair => Viewmodel is { ShowCrosshair: true };
+#if VKTODO
+    public bool ShowCrosshair => Viewmodel is { ShowCrosshair: true };
+#endif
 
     /// <summary>The buttons down as of this frame's sample, which movement folds into its own tick state.</summary>
     internal TrackedKeys Keys { get; private set; }
@@ -238,7 +245,7 @@ public class UserInput
             {
                 OrbitTarget = null;
 
-                var traceResult = PhysicsWorld?.TraceRay(Camera.Location, Camera.Location + Camera.Forward * 10000f);
+                var traceResult = PhysicsWorld?.TraceRay(Camera.Location, Camera.Location + Camera.Forward * 10000f, Rubikon.DefaultGeometry);
                 if (traceResult is { Hit: true, HitPosition: var hitPosition })
                 {
                     OrbitTarget = hitPosition;
@@ -261,18 +268,15 @@ public class UserInput
             EscapeFreedMouse = false;
         }
 
-        var wasWalking = WalkMode;
         if (Pressed(TrackedKeys.X))
         {
-            WalkMode = !WalkMode;
-            PlayerMovement.Initialize = WalkMode;
+            SetWalkMode(!WalkMode);
         }
         else if (WalkMode && Pressed(TrackedKeys.Escape))
         {
             if (EscapeFreedMouse)
             {
-                WalkMode = false;
-                PlayerMovement.Initialize = WalkMode;
+                SetWalkMode(false);
             }
             else
             {
@@ -280,16 +284,14 @@ public class UserInput
             }
         }
 
-        if (wasWalking && !WalkMode)
+        // Z moves down while dragging to look, so it only toggles mouse look with the buttons up
+        if (!WalkMode && Pressed(TrackedKeys.Z) && (keyboardState & TrackedKeys.MouseLeftOrRight) == 0)
         {
-            MoveCamera(new Vector3(0, 0, 32), transition: true);
-            CurrentSpeedModifier = 7;
+            MouseLook = !MouseLook;
         }
-        else if (!wasWalking && WalkMode)
+        else if (Pressed(TrackedKeys.Escape))
         {
-            // Only reachable on the frame X hands control back, since otherwise the two agree. The body
-            // is about to be seeded from the camera, so the view has to stop trailing it first.
-            SettleCamera();
+            MouseLook = false;
         }
 
         Camera.Roll = 0f;
@@ -300,7 +302,7 @@ public class UserInput
         }
         else if (OrbitMode)
         {
-            HandleOrbitControls(deltaTime, keyboardState, WalkMode);
+            HandleOrbitControls(deltaTime, keyboardState, WalkMode || MouseLook);
         }
         else if (NoClip)
         {
@@ -308,10 +310,12 @@ public class UserInput
         }
         else
         {
-            //VKTODO: if (Viewmodel != null)
-            //{
-            //    PlayerMovement.RunSpeed = Viewmodel.WeaponMaxSpeed;
-            //}
+#if VKTODO
+            if (Viewmodel != null)
+            {
+                PlayerMovement.RunSpeed = Viewmodel.WeaponMaxSpeed;
+            }
+#endif
 
             PlayerMovement.ProcessMovement(Camera, deltaTime);
 
@@ -321,7 +325,9 @@ public class UserInput
             Camera.ClampRotation();
         }
 
-        //VKTODO: Viewmodel?.ProcessInput(this, Renderer.Uptime);
+#if VKTODO
+        Viewmodel?.ProcessInput(this, Renderer.Uptime);
+#endif
 
         ApplyToRenderCamera(renderCamera);
 
@@ -332,10 +338,20 @@ public class UserInput
     {
         var finalCamera = GetInterpolatedCamera();
 
-        // The landing punch tilts the rendered view down without touching the stored aim.
-        var viewPunchPitch = float.DegreesToRadians(PlayerMovement.ViewPunchPitchDegrees);
+        // Landing and firing punch the rendered view without touching the stored aim.
+        var punch = PlayerMovement.ViewPunchDegrees;
 
-        renderCamera.SetLocationPitchYaw(finalCamera.Location, finalCamera.Pitch + viewPunchPitch, finalCamera.Yaw);
+#if VKTODO
+        if (Viewmodel != null)
+        {
+            punch += Viewmodel.AimPunchServices.Punch * AimPunchServices.ViewScale;
+        }
+#endif
+
+        renderCamera.SetLocationPitchYaw(
+            finalCamera.Location,
+            finalCamera.Pitch + float.DegreesToRadians(punch.X),
+            finalCamera.Yaw + float.DegreesToRadians(punch.Y));
         renderCamera.ClampRotation();
 
         renderCamera.Roll = Camera.Roll;
@@ -374,7 +390,36 @@ public class UserInput
     private CameraLite CameraPositionAngles
         => new(Camera.Location, Camera.Pitch, Camera.Yaw);
 
-    //VKTODO: private ViewmodelSceneNode? Viewmodel { get; set; }
+#if VKTODO
+    private ViewmodelSceneNode? Viewmodel { get; set; }
+#endif
+
+    /// <summary>
+    /// Switches between walking as the player and flying the camera. Entering seeds the player from the
+    /// camera on the next tick; leaving lifts the camera a little and restores a flying speed.
+    /// </summary>
+    /// <param name="walk">Whether to walk as the player.</param>
+    public void SetWalkMode(bool walk)
+    {
+        if (WalkMode == walk)
+        {
+            return;
+        }
+
+        WalkMode = walk;
+        PlayerMovement.Initialize = walk;
+
+        if (walk)
+        {
+            // The body is about to be seeded from the camera, so the view has to stop trailing it first
+            SettleCamera();
+        }
+        else
+        {
+            MoveCamera(new Vector3(0, 0, 32), transition: true);
+            CurrentSpeedModifier = 7;
+        }
+    }
 
     /// <summary>
     /// Switches to noclip mode and begins a smooth camera transition from the current position.
@@ -482,7 +527,7 @@ public class UserInput
         Camera.Location = target - Camera.Forward * OrbitDistance;
     }
 
-    private void HandleOrbitControls(float deltaTime, TrackedKeys keyboardState, bool walking)
+    private void HandleOrbitControls(float deltaTime, TrackedKeys keyboardState, bool mouseLook)
     {
         var previousCamera = CameraPositionAngles;
 
@@ -495,7 +540,7 @@ public class UserInput
             Camera.Location += panOffset;
         }
 
-        if ((keyboardState & TrackedKeys.MouseLeft) != 0 || walking)
+        if ((keyboardState & TrackedKeys.MouseLeft) != 0 || mouseLook)
         {
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.Pitch += MouseDeltaPitchYaw.X;
@@ -552,7 +597,7 @@ public class UserInput
                 var extendedRay = toLocation + direction * minDistance;
                 var extendedDistance = movementDistance + minDistance;
 
-                var traceResult = PhysicsWorld.TraceRay(fromLocation, extendedRay);
+                var traceResult = PhysicsWorld.TraceRay(fromLocation, extendedRay, Rubikon.DefaultGeometry);
                 if (traceResult is { Hit: true, HitPosition: var hitPosition, Distance: var distance })
                 {
                     return (true, hitPosition - (direction * (minDistance + margin)), distance / extendedDistance);
@@ -664,14 +709,17 @@ public class UserInput
             targetVelocity -= Camera.Right * maxSpeed;
         }
 
-        if ((keyboardState & TrackedKeys.Z) != 0)
+        if ((keyboardState & TrackedKeys.MouseLeftOrRight) != 0)
         {
-            targetVelocity += new Vector3(0, 0, -maxSpeed);
-        }
+            if ((keyboardState & TrackedKeys.Z) != 0)
+            {
+                targetVelocity += new Vector3(0, 0, -maxSpeed);
+            }
 
-        if ((keyboardState & TrackedKeys.Q) != 0)
-        {
-            targetVelocity += new Vector3(0, 0, maxSpeed);
+            if ((keyboardState & TrackedKeys.Q) != 0)
+            {
+                targetVelocity += new Vector3(0, 0, maxSpeed);
+            }
         }
 
         // Apply acceleration or deceleration
@@ -706,13 +754,14 @@ public class UserInput
         TransitionCamera(transitionDuration: 0.5f);
     }
 
+#if VKTODO
     /// <summary>
     /// Try and load a game viewmodel to display in walk mode.
     /// </summary>
-    public bool TryLoadViewmodel(Scene scene)
+    public bool TryLoadViewmodel(Scene scene, EntitySystem entitySystem)
     {
-        //VKTODO: Viewmodel = ViewmodelSceneNode.TryLoadCs2Viewmodel(scene);
-        //VKTODO: OrbitFollowProvider = Viewmodel is null ? null : Viewmodel.GetOrbitFollow;
-        return false; //VKTODO: Viewmodel != null;
+        Viewmodel = ViewmodelSceneNode.TryLoadCs2Viewmodel(scene, entitySystem);
+        return Viewmodel != null;
     }
+#endif
 }

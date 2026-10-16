@@ -6,7 +6,7 @@ namespace GUI.Controls;
 // renders the UI agnostic ViewerContent model into winforms controls
 static class ViewerContentPresenter
 {
-    public static void Present(TabPage container, ViewerContent content)
+    public static void Present(Control container, ViewerContent content)
     {
         container.Controls.Add(CreateControl(content, out _));
     }

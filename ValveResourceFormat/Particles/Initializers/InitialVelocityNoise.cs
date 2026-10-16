@@ -61,7 +61,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 MapComponent(noise.Y, absVal.Y != 0f, absValInv.Y != 0f, anyInverted, min.Y, max.Y),
                 MapComponent(noise.Z, absVal.Z != 0f, absValInv.Z != 0f, anyInverted, min.Z, max.Z));
 
-            var transform = transformInput.NextTransform(ref particle, particleSystemState);
+            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
             var transformed = Vector3.TransformNormal(velocity, transform);
 
             // The engine skips the timestep multiply on its previous-position subtraction, which in
@@ -78,7 +78,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         /// <summary>
         /// When any component is inverted, inverted components become 1 + noise while the other
-        /// components are sign-flipped, exceeding the usual output band; engine behavior.
+        /// components are sign-flipped, exceeding the usual output band.
         /// </summary>
         private static float MapComponent(float noise, bool absolute, bool inverted, bool anyInverted, float min, float max)
         {

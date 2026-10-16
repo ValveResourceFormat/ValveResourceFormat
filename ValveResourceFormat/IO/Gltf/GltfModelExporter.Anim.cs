@@ -3,10 +3,9 @@ using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using SharpGLTF.Schema2;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
-using VAnim = ValveResourceFormat.ResourceTypes.ModelAnimation.Animation;
+using VAnim = ValveResourceFormat.ResourceTypes.ModelAnimation.AnimationBase;
 using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
 using VModel = ValveResourceFormat.ResourceTypes.Model;
 
@@ -56,9 +55,8 @@ public partial class GltfModelExporter
         }
 
         /// <summary>
-        /// Writes a skeletal animation to the glTF model. Entries in <paramref name="joints"/> may be
-        /// null when an animation targets a skeleton with bones the exported model does not have
-        /// (e.g. animation graph clips retargeted by bone name); those bones are skipped.
+        /// Writes a skeletal animation to the glTF model. Null joints, for bones the model lacks
+        /// (e.g. animation graph clips retargeted by name), are skipped.
         /// </summary>
         public void WriteAnimation(ModelRoot model, Node?[] joints, VAnim animation, string? animationName = null)
         {
@@ -351,7 +349,7 @@ public partial class GltfModelExporter
         // See https://github.com/ValveResourceFormat/ValveResourceFormat/issues/527 (NaN)
         // and https://github.com/ValveResourceFormat/ValveResourceFormat/issues/570 (inf)
         private static float SanitizeScale(float value)
-            => float.IsNaN(value) || float.IsInfinity(value) ? 0f : value;
+            => float.IsFinite(value) ? value : 0f;
     }
 
     /// <summary>

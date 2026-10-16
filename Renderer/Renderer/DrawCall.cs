@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Renderer.Materials;
 
 namespace ValveResourceFormat.Renderer
 {

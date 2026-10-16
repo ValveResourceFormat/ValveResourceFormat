@@ -60,6 +60,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public bool IsProceduralCloth => (Flags & ModelSkeletonBoneFlags.ProceduralCloth) == ModelSkeletonBoneFlags.ProceduralCloth;
 
         /// <summary>
+        /// Gets a value indicating whether this bone is a cloth control node. Unlike <see cref="IsProceduralCloth"/>,
+        /// this includes static nodes.
+        /// </summary>
+        public bool IsClothControlNode => (Flags & ModelSkeletonBoneFlags.Cloth) == ModelSkeletonBoneFlags.Cloth;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="Bone"/> class.
         /// </summary>
         public Bone(int index, string name, Vector3 position, Quaternion rotation, ModelSkeletonBoneFlags flags)

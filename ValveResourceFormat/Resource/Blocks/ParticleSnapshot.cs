@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Collections;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using ValveResourceFormat.Compression;
@@ -72,6 +73,7 @@ namespace ValveResourceFormat.Blocks
             ParticleField.ManualAnimationFrame => "manual_animation_frame",
             ParticleField.ShaderExtraData1 => "shader_extra_data_1",
             ParticleField.ShaderExtraData2 => "shader_extra_data_2",
+            ParticleField.RopeSegmentId => "rope_segment_id",
             _ => null,
         };
 
@@ -217,7 +219,7 @@ namespace ValveResourceFormat.Blocks
             /// </remarks>
             public override string ToString()
                 => string.Join(' ', Enumerable.Range(0, 4)
-                    .Select(i => $"({JointNames[i]}: {Weights[i]})"));
+                    .Select(i => string.Create(CultureInfo.InvariantCulture, $"({JointNames[i]}: {Weights[i]})")));
         }
 
         private static SkinningData[] ReadSkinningData(BinaryReader reader, long count, string[] stringList)
