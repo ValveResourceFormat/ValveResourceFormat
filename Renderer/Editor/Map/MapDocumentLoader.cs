@@ -10,6 +10,7 @@ using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 using DMElement = Datamodel.Element;
@@ -56,6 +57,12 @@ public sealed class MapDocumentLoader : IDisposable
     /// as it has no light of its own to add.
     /// </summary>
     public bool HasLights { get; private set; }
+
+    /// <summary>
+    /// Gets whether the map is lit with lighting the editor baked for it, once it is loaded. It is not when nothing
+    /// was baked, or the game does not say which version of baked lighting it reads.
+    /// </summary>
+    public bool HasBakedLighting => scene.LightingInfo.LightmapVersionNumber != 0;
 
     /// <summary>Gets or sets how much of what entities are drawn with is created.</summary>
     public HelperLevel HelperLevel { get; set; } = HelperLevel.All;
@@ -105,15 +112,9 @@ public sealed class MapDocumentLoader : IDisposable
 
         LoadingProgress?.Report("Loading entities…");
 
-        // Lighting volumes go first: meshes copy the scene's render attributes into their shader combos as they
-        // are built, and some of those come from these entities
-        var placedEntities = placedNodes
-            .Where(static placedNode => placedNode.Node is CMapEntity)
-            .OrderByDescending(static placedNode => IsCubemapOrProbe(placedNode.Node));
-
         var created = new Dictionary<PlacedMapNode, MapEntity>();
 
-        foreach (var placedNode in placedEntities)
+        foreach (var placedNode in placedNodes.Where(static placedNode => placedNode.Node is CMapEntity))
         {
             // A path comes before its nodes, which are the entities under it
             var path = placedNode.Parent is { } parent ? created.GetValueOrDefault(parent) : null;
@@ -124,11 +125,20 @@ public sealed class MapDocumentLoader : IDisposable
             }
         }
 
+        // What the entities bake goes first: models and meshes take into their shaders whether the scene has cubemaps
+        // and light probes, and of which kind, as they are built
+        foreach (var mapEntity in mapEntities)
+        {
+            AddToScene(mapEntity, bakeResources: true);
+        }
+
+        PackBakedLighting();
+
         foreach (var mapEntity in mapEntities)
         {
             CancellationToken.ThrowIfCancellationRequested();
 
-            AddToScene(mapEntity);
+            AddToScene(mapEntity, bakeResources: false);
         }
 
         LoadingProgress?.Report("Loading map geometry…");
@@ -163,6 +173,27 @@ public sealed class MapDocumentLoader : IDisposable
 
         // Lights that are off stay in the scene without brightness
         HasLights = lights.Exists(static light => light.Brightness * light.BrightnessScale > 0f);
+    }
+
+    // The editor shows every fragment with the cubemaps and light probe volumes it is in, sampling each one's own
+    // textures. They are copied into a cube array and an atlas to the same effect.
+    private void PackBakedLighting()
+    {
+        var lighting = scene.LightingInfo;
+        var logger = rendererContext.Logger;
+
+        if (EnvironmentMapCache.Create(lighting.EnvMaps, logger) is { } cubemaps)
+        {
+            lighting.CubemapType = CubemapType.CubemapArray;
+            lighting.Lightmaps["g_tEnvironmentMap"] = cubemaps.Texture;
+        }
+
+        var volumes = lighting.LightProbes.FindAll(static probe => probe.Irradiance != null);
+
+        if (volumes.Count > 0 && LightProbeAtlas.Create(volumes, logger) != null)
+        {
+            lighting.LightProbeType = LightProbeType.ProbeAtlas;
+        }
     }
 
     // Every entity exists by now, so the ones that name others can find them
@@ -289,10 +320,6 @@ public sealed class MapDocumentLoader : IDisposable
         }
     }
 
-    private static bool IsCubemapOrProbe(DMElement node)
-        => node is CMapEntity entity && entity.EntityProperties.Get<string>("classname")
-            is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap";
-
     private MapDocument? LoadPrefab(MapDocument owner, string targetMapPath)
     {
         if (contentRoot == null)
@@ -356,10 +383,16 @@ public sealed class MapDocumentLoader : IDisposable
         return mapEntity;
     }
 
-    private void AddToScene(MapEntity mapEntity)
+    // Either only the helpers that add what the entity bakes, or only the others
+    private void AddToScene(MapEntity mapEntity, bool bakeResources)
     {
         foreach (var helper in mapEntity.Helpers)
         {
+            if (helper is BakeResourceHelper != bakeResources)
+            {
+                continue;
+            }
+
             try
             {
                 helper.AddToScene();

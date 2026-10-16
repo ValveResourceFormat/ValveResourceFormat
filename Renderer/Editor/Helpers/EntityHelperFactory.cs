@@ -254,7 +254,6 @@ public static class EntityHelperFactory
         Creates(static (owner, declaration) => new BarnLightHelper(owner, declaration), "barnlight");
         Creates(static (owner, declaration) => new RectLightHelper(owner, declaration), "rectlight");
         Creates(static (owner, declaration) => new OmniLightHelper(owner, declaration), "omnilight");
-        Creates(static (owner, declaration) => new CubemapHelper(owner, declaration), "cubemap");
         Creates(static (owner, declaration) => new BakeResourceHelper(owner, declaration), "bakeresource");
         Creates(static (owner, declaration) => new SkyboxHelper(owner, declaration), "skybox");
         Creates(static (owner, declaration) => new GradientFogHelper(owner, declaration), "gradientfog");

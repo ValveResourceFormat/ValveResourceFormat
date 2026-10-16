@@ -61,8 +61,6 @@ void main(void)
 
 out vec4 outputColor;
 
-#define ENABLE_LPV_BLENDING
-
 #include "common/lighting.slang"
 
 void main(void)

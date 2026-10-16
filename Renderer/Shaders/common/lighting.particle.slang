@@ -14,8 +14,6 @@ float GetParticleCosine(vec3 normalWs, vec3 lightDir, float directionality)
 }
 
 #if (D_BAKED_LIGHTING_FROM_PROBE == 1)
-    #define ENABLE_LPV_BLENDING
-
     #include "LightingConstants.slang"
     #include "lighting_common.slang"
     #include "lighting.lpv.slang"
