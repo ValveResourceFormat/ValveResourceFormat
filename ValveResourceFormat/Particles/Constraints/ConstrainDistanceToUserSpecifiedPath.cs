@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Particles.Constraints
                 point.Int32("m_nControlPoint"),
                 point.Boolean("m_bLocalCoords"),
                 point.Vector3("m_vOffset"),
-                point.Float("m_flTimeDuration")))];
+                point.Float("m_flTimeDuration", 0.1f)))];
         }
 
         public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)

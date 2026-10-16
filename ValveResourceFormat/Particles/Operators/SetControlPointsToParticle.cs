@@ -29,6 +29,8 @@ namespace ValveResourceFormat.Particles.Operators
             setParent = parse.Enum("m_nSetParent", setParent);
         }
 
+        public override bool IsOrderImportant => true;
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var live = particles.Current;

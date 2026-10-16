@@ -16,6 +16,8 @@ namespace ValveResourceFormat.Particles.Operators
         {
         }
 
+        public override bool IsOrderImportant => false;
+
         /// <summary>A particle landing exactly on its lifetime is spent here, one tick sooner than the base does.</summary>
         protected override bool HasExpired(float age, float lifetime) => lifetime <= age;
 

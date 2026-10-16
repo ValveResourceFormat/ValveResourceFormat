@@ -46,6 +46,8 @@ namespace ValveResourceFormat.Particles.Operators
         {
         }
 
+        public override bool IsOrderImportant => true;
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             if (hasRun || !particleSystemState.InEndCap)

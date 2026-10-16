@@ -365,7 +365,7 @@ namespace ValveResourceFormat.Particles
             var divisor = renderState.Data?.BehaviorVersion >= 12
                 ? Math.Max(renderState.ParticleCount - 1, 1)
                 : Math.Max(renderState.ParticleCount, 1);
-            return attributeMapping.ApplyMapping(particle.Index / (float)divisor);
+            return attributeMapping.ApplyMapping(particle.Index * (1f / divisor));
         }
 
         public float NextNumber(ParticleSystemState renderState) => 0f;
