@@ -21,8 +21,11 @@ namespace ValveResourceFormat.Renderer
         Water,
         /// <summary>Translucent (alpha-blended) pass.</summary>
         Translucent,
-        /// <summary>Selection outline pass.</summary>
-        Outline,
+        /// <summary>
+        /// Every part of a node at once, whatever pass it would draw in, for drawing chosen nodes again with a
+        /// replacement shader.
+        /// </summary>
+        All,
     }
 
     /// <summary>

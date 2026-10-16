@@ -21,7 +21,6 @@ namespace ValveResourceFormat.Renderer.PostProcess
         private RenderTexture? combinedLut;
         private static readonly string[] LutSamplerNames =
             ["g_tColorCorrection0", "g_tColorCorrection1", "g_tColorCorrection2", "g_tColorCorrection3"];
-        private readonly OutlineRenderer Outline;
 
         /// <summary>Gets or sets the blue noise texture used for dithering in the tonemap pass.</summary>
         public RenderTexture? BlueNoise { get; set; }
@@ -41,12 +40,6 @@ namespace ValveResourceFormat.Renderer.PostProcess
         public bool Enabled { get; set; } = true;
         /// <summary>Gets or sets a value indicating whether color correction LUT application is active.</summary>
         public bool ColorCorrectionEnabled { get; set; } = true;
-        /// <summary>Gets or sets a value indicating whether any scene objects require outline rendering this frame.</summary>
-        public bool HasOutlineObjects { get; set; }
-
-        /// <summary>Gets or sets the multisampled coverage mask produced by the outline geometry pass.</summary>
-        public RenderTexture? OutlineMask { get; set; }
-
         /// <summary>Gets the per-frame raw exposure scalar history used for temporal smoothing.</summary>
         public List<float> ExposureHistory { get; } = new(10);
 
@@ -101,7 +94,6 @@ namespace ValveResourceFormat.Renderer.PostProcess
             RendererContext = rendererContext;
             Bloom = new BloomRenderer(rendererContext, this);
             DOF = new DOFRenderer(rendererContext);
-            Outline = new OutlineRenderer(rendererContext);
         }
 
         /// <summary>
@@ -119,7 +111,6 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
             DOF.MsaaSamples = msaa;
             Bloom.Load();
-            Outline.Load();
         }
 
         /// <summary>
@@ -340,13 +331,6 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
                 GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-            }
-
-            if (HasOutlineObjects)
-            {
-                using var outlineGroup = new GLDebugGroup("Outline Edge");
-                Debug.Assert(OutlineMask != null);
-                Outline.Render(OutlineMask, colorBufferRead.NumSamples);
             }
         }
 

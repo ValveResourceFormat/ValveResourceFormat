@@ -824,12 +824,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             particleRenderer.Render(context.Camera, context.RenderPass, context.Layer);
         }
 
-        /// <summary>Draws with a pass replacement shader, for picking and the selection outline.</summary>
+        /// <summary>Draws with a pass replacement shader, such as the one picking draws with.</summary>
         private void RenderReplacement(Scene.RenderContext context, Shader replacement)
         {
             if (!particleRenderer.CanRenderReplacement
                 || context.Layer != RenderLayer.Scene
-                || context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline))
+                || context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.All))
             {
                 return;
             }

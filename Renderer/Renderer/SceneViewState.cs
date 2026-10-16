@@ -23,9 +23,6 @@ public sealed class SceneViewState : IDisposable
     /// <summary>Gets whether anything drawn after the framebuffer grab samples the scene depth.</summary>
     public bool WantsSceneDepth { get; private set; }
 
-    /// <summary>Gets whether there are any selected nodes queued for outline rendering.</summary>
-    public bool HasOutlineObjects => renderLists[RenderPass.Outline].Count > 0;
-
     /// <summary>Gets whether anything is queued to draw into the water effects map this frame.</summary>
     public bool HasWaterEffects => waterEffectsRenderList.Count > 0;
 
@@ -68,7 +65,6 @@ public sealed class SceneViewState : IDisposable
         [RenderPass.OpaqueRefract] = [],
         [RenderPass.Water] = [],
         [RenderPass.Translucent] = [],
-        [RenderPass.Outline] = [],
     };
 
     private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> viewmodelRenderLists = new()
@@ -108,6 +104,12 @@ public sealed class SceneViewState : IDisposable
 
     /// <summary>Surfaces drawn over the resolved opaque scene, for <see cref="RenderTranslucentDepthLayer"/>.</summary>
     private readonly List<MeshBatchRenderer.Request> translucentDepthDraws = [];
+
+    /// <summary>Fragments their aggregate draws all at once, kept so <see cref="RenderNodes"/> can draw one alone.</summary>
+    private readonly List<MeshBatchRenderer.Request> indirectFragmentDraws = [];
+
+    /// <summary>The draws of the nodes given to <see cref="RenderNodes"/>.</summary>
+    private readonly List<MeshBatchRenderer.Request> nodeDraws = [];
 
     /// <summary>Gets whether any surface is queued for <see cref="RenderTranslucentDepthLayer"/> this frame.</summary>
     public bool HasTranslucentDepthDraws => translucentDepthDraws.Count > 0;
@@ -198,11 +200,6 @@ public sealed class SceneViewState : IDisposable
             return;
         }
 
-        if (renderPass > RenderPass.DepthOnly && request.Node.IsSelected)
-        {
-            renderLists[RenderPass.Outline].Add(request);
-        }
-
         // Aggregated geometry is opaque world detail that never samples the scene color, and the refract
         // pass is the one place it cannot go: it has neither the depth prepass nor the indirect draw path.
         var isAggregated = request.Node is SceneAggregate or SceneAggregate.Fragment;
@@ -233,9 +230,11 @@ public sealed class SceneViewState : IDisposable
 
         if (renderPass == RenderPass.OpaqueFragments)
         {
+            // Skip individual fragment draws if aggregate can be drawn with indirect draw
             if (Scene.DrawMeshletsIndirect && request.Node is SceneAggregate.Fragment { Parent.CanDrawIndirect: true })
             {
-                return; // Skip individual fragment draws if aggregate can be drawn with indirect draw
+                indirectFragmentDraws.Add(request);
+                return;
             }
 
             renderPass = RenderPass.Opaque;
@@ -308,6 +307,7 @@ public sealed class SceneViewState : IDisposable
         alphaTestAggregateDraws.Clear();
         alphaTestOpaqueDraws.Clear();
         translucentDepthDraws.Clear();
+        indirectFragmentDraws.Clear();
 
         foreach (var bucket in depthOnlyDraws.Values)
         {
@@ -490,11 +490,6 @@ public sealed class SceneViewState : IDisposable
                 if ((customPasses & CustomRenderPasses.Tools) != 0)
                 {
                     toolsRenderList.Add(customRender);
-                }
-
-                if (node.IsSelected)
-                {
-                    renderLists[RenderPass.Outline].Add(customRender);
                 }
             }
         }
@@ -959,18 +954,61 @@ public sealed class SceneViewState : IDisposable
         }
     }
 
-    /// <summary>Renders all selected nodes using the outline shader to produce selection highlights.</summary>
-    /// <param name="renderContext">The render context for this pass.</param>
-    public void RenderOutlineLayer(Scene.RenderContext renderContext)
+    /// <summary>
+    /// Draws what the last collection queued for some nodes again, each node all at once, with the replacement
+    /// shader of the context. Nodes the collection left out, such as those out of view, are not drawn.
+    /// </summary>
+    /// <param name="renderContext">The render context, with the shader to draw with.</param>
+    /// <param name="nodes">The nodes to draw.</param>
+    public void RenderNodes(Scene.RenderContext renderContext, IReadOnlySet<SceneNode> nodes)
     {
-        var passShader = renderContext.ReplacementShader;
+        ArgumentNullException.ThrowIfNull(nodes);
+        Debug.Assert(renderContext.ReplacementShader != null);
 
-        renderContext.RenderPass = RenderPass.Outline;
-        renderContext.ReplacementShader = Scene.OutlineShader;
+        nodeDraws.Clear();
 
-        MeshBatchRenderer.Render(renderLists[RenderPass.Outline], renderContext);
+        if (nodes.Count == 0)
+        {
+            return;
+        }
 
-        renderContext.ReplacementShader = passShader;
+        foreach (var requests in renderLists.Values)
+        {
+            AddNodeDraws(requests, nodes);
+        }
+
+        foreach (var requests in viewmodelRenderLists.Values)
+        {
+            AddNodeDraws(requests, nodes);
+        }
+
+        AddNodeDraws(alphaTestAggregateDraws, nodes);
+        AddNodeDraws(alphaTestOpaqueDraws, nodes);
+        AddNodeDraws(indirectFragmentDraws, nodes);
+
+        renderContext.RenderPass = RenderPass.All;
+        MeshBatchRenderer.Render(nodeDraws, renderContext);
+    }
+
+    private void AddNodeDraws(List<MeshBatchRenderer.Request> requests, IReadOnlySet<SceneNode> nodes)
+    {
+        foreach (var request in requests)
+        {
+            if (!nodes.Contains(request.Node))
+            {
+                continue;
+            }
+
+            // A node that draws itself is queued in every pass it draws in, but draws all of itself at once
+            var node = request.Node;
+
+            if (request.Call == null && nodeDraws.Exists(draw => draw.Node == node))
+            {
+                continue;
+            }
+
+            nodeDraws.Add(request);
+        }
     }
 
     /// <inheritdoc/>

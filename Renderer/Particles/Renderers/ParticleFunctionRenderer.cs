@@ -594,7 +594,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public virtual bool CanRenderReplacement => false;
 
         /// <summary>
-        /// Draws with a pass replacement shader, for the picking buffer and the outline mask.
+        /// Draws with a pass replacement shader, such as the one picking draws with.
         /// </summary>
         /// <param name="replacement">The program the pass replaced the material shaders with.</param>
         /// <param name="objectId">The owning scene node's id, drawn as the instancing base.</param>
@@ -602,8 +602,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
         }
 
-        /// <summary>Draws indexed geometry with the object id as the instancing base, which is how the
-        /// picking and outline programs read it.</summary>
+        /// <summary>Draws indexed geometry with the object id as the instancing base, which is how
+        /// replacement shaders read it.</summary>
         protected static void DrawReplacement(Shader replacement, uint objectId, int vaoHandle, int indexCount, DrawElementsType indexType)
         {
             if (indexCount == 0)

@@ -108,7 +108,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             var drawPass = IsDrawnOverScene ? RenderPass.Translucent : RenderPass.Opaque;
 
-            if (context.RenderPass != drawPass && context.RenderPass is not RenderPass.Outline and not RenderPass.DepthOnly)
+            if (context.RenderPass != drawPass && context.RenderPass is not RenderPass.All and not RenderPass.DepthOnly)
             {
                 return;
             }

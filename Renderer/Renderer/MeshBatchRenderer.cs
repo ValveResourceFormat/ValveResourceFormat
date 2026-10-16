@@ -203,7 +203,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (request.Call == null)
                 {
-                    if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline or RenderPass.DepthOnly)
+                    if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.All or RenderPass.DepthOnly)
                     {
                         material?.PostRender();
 
@@ -262,9 +262,11 @@ namespace ValveResourceFormat.Renderer
                             uniforms.LPVIrradianceTexture = shader.GetUniformLocation("g_tLPV_Irradiance");
                         }
 
-                        if (shader.Name == "picking")
+                        // A shader that tells draws apart, such as the one picking draws with, is given what each one is
+                        uniforms.MeshId = shader.GetUniformLocation("meshId");
+
+                        if (uniforms.MeshId != -1)
                         {
-                            uniforms.MeshId = shader.GetUniformLocation("meshId");
                             uniforms.ShaderId = shader.GetUniformLocation("shaderId");
                             uniforms.ShaderProgramId = shader.GetUniformLocation("shaderProgramId");
                         }
