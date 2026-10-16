@@ -1,5 +1,6 @@
 using System.Linq;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.ResourceTypes;
@@ -17,6 +18,8 @@ public sealed class MapEntity : IHelperOwner
     private readonly Dictionary<string, List<IHelperOwner>> entitiesByName;
     private readonly IReadOnlyList<IHelperOwner> mapEntities;
     private readonly List<SceneNode> nodes = [];
+    private readonly List<SceneNode> meshNodes = [];
+    private readonly Dictionary<int, MapEntity> pathNodes = [];
 
     /// <summary>Gets the node of the map the entity is, with where it was placed.</summary>
     public PlacedMapNode PlacedNode { get; }
@@ -52,12 +55,38 @@ public sealed class MapEntity : IHelperOwner
     public string LayerName { get; }
 
     /// <inheritdoc/>
+    /// <remarks>The 3D sky of a source map is a map of its own, which is not loaded with it.</remarks>
+    public bool IsInSkybox => false;
+
+    /// <inheritdoc/>
+    public AABB? LocalBounds => Helpers.OfType<ModelHelper>().FirstOrDefault()?.ModelBounds;
+
+    /// <inheritdoc/>
+    public AABB? ContentBounds
+    {
+        get
+        {
+            AABB? bounds = null;
+
+            foreach (var node in meshNodes)
+            {
+                bounds = bounds?.Union(node.BoundingBox) ?? node.BoundingBox;
+            }
+
+            return bounds;
+        }
+    }
+
+    /// <inheritdoc/>
     public IReadOnlyList<EntityHelper> Helpers { get; private set; } = [];
 
     /// <summary>Gets the nodes the entity is drawn with.</summary>
     public IReadOnlyList<SceneNode> Nodes => nodes;
 
-    internal MapEntity(Scene scene, PlacedMapNode placedNode, Entity keyValues, string layerName, ForgeGameData fgd, IReadOnlyList<IHelperOwner> mapEntities, Dictionary<string, List<IHelperOwner>> entitiesByName)
+    /// <inheritdoc/>
+    public IHelperOwner? Path { get; }
+
+    internal MapEntity(Scene scene, PlacedMapNode placedNode, Entity keyValues, string layerName, ForgeGameData fgd, IReadOnlyList<IHelperOwner> mapEntities, Dictionary<string, List<IHelperOwner>> entitiesByName, MapEntity? path)
     {
         this.mapEntities = mapEntities;
         this.entitiesByName = entitiesByName;
@@ -72,6 +101,13 @@ public sealed class MapEntity : IHelperOwner
         Origin = keyValues.GetVector3Property("origin");
         Angles = keyValues.GetVector3Property("angles");
         Scales = keyValues.GetVector3Property("scales", Vector3.One);
+
+        // A node is found by where it is among the nodes of its path, as the keys the path is flattened into count them
+        if (placedNode.Node is CMapPathNode node && path?.PlacedNode.Node is CMapPath pathNode)
+        {
+            Path = path;
+            path.pathNodes[pathNode.Children.OfType<CMapPathNode>().ToList().IndexOf(node)] = this;
+        }
     }
 
     /// <summary>Creates the helpers of the entity.</summary>
@@ -93,6 +129,10 @@ public sealed class MapEntity : IHelperOwner
         Scene.Add(node, dynamic: true);
     }
 
+    /// <summary>Adds a node of a mesh the entity is made of, which is part of what it is selected as.</summary>
+    /// <param name="node">The node, already in the scene.</param>
+    internal void AddMeshNode(SceneNode node) => meshNodes.Add(node);
+
     /// <inheritdoc/>
     public IReadOnlyList<IHelperOwner> FindByName(string name)
         => entitiesByName.TryGetValue(name, out var entities) ? entities : [];
@@ -104,4 +144,7 @@ public sealed class MapEntity : IHelperOwner
     /// <inheritdoc/>
     public IEnumerable<IHelperOwner> FindByClass(string classname)
         => mapEntities.Where(entity => entity.Classname.Equals(classname, StringComparison.OrdinalIgnoreCase));
+
+    /// <inheritdoc/>
+    public IHelperOwner? FindPathNode(int index) => pathNodes.GetValueOrDefault(index);
 }

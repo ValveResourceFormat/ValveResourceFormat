@@ -193,12 +193,13 @@ public class Renderer : ISpawnGroupHost
     public Framebuffer? BarnLightShadowBuffer { get; private set; }
 
     /// <summary>
-    /// Single channel coverage mask written by the outline geometry pass and read by the outline edge post pass.
+    /// Coverage mask written by the outline geometry pass and read by the outline edge post pass: where the
+    /// outlined objects are, and where the scene does not hide them.
     /// Lazily created to match <see cref="MainFramebuffer"/>'s dimensions and sample count.
     /// </summary>
     public Framebuffer? OutlineMaskBuffer { get; private set; }
 
-    private const ImageFormat OutlineMaskFormat = ImageFormat.I8;
+    private const ImageFormat OutlineMaskFormat = ImageFormat.RG1616;
 
     /// <summary>
     /// Resolved (non-MSAA) scene color in rgba16f format, used for refraction, bloom input, and luminance computation.
@@ -1268,7 +1269,7 @@ public class Renderer : ISpawnGroupHost
             {
                 using (new GLDebugGroup("2D Sky Render"))
                 {
-                    BackgroundFor(views)?.Render();
+                    BackgroundFor(views)?.Render(Scene.FogEnabled ? Scene.FogInfo.LinearFog : null, mainView.Camera.FarPlane);
                 }
             }
 
@@ -1935,6 +1936,34 @@ public class Renderer : ISpawnGroupHost
     }
 
     /// <summary>
+    /// Binds every scene the main camera sees in turn, the 3D sky first, with the view constants and buffers
+    /// it was rendered with, for drawing in the world over a frame that has already been rendered.
+    /// </summary>
+    /// <param name="width">Width of the target being drawn to.</param>
+    /// <param name="height">Height of the target being drawn to.</param>
+    /// <param name="draw">Draws into one scene, given the view state it was culled with.</param>
+    public void DrawOverScenes(int width, int height, Action<SceneViewState> draw)
+    {
+        ArgumentNullException.ThrowIfNull(draw);
+
+        SetViewportConstants(width, height, Vector2.One);
+
+        var views = CollectViews(Camera);
+
+        for (var i = views.Length - 1; i >= 0; i--)
+        {
+            var view = views[i];
+
+            foreach (var state in view.States)
+            {
+                BindView(view, state);
+                state.Scene.SetSceneBuffers();
+                draw(state);
+            }
+        }
+    }
+
+    /// <summary>
     /// Multisampling resolve, postprocess the image, and convert to gamma.
     /// </summary>
     public void PostprocessRender(Framebuffer inputFramebuffer, Framebuffer outputFramebuffer, bool flipY = false)
@@ -1945,7 +1974,6 @@ public class Renderer : ISpawnGroupHost
         outputFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
 
         Debug.Assert(inputFramebuffer.NumSamples > 0);
-        Debug.Assert(outputFramebuffer.NumSamples == 0);
 
         EnsureResolvedTextureSize(inputFramebuffer.Width, inputFramebuffer.Height);
 

@@ -18,9 +18,6 @@ public class ParticleHelper : EntityHelper
 
     private static readonly string[] ControlPointKeys = CreateControlPointKeys();
 
-    /// <inheritdoc/>
-    public override bool IsVisual => true;
-
     /// <summary>Gets the key of the entity that names the effect.</summary>
     public string EffectKey { get; }
 

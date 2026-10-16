@@ -22,6 +22,12 @@ public sealed class PlacedMapNode
     public required DMElement Node { get; init; }
 
     /// <summary>
+    /// Gets the map that was walked, the one the node ends up in. For a node of a prefab it holds the
+    /// prefab rather than the node.
+    /// </summary>
+    public MapDocument? RootDocument { get; init; }
+
+    /// <summary>
     /// Gets the move the instances and prefabs above the node add to where it is stored, without scale.
     /// Identity for a node the map places itself.
     /// </summary>
@@ -44,6 +50,15 @@ public sealed class PlacedMapNode
 
     /// <summary>Gets whether an instance or prefab placed the node, rather than the map itself.</summary>
     public bool IsInstanced { get; init; }
+
+    /// <summary>Gets how many prefabs deep the node is placed, zero for a node of the map itself.</summary>
+    public int PrefabDepth { get; init; }
+
+    /// <summary>
+    /// Gets the node IDs of the instances and prefabs the node was placed through, outermost first. Empty
+    /// for a node the map places itself.
+    /// </summary>
+    public IReadOnlyList<int> InstancePath { get; init; } = [];
 
     /// <summary>
     /// Builds the keyvalues the entity spawns with where it was placed, the way a compiled map stores them:
@@ -216,10 +231,14 @@ public sealed class PlacedMapNode
 /// </summary>
 public sealed class MapNodeWalker
 {
-    private readonly record struct WalkState(Matrix4x4 InstanceTransform, Vector4 Tint, PlacedMapNode? Parent, string? WorldLayer, bool IsInstanced, int PrefabDepth);
+    private readonly record struct WalkState(Matrix4x4 InstanceTransform, Vector4 Tint, PlacedMapNode? Parent, string? WorldLayer, bool IsInstanced, int PrefabDepth)
+    {
+        public IReadOnlyList<int> InstancePath { get; init; } = [];
+    }
 
     private readonly Func<MapDocument, string, MapDocument?>? prefabLoader;
     private readonly HashSet<DMElement> activeTargets = [];
+    private MapDocument? rootDocument;
 
     /// <summary>Gets or sets whether hidden nodes are walked too.</summary>
     public bool IncludeHidden { get; init; }
@@ -239,6 +258,8 @@ public sealed class MapNodeWalker
     public IEnumerable<PlacedMapNode> Walk(MapDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
+
+        rootDocument = document;
 
         return WalkChildren(document, document.World, new WalkState(Matrix4x4.Identity, Vector4.One, null, null, false, 0));
     }
@@ -282,11 +303,14 @@ public sealed class MapNodeWalker
         {
             Document = document,
             Node = node,
+            RootDocument = rootDocument,
             InstanceTransform = state.InstanceTransform,
             Tint = state.Tint,
             Parent = state.Parent,
             WorldLayer = state.WorldLayer,
             IsInstanced = state.IsInstanced,
+            PrefabDepth = state.PrefabDepth,
+            InstancePath = state.InstancePath,
         };
 
         yield return placedNode;
@@ -327,6 +351,7 @@ public sealed class MapNodeWalker
                 InstanceTransform = targetToLocal * MapDocument.GetNodeRigidTransform(instance) * state.InstanceTransform,
                 Tint = state.Tint * GetTint(instance),
                 IsInstanced = true,
+                InstancePath = [.. state.InstancePath, instance.NodeID],
             };
 
             foreach (var placedNode in WalkChildren(document, target, inner))
@@ -363,6 +388,7 @@ public sealed class MapNodeWalker
                 Tint = state.Tint * GetTint(prefab),
                 IsInstanced = true,
                 PrefabDepth = state.PrefabDepth + 1,
+                InstancePath = [.. state.InstancePath, prefab.NodeID],
             };
 
             foreach (var placedNode in WalkChildren(prefabDocument, prefabDocument.World, inner))

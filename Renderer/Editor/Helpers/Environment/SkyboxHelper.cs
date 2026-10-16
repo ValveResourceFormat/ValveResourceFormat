@@ -1,61 +1,36 @@
+using System.IO;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The sky of a sky entity, drawn behind everything else of the map.
+/// The sky of an <c>env_sky</c>, drawn behind everything else of the map, tinted and fogged as the entity
+/// says.
 /// </summary>
 public sealed class SkyboxHelper : EntityHelper
 {
-    /// <inheritdoc/>
-    public override bool IsVisual => true;
+    // Where the angular fog fades below and above the horizon, while the entity does not say
+    private static readonly Vector4 DefaultAngularFog = new(-25f, -35f, 25f, 35f);
 
-    /// <summary>Gets the material of the sky, or <see langword="null"/> when the entity names none.</summary>
-    public string? MaterialName { get; }
+    /// <summary>Gets the material of the sky, or <see langword="null"/> when the entity names no material.</summary>
+    public string? MaterialName => GetStringKey("skyname") is { Length: > 0 } name
+        && Path.GetExtension(name).Equals(".vmat", StringComparison.OrdinalIgnoreCase) ? name : null;
 
-    /// <summary>Gets what the brightness of the sky is scaled by.</summary>
-    public float BrightnessScale { get; }
+    /// <summary>Gets what the brightness of the sky is scaled by, as the entity gives it.</summary>
+    public float BrightnessScale => GetFloatKey("brightnessscale", 1f);
 
     /// <summary>Initializes the sky of an entity.</summary>
     /// <param name="owner">The entity.</param>
     /// <param name="declaration">The helper as the class of the entity declares it.</param>
     public SkyboxHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
-        MaterialName = GetMaterialName(owner.KeyValues);
-        BrightnessScale = GetBrightnessScale(owner.KeyValues);
-    }
-
-    /// <summary>Gets the sky material a sky entity names.</summary>
-    /// <param name="keyValues">The keyvalues of the entity.</param>
-    /// <returns>The name of the material, or <see langword="null"/> when it names none.</returns>
-    public static string? GetMaterialName(EntityLump.Entity keyValues)
-    {
-        ArgumentNullException.ThrowIfNull(keyValues);
-
-        return keyValues.GetStringProperty("skyname") ?? keyValues.GetStringProperty("skybox_material_day");
-    }
-
-    /// <summary>Gets what a sky entity scales the brightness of its sky by.</summary>
-    /// <param name="keyValues">The keyvalues of the entity.</param>
-    /// <returns>The scale. Zero or less leaves it unset, which is one.</returns>
-    public static float GetBrightnessScale(EntityLump.Entity keyValues)
-    {
-        ArgumentNullException.ThrowIfNull(keyValues);
-
-        var brightnessScale = keyValues.GetFloatProperty("brightnessscale", 1f);
-
-        return brightnessScale > 0f ? brightnessScale : 1f;
     }
 
     /// <inheritdoc/>
     public override void AddToScene()
     {
-        var keyValues = Owner.KeyValues;
-
-        if (string.IsNullOrEmpty(MaterialName) || keyValues.GetBooleanProperty("startdisabled") || !keyValues.GetBooleanProperty("enabled", true))
+        if (MaterialName is not { } materialName || EnvironmentKeys.ParseInteger(GetStringKey("startdisabled"), 0) != 0)
         {
             return;
         }
@@ -63,18 +38,28 @@ public sealed class SkyboxHelper : EntityHelper
         var scene = Owner.Scene;
         var rendererContext = scene.RendererContext;
 
-        using var skyMaterial = rendererContext.FileLoader.LoadFileCompiled(MaterialName);
+        using var skyMaterial = rendererContext.FileLoader.LoadFileCompiled(materialName);
 
         if (skyMaterial == null)
         {
             return;
         }
 
+        var tintKey = GetStringKey("tint_color");
+        var tint = tintKey.Length > 0 ? EnvironmentKeys.ParseColor(tintKey).ToLinearColor().AsVector3() : Vector3.One;
+
+        // The sky is infinitely far away, so only the way the entity is turned moves it
         scene.Skybox2D?.Delete();
         scene.Skybox2D = new SceneSkybox2D(rendererContext.MaterialLoader.LoadMaterial(skyMaterial))
         {
-            Tint = keyValues.GetColor32Property("tint_color") * BrightnessScale,
-            Transform = Owner.Transform with { Translation = Vector3.Zero },
+            Tint = tint * BrightnessScale,
+            Transform = Owner.RigidTransform with { Translation = Vector3.Zero },
+            FogType = (SkyFogType)EnvironmentKeys.ParseInteger(GetStringKey("fog_type"), (int)SkyFogType.Distance),
+            AngularFog = new Vector4(
+                GetFloatKey("angular_fog_min_start", DefaultAngularFog.X),
+                GetFloatKey("angular_fog_min_end", DefaultAngularFog.Y),
+                GetFloatKey("angular_fog_max_start", DefaultAngularFog.Z),
+                GetFloatKey("angular_fog_max_end", DefaultAngularFog.W)),
         };
     }
 }

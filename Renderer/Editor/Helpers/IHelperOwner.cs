@@ -30,6 +30,21 @@ public interface IHelperOwner
     /// <summary>Gets the visibility layer of what the entity draws.</summary>
     string LayerName { get; }
 
+    /// <summary>Gets whether the entity is part of a 3D sky placed into the map, rather than of the map itself.</summary>
+    bool IsInSkybox { get; }
+
+    /// <summary>
+    /// Gets the bounds of what the entity is made of besides its helpers, such as the meshes of a solid entity
+    /// or the model the game draws it with, in the world, or <see langword="null"/> where there is nothing.
+    /// </summary>
+    AABB? ContentBounds { get; }
+
+    /// <summary>
+    /// Gets the bounds of the model the entity is drawn with, in the space of the entity, or
+    /// <see langword="null"/> where it has none.
+    /// </summary>
+    AABB? LocalBounds { get; }
+
     /// <summary>Gets the helpers of the entity, in the order its class declares them.</summary>
     IReadOnlyList<EntityHelper> Helpers { get; }
 
@@ -56,4 +71,12 @@ public interface IHelperOwner
     /// <param name="classname">The classname to look for.</param>
     /// <returns>Every entity of that class.</returns>
     IEnumerable<IHelperOwner> FindByClass(string classname);
+
+    /// <summary>Gets the path the entity is a node of, or <see langword="null"/> when it is not a path node.</summary>
+    IHelperOwner? Path { get; }
+
+    /// <summary>Finds a node of the path the entity is.</summary>
+    /// <param name="index">Zero based index of the node along the path.</param>
+    /// <returns>The node, or <see langword="null"/> when the entity is not a path or has no such node.</returns>
+    IHelperOwner? FindPathNode(int index);
 }

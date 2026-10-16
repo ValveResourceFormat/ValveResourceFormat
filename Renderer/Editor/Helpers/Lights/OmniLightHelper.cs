@@ -1,4 +1,5 @@
 using ValveResourceFormat.IO.Fgd;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -14,6 +15,7 @@ public sealed class OmniLightHelper : LightHelperBase
     private const int PointShape = 3;
     private const int TubeSegments = 12;
     private const int ConeLines = 16;
+    private const float HandleSize = 6f;
 
     // Rows of the caps of the cones, one per this many radians
     private const float CapRowAngle = MathF.PI / 12f;
@@ -50,47 +52,95 @@ public sealed class OmniLightHelper : LightHelperBase
         OuterAngle = GetFloatKey("outer_angle");
     }
 
-    internal override void AddSelectionShapes(in SelectionShapes shapes)
+    internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
-        var luminaire = shapes.Oriented(HelperPasses.Both);
-
-        if (Shape is SphereShape or PointShape)
+        if (!state.IsSelected)
         {
-            luminaire.AddSphereGrid(Vector3.Zero, SizeParams.X, 12, 12, 0f, MathF.PI, ShapeColor);
+            return;
         }
-        else
+
+        context.PushTransform(Owner.RigidTransform);
+
+        // The luminaire is solid where seen, and faint over the scene
+        foreach (var mode in (ReadOnlySpan<ToolRenderMode>)[ToolRenderMode.Wireframe, ToolRenderMode.WireframeTranslucentNoZ])
         {
-            AddTube(luminaire);
+            context.PushRenderMode(mode);
+            context.DrawColor = ShapeColor;
+
+            if (Shape is SphereShape or PointShape)
+            {
+                context.DrawWireSphere(Vector3.Zero, SizeParams.X, 12, 12);
+            }
+            else
+            {
+                DrawTube(context);
+            }
+
+            context.PopRenderMode();
         }
 
         var outer = float.DegreesToRadians(Math.Clamp(OuterAngle, 1f, 180f));
         var inner = MathF.Min(float.DegreesToRadians(MathF.Max(InnerAngle, 0f)), outer);
 
-        var cones = shapes.Oriented(HelperPasses.Visible);
-        var caps = cones.Transformed(CapToLight);
+        context.PushRenderMode(ToolRenderMode.WireframeTranslucent);
 
-        caps.AddSphereGrid(Vector3.Zero, Range, 16, GetCapRows(inner), MathF.PI - inner, MathF.PI, InnerConeColor);
+        context.PushTransform(CapToLight);
+        context.DrawWireSphere(Vector3.Zero, Range, 16, GetCapRows(inner), MathF.PI - inner, MathF.PI, InnerConeColor);
 
         if (outer > inner)
         {
-            caps.AddSphereGrid(Vector3.Zero, Range, 16, GetCapRows(outer - inner), MathF.PI - outer, MathF.PI - inner, OuterConeColor);
+            context.DrawWireSphere(Vector3.Zero, Range, 16, GetCapRows(outer - inner), MathF.PI - outer, MathF.PI - inner, OuterConeColor);
         }
+
+        context.PopTransform();
 
         if (inner > 0f && inner < MathF.PI)
         {
-            AddConeLines(cones, inner, InnerConeColor, InnerConeNearColor);
+            DrawConeLines(context, inner, InnerConeColor, InnerConeNearColor);
         }
 
         if (outer > inner && outer < MathF.PI)
         {
-            AddConeLines(cones, outer, OuterConeColor, OuterConeNearColor);
+            DrawConeLines(context, outer, OuterConeColor, OuterConeNearColor);
+        }
+
+        context.PopRenderMode();
+
+        DrawHandles(context, inner, outer);
+
+        context.PopTransform();
+    }
+
+    // Handles on the sides of the luminaire, the range and where the light starts fading out, and for each
+    // cone one above the light that moves along X with the cosine of its angle
+    private void DrawHandles(ToolRenderContext context, float inner, float outer)
+    {
+        var side = Shape is SphereShape or PointShape ? SizeParams.X : SizeParams.Y;
+
+        ReadOnlySpan<Vector3> positions =
+        [
+            new(0f, side, 0f),
+            new(0f, -side, 0f),
+            new(0f, 0f, SizeParams.X),
+            new(0f, 0f, -SizeParams.X),
+            new(-SizeParams.X, 0f, 0f),
+            new(SizeParams.X, 0f, 0f),
+            new(Range, 0f, 0f),
+            new((1f - Skirt) * Range, 0f, 16f),
+            new(MathF.Cos(outer) * 100f - 15f, 0f, 100f),
+            new(MathF.Cos(inner) * 95f + 15f, 0f, 95f),
+        ];
+
+        foreach (var position in positions)
+        {
+            context.DrawHandle(HandleSize, ToolHandleType.Square, Color32.White, position, noZ: true, border: true, translucent: false);
         }
     }
 
     private static int GetCapRows(float angle) => Math.Max((int)MathF.Ceiling(angle / CapRowAngle), 2);
 
     // The tube runs along Y, with spokes across its ends when it is capped
-    private void AddTube(EntityHelperLines lines)
+    private void DrawTube(ToolRenderContext context)
     {
         var radius = SizeParams.X;
         var halfLength = SizeParams.Y;
@@ -98,15 +148,15 @@ public sealed class OmniLightHelper : LightHelperBase
         // Twelve points, the last on the first
         const float Step = MathF.Tau / (TubeSegments - 1);
 
-        lines.AddCircle(Vector3.UnitY * halfLength, Vector3.UnitX * radius, Vector3.UnitZ * radius, TubeSegments - 1, ShapeColor);
-        lines.AddCircle(-Vector3.UnitY * halfLength, Vector3.UnitX * radius, Vector3.UnitZ * radius, TubeSegments - 1, ShapeColor);
+        context.DrawCircle(Vector3.UnitY * halfLength, -Vector3.UnitZ, Vector3.UnitX, radius, TubeSegments - 1);
+        context.DrawCircle(-Vector3.UnitY * halfLength, -Vector3.UnitZ, Vector3.UnitX, radius, TubeSegments - 1);
 
         for (var i = 0; i < TubeSegments; i++)
         {
             var (sin, cos) = MathF.SinCos(i * Step);
             var rim = new Vector3(sin * radius, 0f, cos * radius);
 
-            lines.AddLine(rim - Vector3.UnitY * halfLength, rim + Vector3.UnitY * halfLength, ShapeColor);
+            context.DrawLine(rim - Vector3.UnitY * halfLength, rim + Vector3.UnitY * halfLength);
         }
 
         if (Shape != CappedTubeShape)
@@ -119,13 +169,13 @@ public sealed class OmniLightHelper : LightHelperBase
             var (sin, cos) = MathF.SinCos(i * Step);
             var rim = new Vector3(sin * radius, 0f, cos * radius);
 
-            lines.AddLine(rim - Vector3.UnitY * halfLength, -rim - Vector3.UnitY * halfLength, ShapeColor);
-            lines.AddLine(rim + Vector3.UnitY * halfLength, -rim + Vector3.UnitY * halfLength, ShapeColor);
+            context.DrawLine(rim - Vector3.UnitY * halfLength, -rim - Vector3.UnitY * halfLength);
+            context.DrawLine(rim + Vector3.UnitY * halfLength, -rim + Vector3.UnitY * halfLength);
         }
     }
 
     // Lines along a cone out to the range, split where the light starts fading out
-    private void AddConeLines(EntityHelperLines lines, float angle, Color32 color, Color32 nearColor)
+    private void DrawConeLines(ToolRenderContext context, float angle, Color32 color, Color32 nearColor)
     {
         var (sinAngle, cosAngle) = MathF.SinCos(angle);
 
@@ -134,8 +184,8 @@ public sealed class OmniLightHelper : LightHelperBase
             var (sin, cos) = MathF.SinCos(i * MathF.Tau / ConeLines);
             var end = new Vector3(cosAngle, sinAngle * sin, sinAngle * cos) * Range;
 
-            lines.AddLine(end * Skirt, end, color);
-            lines.AddLine(Vector3.Zero, end * Skirt, nearColor);
+            context.DrawLine(end * Skirt, end, color);
+            context.DrawLine(Vector3.Zero, end * Skirt, nearColor);
         }
     }
 }

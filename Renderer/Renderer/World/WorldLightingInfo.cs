@@ -481,6 +481,12 @@ namespace ValveResourceFormat.Renderer.World
             if (usesUniformLightStore)
             {
                 StoreLightMappedLights_V1(lights);
+
+                // Logged here rather than on every store, which light styles do each frame
+                scene.RendererContext.Logger.LogDebug(
+                    "Lightmap version {Major}.{Minor}: {Stationary} stationary and {Dynamic} per-pixel lights of {Total} light entities",
+                    LightmapVersionNumber, LightmapGameVersionNumber, LightingData.StaticLightCount,
+                    LightingData.DynamicLightCount - LightingData.StaticLightCount, lights.Count);
             }
             else
             {
@@ -502,12 +508,33 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
-            var envLight = storedLights.FirstOrDefault(static l => l.Entity == SceneLight.EntityType.Environment);
-            if (envLight != null)
+            if (FindSun(storedLights) is { } envLight)
             {
                 StoreSunLight(envLight, envLight.BakedShadowMask);
             }
         }
+
+        private bool storedLightsChanged;
+
+        /// <summary>Marks the stored lights as changed, such as by a light style, so they are stored again this frame.</summary>
+        public void MarkStoredLightsChanged() => storedLightsChanged = true;
+
+        /// <summary>Stores the lights again if they changed since they were last stored.</summary>
+        public void StoreChangedLights()
+        {
+            if (!storedLightsChanged)
+            {
+                return;
+            }
+
+            storedLightsChanged = false;
+            UpdateGpuLightBuffers();
+        }
+
+        // The environment light is the sun, or else the first other light that lights everything from one direction
+        private static SceneLight? FindSun(List<SceneLight> lights)
+            => lights.Find(static light => light.Entity == SceneLight.EntityType.Environment)
+                ?? lights.Find(static light => light.IsDirectional);
 
         /// <summary>
         /// Stores stationary and dynamic light data into <see cref="LightingData"/> using the V1 lightmap format.
@@ -527,7 +554,7 @@ namespace ValveResourceFormat.Renderer.World
                 // The strength texels hold plain sqrt(saturate(attenuation) * visibility); lights that
                 // look far dimmer than their surroundings in baked cubemaps (like the "light_disabled"
                 // prefabs) are scripted to raise their brightness at runtime, not scaled at load.
-                var premultipliedColor = ColorSpace.SrgbGammaToLinear(light.Color) * light.Brightness * light.BrightnessScale;
+                var premultipliedColor = ColorSpace.SrgbGammaToLinear(light.Color) * light.StyleColorScale * light.Brightness * light.BrightnessScale;
                 LightingData.LightColor_Brightness[index] = new Vector4(premultipliedColor, light.RenderSpecular ? 1f : 0f);
 
                 // zw carry the remaining render gates (diffuse, transmissive); specular sits in the color
@@ -572,10 +599,12 @@ namespace ValveResourceFormat.Renderer.World
                 LightingData.StaticLightCount = Math.Max(LightingData.StaticLightCount, index + 1);
             }
 
-            static bool IsDynamicSegmentLight(SceneLight light)
+            var envLight = FindSun(lights);
+
+            bool IsDynamicSegmentLight(SceneLight light)
             {
                 // Env light has its own fast path
-                if (light.Entity == SceneLight.EntityType.Environment)
+                if (light == envLight || light.Entity == SceneLight.EntityType.Environment)
                 {
                     return false;
                 }
@@ -601,12 +630,6 @@ namespace ValveResourceFormat.Renderer.World
 
             LightingData.DynamicLightCount = currentLightIndex;
 
-            scene.RendererContext.Logger.LogDebug(
-                "Lightmap version {Major}.{Minor}: {Stationary} stationary and {Dynamic} per-pixel lights of {Total} light entities",
-                LightmapVersionNumber, LightmapGameVersionNumber, LightingData.StaticLightCount,
-                currentLightIndex - LightingData.StaticLightCount, lights.Count);
-
-            var envLight = lights.FirstOrDefault(static l => l.Entity == SceneLight.EntityType.Environment);
             if (envLight != null)
             {
                 var bakedLightIndex = envLight.Cost == SceneLight.LightCost.Stationary ? envLight.StationaryLightIndex : -1;
@@ -660,13 +683,14 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private void StoreSunLight(SceneLight envLight, Vector4 bakedShadowData)
         {
-            var premultipliedColor = ColorSpace.SrgbGammaToLinear(envLight.Color) * envLight.Brightness * envLight.BrightnessScale;
+            var premultipliedColor = ColorSpace.SrgbGammaToLinear(envLight.Color) * envLight.StyleColorScale * envLight.Brightness * envLight.BrightnessScale;
 
             LightingData.SunDirection = new Vector4(-envLight.Direction, GetSunMinRoughness(envLight.MinRoughness));
             LightingData.SunColor = new Vector4(premultipliedColor, envLight.RenderSpecular ? 1f : 0f);
             LightingData.SunLightBakedShadowMask = bakedShadowData;
 
-            skyLight = ColorSpace.SrgbGammaToLinear(envLight.SkyColor) * envLight.SkyIntensity;
+            // The brightness scale of the light scales its sky too
+            skyLight = ColorSpace.SrgbGammaToLinear(envLight.SkyColor) * envLight.SkyIntensity * envLight.BrightnessScale;
             skyAmbientBounce = ColorSpace.SrgbGammaToLinear(envLight.SkyAmbientBounce);
             UpdateAmbientLighting();
 
@@ -720,9 +744,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="lights">The list of scene lights to store.</param>
         public void StoreLightMappedLights_V2(List<SceneLight> lights)
         {
-            var envLight = lights.FirstOrDefault(static l => l.Entity == SceneLight.EntityType.Environment);
-
-            if (envLight != null)
+            if (FindSun(lights) is { } envLight)
             {
                 StoreSunLight(envLight, envLight.BakedShadowMask);
             }
@@ -830,7 +852,7 @@ namespace ValveResourceFormat.Renderer.World
                         data.BarnLightShadowScale = shadowFade;
                     }
 
-                    data.BarnLightColor_flCookie *= new Vector4(lightFade, lightFade, lightFade, 1f);
+                    data.BarnLightColor_flCookie *= new Vector4(light.StyleColorScale * lightFade, 1f);
 
                     BinnedBarnLightFaceSlots[LightingData.NumBarnLights] = new BarnLightFaceSlot(light, faceIndex);
 

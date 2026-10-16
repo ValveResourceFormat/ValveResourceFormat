@@ -54,6 +54,8 @@ public static class EntityFactory
 
         // lights
         Register<LightEntity>("light_barn", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
+        Register<LightEntity>("light_capsule", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
+        Register<LightEntity>("light_directional", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
         Register<LightEntity>("light_environment", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
         Register<LightEntity>("light_omni", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
         Register<LightEntity>("light_omni2", static (system, spawnInfo) => new LightEntity(system, spawnInfo));

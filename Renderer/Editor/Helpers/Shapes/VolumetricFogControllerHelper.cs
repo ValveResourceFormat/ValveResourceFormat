@@ -1,15 +1,19 @@
 using System.Linq;
 using ValveResourceFormat.IO.Fgd;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The volume a selected fog controller covers, with the volume of every fog volume of its map: the box
-/// around all of them, or the box of the controller itself while the map has none.
+/// The volume a selected fog controller covers, dashed over the scene, with the volume of every fog volume of
+/// its map: the box around all of them, or the box of the controller itself while the map has none.
 /// </summary>
 public sealed class VolumetricFogControllerHelper : EntityHelper
 {
+    /// <inheritdoc/>
+    public override bool IsVisual => false;
+
     private const string FogVolumeClassname = "env_volumetric_fog_volume";
 
     /// <summary>Initializes the volumes of a fog controller.</summary>
@@ -19,32 +23,51 @@ public sealed class VolumetricFogControllerHelper : EntityHelper
     {
     }
 
-    internal override void AddSelectionShapes(in SelectionShapes shapes)
+    internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
-        var volumes = Owner.FindByClass(FogVolumeClassname).ToList();
-        var color = EntityHelperLines.SelectionColor;
-
-        if (volumes.Count == 0)
+        if (!state.IsSelected)
         {
-            var bounds = new AABB(GetVector3Key("box_mins"), GetVector3Key("box_maxs"));
-            shapes.Aligned(HelperPasses.Overlay).AddBox(bounds, color);
             return;
         }
 
-        // The controller covers every fog volume of the map, wherever it is placed
-        AABB? covered = null;
+        var volumes = Owner.FindByClass(FogVolumeClassname).ToList();
+
+        // The controller covers every fog volume of the map wherever it is placed, or its own box while there
+        // are none, along the world axes either way
+        AABB covered;
+
+        if (volumes.Count == 0)
+        {
+            var origin = Owner.RigidTransform.Translation;
+            covered = new AABB(GetVector3Key("box_mins") + origin, GetVector3Key("box_maxs") + origin);
+        }
+        else
+        {
+            covered = GetVolumeBounds(volumes[0]).Transform(volumes[0].RigidTransform);
+
+            foreach (var volume in volumes)
+            {
+                covered = covered.Union(GetVolumeBounds(volume).Transform(volume.RigidTransform));
+            }
+        }
+
+        context.PushRenderMode(ToolRenderMode.DottedNoZ);
+        context.DrawColor = GetDrawColor(state) with { A = 255 };
+        context.DrawWireBox(covered.Min, covered.Max);
+        context.PopRenderMode();
+
+        context.DrawColor = Color32.White;
 
         foreach (var volume in volumes)
         {
             var bounds = GetVolumeBounds(volume);
-            var worldBounds = bounds.Transform(volume.RigidTransform);
 
-            covered = covered is { } union ? union.Union(worldBounds) : worldBounds;
-
-            new EntityHelperLines(shapes.Output, volume.RigidTransform * volume.Scene.ToViewerWorld, HelperPasses.Overlay).AddBox(bounds, Color32.White);
+            context.PushTransform(volume.RigidTransform);
+            context.PushRenderMode(ToolRenderMode.WireframeNoZ);
+            context.DrawWireBox(bounds.Min, bounds.Max);
+            context.PopRenderMode();
+            context.PopTransform();
         }
-
-        shapes.World(HelperPasses.Overlay).AddBox(covered!.Value, color);
     }
 
     private static AABB GetVolumeBounds(IHelperOwner volume)

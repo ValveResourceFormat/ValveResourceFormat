@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Helpers;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -21,15 +22,19 @@ namespace ValveResourceFormat.Renderer.Editor.Entities;
 /// </summary>
 public sealed class HammerEntityVisuals : IEntityToolVisuals
 {
-    /// <summary>Visibility layer of the stand-ins and helper lines, so they can be hidden apart from the world.</summary>
+    /// <summary>
+    /// Visibility layer of what the editor draws entities with that is hidden while it shows only what the game
+    /// does, such as the boxes, icons and models entities stand in as. Turning it off is that option.
+    /// </summary>
     public const string MarkerLayerName = "Entities (editor only)";
 
     /// <summary>Visibility layer of the lines along entity I/O connections.</summary>
     public const string ConnectionsLayerName = "Entity Connections";
 
     /// <summary>
-    /// Visibility layer of the edges of the volumes entities have while they are not selected, such as the
-    /// boxes of cubemaps and light probes. They clutter the view, so it is off until it is turned on.
+    /// Visibility layer of the helpers the editor only draws while it shows helpers, such as lines to the
+    /// entities an entity names, spheres of its radii and the edges of its volumes. Turning it off is that
+    /// option, which also hides those helpers of a selected entity.
     /// </summary>
     public const string HelpersLayerName = "Entity Helpers (editor only)";
 
@@ -130,7 +135,7 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
 
         foreach (var helper in owner.Helpers)
         {
-            if (EntityHelperOwner.IsStandIn(helper))
+            if (EntityHelperOwner.IsStandIn(helper) && helper.IsAvailable)
             {
                 helper.AddToScene();
             }
@@ -149,7 +154,8 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
             entity.AddNode(node);
         }
 
-        return placed.FirstOrDefault();
+        owner.StandIn = placed.FirstOrDefault();
+        return owner.StandIn;
     }
 
     /// <inheritdoc/>
@@ -162,13 +168,6 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
         }
     }
 
-    /// <summary>Gets whether a classname is one Hammer draws as a camera.</summary>
-    internal static bool IsCamera(string classname)
-        => classname is "sky_camera"
-        or "point_devshot_camera"
-        or "point_camera_vertical_fov"
-        or "point_camera";
-
     // The lines the class of the entity declares to the entities its keyvalues name, and the shapes the
     // editor draws for it whether or not it is selected, none of which the game draws
     private void AddToolShapes(BaseEntity entity)
@@ -178,16 +177,20 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
             return;
         }
 
-        foreach (var helper in GetEntity(entity).Helpers)
+        var helpers = GetEntity(entity).Helpers;
+
+        foreach (var helper in helpers)
         {
-            if (helper is LineHelper)
-            {
-                helper.Link();
-            }
-            else if (EntityHelperOwner.IsToolShape(helper))
+            if (EntityHelperOwner.IsToolShape(helper) && helper.IsAvailable)
             {
                 helper.AddToScene();
             }
+        }
+
+        // Every helper links, as the ones of a source map do, once its shapes are in the scene
+        foreach (var helper in helpers)
+        {
+            helper.Link();
         }
     }
 
@@ -241,15 +244,21 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     }
 
     /// <summary>Creates the line along an entity I/O connection, green at the caller and red at the target.</summary>
-    internal static LineSceneNode CreateConnectionLine(Scene scene, Vector3 start, Vector3 end, string? name = null)
+    internal static ToolSceneNode CreateConnectionLine(Scene scene, Vector3 start, Vector3 end, string? name = null)
     {
-        var origin = (start + end) / 2f;
-
-        return new LineSceneNode(scene, start - origin, end - origin, ConnectionStartColor, ConnectionEndColor)
+        var node = new ToolSceneNode(scene)
         {
             Name = name,
             LayerName = ConnectionsLayerName,
-            Transform = Matrix4x4.CreateTranslation(origin),
         };
+
+        node.Draw(context =>
+        {
+            context.PushRenderMode(ToolRenderMode.Wireframe);
+            context.DrawLine(start, end, ConnectionStartColor, ConnectionEndColor);
+            context.PopRenderMode();
+        });
+
+        return node;
     }
 }

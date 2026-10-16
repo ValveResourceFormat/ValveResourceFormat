@@ -114,7 +114,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            var luminance = light.ComputeOmni2Color() * luminanceScale;
+            var luminance = light.ComputeOmni2Color() * light.StyleColorScale * luminanceScale;
 
             if (luminance == Vector3.Zero)
             {

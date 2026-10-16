@@ -108,15 +108,17 @@ public sealed class MapDocumentLoader : IDisposable
         // Lighting volumes go first: meshes copy the scene's render attributes into their shader combos as they
         // are built, and some of those come from these entities
         var placedEntities = placedNodes
-            // The nodes of a path are flattened into the keys of the path
-            .Where(static placedNode => placedNode.Node is CMapEntity and not CMapPathNode)
+            .Where(static placedNode => placedNode.Node is CMapEntity)
             .OrderByDescending(static placedNode => IsCubemapOrProbe(placedNode.Node));
 
         var created = new Dictionary<PlacedMapNode, MapEntity>();
 
         foreach (var placedNode in placedEntities)
         {
-            if (CreateEntity(placedNode) is { } mapEntity)
+            // A path comes before its nodes, which are the entities under it
+            var path = placedNode.Parent is { } parent ? created.GetValueOrDefault(parent) : null;
+
+            if (CreateEntity(placedNode, path) is { } mapEntity)
             {
                 created[placedNode] = mapEntity;
             }
@@ -177,15 +179,36 @@ public sealed class MapDocumentLoader : IDisposable
         }
     }
 
-    // What the whole view is drawn with is taken from one entity of each kind: the first that is not off
+    // What the whole view is drawn with comes from the entities that are the globals of the map, and the
+    // cubemap fog from the first cubemap fog entity that is not disabled at the start
     private void ApplyEnvironment()
     {
-        var helpers = mapEntities.SelectMany(static mapEntity => mapEntity.Helpers).ToList();
+        var globals = FindGlobals();
+        var fog = LinearFog.None;
 
-        helpers.OfType<GradientFogHelper>().FirstOrDefault(static fog => !fog.StartsDisabled)?.Apply();
-        helpers.OfType<CubemapFogHelper>().FirstOrDefault(static fog => !fog.StartsDisabled)?.Apply();
+        // The first helper of the fog global that gives a fog gives it
+        if (globals.GetValueOrDefault("fog") is { } fogEntity)
+        {
+            foreach (var source in fogEntity.Helpers.OfType<ILinearFogSource>())
+            {
+                if (source.TryGetFog(ref fog))
+                {
+                    break;
+                }
+            }
+        }
 
-        if (mapEntities.Find(static mapEntity => mapEntity.Classname == "info_map_parameters") is { KeyValues: var parameters })
+        scene.FogInfo.LinearFog = fog;
+
+        globals.GetValueOrDefault("gradient_fog")?.Helpers.OfType<GradientFogHelper>().FirstOrDefault()?.Apply();
+        globals.GetValueOrDefault("tonemap")?.Helpers.OfType<ToneMappingHelper>().FirstOrDefault()?.Apply();
+
+        var cubemapFog = mapEntities.Find(static mapEntity => mapEntity.Classname.Equals("env_cubemap_fog", StringComparison.OrdinalIgnoreCase)
+            && EnvironmentKeys.ParseInteger(mapEntity.KeyValues.GetStringProperty("startdisabled") ?? string.Empty, 0) == 0);
+
+        cubemapFog?.Helpers.OfType<CubemapFogHelper>().FirstOrDefault()?.Apply();
+
+        if (globals.GetValueOrDefault("map_parameters") is { KeyValues: var parameters })
         {
             scene.EnvironmentWetness = new Vector4(
                 parameters.GetFloatProperty("envwetnesscoverage", 1f),
@@ -195,6 +218,48 @@ public sealed class MapDocumentLoader : IDisposable
 
             scene.PuddleWindDirection = parameters.GetFloatProperty("envpuddlerippledirection", 0f);
         }
+    }
+
+    // Each global is the entity that is on at the fewest prefabs deep, of those whose classes declare it.
+    // They are taken in the order the classes are declared in, and then in the order of the map.
+    private Dictionary<string, MapEntity> FindGlobals()
+    {
+        var fgd = entityVisuals.Fgd;
+        var classOrder = new Dictionary<FgdClass, int>();
+
+        foreach (var gameClass in fgd.Classes.Concat(fgd.Fallback?.Classes ?? []))
+        {
+            classOrder.TryAdd(gameClass, classOrder.Count);
+        }
+
+        var globals = new Dictionary<string, MapEntity>(StringComparer.OrdinalIgnoreCase);
+        var depths = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        var candidates = mapEntities.OrderBy(mapEntity => mapEntity.FgdClass is { } gameClass ? classOrder.GetValueOrDefault(gameClass, int.MaxValue) : int.MaxValue);
+
+        foreach (var mapEntity in candidates)
+        {
+            var depth = mapEntity.PlacedNode.PrefabDepth;
+
+            foreach (var global in mapEntity.Helpers.OfType<GlobalHelper>())
+            {
+                if (!global.IsEnabled)
+                {
+                    continue;
+                }
+
+                foreach (var name in global.Names)
+                {
+                    if (!depths.TryGetValue(name, out var bestDepth) || depth < bestDepth)
+                    {
+                        globals[name] = mapEntity;
+                        depths[name] = depth;
+                    }
+                }
+            }
+        }
+
+        return globals;
     }
 
     // A line from the entity to every entity its entity I/O connections reach
@@ -263,7 +328,7 @@ public sealed class MapDocumentLoader : IDisposable
         return prefab;
     }
 
-    private MapEntity? CreateEntity(PlacedMapNode placedNode)
+    private MapEntity? CreateEntity(PlacedMapNode placedNode, MapEntity? path)
     {
         if (placedNode.CreateEntity() is not { } data)
         {
@@ -272,7 +337,7 @@ public sealed class MapDocumentLoader : IDisposable
 
         Entities.Add(data);
 
-        var mapEntity = new MapEntity(scene, placedNode, data, placedNode.WorldLayer ?? EntitiesLayerName, entityVisuals.Fgd, mapEntities, entitiesByName);
+        var mapEntity = new MapEntity(scene, placedNode, data, placedNode.WorldLayer ?? EntitiesLayerName, entityVisuals.Fgd, mapEntities, entitiesByName, path);
 
         mapEntity.CreateHelpers(HelperLevel);
         mapEntities.Add(mapEntity);
@@ -344,6 +409,7 @@ public sealed class MapDocumentLoader : IDisposable
             }
 
             scene.Add(node, dynamic: false);
+            owner?.AddMeshNode(node);
         }
     }
 

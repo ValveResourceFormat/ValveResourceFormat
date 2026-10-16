@@ -188,7 +188,7 @@ public sealed class PropDynamic : BaseModelEntity
             return;
         }
 
-        var choices = node.GetMeshGroups().Select(ParseBodyGroupChoice).OfType<BodyGroupChoice>().ToList();
+        var choices = node.GetBodyGroupChoices().ToList();
 
         var comma = parameter.IndexOf(',', StringComparison.Ordinal);
         var bodyGroup = comma < 0 ? null : parameter[..comma].Trim();
@@ -202,50 +202,18 @@ public sealed class PropDynamic : BaseModelEntity
 
         var isIndex = int.TryParse(choiceText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index);
 
-        var match = bodyGroup == null ? null : choices.Find(choice =>
+        var match = bodyGroup == null ? -1 : choices.FindIndex(choice =>
             choice.BodyGroup.Equals(bodyGroup, StringComparison.OrdinalIgnoreCase)
             && (isIndex ? choice.Index == index : string.Equals(choice.Name, choiceText, StringComparison.OrdinalIgnoreCase)));
 
-        if (match == null)
+        if (match < 0)
         {
             EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' has no body group choice \"{Value}\" on {Model}, which has [{Choices}]",
                 Classname, TargetName, parameter, ModelName, string.Join(", ", choices.Select(static choice => choice.MeshGroup)));
             return;
         }
 
-        var active = node.GetActiveMeshGroups()
-            .Where(meshGroup => ParseBodyGroupChoice(meshGroup) is not { } choice
-                || !choice.BodyGroup.Equals(match.BodyGroup, StringComparison.OrdinalIgnoreCase))
-            .Append(match.MeshGroup)
-            .ToList();
-
-        node.SetActiveMeshGroups(active);
-    }
-
-    private sealed record BodyGroupChoice(string MeshGroup, string BodyGroup, int Index, string? Name);
-
-    private static BodyGroupChoice? ParseBodyGroupChoice(string meshGroup)
-    {
-        // HL:A "<bodygroup>_@<index>"
-        // CS2  "<bodygroup>_@<index>_#&<choice name>"
-
-        var joiner = meshGroup.IndexOf("_@", StringComparison.Ordinal);
-
-        if (joiner <= 0)
-        {
-            return null;
-        }
-
-        var rest = meshGroup[(joiner + 2)..];
-        var nameJoiner = rest.IndexOf("_#&", StringComparison.Ordinal);
-        var indexText = nameJoiner < 0 ? rest : rest[..nameJoiner];
-
-        if (!int.TryParse(indexText, NumberStyles.None, CultureInfo.InvariantCulture, out var index))
-        {
-            return null;
-        }
-
-        return new BodyGroupChoice(meshGroup, meshGroup[..joiner], index, nameJoiner < 0 ? null : rest[(nameJoiner + 3)..]);
+        node.SetBodyGroupChoice(choices[match]);
     }
 
     private void PlayForcedAnimation(EntityInputData data, bool? looping, bool restart)

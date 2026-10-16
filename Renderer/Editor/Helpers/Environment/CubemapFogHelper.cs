@@ -1,15 +1,15 @@
+using System.IO;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// The fog of an <c>env_cubemap_fog</c>, colored from a cubemap, a sky material, or the sky of the sky
-/// entity it names.
+/// The fog of an <c>env_cubemap_fog</c>, colored from a cubemap, a sky material, or the sky of the entity it
+/// names. A map has the fog of the first such entity that is not disabled at the start.
 /// </summary>
-public sealed class CubemapFogHelper : FogHelper
+public sealed class CubemapFogHelper : EntityHelper
 {
     /// <summary>Initializes the fog of an entity.</summary>
     /// <param name="owner">The entity.</param>
@@ -18,30 +18,115 @@ public sealed class CubemapFogHelper : FogHelper
     {
     }
 
-    /// <inheritdoc/>
-    public override void Apply()
+    /// <summary>Makes this fog the one the scene of the entity is drawn with. It is only drawn while it has a texture.</summary>
+    public void Apply()
     {
+        var fog = CreateFog();
         var fogInfo = Owner.Scene.FogInfo;
-
-        if (SceneCubemapFog.FromEntityProperties(Owner.Scene, Owner.KeyValues, Owner.Transform, FindSky) is not { } fog)
-        {
-            return;
-        }
 
         fogInfo.CubemapFog = fog;
         fogInfo.CubeFogActive = fog.CubemapFogTexture != null;
     }
 
-    private SceneCubemapFog.SkySource? FindSky(string targetName)
+    private SceneCubemapFog CreateFog()
     {
-        foreach (var sky in Owner.FindByName(targetName))
+        var source = (SceneCubemapFog.FogSource)EnvironmentKeys.ParseInteger(GetStringKey("cubemapfogsource"), 0);
+        var transform = Owner.RigidTransform;
+        var brightness = 1f;
+        string? materialName = null;
+        string? textureName = null;
+
+        switch (source)
         {
-            if (sky.Classname is "env_sky" or "env_global_light")
-            {
-                return new SceneCubemapFog.SkySource(SkyboxHelper.GetMaterialName(sky.KeyValues), sky.Transform, SkyboxHelper.GetBrightnessScale(sky.KeyValues));
-            }
+            case SceneCubemapFog.FogSource.Texture:
+                textureName = GetStringKey("cubemapfogtexture");
+                break;
+
+            case SceneCubemapFog.FogSource.SkyEntity:
+                // Any entity of that name is the sky, which turns the fog with it
+                if (Owner.FindByName(GetStringKey("cubemapfogskyentity")) is [var sky, ..])
+                {
+                    transform = sky.RigidTransform;
+                    materialName = sky.KeyValues.GetStringProperty("skyname");
+                    brightness = sky.KeyValues.GetFloatProperty("brightnessscale");
+                }
+
+                break;
+
+            case SceneCubemapFog.FogSource.Material:
+                materialName = GetStringKey("cubemapfogskymaterial");
+                break;
         }
 
-        return null;
+        var fog = new SceneCubemapFog(Owner.Scene)
+        {
+            StartDist = GetFloatKey("cubemapfogstartdistance"),
+            EndDist = GetFloatKey("cubemapfogenddistance"),
+            LodBias = GetFloatKey("cubemapfoglodbiase"),
+            FalloffExponent = GetFloatKey("cubemapfogfalloffexponent"),
+            HeightExponent = GetFloatKey("cubemapfogheightexponent"),
+            Opacity = GetFloatKey("cubemapfogmaxopacity"),
+            Transform = transform,
+        };
+
+        SetHeight(fog);
+
+        if (materialName is { Length: > 0 } && Path.GetExtension(materialName).Equals(".vmat", StringComparison.OrdinalIgnoreCase))
+        {
+            SetSkyMaterial(fog, materialName, brightness);
+        }
+        else if (textureName is { Length: > 0 } && Path.GetExtension(textureName).Equals(".vtex", StringComparison.OrdinalIgnoreCase))
+        {
+            fog.CubemapFogTexture = Owner.Scene.RendererContext.MaterialLoader.GetTexture(textureName);
+        }
+
+        return fog;
+    }
+
+    // An older entity says whether it has height fog, a newer one says how the height fades. Where it gives
+    // an end height, how high the fog reaches is the way from its start to its end.
+    private void SetHeight(SceneCubemapFog fog)
+    {
+        var heightType = EnvironmentKeys.ParseInteger(GetStringKey("cubemapfogheighttype"), -1);
+        var hasHeightFog = heightType < 0 ? EnvironmentKeys.ParseInteger(GetStringKey("cubemapheightfog"), 1) != 0 : heightType == 1;
+        var heightStart = GetFloatKey("cubemapfogheightstart");
+        var heightWidth = 0f;
+
+        if (hasHeightFog)
+        {
+            heightWidth = GetStringKey("cubemapfogheightend").Length > 0
+                ? GetFloatKey("cubemapfogheightend") - heightStart
+                : GetFloatKey("cubemapfogheightwidth");
+        }
+
+        fog.UseHeightFog = hasHeightFog;
+        fog.HeightStart = heightStart;
+        fog.HeightEnd = heightStart + heightWidth;
+    }
+
+    private void SetSkyMaterial(SceneCubemapFog fog, string materialName, float brightness)
+    {
+        var rendererContext = Owner.Scene.RendererContext;
+
+        using var materialFile = rendererContext.FileLoader.LoadFileCompiled(materialName);
+
+        if (materialFile == null)
+        {
+            return;
+        }
+
+        var material = rendererContext.MaterialLoader.LoadMaterial(materialFile);
+
+        if (!material.Textures.TryGetValue("g_tSkyTexture", out var texture))
+        {
+            return;
+        }
+
+        // Both biases are powers of two, which the brightness of the sky entity scales
+        var exposureBias = material.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias")
+            + material.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias");
+
+        fog.CubemapFogTexture = texture;
+        fog.ExposureBias = exposureBias + MathF.Log2(brightness);
     }
 }

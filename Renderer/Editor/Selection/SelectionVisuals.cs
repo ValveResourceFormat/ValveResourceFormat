@@ -1,11 +1,9 @@
-using OpenTK.Graphics.OpenGL;
+using System.Linq;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Helpers;
-using ValveResourceFormat.Renderer.Materials;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.SceneEnvironment;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Editor.Selection;
 
@@ -23,9 +21,9 @@ public enum LightingBindingDisplay
 }
 
 /// <summary>
-/// Draws the helpers for a <see cref="SelectionSet"/> over the final image, so their colors show as given:
-/// bounds with edge lengths, the shapes a selected entity's class declares, the node's name, and optionally
-/// the lighting it uses. Lines and faces are solid where the scene does not hide them, and faint over it.
+/// Draws what is selected in a <see cref="SelectionSet"/> the way Hammer does: the shapes the helpers of a
+/// selected entity show while it is, in place of the ones they show while it is not, and one box around what is
+/// selected with the length of its edges, along with the name of each node and optionally the lighting it uses.
 /// The outline itself is drawn by the renderer for every node with <see cref="SceneNode.IsSelected"/>.
 /// </summary>
 public sealed class SelectionVisuals
@@ -34,139 +32,124 @@ public sealed class SelectionVisuals
     private static readonly Color32 LightingBindingColor = new(1.0f, 0.0f, 1.0f, 1.0f);
 
     private readonly SelectionSet selection;
-    private readonly HelperVertices vertices = new();
     private readonly List<SceneEnvMap> envMaps = [];
     private readonly HammerEntityVisuals entityVisuals;
+    private readonly HashSet<IHelperOwner> selectedEntities = [];
+    private readonly HashSet<IHelperOwner> previouslySelectedEntities = [];
+    private readonly Dictionary<IHelperOwner, Matrix4x4> pathsOfSelectedNodes = [];
 
-    private readonly LineBuffer lines;
-    private readonly LineBuffer overlayLines;
-    private readonly LineBuffer faces;
-    private readonly LineBuffer overlayFaces;
+    /// <summary>Gets the shapes of the selection, in world space, as the last <see cref="Update"/> drew them.</summary>
+    public ToolGeometry Shapes { get; } = new();
 
     /// <summary>Gets or sets which lighting is shown linked to each selected node.</summary>
     public LightingBindingDisplay LightingBindings { get; set; }
 
-    /// <summary>Creates the buffers the helpers are drawn with.</summary>
-    /// <param name="rendererContext">Renderer context for loading shaders.</param>
+    /// <summary>Initializes the visuals of a selection.</summary>
     /// <param name="selection">The selection to draw.</param>
     /// <param name="entityVisuals">The editor entities of the view, whose helpers draw the shapes of a selected entity.</param>
-    public SelectionVisuals(RendererContext rendererContext, SelectionSet selection, HammerEntityVisuals entityVisuals)
+    public SelectionVisuals(SelectionSet selection, HammerEntityVisuals entityVisuals)
     {
-        const string Shader = "helper_lines";
-
         this.selection = selection;
         this.entityVisuals = entityVisuals;
-
-        lines = new LineBuffer(rendererContext, nameof(SelectionVisuals), Shader);
-        overlayLines = new LineBuffer(rendererContext, nameof(SelectionVisuals) + " overlay", Shader);
-        faces = new LineBuffer(rendererContext, nameof(SelectionVisuals) + " faces", Shader);
-        overlayFaces = new LineBuffer(rendererContext, nameof(SelectionVisuals) + " overlay faces", Shader);
     }
 
-    /// <summary>Rebuilds the helper shapes and labels for the current selection.</summary>
+    /// <summary>Draws the shapes and labels of the current selection again.</summary>
     /// <param name="renderContext">Render context providing the camera.</param>
     /// <param name="updateContext">Update context providing the text renderer.</param>
     public void Update(Scene.RenderContext renderContext, Scene.UpdateContext updateContext)
     {
-        var nodes = selection.Nodes;
+        Shapes.Clear();
 
-        if (nodes.Count == 0)
-        {
-            // We don't need to reupload an empty array
-            ClearBuffers();
-            return;
-        }
+        // The entities selected last time are found again as the nodes are drawn
+        previouslySelectedEntities.Clear();
+        previouslySelectedEntities.UnionWith(selectedEntities);
+        selectedEntities.Clear();
+        pathsOfSelectedNodes.Clear();
+
+        var context = new ToolRenderContext(Shapes);
+        var nodes = selection.Nodes;
+        AABB? bounds = null;
+
+        // What is selected is counted by the entities and other objects it is, not by the nodes drawing them
+        var objectCount = nodes.Select(node => (object?)FindEntity(node) ?? node).Distinct().Count();
 
         foreach (var node in nodes)
         {
-            AddNodeHelpers(renderContext.Camera, updateContext.TextRenderer, node);
+            if (DrawNode(context, renderContext.Camera, updateContext.TextRenderer, node, isOnlySelected: objectCount == 1) is { } nodeBounds)
+            {
+                bounds = bounds?.Union(nodeBounds) ?? nodeBounds;
+            }
         }
 
-        lines.Upload(vertices.Lines);
-        overlayLines.Upload(vertices.OverlayLines);
-        faces.Upload(vertices.Faces);
-        overlayFaces.Upload(vertices.OverlayFaces);
-
-        vertices.Clear();
-    }
-
-    /// <summary>Draws the helpers built by the last <see cref="Update"/> over the final image, after post processing.</summary>
-    /// <param name="sceneDepth">The scene's resolved depth, to find what it hides.</param>
-    public void Render(RenderTexture sceneDepth)
-    {
-        if (lines.VertexCount == 0 && overlayLines.VertexCount == 0)
+        // A path is drawn as selected while any of its nodes is
+        foreach (var (path, toWorld) in pathsOfSelectedNodes)
         {
-            return;
+            if (!selectedEntities.Contains(path))
+            {
+                DrawPath(context, path, renderContext.Camera, toWorld);
+            }
         }
 
-        var shader = lines.Shader;
-        shader.Use();
-        shader.SetTexture((int)ReservedTextureSlots.SceneDepth, "g_tSceneDepth", sceneDepth);
+        // One box around everything selected
+        if (bounds is { } selectionBounds)
+        {
+            SelectionBounds.Draw(context, Matrix4x4.Identity, selectionBounds, renderContext.Camera, updateContext.TextRenderer);
+        }
 
-        using var _ = GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false, blend: true);
-
-        shader.SetUniform("g_bDepthTest", false);
-        overlayFaces.Draw(0, overlayFaces.VertexCount, primitive: PrimitiveType.Triangles);
-
-        // Faces pull further towards the camera, so they still show where they lie on the scene's surfaces
-        shader.SetUniform("g_bDepthTest", true);
-        shader.SetUniform("g_flDepthTolerance", 0.004f);
-        faces.Draw(0, faces.VertexCount, primitive: PrimitiveType.Triangles);
-
-        shader.SetUniform("g_flDepthTolerance", 0.001f);
-        lines.Draw();
-
-        shader.SetUniform("g_bDepthTest", false);
-        overlayLines.Draw();
+        // The entities no longer selected show the shapes they show while they are not
+        foreach (var entity in previouslySelectedEntities)
+        {
+            if (!selectedEntities.Contains(entity))
+            {
+                SetSelected(entity, isSelected: false);
+            }
+        }
     }
 
     /// <summary>Deletes the GL objects.</summary>
     public void Delete()
     {
-        lines.Delete();
-        overlayLines.Delete();
-        faces.Delete();
-        overlayFaces.Delete();
+        Shapes.Delete();
     }
 
-    private void ClearBuffers()
+    private static void SetSelected(IHelperOwner entity, bool isSelected)
     {
-        lines.Clear();
-        overlayLines.Clear();
-        faces.Clear();
-        overlayFaces.Clear();
+        foreach (var helper in entity.Helpers)
+        {
+            helper.SetSelected(isSelected);
+        }
     }
 
-    private void AddNodeHelpers(Camera camera, TextRenderer textRenderer, SceneNode node)
+    private IHelperOwner? FindEntity(SceneNode node) => node.EntityData != null ? entityVisuals.FindEntity(node) : null;
+
+    // Gives the bounds the node adds to those of the selection, in the world
+    private AABB? DrawNode(ToolRenderContext context, Camera camera, TextRenderer textRenderer, SceneNode node, bool isOnlySelected)
     {
         var nodeName = node.Name ?? node.GetType().Name;
 
         // Drawn with the main camera, so 3D sky nodes are outlined where they appear in the world
         var toWorld = node.Scene.ToViewerWorld;
         var bounds = node.BoundingBox.Transform(toWorld);
-        var hasHelpers = false;
+        AABB? selectionBounds = node.IsPointMarker ? null : bounds;
 
-        if (node.EntityData != null)
+        if (node.EntityData?.GetStringProperty("classname") is { } classname)
         {
-            var classname = node.EntityData.GetStringProperty("classname");
-            if (classname != null)
-            {
-                nodeName = classname;
-            }
+            nodeName = classname;
+        }
 
-            if (entityVisuals.FindEntity(node) is { } entity)
+        // An entity adds its bounds once, however many of the nodes it is drawn with are selected
+        if (FindEntity(node) is { } entity)
+        {
+            selectionBounds = null;
+
+            if (selectedEntities.Add(entity))
             {
-                hasHelpers = EntityHelperLines.TryAdd(vertices, entity, toWorld, selection.Nodes.Count == 1);
+                DrawEntity(context, entity, camera, toWorld, isOnlySelected);
+                selectionBounds = GetObjectBounds(entity).Transform(toWorld);
             }
         }
 
-        // The helpers show the entity better than the bounds of its editor model
-        if (!(hasHelpers && node.LayerName == HammerEntityVisuals.MarkerLayerName) && !node.IsPointMarker)
-        {
-            BoxLines.AddWithSize(vertices, node.Transform * toWorld, node.LocalBoundingBox, Color32.White, camera, textRenderer);
-        }
-
-        AddLightingBindings(node, toWorld, bounds.Center);
+        DrawLightingBindings(context, node, toWorld, bounds.Center);
 
         // draw node name above the bounding box
         var position = bounds.Center;
@@ -179,9 +162,75 @@ public sealed class SelectionVisuals
             CenterHorizontal = true,
             TextOffset = NodeNameOffset
         }, camera);
+
+        // An icon is a marker, so the size it is drawn at is not part of what is selected
+        return selectionBounds;
     }
 
-    private void AddLightingBindings(SceneNode node, in Matrix4x4 toWorld, Vector3 nodeCenter)
+    // What the helpers of the entity cover and what it is made of besides, or its origin where that is nothing
+    private static AABB GetObjectBounds(IHelperOwner entity)
+    {
+        var bounds = entity.ContentBounds;
+
+        foreach (var helper in entity.Helpers)
+        {
+            if (helper.ObjectBounds is { } helperBounds)
+            {
+                bounds = bounds?.Union(helperBounds) ?? helperBounds;
+            }
+        }
+
+        return bounds ?? new AABB(entity.Transform.Translation, entity.Transform.Translation);
+    }
+
+    // The shapes the helpers of a selected entity draw, in place of the ones they draw while it is not selected
+    private void DrawEntity(ToolRenderContext context, IHelperOwner entity, Camera camera, in Matrix4x4 toWorld, bool isOnlySelected)
+    {
+        if (!previouslySelectedEntities.Contains(entity))
+        {
+            SetSelected(entity, isSelected: true);
+        }
+
+        if (entity.Path is { } path)
+        {
+            pathsOfSelectedNodes.TryAdd(path, toWorld);
+        }
+
+        var state = new HelperRenderState(IsSelected: true, IsOnlySelected: isOnlySelected) { Camera = camera };
+
+        context.PushAbsoluteTransform(toWorld);
+
+        foreach (var helper in entity.Helpers)
+        {
+            // Selecting an entity shows every helper it has, whichever layers hide them while it is not
+            if (helper.IsAvailable)
+            {
+                helper.Render(context, state);
+            }
+        }
+
+        context.PopTransform();
+    }
+
+    // The helpers of a path that are drawn as selected while a node of it is
+    private static void DrawPath(ToolRenderContext context, IHelperOwner path, Camera camera, in Matrix4x4 toWorld)
+    {
+        var state = new HelperRenderState(IsSelected: true, IsOnlySelected: false) { Camera = camera };
+
+        context.PushAbsoluteTransform(toWorld);
+
+        foreach (var helper in path.Helpers)
+        {
+            if (helper.IsSelectedWithPathNodes && helper.IsAvailable)
+            {
+                helper.Render(context, state);
+            }
+        }
+
+        context.PopTransform();
+    }
+
+    private void DrawLightingBindings(ToolRenderContext context, SceneNode node, in Matrix4x4 toWorld, Vector3 nodeCenter)
     {
         switch (LightingBindings)
         {
@@ -191,23 +240,30 @@ public sealed class SelectionVisuals
 
                 foreach (var envMap in envMaps)
                 {
-                    AddLink(envMap, toWorld, nodeCenter);
+                    DrawLink(context, envMap, toWorld, nodeCenter);
                 }
 
                 break;
 
             case LightingBindingDisplay.LightProbe when node.LightProbeBinding is { } probe:
-                AddLink(probe, toWorld, nodeCenter);
+                DrawLink(context, probe, toWorld, nodeCenter);
                 break;
         }
     }
 
-    /// <summary>Outlines a lighting volume and connects it to the node that uses it.</summary>
-    private void AddLink(SceneNode source, in Matrix4x4 toWorld, Vector3 nodeCenter)
+    /// <summary>Outlines a lighting volume and connects it to the node that uses it, over the scene.</summary>
+    private static void DrawLink(ToolRenderContext context, SceneNode source, in Matrix4x4 toWorld, Vector3 nodeCenter)
     {
         var transform = source.Transform * toWorld;
 
-        BoxLines.Add(vertices, transform, source.LocalBoundingBox, LightingBindingColor);
-        BoxLines.AddLine(vertices, transform.Translation, nodeCenter, LightingBindingColor);
+        context.PushRenderMode(ToolRenderMode.WireframeNoZ);
+        context.DrawColor = LightingBindingColor;
+
+        context.PushTransform(transform);
+        context.DrawWireBox(source.LocalBoundingBox.Min, source.LocalBoundingBox.Max);
+        context.PopTransform();
+
+        context.DrawLine(transform.Translation, nodeCenter);
+        context.PopRenderMode();
     }
 }

@@ -1,4 +1,5 @@
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -18,22 +19,29 @@ public sealed class PointClientUIWorldPanel : BaseEntity
     }
 
     /// <inheritdoc/>
-    protected override SceneNode? CreateRootNode()
+    protected override SceneNode? CreateRootNode() => CreatePanel(Scene, KeyValues, Classname);
+
+    /// <summary>Creates the rectangle a world panel entity fills, from its keyvalues.</summary>
+    /// <param name="scene">The scene the panel is drawn in.</param>
+    /// <param name="keyValues">The keyvalues of the entity.</param>
+    /// <param name="classname">The classname of the entity.</param>
+    /// <returns>The panel, at the origin.</returns>
+    internal static WorldPanelSceneNode CreatePanel(Scene scene, EntityLump.Entity keyValues, string classname)
     {
         // The text panel's keys default to a caption centred above its origin that turns to face the player
-        var isTextPanel = Classname.Equals("point_clientui_world_text_panel", StringComparison.OrdinalIgnoreCase);
+        var isTextPanel = classname.Equals("point_clientui_world_text_panel", StringComparison.OrdinalIgnoreCase);
 
         var size = new Vector2(
-            KeyValues.GetFloatProperty("width", isTextPanel ? 128f : 32f),
-            KeyValues.GetFloatProperty("height", isTextPanel ? 24f : 32f));
+            keyValues.GetFloatProperty("width", isTextPanel ? 128f : 32f),
+            keyValues.GetFloatProperty("height", isTextPanel ? 24f : 32f));
 
         var anchor = new Vector2(
-            AlignToAnchor(KeyValues.GetInt32Property("horizontal_align", isTextPanel ? 1 : 0)),
-            AlignToAnchor(KeyValues.GetInt32Property("vertical_align", 0)));
+            AlignToAnchor(keyValues.GetInt32Property("horizontal_align", isTextPanel ? 1 : 0)),
+            AlignToAnchor(keyValues.GetInt32Property("vertical_align", 0)));
 
-        var orientation = (WorldPanelSceneNode.PanelOrientation)KeyValues.GetInt32Property("orientation", isTextPanel ? 2 : 0);
+        var orientation = (WorldPanelSceneNode.PanelOrientation)keyValues.GetInt32Property("orientation", isTextPanel ? 2 : 0);
 
-        return new WorldPanelSceneNode(Scene, size, anchor, orientation, Color32.White);
+        return new WorldPanelSceneNode(scene, size, anchor, orientation, Color32.White);
     }
 
     // Left/Bottom, Center, Right/Top, as the fraction of the panel that lies before its origin

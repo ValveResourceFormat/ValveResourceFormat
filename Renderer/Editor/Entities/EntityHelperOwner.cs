@@ -1,6 +1,7 @@
 using System.Linq;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Helpers;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
@@ -14,6 +15,11 @@ namespace ValveResourceFormat.Renderer.Editor.Entities;
 /// </summary>
 internal sealed class EntityHelperOwner : IHelperOwner
 {
+    private const string HammerIdKey = "hammeruniqueid";
+    private const string PathNodesKey = "pathnodes";
+    private const string PathIdKey = "path_uniqueid";
+    private const string PathIndexKey = "path_index";
+
     private readonly BaseEntity entity;
     private readonly HammerEntityVisuals visuals;
 
@@ -37,6 +43,16 @@ internal sealed class EntityHelperOwner : IHelperOwner
 
     public string LayerName => entity.LayerName ?? string.Empty;
 
+    /// <summary>Gets or sets the node the helpers stand in for the entity with, which the entity took as its own.</summary>
+    public SceneNode? StandIn { get; set; }
+
+    public bool IsInSkybox => entity.Scene.IsSkybox;
+
+    // What the game draws the entity with, unless the helpers stand in for it
+    public AABB? LocalBounds => entity.RootNode is { IsPointMarker: false } root ? root.LocalBoundingBox : null;
+
+    public AABB? ContentBounds => entity.RootNode is { IsPointMarker: false } root && root != StandIn ? root.BoundingBox : null;
+
     public IReadOnlyList<EntityHelper> Helpers { get; private set; } = [];
 
     public EntityHelperOwner(BaseEntity entity, EntityLump.Entity keyValues, HammerEntityVisuals visuals)
@@ -57,7 +73,8 @@ internal sealed class EntityHelperOwner : IHelperOwner
 
     /// <summary>Gets whether a helper only draws shapes of the editor, which the game does not show.</summary>
     public static bool IsToolShape(EntityHelper helper)
-        => helper is AnglesHelper or BoxHelper or SphereHelper or VecLineHelper or WireBoxHelper;
+        => helper is AccompanyHelper or AnglesHelper or ArcRangeHelper or BoxHelper or OrientedWidthHeightHelper
+            or RadiusSphereHelper or SphereHelper or SweptPlayerHullHelper or TextHelper or VecLineHelper or WireBoxHelper;
 
     /// <summary>Creates the helpers of the entity, every one its class declares.</summary>
     public void CreateHelpers()
@@ -67,6 +84,12 @@ internal sealed class EntityHelperOwner : IHelperOwner
 
     public void AddNode(SceneNode node, bool followsEntity = false)
     {
+        // The game draws a compiled map, so the shapes only the editor draws are never on the layer of the entity
+        if (node is ToolSceneNode && node.LayerName == null)
+        {
+            node.LayerName = HammerEntityVisuals.MarkerLayerName;
+        }
+
         // What a template spawns stays grouped with it, at the size it has in the map
         if (entity.LayerName == WorldLoader.TemplateLayerName && node.LayerName is HammerEntityVisuals.MarkerLayerName)
         {
@@ -100,4 +123,24 @@ internal sealed class EntityHelperOwner : IHelperOwner
         => entity.EntitySystem.Entities
             .Where(found => !found.IsRemoved && found.Data != null && found.Classname.Equals(classname, StringComparison.OrdinalIgnoreCase))
             .Select(visuals.GetEntity);
+
+    // A node the compiler keeps as an entity of its own names its path by the id of the path, and its place along it
+    public IHelperOwner? Path
+        => entity.Data?.GetStringProperty(PathIdKey) is { } pathId
+            ? FindInLump(found => found.ContainsKey(PathNodesKey) && found.GetStringProperty(HammerIdKey) == pathId)
+            : null;
+
+    public IHelperOwner? FindPathNode(int index)
+        => entity.Data is { } data && data.ContainsKey(PathNodesKey) && data.GetStringProperty(HammerIdKey) is { } pathId
+            ? FindInLump(found => found.GetStringProperty(PathIdKey) == pathId && found.ContainsKey(PathIndexKey) && found.GetInt32Property(PathIndexKey) == index)
+            : null;
+
+    // Ids are only unique within the lump of a map or of one of its prefabs
+    private EntityHelperOwner? FindInLump(Func<EntityLump.Entity, bool> predicate)
+    {
+        var found = entity.EntitySystem.Entities.FirstOrDefault(other => !other.IsRemoved && other.Scene == entity.Scene
+            && other.Data is { } data && data.ParentLump == entity.Data?.ParentLump && predicate(data));
+
+        return found != null ? visuals.GetEntity(found) : null;
+    }
 }

@@ -418,6 +418,9 @@ namespace GUI.Types.GLViewers
 
                     worldLayersComboBox.BeginUpdate();
 
+                    // Showing helpers also decides what a selected entity shows, so it can be chosen even
+                    // while nothing unselected needs it
+                    uniqueWorldLayers.Add(HammerEntityVisuals.HelpersLayerName);
                     SetAvailableLayers(uniqueWorldLayers);
 
                     // Layers that have no nodes yet, such as particles spawned later, are not listed and stay enabled

@@ -1,4 +1,5 @@
 using ValveResourceFormat.IO.Fgd;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
@@ -8,6 +9,12 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// </summary>
 public sealed class WireBoxHelper : EntityHelper
 {
+    /// <inheritdoc/>
+    public override bool IsVisual => false;
+
+    /// <inheritdoc/>
+    public override bool HiddenInGameObjectsOnly => true;
+
     /// <summary>Gets the key of the entity that holds the smallest corner.</summary>
     public string MinsKey { get; }
 
@@ -19,8 +26,8 @@ public sealed class WireBoxHelper : EntityHelper
 
     private WireBoxHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
-        MinsKey = declaration.Arguments[0].ToLowerInvariant();
-        MaxsKey = declaration.Arguments[1].ToLowerInvariant();
+        MinsKey = ToKey(declaration.Arguments[0]);
+        MaxsKey = ToKey(declaration.Arguments[1]);
         IsWorld = declaration.Name.Equals("wirebox", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -35,22 +42,19 @@ public sealed class WireBoxHelper : EntityHelper
         return declaration.Arguments.Count >= 2 ? new WireBoxHelper(owner, declaration) : null;
     }
 
+    // The editor keeps no more than 31 characters of each key
+    private static string ToKey(string argument) => argument[..Math.Min(argument.Length, 31)].ToLowerInvariant();
+
     /// <inheritdoc/>
-    public override void AddToScene()
+    public override void AddToScene() => AddShapes();
+
+    internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
-        var bounds = GetBounds();
-        var color = ClassColor;
+        var offset = IsWorld ? Vector3.Zero : Owner.RigidTransform.Translation;
 
-        AddLines(GetPlacement(), lines => lines.AddBox(bounds, color));
+        context.PushRenderMode(ToolRenderMode.Wireframe);
+        context.DrawColor = GetDrawColor(state) with { A = 255 };
+        context.DrawWireBox(GetVector3Key(MinsKey) + offset, GetVector3Key(MaxsKey) + offset);
+        context.PopRenderMode();
     }
-
-    internal override void AddSelectionShapes(in SelectionShapes shapes)
-    {
-        shapes.World(HelperPasses.Visible).Transformed(GetPlacement()).AddBox(GetBounds(), EntityHelperLines.SelectionColor);
-    }
-
-    private AABB GetBounds() => new(GetVector3Key(MinsKey), GetVector3Key(MaxsKey));
-
-    private Matrix4x4 GetPlacement()
-        => IsWorld ? Matrix4x4.Identity : Matrix4x4.CreateTranslation(Owner.RigidTransform.Translation);
 }

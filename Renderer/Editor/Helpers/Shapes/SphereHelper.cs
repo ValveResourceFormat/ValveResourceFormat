@@ -1,4 +1,5 @@
 using ValveResourceFormat.IO.Fgd;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -9,6 +10,12 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// </summary>
 public sealed class SphereHelper : EntityHelper
 {
+    /// <inheritdoc/>
+    public override bool IsVisual => false;
+
+    /// <inheritdoc/>
+    public override bool NeedsShowHelpers => true;
+
     private const string DefaultRadiusKey = "radius";
 
     private static readonly Color32 DefaultUnselectedColor = new(128, 128, 128);
@@ -87,55 +94,58 @@ public sealed class SphereHelper : EntityHelper
     /// <inheritdoc/>
     public override void AddToScene()
     {
-        if (AlwaysRender && GetRadius() > 0f)
+        if (AlwaysRender)
         {
-            AddLines(Matrix4x4.CreateTranslation(GetCenter()), lines => AddSphere(lines, Vector3.Zero, UnselectedColor));
+            AddShapes();
         }
     }
 
-    internal override void AddSelectionShapes(in SelectionShapes shapes)
+    internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
+        var radius = GetFloatKey(RadiusKey);
+
         // A lean sphere is drawn however much else is selected
-        if (GetRadius() <= 0f || (SingleSelect && !IsLean && !shapes.IsOnlySelected))
+        var shown = state.IsSelected ? IsLean || !SingleSelect || state.IsOnlySelected : AlwaysRender;
+
+        if (radius <= 0f || !shown)
         {
             return;
         }
 
-        AddSphere(shapes.World(HelperPasses.Visible), GetCenter(), Color);
-    }
-
-    private float GetRadius() => GetFloatKey(RadiusKey);
-
-    // A lean sphere is always at the origin of its entity
-    private Vector3 GetCenter()
-        => !IsLean && OriginKey != null && Owner.KeyValues.ContainsKey(OriginKey) ? GetVector3Key(OriginKey) : Owner.RigidTransform.Translation;
-
-    private void AddSphere(EntityHelperLines lines, Vector3 center, Color32 color)
-    {
-        var radius = GetRadius();
         var edgeFade = EdgeFadeKey.Length > 0 ? GetFloatKey(EdgeFadeKey) : 0f;
 
         // The edge fade is a fainter inner sphere in the selected color
         var innerRadius = MathF.Max(radius - edgeFade, 0f);
         var innerColor = Color with { A = (byte)(Color.A >> 1) };
 
+        context.DrawColor = state.IsSelected ? Color : UnselectedColor;
+
         if (IsLean)
         {
-            lines.AddGreatCircles(center, radius, color);
+            var origin = Owner.RigidTransform.Translation;
+
+            context.DrawSphereCircles(origin, radius, 48);
 
             if (EdgeFadeKey.Length > 0 && edgeFade > 0f)
             {
-                lines.AddGreatCircles(center, innerRadius, innerColor);
+                context.DrawColor = innerColor;
+                context.DrawSphereCircles(origin, innerRadius, 48);
             }
 
             return;
         }
 
-        lines.AddLatLongSphere(center, radius, color);
+        // The key, or the default its class gives it, names a point in the world once it holds one
+        var center = OriginKey != null && KeyValueScanner.TryReadVector(GetStringKey(OriginKey), out var originKeyValue)
+            ? originKeyValue
+            : Owner.RigidTransform.Translation;
+
+        context.DrawWireSphere(center, radius, 12, 12);
 
         if (EdgeFadeKey.Length > 0)
         {
-            lines.AddLatLongSphere(center, innerRadius, innerColor);
+            context.DrawColor = innerColor;
+            context.DrawWireSphere(center, innerRadius, 12, 12);
         }
     }
 }

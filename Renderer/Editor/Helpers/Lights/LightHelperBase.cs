@@ -1,5 +1,6 @@
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -10,9 +11,6 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// </summary>
 public abstract class LightHelperBase : EntityHelper
 {
-    /// <inheritdoc/>
-    public override bool IsVisual => true;
-
     /// <summary>Gets the light, once it is in the scene.</summary>
     public SceneLight? Light { get; private set; }
 
@@ -53,10 +51,32 @@ public abstract class LightHelperBase : EntityHelper
         HasCookie = GetStringKey("lightcookie").EndsWith(".vtex", StringComparison.OrdinalIgnoreCase);
     }
 
+    private LuminaireSceneNode? luminaire;
+
     /// <inheritdoc/>
     public override void AddToScene()
     {
         Light = LightHelper.AddLight(Owner);
+
+        // The luminaire of a rect or omni2 light is drawn where showlight says so, and while it is selected
+        if (Light is { HasLuminaire: true })
+        {
+            luminaire = new LuminaireSceneNode(Owner.Scene, Light)
+            {
+                Transform = Light.Transform,
+                Visible = ShowsLuminaire,
+            };
+
+            Owner.AddNode(luminaire, followsEntity: true);
+        }
+    }
+
+    private bool ShowsLuminaire => GetBooleanKey("showlight", false);
+
+    /// <inheritdoc/>
+    private protected override void OnSelectionChanged(bool isSelected)
+    {
+        luminaire?.Visible = isSelected || ShowsLuminaire;
     }
 
     /// <summary>
