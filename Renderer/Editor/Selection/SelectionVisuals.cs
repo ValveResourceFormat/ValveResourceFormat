@@ -24,7 +24,7 @@ public enum LightingBindingDisplay
 /// Draws what is selected in a <see cref="SelectionSet"/> the way Hammer does: the shapes the helpers of a
 /// selected entity show while it is, in place of the ones they show while it is not, and one box around what is
 /// selected with the length of its edges, along with the name of each node and optionally the lighting it uses.
-/// The outline itself is drawn by <see cref="SelectionOutline"/>.
+/// The selected nodes are outlined, and show their tools materials even while those are hidden.
 /// </summary>
 public sealed class SelectionVisuals
 {
@@ -37,6 +37,8 @@ public sealed class SelectionVisuals
     private readonly HashSet<IHelperOwner> selectedEntities = [];
     private readonly HashSet<IHelperOwner> previouslySelectedEntities = [];
     private readonly Dictionary<IHelperOwner, Matrix4x4> pathsOfSelectedNodes = [];
+    private readonly List<SceneNode> nodesShowingToolsMaterials = [];
+    private readonly SelectionOutline outline;
 
     /// <summary>Gets the shapes of the selection, in world space, as the last <see cref="Update"/> drew them.</summary>
     public ToolGeometry Shapes { get; } = new();
@@ -47,10 +49,14 @@ public sealed class SelectionVisuals
     /// <summary>Initializes the visuals of a selection.</summary>
     /// <param name="selection">The selection to draw.</param>
     /// <param name="entityVisuals">The editor entities of the view, whose helpers draw the shapes of a selected entity.</param>
-    public SelectionVisuals(SelectionSet selection, HammerEntityVisuals entityVisuals)
+    /// <param name="rendererContext">Renderer context for loading the outline shaders.</param>
+    public SelectionVisuals(SelectionSet selection, HammerEntityVisuals entityVisuals, RendererContext rendererContext)
     {
+        ArgumentNullException.ThrowIfNull(rendererContext);
+
         this.selection = selection;
         this.entityVisuals = entityVisuals;
+        outline = new SelectionOutline(rendererContext);
     }
 
     /// <summary>Draws the shapes and labels of the current selection again.</summary>
@@ -69,6 +75,19 @@ public sealed class SelectionVisuals
         var context = new ToolRenderContext(Shapes);
         var nodes = selection.Nodes;
         AABB? bounds = null;
+
+        foreach (var node in nodesShowingToolsMaterials)
+        {
+            node.ShowsToolsMaterials = false;
+        }
+
+        nodesShowingToolsMaterials.Clear();
+        nodesShowingToolsMaterials.AddRange(nodes);
+
+        foreach (var node in nodes)
+        {
+            node.ShowsToolsMaterials = true;
+        }
 
         // What is selected is counted by the entities and other objects it is, not by the nodes drawing them
         var objectCount = nodes.Select(node => (object?)FindEntity(node) ?? node).Distinct().Count();
@@ -106,10 +125,24 @@ public sealed class SelectionVisuals
         }
     }
 
+    /// <summary>Outlines the selected nodes as the last frame drew them.</summary>
+    /// <param name="renderer">The renderer of the frame, which resolved the scene depth.</param>
+    /// <param name="sceneFramebuffer">What the scene was rendered into.</param>
+    /// <param name="target">What the outline is drawn over, the size of the scene.</param>
+    public void RenderOutline(Renderer renderer, Framebuffer sceneFramebuffer, Framebuffer target)
+    {
+        ArgumentNullException.ThrowIfNull(renderer);
+        ArgumentNullException.ThrowIfNull(sceneFramebuffer);
+        ArgumentNullException.ThrowIfNull(target);
+
+        outline.Render(renderer, sceneFramebuffer, target, selection.Nodes);
+    }
+
     /// <summary>Deletes the GL objects.</summary>
     public void Delete()
     {
         Shapes.Delete();
+        outline.Delete();
     }
 
     private static void SetSelected(IHelperOwner entity, bool isSelected)

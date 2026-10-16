@@ -5,7 +5,6 @@ namespace ValveResourceFormat.Renderer.Editor.Selection;
 /// <summary>
 /// The scene nodes selected in a viewport. It is changed from both the UI thread and the render
 /// thread, so changes take a lock and readers iterate <see cref="Nodes"/>, an immutable snapshot.
-/// Selected nodes draw their tools materials even while those are hidden.
 /// </summary>
 public sealed class SelectionSet
 {
@@ -24,18 +23,12 @@ public sealed class SelectionSet
     {
         using var _ = changeLock.EnterScope();
 
-        foreach (var selected in nodes)
-        {
-            selected.ShowsToolsMaterials = false;
-        }
-
         if (node == null)
         {
             Volatile.Write(ref nodes, []);
             return;
         }
 
-        node.ShowsToolsMaterials = true;
         Volatile.Write(ref nodes, [node]);
     }
 
@@ -54,12 +47,10 @@ public sealed class SelectionSet
 
         if (index >= 0)
         {
-            node.ShowsToolsMaterials = false;
             Volatile.Write(ref nodes, [.. nodes.AsSpan(0, index), .. nodes.AsSpan(index + 1)]);
             return;
         }
 
-        node.ShowsToolsMaterials = true;
         Volatile.Write(ref nodes, [.. nodes, node]);
     }
 }

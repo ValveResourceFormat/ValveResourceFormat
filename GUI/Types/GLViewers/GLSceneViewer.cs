@@ -474,8 +474,10 @@ namespace GUI.Types.GLViewers
             Renderer.Postprocess.ExposureCompensation = -0.4f; // eyeballed
 
             baseGrid = new InfiniteGrid(Scene);
-            selectionVisuals = new(Selection, EntityVisuals);
-            toolsPass = new(Scene.RendererContext);
+            Debug.Assert(MainFramebuffer != null);
+
+            selectionVisuals = new(Selection, EntityVisuals, Scene.RendererContext);
+            toolsPass = new(Scene.RendererContext, MainFramebuffer);
             Picker = new(Scene.RendererContext, OnPicked);
 
             QuadOverdrawRenderer = new(Scene.RendererContext);
@@ -746,7 +748,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(toolsPass != null && selectionVisuals != null);
 
             // The tools are drawn over the final image, so they keep their colors whatever the exposure
-            toolsPass.Render(Renderer, MainFramebuffer, GLDefaultFramebuffer, Selection.Nodes, [selectionVisuals.Shapes], TextRenderer);
+            toolsPass.Render(Renderer, GLDefaultFramebuffer, selectionVisuals, TextRenderer);
         }
 
         protected override void OnBufferSwapped(double blockedMs, double framePeriodMs)

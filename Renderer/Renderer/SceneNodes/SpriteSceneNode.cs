@@ -125,8 +125,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             VertexArray.Bind(vao, renderShader);
 
-            renderShader.SetUniform1("shaderId", material.Shader.NameHash);
-            renderShader.SetUniform1("shaderProgramId", (uint)material.Shader.Program);
+            renderShader.SetDrawIdentity(0, material.Shader);
 
             material.Render(renderShader);
 

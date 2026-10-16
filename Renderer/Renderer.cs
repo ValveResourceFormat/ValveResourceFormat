@@ -1760,37 +1760,46 @@ public class Renderer : ISpawnGroupHost
     }
 
     /// <summary>
-    /// Binds every scene the main camera sees in turn, the 3D sky first, with the view constants and buffers
-    /// it was rendered with, for drawing in the world over a frame that has already been rendered.
+    /// Binds every scene the main camera sees in turn, the 3D sky first and the main scene last, with the view
+    /// constants and buffers it was rendered with, for drawing in the world over a frame that has already been
+    /// rendered. The scene textures stay bound. The caller binds the target and sets the render state.
     /// </summary>
-    /// <param name="width">Width of the target being drawn to.</param>
-    /// <param name="height">Height of the target being drawn to.</param>
-    /// <param name="draw">Draws into one scene, given the view state it was culled with.</param>
-    public void DrawOverScenes(int width, int height, Action<SceneViewState> draw)
+    /// <param name="framebuffer">What is drawn into, the size of the scene.</param>
+    /// <param name="draw">Draws into one scene, given a render context with the view state it was culled with.</param>
+    public void DrawOverScenes(Framebuffer framebuffer, Action<Scene.RenderContext> draw)
     {
+        ArgumentNullException.ThrowIfNull(framebuffer);
         ArgumentNullException.ThrowIfNull(draw);
 
-        SetViewportConstants(width, height, Vector2.One);
+        var renderContext = new Scene.RenderContext
+        {
+            Scene = Scene,
+            Camera = Camera,
+            Framebuffer = framebuffer,
+            Textures = Textures,
+        };
+
+        GL.Viewport(0, 0, framebuffer.Width, framebuffer.Height);
+        SetViewportConstants(framebuffer.Width, framebuffer.Height, Vector2.One);
 
         var views = CollectViews(Camera);
 
         for (var i = views.Length - 1; i >= 0; i--)
         {
-            var view = views[i];
+            var states = views[i].States;
 
-            foreach (var state in view.States)
+            for (var j = states.Count - 1; j >= 0; j--)
             {
-                BindView(view, state);
-                state.Scene.SetSceneBuffers();
-                draw(state);
+                DrawThrough(views[i], states[j], ref renderContext);
+                draw(renderContext);
             }
         }
     }
 
     /// <summary>
-    /// Draws some nodes of the last frame again, in every view they were drawn in, each all at once with a shader
-    /// that replaces their materials. The scene textures stay bound, so the shader can test against the
-    /// resolved scene depth. The caller binds and clears the target and sets the render state.
+    /// Draws some nodes of the last frame again over every scene they were drawn in, each all at once with a shader
+    /// that replaces their materials, which can test against the resolved scene depth. The caller binds and
+    /// clears the target and sets the render state.
     /// </summary>
     /// <param name="framebuffer">What is drawn into, the size of the scene.</param>
     /// <param name="shader">The shader every draw is made with.</param>
@@ -1798,7 +1807,6 @@ public class Renderer : ISpawnGroupHost
     /// <returns>Whether anything was drawn.</returns>
     public bool RenderNodes(Framebuffer framebuffer, Shader shader, IReadOnlySet<SceneNode> nodes)
     {
-        ArgumentNullException.ThrowIfNull(framebuffer);
         ArgumentNullException.ThrowIfNull(shader);
         ArgumentNullException.ThrowIfNull(nodes);
 
@@ -1807,32 +1815,12 @@ public class Renderer : ISpawnGroupHost
             return false;
         }
 
-        var renderContext = new Scene.RenderContext
-        {
-            Scene = Scene,
-            Camera = Camera,
-            Framebuffer = framebuffer,
-            ReplacementShader = shader,
-            Textures = Textures,
-        };
-
-        GL.Viewport(0, 0, framebuffer.Width, framebuffer.Height);
-        SetViewportConstants(framebuffer.Width, framebuffer.Height, Vector2.One);
-
-        var views = CollectViews(Camera);
         var drewAny = false;
 
-        // Backwards, so the sky is drawn first
-        for (var i = views.Length - 1; i >= 0; i--)
+        DrawOverScenes(framebuffer, context =>
         {
-            var states = views[i].States;
-
-            for (var j = states.Count - 1; j >= 0; j--)
-            {
-                DrawThrough(views[i], states[j], ref renderContext);
-                drewAny |= states[j].RenderNodes(renderContext, nodes);
-            }
-        }
+            drewAny |= context.View!.RenderNodes(context with { ReplacementShader = shader }, nodes);
+        });
 
         return drewAny;
     }

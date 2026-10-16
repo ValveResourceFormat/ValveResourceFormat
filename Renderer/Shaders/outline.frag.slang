@@ -1,5 +1,7 @@
 #version 460
 
+#pragma IgnoreMaterialData
+
 #include "common/ViewConstants.slang"
 
 #define F_ALPHA_TEST 0 // most shaders
