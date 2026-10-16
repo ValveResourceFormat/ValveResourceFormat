@@ -116,7 +116,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     ParticleOmni2LightTypeChoiceList.PARTICLE_OMNI2_LIGHT_TYPE_SPHERE => 0,
                     _ => 0
                 },
-                MinRoughness = 0.04f,
+                MinRoughness = SceneLight.MinSpecularRoughness,
                 Name = nameof(RenderOmni2Light),
                 CookieTexturePath = cookiePath,
                 // todo: "Cookie is Spherically Mapped"

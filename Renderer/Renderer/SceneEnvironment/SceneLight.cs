@@ -205,8 +205,11 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the fraction of the screen at which the light's shadows have faded out.</summary>
     public float ShadowFadeSizeEnd { get; set; }
 
+    /// <summary>The roughness no direct specular highlight is sharper than, whatever a light asks for.</summary>
+    public const float MinSpecularRoughness = 0.04f;
+
     /// <summary>Gets or sets the minimum roughness clamped for specular highlight calculations.</summary>
-    public float MinRoughness { get; set; } = 0.04f;
+    public float MinRoughness { get; set; } = MinSpecularRoughness;
 
     /// <summary>Gets or sets the material path of the cookie texture, or <see langword="null"/> if none.</summary>
     public string? CookieTexturePath { get; set; }
@@ -341,6 +344,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             SkyAmbientBounce = entity.GetColor32Property("skyambientbounce"),
             Range = entity.GetFloatProperty("range", 512.0f),
             FallOff = entity.GetFloatProperty("skirt", 0.1f),
+            MinRoughness = entity.GetFloatProperty("minroughness", MinSpecularRoughness),
 
             Enabled = entity.GetInt32Property("enabled", 1) != 0,
             RenderDiffuse = entity.GetInt32Property("renderdiffuse", 1) != 0,
@@ -407,7 +411,6 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             light.LuminaireAnisotropy = entity.GetFloatProperty("luminaire_anisotropy");
             light.SizeParams = entity.GetVector3Property("size_params");
             light.CookieTexturePath = entity.GetStringProperty("lightcookie") is { Length: > 0 } cookie ? cookie : null;
-            light.MinRoughness = entity.GetFloatProperty("minroughness", 0.04f);
 
             light.Shear = entity.GetVector2Property("shear");
         }
@@ -419,7 +422,6 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             light.SpotOuterAngle = 90f;
             light.SizeParams = entity.GetVector3Property("size_params");
             light.Shape = entity.GetFloatProperty("shape"); // 0 = rectangle, 1 = disc
-            light.MinRoughness = entity.GetFloatProperty("minroughness", 0.04f);
         }
 
         if (type is EntityType.Omni2)
@@ -428,7 +430,6 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             light.SpotOuterAngle = entity.GetFloatProperty("outer_angle", 180f);
             light.SizeParams = entity.GetVector3Property("size_params");
             light.CookieTexturePath = entity.GetStringProperty("lightcookie") is { Length: > 0 } cookie ? cookie : null;
-            light.MinRoughness = entity.GetFloatProperty("minroughness", 0.04f);
             light.LuminaireShape = entity.GetInt32Property("shape");
             light.LuminaireSize = entity.GetFloatProperty("luminaire_size");
         }
@@ -728,7 +729,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
                 BarnLightShadowOffsetScale = Vector4.Zero,
                 BarnLightCookieParameters = cookieParams,
                 BarnLightBakedShadowMask = light.BakedShadowMask,
-                BarnLightMinRoughness = MathF.Max(0.04f, light.MinRoughness),
+                BarnLightMinRoughness = MathF.Max(MinSpecularRoughness, light.MinRoughness),
                 BarnLightShadowScale = 0f,
                 PathTraceIndex_BarnLightFlags = 0xFFFF0000u,
                 BarnIlluminationFromWorld = illuminationFromWorld
@@ -819,7 +820,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
                     BarnLightShadowOffsetScale = Vector4.Zero,
                     BarnLightCookieParameters = cookieParams,
                     BarnLightBakedShadowMask = light.BakedShadowMask,
-                    BarnLightMinRoughness = MathF.Max(0.04f, light.MinRoughness),
+                    BarnLightMinRoughness = MathF.Max(MinSpecularRoughness, light.MinRoughness),
                     BarnLightShadowScale = 0f,
                     PathTraceIndex_BarnLightFlags = flags | luminaireFlags,
                     BarnLightLuminaireHalfHeight = luminaireHalfSize.Y,

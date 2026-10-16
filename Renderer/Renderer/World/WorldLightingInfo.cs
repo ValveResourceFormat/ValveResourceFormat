@@ -612,7 +612,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Points the sun uniforms at the given Euler angles, keeping the sun color.</summary>
         public void SetSunDirectionFromAngles(Vector3 angles)
         {
-            LightingData.SunDirection = new Vector4(-EntityTransformHelper.EulerAnglesToForwardDirection(angles), 0f);
+            LightingData.SunDirection = new Vector4(-EntityTransformHelper.EulerAnglesToForwardDirection(angles), LightingData.SunDirection.W);
             UpdateAmbientLighting();
         }
 
@@ -638,6 +638,17 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
+        /// Gets the roughness the highlight of the sun is no sharper than. Only CS2 keeps the sun from shining as a
+        /// point; the other games leave its highlight as sharp as the material is.
+        /// </summary>
+        /// <param name="lightMinRoughness">The minimum roughness the light itself asks for.</param>
+        /// <returns>The minimum roughness, zero where it does not apply.</returns>
+        public float GetSunMinRoughness(float lightMinRoughness = SceneLight.MinSpecularRoughness)
+            => scene.RendererContext.FileLoader.IsCounterStrike2
+                ? MathF.Max(SceneLight.MinSpecularRoughness, lightMinRoughness)
+                : 0f;
+
+        /// <summary>
         /// Stores the environment light into the dedicated sun uniforms, which work across all
         /// lightmap versions. The baked shadow data is the V2 one-hot channel mask, or the sun's
         /// baked light index in X for V1.
@@ -646,7 +657,7 @@ namespace ValveResourceFormat.Renderer.World
         {
             var premultipliedColor = ColorSpace.SrgbGammaToLinear(envLight.Color) * envLight.Brightness * envLight.BrightnessScale;
 
-            LightingData.SunDirection = new Vector4(-envLight.Direction, 0f);
+            LightingData.SunDirection = new Vector4(-envLight.Direction, GetSunMinRoughness(envLight.MinRoughness));
             LightingData.SunColor = new Vector4(premultipliedColor, envLight.RenderSpecular ? 1f : 0f);
             LightingData.SunLightBakedShadowMask = bakedShadowData;
 

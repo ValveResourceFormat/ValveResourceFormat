@@ -73,6 +73,18 @@ namespace ValveResourceFormat.IO
         public Package? CurrentPackage { get; set; }
 
         /// <summary>
+        /// Gets the Steam app id the first game found mounts its content as, which its <c>gameinfo.gi</c> gives as
+        /// <c>FileSystem/SteamAppId</c>, or zero when no game gives one.
+        /// </summary>
+        public int SteamAppId { get; private set; }
+
+        // Counter-Strike 2 mounts its content as the CS:GO SDK, not under its own app id
+        private const int CounterStrike2SteamAppId = 710;
+
+        /// <summary>Gets whether the game found is Counter-Strike 2.</summary>
+        public bool IsCounterStrike2 => SteamAppId == CounterStrike2SteamAppId;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="GameFileLoader"/> class.
         /// </summary>
         /// <param name="currentPackage">The current package to search for files in.</param>
@@ -446,6 +458,11 @@ namespace ValveResourceFormat.IO
             Logger.LogInformation("Found \"{GameName}\" from \"{GameInfo}\"", gameName, gameinfoPath);
 
             var fileSystem = gameInfo["FileSystem"];
+
+            if (SteamAppId == 0 && fileSystem.TryGetValue("SteamAppId", out var appIdValue))
+            {
+                SteamAppId = int.TryParse(appIdValue.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var appId) ? appId : 0;
+            }
 
             // Only games that opt in mount the dependencies listed in an addon's addoninfo.txt
             if (fileSystem.GetBooleanProperty("AllowAddonDependencies"))

@@ -96,6 +96,8 @@ void CalculateSunLighting(inout LightingTerms_t lighting, MaterialProperties_t m
     {
         vec3 previousSpecular = lighting.SpecularDirect;
 
+        ApplyMinRoughness(mat, g_vSunDirection.w);
+
         CalculateShading(lighting, GetSunDirection(), vSunColor * visibility, mat);
 
         if (g_vSunColor.a == 0.0)

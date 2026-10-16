@@ -5,6 +5,13 @@
 
 #include "light_cull.slang"
 
+// A light that is not a point never shines sharper than a roughness of its own
+void ApplyMinRoughness(inout MaterialProperties_t mat, float minRoughness)
+{
+    mat.IsometricRoughness = max(mat.IsometricRoughness, minRoughness);
+    mat.Roughness = max(mat.Roughness, vec2(minRoughness));
+}
+
 struct BarnLightConstants
 {
     mat4 m_mBarnFrustum;
@@ -341,8 +348,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
 
         float savedIsoRoughness = mat.IsometricRoughness;
         vec2 savedRoughness = mat.Roughness;
-        mat.IsometricRoughness = max(mat.IsometricRoughness, barnLight.m_fBarnLightMinRoughness);
-        mat.Roughness = max(mat.Roughness, vec2(barnLight.m_fBarnLightMinRoughness));
+        ApplyMinRoughness(mat, barnLight.m_fBarnLightMinRoughness);
 
         CalculateShading(lighting, lightDir, lightColor, mat);
 
