@@ -331,6 +331,29 @@ public static class ContentPaths
         return Normalize(Path.ChangeExtension(path, extension));
     }
 
+    /// <summary>
+    /// Adds text to the end of the file name of a path, before its extension, and keeps the folder as it is. Works on
+    /// content paths and on paths on disk.
+    /// </summary>
+    /// <param name="path">The path.</param>
+    /// <param name="suffix">The text added after the file name.</param>
+    /// <param name="extension">A new extension with its leading dot, or null to keep the current one.</param>
+    public static string AppendToFileName(string path, string suffix, string? extension = null)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(suffix);
+
+        var fileNameStart = path.AsSpan().LastIndexOfAny('/', '\\') + 1;
+        var extensionStart = path.LastIndexOf('.');
+
+        if (extensionStart < fileNameStart)
+        {
+            extensionStart = path.Length;
+        }
+
+        return string.Concat(path.AsSpan(0, extensionStart), suffix, extension ?? path.AsSpan(extensionStart));
+    }
+
     private static string? StripTrailingFolders(string folder, ReadOnlySpan<string> trailingFolders)
     {
         for (var i = trailingFolders.Length - 1; i >= 0; i--)

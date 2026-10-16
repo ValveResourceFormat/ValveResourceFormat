@@ -248,7 +248,7 @@ namespace ValveResourceFormat.IO
         }
 
         private static string? GetPhysicsFileName(string? fileName)
-            => fileName == null ? null : Path.Join(Path.GetDirectoryName(fileName), $"{Path.GetFileNameWithoutExtension(fileName)}_physics{Path.GetExtension(fileName)}");
+            => fileName == null ? null : ContentPaths.AppendToFileName(fileName, "_physics");
 
         // Whether an animation passes AnimationFilter, matching on its full name or, for path-named graph
         // clips, its leaf name. Records which filter entry matched so misses can be reported afterwards.

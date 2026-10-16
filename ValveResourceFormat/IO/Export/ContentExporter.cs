@@ -778,7 +778,7 @@ public sealed class ContentExporter
     }
 
     private static string GetSuffixedPath(string path, int suffix)
-        => Path.Join(Path.GetDirectoryName(path), string.Create(CultureInfo.InvariantCulture, $"{Path.GetFileNameWithoutExtension(path)}_{suffix}{Path.GetExtension(path)}"));
+        => ContentPaths.AppendToFileName(path, string.Create(CultureInfo.InvariantCulture, $"_{suffix}"));
 
     private void ConfirmExistingFilesOf(List<PlannedFile> files)
     {
