@@ -55,6 +55,62 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return Vector4.Clamp(new Vector4(rgb, color.W * scale.W), Vector4.Zero, new Vector4(255f));
         }
 
+        /// <summary>
+        /// Shifts a colour in 0 to 1 by an HSV shift: x turns the hue by that fraction of a turn, y and z
+        /// scale the saturation and value, each clamped to 0 to 1. The result is rounded to bytes.
+        /// </summary>
+        public static Vector3 ShiftHsv(Vector3 rgb, Vector3 shift)
+        {
+            var max = rgb.MaxComponent();
+            var chroma = max - rgb.MinComponent();
+            var hue = 0f;
+
+            if (chroma > 0f)
+            {
+                var sextant = rgb.X == max ? (rgb.Y - rgb.Z) / chroma
+                    : rgb.Y == max ? ((rgb.Z - rgb.X) / chroma) + 2f
+                    : ((rgb.X - rgb.Y) / chroma) + 4f;
+
+                hue = sextant * 60f;
+
+                if (hue < 0f)
+                {
+                    hue += 360f;
+                }
+            }
+
+            hue += shift.X * 360f;
+
+            if (hue > 360f)
+            {
+                hue -= 360f;
+            }
+            else if (hue < 0f)
+            {
+                hue += 360f;
+            }
+
+            var saturation = MathUtils.Saturate((max > 0f ? chroma / max : 0f) * shift.Y);
+            var value = MathUtils.Saturate(max * shift.Z);
+
+            var c = value * saturation;
+            var h = hue / 60f;
+            var x = c * (1f - MathF.Abs((h % 2f) - 1f));
+            var shifted = (int)h switch
+            {
+                0 or 6 => new Vector3(c, x, 0f),
+                1 => new Vector3(x, c, 0f),
+                2 => new Vector3(0f, c, x),
+                3 => new Vector3(0f, x, c),
+                4 => new Vector3(x, 0f, c),
+                _ => new Vector3(c, 0f, x),
+            } + new Vector3(value - c);
+
+            return new Vector3(ToByte(shifted.X), ToByte(shifted.Y), ToByte(shifted.Z)) / 255f;
+
+            static float ToByte(float x) => Math.Min((int)((x * 255f) + 0.5f), 255);
+        }
+
         /// <summary>A colour in 0 to 1 as saturated bytes.</summary>
         public static Vector4 ToBytes(Vector3 color, float alpha)
             => Vector4.Clamp(new Vector4(color, alpha), Vector4.Zero, Vector4.One) * 255f;

@@ -121,7 +121,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             particle.SetVector(outputField, worldOffset);
 
-            if (velocityField is ParticleField.NoneDisabled || velocityField < 0)
+            if (velocityField is ParticleField.NoneDisabled || velocityField < 0 || !IsUnwritten(particleSystemState, velocityField))
             {
                 return particle;
             }

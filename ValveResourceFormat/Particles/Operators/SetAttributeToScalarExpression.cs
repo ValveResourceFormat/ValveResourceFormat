@@ -1,4 +1,4 @@
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Particles.Operators
 {
@@ -24,11 +24,7 @@ namespace ValveResourceFormat.Particles.Operators
             input2 = parse.NumberProvider("m_flInput2", input2);
             expression = parse.Enum<ScalarExpressionType>("m_nExpression", expression);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
-
-            if (parse.Data.GetSubCollection("m_flOutputRemap") is { IsCollection: true } remap)
-            {
-                outputRemap = new AttributeMapping(parse.Nested(remap));
-            }
+            outputRemap = AttributeMapping.FromRemapInput(parse, "m_flOutputRemap");
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
@@ -40,42 +36,13 @@ namespace ValveResourceFormat.Particles.Operators
                 var value1 = input1.NextNumber(ref particle, particleSystemState);
                 var value2 = input2.NextNumber(ref particle, particleSystemState);
 
-                float? result = expression switch
-                {
-                    ScalarExpressionType.SCALAR_EXPRESSION_ADD
-                        => value1 + value2,
-                    ScalarExpressionType.SCALAR_EXPRESSION_SUBTRACT
-                        => value1 - value2,
-                    ScalarExpressionType.SCALAR_EXPRESSION_MUL
-                        => value1 * value2,
-                    ScalarExpressionType.SCALAR_EXPRESSION_DIVIDE
-                        => value2 == 0f ? 0f : value1 / value2,
-                    ScalarExpressionType.SCALAR_EXPRESSION_INPUT_1
-                        => value1,
-                    ScalarExpressionType.SCALAR_EXPRESSION_MIN
-                        => Math.Min(value1, value2),
-                    ScalarExpressionType.SCALAR_EXPRESSION_MAX
-                        => Math.Max(value1, value2),
-                    ScalarExpressionType.SCALAR_EXPRESSION_MOD // new in CS2
-                        => value1 - (value2 * (int)(value1 / value2)),
-                    ScalarExpressionType.SCALAR_EXPRESSION_EQUAL
-                        => value1 == value2 ? 1f : 0f,
-                    ScalarExpressionType.SCALAR_EXPRESSION_GT
-                        => value1 > value2 ? 1f : 0f,
-                    ScalarExpressionType.SCALAR_EXPRESSION_LT
-                        => value1 < value2 ? 1f : 0f,
-                    _ => null,
-                };
-
-                if (result is not { } output)
+                if (expression.Evaluate(value1, value2) is not { } output)
                 {
                     continue;
                 }
 
                 // Strength scales arithmetic results before the set method; comparisons stay 0/1
-                if (expression is not (ScalarExpressionType.SCALAR_EXPRESSION_EQUAL
-                    or ScalarExpressionType.SCALAR_EXPRESSION_GT
-                    or ScalarExpressionType.SCALAR_EXPRESSION_LT))
+                if (!expression.IsComparison())
                 {
                     output *= strength;
                 }

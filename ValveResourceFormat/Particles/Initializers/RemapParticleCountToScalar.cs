@@ -57,9 +57,16 @@ namespace ValveResourceFormat.Particles.Initializers
             }
         }
 
+        /// <summary>
+        /// The output range the count is remapped into, the authored one until a subclass replaces it.
+        /// A restart goes back to the authored range.
+        /// </summary>
+        protected (float Min, float Max) OutputRange { get; set; }
+
         public override void Reset()
         {
             count = 0;
+            OutputRange = (outputMin, outputMax);
         }
 
         public override ulong WrittenFields => FieldMask(fieldOutput);
@@ -94,7 +101,7 @@ namespace ValveResourceFormat.Particles.Initializers
             if (!activeRange || count >= min)
             {
                 // A degenerate input range is a threshold, inclusive on the high side
-                var output = MathUtils.RemapValClamped(count, min, max, outputMin, outputMax);
+                var output = MathUtils.RemapValClamped(count, min, max, OutputRange.Min, OutputRange.Max);
 
                 // The bias shapes the output value, after the lerp, and is skipped entirely at its identity
                 if (remapBias != 0.5f)

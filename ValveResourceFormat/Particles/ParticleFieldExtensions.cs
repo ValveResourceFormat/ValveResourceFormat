@@ -90,7 +90,8 @@ namespace ValveResourceFormat.Particles
                 ParticleField.CreationTime => particle.CreationTime,
                 ParticleField.LifeDuration => particle.Lifetime,
                 ParticleField.Yaw => particle.Rotation.X,
-                ParticleField.ParticleId => particle.ParticleId,
+                ParticleField.ParticleId => particle.ParticleId & 0xFFF,
+                ParticleField.HitboxIndex => particle.HitboxIndex,
                 ParticleField.Pitch => particle.Rotation.Y,
                 ParticleField.Roll => particle.Rotation.Z,
                 ParticleField.RollSpeed => particle.RotationSpeed.Z,
@@ -164,6 +165,9 @@ namespace ValveResourceFormat.Particles
                 case ParticleField.ParticleId:
                     particle.ParticleId = (int)value;
                     break;
+                case ParticleField.HitboxIndex:
+                    particle.HitboxIndex = (int)value;
+                    break;
                 case ParticleField.ParentParticleIndex:
                     particle.ParentParticleIndex = (int)value;
                     break;
@@ -208,6 +212,7 @@ namespace ValveResourceFormat.Particles
                 ParticleField.PositionPrevious => particle.PositionPrevious,
                 ParticleField.Color => particle.Color,
                 ParticleField.HitboxOffsetPosition => particle.HitboxOffsetPosition,
+                ParticleField.BoneWeights => particle.BoneWeights,
                 ParticleField.ScratchVector => particle.ScratchVector,
                 ParticleField.ScratchVector2 => particle.ScratchVector2,
                 ParticleField.Normal => particle.Normal,
@@ -273,6 +278,9 @@ namespace ValveResourceFormat.Particles
                     break;
                 case ParticleField.HitboxOffsetPosition:
                     particle.HitboxOffsetPosition = value;
+                    break;
+                case ParticleField.BoneWeights:
+                    particle.BoneWeights = value;
                     break;
                 case ParticleField.ScratchVector:
                     particle.ScratchVector = value;

@@ -206,7 +206,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 var jitter = ScaleBranchDistance ? offset / (BranchDistanceScale * generation) : offset;
 
                 var direction = MathUtils.SafeNormalize(to.Position - from.Position, Vector3.UnitZ);
-                // Source 2 bug: the span is crossed with the row's world position, so the jitter depends on where the bolt is.
+                // The span is crossed with the row's world position, so the jitter depends on where the bolt is.
                 var sideways = MathUtils.SafeNormalize(Vector3.Cross(direction, from.Position));
                 var wander = random.NextInUnitBall(out _);
                 var push = random.NextBetween(-jitter, jitter) / generation;

@@ -7,7 +7,8 @@ namespace ValveResourceFormat.Particles.Operators
     /// <remarks>
     /// The collection-scoped counterpart of <see cref="SetFloat"/>, not that operator with a wider input.
     /// Strength multiplies both the value and the interpolation factor rather than the finished result,
-    /// so it acts on the outcome twice.
+    /// so it acts on the outcome twice. Replacing lerps the first four particles toward the value and
+    /// copies their results over the rest, so particle <c>i</c> takes the result of particle <c>i % 4</c>.
     /// An angle output is stored as authored, not converted from degrees.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetFloatCollection">C_OP_SetFloatCollection</seealso>
@@ -37,15 +38,20 @@ namespace ValveResourceFormat.Particles.Operators
             var blend = MathUtils.Saturate(lerp.NextNumber(particleSystemState) * strength);
             var (min, max) = outputField.SetFloatRange();
 
-            // Replace lerps from the first particle's value, and all particles get that result
             if (setMethod == ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE)
             {
-                var first = particles.Current[0].GetScalar(outputField);
-                var replacement = Math.Clamp(float.Lerp(first, input, blend), min, max);
+                var current = particles.Current;
+                Span<float> replacements = stackalloc float[4];
 
-                foreach (ref var particle in particles.Current)
+                for (var lane = 0; lane < Math.Min(4, current.Length); lane++)
                 {
-                    particle.SetScalar(outputField, replacement);
+                    var laneValue = current[lane].GetScalar(outputField);
+                    replacements[lane] = Math.Clamp(((input - laneValue) * blend) + laneValue, min, max);
+                }
+
+                for (var i = 0; i < current.Length; i++)
+                {
+                    current[i].SetScalar(outputField, replacements[i & 3]);
                 }
 
                 return;

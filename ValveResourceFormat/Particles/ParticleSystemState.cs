@@ -1,5 +1,6 @@
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles.Constraints;
+using ValveResourceFormat.Particles.Operators;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
 
@@ -75,6 +76,12 @@ namespace ValveResourceFormat.Particles
         internal bool InitializingParticles { get; set; }
 
         /// <summary>
+        /// While initializers run, the <see cref="ParticleField"/> bit mask of the attributes the
+        /// particles' creator and the initializers before the running one have declared written.
+        /// </summary>
+        internal ulong InitializedFields { get; set; }
+
+        /// <summary>
         /// The state <paramref name="particle"/> was left in by its initializers, or the particle itself
         /// while they still run or when no running system holds it.
         /// </summary>
@@ -137,6 +144,12 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         public float[]? SequenceDurations { get; set; }
 
+        /// <summary>
+        /// The runs of control points this system's <see cref="Operators.SetControlPointsToModelParticles"/>
+        /// bind to particles, for whatever draws those particles as models to bind the models to.
+        /// </summary>
+        internal List<ModelParticleControlPoints> ModelParticleControlPoints { get; } = [];
+
         /// <summary>The scene lighting</summary>
         public IParticleLighting Lighting { get; set; } = IParticleLighting.Unlit;
 
@@ -188,10 +201,13 @@ namespace ValveResourceFormat.Particles
         public bool EmissionStopped { get; internal set; }
 
         /// <summary>
-        /// How many parent particles the event being handed to this system's emitters covers. Only
-        /// set while a parent applies an event list.
+        /// The parent's indices of the particles the event being handed to this system's emitters was
+        /// raised on. Only set while a parent applies an event list, and null otherwise.
         /// </summary>
-        internal int EmitterEventCount { get; set; }
+        internal IReadOnlyList<int>? EmitterEventParticles { get; set; }
+
+        /// <summary>How many parent particles the event being handed to this system's emitters covers.</summary>
+        internal int EmitterEventCount => EmitterEventParticles?.Count ?? 0;
 
         /// <summary>Whether a child of this system emits from <paramref name="eventType"/>.</summary>
         internal bool ListensFor(ParticleEventType eventType) => Data is { } simulation && (simulation.ListenedEvents & eventType) != 0;
@@ -634,6 +650,81 @@ namespace ValveResourceFormat.Particles
                 foreach (var child in Owner.Children)
                 {
                     child.GetControlPoint(Index).Model = value;
+                }
+            }
+        }
+
+        private IParticleModelObject? modelObject;
+        private ControlPointModelObject? standInModelObject;
+
+        /// <summary>
+        /// The object carrying a model this control point is bound to, such as the entity an effect is
+        /// attached to, or null when none is. Setting it also sets <see cref="Model"/>, and like that it
+        /// does not count as a change of the control point.
+        /// </summary>
+        public IParticleModelObject? ModelObject
+        {
+            get => modelObject;
+            set
+            {
+                modelObject = value;
+                Model = value?.Model;
+
+                if (Owner == null)
+                {
+                    return;
+                }
+
+                foreach (var child in Owner.Children)
+                {
+                    child.GetControlPoint(Index).ModelObject = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The object the model functions read: <see cref="ModelObject"/>, or for a control point that
+        /// carries only a <see cref="Model"/>, that model in its bind pose placed on the control point.
+        /// </summary>
+        internal IParticleModelObject? ResolveModelObject()
+        {
+            if (modelObject != null)
+            {
+                return modelObject;
+            }
+
+            if (model == null)
+            {
+                return null;
+            }
+
+            if (standInModelObject?.Model != model)
+            {
+                standInModelObject = new ControlPointModelObject(this, model);
+            }
+
+            return standInModelObject;
+        }
+
+        /// <summary>
+        /// The hitboxes or bones of the control point's model, as the model functions of this system
+        /// last read them.
+        /// </summary>
+        internal HitBoxCache HitBoxes => hitBoxes ??= new HitBoxCache();
+
+        private HitBoxCache? hitBoxes;
+
+        private sealed class ControlPointModelObject(ControlPoint controlPoint, Model model) : IParticleModelObject
+        {
+            public Model Model => model;
+
+            public Matrix4x4 Transform
+            {
+                get
+                {
+                    var transform = controlPoint.GetRotationMatrix();
+                    transform.Translation = controlPoint.Position;
+                    return transform;
                 }
             }
         }

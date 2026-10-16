@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using ValveKeyValue;
+using ValveResourceFormat.Particles.Operators;
+using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -104,8 +106,27 @@ namespace ValveResourceFormat.Particles
         /// <summary>Whether <paramref name="state"/> belongs to a system tagged with <paramref name="groupId"/>.</summary>
         internal static bool IsInGroup(ParticleSystemState state, int groupId) => state.Data?.groupId == groupId;
 
+        /// <summary>The group this system belongs to among its parent's children (<c>m_nGroupID</c>).</summary>
+        internal int GroupId => groupId;
+
+        /// <summary>
+        /// Holds this child before its start until a group operator starts it again. With
+        /// <paramref name="finishedWhileHeld"/> it also counts as finished while it waits.
+        /// </summary>
+        internal void Hold(bool finishedWhileHeld)
+        {
+            if (finishedWhileHeld)
+            {
+                finishedBeforeStartAllowed = true;
+            }
+
+            systemState.Age = float.MinValue;
+        }
+
         private void SetupChildParticles(IReadOnlyList<KVObject> children)
         {
+            var placesControlPointsOnModels = operators.Exists(static op => op is SetControlPointsToModelParticles);
+
             for (var slot = 0; slot < children.Count; slot++)
             {
                 var childInfo = children[slot];
@@ -133,9 +154,11 @@ namespace ValveResourceFormat.Particles
                 var childSystemDefinition = (ParticleSystem?)childResource.DataBlock;
                 Debug.Assert(childSystemDefinition != null);
 
+                var delay = parse.Float("m_flDelay", 0f);
+
                 var childSystem = new ParticleSystemSimulation(childSystemDefinition, fileLoader, logger, null, systemState)
                 {
-                    startDelay = parse.Float("m_flDelay", 0f),
+                    startDelay = delay == 0f && placesControlPointsOnModels ? ParticleMath.FloatEpsilon : delay,
                     IsEndCapChild = parse.Boolean("m_bEndCap", false),
                     detailLevel = parse.Enum("m_nDetailLevel", ParticleDetailLevel.PARTICLEDETAIL_LOW)
                 };
@@ -150,9 +173,10 @@ namespace ValveResourceFormat.Particles
         /// <summary>Gives every system below this one the seed its place in the tree derives from this one's.</summary>
         private void DeriveChildSeeds()
         {
-            foreach (var child in childSimulations)
+            for (var i = 0; i < childSimulations.Count; i++)
             {
-                child.systemState.Random.DeriveSeed(systemState.Random.Seed, child.childSlot);
+                var child = childSimulations[i];
+                child.systemState.Random.DeriveSeed(systemState.Random.Seed, child.childSlot, (i + 1) * child.maxParticles);
                 child.DeriveChildSeeds();
             }
         }

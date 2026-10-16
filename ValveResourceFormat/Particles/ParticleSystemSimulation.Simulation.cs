@@ -57,14 +57,21 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         /// <remarks>
         /// The system enters the endcap phase either way, except an endcap child stopped without an
-        /// endcap. Without an endcap its start age keeps whatever it held before.
+        /// endcap. Without an endcap its start age keeps whatever it held before. A frozen system
+        /// thaws, and instead of playing an endcap it drops every live particle in the tree.
         /// </remarks>
         internal void StopEmission(bool removeAllParticles, bool playEndCap)
         {
-            systemState.EmissionStopped = true;
-            systemState.Frozen = false;
+            if (systemState.Frozen)
+            {
+                systemState.Frozen = false;
+                removeAllParticles = true;
+                playEndCap = false;
+            }
 
-            if (firstFramePending && systemState.Age >= 0f)
+            systemState.EmissionStopped = true;
+
+            if (firstFramePending && !removeAllParticles && systemState.Age >= 0f)
             {
                 SimulateFirstFrame();
             }
@@ -91,19 +98,16 @@ namespace ValveResourceFormat.Particles
 
             foreach (var childSimulation in childSimulations)
             {
-                if (!childSimulation.IsEndCapChild)
+                if (!childSimulation.IsEndCapChild || !playEndCap)
                 {
                     childSimulation.StopEmission(removeAllParticles, playEndCap);
                     continue;
                 }
 
-                if (playEndCap)
-                {
-                    childSimulation.systemState.Age = 0f;
-                    childSimulation.systemState.EndCapStartAge = 0f;
-                    childSimulation.EnterEndCap();
-                    childSimulation.Start();
-                }
+                childSimulation.systemState.Age = 0f;
+                childSimulation.systemState.EndCapStartAge = 0f;
+                childSimulation.EnterEndCap();
+                childSimulation.Start();
             }
         }
 
@@ -217,6 +221,7 @@ namespace ValveResourceFormat.Particles
             }
 
             particlesEmitted = 0;
+            particleIdCounter = 0;
             preSimFrames = 0;
             firstFramePending = true;
             finishedBeforeStartAllowed = false;
@@ -439,11 +444,6 @@ namespace ValveResourceFormat.Particles
             foreach (var childSimulation in childSimulations)
             {
                 if (childSimulation.detailLevel > systemState.DetailLevel)
-                {
-                    continue;
-                }
-
-                if (!childSimulation.IsWithinDrawDistance(systemState.CameraPosition))
                 {
                     continue;
                 }
@@ -699,11 +699,11 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>
         /// Runs the emitters listening for <paramref name="eventType"/> for an event the parent raised
-        /// on <paramref name="count"/> of its particles.
+        /// on the particles at <paramref name="parentIndices"/>.
         /// </summary>
-        private void EmitForEvent(ParticleEventType eventType, int count)
+        private void EmitForEvent(ParticleEventType eventType, List<int> parentIndices)
         {
-            systemState.EmitterEventCount = count;
+            systemState.EmitterEventParticles = parentIndices;
 
             foreach (var emitter in emitters)
             {
@@ -724,7 +724,7 @@ namespace ValveResourceFormat.Particles
                 InitializeNewParticles(first, particleCollection.Count - first, EmittedWrittenFields, emitter.EmitterIndex);
             }
 
-            systemState.EmitterEventCount = 0;
+            systemState.EmitterEventParticles = null;
         }
 
         /// <summary>Creates a particle at <paramref name="creationTime"/>, leaving it for <see cref="InitializeNewParticles"/>.</summary>
@@ -739,11 +739,8 @@ namespace ValveResourceFormat.Particles
             // TODO: Make particle positions and control points local space
             particleCollection.Current[index] = particleCollection.Initial[index];
 
-            // Both ids must be set before initializing, since initializers read them
             particleCollection.Current[index].UniqueParticleId = particlesEmitted++;
-            particleCollection.Current[index].ParticleId = particleCollection.Current[index].UniqueParticleId + systemState.Random.Seed;
             particleCollection.Current[index].Index = index;
-            particleCollection.Current[index].Position = MainControlPoint.Position;
             particleCollection.Current[index].CreationTime = creationTime;
             particleCollection.Current[index].Age = systemState.Age - creationTime;
         }
@@ -778,7 +775,7 @@ namespace ValveResourceFormat.Particles
                     continue;
                 }
 
-                if (initializer.GetOperatorRunStrength(systemState) <= 0f)
+                if (!initializer.ShouldRun(systemState) || initializer.GetOperatorRunStrength(systemState) <= 0f)
                 {
                     continue;
                 }
@@ -793,16 +790,24 @@ namespace ValveResourceFormat.Particles
                 }
 
                 systemState.Random.BeginFunctionCall();
+                systemState.InitializedFields = written;
 
-                foreach (ref var particle in batch)
+                var idCounter = particleIdCounter;
+                FillParticleIds(first, count);
+                systemState.Random.ParticleIdRead = false;
+
+                initializer.Initialize(batch, particleCollection, systemState);
+
+                if (!systemState.Random.ParticleIdRead)
                 {
-                    initializer.Initialize(ref particle, particleCollection, systemState);
+                    particleIdCounter = idCounter;
                 }
 
                 written |= fields;
             }
 
             systemState.InitializingParticles = false;
+            FillParticleIds(first, count);
 
             for (var index = first; index < first + count; index++)
             {
@@ -820,6 +825,23 @@ namespace ValveResourceFormat.Particles
                 Observer?.OnParticlesInitialized(particleCollection, systemState, first, count);
                 DispatchSpawnEvents(first, count);
             }
+        }
+
+        /// <summary>
+        /// Gives the <paramref name="count"/> particles from <paramref name="first"/> the next particle ids.
+        /// Ids are filled in whole blocks of four, so the counter also passes the ids of the unused
+        /// slots up to the end of the last block.
+        /// </summary>
+        private void FillParticleIds(int first, int count)
+        {
+            var seed = systemState.Random.Seed;
+
+            for (var i = 0; i < count; i++)
+            {
+                particleCollection.Current[first + i].ParticleId = (particleIdCounter + i + seed) & 0xFFF;
+            }
+
+            particleIdCounter += MathUtils.AlignUp(first + count, 4) - first;
         }
 
         private void DispatchSpawnEvents(int first, int count)
@@ -919,7 +941,7 @@ namespace ValveResourceFormat.Particles
 
             foreach (var childSimulation in childSimulations)
             {
-                childSimulation.EmitForEvent(eventType, indices.Count);
+                childSimulation.EmitForEvent(eventType, indices);
             }
         }
 

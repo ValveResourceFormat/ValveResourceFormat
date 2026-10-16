@@ -40,7 +40,11 @@ namespace ValveResourceFormat.Particles.Initializers
             particle.Position = localSpace
                 ? Vector3.Transform(position, controlPoint.GetBasisAtTime(particle.CreationTime))
                 : position + controlPoint.GetPositionAtTime(particle.CreationTime);
-            particle.PositionPrevious = particle.Position;
+
+            if (IsUnwritten(particleSystemState, ParticleField.PositionPrevious))
+            {
+                particle.PositionPrevious = particle.Position;
+            }
 
             return particle;
         }

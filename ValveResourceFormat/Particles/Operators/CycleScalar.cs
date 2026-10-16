@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Particles.Operators
             cpScale = Math.Clamp(parse.Int32("m_nCPScale", cpScale), -1, 64);
             cpFieldMin = Math.Clamp(parse.Int32("m_nCPFieldMin", cpFieldMin), -1, 2);
             cpFieldMax = Math.Clamp(parse.Int32("m_nCPFieldMax", cpFieldMax), -1, 2);
-            setMethod = parse.EnumNormalized<ParticleSetMethod>("m_nSetMethod", setMethod);
+            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)

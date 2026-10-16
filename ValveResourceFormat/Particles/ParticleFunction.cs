@@ -113,7 +113,7 @@ namespace ValveResourceFormat.Particles
         {
             if (OpFadeOscillatePeriod > 0f)
             {
-                return systemState.Age / OpFadeOscillatePeriod % 1f;
+                return 1f / OpFadeOscillatePeriod * systemState.Age % 1f;
             }
 
             var time = MathF.Max(0f, systemState.Age - systemState.OperatorTimeBase);

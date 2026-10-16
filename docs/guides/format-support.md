@@ -330,9 +330,23 @@ VRF's upgraded in-memory version, so decompiled `.vpcf` files match the compiled
 (pre-KV3 NTRO-era files are re-encoded as KV3 text instead). The viewer simulates a large
 subset of particle functions and lists any unsupported functions per system in red instead
 of failing. Omni2 particle lights of the barn type are drawn as point lights. Particle
-world traces hit all collision, ignoring collision groups, trace sets and water masks. Model
-particles render in bind pose with default body groups, without `m_bAnimated` or
+light beams are tube lights that fall off from their centre, not along their length.
+Deferred particle lights fall off with the inverse square of the distance rather than
+the game's falloff, draw no projected texture, and are not drawn when their intensity is
+negative. Like every particle light, they only light materials whose shaders take
+dynamic lights, which Dota 2's hero and environment shaders do not. Renderers that only hand
+their effect to the game (screen and foliage shakes, status effects, VR haptics, client
+physics and text) draw nothing, as does the GPU isosurface renderer. Particle
+world traces hit all collision, ignoring collision groups, trace sets and water masks.
+Particle functions that ask the game for wind, gravity, impulses or sound values get no wind
+or impulses, the standard world gravity and sound values of 0, and water is everything below
+z = 0. Model particles render in bind pose with default body groups, without `m_bAnimated` or
 `m_bManualAnimFrame` ([#716](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/716)).
+Functions that place particles on a model use the hitboxes, bones, render mesh triangles and
+sequence of the model a control point carries, but not its sequence activities, or the collision
+hull and snapshot hitbox fallbacks.
+Blob particles draw as a metaball mesh with their material, without material variables, and
+with texture coordinates only for materials that project them by `g_flTexCoordScale`.
 
 Particle snapshots (`vsnap`) preview and extract. Bone name streams survive, but skinning
 streams are written into the extracted `.vsnap` as empty streams: their values show in the

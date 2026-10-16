@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var offset = particleSystemState.Random.NextBetweenPerComponent(offsetMin, offsetMax);
+            var offset = particleSystemState.Random.NextBetweenPerComponentSeededTwice(offsetMin, offsetMax);
 
             if (localCoords)
             {

@@ -20,6 +20,70 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public abstract Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState);
 
+        /// <summary>
+        /// Runs the initializer over the particles one emission created, which sit at the end of
+        /// <paramref name="particles"/>. Unless overridden, initializes them one by one in the calls
+        /// <see cref="SplitIntoCalls"/> gives, with inputs evaluated afresh for each call.
+        /// </summary>
+        public virtual void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            var (head, blocks, tail) = SplitIntoCalls(batch);
+            var firstCall = true;
+
+            foreach (var call in (ReadOnlySpan<Range>)[head, blocks, tail])
+            {
+                var run = batch[call];
+
+                if (run.IsEmpty)
+                {
+                    continue;
+                }
+
+                if (!firstCall)
+                {
+                    particleSystemState.Random.BeginFunctionCall();
+                }
+
+                firstCall = false;
+                InitializeEach(run, particles, particleSystemState);
+            }
+        }
+
+        /// <summary>Initializes the particles of <paramref name="run"/> one by one, as a single call.</summary>
+        protected void InitializeEach(Span<Particle> run, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            foreach (ref var particle in run)
+            {
+                Initialize(ref particle, particles, particleSystemState);
+            }
+        }
+
+        /// <summary>
+        /// Splits a batch into the runs the particles are initialized in, one call each: the whole
+        /// batch below 16 particles, else the particles before the first collection index that is a
+        /// multiple of four, the whole blocks of four from there, and the rest. Any run can be empty;
+        /// state an initializer keeps per call, such as its particle count, restarts with each run.
+        /// </summary>
+        protected static (Range Head, Range Blocks, Range Tail) SplitIntoCalls(Span<Particle> batch)
+        {
+            if (batch.Length < 16)
+            {
+                return (Range.All, ^0.., ^0..);
+            }
+
+            var first = batch[0].Index;
+            var blocksStart = MathUtils.AlignUp(first, 4) - first;
+            var blocksEnd = ((first + batch.Length) & ~3) - first;
+
+            return (..blocksStart, blocksStart..blocksEnd, blocksEnd..);
+        }
+
+        /// <summary>
+        /// Whether the initializer takes part in initializing the particles being created now. One
+        /// that does not is skipped as if disabled, and counts as writing nothing.
+        /// </summary>
+        public virtual bool ShouldRun(ParticleSystemState particleSystemState) => true;
+
         /// <summary>Builds the per-instance running state the initializer starts with.</summary>
         public virtual void Reset()
         {
@@ -33,6 +97,13 @@ namespace ValveResourceFormat.Particles.Initializers
 
         /// <summary>Bit for <paramref name="field"/> in a <see cref="WrittenFields"/> mask.</summary>
         protected static ulong FieldMask(ParticleField field) => 1UL << (int)field;
+
+        /// <summary>
+        /// Whether <paramref name="field"/> is still unwritten for the particles being initialized:
+        /// neither their creator nor an initializer before this one declared writing it.
+        /// </summary>
+        protected static bool IsUnwritten(ParticleSystemState particleSystemState, ParticleField field)
+            => (particleSystemState.InitializedFields & FieldMask(field)) == 0;
 
         /// <summary>
         /// Bit mask over <see cref="ParticleField"/> values of the attributes this initializer

@@ -23,6 +23,8 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            var gravityAcceleration = gravity.NextVector(particleSystemState);
+
             // Force generators run from here and add to ForceAccumulator before integration.
             var forceGenerators = particleSystemState.Data?.ForceGenerators;
             if (forceGenerators != null)
@@ -36,12 +38,12 @@ namespace ValveResourceFormat.Particles.Operators
                         continue;
                     }
 
+                    forceGenerator.MovementGravity = gravityAcceleration;
                     forceGenerator.GenerateForces(particles, frameTime, particleSystemState, forceStrength);
                 }
             }
 
             var timeStepSquared = frameTime * frameTime;
-            var gravityAcceleration = gravity.NextVector(particleSystemState);
             var dragValue = Math.Clamp(drag.NextNumber(particleSystemState), 0.0f, 0.99999988f);
             var stepRatio = particles.PreviousFrameTime > 0f ? frameTime / particles.PreviousFrameTime : 1f;
             var dragFactor = stepRatio * MathF.Exp(MathF.Log(1.0f - dragValue) / (1.0f / 30.0f) * frameTime);

@@ -152,7 +152,7 @@ namespace ValveResourceFormat.Particles.Constraints
 
                 var tooSlow = minimumSpeed >= 0f && stepLength < minimumSpeed * frameTime;
 
-                // Source 2 bug: the contact is measured from behind the particle but applied from its previous position, so it can lie below the plane and let the particle fall through.
+                // The contact is measured from behind the particle but applied from its previous position, so it can lie below the plane and let the particle fall through.
                 var contact = previous + (step * fraction);
 
                 if (killOnContact)
