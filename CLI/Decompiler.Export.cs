@@ -1,12 +1,10 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Threading;
 using ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ToolsAssetInfo;
 
@@ -51,31 +49,14 @@ public partial class Decompiler
             var isSinglePackage = LinkedFilePath == null && paths.Count == 1 && packages.Count == 1;
             Exporter = CreateExporter(isSinglePackage ? GetMatchedEntriesFolder(packages[0].Package) : GetContentFolder(paths));
 
-            var queue = new ContentExportQueue(Exporter)
-            {
-                MaxDegreeOfParallelism = OutputToConsole ? 1 : Environment.ProcessorCount,
-                ItemStarted = item =>
-                {
-                    if (item.Origin != null)
-                    {
-                        PrintFileHeader(item.Origin, null);
-                    }
-                },
-                ItemCompleted = item =>
-                {
-                    if (item.Result == ContentExportResult.Handled && !item.IsDependency)
-                    {
-                        PrintLine($"--- Skipped \"{item.ContentPath}\", it is part of a file that was exported");
-                    }
-                },
-            };
+            var items = new List<ContentExportItem>();
 
             foreach (var (path, package) in packages)
             {
                 var fileLoader = CreateGameFileLoader(package, package.FileName);
                 packageFileLoaders.Add(fileLoader);
 
-                if (AddPackageEntries(queue, path, package, fileLoader) is { } cache)
+                if (AddPackageEntries(items, path, package, fileLoader) is { } cache)
                 {
                     caches.Add((cache, package));
                 }
@@ -85,11 +66,11 @@ public partial class Decompiler
             {
                 if (!IsPackagePath(path))
                 {
-                    AddDiskFile(queue, path, gameFileLoaders);
+                    AddDiskFile(items, path, gameFileLoaders);
                 }
             }
 
-            queue.Run();
+            Exporter.Export(items);
 
             foreach (var (cache, package) in caches)
             {
@@ -177,7 +158,7 @@ public partial class Decompiler
     /// Queues the matched files of a package.
     /// </summary>
     /// <returns>The cache to save once they were exported, with --vpk_cache.</returns>
-    private VpkCache? AddPackageEntries(ContentExportQueue queue, string path, Package package, IFileLoader fileLoader)
+    private VpkCache? AddPackageEntries(List<ContentExportItem> items, string path, Package package, IFileLoader fileLoader)
     {
         Debug.Assert(package.Entries != null);
 
@@ -191,8 +172,6 @@ public partial class Decompiler
 
         var cache = CachedManifest ? LoadVpkCache(path) : null;
         var source = ContentExportSource.FromPackage(package);
-        var exportResource = CreateResourceExport(fileLoader, warnTargetExtension: false);
-        var shaderFilesToDecompile = Decompile && package.Entries.TryGetValue("vcs", out var shaderEntries) ? GetShaderFilesToDecompile(shaderEntries) : null;
 
         foreach (var (type, entries) in package.Entries)
         {
@@ -201,7 +180,7 @@ public partial class Decompiler
                 continue;
             }
 
-            foreach (var (entry, filePath) in FilteredEntries(entries))
+            foreach (var (entry, _) in FilteredEntries(entries))
             {
                 var contentPath = entry.GetFullPath();
 
@@ -211,23 +190,6 @@ public partial class Decompiler
                     continue;
                 }
 
-                Func<Stream, CancellationToken, bool>? exportFile = null;
-
-                // VCS files require multiple files to be decompiled together, once from the highest shader model that was matched
-                if (shaderFilesToDecompile != null && type == "vcs")
-                {
-                    if (!shaderFilesToDecompile.Contains(filePath))
-                    {
-                        continue;
-                    }
-
-                    exportFile = (_, _) => ExportShader(package, filePath);
-                }
-                else if (OutputToConsole)
-                {
-                    exportFile = (stream, _) => PrintNonResource(contentPath, stream);
-                }
-
                 var item = new ContentExportItem
                 {
                     ContentPath = contentPath,
@@ -235,13 +197,11 @@ public partial class Decompiler
                     Crc32 = entry.CRC32 > 0 ? entry.CRC32 : null,
                     Source = source,
                     FileLoader = fileLoader,
-                    Decompile = Decompile,
+                    Output = Decompile ? DecompileOutput : ContentExportOutput.Raw,
                     TargetFile = TargetFile,
-                    ExportResource = exportResource,
-                    ExportFile = exportFile,
                 };
 
-                queue.Add(item);
+                items.Add(item);
                 cache?.Queued.Add((item, entry.CRC32));
             }
         }
@@ -252,7 +212,7 @@ public partial class Decompiler
     /// <summary>
     /// Queues a file on disk, which is decompiled whether or not --vpk_decompile is given.
     /// </summary>
-    private void AddDiskFile(ContentExportQueue queue, string path, Dictionary<string, Lazy<GameFileLoader>> gameFileLoaders)
+    private void AddDiskFile(List<ContentExportItem> items, string path, Dictionary<string, Lazy<GameFileLoader>> gameFileLoaders)
     {
         AnyFileMatched = true;
 
@@ -261,11 +221,12 @@ public partial class Decompiler
 
         if (!ContentPaths.HasCompiledSuffix(contentPath))
         {
-            queue.Add(new ContentExportItem
+            items.Add(new ContentExportItem
             {
                 ContentPath = contentPath,
                 Open = () => File.OpenRead(path),
                 Origin = path,
+                Output = DecompileOutput,
                 TargetFile = TargetFile,
                 ExportFile = (stream, _) => ExportDiskFile(path, contentPath, stream, gameFileLoader),
             });
@@ -280,20 +241,21 @@ public partial class Decompiler
             Warn($"Dependencies of \"{path}\" are not decompiled, it is not in an addon or mod folder.");
         }
 
-        queue.Add(new ContentExportItem
+        items.Add(new ContentExportItem
         {
             ContentPath = contentPath,
             Open = () => File.OpenRead(path),
             Origin = path,
             Source = source,
             FileLoader = gameFileLoader.Value,
+            Output = DecompileOutput,
             TargetFile = TargetFile,
-            ExportResource = CreateResourceExport(gameFileLoader.Value, warnTargetExtension: true),
         });
     }
 
     /// <summary>
-    /// Exports a file on disk that is not a compiled resource, including the formats only the CLI reads.
+    /// Exports a file on disk that is neither a compiled resource nor a file the library extracts, including the formats
+    /// only the CLI reads.
     /// </summary>
     private bool ExportDiskFile(string path, string contentPath, Stream stream, Lazy<GameFileLoader> gameFileLoader)
     {
@@ -303,10 +265,6 @@ public partial class Decompiler
         {
             case VfxProgramData.MAGIC:
                 ParseVCS(path, stream, null);
-                return true;
-
-            case NavMeshFile.MAGIC when GltfExportFormat != null:
-                ExportNavMeshGltf(path, contentPath, stream);
                 return true;
 
             case ToolsAssetInfo.MAGIC2:
@@ -320,103 +278,15 @@ public partial class Decompiler
             return false;
         }
 
-        if (TryParseNonResource(path, contentPath, stream, null))
-        {
-            return true;
-        }
-
         using var resource = new Resource
         {
             FileName = contentPath,
         };
 
         resource.Read(stream);
-        ExportResource(resource, gameFileLoader.Value, ContentExportSource.FromDiskFile(path));
+        Exporter!.Export(resource, gameFileLoader.Value, ContentExportSource.FromDiskFile(path), TargetFile);
 
         return true;
-    }
-
-    /// <summary>
-    /// Gets how a compiled resource is exported instead of being decompiled: printed, or to glTF.
-    /// </summary>
-    private Func<Resource, CancellationToken, bool>? CreateResourceExport(IFileLoader fileLoader, bool warnTargetExtension)
-    {
-        if (OutputToConsole)
-        {
-            return (resource, _) =>
-            {
-                ExportResource(resource, fileLoader, null);
-                return true;
-            };
-        }
-
-        var targetExtension = warnTargetExtension ? Path.GetExtension(TargetFile) : null;
-        var gltfExporter = GltfExportFormat != null ? CreateGltfExporter(fileLoader) : null;
-
-        if (gltfExporter == null && targetExtension == null)
-        {
-            return null;
-        }
-
-        return (resource, _) =>
-        {
-            if (gltfExporter != null && GltfModelExporter.CanExport(resource))
-            {
-                ExportGltf(gltfExporter, resource);
-                return true;
-            }
-
-            var extension = FileExtract.GetExtension(resource) ?? ContentPaths.TrimCompiledSuffix(Path.GetExtension(resource.FileName!));
-
-            if (targetExtension != null && !targetExtension.Equals($".{extension}", StringComparison.OrdinalIgnoreCase))
-            {
-                Warn($"Extension '.{extension}' might be more suitable than the one provided '{targetExtension}'");
-            }
-
-            return false;
-        };
-    }
-
-    /// <summary>
-    /// Decompiles a shader to a <c>.vfx</c> file from all of its files in the package.
-    /// </summary>
-    private bool ExportShader(Package package, string filePath)
-    {
-        // Remove the last part from the file name ("_features", ...)
-        var fileName = Path.GetFileNameWithoutExtension(filePath);
-        var newFileNameBase = fileName.AsSpan(0, fileName.LastIndexOf('_'));
-        var vfxFileName = ContentPaths.Join(Path.GetDirectoryName(filePath), string.Concat(newFileNameBase, ".vfx"));
-
-        using var collection = ShaderCollection.GetShaderCollection(filePath, package);
-        using var contentFile = new ShaderExtract(collection).ToContentFile(vfxFileName);
-        ExportContentFile(contentFile);
-
-        return true;
-    }
-
-    private bool PrintNonResource(string contentPath, Stream stream)
-    {
-        using var contentFile = FileExtract.ExtractNonResource(stream, contentPath);
-
-        if (contentFile != null)
-        {
-            PrintContentFile(contentFile);
-            return true;
-        }
-
-        var data = new byte[stream.Length - stream.Position];
-        stream.ReadExactly(data);
-        PrintFile(contentPath, data);
-
-        return true;
-    }
-
-    private void ExportNavMeshGltf(string path, string contentPath, Stream stream)
-    {
-        var navMeshFile = new NavMeshFile();
-        navMeshFile.Read(stream);
-
-        CreateGltfExporter(new NullFileLoader()).Export(navMeshFile, path, GetGltfOutputPath(contentPath));
     }
 
     private VpkCache LoadVpkCache(string packagePath)

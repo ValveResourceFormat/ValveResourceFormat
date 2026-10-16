@@ -99,6 +99,16 @@ namespace CLI
         /// </summary>
         private string? TargetFile => OutputIsDirectory ? null : OutputFile;
 
+        /// <summary>
+        /// What decompiled files are exported as, which is glTF with --gltf_export_format.
+        /// </summary>
+        private ContentExportOutput DecompileOutput => GltfExportFormat switch
+        {
+            "gltf" => ContentExportOutput.Gltf,
+            "glb" => ContentExportOutput.Glb,
+            _ => ContentExportOutput.Decompile,
+        };
+
         public static void Main(string[] args)
         {
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
@@ -816,6 +826,23 @@ namespace CLI
                 FileSkipped = OnFileSkipped,
                 Warning = Warn,
                 FileFailed = (fileName, exception) => LogException(exception, fileName),
+                GltfExporterFactory = GltfExportFormat != null ? CreateGltfExporter : null,
+                ContentFileHandler = OutputToConsole ? PrintContentFile : null,
+                MaxDegreeOfParallelism = OutputToConsole ? 1 : Environment.ProcessorCount,
+                ItemStarted = item =>
+                {
+                    if (item.Origin != null)
+                    {
+                        PrintFileHeader(item.Origin, null);
+                    }
+                },
+                ItemCompleted = item =>
+                {
+                    if (item.Result == ContentExportResult.Handled && !item.IsDependency)
+                    {
+                        PrintLine($"--- Skipped \"{item.ContentPath}\", it is part of a file that was exported");
+                    }
+                },
             };
         }
 
@@ -1271,52 +1298,11 @@ namespace CLI
             }
         }
 
-        private void ExportResource(Resource resource, IFileLoader fileLoader, ContentExportSource? source)
-        {
-            Debug.Assert(Exporter != null);
-
-            if (OutputToConsole)
-            {
-                using var contentFile = FileExtract.Extract(resource, fileLoader, ProgressReporter, ExtractOptions);
-                PrintContentFile(contentFile);
-                return;
-            }
-
-            Exporter.Export(resource, fileLoader, source, TargetFile);
-        }
-
-        private void ExportContentFile(ContentFile contentFile)
-        {
-            Debug.Assert(Exporter != null);
-
-            if (OutputToConsole)
-            {
-                PrintContentFile(contentFile);
-                return;
-            }
-
-            Exporter.Export(contentFile, TargetFile);
-        }
-
         private void WriteFile(string contentPath, ReadOnlySpan<byte> data)
         {
             Debug.Assert(Exporter != null);
 
-            if (OutputToConsole)
-            {
-                PrintFile(contentPath, data);
-                return;
-            }
-
             Exporter.WriteFile(contentPath, data, TargetFile);
-        }
-
-        /// <summary>
-        /// Exports to glTF next to where the decompiled resource would go, or to --output when it names a file.
-        /// </summary>
-        private void ExportGltf(GltfModelExporter gltfExporter, Resource resource)
-        {
-            gltfExporter.Export(resource, GetGltfOutputPath(resource.FileName!));
         }
 
         private void OnFileWritten(string path)
@@ -1336,16 +1322,6 @@ namespace CLI
             {
                 Console.WriteLine(text);
             }
-        }
-
-        /// <summary>
-        /// Gets the path a glTF export is written to.
-        /// </summary>
-        private string GetGltfOutputPath(string contentPath)
-        {
-            Debug.Assert(Exporter != null);
-
-            return Path.GetFullPath(Path.ChangeExtension(TargetFile ?? Exporter.GetOutputPath(contentPath), GltfExportFormat));
         }
 
         private void ParseVCS(string path, Stream stream, string? originalPath, Package? package = null)
@@ -1509,10 +1485,6 @@ namespace CLI
                     }
 
                     AddNonResourceStat($"Non-resource {Path.GetExtension(path)} file", path, originalPath);
-                }
-                else if (OutputFile != null)
-                {
-                    ExportContentFile(content);
                 }
                 else if (content.Data != null && Path.GetExtension(path) is not (".vfont" or ".uifont"))
                 {
@@ -1804,38 +1776,12 @@ namespace CLI
                 ExportExtras = GltfExportExtras,
                 ComposeAdditiveAnimations = GltfComposeAdditive,
                 ProgressReporter = ProgressReporter,
-                Exporter = Exporter,
             };
 
             gltfModelExporter.AnimationFilter.UnionWith(GltfAnimationFilter);
             gltfModelExporter.MeshFilter.UnionWith(GltfMeshFilter);
 
             return gltfModelExporter;
-        }
-
-        /// <summary>
-        /// Picks one file per shader to decompile it from, out of the highest shader model among the matched files.
-        /// </summary>
-        private HashSet<string> GetShaderFilesToDecompile(IEnumerable<PackageEntry> entries)
-        {
-            var highestByShader = new Dictionary<(string ShaderName, VcsPlatformType Platform), (string FilePath, VcsShaderModelType ShaderModel)>();
-
-            foreach (var (entry, filePath) in FilteredEntries(entries))
-            {
-                if (entry.TypeName != "vcs")
-                {
-                    continue;
-                }
-
-                var (shaderName, _, platformType, shaderModel) = ShaderUtilHelpers.ComputeVCSFileName(filePath);
-
-                if (!highestByShader.TryGetValue((shaderName, platformType), out var existing) || shaderModel > existing.ShaderModel)
-                {
-                    highestByShader[(shaderName, platformType)] = (filePath, shaderModel);
-                }
-            }
-
-            return highestByShader.Values.Select(x => x.FilePath).ToHashSet();
         }
 
         /// <summary>
@@ -1963,7 +1909,7 @@ namespace CLI
                 }
 
                 count += Decompile && type == "vcs"
-                    ? GetShaderFilesToDecompile(entries).Count
+                    ? ContentExporter.SelectShaderFiles(FilteredEntries(entries).Select(static entry => entry.FilePath)).Count()
                     : FilteredEntries(entries).Take(2).Count();
 
                 if (count > 1)

@@ -117,25 +117,18 @@ namespace GUI.Types.Exporter
             path = selectedPath;
 
             // Nothing outside the export owns the files it reads, so there is nothing to wait for here
-            if (decompile)
-            {
-                RunInDialog(DecompileQueuedFiles, null, out _);
-            }
-            else
-            {
-                RunInDialog(CopyQueuedFiles, null, out _);
-            }
+            RunInDialog(ExportQueuedFiles, null, out _);
         }
 
         /// <summary>
-        /// Asks for the output type of an already-read resource and where to write it, then decompiles it behind a modal
-        /// progress dialog. glTF goes to a picked file, everything else under a picked root folder at its content path.
+        /// Asks for the output type of a compiled resource and where to write it, then exports it behind a modal progress
+        /// dialog. glTF goes to a picked file, everything else under a picked root folder at its content path.
         /// </summary>
-        /// <param name="resource">The resource, named by its content path.</param>
+        /// <param name="contentPath">Content path of the resource.</param>
+        /// <param name="open">Opens the resource's contents.</param>
         /// <param name="source">Where the resource came from, the dependencies it is exported with come from there.</param>
-        public Task ExecuteSingleFileExtractAsync(Resource resource, ContentExportSource? source)
+        public Task ExecuteSingleFileExtractAsync(string contentPath, Func<Stream> open, ContentExportSource? source)
         {
-            var contentPath = resource.FileName ?? throw new ArgumentException("The resource has no file name.", nameof(resource));
             var typeName = Path.GetExtension(contentPath).TrimStart('.');
             fileTypesToExtract[typeName] = new FileTypeToExtract();
 
@@ -145,55 +138,69 @@ namespace GUI.Types.Exporter
             }
 
             var outputFormat = fileTypesToExtract[typeName].OutputFormat;
-            Task workCompletion;
+            var output = GetOutput(outputFormat);
+            var guiContext = exportData.VrfGuiContext;
+            string outputRoot;
+            string? gltfPath = null;
 
-            if (outputFormat is "gltf" or "glb")
+            if (output is ContentExportOutput.Gltf or ContentExportOutput.Glb)
             {
-                var filter = outputFormat == "gltf" ? "glTF|*.gltf" : "glTF Binary|*.glb";
-                var gltfPath = AppFileDialogs.SaveFile("Choose where to save the file", Path.GetFileNameWithoutExtension(contentPath), outputFormat, filter);
+                var filter = output == ContentExportOutput.Gltf ? "glTF|*.gltf" : "glTF Binary|*.glb";
+                gltfPath = AppFileDialogs.SaveFile("Choose where to save the file", Path.GetFileNameWithoutExtension(contentPath), outputFormat, filter);
 
                 if (gltfPath == null)
                 {
                     return Task.CompletedTask;
                 }
 
-                RunInDialog(cancellationToken =>
+                outputRoot = Path.GetDirectoryName(gltfPath)!;
+            }
+            else
+            {
+                var folder = AppFileDialogs.PickFolder("Choose which folder to extract files to", AppFileDialogs.RememberIn.DecompileDirectory);
+
+                if (folder == null)
                 {
-                    var exporter = CreateContentExporter(Path.GetDirectoryName(gltfPath)!, confirmedFile: gltfPath);
-                    ExportGltf(CreateGltfExporter(exporter, exportData.VrfGuiContext), resource, gltfPath, cancellationToken);
-                }, $"Exporting {contentPath} to \"{Path.GetFileName(gltfPath)}\"", out workCompletion);
-                return workCompletion;
+                    return Task.CompletedTask;
+                }
+
+                outputRoot = ContentPaths.ResolveOutputRoot(folder, ContentPaths.GetDirectoryName(contentPath));
+
+                if (includeDependencies && source == null)
+                {
+                    Log.Warn(nameof(PackageExporter), $"Dependencies of \"{contentPath}\" are not decompiled, it is not in an addon or mod folder.");
+                }
             }
 
-            var folder = AppFileDialogs.PickFolder("Choose which folder to extract files to", AppFileDialogs.RememberIn.DecompileDirectory);
-
-            if (folder == null)
+            var item = new ContentExportItem
             {
-                return Task.CompletedTask;
-            }
+                ContentPath = contentPath,
+                Open = open,
+                Source = gltfPath == null ? source : null,
+                FileLoader = gltfPath == null ? guiContext.FileLoaderNoCache : guiContext,
+                Output = output,
+                TargetFile = gltfPath,
+            };
 
-            var outputRoot = ContentPaths.ResolveOutputRoot(folder, ContentPaths.GetDirectoryName(contentPath));
-
-            if (includeDependencies && source == null)
-            {
-                Log.Warn(nameof(PackageExporter), $"Dependencies of \"{contentPath}\" are not decompiled, it is not in an addon or mod folder.");
-            }
+            var initialText = gltfPath == null ? $"Decompiling {contentPath}" : $"Exporting {contentPath} to \"{Path.GetFileName(gltfPath)}\"";
 
             RunInDialog(cancellationToken =>
             {
-                var exporter = CreateContentExporter(outputRoot);
-                exportData.VrfGuiContext.EnsureStringTokenGameKeys();
-                TryExport(contentPath, () => exporter.Export(resource, exportData.VrfGuiContext.FileLoaderNoCache, source, cancellationToken: cancellationToken));
-            }, $"Decompiling {contentPath}", out workCompletion);
+                var exporter = CreateContentExporter(outputRoot, confirmedFile: gltfPath);
+                guiContext.EnsureStringTokenGameKeys();
+                exporter.Export([item], cancellationToken);
+            }, initialText, out var workCompletion);
 
             return workCompletion;
         }
 
         /// <summary>
-        /// Asks for a root folder, then writes a file extracted from a non-resource file under it at its content path,
+        /// Asks for a root folder, then extracts a file that is not a compiled resource under it at its content path,
         /// behind a modal progress dialog.
         /// </summary>
-        public Task ExecuteSingleFileExtractAsync(ContentFile contentFile)
+        /// <param name="contentPath">Content path of the file.</param>
+        /// <param name="open">Opens the file's contents.</param>
+        public Task ExecuteSingleNonResourceExtractAsync(string contentPath, Func<Stream> open)
         {
             var folder = AppFileDialogs.PickFolder("Choose which folder to extract files to", AppFileDialogs.RememberIn.DecompileDirectory);
 
@@ -202,13 +209,18 @@ namespace GUI.Types.Exporter
                 return Task.CompletedTask;
             }
 
-            var outputRoot = ContentPaths.ResolveOutputRoot(folder, ContentPaths.GetDirectoryName(contentFile.FileName));
+            var outputRoot = ContentPaths.ResolveOutputRoot(folder, ContentPaths.GetDirectoryName(contentPath));
+            var item = new ContentExportItem
+            {
+                ContentPath = contentPath,
+                Open = open,
+            };
 
             RunInDialog(cancellationToken =>
             {
                 var exporter = CreateContentExporter(outputRoot);
-                TryExport(contentFile.FileName, () => exporter.Export(contentFile, cancellationToken: cancellationToken));
-            }, $"Decompiling {contentFile.FileName}", out var workCompletion);
+                exporter.Export([item], cancellationToken);
+            }, $"Decompiling {contentPath}", out var workCompletion);
 
             return workCompletion;
         }
@@ -319,7 +331,7 @@ namespace GUI.Types.Exporter
                 var resourceType = ResourceTypeExtensions.DetermineByFileExtension("." + type.Key);
                 var firstType = resourceType != ResourceType.Unknown
                     ? FileExtract.GetExtension(resourceType)
-                    : ContentPaths.TrimCompiledSuffix(type.Key);
+                    : type.Key == "vcs" ? "vfx" : ContentPaths.TrimCompiledSuffix(type.Key);
 
                 var outputTypes = new List<string>()
                 {
@@ -423,7 +435,7 @@ namespace GUI.Types.Exporter
             return currentPackage;
         }
 
-        private void CopyQueuedFiles(CancellationToken cancellationToken)
+        private void ExportQueuedFiles(CancellationToken cancellationToken)
         {
             Debug.Assert(progress != null);
 
@@ -434,120 +446,54 @@ namespace GUI.Types.Exporter
 
             var contentFolder = ContentPaths.GetCommonDirectory(filesToExtract.Select(static file => file.GetFullPath()));
             var exporter = CreateContentExporter(ContentPaths.ResolveOutputRoot(OutputPath, contentFolder));
-
-            // Read the package in storage order to avoid seeking back and forth between entries
-            var files = filesToExtract
-                .OrderBy(static file => file.ArchiveIndex)
-                .ThenBy(static file => file.Offset);
-
-            foreach (var packageFile in files)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                progress.SetBarValue(++processed);
-
-                var fileFullName = packageFile.GetFullPath();
-                progress.SetProgress(fileFullName);
-
-                TryExport(fileFullName, () =>
-                {
-                    byte[] data;
-
-                    lock (currentPackage)
-                    {
-                        currentPackage.ReadEntry(packageFile, out data, validateCrc: packageFile.CRC32 > 0);
-                    }
-
-                    exporter.WriteFile(fileFullName, data);
-                });
-            }
-        }
-
-        private void DecompileQueuedFiles(CancellationToken cancellationToken)
-        {
-            Debug.Assert(progress != null);
-
-            var outputPath = OutputPath;
-
-            if (StartFolderExport() is not { } currentPackage)
-            {
-                return;
-            }
-
-            var contentFolder = ContentPaths.GetCommonDirectory(filesToExtract.Select(static file => file.GetFullPath()));
-            var exporter = CreateContentExporter(ContentPaths.ResolveOutputRoot(outputPath, contentFolder));
             var source = ContentExportSource.FromPackage(currentPackage);
             var fileLoader = exportData.VrfGuiContext.FileLoaderNoCache;
-            var gltfExporter = CreateGltfExporter(exporter, fileLoader);
-            var dialog = progress;
-
-            exportData.VrfGuiContext.EnsureStringTokenGameKeys();
-
-            var queue = new ContentExportQueue(exporter)
-            {
-                ItemStarted = item => dialog.SetProgress(item.ContentPath),
-                ItemCompleted = item =>
-                {
-                    if (!item.IsDependency)
-                    {
-                        dialog.SetBarValue(Interlocked.Increment(ref processed));
-                    }
-                },
-            };
+            var items = new List<ContentExportItem>(filesToExtract.Count);
 
             foreach (var packageFile in filesToExtract)
             {
-                var outputFormat = fileTypesToExtract[packageFile.TypeName].OutputFormat;
+                ContentExportOutput output;
 
-                if (outputFormat == null)
+                if (!decompile)
+                {
+                    output = ContentExportOutput.Raw;
+                }
+                else if (fileTypesToExtract[packageFile.TypeName].OutputFormat is { } outputFormat)
+                {
+                    output = GetOutput(outputFormat);
+                }
+                else
                 {
                     processed++;
                     continue;
                 }
 
-                var fileFullName = packageFile.GetFullPath();
-                Func<Resource, CancellationToken, bool>? exportResource = null;
-
-                if (outputFormat is "gltf" or "glb")
+                items.Add(new ContentExportItem
                 {
-                    var gltfPath = Path.ChangeExtension(exporter.GetOutputPath(fileFullName), outputFormat);
-
-                    exportResource = (resource, token) =>
-                    {
-                        gltfExporter.Export(resource, gltfPath, token);
-                        return true;
-                    };
-                }
-
-                queue.Add(new ContentExportItem
-                {
-                    ContentPath = fileFullName,
+                    ContentPath = packageFile.GetFullPath(),
                     Open = () => GameFileLoader.GetPackageEntryStream(currentPackage, packageFile),
+                    Crc32 = packageFile.CRC32 > 0 ? packageFile.CRC32 : null,
                     Source = source,
                     FileLoader = fileLoader,
-                    ExportResource = exportResource,
+                    Output = output,
                 });
             }
 
-            dialog.SetBarValue(processed);
-            queue.Run(cancellationToken);
+            if (decompile)
+            {
+                exportData.VrfGuiContext.EnsureStringTokenGameKeys();
+            }
+
+            progress.SetBarValue(processed);
+            exporter.Export(items, cancellationToken);
         }
 
-        private void TryExport(string fileName, Action export)
+        private static ContentExportOutput GetOutput(string? outputFormat) => outputFormat switch
         {
-            try
-            {
-                export();
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception e)
-            {
-                ReportFailure(fileName, e);
-            }
-        }
+            "gltf" => ContentExportOutput.Gltf,
+            "glb" => ContentExportOutput.Glb,
+            _ => ContentExportOutput.Decompile,
+        };
 
         private static void LogSkipped(string path)
         {
@@ -565,22 +511,6 @@ namespace GUI.Types.Exporter
             Log.Error(nameof(PackageExporter), $"Failed to extract '{fileName}': {exception}");
         }
 
-        private GltfModelExporter CreateGltfExporter(ContentExporter exporter, IFileLoader fileLoader)
-        {
-            return new GltfModelExporter(fileLoader)
-            {
-                ProgressReporter = progress,
-                Exporter = exporter,
-                HandledResourceFilter = path => fileTypesToExtract.TryGetValue(Path.GetExtension(path).TrimStart('.'), out var fileType)
-                    && fileType.OutputFormat is "gltf" or "glb",
-            };
-        }
-
-        private void ExportGltf(GltfModelExporter gltfExporter, Resource resource, string outFilePath, CancellationToken cancellationToken)
-        {
-            TryExport(resource.FileName ?? outFilePath, () => gltfExporter.Export(resource, outFilePath, cancellationToken));
-        }
-
         /// <summary>
         /// Creates the exporter that writes the files of one export.
         /// </summary>
@@ -591,17 +521,35 @@ namespace GUI.Types.Exporter
         /// </param>
         private ContentExporter CreateContentExporter(string outputRoot, string? confirmedFile = null)
         {
+            Debug.Assert(progress != null);
+
             Log.Info(nameof(PackageExporter), $"Writing files to \"{outputRoot}\"");
+
+            var dialog = progress;
 
             return new ContentExporter(outputRoot)
             {
                 IncludeDependencies = includeDependencies,
-                Progress = progress,
+                Progress = dialog,
                 ConfirmExistingFiles = path => path.Equals(confirmedFile, StringComparison.OrdinalIgnoreCase) ? ExistingFileAction.Overwrite : ConfirmExistingFiles(path),
-                FileWritten = path => progress?.SetProgress($"+ {ContentPaths.GetRelativePath(outputRoot, path)}"),
+                FileWritten = path => dialog.SetProgress($"+ {ContentPaths.GetRelativePath(outputRoot, path)}"),
                 FileSkipped = LogSkipped,
                 Warning = message => Log.Warn(nameof(PackageExporter), message),
                 FileFailed = ReportFailure,
+                GltfExporterFactory = fileLoader => new GltfModelExporter(fileLoader)
+                {
+                    ProgressReporter = dialog,
+                    HandledResourceFilter = path => fileTypesToExtract.TryGetValue(Path.GetExtension(path).TrimStart('.'), out var fileType)
+                        && fileType.OutputFormat is "gltf" or "glb",
+                },
+                ItemStarted = item => dialog.SetProgress(item.ContentPath),
+                ItemCompleted = item =>
+                {
+                    if (!item.IsDependency)
+                    {
+                        dialog.SetBarValue(Interlocked.Increment(ref processed));
+                    }
+                },
             };
         }
 

@@ -4,7 +4,7 @@ using System.Threading;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// A file for a <see cref="ContentExportQueue"/> to export.
+/// A file for <see cref="ContentExporter.Export(IEnumerable{ContentExportItem}, CancellationToken)"/> to export.
 /// </summary>
 public sealed class ContentExportItem
 {
@@ -30,36 +30,31 @@ public sealed class ContentExportItem
     /// <summary>Gets the loader a compiled resource's dependencies are read through while decompiling it.</summary>
     public IFileLoader? FileLoader { get; init; }
 
-    /// <summary>
-    /// Gets whether the file is decompiled, or extracted when it is not a compiled resource. Otherwise it is written as
-    /// it is, at any point of the export. Defaults to true.
-    /// </summary>
-    public bool Decompile { get; init; } = true;
+    /// <summary>Gets what the file is exported as. Defaults to <see cref="ContentExportOutput.Decompile"/>.</summary>
+    public ContentExportOutput Output { get; init; }
 
     /// <summary>Gets the CRC32 the file's contents must have when it is written as it is.</summary>
     public uint? Crc32 { get; init; }
 
-    /// <summary>Gets a full path to write the main file to instead of its content path.</summary>
+    /// <summary>
+    /// Gets a full path to write the main file to instead of its content path. A glTF export is written there with
+    /// the extension of its format.
+    /// </summary>
     public string? TargetFile { get; init; }
 
     /// <summary>
-    /// Gets a callback that exports a compiled resource instead of decompiling it, such as to glTF. It returns false to
-    /// decompile the resource after all.
-    /// </summary>
-    public Func<Resource, CancellationToken, bool>? ExportResource { get; init; }
-
-    /// <summary>
-    /// Gets a callback that exports a file that is not a compiled resource instead of extracting it. It returns false
-    /// to extract the file after all.
+    /// Gets a callback that exports a file that would otherwise be written as it is: one that is not a compiled resource,
+    /// a shader in a package or a file <see cref="FileExtract.ExtractNonResource"/> extracts. It returns false to write
+    /// the file as it is after all. It is not called when <see cref="Output"/> is <see cref="ContentExportOutput.Raw"/>.
     /// </summary>
     public Func<Stream, CancellationToken, bool>? ExportFile { get; init; }
 
     /// <summary>
-    /// Gets whether the queue added the file as a dependency of another, see
+    /// Gets whether the export added the file as a dependency of another, see
     /// <see cref="ContentExporter.IncludeDependencies"/>.
     /// </summary>
     public bool IsDependency { get; internal init; }
 
-    /// <summary>Gets what happened to the file, once <see cref="ContentExportQueue.Run"/> returned.</summary>
+    /// <summary>Gets what happened to the file, once the export returned.</summary>
     public ContentExportResult Result { get; internal set; }
 }

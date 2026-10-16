@@ -9,7 +9,6 @@ namespace ValveResourceFormat.IO;
 /// </summary>
 public sealed class ContentExportSource
 {
-    private readonly Package? Package;
     private readonly string? Folder;
 
     private ContentExportSource(Package? package, string? folder)
@@ -47,6 +46,11 @@ public sealed class ContentExportSource
             ? new(null, root)
             : null;
     }
+
+    /// <summary>
+    /// Gets the package of this source, or null when it is a folder.
+    /// </summary>
+    internal Package? Package { get; }
 
     /// <summary>
     /// Gets the name of this source: the path of its package, or its folder.

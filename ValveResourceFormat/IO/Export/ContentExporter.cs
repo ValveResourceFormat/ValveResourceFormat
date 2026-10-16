@@ -6,6 +6,7 @@ using System.IO.Hashing;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.IO;
 
@@ -32,8 +33,9 @@ namespace ValveResourceFormat.IO;
 /// the export at its next file. A file this export wrote is never treated as existing.
 /// </para>
 /// <para>
-/// <see cref="ContentExportQueue"/> exports many files through one instance in parallel. File contents do not depend on
-/// the order files are exported in, but when two different files claim the same path, which one keeps it does.
+/// <see cref="Export(IEnumerable{ContentExportItem}, CancellationToken)"/> exports many files through one instance in
+/// parallel. File contents do not depend on the order files are exported in, but when two different files claim the
+/// same path, which one keeps it does.
 /// </para>
 /// </remarks>
 public sealed class ContentExporter
@@ -109,6 +111,8 @@ public sealed class ContentExporter
     private readonly ConcurrentDictionary<string, PathState> PathStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> HandledFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> ExportOrigins = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<IFileLoader, GltfModelExporter> GltfExporters = new(ReferenceEqualityComparer.Instance);
+    private readonly NullFileLoader NullFileLoader = new();
     private ExistingFileAction? ConfirmedExistingFileAction;
     private volatile bool Cancelled;
     private int FilesWritten;
@@ -153,6 +157,34 @@ public sealed class ContentExporter
 
     /// <summary>Gets the reporter extractors send their progress messages to.</summary>
     public IProgress<string>? Progress { get; init; }
+
+    /// <summary>
+    /// Gets a function that creates the glTF exporter for the items with a glTF <see cref="ContentExportItem.Output"/>,
+    /// given the loader their dependencies are read through. It is called once per loader, and its
+    /// <see cref="GltfModelExporter.Exporter"/> is set to this exporter.
+    /// </summary>
+    public Func<IFileLoader, GltfModelExporter>? GltfExporterFactory { get; init; }
+
+    /// <summary>
+    /// Gets a callback that takes every content file of the export and every file written as it is, in place of writing
+    /// them, such as to print them. glTF exports are still written.
+    /// </summary>
+    public Action<ContentFile>? ContentFileHandler { get; init; }
+
+    /// <summary>
+    /// Gets how many files <see cref="Export(IEnumerable{ContentExportItem}, CancellationToken)"/> exports at once.
+    /// Defaults to <see cref="Environment.ProcessorCount"/>.
+    /// </summary>
+    public int MaxDegreeOfParallelism { get; init; } = Environment.ProcessorCount;
+
+    /// <summary>Gets a callback receiving every item before it is exported, on the thread that exports it.</summary>
+    public Action<ContentExportItem>? ItemStarted { get; init; }
+
+    /// <summary>
+    /// Gets a callback receiving every item once it was exported or skipped, with its
+    /// <see cref="ContentExportItem.Result"/> set.
+    /// </summary>
+    public Action<ContentExportItem>? ItemCompleted { get; init; }
 
     /// <summary>Gets a callback receiving the full path of every file written.</summary>
     public Action<string>? FileWritten { get; init; }
@@ -256,8 +288,41 @@ public sealed class ContentExporter
     }
 
     /// <summary>
+    /// Exports files on the calling thread and up to <see cref="MaxDegreeOfParallelism"/> minus one others, and returns
+    /// once all of them are done. A file that fails is reported through <see cref="FileFailed"/> and the others carry on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Files are exported in <see cref="GetExportOrder"/> order, then by content path, as threads become free. A
+    /// resource waits for every resource in the export that references it and comes before it in that order, so a
+    /// resource that consumes another, such as a model its meshes, has marked it as handled by the time it comes up.
+    /// Resources the compiler generated from another one wait for it, and files in a map's folder wait for the map.
+    /// </para>
+    /// <para>
+    /// With <see cref="IncludeDependencies"/>, every resource an item references, directly or through other references,
+    /// that is in the item's <see cref="ContentExportItem.Source"/> is exported as an item of its own. Resources that
+    /// only exist as part of another, such as meshes, are not, but their references are followed.
+    /// </para>
+    /// <para>
+    /// The files of a compiled shader in a package are decompiled together once, from the item picked by
+    /// <see cref="SelectShaderFiles"/>. The other items of that shader are skipped as handled.
+    /// </para>
+    /// </remarks>
+    /// <param name="items">The files to export.</param>
+    /// <param name="cancellationToken">Stops the export, every thread finishes the file it is on.</param>
+    /// <exception cref="OperationCanceledException">
+    /// The export was cancelled, through the token or <see cref="ExistingFileAction.Cancel"/>.
+    /// </exception>
+    public void Export(IEnumerable<ContentExportItem> items, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        new ContentExportQueue(this, items).Run(cancellationToken);
+    }
+
+    /// <summary>
     /// Decompiles a resource and writes its files. With <see cref="IncludeDependencies"/>, its dependencies are then
-    /// exported in parallel through a <see cref="ContentExportQueue"/>.
+    /// exported in parallel.
     /// </summary>
     /// <param name="resource">The resource, its <see cref="Resource.FileName"/> must be its content path.</param>
     /// <param name="fileLoader">The loader the resource's dependencies are read through while decompiling it.</param>
@@ -275,7 +340,7 @@ public sealed class ContentExporter
 
         if (IncludeDependencies && source != null)
         {
-            var queue = new ContentExportQueue(this);
+            var queue = new ContentExportQueue(this, []);
             queue.AddDependenciesOf(resource, fileLoader, source);
             queue.Run(cancellationToken);
         }
@@ -287,6 +352,13 @@ public sealed class ContentExporter
     /// <returns>Whether every file of it was written.</returns>
     internal bool ExportResource(Resource resource, IFileLoader fileLoader, string? targetFile, CancellationToken cancellationToken)
     {
+        if (targetFile != null && Path.GetExtension(targetFile) is var targetExtension
+            && FileExtract.GetExtension(resource) is var extension
+            && !targetExtension.Equals($".{extension}", StringComparison.OrdinalIgnoreCase))
+        {
+            Warning?.Invoke($"Extension '.{extension}' might be more suitable than the one provided '{targetExtension}'");
+        }
+
         using var contentFile = FileExtract.Extract(resource, fileLoader, Progress, ExtractOptions);
         return ExportFiles(contentFile, targetFile, cancellationToken);
     }
@@ -313,6 +385,12 @@ public sealed class ContentExporter
     /// <returns>Whether every file of it was written.</returns>
     internal bool ExportFiles(ContentFile contentFile, string? targetFile, CancellationToken cancellationToken)
     {
+        if (ContentFileHandler != null)
+        {
+            ContentFileHandler(contentFile);
+            return true;
+        }
+
         if (ConfirmExistingFiles != null || ExistingFileAction == ExistingFileAction.Cancel)
         {
             ConfirmExistingFilesOf(contentFile, targetFile);
@@ -333,6 +411,18 @@ public sealed class ContentExporter
     public void WriteFile(string contentPath, ReadOnlySpan<byte> data, string? targetFile = null)
     {
         ArgumentNullException.ThrowIfNull(contentPath);
+
+        if (ContentFileHandler != null)
+        {
+            using var contentFile = new ContentFile
+            {
+                FileName = contentPath,
+                Data = data.ToArray(),
+            };
+
+            ContentFileHandler(contentFile);
+            return;
+        }
 
         var normalizedPath = NormalizeContentPath(contentPath);
         Write(targetFile ?? Path.Join(OutputRoot, normalizedPath), normalizedPath, data, new References());
@@ -788,6 +878,70 @@ public sealed class ContentExporter
         {
             HandledFiles.Add(key);
         }
+    }
+
+    /// <summary>
+    /// Picks the files compiled shaders are decompiled from: of the files of each shader and platform, the first one of
+    /// the highest shader model. A file whose name does not follow the shader naming is picked on its own.
+    /// </summary>
+    /// <param name="contentPaths">Content paths of <c>.vcs</c> files.</param>
+    public static IEnumerable<string> SelectShaderFiles(IEnumerable<string> contentPaths)
+    {
+        ArgumentNullException.ThrowIfNull(contentPaths);
+
+        return SelectShaderFiles(contentPaths, static contentPath => contentPath);
+    }
+
+    internal static List<T> SelectShaderFiles<T>(IEnumerable<T> files, Func<T, string> getContentPath)
+    {
+        var selected = new List<T>();
+        var highestByShader = new Dictionary<(string ShaderName, VcsPlatformType Platform), (int Index, VcsShaderModelType ShaderModel)>();
+
+        foreach (var file in files)
+        {
+            string shaderName;
+            VcsPlatformType platform;
+            VcsShaderModelType shaderModel;
+
+            try
+            {
+                (shaderName, _, platform, shaderModel) = ShaderUtilHelpers.ComputeVCSFileName(getContentPath(file));
+            }
+            catch (ShaderParserException)
+            {
+                selected.Add(file);
+                continue;
+            }
+
+            if (!highestByShader.TryGetValue((shaderName, platform), out var highest))
+            {
+                highestByShader.Add((shaderName, platform), (selected.Count, shaderModel));
+                selected.Add(file);
+            }
+            else if (shaderModel > highest.ShaderModel)
+            {
+                highestByShader[(shaderName, platform)] = (highest.Index, shaderModel);
+                selected[highest.Index] = file;
+            }
+        }
+
+        return selected;
+    }
+
+    /// <summary>
+    /// Gets the glTF exporter for resources whose dependencies are read through the given loader, see
+    /// <see cref="GltfExporterFactory"/>.
+    /// </summary>
+    internal GltfModelExporter GetGltfExporter(IFileLoader? fileLoader)
+    {
+        var factory = GltfExporterFactory ?? throw new InvalidOperationException($"A glTF export requires {nameof(GltfExporterFactory)}.");
+
+        return GltfExporters.GetOrAdd(fileLoader ?? NullFileLoader, loader =>
+        {
+            var gltfExporter = factory(loader);
+            gltfExporter.Exporter = this;
+            return gltfExporter;
+        });
     }
 
     /// <summary>
