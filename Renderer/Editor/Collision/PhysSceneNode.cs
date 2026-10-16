@@ -485,6 +485,8 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
                 OverlayRenderOrder = collisionAttributeIndex,
                 Physics = phys,
                 CollisionAttributeIndex = collisionAttributeIndex,
+                // Shown as the viewer's collision choice says, for a node made after it was applied
+                Enabled = scene.Settings.DrawFilter is ToolsVisibility tools && labels.Any(tools.ShownCollision.Contains),
             };
 
             // Shown as its tools material is, rather than as the collision chosen to be shown

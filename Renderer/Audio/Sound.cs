@@ -17,14 +17,19 @@ internal static class Sound
     /// <param name="position">World position of the sound, or null for non-spatialized playback.</param>
     /// <param name="channel">Optional channel name (e.g. "player"). Playing on a channel stops whatever was playing on that channel before.</param>
     /// <param name="volume">Optional programmatic volume, replacing the definition's volume property.</param>
+    /// <param name="volumeScale">Multiplier on whatever volume the event ends up at.</param>
     /// <returns>A handle to this play, or an inert one when no player exists or the event could not be played.</returns>
-    public static SoundHandle Play(string soundEventName, Vector3? position = null, string? channel = null, float? volume = null)
-        => Player?.Play(soundEventName, position, channel, volume) is { } soundEvent ? new SoundHandle(soundEvent) : default;
+    public static SoundHandle Play(string soundEventName, Vector3? position = null, string? channel = null, float? volume = null,
+        float volumeScale = 1f)
+        => Player?.Play(soundEventName, position, channel, volume, volumeScale) is { } soundEvent ? new SoundHandle(soundEvent) : default;
 
     /// <summary>
     /// Stops the sound currently playing on the given channel, if any.
     /// </summary>
     public static void StopChannel(string channel) => Player?.StopChannel(channel);
+
+    /// <summary>Gets whether a sound event by this name is known to the active player.</summary>
+    public static bool Exists(string soundEventName) => Player?.Bank.GetSoundEvent(soundEventName) != null;
 
     /// <summary>Queues background decodes for every vsnd a sound event could play. Returns immediately.</summary>
     public static void Cache(string soundEventName) => Player?.Cache(soundEventName);
