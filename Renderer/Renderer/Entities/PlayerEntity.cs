@@ -1,3 +1,4 @@
+using Box3D;
 using ValveResourceFormat.Renderer.Input;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -20,6 +21,10 @@ public sealed class PlayerEntity : BaseEntity
 
     // Held and changed buttons, latched once per tick
     private PlayerButtonState Buttons;
+
+    // The kinematic body standing where the player stands, so walking into props shoves them
+    private Body presenceBody;
+    private bool hasPresenceBody;
 
     /// <summary>Creates the player entity for a movement controller.</summary>
     public PlayerEntity(EntitySystem system, Scene scene, IPlayerController controller) : base(system, scene, "player")
@@ -76,11 +81,56 @@ public sealed class PlayerEntity : BaseEntity
         {
             PressUse();
         }
+
+        UpdatePhysicsPresence(tickInterval);
     }
 
     private void SyncFromController()
     {
         WorldOrigin = Controller.Position;
         Velocity = Controller.Velocity;
+    }
+
+    /// <summary>
+    /// Keeps the kinematic pushing body where the player stands. Moving it with a velocity rather
+    /// than teleporting it is what lets the solver shove props out of the way with the player's
+    /// real speed; a jump across the map is not a shove, so that snaps instead.
+    /// </summary>
+    private void UpdatePhysicsPresence(float tickInterval)
+    {
+        // Only once something else has built the rigid body world; a player in a map with no
+        // physics props has nothing to push
+        if (EntitySystem.PhysicsOrNull is not { } physics)
+        {
+            return;
+        }
+
+        if (!hasPresenceBody)
+        {
+            presenceBody = physics.CreatePlayerBody(Origin, Controller.HullHalfExtents);
+            hasPresenceBody = true;
+            return;
+        }
+
+        if (Vector3.DistanceSquared(presenceBody.Position, Origin) > 256f * 256f)
+        {
+            presenceBody.SetTransform(Origin, null);
+        }
+        else
+        {
+            presenceBody.MoveTowards(Origin, Quaternion.Identity, tickInterval, wake: true);
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void OnRemove()
+    {
+        base.OnRemove();
+
+        if (hasPresenceBody)
+        {
+            presenceBody.Destroy();
+            hasPresenceBody = false;
+        }
     }
 }

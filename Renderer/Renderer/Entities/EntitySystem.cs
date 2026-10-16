@@ -1,3 +1,4 @@
+using Box3D;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -102,6 +103,18 @@ public sealed class EntitySystem
     /// </summary>
     public WorldEntity? World { get; private set; }
 
+    /// <summary>
+    /// Gets the rigid body world, creating it on first use. The world loader pushes the static
+    /// geometry through here, physics props add their bodies, and <see cref="Update"/> steps it every frame.
+    /// </summary>
+    public PhysicsSimulation Physics => physics ??= new PhysicsSimulation(FileLoader);
+
+    /// <summary>
+    /// Gets the rigid body world if anything has created one, without creating it: the player's
+    /// pushing body has nothing to push in a scene with no simulated physics.
+    /// </summary>
+    public PhysicsSimulation? PhysicsOrNull => physics;
+
     /// <summary>Gets the current simulation time in seconds.</summary>
     public float CurrentTime { get; private set; }
 
@@ -137,6 +150,7 @@ public sealed class EntitySystem
     private long sequence;
     private float tickAccumulator;
     private bool hasRemovedEntities;
+    private PhysicsSimulation? physics;
 
     /// <summary>
     /// Initializes an entity world. Prefer <see cref="Renderer.EntitySystem"/> over constructing one.
@@ -477,6 +491,8 @@ public sealed class EntitySystem
 
         PhysicsWorld.Clear();
         worldGroupPhysicsWorlds.Clear();
+        physics?.Dispose();
+        physics = null;
     }
 
     /// <summary>
@@ -547,6 +563,28 @@ public sealed class EntitySystem
             tickAccumulator = 0f;
         }
 
+        if (Enabled)
+        {
+            // The rigid body world steps with the rendered frame, like the player movement does:
+            // physics that only ever saw the camera at the tick rate reads back quantized however
+            // it is drawn. Steering runs first and drawing happens after, so what a body is steered
+            // to this frame is on screen this frame. The entity tick above stays the cadence of
+            // game logic; this is only the integrator.
+            var physicsStep = MathF.Min(frameTime, MaxPhysicsFrameStep);
+
+            for (var i = 0; i < entities.Count; i++)
+            {
+                var entity = entities[i];
+
+                if (!entity.IsRemoved)
+                {
+                    entity.FrameSimulate(physicsStep);
+                }
+            }
+
+            physics?.Step(physicsStep);
+        }
+
         // Entities are not scene nodes, so nothing else places what they own. Parents first, so a child
         // follows its parent's current pose.
         foreach (var entity in entities)
@@ -562,6 +600,9 @@ public sealed class EntitySystem
             entity.Update();
         }
     }
+
+    // Load stalls and breakpoints must not become one giant integration step
+    private const float MaxPhysicsFrameStep = 0.1f;
 
     private void Tick()
     {

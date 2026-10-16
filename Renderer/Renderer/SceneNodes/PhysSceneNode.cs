@@ -517,6 +517,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 OverlayRenderOrder = collisionAttributeIndex,
                 Physics = phys,
                 CollisionAttributeIndex = collisionAttributeIndex,
+                Enabled = scene.EnabledPhysicsGroups.Contains(physName),
             };
 
             if (toolMaterialName != null)
