@@ -51,6 +51,9 @@ public static class EntityFactory
         Register<NpcVrCitizen>("npc_vr_citizen_female", static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo));
         Register<NpcVrCitizen>("npc_vr_citizen_male", static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo));
         Register<NpcBossTier3>("npc_boss_tier3", static (system, spawnInfo) => new NpcBossTier3(system, spawnInfo));
+        Register<PropPhysics>("prop_physics", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
+        Register<PropPhysics>("prop_physics_multiplayer", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
+        Register<PropPhysics>("prop_physics_override", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
         Register<FuncBreakable>("func_breakable", static (system, spawnInfo) => new FuncBreakable(system, spawnInfo));
         Register<FuncShatterglass>("func_shatterglass", static (system, spawnInfo) => new FuncShatterglass(system, spawnInfo));
         Register<XenFloraAnimatedMover>("xen_flora_animatedmover", static (system, spawnInfo) => new XenFloraAnimatedMover(system, spawnInfo));
