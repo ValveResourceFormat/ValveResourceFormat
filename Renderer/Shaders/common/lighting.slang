@@ -296,7 +296,7 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, Mate
 
 void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
-    lighting.DiffuseIndirect = vec3(0.3);
+    lighting.DiffuseIndirect = g_vUnbakedIndirect.rgb;
 
     // Indirect Lighting
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
