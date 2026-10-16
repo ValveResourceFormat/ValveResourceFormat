@@ -64,7 +64,7 @@ public sealed class SelectionOutline : IDisposable
         }
 
         using (new GLDebugGroup("Selection Outline Edge"))
-        using (GraphicsContext.RenderState.Scope(blend: true))
+        using (GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false, blend: true))
         {
             target.Bind(FramebufferTarget.Framebuffer);
             GL.Viewport(0, 0, target.Width, target.Height);
