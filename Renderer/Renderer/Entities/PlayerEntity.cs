@@ -76,6 +76,15 @@ public sealed class PlayerEntity : BaseEntity
     private Body presenceBody;
     private bool hasPresenceBody;
 
+    // The debris shove, see ShoveDebris
+    private const float MinShoveSpeed = 20f;
+    private const float MaxShoveSpeed = 350f;
+    private const float ShoveMargin = 2f;
+
+    // Reused by the debris shove every tick
+    private readonly List<Body> debrisBodies = [];
+    private readonly HashSet<ulong> debrisBodyIds = [];
+
     // How long the carried prop has been stuck far from its hold pose; a flick spikes this for a
     // tick or two, a wedged prop keeps it climbing until the carry gives up
     private float carryStrainTime;
@@ -202,6 +211,80 @@ public sealed class PlayerEntity : BaseEntity
         else
         {
             presenceBody.MoveTowards(Origin, Quaternion.Identity, tickInterval, wake: true);
+        }
+
+        ShoveDebris(physics);
+    }
+
+    /// <summary>
+    /// Shoves the debris the player's hull overlaps with a purely horizontal velocity, away from
+    /// the player at the player's own speed. Debris never meets the pushing body in the solver
+    /// (see <see cref="PhysicsSimulation.DebrisCategory"/>), and a horizontal velocity can never
+    /// press anything into the ground.
+    /// </summary>
+    private void ShoveDebris(PhysicsSimulation physics)
+    {
+        var horizontalVelocity = Velocity with { Z = 0f };
+        var speed = horizontalVelocity.Length();
+
+        // A still player is not a jitter source for whatever they stand in
+        if (speed < MinShoveSpeed)
+        {
+            return;
+        }
+
+        var halfExtents = Controller.HullHalfExtents + new Vector3(ShoveMargin, ShoveMargin, 0f);
+        var center = Origin + new Vector3(0f, 0f, Controller.HullHalfExtents.Z);
+
+        // Collected first, shoved after: the world is locked while a query runs
+        debrisBodies.Clear();
+        debrisBodyIds.Clear();
+
+        var overlapped = new DebrisOverlap(debrisBodies, debrisBodyIds);
+        physics.World.OverlapBox(center, halfExtents, ref overlapped,
+            new QueryFilter(PhysicsSimulation.PlayerCategory, PhysicsSimulation.DebrisCategory));
+
+        var heldBody = Carried?.CarryBody;
+        var pushSpeed = MathF.Min(speed, MaxShoveSpeed);
+
+        foreach (var body in debrisBodies)
+        {
+            // The carried body is the carry's to steer, not the hull's to shove
+            if (body.UserData == heldBody?.UserData)
+            {
+                continue;
+            }
+
+            var direction = (body.Position - center) with { Z = 0f };
+            var distance = direction.Length();
+
+            // Radially away from the player, or along the motion when standing dead centered
+            direction = distance > 0.5f ? direction / distance : horizontalVelocity / speed;
+
+            var current = Vector3.Dot(body.LinearVelocity, direction);
+
+            if (current < pushSpeed)
+            {
+                var pushed = body;
+                pushed.LinearVelocity += direction * (pushSpeed - current);
+                pushed.IsAwake = true;
+            }
+        }
+    }
+
+    // One entry per body however many of its shapes overlap
+    private readonly struct DebrisOverlap(List<Body> bodies, HashSet<ulong> bodyIds) : IOverlapCallback
+    {
+        public bool OnOverlap(Shape shape)
+        {
+            var body = shape.Body;
+
+            if (bodyIds.Add(body.UserData))
+            {
+                bodies.Add(body);
+            }
+
+            return true;
         }
     }
 
@@ -422,7 +505,8 @@ public sealed class PlayerEntity : BaseEntity
         // finds nothing
         var hit = physics.World.RaycastClosest(eyePosition, forward * PickupReach,
             new QueryFilter(PhysicsSimulation.PlayerCategory,
-                PhysicsSimulation.StaticCategory | PhysicsSimulation.PropCategory | PhysicsSimulation.MoverCategory));
+                PhysicsSimulation.StaticCategory | PhysicsSimulation.PropCategory
+                | PhysicsSimulation.DebrisCategory | PhysicsSimulation.MoverCategory));
 
         if (!hit.Hit)
         {
