@@ -1454,25 +1454,8 @@ namespace GUI.Types.GLViewers
 
             if (isCpuDecodedFormat || forceSoftwareDecode)
             {
-                SKBitmap bitmap;
-
-                // GUI provides hardware decoder for texture decoding, but here we do not want to use it
-                var decoder = HardwareAcceleratedTextureDecoder.Decoder;
-                HardwareAcceleratedTextureDecoder.Decoder = null;
-
-                try
-                {
-                    bitmap = textureData.GenerateBitmap((uint)SelectedDepth, (CubemapFace)SelectedCubeFace, (uint)SelectedMip, swDecodeFlags);
-                }
-                finally
-                {
-                    HardwareAcceleratedTextureDecoder.Decoder = decoder;
-                }
-
-                using (bitmap)
-                {
-                    UploadBitmap(bitmap);
-                }
+                using var bitmap = textureData.GenerateBitmap((uint)SelectedDepth, (CubemapFace)SelectedCubeFace, (uint)SelectedMip, swDecodeFlags, allowHardwareDecode: false);
+                UploadBitmap(bitmap);
 
                 return;
             }

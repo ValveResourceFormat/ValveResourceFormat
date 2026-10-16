@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
@@ -94,11 +93,7 @@ namespace CLI
         private bool IsInputFolder;
         private Progress<string>? ProgressReporter;
         private ContentExporter? Exporter;
-
-        /// <summary>
-        /// The package or file on disk each exported input file came from, by content path.
-        /// </summary>
-        private readonly ConcurrentDictionary<string, string> ExportedFrom = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Lock GltfExportLock = new();
 
         /// <summary>
         /// The file the main output is written to when --output names a file.
@@ -127,7 +122,7 @@ namespace CLI
         /// <param name="recursive_vpk">If the input is a folder, also process files inside of VPK archives in it.</param>
         /// <param name="vpk_extensions">-e, File extension(s) filter, example: "vcss_c,vjs_c,vxml_c".</param>
         /// <param name="vpk_filepath">-f, File path filter(s), matching the start of the path inside the VPK or relative to the input folder (case-insensitive), or the full path when using * and ? wildcards. Example: "panorama/,sounds/" or "*/entities/*".</param>
-        /// <param name="vpk_cache">Use a cached VPK manifest to keep track of updates, only changed files are written to disk. Requires --output.</param>
+        /// <param name="vpk_cache">Only export the files of a VPK that changed since the last export to the same output, tracked in a manifest file in the output folder. Requires --output.</param>
         /// <param name="vpk_verify">Verify checksums and signatures of the given VPK, or of every VPK in the given folder.</param>
         /// <param name="vpk_create">Pack all files in the input folder and its subfolders into a VPK at the given path, example: "pak01_dir.vpk". File paths are lowercased, and file extension and path filters apply.</param>
         /// <param name="vpk_create_chunk_size">When using --vpk_create, split file data into chunk files of this many megabytes (1 to 1024) next to the VPK, which must be named "*_dir.vpk". By default everything is written into a single file.</param>
@@ -153,7 +148,6 @@ namespace CLI
         /// <param name="shader_list_combos">List every compiled variant of a shader with its combo values and bytecode hash. For a material, only the variants of its shader that the material selects.</param>
         /// <param name="shader_combo">Decompile the shader variant matching these combo values, example: "S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4". A bare name means "=1", omitted combos stay at their minimum. For a material, the static combos it selects are used.</param>
         /// <param name="tools_asset_info_short">Print only file paths for tools_asset_info files.</param>
-        /// <param name="threads">If higher than 1, files are processed concurrently. Only used with --output or --test.</param>
         /// <param name="quiet">-q, When writing to --output or --vpk_create, only print errors and a summary. With the shader options, only print their output.</param>
         /// <param name="game">Path to a gameinfo.gi file, or the folder containing it, to load game search paths from, such as "steam:730/game/csgo". Useful when the input file is not located inside a game folder.</param>
         /// <param name="test">Run every input file through all of the decompile code paths to find exceptions, and print how many files of each type and version were found. Use "-i steam" to scan all Steam libraries.</param>
@@ -200,7 +194,6 @@ namespace CLI
             [HideDefaultValue] string? shader_combo = default,
             bool tools_asset_info_short = false,
 
-            int threads = 1,
             bool quiet = false,
             [HideDefaultValue] string? game = default,
 
@@ -294,7 +287,7 @@ namespace CLI
             RecursiveSearchArchives = recursive_vpk;
             PrintAllBlocks = all;
             BlocksToPrint = block?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
-            MaxParallelismThreads = threads;
+            MaxParallelismThreads = test ? Environment.ProcessorCount : 1;
             Quiet = quiet;
             OutputVPKDir = vpk_dir;
             VerifyVPKChecksums = vpk_verify;
@@ -542,12 +535,6 @@ namespace CLI
                 ExtFilterList = ["vcs", "vmat_c"];
             }
 
-            // Printing to the console is done one file at a time
-            if (OutputFile == null && !CollectStats)
-            {
-                MaxParallelismThreads = 1;
-            }
-
             FileLoaderLogger = new StderrLogger(Quiet ? LogLevel.Warning : LogLevel.Information);
 
             return Execute();
@@ -660,11 +647,6 @@ namespace CLI
                 return 1;
             }
 
-            if (OutputFile != null)
-            {
-                paths = [.. paths.OrderBy(static path => ContentExporter.GetExportOrder(path))];
-            }
-
             CurrentFile = 0;
             TotalFiles = paths.Count;
 
@@ -676,7 +658,7 @@ namespace CLI
 
                     if (!TestFileLoaders.TryGetValue(directory, out var testFileLoader))
                     {
-                        testFileLoader = new TestFileLoader(new Lazy<GameFileLoader>(() => CreateTestFileLoader(path)));
+                        testFileLoader = new TestFileLoader(new Lazy<GameFileLoader>(() => CreateSharedGameFileLoader(path)));
                         TestFileLoaders.Add(directory, testFileLoader);
                     }
 
@@ -684,7 +666,7 @@ namespace CLI
                 }
             }
 
-            ProgressReporter = Quiet ? null : new Progress<string>(progress => Console.WriteLine($"--- {progress}"));
+            ProgressReporter = Quiet ? null : new Progress<string>(progress => PrintLine($"--- {progress}"));
 
             // Library code also writes to the console, so silence all of stdout while processing
             Stdout = Console.Out;
@@ -699,14 +681,11 @@ namespace CLI
                 Console.SetOut(Console.Error);
             }
 
-            var isSinglePackage = LinkedFilePath == null && paths is [var onlyPath] && onlyPath.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase);
-
-            if (OutputFile != null && !isSinglePackage)
+            if (OutputFile != null)
             {
-                Exporter = CreateExporter(GetContentFolder(paths));
+                ExportPaths(paths);
             }
-
-            if (MaxParallelismThreads > 1)
+            else if (MaxParallelismThreads > 1)
             {
                 Console.WriteLine("Will use {0} threads concurrently.", MaxParallelismThreads);
 
@@ -719,28 +698,21 @@ namespace CLI
                     ThreadPool.SetMinThreads(MaxParallelismThreads, MaxParallelismThreads);
                 }
 
-                var phases = OutputFile != null
-                    ? paths.GroupBy(static path => ContentExporter.GetExportOrder(path)).Select(static phase => phase.ToList())
-                    : [paths];
+                var queue = new ConcurrentQueue<string>(paths);
+                var tasks = new List<Task>();
 
-                foreach (var phase in phases)
+                for (var n = 0; n < MaxParallelismThreads; n++)
                 {
-                    var queue = new ConcurrentQueue<string>(phase);
-                    var tasks = new List<Task>();
-
-                    for (var n = 0; n < MaxParallelismThreads; n++)
+                    tasks.Add(Task.Run(() =>
                     {
-                        tasks.Add(Task.Run(() =>
+                        while (queue.TryDequeue(out var path))
                         {
-                            while (queue.TryDequeue(out var path))
-                            {
-                                ProcessInputFile(path);
-                            }
-                        }));
-                    }
-
-                    Task.WhenAll(tasks).GetAwaiter().GetResult();
+                            ProcessInputFile(path);
+                        }
+                    }));
                 }
+
+                Task.WhenAll(tasks).GetAwaiter().GetResult();
             }
             else
             {
@@ -879,25 +851,6 @@ namespace CLI
                 .Where(group => MatchesExtensionFilter(group.Key))
                 .SelectMany(group => FilteredEntries(group.Value))
                 .Select(static entry => entry.FilePath));
-        }
-
-        /// <summary>
-        /// Whether an input file was already exported, or used by an exported file, and should be skipped. A file whose
-        /// content path was exported from another package or file is exported again.
-        /// </summary>
-        private bool IsAlreadyExported(string contentPath, string source)
-        {
-            Debug.Assert(Exporter != null);
-
-            var key = ContentPaths.Normalize(contentPath);
-
-            if (!Exporter.IsHandled(key))
-            {
-                ExportedFrom.TryAdd(key, source);
-                return false;
-            }
-
-            return !ExportedFrom.TryGetValue(key, out var exportedFrom) || exportedFrom == source;
         }
 
         /// <summary>
@@ -1045,7 +998,10 @@ namespace CLI
             }
         }
 
-        private GameFileLoader CreateTestFileLoader(string path)
+        /// <summary>
+        /// Creates a game file loader to share between files, which packages wrap.
+        /// </summary>
+        private GameFileLoader CreateSharedGameFileLoader(string path)
         {
             var fileLoader = CreateGameFileLoader(null, path);
 
@@ -1092,7 +1048,7 @@ namespace CLI
             ProcessFile(path, fs, null, fileLoader);
         }
 
-        private void ProcessFile(string path, Stream stream, string? originalPath = null, IFileLoader? fileLoader = null, Package? package = null)
+        private static uint PeekMagic(Stream stream)
         {
             Span<byte> magicData = stackalloc byte[4];
 
@@ -1102,7 +1058,12 @@ namespace CLI
                 stream.Seek(-magicData.Length, SeekOrigin.Current);
             }
 
-            var magic = BitConverter.ToUInt32(magicData);
+            return BitConverter.ToUInt32(magicData);
+        }
+
+        private void ProcessFile(string path, Stream stream, string? originalPath = null, IFileLoader? fileLoader = null, Package? package = null)
+        {
+            var magic = PeekMagic(stream);
 
             // Packages count and print themselves, because they may expand into the files inside of them
             if (magic == Package.MAGIC)
@@ -1177,9 +1138,7 @@ namespace CLI
                 return;
             }
 
-            var contentPath = OutputFile != null ? GetContentPath(path, originalPath) : path;
-
-            if (TryParseNonResource(path, contentPath, stream, originalPath))
+            if (TryParseNonResource(path, path, stream, originalPath))
             {
                 return;
             }
@@ -1191,7 +1150,7 @@ namespace CLI
 
             try
             {
-                resource.Read(stream, mode: OutputFile == null && !CollectStats ? ReadMode.Deferred : ReadMode.Runtime);
+                resource.Read(stream, mode: CollectStats ? ReadMode.Runtime : ReadMode.Deferred);
 
                 if (HasShaderOptions && resource.DataBlock is Material material)
                 {
@@ -1199,50 +1158,9 @@ namespace CLI
                     return;
                 }
 
-                var extension = FileExtract.GetExtension(resource);
-
-                if (extension == null)
-                {
-                    extension = ContentPaths.TrimCompiledSuffix(Path.GetExtension(path));
-                }
-
                 if (CollectStats)
                 {
                     TestAndCollectStats(resource, path, originalPath, fileLoader, package);
-                }
-
-                if (OutputFile != null)
-                {
-                    resource.FileName = contentPath;
-
-                    if (IsAlreadyExported(resource.FileName, path))
-                    {
-                        Console.WriteLine("--- Skipped \"{0}\", it is part of a file that was exported", path);
-                        return;
-                    }
-
-                    using var outputFileLoader = CreateGameFileLoader(null, path);
-
-                    if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
-                    {
-                        ExportGltf(CreateGltfExporter(outputFileLoader), resource);
-                        return;
-                    }
-
-                    if (TargetFile != null && !Path.GetExtension(TargetFile).Equals($".{extension}", StringComparison.OrdinalIgnoreCase))
-                    {
-                        Warn($"Extension '.{extension}' might be more suitable than the one provided '{Path.GetExtension(TargetFile)}'");
-                    }
-
-                    var source = ContentExportSource.FromDiskFile(path);
-
-                    if (source == null && DecompileDependencies)
-                    {
-                        Warn($"Dependencies of \"{path}\" are not decompiled, it is not in an addon or mod folder.");
-                    }
-
-                    ExportResource(resource, outputFileLoader, source);
-                    return;
                 }
             }
             catch (Exception e)
@@ -1397,23 +1315,36 @@ namespace CLI
         /// <summary>
         /// Exports to glTF next to where the decompiled resource would go, or to --output when it names a file.
         /// </summary>
-        private void ExportGltf(GltfModelExporter gltfExporter, Resource resource)
+        private void ExportGltf(IFileLoader fileLoader, Resource resource)
         {
-            if (PrepareGltfOutputPath(resource.FileName!) is { } outFilePath)
+            if (PrepareGltfOutputPath(resource.FileName!) is not { } outFilePath)
             {
-                gltfExporter.Export(resource, outFilePath);
+                return;
+            }
+
+            lock (GltfExportLock)
+            {
+                CreateGltfExporter(fileLoader).Export(resource, outFilePath);
             }
         }
 
         private void OnFileWritten(string path)
         {
             Interlocked.Increment(ref WrittenFiles);
-            Console.WriteLine("--- Dump written to \"{0}\"", path);
+            PrintLine($"--- Dump written to \"{path}\"");
         }
 
-        private static void OnFileSkipped(string path)
+        private void OnFileSkipped(string path)
         {
-            Console.WriteLine("--- Skipped \"{0}\", it already exists", path);
+            PrintLine($"--- Skipped \"{path}\", it already exists");
+        }
+
+        private void PrintLine(string text)
+        {
+            lock (ConsoleWriterLock)
+            {
+                Console.WriteLine(text);
+            }
         }
 
         /// <summary>
@@ -1495,17 +1426,6 @@ namespace CLI
             {
                 var navMeshFile = new NavMeshFile();
                 navMeshFile.Read(stream);
-
-                if (OutputFile != null && GltfExportFormat != null)
-                {
-                    if (PrepareGltfOutputPath(GetContentPath(path, originalPath)) is { } outFilePath)
-                    {
-                        using var fileLoader = CreateGameFileLoader(null, path);
-                        CreateGltfExporter(fileLoader).Export(navMeshFile, path, outFilePath);
-                    }
-
-                    return;
-                }
 
                 if (!CollectStats)
                 {
@@ -1711,218 +1631,128 @@ namespace CLI
 
             Debug.Assert(package.Entries != null);
 
-            if (OutputFile != null)
+            var orderedEntries = package.Entries.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key).ToList();
+
+            if (ExtFilterList != null)
             {
-                Exporter ??= CreateExporter(GetMatchedEntriesFolder(package));
+                orderedEntries = orderedEntries.Where(x => ExtFilterList.Contains(x.Key)).ToList();
+            }
+            else if (CollectStats)
+            {
+                // Most supported files are matched by their extension, the others by their full name
+                orderedEntries = orderedEntries
+                    .Select(x => x.Key switch
+                    {
+                        "vpk" => KeyValuePair.Create(x.Key, RecursiveSearchArchives ? x.Value : []),
+                        _ when SupportedFileNamesRegex().IsMatch($".{x.Key}") => x,
+                        _ => KeyValuePair.Create(x.Key, x.Value.Where(entry => SupportedFileNamesRegex().IsMatch(entry.GetFileName())).ToList()),
+                    })
+                    .Where(x => x.Value.Count > 0)
+                    .ToList();
             }
 
-            if (OutputFile == null)
+            if (ListResources)
             {
-                var orderedEntries = package.Entries.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key).ToList();
+                var listEntries = orderedEntries.SelectMany(x => x.Value).ToList();
+                listEntries.Sort((a, b) => string.CompareOrdinal(a.GetFullPath(), b.GetFullPath()));
 
-                if (ExtFilterList != null)
+                // When listing multiple packages, prefix each entry with the package it came from
+                var packagePrefix = IsInputFolder ? $"{GetDisplayPath(path)} -> " : string.Empty;
+
+                foreach (var (entry, _) in FilteredEntries(listEntries))
                 {
-                    orderedEntries = orderedEntries.Where(x => ExtFilterList.Contains(x.Key)).ToList();
-                }
-                else if (CollectStats)
-                {
-                    // Most supported files are matched by their extension, the others by their full name
-                    orderedEntries = orderedEntries
-                        .Select(x => x.Key switch
-                        {
-                            "vpk" => KeyValuePair.Create(x.Key, RecursiveSearchArchives ? x.Value : []),
-                            _ when SupportedFileNamesRegex().IsMatch($".{x.Key}") => x,
-                            _ => KeyValuePair.Create(x.Key, x.Value.Where(entry => SupportedFileNamesRegex().IsMatch(entry.GetFileName())).ToList()),
-                        })
-                        .Where(x => x.Value.Count > 0)
-                        .ToList();
+                    Console.WriteLine(OutputVPKDir
+                        ? $"{packagePrefix}{entry}"
+                        : $"{packagePrefix}{entry.GetFullPath()} CRC:{entry.CRC32:x10} size:{entry.TotalLength}");
                 }
 
-                if (ListResources)
+                return;
+            }
+
+            if (processVpkFiles)
+            {
+                var queue = new ConcurrentQueue<PackageEntry>();
+
+                foreach (var entryGroup in orderedEntries)
                 {
-                    var listEntries = orderedEntries.SelectMany(x => x.Value).ToList();
-                    listEntries.Sort((a, b) => string.CompareOrdinal(a.GetFullPath(), b.GetFullPath()));
-
-                    // When listing multiple packages, prefix each entry with the package it came from
-                    var packagePrefix = IsInputFolder ? $"{GetDisplayPath(path)} -> " : string.Empty;
-
-                    foreach (var (entry, _) in FilteredEntries(listEntries))
+                    foreach (var (entry, _) in FilteredEntries(entryGroup.Value))
                     {
-                        Console.WriteLine(OutputVPKDir
-                            ? $"{packagePrefix}{entry}"
-                            : $"{packagePrefix}{entry.GetFullPath()} CRC:{entry.CRC32:x10} size:{entry.TotalLength}");
+                        queue.Enqueue(entry);
                     }
-
-                    return;
                 }
 
-                if (processVpkFiles)
+                // The package itself was counted as one of the files to process
+                Interlocked.Add(ref TotalFiles, queue.Count - 1);
+
+                // Files in the package take priority over the game files, including for packages inside of this one
+                var fileLoader = parentFileLoader != null ? new PackageFirstFileLoader(package, parentFileLoader) : null;
+
+                Func<PackageEntry, Stream> openEntry = MaxParallelismThreads > 1
+                    ? entry => GameFileLoader.GetPackageEntryStream(package, entry)
+                    : entry =>
+                    {
+                        package.ReadEntry(entry, out var output);
+                        return new MemoryStream(output);
+                    };
+
+                void ProcessPackageEntry(PackageEntry file)
                 {
-                    var queue = new ConcurrentQueue<PackageEntry>();
+                    Stream entryStream;
 
-                    foreach (var entryGroup in orderedEntries)
+                    // A damaged package can fail to read a single entry, which should not stop the others
+                    try
                     {
-                        foreach (var (entry, _) in FilteredEntries(entryGroup.Value))
-                        {
-                            queue.Enqueue(entry);
-                        }
+                        entryStream = openEntry(file);
+                    }
+                    catch (Exception e)
+                    {
+                        LogException(e, file.GetFullPath(), path);
+                        return;
                     }
 
-                    // The package itself was counted as one of the files to process
-                    Interlocked.Add(ref TotalFiles, queue.Count - 1);
-
-                    // Files in the package take priority over the game files, including for packages inside of this one
-                    var fileLoader = parentFileLoader != null ? new PackageFirstFileLoader(package, parentFileLoader) : null;
-
-                    Func<PackageEntry, Stream> openEntry = MaxParallelismThreads > 1
-                        ? entry => GameFileLoader.GetPackageEntryStream(package, entry)
-                        : entry =>
-                        {
-                            package.ReadEntry(entry, out var output);
-                            return new MemoryStream(output);
-                        };
-
-                    void ProcessPackageEntry(PackageEntry file)
+                    using (entryStream)
                     {
-                        Stream entryStream;
-
-                        // A damaged package can fail to read a single entry, which should not stop the others
-                        try
-                        {
-                            entryStream = openEntry(file);
-                        }
-                        catch (Exception e)
-                        {
-                            LogException(e, file.GetFullPath(), path);
-                            return;
-                        }
-
-                        using (entryStream)
-                        {
-                            ProcessFile(file.GetFullPath(), entryStream, path, fileLoader, package);
-                        }
+                        ProcessFile(file.GetFullPath(), entryStream, path, fileLoader, package);
                     }
+                }
 
-                    if (MaxParallelismThreads > 1)
+                if (MaxParallelismThreads > 1)
+                {
+                    var tasks = new List<Task>();
+
+                    for (var n = 0; n < MaxParallelismThreads; n++)
                     {
-                        var tasks = new List<Task>();
-
-                        for (var n = 0; n < MaxParallelismThreads; n++)
+                        tasks.Add(Task.Run(() =>
                         {
-                            tasks.Add(Task.Run(() =>
+                            while (queue.TryDequeue(out var file))
                             {
-                                while (queue.TryDequeue(out var file))
-                                {
-                                    ProcessPackageEntry(file);
-                                }
-                            }));
-                        }
+                                ProcessPackageEntry(file);
+                            }
+                        }));
+                    }
 
-                        Task.WhenAll(tasks).GetAwaiter().GetResult();
-                    }
-                    else
-                    {
-                        while (queue.TryDequeue(out var file))
-                        {
-                            ProcessPackageEntry(file);
-                        }
-                    }
+                    Task.WhenAll(tasks).GetAwaiter().GetResult();
                 }
                 else
                 {
-                    Console.WriteLine("--- Files in package:");
-
-                    foreach (var entry in orderedEntries)
+                    while (queue.TryDequeue(out var file))
                     {
-                        var count = HasPathFilter ? FilteredEntries(entry.Value).Count() : entry.Value.Count;
-
-                        if (count > 0)
-                        {
-                            AnyFileMatched = true;
-                            Console.WriteLine($"\t{entry.Key}: {count} files");
-                        }
+                        ProcessPackageEntry(file);
                     }
                 }
             }
             else
             {
-                if (!OutputIsDirectory && MatchesMultipleFiles(package))
+                Console.WriteLine("--- Files in package:");
+
+                foreach (var entry in orderedEntries)
                 {
-                    ReportError("Output path has a file extension, but more than one file matched. Use --vpk_filepath to match exactly one file, or end the output path with a path separator to write into a folder with that name.");
-                    return;
-                }
+                    var count = HasPathFilter ? FilteredEntries(entry.Value).Count() : entry.Value.Count;
 
-                Console.WriteLine("--- Dumping decompiled files...");
-
-                const string CachedManifestVersionPrefix = "// s2v_version=";
-                var manifestPath = string.Concat(path, ".manifest.txt");
-                var manifestData = new Dictionary<string, uint>();
-
-                if (CachedManifest && File.Exists(manifestPath))
-                {
-                    using var file = new StreamReader(manifestPath);
-                    string? line;
-                    var firstLine = true;
-                    var goodCachedVersion = false;
-
-                    while ((line = file.ReadLine()) != null)
+                    if (count > 0)
                     {
-                        var lineSpan = line.AsSpan();
-
-                        if (firstLine)
-                        {
-                            firstLine = false;
-
-                            if (lineSpan.StartsWith(CachedManifestVersionPrefix))
-                            {
-                                var oldVersion = lineSpan[CachedManifestVersionPrefix.Length..];
-                                var newVersion = typeof(Decompiler).Assembly.GetName().Version!.ToString();
-
-                                goodCachedVersion = oldVersion.SequenceEqual(newVersion);
-
-                                if (!goodCachedVersion)
-                                {
-                                    break;
-                                }
-                            }
-                        }
-
-                        var space = lineSpan.IndexOf(' ');
-
-                        if (space > 0 && uint.TryParse(lineSpan[..space], CultureInfo.InvariantCulture, out var hash))
-                        {
-                            manifestData.Add(lineSpan[(space + 1)..].ToString(), hash);
-                        }
-                    }
-
-                    if (!goodCachedVersion)
-                    {
-                        Console.Error.WriteLine("Decompiler version changed, cached manifest will be ignored.");
-                        manifestData.Clear();
-                    }
-                }
-
-                using var fileLoader = CreateGameFileLoader(package, package.FileName);
-
-                foreach (var type in package.Entries.Keys.OrderBy(static type => ContentExporter.GetExportOrder($".{type}")))
-                {
-                    ProcessVPKEntries(path, package, fileLoader, type, manifestData);
-                }
-
-                if (CachedManifest)
-                {
-                    using var file = new StreamWriter(manifestPath);
-
-                    file.WriteLine($"{CachedManifestVersionPrefix}{typeof(Decompiler).Assembly.GetName().Version}");
-
-                    foreach (var hash in manifestData)
-                    {
-                        if (package.FindEntry(hash.Key) == null)
-                        {
-                            Console.WriteLine("\t{0} no longer exists in VPK", hash.Key);
-                        }
-
-                        file.WriteLine($"{hash.Value} {hash.Key}");
+                        AnyFileMatched = true;
+                        Console.WriteLine($"\t{entry.Key}: {count} files");
                     }
                 }
             }
@@ -1970,149 +1800,6 @@ namespace CLI
             }
 
             Console.WriteLine("Success.");
-        }
-
-        private void ProcessVPKEntries(string parentPath, Package package,
-            IFileLoader fileLoader, string type, Dictionary<string, uint> manifestData)
-        {
-            if (!MatchesExtensionFilter(type))
-            {
-                return;
-            }
-
-            Debug.Assert(package.Entries != null);
-
-            if (!package.Entries.TryGetValue(type, out var entries))
-            {
-                Console.WriteLine("There are no files of type \"{0}\".", type);
-
-                return;
-            }
-
-            var gltfExporter = CreateGltfExporter(fileLoader);
-            var shaderFilesToDecompile = type == "vcs" ? GetShaderFilesToDecompile(entries) : null;
-
-            foreach (var (file, filePath) in FilteredEntries(entries))
-            {
-                if (OutputFile != null && CachedManifest)
-                {
-                    if (manifestData.TryGetValue(filePath, out var oldCrc32) && oldCrc32 == file.CRC32)
-                    {
-                        Console.WriteLine("--- Skipped (unchanged) \"{0}\"", filePath);
-                        continue;
-                    }
-
-                    manifestData[filePath] = file.CRC32;
-                }
-
-                if (OutputFile == null)
-                {
-                    Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
-                }
-
-                var totalLength = (int)file.TotalLength;
-                var rawFileData = ArrayPool<byte>.Shared.Rent(totalLength);
-                ContentFile? contentFile = null;
-
-                // Must outlive the export because content subfiles can be generated lazily from the resource.
-                Resource? resource = null;
-
-                try
-                {
-                    package.ReadEntry(file, rawFileData);
-
-                    // Not a file that can be decompiled, or no decompilation was requested
-                    var isVcsFile = type == "vcs";
-
-                    if (!Decompile || !ContentPaths.HasCompiledSuffix(type) && !isVcsFile)
-                    {
-                        if (OutputFile != null)
-                        {
-                            if (Decompile && IsAlreadyExported(filePath, parentPath))
-                            {
-                                Console.WriteLine("--- Skipped \"{0}\", it is part of a file that was exported", filePath);
-                                continue;
-                            }
-
-                            if (Decompile)
-                            {
-                                using var nonResourceStream = new MemoryStream(rawFileData, 0, totalLength);
-                                contentFile = FileExtract.ExtractNonResource(nonResourceStream, file.GetFullPath());
-                            }
-
-                            if (contentFile != null)
-                            {
-                                ExportContentFile(contentFile);
-                            }
-                            else
-                            {
-                                WriteFile(file.GetFullPath(), rawFileData.AsSpan(0, totalLength));
-                            }
-                        }
-
-                        continue;
-                    }
-
-                    using var memory = new MemoryStream(rawFileData, 0, totalLength);
-
-                    if (OutputFile != null)
-                    {
-                        Debug.Assert(Exporter != null);
-
-                        // VCS files require multiple files to be decompiled together
-                        if (isVcsFile)
-                        {
-                            // The whole shader is decompiled once, from the highest shader model that was matched
-                            if (!shaderFilesToDecompile!.Contains(filePath))
-                            {
-                                continue;
-                            }
-
-                            // Remove the last part from the file name ("_features", ...)
-                            var fileName = Path.GetFileNameWithoutExtension(filePath);
-                            var newFileNameBase = fileName.AsSpan(0, fileName.LastIndexOf('_'));
-                            var vfxFileName = ContentPaths.Join(Path.GetDirectoryName(filePath), string.Concat(newFileNameBase, ".vfx"));
-
-                            var collection = ShaderCollection.GetShaderCollection(filePath, package);
-                            contentFile = new ShaderExtract(collection).ToContentFile(vfxFileName);
-                            ExportContentFile(contentFile);
-                            continue;
-                        }
-
-                        if (IsAlreadyExported(filePath, parentPath))
-                        {
-                            Console.WriteLine("--- Skipped \"{0}\", it is part of a file that was exported", filePath);
-                            continue;
-                        }
-
-#pragma warning disable CA2000 // False positive, resource is disposed in the finally block
-                        resource = new Resource
-                        {
-                            FileName = file.GetFullPath(),
-                        };
-#pragma warning restore CA2000
-                        resource.Read(memory);
-
-                        if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
-                        {
-                            ExportGltf(gltfExporter, resource);
-                            continue;
-                        }
-
-                        ExportResource(resource, fileLoader, ContentExportSource.FromPackage(package));
-                    }
-                }
-                catch (Exception e)
-                {
-                    LogException(e, filePath, parentPath);
-                }
-                finally
-                {
-                    contentFile?.Dispose();
-                    resource?.Dispose();
-                    ArrayPool<byte>.Shared.Return(rawFileData);
-                }
-            }
         }
 
         private GameFileLoader CreateGameFileLoader(Package? package, string? path)

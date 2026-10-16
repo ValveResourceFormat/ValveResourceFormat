@@ -33,6 +33,7 @@ namespace GUI.Types.Exporter
         private readonly Dictionary<string, FileTypeToExtract> fileTypesToExtract = [];
         private readonly List<PackageEntry> filesToExtract = [];
         private readonly HashSet<string> gltfExportedFiles = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Lock gltfExportLock = new();
         private string? path;
         private string? lastCreatedDirectory;
         private int processed;
@@ -160,7 +161,7 @@ namespace GUI.Types.Exporter
                     return Task.CompletedTask;
                 }
 
-                RunInDialog(cancellationToken => ExportGltf(resource, gltfPath, null, cancellationToken), $"Exporting {contentPath} to \"{Path.GetFileName(gltfPath)}\"", out workCompletion);
+                RunInDialog(cancellationToken => TryExport(contentPath, () => ExportGltf(resource, gltfPath, null, cancellationToken)), $"Exporting {contentPath} to \"{Path.GetFileName(gltfPath)}\"", out workCompletion);
                 return workCompletion;
             }
 
@@ -181,7 +182,8 @@ namespace GUI.Types.Exporter
             RunInDialog(cancellationToken =>
             {
                 var exporter = CreateContentExporter(outputRoot);
-                TryExport(contentPath, () => exporter.Export(resource, exportData.VrfGuiContext, source, cancellationToken: cancellationToken));
+                exportData.VrfGuiContext.EnsureStringTokenGameKeys();
+                TryExport(contentPath, () => exporter.Export(resource, exportData.VrfGuiContext.FileLoaderNoCache, source, cancellationToken: cancellationToken));
             }, $"Decompiling {contentPath}", out workCompletion);
 
             return workCompletion;
@@ -458,7 +460,13 @@ namespace GUI.Types.Exporter
 
                 TryExport(fileFullName, () =>
                 {
-                    currentPackage.ReadEntry(packageFile, out var data, validateCrc: packageFile.CRC32 > 0);
+                    byte[] data;
+
+                    lock (currentPackage)
+                    {
+                        currentPackage.ReadEntry(packageFile, out data, validateCrc: packageFile.CRC32 > 0);
+                    }
+
                     exporter.WriteFile(fileFullName, data);
                 });
             }
@@ -478,87 +486,49 @@ namespace GUI.Types.Exporter
             var contentFolder = ContentPaths.GetCommonDirectory(filesToExtract.Select(static file => file.GetFullPath()));
             var exporter = CreateContentExporter(ContentPaths.ResolveOutputRoot(outputPath, contentFolder));
             var source = ContentExportSource.FromPackage(currentPackage);
+            var fileLoader = exportData.VrfGuiContext.FileLoaderNoCache;
+            var dialog = progress;
 
-            // Within each type, read the package in storage order to avoid seeking back and forth between entries.
-            var files = filesToExtract
-                .OrderBy(static file => ContentExporter.GetExportOrder(file.GetFullPath()))
-                .ThenBy(static file => file.ArchiveIndex)
-                .ThenBy(static file => file.Offset);
+            exportData.VrfGuiContext.EnsureStringTokenGameKeys();
 
-            foreach (var packageFile in files)
+            var queue = new ContentExportQueue(exporter)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                ItemStarted = item => dialog.SetProgress(item.ContentPath),
+                ItemCompleted = item =>
+                {
+                    if (!item.IsDependency)
+                    {
+                        dialog.SetBarValue(Interlocked.Increment(ref processed));
+                    }
+                },
+            };
 
-                progress.SetBarValue(++processed);
-
+            foreach (var packageFile in filesToExtract)
+            {
                 var outputFormat = fileTypesToExtract[packageFile.TypeName].OutputFormat;
 
                 if (outputFormat == null)
                 {
+                    processed++;
                     continue;
                 }
 
                 var fileFullName = packageFile.GetFullPath();
-                var isGltf = outputFormat is "gltf" or "glb";
 
-                if (exporter.IsHandled(fileFullName) || (isGltf && gltfExportedFiles.Contains(fileFullName)))
+                queue.Add(new ContentExportItem
                 {
-                    continue;
-                }
-
-                progress.SetProgress(fileFullName);
-
-                if (!ContentPaths.HasCompiledSuffix(packageFile.TypeName))
-                {
-                    TryExport(fileFullName, () =>
-                    {
-                        using var stream = GameFileLoader.GetPackageEntryStream(currentPackage, packageFile);
-                        ExportNonResource(exporter, fileFullName, stream, cancellationToken);
-                    });
-
-                    continue;
-                }
-
-                using var resource = new Resource
-                {
-                    FileName = fileFullName,
-                };
-
-                try
-                {
-                    resource.Read(GameFileLoader.GetPackageEntryStream(currentPackage, packageFile));
-                }
-                catch (Exception e)
-                {
-                    ReportFailure(fileFullName, e);
-                    continue;
-                }
-
-                if (isGltf)
-                {
-                    ExportGltf(resource, Path.ChangeExtension(exporter.GetOutputPath(fileFullName), outputFormat), exporter, cancellationToken);
-                    continue;
-                }
-
-                TryExport(fileFullName, () => exporter.Export(resource, exportData.VrfGuiContext, source, cancellationToken: cancellationToken));
-            }
-        }
-
-        private static void ExportNonResource(ContentExporter exporter, string contentPath, Stream stream, CancellationToken cancellationToken)
-        {
-            if (FileExtract.TryExtractNonResource(stream, contentPath, out var contentFile))
-            {
-                using (contentFile)
-                {
-                    exporter.Export(contentFile, cancellationToken: cancellationToken);
-                }
-
-                return;
+                    ContentPath = fileFullName,
+                    Open = () => GameFileLoader.GetPackageEntryStream(currentPackage, packageFile),
+                    Source = source,
+                    FileLoader = fileLoader,
+                    ExportResource = outputFormat is "gltf" or "glb"
+                        ? (resource, token) => ExportGltf(resource, Path.ChangeExtension(exporter.GetOutputPath(fileFullName), outputFormat), exporter, token)
+                        : null,
+                });
             }
 
-            var data = new byte[stream.Length - stream.Position];
-            stream.ReadExactly(data);
-            exporter.WriteFile(contentPath, data);
+            dialog.SetBarValue(processed);
+            queue.Run(cancellationToken);
         }
 
         private void TryExport(string fileName, Action export)
@@ -584,9 +554,7 @@ namespace GUI.Types.Exporter
 
         private void ReportFailure(string fileName, Exception exception)
         {
-            filesFailedToExport++;
-
-            if (firstFailure == null)
+            if (Interlocked.Increment(ref filesFailedToExport) == 1)
             {
                 firstFailure = exception;
                 firstFailedFile = fileName;
@@ -595,16 +563,21 @@ namespace GUI.Types.Exporter
             Log.Error(nameof(PackageExporter), $"Failed to extract '{fileName}': {exception}");
         }
 
-        private void ExportGltf(Resource resource, string outFilePath, ContentExporter? exporter, CancellationToken cancellationToken)
+        private bool ExportGltf(Resource resource, string outFilePath, ContentExporter? exporter, CancellationToken cancellationToken)
         {
             Debug.Assert(gltfExporter != null);
 
-            TryExport(resource.FileName ?? outFilePath, () =>
+            lock (gltfExportLock)
             {
+                if (resource.FileName != null && gltfExportedFiles.Contains(resource.FileName))
+                {
+                    return true;
+                }
+
                 if (exporter != null && !exporter.CanWrite(outFilePath))
                 {
                     LogSkipped(outFilePath);
-                    return;
+                    return true;
                 }
 
                 EnsureDirectoryExists(outFilePath);
@@ -618,7 +591,9 @@ namespace GUI.Types.Exporter
                         trackingFileLoader.LoadedFilePaths.Clear();
                     }
                 }
-            });
+            }
+
+            return true;
         }
 
         private ContentExporter CreateContentExporter(string outputRoot)

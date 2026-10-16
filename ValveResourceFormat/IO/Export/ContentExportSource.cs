@@ -49,41 +49,26 @@ public sealed class ContentExportSource
     }
 
     /// <summary>
-    /// Reads a compiled resource from this source, named by its content path.
+    /// Gets the name of this source: the path of its package, or its folder.
     /// </summary>
-    /// <returns>The resource, or null when this source does not have it.</returns>
-    internal Resource? Load(string compiledContentPath)
+    internal string Name => Package?.FileName ?? Folder ?? string.Empty;
+
+    /// <summary>
+    /// Opens a file from this source, named by its content path.
+    /// </summary>
+    /// <returns>The file's contents, or null when this source does not have it.</returns>
+    internal Stream? OpenStream(string contentPath)
     {
-        Stream? stream = null;
-
-        if (Package?.FindEntry(compiledContentPath) is { } entry)
+        if (Package?.FindEntry(contentPath) is { } entry)
         {
-            stream = GameFileLoader.GetPackageEntryStream(Package, entry);
-        }
-        else if (Folder != null && Path.Join(Folder, compiledContentPath) is var path && File.Exists(path))
-        {
-            stream = File.OpenRead(path);
+            return GameFileLoader.GetPackageEntryStream(Package, entry);
         }
 
-        if (stream == null)
+        if (Folder != null && Path.Join(Folder, contentPath) is var path && File.Exists(path))
         {
-            return null;
+            return File.OpenRead(path);
         }
 
-        var resource = new Resource
-        {
-            FileName = compiledContentPath,
-        };
-
-        try
-        {
-            resource.Read(stream);
-            return resource;
-        }
-        catch
-        {
-            resource.Dispose();
-            throw;
-        }
+        return null;
     }
 }

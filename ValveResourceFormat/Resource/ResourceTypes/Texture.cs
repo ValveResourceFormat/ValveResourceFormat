@@ -758,8 +758,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="face">The face to extract for cube textures.</param>
         /// <param name="mipLevel">The mip level to extract.</param>
         /// <param name="decodeFlags">The preferred codec to use when decoding the texture.</param>
+        /// <param name="allowHardwareDecode">Whether <see cref="HardwareAcceleratedTextureDecoder.Decoder"/> may decode the texture.</param>
         /// <returns>Skia bitmap.</returns>
-        public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0, uint mipLevel = 0, TextureCodec decodeFlags = TextureCodec.Auto)
+        public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0, uint mipLevel = 0, TextureCodec decodeFlags = TextureCodec.Auto, bool allowHardwareDecode = true)
         {
             Debug.Assert(Reader is not null);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(mipLevel, NumMipLevels, nameof(mipLevel));
@@ -811,7 +812,7 @@ namespace ValveResourceFormat.ResourceTypes
             var skiaBitmap = new SKBitmap(width, height, colorType, SKAlphaType.Unpremul);
 
             // GPU decoder calls into <see cref="GetEveryMipLevelTexture"/> which sets the reader offset on its own
-            if (HardwareAcceleratedTextureDecoder.Decoder?.Decode(skiaBitmap, Resource, depth, face, mipLevel, decodeFlags) == true)
+            if (allowHardwareDecode && HardwareAcceleratedTextureDecoder.Decoder?.Decode(skiaBitmap, Resource, depth, face, mipLevel, decodeFlags) == true)
             {
                 return skiaBitmap;
             }

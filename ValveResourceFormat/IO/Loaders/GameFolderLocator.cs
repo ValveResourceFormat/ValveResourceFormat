@@ -22,68 +22,59 @@ namespace ValveResourceFormat.IO
         /// <param name="GamePath">Full path to the installation directory of the app. ("C:/Steam/steamapps/common/dota 2 beta")</param>
         public record struct SteamLibraryGameInfo(int AppID, string AppName, string SteamPath, string GamePath);
 
-        private static string? steamPath;
-        private static bool steamPathSearched;
+        private static readonly Lazy<string?> FoundSteamPath = new(FindSteamPath);
 
         /// <summary>
         /// Path to the root of Steam installation. <c>null</c> if not found.
         /// </summary>
-        public static string? SteamPath
+        public static string? SteamPath => FoundSteamPath.Value;
+
+        private static string? FindSteamPath()
         {
-            get
+            try
             {
-                if (steamPathSearched)
+                string? foundPath = null;
+
+                if (OperatingSystem.IsWindows())
                 {
-                    return steamPath;
+                    foundPath = GetRegistryPath(Registry.CurrentUser, "SOFTWARE\\Valve\\Steam", "SteamPath")
+                        ?? GetRegistryPath(Registry.LocalMachine, "SOFTWARE\\WOW6432Node\\Valve\\Steam", "InstallPath")
+                        ?? GetRegistryPath(Registry.LocalMachine, "SOFTWARE\\Valve\\Steam", "InstallPath");
+                }
+                else if (OperatingSystem.IsLinux())
+                {
+                    var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    var dataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME") is { Length: > 0 } xdgDataHome
+                        ? xdgDataHome
+                        : Path.Join(home, ".local", "share");
+
+                    string[] paths =
+                    [
+                        Path.Join(home, ".steam", "root"),
+                        Path.Join(home, ".steam", "steam"),
+                        Path.Join(dataHome, "Steam"),
+                        Path.Join(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
+                        Path.Join(home, "snap", "steam", "common", ".local", "share", "Steam"),
+                    ];
+
+                    foundPath = paths.FirstOrDefault(path => Directory.Exists(Path.Join(path, "appcache")));
+                }
+                else if (OperatingSystem.IsMacOS())
+                {
+                    var home = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                    foundPath = Path.Join(home, "Steam");
                 }
 
-                steamPathSearched = true;
-
-                try
+                if (foundPath != null)
                 {
-                    string? foundPath = null;
-
-                    if (OperatingSystem.IsWindows())
-                    {
-                        foundPath = GetRegistryPath(Registry.CurrentUser, "SOFTWARE\\Valve\\Steam", "SteamPath")
-                            ?? GetRegistryPath(Registry.LocalMachine, "SOFTWARE\\WOW6432Node\\Valve\\Steam", "InstallPath")
-                            ?? GetRegistryPath(Registry.LocalMachine, "SOFTWARE\\Valve\\Steam", "InstallPath");
-                    }
-                    else if (OperatingSystem.IsLinux())
-                    {
-                        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                        var dataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME") is { Length: > 0 } xdgDataHome
-                            ? xdgDataHome
-                            : Path.Join(home, ".local", "share");
-
-                        string[] paths =
-                        [
-                            Path.Join(home, ".steam", "root"),
-                            Path.Join(home, ".steam", "steam"),
-                            Path.Join(dataHome, "Steam"),
-                            Path.Join(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
-                            Path.Join(home, "snap", "steam", "common", ".local", "share", "Steam"),
-                        ];
-
-                        foundPath = paths.FirstOrDefault(path => Directory.Exists(Path.Join(path, "appcache")));
-                    }
-                    else if (OperatingSystem.IsMacOS())
-                    {
-                        var home = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                        foundPath = Path.Join(home, "Steam");
-                    }
-
-                    if (foundPath != null)
-                    {
-                        steamPath = NormalizeSteamPath(foundPath);
-                    }
+                    return NormalizeSteamPath(foundPath);
                 }
-                catch
-                {
-                }
-
-                return steamPath;
             }
+            catch
+            {
+            }
+
+            return null;
         }
 
         /// <summary>

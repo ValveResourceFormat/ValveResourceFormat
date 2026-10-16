@@ -28,15 +28,40 @@ namespace ValveResourceFormat.IO;
 /// </para>
 /// <para>
 /// Whether files that existed before the export are replaced is decided before anything of a content file and the files
-/// below it is written, so <see cref="ExistingFileAction.Cancel"/> leaves no part of it behind.
+/// below it is written, so <see cref="ExistingFileAction.Cancel"/> leaves no part of it behind, and stops every thread of
+/// the export at its next file. A file this export wrote is never treated as existing.
+/// </para>
+/// <para>
+/// <see cref="ContentExportQueue"/> exports many files through one instance in parallel. File contents do not depend on
+/// the order files are exported in, but when two different files claim the same path, which one keeps it does.
 /// </para>
 /// </remarks>
 public sealed class ContentExporter
 {
     private sealed class References
     {
+        public References()
+        {
+            Root = this;
+        }
+
+        public References(References parent)
+        {
+            Root = parent.Root;
+        }
+
+        /// <summary>Gets the references of the outermost file of the export, which records whether any file of it failed.</summary>
+        public References Root { get; }
+        public bool AnyFailed { get; set; }
         public List<(string From, string To)> Renamed { get; } = [];
         public HashSet<string> Kept { get; } = new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private sealed class PathState
+    {
+        public Lock Lock { get; } = new();
+        public UInt128? WrittenHash { get; set; }
+        public bool? KeepExisting { get; set; }
     }
 
     private static readonly FrozenDictionary<ResourceType, int> ExportOrder = new[]
@@ -56,7 +81,7 @@ public sealed class ContentExporter
         ResourceType.Texture,
     }.Select(static (type, index) => KeyValuePair.Create(type, index)).ToFrozenDictionary();
 
-    private static readonly FrozenSet<ResourceType> ConsumedDependencyTypes = new[]
+    internal static readonly FrozenSet<ResourceType> ConsumedDependencyTypes = new[]
     {
         ResourceType.Animation,
         ResourceType.AnimationGroup,
@@ -79,12 +104,12 @@ public sealed class ContentExporter
 
     private readonly Lock StateLock = new();
     private readonly Lock ExistingFilesLock = new();
-    private readonly Dictionary<string, (long ImagePixelCount, UInt128 Hash)> WrittenPaths = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> SkippedPaths = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, Lock> PathLocks = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (long ImagePixelCount, UInt128 Hash)> ClaimedPaths = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, PathState> PathStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> HandledFiles = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> VisitedDependencies = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> ExportOrigins = new(StringComparer.OrdinalIgnoreCase);
     private ExistingFileAction? ConfirmedExistingFileAction;
+    private volatile bool Cancelled;
     private int FilesWritten;
     private int FilesFailed;
 
@@ -149,9 +174,12 @@ public sealed class ContentExporter
     /// <summary>Gets the number of files that failed to export so far.</summary>
     public int FailedFileCount => FilesFailed;
 
+    /// <summary>Gets whether the export was cancelled because of an existing file, see <see cref="ExistingFileAction.Cancel"/>.</summary>
+    internal bool IsCancelled => Cancelled;
+
     /// <summary>
     /// Gets the order to export resources of the given file name in, lowest first, so a resource exported before the
-    /// ones it consumes marks them as handled, see <see cref="IsHandled"/>. Resources the compiler generated from
+    /// ones it consumes marks them as handled, see <see cref="TryBeginExport"/>. Resources the compiler generated from
     /// another one, named <c>&lt;parent&gt;+&lt;name&gt;</c>, come last.
     /// </summary>
     public static int GetExportOrder(string fileName)
@@ -192,7 +220,43 @@ public sealed class ContentExporter
     }
 
     /// <summary>
-    /// Decompiles a resource and writes its files.
+    /// Claims a resource for export, so that it is exported once. A resource that was already exported from another
+    /// origin, such as the same path in another package, is exported again.
+    /// </summary>
+    /// <param name="contentPath">Content path of the resource, compiled or not.</param>
+    /// <param name="origin">Where the resource is read from, such as the path of its package or of the file.</param>
+    /// <returns>
+    /// False when the resource was already exported from the same origin, or was consumed by an exported resource, see
+    /// <see cref="IsHandled"/>.
+    /// </returns>
+    public bool TryBeginExport(string contentPath, string origin)
+    {
+        ArgumentNullException.ThrowIfNull(contentPath);
+        ArgumentNullException.ThrowIfNull(origin);
+
+        var key = GetHandledKey(contentPath);
+        var generatingResource = GetGeneratingResource(key);
+
+        lock (StateLock)
+        {
+            if (generatingResource != null && HandledFiles.Contains(generatingResource))
+            {
+                return false;
+            }
+
+            if (HandledFiles.Add(key))
+            {
+                ExportOrigins[key] = origin;
+                return true;
+            }
+
+            return ExportOrigins.TryGetValue(key, out var firstOrigin) && firstOrigin != origin;
+        }
+    }
+
+    /// <summary>
+    /// Decompiles a resource and writes its files. With <see cref="IncludeDependencies"/>, its dependencies are then
+    /// exported in parallel through a <see cref="ContentExportQueue"/>.
     /// </summary>
     /// <param name="resource">The resource, its <see cref="Resource.FileName"/> must be its content path.</param>
     /// <param name="fileLoader">The loader the resource's dependencies are read through while decompiling it.</param>
@@ -206,16 +270,24 @@ public sealed class ContentExporter
         ArgumentException.ThrowIfNullOrEmpty(resource.FileName);
 
         MarkHandled(resource.FileName);
-
-        using (var contentFile = FileExtract.Extract(resource, fileLoader, Progress, ExtractOptions))
-        {
-            Export(contentFile, targetFile, cancellationToken);
-        }
+        ExportResource(resource, fileLoader, targetFile, cancellationToken);
 
         if (IncludeDependencies && source != null)
         {
-            ExportDependencies(resource, fileLoader, source, cancellationToken);
+            var queue = new ContentExportQueue(this);
+            queue.AddDependenciesOf(resource, fileLoader, source);
+            queue.Run(cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Decompiles a resource and writes its files, without its dependencies.
+    /// </summary>
+    /// <returns>Whether every file of it was written.</returns>
+    internal bool ExportResource(Resource resource, IFileLoader fileLoader, string? targetFile, CancellationToken cancellationToken)
+    {
+        using var contentFile = FileExtract.Extract(resource, fileLoader, Progress, ExtractOptions);
+        return ExportFiles(contentFile, targetFile, cancellationToken);
     }
 
     /// <summary>
@@ -231,12 +303,24 @@ public sealed class ContentExporter
     {
         ArgumentNullException.ThrowIfNull(contentFile);
 
+        ExportFiles(contentFile, targetFile, cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes an extracted content file with its sub files and additional files.
+    /// </summary>
+    /// <returns>Whether every file of it was written.</returns>
+    internal bool ExportFiles(ContentFile contentFile, string? targetFile, CancellationToken cancellationToken)
+    {
         if (ConfirmExistingFiles != null || ExistingFileAction == ExistingFileAction.Cancel)
         {
             ConfirmExistingFilesOf(contentFile, targetFile);
         }
 
-        ExportContentFile(contentFile, targetFile, new References(), cancellationToken);
+        var references = new References();
+        ExportContentFile(contentFile, targetFile, references, cancellationToken);
+
+        return !references.AnyFailed;
     }
 
     /// <summary>
@@ -262,7 +346,7 @@ public sealed class ContentExporter
 
     private void ExportContentFile(ContentFile contentFile, string? targetFile, References parentReferences, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
+        ThrowIfCancelled(cancellationToken);
 
         string? contentPath = null;
 
@@ -272,7 +356,7 @@ public sealed class ContentExporter
             MarkHandled(contentPath);
         }
 
-        var references = contentFile.Data != null ? new References() : parentReferences;
+        var references = contentFile.Data != null ? new References(parentReferences) : parentReferences;
 
         if (targetFile != null && contentFile.Data == null && contentFile.SubFiles.Count == 1)
         {
@@ -283,7 +367,7 @@ public sealed class ContentExporter
         {
             foreach (var subFile in contentFile.SubFiles)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                ThrowIfCancelled(cancellationToken);
 
                 var subFilePath = NormalizeContentPath(subFile.FileName);
                 WriteSubFile(subFile, Path.Join(OutputRoot, subFilePath), subFilePath, references);
@@ -321,8 +405,8 @@ public sealed class ContentExporter
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            Interlocked.Increment(ref FilesFailed);
-            FileFailed?.Invoke(contentPath, e);
+            references.Root.AnyFailed = true;
+            ReportFailure(contentPath, e);
             return;
         }
 
@@ -336,16 +420,16 @@ public sealed class ContentExporter
 
     private void Write(string outputPath, string? contentPath, ReadOnlySpan<byte> data, References references, long imagePixelCount = 0)
     {
+        ThrowIfCancelled(CancellationToken.None);
+
         outputPath = Path.GetFullPath(outputPath);
 
-        var claim = (imagePixelCount, XxHash128.HashToUInt128(data));
+        var claim = (ImagePixelCount: imagePixelCount, Hash: XxHash128.HashToUInt128(data));
         string claimedPath;
-        bool isWritten;
-        bool replacesClaim;
 
         lock (StateLock)
         {
-            claimedPath = Claim(outputPath, claim, out isWritten, out replacesClaim);
+            claimedPath = Claim(outputPath, claim);
         }
 
         if (claimedPath == outputPath)
@@ -366,75 +450,82 @@ public sealed class ContentExporter
             }
         }
 
-        if (isWritten)
-        {
-            return;
-        }
+        var state = PathStates.GetOrAdd(claimedPath, static _ => new PathState());
+        bool isFirstWrite;
 
-        if (!replacesClaim && GetExistingFileAction(claimedPath) == ExistingFileAction.Skip)
+        lock (state.Lock)
         {
-            lock (StateLock)
+            if (state.WrittenHash == claim.Hash)
             {
-                SkippedPaths.Add(claimedPath);
+                return;
             }
 
-            FileSkipped?.Invoke(claimedPath);
-            return;
-        }
-
-        lock (PathLocks.GetOrAdd(claimedPath, static _ => new Lock()))
-        {
             lock (StateLock)
             {
-                if (WrittenPaths[claimedPath] != claim || (replacesClaim && SkippedPaths.Contains(claimedPath)))
+                if (ClaimedPaths[claimedPath].Hash != claim.Hash)
                 {
                     return;
                 }
             }
 
+            if (state.KeepExisting == null)
+            {
+                state.KeepExisting = GetExistingFileAction(claimedPath) == ExistingFileAction.Skip;
+
+                if (state.KeepExisting.Value)
+                {
+                    FileSkipped?.Invoke(claimedPath);
+                }
+            }
+
+            if (state.KeepExisting.Value)
+            {
+                return;
+            }
+
             Directory.CreateDirectory(Path.GetDirectoryName(claimedPath)!);
             File.WriteAllBytes(claimedPath, data);
+
+            isFirstWrite = state.WrittenHash == null;
+            state.WrittenHash = claim.Hash;
         }
 
-        if (!replacesClaim)
+        if (isFirstWrite)
         {
             Interlocked.Increment(ref FilesWritten);
             FileWritten?.Invoke(claimedPath);
         }
     }
 
-    private string Claim(string outputPath, (long ImagePixelCount, UInt128 Hash) claim, out bool isWritten, out bool replacesClaim)
+    /// <summary>
+    /// Gets the path a file is written at: the path it asks for, unless different content claimed that first. Images
+    /// keep their path, the one with the most pixels takes the claim over.
+    /// </summary>
+    private string Claim(string outputPath, (long ImagePixelCount, UInt128 Hash) claim)
     {
         var directory = Path.GetDirectoryName(outputPath)!;
         var name = Path.GetFileNameWithoutExtension(outputPath);
         var extension = Path.GetExtension(outputPath);
         var path = outputPath;
 
-        replacesClaim = false;
-
         for (var suffix = 1; ; suffix++)
         {
-            if (!WrittenPaths.TryGetValue(path, out var written))
+            if (!ClaimedPaths.TryGetValue(path, out var claimed))
             {
-                WrittenPaths.Add(path, claim);
-                isWritten = false;
+                ClaimedPaths.Add(path, claim);
                 return path;
             }
 
-            if (written.Hash == claim.Hash)
+            if (claimed.Hash == claim.Hash)
             {
-                isWritten = true;
                 return path;
             }
 
-            if (claim.ImagePixelCount > 0 && written.ImagePixelCount > 0)
+            if (claim.ImagePixelCount > 0 && claimed.ImagePixelCount > 0)
             {
-                isWritten = claim.CompareTo(written) < 0;
-                replacesClaim = !isWritten;
-
-                if (replacesClaim)
+                if (claim.CompareTo(claimed) > 0)
                 {
-                    WrittenPaths[path] = claim;
+                    ClaimedPaths[path] = claim;
                 }
 
                 return path;
@@ -452,7 +543,7 @@ public sealed class ContentExporter
 
             lock (StateLock)
             {
-                if (WrittenPaths.ContainsKey(fullPath))
+                if (ClaimedPaths.ContainsKey(fullPath))
                 {
                     continue;
                 }
@@ -523,10 +614,27 @@ public sealed class ContentExporter
 
         if (action == ExistingFileAction.Cancel)
         {
+            Cancelled = true;
             throw new OperationCanceledException($"Cancelled because \"{path}\" already exists.");
         }
 
         return action;
+    }
+
+    private void ThrowIfCancelled(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (Cancelled)
+        {
+            throw new OperationCanceledException("The export was cancelled because a file already exists.");
+        }
+    }
+
+    internal void ReportFailure(string fileName, Exception exception)
+    {
+        Interlocked.Increment(ref FilesFailed);
+        FileFailed?.Invoke(fileName, exception);
     }
 
     private byte[] ApplyRenames(byte[] data, string path, References references)
@@ -557,60 +665,6 @@ public sealed class ContentExporter
         return text != null ? Encoding.UTF8.GetBytes(text) : data;
     }
 
-    private void ExportDependencies(Resource resource, IFileLoader fileLoader, ContentExportSource source, CancellationToken cancellationToken)
-    {
-        var pending = new PriorityQueue<string, int>();
-        EnqueueReferences(resource, pending);
-
-        while (pending.TryDequeue(out var name, out _))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            lock (StateLock)
-            {
-                if (!VisitedDependencies.Add(name))
-                {
-                    continue;
-                }
-            }
-
-            try
-            {
-                using var dependency = source.Load(name + GameFileLoader.CompiledFileSuffix);
-
-                if (dependency == null)
-                {
-                    continue;
-                }
-
-                EnqueueReferences(dependency, pending);
-
-                if (!ConsumedDependencyTypes.Contains(dependency.ResourceType) && !IsHandled(name))
-                {
-                    Export(dependency, fileLoader, cancellationToken: cancellationToken);
-                }
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                Interlocked.Increment(ref FilesFailed);
-                FileFailed?.Invoke(name, e);
-            }
-        }
-    }
-
-    private static void EnqueueReferences(Resource resource, PriorityQueue<string, int> pending)
-    {
-        foreach (var reference in resource.ExternalReferences?.ResourceRefInfoList ?? [])
-        {
-            var name = ContentPaths.Normalize(reference.Name);
-
-            if (name.Length > 0)
-            {
-                pending.Enqueue(name, GetExportOrder(name + GameFileLoader.CompiledFileSuffix));
-            }
-        }
-    }
-
     private void MarkHandled(string contentPath)
     {
         var key = GetHandledKey(contentPath);
@@ -625,14 +679,14 @@ public sealed class ContentExporter
     /// Gets the resource the compiler generated a resource named <c>&lt;parent&gt;+&lt;name&gt;</c> from, such as the
     /// non-additive version of an additive clip or a graph variation.
     /// </summary>
-    private static string? GetGeneratingResource(string contentPath)
+    internal static string? GetGeneratingResource(string contentPath)
     {
         var separator = contentPath.IndexOf('+', StringComparison.Ordinal);
 
         return separator > 0 && Path.HasExtension(contentPath.AsSpan(0, separator)) ? contentPath[..separator] : null;
     }
 
-    private static string GetHandledKey(string contentPath)
+    internal static string GetHandledKey(string contentPath)
         => ContentPaths.TrimCompiledSuffix(ContentPaths.Normalize(contentPath));
 
     private string NormalizeContentPath(string path)
