@@ -50,15 +50,8 @@ namespace CLI
         }
 
         public IEnumerable<string> FindFilesByName(string fileName)
-        {
-            var extension = Path.GetExtension(fileName).TrimStart('.');
-            var name = Path.GetFileNameWithoutExtension(fileName);
+            => GameFileLoader.FindFilesByName([package], fileName).Concat(fallback.FindFilesByName(fileName)).Distinct();
 
-            return (package.Entries?.GetValueOrDefault(extension) ?? [])
-                .Where(entry => entry.FileName.Equals(name, StringComparison.OrdinalIgnoreCase))
-                .Select(static entry => entry.GetFullPath())
-                .Concat(fallback.FindFilesByName(fileName))
-                .Distinct();
-        }
+        public IReadOnlyDictionary<uint, string> GetSurfacePropertyNames() => fallback.GetSurfacePropertyNames();
     }
 }

@@ -385,13 +385,13 @@ namespace Tests.Resources
                 await Assert.That(model.HitboxSets).IsEmpty();
                 await Assert.That(model.Attachments).IsEmpty();
 
-                model.SetExternalMeshData(first);
+                model.SetExternalMeshData(first, 0);
 
                 await Assert.That(model.HitboxSets).IsSameReferenceAs(first.HitboxSets);
                 await Assert.That(model.HitboxSets).IsNotEmpty();
                 await Assert.That(model.Attachments).IsEmpty();
 
-                model.SetExternalMeshData(second);
+                model.SetExternalMeshData(second, 1);
 
                 await Assert.That(model.HitboxSets).IsSameReferenceAs(first.HitboxSets);
                 await Assert.That(model.Attachments).IsSameReferenceAs(second.Attachments);

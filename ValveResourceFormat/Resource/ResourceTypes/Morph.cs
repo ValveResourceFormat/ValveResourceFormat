@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Threading;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
@@ -49,7 +50,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public bool HasMorphTargets => GetMorphDatas().Count > 0;
 
-        private bool loaded;
+        private volatile bool loaded;
+        private readonly Lock FlexDataLock = new();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Morph"/> class.
@@ -328,25 +330,31 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-            loaded = true;
-
-            // The rig is in this block, so it is readable whether or not the atlas exists.
-            FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
-                .Select(kv => ParseFlexRule(kv))
-                .ToArray();
-
-            FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
-                .Select(kv => ParseFlexController(kv))
-                .ToArray();
-
-            var atlasPath = AtlasPath;
-            if (atlasPath.Length == 0)
+            lock (FlexDataLock)
             {
-                return;
-            }
+                if (loaded)
+                {
+                    return;
+                }
 
-            TextureResource = fileLoader.LoadFileCompiled(atlasPath);
-            Texture = TextureResource?.DataBlock as Texture;
+                // The rig is in this block, so it is readable whether or not the atlas exists.
+                FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
+                    .Select(kv => ParseFlexRule(kv))
+                    .ToArray();
+
+                FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
+                    .Select(kv => ParseFlexController(kv))
+                    .ToArray();
+
+                var atlasPath = AtlasPath;
+                if (atlasPath.Length > 0)
+                {
+                    TextureResource = fileLoader.LoadFileCompiled(atlasPath);
+                    Texture = TextureResource?.DataBlock as Texture;
+                }
+
+                loaded = true;
+            }
         }
 
         private static FlexController ParseFlexController(KVObject kv)

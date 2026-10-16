@@ -143,7 +143,7 @@ public partial class Decompiler
 
         if (!gameFileLoaders.TryGetValue(root, out var gameFileLoader))
         {
-            gameFileLoader = new Lazy<GameFileLoader>(() => CreateSharedGameFileLoader(path));
+            gameFileLoader = new Lazy<GameFileLoader>(() => CreateGameFileLoader(null, path));
             gameFileLoaders.Add(root, gameFileLoader);
         }
 

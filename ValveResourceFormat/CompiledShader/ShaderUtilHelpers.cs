@@ -408,10 +408,11 @@ namespace ValveResourceFormat.CompiledShader
         /// Parses a dynamic expression from bytecode.
         /// </summary>
         /// <param name="bytecode">The dynamic expression bytecode.</param>
+        /// <param name="knownNames">Names the expression's attributes and parameters may have, such as the variables of its shader.</param>
         /// <returns>The parsed expression string.</returns>
-        public static string ParseDynamicExpression(byte[] bytecode)
+        public static string ParseDynamicExpression(byte[] bytecode, IEnumerable<string>? knownNames = null)
         {
-            return new VfxEval(bytecode, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR", StringComparison.InvariantCulture);
+            return new VfxEval(bytecode, omitReturnStatement: true, knownNames: knownNames).DynamicExpressionResult.Replace("UNKNOWN", "VAR", StringComparison.InvariantCulture);
         }
 
         // This must be in sync with VfxVariableType without gaps

@@ -1,6 +1,7 @@
 //#define DEBUG_FILE_LOAD
 
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
@@ -67,7 +68,7 @@ namespace ValveResourceFormat.IO
         private volatile bool ShaderPackagesScanned;
         private volatile bool AddonDependenciesPending;
         private readonly Lock AddonDependenciesLock = new();
-        private bool StoredSurfacePropertyStringTokens;
+        private IReadOnlyDictionary<uint, string>? SurfacePropertyNames;
 
         /// <summary>
         /// Gets or sets the current package being processed.
@@ -302,9 +303,6 @@ namespace ValveResourceFormat.IO
         /// <returns>The full path of each match, in search order.</returns>
         public virtual IEnumerable<string> FindFilesByName(string fileName)
         {
-            var extension = Path.GetExtension(fileName).TrimStart('.');
-            var name = Path.GetFileNameWithoutExtension(fileName);
-
             LoadPendingAddonDependencies();
 
             Package?[] packages;
@@ -313,6 +311,23 @@ namespace ValveResourceFormat.IO
             {
                 packages = [CurrentPackage, .. Enumerable.Reverse(CurrentAddonPackages), .. CurrentGamePackages];
             }
+
+            return FindFilesByName(packages, fileName);
+        }
+
+        /// <summary>
+        /// Finds the entries of the given packages with a file name and extension, in any folder.
+        /// </summary>
+        /// <param name="packages">The packages to search, null entries are skipped.</param>
+        /// <param name="fileName">File name with extension, without a folder.</param>
+        /// <returns>The full paths of the matching entries, without duplicates.</returns>
+        public static IEnumerable<string> FindFilesByName(IEnumerable<Package?> packages, string fileName)
+        {
+            ArgumentNullException.ThrowIfNull(packages);
+            ArgumentNullException.ThrowIfNull(fileName);
+
+            var extension = Path.GetExtension(fileName).TrimStart('.');
+            var name = Path.GetFileNameWithoutExtension(fileName);
 
             return packages
                 .SelectMany(package => package?.Entries?.GetValueOrDefault(extension) ?? [])
@@ -539,29 +554,57 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Ensures surface property string tokens are loaded and stored.
+        /// Stores the game's surface property names in <see cref="StringToken.InvertedTable"/>.
         /// </summary>
         public void EnsureStringTokenGameKeys()
         {
-            if (!StoredSurfacePropertyStringTokens)
+            foreach (var name in GetSurfacePropertyNames().Values)
             {
-                using var vsurf = LoadFileCompiled("surfaceproperties/surfaceproperties.vsurf");
-                if (vsurf is not null && vsurf.DataBlock is BinaryKV3 kv3)
-                {
-                    var surfacePropertiesList = kv3.Data.Root.GetArray("SurfacePropertiesList");
-                    foreach (var surface in surfacePropertiesList)
-                    {
-                        var name = surface.GetStringProperty("surfacePropertyName");
-                        var hash = StringToken.Store(name);
-                        Debug.Assert(
-                            hash == surface.GetUnsignedIntegerProperty("m_nameHash"),
-                            "Stored surface property hash should be the same as the calculated one."
-                        );
-                    }
-                }
-
-                StoredSurfacePropertyStringTokens = true;
+                StringToken.Store(name);
             }
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Read once and cached.
+        /// </remarks>
+        public IReadOnlyDictionary<uint, string> GetSurfacePropertyNames()
+            => LazyInitializer.EnsureInitialized(ref SurfacePropertyNames, () => ReadSurfacePropertyNames(this));
+
+        internal static IReadOnlyDictionary<uint, string> ReadSurfacePropertyNames(IFileLoader fileLoader)
+        {
+            const string FileName = "surfaceproperties/surfaceproperties.vsurf" + CompiledFileSuffix;
+
+            using var stream = fileLoader.GetFileStream(FileName);
+
+            if (stream == null)
+            {
+                return FrozenDictionary<uint, string>.Empty;
+            }
+
+            using var resource = new Resource();
+            resource.Read(stream);
+
+            if (resource.DataBlock is not BinaryKV3 kv3)
+            {
+                return FrozenDictionary<uint, string>.Empty;
+            }
+
+            var names = new Dictionary<uint, string>();
+
+            foreach (var surface in kv3.Data.Root.GetArray("SurfacePropertiesList"))
+            {
+                var name = surface.GetStringProperty("surfacePropertyName");
+                var hash = StringToken.Get(name);
+                Debug.Assert(
+                    hash == surface.GetUnsignedIntegerProperty("m_nameHash"),
+                    "Surface property hash should be the same as the calculated one."
+                );
+
+                names.TryAdd(hash, name);
+            }
+
+            return names.ToFrozenDictionary();
         }
 
         /// <summary>

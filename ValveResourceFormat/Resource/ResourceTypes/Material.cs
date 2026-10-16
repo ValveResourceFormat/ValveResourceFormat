@@ -84,7 +84,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets <see cref="DynamicParams"/> and <see cref="DynamicTextureParams"/> decompiled to readable source.
         /// Nothing evaluates them; a parameter driven by one keeps its static baked value.
         /// </summary>
-        public Dictionary<string, string> DynamicExpressions => dynamicExpressions ??= DecompileDynamicExpressions();
+        public Dictionary<string, string> DynamicExpressions => dynamicExpressions ??= DecompileDynamicExpressions([]);
 
         private Dictionary<string, string>? dynamicExpressions;
 
@@ -195,13 +195,27 @@ namespace ValveResourceFormat.ResourceTypes
             Data = null;
         }
 
-        private Dictionary<string, string> DecompileDynamicExpressions()
+        /// <summary>
+        /// Decompiles <see cref="DynamicParams"/> and <see cref="DynamicTextureParams"/> like <see cref="DynamicExpressions"/>,
+        /// also naming the attributes and parameters they read from <paramref name="shaderVariableNames"/>.
+        /// </summary>
+        /// <param name="shaderVariableNames">The variable names of the material's shader.</param>
+        /// <returns>The decompiled expressions by parameter name.</returns>
+        public Dictionary<string, string> GetDynamicExpressions(IEnumerable<string> shaderVariableNames)
+            => DecompileDynamicExpressions(shaderVariableNames);
+
+        private Dictionary<string, string> DecompileDynamicExpressions(IEnumerable<string> shaderVariableNames)
         {
+            string[] knownNames = [
+                .. IntParams.Keys, .. FloatParams.Keys, .. VectorParams.Keys, .. TextureParams.Keys,
+                .. IntAttributes.Keys, .. FloatAttributes.Keys, .. VectorAttributes.Keys, .. StringAttributes.Keys,
+                .. shaderVariableNames,
+            ];
             var expressions = new Dictionary<string, string>(DynamicParams.Count + DynamicTextureParams.Count);
 
             foreach (var (name, expression) in DynamicParams.Concat(DynamicTextureParams))
             {
-                var vfxEval = new VfxEval(expression, RenderAttributesUsed);
+                var vfxEval = new VfxEval(expression, RenderAttributesUsed, knownNames: knownNames);
                 expressions.Add(name, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
             }
 

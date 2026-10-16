@@ -375,6 +375,7 @@ namespace GUI.Utils
             public ShaderCollection? LoadShader(string shaderName) => context.LoadShader(shaderName);
             public Stream? GetFileStream(string file) => context.GetFileStream(file);
             public IEnumerable<string> FindFilesByName(string fileName) => context.FindFilesByName(fileName);
+            public IReadOnlyDictionary<uint, string> GetSurfacePropertyNames() => context.GetSurfacePropertyNames();
         }
 
         private Resource? LoadFileUncached(string file) => base.LoadFile(file);

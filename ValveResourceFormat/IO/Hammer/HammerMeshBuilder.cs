@@ -282,6 +282,11 @@ namespace ValveResourceFormat.IO
         public Func<string, Vector2?>? TextureSizeProvider { get; init; }
 
         /// <summary>
+        /// The game's surface property names by hash, which name the surface properties of the physics shapes added.
+        /// </summary>
+        public IReadOnlyDictionary<uint, string>? SurfacePropertyNames { get; init; }
+
+        /// <summary>
         /// Texture size assumed for a projected face when <see cref="TextureSizeProvider"/> gives none: a texture
         /// that repeats every 128 units at <see cref="PolygonMesh.DefaultTextureScale"/>, the usual Hammer world mapping.
         /// </summary>
@@ -803,7 +808,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private static string GetPhysShapeMaterial(int collisionAttributeIndex, int surfacePropertyIndex, PhysAggregateData phys, Func<string, string> materialNameProvider,
+        private string GetPhysShapeMaterial(int collisionAttributeIndex, int surfacePropertyIndex, PhysAggregateData phys, Func<string, string> materialNameProvider,
             string? materialOverride)
         {
             var attributes = phys.CollisionAttributes[collisionAttributeIndex];
@@ -811,7 +816,7 @@ namespace ValveResourceFormat.IO
 
             if (group == "Default")
             {
-                return materialNameProvider.Invoke(StringToken.GetKnownString(phys.SurfacePropertyHashes[surfacePropertyIndex]));
+                return materialNameProvider.Invoke(StringToken.GetBuiltInString(phys.SurfacePropertyHashes[surfacePropertyIndex], SurfacePropertyNames));
             }
 
             return materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new SurfaceTagCombo(group, PhysAggregateData.GetInteractAsTags(attributes)));
@@ -834,7 +839,7 @@ namespace ValveResourceFormat.IO
             var group = attributes.GetStringProperty("m_CollisionGroupString");
             var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new SurfaceTagCombo(group, tags));
 
-            var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
+            var physicsSurfaceNames = phys.GetSurfacePropertyNames(SurfacePropertyNames);
 
             var mesh = desc.Shape;
             var meshTriangles = mesh.GetTriangles();

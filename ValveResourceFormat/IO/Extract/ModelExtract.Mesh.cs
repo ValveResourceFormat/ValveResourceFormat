@@ -109,10 +109,6 @@ partial class ModelExtract
 
     private void EnqueueMeshes()
     {
-        if (fileLoader is not null) // May be null for mesh-only constructor
-        {
-            FileExtract.EnsurePopulatedStringToken(fileLoader);
-        }
         EnqueueRenderMeshes();
         EnqueuePhysMeshes();
     }
@@ -163,7 +159,7 @@ partial class ModelExtract
                 continue;
             }
 
-            model.SetExternalMeshData(mesh);
+            model.SetExternalMeshData(mesh, reference.MeshIndex);
 
             var remapTable = model.GetRemapTable(reference.MeshIndex);
             var meshKey = Path.GetFileNameWithoutExtension(reference.MeshName);

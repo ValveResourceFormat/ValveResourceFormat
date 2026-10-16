@@ -152,6 +152,7 @@ public sealed partial class MapExtract
     private List<CMapRootElement> AdditionalMapDocuments { get; set; } = [];
 
     private readonly IFileLoader FileLoader;
+    private readonly IReadOnlyDictionary<uint, string> SurfacePropertyNames;
 
     /// <summary>Gets or sets the progress reporter.</summary>
     public IProgress<string>? ProgressReporter { get; set; }
@@ -411,7 +412,7 @@ public sealed partial class MapExtract
     public MapExtract(Resource resource, IFileLoader? fileLoader)
     {
         FileLoader = fileLoader ?? throw new ArgumentNullException(nameof(fileLoader), "A file loader must be provided to load the map's lumps");
-        FileExtract.EnsurePopulatedStringToken(fileLoader);
+        SurfacePropertyNames = fileLoader.GetSurfacePropertyNames();
 
         switch (resource.ResourceType)
         {
@@ -1719,7 +1720,7 @@ public sealed partial class MapExtract
                     continue;
                 }
 
-                propModel.SetExternalMeshData(referenceMesh);
+                propModel.SetExternalMeshData(referenceMesh, reference.MeshIndex);
                 AddMesh(referenceMesh);
             }
 
@@ -1864,7 +1865,7 @@ public sealed partial class MapExtract
 
             foreach (var addHull in hulls)
             {
-                var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize };
+                var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, SurfacePropertyNames = SurfacePropertyNames };
                 addHull(hammerMeshBuilder);
                 var meshData = hammerMeshBuilder.GenerateMesh();
 
@@ -1889,7 +1890,7 @@ public sealed partial class MapExtract
 
             // physics meshes are welded together and split by connectivity like the render geometry is, however
             // material doesnt matter and neither does tint
-            var physicsMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize };
+            var physicsMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, SurfacePropertyNames = SurfacePropertyNames };
 
             foreach (var mesh in meshes)
             {

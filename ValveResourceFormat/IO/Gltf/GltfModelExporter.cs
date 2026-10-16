@@ -551,7 +551,7 @@ namespace ValveResourceFormat.IO
                 foreach (var m in meshes)
                 {
                     m.Mesh.LoadExternalMorphData(FileLoader);
-                    model.SetExternalMorphData(m.Mesh.MorphData);
+                    model.SetExternalMorphData(m.Mesh.MorphData, m.MeshIndex);
                 }
             }
 

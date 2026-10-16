@@ -66,11 +66,11 @@ partial class ModelExtract
         }
     }
 
-    // Bone and attachment names as spelled in this model, the global string token table is only a fallback
+    // Bone and attachment names as spelled in this model
     private readonly Dictionary<uint, string> rigNames = [];
 
     bool TryGetRigName(uint hash, [MaybeNullWhen(false)] out string name)
-        => rigNames.TryGetValue(hash, out name) || StringToken.InvertedTable.TryGetValue(hash, out name);
+        => rigNames.TryGetValue(hash, out name);
 
     KVObject? ProcessBoneConstraintTarget(KVObject target)
     {
@@ -213,16 +213,13 @@ partial class ModelExtract
 
     KVObject ExtractBoneConstraints(Model model)
     {
-        var stringTokenKeys = model.Skeleton.Bones.Select(b => b.Name);
-        if (RenderMeshesToExtract.Count > 0)
-        {
-            var mesh = RenderMeshesToExtract.First().Mesh;
-            stringTokenKeys = stringTokenKeys.Concat(mesh.Attachments.Keys);
-        }
+        var rigNameSources = model.Skeleton.Bones.Select(b => b.Name)
+            .Concat(model.Attachments.Keys)
+            .Concat(RenderMeshesToExtract.SelectMany(renderMesh => renderMesh.Mesh.Attachments.Keys));
 
-        foreach (var name in stringTokenKeys)
+        foreach (var name in rigNameSources)
         {
-            rigNames.TryAdd(StringToken.Store(name), name);
+            rigNames.TryAdd(StringToken.Get(name), name);
         }
 
         var childrenKV = KVObject.Array();

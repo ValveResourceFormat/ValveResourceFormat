@@ -347,7 +347,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (keyName == null)
                 {
-                    keyName = ToPropertyKey(StringToken.GetKnownString(keyHash));
+                    keyName = ToPropertyKey(StringToken.GetBuiltInString(keyHash));
                 }
                 else
                 {
@@ -389,7 +389,6 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>A formatted string containing all entities and their properties.</returns>
         public string ToEntityDumpString()
         {
-            var knownKeys = StringToken.InvertedTable;
             var builder = new StringBuilder();
             var unknownKeys = new Dictionary<uint, uint>();
 
@@ -479,7 +478,6 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>An FGD-formatted string containing entity class definitions.</returns>
         public string ToForgeGameData()
         {
-            var knownKeys = StringToken.InvertedTable;
             var uniqueEntityProperties = new Dictionary<string, HashSet<(string Name, KVValueType Type)>>();
             var uniqueEntityConnections = new Dictionary<string, HashSet<string>>();
             var brushEntities = new HashSet<string>();

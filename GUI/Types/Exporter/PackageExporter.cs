@@ -182,7 +182,6 @@ namespace GUI.Types.Exporter
             RunInDialog(cancellationToken =>
             {
                 var exporter = CreateContentExporter(outputRoot, confirmedFile: gltfPath);
-                guiContext.EnsureStringTokenGameKeys();
                 exporter.Export([exportItem], cancellationToken);
             }, initialText, out var workCompletion);
 
@@ -398,11 +397,6 @@ namespace GUI.Types.Exporter
             }
 
             var exporter = CreateContentExporter(ContentPaths.ResolveOutputRoot(folder, items.Select(static item => item.ContentPath)));
-
-            if (decompile)
-            {
-                guiContext.EnsureStringTokenGameKeys();
-            }
 
             progress.SetBarValue(processed);
             exporter.Export(items, cancellationToken);

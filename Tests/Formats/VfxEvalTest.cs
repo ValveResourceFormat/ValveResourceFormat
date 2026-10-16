@@ -1,7 +1,6 @@
 using System.IO;
 using System.Threading.Tasks;
 using ValveResourceFormat.Serialization.VfxEval;
-using ValveResourceFormat.Utils;
 
 namespace Tests.Formats
 {
@@ -584,11 +583,8 @@ namespace Tests.Formats
             var testInput = ParseString(
                 "1A 13 04 0F 00 07 00 07 00 00 00 00 02 14 00 1F 28 A6 90 70 04 19 00 21 00 19 A1 D0 52 1E 02 26 00 1D 6F 89 29 B8 00");
 
-            // parsing a shader registers its variable names, which is what resolves this one
-            StringToken.Store("g_flReflectionsTintByBaseBlendToNone");
-
             var expectedResult = "(FEAT[19] && exists($REFLECTIONSTINTBYBASEBLENDTONONE)) ? OnlyRenderIfStencil : g_flReflectionsTintByBaseBlendToNone";
-            var vfxEval = new VfxEval(testInput, omitReturnStatement: true);
+            var vfxEval = new VfxEval(testInput, omitReturnStatement: true, knownNames: ["g_flReflectionsTintByBaseBlendToNone"]);
             await Assert.That(vfxEval.DynamicExpressionResult).IsEqualTo(expectedResult);
         }
 

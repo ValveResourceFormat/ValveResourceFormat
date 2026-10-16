@@ -25,7 +25,7 @@ public partial class GltfModelExporter
     {
         var bindPose = phys.BindPose;
         var collisionAttributes = phys.CollisionAttributes;
-        var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
+        var physicsSurfaceNames = phys.GetSurfacePropertyNames(FileLoader.GetSurfacePropertyNames());
 
         // Group shapes by collision attributes and surface properties using simple loops (like ToDmxMesh material grouping)
         for (var collisionAttrIndex = 0; collisionAttrIndex < collisionAttributes.Count; collisionAttrIndex++)

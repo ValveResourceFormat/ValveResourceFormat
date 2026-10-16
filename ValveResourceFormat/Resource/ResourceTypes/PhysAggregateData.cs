@@ -55,6 +55,14 @@ namespace ValveResourceFormat.ResourceTypes
             => surfacePropertyHashes ??= Data.GetArray<object>("m_surfacePropertyHashes").Select(Convert.ToUInt32).ToArray();
 
         /// <summary>
+        /// Gets the name of each surface property, in the order of <see cref="SurfacePropertyHashes"/>.
+        /// </summary>
+        /// <param name="gameSurfacePropertyNames">The game's surface property names by hash, which a file loader provides.</param>
+        /// <returns>The names, with a placeholder for each hash that is not named.</returns>
+        public string[] GetSurfacePropertyNames(IReadOnlyDictionary<uint, string>? gameSurfacePropertyNames)
+            => [.. SurfacePropertyHashes.Select(hash => StringToken.GetBuiltInString(hash, gameSurfacePropertyNames))];
+
+        /// <summary>
         /// Gets the collision attributes.
         /// </summary>
         public IReadOnlyList<KVObject> CollisionAttributes
