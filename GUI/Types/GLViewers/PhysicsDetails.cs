@@ -15,7 +15,7 @@ namespace GUI.Types.GLViewers
     /// </summary>
     static class PhysicsDetails
     {
-        public static void AddNodeDetails(EntityInfoControl info, PhysSceneNode node)
+        public static void AddNodeDetails(EntityInfoControl info, PhysSceneNode node, IReadOnlyDictionary<uint, string> surfacePropertyNames)
         {
             if (node.Name != null)
             {
@@ -24,10 +24,10 @@ namespace GUI.Types.GLViewers
 
             info.AddProperty("Collision", string.Join(", ", node.CollisionLabels));
 
-            AddGroup(info, node.Physics, node.CollisionAttributeIndex);
+            AddGroup(info, node.Physics, node.CollisionAttributeIndex, surfacePropertyNames);
         }
 
-        public static void AddEntityDetails(EntityInfoControl info, BaseModelEntity entity, PhysAggregateData physics)
+        public static void AddEntityDetails(EntityInfoControl info, BaseModelEntity entity, PhysAggregateData physics, IReadOnlyDictionary<uint, string> surfacePropertyNames)
         {
             info.AddProperty("Solid Type", entity.Solid.ToString());
 
@@ -50,11 +50,11 @@ namespace GUI.Types.GLViewers
 
             for (var i = 0; i < physics.CollisionAttributes.Count; i++)
             {
-                AddGroup(info, physics, i);
+                AddGroup(info, physics, i, surfacePropertyNames);
             }
         }
 
-        private static void AddGroup(EntityInfoControl info, PhysAggregateData physics, int attributeIndex)
+        private static void AddGroup(EntityInfoControl info, PhysAggregateData physics, int attributeIndex, IReadOnlyDictionary<uint, string> surfacePropertyNames)
         {
             var attributes = physics.CollisionAttributes[attributeIndex];
 
@@ -141,7 +141,7 @@ namespace GUI.Types.GLViewers
 
             if (surfaceProperties.Count > 0)
             {
-                var names = surfaceProperties.Select(StringToken.GetKnownString).Order();
+                var names = surfaceProperties.Select(hash => StringToken.GetBuiltInString(hash, surfacePropertyNames)).Order();
                 info.AddProperty("Surface Properties", string.Join(", ", names));
             }
         }

@@ -743,7 +743,7 @@ namespace GUI.Types.GLViewers
             }
             else if (sceneNode is PhysSceneNode collision)
             {
-                PhysicsDetails.AddNodeDetails(info, collision);
+                PhysicsDetails.AddNodeDetails(info, collision, GuiContext.GetSurfacePropertyNames());
             }
 
             var handshakes = sceneNode.LightingCache?.Handshakes ?? default;
@@ -779,7 +779,7 @@ namespace GUI.Types.GLViewers
 
             if (modelEntity?.Physics != null)
             {
-                PhysicsDetails.AddEntityDetails(form.EntityInfoControl, modelEntity, modelEntity.Physics);
+                PhysicsDetails.AddEntityDetails(form.EntityInfoControl, modelEntity, modelEntity.Physics, GuiContext.GetSurfacePropertyNames());
             }
 
             var classname = entity.GetStringProperty("classname");

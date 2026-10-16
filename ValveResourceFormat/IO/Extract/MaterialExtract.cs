@@ -97,6 +97,7 @@ public sealed class MaterialExtract
 
             var images = GetTextureUnpackInfos(type, filePath, (Texture)texture.DataBlock!, omitDefaults: true, omitUniforms: true);
             var vtex = new TextureExtract(texture).ToMaterialMaps(images);
+            vtex.TakeOwnership(texture);
 
             if (vtex.SubFiles.Count > 0)
             {
@@ -254,9 +255,13 @@ public sealed class MaterialExtract
 
         if (material.DynamicExpressions.Count > 0)
         {
+            var dynamicExpressions = fileLoader?.LoadShader(material.ShaderName) is { } shader
+                ? material.GetDynamicExpressions(shader.SelectMany(program => program.VariableDescriptions).Select(variable => variable.Name))
+                : material.DynamicExpressions;
+
             var dynamicExpressionsNode = KVObject.ListCollection();
             root.Add("DynamicParams", dynamicExpressionsNode);
-            foreach (var (key, value) in material.DynamicExpressions)
+            foreach (var (key, value) in dynamicExpressions)
             {
                 dynamicExpressionsNode.Add(key, value);
             }

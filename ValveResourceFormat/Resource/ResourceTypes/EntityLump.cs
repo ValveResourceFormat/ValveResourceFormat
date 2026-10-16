@@ -317,7 +317,7 @@ namespace ValveResourceFormat.ResourceTypes
                 // ignore CEntityKeyValues attributes
                 if (keyName == null)
                 {
-                    keyName = ToPropertyKey(StringToken.GetKnownString(keyHash));
+                    keyName = ToPropertyKey(StringToken.GetBuiltInString(keyHash));
                     entity.Add(keyName, entityProperty);
                 }
                 else
@@ -435,7 +435,6 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>An FGD-formatted string containing entity class definitions.</returns>
         public string ToForgeGameData()
         {
-            var knownKeys = StringToken.InvertedTable;
             var uniqueEntityProperties = new Dictionary<string, HashSet<(string Name, KVValueType Type)>>();
             var uniqueEntityConnections = new Dictionary<string, HashSet<string>>();
             var brushEntities = new HashSet<string>();

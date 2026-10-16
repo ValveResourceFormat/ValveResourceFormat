@@ -16,6 +16,8 @@ public sealed partial class MapExtract
     private static partial Regex ClutterModelNameRegex();
 
     private readonly Dictionary<(string GeneratedModel, string MaterialGroup), (string Name, string? Skin)> ResolvedClutterModels = [];
+    private readonly Dictionary<string, List<string>> ClutterSourceModelCandidates = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<(string Name, string[] Materials)>?> ClutterCandidateMaterialGroups = [];
 
     /// <summary>
     /// Places every instance of a clutter object as a <c>prop_static</c> clutter instance, which the compiler groups
@@ -103,26 +105,21 @@ public sealed partial class MapExtract
 
         var materials = GetDrawCallMaterials(generatedModel).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var candidates = FileLoader.FindFilesByName(match.Groups["model"].Value + ".vmdl" + GameFileLoader.CompiledFileSuffix)
-            .Select(static path => path[..^GameFileLoader.CompiledFileSuffix.Length])
-            .ToList();
+        var sourceModelName = match.Groups["model"].Value;
+
+        if (!ClutterSourceModelCandidates.TryGetValue(sourceModelName, out var candidates))
+        {
+            candidates = [.. FileLoader.FindFilesByName(sourceModelName + ".vmdl" + GameFileLoader.CompiledFileSuffix).Select(static path => path[..^GameFileLoader.CompiledFileSuffix.Length])];
+            ClutterSourceModelCandidates.Add(sourceModelName, candidates);
+        }
 
         (string Name, string? Skin)? resolved = null;
 
         foreach (var candidate in candidates)
         {
-            using var resource = FileLoader.LoadFileCompiled(candidate);
-
-            if (resource?.DataBlock is not Model model)
+            if (GetClutterCandidateMaterialGroups(candidate) is not { } materialGroups)
             {
                 continue;
-            }
-
-            var materialGroups = model.GetMaterialGroups().ToList();
-
-            if (materialGroups.Count == 0)
-            {
-                materialGroups.Add((string.Empty, [.. GetDrawCallMaterials(model)]));
             }
 
             var skin = materialGroups.FindIndex(group => group.Name == materialGroup && materials.IsSubsetOf(group.Materials));
@@ -148,6 +145,33 @@ public sealed partial class MapExtract
         }
 
         return resolved ?? fallback;
+    }
+
+    /// <summary>
+    /// Gets the material groups of a model a clutter object may have been placed with, or a single unnamed group
+    /// of its draw call materials when it has none. Null when the model does not load.
+    /// </summary>
+    private List<(string Name, string[] Materials)>? GetClutterCandidateMaterialGroups(string candidate)
+    {
+        if (ClutterCandidateMaterialGroups.TryGetValue(candidate, out var materialGroups))
+        {
+            return materialGroups;
+        }
+
+        using var resource = FileLoader.LoadFileCompiled(candidate);
+
+        if (resource?.DataBlock is Model model)
+        {
+            materialGroups = [.. model.GetMaterialGroups()];
+
+            if (materialGroups.Count == 0)
+            {
+                materialGroups.Add((string.Empty, [.. GetDrawCallMaterials(model)]));
+            }
+        }
+
+        ClutterCandidateMaterialGroups.Add(candidate, materialGroups);
+        return materialGroups;
     }
 
     private IEnumerable<string> GetDrawCallMaterials(Model model)
