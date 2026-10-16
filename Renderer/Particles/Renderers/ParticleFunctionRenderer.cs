@@ -1,6 +1,7 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
@@ -16,8 +17,20 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Scales the alpha every particle is drawn at.</summary>
         protected INumberProvider AlphaScale { get; } = new LiteralNumberProvider(1f);
 
-        /// <summary>Scales the colour every particle is drawn at.</summary>
+        /// <summary>Scales the roll every particle is drawn at.</summary>
+        protected INumberProvider RollScale { get; } = new LiteralNumberProvider(1f);
+
+        /// <summary>Scales the colour every particle is drawn at, combined as <see cref="ColorBlendType"/> asks.</summary>
         protected IVectorProvider ColorScale { get; } = new LiteralVectorProvider(Vector3.One);
+
+        /// <summary>How <see cref="ColorScale"/> combines with each particle's colour.</summary>
+        protected ParticleColorBlendType ColorBlendType { get; }
+
+        /// <summary>The attribute that scales each particle's alpha alongside its own, or <see cref="ParticleField.NoneDisabled"/> for none.</summary>
+        protected ParticleField Alpha2Field { get; } = ParticleField.AlphaAlternate;
+
+        /// <summary>How far each particle is drawn moved toward the camera, in world units.</summary>
+        protected float CameraBias { get; }
 
         /// <summary>Multiplies the luminance-weighted blend the output alpha is scaled by.</summary>
         protected INumberProvider OverbrightFactor { get; } = new LiteralNumberProvider(1f);
@@ -83,10 +96,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private INumberProvider FeatheringMinDist { get; } = new LiteralNumberProvider(0f);
 
         /// <inheritdoc cref="FeatheringMinDist"/>
-        private INumberProvider FeatheringMaxDist { get; } = new LiteralNumberProvider(0f);
+        private INumberProvider FeatheringMaxDist { get; } = new LiteralNumberProvider(15f);
 
         /// <summary>Widens the fade by how transparent and how off-centre a fragment already is.</summary>
-        private INumberProvider FeatheringFilter { get; } = new LiteralNumberProvider(1f);
+        private INumberProvider FeatheringFilter { get; } = new LiteralNumberProvider(0f);
 
         /// <summary>Whether this renderer samples the opaque scene depth.</summary>
         public bool WantsSceneDepth => FeatheringMode != ParticleDepthFeatheringMode.PARTICLE_DEPTH_FEATHERING_OFF;
@@ -108,7 +121,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             LightingMode = parse.Enum("m_nLightingMode", LightingMode);
             RadiusScale = parse.NumberProvider("m_flRadiusScale", RadiusScale);
             AlphaScale = parse.NumberProvider("m_flAlphaScale", AlphaScale);
+            RollScale = parse.NumberProvider("m_flRollScale", RollScale);
             ColorScale = parse.VectorProvider("m_vecColorScale", ColorScale);
+            ColorBlendType = parse.Enum("m_nColorBlendType", ColorBlendType);
+            Alpha2Field = parse.ParticleField("m_nAlpha2Field", Alpha2Field);
+
+            if (parse.Data.GetSubCollection("VisibilityInputs") is { } visibilityInputs)
+            {
+                CameraBias = parse.Nested(visibilityInputs).Float("m_flCameraBias", CameraBias);
+            }
             OverbrightFactor = parse.NumberProvider("m_flOverbrightFactor", OverbrightFactor);
             AddSelfAmount = parse.NumberProvider("m_flAddSelfAmount", AddSelfAmount);
             DepthBias = parse.NumberProvider("m_flDepthBias", DepthBias);
@@ -137,12 +158,106 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         /// <summary>
         /// The hue shift, saturation and lightness scale carried by <see cref="HsvShiftControlPoint"/>,
-        /// or the identity when no control point is bound.
+        /// or the identity when no control point is bound. The control point holds the two scales
+        /// less one, so a zeroed one is the identity too.
         /// </summary>
         protected Vector3 GetHsvShift(ParticleSystemState systemState)
             => HsvShiftControlPoint >= 0
-                ? systemState.GetControlPoint(HsvShiftControlPoint).Position
+                ? systemState.GetControlPoint(HsvShiftControlPoint).Position + new Vector3(0f, 1f, 1f)
                 : new Vector3(0f, 1f, 1f);
+
+        /// <summary>The renderer scales, evaluated once for a draw of the whole collection.</summary>
+        /// <param name="Radius">Scales every particle's radius.</param>
+        /// <param name="Alpha">Scales every particle's alpha.</param>
+        /// <param name="Roll">Scales every particle's roll.</param>
+        /// <param name="Color">The colour scale converted for <see cref="ParticleColorBlend.Apply"/>, with the alpha scale in w.</param>
+        protected readonly record struct RendererScales(float Radius, float Alpha, float Roll, Vector4 Color);
+
+        /// <summary>Evaluates the renderer scales for one draw.</summary>
+        protected RendererScales EvaluateScales(ParticleSystemState systemState)
+        {
+            var alpha = AlphaScale.NextNumber(systemState);
+
+            return new RendererScales(
+                RadiusScale.NextNumber(systemState),
+                alpha,
+                RollScale.NextNumber(systemState),
+                new Vector4(ParticleColorBlend.ConvertScale(ColorBlendType, ColorScale.NextVector(systemState)), alpha));
+        }
+
+        private Particle[] blendedParticles = [];
+
+        /// <summary>
+        /// The particles as they stand at the time the system was asked to reach. That is
+        /// <see cref="ParticleCollection.Current"/>, unless the last step carried the system past that
+        /// time: then each particle is blended back from its state before the step, and the ones created
+        /// after that time get no alpha.
+        /// </summary>
+        protected Span<Particle> GetBlendedParticles(ParticleCollection particles, ParticleSystemState systemState)
+        {
+            if (systemState.Data?.TryGetRenderBlend(out var fraction) != true)
+            {
+                return particles.Current;
+            }
+
+            var current = particles.Current;
+            var previous = particles.PreviousStep;
+
+            if (blendedParticles.Length < current.Length)
+            {
+                blendedParticles = new Particle[current.Length];
+            }
+
+            var blended = blendedParticles.AsSpan(0, current.Length);
+
+            for (var i = 0; i < blended.Length; i++)
+            {
+                blended[i] = Blend(previous[i], current[i], fraction, systemState.RequestedAge);
+            }
+
+            return blended;
+        }
+
+        private static Particle Blend(in Particle previous, in Particle current, float fraction, float requestedAge)
+        {
+            var particle = current;
+
+            particle.Position = Vector3.Lerp(previous.Position, current.Position, fraction);
+            particle.PositionPrevious = Vector3.Lerp(previous.PositionPrevious, current.PositionPrevious, fraction);
+            particle.Age = float.Lerp(previous.Age, current.Age, fraction);
+            particle.Radius = float.Lerp(previous.Radius, current.Radius, fraction);
+            particle.Color = Vector3.Lerp(previous.Color, current.Color, fraction);
+            particle.Alpha = current.CreationTime > requestedAge ? 0f : float.Lerp(previous.Alpha, current.Alpha, fraction);
+            particle.AlphaAlternate = float.Lerp(previous.AlphaAlternate, current.AlphaAlternate, fraction);
+            particle.Rotation = Vector3.Lerp(previous.Rotation, current.Rotation, fraction);
+            particle.Normal = Vector3.Lerp(previous.Normal, current.Normal, fraction);
+            particle.TrailLength = float.Lerp(previous.TrailLength, current.TrailLength, fraction);
+            particle.ManualAnimationFrame = float.Lerp(previous.ManualAnimationFrame, current.ManualAnimationFrame, fraction);
+            particle.ShaderExtraData1 = float.Lerp(previous.ShaderExtraData1, current.ShaderExtraData1, fraction);
+            particle.ShaderExtraData2 = float.Lerp(previous.ShaderExtraData2, current.ShaderExtraData2, fraction);
+
+            return particle;
+        }
+
+        /// <summary>A particle's position moved toward the camera by <see cref="CameraBias"/>.</summary>
+        protected Vector3 BiasTowardCamera(Vector3 position, Vector3 cameraPosition)
+            => CameraBias == 0f
+                ? position
+                : position + (MathUtils.SafeNormalize(cameraPosition - position) * CameraBias);
+
+        /// <summary>The particle's <see cref="Alpha2Field"/>, or 1 when none is set.</summary>
+        protected float GetAlpha2(ref Particle particle)
+            => Alpha2Field is ParticleField.NoneDisabled or < 0 ? 1f : particle.GetScalar(Alpha2Field);
+
+        /// <summary>
+        /// A particle's colour and alpha combined with the colour and alpha scale, in 0 to 1. The alpha
+        /// is taken with <see cref="Alpha2Field"/> and <paramref name="alphaPrescale"/>, and both are
+        /// clamped to bytes before they combine.
+        /// </summary>
+        protected Vector4 BlendColor(ref Particle particle, in RendererScales scales, float alphaPrescale = 1f)
+            => ParticleColorBlend.Apply(ColorBlendType,
+                ParticleColorBlend.ToBytes(particle.Color, alphaPrescale * particle.Alpha * GetAlpha2(ref particle)),
+                scales.Color) / 255f;
 
         /// <summary>
         /// The remap the shader applies to the sampled alpha, as the pair the shader expects.
@@ -175,13 +290,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>
-        /// Whether the particles are drawn farthest from the camera first rather than as stored, which
-        /// is oldest first.
+        /// Whether the particles are drawn farthest from the camera first rather than newest first.
         /// </summary>
-        protected bool SortsByDistance(ParticleBlendMode blendMode)
-            // Additive and modulate cards composite to the same result in any order
-            => SortMethod == ParticleSortingChoiceList.PARTICLE_SORTING_NEAREST
-                && blendMode is not (ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD or ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X);
+        protected bool SortsByDistance => SortMethod == ParticleSortingChoiceList.PARTICLE_SORTING_NEAREST;
 
         /// <summary>
         /// Fills <paramref name="order"/> with one entry per particle, farthest from the camera first.
@@ -211,10 +322,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uAddSelfAmount", 1f + AddSelfAmount.NextNumber(systemState));
             shader.SetUniform1("uDiffuseAmount", DiffuseAmount.NextNumber(systemState));
             shader.SetUniform1("uSelfIllumAmount", SelfIllumAmount.NextNumber(systemState));
-            shader.SetUniform1("uDesaturation", Desaturation.NextNumber(systemState));
+            shader.SetUniform1("uDesaturation", MathUtils.Saturate(Desaturation.NextNumber(systemState)));
             shader.SetUniform3("uHsvShift", GetHsvShift(systemState));
             shader.SetUniform2("uAlphaRemapRange", GetAlphaRemapRange(systemState));
-            shader.SetUniform3("uColorScale", ColorScale.NextVector(systemState));
             shader.SetUniform1("uGammaCorrectVertexColors", GammaCorrectVertexColors);
             shader.SetUniform1("uDepthBias", DepthBias.NextNumber(systemState));
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
@@ -244,10 +354,36 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         public SceneNode? OwnerNode { get; set; }
 
-        /// <summary>Called as the system finishes a step. Runs on the pool, so touch only what this renderer owns.</summary>
+        /// <summary>Called as the system finishes each step of a frame. Runs on the pool, so touch only what this renderer owns.</summary>
         /// <param name="particles">The system's particles, as the step left them.</param>
         /// <param name="systemState">The state the system's functions read it through.</param>
         public virtual void Simulate(ParticleCollection particles, ParticleSystemState systemState)
+        {
+        }
+
+        /// <summary>
+        /// Called once the initializers have run over particles the system just created. Runs on the
+        /// pool, so touch only what this renderer owns.
+        /// </summary>
+        /// <param name="particles">The system's particles.</param>
+        /// <param name="systemState">The state the system's functions read it through.</param>
+        /// <param name="first">The index of the first new particle.</param>
+        /// <param name="count">How many particles were created.</param>
+        public virtual void InitializeParticles(ParticleCollection particles, ParticleSystemState systemState, int first, int count)
+        {
+        }
+
+        /// <summary>The particle events this renderer wants through <see cref="OnParticleEvent"/>.</summary>
+        public virtual ParticleEventType ObservedEvents => ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
+
+        /// <summary>
+        /// Called when particles of the system raise an event, during the step. Runs on the pool, so
+        /// touch only what this renderer owns.
+        /// </summary>
+        /// <param name="particles">The system's particles; particles being killed are still in place.</param>
+        /// <param name="eventType">The event, a single flag.</param>
+        /// <param name="indices">The indices of the particles that raised it, ascending.</param>
+        public virtual void OnParticleEvent(ParticleCollection particles, ParticleEventType eventType, ReadOnlySpan<int> indices)
         {
         }
 

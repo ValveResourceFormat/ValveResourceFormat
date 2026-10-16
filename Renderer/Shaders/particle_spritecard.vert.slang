@@ -80,9 +80,6 @@ flat out uint g_nObjectIndex;
 // this they are used as though they were already linear. Alpha is left alone.
 uniform bool uGammaCorrectVertexColors = true;
 
-// m_vecColorScale, a linear tint applied after the gamma correction above.
-uniform vec3 uColorScale = vec3(1.0);
-
 // m_flDepthBias, in world units along the view direction. The card keeps its drawn position and only
 // its depth is re-taken from the shifted point, so a positive bias makes the card lose the depth test
 // against geometry it is in front of, and a negative one makes it win.
@@ -176,8 +173,6 @@ void main(void) {
     {
         vColor.rgb = SrgbGammaToLinear(vColor.rgb);
     }
-
-    vColor.rgb *= uColorScale;
 
 #if S_PARTICLE_INSTANCED
     vTexCoordOut = PlaceCorner(cardUv, 0, vTEXCOORD.xy, vTEXCOORD.zw);

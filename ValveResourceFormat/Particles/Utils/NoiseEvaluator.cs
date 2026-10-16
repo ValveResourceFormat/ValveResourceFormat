@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Particles.Utils
         private readonly ParticleNoiseType noiseType;
         private readonly ParticleNoiseTurbulence turbulence;
         private readonly ParticleNoiseModifier modifier;
-        private readonly float turbulenceScale = 1.25f;
+        private readonly float turbulenceScale = 1f;
         private readonly float turbulenceMix = 0.5f;
         private readonly float worleyJitter;
 
@@ -40,11 +40,13 @@ namespace ValveResourceFormat.Particles.Utils
             worleyJitter = Noise.WorleyJitter(noiseOffset);
         }
 
-        /// <summary>Evaluates the pipeline at a sample vector, returning a value in the output range.</summary>
+        /// <summary>
+        /// Evaluates the pipeline at a sample vector and collection time, returning a value in the output range.
+        /// </summary>
         public float Evaluate(Vector3 input, float age)
         {
             var coord = ((input + Vector3.One) * (noiseScale * 0.1f))
-                + new Vector3(noiseOffset) + (age * 0.1f * offsetRate);
+                + ((offsetRate * age * 0.1f) + new Vector3(noiseOffset));
 
             var sum = 0f;
             var frequency = 1f;

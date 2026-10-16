@@ -39,12 +39,6 @@ namespace ValveResourceFormat.Particles.Operators
 
                 ref var particle = ref current[i];
                 var direction = current[i + step].Position - particle.Position;
-
-                if (direction == Vector3.Zero)
-                {
-                    continue;
-                }
-
                 var interp = interpolation.NextNumber(ref particle, particleSystemState);
                 var pointed = Vector3.Lerp(particle.GetVector(outputField), MathUtils.SafeNormalize(direction), interp);
                 particle.SetVector(outputField, pointed);

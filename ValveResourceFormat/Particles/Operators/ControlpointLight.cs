@@ -14,7 +14,8 @@ namespace ValveResourceFormat.Particles.Operators
     /// <c>1 / (c + l*d + q*d^2)</c>, fitted through 1 at the light, 1/2 at the 50% distance and 1/256
     /// at the 0% distance, with <c>d</c> at least 1. A dynamic light takes its color from the scene
     /// lighting at its position. With <c>m_bUseNormal</c> each light is weighted by <c>max(0, N.L)</c>,
-    /// where N points from that light's control point to the particle.
+    /// where N points from the light to the particle, so it faces away from the light and no light is
+    /// ever added.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ControlpointLight">C_OP_ControlpointLight</seealso>
     class ControlpointLight : ParticleFunctionOperator
@@ -72,7 +73,6 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            Span<Vector3> sources = stackalloc Vector3[lights.Length];
             Span<Vector3> positions = stackalloc Vector3[lights.Length];
             Span<Vector3> colors = stackalloc Vector3[lights.Length];
             Span<Falloff.Cutoff> cutoffs = stackalloc Falloff.Cutoff[lights.Length];
@@ -80,8 +80,7 @@ namespace ValveResourceFormat.Particles.Operators
             for (var i = 0; i < lights.Length; i++)
             {
                 var light = lights[i];
-                sources[i] = particleSystemState.GetControlPoint(light.ControlPoint).Position;
-                positions[i] = sources[i] + light.Offset;
+                positions[i] = particleSystemState.GetControlPoint(light.ControlPoint).Position + light.Offset;
                 colors[i] = light.Dynamic
                     ? Vector3.Clamp(particleSystemState.Lighting.SampleAmbientLight(positions[i]), Vector3.Zero, Vector3.One)
                     : light.Color;
@@ -100,8 +99,8 @@ namespace ValveResourceFormat.Particles.Operators
 
                     if (useNormal)
                     {
-                        var fromSource = particle.Position - sources[i];
-                        var normal = fromSource / MathF.Sqrt(MathF.Max(fromSource.LengthSquared(), ParticleMath.FloatEpsilon));
+                        var fromLight = particle.Position - positions[i];
+                        var normal = fromLight / MathF.Sqrt(MathF.Max(fromLight.LengthSquared(), ParticleMath.FloatEpsilon));
                         intensity *= MathF.Max(0f, Vector3.Dot(normal, MathUtils.SafeNormalize(toLight)));
                     }
 

@@ -50,7 +50,8 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             var span = ageMax - ageMin;
-            var fraction = MathUtils.Saturate(ageMin + ((1f - absScale) * span) + (absScale * span * normalized));
+            var fraction = ageMin + ((1f - absScale) * span) + (absScale * span * normalized);
+            fraction = fraction >= 0f ? MathF.Min(1f, fraction) : 0f;
             var age = fraction * particle.Lifetime;
 
             particle.Age += age;

@@ -41,8 +41,6 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var forward1 = ControlPointTransformProvider.TransformDirection(particleSystemState, inputControlPoint1, Vector3.UnitX);
             var forward2 = ControlPointTransformProvider.TransformDirection(particleSystemState, inputControlPoint2, Vector3.UnitX);
-            forward1 = MathUtils.SafeNormalize(forward1, Vector3.UnitX, ParticleMath.MinimumLengthSquared);
-            forward2 = MathUtils.SafeNormalize(forward2, Vector3.UnitX, ParticleMath.MinimumLengthSquared);
 
             var (rangeMin, rangeMax) = fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate
                 ? (MathUtils.Saturate(outputMin), MathUtils.Saturate(outputMax))
@@ -52,7 +50,7 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 var first = (useParticleVelocity, useParticleNormal) switch
                 {
-                    (true, _) => MathUtils.SafeNormalize(particle.Position - particle.PositionPrevious, Vector3.Zero, ParticleMath.MinimumLengthSquared),
+                    (true, _) => NormalizeBiased(particle.Position - particle.PositionPrevious),
                     (_, true) => particle.Normal,
                     _ => forward1,
                 };
@@ -69,5 +67,12 @@ namespace ValveResourceFormat.Particles.Operators
                 particle.SetScalar(fieldOutput, particle.ModifyScalarBySetMethod(particles, fieldOutput, remapped, setMethod));
             }
         }
+
+        /// <summary>
+        /// Scales a vector to unit length with an epsilon in its squared length, so a still particle
+        /// reads as the zero vector rather than having no direction.
+        /// </summary>
+        private static Vector3 NormalizeBiased(Vector3 vector)
+            => vector / MathF.Sqrt(vector.LengthSquared() + ParticleMath.FloatEpsilon);
     }
 }

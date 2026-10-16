@@ -25,6 +25,8 @@ namespace ValveResourceFormat.Particles.Operators
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            var (min, max) = outputField.SetFloatRange();
+
             foreach (ref var particle in particles.Current)
             {
                 var value = this.value.NextNumber(ref particle, particleSystemState);
@@ -38,10 +40,16 @@ namespace ValveResourceFormat.Particles.Operators
                     value = float.DegreesToRadians(value);
                 }
 
-                var target = particle.ModifyScalarBySetMethod(particles, outputField, value, setMethod);
                 var currentValue = particle.GetScalar(outputField);
 
-                var (min, max) = outputField.SetFloatRange();
+                // A ramp takes the strength into its rate instead of blending toward the result
+                if (setMethod == ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE)
+                {
+                    particle.SetScalar(outputField, Math.Clamp((lerp * (strength * frameTime) * value) + currentValue, min, max));
+                    continue;
+                }
+
+                var target = particle.ModifyScalarBySetMethod(particles, outputField, value, setMethod);
                 var blended = Math.Clamp(float.Lerp(currentValue, target, lerp), min, max);
 
                 // Strength lerps from the spawn initial for the two initial-value set methods
@@ -49,7 +57,7 @@ namespace ValveResourceFormat.Particles.Operators
                     ? particle.GetInitialScalar(particles, outputField)
                     : currentValue;
 
-                particle.SetScalar(outputField, float.Lerp(strengthBase, blended, strength));
+                particle.SetScalar(outputField, strength >= 1f ? blended : (blended * strength) + (strengthBase * (1f - strength)));
             }
         }
     }

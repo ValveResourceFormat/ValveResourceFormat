@@ -46,6 +46,10 @@ namespace ValveResourceFormat.Particles.Operators
             Array.Clear(previousPaths);
         }
 
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
+        }
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             for (var i = 0; i < pathCount; i++)
@@ -70,9 +74,7 @@ namespace ValveResourceFormat.Particles.Operators
                 var current = currentPaths[segmentIndex];
                 var previous = previousPaths[segmentIndex]!.Value;
 
-                var creationFraction = frameTime > 0f
-                    ? MathF.Min(particle.Age, frameTime) / frameTime
-                    : 1f;
+                var creationFraction = MathF.Min(particle.Age, frameTime) * (1f / frameTime);
 
                 var delta = (ParticlePath.Evaluate(current.Start, current.Mid, current.End, saved.X)
                     - ParticlePath.Evaluate(previous.Start, previous.Mid, previous.End, saved.X)) * creationFraction;

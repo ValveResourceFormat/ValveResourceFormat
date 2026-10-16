@@ -27,14 +27,19 @@ namespace ValveResourceFormat.Particles.Initializers
         private float parameterStep;
         private float cachedNumToAssign = float.NaN;
 
+        private ParticleRandom.EvaluationKey? callKey;
+        private bool endpointsDistinct;
+        private (int Start, int End)? cachedSegment;
+        private (Vector3 Start, Vector3 Mid, Vector3 End) cachedPath;
+
         public CreateSequentialPathV2(ParticleDefinitionParser parse) : base(parse)
         {
             maxDistance = parse.NumberProvider("m_fMaxDistance", maxDistance);
-            numToAssign = parse.NumberProvider("m_flNumToAssign", numToAssign);
+            numToAssign = parse.CollectionNumberProvider("m_flNumToAssign", numToAssign);
             loop = parse.Boolean("m_bLoop", loop);
             cpPairs = parse.Boolean("m_bCPPairs", cpPairs);
             saveOffset = parse.Boolean("m_bSaveOffset", saveOffset);
-            pathParams = new ParticlePathParameters(parse);
+            pathParams = new ParticlePathParameters(parse).WithClampedControlPoints();
 
             spanDirection = pathParams.EndControlPointNumber >= pathParams.StartControlPointNumber ? 1 : -1;
 
@@ -63,7 +68,11 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.HitboxOffsetPosition);
 
-        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        /// <summary>
+        /// Reads the count to assign and whether a looping pair walk is open, once for every call over
+        /// a batch of new particles, and forgets the path evaluated by the previous call.
+        /// </summary>
+        private void BeginCall(ParticleSystemState particleSystemState)
         {
             var assignCount = numToAssign.NextNumber(particleSystemState);
             if (assignCount != cachedNumToAssign)
@@ -77,7 +86,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 }
             }
 
-            var endpointsDistinct = true;
+            endpointsDistinct = true;
             if (cpPairs && loop)
             {
                 var startPos = particleSystemState.GetControlPoint(pathParams.StartControlPointNumber).Position;
@@ -85,6 +94,18 @@ namespace ValveResourceFormat.Particles.Initializers
                 endpointsDistinct = MathF.Abs(startPos.X - endPos.X) > 0.001f
                     || MathF.Abs(startPos.Y - endPos.Y) > 0.001f
                     || MathF.Abs(startPos.Z - endPos.Z) > 0.001f;
+            }
+
+            cachedSegment = null;
+        }
+
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            var key = particleSystemState.Random.Evaluation(-1);
+            if (callKey != key)
+            {
+                callKey = key;
+                BeginCall(particleSystemState);
             }
 
             var t = pathParameter;
@@ -111,8 +132,13 @@ namespace ValveResourceFormat.Particles.Initializers
                 }
             }
 
-            var segment = pathParams.WithControlPoints(segmentStart, segmentEnd);
-            var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, segment, particle.CreationTime);
+            if (cachedSegment != (segmentStart, segmentEnd))
+            {
+                cachedSegment = (segmentStart, segmentEnd);
+                cachedPath = ParticlePath.CalculatePathValues(particleSystemState, pathParams.WithControlPoints(segmentStart, segmentEnd), particle.CreationTime);
+            }
+
+            var (start, mid, end) = cachedPath;
 
             var position = ParticlePath.Evaluate(start, mid, end, t);
 
@@ -131,7 +157,7 @@ namespace ValveResourceFormat.Particles.Initializers
             pathParameter += parameterStep;
             var advanced = pathParameter;
 
-            if (parameterStep > 0f)
+            if (parameterStep > PathParameterEpsilon)
             {
                 if (MathF.Abs(advanced - spanLength) < PathParameterEpsilon)
                 {

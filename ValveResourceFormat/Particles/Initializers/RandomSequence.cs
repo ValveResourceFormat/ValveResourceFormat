@@ -20,8 +20,11 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly int initialWeightedCursor;
         private int weightedCursor;
 
-        private readonly int[] list = [];
-        private int current;
+        private const int TableSize = 64;
+
+        /// <summary>The order a shuffled or linear pick walks, indexed by sequence number.</summary>
+        private readonly int[] table = new int[TableSize];
+        private int next;
 
         public RandomSequence(ParticleDefinitionParser parse) : base(parse)
         {
@@ -56,23 +59,36 @@ namespace ValveResourceFormat.Particles.Initializers
                 initialWeightedCursor = shuffle || linear ? sequenceMin : 0;
                 weightedCursor = initialWeightedCursor;
             }
-            else if (shuffle || linear)
-            {
-                var count = Math.Max(sequenceMax - sequenceMin + 1, 1);
-                list = new int[count];
-                for (var i = 0; i < count; i++)
-                {
-                    list[i] = sequenceMin + i;
-                }
+        }
 
-                current = list.Length;
+        /// <summary>Lays out the walk, shuffling it with draws from the system's table when asked to.</summary>
+        public override void Initialize(ParticleSystemState particleSystemState)
+        {
+            weightedCursor = initialWeightedCursor;
+            Array.Clear(table);
+            next = 0;
+
+            if (weightedList.Length > 0 || !(shuffle || linear))
+            {
+                return;
+            }
+
+            next = sequenceMin;
+
+            for (var sequence = Math.Max(sequenceMin, 0); sequence <= Math.Min(sequenceMax, TableSize - 1); sequence++)
+            {
+                SetEntry(sequence, sequence);
+            }
+
+            if (shuffle)
+            {
+                Shuffle(particleSystemState);
             }
         }
 
-        public override void Reset()
+        /// <summary>A restart keeps the walk where it is.</summary>
+        public override void Restart(ParticleSystemState particleSystemState)
         {
-            current = list.Length;
-            weightedCursor = initialWeightedCursor;
         }
 
         public override ulong WrittenFields => FieldMask(ParticleField.SequenceNumber);
@@ -85,26 +101,22 @@ namespace ValveResourceFormat.Particles.Initializers
             }
             else if (shuffle || linear)
             {
-                if (current >= list.Length)
+                if (next > sequenceMax)
                 {
                     if (shuffle)
                     {
                         Shuffle(particleSystemState);
                     }
 
-                    current = 0;
+                    next = sequenceMin;
                 }
 
-                particle.SequenceNumber = list[current];
-                current++;
+                particle.SequenceNumber = GetEntry(next);
+                next++;
             }
             else
             {
-                var sample = particleSystemState.Random.Next();
-
-                particle.SequenceNumber = sequenceMax > sequenceMin
-                    ? Math.Min(sequenceMin + (int)(sample * (sequenceMax - sequenceMin + 1)), sequenceMax)
-                    : sequenceMin;
+                particle.SequenceNumber = sequenceMin + (int)((sequenceMax - sequenceMin + 1) * particleSystemState.Random.Next());
             }
 
             return particle;
@@ -156,10 +168,22 @@ namespace ValveResourceFormat.Particles.Initializers
 
         private void Shuffle(ParticleSystemState particleSystemState)
         {
-            for (var i = list.Length - 1; i > 0; i--)
+            for (var i = sequenceMax; i > sequenceMin; i--)
             {
-                var j = Math.Min((int)(particleSystemState.Random.Next() * (i + 1)), i);
-                (list[i], list[j]) = (list[j], list[i]);
+                var j = sequenceMin + (int)((i - sequenceMin + 1) * particleSystemState.Random.Next());
+                var swapped = GetEntry(i);
+                SetEntry(i, GetEntry(j));
+                SetEntry(j, swapped);
+            }
+        }
+
+        private int GetEntry(int sequence) => (uint)sequence < TableSize ? table[sequence] : 0;
+
+        private void SetEntry(int sequence, int value)
+        {
+            if ((uint)sequence < TableSize)
+            {
+                table[sequence] = value;
             }
         }
     }

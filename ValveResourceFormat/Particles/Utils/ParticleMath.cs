@@ -96,6 +96,20 @@ namespace ValveResourceFormat.Particles.Utils
         }
 
         /// <summary>
+        /// The curve of <see cref="Bias(float, float)"/> with <paramref name="x"/> clamped to [0, 1] and
+        /// <paramref name="bias"/> to [smallest normal float, 1] instead of saturating at the bias limits.
+        /// </summary>
+        /// <param name="x">Value to bias.</param>
+        /// <param name="bias">Bias parameter.</param>
+        public static float BiasClamped(float x, float bias)
+        {
+            x = MathUtils.Saturate(x);
+            bias = Math.Clamp(bias, 1.17549435e-38f, 1f);
+
+            return x / (((1f - x) * ((1f / bias) - 2f)) + 1f);
+        }
+
+        /// <summary>
         /// Applies one of the <see cref="ParticleFloatBiasType"/> curves to a 0-1 value for a
         /// <c>m_flBiasParameter</c>, which is authored in the -1 to 1 range and is the identity at 0.
         /// This is a different parameterization to <see cref="Bias(float, float)"/> and the two take
@@ -156,6 +170,43 @@ namespace ValveResourceFormat.Particles.Utils
             }
 
             return Bias(x, bias);
+        }
+
+        /// <summary>
+        /// Builds the left and up axes that complete a frame around <paramref name="forward"/>, taking
+        /// world up as the reference; a vertical forward gets a fixed left instead.
+        /// </summary>
+        public static (Vector3 Left, Vector3 Up) VectorVectors(Vector3 forward)
+        {
+            if (MathF.Abs(forward.X) < 1e-6f && MathF.Abs(forward.Y) < 1e-6f)
+            {
+                return (Vector3.UnitY, new Vector3(-forward.Z, 0f, 0f));
+            }
+
+            var right = Vector3.Normalize(Vector3.Cross(forward, Vector3.UnitZ));
+            var up = Vector3.Normalize(Vector3.Cross(right, forward));
+
+            return (-right, up);
+        }
+
+        /// <summary>
+        /// Interpolates from <paramref name="from"/> to <paramref name="to"/> by a normalized linear blend
+        /// whose fraction is corrected toward constant angular speed. Takes the short way round and
+        /// returns the identity when the blend cancels out.
+        /// </summary>
+        public static Quaternion Blend(Quaternion from, Quaternion to, float t)
+        {
+            var dot = Quaternion.Dot(to, from);
+            var d = MathF.Abs(dot);
+            var a = ((((3.55645f - (1.43519f * d)) * d) - 3.2452f) * d) + 1.0904f;
+            var b = ((((0.215638f * d) - 1.06021f) * d) + 0.848013f);
+            var centered = t - 0.5f;
+            var corrected = (((a * centered * centered) + b) * (centered * t * (t - 1f))) + t;
+            var toWeight = dot <= 0f ? -corrected : corrected;
+
+            var blended = (to * toWeight) + (from * (1f - corrected));
+
+            return blended.LengthSquared() > 0f ? Quaternion.Normalize(blended) : Quaternion.Identity;
         }
 
         /// <summary>

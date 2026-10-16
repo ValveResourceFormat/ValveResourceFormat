@@ -5,7 +5,9 @@ namespace ValveResourceFormat.Particles.Constraints
     /// <summary>
     /// Collides particles with the world. Each particle's movement over the step is tested against the
     /// surfaces its collision mode finds, and a particle that crosses one is moved back to the contact,
-    /// where it can bounce, slide, stick or be killed.
+    /// where it can bounce, slide, stick or have its lifetime ended. It runs once per step, after the
+    /// relaxation passes of the other constraints. Contacts raise collision events for the children that
+    /// listen for them.
     /// </summary>
     /// <remarks>
     /// The plane set modes trace from a control point instead of from the particles: once straight down
@@ -15,17 +17,22 @@ namespace ValveResourceFormat.Particles.Constraints
     /// planes through those hits, and a fast enough contact is confirmed by a real trace, which also adds
     /// its surface to the set.
     /// <see cref="ParticleCollisionMode.COLLISION_MODE_PER_PARTICLE_TRACE"/> traces each particle's
-    /// movement instead. <c>m_nCollisionModeMin</c> has no effect.
+    /// movement instead. A mode above the detail level drops to that level, though never below
+    /// <c>m_nCollisionModeMin</c>, and the lowest detail level disables collision unless that minimum asks for some.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_WorldTraceConstraint">C_OP_WorldTraceConstraint</seealso>
     class WorldTraceConstraint : ParticleFunctionConstraint
     {
         private const float ConfirmationTraceExtension = 64f;
+
+        /// <summary>The bit of <see cref="Particle.UserEventStates"/> marking a particle that has collided before.</summary>
+        private const int CollidedEventState = 0x10000;
         private const int ConfirmationBlockSize = 4;
 
         private readonly int controlPoint;
         private readonly Vector3 controlPointOffset;
         private readonly ParticleCollisionMode collisionMode = ParticleCollisionMode.COLLISION_MODE_PER_PARTICLE_TRACE;
+        private readonly ParticleCollisionMode collisionModeMin = ParticleCollisionMode.COLLISION_MODE_DISABLED;
         private readonly float controlPointMovementTolerance = 5f;
         private readonly float retestRate = -1f;
         private readonly float confirmationSpeed = 24f;
@@ -47,6 +54,8 @@ namespace ValveResourceFormat.Particles.Constraints
             controlPoint = parse.Int32("m_nCP", controlPoint);
             controlPointOffset = parse.Vector3("m_vecCpOffset", controlPointOffset);
             collisionMode = parse.Enum("m_nCollisionMode", collisionMode);
+            collisionModeMin = parse.Enum("m_nCollisionModeMin", collisionModeMin);
+            collisionModeMin = collisionModeMin < collisionMode ? collisionModeMin : collisionMode;
             controlPointMovementTolerance = parse.Float("m_flCpMovementTolerance", controlPointMovementTolerance);
             retestRate = parse.Float("m_flRetestRate", retestRate);
             confirmationSpeed = parse.Float("m_flCollisionConfirmationSpeed", confirmationSpeed);
@@ -64,22 +73,27 @@ namespace ValveResourceFormat.Particles.Constraints
             stopSpeed = parse.NumberProvider("m_flStopSpeed", stopSpeed);
         }
 
-        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState)
+        public override bool IsFinalConstraint => true;
+
+        public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var collision = particleSystemState.Collision;
+            var mode = GetEffectiveCollisionMode(particleSystemState.DetailLevel);
 
-            if (collisionMode == ParticleCollisionMode.COLLISION_MODE_DISABLED || !collision.HasGeometry)
+            if (mode == ParticleCollisionMode.COLLISION_MODE_DISABLED || !collision.HasGeometry)
             {
                 return false;
             }
 
-            var planeSet = collisionMode == ParticleCollisionMode.COLLISION_MODE_PER_PARTICLE_TRACE
+            var planeSet = mode == ParticleCollisionMode.COLLISION_MODE_PER_PARTICLE_TRACE
                 ? null
-                : RefreshPlaneSet(collision, particleSystemState);
+                : RefreshPlaneSet(collision, mode, particleSystemState);
 
             var hitAny = false;
             var confirmations = 0;
             var index = 0;
+            var listened = particleSystemState.Data?.ListenedEvents ?? ParticleEventType.PARTICLE_EVENT_TYPE_MASK_NONE;
+            var hitEvent = killOnContact ? ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_COLLISION : ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION;
 
             foreach (ref var particle in particles.Current)
             {
@@ -90,6 +104,12 @@ namespace ValveResourceFormat.Particles.Constraints
                 }
 
                 var bounce = bounceAmount.NextNumber(ref particle, particleSystemState);
+
+                if ((listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION) != 0)
+                {
+                    bounce += ParticleMath.FloatEpsilon;
+                }
+
                 var slide = slideAmount.NextNumber(ref particle, particleSystemState);
                 var scatter = randomDirectionScale.NextNumber(ref particle, particleSystemState);
                 var scale = radiusScale.NextNumber(ref particle, particleSystemState);
@@ -139,18 +159,23 @@ namespace ValveResourceFormat.Particles.Constraints
                 {
                     if (minimumSpeed < 0f || tooSlow)
                     {
-                        particle.Kill();
+                        particle.Lifetime = 0f;
                     }
 
                     particle.Position = contact;
-                    particle.PositionPrevious = contact;
+
+                    if ((listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_COLLISION) == 0)
+                    {
+                        particle.PositionPrevious = contact;
+                    }
                 }
                 else if (tooSlow)
                 {
-                    particle.Kill();
+                    particle.Lifetime = 0f;
                 }
 
                 var writeNormal = setNormal;
+                var stopped = false;
 
                 if (!killOnContact || bounceKilledParticles)
                 {
@@ -167,7 +192,8 @@ namespace ValveResourceFormat.Particles.Constraints
 
                     if (stickField != ParticleField.NoneDisabled)
                     {
-                        writeNormal = Stick(ref particle, frameTime, particleSystemState) && setNormal;
+                        stopped = Stick(ref particle, frameTime, particleSystemState);
+                        writeNormal = stopped && setNormal;
                     }
                 }
 
@@ -175,20 +201,57 @@ namespace ValveResourceFormat.Particles.Constraints
                 {
                     particle.SetVector(ParticleField.Normal, normal);
                 }
+
+                RaiseCollisionEvents(particles, ref particle, listened, hitEvent, stopped);
             }
 
             return hitAny;
         }
 
-        private CollisionPlaneSet RefreshPlaneSet(IParticleCollision collision, ParticleSystemState particleSystemState)
+        private static void RaiseCollisionEvents(ParticleCollection particles, ref Particle particle, ParticleEventType listened, ParticleEventType hitEvent, bool stopped)
         {
-            var planeSet = particleSystemState.CollisionPlaneSets[(int)collisionMode] ??= new CollisionPlaneSet();
+            if ((listened & (ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION | ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_COLLISION)) != 0)
+            {
+                particles.RaiseEvent(particle.Index, hitEvent);
+            }
+
+            if ((listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_FIRST_COLLISION) != 0 && (particle.UserEventStates & CollidedEventState) == 0)
+            {
+                particle.UserEventStates |= CollidedEventState;
+                particles.RaiseEvent(particle.Index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_FIRST_COLLISION);
+            }
+
+            if (stopped && (listened & ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION_STOPPED) != 0)
+            {
+                particles.RaiseEvent(particle.Index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_COLLISION_STOPPED);
+            }
+        }
+
+        private ParticleCollisionMode GetEffectiveCollisionMode(ParticleDetailLevel detailLevel)
+        {
+            var levelMode = (ParticleCollisionMode)detailLevel;
+
+            if (detailLevel == ParticleDetailLevel.PARTICLEDETAIL_LOW)
+            {
+                levelMode = ParticleCollisionMode.COLLISION_MODE_DISABLED;
+            }
+            else if (collisionMode <= levelMode)
+            {
+                return collisionMode;
+            }
+
+            return collisionModeMin > levelMode ? collisionModeMin : levelMode;
+        }
+
+        private CollisionPlaneSet RefreshPlaneSet(IParticleCollision collision, ParticleCollisionMode mode, ParticleSystemState particleSystemState)
+        {
+            var planeSet = particleSystemState.CollisionPlaneSets[(int)mode] ??= new CollisionPlaneSet();
 
             var lastRefresh = planeSet.LastRefreshTime;
             var force = lastRefresh == -1f || (retestRate >= 0f && particleSystemState.Age > retestRate + lastRefresh);
             var origin = particleSystemState.GetControlPoint(controlPoint).Position + controlPointOffset;
 
-            planeSet.Refresh(collision, collisionMode, origin, controlPointMovementTolerance, force, particleSystemState.Age);
+            planeSet.Refresh(collision, mode, origin, controlPointMovementTolerance, force, particleSystemState.Age);
 
             return planeSet;
         }

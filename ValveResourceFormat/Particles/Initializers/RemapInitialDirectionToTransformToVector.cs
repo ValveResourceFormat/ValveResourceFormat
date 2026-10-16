@@ -23,6 +23,9 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly Vector3 rotationRowY;
         private readonly Vector3 rotationRowZ;
 
+        private ParticleRandom.EvaluationKey? transformCall;
+        private Vector3 origin;
+
         public RemapInitialDirectionToTransformToVector(ParticleDefinitionParser parse) : base(parse)
         {
             transformInput = parse.TransformInput("m_TransformInput", transformInput);
@@ -52,7 +55,15 @@ namespace ValveResourceFormat.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var delta = particle.Position - transformInput.NextTransform(particleSystemState).Translation;
+            var call = particleSystemState.Random.Evaluation(-1);
+
+            if (transformCall != call)
+            {
+                transformCall = call;
+                origin = transformInput.NextTransform(particleSystemState).Translation;
+            }
+
+            var delta = particle.Position - origin;
             var direction = new Vector3(
                 Vector3.Dot(delta, rotationRowX),
                 Vector3.Dot(delta, rotationRowY),

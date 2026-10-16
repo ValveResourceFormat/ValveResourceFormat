@@ -22,15 +22,15 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
         public HSVShiftToCP(ParticleDefinitionParser parse) : base(parse)
         {
-            colorCP = parse.Int32("m_nColorCP", colorCP);
-            colorGemEnableCP = parse.Int32("m_nColorGemEnableCP", colorGemEnableCP);
-            outputCP = parse.Int32("m_nOutputCP", outputCP);
+            colorCP = Math.Clamp(parse.Int32("m_nColorCP", colorCP), 0, ParticleSystemState.MaxControlPoint);
+            colorGemEnableCP = Math.Clamp(parse.Int32("m_nColorGemEnableCP", colorGemEnableCP), 0, ParticleSystemState.MaxControlPoint);
+            outputCP = Math.Clamp(parse.Int32("m_nOutputCP", outputCP), 0, ParticleSystemState.MaxControlPoint);
             defaultColor = parse.Color24("m_DefaultHSVColor", defaultColor);
 
             defaultHSV = RgbToHsv(defaultColor);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             if (particleSystemState.GetControlPoint(colorGemEnableCP).Position.X <= 0f)
             {

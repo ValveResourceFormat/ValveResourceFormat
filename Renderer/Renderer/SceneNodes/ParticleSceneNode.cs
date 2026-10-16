@@ -165,7 +165,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>
         /// Creates particle nodes for the systems in a model's <c>particles_list</c> and attaches each
         /// per its <c>attachment_type</c>. Custom and world origin are placed once at spawn; the other
-        /// types track the model or its attachment point. Unknown types are skipped.
+        /// types track the model or its attachment point. Unknown types are skipped. Control point 0
+        /// of each system carries the model, for the model inputs that read it.
         /// </summary>
         /// <param name="scene">The scene the nodes belong to.</param>
         /// <param name="model">The model referencing the particle systems.</param>
@@ -215,6 +216,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         Name = particleName,
                     };
 
+                    particleNode.GetControlPoint(0).Model = model;
                     AttachOnModel(modelNode, particleNode, attachmentType, attachmentPoint, offset);
                     nodes.Add(particleNode);
                 }

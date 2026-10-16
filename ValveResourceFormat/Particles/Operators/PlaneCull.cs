@@ -51,6 +51,11 @@ namespace ValveResourceFormat.Particles.Operators
                 if (CulledByPlane(particle.Position, planeNormal, particleSystemState))
                 {
                     particle.Kill();
+
+                    if (particleSystemState.ListensFor(ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_CULL))
+                    {
+                        particles.RaiseEvent(particle.Index, ParticleEventType.PARTICLE_EVENT_TYPE_MASK_KILLED_ON_CULL);
+                    }
                 }
             }
         }

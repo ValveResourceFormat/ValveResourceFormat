@@ -6,6 +6,11 @@ namespace ValveResourceFormat.Particles.Operators
     /// Drives a vector field to <c>m_vecOutput</c> over <c>m_flLerpTime</c>, starting from whatever each
     /// particle held on the operator's first endcap frame.
     /// </summary>
+    /// <remarks>
+    /// Only the X component is captured at the start of the endcap; Y and Z lerp from the particle's
+    /// spawn value. The run strength compounds along the particle list, so particle <c>i</c> lerps by
+    /// <c>t * strength^(i + 1)</c>.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LerpEndCapVector">C_OP_LerpEndCapVector</seealso>
     class LerpEndCapVector : ParticleFunctionOperator
     {
@@ -27,6 +32,10 @@ namespace ValveResourceFormat.Particles.Operators
             startAge = -1f;
         }
 
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
+        }
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             if (!particleSystemState.InEndCap)
@@ -40,7 +49,8 @@ namespace ValveResourceFormat.Particles.Operators
 
                 foreach (ref var particle in particles.Current)
                 {
-                    particle.SetInitialVector(particles, outputField, particle.GetVector(outputField));
+                    var initial = particle.GetInitialVector(particles, outputField);
+                    particle.SetInitialVector(particles, outputField, initial with { X = particle.GetVector(outputField).X });
                 }
             }
 
@@ -54,7 +64,8 @@ namespace ValveResourceFormat.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                particle.SetVector(outputField, Vector3.Lerp(particle.GetInitialVector(particles, outputField), output, t * strength));
+                t *= strength;
+                particle.SetVector(outputField, Vector3.Lerp(particle.GetInitialVector(particles, outputField), output, t));
             }
         }
     }

@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Particles.Initializers
                     : parse.NumberProvider("m_fT", new LiteralNumberProvider(0f));
             }
 
-            pathParams = new ParticlePathParameters(parse);
+            pathParams = new ParticlePathParameters(parse).WithClampedControlPoints();
         }
 
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.HitboxOffsetPosition);
@@ -60,7 +60,8 @@ namespace ValveResourceFormat.Particles.Initializers
             var position = ParticlePath.Evaluate(start, mid, end, t);
             position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-distance), new Vector3(distance));
 
-            particle.SetVector(ParticleField.Position, position);
+            particle.Position = position;
+            particle.PositionPrevious = position;
 
             if (saveOffset)
             {

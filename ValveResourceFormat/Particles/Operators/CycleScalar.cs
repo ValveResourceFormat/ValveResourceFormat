@@ -30,9 +30,9 @@ namespace ValveResourceFormat.Particles.Operators
             cycleTime = parse.Float("m_flCycleTime", cycleTime);
             doNotRepeatCycle = parse.Boolean("m_bDoNotRepeatCycle", doNotRepeatCycle);
             synchronizeParticles = parse.Boolean("m_bSynchronizeParticles", synchronizeParticles);
-            cpScale = parse.Int32("m_nCPScale", cpScale);
-            cpFieldMin = parse.Int32("m_nCPFieldMin", cpFieldMin);
-            cpFieldMax = parse.Int32("m_nCPFieldMax", cpFieldMax);
+            cpScale = Math.Clamp(parse.Int32("m_nCPScale", cpScale), -1, 64);
+            cpFieldMin = Math.Clamp(parse.Int32("m_nCPFieldMin", cpFieldMin), -1, 2);
+            cpFieldMax = Math.Clamp(parse.Int32("m_nCPFieldMax", cpFieldMax), -1, 2);
             setMethod = parse.EnumNormalized<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
@@ -47,12 +47,12 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (cpFieldMin >= 0)
                 {
-                    start *= ComponentOrZero(controlPoint, cpFieldMin);
+                    start *= controlPoint.GetComponent(cpFieldMin);
                 }
 
                 if (cpFieldMax >= 0)
                 {
-                    end *= ComponentOrZero(controlPoint, cpFieldMax);
+                    end *= controlPoint.GetComponent(cpFieldMax);
                 }
             }
 
@@ -70,23 +70,13 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 var time = synchronizeParticles ? particleSystemState.Age : particle.Age;
                 var phase = MathF.Min(time, clamp) * rate;
-                phase -= MathF.Floor(phase);
+                phase -= MathF.Truncate(phase);
 
                 var triangle = 2f * MathF.Min(phase, 1f - phase);
                 var value = start + ((end - start) * triangle);
 
-                var final = particle.ModifyScalarBySetMethod(particles, destField, value, setMethod);
-
-                particle.SetScalar(destField, float.Lerp(particle.GetScalar(destField), final, strength));
+                particle.SetScalar(destField, particle.ModifyScalarBySetMethod(particles, destField, value, setMethod));
             }
         }
-
-        private static float ComponentOrZero(Vector3 controlPoint, int component) => component switch
-        {
-            0 => controlPoint.X,
-            1 => controlPoint.Y,
-            2 => controlPoint.Z,
-            _ => 0f,
-        };
     }
 }

@@ -2,7 +2,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 {
     /// <summary>
     /// Sets the positions of up to four control points to fixed locations, optionally offset
-    /// from a parent control point and optionally only once.
+    /// from a parent control point and optionally only once. With <c>m_bOrient</c> the offset control
+    /// points also take the head control point's orientation.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetControlPointPositions">C_OP_SetControlPointPositions</seealso>
     class SetControlPointPositions : ParticleFunctionPreEmissionOperator
@@ -19,6 +20,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         private readonly bool setOnce;
         private readonly bool useWorldLocation;
         private readonly int cpOffset;
+        private readonly bool orient;
 
         private bool hasRunBefore;
 
@@ -35,6 +37,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             setOnce = parse.Boolean("m_bSetOnce", setOnce);
             useWorldLocation = parse.Boolean("m_bUseWorldLocation", useWorldLocation);
             cpOffset = parse.Int32("m_nHeadLocation", cpOffset);
+            orient = parse.Boolean("m_bOrient", orient);
         }
 
         public override void Reset()
@@ -42,21 +45,42 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             hasRunBefore = false;
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
-            if (!(setOnce && hasRunBefore))
+            if (setOnce)
             {
-                // Object-space positions are rotated and translated by the head control point
-                var headTransform = useWorldLocation
-                    ? Matrix4x4.Identity
-                    : new ControlPointTransformProvider(cpOffset, true).NextTransform(ref Particle.Default, particleSystemState);
-
-                particleSystemState.SetControlPointValue(cp1, Vector3.Transform(cp1Pos, headTransform));
-                particleSystemState.SetControlPointValue(cp2, Vector3.Transform(cp2Pos, headTransform));
-                particleSystemState.SetControlPointValue(cp3, Vector3.Transform(cp3Pos, headTransform));
-                particleSystemState.SetControlPointValue(cp4, Vector3.Transform(cp4Pos, headTransform));
+                if (hasRunBefore)
+                {
+                    return;
+                }
 
                 hasRunBefore = true;
+            }
+
+            if (useWorldLocation)
+            {
+                particleSystemState.SetControlPointValue(cp1, cp1Pos);
+                particleSystemState.SetControlPointValue(cp2, cp2Pos);
+                particleSystemState.SetControlPointValue(cp3, cp3Pos);
+                particleSystemState.SetControlPointValue(cp4, cp4Pos);
+                return;
+            }
+
+            var head = particleSystemState.GetControlPoint(cpOffset);
+            var headTransform = head.GetRotationMatrix();
+            headTransform.Translation = head.Position;
+
+            particleSystemState.SetControlPointValue(cp1, Vector3.Transform(cp1Pos, headTransform));
+            particleSystemState.SetControlPointValue(cp2, Vector3.Transform(cp2Pos, headTransform));
+            particleSystemState.SetControlPointValue(cp3, Vector3.Transform(cp3Pos, headTransform));
+            particleSystemState.SetControlPointValue(cp4, Vector3.Transform(cp4Pos, headTransform));
+
+            if (orient)
+            {
+                particleSystemState.SetControlPointOrientation(cp1, head.Forward, head.Left, head.Up);
+                particleSystemState.SetControlPointOrientation(cp2, head.Forward, head.Left, head.Up);
+                particleSystemState.SetControlPointOrientation(cp3, head.Forward, head.Left, head.Up);
+                particleSystemState.SetControlPointOrientation(cp4, head.Forward, head.Left, head.Up);
             }
         }
     }

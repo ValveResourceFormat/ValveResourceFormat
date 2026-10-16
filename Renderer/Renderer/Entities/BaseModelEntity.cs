@@ -46,7 +46,7 @@ public abstract class BaseModelEntity : BaseEntity
     public ModelSceneNode? ModelNode { get; private set; }
 
     /// <summary>Gets the model this entity loaded, or <see langword="null"/> when it names none or it failed to load.</summary>
-    protected Model? LoadedModel { get; private set; }
+    public Model? LoadedModel { get; private set; }
 
     /// <summary>Initializes a model entity from its keyvalues.</summary>
     protected BaseModelEntity(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)

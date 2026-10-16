@@ -256,6 +256,18 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// Raises <paramref name="value"/> to <paramref name="exponent"/> clamped to [-255, 255] and
+        /// truncated toward zero to a multiple of 0.25, so an exponent of 2.3 acts as 2.25.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float PowQuarterSteps(float value, float exponent)
+        {
+            var quarters = (int)(Math.Clamp(exponent, -255f, 255f) * 4f);
+
+            return MathF.Pow(value, quarters * 0.25f);
+        }
+
+        /// <summary>
         /// Clamps a value to [0, 1].
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

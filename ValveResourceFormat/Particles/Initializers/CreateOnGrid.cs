@@ -1,160 +1,122 @@
-using Microsoft.Extensions.Logging;
-
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
-    /// Places particles on a 3-D grid with configurable per-axis cell counts and spacing.
-    /// Supports optional centering around a control point and a hollow interior mode.
+    /// Places particles on a 3-D grid with configurable per-axis cell counts and spacing, one cell per
+    /// particle. A cursor walks the cells along X, then Y, then Z and carries over between emissions,
+    /// wrapping around the grid. Fractional counts limit the cursor, so a count of 2.5 gives three
+    /// cells. Supports centering on the control point, the control point's own axes, and a hollow
+    /// grid that skips the interior cells.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateOnGrid">C_INIT_CreateOnGrid</seealso>
-    // this single initializer delayed this release by months
     class CreateOnGrid : ParticleFunctionInitializer
     {
-        private readonly INumberProvider dimenX = new LiteralNumberProvider(0);
-        private readonly INumberProvider dimenY = new LiteralNumberProvider(0);
-        private readonly INumberProvider dimenZ = new LiteralNumberProvider(0);
+        /// <summary>How many interior cells a hollow grid skips at most for one particle, bounding huge or NaN counts.</summary>
+        private const int MaxHollowSkips = 1 << 20;
+
+        private readonly INumberProvider countX = new LiteralNumberProvider(0);
+        private readonly INumberProvider countY = new LiteralNumberProvider(0);
+        private readonly INumberProvider countZ = new LiteralNumberProvider(0);
 
         private readonly INumberProvider spacingX = new LiteralNumberProvider(0);
         private readonly INumberProvider spacingY = new LiteralNumberProvider(0);
         private readonly INumberProvider spacingZ = new LiteralNumberProvider(0);
 
         private readonly int controlPointNumber;
+        private readonly bool localSpace = true;
         private readonly bool center = true;
-        private readonly bool hollow; // misery
+        private readonly bool hollow;
+
+        private Vector3 cursor;
 
         public CreateOnGrid(ParticleDefinitionParser parse) : base(parse)
         {
-            dimenX = parse.NumberProvider("m_nXCount", dimenX);
-            dimenY = parse.NumberProvider("m_nYCount", dimenY);
-            dimenZ = parse.NumberProvider("m_nZCount", dimenZ);
-            spacingX = parse.NumberProvider("m_nXSpacing", spacingX);
-            spacingY = parse.NumberProvider("m_nYSpacing", spacingY);
-            spacingZ = parse.NumberProvider("m_nZSpacing", spacingZ);
-            controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
+            countX = parse.CollectionNumberProvider("m_nXCount", countX);
+            countY = parse.CollectionNumberProvider("m_nYCount", countY);
+            countZ = parse.CollectionNumberProvider("m_nZCount", countZ);
+            spacingX = parse.CollectionNumberProvider("m_nXSpacing", spacingX);
+            spacingY = parse.CollectionNumberProvider("m_nYSpacing", spacingY);
+            spacingZ = parse.CollectionNumberProvider("m_nZSpacing", spacingZ);
+            controlPointNumber = Math.Clamp(parse.Int32("m_nControlPointNumber", controlPointNumber), 0, ParticleSystemState.MaxControlPoint);
+            localSpace = parse.Boolean("m_bLocalSpace", localSpace);
             center = parse.Boolean("m_bCenter", center);
             hollow = parse.Boolean("m_bHollow", hollow);
         }
 
-        private static bool HollowTest(int x, int dimenX, int hollowDimenX)
+        public override void Reset()
         {
-            // skip first one
-            if (x == 0 && dimenX != 1)
-            {
-                return false;
-            }
-            return x + 1 > hollowDimenX;
+            cursor = Vector3.Zero;
         }
 
-        // We're simulating a lot of weird and incorrect behavior here, but it's accurate to source 2
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
+        }
+
         public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            var rawDimenX = this.dimenX.NextNumber(ref particle, particleSystemState);
-            var rawDimenY = this.dimenY.NextNumber(ref particle, particleSystemState);
-            var rawDimenZ = this.dimenZ.NextNumber(ref particle, particleSystemState);
-            var spacingX = this.spacingX.NextNumber(ref particle, particleSystemState);
-            var spacingY = this.spacingY.NextNumber(ref particle, particleSystemState);
-            var spacingZ = this.spacingZ.NextNumber(ref particle, particleSystemState);
+            var counts = new Vector3(
+                MathF.Max(countX.NextNumber(particleSystemState), 1f),
+                MathF.Max(countY.NextNumber(particleSystemState), 1f),
+                MathF.Max(countZ.NextNumber(particleSystemState), 1f));
+            var spacing = new Vector3(
+                spacingX.NextNumber(particleSystemState),
+                spacingY.NextNumber(particleSystemState),
+                spacingZ.NextNumber(particleSystemState));
 
-            // things wrap around differently when between two whole numbers. the hollow grid is larger
-            rawDimenX = Math.Max(rawDimenX, 1.0f);
-            rawDimenY = Math.Max(rawDimenY, 1.0f);
-            rawDimenZ = Math.Max(rawDimenZ, 1.0f);
+            var halfExtent = center ? (counts - Vector3.One) * 0.5f * spacing : Vector3.Zero;
 
-            var dimenX = (int)MathF.Ceiling(rawDimenX);
-            var dimenY = (int)MathF.Ceiling(rawDimenY);
-            var dimenZ = (int)MathF.Ceiling(rawDimenZ);
+            Wrap(counts);
 
-            // Slower but infinitely better and more stable code
-
-            var totalCount = dimenX * dimenY * dimenZ;
-
-            var hollowDimenX = 0;
-            var hollowDimenY = 0;
-            var hollowDimenZ = 0;
-
-            // A grid one cell across in every dimension has no interior to hollow out, and is filled
-            var isHollow = hollow && (dimenX != 1 || dimenY != 1 || dimenZ != 1);
-
-            if (isHollow)
+            if (hollow && counts != Vector3.One)
             {
-                // dimenX = ceil(rawDimenX)
-                // ceil(rawDimX) - RawDimX = extra leftover value
-                // ceil(leftover) + dimenX - 2
-
-                // This is the most accurate way I've thought of currently to correctly emulate these errors
-                // even though we have to go out of our way to do it
-                hollowDimenX = (dimenX == 1) ? 1 : (int)MathF.Ceiling(dimenX - rawDimenX) + dimenX - 2;
-                hollowDimenY = (dimenY == 1) ? 1 : (int)MathF.Ceiling(dimenY - rawDimenY) + dimenY - 2;
-                hollowDimenZ = (dimenZ == 1) ? 1 : (int)MathF.Ceiling(dimenZ - rawDimenZ) + dimenZ - 2;
-            }
-            var hollowSize = hollowDimenX * hollowDimenY * hollowDimenZ;
-            totalCount -= hollowSize;
-
-            var relativeCount = particle.UniqueParticleId % totalCount;
-
-            var position = new Vector3();
-            var found = false;
-            var i = 0;
-
-            // really slow but the cleanest way to do it
-            for (var z = 0; z < dimenZ; z++)
-            {
-                var hollowZ = isHollow && HollowTest(z, dimenZ, hollowDimenZ);
-                for (var y = 0; y < dimenY; y++)
+                for (var skipped = 0; !IsOnSurface(counts) && skipped < MaxHollowSkips; skipped++)
                 {
-                    var hollowY = isHollow && HollowTest(y, dimenY, hollowDimenY);
-                    for (var x = 0; x < dimenX; x++)
-                    {
-                        var hollowX = isHollow && HollowTest(x, dimenX, hollowDimenX);
-
-                        if (hollowX && hollowY && hollowZ)
-                        {
-                            break;
-                        }
-                        if (i == relativeCount)
-                        {
-                            found = true;
-                            position = new Vector3(x * spacingX, y * spacingY, z * spacingZ);
-                            break;
-                        }
-                        i++;
-                    }
-
-                    if (found)
-                    {
-                        break;
-                    }
-                }
-
-                if (found)
-                {
-                    break;
+                    cursor.X += 1f;
+                    Wrap(counts);
                 }
             }
 
-            if (!found)
-            {
-                Logger.LogWarning("unable to find correct position on particle grid");
-            }
+            var offset = (cursor * spacing) - halfExtent;
+            var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
 
-            if (center)
-            {
-                var centerPoint = new Vector3(rawDimenX * spacingX, rawDimenY * spacingY, rawDimenZ * spacingZ) / 2.0f;
-
-                position -= centerPoint;
-            }
-
-            if (controlPointNumber > -1)
-            {
-                position += particleSystemState.GetControlPoint(controlPointNumber).Position;
-            }
+            var position = localSpace
+                ? Vector3.TransformNormal(offset, controlPoint.GetRotationMatrix()) + controlPoint.Position
+                : offset + controlPoint.Position;
 
             particle.Position = position;
-            particle.Velocity = Vector3.Zero;
+            particle.PositionPrevious = position;
+
+            cursor.X += 1f;
 
             return particle;
         }
+
+        private void Wrap(Vector3 counts)
+        {
+            if (cursor.X >= counts.X)
+            {
+                cursor.X = 0f;
+                cursor.Y += 1f;
+            }
+
+            if (cursor.Y >= counts.Y)
+            {
+                cursor.Y = 0f;
+                cursor.Z += 1f;
+            }
+
+            if (cursor.Z >= counts.Z)
+            {
+                cursor.Z = 0f;
+            }
+        }
+
+        /// <summary>Whether the cursor sits on the first or last cell of some axis more than one cell long.</summary>
+        private bool IsOnSurface(Vector3 counts)
+            => IsOnSurface(cursor.X, counts.X) || IsOnSurface(cursor.Y, counts.Y) || IsOnSurface(cursor.Z, counts.Z);
+
+        private static bool IsOnSurface(float index, float count)
+            => count != 1f && (index == 0f || index == count - 1f);
     }
 }

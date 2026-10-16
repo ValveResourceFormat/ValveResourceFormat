@@ -19,6 +19,10 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly float interpRate;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
+        private bool interpolating;
+        private float lastInput;
+        private float interpolationStart;
+
         public RemapCPtoScalar(ParticleDefinitionParser parse) : base(parse)
         {
             cpInput = parse.Int32("m_nCPInput", cpInput);
@@ -34,15 +38,14 @@ namespace ValveResourceFormat.Particles.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
+        public override void Reset()
+        {
+            interpolating = false;
+            interpolationStart = 0f;
+        }
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            // The window is measured against the system's own age, and a negative bound leaves it unset.
-            if (startTime >= 0f && endTime >= 0f
-                && (particleSystemState.Age < startTime || particleSystemState.Age > endTime))
-            {
-                return;
-            }
-
             var outputMin = this.outputMin;
             var outputMax = this.outputMax;
 
@@ -60,16 +63,47 @@ namespace ValveResourceFormat.Particles.Operators
                 _ => input.Z,
             };
 
+            var interpolation = interpRate > 0f ? NextInterpolation(component, particleSystemState.Age) : 1f;
             var remapped = MathUtils.RemapValClamped(component, inputMin, inputMax, outputMin, outputMax);
-
-            var interpolation = interpRate > 0f ? MathUtils.Saturate(interpRate * frameTime) : 1f;
 
             foreach (ref var particle in particles.Current)
             {
+                // The window is measured against each particle's creation time, and a bound of -1 leaves it open
+                if (startTime != -1f && endTime != -1f && !(startTime <= particle.CreationTime && particle.CreationTime < endTime))
+                {
+                    continue;
+                }
+
+                var current = particle.GetScalar(fieldOutput);
                 var target = particle.ModifyScalarBySetMethod(particles, fieldOutput, remapped, setMethod);
 
-                particle.SetScalar(fieldOutput, float.Lerp(particle.GetScalar(fieldOutput), target, interpolation * strength));
+                particle.SetScalar(fieldOutput, ((target - current) * interpolation) + current);
             }
+        }
+
+        /// <summary>
+        /// How far the field eases toward the remapped value this step. The first step snaps to it. After
+        /// that the clock restarts at 0 whenever the input changes or <c>m_flInterpRate</c> seconds have
+        /// passed since the last restart, and climbs to 1 over that interval.
+        /// </summary>
+        private float NextInterpolation(float input, float time)
+        {
+            if (!interpolating)
+            {
+                interpolating = true;
+                lastInput = -input;
+                return 1f;
+            }
+
+            var end = interpolationStart + interpRate;
+
+            if (lastInput != input || time > end)
+            {
+                interpolationStart = time;
+                lastInput = input;
+            }
+
+            return MathUtils.RemapValClamped(time, interpolationStart, end, 0f, 1f);
         }
     }
 }

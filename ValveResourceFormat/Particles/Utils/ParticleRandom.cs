@@ -10,7 +10,8 @@ namespace ValveResourceFormat.Particles.Utils
     /// <item><c>Next...</c> advances a counter that runs free for the life of the system, so
     /// consecutive draws land on unrelated slots. Every initializer draws this way.</item>
     /// <item><c>ForParticle...</c> reads a slot fixed by the particle, so the value is the same on
-    /// every frame of that particle's life. Used by the operators that must not flicker.</item>
+    /// every frame of that particle's life. Used by the operators that must not flicker, and by
+    /// constant random inputs with their <see cref="InputSeed"/> as the displacement.</item>
     /// <item><c>ForSample...</c> reads a slot the caller worked out in full. These are static, because
     /// such a draw ignores this system's seed and counter entirely.</item>
     /// </list>
@@ -32,9 +33,20 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>
         /// Displaces the per-particle draws of the operator currently running, so two operators
         /// reading the same particle do not read the same slot. Reset before each operator list and
-        /// advanced once per operator.
+        /// advanced once per operator. Every write starts a new function call, see
+        /// <see cref="BeginFunctionCall"/>.
         /// </summary>
-        public int OperatorOffset { get; set; }
+        public int OperatorOffset
+        {
+            get => operatorOffset;
+            set
+            {
+                operatorOffset = value;
+                BeginFunctionCall();
+            }
+        }
+
+        private int operatorOffset;
 
         /// <summary>
         /// Counts every draw this system has taken. It runs free for the life of the system, so
@@ -43,6 +55,10 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         private int queryCount;
 
+        private int functionCall;
+
+        private int inputSeedGeneration;
+
         /// <summary>
         /// Gives the system a fresh identity, as a newly created one would have. The engine has no
         /// equivalent: a restart there keeps the seed, and only a new collection draws another.
@@ -50,6 +66,37 @@ namespace ValveResourceFormat.Particles.Utils
         public void Reseed()
         {
             Seed = System.Random.Shared.Next() & 0xFFF;
+            queryCount = 0;
+            RedrawInputSeeds();
+            BeginFunctionCall();
+        }
+
+        /// <summary>
+        /// Makes every <see cref="InputSeed"/> of this system draw a new value from the counter at its
+        /// next use, as a restart does.
+        /// </summary>
+        public void RedrawInputSeeds() => inputSeedGeneration++;
+
+        /// <summary>
+        /// Marks the start of a function call. Inputs are evaluated once per call: a varying random input
+        /// draws once per block of four particles within a call, and once per call at collection level.
+        /// </summary>
+        public void BeginFunctionCall() => functionCall++;
+
+        /// <summary>
+        /// Identifies one evaluation of an input within the current function call, for the block of four
+        /// particles holding <paramref name="particleIndex"/>, or for the whole collection when it is negative.
+        /// </summary>
+        public EvaluationKey Evaluation(int particleIndex)
+            => new(this, functionCall, particleIndex < 0 ? -1 : particleIndex >> 2);
+
+        /// <summary>
+        /// Takes the seed a child system gets from its parent's <paramref name="parentSeed"/> and its
+        /// position <paramref name="slot"/> in the parent's child list. A zero parent seed gives zero.
+        /// </summary>
+        public void DeriveSeed(int parentSeed, int slot)
+        {
+            Seed = parentSeed == 0 ? 0 : parentSeed + (129 * (slot + 1));
             queryCount = 0;
         }
 
@@ -167,5 +214,35 @@ namespace ValveResourceFormat.Particles.Utils
 
         // Unsigned modulo keeps the index valid for any id, including ids that wrapped negative
         private static float At(int index) => RandomFloats.List[(uint)index % RandomFloats.List.Length];
+
+        /// <summary>See <see cref="Evaluation(int)"/>.</summary>
+        /// <param name="Random">The system the input is evaluated for.</param>
+        /// <param name="FunctionCall">The function call the evaluation belongs to.</param>
+        /// <param name="Block">The block of four particles, or -1 for the whole collection.</param>
+        internal readonly record struct EvaluationKey(ParticleRandom Random, int FunctionCall, int Block);
+
+        /// <summary>
+        /// The per-function seed of an input whose random value is constant per particle. It is drawn
+        /// from the counter at first use, and again after <see cref="RedrawInputSeeds"/>, so inputs of
+        /// different functions read unrelated slots for the same particle.
+        /// </summary>
+        internal sealed class InputSeed
+        {
+            private ParticleRandom? owner;
+            private int generation;
+            private int value;
+
+            public int Get(ParticleRandom random)
+            {
+                if (owner != random || generation != random.inputSeedGeneration)
+                {
+                    owner = random;
+                    generation = random.inputSeedGeneration;
+                    value = (int)(random.Next() * -2147483648f);
+                }
+
+                return value;
+            }
+        }
     }
 }

@@ -191,6 +191,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             var headColor = headColorScale.NextVector(systemState);
             var tailColor = tailColorScale.NextVector(systemState);
+            var scales = EvaluateScales(systemState);
+            var radiusScale = scales.Radius <= 0f ? 1f : scales.Radius;
 
             // Converts the moved distance to a velocity (distance / dt) before scaling by the trail-length
             // attribute. The division only applies when the previous point is the Verlet one, and the
@@ -217,13 +219,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // reused across renderers.
             var instanceFloats = instanceLayout.Stride / sizeof(float);
 
-            var sorted = SortsByDistance(blendMode) && particleBag.Count > 1;
+            var sorted = particleBag.Count > 1;
 
             using (var vertexBuffer = new RentedBuffer<float>(particleBag.Count * instanceFloats))
             using (var drawOrder = new RentedBuffer<ulong>(sorted ? particleBag.Count : 0))
             {
                 var instances = vertexBuffer.Span;
-                var current = particleBag.Current;
+                var current = GetBlendedParticles(particleBag, systemState);
 
                 var order = drawOrder.Span;
 
@@ -235,31 +237,22 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 for (var n = 0; n < current.Length; n++)
                 {
                     ref var particle = ref current[sorted ? (int)(uint)order[n] : n];
-                    var position = particle.Position;
+                    var position = BiasTowardCamera(particle.Position, camera.Location);
                     var previousPosition = particle.GetVector(prevPositionSource);
-                    // A particle that has not moved has no direction to run in, and its four control points
-                    // collapse onto the position rather than streaking along a fixed axis
+
+                    // A particle that has not moved has no direction to run in, so its control points
+                    // collapse onto the position
                     var difference = previousPosition - position;
+                    var distance = MathF.Max(difference.Length(), ParticleMath.FloatEpsilon);
+                    var direction = difference / distance;
 
-                    if (difference == Vector3.Zero)
-                    {
-                        continue;
-                    }
-
-                    var direction = Vector3.Normalize(difference);
-
-                    var length = lengthScale * particle.TrailLength * difference.Length() * oneOverDt;
+                    var length = lengthScale * particle.TrailLength * distance * oneOverDt;
 
                     // A particle drawn before its birth, with a negative age, gets the minimum length
                     length *= MathF.Min(1f, particle.Age / MathF.Max(lengthFadeInTime, 1e-9f));
                     length = MathF.Max(minLength, MathF.Min(maxLength, length));
 
-                    if (length == 0f)
-                    {
-                        continue;
-                    }
-
-                    var particleRadius = particle.Radius * RadiusScale.NextNumber(ref particle, systemState);
+                    var particleRadius = particle.Radius * radiusScale;
 
                     // Scales rgb and alpha alike, as the view angle fade below touches alpha only
                     var colorFade = 1f;
@@ -267,7 +260,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     if (enableFadingAndClamping)
                     {
-                        var cameraDistance = Vector3.Distance(camera.Location, particle.Position);
+                        var cameraDistance = Vector3.Distance(camera.Location, position);
                         var fadeStart = startFadeSlope * cameraDistance;
                         var fadeEnd = endFadeSlope * cameraDistance;
 
@@ -284,7 +277,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     if (viewAngleFadeActive)
                     {
-                        var toCamera = camera.Location - particle.Position;
+                        var toCamera = camera.Location - position;
 
                         if (toCamera.LengthSquared() > ParticleMath.MinimumLengthSquared)
                         {
@@ -294,7 +287,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                                 ? particle.Normal
                                 : direction;
 
-                            var facing = MathF.Abs(Vector3.Dot(Vector3.Normalize(facingAxis), Vector3.Normalize(toCamera)));
+                            var facing = MathF.Abs(Vector3.Dot(MathUtils.SafeNormalize(facingAxis), Vector3.Normalize(toCamera)));
                             alphaFade = 1f - MathUtils.Smoothstep(startFadeDot, endFadeDot, facing);
                         }
                     }
@@ -316,7 +309,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var widthAxis = Vector3.Cross(direction, planeNormal);
                     widthAxis = widthAxis.LengthSquared() > ParticleMath.MinimumLengthSquared
                         ? Vector3.Normalize(widthAxis)
-                        : Vector3.Normalize(Vector3.Cross(direction, MathF.Abs(direction.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
+                        : MathUtils.SafeNormalize(Vector3.Cross(direction, MathF.Abs(direction.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX), Vector3.UnitX);
 
                     var lengthAxis = direction;
                     // The radius is the half extent across the ribbon, while the length spans it end to end
@@ -352,7 +345,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                         var spriteSheetData = layers[layer].Texture.SpriteSheetData;
                         var sequence = spriteSheetData != null && spriteSheetData.Sequences.Length > 0
-                            ? spriteSheetData.Sequences[(uint)particle.SequenceNumber < (uint)spriteSheetData.Sequences.Length ? particle.SequenceNumber : 0]
+                            ? spriteSheetData.Sequences[(uint)(int)particle.SequenceNumber < (uint)spriteSheetData.Sequences.Length ? (int)particle.SequenceNumber : 0]
                             : null;
 
                         if (sequence is { Frames.Length: > 0 })
@@ -378,9 +371,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     }
 
                     var start = quadCount * instanceFloats;
-                    var alpha = particle.Alpha * particle.AlphaAlternate * colorFade * alphaFade
-                        * AlphaScale.NextNumber(ref particle, systemState);
-                    var tint = particle.Color * colorFade;
+                    var color = BlendColor(ref particle, scales);
+                    var alpha = color.W * colorFade * alphaFade;
+                    var tint = color.AsVector3() * colorFade;
 
                     var head = Vector4.Clamp(
                         new Vector4(tint * headColor, alpha * headAlphaScale.NextNumber(ref particle, systemState)),

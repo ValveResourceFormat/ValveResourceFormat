@@ -3,6 +3,8 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
     /// <summary>
     /// Moves a control point to the middle of whatever the system currently occupies, so operators
     /// reading that control point pull toward the effect itself rather than toward a fixed point.
+    /// <c>m_nSetParent</c> writes it on the parent or root system instead, and through it on every
+    /// system below that one.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetControlPointToCenter">C_OP_SetControlPointToCenter</seealso>
     class SetControlPointToCenter : ParticleFunctionPreEmissionOperator
@@ -16,14 +18,17 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         /// </summary>
         private readonly bool useAvgParticlePos;
 
+        private readonly ParticleParentSetMode setParent = ParticleParentSetMode.PARTICLE_SET_PARENT_NO;
+
         public SetControlPointToCenter(ParticleDefinitionParser parse) : base(parse)
         {
-            cp1 = parse.Int32("m_nCP1", cp1);
+            cp1 = Math.Clamp(parse.Int32("m_nCP1", cp1), 0, ParticleSystemState.MaxControlPoint);
             cp1Pos = parse.Vector3("m_vecCP1Pos", cp1Pos);
             useAvgParticlePos = parse.Boolean("m_bUseAvgParticlePos", useAvgParticlePos);
+            setParent = parse.Enum("m_nSetParent", setParent);
         }
 
-        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
+        public override void Operate(ref ParticleSystemState particleSystemState, float frameTime, float strength)
         {
             var simulation = particleSystemState.Data;
 
@@ -44,16 +49,16 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                     sum += particle.Position;
                 }
 
-                center = sum / particles.Length;
+                center = sum * (1f / particles.Length);
             }
             else
             {
-                // The bounds are kept relative to the system's own control point, and are the value
-                // last calculated rather than one gathered here.
-                center = simulation.LocalBoundingBox.Center + simulation.MainControlPoint.Position;
+                // The bounds last calculated, kept when there was nothing to bound
+                var bounds = simulation.WorldBounds;
+                center = (bounds.Min + bounds.Max) * 0.5f;
             }
 
-            particleSystemState.SetControlPointValue(cp1, center + cp1Pos);
+            particleSystemState.GetSetParentTarget(setParent).SetControlPointValue(cp1, center + cp1Pos);
         }
     }
 }

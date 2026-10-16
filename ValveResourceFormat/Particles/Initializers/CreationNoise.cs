@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Particles.Initializers
     /// <summary>
     /// Initializes a scalar particle attribute from the value lattice sampled at the particle's
     /// scaled creation position with a time term added to every component, remapped into an output
-    /// range. Angle fields author the range in degrees; alpha fields clamp to [0, 1].
+    /// range. The time term is taken from the first particle of each batch and shared by the rest. Angle fields author the range in degrees; alpha fields clamp to [0, 1].
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreationNoise">C_INIT_CreationNoise</seealso>
     class CreationNoise : ParticleFunctionInitializer
@@ -20,6 +20,9 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly float noiseScaleLoc = 0.001f;
         private readonly float worldTimeScale;
         private readonly Vector3 offsetLoc = Vector3.Zero;
+
+        private ParticleRandom.EvaluationKey? callKey;
+        private float callTimeTerm;
 
         public CreationNoise(ParticleDefinitionParser parse) : base(parse)
         {
@@ -44,12 +47,18 @@ namespace ValveResourceFormat.Particles.Initializers
                 return particle;
             }
 
-            var samplePosition = (particle.Position + offsetLoc) * noiseScaleLoc;
+            var key = particleSystemState.Random.Evaluation(-1);
+            if (callKey != key)
+            {
+                callKey = key;
 
-            // The world time term ticks in milliseconds
-            var sampleTime = ((particle.CreationTime + offset) * noiseScale)
-                + (particleSystemState.WorldTime * 1000f * worldTimeScale);
-            var noise = Noise.Value3D(samplePosition + new Vector3(sampleTime));
+                // The world time term ticks in milliseconds
+                callTimeTerm = ((particle.CreationTime + offset) * noiseScale)
+                    + (particleSystemState.WorldTime * 1000f * worldTimeScale);
+            }
+
+            var samplePosition = (particle.Position + offsetLoc) * noiseScaleLoc;
+            var noise = Noise.Value3D(samplePosition + new Vector3(callTimeTerm));
 
             // abs folds the signed noise into the full output range; otherwise the half-span
             // scale centers it in the range. absValInv inverts either way.
