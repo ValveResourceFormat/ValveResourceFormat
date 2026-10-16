@@ -62,14 +62,17 @@ public sealed partial class NmGraphExtract
 
     private sealed class FlowGraphBuilder
     {
+        private readonly NmGraphExtract Owner;
+
         public string GraphKey { get; }
         public string GraphType { get; }
         public Dictionary<int, string> NodeIdsByCompiledIndex { get; } = [];
         public List<KVObject> Nodes { get; } = [];
         public List<KVObject> Connections { get; } = [];
 
-        public FlowGraphBuilder(string graphKey, string graphType)
+        public FlowGraphBuilder(NmGraphExtract owner, string graphKey, string graphType)
         {
+            Owner = owner;
             GraphKey = graphKey;
             GraphType = graphType;
         }
@@ -77,7 +80,7 @@ public sealed partial class NmGraphExtract
         public void Connect(string fromNodeId, string outputPinId, string toNodeId, string inputPinId)
         {
             var connection = KVObject.Collection();
-            connection.Add("m_ID", MakeGuid());
+            connection.Add("m_ID", Owner.MakeGuid());
             connection.Add("m_fromNodeID", fromNodeId);
             connection.Add("m_outputPinID", outputPinId);
             connection.Add("m_toNodeID", toNodeId);
@@ -91,7 +94,7 @@ public sealed partial class NmGraphExtract
 
             var graph = KVObject.Collection();
             graph.Add("_class", "CNmGraphDocFlowGraph");
-            graph.Add("m_ID", MakeGuid());
+            graph.Add("m_ID", Owner.MakeGuid());
 
             var nodesArray = KVObject.Array();
             foreach (var node in Nodes)

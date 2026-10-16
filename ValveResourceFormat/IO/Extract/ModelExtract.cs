@@ -142,7 +142,7 @@ public partial class ModelExtract
             };
 
             vmdl.AddSubFile(
-                Path.GetFileName(renderMesh.FileName),
+                renderMesh.FileName,
                 () => ToDmxMesh(renderMesh.Mesh, Path.GetFileNameWithoutExtension(renderMesh.FileName), options)
             );
         }
@@ -150,7 +150,7 @@ public partial class ModelExtract
         foreach (var physHull in PhysHullsToExtract)
         {
             vmdl.AddSubFile(
-                Path.GetFileName(physHull.FileName),
+                physHull.FileName,
                 () => ToDmxMesh(physHull.Hull, physHull.BindPose)
             );
         }
@@ -158,7 +158,7 @@ public partial class ModelExtract
         foreach (var physMesh in PhysMeshesToExtract)
         {
             vmdl.AddSubFile(
-                Path.GetFileName(physMesh.FileName),
+                physMesh.FileName,
                 () => ToDmxMesh(physMesh.Mesh, physMesh.BindPose)
             );
         }
@@ -173,7 +173,7 @@ public partial class ModelExtract
             }
 
             vmdl.AddSubFile(
-                Path.GetFileName(anim.FileName),
+                anim.FileName,
                 () =>
                 {
                     Debug.Assert(model is not null, "model should not be null when AnimationsToExtract has items");

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -56,11 +55,9 @@ public class NmClipExtract
             }
         }
 
-        var dmxFileName = Path.ChangeExtension(resource.FileName, ".dmx");
-        Debug.Assert(dmxFileName != null);
-
         var (sourceFileName, additiveBaseFileName) = FindAuthoredSourceFiles(skeletonSourceFiles, skeletonSourcesKnown);
-        kv.Add("m_sourceFilename", sourceFileName ?? NormalizeContentPath(dmxFileName));
+        var dmxFileName = ContentPaths.ChangeExtension(sourceFileName ?? resource.FileName!, ".dmx");
+        kv.Add("m_sourceFilename", dmxFileName);
         kv.Add("m_animationSkeletonName", clip.SkeletonName);
 
         if (clip.IsAdditive)
@@ -85,7 +82,7 @@ public class NmClipExtract
             kv.Add("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
 
             contentFile.AddSubFile(
-                Path.GetFileName(dmxFileName),
+                dmxFileName,
                 () => ModelExtract.ToDmxAnim(skeleton, [], animation, secondaryAnimations, nmSkelAxisFixup: true)
             );
         }
@@ -151,7 +148,7 @@ public class NmClipExtract
         {
             foreach (var dependency in skeletonResource.EditInfo.InputDependencies)
             {
-                skeletonSourceFiles.Add(NormalizeContentPath(dependency.ContentRelativeFilename));
+                skeletonSourceFiles.Add(ContentPaths.Normalize(dependency.ContentRelativeFilename));
             }
         }
 
@@ -179,7 +176,7 @@ public class NmClipExtract
 
         foreach (var dependency in resource.EditInfo.InputDependencies)
         {
-            var file = NormalizeContentPath(dependency.ContentRelativeFilename);
+            var file = ContentPaths.Normalize(dependency.ContentRelativeFilename);
 
             if (file.EndsWith(".vnmclip", StringComparison.OrdinalIgnoreCase) || skeletonSourceFiles.Contains(file))
             {
@@ -227,7 +224,7 @@ public class NmClipExtract
         if (additiveBaseFileName != null)
         {
             kv.Add("m_additiveType", "RelativeToAnimation");
-            kv.Add("m_additiveBaseFilename", additiveBaseFileName);
+            kv.Add("m_additiveBaseFilename", ContentPaths.ChangeExtension(additiveBaseFileName, ".dmx"));
             kv.Add("m_additiveBaseFrame", "FirstFrame");
             // A negative index takes every frame relative to the matching frame of the base animation.
             kv.Add("m_nAdditiveBaseFrameIdx", -1L);
@@ -279,8 +276,6 @@ public class NmClipExtract
 
         return smallestDeviation <= IdentityTolerance ? baseFrame : 0;
     }
-
-    private static string NormalizeContentPath(string path) => path.Replace('\\', '/');
 
     /// <summary>
     /// Rebuilds the doc event track a compiled float curve came from. The compiler bakes a

@@ -22,12 +22,12 @@ Double-click a `.vtex_c` to open the texture viewer. Features:
 
 ## Exporting
 
-- Right-click a `.vtex_c` and select **Decompile & export** to write a `.vtex` compile config with the image next to it. HDR textures write `.exr`, others `.png`; textures stored as JPEG, PNG or WebP keep that format
+- Right-click a `.vtex_c` and select **Decompile & export** to write a `.vtex` compile config with the image next to it, at the texture's path below the output folder you pick. HDR textures write `.exr`, others `.png`; textures stored as JPEG, PNG or WebP keep that format
 - Or open the texture and use the save button in the viewer toolbar to save just the image as **PNG**, **JPG**, or **EXR** (for HDR textures)
 
 For batch export:
 
-- Right-click a folder containing textures → **Decompile & export**, and pick which file types to export in the dialog
+- Right-click a folder containing textures → **Decompile & export**, pick which file types to export in the dialog, then choose an output folder. Textures are written at their path in the game (`materials/...`) below it, or below the addon content folder if the output folder is inside one
 - Use the CLI for large-scale extraction:
 
 ```sh
@@ -35,6 +35,8 @@ Source2Viewer-CLI -i "pak01_dir.vpk" -o "exported/" -d \
     --vpk_extensions "vtex_c" \
     --vpk_filepath "materials/models/heroes/"
 ```
+
+Texture images of a decompiled material are written at the paths the `.vmat` refers to, so the material finds them again. Decompiling a material or model with **Include dependencies** checked also decompiles the textures it uses from the same package. Pass `--decompile_dependencies` for the same in the CLI. Images are named after the source image a texture was compiled from. When several textures compiled from one source image would write it, only the one with the highest resolution is written, and every material points at it.
 
 ## Texture Types
 

@@ -40,9 +40,9 @@ namespace GUI.Types.Viewers
             }
 
             // If we didn't find exact match in the tools info, try to find the same file without the "_c" suffix
-            if (assetInfo == null && toolsAssetInfo != null && filePath.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+            if (assetInfo == null && toolsAssetInfo != null && ContentPaths.HasCompiledSuffix(filePath))
             {
-                var filePathUncompiled = filePath[..^2];
+                var filePathUncompiled = ContentPaths.TrimCompiledSuffix(filePath);
 
                 if (!toolsAssetInfo.Files.TryGetValue(filePathUncompiled, out assetInfo))
                 {

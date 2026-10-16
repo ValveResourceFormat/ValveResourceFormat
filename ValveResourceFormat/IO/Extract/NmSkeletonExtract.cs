@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using System.Text;
 using ValveKeyValue;
@@ -34,9 +33,8 @@ public class NmSkeletonExtract
         var kv = KVObject.Collection();
         var skel = Skeleton.FromSkeletonData(kvSkeleton);
 
-        var dmxFile = Path.ChangeExtension(resource.FileName, "dmx");
-        Debug.Assert(dmxFile != null);
-        kv.Add("m_sourceFilename", FindAuthoredSourceFile() ?? dmxFile.Replace('\\', '/'));
+        var dmxFile = ContentPaths.ChangeExtension(FindAuthoredSourceFile() ?? resource.FileName!, ".dmx");
+        kv.Add("m_sourceFilename", dmxFile);
 
         var rootBoneName = skel.Roots.Length == 1
             ? skel.Roots[0].Name
@@ -62,7 +60,7 @@ public class NmSkeletonExtract
         {
             Data = Encoding.UTF8.GetBytes(kv.ToKV3String())
         };
-        contentFile.AddSubFile(Path.GetFileName(dmxFile), () =>
+        contentFile.AddSubFile(dmxFile, () =>
         {
             return ModelExtract.ToDmxSkeleton(skel, nmSkelAxisFixup: true, nmLowLodBoneCount: numLowLODBones);
         });
@@ -83,7 +81,7 @@ public class NmSkeletonExtract
 
         foreach (var dependency in resource.EditInfo.InputDependencies)
         {
-            var file = dependency.ContentRelativeFilename.Replace('\\', '/');
+            var file = ContentPaths.Normalize(dependency.ContentRelativeFilename);
 
             if (file.EndsWith(".vnmskel", StringComparison.OrdinalIgnoreCase))
             {

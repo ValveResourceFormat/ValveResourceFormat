@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -95,20 +96,10 @@ partial class ModelExtract
     );
 
     string GetDmxFileName_ForEmbeddedMesh(string subString, int number = 0)
-    {
-        var fileName = ModelName;
-        return (Path.GetDirectoryName(fileName)
-            + Path.DirectorySeparatorChar
-            + Path.GetFileNameWithoutExtension(fileName)
-            + "_"
-            + subString
-            + (number > 0 ? number : string.Empty)
-            + ".dmx")
-            .Replace('\\', '/');
-    }
+        => ContentPaths.AppendToFileName(ModelName, number > 0 ? string.Create(CultureInfo.InvariantCulture, $"_{subString}{number}") : "_" + subString, ".dmx");
 
     static string GetDmxFileName_ForReferenceMesh(string fileName)
-        => Path.ChangeExtension(fileName, ".dmx").Replace('\\', '/');
+        => ContentPaths.ChangeExtension(fileName, ".dmx");
 
     private void EnqueueMeshes()
     {
@@ -236,7 +227,7 @@ partial class ModelExtract
 
             if (i == 0)
             {
-                vmdl.AddSubFile(Path.GetFileName(fileName), sharedDmxExtractMethod);
+                vmdl.AddSubFile(fileName, sharedDmxExtractMethod);
             }
 
             yield return vmdl;
@@ -259,7 +250,7 @@ partial class ModelExtract
     {
         using var dmx = ConvertMeshToDatamodelMesh(mesh, name, options);
         using var stream = new MemoryStream();
-        dmx.Save(stream, "binary", 9);
+        dmx.SaveWithStableIds(stream, "binary", 9);
 
         return stream.ToArray();
     }

@@ -87,15 +87,8 @@ public sealed class MaterialExtract
 
             var images = GetTextureUnpackInfos(type, filePath, (Texture)texture.DataBlock!, omitDefaults: true, omitUniforms: true);
             var vtex = new TextureExtract(texture).ToMaterialMaps(images);
-
-            if (vtex.SubFiles.Count > 0)
-            {
-                vmat.AdditionalFiles.Add(vtex);
-            }
-            else
-            {
-                vtex.Dispose();
-            }
+            vmat.AdditionalFiles.Add(vtex);
+            TextureExtract.SetImagePixelCount(vtex, (Texture)texture.DataBlock!);
         }
 
         return vmat;
@@ -125,8 +118,7 @@ public sealed class MaterialExtract
             && textureParts[^2].Length >= 3 && textureParts[^2].Length <= 4 // This is the original extension
             && !string.IsNullOrEmpty(string.Join("_", textureParts[..^2])))   // Name of the Input[0] image
             {
-                texturePath = Path.Combine(Path.GetDirectoryName(texturePath)!, string.Join("_", textureParts[..^2]));
-                texturePath = texturePath.Replace(Path.DirectorySeparatorChar, '/');
+                texturePath = ContentPaths.Join(Path.GetDirectoryName(texturePath), string.Join("_", textureParts[..^2]));
             }
             // Also seen "{MAT}_vmat_{G_TPARAM}_{HASH}.vtex"
         }

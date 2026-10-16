@@ -1196,7 +1196,7 @@ namespace GUI.Types.GLViewers
                 {
                     if (!animationToFolder.ContainsKey(anim))
                     {
-                        animationToFolder[anim] = (Path.GetDirectoryName(anim) ?? string.Empty).Replace('\\', '/');
+                        animationToFolder[anim] = ContentPaths.GetDirectoryName(anim);
                     }
                 }
 

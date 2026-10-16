@@ -784,7 +784,7 @@ namespace GUI.Controls
         private void DebugAddEmbeddedResourcesToTree()
         {
             // TODO: Look for resources in Renderer assembly
-            var embeddedResources = Program.Assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && n.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal));
+            var embeddedResources = Program.Assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && ContentPaths.HasCompiledSuffix(n));
 
             var imageIndex = AppIcons.Icons["Folder"];
             var embeddedFilesTreeNode = new TreeNode("Embedded Resources")

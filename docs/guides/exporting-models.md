@@ -38,13 +38,16 @@ If the model has animations, they appear in a dropdown in the toolbar. Select an
 
 1. Open a `.vmdl_c` file in the viewer (or locate it in the file tree)
 2. Right-click the file (or its tab) and select **Decompile & export**
-3. Choose a save location and filename
-4. Select the export format: **glTF** or **GLB**
-5. Click Save
+3. Choose **gltf** or **glb** as the output type
+4. Choose a save location and filename
 
-The output format can be chosen in the save dialog. For 3D use, choose glTF or GLB. You can also export to the decompiled `.vmdl` source format.
+The output type is chosen in the output types dialog. For 3D use, choose glTF or GLB. You can also export to the decompiled `.vmdl` source format, see below. glTF exports are saved to the location you choose, with textures next to the `.gltf`.
 
-The glTF export includes geometry, materials, textures, and the skeleton (if present).
+Textures are named after their source texture plus a hash, such as `rock_color_1a2b3c4d.png`, so models exported into one folder share identical textures. If a texture or the `_physics` file already exists next to a new `.gltf`, you are asked once whether to overwrite the existing files or keep them. Choosing to replace the `.gltf` in the save dialog overwrites them as well.
+
+The glTF export includes geometry, materials, textures, and the skeleton (if present). Models, meshes, maps, worlds, world nodes, entity lumps (`.vents`), physics (`.vphys`), animation clips, skeletons and navigation meshes (`.nav`) can be exported to glTF.
+
+The GUI always exports materials, textures and animations. The command line only exports them with `--gltf_export_materials` and `--gltf_export_animations`.
 
 ### glTF vs GLB
 
@@ -56,6 +59,14 @@ The glTF export includes geometry, materials, textures, and the skeleton (if pre
 ::: warning
 GLB files are limited to 2 GB by the glTF spec. Use **glTF** instead, especially for large models or map exports.
 :::
+
+## Decompiling to .vmdl
+
+Choosing the decompiled `.vmdl` source format asks for an output folder instead of a file. The model is written at its content path below the folder, such as `models/props/crate.vmdl`. If the folder is inside an addon or mod, the addon or mod root it is in (either the `content` or the `game` side) is used as the root instead, and a folder such as `models/props` that already ends in the start of the model's path is not repeated.
+
+The mesh, physics and animation DMX files are written exactly where the `.vmdl` references them, which can be a different folder than the model. Animation clip and skeleton files are written at the path they were authored at. A clip used by several models is written once, and files whose paths clash with different content get a numbered name.
+
+Check **Include dependencies** in the output types dialog to also decompile the materials, textures, animation clips, skeletons and graphs the model references. Only files from the same package as the model are included, base-game files stay referenced. With glTF output, dependencies that can be exported to glTF are exported as glTF and the others are decompiled. If files already exist at the output, you are asked once whether to overwrite all of them or skip the existing ones.
 
 ## Importing into Blender
 

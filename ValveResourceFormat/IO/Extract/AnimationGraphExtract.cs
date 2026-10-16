@@ -445,9 +445,7 @@ public class AnimationGraphExtract : IDisposable
 
         if (resource.FileName is not null)
         {
-            outputFileName = resource.FileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal)
-                ? resource.FileName[..^2]
-                : resource.FileName;
+            outputFileName = ContentPaths.TrimCompiledSuffix(resource.FileName);
         }
     }
 

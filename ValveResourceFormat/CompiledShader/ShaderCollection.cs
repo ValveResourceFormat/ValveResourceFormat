@@ -2,6 +2,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.IO;
 using ValvePak;
+using ValveResourceFormat.IO;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -53,8 +54,7 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
     {
         ShaderCollection shaderCollection = [];
 
-        var filename = Path.GetFileName(targetFilename);
-        var vcsCollectionName = filename.AsSpan(0, filename.LastIndexOf('_')); // in the form water_dota_pcgl_40
+        var vcsCollectionName = GetCollectionName(targetFilename);
 
         if (vrfPackage != null)
         {
@@ -68,13 +68,11 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
                 // vcsEntry.FileName is in the form bloom_dota_pcgl_30_ps (without vcs extension)
                 if (vcsEntry.FileName.AsSpan().StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                 {
-                    vrfPackage.ReadEntry(vcsEntry, out var shaderData);
-
                     var relatedShaderFile = new VfxProgramData();
 
                     try
                     {
-                        relatedShaderFile.Read(vcsEntry.GetFileName(), new MemoryStream(shaderData));
+                        relatedShaderFile.Read(vcsEntry.GetFileName(), GameFileLoader.GetPackageEntryStream(vrfPackage, vcsEntry));
                         shaderCollection.Add(relatedShaderFile);
                         relatedShaderFile = null;
                     }
@@ -114,6 +112,16 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         }
 
         return shaderCollection;
+    }
+
+    /// <summary>
+    /// Gets the name the files of one shader, platform and shader model share, their file name without the program
+    /// type, such as <c>water_dota_pcgl_40</c> for <c>water_dota_pcgl_40_ps.vcs</c>.
+    /// </summary>
+    internal static string GetCollectionName(string fileName)
+    {
+        var name = Path.GetFileName(fileName);
+        return name[..name.LastIndexOf('_')];
     }
 
     /// <summary>

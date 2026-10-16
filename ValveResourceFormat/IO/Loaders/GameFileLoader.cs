@@ -1,5 +1,6 @@
 //#define DEBUG_FILE_LOAD
 
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
@@ -47,7 +48,7 @@ namespace ValveResourceFormat.IO
             ".sbproj",
         ];
 
-        private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
+        private readonly ConcurrentDictionary<string, Lazy<ShaderCollection>> CachedShaders = new();
         private readonly Lock CachedShadersLock = new();
         private readonly HashSet<string> CurrentGameSearchPaths = [];
         private readonly HashSet<string> CurrentGameOfficialAddonsPaths = [];
@@ -62,7 +63,7 @@ namespace ValveResourceFormat.IO
         private readonly ILogger Logger;
         private string? PreferredAddonFolderOnDisk;
         private string? WorkshopContentFolder;
-        private bool ShaderPackagesScanned;
+        private volatile bool ShaderPackagesScanned;
         private volatile bool AddonDependenciesPending;
         private readonly Lock AddonDependenciesLock = new();
         private bool StoredSurfacePropertyStringTokens;
@@ -141,15 +142,15 @@ namespace ValveResourceFormat.IO
                 CurrentAddonPackages.Clear();
                 CurrentGamePackages = [];
 
-                lock (CachedShadersLock)
+                foreach (var shader in CachedShaders.Values)
                 {
-                    foreach (var shader in CachedShaders.Values)
+                    if (shader.IsValueCreated)
                     {
-                        shader.Dispose();
+                        shader.Value.Dispose();
                     }
-
-                    CachedShaders.Clear();
                 }
+
+                CachedShaders.Clear();
             }
         }
 
@@ -293,8 +294,14 @@ namespace ValveResourceFormat.IO
         {
             if (!ShaderPackagesScanned)
             {
-                ShaderPackagesScanned = true;
-                FindAndLoadShaderPackages();
+                lock (CachedShadersLock)
+                {
+                    if (!ShaderPackagesScanned)
+                    {
+                        FindAndLoadShaderPackages();
+                        ShaderPackagesScanned = true;
+                    }
+                }
             }
 
             var collection = new ShaderCollection();
@@ -368,16 +375,16 @@ namespace ValveResourceFormat.IO
         /// <inheritdoc/>
         public ShaderCollection LoadShader(string shaderName)
         {
-            lock (CachedShadersLock)
-            {
-                if (CachedShaders.TryGetValue(shaderName, out var shader))
-                {
-                    return shader;
-                }
+            var shader = CachedShaders.GetOrAdd(shaderName, name => new Lazy<ShaderCollection>(() => LoadShaderFromDisk(name)));
 
-                shader = LoadShaderFromDisk(shaderName);
-                CachedShaders.Add(shaderName, shader);
-                return shader;
+            try
+            {
+                return shader.Value;
+            }
+            catch
+            {
+                CachedShaders.TryRemove(KeyValuePair.Create(shaderName, shader));
+                throw;
             }
         }
 
@@ -418,7 +425,9 @@ namespace ValveResourceFormat.IO
 
                 if (foundFile.PathOnDisk != null)
                 {
-                    resource.Read(foundFile.PathOnDisk);
+#pragma warning disable CA2000 // The resource owns the stream and disposes it
+                    resource.Read(File.Open(foundFile.PathOnDisk, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete));
+#pragma warning restore CA2000
                     resourceToReturn = resource;
                     resource = null;
                 }
@@ -569,7 +578,7 @@ namespace ValveResourceFormat.IO
         public void AddPackageToSearch(Package package)
         {
             // Replaced rather than mutated, because files are looked up in parallel while shader and spawn group packages
-            // get mounted. Shader packages are mounted while this lock is already held by the shader load.
+            // get mounted. Shader packages are mounted while this lock is already held by the shader package scan.
             lock (CachedShadersLock)
             {
                 CurrentGamePackages = CurrentGamePackages.Add(package);
@@ -949,33 +958,34 @@ namespace ValveResourceFormat.IO
 
         private KVObject? ReadAddonInfo()
         {
-            byte[] addonInfo;
+            Stream stream;
 
-            var entry = CurrentPackage?.FindEntry(AddonInfoTxt);
-
-            if (entry != null)
+            if (CurrentPackage?.FindEntry(AddonInfoTxt) is { } entry)
             {
-                lock (CurrentPackage!)
-                {
-                    CurrentPackage.ReadEntry(entry, out addonInfo);
-                }
+                stream = GetPackageEntryStream(CurrentPackage, entry);
             }
             else if (PreferredAddonFolderOnDisk != null && FindFileInFolder(PreferredAddonFolderOnDisk, AddonInfoTxt) is { } addonInfoPath)
             {
-                addonInfo = File.ReadAllBytes(addonInfoPath);
+                stream = File.OpenRead(addonInfoPath);
             }
             else
             {
                 return null;
             }
 
-            // Older games write addoninfo.txt as KV1, newer ones as KV3
-            var format = addonInfo.AsSpan().StartsWith("<!-- kv3"u8)
-                ? KVSerializationFormat.KeyValues3Text
-                : KVSerializationFormat.KeyValues1Text;
+            using (stream)
+            {
+                Span<byte> start = stackalloc byte[8];
+                var read = stream.ReadAtLeast(start, start.Length, throwOnEndOfStream: false);
+                stream.Seek(-read, SeekOrigin.Current);
 
-            using var stream = new MemoryStream(addonInfo);
-            return KVSerializer.Create(format).Deserialize(stream);
+                // Older games write addoninfo.txt as KV1, newer ones as KV3
+                var format = start[..read].SequenceEqual("<!-- kv3"u8)
+                    ? KVSerializationFormat.KeyValues3Text
+                    : KVSerializationFormat.KeyValues1Text;
+
+                return KVSerializer.Create(format).Deserialize(stream);
+            }
         }
 
         private void FindAndLoadVpksInFolders(HashSet<string> folders)

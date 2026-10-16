@@ -60,7 +60,7 @@ Use this workflow when you want to open the map in Hammer Editor for editing or 
 1. Open the map file in Source 2 Viewer
 2. Right-click the `.vmap_c` file and select **Decompile & export**
 3. Choose **vmap** as the file type
-4. Save to your Workshop Tools addon content directory (see folder structure below)
+4. Pick your Workshop Tools addon content directory as the output folder (see folder structure below)
 5. Launch Hammer Editor through Workshop Tools and open the decompiled `.vmap`
 
 ### Folder Structure
@@ -70,16 +70,16 @@ The exported `.vmap` file and its dependency folder must be placed correctly ins
 ```
 Counter-Strike Global Offensive/content/csgo_addons/your_addon/
 └── maps/
-    ├── cs_office.vmap
+    ├── cs_office_d.vmap
     └── cs_office/
         └── <map dependencies>
 ```
 
-The `.vmap` file sits right next to its matching folder, both inside `maps/` in your addon content. The file is saved as `<map>_d.vmap`; very large maps are split into additional `_d_autosplit_partN.vmap` files, which the main map references.
+The output folder is a root, and every file is written at its content path below it, so the map is written to `maps/`. If the chosen folder is inside an addon or mod, the addon or mod root it is in (either the `content` or the `game` side) is used as the root, and picking a `maps` folder inside the addon works too. The file is saved as `maps/<map>_d.vmap`; very large maps are split into additional `_d_autosplit_partN.vmap` files in `maps/`, which the main map references.
 
-::: warning
-If a `maps/` folder was exported alongside your `.vmap` file, you may need to move the `.vmap` file inside that `maps/` folder. Exporting outside addon content may not work as expected.
-:::
+Files that exist only because the map was compiled (the world, world nodes, resource manifest, visibility, world physics, entity lumps, and the baked lightmaps, cubemaps and light probes) are not written. Prop models and materials from outside the map's own folder (`maps/<map>/`) are only written with **Include dependencies** checked in the output types dialog, or `--decompile_dependencies` on the command line, and only from the same package. Models compiled into the map's folder are always written. Base-game assets are never copied and stay referenced.
+
+If files already exist at the output, you are asked once whether to overwrite all of them or skip the existing ones.
 
 ::: danger
 Do not use a decompiled map as your first mapping project if you are new to mapping! Decompiled output is messy and does not resemble how real `.vmap` files are made. Learn the basics of Hammer Editor first.
@@ -104,7 +104,7 @@ To open decompiled maps in Hammer, you need the game's Workshop Tools installed:
 1. In Steam, right-click the game → **Properties → DLC**
 2. Enable and install the Workshop Tools DLC (available for CS2, Half-Life: Alyx, etc.)
 3. Launch the Workshop Tools and create an addon if you haven't already
-4. Save your decompiled `.vmap` into the addon's `maps/` folder
+4. Decompile into the addon's content folder, which places the `.vmap` in its `maps/` folder
 
 ## Batch Map Export
 
@@ -113,6 +113,8 @@ For exporting multiple maps or automating the process, use the command-line util
 ```sh
 Source2Viewer-CLI -i "maps/de_dust2.vpk" -o "exported/" -d
 ```
+
+The map is written to `exported/maps/de_dust2_d.vmap`. When processing a folder of map VPKs with `--recursive_vpk`, every map is written under `maps/` without a folder per VPK.
 
 See the [command-line utility guide](./command-line.md) for more options.
 

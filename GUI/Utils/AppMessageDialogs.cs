@@ -34,6 +34,41 @@ public static class AppMessageDialogs
         return Task.FromResult(result is DialogResult.OK or DialogResult.Yes);
     }
 
+    /// <summary>
+    /// Asks the user to pick one of <paramref name="choices"/>, each shown as a button next to a Cancel button.
+    /// </summary>
+    /// <returns>The index of the picked choice, or -1 when cancelled.</returns>
+    public static int Choose(string message, string title, IReadOnlyList<string> choices, MessageIcon icon = MessageIcon.Question, IWin32Window? owner = null)
+    {
+        var page = new TaskDialogPage
+        {
+            Caption = title,
+            Text = message,
+            Icon = ToTaskDialog(icon),
+            AllowCancel = true,
+        };
+
+        foreach (var choice in choices)
+        {
+            page.Buttons.Add(new TaskDialogButton(choice));
+        }
+
+        page.Buttons.Add(TaskDialogButton.Cancel);
+
+        var result = owner != null ? TaskDialog.ShowDialog(owner, page) : TaskDialog.ShowDialog(page);
+        var index = page.Buttons.IndexOf(result);
+
+        return index < choices.Count ? index : -1;
+    }
+
+    private static TaskDialogIcon ToTaskDialog(MessageIcon icon) => icon switch
+    {
+        MessageIcon.Info => TaskDialogIcon.Information,
+        MessageIcon.Warning => TaskDialogIcon.Warning,
+        MessageIcon.Error => TaskDialogIcon.Error,
+        _ => TaskDialogIcon.None,
+    };
+
     private static MessageBoxIcon ToWinForms(MessageIcon icon) => icon switch
     {
         MessageIcon.Info => MessageBoxIcon.Information,
