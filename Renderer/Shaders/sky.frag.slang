@@ -1,6 +1,7 @@
 #version 460
 
 #include "common/utils.slang"
+#include "common/ViewConstants.slang"
 
 in vec3 vSkyLookupInterpolant;
 out vec4 vColor;
@@ -55,6 +56,12 @@ void main()
     vColor.rgb *= g_vTint;
 
     vColor.rgb = ClampToPositive(vColor.rgb);
+
+    // Every render mode draws the sky as it is, shown as it is written without post processing
+    if (g_iRenderMode != 0)
+    {
+        vColor.rgb = SrgbLinearToGamma(vColor.rgb);
+    }
 
     //vColor.rgb += (vSkyLookupInterpolant * 0.5);
     vColor.a = 1.0;
