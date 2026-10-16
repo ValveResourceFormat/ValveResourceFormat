@@ -186,6 +186,34 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Gets or sets whether something other than animation playback writes
+        /// <see cref="AnimationController.Pose"/> - a ragdoll adopting its rigid bodies' poses.
+        /// While set, playback is bypassed and the pose is uploaded for skinning every frame.
+        /// </summary>
+        public bool PoseDrivenExternally
+        {
+            get;
+            set
+            {
+                field = value;
+
+                if (value)
+                {
+                    // Skinning normally switches on when an animation activates; an externally
+                    // posed model may never have one - CS2 models keep their animations in
+                    // animgraph clips - so switch it on here, or every mesh draws rigid and the
+                    // written pose never shows
+                    SetupSkinning();
+
+                    foreach (var renderer in meshRenderers)
+                    {
+                        renderer.SetSkinningActive(IsAnimated);
+                    }
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public override void Delete()
         {
@@ -205,6 +233,18 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override void Update(Scene.UpdateContext context)
         {
             UpdateAutoLod(context.Camera);
+
+            if (PoseDrivenExternally)
+            {
+                if (IsAnimated)
+                {
+                    Scene.UpdateSkinningTransforms(this);
+                    UpdateAnimatedBoundingBox();
+                }
+
+                return;
+            }
+
             var animationUpdated = AnimationController.Update(context.Timestep);
 
             if (!animationUpdated)

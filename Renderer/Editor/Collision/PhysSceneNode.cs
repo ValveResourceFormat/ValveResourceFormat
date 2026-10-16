@@ -5,6 +5,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using RnHull = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Hull;
 using RnMesh = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
+using RnShape = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shape;
 
 namespace ValveResourceFormat.Renderer.Editor.Collision
 {
@@ -239,173 +240,9 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
 
                 for (var p = 0; p < phys.Parts.Length; p++)
                 {
-                    var shape = phys.Parts[p].Shape;
-                    //var partCollisionAttributeIndex = phys.Parts[p].CollisionAttributeIndex;
+                    var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
-                    foreach (var sphere in shape.GetAllSpheres())
-                    {
-                        if (collisionAttributeIndex != sphere.CollisionAttributeIndex)
-                        {
-                            continue;
-                        }
-
-                        //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
-                        var center = sphere.Shape.Center;
-                        var radius = sphere.Shape.Radius;
-
-                        if (bindPose.Length != 0)
-                        {
-                            center = Vector3.Transform(center, bindPose[p]);
-                        }
-
-                        verts.EnsureCapacity(verts.Count + HemisphereVerts * 2);
-                        inds.EnsureCapacity(inds.Count + HemisphereTriangles * 6 * 2);
-
-                        var firstVertex = verts.Count;
-
-                        AddSphere(verts, inds, center, radius, ColorSphere);
-                        AddSphereLines(lines, firstVertex);
-                    }
-
-                    foreach (var capsule in shape.GetAllCapsules())
-                    {
-                        if (collisionAttributeIndex != capsule.CollisionAttributeIndex)
-                        {
-                            continue;
-                        }
-
-                        //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
-                        var center = capsule.Shape.Center.AsSpan().ToArray();
-                        var radius = capsule.Shape.Radius;
-
-                        if (bindPose.Length != 0)
-                        {
-                            center[0] = Vector3.Transform(center[0], bindPose[p]);
-                            center[1] = Vector3.Transform(center[1], bindPose[p]);
-                        }
-
-                        verts.EnsureCapacity(verts.Count + HemisphereVerts * 2);
-                        inds.EnsureCapacity(inds.Count + CapsuleTriangles * 6);
-
-                        var firstVertex = verts.Count;
-
-                        AddCapsule(verts, inds, center[0], center[1], radius, ColorCapsule);
-                        AddCapsuleLines(lines, firstVertex);
-                    }
-
-                    foreach (var hull in shape.GetAllHulls())
-                    {
-                        if (collisionAttributeIndex != hull.CollisionAttributeIndex)
-                        {
-                            continue;
-                        }
-
-                        //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
-
-                        var vertexPositions = hull.Shape.GetVertexPositions();
-
-                        var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
-
-                        using (var positionsBuffer = new RentedBuffer<Vector3>(vertexPositions.Length))
-                        using (var drawnVerticesBuffer = new RentedBuffer<int>(vertexPositions.Length))
-                        {
-                            var positions = positionsBuffer.Span;
-                            var drawnVertices = drawnVerticesBuffer.Span;
-
-                            for (var i = 0; i < vertexPositions.Length; i++)
-                            {
-                                positions[i] = Vector3.Transform(vertexPositions[i], pose);
-                            }
-
-                            var faces = hull.Shape.GetFaces();
-                            var edges = hull.Shape.GetEdges();
-
-                            var numTriangles = edges.Length - faces.Length * 2;
-                            verts.EnsureCapacity(verts.Count + numTriangles * 3);
-                            inds.EnsureCapacity(inds.Count + numTriangles * 3);
-
-                            foreach (var face in faces)
-                            {
-                                foreach (var (ai, bi, ci) in RnHull.GetFaceTriangles(edges, face))
-                                {
-                                    var a = positions[ai];
-                                    var b = positions[bi];
-                                    var c = positions[ci];
-
-                                    var normal = ComputeNormal(a, b, c);
-
-                                    var offset = verts.Count;
-                                    verts.Add(new(a, ColorHull, normal));
-                                    verts.Add(new(b, ColorHull, normal));
-                                    verts.Add(new(c, ColorHull, normal));
-
-                                    AddTriangle(inds, offset, 0, 1, 2);
-
-                                    drawnVertices[ai] = offset;
-                                    drawnVertices[bi] = offset + 1;
-                                    drawnVertices[ci] = offset + 2;
-                                }
-                            }
-
-                            // Each edge once, from its half edge with the lower index
-                            for (var i = 0; i < edges.Length; i++)
-                            {
-                                var twin = edges[i].Twin;
-
-                                if (i < twin)
-                                {
-                                    lines.Add(drawnVertices[edges[i].Origin]);
-                                    lines.Add(drawnVertices[edges[twin].Origin]);
-                                }
-                            }
-                        }
-                    }
-
-                    foreach (var mesh in shape.GetAllMeshes())
-                    {
-                        if (collisionAttributeIndex != mesh.CollisionAttributeIndex)
-                        {
-                            continue;
-                        }
-
-                        //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
-
-                        var triangles = mesh.Shape.GetTriangles();
-                        var vertices = mesh.Shape.GetVertices();
-
-                        var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
-
-                        var positions = new Vector3[vertices.Length];
-                        using var weldedBuffer = new RentedBuffer<int>(vertices.Length);
-                        var welded = weldedBuffer.Span;
-
-                        weldedVertices.EnsureCapacity(weldedVertices.Count + vertices.Length);
-
-                        // Vertices weld across all meshes of the group, so that edges where meshes meet are not boundaries
-                        for (var i = 0; i < vertices.Length; i++)
-                        {
-                            positions[i] = Vector3.Transform(vertices[i], pose);
-
-                            ref var weldedVertex = ref CollectionsMarshal.GetValueRefOrAddDefault(weldedVertices, positions[i], out var exists);
-
-                            if (!exists)
-                            {
-                                weldedVertex = weldedVertices.Count - 1;
-                            }
-
-                            welded[i] = weldedVertex;
-                        }
-
-                        meshes.Add(new GroupMesh(mesh.Shape, positions, meshEdges.TriangleCount));
-                        meshEdges.EnsureCapacity(weldedVertices.Count, meshEdges.TriangleCount + triangles.Length);
-
-                        // Triangles are added once all edges of the group are known
-                        foreach (var tri in triangles)
-                        {
-                            var normal = ComputeNormal(positions[tri.X], positions[tri.Y], positions[tri.Z]);
-                            meshEdges.AddTriangle(welded[tri.X], welded[tri.Y], welded[tri.Z], normal);
-                        }
-                    }
+                    AddPartShapes(verts, inds, lines, meshes, weldedVertices, meshEdges, phys.Parts[p].Shape, pose, collisionAttributeIndex);
                 }
 
                 var labels = GetCollisionLabels(phys.CollisionAttributes[collisionAttributeIndex]);
@@ -458,6 +295,189 @@ namespace ValveResourceFormat.Renderer.Editor.Collision
             }
 
             return physSceneNodes;
+        }
+
+        /// <summary>
+        /// Creates a node visualizing one part's shapes in the part's own local space, for a
+        /// ragdoll that moves the node with the part's rigid body every frame.
+        /// </summary>
+        public static PhysSceneNode CreatePartPhysSceneNode(Scene scene, PhysAggregateData phys, int partIndex, string? name)
+        {
+            var verts = new List<SimpleVertexNormal>(128);
+            var inds = new List<int>(128);
+            var lines = new List<int>(128);
+            var meshes = new List<GroupMesh>();
+            var meshEdges = new MeshEdges();
+
+            AddPartShapes(verts, inds, lines, meshes, [], meshEdges, phys.Parts[partIndex].Shape, Matrix4x4.Identity, collisionAttributeIndex: -1);
+
+            var lineCorners = meshEdges.GetLineCorners();
+
+            foreach (var mesh in meshes)
+            {
+                AddMeshTriangles(verts, inds, lines, mesh, mesh.Shape.GetTriangles(), meshEdges, lineCorners, Range.All);
+            }
+
+            string[] labels = [.. phys.CollisionAttributes.SelectMany(GetCollisionLabels).Distinct(StringComparer.OrdinalIgnoreCase)];
+
+            return CreateNode(scene, phys, verts, inds, lines, labels, name, collisionAttributeIndex: 0, toolsMaterial: null);
+        }
+
+        // Adds one part's shapes of a collision attribute group, or of all groups for -1. Meshes are only
+        // collected, as their triangles are added once the edges of all the group's meshes are known.
+        private static void AddPartShapes(List<SimpleVertexNormal> verts, List<int> inds, List<int> lines, List<GroupMesh> meshes,
+            Dictionary<Vector3, int> weldedVertices, MeshEdges meshEdges, RnShape shape, Matrix4x4 pose, int collisionAttributeIndex)
+        {
+            foreach (var sphere in shape.GetAllSpheres())
+            {
+                if (collisionAttributeIndex >= 0 && collisionAttributeIndex != sphere.CollisionAttributeIndex)
+                {
+                    continue;
+                }
+
+                //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
+                var center = Vector3.Transform(sphere.Shape.Center, pose);
+                var radius = sphere.Shape.Radius;
+
+                verts.EnsureCapacity(verts.Count + HemisphereVerts * 2);
+                inds.EnsureCapacity(inds.Count + HemisphereTriangles * 6 * 2);
+
+                var firstVertex = verts.Count;
+
+                AddSphere(verts, inds, center, radius, ColorSphere);
+                AddSphereLines(lines, firstVertex);
+            }
+
+            foreach (var capsule in shape.GetAllCapsules())
+            {
+                if (collisionAttributeIndex >= 0 && collisionAttributeIndex != capsule.CollisionAttributeIndex)
+                {
+                    continue;
+                }
+
+                //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
+                var center0 = Vector3.Transform(capsule.Shape.Center[0], pose);
+                var center1 = Vector3.Transform(capsule.Shape.Center[1], pose);
+                var radius = capsule.Shape.Radius;
+
+                verts.EnsureCapacity(verts.Count + HemisphereVerts * 2);
+                inds.EnsureCapacity(inds.Count + CapsuleTriangles * 6);
+
+                var firstVertex = verts.Count;
+
+                AddCapsule(verts, inds, center0, center1, radius, ColorCapsule);
+                AddCapsuleLines(lines, firstVertex);
+            }
+
+            foreach (var hull in shape.GetAllHulls())
+            {
+                if (collisionAttributeIndex >= 0 && collisionAttributeIndex != hull.CollisionAttributeIndex)
+                {
+                    continue;
+                }
+
+                //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
+
+                var vertexPositions = hull.Shape.GetVertexPositions();
+
+                using (var positionsBuffer = new RentedBuffer<Vector3>(vertexPositions.Length))
+                using (var drawnVerticesBuffer = new RentedBuffer<int>(vertexPositions.Length))
+                {
+                    var positions = positionsBuffer.Span;
+                    var drawnVertices = drawnVerticesBuffer.Span;
+
+                    for (var i = 0; i < vertexPositions.Length; i++)
+                    {
+                        positions[i] = Vector3.Transform(vertexPositions[i], pose);
+                    }
+
+                    var faces = hull.Shape.GetFaces();
+                    var edges = hull.Shape.GetEdges();
+
+                    var numTriangles = edges.Length - faces.Length * 2;
+                    verts.EnsureCapacity(verts.Count + numTriangles * 3);
+                    inds.EnsureCapacity(inds.Count + numTriangles * 3);
+
+                    foreach (var face in faces)
+                    {
+                        foreach (var (ai, bi, ci) in RnHull.GetFaceTriangles(edges, face))
+                        {
+                            var a = positions[ai];
+                            var b = positions[bi];
+                            var c = positions[ci];
+
+                            var normal = ComputeNormal(a, b, c);
+
+                            var offset = verts.Count;
+                            verts.Add(new(a, ColorHull, normal));
+                            verts.Add(new(b, ColorHull, normal));
+                            verts.Add(new(c, ColorHull, normal));
+
+                            AddTriangle(inds, offset, 0, 1, 2);
+
+                            drawnVertices[ai] = offset;
+                            drawnVertices[bi] = offset + 1;
+                            drawnVertices[ci] = offset + 2;
+                        }
+                    }
+
+                    // Each edge once, from its half edge with the lower index
+                    for (var i = 0; i < edges.Length; i++)
+                    {
+                        var twin = edges[i].Twin;
+
+                        if (i < twin)
+                        {
+                            lines.Add(drawnVertices[edges[i].Origin]);
+                            lines.Add(drawnVertices[edges[twin].Origin]);
+                        }
+                    }
+                }
+            }
+
+            foreach (var mesh in shape.GetAllMeshes())
+            {
+                if (collisionAttributeIndex >= 0 && collisionAttributeIndex != mesh.CollisionAttributeIndex)
+                {
+                    continue;
+                }
+
+                //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
+
+                var triangles = mesh.Shape.GetTriangles();
+                var vertices = mesh.Shape.GetVertices();
+
+                var positions = new Vector3[vertices.Length];
+                using var weldedBuffer = new RentedBuffer<int>(vertices.Length);
+                var welded = weldedBuffer.Span;
+
+                weldedVertices.EnsureCapacity(weldedVertices.Count + vertices.Length);
+
+                // Vertices weld across all meshes of the group, so that edges where meshes meet are not boundaries
+                for (var i = 0; i < vertices.Length; i++)
+                {
+                    positions[i] = Vector3.Transform(vertices[i], pose);
+
+                    ref var weldedVertex = ref CollectionsMarshal.GetValueRefOrAddDefault(weldedVertices, positions[i], out var exists);
+
+                    if (!exists)
+                    {
+                        weldedVertex = weldedVertices.Count - 1;
+                    }
+
+                    welded[i] = weldedVertex;
+                }
+
+                meshes.Add(new GroupMesh(mesh.Shape, positions, meshEdges.TriangleCount));
+                meshEdges.EnsureCapacity(weldedVertices.Count, meshEdges.TriangleCount + triangles.Length);
+
+                // Triangles are added once all edges of the group are known
+                foreach (var tri in triangles)
+                {
+                    var normal = ComputeNormal(positions[tri.X], positions[tri.Y], positions[tri.Z]);
+                    meshEdges.AddTriangle(welded[tri.X], welded[tri.Y], welded[tri.Z], normal);
+                }
+            }
         }
 
         // The line indices are appended after the triangle indices

@@ -270,6 +270,27 @@ public sealed class EntitySystem
     }
 
     /// <summary>
+    /// Creates an entity at runtime and spawns and activates it there and then, into a spawn group that is
+    /// already spawned, such as the pieces a prop breaks into. Its keyvalues place it in the space of the
+    /// spawn group, as a map's own entities are.
+    /// </summary>
+    /// <param name="data">The entity's keyvalues.</param>
+    /// <param name="layerName">Visibility layer for its nodes.</param>
+    /// <param name="spawnGroup">The spawn group the entity joins.</param>
+    /// <returns>The entity, or <see langword="null"/> if the keyvalues name no classname.</returns>
+    public BaseEntity? SpawnEntity(Entity data, string? layerName, SpawnGroup spawnGroup)
+    {
+        var entity = CreateEntity(data, layerName, spawnGroup);
+
+        if (entity != null)
+        {
+            SpawnEntities([entity]);
+        }
+
+        return entity;
+    }
+
+    /// <summary>
     /// Spawns and then activates a batch of entities created by <see cref="CreateEntity"/>, which a spawn group
     /// does once the groups it placed have finished.
     /// </summary>

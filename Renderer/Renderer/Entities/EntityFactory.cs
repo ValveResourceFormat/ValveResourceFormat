@@ -45,6 +45,7 @@ public static class EntityFactory
         Register<PropDoorRotating>("prop_door_rotating_physics", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
         Register<PropDynamic>("prop_dynamic", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<PropDynamic>("prop_dynamic_override", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
+        Register<RagdollProp>("prop_ragdoll", static (system, spawnInfo) => new RagdollProp(system, spawnInfo));
         Register<PhysBallSocket>("phys_ballsocket", static (system, spawnInfo) => new PhysBallSocket(system, spawnInfo));
         Register<PhysHinge>("phys_hinge", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: false));
         Register<PhysHinge>("phys_hinge_local", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: true));
