@@ -22,17 +22,7 @@ public sealed class ContentExportSource
     /// </summary>
     public static ContentExportSource FromPackage(Package package)
     {
-        ArgumentNullException.ThrowIfNull(package);
         return new(package, null);
-    }
-
-    /// <summary>
-    /// Dependencies come from loose files below the given addon or mod root.
-    /// </summary>
-    public static ContentExportSource FromFolder(string folder)
-    {
-        ArgumentNullException.ThrowIfNull(folder);
-        return new(null, Path.GetFullPath(folder));
     }
 
     /// <summary>
@@ -40,8 +30,6 @@ public sealed class ContentExportSource
     /// </summary>
     public static ContentExportSource? FromDiskFile(string path)
     {
-        ArgumentNullException.ThrowIfNull(path);
-
         return Path.GetDirectoryName(Path.GetFullPath(path)) is { } directory && ContentPaths.FindContentRoot(directory) is { } root
             ? new(null, root)
             : null;

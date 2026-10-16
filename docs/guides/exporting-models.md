@@ -72,7 +72,7 @@ Choosing **vmdl** in the output types dialog asks for a folder instead of a file
 
 The mesh, physics and animation DMX files are written where the `.vmdl` references them, which can be a different folder than the model. Animation clips and skeletons are written at the path they were authored at. A clip used by several models is written once.
 
-Check **Include dependencies** in the output types dialog to also decompile the materials, textures, animation clips, skeletons and graphs the model references from the same package. Base-game files stay referenced. If files already exist, you are asked once whether to replace them all or skip them.
+Check **Include dependencies** in the output types dialog to also decompile the materials, textures, animation clips, skeletons and graphs the model references from the same package. Base-game files stay referenced. With glTF output, the dependencies that can be exported to glTF are exported as glTF, and the others are decompiled. If files already exist, you are asked once whether to replace them all or skip them.
 
 ## Importing into Blender
 

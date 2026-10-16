@@ -71,9 +71,6 @@ namespace Tests.IO
                 await Assert.That(exporter.WrittenFileCount).IsEqualTo(4);
                 await Assert.That(clipExtracts).IsEqualTo(2);
                 await Assert.That(warnings).IsEmpty();
-                await Assert.That(exporter.IsHandled("animation/shared.vnmclip_c")).IsTrue();
-                await Assert.That(exporter.IsHandled("models/second.vmdl_c")).IsTrue();
-                await Assert.That(exporter.IsHandled("models/third.vmdl_c")).IsFalse();
             }
         }
 

@@ -11,11 +11,7 @@ public static class ContentPaths
 {
     private const string AddonsSuffix = "_addons";
 
-    /// <summary>
-    /// Top-level asset folders of game content, used to find where the content path of a file on disk starts when it is
-    /// not in an addon or mod.
-    /// </summary>
-    public static IReadOnlySet<string> TopLevelFolders { get; } = new[]
+    private static readonly FrozenSet<string> TopLevelFolders = new[]
     {
         "animation",
         "animgraphs",
@@ -43,20 +39,15 @@ public static class ContentPaths
     /// <remarks>
     /// The first of these that applies wins:
     /// <list type="number">
-    /// <item>The picked folder or its closest ancestor that is an addon or mod root, see <see cref="IsContentRoot"/>.</item>
-    /// <item>The ancestor reached by stripping trailing folders of the picked folder that match the start of <paramref name="contentFolder"/>.</item>
+    /// <item>The picked folder or its closest ancestor that is an addon or mod root.</item>
+    /// <item>The ancestor reached by stripping trailing folders of the picked folder that match the start of the folder all <paramref name="contentPaths"/> are in.</item>
     /// <item>The picked folder itself.</item>
     /// </list>
     /// </remarks>
     /// <param name="folder">The picked output folder.</param>
-    /// <param name="contentFolder">
-    /// The content folder of what is written: the folder of a single file, or the folder all written files are in, see
-    /// <see cref="GetCommonDirectory"/>.
-    /// </param>
-    public static string ResolveOutputRoot(string folder, string? contentFolder = null)
+    /// <param name="contentPaths">The content paths of the exported files.</param>
+    public static string ResolveOutputRoot(string folder, IEnumerable<string> contentPaths)
     {
-        ArgumentNullException.ThrowIfNull(folder);
-
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
 
         if (FindContentRootOfFullPath(root) is { } contentRoot)
@@ -64,16 +55,13 @@ public static class ContentPaths
             return contentRoot;
         }
 
-        if (contentFolder != null)
-        {
-            var contentFolders = Normalize(contentFolder).Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var contentFolders = GetCommonDirectory(contentPaths).Split('/', StringSplitOptions.RemoveEmptyEntries);
 
-            for (var count = contentFolders.Length; count > 0; count--)
+        for (var count = contentFolders.Length; count > 0; count--)
+        {
+            if (StripTrailingFolders(root, contentFolders.AsSpan(0, count)) is { } strippedRoot)
             {
-                if (StripTrailingFolders(root, contentFolders.AsSpan(0, count)) is { } strippedRoot)
-                {
-                    return strippedRoot;
-                }
+                return strippedRoot;
             }
         }
 
@@ -84,10 +72,8 @@ public static class ContentPaths
     /// Whether a folder is the root of an addon (<c>game/&lt;game&gt;_addons/&lt;addon&gt;</c> or <c>content/&lt;game&gt;_addons/&lt;addon&gt;</c>)
     /// or of a mod (a folder with a gameinfo.gi, or the <c>content/&lt;mod&gt;</c> next to <c>game/&lt;mod&gt;</c> with one).
     /// </summary>
-    public static bool IsContentRoot(string folder)
+    private static bool IsContentRoot(string folder)
     {
-        ArgumentNullException.ThrowIfNull(folder);
-
         folder = Path.TrimEndingDirectorySeparator(folder);
 
         var parent = Path.GetDirectoryName(folder);
@@ -128,8 +114,6 @@ public static class ContentPaths
     /// <returns>The path without the suffix, or the path itself when it has none.</returns>
     public static string TrimCompiledSuffix(string path)
     {
-        ArgumentNullException.ThrowIfNull(path);
-
         return HasCompiledSuffix(path) ? path[..^GameFileLoader.CompiledFileSuffix.Length] : path;
     }
 
@@ -138,13 +122,13 @@ public static class ContentPaths
         => HasCompiledSuffix(path) ? path[..^GameFileLoader.CompiledFileSuffix.Length] : path;
 
     /// <summary>
-    /// Finds the closest addon or mod root that is the given folder or one of its ancestors, see <see cref="IsContentRoot"/>.
+    /// Finds the closest addon root (<c>&lt;game or content&gt;/&lt;game&gt;_addons/&lt;addon&gt;</c>) or mod root (a folder with a
+    /// gameinfo.gi, or the <c>content/&lt;mod&gt;</c> next to <c>game/&lt;mod&gt;</c> with one) that is the given folder or one
+    /// of its ancestors.
     /// </summary>
     /// <returns>The full path of the root, or null when the folder is in none.</returns>
     public static string? FindContentRoot(string folder)
     {
-        ArgumentNullException.ThrowIfNull(folder);
-
         return FindContentRootOfFullPath(Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder)));
     }
 
@@ -153,10 +137,8 @@ public static class ContentPaths
     /// first of the <see cref="TopLevelFolders"/> it is in.
     /// </summary>
     /// <returns>The content path, or null when the file is in neither.</returns>
-    public static string? GetContentPathFromDisk(string path)
+    internal static string? GetContentPathFromDisk(string path)
     {
-        ArgumentNullException.ThrowIfNull(path);
-
         var fullPath = Path.GetFullPath(path);
 
         if (Path.GetDirectoryName(fullPath) is { } directory && FindContentRoot(directory) is { } contentRoot)
@@ -209,8 +191,6 @@ public static class ContentPaths
     /// <param name="escapedRoot">Whether the path was absolute or went above the root.</param>
     public static string Normalize(string path, out bool escapedRoot)
     {
-        ArgumentNullException.ThrowIfNull(path);
-
         path = path.Replace('\\', '/');
         escapedRoot = Path.IsPathRooted(path);
 
@@ -253,10 +233,8 @@ public static class ContentPaths
     /// Gets the deepest content folder that holds every one of the given content paths.
     /// </summary>
     /// <returns>The folder, or an empty string when the paths share none.</returns>
-    public static string GetCommonDirectory(IEnumerable<string> paths)
+    internal static string GetCommonDirectory(IEnumerable<string> paths)
     {
-        ArgumentNullException.ThrowIfNull(paths);
-
         string[]? commonFolders = null;
         var commonCount = 0;
 
@@ -304,8 +282,6 @@ public static class ContentPaths
     /// <param name="extension">The new extension, with or without its leading dot, or null to remove it.</param>
     public static string ChangeExtension(string path, string? extension)
     {
-        ArgumentNullException.ThrowIfNull(path);
-
         return Normalize(Path.ChangeExtension(path, extension));
     }
 

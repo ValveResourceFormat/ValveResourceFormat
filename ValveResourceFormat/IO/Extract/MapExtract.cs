@@ -405,11 +405,6 @@ public sealed partial class MapExtract
         }
     }
 
-    private static string NormalizePath(string path)
-    {
-        return path.Replace('\\', '/').TrimEnd('/');
-    }
-
     private static bool PathIsSubPath(string? equalOrSubPath, string path)
     {
         if (string.IsNullOrEmpty(equalOrSubPath) || !equalOrSubPath.StartsWith(path, StringComparison.OrdinalIgnoreCase))
@@ -460,7 +455,7 @@ public sealed partial class MapExtract
             throw new InvalidDataException("Failed to get lump folder directory name");
         }
 
-        return NormalizePath(pathDirName);
+        return pathDirName.Replace('\\', '/');
     }
 
     private void InitWorldExtract(Resource vworld)
@@ -2658,7 +2653,7 @@ public sealed partial class MapExtract
             string? modelName = null;
             if (!string.IsNullOrEmpty(rawModelName))
             {
-                modelName = NormalizePath(rawModelName);
+                modelName = ContentPaths.Normalize(rawModelName);
             }
 
             if (modelName != null && PathIsSubPath(modelName, LumpFolder) && mapEntity is CMapPath)
@@ -2704,7 +2699,7 @@ public sealed partial class MapExtract
             string? snapshotFile = null;
             if (!string.IsNullOrEmpty(rawSnapshotFile))
             {
-                snapshotFile = NormalizePath(rawSnapshotFile);
+                snapshotFile = ContentPaths.Normalize(rawSnapshotFile);
             }
             if (snapshotFile != null && PathIsSubPath(snapshotFile, LumpFolder))
             {

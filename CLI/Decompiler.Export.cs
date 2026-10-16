@@ -1,37 +1,22 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using ValvePak;
-using ValveResourceFormat;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ToolsAssetInfo;
 
 namespace CLI;
 
 public partial class Decompiler
 {
     /// <summary>
-    /// The files of a package that were exported, with their checksums, so that --vpk_cache skips them while they stay
-    /// the same. Stored in the output root, and only used again by an export with the same version and options.
-    /// </summary>
-    private sealed class VpkCache(string filePath, string header)
-    {
-        public string FilePath { get; } = filePath;
-        public string Header { get; } = header;
-        public Dictionary<string, uint> Entries { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public List<(ContentExportItem Item, uint Crc32)> Queued { get; } = [];
-    }
-
-    /// <summary>
     /// Exports the input files, and the files inside of input packages, on every core.
     /// </summary>
-    private void ExportPaths(List<string> paths)
+    /// <returns>The number of files written.</returns>
+    private int ExportPaths(List<string> paths)
     {
-        var packages = new List<(string Path, Package Package)>();
+        var packages = new List<Package>();
         var gameFileLoaders = new Dictionary<string, Lazy<GameFileLoader>>(StringComparer.OrdinalIgnoreCase);
-        var caches = new List<(VpkCache Cache, Package Package)>();
         var packageFileLoaders = new List<GameFileLoader>();
 
         try
@@ -41,25 +26,19 @@ public partial class Decompiler
 #pragma warning disable CA2000 // False positive, packages are disposed in the finally block
                 if (IsPackagePath(path) && OpenPackage(path) is { } package)
                 {
-                    packages.Add((path, package));
+                    packages.Add(package);
                 }
 #pragma warning restore CA2000
             }
 
-            var isSinglePackage = LinkedFilePath == null && paths.Count == 1 && packages.Count == 1;
-            Exporter = CreateExporter(isSinglePackage ? GetMatchedEntriesFolder(packages[0].Package) : GetContentFolder(paths));
-
             var items = new List<ContentExportItem>();
 
-            foreach (var (path, package) in packages)
+            foreach (var package in packages)
             {
                 var fileLoader = CreateGameFileLoader(package, package.FileName);
                 packageFileLoaders.Add(fileLoader);
 
-                if (AddPackageEntries(items, path, package, fileLoader) is { } cache)
-                {
-                    caches.Add((cache, package));
-                }
+                AddPackageEntries(items, package, fileLoader);
             }
 
             foreach (var path in paths)
@@ -70,12 +49,18 @@ public partial class Decompiler
                 }
             }
 
-            Exporter.Export(items);
+            var exporter = CreateExporter(items);
 
-            foreach (var (cache, package) in caches)
+            try
             {
-                SaveVpkCache(cache, package);
+                exporter.Export(items);
             }
+            catch (ArgumentException) when (TargetFile != null)
+            {
+                ReportError("Output path has a file extension, but more than one file matched. Use --vpk_filepath to match exactly one file, or end the output path with a path separator to write into a folder with that name.");
+            }
+
+            return exporter.WrittenFileCount;
         }
         finally
         {
@@ -92,7 +77,7 @@ public partial class Decompiler
                 }
             }
 
-            foreach (var (_, package) in packages)
+            foreach (var package in packages)
             {
                 package.Dispose();
             }
@@ -108,32 +93,7 @@ public partial class Decompiler
     {
         PrintFileHeader(path, null);
 
-        var package = new Package();
-        package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-
-        try
-        {
-            package.Read(path);
-            return package;
-        }
-        catch (NotSupportedException e)
-        {
-            package.Dispose();
-
-            lock (ConsoleWriterLock)
-            {
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Error.WriteLine($"Failed to open vpk '{path}' - {e.Message}");
-                Console.ResetColor();
-            }
-        }
-        catch (Exception e)
-        {
-            package.Dispose();
-            LogException(e, path);
-        }
-
-        return null;
+        return TryOpenPackage(path, null, null, null);
     }
 
     /// <summary>
@@ -157,21 +117,11 @@ public partial class Decompiler
     /// <summary>
     /// Queues the matched files of a package.
     /// </summary>
-    /// <returns>The cache to save once they were exported, with --vpk_cache.</returns>
-    private VpkCache? AddPackageEntries(List<ContentExportItem> items, string path, Package package, IFileLoader fileLoader)
+    private void AddPackageEntries(List<ContentExportItem> items, Package package, IFileLoader fileLoader)
     {
         Debug.Assert(package.Entries != null);
 
-        if (!OutputIsDirectory && MatchesMultipleFiles(package))
-        {
-            ReportError("Output path has a file extension, but more than one file matched. Use --vpk_filepath to match exactly one file, or end the output path with a path separator to write into a folder with that name.");
-            return null;
-        }
-
         Console.WriteLine("--- Dumping decompiled files...");
-
-        var cache = CachedManifest ? LoadVpkCache(path) : null;
-        var source = ContentExportSource.FromPackage(package);
 
         foreach (var (type, entries) in package.Entries)
         {
@@ -182,31 +132,14 @@ public partial class Decompiler
 
             foreach (var (entry, _) in FilteredEntries(entries))
             {
-                var contentPath = entry.GetFullPath();
-
-                if (cache != null && cache.Entries.TryGetValue(contentPath, out var crc32) && crc32 == entry.CRC32)
+                items.Add(new ContentExportItem(package, entry)
                 {
-                    Console.WriteLine($"--- Skipped (unchanged) \"{contentPath}\"");
-                    continue;
-                }
-
-                var item = new ContentExportItem
-                {
-                    ContentPath = contentPath,
-                    Open = () => package.GetMemoryMappedStreamIfPossible(entry),
-                    Crc32 = entry.CRC32 > 0 ? entry.CRC32 : null,
-                    Source = source,
                     FileLoader = fileLoader,
                     Output = Decompile ? DecompileOutput : ContentExportOutput.Raw,
                     TargetFile = TargetFile,
-                };
-
-                items.Add(item);
-                cache?.Queued.Add((item, entry.CRC32));
+                });
             }
         }
-
-        return cache;
     }
 
     /// <summary>
@@ -216,154 +149,102 @@ public partial class Decompiler
     {
         AnyFileMatched = true;
 
-        var contentPath = GetContentPath(path, null);
-        var gameFileLoader = GetGameFileLoader(gameFileLoaders, path);
-
-        if (!ContentPaths.HasCompiledSuffix(contentPath))
+        items.Add(new ContentExportItem(path, Warn)
         {
-            items.Add(new ContentExportItem
-            {
-                ContentPath = contentPath,
-                Open = () => File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete),
-                Origin = path,
-                Output = DecompileOutput,
-                TargetFile = TargetFile,
-                ExportFile = (stream, _) => ExportDiskFile(path, contentPath, stream, gameFileLoader),
-            });
-
-            return;
-        }
-
-        var source = ContentExportSource.FromDiskFile(path);
-
-        if (source == null && DecompileDependencies)
-        {
-            Warn($"Dependencies of \"{path}\" are not decompiled, it is not in an addon or mod folder.");
-        }
-
-        items.Add(new ContentExportItem
-        {
-            ContentPath = contentPath,
-            Open = () => File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete),
-            Origin = path,
-            Source = source,
-            FileLoader = gameFileLoader.Value,
+            FileLoader = GetGameFileLoader(gameFileLoaders, path).Value,
             Output = DecompileOutput,
             TargetFile = TargetFile,
         });
     }
 
-    /// <summary>
-    /// Exports a file on disk that is neither a compiled resource nor a file the library extracts, including the formats
-    /// only the CLI reads.
-    /// </summary>
-    private bool ExportDiskFile(string path, string contentPath, Stream stream, Lazy<GameFileLoader> gameFileLoader)
+    private ContentExporter CreateExporter(List<ContentExportItem> items)
     {
-        var magic = PeekMagic(stream);
+        Debug.Assert(OutputFile != null);
 
-        switch (magic)
+        var outputFolder = OutputIsDirectory ? OutputFile : Path.GetDirectoryName(OutputFile)!;
+        var outputRoot = OutputToConsole ? outputFolder : ContentPaths.ResolveOutputRoot(outputFolder, items.Select(static item => item.ContentPath));
+
+        if (!OutputToConsole)
         {
-            case VfxProgramData.MAGIC:
-                ParseVCS(path, stream, null);
-                return true;
-
-            case ToolsAssetInfo.MAGIC2:
-            case ToolsAssetInfo.MAGIC:
-                ParseToolsAssetInfo(path, stream, null);
-                return true;
+            Console.WriteLine($"--- Writing files to \"{outputRoot}\"");
         }
 
-        if (BinaryKV3.IsBinaryKV3(magic))
+        return new ContentExporter(outputRoot)
         {
-            return false;
-        }
-
-        using var resource = new Resource
-        {
-            FileName = contentPath,
+            IncludeDependencies = DecompileDependencies,
+            ExistingFileAction = SkipExisting ? ExistingFileAction.Skip : ExistingFileAction.Overwrite,
+            ExtractOptions = ExtractOptions,
+            Progress = ProgressReporter,
+            FileWritten = path => PrintLine($"--- Dump written to \"{path}\""),
+            FileSkipped = path => PrintLine($"--- Skipped \"{path}\", it already exists"),
+            Warning = Warn,
+            FileFailed = (fileName, exception) => LogException(exception, fileName),
+            GltfExporterFactory = GltfExportFormat != null ? CreateGltfExporter : null,
+            ContentFileHandler = OutputToConsole ? PrintContentFile : null,
+            MaxDegreeOfParallelism = OutputToConsole ? 1 : Environment.ProcessorCount,
+            ManifestOptions = CachedManifest ? GetManifestOptions() : null,
+            ItemStarted = item =>
+            {
+                if (item.Origin != null)
+                {
+                    PrintFileHeader(item.Origin, null);
+                }
+            },
+            ItemCompleted = item =>
+            {
+                if (item.Result == ContentExportResult.Unchanged)
+                {
+                    PrintLine($"--- Skipped (unchanged) \"{item.ContentPath}\"");
+                }
+                else if (item.Result == ContentExportResult.Handled && !item.IsDependency)
+                {
+                    PrintLine($"--- Skipped \"{item.ContentPath}\", it is part of a file that was exported");
+                }
+            },
         };
-
-        resource.Read(stream);
-        Exporter!.Export(resource, gameFileLoader.Value, ContentExportSource.FromDiskFile(path), TargetFile);
-
-        return true;
-    }
-
-    private VpkCache LoadVpkCache(string packagePath)
-    {
-        Debug.Assert(Exporter != null);
-
-        var cache = new VpkCache(
-            Path.Join(Exporter.OutputRoot, string.Concat(Path.GetFileName(packagePath), ".manifest.txt")),
-            GetVpkCacheHeader(packagePath));
-
-        if (!File.Exists(cache.FilePath))
-        {
-            return cache;
-        }
-
-        using var reader = new StreamReader(cache.FilePath);
-
-        if (reader.ReadLine() != cache.Header)
-        {
-            Console.Error.WriteLine($"\"{cache.FilePath}\" was written by another version, for another package or with other options, it is ignored.");
-            return cache;
-        }
-
-        while (reader.ReadLine() is { } line)
-        {
-            var space = line.IndexOf(' ', StringComparison.Ordinal);
-
-            if (space > 0 && uint.TryParse(line.AsSpan(0, space), NumberStyles.None, CultureInfo.InvariantCulture, out var crc32))
-            {
-                cache.Entries[line[(space + 1)..]] = crc32;
-            }
-        }
-
-        return cache;
-    }
-
-    private string GetVpkCacheHeader(string packagePath)
-    {
-        var version = typeof(Decompiler).Assembly.GetName().Version;
-
-        return string.Create(CultureInfo.InvariantCulture,
-            $"// s2v_version={version} package={Path.GetFullPath(packagePath)} decompile={Decompile} dependencies={DecompileDependencies} {ExtractOptions}" +
-            $" gltf={GltfExportFormat} materials={GltfExportMaterials} animations={GltfExportAnimations} adapt_textures={GltfExportAdaptTextures}" +
-            $" extras={GltfExportExtras} compose_additive={GltfComposeAdditive} meshes={string.Join(',', GltfMeshFilter)} animation_list={string.Join(',', GltfAnimationFilter)}");
     }
 
     /// <summary>
-    /// Records the files that exported, drops the ones that failed so the next export retries them.
+    /// Gets the options that change what --vpk_cache records, other than those the exporter knows of.
     /// </summary>
-    private static void SaveVpkCache(VpkCache cache, Package package)
+    private string GetManifestOptions()
     {
-        foreach (var (item, crc32) in cache.Queued)
+        return string.Create(CultureInfo.InvariantCulture,
+            $"decompile={Decompile} gltf={GltfExportFormat} materials={GltfExportMaterials} animations={GltfExportAnimations} adapt_textures={GltfExportAdaptTextures}" +
+            $" extras={GltfExportExtras} compose_additive={GltfComposeAdditive} keep_all_keyframes={GltfKeepAllKeyframes} meshes={string.Join(',', GltfMeshFilter)} animation_list={string.Join(',', GltfAnimationFilter)}");
+    }
+
+    /// <summary>
+    /// Prints the main file of a decompiled resource, the files it would write alongside are skipped.
+    /// </summary>
+    private void PrintContentFile(ContentFile contentFile)
+    {
+        var mainSubFile = contentFile.MainSubFile;
+        var contentPath = ContentPaths.Normalize(mainSubFile?.FileName ?? contentFile.FileName);
+        var data = mainSubFile != null ? mainSubFile.Extract?.Invoke() : contentFile.Data;
+        var skippedFiles = contentFile.AdditionalFiles.Count + contentFile.SubFiles.Count - (mainSubFile != null ? 1 : 0);
+
+        if (data != null)
         {
-            if (item.Result is ContentExportResult.Exported or ContentExportResult.Handled)
-            {
-                cache.Entries[item.ContentPath] = crc32;
-            }
-            else
-            {
-                cache.Entries.Remove(item.ContentPath);
-            }
+            PrintFile(contentPath, data);
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(cache.FilePath)!);
-
-        using var writer = new StreamWriter(cache.FilePath);
-        writer.WriteLine(cache.Header);
-
-        foreach (var (contentPath, crc32) in cache.Entries)
+        if (skippedFiles > 0)
         {
-            if (package.FindEntry(contentPath) == null)
-            {
-                Console.WriteLine($"\t{contentPath} no longer exists in VPK");
-                continue;
-            }
+            Console.Error.WriteLine($"--- Not printing {skippedFiles} additional files of \"{contentPath}\", use --output <folder> to write them");
+        }
+    }
 
-            writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{crc32} {contentPath}"));
+    private void PrintFile(string contentPath, ReadOnlySpan<byte> data)
+    {
+        lock (ConsoleWriterLock)
+        {
+            Stdout.WriteLine($"--- {contentPath}");
+            Stdout.Flush();
+
+            using var stdout = Console.OpenStandardOutput();
+            stdout.Write(data);
+            stdout.Write("\n"u8);
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Hashing;
@@ -18,12 +19,13 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 {
     private sealed record ResourceHeader(ResourceType Type, string[] References, string? LumpFolder);
 
-    private sealed record Dependency(string ContentPath, ContentExportSource Source, IFileLoader FileLoader);
+    private sealed record Dependency(string Key, ContentExportSource Source, IFileLoader FileLoader, ContentExportOutput Output);
 
     private sealed class QueuedItem(ContentExportItem item)
     {
         public ContentExportItem Item { get; } = item;
         public string Key { get; } = ContentExporter.GetHandledKey(item.ContentPath);
+        public List<ContentExportItem> ShaderFiles { get; init; } = [];
         public ResourceHeader? Header { get; set; }
         public int Rank { get; set; }
         public int PendingReferrers { get; set; }
@@ -33,7 +35,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
     private readonly ContentExporter Exporter = exporter;
     private readonly List<ContentExportItem> Items = [.. items];
     private readonly List<(ResourceHeader Header, ContentExportSource Source, IFileLoader FileLoader)> DependencyRoots = [];
-    private readonly ConcurrentDictionary<string, Lazy<ResourceHeader?>> SourceHeaders = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Lazy<(bool Exists, ResourceHeader? Header)>> SourceHeaders = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Adds the dependencies of a resource that was already exported.
@@ -51,22 +53,49 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             CancellationToken = cancellationToken,
         };
 
-        var queued = SelectByMountOrder(SkipUnselectedShaderFiles().ConvertAll(static item => new QueuedItem(item)));
+        var selected = SelectByMountOrder(SelectShaderFiles());
 
-        Parallel.ForEach(queued, parallelOptions, static queuedItem =>
+        if (selected.Where(static queuedItem => queuedItem.Item.TargetFile != null)
+            .GroupBy(static queuedItem => queuedItem.Item.TargetFile, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(static target => target.Skip(1).Any()) is { } sharedTarget)
+        {
+            throw new ArgumentException($"More than one file would be written to \"{sharedTarget.Key}\".");
+        }
+
+        Parallel.ForEach(selected, parallelOptions, static queuedItem =>
         {
             var item = queuedItem.Item;
 
-            if (item.Output != ContentExportOutput.Raw && ContentPaths.HasCompiledSuffix(item.ContentPath))
+            if (item.Output != ContentExportOutput.Raw && !item.IsShaderFile)
             {
-                queuedItem.Header = ReadHeader(item.Open, item.ContentPath);
+                queuedItem.Header = ReadHeader(item.Open, item.ContentPath).Header;
             }
         });
 
+        var manifests = Exporter.ManifestOptions != null ? LoadManifests(selected) : [];
+        var queued = SkipUnchanged(selected, manifests);
+
+        foreach (var queuedItem in queued)
+        {
+            Complete(queuedItem.ShaderFiles, ContentExportResult.Handled);
+        }
+
         if (Exporter.IncludeDependencies)
         {
-            AddDependencies(queued, parallelOptions);
+            foreach (var queuedItem in queued)
+            {
+                if (queuedItem.Header != null && queuedItem.Item.Source == null)
+                {
+                    Exporter.Warning?.Invoke($"Dependencies of \"{queuedItem.Item.Origin ?? queuedItem.Item.ContentPath}\" are not exported, it is not in an addon or mod folder.");
+                }
+            }
+
+            AddDependencies(queued, selected, parallelOptions);
         }
+
+        Exporter.AddNonGltfItems(queued
+            .Where(static queuedItem => queuedItem.Item.Output == ContentExportOutput.Decompile)
+            .Select(static queuedItem => queuedItem.Item.ContentPath));
 
         var rank = 0;
 
@@ -79,58 +108,65 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 
         LinkReferrers(queued, parallelOptions);
         ExportAll(queued, cancellationToken);
+
+        foreach (var queuedItem in selected)
+        {
+            if (queuedItem.Item.Source?.Package is { } package && manifests.TryGetValue(package, out var manifest))
+            {
+                manifest.Record(queuedItem.Item, queuedItem.Item.Result);
+                queuedItem.ShaderFiles.ForEach(shaderFile => manifest.Record(shaderFile, queuedItem.Item.Result));
+            }
+        }
+
+        foreach (var manifest in manifests.Values)
+        {
+            manifest.Save(Exporter.Progress);
+        }
     }
 
     /// <summary>
-    /// Keeps one item per compiled shader in a package to decompile the shader from, see
-    /// <see cref="ContentExporter.SelectShaderFiles"/>, and completes the others as handled.
+    /// Keeps one item per compiled shader and platform in a package or folder to decompile the shader from, the first
+    /// one of the highest shader model, with the other items of the shader.
     /// </summary>
-    /// <returns>The items to export.</returns>
-    private List<ContentExportItem> SkipUnselectedShaderFiles()
+    private List<QueuedItem> SelectShaderFiles()
     {
-        var shaderFiles = Items.Where(IsPackageShaderFile).GroupBy(static item => item.Source!.Package);
-        var skipped = new HashSet<ContentExportItem>();
+        var selected = new Dictionary<ContentExportItem, List<ContentExportItem>>();
 
-        foreach (var packageShaderFiles in shaderFiles)
+        foreach (var shaderFiles in Items
+            .Where(static item => item.IsShaderFile)
+            .Select(static item => (Item: item, Name: ShaderUtilHelpers.ComputeVCSFileName(item.ContentPath)))
+            .GroupBy(static file => (Location: file.Item.Source?.Package ?? (object?)Path.GetDirectoryName(file.Item.DiskPath), file.Name.ShaderName, file.Name.PlatformType)))
         {
-            skipped.UnionWith(packageShaderFiles.Except(ContentExporter.SelectShaderFiles(packageShaderFiles, static item => item.ContentPath)));
+            var shader = shaderFiles.MaxBy(static file => file.Name.ShaderModelType).Item;
+            selected.Add(shader, [.. shaderFiles.Select(static file => file.Item).Where(item => item != shader)]);
         }
 
-        foreach (var item in skipped)
-        {
-            item.Result = ContentExportResult.Handled;
-            Exporter.ItemCompleted?.Invoke(item);
-        }
-
-        return skipped.Count > 0 ? Items.FindAll(item => !skipped.Contains(item)) : Items;
+        return Items
+            .Where(item => !item.IsShaderFile || selected.ContainsKey(item))
+            .Select(item => new QueuedItem(item) { ShaderFiles = selected.GetValueOrDefault(item, []) })
+            .ToList();
     }
-
-    private static bool IsPackageShaderFile(ContentExportItem item)
-        => item.Output != ContentExportOutput.Raw
-            && item.Source?.Package != null
-            && Path.GetExtension(item.ContentPath.AsSpan()).Equals(".vcs", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Keeps one item per content path that is in several packages: the one from the package the game searches first,
     /// see <see cref="GameFileLoader.GetSearchPathIndex"/>. Of packages that are equally early, the first item is kept.
     /// </summary>
-    private List<QueuedItem> SelectByMountOrder(List<QueuedItem> queued)
+    private List<QueuedItem> SelectByMountOrder(List<QueuedItem> selected)
     {
         var skipped = new HashSet<QueuedItem>();
 
-        foreach (var sameKey in queued.Where(static queuedItem => queuedItem.Item.Source?.Package != null).GroupBy(static queuedItem => queuedItem.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var sameKey in selected.Where(static queuedItem => queuedItem.Item.Source?.Package != null).GroupBy(static queuedItem => queuedItem.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var selected = sameKey.MinBy(GetSearchPathIndex);
-            skipped.UnionWith(sameKey.Where(queuedItem => queuedItem != selected));
+            var kept = sameKey.MinBy(GetSearchPathIndex);
+            skipped.UnionWith(sameKey.Where(queuedItem => queuedItem != kept));
         }
 
         foreach (var queuedItem in skipped)
         {
-            queuedItem.Item.Result = ContentExportResult.Handled;
-            Exporter.ItemCompleted?.Invoke(queuedItem.Item);
+            Complete([queuedItem.Item, .. queuedItem.ShaderFiles], ContentExportResult.Handled);
         }
 
-        return queued.FindAll(queuedItem => !skipped.Contains(queuedItem));
+        return skipped.Count > 0 ? selected.FindAll(queuedItem => !skipped.Contains(queuedItem)) : selected;
     }
 
     private static int GetSearchPathIndex(QueuedItem queuedItem)
@@ -138,12 +174,96 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             ? gameFileLoader.GetSearchPathIndex(packagePath)
             : -1;
 
-    private void AddDependencies(List<QueuedItem> queued, ParallelOptions parallelOptions)
+    private Dictionary<Package, ContentExportManifest> LoadManifests(List<QueuedItem> queued)
+    {
+        return queued
+            .Select(static queuedItem => queuedItem.Item.Source?.Package)
+            .OfType<Package>()
+            .Distinct()
+            .ToDictionary(static package => package, package => ContentExportManifest.Load(Exporter, package));
+    }
+
+    /// <summary>
+    /// Completes the items whose files did not change since the export their manifest records, unless they consume a
+    /// resource that changed, such as a model whose mesh changed.
+    /// </summary>
+    /// <returns>The items to export.</returns>
+    private List<QueuedItem> SkipUnchanged(List<QueuedItem> queued, Dictionary<Package, ContentExportManifest> manifests)
+    {
+        if (manifests.Count == 0)
+        {
+            return queued;
+        }
+
+        var unchanged = new HashSet<QueuedItem>();
+
+        foreach (var queuedItem in queued)
+        {
+            if (queuedItem.Item.Source?.Package is { } package && manifests.TryGetValue(package, out var manifest)
+                && manifest.IsUnchanged(queuedItem.Item) && queuedItem.ShaderFiles.TrueForAll(manifest.IsUnchanged))
+            {
+                unchanged.Add(queuedItem);
+            }
+        }
+
+        var referrers = new Dictionary<string, List<QueuedItem>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var queuedItem in queued)
+        {
+            foreach (var reference in queuedItem.Header?.References ?? [])
+            {
+                if (!referrers.TryGetValue(reference, out var referencing))
+                {
+                    referencing = [];
+                    referrers.Add(reference, referencing);
+                }
+
+                referencing.Add(queuedItem);
+            }
+        }
+
+        var consumedChanges = new Stack<QueuedItem>(queued.Where(queuedItem => !unchanged.Contains(queuedItem) && IsConsumed(queuedItem)));
+
+        while (consumedChanges.TryPop(out var changed))
+        {
+            foreach (var referrer in referrers.GetValueOrDefault(changed.Key, []))
+            {
+                if (unchanged.Remove(referrer) && IsConsumed(referrer))
+                {
+                    consumedChanges.Push(referrer);
+                }
+            }
+        }
+
+        foreach (var queuedItem in unchanged)
+        {
+            Complete([queuedItem.Item, .. queuedItem.ShaderFiles], ContentExportResult.Unchanged);
+        }
+
+        return queued.FindAll(queuedItem => !unchanged.Contains(queuedItem));
+    }
+
+    private static bool IsConsumed(QueuedItem queuedItem)
+        => queuedItem.Header != null && ContentExporter.ConsumedDependencyTypes.Contains(queuedItem.Header.Type);
+
+    private void Complete(List<ContentExportItem> completed, ContentExportResult result)
+    {
+        foreach (var item in completed)
+        {
+            item.Result = result;
+            Exporter.ItemCompleted?.Invoke(item);
+        }
+    }
+
+    /// <param name="queued">The items to export, dependencies are added to them.</param>
+    /// <param name="selected">Every item of the export, including those that are not exported again.</param>
+    /// <param name="parallelOptions">How headers are read.</param>
+    private void AddDependencies(List<QueuedItem> queued, List<QueuedItem> selected, ParallelOptions parallelOptions)
     {
         var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pending = new List<Dependency>();
 
-        foreach (var queuedItem in queued)
+        foreach (var queuedItem in selected)
         {
             if (queuedItem.Item.Source is { } source)
             {
@@ -151,9 +271,9 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             }
         }
 
-        void Follow(ResourceHeader? header, ContentExportSource? source, IFileLoader? fileLoader)
+        void Follow(ResourceHeader? header, ContentExportSource? source, IFileLoader fileLoader, ContentExportOutput output)
         {
-            if (header == null || source == null || fileLoader == null)
+            if (header == null || source == null)
             {
                 return;
             }
@@ -162,22 +282,20 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             {
                 if (known.Add(GetDependencyKey(source, name)))
                 {
-                    pending.Add(new Dependency(name + GameFileLoader.CompiledFileSuffix, source, fileLoader));
+                    pending.Add(new Dependency(name, source, fileLoader, output));
                 }
             }
         }
 
         foreach (var queuedItem in queued)
         {
-            if (queuedItem.Item.Output != ContentExportOutput.Raw)
-            {
-                Follow(queuedItem.Header, queuedItem.Item.Source, queuedItem.Item.FileLoader);
-            }
+            var item = queuedItem.Item;
+            Follow(queuedItem.Header, item.Source, Exporter.GetFileLoader(item), IsGltf(item.Output) ? item.Output : ContentExportOutput.Decompile);
         }
 
         foreach (var (header, source, fileLoader) in DependencyRoots)
         {
-            Follow(header, source, fileLoader);
+            Follow(header, source, fileLoader, ContentExportOutput.Decompile);
         }
 
         while (pending.Count > 0)
@@ -186,23 +304,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             var headers = new (bool Exists, ResourceHeader? Header)[dependencies.Count];
             pending = [];
 
-            Parallel.For(0, dependencies.Count, parallelOptions, i =>
-            {
-                var dependency = dependencies[i];
-                Stream? stream;
-
-                try
-                {
-                    stream = dependency.Source.OpenStream(dependency.ContentPath);
-                }
-                catch (Exception)
-                {
-                    headers[i] = (true, null);
-                    return;
-                }
-
-                headers[i] = stream == null ? (false, null) : (true, ReadHeader(() => stream, dependency.ContentPath));
-            });
+            Parallel.For(0, dependencies.Count, parallelOptions, i => headers[i] = GetSourceHeader(dependencies[i].Source, dependencies[i].Key));
 
             for (var i = 0; i < dependencies.Count; i++)
             {
@@ -217,20 +319,22 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 
                 if (header == null || !ContentExporter.ConsumedDependencyTypes.Contains(header.Type))
                 {
+                    var contentPath = dependency.Key + GameFileLoader.CompiledFileSuffix;
                     var item = new ContentExportItem
                     {
-                        ContentPath = dependency.ContentPath,
-                        Open = () => dependency.Source.OpenStream(dependency.ContentPath)
-                            ?? throw new FileNotFoundException($"\"{dependency.ContentPath}\" is no longer in its source."),
+                        ContentPath = contentPath,
+                        Open = () => dependency.Source.OpenStream(contentPath)
+                            ?? throw new FileNotFoundException($"\"{contentPath}\" is no longer in its source."),
                         Source = dependency.Source,
                         FileLoader = dependency.FileLoader,
+                        Output = header != null && GltfModelExporter.CanExport(header.Type) ? dependency.Output : ContentExportOutput.Decompile,
                         IsDependency = true,
                     };
 
                     queued.Add(new QueuedItem(item) { Header = header });
                 }
 
-                Follow(header, dependency.Source, dependency.FileLoader);
+                Follow(header, dependency.Source, dependency.FileLoader, dependency.Output);
             }
         }
     }
@@ -263,11 +367,9 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 
         Parallel.For(0, queued.Count, parallelOptions, i =>
         {
-            var referrer = queued[i];
-
-            if (referrer.Item.Output != ContentExportOutput.Raw && referrer.Header != null)
+            if (queued[i].Header != null)
             {
-                reachedItems[i] = FindReferenced(referrer, byKey);
+                reachedItems[i] = FindReferenced(queued[i], byKey);
             }
         });
 
@@ -280,21 +382,18 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
                 Link(referrer, referenced);
             }
 
-            if (referrer.Item.Output == ContentExportOutput.Raw || referrer.Header is not { } header)
+            if (referrer.Header?.LumpFolder is not { } lumpFolder)
             {
                 continue;
             }
 
-            if (header.LumpFolder != null)
-            {
-                var lumpFolder = header.LumpFolder + "/";
+            lumpFolder += "/";
 
-                foreach (var (key, inLumpFolder) in byKey)
+            foreach (var (key, inLumpFolder) in byKey)
+            {
+                if (key.StartsWith(lumpFolder, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (key.StartsWith(lumpFolder, StringComparison.OrdinalIgnoreCase))
-                    {
-                        inLumpFolder.ForEach(queuedItem => Link(referrer, queuedItem));
-                    }
+                    inLumpFolder.ForEach(queuedItem => Link(referrer, queuedItem));
                 }
             }
         }
@@ -337,7 +436,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 
             if (header == null && referrer.Item.Source is { } source)
             {
-                header = GetSourceHeader(source, name);
+                header = GetSourceHeader(source, name).Header;
             }
 
             foreach (var reference in header?.References ?? [])
@@ -349,25 +448,16 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
         return reached;
     }
 
-    private ResourceHeader? GetSourceHeader(ContentExportSource source, string key)
+    /// <summary>
+    /// Reads the header of a compiled resource from a source, once per source and resource.
+    /// </summary>
+    /// <param name="source">The source.</param>
+    /// <param name="key">The content path of the resource without its <c>_c</c> suffix.</param>
+    private (bool Exists, ResourceHeader? Header) GetSourceHeader(ContentExportSource source, string key)
     {
-        var header = SourceHeaders.GetOrAdd(GetDependencyKey(source, key), _ => new Lazy<ResourceHeader?>(() =>
-        {
-            Stream? stream;
+        var contentPath = key + GameFileLoader.CompiledFileSuffix;
 
-            try
-            {
-                stream = source.OpenStream(key + GameFileLoader.CompiledFileSuffix);
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-
-            return stream == null ? null : ReadHeader(() => stream, key + GameFileLoader.CompiledFileSuffix);
-        }));
-
-        return header.Value;
+        return SourceHeaders.GetOrAdd(GetDependencyKey(source, key), _ => new(() => ReadHeader(() => source.OpenStream(contentPath), contentPath))).Value;
     }
 
     /// <summary>
@@ -427,6 +517,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 
                 try
                 {
+                    Exporter.SetCurrentItemOrder(next.Rank);
                     Export(next.Item, cancellationToken);
                 }
                 finally
@@ -474,12 +565,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             }
         }
 
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (Exporter.IsCancelled)
-        {
-            throw new OperationCanceledException("The export was cancelled because a file already exists.");
-        }
+        Exporter.ThrowIfCancelled(cancellationToken);
     }
 
     private void Export(ContentExportItem item, CancellationToken cancellationToken)
@@ -518,9 +604,9 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
     /// <returns>Whether every file of the item was written.</returns>
     private bool ExportFiles(ContentExportItem item, CancellationToken cancellationToken)
     {
-        if (IsPackageShaderFile(item) && item.Source?.Package is { } package)
+        if (item.IsShaderFile)
         {
-            return ExportShader(item, package, cancellationToken);
+            return ExportShader(item, cancellationToken);
         }
 
         using var stream = item.Open();
@@ -543,7 +629,7 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
             return true;
         }
 
-        if (!ContentPaths.HasCompiledSuffix(item.ContentPath))
+        if (!ContentPaths.HasCompiledSuffix(item.ContentPath) && !IsResource(stream))
         {
             return ExportNonResource(item, stream, cancellationToken);
         }
@@ -555,43 +641,38 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
 
         resource.Read(stream);
 
+        var fileLoader = Exporter.GetFileLoader(item);
+
+        if (fileLoader is GameFileLoader gameFileLoader)
+        {
+            gameFileLoader.FindGameFromResource(resource);
+        }
+
         if (IsGltf(item.Output) && GltfModelExporter.CanExport(resource))
         {
-            Exporter.GetGltfExporter(item.FileLoader).Export(resource, GetGltfPath(item), cancellationToken);
+            Exporter.GetGltfExporter(fileLoader).Export(resource, GetGltfPath(item), cancellationToken);
             return true;
         }
 
-        var fileLoader = item.FileLoader ?? throw new InvalidOperationException($"\"{item.ContentPath}\" has no file loader to decompile it with.");
-
-        return Exporter.ExportResource(resource, fileLoader, item.TargetFile, cancellationToken);
+        return Exporter.Export(resource, fileLoader, targetFile: item.TargetFile, cancellationToken: cancellationToken);
     }
 
     private bool ExportNonResource(ContentExportItem item, Stream stream, CancellationToken cancellationToken)
     {
-        if (IsGltf(item.Output) && PeekMagic(stream) == NavMeshFile.MAGIC)
+        if (IsGltf(item.Output) && FileExtract.PeekMagic(stream) == NavMeshFile.MAGIC)
         {
             var navMesh = new NavMeshFile();
             navMesh.Read(stream);
 
-            Exporter.GetGltfExporter(item.FileLoader).Export(navMesh, item.ContentPath, GetGltfPath(item), cancellationToken);
+            Exporter.GetGltfExporter(Exporter.GetFileLoader(item)).Export(navMesh, item.ContentPath, GetGltfPath(item), cancellationToken);
             return true;
         }
 
-        using var contentFile = FileExtract.ExtractNonResource(stream, item.ContentPath);
+        using var contentFile = FileExtract.ExtractNonResource(stream, item.ContentPath, Exporter.ExtractOptions);
 
         if (contentFile != null)
         {
-            return Exporter.ExportFiles(contentFile, item.TargetFile, cancellationToken);
-        }
-
-        if (item.ExportFile != null)
-        {
-            if (item.ExportFile(stream, cancellationToken))
-            {
-                return true;
-            }
-
-            stream.Position = 0;
+            return Exporter.Export(contentFile, item.TargetFile, cancellationToken);
         }
 
         Exporter.WriteFile(item.ContentPath, ReadToEnd(stream), item.TargetFile);
@@ -599,18 +680,18 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
     }
 
     /// <summary>
-    /// Decompiles a compiled shader from all of its files in the package, to a <c>.vfx</c> file named after them
-    /// without their program type.
+    /// Decompiles a compiled shader from all of its files in the package or folder, to a <c>.vfx</c> file named after
+    /// them without their program type.
     /// </summary>
-    private bool ExportShader(ContentExportItem item, Package package, CancellationToken cancellationToken)
+    private bool ExportShader(ContentExportItem item, CancellationToken cancellationToken)
     {
-        var fileName = Path.GetFileNameWithoutExtension(item.ContentPath);
-        var vfxFileName = ContentPaths.Join(ContentPaths.GetDirectoryName(item.ContentPath), string.Concat(fileName.AsSpan(0, fileName.LastIndexOf('_')), ".vfx"));
+        var vfxFileName = ContentPaths.Join(ContentPaths.GetDirectoryName(item.ContentPath), ShaderCollection.GetCollectionName(item.ContentPath) + ".vfx");
+        var package = item.Source?.Package;
 
-        using var collection = ShaderCollection.GetShaderCollection(item.ContentPath, package);
+        using var collection = ShaderCollection.GetShaderCollection(package != null ? item.ContentPath : item.DiskPath!, package);
         using var contentFile = new ShaderExtract(collection).ToContentFile(vfxFileName);
 
-        return Exporter.ExportFiles(contentFile, item.TargetFile, cancellationToken);
+        return Exporter.Export(contentFile, item.TargetFile, cancellationToken);
     }
 
     private static bool IsGltf(ContentExportOutput output) => output is ContentExportOutput.Gltf or ContentExportOutput.Glb;
@@ -626,49 +707,81 @@ internal sealed class ContentExportQueue(ContentExporter exporter, IEnumerable<C
         return Path.ChangeExtension(item.TargetFile ?? Exporter.GetOutputPath(item.ContentPath), extension);
     }
 
-    private static uint PeekMagic(Stream stream)
+    /// <summary>
+    /// Whether a stream starts with the header of a compiled resource, keeping its position.
+    /// </summary>
+    internal static bool IsResource(Stream stream)
     {
-        Span<byte> magic = stackalloc byte[4];
-        var read = stream.Read(magic);
+        Span<byte> header = stackalloc byte[12];
+        var read = stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false);
         stream.Seek(-read, SeekOrigin.Current);
 
-        return read == magic.Length ? BitConverter.ToUInt32(magic) : 0;
+        return read == header.Length
+            && BinaryPrimitives.ReadUInt16LittleEndian(header[4..]) == Resource.KnownHeaderVersion
+            && BinaryPrimitives.ReadUInt32LittleEndian(header[8..]) == 8;
     }
 
     /// <summary>
-    /// Reads what ordering and dependencies need from a compiled resource, without parsing its data.
+    /// Reads what ordering and dependencies need from a compiled resource, without parsing its data. A file without the
+    /// <c>_c</c> suffix is only read when it starts like a compiled resource.
     /// </summary>
-    /// <returns>The header, or null when the resource could not be read.</returns>
-    private static ResourceHeader? ReadHeader(Func<Stream> open, string contentPath)
+    /// <param name="open">Opens the file, returns null when it does not exist.</param>
+    /// <param name="contentPath">Content path of the file.</param>
+    /// <returns>Whether the file exists, and its header or null when it is not a resource that could be read.</returns>
+    private static (bool Exists, ResourceHeader? Header) ReadHeader(Func<Stream?> open, string contentPath)
     {
+        Stream? stream;
+
         try
         {
-            using var resource = new Resource
-            {
-                FileName = contentPath,
-            };
-
-            resource.Read(open(), mode: ReadMode.Deferred);
-
-            var externalReferences = resource.ExternalReferences;
-            string? lumpFolder = null;
-
-            if (resource.ResourceType == ResourceType.Map && externalReferences != null)
-            {
-                try
-                {
-                    lumpFolder = ContentPaths.Normalize(MapExtract.GetLumpFolderFromVmapRERL(externalReferences));
-                }
-                catch (InvalidDataException)
-                {
-                }
-            }
-
-            return new ResourceHeader(resource.ResourceType, GetReferences(externalReferences), lumpFolder);
+            stream = open();
         }
         catch (Exception)
         {
-            return null;
+            return (true, null);
+        }
+
+        if (stream == null)
+        {
+            return (false, null);
+        }
+
+        using (stream)
+        {
+            try
+            {
+                if (!ContentPaths.HasCompiledSuffix(contentPath) && !IsResource(stream))
+                {
+                    return (true, null);
+                }
+
+                using var resource = new Resource
+                {
+                    FileName = contentPath,
+                };
+
+                resource.Read(stream, mode: ReadMode.Deferred);
+
+                var externalReferences = resource.ExternalReferences;
+                string? lumpFolder = null;
+
+                if (resource.ResourceType == ResourceType.Map && externalReferences != null)
+                {
+                    try
+                    {
+                        lumpFolder = ContentPaths.Normalize(MapExtract.GetLumpFolderFromVmapRERL(externalReferences));
+                    }
+                    catch (InvalidDataException)
+                    {
+                    }
+                }
+
+                return (true, new ResourceHeader(resource.ResourceType, GetReferences(externalReferences), lumpFolder));
+            }
+            catch (Exception)
+            {
+                return (true, null);
+            }
         }
     }
 
