@@ -34,7 +34,7 @@ uniform samplerCube g_tFogCubeTexture; // reserved
 void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToCamera)
 {
     vec2 cubeFogComponents;
-    cubeFogComponents.x = pow(max(length(posRelativeToCamera.xy) * g_vCubeFog_Offset_Scale_Bias_Exponent.y + g_vCubeFog_Offset_Scale_Bias_Exponent.x, 0.0001), g_vCubeFog_Offset_Scale_Bias_Exponent.w);
+    cubeFogComponents.x = pow(max(length(posRelativeToCamera) * g_vCubeFog_Offset_Scale_Bias_Exponent.y + g_vCubeFog_Offset_Scale_Bias_Exponent.x, 0.0001), g_vCubeFog_Offset_Scale_Bias_Exponent.w);
     cubeFogComponents.y = pow(max(positionWS.z * g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.y + g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.x, 0.0001), g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.z);
 
     float cubemapFogBlend = saturate(cubeFogComponents.x) * saturate(cubeFogComponents.y);
