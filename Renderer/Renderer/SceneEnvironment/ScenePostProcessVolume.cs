@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <summary>Gets the toe denominator of the tonemapping curve.</summary>
         public float ToeDenom { get; init; }
 
-        /// <summary>Gets the white point value; passed through the tonemapper before GPU upload.</summary>
+        /// <summary>Gets the white point in stops, the scene value that displays as white being two to its power.</summary>
         public float WhitePoint { get; init; }
 
         /// <summary>
@@ -45,8 +45,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// </summary>
         public const float PreTonemapScale = 2.8f;
 
-        /// <summary>Gets the white point the curve is actually normalized against: <see cref="WhitePoint"/> scaled by <see cref="PreTonemapScale"/>.</summary>
-        public readonly float EffectiveWhitePoint => WhitePoint * PreTonemapScale;
+        /// <summary>Gets the white point the curve clamps to and is normalized against: two to the power of <see cref="WhitePoint"/>.</summary>
+        public readonly float EffectiveWhitePoint => MathF.Pow(2f, WhitePoint);
         // The following params aren't used, I think?
         /*float LuminanceSource; // CS2
         float ExposureBiasShadows; // CS2
@@ -70,19 +70,19 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             WhitePoint = 4.0f;
         }
 
-        /// <summary>Linear (non-filmic) tonemapping. <see cref="ApplyTonemapping"/> returns a constant 0 with these values, so it is not a true passthrough.</summary>
+        /// <summary>The nearly linear curve the game uses where no post processing gives one, when its game sets it to.</summary>
         public static TonemapSettings Linear()
         {
             return new TonemapSettings()
             {
                 ExposureBias = 0.0f,
                 ShoulderStrength = 0.0f,
-                LinearStrength = 0.0f,
-                LinearAngle = 0.0f,
+                LinearStrength = 0.001f,
+                LinearAngle = 0.001f,
                 ToeStrength = 1.0f,
                 ToeNum = 1.0f,
                 ToeDenom = 1.0f,
-                WhitePoint = 2.83f,
+                WhitePoint = 1.5f,
             };
         }
         /// <summary>Initializes a new <see cref="TonemapSettings"/> by reading values from a KV object.</summary>
