@@ -73,6 +73,13 @@ namespace ValveResourceFormat.Particles.Initializers
         protected static ulong FieldMask(ParticleField field) => 1UL << (int)field;
 
         /// <summary>
+        /// Whether <paramref name="field"/> is still unwritten for the particles being initialized:
+        /// neither their creator nor an initializer before this one declared writing it.
+        /// </summary>
+        protected static bool IsUnwritten(ParticleSystemState particleSystemState, ParticleField field)
+            => (particleSystemState.InitializedFields & FieldMask(field)) == 0;
+
+        /// <summary>
         /// Bit mask over <see cref="ParticleField"/> values of the attributes this initializer
         /// declares it writes, not the ones it happens to assign. Under the pre-version-6
         /// first-writer-wins rule an initializer runs only while some attribute it declares is

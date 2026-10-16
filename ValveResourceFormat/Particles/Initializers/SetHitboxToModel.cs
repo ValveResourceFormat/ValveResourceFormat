@@ -77,8 +77,16 @@ namespace ValveResourceFormat.Particles.Initializers
             var origin = particleSystemState.GetControlPoint(controlPoint).Position;
             var (_, fraction, index) = cache.RandomPoint(particleSystemState, origin, sampling, ref haltonIndex);
 
-            particle.HitboxOffsetPosition = fraction;
-            particle.HitboxIndex = index;
+            if (IsUnwritten(particleSystemState, ParticleField.HitboxOffsetPosition))
+            {
+                particle.HitboxOffsetPosition = fraction;
+            }
+
+            if (IsUnwritten(particleSystemState, ParticleField.HitboxIndex))
+            {
+                particle.HitboxIndex = index;
+            }
+
             return particle;
         }
     }

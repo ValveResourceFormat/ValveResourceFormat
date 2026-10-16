@@ -5,6 +5,10 @@ namespace ValveResourceFormat.Particles.Operators
     /// (or, with m_bPrevious, the previous) particle in the collection. The edge particle that has
     /// no neighbor in that direction copies its neighbor's resulting value instead.
     /// </summary>
+    /// <remarks>
+    /// The interpolation is evaluated in particle order but handed out only to the particles that
+    /// have a neighbor, so with <c>m_bPrevious</c> particle <c>i</c> lerps by the value of particle <c>i - 1</c>.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PointVectorAtNextParticle">C_OP_PointVectorAtNextParticle</seealso>
     class PointVectorAtNextParticle : ParticleFunctionOperator
     {
@@ -29,6 +33,7 @@ namespace ValveResourceFormat.Particles.Operators
             var current = particles.Current;
             var step = previous ? -1 : 1;
             var edge = previous ? 0 : particles.Count - 1;
+            var processed = 0;
 
             for (var i = 0; i < particles.Count; i++)
             {
@@ -39,7 +44,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 ref var particle = ref current[i];
                 var direction = current[i + step].Position - particle.Position;
-                var interp = interpolation.NextNumber(ref particle, particleSystemState);
+                var interp = interpolation.NextNumber(ref current[processed++], particleSystemState);
                 var pointed = Vector3.Lerp(particle.GetVector(outputField), MathUtils.SafeNormalize(direction), interp);
                 particle.SetVector(outputField, pointed);
             }

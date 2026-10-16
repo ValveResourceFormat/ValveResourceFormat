@@ -88,7 +88,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             particle.Position = position;
 
-            if ((particleSystemState.InitializedFields & FieldMask(ParticleField.PositionPrevious)) == 0)
+            if (IsUnwritten(particleSystemState, ParticleField.PositionPrevious))
             {
                 particle.PositionPrevious = position - (direction * (speed * particles.PreviousFrameTime));
             }

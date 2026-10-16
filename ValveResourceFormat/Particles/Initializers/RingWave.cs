@@ -95,7 +95,11 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             particle.Position = position;
-            particle.PositionPrevious = previous;
+
+            if (IsUnwritten(particleSystemState, ParticleField.PositionPrevious))
+            {
+                particle.PositionPrevious = previous;
+            }
 
             return particle;
         }

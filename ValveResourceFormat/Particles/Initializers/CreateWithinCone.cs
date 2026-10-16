@@ -59,7 +59,11 @@ namespace ValveResourceFormat.Particles.Initializers
             var direction = Vector3.Normalize((forward * axialDistance) + ringOffset);
 
             particle.Position = position;
-            particle.PositionPrevious = position - (direction * (particleSpeed * particles.PreviousFrameTime));
+
+            if (IsUnwritten(particleSystemState, ParticleField.PositionPrevious))
+            {
+                particle.PositionPrevious = position - (direction * (particleSpeed * particles.PreviousFrameTime));
+            }
 
             return particle;
         }

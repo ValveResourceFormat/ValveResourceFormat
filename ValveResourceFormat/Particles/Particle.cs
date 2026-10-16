@@ -222,7 +222,7 @@ namespace ValveResourceFormat.Particles
             {
                 var vectorValues = parse.Data.GetIntegerArray("m_ConstantColor");
                 Color = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
-                Alpha = vectorValues[3] / 255f;
+                Alpha = vectorValues.Length > 3 ? vectorValues[3] / 255f : 1f;
             }
 
             Radius = parse.Float("m_flConstantRadius", Radius);

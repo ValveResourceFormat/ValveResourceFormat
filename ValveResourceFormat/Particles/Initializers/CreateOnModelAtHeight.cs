@@ -81,8 +81,22 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             particle.Position = forceZ ? position with { Z = height } : position;
-            particle.HitboxOffsetPosition = fraction;
-            particle.HitboxIndex = index;
+
+            if (IsUnwritten(particleSystemState, ParticleField.HitboxOffsetPosition))
+            {
+                particle.HitboxOffsetPosition = fraction;
+            }
+
+            if (IsUnwritten(particleSystemState, ParticleField.HitboxIndex))
+            {
+                particle.HitboxIndex = index;
+            }
+
+            if (!IsUnwritten(particleSystemState, ParticleField.PositionPrevious))
+            {
+                return particle;
+            }
+
             particle.PositionPrevious = particle.Position;
 
             if (velocityScale != 0f && cache.BoxVelocity(index) is { } velocity)
