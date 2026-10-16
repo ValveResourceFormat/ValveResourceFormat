@@ -338,6 +338,8 @@ z = 0. Model particles render in bind pose with default body groups, without `m_
 Functions that place particles on a model use the hitboxes, bones and sequence of the model a
 control point carries, but not its render mesh triangles, sequence activities, or the collision
 hull and snapshot hitbox fallbacks.
+Blob particles draw as a metaball mesh with their material, without material variables, and
+with texture coordinates only for materials that project them by `g_flTexCoordScale`.
 
 Particle snapshots (`vsnap`) preview and extract. Bone name streams survive, but skinning
 streams are written into the extracted `.vsnap` as empty streams: their values show in the

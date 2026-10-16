@@ -24,6 +24,8 @@ public static class ParticleRendererFactory
         "C_OP_RenderOmni2Light" => new RenderOmni2Light(definition, scene),
         "C_OP_RenderModels" => new RenderModels(definition, rendererContext, scene),
         "C_OP_RenderProjected" => new RenderProjected(definition, scene),
+        "C_OP_RenderBlobs" => new RenderBlobs(definition, rendererContext, scene),
+        "C_OP_RenderScreenVelocityRotate" => new RenderScreenVelocityRotate(definition),
         _ => null,
     };
 
@@ -34,7 +36,7 @@ public static class ParticleRendererFactory
     {
         "C_OP_RenderSprites" or "C_OP_RenderCables" or "C_OP_RenderRopes" or "C_OP_RenderTrails"
             or "C_OP_RenderSound" or "C_OP_RenderStandardLight" or "C_OP_RenderOmni2Light" or "C_OP_RenderModels"
-            or "C_OP_RenderProjected" => true,
+            or "C_OP_RenderProjected" or "C_OP_RenderBlobs" or "C_OP_RenderScreenVelocityRotate" => true,
         _ => false,
     };
 }
