@@ -40,6 +40,14 @@ public sealed class PhysicsSimulation : IDisposable
     public const ulong MoverCategory = 8;
 
     /// <summary>
+    /// Collision category of debris, the pieces of something broken. They collide with everything
+    /// but the player's pushing hull: a fast overlap with that kinematic box resolves out its
+    /// nearest face, which for a piece lying on the floor is the bottom, pushing it through the
+    /// one-sided mesh world. The player shoves debris with a horizontal velocity instead.
+    /// </summary>
+    public const ulong DebrisCategory = 16;
+
+    /// <summary>
     /// The world steps once per rendered frame, so the sub-step count scales with the frame:
     /// at high framerates the steps are already small and two sub-steps keep stacks stable, but
     /// a vsynced 60 fps frame needs more - measured on jointed heaps, a heap stepped in 1/64 slices
@@ -138,13 +146,13 @@ public sealed class PhysicsSimulation : IDisposable
     /// <param name="distance">How far the ray reaches.</param>
     /// <param name="impulse">Impulse along the ray, applied off-center so the hit also spins the prop.</param>
     /// <returns>
-    /// The entity the ray struck - a prop, or a solid brush - or <see langword="null"/> for the
-    /// world or a miss. Only a simulated body is pushed.
+    /// The entity the ray struck, to take the hit's damage - a prop, or a brush such as a breakable
+    /// window - or <see langword="null"/> for the world or a miss. Only a simulated body is pushed.
     /// </returns>
     public BaseEntity? ApplyImpactImpulse(Vector3 from, Vector3 direction, float distance, float impulse)
     {
         var hit = World.RaycastClosest(from, direction * distance,
-            new QueryFilter(PlayerCategory, StaticCategory | PropCategory | MoverCategory));
+            new QueryFilter(PlayerCategory, StaticCategory | PropCategory | DebrisCategory | MoverCategory));
 
         if (!hit.Hit || !hit.Shape.IsValid)
         {
@@ -228,12 +236,12 @@ public sealed class PhysicsSimulation : IDisposable
     /// <summary>
     /// The shape properties a surface hash dictates: the table's friction, elasticity and density,
     /// and the hash itself riding along as the material id so a contact can find the surface again.
-    /// A simulated shape reports its hits, for impact sounds.
+    /// A simulated shape reports its hits, for impact sounds and impact damage.
     /// </summary>
     private ShapeDefinition MakeShapeDefinition(uint surfaceHash, ulong categories)
     {
         var surface = (surfaces?.Find(surfaceHash)) ?? SurfaceProperties.Fallback;
-        var simulated = (categories & PropCategory) != 0;
+        var simulated = (categories & (PropCategory | DebrisCategory)) != 0;
 
         if (simulated)
         {
@@ -252,6 +260,38 @@ public sealed class PhysicsSimulation : IDisposable
             Filter = new CollisionFilter(categories, ulong.MaxValue, 0),
             EnableHitEvents = simulated,
         };
+    }
+
+    /// <summary>
+    /// Finds the sound a model plays as it breaks: the break sound of the first surface its collision
+    /// names that has one - a pot's pottery, a bottle's glass.
+    /// </summary>
+    /// <returns>The sound event, or <see langword="null"/> when none of its surfaces break audibly.</returns>
+    public string? FindBreakSound(PhysAggregateData phys)
+    {
+        if (surfaces == null)
+        {
+            return null;
+        }
+
+        foreach (var part in phys.Parts)
+        {
+            var shape = part.Shape;
+            var indices = shape.GetAllHulls().Select(h => h.SurfacePropertyIndex)
+                .Concat(shape.GetAllSpheres().Select(s => s.SurfacePropertyIndex))
+                .Concat(shape.GetAllCapsules().Select(c => c.SurfacePropertyIndex))
+                .Concat(shape.GetAllMeshes().Select(m => m.SurfacePropertyIndex));
+
+            foreach (var index in indices)
+            {
+                if (surfaces.Find(GetSurfaceHash(phys, index)).BreakSound is { } sound)
+                {
+                    return sound;
+                }
+            }
+        }
+
+        return null;
     }
 
     // The surface a shape descriptor names, as the hash the table is keyed by. Old assets carry no
