@@ -22,6 +22,10 @@ namespace ValveResourceFormat.Particles.Constraints
             planesTime = float.NaN;
         }
 
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
+        }
+
         public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             var collision = particleSystemState.Collision;

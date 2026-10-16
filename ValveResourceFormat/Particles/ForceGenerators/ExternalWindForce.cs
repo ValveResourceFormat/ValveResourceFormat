@@ -1,3 +1,5 @@
+using ValveResourceFormat.Serialization.KeyValues;
+
 namespace ValveResourceFormat.Particles.ForceGenerators;
 
 /// <summary>
@@ -6,7 +8,8 @@ namespace ValveResourceFormat.Particles.ForceGenerators;
 /// no wind or water to sample, and sampled gravity is the standard world gravity, so with
 /// <c>m_bSampleGravity</c> the force is that gravity scaled by <c>m_flLocalGravityScale</c>, minus the
 /// <c>C_OP_BasicMovement</c> gravity when <c>m_bUseBasicMovementGravity</c> is set, and
-/// <c>m_vecGravityForce</c> otherwise.
+/// <c>m_vecGravityForce</c> otherwise. A sample position read from the particles takes that
+/// movement gravity off <c>m_vecGravityForce</c> as well.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ExternalWindForce">C_OP_ExternalWindForce</seealso>
 class ExternalWindForce : ParticleFunctionForceGenerator
@@ -18,6 +21,7 @@ class ExternalWindForce : ParticleFunctionForceGenerator
     private readonly IVectorProvider gravityForce = new LiteralVectorProvider(Vector3.Zero);
     private readonly bool useBasicMovementGravity;
     private readonly INumberProvider localGravityScale = new LiteralNumberProvider(1f);
+    private readonly bool samplesPerParticle;
 
     public ExternalWindForce(ParticleDefinitionParser parse) : base(parse)
     {
@@ -26,6 +30,8 @@ class ExternalWindForce : ParticleFunctionForceGenerator
         gravityForce = parse.VectorProvider("m_vecGravityForce", gravityForce);
         useBasicMovementGravity = parse.Boolean("m_bUseBasicMovementGravity", useBasicMovementGravity);
         localGravityScale = parse.NumberProvider("m_flLocalGravityScale", localGravityScale);
+        samplesPerParticle = parse.Data.GetSubCollection("m_vecSamplePosition")?.GetStringProperty("m_nType") is
+            "PVEC_TYPE_PARTICLE_VECTOR" or "PVEC_TYPE_PARTICLE_INITIAL_VECTOR" or "PVEC_TYPE_PARTICLE_VELOCITY" or "PVEC_TYPE_PARTICLE_GRAVITY";
     }
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
@@ -37,7 +43,7 @@ class ExternalWindForce : ParticleFunctionForceGenerator
         {
             var force = sampleGravity
                 ? new Vector3(0f, 0f, WorldGravity * localGravityScale.NextNumber(ref particle, particleSystemState) * gravityScale) - movementGravity
-                : gravityForce.NextVector(ref particle, particleSystemState);
+                : gravityForce.NextVector(ref particle, particleSystemState) - (samplesPerParticle ? movementGravity : Vector3.Zero);
             particle.ForceAccumulator += scale.NextVector(ref particle, particleSystemState) * force;
         }
     }

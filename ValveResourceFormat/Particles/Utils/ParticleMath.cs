@@ -174,11 +174,12 @@ namespace ValveResourceFormat.Particles.Utils
 
         /// <summary>
         /// Builds the left and up axes that complete a frame around <paramref name="forward"/>, taking
-        /// world up as the reference; a vertical forward gets a fixed left instead.
+        /// world up as the reference; a forward whose X and Y are both under 0.001 counts as vertical
+        /// and gets a fixed left instead.
         /// </summary>
         public static (Vector3 Left, Vector3 Up) VectorVectors(Vector3 forward)
         {
-            if (MathF.Abs(forward.X) < 1e-6f && MathF.Abs(forward.Y) < 1e-6f)
+            if (MathF.Abs(forward.X) < 0.001f && MathF.Abs(forward.Y) < 0.001f)
             {
                 return (Vector3.UnitY, new Vector3(-forward.Z, 0f, 0f));
             }

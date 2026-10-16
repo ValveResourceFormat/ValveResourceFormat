@@ -45,6 +45,10 @@ namespace ValveResourceFormat.Particles.Operators
             averageSpeed = 0f;
         }
 
+        public override void Restart(ParticleSystemState particleSystemState)
+        {
+        }
+
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
             if (neighborDistance < 0f)
