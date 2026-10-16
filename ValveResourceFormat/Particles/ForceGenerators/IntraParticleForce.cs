@@ -3,7 +3,7 @@ namespace ValveResourceFormat.Particles.ForceGenerators;
 /// <summary>
 /// Pulls the particles of the system toward each other and pushes them apart in pairs. Each force
 /// is strongest at its minimum distance and falls off linearly in squared distance to nothing at
-/// its maximum, and both are scaled by the force scale of the two particles.
+/// its maximum.
 /// </summary>
 /// <remarks>
 /// With <c>m_bUseAABB</c> only pairs whose boxes, grown by each radius plus
@@ -76,18 +76,17 @@ class IntraParticleForce : ParticleFunctionForceGenerator
         }
 
         var distance = MathF.Sqrt(distanceSquared);
-        var pairScale = first.ForceScale * second.ForceScale;
 
         if (distance < attractionMaxDistance)
         {
-            var pull = offset * (pairScale * attractionMaxStrength * strength * Falloff(distanceSquared, attractionMinDistance, attractionMaxDistance));
+            var pull = offset * (attractionMaxStrength * strength * Falloff(distanceSquared, attractionMinDistance, attractionMaxDistance));
             first.ForceAccumulator += pull;
             second.ForceAccumulator -= pull;
         }
 
         if (distance < repulsionMaxDistance)
         {
-            var push = offset * (pairScale * repulsionMaxStrength * strength * Falloff(distanceSquared, repulsionMinDistance, repulsionMaxDistance));
+            var push = offset * (repulsionMaxStrength * strength * Falloff(distanceSquared, repulsionMinDistance, repulsionMaxDistance));
             first.ForceAccumulator -= push;
             second.ForceAccumulator += push;
         }
