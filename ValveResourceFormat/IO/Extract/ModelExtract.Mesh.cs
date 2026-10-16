@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -95,15 +96,7 @@ partial class ModelExtract
     );
 
     string GetDmxFileName_ForEmbeddedMesh(string subString, int number = 0)
-    {
-        var fileName = ModelName;
-        return ContentPaths.Join(Path.GetDirectoryName(fileName),
-            Path.GetFileNameWithoutExtension(fileName)
-            + "_"
-            + subString
-            + (number > 0 ? number : string.Empty)
-            + ".dmx");
-    }
+        => ContentPaths.AppendToFileName(ModelName, number > 0 ? string.Create(CultureInfo.InvariantCulture, $"_{subString}{number}") : "_" + subString, ".dmx");
 
     static string GetDmxFileName_ForReferenceMesh(string fileName)
         => ContentPaths.ChangeExtension(fileName, ".dmx");

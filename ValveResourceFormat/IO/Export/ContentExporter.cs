@@ -447,7 +447,7 @@ public sealed class ContentExporter
         {
             for (var suffix = 1; !WrittenPaths.TryAdd(reservedPath, int.MinValue); suffix++)
             {
-                reservedPath = Path.Join(Path.GetDirectoryName(outputPath), string.Create(CultureInfo.InvariantCulture, $"{Path.GetFileNameWithoutExtension(outputPath)}_{suffix}{Path.GetExtension(outputPath)}"));
+                reservedPath = ContentPaths.AppendToFileName(outputPath, string.Create(CultureInfo.InvariantCulture, $"_{suffix}"));
             }
 
             ReservedPaths.Add(reservedPath);
