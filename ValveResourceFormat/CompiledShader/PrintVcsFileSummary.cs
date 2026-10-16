@@ -304,6 +304,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 output.WriteLine($"DYNAMIC EXPRESSIONS({dynExpCount})");
                 output.DefineHeaders(["param-index", "name", "vfxtype,registertype,vecsize,tex,", nameof(VfxVariableDescription.VariableSource), "dyn-exp", "ui-visibility"]);
+                string[] variableNames = [.. program.VariableDescriptions.Select(variable => variable.Name)];
                 foreach (var param in program.VariableDescriptions)
                 {
                     var dynExpstring = string.Empty;
@@ -311,12 +312,12 @@ namespace ValveResourceFormat.CompiledShader
 
                     if (param.HasDynamicExpression)
                     {
-                        dynExpstring = ParseDynamicExpression(param.CompiledExpression);
+                        dynExpstring = ParseDynamicExpression(param.CompiledExpression, variableNames);
                     }
 
                     if (param.UiVisibilityExpression.Length > 0)
                     {
-                        uiVisibilityString = ParseDynamicExpression(param.UiVisibilityExpression);
+                        uiVisibilityString = ParseDynamicExpression(param.UiVisibilityExpression, variableNames);
                     }
 
                     if (dynExpstring.Length == 0 && uiVisibilityString.Length == 0 && param.VariableSource < VfxVariableSourceType.Viewport)

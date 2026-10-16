@@ -132,6 +132,7 @@ public sealed partial class MapExtract
     private List<CMapRootElement> AdditionalMapDocuments { get; set; } = [];
 
     private readonly IFileLoader FileLoader;
+    private readonly IReadOnlyDictionary<uint, string> SurfacePropertyNames;
 
     // Units one texel spans on a face Hammer projects a texture onto, the game's Hammer default
     private readonly float TextureScale;
@@ -428,7 +429,7 @@ public sealed partial class MapExtract
     {
         FileLoader = fileLoader ?? throw new ArgumentNullException(nameof(fileLoader), "A file loader must be provided to load the map's lumps");
         TextureScale = FileLoader.GameInfo.HammerTextureScale;
-        FileExtract.EnsurePopulatedStringToken(fileLoader);
+        SurfacePropertyNames = fileLoader.GetSurfacePropertyNames();
 
         switch (resource.ResourceType)
         {
@@ -1158,7 +1159,7 @@ public sealed partial class MapExtract
 
             foreach (var addConvexShape in convexShapes)
             {
-                var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, DefaultTextureScale = TextureScale };
+                var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, DefaultTextureScale = TextureScale, SurfacePropertyNames = SurfacePropertyNames };
                 addConvexShape(hammerMeshBuilder);
                 var meshData = hammerMeshBuilder.GenerateMesh();
 
@@ -1183,7 +1184,7 @@ public sealed partial class MapExtract
 
             // physics meshes are welded together and split by connectivity like the render geometry,
             // regardless of material and tint
-            var physicsMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, DefaultTextureScale = TextureScale };
+            var physicsMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize, DefaultTextureScale = TextureScale, SurfacePropertyNames = SurfacePropertyNames };
 
             foreach (var mesh in meshes)
             {

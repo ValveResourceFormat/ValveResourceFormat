@@ -289,6 +289,11 @@ namespace ValveResourceFormat.IO
         public Func<string, Vector2?>? TextureSizeProvider { get; init; }
 
         /// <summary>
+        /// The game's surface property names by hash, which name the surface properties of the physics shapes added.
+        /// </summary>
+        public IReadOnlyDictionary<uint, string>? SurfacePropertyNames { get; init; }
+
+        /// <summary>
         /// Units one texel spans on a projected face, the game's <c>Hammer/DefaultTextureScale</c>.
         /// </summary>
         public float DefaultTextureScale { get; init; } = PolygonMesh.DefaultTextureScale;
@@ -814,11 +819,11 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private static string GetPhysShapeMaterial(int collisionAttributeIndex, int surfacePropertyIndex, PhysAggregateData phys, Func<string, string> materialNameProvider,
+        private string GetPhysShapeMaterial(int collisionAttributeIndex, int surfacePropertyIndex, PhysAggregateData phys, Func<string, string> materialNameProvider,
             string? materialOverride)
         {
             var attributes = phys.CollisionAttributes[collisionAttributeIndex];
-            var surfaceProperty = StringToken.GetKnownString(phys.SurfacePropertyHashes[surfacePropertyIndex]);
+            var surfaceProperty = StringToken.GetBuiltInString(phys.SurfacePropertyHashes[surfacePropertyIndex], SurfacePropertyNames);
 
             if (attributes.GetStringProperty("m_CollisionGroupString") == "Default")
             {
@@ -842,7 +847,7 @@ namespace ValveResourceFormat.IO
         {
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
             var group = attributes.GetStringProperty("m_CollisionGroupString");
-            var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
+            var physicsSurfaceNames = phys.GetSurfacePropertyNames(SurfacePropertyNames);
             var material = materialOverride ?? ToolsMaterials.GetForCollision(attributes, physicsSurfaceNames[desc.SurfacePropertyIndex]) ?? ToolsMaterials.Nodraw;
 
             var mesh = desc.Shape;
