@@ -589,6 +589,27 @@ namespace ValveResourceFormat.IO
             return false;
         }
 
+        /// <summary>
+        /// Gets where a package is in the order the game searches its packages: the position of its folder in the game's
+        /// search paths, or -1 when it is in none, such as a map or addon VPK, which the game mounts in front of them.
+        /// </summary>
+        /// <param name="packagePath">Path to the VPK.</param>
+        internal int GetSearchPathIndex(string packagePath)
+        {
+            var folder = Path.GetDirectoryName(Path.GetFullPath(packagePath));
+            var searchPaths = CurrentGameSearchPaths;
+
+            for (var i = 0; i < searchPaths.Length; i++)
+            {
+                if (string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(searchPaths[i])), folder, StringComparison.OrdinalIgnoreCase))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
         private static bool IsSamePackageName(string? path, string packageName)
             => path != null && string.Equals(GetFullPackageName(path), packageName, StringComparison.OrdinalIgnoreCase);
 

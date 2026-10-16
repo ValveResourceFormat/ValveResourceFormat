@@ -18,7 +18,7 @@ The binary name is `Source2Viewer-CLI`.
 | `--recursive_vpk`                | If the input is a folder, also process files inside of VPK archives in it.                                                                                                                                                                                                                                       |
 | `--vpk_extensions` (or `-e`)     | File extension(s) filter, example: `"vcss_c,vjs_c,vxml_c"`.                                                                                                                                                                                                                                                      |
 | `--vpk_filepath` (or `-f`)       | File path filter(s), matching the start of the path inside the VPK or relative to the input folder (case-insensitive), or the full path when using `*` and `?` wildcards. Example: `"panorama/,sounds/"` or `"*/entities/*"`.                                                                                    |
-| `--vpk_cache`                    | Use a cached VPK manifest to keep track of updates, only changed files are written to disk. Requires `--output`.                                                                                                                                                                                                 |
+| `--vpk_cache`                    | Only export the files of a VPK that changed since the last export to the same output, see [cached VPK manifest](#cached-vpk-manifest). Requires `--output`.                                                                                                                                                      |
 | `--vpk_verify`                   | Verify checksums and signatures of the given VPK, or of every VPK in the given folder.                                                                                                                                                                                                                           |
 | `--vpk_create`                   | Pack all files in the input folder and its subfolders into a VPK at the given path, example: `"pak01.vpk"`. A split VPK must be named `"*_dir.vpk"`, see `--vpk_create_chunk_size`. File paths are lowercased, and file extension and path filters apply.                                                        |
 | `--vpk_create_chunk_size`        | When using `--vpk_create`, split file data into chunk files of this many MiB (1 to 1024) next to the VPK, which must be named `"*_dir.vpk"`. By default everything is written into a single file, which may also be named `"*_dir.vpk"`.                                                                         |
@@ -50,7 +50,6 @@ The binary name is `Source2Viewer-CLI`.
 | `--shader_combo`                 | Decompile the shader variant matching these combo values, example: `"S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4"`. A bare name means `=1`, omitted combos stay at their minimum. For a material, the static combos it selects are used.                                                                               |
 | `--tools_asset_info_short`       | Print only file paths for tools_asset_info files.                                                                                                                                                                                                                                                                |
 | **Other**                        |                                                                                                                                                                                                                                                                                                                  |
-| `--threads`                      | If higher than 1, files are processed concurrently. Only used with `--output` or `--test`.                                                                                                                                                                                                                       |
 | `--quiet` (or `-q`)              | When writing to `--output` or `--vpk_create`, only print errors and a summary. With the shader options, only print their output.                                                                                                                                                                                 |
 | `--game`                         | Path to a `gameinfo.gi` file, or the folder containing it, to load game search paths from, such as `"steam:730/game/csgo"`. Useful when the input file is not located inside a game folder. See [game search paths](./game-search-paths.md).                                                                     |
 | `--version`                      | Show version information.                                                                                                                                                                                                                                                                                        |
@@ -77,27 +76,23 @@ The exit code is `0` on success, `2` when any file failed to process, and `1` fo
 - VPKs inside other VPKs (such as 3D skybox prefabs inside map VPKs, or map VPKs inside workshop items) are only processed by `--block` and `--all`, by `--test` with `--recursive_vpk`, and by the shader options when `--vpk_extensions` includes `vpk`. Otherwise they are treated as regular files, so extract them first with `--vpk_extensions vpk --output <folder>` and run the CLI on the extracted files.
 - Compiled shaders are split into multiple files (`<name>_<platform>_<model>_features.vcs`, `_vs.vcs`, `_ps.vcs`, ...). Decompiling to `.vfx` only works from the shader VPK, which writes one `.vfx` per shader from the highest shader model among the matched files. A loose `.vcs` file only prints a summary.
 - All `--gltf_*` options require `--gltf_export_format`.
+- `--output` and `--test` process files on every processor core. Set the `DOTNET_PROCESSOR_COUNT` environment variable to use fewer.
 
 ### Output paths
 
-Decompiled files are written to `<root>/<content path>`, where the content path is the path the file has inside the game or addon (`models/props/crate.vmdl`, `materials/props/crate_color.png`). Files referenced by a decompiled file are written at the paths it references them by, so models, materials and maps find their meshes, textures and sub-maps again.
+Decompiled files are written to `<root>/<content path>`. The content path is the path the file has in the game or addon, such as `models/props/crate.vmdl`. Files that a decompiled file references are written at the paths it references them by.
 
-- The content path of a file from a VPK is its path inside the VPK.
-- The content path of a file on disk is the path below the mod folder (the folder with the `gameinfo.gi`) or the `game/<game>_addons/<addon>` folder it is in, otherwise the path from its first top-level asset folder such as `models`, `materials` or `sounds`. A file with neither is written by its bare name at the root, with a warning.
-- Animation clips and skeletons are written at the authored source path they record, which can be outside the model's folder.
-- The root is the `--output` folder. If it, or any folder above it, is an addon or mod root (`content/<game>_addons/<name>`, `game/<game>_addons/<name>`, a folder with a `gameinfo.gi`, or a `content/<mod>` whose `game/<mod>` has one), that folder is the root instead. Otherwise trailing folders of `--output` that match the start of the folder all input files share are dropped, so `-o out/models/props` for `models/props/crate.vmdl` writes to `out/models/props/crate.vmdl`.
-- With `--output` naming a file, that file is the decompiled input itself. The root is resolved from its folder with the same rules, and every other file is written at its content path under that root.
-- Folder input and `--recursive_vpk` write every file at its own content path, not relative to the input folder.
-- Every path is written once. A path that is in several input VPKs is taken from the VPK the game loads first. When two decompiled files write different files at the same path, the first one is kept.
-- Resources the compiler generated from another resource, named `<resource>+<name>` such as the non-additive version of an additive clip or a graph variation, are not written when that resource is decompiled too.
-- Paths that would leave the root, such as `..` or absolute paths, are placed under the root instead, with a warning.
+- The root is the `--output` folder, or the addon or mod root it is in (`<game or content>/<game>_addons/<name>`, or a folder with a `gameinfo.gi`). Trailing folders of `--output` that match the start of the content paths are dropped: `-o out/models/props` for `models/props/crate.vmdl` writes `out/models/props/crate.vmdl`.
+- A file on disk that is in no addon or mod gets the path from its first asset folder, such as `models` or `materials`.
+- With `--output` naming a file, that file is the decompiled input, and every other file is written below the root of its folder.
+- Each path is written once. A path that is in several input VPKs is taken from the VPK the game loads first. When two files write the same path, the one earlier in the export is kept.
 - Existing files are overwritten unless `--skip_existing` is given.
 - Decompiling a map writes `maps/<map>_d.vmap` next to the `maps/<map>/` folder, so recompiling it does not replace the original map. Pieces that exist only because the map was compiled (the world, world nodes, resource manifest, visibility, world physics, entity lumps `.vents`, and the baked lightmaps, cubemaps and light probes) are not written.
 - glTF export does not use content paths for its references. With a folder `--output` the `.gltf` or `.glb` is written at the resource's content path below the root with its extension changed; with a file `--output` it is written to that file. Its buffers and textures go next to it, and `--skip_existing` keeps an existing `.gltf` or `.glb`.
 
 ### Cached VPK Manifest
 
-When using `--vpk_cache`, a `.manifest.txt` file is created alongside the VPK to track file versions. This allows incremental exports where only changed files are written. The cache is automatically invalidated if the decompiler version changes.
+When using `--vpk_cache`, a `<vpk name>.manifest.txt` file in the output root records the checksum of every file of the VPK that exported. The next export to the same output skips the files whose checksum did not change. A file that failed to export is not recorded, so it is retried. The manifest is ignored when the decompiler version, the VPK path, or the decompile and glTF options differ from the export that wrote it.
 
 ## Examples
 
@@ -231,7 +226,7 @@ Export a model with only specific animations included:
 ### Test all files in Steam libraries
 
 ```powershell
-./Source2Viewer-CLI.exe -i "steam" --test --recursive --recursive_vpk --threads 8
+./Source2Viewer-CLI.exe -i "steam" --test --recursive --recursive_vpk
 ```
 
 ### Decompile all shaders

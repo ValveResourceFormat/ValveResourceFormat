@@ -21,7 +21,12 @@ namespace ValveResourceFormat.IO;
 /// </para>
 /// <para>
 /// Whether files that existed before the export are replaced is decided before anything of a content file and the files
-/// below it is written, so <see cref="ExistingFileAction.Cancel"/> leaves no part of it behind.
+/// below it is written, so <see cref="ExistingFileAction.Cancel"/> leaves no part of it behind, and stops every thread of
+/// the export at its next file. A file this export wrote is never treated as existing.
+/// </para>
+/// <para>
+/// <see cref="ContentExportQueue"/> exports many files through one instance in parallel. File contents do not depend on
+/// the order files are exported in, but when two different files are written at the same path, which one keeps it does.
 /// </para>
 /// </remarks>
 public sealed class ContentExporter
@@ -43,7 +48,7 @@ public sealed class ContentExporter
         ResourceType.Texture,
     }.Select(static (type, index) => KeyValuePair.Create(type, index)).ToFrozenDictionary();
 
-    private static readonly FrozenSet<ResourceType> ConsumedDependencyTypes = new[]
+    internal static readonly FrozenSet<ResourceType> ConsumedDependencyTypes = new[]
     {
         ResourceType.Animation,
         ResourceType.AnimationGroup,
@@ -68,8 +73,8 @@ public sealed class ContentExporter
     private readonly Lock ExistingFilesLock = new();
     private readonly HashSet<string> WrittenPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> HandledFiles = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> VisitedDependencies = new(StringComparer.OrdinalIgnoreCase);
     private ExistingFileAction? ConfirmedExistingFileAction;
+    private volatile bool Cancelled;
     private int FilesWritten;
     private int FilesFailed;
 
@@ -134,9 +139,12 @@ public sealed class ContentExporter
     /// <summary>Gets the number of files that failed to export so far.</summary>
     public int FailedFileCount => FilesFailed;
 
+    /// <summary>Gets whether the export was cancelled because of an existing file, see <see cref="ExistingFileAction.Cancel"/>.</summary>
+    internal bool IsCancelled => Cancelled;
+
     /// <summary>
     /// Gets the order to export resources of the given file name in, lowest first, so a resource exported before the
-    /// ones it consumes marks them as handled, see <see cref="IsHandled"/>. Resources the compiler generated from
+    /// ones it consumes marks them as handled, see <see cref="TryBeginExport"/>. Resources the compiler generated from
     /// another one, named <c>&lt;parent&gt;+&lt;name&gt;</c>, come last.
     /// </summary>
     public static int GetExportOrder(string fileName)
@@ -177,7 +185,31 @@ public sealed class ContentExporter
     }
 
     /// <summary>
-    /// Decompiles a resource and writes its files.
+    /// Claims a resource for export, so that it is exported once.
+    /// </summary>
+    /// <param name="contentPath">Content path of the resource, compiled or not.</param>
+    /// <returns>False when the resource was already exported, or was consumed by an exported resource, see <see cref="IsHandled"/>.</returns>
+    public bool TryBeginExport(string contentPath)
+    {
+        ArgumentNullException.ThrowIfNull(contentPath);
+
+        var key = GetHandledKey(contentPath);
+        var generatingResource = GetGeneratingResource(key);
+
+        lock (StateLock)
+        {
+            if (generatingResource != null && HandledFiles.Contains(generatingResource))
+            {
+                return false;
+            }
+
+            return HandledFiles.Add(key);
+        }
+    }
+
+    /// <summary>
+    /// Decompiles a resource and writes its files. With <see cref="IncludeDependencies"/>, its dependencies are then
+    /// exported in parallel through a <see cref="ContentExportQueue"/>.
     /// </summary>
     /// <param name="resource">The resource, its <see cref="Resource.FileName"/> must be its content path.</param>
     /// <param name="fileLoader">The loader the resource's dependencies are read through while decompiling it.</param>
@@ -191,16 +223,24 @@ public sealed class ContentExporter
         ArgumentException.ThrowIfNullOrEmpty(resource.FileName);
 
         MarkHandled(resource.FileName);
-
-        using (var contentFile = FileExtract.Extract(resource, fileLoader, Progress, ExtractOptions))
-        {
-            Export(contentFile, targetFile, cancellationToken);
-        }
+        ExportResource(resource, fileLoader, targetFile, cancellationToken);
 
         if (IncludeDependencies && source != null)
         {
-            ExportDependencies(resource, fileLoader, source, cancellationToken);
+            var queue = new ContentExportQueue(this);
+            queue.AddDependenciesOf(resource, fileLoader, source);
+            queue.Run(cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Decompiles a resource and writes its files, without its dependencies.
+    /// </summary>
+    /// <returns>Whether every file of it was written.</returns>
+    internal bool ExportResource(Resource resource, IFileLoader fileLoader, string? targetFile, CancellationToken cancellationToken)
+    {
+        using var contentFile = FileExtract.Extract(resource, fileLoader, Progress, ExtractOptions);
+        return ExportFiles(contentFile, targetFile, cancellationToken);
     }
 
     /// <summary>
@@ -216,12 +256,21 @@ public sealed class ContentExporter
     {
         ArgumentNullException.ThrowIfNull(contentFile);
 
+        ExportFiles(contentFile, targetFile, cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes an extracted content file with its sub files and additional files.
+    /// </summary>
+    /// <returns>Whether every file of it was written.</returns>
+    internal bool ExportFiles(ContentFile contentFile, string? targetFile, CancellationToken cancellationToken)
+    {
         if (ConfirmExistingFiles != null || ExistingFileAction == ExistingFileAction.Cancel)
         {
             ConfirmExistingFilesOf(contentFile, targetFile);
         }
 
-        ExportContentFile(contentFile, targetFile, cancellationToken);
+        return ExportContentFile(contentFile, targetFile, cancellationToken);
     }
 
     /// <summary>
@@ -245,9 +294,10 @@ public sealed class ContentExporter
     /// <exception cref="OperationCanceledException">The existing file action is <see cref="ExistingFileAction.Cancel"/>.</exception>
     public bool CanWrite(string path) => GetExistingFileAction(Path.GetFullPath(path)) != ExistingFileAction.Skip;
 
-    private void ExportContentFile(ContentFile contentFile, string? targetFile, CancellationToken cancellationToken)
+    /// <returns>Whether every file of it was written.</returns>
+    private bool ExportContentFile(ContentFile contentFile, string? targetFile, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
+        ThrowIfCancelled(cancellationToken);
 
         string? contentPath = null;
 
@@ -257,30 +307,32 @@ public sealed class ContentExporter
             MarkHandled(contentPath);
         }
 
+        var allWritten = true;
+
         if (targetFile != null && contentFile.Data == null && contentFile.SubFiles.Count == 1)
         {
             var subFile = contentFile.SubFiles[0];
-            WriteSubFile(subFile, targetFile, NormalizeContentPath(subFile.FileName));
+            allWritten &= WriteSubFile(subFile, targetFile, NormalizeContentPath(subFile.FileName));
         }
         else
         {
             foreach (var subFile in contentFile.SubFiles)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                ThrowIfCancelled(cancellationToken);
 
                 var subFilePath = NormalizeContentPath(subFile.FileName);
-                WriteSubFile(subFile, Path.Join(OutputRoot, subFilePath), subFilePath);
+                allWritten &= WriteSubFile(subFile, Path.Join(OutputRoot, subFilePath), subFilePath);
             }
         }
 
         foreach (var additionalFile in contentFile.AdditionalFiles)
         {
-            ExportContentFile(additionalFile, null, cancellationToken);
+            allWritten &= ExportContentFile(additionalFile, null, cancellationToken);
         }
 
         if (contentFile.Data == null)
         {
-            return;
+            return allWritten;
         }
 
         var outputPath = targetFile ?? (contentPath != null ? Path.Join(OutputRoot, contentPath) : null);
@@ -288,13 +340,15 @@ public sealed class ContentExporter
         if (outputPath == null)
         {
             Warning?.Invoke("Skipped an extracted file that has no file name.");
-            return;
+            return allWritten;
         }
 
         Write(outputPath, contentFile.Data);
+        return allWritten;
     }
 
-    private void WriteSubFile(SubFile subFile, string outputPath, string contentPath)
+    /// <returns>Whether the sub file was written or had nothing to write.</returns>
+    private bool WriteSubFile(SubFile subFile, string outputPath, string contentPath)
     {
         byte[]? data;
 
@@ -304,21 +358,22 @@ public sealed class ContentExporter
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            Interlocked.Increment(ref FilesFailed);
-            FileFailed?.Invoke(contentPath, e);
-            return;
+            ReportFailure(contentPath, e);
+            return false;
         }
 
-        if (data is not { Length: > 0 })
+        if (data is { Length: > 0 })
         {
-            return;
+            Write(outputPath, data);
         }
 
-        Write(outputPath, data);
+        return true;
     }
 
     private void Write(string outputPath, ReadOnlySpan<byte> data)
     {
+        ThrowIfCancelled(CancellationToken.None);
+
         outputPath = Path.GetFullPath(outputPath);
 
         lock (StateLock)
@@ -421,64 +476,27 @@ public sealed class ContentExporter
 
         if (action == ExistingFileAction.Cancel)
         {
+            Cancelled = true;
             throw new OperationCanceledException($"Cancelled because \"{path}\" already exists.");
         }
 
         return action;
     }
 
-    private void ExportDependencies(Resource resource, IFileLoader fileLoader, ContentExportSource source, CancellationToken cancellationToken)
+    private void ThrowIfCancelled(CancellationToken cancellationToken)
     {
-        var pending = new PriorityQueue<string, int>();
-        EnqueueReferences(resource, pending);
+        cancellationToken.ThrowIfCancellationRequested();
 
-        while (pending.TryDequeue(out var name, out _))
+        if (Cancelled)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            lock (StateLock)
-            {
-                if (!VisitedDependencies.Add(name))
-                {
-                    continue;
-                }
-            }
-
-            try
-            {
-                using var dependency = source.Load(name + GameFileLoader.CompiledFileSuffix);
-
-                if (dependency == null)
-                {
-                    continue;
-                }
-
-                EnqueueReferences(dependency, pending);
-
-                if (!ConsumedDependencyTypes.Contains(dependency.ResourceType) && !IsHandled(name))
-                {
-                    Export(dependency, fileLoader, cancellationToken: cancellationToken);
-                }
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                Interlocked.Increment(ref FilesFailed);
-                FileFailed?.Invoke(name, e);
-            }
+            throw new OperationCanceledException("The export was cancelled because a file already exists.");
         }
     }
 
-    private static void EnqueueReferences(Resource resource, PriorityQueue<string, int> pending)
+    internal void ReportFailure(string fileName, Exception exception)
     {
-        foreach (var reference in resource.ExternalReferences?.ResourceRefInfoList ?? [])
-        {
-            var name = ContentPaths.Normalize(reference.Name);
-
-            if (name.Length > 0)
-            {
-                pending.Enqueue(name, GetExportOrder(name + GameFileLoader.CompiledFileSuffix));
-            }
-        }
+        Interlocked.Increment(ref FilesFailed);
+        FileFailed?.Invoke(fileName, exception);
     }
 
     private void MarkHandled(string contentPath)
@@ -495,14 +513,14 @@ public sealed class ContentExporter
     /// Gets the resource the compiler generated a resource named <c>&lt;parent&gt;+&lt;name&gt;</c> from, such as the
     /// non-additive version of an additive clip or a graph variation.
     /// </summary>
-    private static string? GetGeneratingResource(string contentPath)
+    internal static string? GetGeneratingResource(string contentPath)
     {
         var separator = contentPath.IndexOf('+', StringComparison.Ordinal);
 
         return separator > 0 && Path.HasExtension(contentPath.AsSpan(0, separator)) ? contentPath[..separator] : null;
     }
 
-    private static string GetHandledKey(string contentPath)
+    internal static string GetHandledKey(string contentPath)
         => ContentPaths.TrimCompiledSuffix(ContentPaths.Normalize(contentPath));
 
     private string NormalizeContentPath(string path)

@@ -37,7 +37,7 @@ Recipes to read game files. For all options, read `docs/guides/command-line.md`,
 ## Export many files
 
 ```powershell
-& $cli -i $vpk -e vpcf_c -f particles/ -d -o $out -q --threads 8
+& $cli -i $vpk -e vpcf_c -f particles/ -d -o $out -q
 & $cli -i <game>/maps/de_dust2.vpk -e vents_c -o -            # all entities of a map
 & $cli -i $vpk -f models/x/y.vmdl_c -o $out/y.glb --gltf_export_format glb --gltf_export_animations --gltf_export_materials
 ```
