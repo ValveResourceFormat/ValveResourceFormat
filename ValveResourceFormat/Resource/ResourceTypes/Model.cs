@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
@@ -105,14 +106,15 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets the flex controllers for this model.
+        /// Gets the flex controllers for this model: those of its own morph block, otherwise those
+        /// passed to <see cref="SetExternalMorphData"/>.
         /// </summary>
         public FlexController[] FlexControllers
         {
             get
             {
                 cachedFlexControllers ??= GetFlexControllers();
-                return cachedFlexControllers;
+                return cachedFlexControllers.Length > 0 ? cachedFlexControllers : ExternalFlexControllers ?? cachedFlexControllers;
             }
         }
 
@@ -137,6 +139,13 @@ namespace ValveResourceFormat.ResourceTypes
         private ModelMeshGroups? cachedMeshGroups;
         private ModelConfigList? cachedConfigs;
         private (string Identifier, string GraphPath)[]? cachedAnimGraph2References;
+
+        private const int OwnMeshIndex = -1;
+        private readonly Lock ExternalMeshDataLock = new();
+        private FlexController[]? ExternalFlexControllers;
+        private int ExternalFlexControllersMeshIndex = int.MaxValue;
+        private int HitboxSetsMeshIndex = int.MaxValue;
+        private int AttachmentsMeshIndex = int.MaxValue;
 
         /// <summary>
         /// Gets the hitbox sets for this model.
@@ -274,41 +283,67 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (Resource.GetBlockByType(BlockType.MDAT) is Mesh mesh)
             {
-                HitboxSets = mesh.HitboxSets;
-                Attachments = mesh.Attachments;
+                SetHitboxesAndAttachments(mesh, OwnMeshIndex);
             }
         }
 
         /// <summary>
-        /// Populates cached flex controller data from an externally loaded morph resource.
+        /// Supplies flex controllers from the morph set of one of the model's meshes, for a model whose own morph block has none.
         /// </summary>
-        /// <param name="morph">The morph data whose flex controllers should be reused.</param>
-        public void SetExternalMorphData(Morph? morph)
+        /// <remarks>
+        /// Of the morph sets passed in, the one of the lowest mesh index that has flex controllers supplies them,
+        /// whatever order they are passed in.
+        /// </remarks>
+        /// <param name="morph">The mesh's morph set, with its flex data loaded.</param>
+        /// <param name="meshIndex">The index of the mesh in the model.</param>
+        public void SetExternalMorphData(Morph? morph, int meshIndex)
         {
-            // The model's own morph block wins; otherwise use the morph set its meshes carry (separate vmorf).
-            if (FlexControllers.Length == 0)
+            if (morph is not { FlexControllers.Length: > 0 })
             {
-                cachedFlexControllers = morph?.FlexControllers;
+                return;
+            }
+
+            lock (ExternalMeshDataLock)
+            {
+                if (meshIndex < ExternalFlexControllersMeshIndex)
+                {
+                    ExternalFlexControllers = morph.FlexControllers;
+                    ExternalFlexControllersMeshIndex = meshIndex;
+                }
             }
         }
 
         /// <summary>
-        /// Populates flex controllers, hitbox sets and attachments the model does not have from an external mesh resource.
+        /// Supplies the flex controllers, hitbox sets and attachments the model does not have itself from one of its
+        /// meshes that lives in its own resource.
         /// </summary>
+        /// <remarks>
+        /// Of the meshes passed in, the one of the lowest mesh index that carries each of them supplies it,
+        /// whatever order they are passed in.
+        /// </remarks>
         /// <param name="mesh">The mesh providing supplemental data.</param>
-        public void SetExternalMeshData(Mesh mesh)
+        /// <param name="meshIndex">The index of the mesh in the model.</param>
+        public void SetExternalMeshData(Mesh mesh, int meshIndex)
         {
-            SetExternalMorphData(mesh.MorphData);
+            SetExternalMorphData(mesh.MorphData, meshIndex);
+            SetHitboxesAndAttachments(mesh, meshIndex);
+        }
 
-            // Like the embedded MDAT case, the first mesh that carries hitboxes or attachments supplies them.
-            if (HitboxSets.Count == 0)
+        private void SetHitboxesAndAttachments(Mesh mesh, int meshIndex)
+        {
+            lock (ExternalMeshDataLock)
             {
-                HitboxSets = mesh.HitboxSets;
-            }
+                if (mesh.HitboxSets.Count > 0 && meshIndex < HitboxSetsMeshIndex)
+                {
+                    HitboxSets = mesh.HitboxSets;
+                    HitboxSetsMeshIndex = meshIndex;
+                }
 
-            if (Attachments.Count == 0)
-            {
-                Attachments = mesh.Attachments;
+                if (mesh.Attachments.Count > 0 && meshIndex < AttachmentsMeshIndex)
+                {
+                    Attachments = mesh.Attachments;
+                    AttachmentsMeshIndex = meshIndex;
+                }
             }
         }
 
@@ -425,19 +460,16 @@ namespace ValveResourceFormat.ResourceTypes
         /// meshes alike.
         /// </remarks>
         public IEnumerable<ModelMesh> GetEmbeddedMeshes()
-        {
-            if (cachedEmbeddedMeshes != null)
-            {
-                return cachedEmbeddedMeshes;
-            }
+            => LazyInitializer.EnsureInitialized(ref cachedEmbeddedMeshes, ParseEmbeddedMeshes);
 
+        private List<ModelMesh> ParseEmbeddedMeshes()
+        {
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
             var embeddedMeshes = ctrl?.Data.Root.GetArray("embedded_meshes");
 
             if (embeddedMeshes == null)
             {
-                cachedEmbeddedMeshes = [];
-                return cachedEmbeddedMeshes;
+                return [];
             }
 
             var meshes = new List<ModelMesh>(embeddedMeshes.Count);
@@ -480,8 +512,7 @@ namespace ValveResourceFormat.ResourceTypes
                 meshes.Add(new ModelMesh(mesh, meshIndex, name, LodInfo.GetMeshMask(meshIndex)));
             }
 
-            cachedEmbeddedMeshes = meshes;
-            return cachedEmbeddedMeshes;
+            return meshes;
         }
 
         private ModelMesh ParseEmbeddedMesh2(KVObject embeddedMesh)

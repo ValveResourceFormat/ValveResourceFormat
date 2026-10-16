@@ -69,7 +69,7 @@ partial class ModelExtract
             return;
         }
 
-        PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
+        PhysicsSurfaceNames = physAggregateData.GetSurfacePropertyNames(fileLoader?.GetSurfacePropertyNames());
 
         PhysicsCollisionTags = physAggregateData.CollisionAttributes.Select(attributes =>
             PhysAggregateData.GetInteractAsTags(attributes).ToHashSet()
