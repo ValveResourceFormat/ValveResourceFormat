@@ -93,8 +93,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                         AddSphere(verts, inds, center, radius, ColorSphere);
 
-                        var bbox = new AABB(center + new Vector3(radius),
-                                            center - new Vector3(radius));
+                        var bbox = new AABB(center, radius);
 
                         if (!boundingBoxInitted)
                         {
@@ -115,7 +114,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         }
 
                         //var surfacePropertyIndex = capsule.SurfacePropertyIndex;
-                        var center = capsule.Shape.Center;
+                        var center = capsule.Shape.Center.AsSpan().ToArray();
                         var radius = capsule.Shape.Radius;
 
                         if (bindPose.Length != 0)
@@ -131,8 +130,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                         foreach (var cn in center)
                         {
-                            var bbox = new AABB(cn + new Vector3(radius),
-                                                 cn - new Vector3(radius));
+                            var bbox = new AABB(cn, radius);
 
                             if (!boundingBoxInitted)
                             {
