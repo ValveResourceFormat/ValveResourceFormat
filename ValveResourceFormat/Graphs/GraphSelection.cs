@@ -14,9 +14,6 @@ internal sealed class GraphSelection
     /// <summary>Transitive upstream and downstream chain of the primary node, including it.</summary>
     public HashSet<GraphNode> Connected { get; } = [];
 
-    /// <summary>One-hop wire neighbors of the primary node.</summary>
-    public HashSet<GraphNode> Direct { get; } = [];
-
     /// <summary>One-hop upstream neighbors (over the primary node's inputs).</summary>
     public HashSet<GraphNode> DirectIn { get; } = [];
 
@@ -58,7 +55,6 @@ internal sealed class GraphSelection
 
     private void ClearDirect()
     {
-        Direct.Clear();
         DirectIn.Clear();
         DirectOut.Clear();
     }
@@ -69,19 +65,9 @@ internal sealed class GraphSelection
     {
         ClearDirect();
 
-        foreach (var neighbor in node.Neighbors(upstream: true))
-        {
-            Direct.Add(neighbor);
-            DirectIn.Add(neighbor);
-        }
+        DirectIn.UnionWith(node.Neighbors(upstream: true));
+        DirectOut.UnionWith(node.Neighbors(upstream: false));
 
-        foreach (var neighbor in node.Neighbors(upstream: false))
-        {
-            Direct.Add(neighbor);
-            DirectOut.Add(neighbor);
-        }
-
-        Direct.Remove(node);
         DirectIn.Remove(node);
         DirectOut.Remove(node);
     }

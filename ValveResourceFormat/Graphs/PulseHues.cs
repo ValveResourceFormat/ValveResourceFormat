@@ -28,6 +28,21 @@ internal enum PulseCategory
     Variable,
 }
 
+/// <summary>The value buckets pulse sockets and wires are coloured by.</summary>
+internal enum PulseValueKind
+{
+    /// <summary>Cursor flow between steps.</summary>
+    Flow,
+    /// <summary>Integer, float and game time values.</summary>
+    Number,
+    /// <summary>String values.</summary>
+    String,
+    /// <summary>Boolean values.</summary>
+    Bool,
+    /// <summary>Every other value type.</summary>
+    Other,
+}
+
 /// <summary>
 /// The pulse graph palette: node headers are coloured by <see cref="PulseCategory"/>, sockets and
 /// wires by the value type they carry.
@@ -51,6 +66,17 @@ internal static class PulseHues
         _ => GraphHue.Red,
     };
 
+    /// <summary>Colour slot a value bucket is drawn in.</summary>
+    /// <param name="kind">The bucket to colour.</param>
+    public static GraphHue HueOf(PulseValueKind kind) => kind switch
+    {
+        PulseValueKind.Flow => GraphHue.Neutral,
+        PulseValueKind.Number => GraphHue.Amber,
+        PulseValueKind.String => GraphHue.Green,
+        PulseValueKind.Bool => GraphHue.Orange,
+        _ => GraphHue.Teal,
+    };
+
     /// <summary>Hue the dashed variable read and write links and their sockets share.</summary>
     public const GraphHue VariableLinkHue = GraphHue.Indigo;
 
@@ -60,11 +86,11 @@ internal static class PulseHues
     /// </summary>
     public static IEnumerable<GraphLegendEntry> Legend()
     {
-        yield return new("Flow", GraphHue.Neutral, GraphLegendKind.Wire);
-        yield return new("String value", GraphHue.Green, GraphLegendKind.Wire);
-        yield return new("Number value", GraphHue.Amber, GraphLegendKind.Wire);
-        yield return new("Bool value", GraphHue.Orange, GraphLegendKind.Wire);
-        yield return new("Other value", GraphHue.Teal, GraphLegendKind.Wire);
+        yield return new("Flow", HueOf(PulseValueKind.Flow), GraphLegendKind.Wire);
+        yield return new("String value", HueOf(PulseValueKind.String), GraphLegendKind.Wire);
+        yield return new("Number value", HueOf(PulseValueKind.Number), GraphLegendKind.Wire);
+        yield return new("Bool value", HueOf(PulseValueKind.Bool), GraphLegendKind.Wire);
+        yield return new("Other value", HueOf(PulseValueKind.Other), GraphLegendKind.Wire);
         yield return new("Variable link", VariableLinkHue, GraphLegendKind.DashedWire);
         yield return new("Entry point", HueOf(PulseCategory.EntryPoint));
         yield return new("Action / step", HueOf(PulseCategory.Step));

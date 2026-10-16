@@ -17,10 +17,7 @@ internal class AG1GraphViewer : GLGraphViewer
     public AG1GraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, KVObject data)
         : base(vrfGuiContext, rendererContext, new GraphView())
     {
-        builder = new AnimGraph1Builder(data, vrfGuiContext)
-        {
-            ProgressReporter = new Progress<string>(message => Log.Debug(nameof(AG1GraphViewer), message)),
-        };
+        builder = new AnimGraph1Builder(data, vrfGuiContext);
 
         BuildGraph();
     }
@@ -37,9 +34,7 @@ internal class AG1GraphViewer : GLGraphViewer
         }
 
         builder.DrawParameterWires = draw;
-        View.Rebuild(BuildGraph);
-        RefreshStatsLabel();
-        RefitToGraph();
+        RebuildGraph(BuildGraph);
     }
 
     public override void Dispose()

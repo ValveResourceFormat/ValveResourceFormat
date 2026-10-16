@@ -21,9 +21,6 @@ internal sealed class AnimGraph1Builder : IDisposable
     /// <summary>Whether the graph has any parameter consumer, set once a build has run.</summary>
     public bool HasParameterConsumers => parameterConsumers.Count > 0;
 
-    /// <summary>Receives diagnostics about nodes the schema could not be read cleanly from.</summary>
-    public IProgress<string>? ProgressReporter { get; set; }
-
     /// <summary>Creates a builder over one animation graph.</summary>
     /// <param name="data">The graph, compiled or in the editor schema.</param>
     /// <param name="loader">Loads the model the graph binds to, for bone and sequence names.</param>
@@ -56,8 +53,6 @@ internal sealed class AnimGraph1Builder : IDisposable
     private readonly Dictionary<int, Node> nodeMap = [];
     private readonly Dictionary<int, KVObject> parameterIndexToObject = [];
     private readonly Dictionary<KVObject, List<Node>> parameterConsumers = [];
-    private readonly Dictionary<int, string> parameterIndexToName = [];
-    private readonly Dictionary<KVObject, int> parameterObjectToIndex = [];
     private readonly Dictionary<string, List<KVObject>> typeToParameters = [];
     private readonly List<KVObject> tags = [];
     private readonly Dictionary<int, string> tagIndexToName = [];
@@ -178,16 +173,12 @@ internal sealed class AnimGraph1Builder : IDisposable
 
     private static GraphHue HueOfClass(string compiledClass)
         => AnimGraphHues.HueOf(AnimGraphHues.CategoryOfAG1(compiledClass));
-    private static readonly HashSet<string> GlobalPropertySkips = new(StringComparer.Ordinal)
-    {
-        "m_name",
-    };
 
-    // Structural keys of a compiled node are already drawn as wires, sockets or rows, so the
-    // generic property dump skips them.
+    // Structural keys of a compiled node are already drawn as the title, wires, sockets or rows,
+    // so the generic property dump skips them.
     private static readonly HashSet<string> CompiledStructureKeys = new(StringComparer.Ordinal)
     {
-        "_class", "m_nodePath", "m_children", "m_tags", "m_paramSpans", "m_stateMachine", "m_stateData", "m_transitionData",
+        "_class", "m_name", "m_nodePath", "m_children", "m_tags", "m_paramSpans", "m_stateMachine", "m_stateData", "m_transitionData",
     };
 
     /// <summary>
@@ -258,25 +249,31 @@ internal sealed class AnimGraph1Builder : IDisposable
     {
         nodeMap.Clear();
         parameterConsumers.Clear();
-        parameterObjectToIndex.Clear();
 
+        document.Legend.AddRange(AnimGraphHues.Legend());
+
+        // HLA and SteamVR Home ship standalone vanmgrph files in the editor format, and CS2
+        // authors its player graphs the same way in vanmgrph/vsubgrph. The graph is laid out
+        // from its wires like the compiled path; the authored canvas positions are ignored.
         if (IsEditorGraph(animGraphData))
         {
-            // HLA and SteamVR Home ship standalone vanmgrph files in the editor format, and CS2
-            // authors its player graphs the same way in vanmgrph/vsubgrph. The graph is laid out
-            // from its wires like the compiled path; the authored canvas positions are ignored.
             BuildEditorGraph(document);
-            document.LayoutOptions.LongWireDummies = true;
-            document.LayoutOptions.TightenMinSpan = 1;
-            document.LayoutNodesPacked();
-
-            document.Legend.AddRange(AnimGraphHues.Legend());
-            return;
+        }
+        else
+        {
+            BuildCompiledGraph(document);
         }
 
-        LoadParameters(document);
-        LoadTags(document);
-        LoadComponents(document);
+        document.LayoutOptions.LongWireDummies = true;
+        document.LayoutOptions.TightenMinSpan = 1;
+        document.LayoutNodesPacked();
+    }
+
+    private void BuildCompiledGraph(GraphDocument document)
+    {
+        LoadParameters();
+        LoadTags();
+        LoadComponents();
 
         var nodesContainer = ResolveContainer("m_nodes");
         compiledNodes = nodesContainer?.GetArray("m_nodes") ?? [];
@@ -284,14 +281,6 @@ internal sealed class AnimGraph1Builder : IDisposable
         CreateGraph(document);
         AddParameterAndTagNodes(document);
         AddComponentNodes(document);
-        // A pose graph is one connected DAG, where routing a long wire through dummy ranks keeps
-        // it between the cards of the ranks it spans rather than over them, and where closing
-        // every rank of slack pays off instead of costing the room the repair moves cards in.
-        document.LayoutOptions.LongWireDummies = true;
-        document.LayoutOptions.TightenMinSpan = 1;
-        document.LayoutNodesPacked();
-
-        document.Legend.AddRange(AnimGraphHues.Legend());
 
         foreach (var (name, hue) in drawnParameterTypes)
         {
@@ -370,7 +359,7 @@ internal sealed class AnimGraph1Builder : IDisposable
             var friendly = ClassDisplayName.TryGetValue(compiledClass, out var display) ? display : className;
             var authoredName = value.GetStringProperty("m_sName");
 
-            var node = new Node(value)
+            var node = new Node
             {
                 Name = string.IsNullOrEmpty(authoredName) || authoredName == "Unnamed" ? friendly : authoredName,
                 NodeType = friendly,
@@ -475,7 +464,7 @@ internal sealed class AnimGraph1Builder : IDisposable
 
         if (rootNodes == null || rootNodes.Count == 0)
         {
-            document.AddNode(new Node(null)
+            document.AddNode(new Node
             {
                 Name = "Empty animation graph",
                 NodeType = animGraphData.GetStringProperty("_class") ?? "CAnimationGraph",
@@ -530,12 +519,7 @@ internal sealed class AnimGraph1Builder : IDisposable
 
                 var outputName = outputNames.GetValueOrDefault((sourceId, outputId), string.Empty);
                 var output = source.GetOrAddOutput(outputName, PoseHue);
-                var input = parent.AddInput(inputName, PoseHue, allowMultiple: true);
-
-                if (!input.Wires.Exists(w => w.From == output))
-                {
-                    document.Connect(output, input);
-                }
+                document.ConnectOrMerge(output, parent.AddInput(inputName, PoseHue, allowMultiple: true));
             }
 
             void ConnectConnection(KVObject? connection, string inputName)
@@ -703,9 +687,8 @@ internal sealed class AnimGraph1Builder : IDisposable
         return animGraphData.ContainsKey(key) ? animGraphData : null;
     }
 
-    private void LoadParameters(GraphDocument document)
+    private void LoadParameters()
     {
-        parameterIndexToName.Clear();
         parameterIndexToObject.Clear();
         typeToParameters.Clear();
 
@@ -727,9 +710,7 @@ internal sealed class AnimGraph1Builder : IDisposable
             var name = param.GetStringProperty("m_name");
             if (!string.IsNullOrEmpty(name))
             {
-                parameterIndexToName[i] = name;
                 parameterIndexToObject[i] = param;
-                parameterObjectToIndex[param] = i;
 
                 var className = param.GetStringProperty("_class");
                 var type = ClassNameToParamType(className);
@@ -743,7 +724,7 @@ internal sealed class AnimGraph1Builder : IDisposable
         }
     }
 
-    private void LoadTags(GraphDocument document)
+    private void LoadTags()
     {
         tags.Clear();
         tagIndexToName.Clear();
@@ -772,17 +753,9 @@ internal sealed class AnimGraph1Builder : IDisposable
         }
     }
 
-    private string GetTagName(int tagIndex)
-    {
-        if (tagIndex < 0 || tagIndex >= tags.Count)
-        {
-            return $"Tag {tagIndex}";
-        }
+    private string GetTagName(int tagIndex) => tagIndexToName.TryGetValue(tagIndex, out var name) ? name : $"Tag {tagIndex}";
 
-        return tagIndexToName.TryGetValue(tagIndex, out var name) ? name : $"Tag {tagIndex}";
-    }
-
-    private void LoadComponents(GraphDocument document)
+    private void LoadComponents()
     {
         components.Clear();
 
@@ -864,11 +837,6 @@ internal sealed class AnimGraph1Builder : IDisposable
 
     private KVObject? ResolveParameterHandle(KVObject handle)
     {
-        if (handle == null)
-        {
-            return null;
-        }
-
         var type = handle.GetStringProperty("m_type");
         var index = handle.GetInt32Property("m_index", -1);
 
@@ -898,17 +866,9 @@ internal sealed class AnimGraph1Builder : IDisposable
             return "None";
         }
 
-        if (parameterIndexToObject.TryGetValue(index, out var paramObj))
-        {
-            return GetParameterDescriptionFromObject(paramObj);
-        }
-
-        if (parameterIndexToName.TryGetValue(index, out var name))
-        {
-            return name;
-        }
-
-        return $"Param {index}";
+        return parameterIndexToObject.TryGetValue(index, out var paramObj)
+            ? GetParameterDescriptionFromObject(paramObj)
+            : $"Param {index}";
     }
 
     private static string GetParameterDescriptionFromObject(KVObject paramObj)
@@ -1093,11 +1053,6 @@ internal sealed class AnimGraph1Builder : IDisposable
 
     private void CreateGraph(GraphDocument document)
     {
-        if (compiledNodes == null || compiledNodes.Count == 0)
-        {
-            return;
-        }
-
         for (var i = 0; i < compiledNodes.Count; i++)
         {
             var compiledNode = compiledNodes[i];
@@ -1359,7 +1314,7 @@ internal sealed class AnimGraph1Builder : IDisposable
             }
         }
 
-        var node = new Node(compiledNode)
+        var node = new Node
         {
             Name = $"({index}) {nodeName}",
             NodeType = displayName,
@@ -1379,7 +1334,6 @@ internal sealed class AnimGraph1Builder : IDisposable
             compiledNode,
             key => CompiledStructureKeys.Contains(key)
                 || key.StartsWith("m_pChild", StringComparison.Ordinal)
-                || GlobalPropertySkips.Contains(key)
                 || (skipKeys != null && skipKeys.Contains(key)),
             renderRow: (key, child) => key == "m_hSequence"
                 ? FormatIndexed("Sequence", child.ToInt32(), GetSequenceName)
@@ -1852,21 +1806,18 @@ internal sealed class AnimGraph1Builder : IDisposable
         return node;
     }
 
-    private static GraphHue GetParameterTypeHue(string type)
+    private static GraphHue GetParameterTypeHue(string type) => type switch
     {
-        return type switch
-        {
-            "BOOL" => GraphHue.Blue,
-            "INT" => GraphHue.Orange,
-            "FLOAT" => GraphHue.Olive,
-            "ENUM" => GraphHue.Purple,
-            "VECTOR" => GraphHue.Green,
-            "QUATERNION" => GraphHue.Maroon,
-            "SYMBOL" => GraphHue.Neutral,
-            "VIRTUAL" => GraphHue.Cyan,
-            _ => GraphHue.Red,
-        };
-    }
+        "BOOL" => AnimGraphHues.HueOf(AnimGraphValueKind.Bool),
+        "INT" => GraphHue.Orange,
+        "FLOAT" => AnimGraphHues.HueOf(AnimGraphValueKind.Float),
+        "ENUM" => GraphHue.Purple,
+        "VECTOR" => AnimGraphHues.HueOf(AnimGraphValueKind.Vector),
+        "QUATERNION" => AnimGraphHues.HueOf(AnimGraphValueKind.Quaternion),
+        "SYMBOL" => GraphHue.Neutral,
+        "VIRTUAL" => GraphHue.Cyan,
+        _ => GraphHue.Red,
+    };
 
     private void RecordParameterConsumer(KVObject? paramObj, Node node)
     {
@@ -1902,17 +1853,16 @@ internal sealed class AnimGraph1Builder : IDisposable
                 continue;
             }
 
-            var ordered = list.OrderBy(p => parameterObjectToIndex.TryGetValue(p, out var idx) ? idx : int.MaxValue).ToList();
             var friendlyName = ParameterTypeDisplayName.TryGetValue(type, out var display) ? display : type;
             drawnParameterTypes[friendlyName] = GetParameterTypeHue(type);
 
-            var node = new Node(null)
+            var node = new Node
             {
                 Name = $"{friendlyName} Parameters",
                 NodeType = "Parameter Group",
                 Category = GetParameterTypeHue(type),
             };
-            foreach (var p in ordered)
+            foreach (var p in list)
             {
                 if (DrawParameterWires && parameterConsumers.TryGetValue(p, out var consumers))
                 {
@@ -1937,8 +1887,6 @@ internal sealed class AnimGraph1Builder : IDisposable
 
         if (tags.Count > 0)
         {
-            var tagIndexMap = tags.Select((t, i) => new { t, i }).ToDictionary(x => x.t, x => x.i);
-
             var tagGroups = tags.GroupBy(t => t.GetStringProperty("_class") ?? "Unknown");
             foreach (var group in tagGroups)
             {
@@ -1946,15 +1894,13 @@ internal sealed class AnimGraph1Builder : IDisposable
                 var (friendlyName, tagHue) = TagClassInfo(className);
                 drawnTagClasses[friendlyName] = tagHue;
 
-                var ordered = group.OrderBy(t => tagIndexMap.TryGetValue(t, out var idx) ? idx : int.MaxValue).ToList();
-
-                var node = new Node(null)
+                var node = new Node
                 {
                     Name = $"{friendlyName}",
                     NodeType = "Tag Group",
                     Category = tagHue,
                 };
-                foreach (var t in ordered)
+                foreach (var t in group)
                 {
                     var name = t.GetStringProperty("m_name") ?? "Unnamed";
                     node.AddText(name);
@@ -1966,11 +1912,6 @@ internal sealed class AnimGraph1Builder : IDisposable
 
     private void AddComponentNodes(GraphDocument document)
     {
-        if (components.Count == 0)
-        {
-            return;
-        }
-
         foreach (var comp in components)
         {
             var className = comp.GetStringProperty("_class") ?? "Unknown";
@@ -1979,7 +1920,7 @@ internal sealed class AnimGraph1Builder : IDisposable
             var name = comp.GetStringProperty("m_name") ?? "";
             var displayName = string.IsNullOrEmpty(name) ? friendlyName : $"{friendlyName} ({name})";
 
-            var node = new Node(null)
+            var node = new Node
             {
                 Name = displayName,
                 NodeType = "Component",

@@ -18,9 +18,6 @@ namespace GUI.Types.Graphs;
 /// </summary>
 internal class EntityIOGraphViewer : GLGraphViewer
 {
-    private const GraphHue OutputHue = EntityIOGraphBuilder.OutputHue;
-    private const GraphHue InputHue = EntityIOGraphBuilder.InputHue;
-
     private readonly List<List<GraphNode>> islands;
     private string? focusedIslandName;
     private readonly Action<IReadOnlyList<EntityLump.Entity>>? showInMap;
@@ -64,8 +61,8 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
         View.Legend.AddRange(
         [
-            new("Output", OutputHue, GraphLegendKind.Wire),
-            new("Input", InputHue, GraphLegendKind.Wire),
+            new("Output", EntityIOGraphBuilder.OutputHue, GraphLegendKind.Wire),
+            new("Input", EntityIOGraphBuilder.InputHue, GraphLegendKind.Wire),
             // Closes the line samples, meeting the point_template swatch that opens the node rows.
             new("Template spawn", EntityIOGraphBuilder.TemplateSpawnHue, GraphLegendKind.DashedWire),
         ]);

@@ -94,6 +94,34 @@ internal sealed class GraphDocument
         return wire;
     }
 
+    /// <summary>
+    /// Wires an output socket to an input socket, or when the two are already wired, joins
+    /// <paramref name="label"/> onto the existing wire's label instead.
+    /// </summary>
+    /// <param name="from">The output socket the wire leaves.</param>
+    /// <param name="to">The input socket the wire enters.</param>
+    /// <param name="dashed">Whether a new wire is a secondary binding rather than primary flow.</param>
+    /// <param name="label">Short text drawn at the wire's midpoint.</param>
+    /// <returns>The new or existing wire.</returns>
+    public GraphWire ConnectOrMerge(GraphSocket from, GraphSocket to, bool dashed = false, string? label = null)
+    {
+        ArgumentNullException.ThrowIfNull(to);
+
+        var existing = to.Wires.Find(wire => wire.From == from);
+
+        if (existing == null)
+        {
+            return Connect(from, to, dashed, label);
+        }
+
+        if (label != null)
+        {
+            existing.Label = existing.Label == null ? label : $"{existing.Label} | {label}";
+        }
+
+        return existing;
+    }
+
     /// <summary>Removes a wire from both its sockets and from the graph.</summary>
     /// <param name="wire">The wire to remove.</param>
     public void Disconnect(GraphWire wire)
@@ -104,6 +132,22 @@ internal sealed class GraphDocument
         wire.To.Wires.Remove(wire);
         wires.Remove(wire);
         Geometry.RemoveWire(wire);
+    }
+
+    /// <summary>Removes wires from both their sockets and from the graph.</summary>
+    /// <param name="removed">The wires to remove.</param>
+    public void Disconnect(IReadOnlySet<GraphWire> removed)
+    {
+        ArgumentNullException.ThrowIfNull(removed);
+
+        foreach (var wire in removed)
+        {
+            wire.From.Wires.Remove(wire);
+            wire.To.Wires.Remove(wire);
+            Geometry.RemoveWire(wire);
+        }
+
+        wires.RemoveAll(removed.Contains);
     }
 
     /// <summary>Removes a socket from its node and drops its geometry.</summary>

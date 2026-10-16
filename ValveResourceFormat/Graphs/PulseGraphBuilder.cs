@@ -194,21 +194,18 @@ internal sealed class PulseGraphBuilder
         }
     }
 
-    #region Socket types
-    // Buckets: string, number, bool, flow, and one "other" bucket for every remaining type.
-    private static GraphHue HueOfPval(PulseValueType valueType) => valueType switch
+    private static GraphHue HueOf(PulseValueType valueType) => PulseHues.HueOf(valueType switch
     {
         PulseValueType.PVAL_INT or PulseValueType.PVAL_FLOAT
             or PulseValueType.PVAL_TYPESAFE_INT or PulseValueType.PVAL_TYPESAFE_INT64
-            or PulseValueType.PVAL_GAMETIME => GraphHue.Amber,
-        PulseValueType.PVAL_STRING => GraphHue.Green,
-        PulseValueType.PVAL_BOOL => GraphHue.Orange,
-        PulseValueType.PVAL_CURSOR_FLOW => GraphHue.Neutral,
-        _ => GraphHue.Teal,
-    };
-    #endregion Socket types
+            or PulseValueType.PVAL_GAMETIME => PulseValueKind.Number,
+        PulseValueType.PVAL_STRING => PulseValueKind.String,
+        PulseValueType.PVAL_BOOL => PulseValueKind.Bool,
+        PulseValueType.PVAL_CURSOR_FLOW => PulseValueKind.Flow,
+        _ => PulseValueKind.Other,
+    });
 
-    private static Node CreateNode(string name, string nodeType, PulseCategory category, KVObject? data = null) => new(data)
+    private static Node CreateNode(string name, string nodeType, PulseCategory category) => new()
     {
         Name = name,
         NodeType = nodeType,
@@ -372,11 +369,11 @@ internal sealed class PulseGraphBuilder
 
     // One hub node per variable: writes wire into it, reads wire out of it. Temporaries are banked
     // by the chunk that uses them, so one index means different values in each bank.
-    private Node VariableHubFor(GraphDocument document, string hubType, int bankIndex, int index, string name, KVObject? data)
+    private Node VariableHubFor(GraphDocument document, string hubType, int bankIndex, int index, string name)
     {
         if (!variableHubs.TryGetValue((hubType, bankIndex, index), out var node))
         {
-            node = CreateNode(name, hubType, PulseCategory.Variable, data);
+            node = CreateNode(name, hubType, PulseCategory.Variable);
             document.AddNode(node);
             variableHubs[(hubType, bankIndex, index)] = node;
         }
@@ -445,7 +442,7 @@ internal sealed class PulseGraphBuilder
             name = variable.GetStringProperty("m_Name");
         }
 
-        return VariableHubFor(document, VariableHubType, -1, varIndex, name, variable);
+        return VariableHubFor(document, VariableHubType, -1, varIndex, name);
     }
 
     private Node TempVariableHubFromInstruction(GraphDocument document, int chunkIndex, KVObject instruction, out string name)
@@ -463,7 +460,7 @@ internal sealed class PulseGraphBuilder
             name = tempVar.GetStringProperty("m_Name");
         }
 
-        return VariableHubFor(document, TempVariableHubType, bankIndex, tempVarIndex, name, null);
+        return VariableHubFor(document, TempVariableHubType, bankIndex, tempVarIndex, name);
     }
 
     private Node BlackboardReferenceHubFromInstruction(GraphDocument document, KVObject instruction, out string name)
@@ -480,7 +477,7 @@ internal sealed class PulseGraphBuilder
             name = reference.GetStringProperty("m_NodeName", $"<BLACKBOARD REFERENCE {referenceIndex}>");
         }
 
-        return VariableHubFor(document, BlackboardReferenceHubType, -1, referenceIndex, name, reference);
+        return VariableHubFor(document, BlackboardReferenceHubType, -1, referenceIndex, name);
     }
 
     /// <summary>The port a flow continues into, created on first use.</summary>
@@ -962,7 +959,7 @@ internal sealed class PulseGraphBuilder
         {
             AddNodeRegisterInput(document, forLoopNode, chunkIndex, registerValues, regStart, "First index");
             // Kept across loop iterations, should also handle foreach type of loop.
-            registerValues[regStart] = new(forLoopNode.AddOutput("Index", GraphHue.Amber), null);
+            registerValues[regStart] = new(forLoopNode.AddOutput("Index", PulseHues.HueOf(PulseValueKind.Number)), null);
         }
         else
         {
@@ -1029,7 +1026,6 @@ internal sealed class PulseGraphBuilder
         previousActionOutSocket = FlowContinuation.Of(forLoopNode.CreateFlowOut("Finished"));
 
         document.AddNode(forLoopNode);
-        // do stuff outside the loop
         instructionIdx = outsideLoopTargetInstructionIdx;
         return true;
     }
@@ -1152,7 +1148,6 @@ internal sealed class PulseGraphBuilder
                     var funcName = binding.GetStringProperty("m_FuncName");
                     var cellIndex = binding.GetInt32Property("m_nCellIndex");
 
-                    // show name after '::' separator, if can't find then show full name
                     var funcNameSplitIdx = funcName.IndexOf("::", StringComparison.Ordinal);
                     var methodName = funcNameSplitIdx >= 0 ? funcName[(funcNameSplitIdx + 2)..] : funcName;
                     var node = CreateNode(GetCellName(cellIndex), methodName, GetCellCategory(cellIndex));
@@ -1408,7 +1403,7 @@ internal sealed class PulseGraphBuilder
                     var reg1 = instruction.GetInt32Property("m_nReg1");
                     var reg2 = instruction.GetInt32Property("m_nReg2");
 
-                    if (reg0 == -1) // nothing to do
+                    if (reg0 == -1)
                     {
                         break;
                     }
@@ -1431,7 +1426,6 @@ internal sealed class PulseGraphBuilder
                         AddNodeRegisterInput(document, node, chunkIndex, registerValues, reg0, "arg");
                     }
 
-                    // create output socket for this node, and store it for future connections
                     registerValues[reg0] = new(node.CreateSocketOutFromValueType("retval", GetValueTypeFromRegister(chunkIndex, reg0)), null);
                     document.AddNode(node);
                     break;
@@ -1607,7 +1601,7 @@ internal sealed class PulseGraphBuilder
         for (var varIndex = 0; varIndex < variables.Count; varIndex++)
         {
             var variable = variables[varIndex];
-            var node = VariableHubFor(document, VariableHubType, -1, varIndex, variable.GetStringProperty("m_Name"), variable);
+            var node = VariableHubFor(document, VariableHubType, -1, varIndex, variable.GetStringProperty("m_Name"));
             node.AddText($"Type: {variable.GetStringProperty("m_Type")}");
             node.AddText($"Initial value: {variable["m_DefaultValue"]}");
             node.AddText($"Keys source: {variable.GetStringProperty("m_nKeysSource")}");
@@ -1640,14 +1634,11 @@ internal sealed class PulseGraphBuilder
         document.Legend.AddRange(PulseHues.Legend());
     }
 
-    #region Nodes
-    class Node(KVObject? data) : KVGraphNode(data)
+    class Node : KVGraphNode
     {
-        public GraphSocket CreateFlowIn(string text) => AddInput(text, GraphHue.Neutral);
-        public GraphSocket CreateFlowOut(string text) => AddOutput(text, GraphHue.Neutral);
-        public GraphSocket CreateSocketInFromValueType(string text, PulseValueType valueType) => AddInput(text, HueOfPval(valueType));
-        public GraphSocket CreateSocketOutFromValueType(string text, PulseValueType valueType) => AddOutput(text, HueOfPval(valueType));
+        public GraphSocket CreateFlowIn(string text) => AddInput(text, PulseHues.HueOf(PulseValueKind.Flow));
+        public GraphSocket CreateFlowOut(string text) => AddOutput(text, PulseHues.HueOf(PulseValueKind.Flow));
+        public GraphSocket CreateSocketInFromValueType(string text, PulseValueType valueType) => AddInput(text, HueOf(valueType));
+        public GraphSocket CreateSocketOutFromValueType(string text, PulseValueType valueType) => AddOutput(text, HueOf(valueType));
     }
-
-    #endregion Nodes
 }

@@ -99,7 +99,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
         Dictionary<int, Node> createdNodes = new(nodes.Count);
         Dictionary<int, Animation.GraphNode?> definitions = new(nodes.Count);
 
-        Node CreateNode(string[] nodePaths, IReadOnlyList<KVObject> nodes, int nodeIdx)
+        Node CreateNode(int nodeIdx)
         {
             if (createdNodes.TryGetValue(nodeIdx, out var existingNode))
             {
@@ -112,16 +112,16 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
             {
                 ProgressReporter?.Report($"Node index {nodeIdx} is out of range ({nodes.Count} nodes), adding a placeholder node.");
 
-                node = new Node(null)
+                node = new Node
                 {
                     Name = $"({nodeIdx}) {MissingNodeName}",
                     NodeType = "Missing",
-                    Category = GraphHue.Red,
+                    Category = AnimGraphHues.HueOf(AnimGraphCategory.Other),
                 };
             }
             else
             {
-                node = new Node(nodes[nodeIdx])
+                node = new Node
                 {
                     Name = $"({nodeIdx}) {GetName(nodeIdx)}",
                     NodeType = GetType(nodeIdx),
@@ -152,7 +152,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
 
             // The input takes the created output's hue so both ends of the wire agree on the
             // value kind the child produces.
-            var input = parent.AddInput(parentInputName ?? childNode.Name ?? string.Empty, childNodeOutput.Hue, hub);
+            var input = parent.AddInput(parentInputName ?? childNode.Name, childNodeOutput.Hue, hub);
             document.Connect(childNodeOutput, input);
 
             return (childNode, input);
@@ -168,9 +168,8 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
 
         (Node, GraphSocket) CreateChild(int nodeIdx, string? childOutputName = null)
         {
-            var childNode = CreateNode(nodePaths, nodes, nodeIdx);
+            var childNode = CreateNode(nodeIdx);
 
-            // child node already exists, all we do is connect to its existing output.
             if (childNode.Outputs.Count > 0)
             {
                 return (childNode, childNode.Outputs[0]);
@@ -229,7 +228,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                 // The placeholder keeps the state list index-aligned with the transitions.
                 if (!IsValidNodeIndex(stateNodeIdx) || GetDefinition(stateNodeIdx) is not StateNode state)
                 {
-                    var missingState = CreateNode(nodePaths, nodes, stateNodeIdx);
+                    var missingState = CreateNode(stateNodeIdx);
                     document.Connect(missingState.GetOrAddOutput(string.Empty, PoseHue), input);
                     stateGraphNodes?.Add(missingState);
                     continue;
@@ -242,11 +241,11 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
 
                 if (stateGraphNodes != null)
                 {
-                    target = document.AddNode(new Node(nodes[stateNodeIdx])
+                    target = document.AddNode(new Node
                     {
                         Name = $"({stateNodeIdx}) {stateName}",
                         NodeType = "State",
-                        Category = GraphHue.Slate,
+                        Category = AnimGraphHues.HueOf(AnimGraphCategory.StateMachine),
                     });
                     document.Connect(target.AddOutput(string.Empty, PoseHue), input);
                     stateGraphNodes.Add(target);
@@ -316,7 +315,6 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
 
         void AddConditionalOptions(Node node, short[] options, short[] conditions)
         {
-            // Select the first option for which the condition passes?
             foreach (var (optionNodeIdx, conditionNodeIdx) in options.Zip(conditions))
             {
                 var (_, optionInput) = CreateInputAndChild(node, optionNodeIdx, hub: true);
@@ -512,12 +510,11 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                     CreateInputAndChild(node, layerBlend.BaseNodeIdx, "Base", "Result");
 
                     var layerInput = node.AddInput("Layers", PoseHue, allowMultiple: true);
-                    var layerData = data.GetArray("m_layerDefinition");
 
                     for (var layerIndex = 0; layerIndex < layerBlend.LayerDefinition.Length; layerIndex++)
                     {
                         var layer = layerBlend.LayerDefinition[layerIndex];
-                        var layerNode = document.AddNode(new Node(layerData[layerIndex])
+                        var layerNode = document.AddNode(new Node
                         {
                             Name = $"Layer{layerIndex}",
                             NodeType = LayerDefinitionType,
@@ -1058,7 +1055,7 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
             }
         }
 
-        var finalPose = new Node(null)
+        var finalPose = new Node
         {
             Name = "Result",
             NodeType = "FinalPose",
@@ -1068,28 +1065,18 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
         var finalPoseInput = finalPose.AddInput("Out", PoseHue, allowMultiple: false);
         document.AddNode(finalPose);
 
-        var root = CreateNode(nodePaths, nodes, rootNodeIdx);
+        var root = CreateNode(rootNodeIdx);
 
         var rootOutput = root.AddOutput(string.Empty, PoseHue);
         document.Connect(rootOutput, finalPoseInput);
 
         CreateChildren(root, rootNodeIdx);
 
-        // create some unreferenced nodes
         for (var i = 0; i < nodes.Count; i++)
         {
-            var exists = createdNodes.ContainsKey(i);
-            if (exists)
+            if (!createdNodes.ContainsKey(i) && GetType(i).StartsWith("ControlParameter", StringComparison.Ordinal))
             {
-                continue;
-            }
-
-            var className = GetType(i);
-
-            if (className.StartsWith("ControlParameter", StringComparison.Ordinal))
-            {
-                CreateNode(nodePaths, nodes, i);
-                continue;
+                CreateNode(i);
             }
         }
 
@@ -1098,9 +1085,6 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
             SuppressParameterWires(document);
         }
 
-        // A pose graph is one connected DAG, where routing a long wire through dummy ranks keeps
-        // it between the cards of the ranks it spans rather than over them, and where closing
-        // every rank of slack pays off instead of costing the room the repair moves cards in.
         document.LayoutOptions.LongWireDummies = true;
         document.LayoutOptions.TightenMinSpan = 1;
         document.LayoutNodesPacked();
@@ -1132,33 +1116,40 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
     /// </summary>
     private static void SuppressParameterWires(GraphDocument document)
     {
-        foreach (var graphNode in document.Nodes)
-        {
-            if (graphNode is not Node node || node.NodeType?.StartsWith("ControlParameter", StringComparison.Ordinal) != true)
-            {
-                continue;
-            }
+        var parameters = document.Nodes.OfType<Node>().Where(static node => node.NodeType.StartsWith("ControlParameter", StringComparison.Ordinal)).ToList();
+        var removed = new HashSet<GraphWire>();
 
-            var name = node.Name ?? string.Empty;
+        foreach (var node in parameters)
+        {
+            var name = node.Name;
             var closingParen = name.IndexOf(") ", StringComparison.Ordinal);
             var parameterName = closingParen >= 0 ? name[(closingParen + 2)..] : name;
-            var kind = AnimGraphHues.AG2ValueKindOf(node.NodeType);
+            var hue = AnimGraphHues.HueOf(AnimGraphHues.AG2ValueKindOf(node.NodeType));
 
+            foreach (var output in node.Outputs)
+            {
+                foreach (var wire in output.Wires)
+                {
+                    wire.To.Owner.AddAnnotation($"{(wire.To.Name.Length > 0 ? wire.To.Name : "Parameter")}: {parameterName}", hue);
+                    removed.Add(wire);
+                }
+            }
+        }
+
+        document.Disconnect(removed);
+
+        foreach (var input in removed.Select(static wire => wire.To).Distinct())
+        {
+            if (input.Wires.Count == 0)
+            {
+                document.RemoveSocket(input.Owner, input);
+            }
+        }
+
+        foreach (var node in parameters)
+        {
             foreach (var output in node.Outputs.ToArray())
             {
-                foreach (var wire in output.Wires.ToArray())
-                {
-                    var input = wire.To;
-                    var consumer = input.Owner;
-                    document.Disconnect(wire);
-                    consumer.AddAnnotation($"{(input.Name.Length > 0 ? input.Name : "Parameter")}: {parameterName}", AnimGraphHues.HueOf(kind));
-
-                    if (input.Wires.Count == 0)
-                    {
-                        document.RemoveSocket(consumer, input);
-                    }
-                }
-
                 if (output.Wires.Count == 0)
                 {
                     document.RemoveSocket(node, output);

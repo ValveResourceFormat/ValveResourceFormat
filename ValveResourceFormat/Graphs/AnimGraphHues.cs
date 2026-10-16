@@ -124,18 +124,7 @@ internal static class AnimGraphHues
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
 
-        var from = source.GetOrAddOutput("Transitions", TransitionHue);
-        var to = target.GetOrAddInput("From", TransitionHue);
-        var existing = to.Wires.Find(wire => wire.From == from);
-
-        if (existing == null)
-        {
-            document.Connect(from, to, dashed: true, label: label);
-        }
-        else if (label != null)
-        {
-            existing.Label = existing.Label == null ? label : $"{existing.Label} | {label}";
-        }
+        document.ConnectOrMerge(source.GetOrAddOutput("Transitions", TransitionHue), target.GetOrAddInput("From", TransitionHue), dashed: true, label);
     }
 
     /// <summary>
@@ -289,7 +278,7 @@ internal static class AnimGraphHues
             "AimCS" => AnimGraphCategory.AimMatrix,
 
             "Selector" or "ParameterizedSelector" or "FloatSelector" or "IDSelector"
-                or "TargetSelector" or "BoneMaskSelectorNode" or "FloatSwitch" or "IDSwitch"
+                or "TargetSelector" or "FloatSwitch" or "IDSwitch"
                 or "IDBasedSelector" or "IDBasedClipSelector" => AnimGraphCategory.Selector,
 
             "FloatMath" or "FloatAngleMath" or "FloatCurve" or "FloatCurveEvent" or "FloatRemap"
@@ -306,7 +295,7 @@ internal static class AnimGraphHues
 
             "ExternalPose" or "ZeroPose" or "ReferencePose" or "Passthrough" => AnimGraphCategory.Input,
 
-            "SpeedScale" or "VelocityBasedSpeedScale" or "DurationScale" or "TimeCondition"
+            "SpeedScale" or "VelocityBasedSpeedScale" or "DurationScale"
                 or "CurrentSyncEvent" or "CurrentSyncEventID" => AnimGraphCategory.Timing,
 
             "ReferencedGraph" => AnimGraphCategory.ExternalReference,

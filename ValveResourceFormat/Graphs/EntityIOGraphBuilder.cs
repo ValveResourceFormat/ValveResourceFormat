@@ -27,8 +27,6 @@ internal static class EntityIOGraphBuilder
     /// <summary>Wires and sockets linking a point_template to the entities it spawns.</summary>
     public const GraphHue TemplateSpawnHue = GraphHue.Purple;
 
-    private static GraphHue ClassHue(string classname) => EntityClassHues.For(classname);
-
     private static string? FormatConnectionLabel(Connection connection)
     {
         var parts = new List<string>(3);
@@ -127,7 +125,6 @@ internal static class EntityIOGraphBuilder
         var annotations = new List<(GraphNode Node, string Text)>();
         var outputSockets = new Dictionary<(GraphNode Node, string Name), GraphSocket>();
         var inputSockets = new Dictionary<(GraphNode Node, string Name), GraphSocket>();
-        var mergedWires = new Dictionary<(GraphSocket From, GraphSocket To), GraphWire>();
 
         GraphNode NodeFor(EntityLump.Entity entity)
         {
@@ -162,7 +159,7 @@ internal static class EntityIOGraphBuilder
                     {
                         Title = members.Count > 1 ? $"{title}  ×{members.Count}" : title,
                         Subtitle = classname,
-                        Category = ClassHue(classname),
+                        Category = EntityClassHues.For(classname),
                         Tag = entity,
                     });
                     namedNodes[key] = node;
@@ -179,7 +176,7 @@ internal static class EntityIOGraphBuilder
                 {
                     Title = classname,
                     Subtitle = classname,
-                    Category = ClassHue(classname),
+                    Category = EntityClassHues.For(classname),
                     Tag = entity,
                 });
             }
@@ -253,17 +250,12 @@ internal static class EntityIOGraphBuilder
 
                 foreach (var childEntity in childEntities)
                 {
-                    var input = InputFor(NodeFor(childEntity), "spawned by", TemplateSpawnHue);
-
-                    if (!mergedWires.ContainsKey((output, input)))
-                    {
-                        mergedWires[(output, input)] = document.Connect(output, input, dashed: true);
-                    }
+                    document.ConnectOrMerge(output, InputFor(NodeFor(childEntity), "spawned by", TemplateSpawnHue), dashed: true);
                 }
             }
         }
 
-        if (connections.Count == 0 && mergedWires.Count == 0)
+        if (connections.Count == 0 && document.WireCount == 0)
         {
             var infoNode = document.AddNode(new GraphNode { Title = "No entity I/O", Subtitle = "EntityLump", Category = GraphHue.Neutral });
             infoNode.AddText($"{entities.Count} entities, no connections");
@@ -303,20 +295,7 @@ internal static class EntityIOGraphBuilder
 
             foreach (var targetNode in targetNodes)
             {
-                var input = InputFor(targetNode, connection.InputName, InputHue);
-
-                if (mergedWires.TryGetValue((output, input), out var existing))
-                {
-                    // Same output firing the same input multiple times (e.g. different delays)
-                    if (label != null)
-                    {
-                        existing.Label = existing.Label == null ? label : $"{existing.Label} | {label}";
-                    }
-
-                    continue;
-                }
-
-                mergedWires[(output, input)] = document.Connect(output, input, label: label);
+                document.ConnectOrMerge(output, InputFor(targetNode, connection.InputName, InputHue), label: label);
             }
         }
 

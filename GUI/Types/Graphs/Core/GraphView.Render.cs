@@ -227,7 +227,7 @@ partial class GraphView
         }
 
         if (node == Selection.PrimaryNode ||
-            (Selection.PrimaryNode != null && Selection.Direct.Contains(node)) ||
+            (Selection.PrimaryNode != null && (Selection.DirectIn.Contains(node) || Selection.DirectOut.Contains(node))) ||
             (Selection.Wire != null && (Selection.Wire.From.Owner == node || Selection.Wire.To.Owner == node)))
         {
             return RenderTier.Focus;

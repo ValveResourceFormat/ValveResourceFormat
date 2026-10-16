@@ -109,8 +109,6 @@ namespace GUI.Types.GLViewers
 
                 subtitleFilter = filterList;
 
-                // Content-sized up to a cap, past which the list scrolls on its own instead of
-                // pushing everything below it out of the sidebar.
                 if (filterList.Parent?.Parent is Control filterControl)
                 {
                     const int MaxVisibleRows = 12;
@@ -139,7 +137,6 @@ namespace GUI.Types.GLViewers
             resetSection.Controls.Add(resetButton);
             UiControl.AddControl(resetSection);
 
-            // Saving is the least used control here, so it goes under everything else.
             SaveSection?.BringToFront();
 
             if (GLControl != null)
@@ -162,8 +159,7 @@ namespace GUI.Types.GLViewers
             searchBox.KeyDown += OnSearchKeyDown;
             searchBox.TextChanged += (_, _) => View.SetSearchHighlight(searchBox.Text);
 
-            // The themed textbox melts into the sidebar; a one-pixel outline panel keeps the
-            // field visible inside the frame.
+            // A one-pixel outline panel keeps the themed textbox visible inside the sidebar.
             var searchOutline = new Panel
             {
                 Padding = new Padding(1),
@@ -237,8 +233,6 @@ namespace GUI.Types.GLViewers
                 section.AddRow(checkbox);
             }
 
-            // Auto-sized so it wraps at the real sidebar width and its row grows to fit,
-            // instead of a fixed height the text can overflow into the button below.
             var reduceCaption = new Label
             {
                 Text = "Wires are untangled for up to four seconds when the graph opens.",
@@ -368,6 +362,14 @@ namespace GUI.Types.GLViewers
             }
 
             return text;
+        }
+
+        /// <summary>Rebuilds the graph with <paramref name="build"/>, then refreshes the stats and refits the view.</summary>
+        protected void RebuildGraph(Action build)
+        {
+            View.Rebuild(build);
+            RefreshStatsLabel();
+            RefitToGraph();
         }
 
         /// <summary>Recomputes the stats label text and height.</summary>
@@ -584,13 +586,6 @@ namespace GUI.Types.GLViewers
 
                     e.Graphics.DrawLine(pen, this.AdjustForDPI(2), mid, this.AdjustForDPI(20), mid);
                 }
-                else if (entry.Kind == GraphLegendKind.Marker)
-                {
-                    using var brush = new System.Drawing.SolidBrush(color);
-                    var radius = this.AdjustForDPI(5);
-                    var centerX = this.AdjustForDPI(11);
-                    e.Graphics.FillPolygon(brush, [new(centerX, mid - radius), new(centerX + radius, mid), new(centerX, mid + radius), new(centerX - radius, mid)]);
-                }
                 else
                 {
                     using var brush = new System.Drawing.SolidBrush(color);
@@ -691,9 +686,7 @@ namespace GUI.Types.GLViewers
         {
             View.SelectNode(node);
 
-            graphBounds = View.GetGraphBounds();
-            OriginalWidth = (int)graphBounds.Width;
-            OriginalHeight = (int)graphBounds.Height;
+            UpdateGraphBounds();
             needsFit = false;
 
             if (GLControl != null)
@@ -786,8 +779,6 @@ namespace GUI.Types.GLViewers
             var graphPoint = ScreenToGraph(location);
             var node = View.FindNodeAt(graphPoint);
 
-            // Selecting the node dims the rest of the graph, so it is unambiguous which
-            // node the menu actions will apply to.
             if (node != null)
             {
                 View.SelectNode(node);
@@ -847,8 +838,11 @@ namespace GUI.Types.GLViewers
         protected override void OnGLLoad()
         {
             UseDefaultFramebuffer();
+            UpdateGraphBounds();
+        }
 
-            // Set texture size to graph bounds for zoom calculations
+        private void UpdateGraphBounds()
+        {
             graphBounds = View.GetGraphBounds();
             OriginalWidth = (int)graphBounds.Width;
             OriginalHeight = (int)graphBounds.Height;
@@ -919,19 +913,17 @@ namespace GUI.Types.GLViewers
 
             if (needsFit)
             {
-                graphBounds = View.GetGraphBounds();
-                OriginalWidth = (int)graphBounds.Width;
-                OriginalHeight = (int)graphBounds.Height;
+                UpdateGraphBounds();
                 FitToViewport();
                 needsFit = false;
             }
             else
             {
-                // Update graphBounds and compensate Position for any origin shift
-                var newGraphBounds = View.GetGraphBounds();
+                var previousBounds = graphBounds;
+                UpdateGraphBounds();
 
-                var deltaLeft = newGraphBounds.Left - graphBounds.Left;
-                var deltaTop = newGraphBounds.Top - graphBounds.Top;
+                var deltaLeft = graphBounds.Left - previousBounds.Left;
+                var deltaTop = graphBounds.Top - previousBounds.Top;
 
                 if (deltaLeft != 0 || deltaTop != 0)
                 {
@@ -941,21 +933,12 @@ namespace GUI.Types.GLViewers
                     );
                     TextureScaleChangeTime = 10f; // Skip interpolation for instant compensation
                 }
-
-                if ((int)newGraphBounds.Width != OriginalWidth || (int)newGraphBounds.Height != OriginalHeight)
-                {
-                    OriginalWidth = (int)newGraphBounds.Width;
-                    OriginalHeight = (int)newGraphBounds.Height;
-                }
-
-                graphBounds = newGraphBounds;
             }
 
             var (scale, position) = GetCurrentPositionAndScale();
 
             canvas.Save();
 
-            // Apply pan/zoom transform
             canvas.Translate(-position.X, -position.Y);
             canvas.Scale(scale, scale);
             canvas.Translate(-graphBounds.Left, -graphBounds.Top);
@@ -1028,7 +1011,6 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            // Middle mouse = pan (let GLTextureViewer handle it)
             if (e.Button == MouseButtons.Middle)
             {
                 base.OnMouseDown(sender, e);
@@ -1080,7 +1062,6 @@ namespace GUI.Types.GLViewers
 
         protected override void OnMouseUp(object? sender, MouseEventArgs e)
         {
-            // Always call base first to clear ClickPosition for panning
             base.OnMouseUp(sender, e);
 
             var wasDragging = View.IsMoving;

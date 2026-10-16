@@ -34,7 +34,7 @@ internal class AG2GraphViewer : GLGraphViewer
         }
 
         builder.DrawStateMachines = draw;
-        RebuildGraph();
+        RebuildGraph(BuildGraph);
     }
 
     protected override bool HasParameterWireToggle => builder.HasControlParameters;
@@ -47,13 +47,6 @@ internal class AG2GraphViewer : GLGraphViewer
         }
 
         builder.DrawParameterWires = draw;
-        RebuildGraph();
-    }
-
-    private void RebuildGraph()
-    {
-        View.Rebuild(BuildGraph);
-        RefreshStatsLabel();
-        RefitToGraph();
+        RebuildGraph(BuildGraph);
     }
 }
