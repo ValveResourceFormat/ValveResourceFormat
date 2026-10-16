@@ -8,8 +8,10 @@ namespace ValveResourceFormat.Particles.Initializers
     /// particles on the model. Particles can inherit the velocity of their box.
     /// </summary>
     /// <remarks>
-    /// <c>m_bUseMesh</c>, which places particles on the triangles of the render mesh, is not supported:
-    /// such particles are placed on the hitboxes instead.
+    /// With <c>m_bUseMesh</c> particles are placed on the triangles of the model's render meshes
+    /// instead, posed by its bones and pushed along the triangle normal by the shell size minus 1.
+    /// The triangle is picked by area among 16 random candidates. A model whose skinned meshes
+    /// carry no bone remap table falls back to the hitboxes.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateOnModel">C_INIT_CreateOnModel</seealso>
     class CreateOnModel : ParticleFunctionInitializer
@@ -29,9 +31,16 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly bool localCoords;
         private readonly bool useBones;
         private readonly INumberProvider shellSize = new LiteralNumberProvider(1f);
+        private readonly bool useMesh;
+
+        private const int MeshCandidates = 16;
 
         private ParticleRandom.EvaluationKey? callKey;
         private int haltonIndex;
+        private int meshRandomCounter;
+        private Matrix4x4[] meshSkin = [];
+        private Matrix4x4 meshRigid;
+        private float meshSkinTime = float.NaN;
 
         public CreateOnModel(ParticleDefinitionParser parse) : base(parse)
         {
@@ -50,20 +59,30 @@ namespace ValveResourceFormat.Particles.Initializers
             localCoords = parse.Boolean("m_bLocalCoords", localCoords);
             useBones = parse.Boolean("m_bUseBones", useBones);
             shellSize = parse.CollectionNumberProvider("m_flShellSize", shellSize);
+            useMesh = parse.Boolean("m_bUseMesh", useMesh);
         }
 
         public override void Reset()
         {
             callKey = null;
+            meshRandomCounter = 0;
+            meshSkinTime = float.NaN;
         }
 
         public override ulong WrittenFields
             => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.CreationTime)
-                | FieldMask(ParticleField.HitboxIndex) | FieldMask(ParticleField.HitboxOffsetPosition);
+                | FieldMask(ParticleField.HitboxIndex) | FieldMask(ParticleField.HitboxOffsetPosition)
+                | (useMesh ? FieldMask(ParticleField.Normal) | FieldMask(ParticleField.BoneIndices) | FieldMask(ParticleField.BoneWeights) : 0UL);
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var shell = shellSize.NextNumber(ref particle, particleSystemState);
+
+            if (useMesh && PlaceOnMesh(ref particle, particleSystemState, shell))
+            {
+                return particle;
+            }
+
             var desired = hitboxValueFromControlPoint >= 0
                 ? (int)particleSystemState.GetControlPoint(hitboxValueFromControlPoint).Position.X
                 : (int)desiredHitbox.NextNumber(ref particle, particleSystemState);
@@ -123,6 +142,160 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             return particle;
+        }
+
+        private bool PlaceOnMesh(ref Particle particle, ParticleSystemState particleSystemState, float shell)
+        {
+            if (modelControlPoint < 0
+                || particleSystemState.GetControlPoint(modelControlPoint).ResolveModelObject() is not { } modelObject
+                || MeshTriangles.Get(modelObject.Model, particleSystemState.Data?.FileLoader) is not { TriangleCount: > 0 } mesh)
+            {
+                return false;
+            }
+
+            Span<int> candidates = stackalloc int[MeshCandidates];
+            var totalArea = 0f;
+
+            for (var i = 0; i < MeshCandidates; i++)
+            {
+                candidates[i] = Math.Min((int)(NextMeshRandom(particleSystemState) * mesh.TriangleCount), mesh.TriangleCount - 1);
+                totalArea += mesh.Area(candidates[i]);
+            }
+
+            var pick = Math.Min(NextMeshRandom(particleSystemState) * totalArea, totalArea);
+            var triangle = candidates[0];
+
+            foreach (var candidate in candidates)
+            {
+                var area = mesh.Area(candidate);
+
+                if (pick <= area)
+                {
+                    triangle = candidate;
+                    break;
+                }
+
+                pick -= area;
+            }
+
+            PoseSkin(particleSystemState, modelObject, mesh);
+
+            if (!TrySkin(mesh.Corner(triangle, 0), out var v0)
+                || !TrySkin(mesh.Corner(triangle, 1), out var v1)
+                || !TrySkin(mesh.Corner(triangle, 2), out var v2))
+            {
+                return false;
+            }
+
+            var u = NextMeshRandom(particleSystemState);
+            var v = NextMeshRandom(particleSystemState);
+
+            if (u + v > 1f)
+            {
+                (u, v) = (1f - u, 1f - v);
+            }
+
+            var normal = MathUtils.SafeNormalize(Vector3.Cross(v1 - v0, v2 - v0));
+            var point = (v1 * u) + (v0 * (1f - u - v)) + (v2 * v) + ((shell - 1f) * normal);
+
+            particle.Position = point;
+
+            if (IsUnwritten(particleSystemState, ParticleField.PositionPrevious))
+            {
+                particle.PositionPrevious = point;
+            }
+
+            if (IsUnwritten(particleSystemState, ParticleField.HitboxOffsetPosition))
+            {
+                particle.HitboxOffsetPosition = point;
+            }
+
+            if (IsUnwritten(particleSystemState, ParticleField.Normal))
+            {
+                particle.Normal = normal;
+            }
+
+            if (IsUnwritten(particleSystemState, ParticleField.HitboxIndex))
+            {
+                particle.HitboxIndex = 0;
+            }
+
+            if (IsUnwritten(particleSystemState, ParticleField.BoneIndices))
+            {
+                particle.BoneIndices = mesh.Corner(triangle, 0).Bones;
+            }
+
+            if (IsUnwritten(particleSystemState, ParticleField.BoneWeights))
+            {
+                particle.BoneWeights = Vector3.UnitX;
+            }
+
+            return true;
+        }
+
+        private float NextMeshRandom(ParticleSystemState particleSystemState)
+            => ParticleRandom.ForSample(particleSystemState.Random.Seed + meshRandomCounter++);
+
+        /// <summary>
+        /// Works out, once per step, every bone's skinning transform into the world and the transform
+        /// a rigid vertex follows: the first bone's pose, or the model's placement when it has no bones.
+        /// </summary>
+        private void PoseSkin(ParticleSystemState particleSystemState, IParticleModelObject modelObject, MeshTriangles mesh)
+        {
+            var boneCount = mesh.InverseBindPose.Length;
+
+            if (meshSkinTime == particleSystemState.Age && meshSkin.Length == boneCount)
+            {
+                return;
+            }
+
+            meshSkinTime = particleSystemState.Age;
+
+            if (meshSkin.Length != boneCount)
+            {
+                meshSkin = new Matrix4x4[boneCount];
+            }
+
+            modelObject.GetBonePose(meshSkin);
+            meshRigid = boneCount > 0 ? meshSkin[0] * modelObject.Transform : modelObject.Transform;
+
+            for (var i = 0; i < boneCount; i++)
+            {
+                meshSkin[i] = mesh.InverseBindPose[i] * meshSkin[i] * modelObject.Transform;
+            }
+        }
+
+        /// <summary>
+        /// Moves a vertex into the world by its bones, failing for a skinned vertex whose bones were
+        /// not mapped to the model's.
+        /// </summary>
+        private bool TrySkin(MeshTriangles.Vertex vertex, out Vector3 world)
+        {
+            if (vertex.Weights.X <= 0f)
+            {
+                world = Vector3.Transform(vertex.Position, meshRigid);
+                return true;
+            }
+
+            world = Vector3.Zero;
+
+            if (!vertex.Remapped)
+            {
+                return false;
+            }
+
+            for (var k = 0; k < 4; k++)
+            {
+                var bone = (int)((vertex.Bones >> (16 * k)) & 0xFFFF);
+                var weight = vertex.Weights[k];
+
+                if (weight > 0f && bone < meshSkin.Length)
+                {
+                    world += Vector3.Transform(vertex.Position, meshSkin[bone]) * weight;
+                }
+            }
+
+            return true;
         }
     }
 }
