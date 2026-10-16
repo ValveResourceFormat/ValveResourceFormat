@@ -51,6 +51,11 @@ public static class EntityFactory
         Register<NpcVrCitizen>("npc_vr_citizen_female", static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo));
         Register<NpcVrCitizen>("npc_vr_citizen_male", static (system, spawnInfo) => new NpcVrCitizen(system, spawnInfo));
         Register<NpcBossTier3>("npc_boss_tier3", static (system, spawnInfo) => new NpcBossTier3(system, spawnInfo));
+        Register<PhysBallSocket>("phys_ballsocket", static (system, spawnInfo) => new PhysBallSocket(system, spawnInfo));
+        Register<PhysHinge>("phys_hinge", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: false));
+        Register<PhysHinge>("phys_hinge_local", static (system, spawnInfo) => new PhysHinge(system, spawnInfo, axisIsLocal: true));
+        Register<PhysFixedConstraint>("phys_constraint", static (system, spawnInfo) => new PhysFixedConstraint(system, spawnInfo));
+        Register<LogicCollisionPair>("logic_collision_pair", static (system, spawnInfo) => new LogicCollisionPair(system, spawnInfo));
         Register<PropPhysics>("prop_physics", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
         Register<PropPhysics>("prop_physics_multiplayer", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
         Register<PropPhysics>("prop_physics_override", static (system, spawnInfo) => new PropPhysics(system, spawnInfo));
