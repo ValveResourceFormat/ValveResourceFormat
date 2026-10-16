@@ -6,6 +6,7 @@ using GUI.Forms;
 using GUI.Utils;
 using SkiaSharp;
 using ValveResourceFormat.Renderer.Editor.Entities;
+using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
@@ -585,24 +586,24 @@ namespace GUI.Types.Viewers
         {
             EntityIconLoadAttempted.Add(classname);
 
-            var hammerEntity = HammerEntities.Get(classname);
-
-            if (hammerEntity?.Icons != null)
+            if (EditorFgd.Load(GuiContext, VrfGuiContext.Logger).FindClass(classname) is not { } gameClass)
             {
-                foreach (var iconPath in hammerEntity.Icons)
-                {
-                    if (!iconPath.EndsWith(".vmat", StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
+                return -1;
+            }
 
-                    using var bitmap = LoadIconBitmap(iconPath);
-                    if (bitmap != null)
-                    {
-                        var index = AddBitmapToImageList(bitmap);
-                        EntityIconCache[classname] = index;
-                        return index;
-                    }
+            foreach (var helper in gameClass.Helpers)
+            {
+                if (!helper.Name.Equals("iconsprite", StringComparison.OrdinalIgnoreCase) || IconHelper.GetDeclaredMaterialName(helper) is not { } iconPath)
+                {
+                    continue;
+                }
+
+                using var bitmap = LoadIconBitmap(iconPath);
+                if (bitmap != null)
+                {
+                    var index = AddBitmapToImageList(bitmap);
+                    EntityIconCache[classname] = index;
+                    return index;
                 }
             }
 

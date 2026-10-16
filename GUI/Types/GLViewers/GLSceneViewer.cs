@@ -100,6 +100,9 @@ namespace GUI.Types.GLViewers
         private InfiniteGrid? baseGrid;
         private SelectionVisuals? selectionVisuals;
 
+        /// <summary>The editor entities of the view, which draw what Hammer shows of them.</summary>
+        protected HammerEntityVisuals EntityVisuals { get; }
+
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
         private readonly float[] frameTimes = new float[30];
@@ -122,7 +125,8 @@ namespace GUI.Types.GLViewers
 
             Renderer = new(rendererContext);
             Input = new UserInput(Renderer);
-            Renderer.EntitySystem.ToolVisuals = new HammerEntityVisuals();
+            EntityVisuals = new HammerEntityVisuals(rendererContext.FileLoader, rendererContext.Logger);
+            Renderer.EntitySystem.ToolVisuals = EntityVisuals;
             TextRenderer = new(rendererContext, Renderer.Camera);
             crosshairRenderer = new CrosshairRenderer(rendererContext);
             Scene = Renderer.Scene;
@@ -515,7 +519,7 @@ namespace GUI.Types.GLViewers
             Renderer.Postprocess.ExposureCompensation = -0.4f; // eyeballed
 
             baseGrid = new InfiniteGrid(Scene);
-            selectionVisuals = new(Scene.RendererContext, Selection);
+            selectionVisuals = new(Scene.RendererContext, Selection, EntityVisuals);
             Picker = new(Scene.RendererContext, OnPicked);
 
             QuadOverdrawRenderer = new(Scene.RendererContext);

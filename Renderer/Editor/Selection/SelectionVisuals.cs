@@ -1,5 +1,6 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Editor.Entities;
+using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
@@ -35,6 +36,7 @@ public sealed class SelectionVisuals
     private readonly SelectionSet selection;
     private readonly HelperVertices vertices = new();
     private readonly List<SceneEnvMap> envMaps = [];
+    private readonly HammerEntityVisuals entityVisuals;
 
     private readonly LineBuffer lines;
     private readonly LineBuffer overlayLines;
@@ -47,11 +49,13 @@ public sealed class SelectionVisuals
     /// <summary>Creates the buffers the helpers are drawn with.</summary>
     /// <param name="rendererContext">Renderer context for loading shaders.</param>
     /// <param name="selection">The selection to draw.</param>
-    public SelectionVisuals(RendererContext rendererContext, SelectionSet selection)
+    /// <param name="entityVisuals">The editor entities of the view, whose helpers draw the shapes of a selected entity.</param>
+    public SelectionVisuals(RendererContext rendererContext, SelectionSet selection, HammerEntityVisuals entityVisuals)
     {
         const string Shader = "helper_lines";
 
         this.selection = selection;
+        this.entityVisuals = entityVisuals;
 
         lines = new LineBuffer(rendererContext, nameof(SelectionVisuals), Shader);
         overlayLines = new LineBuffer(rendererContext, nameof(SelectionVisuals) + " overlay", Shader);
@@ -150,11 +154,10 @@ public sealed class SelectionVisuals
                 nodeName = classname;
             }
 
-            var placement = node.EntityInstance?.RigidTransform ?? (node.IsPointMarker
-                ? EntityTransformHelper.ToRigidTransformationMatrix(node.EntityData)
-                : node.Transform);
-
-            hasHelpers = EntityHelperLines.TryAdd(vertices, classname, node.EntityData, node.EntityInstance, placement, toWorld);
+            if (entityVisuals.FindEntity(node) is { } entity)
+            {
+                hasHelpers = EntityHelperLines.TryAdd(vertices, entity, toWorld, selection.Nodes.Count == 1);
+            }
         }
 
         // The helpers show the entity better than the bounds of its editor model
