@@ -1964,14 +1964,8 @@ namespace ValveResourceFormat.Renderer
 
             var isAtlas = LightingInfo.LightProbeType == LightProbeType.ProbeAtlas;
 
-            static bool IsValid(SceneLightProbe probe, bool isAtlas) => isAtlas switch
-            {
-                true => probe is { Irradiance: not null, DirectLightShadows: not null },
-                false => true,
-            };
-
             var sortedLightProbes = LightingInfo.LightProbes
-                .Where(probe => IsValid(probe, isAtlas))
+                .Where(probe => !isAtlas || probe.Irradiance != null)
                 .OrderByDescending(static lpv => lpv.IndoorOutdoorLevel)
                 .ThenBy(static lpv => lpv.AtlasSize.LengthSquared())
                 .Take(LightProbeVolumeArray.MAX_PROBES)
@@ -1981,7 +1975,7 @@ namespace ValveResourceFormat.Renderer
             foreach (var probe in sortedLightProbes)
             {
                 probe.ShaderIndex = i;
-                lpvBuffer.Data.Probes[i] = probe.CalculateGpuProbeData(isAtlas);
+                lpvBuffer.Data.Probes[i] = probe.CalculateGpuProbeData();
                 i++;
             }
 
@@ -2461,6 +2455,7 @@ namespace ValveResourceFormat.Renderer
                 envMapBuffer?.Dispose();
                 simulationDispatch.Dispose();
                 LightingInfo.DisposeBarnLights();
+                LightingInfo.DeleteUnshadowedProbeTexture();
 
                 DeleteIndirectDrawBuffers();
                 ClutterCuller?.Delete();

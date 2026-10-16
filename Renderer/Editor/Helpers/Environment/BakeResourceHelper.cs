@@ -5,6 +5,7 @@ using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Map;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 using MapNode = ValveResourceFormat.IO.ContentFormats.ValveMap.MapNode;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -21,6 +22,7 @@ public sealed class BakeResourceHelper : EntityHelper
 
     private const string LightProbeVolume = "ToolObjects/LightProbeVolume";
     private const string CubeMap = "ToolObjects/CubeMap";
+    private const int BakedLightingVersion = 8;
 
     /// <summary>A key the entity names a baked resource by, with what the resource is called when the editor bakes it.</summary>
     /// <param name="Key">The key.</param>
@@ -68,7 +70,18 @@ public sealed class BakeResourceHelper : EntityHelper
         }
 
         var scene = Owner.Scene;
-        var keyValues = GetBakedKeyValues();
+        var fileLoader = scene.RendererContext.FileLoader;
+        var keyValues = GetBakedKeyValues(fileLoader);
+
+        // What the editor bakes is what the game's shaders read, and the game only reads baked lighting of this
+        // version, at the minor version it builds. A map with nothing baked, or a game that does not say which
+        // version it builds, keeps the lighting it has without
+        if (scene.LightingInfo.LightmapVersionNumber == 0 && HasBakedResource(keyValues)
+            && fileLoader.GetGameInfoInt("ResourceCompiler/BakedLighting/Version", -1) is >= 0 and var gameVersion)
+        {
+            scene.LightingInfo.SetLightmapVersion(BakedLightingVersion, gameVersion);
+        }
+
         SceneNode? node;
 
         if (isLightProbeVolume)
@@ -90,8 +103,8 @@ public sealed class BakeResourceHelper : EntityHelper
         }
     }
 
-    // The keys of the entity, with the ones it leaves empty naming what the editor bakes for it
-    private EntityLump.Entity GetBakedKeyValues()
+    // The keys of the entity, with the ones it leaves empty naming what the editor last baked for it, where that exists
+    private EntityLump.Entity GetBakedKeyValues(GameFileLoader fileLoader)
     {
         var keyValues = Owner.KeyValues;
 
@@ -110,6 +123,15 @@ public sealed class BakeResourceHelper : EntityHelper
                 continue;
             }
 
+            var fileName = placement.Length > 0 ? $"{resource.Prefix}_{placement}.{resource.Extension}" : $"{resource.Prefix}.{resource.Extension}";
+            var path = $"{folder}/{fileName}";
+
+            // A volume added since the last bake, or a resource the game does not bake, has nothing in the cache
+            if (fileLoader.FindFile(path + GameFileLoader.CompiledFileSuffix, logNotFound: false) is { PathOnDisk: null, PackageEntry: null })
+            {
+                continue;
+            }
+
             if (baked == null)
             {
                 baked = new EntityLump.Entity { ParentLump = keyValues.ParentLump };
@@ -120,11 +142,24 @@ public sealed class BakeResourceHelper : EntityHelper
                 }
             }
 
-            var fileName = placement.Length > 0 ? $"{resource.Prefix}_{placement}.{resource.Extension}" : $"{resource.Prefix}.{resource.Extension}";
-            baked[resource.Key.ToLowerInvariant()] = $"{folder}/{fileName}";
+            baked[resource.Key.ToLowerInvariant()] = path;
         }
 
         return baked ?? keyValues;
+    }
+
+    // Whether the keys name anything baked for the entity, by the entity itself or in the bake cache
+    private bool HasBakedResource(EntityLump.Entity keyValues)
+    {
+        foreach (var resource in Resources)
+        {
+            if (keyValues.GetStringProperty(resource.Key.ToLowerInvariant()) is { Length: > 0 })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Baked resources are cached in a folder named after the map being edited, relative to its content root

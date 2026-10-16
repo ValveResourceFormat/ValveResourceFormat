@@ -675,6 +675,32 @@ namespace ValveResourceFormat.IO
         /// <returns>Whether the flag is a number other than zero, or true.</returns>
         public bool GetGameInfoBool(string path, bool defaultValue)
         {
+            if (FindGameInfoValue(path) is not { } text)
+            {
+                return defaultValue;
+            }
+
+            if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+            {
+                return number != 0;
+            }
+
+            return bool.TryParse(text, out var flag) ? flag : defaultValue;
+        }
+
+        /// <summary>
+        /// Gets a number the <c>gameinfo.gi</c> of the current game sets, by the names of the blocks it is in and
+        /// its own, such as <c>WorldRenderer/EnvironmentMapCacheSize</c>.
+        /// </summary>
+        /// <param name="path">The names, joined by slashes.</param>
+        /// <param name="defaultValue">The value where no game sets it, or sets something that is not a number.</param>
+        /// <returns>The number.</returns>
+        public int GetGameInfoInt(string path, int defaultValue)
+            => int.TryParse(FindGameInfoValue(path), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) ? number : defaultValue;
+
+        // The value of the first game that sets it
+        private string? FindGameInfoValue(string path)
+        {
             ArgumentNullException.ThrowIfNull(path);
 
             var names = path.Split('/');
@@ -692,20 +718,13 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
-                if (value?.ToString() is not { } text)
+                if (value?.ToString() is { } text)
                 {
-                    continue;
+                    return text;
                 }
-
-                if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
-                {
-                    return number != 0;
-                }
-
-                return bool.TryParse(text, out var flag) ? flag : defaultValue;
             }
 
-            return defaultValue;
+            return null;
         }
 
         // A game can name files it does not ship, which are not worth a warning

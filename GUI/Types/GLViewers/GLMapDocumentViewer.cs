@@ -112,7 +112,7 @@ namespace GUI.Types.GLViewers
 
             SetEnabledLayers(loadedMapDocument.DefaultEnabledLayers);
 
-            if (!loadedMapDocument.HasLights)
+            if (!loadedMapDocument.HasLights || !loadedMapDocument.HasBakedLighting)
             {
                 SelectRenderMode("FullBright");
             }

@@ -69,6 +69,19 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets or sets the GPU lighting constants buffer for the scene.</summary>
         public LightingConstants LightingData { get; set; } = new();
 
+        /// <summary>
+        /// Sets the version of the baked lighting the scene is lit with, which the shaders are built for. Meshes
+        /// take it into their shaders as they are created, so it is set before them.
+        /// </summary>
+        /// <param name="versionNumber">The lightmap version.</param>
+        /// <param name="gameVersionNumber">The game specific version within it.</param>
+        public void SetLightmapVersion(int versionNumber, int gameVersionNumber)
+        {
+            LightmapVersionNumber = versionNumber;
+            LightmapGameVersionNumber = gameVersionNumber;
+            scene.RenderAttributes["S_LIGHTMAP_VERSION_MINOR"] = (byte)gameVersionNumber;
+        }
+
         /// <summary>Gets or sets the storage format used for environment map cubemaps in this scene.</summary>
         public CubemapType CubemapType
         {
@@ -173,10 +186,10 @@ namespace ValveResourceFormat.Renderer.World
                 GL.BindTextureUnit((int)lightmapSlot, texture.Handle);
             }
 
-            if (LightProbeType == LightProbeType.ProbeAtlas && LightProbes.Count > 0)
+            if (LightProbeType == LightProbeType.ProbeAtlas && LightProbes.Find(static probe => probe.Irradiance != null) is { } atlasProbe)
             {
-                BindProbeTexture("g_tLPV_Irradiance", LightProbes[0].Irradiance);
-                BindProbeTexture("g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
+                BindProbeTexture("g_tLPV_Irradiance", atlasProbe.Irradiance);
+                BindProbeTexture("g_tLPV_Shadows", atlasProbe.DirectLightShadows ?? GetUnshadowedProbeTexture());
             }
 
             // Always bind something, even when the scene has no cookies: the cookie samplers are 2D arrays,
@@ -212,8 +225,22 @@ namespace ValveResourceFormat.Renderer.World
             }
             else if (LightmapGameVersionNumber >= 2)
             {
-                BindProbeTexture("g_tLPV_Shadows", lightProbe.DirectLightShadows);
+                BindProbeTexture("g_tLPV_Shadows", lightProbe.DirectLightShadows ?? GetUnshadowedProbeTexture());
             }
+        }
+
+        private RenderTexture? unshadowedProbeTexture;
+
+        // Stands in for the direct light shadows of a volume baked without them, which then shadow nothing
+        private RenderTexture GetUnshadowedProbeTexture()
+        {
+            if (unshadowedProbeTexture == null)
+            {
+                unshadowedProbeTexture = RenderTexture.Create3D(TextureTarget.Texture3D, 1, 1, 1, ImageFormat.RGBA8888, 1, "UnshadowedLightProbe");
+                GL.ClearTexImage(unshadowedProbeTexture.Handle, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
+            }
+
+            return unshadowedProbeTexture;
         }
 
         /// <summary>Binds a light probe volume texture to the unit its sampler reads.</summary>
@@ -285,11 +312,11 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
+            // A volume baked without direct light shadows is still lit, as unshadowed
             var validTextureSet = (scene.LightingInfo.LightmapGameVersionNumber, lightProbe) switch
             {
                 (_, { Irradiance: null }) => false,
                 (1, { DirectLightIndices: null } or { DirectLightScalars: null }) => false,
-                (2 or 3 or 4, { DirectLightShadows: null }) => false,
                 _ => true,
             };
 
@@ -980,6 +1007,13 @@ namespace ValveResourceFormat.Renderer.World
         /// <see cref="BinnedBarnLightVolumes"/>, so a cull bit traces back to the face it culled.</summary>
         public ReadOnlySpan<BarnLightFaceSlot> BinnedBarnLightFaces
             => BinnedBarnLightFaceSlots.AsSpan(0, (int)LightingData.NumBarnLights);
+
+        /// <summary>Deletes the texture that stands in for the direct light shadows of volumes baked without them.</summary>
+        public void DeleteUnshadowedProbeTexture()
+        {
+            unshadowedProbeTexture?.Delete();
+            unshadowedProbeTexture = null;
+        }
 
         /// <summary>Releases the barn light GPU buffer, cookie atlas texture, and sampler objects.</summary>
         public void DisposeBarnLights()
