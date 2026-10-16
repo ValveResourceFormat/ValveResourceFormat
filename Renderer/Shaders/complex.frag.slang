@@ -555,6 +555,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 
     #if (unlit)
+        // Not lit, but shaded by the fullbright view all the same
+        mat.Normal = mat.GeometricNormal;
         return mat;
     #endif
 
@@ -789,6 +791,15 @@ void main()
     outputColor.rgb = mix(vec3(0.5), outputColor.rgb, vec3(outputColor.a));
 #elif (blendModThenAdd)
     outputColor.rgb = mix(vec3(0.0), outputColor.rgb, vec3(outputColor.a));
+#endif
+
+#if (GameVfx_csgo_unlitgeneric != 0)
+    // Has no fullbright view of its own, so keeps its color, shown as it is written without post processing
+    if (g_iRenderMode == renderMode_FullBright)
+    {
+        outputColor.rgb = SrgbLinearToGamma(outputColor.rgb);
+        return;
+    }
 #endif
 
     if (HandleMaterialRenderModes(outputColor, mat)
