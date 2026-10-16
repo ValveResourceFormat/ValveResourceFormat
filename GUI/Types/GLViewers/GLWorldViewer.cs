@@ -417,6 +417,9 @@ namespace GUI.Types.GLViewers
 
                     worldLayersComboBox.BeginUpdate();
 
+                    // Showing helpers also decides what a selected entity shows, so it can be chosen even
+                    // while nothing unselected needs it
+                    uniqueWorldLayers.Add(HammerEntityVisuals.HelpersLayerName);
                     SetAvailableLayers(uniqueWorldLayers);
 
                     foreach (var worldLayer in LoadedWorld.DefaultEnabledLayers)

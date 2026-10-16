@@ -30,6 +30,10 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         Barn,
         /// <summary>Rectangular area light.</summary>
         Rect,
+        /// <summary>Point light stretched along a line.</summary>
+        Capsule,
+        /// <summary>Directional light other than the environment light.</summary>
+        Directional,
     }
 
     /// <summary>
@@ -280,7 +284,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>
     /// Returns whether this light will produce energy based on its properties.
     /// </summary>
-    public bool IsVisible => BarnFaces.Length > 0 && BrightnessScale > 0f && Color != Vector3.Zero && LinearBrightness > 0f;
+    public bool IsVisible => BarnFaces.Length > 0 && BrightnessScale > 0f && Color != Vector3.Zero && FaceBrightness > 0f;
 
     /// <summary>
     /// Returns whether this is a barn, rect or omni2 light, which takes its brightness as an exposure value and
@@ -288,21 +292,67 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// </summary>
     public bool IsLight2 => Entity is EntityType.Omni2 or EntityType.Barn or EntityType.Rect;
 
+    /// <summary>Gets whether this light lights the whole map from one direction, as the sun does.</summary>
+    public bool IsDirectional => Entity is EntityType.Environment or EntityType.Directional;
+
     /// <summary>Whether the faces are built around the light like an omni2 light, rather than as one barn frustum.</summary>
-    internal bool UsesOmni2Faces => Entity is EntityType.Omni2 or EntityType.Rect;
+    internal bool UsesOmni2Faces => Entity is EntityType.Omni2 or EntityType.Rect or EntityType.Omni or EntityType.Capsule;
+
+    /// <summary>Whether the light has a luminaire that can be drawn as geometry, which rect and omni2 lights have.</summary>
+    internal bool HasLuminaire => Entity is EntityType.Omni2 or EntityType.Rect;
+
+    /// <summary>Gets or sets the constant attenuation coefficient of an older point or spot light.</summary>
+    public float AttenuationConstant { get; set; }
+
+    /// <summary>
+    /// Gets or sets how far an older point or spot light is still bright enough to be seen, when it attenuates to
+    /// nothing before its range does; <see langword="null"/> when its range is where it ends.
+    /// </summary>
+    internal float? VisibleRange { get; set; }
+
+    /// <summary>Gets the distance a barn face reaches, which for an older light ends where it is too dim to see.</summary>
+    private float FaceRange => VisibleRange is { } visibleRange ? MathF.Min(Range, visibleRange) : Range;
+
+    private LightStyle? style;
+    private float styleTime;
+    private float styleStartTime;
+
+    /// <summary>Gets or sets how the color of the light changes over time, or <see langword="null"/> when it keeps it.</summary>
+    public LightStyle? Style
+    {
+        get => style;
+        set
+        {
+            style = value;
+            styleTime = 0f;
+            styleStartTime = value?.PickStartTime() ?? 0f;
+            StyleColorScale = value?.Evaluate(-styleStartTime) ?? Vector3.One;
+        }
+    }
+
+    /// <summary>Gets the linear color <see cref="Style"/> multiplies the color of the light by at the moment.</summary>
+    public Vector3 StyleColorScale { get; private set; } = Vector3.One;
 
     /// <summary>
     /// Returns whether the given entity classname is a recognized light type, and which <see cref="EntityType"/> it maps to.
     /// </summary>
     public static (bool Accepted, EntityType Type) IsAccepted(string classname)
     {
-        if (!classname.StartsWith("light_", StringComparison.OrdinalIgnoreCase))
+        EntityType? type = classname.ToLowerInvariant() switch
         {
-            return (false, EntityType.Environment);
-        }
+            "light_environment" => EntityType.Environment,
+            "light_directional" => EntityType.Directional,
+            "light_omni" => EntityType.Omni,
+            "light_capsule" => EntityType.Capsule,
+            "light_spot" => EntityType.Spot,
+            "light_ortho" => EntityType.Ortho,
+            "light_omni2" => EntityType.Omni2,
+            "light_barn" => EntityType.Barn,
+            "light_rect" => EntityType.Rect,
+            _ => null,
+        };
 
-        var accepted = Enum.TryParse(classname[6..], true, out EntityType entityType);
-        return (accepted, entityType);
+        return (type.HasValue, type ?? EntityType.Environment);
     }
 
     /// <summary>
@@ -310,6 +360,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// </summary>
     public static SceneLight FromEntityProperties(Scene scene, EntityType type, Entity entity)
     {
+        var isLight2 = type is EntityType.Omni2 or EntityType.Barn or EntityType.Rect;
+
         var light = new SceneLight(scene)
         {
             StationaryLightIndex =
@@ -317,32 +369,23 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             Entity = type,
             Type = type switch
             {
-                EntityType.Environment => LightType.Directional,
-                EntityType.Ortho => LightType.Directional,
-
-                EntityType.Omni => LightType.Point,
-                EntityType.Omni2 => LightType.Point,
-
-                EntityType.Barn => LightType.Spot,
-                EntityType.Rect => LightType.Spot,
-                EntityType.Spot => LightType.Spot,
+                EntityType.Environment or EntityType.Directional or EntityType.Ortho => LightType.Directional,
+                EntityType.Omni or EntityType.Capsule or EntityType.Omni2 => LightType.Point,
+                EntityType.Barn or EntityType.Rect or EntityType.Spot => LightType.Spot,
                 _ => throw new NotImplementedException()
             },
 
             Color = entity.GetColor32Property("color"),
 
-            Brightness = type switch
-            {
-                EntityType.Environment or EntityType.Omni or EntityType.Spot or EntityType.Ortho
-                    => entity.GetFloatProperty("brightness", 1.0f),
-                _ => entity.GetFloatProperty("brightness_lumens", 224.0f)
-            },
+            Brightness = isLight2
+                ? entity.GetFloatProperty("brightness_lumens", 224.0f)
+                : entity.GetFloatProperty("brightness", 1.0f),
 
             BrightnessScale = entity.GetFloatProperty("brightnessscale", 1.0f),
             SkyColor = entity.GetColor32Property("skycolor"),
             SkyIntensity = entity.GetFloatProperty("skyintensity", 1.0f),
             SkyAmbientBounce = entity.GetColor32Property("skyambientbounce"),
-            Range = entity.GetFloatProperty("range", 512.0f),
+            Range = MathF.Max(entity.GetFloatProperty("range", isLight2 ? 256f : 1024f), 1f),
             FallOff = entity.GetFloatProperty("skirt", 0.1f),
             MinRoughness = entity.GetFloatProperty("minroughness", MinSpecularRoughness),
 
@@ -352,53 +395,47 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             RenderTransmissive = entity.GetInt32Property("rendertransmissive", 1) != 0,
         };
 
-        if (light.IsLight2)
+        if (isLight2)
         {
             // The engine only reads the exposure value, the other brightness units are converted from it by the tools
             light.LinearBrightness = float.Exp2(entity.GetFloatProperty("brightness"));
 
-            if (entity.GetInt32Property("colormode") != 0)
+            switch (entity.GetInt32Property("colormode"))
             {
-                light.ColorTemperature = entity.GetFloatProperty("colortemperature", 6600f);
-                light.Color = ColorSpace.ColorTemperatureToSrgb(light.ColorTemperature.Value);
+                case 0:
+                    break;
+
+                case 1:
+                    light.ColorTemperature = entity.GetFloatProperty("colortemperature", 6600f);
+                    light.Color = ColorSpace.ColorTemperatureToSrgb(light.ColorTemperature.Value);
+                    break;
+
+                default:
+                    light.Color = Vector3.Zero;
+                    break;
             }
+
+            // A luminaire is at least a unit across, and a barn light never narrows away from it
+            var sizeParams = entity.GetVector3Property("size_params", new Vector3(16f, 16f, 0.0625f));
+            light.SizeParams = new Vector3(MathF.Max(sizeParams.X, 1f), MathF.Max(sizeParams.Y, 1f), MathF.Max(sizeParams.Z, 0f));
+            light.ShadowMapSize = entity.GetInt32Property("shadowmapsize", 1024);
         }
         else
         {
-            light.AttenuationLinear = entity.GetFloatProperty("attenuation1");
-            light.AttenuationQuadratic = entity.GetFloatProperty("attenuation2");
-
-            if (entity.GetInt32Property("baked_light_indexing", 1) == 0)
-            {
-                light.StationaryLightIndex = -1;
-            }
+            ReadLegacyKeys(light, entity);
         }
 
-        var defaultDirectLight = light.IsLight2
-            ? DirectLightType.Dynamic
-            : DirectLightType.Static;
-
-        light.DirectLight = (DirectLightType)entity.GetInt32Property("directlight", (int)defaultDirectLight);
-        light.CastShadows = entity.GetInt32Property("castshadows", 1);
-        light.ShadowMapSize = entity.GetInt32Property("shadowmapsize", 1024);
         if (light.ShadowMapSize <= 0)
         {
             light.ShadowMapSize = 1024;
         }
 
-        if (type is EntityType.Spot or EntityType.Barn)
-        {
-            light.SpotInnerAngle = entity.GetFloatProperty("innerconeangle", light.SpotInnerAngle);
-            light.SpotOuterAngle = entity.GetFloatProperty("outerconeangle", light.SpotOuterAngle);
-        }
+        var defaultDirectLight = isLight2
+            ? DirectLightType.Dynamic
+            : DirectLightType.Static;
 
-        if (type is EntityType.Ortho)
-        {
-            light.SizeParams = new Vector3(
-                entity.GetFloatProperty("ortholightwidth", 512.0f) * 0.5f,
-                entity.GetFloatProperty("ortholightheight", 512.0f) * 0.5f,
-                0f);
-        }
+        light.DirectLight = (DirectLightType)entity.GetInt32Property("directlight", (int)defaultDirectLight);
+        light.CastShadows = entity.GetInt32Property("castshadows", isLight2 ? 1 : 0);
 
         if (type is EntityType.Barn)
         {
@@ -409,9 +446,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             light.LuminaireSize = entity.GetFloatProperty("luminaire_size", 4f);
             light.LuminaireShape = entity.GetInt32Property("luminaire_shape");
             light.LuminaireAnisotropy = entity.GetFloatProperty("luminaire_anisotropy");
-            light.SizeParams = entity.GetVector3Property("size_params");
-            light.CookieTexturePath = entity.GetStringProperty("lightcookie") is { Length: > 0 } cookie ? cookie : null;
-
+            light.CookieTexturePath = GetCookie(entity);
             light.Shear = entity.GetVector2Property("shear");
         }
 
@@ -420,21 +455,19 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             // Rasterized like an omni2 point light (no luminaire shape) lighting the hemisphere in front of it,
             // the rectangle or disc only matters to path tracing and to the shaders that shade area lights
             light.SpotOuterAngle = 90f;
-            light.SizeParams = entity.GetVector3Property("size_params");
             light.Shape = entity.GetFloatProperty("shape"); // 0 = rectangle, 1 = disc
         }
 
         if (type is EntityType.Omni2)
         {
-            light.SpotInnerAngle = entity.GetFloatProperty("inner_angle");
-            light.SpotOuterAngle = entity.GetFloatProperty("outer_angle", 180f);
-            light.SizeParams = entity.GetVector3Property("size_params");
-            light.CookieTexturePath = entity.GetStringProperty("lightcookie") is { Length: > 0 } cookie ? cookie : null;
+            light.SpotOuterAngle = Math.Clamp(entity.GetFloatProperty("outer_angle", 180f), 1f, 180f);
+            light.SpotInnerAngle = Math.Clamp(entity.GetFloatProperty("inner_angle", 180f), 0f, light.SpotOuterAngle);
+            light.CookieTexturePath = GetCookie(entity);
             light.LuminaireShape = entity.GetInt32Property("shape");
             light.LuminaireSize = entity.GetFloatProperty("luminaire_size");
         }
 
-        if (light.IsLight2)
+        if (isLight2)
         {
             light.FadeSizeStart = entity.GetFloatProperty("fade_size_start", 0.05f);
             light.FadeSizeEnd = entity.GetFloatProperty("fade_size_end", 0.025f);
@@ -468,8 +501,199 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             }
         }
 
+        light.Style = LightStyle.FromEntity(entity, isLight2, scene.RendererContext.FileLoader);
+
         // The caller places the light with PlaceAt, the keyvalues are in the entity's local space
         return light;
+    }
+
+    private static string? GetCookie(Entity entity) => entity.GetStringProperty("lightcookie") is { Length: > 0 } cookie ? cookie : null;
+
+    /// <summary>
+    /// Reads the keys of an older light, which renders as barn faces where lights render in real time: a point
+    /// light all around it, a spot light as one frustum and an orthographic light as a box.
+    /// </summary>
+    private static void ReadLegacyKeys(SceneLight light, Entity entity)
+    {
+        if (entity.GetInt32Property("baked_light_indexing", 1) == 0)
+        {
+            light.StationaryLightIndex = -1;
+        }
+
+        var shadowWidth = entity.GetInt32Property("shadowtexturewidth");
+        var shadowHeight = entity.GetInt32Property("shadowtextureheight");
+
+        if (shadowWidth > 0 || shadowHeight > 0)
+        {
+            light.ShadowMapSize = Math.Max(shadowWidth, shadowHeight);
+        }
+
+        switch (light.Entity)
+        {
+            case EntityType.Omni or EntityType.Capsule:
+                ReadAttenuation(light, entity);
+
+                // Lights all around it
+                light.SpotInnerAngle = 180f;
+                light.SpotOuterAngle = 180f;
+                break;
+
+            case EntityType.Spot:
+                ReadAttenuation(light, entity);
+
+                // One frustum as wide as the outer cone, soft from the inner cone out
+                light.SpotInnerAngle = entity.GetFloatProperty("innerconeangle", light.SpotInnerAngle);
+                light.SpotOuterAngle = entity.GetFloatProperty("outerconeangle", light.SpotOuterAngle);
+
+                var tanOuter = MathF.Tan(float.DegreesToRadians(Math.Clamp(light.SpotOuterAngle, 0.01f, 89.9f)));
+                var hardness = MathF.Tan(float.DegreesToRadians(light.SpotInnerAngle)) / tanOuter;
+
+                light.SizeParams = new Vector3(tanOuter, tanOuter, 1f);
+                light.SoftX = 1f - hardness;
+                light.SoftY = 1f - hardness;
+                light.Shape = 1f;
+                light.CookieTexturePath = GetCookie(entity);
+                break;
+
+            case EntityType.Ortho:
+                var width = entity.GetFloatProperty("ortholightwidth", 512.0f);
+                var height = entity.GetFloatProperty("ortholightheight", 512.0f);
+
+                light.SizeParams = new Vector3(width * 0.5f, height * 0.5f, 0f);
+                light.FallOff = 0f;
+                light.SoftX = 0f;
+                light.SoftY = 0f;
+                light.CookieTexturePath = GetCookie(entity);
+
+                // As wide as the shadow texture width says, and as high as that keeps it in proportion
+                light.ShadowMapSize = shadowWidth > 0 ? shadowWidth : 2048;
+                break;
+        }
+
+        // Points and spots fade out over the last quarter of their range
+        if (light.Entity is EntityType.Omni or EntityType.Capsule or EntityType.Spot)
+        {
+            light.FallOff = 0.25f;
+        }
+    }
+
+    /// <summary>
+    /// Reads how an older point or spot light attenuates. Coefficients too small to matter are none, a light
+    /// without any is constant, and the brightness is the one the light has 100 units away.
+    /// </summary>
+    private static void ReadAttenuation(SceneLight light, Entity entity)
+    {
+        static float Coefficient(float value) => value < 0.001f ? 0f : value;
+
+        var constant = Coefficient(entity.GetFloatProperty("attenuation0"));
+        var linear = Coefficient(entity.GetFloatProperty("attenuation1"));
+        var quadratic = Coefficient(entity.GetFloatProperty("attenuation2", 1f));
+
+        if (constant == 0f && linear == 0f && quadratic == 0f)
+        {
+            constant = 1f;
+        }
+
+        light.AttenuationConstant = constant;
+        light.AttenuationLinear = linear;
+        light.AttenuationQuadratic = quadratic;
+
+        // A light that keeps some brightness however far it goes ends at its range, any other where it falls
+        // below what can be seen
+        if (constant != 0f)
+        {
+            return;
+        }
+
+        var color = ColorSpace.SrgbGammaToLinear(light.Color) * (light.Brightness * light.BrightnessScale * light.ReferenceAttenuation);
+        var luminance = Vector3.Dot(color, new Vector3(0.2126f, 0.7152f, 0.0722f));
+        var visibleRange = 0f;
+
+        if (luminance > 0f && SolveQuadratic(quadratic, linear, -luminance / VisibleLuminance) is { } distance)
+        {
+            visibleRange = MathF.Max(0f, distance);
+        }
+
+        light.VisibleRange = visibleRange;
+    }
+
+    /// <summary>The luminance below which an older light is too dim to see.</summary>
+    private const float VisibleLuminance = 0.001f;
+
+    // The larger root of a x^2 + b x + c, or none
+    private static float? SolveQuadratic(float a, float b, float c)
+    {
+        if (a == 0f)
+        {
+            return b != 0f ? -c / b : c == 0f ? 0f : null;
+        }
+
+        var discriminant = b * b - 4f * a * c;
+
+        if (discriminant < 0f)
+        {
+            return null;
+        }
+
+        var root = MathF.Sqrt(discriminant);
+
+        return MathF.Max((root - b) / (2f * a), (-b - root) / (2f * a));
+    }
+
+    /// <summary>
+    /// What the attenuation of an older point or spot light divides its brightness by 100 units away, which
+    /// its color is multiplied by so that its brightness is the one it has there.
+    /// </summary>
+    private float ReferenceAttenuation => Entity is EntityType.Omni or EntityType.Capsule or EntityType.Spot
+        ? AttenuationQuadratic * 10000f + AttenuationLinear * 100f + AttenuationConstant
+        : 1f;
+
+    /// <summary>
+    /// Gets the linear intensity the faces of the light start from, before <see cref="BrightnessScale"/>.
+    /// An older point or spot light falls off with the square of the distance as a barn face, matching its own
+    /// attenuation at a fraction of its range.
+    /// </summary>
+    private float FaceBrightness
+    {
+        get
+        {
+            if (Entity is EntityType.Ortho)
+            {
+                return Brightness;
+            }
+
+            if (Entity is not (EntityType.Omni or EntityType.Capsule or EntityType.Spot))
+            {
+                return LinearBrightness;
+            }
+
+            var distance = Range * 0.15f;
+
+            if (distance <= 0f)
+            {
+                distance = LinearBrightnessDistance;
+            }
+
+            var distanceSq = distance * distance;
+            var attenuation = AttenuationQuadratic * distanceSq + AttenuationLinear * distance + AttenuationConstant;
+
+            return Brightness * ReferenceAttenuation * distanceSq / attenuation;
+        }
+    }
+
+    /// <inheritdoc/>
+    public override void Update(Scene.UpdateContext context)
+    {
+        if (style == null || context.Phase != Scene.UpdatePhase.Place)
+        {
+            return;
+        }
+
+        styleTime += context.Timestep;
+        StyleColorScale = style.Evaluate(styleTime - styleStartTime);
+
+        // The lights kept in the lighting constants are stored with it again, barn faces take it as they are binned
+        Scene.LightingInfo.MarkStoredLightsChanged();
     }
 
     /// <summary>
@@ -512,21 +736,10 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             entity.GetInt32Property("bakedshadowindex", entity.GetInt32Property("bakelightindex", -1)));
     }
 
-    /// <summary>
-    /// Editor model tint for a light entity, keyed on how expensive it is: teal for static, amber for
-    /// stationary, red for dynamic.
-    /// </summary>
-    /// <param name="entity">Light entity to read the direct lighting key values from.</param>
-    public static Vector3 GetEditorTint(Entity entity) => GetCost(entity) switch
-    {
-        LightCost.Stationary => new Vector3(255f, 196f, 64f) / 255f,
-        LightCost.Dynamic => new Vector3(255f, 64f, 64f) / 255f,
-        _ => new Vector3(0f, 255f, 192f) / 255f,
-    };
-
     internal static bool IsRealTimeLight(SceneLight light)
     {
-        if (!light.IsLight2)
+        // The sun has lighting constants of its own
+        if (light.IsDirectional)
         {
             return false;
         }
@@ -548,13 +761,13 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         // Face indices shift under the readbacks still in flight, so their countdowns describe nothing.
         faceVisibilityTtl = ulong.MaxValue;
 
-        if (Range <= 0.0001f)
+        if (FaceRange <= 0.0001f)
         {
             BarnFaces = [];
             return;
         }
 
-        if (Entity == EntityType.Barn)
+        if (Entity is EntityType.Barn or EntityType.Spot or EntityType.Ortho)
         {
             if (BarnFaces is not { Length: 1 })
             {
@@ -605,9 +818,10 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// </summary>
     private static float ComputeIntensity(SceneLight light, float falloffDistSq, float luminaireDistance)
     {
-        var intensity = light.LinearBrightness * light.BrightnessScale;
+        var intensity = light.FaceBrightness * light.BrightnessScale;
 
-        if (falloffDistSq <= 0f)
+        // An older light is as bright as its own attenuation says, wherever its faces start from
+        if (falloffDistSq <= 0f || !light.IsLight2)
         {
             return intensity;
         }
@@ -649,13 +863,15 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         ComputePerspectiveBarnGeometry(SceneLight light, Vector3 forwardDir, Vector3 upDir, Vector3 rightDir)
     {
         var nearPlane = 1f / light.SizeParams.Z;
-        var farPlane = nearPlane + light.Range;
+        var farPlane = nearPlane + light.FaceRange;
 
-        var centerX = light.Shear.X / light.Range * nearPlane;
-        var centerY = light.Shear.Y / light.Range * nearPlane;
+        var centerX = light.Shear.X / light.FaceRange * nearPlane;
+        var centerY = light.Shear.Y / light.FaceRange * nearPlane;
 
+        // A spot light's frustum starts at the light, a barn light's behind its luminaire
+        var eyeOffset = light.Entity == EntityType.Spot ? 0f : nearPlane;
         var eyePosition = light.Transform.Translation
-                          - nearPlane * forwardDir - centerX * rightDir - centerY * upDir;
+                          - eyeOffset * forwardDir - centerX * rightDir - centerY * upDir;
 
         var lightProj = Matrix4x4.CreatePerspectiveOffCenterLeftHanded(
             centerX - light.SizeParams.X, centerX + light.SizeParams.X,
@@ -669,14 +885,14 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         var skirtNear = 0f;
         if (light.SkirtNear > 0)
         {
-            var depthNear = nearPlane + light.SkirtNear * light.Range;
+            var depthNear = nearPlane + light.SkirtNear * light.FaceRange;
             skirtNear = depthNear / (farPlane * light.SkirtNear);
         }
 
         var skirtFar = 0f;
         if (light.FallOff > 0)
         {
-            var depthFar = nearPlane + (1f - light.FallOff) * light.Range;
+            var depthFar = nearPlane + (1f - light.FallOff) * light.FaceRange;
             skirtFar = depthFar / (nearPlane * light.FallOff);
         }
 
@@ -755,8 +971,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         var angleRad = float.DegreesToRadians(Math.Clamp(light.SpotOuterAngle, 1f, 180f));
         var heightOffset = light.LuminaireShape is 1 or 2 ? light.SizeParams.Y : 0f;
         var sideRange = angleRad < MathF.PI / 2f
-            ? MathF.Max(light.Range - heightOffset, 0f) * MathF.Sin(angleRad) + heightOffset
-            : light.Range;
+            ? MathF.Max(light.FaceRange - heightOffset, 0f) * MathF.Sin(angleRad) + heightOffset
+            : light.FaceRange;
         // Only a light with shadows is split into faces to render them from, without shadows a single
         // box around everything the light can reach is enough
         var singleBox = light.CastShadows != 1;
@@ -794,7 +1010,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             cookieParams = new Vector4(0f, 0f, 1f, 1f);
         }
 
-        var (distFadeOffset, distFadeRate) = ComputeDistanceFade(light.Range, light.FallOff);
+        var (distFadeOffset, distFadeRate) = ComputeDistanceFade(light.FaceRange, light.FallOff);
         var (angleBias, angleScale) = ComputeAngleFade(light.SpotOuterAngle, light.SpotInnerAngle);
         var angleFadeZ = light.LuminaireShape switch
         {
@@ -835,9 +1051,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         if (singleBox)
         {
             // Reaches behind the light when the cone opens past a hemisphere
-            var back = angleRad > MathF.PI / 2f ? -MathF.Cos(angleRad) * light.Range : 0f;
+            var back = angleRad > MathF.PI / 2f ? -MathF.Cos(angleRad) * light.FaceRange : 0f;
             var boxView = Matrix4x4.CreateLookAtLeftHanded(origin, origin + forward, up);
-            var boxProj = Matrix4x4.CreateOrthographicOffCenterLeftHanded(-sideRange, sideRange, -sideRange, sideRange, -back, light.Range);
+            var boxProj = Matrix4x4.CreateOrthographicOffCenterLeftHanded(-sideRange, sideRange, -sideRange, sideRange, -back, light.FaceRange);
             var (boxIllumination, boxObbToWorld) = GetLightObb(light);
 
             light.BarnFaces[0] = CreateFace(boxView * boxProj, boxView * boxProj, boxIllumination, boxObbToWorld, 0xFFFF0000u);
@@ -856,7 +1072,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             return CreateFace(lightView * lightProj, lightView * cullProj, illuminationFromWorld, obbToWorld, faceFlags);
         }
 
-        light.BarnFaces[0] = MakeFace(forward, up, light.Range, 0);
+        light.BarnFaces[0] = MakeFace(forward, up, light.FaceRange, 0);
 
         if (faceCount >= 5)
         {
@@ -868,7 +1084,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         if (faceCount >= 6)
         {
-            light.BarnFaces[5] = MakeFace(-forward, up, MathF.Abs(MathF.Cos(angleRad)) * light.Range, 5);
+            light.BarnFaces[5] = MakeFace(-forward, up, MathF.Abs(MathF.Cos(angleRad)) * light.FaceRange, 5);
         }
     }
 

@@ -1,4 +1,5 @@
 using ValveResourceFormat.IO.Fgd;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
@@ -6,18 +7,21 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
 /// An arrow at an entity along a direction, over its forward, left and up axes: the angles one of its keys
-/// holds, or the way the entity itself faces. It is drawn whether or not the entity is selected, with a solid
-/// head while it is.
+/// holds, or the way the entity itself faces. It is drawn whether or not the entity is selected, and while it
+/// is, over everything with a solid head.
 /// </summary>
 public sealed class AnglesHelper : EntityHelper
 {
+    /// <inheritdoc/>
+    public override bool NeedsShowHelpers => true;
+
+    /// <inheritdoc/>
+    public override bool HiddenInGameObjectsOnly => true;
+
     private const float ShaftLength = 32f;
     private const float HeadLength = 16f;
     private const float HeadRadius = 4f;
     private const float AxisLength = 16f;
-
-    /// <inheritdoc/>
-    public override bool IsVisual => true;
 
     /// <summary>Gets the key of the entity that holds the angles, or <see langword="null"/> for its own.</summary>
     public string? AnglesKey { get; }
@@ -43,35 +47,35 @@ public sealed class AnglesHelper : EntityHelper
     }
 
     /// <inheritdoc/>
-    public override void AddToScene()
+    public override void AddToScene() => AddShapes();
+
+    internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
-        var basis = GetBasis();
+        var (forward, left, up) = GetBasis();
+        var origin = Owner.RigidTransform.Translation;
 
-        AddLines(Matrix4x4.CreateTranslation(Owner.RigidTransform.Translation), lines => AddAxes(lines, basis));
-    }
-
-    internal override void AddSelectionShapes(in SelectionShapes shapes)
-    {
-        var basis = GetBasis();
-        var lines = shapes.Aligned(HelperPasses.Overlay);
-
-        lines.AddSolidCone(basis.Forward * ShaftLength, basis.Forward * (ShaftLength + HeadLength), HeadRadius, 16, Color);
-        AddAxes(lines, basis);
-    }
-
-    // The shaft of the arrow, and the axes under it
-    private void AddAxes(EntityHelperLines lines, (Vector3 Forward, Vector3 Left, Vector3 Up) basis)
-    {
-        lines.AddLine(Vector3.Zero, basis.Forward * ShaftLength, Color);
-
-        if (!DrawBasisVectors)
+        // The head of the arrow only shows while the entity is selected, over everything as the shaft then is
+        if (state.IsSelected)
         {
-            return;
+            context.PushRenderMode(ToolRenderMode.FlatNoZ);
+            context.DrawSolidCone(origin + forward * ShaftLength, origin + forward * (ShaftLength + HeadLength), HeadRadius, 16, Color, Color);
+            context.PopRenderMode();
         }
 
-        lines.AddLine(Vector3.Zero, basis.Forward * AxisLength, Color32.Red);
-        lines.AddLine(Vector3.Zero, basis.Left * AxisLength, Color32.Green);
-        lines.AddLine(Vector3.Zero, basis.Up * AxisLength, Color32.Blue);
+        context.PushRenderMode(state.IsSelected ? ToolRenderMode.WireframeNoZ : ToolRenderMode.Wireframe);
+
+        context.LineWidth = 2f;
+        context.DrawLine(origin, origin + forward * ShaftLength, Color);
+        context.LineWidth = 0f;
+
+        if (DrawBasisVectors)
+        {
+            context.DrawLine(origin, origin + forward * AxisLength, Color32.Red);
+            context.DrawLine(origin, origin + left * AxisLength, Color32.Green);
+            context.DrawLine(origin, origin + up * AxisLength, Color32.Blue);
+        }
+
+        context.PopRenderMode();
     }
 
     // The angles in the key, turned with the entity when they are local to it, or the entity's own

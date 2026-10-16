@@ -51,7 +51,7 @@ namespace ValveResourceFormat.IO
         private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
         private readonly Lock CachedShadersLock = new();
         private readonly HashSet<string> CurrentGameSearchPaths = [];
-        private readonly List<(string GameInfo, KVObject Hammer)> CurrentGameHammerBlocks = [];
+        private readonly List<(string Path, KVObject GameInfo)> CurrentGameInfos = [];
         private readonly HashSet<string> CurrentGameOfficialAddonsPaths = [];
         private readonly HashSet<string> CurrentGameAddonsPaths = [];
         private ImmutableArray<Package> CurrentGamePackages = [];
@@ -453,10 +453,10 @@ namespace ValveResourceFormat.IO
             var gameName = gameInfo.TryGetValue("game", out var game) ? game.ToString() : null;
             Logger.LogInformation("Found \"{GameName}\" from \"{GameInfo}\"", gameName, gameinfoPath);
 
-            // The FGD files the game names for its tools, read when they are first needed
-            if (gameInfo.TryGetValue("Hammer", out var hammer) && hammer != null && !CurrentGameHammerBlocks.Exists(block => block.GameInfo == gameinfoPath))
+            // Kept for what the game says about its tools, such as the FGD files it names, read when first needed
+            if (!CurrentGameInfos.Exists(info => info.Path == gameinfoPath))
             {
-                CurrentGameHammerBlocks.Add((gameinfoPath, hammer));
+                CurrentGameInfos.Add((gameinfoPath, gameInfo));
             }
 
             var fileSystem = gameInfo["FileSystem"];
@@ -640,8 +640,13 @@ namespace ValveResourceFormat.IO
         /// </returns>
         public virtual ForgeGameData? LoadFgd()
         {
-            foreach (var (gameInfoPath, hammer) in CurrentGameHammerBlocks)
+            foreach (var (gameInfoPath, gameInfo) in CurrentGameInfos)
             {
+                if (!gameInfo.TryGetValue("Hammer", out var hammer) || hammer == null)
+                {
+                    continue;
+                }
+
                 try
                 {
                     var fgd = new ForgeGameData(OpenFileQuietly);
@@ -659,6 +664,48 @@ namespace ValveResourceFormat.IO
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Gets a flag the <c>gameinfo.gi</c> of the current game sets, by the names of the blocks it is in and
+        /// its own, such as <c>WorldRenderer/LPVEdgeBlending</c>.
+        /// </summary>
+        /// <param name="path">The names, joined by slashes.</param>
+        /// <param name="defaultValue">The value where no game sets it.</param>
+        /// <returns>Whether the flag is a number other than zero, or true.</returns>
+        public bool GetGameInfoBool(string path, bool defaultValue)
+        {
+            ArgumentNullException.ThrowIfNull(path);
+
+            var names = path.Split('/');
+
+            foreach (var (_, gameInfo) in CurrentGameInfos)
+            {
+                KVObject? value = gameInfo;
+
+                foreach (var name in names)
+                {
+                    if (value == null || !value.TryGetValue(name, out value))
+                    {
+                        value = null;
+                        break;
+                    }
+                }
+
+                if (value?.ToString() is not { } text)
+                {
+                    continue;
+                }
+
+                if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+                {
+                    return number != 0;
+                }
+
+                return bool.TryParse(text, out var flag) ? flag : defaultValue;
+            }
+
+            return defaultValue;
         }
 
         // A game can name files it does not ship, which are not worth a warning

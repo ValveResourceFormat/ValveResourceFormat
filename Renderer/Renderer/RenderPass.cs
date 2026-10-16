@@ -72,6 +72,9 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         EffectsBloom = 1 << 5,
 
+        /// <summary>Draws in the tools pass, over the final image after post processing.</summary>
+        Tools = 1 << 6,
+
         /// <summary>Draws in the opaque and translucent passes, the default for a node that draws itself.</summary>
         Default = Opaque | Translucent,
     }

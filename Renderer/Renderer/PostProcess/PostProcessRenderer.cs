@@ -340,7 +340,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             {
                 using var outlineGroup = new GLDebugGroup("Outline Edge");
                 Debug.Assert(OutlineMask != null);
-                Outline.Render(OutlineMask, colorBufferRead.NumSamples, flipY);
+                Outline.Render(OutlineMask, colorBufferRead.NumSamples);
             }
         }
 

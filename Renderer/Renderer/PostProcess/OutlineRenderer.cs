@@ -8,6 +8,10 @@ namespace ValveResourceFormat.Renderer.PostProcess;
 /// </summary>
 public class OutlineRenderer(RendererContext rendererContext)
 {
+    // Where the selection is seen, and fainter where the scene hides it. The image is already display encoded here.
+    private static readonly Vector4 OutlineColor = new(255f / 255f, 183f / 255f, 45f / 255f, 1f);
+    private static readonly Vector4 OccludedColor = new(228f / 255f, 210f / 255f, 176f / 255f, 0.5f);
+
     private Shader? outlineEdge;
 
     /// <summary>Loads the outline edge detection shader.</summary>
@@ -19,14 +23,15 @@ public class OutlineRenderer(RendererContext rendererContext)
     /// <summary>
     /// Execute the outline post-pass. Caller must ensure the destination framebuffer is bound.
     /// </summary>
-    public void Render(RenderTexture outlineMask, int numSamples, bool flipY)
+    public void Render(RenderTexture outlineMask, int numSamples)
     {
         Debug.Assert(outlineEdge != null);
 
         outlineEdge.Use();
 
-        outlineEdge.SetUniform("g_bFlipY", flipY);
         outlineEdge.SetUniform("g_nNumSamplesMSAA", numSamples);
+        outlineEdge.SetUniform("g_vOutlineColor", OutlineColor);
+        outlineEdge.SetUniform("g_vOccludedColor", OccludedColor);
 
         outlineEdge.SetTexture(0, "g_tOutlineMask", outlineMask);
 

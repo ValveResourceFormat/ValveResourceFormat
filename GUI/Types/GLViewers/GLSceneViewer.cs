@@ -12,6 +12,7 @@ using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Picking;
 using ValveResourceFormat.Renderer.Editor.Selection;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -98,6 +99,7 @@ namespace GUI.Types.GLViewers
         private bool isCubemapsRenderMode;
         private InfiniteGrid? baseGrid;
         private SelectionVisuals? selectionVisuals;
+        private ToolsPass? toolsPass;
 
         /// <summary>The editor entities of the view, which draw what Hammer shows of them.</summary>
         protected HammerEntityVisuals EntityVisuals { get; }
@@ -143,6 +145,9 @@ namespace GUI.Types.GLViewers
 
             selectionVisuals?.Delete();
             selectionVisuals = null;
+
+            toolsPass?.Dispose();
+            toolsPass = null;
 
             Picker?.Delete();
             Picker = null;
@@ -469,7 +474,8 @@ namespace GUI.Types.GLViewers
             Renderer.Postprocess.ExposureCompensation = -0.4f; // eyeballed
 
             baseGrid = new InfiniteGrid(Scene);
-            selectionVisuals = new(Scene.RendererContext, Selection, EntityVisuals);
+            selectionVisuals = new(Selection, EntityVisuals);
+            toolsPass = new(Scene.RendererContext);
             Picker = new(Scene.RendererContext, OnPicked);
 
             QuadOverdrawRenderer = new(Scene.RendererContext);
@@ -737,13 +743,10 @@ namespace GUI.Types.GLViewers
             Debug.Assert(MainFramebuffer != null);
             Debug.Assert(GLDefaultFramebuffer != null);
 
-            Renderer.PostprocessRender(MainFramebuffer, GLDefaultFramebuffer);
+            Debug.Assert(toolsPass != null && selectionVisuals != null);
 
-            // Over the final image, so the selection keeps its colors whatever the exposure
-            if (selectionVisuals != null && Renderer.ResolvedSceneDepth != null)
-            {
-                selectionVisuals.Render(Renderer.ResolvedSceneDepth);
-            }
+            // The tools are drawn over the final image, so they keep their colors whatever the exposure
+            toolsPass.Render(Renderer, MainFramebuffer, GLDefaultFramebuffer, [selectionVisuals.Shapes], TextRenderer);
         }
 
         protected override void OnBufferSwapped(double blockedMs, double framePeriodMs)

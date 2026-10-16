@@ -8,14 +8,21 @@ uniform float g_flOutlineSize = 1;
 uniform float g_flOutlineSoftness = 0.8;
 uniform float g_flOutlineIntensity = 2.25;
 
+// Where the selection is seen, and where the scene hides it
+uniform vec4 g_vOutlineColor;
+uniform vec4 g_vOccludedColor;
+
+// Red: the selection wherever it is. Green: where the scene does not hide it.
 layout (binding = 0) uniform sampler2DMS g_tOutlineMask;
 
-void SampleOutlineMaskMSAA(ivec2 pixelCoords, inout float insideCount, inout int totalSamples)
+out vec4 outputColor;
+
+// Adds how many samples of a pixel the selection covers, and how many of those the scene does not hide
+void SampleOutlineMaskMSAA(ivec2 pixelCoords, inout vec2 coverage, inout int totalSamples)
 {
     for (int i = 0; i < g_nNumSamplesMSAA; i++)
     {
-        float maskValue = texelFetch(g_tOutlineMask, pixelCoords, i).r;
-        insideCount += maskValue;
+        coverage += texelFetch(g_tOutlineMask, pixelCoords, i).rg;
     }
 
     totalSamples += g_nNumSamplesMSAA;
@@ -30,27 +37,25 @@ vec4 DrawOutline()
     ivec2 pixelCoords = ivec2(gl_FragCoord.xy);
 
     int totalSamples = 0;
-    float insideCountCenter = 0.0;
+    vec2 coverageCenter = vec2(0.0);
 
-    SampleOutlineMaskMSAA(pixelCoords, insideCountCenter, totalSamples);
+    SampleOutlineMaskMSAA(pixelCoords, coverageCenter, totalSamples);
 
-    if (insideCountCenter >= float(g_nNumSamplesMSAA))
+    if (coverageCenter.r >= float(g_nNumSamplesMSAA))
     {
         // do not draw outline inside the object
         discard;
     }
 
-    float insideCount = insideCountCenter;
+    vec2 coverage = coverageCenter;
     ivec2 maskTextureSize = textureSize(g_tOutlineMask);
 
-    // Accumulate samples in a neighborhood and also collect positional info for inside-samples
-    int insideSamplePixels = 0;
-    vec2 insidePosSum = vec2(0.0);
+    // Accumulate samples in a neighborhood, and how far away the nearest inside sample is
     float minDistSq = 1e9;
 
-    for(int x = -width; x <= width;  x += shadingRate)
+    for (int x = -width; x <= width; x += shadingRate)
     {
-        for(int y = -width; y <= width; y += shadingRate)
+        for (int y = -width; y <= width; y += shadingRate)
         {
             ivec2 sampleCoords = pixelCoords + ivec2(x, y);
 
@@ -60,19 +65,12 @@ vec4 DrawOutline()
                 continue;
             }
 
-            // Update global inside/total accumulators used for edge strength
-            float beforeInside = insideCount;
-            SampleOutlineMaskMSAA(sampleCoords, insideCount, totalSamples);
+            vec2 beforeCoverage = coverage;
+            SampleOutlineMaskMSAA(sampleCoords, coverage, totalSamples);
 
             // Derive per-pixel coverage from the accumulator
-            float localInside = insideCount - beforeInside;
-            if (localInside > 0.0)
+            if (coverage.r > beforeCoverage.r)
             {
-                // weight by how many MSAA samples at this pixel are inside
-                float w = localInside;
-                insideSamplePixels += int(w);
-                insidePosSum += vec2(sampleCoords) * w;
-
                 vec2 d = vec2(pixelCoords) - vec2(sampleCoords);
                 minDistSq = min(minDistSq, length_squared(d));
             }
@@ -84,8 +82,8 @@ vec4 DrawOutline()
         return vec4(0.0);
     }
 
-    float covNeighborhood = insideCount / float(totalSamples); // 0..1 coverage in neighborhood
-    float covCenter = insideCountCenter / float(g_nNumSamplesMSAA); // per-fragment coverage (0..1)
+    float covNeighborhood = coverage.r / float(totalSamples); // 0..1 coverage in neighborhood
+    float covCenter = coverageCenter.r / float(g_nNumSamplesMSAA); // per-fragment coverage (0..1)
 
     // If there's almost no coverage nearby, skip outline
     if (covNeighborhood < 0.01)
@@ -108,12 +106,14 @@ vec4 DrawOutline()
     // Ensure a small visible floor so very thin silhouettes remain noticeable
     outlineAlpha = max(outlineAlpha, 0.06 * edgeStrength * g_flOutlineIntensity);
 
-    return vec4(vec3(1.0, 1.0, 0.2), outlineAlpha);
+    // Where the selection next to the edge is seen it is outlined brightly, and faintly where the scene hides it
+    float visibility = coverage.g / coverage.r;
+    vec4 color = mix(g_vOccludedColor, g_vOutlineColor, visibility);
+
+    return vec4(color.rgb, saturate(color.a * outlineAlpha));
 }
 
-out vec4 outputColor;
 void main()
 {
-    vec4 vOutline = DrawOutline();
-    outputColor = vOutline;
+    outputColor = DrawOutline();
 }

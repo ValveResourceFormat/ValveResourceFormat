@@ -2,7 +2,7 @@ using System.Globalization;
 using ValveKeyValue;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
-using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
@@ -21,12 +21,67 @@ public abstract class EntityHelper
     public FgdHelper Declaration { get; }
 
     /// <summary>
-    /// Gets whether the entity is seen by this helper. An entity none of whose helpers is, is drawn as a box.
+    /// Gets whether the entity is seen by this helper, which most are. An entity none of whose helpers is, is
+    /// drawn as a box.
     /// </summary>
-    public virtual bool IsVisual => false;
+    public virtual bool IsVisual => true;
 
-    /// <summary>Gets the color of the class of the entity, which its helpers draw in while it is not selected.</summary>
-    protected Color32 ClassColor => Owner.FgdClass?.Color ?? FgdClass.DefaultColor;
+    /// <summary>Gets whether the helper is only drawn while helpers are shown, which they are by default.</summary>
+    public virtual bool NeedsShowHelpers => false;
+
+    /// <summary>
+    /// Gets whether the helper is hidden while only what the game shows is, unless its entity is selected.
+    /// </summary>
+    public virtual bool HiddenInGameObjectsOnly => false;
+
+    /// <summary>Gets whether nothing of the helper is drawn while its entity is not selected.</summary>
+    public virtual bool RequiresSelection => false;
+
+    /// <summary>Gets whether the helper is only drawn while its entity is selected with the selection tool.</summary>
+    public virtual bool RequiresHighlight => false;
+
+    /// <summary>
+    /// Gets whether the helper of a path is drawn as it is while the path is selected also while any node of the
+    /// path is.
+    /// </summary>
+    internal virtual bool IsSelectedWithPathNodes => false;
+
+    /// <summary>The color selected shapes are drawn in, which is a setting of the editor; this is its default.</summary>
+    internal static readonly Color32 SelectionWireframeColor = new(80, 200, 255);
+
+    /// <summary>The color of what is selected itself, which is a setting of the editor; this is its default.</summary>
+    internal static readonly Color32 SelectionColor = new(255, 255, 0);
+
+    /// <summary>The tint over what is selected, which is a setting of the editor; this is its default.</summary>
+    internal static readonly Color32 SelectionOverlayColor = new(255, 183, 45);
+
+    /// <summary>The color helpers draw their shapes in while their entity is not selected.</summary>
+    internal static readonly Color32 UnselectedEntityColor = new(220, 220, 220);
+
+    private readonly List<ToolSceneNode> shapeNodes = [];
+
+    /// <summary>
+    /// Gets the bounds the helper adds to those of its entity in the world, which a selection is boxed by, or
+    /// <see langword="null"/> where it adds none. Most helpers add none: a sphere or a line around an entity
+    /// does not make the entity any larger. An entity none of whose helpers adds any is boxed at its origin.
+    /// </summary>
+    public virtual AABB? ObjectBounds => null;
+
+    /// <summary>
+    /// Gets whether the helper is drawn for its entity at all. Of the entities of a 3D sky placed into the map,
+    /// only the helpers that show what the game does are, never the ones the editor's options hide.
+    /// </summary>
+    public bool IsAvailable => !Owner.IsInSkybox || !(NeedsShowHelpers || HiddenInGameObjectsOnly);
+
+    /// <summary>
+    /// Gets the visibility layer of what the helper adds to the scene, which stands in for the options of the
+    /// editor: the helpers layer for a helper only drawn while helpers are shown, the editor-only entities layer
+    /// for one hidden while only what the game shows is, and <see langword="null"/>, the layer of the entity,
+    /// for one neither option hides.
+    /// </summary>
+    protected string? VisibilityLayerName => NeedsShowHelpers
+        ? HammerEntityVisuals.HelpersLayerName
+        : HiddenInGameObjectsOnly ? HammerEntityVisuals.MarkerLayerName : null;
 
     /// <summary>Initializes a helper of an entity.</summary>
     /// <param name="owner">The entity the helper belongs to.</param>
@@ -45,38 +100,86 @@ public abstract class EntityHelper
     {
     }
 
-    /// <summary>Adds the shapes the helper draws while its entity is selected.</summary>
-    /// <param name="shapes">Where the shapes go and where the entity is.</param>
-    internal virtual void AddSelectionShapes(in SelectionShapes shapes)
+    /// <summary>
+    /// Draws the shapes of the helper the way the editor draws them, in the world, while its entity is or is not
+    /// selected.
+    /// </summary>
+    /// <param name="context">What the shapes are drawn with.</param>
+    /// <param name="state">Whether the entity is selected.</param>
+    internal virtual void Render(ToolRenderContext context, in HelperRenderState state)
     {
     }
 
     /// <summary>
-    /// Adds lines the helper shows while its entity is not selected, with the same primitives as the shapes
-    /// it shows while it is. They are drawn as part of the scene, opaque or blended in their alpha.
+    /// Adds the shapes the helper draws while its entity is not selected to the scene, as part of it. They are
+    /// hidden while the entity is selected, when the selection draws them as they are then.
     /// </summary>
-    /// <param name="transform">Where the lines are placed.</param>
-    /// <param name="draw">Draws the lines, in the space of <paramref name="transform"/>.</param>
-    /// <param name="layerName">The visibility layer of the lines.</param>
-    /// <param name="translucent">Whether the lines keep the alpha of their colors.</param>
-    private protected void AddLines(in Matrix4x4 transform, Action<EntityHelperLines> draw, string layerName = HammerEntityVisuals.MarkerLayerName, bool translucent = false)
+    /// <param name="placement">
+    /// Where the shapes are placed, for shapes that keep their size as markers do, or <see langword="null"/> to
+    /// draw them in the world.
+    /// </param>
+    /// <param name="layerName">
+    /// The visibility layer of the shapes, or <see langword="null"/> for the one the options that hide the
+    /// helper give.
+    /// </param>
+    private protected void AddShapes(Matrix4x4? placement = null, string? layerName = null)
     {
-        var vertices = new HelperVertices();
-
-        draw(new EntityHelperLines(vertices, Matrix4x4.Identity, translucent ? HelperPasses.Translucent : HelperPasses.Visible));
-
-        if (vertices.Lines.Count == 0)
+        // There is no selection tool, so what is only drawn while the entity is highlighted by it is drawn
+        // while the entity is selected
+        if (RequiresSelection || RequiresHighlight || !IsAvailable)
         {
             return;
         }
 
-        Owner.AddNode(new LineSceneNode(Owner.Scene, [.. vertices.Lines])
+        var transform = placement ?? Matrix4x4.Identity;
+        Matrix4x4.Invert(transform, out var worldToPlacement);
+
+        var node = new ToolSceneNode(Owner.Scene)
         {
-            Transform = transform,
-            LayerName = layerName,
-            Translucent = translucent,
+            LayerName = layerName ?? VisibilityLayerName,
+            KeepsMarkerSize = placement != null,
+        };
+
+        node.Draw(context =>
+        {
+            context.PushAbsoluteTransform(worldToPlacement);
+            Render(context, HelperRenderState.Unselected);
+            context.PopTransform();
         });
+
+        if (node.Geometry.IsEmpty)
+        {
+            node.Delete();
+            return;
+        }
+
+        node.Transform = transform;
+        shapeNodes.Add(node);
+        Owner.AddNode(node);
     }
+
+    /// <summary>Hides the shapes the helper draws while its entity is not selected, while it is.</summary>
+    internal void SetSelected(bool isSelected)
+    {
+        foreach (var node in shapeNodes)
+        {
+            node.IsHiddenWhileSelected = isSelected;
+        }
+
+        OnSelectionChanged(isSelected);
+    }
+
+    /// <summary>Called when the entity of the helper is selected or deselected.</summary>
+    /// <param name="isSelected">Whether the entity is now selected.</param>
+    private protected virtual void OnSelectionChanged(bool isSelected)
+    {
+    }
+
+    /// <summary>
+    /// Gets the color the editor draws the shapes of the entity in: the selection wireframe color while it is
+    /// selected, a light grey otherwise.
+    /// </summary>
+    private protected static Color32 GetDrawColor(in HelperRenderState state) => state.IsSelected ? SelectionWireframeColor : UnselectedEntityColor;
 
     /// <summary>Gets a color the block the helper is declared with gives as three or four numbers.</summary>
     /// <param name="key">Name of the key.</param>
@@ -149,6 +252,33 @@ public abstract class EntityHelper
         return GetDefault(key) is { } value ? ParseComponents(value).X : defaultValue;
     }
 
+    /// <summary>Gets a key of the entity as a flag, or the default its class gives the key where the entity has none.</summary>
+    /// <param name="key">Name of the key.</param>
+    /// <param name="defaultValue">The value where neither has it, or where it is neither a number nor a boolean.</param>
+    /// <returns>Whether the value is a number other than zero, or true.</returns>
+    protected bool GetBooleanKey(string key, bool defaultValue)
+    {
+        if (!Owner.KeyValues.ContainsKey(key) && GetDefault(key) == null)
+        {
+            return defaultValue;
+        }
+
+        // A compiled map keeps flags as booleans rather than as text
+        if (Owner.KeyValues.TryGetValue(key, out var stored) && stored.ValueType == KVValueType.Boolean)
+        {
+            return (bool)stored;
+        }
+
+        var value = GetStringKey(key);
+
+        if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
+        {
+            return number != 0f;
+        }
+
+        return bool.TryParse(value, out var flag) ? flag : defaultValue;
+    }
+
     /// <summary>Gets a key of the entity as an integer, or the default its class gives the key where the entity has none.</summary>
     /// <param name="key">Name of the key.</param>
     /// <returns>The value, zero when neither has it.</returns>
@@ -191,6 +321,7 @@ public abstract class EntityHelper
         return new Vector4(components);
     }
 
+    // A vdata choice names its files joined by '&', each maybe followed by '!' and what to narrow it down to
     /// <summary>Gets a key of the block the helper is declared with as text.</summary>
     /// <param name="key">Name of the key.</param>
     /// <returns>The value, or <see langword="null"/> when the helper has no such key.</returns>
@@ -202,4 +333,19 @@ public abstract class EntityHelper
     /// <returns>The argument.</returns>
     protected string? GetArgument(int index)
         => index < Declaration.Arguments.Count ? Declaration.Arguments[index] : null;
+}
+
+/// <summary>Whether the entity a helper draws for is selected, and whether it is all that is.</summary>
+/// <param name="IsSelected">Whether the entity is selected.</param>
+/// <param name="IsOnlySelected">Whether the entity is the only thing selected.</param>
+internal readonly record struct HelperRenderState(bool IsSelected, bool IsOnlySelected)
+{
+    /// <summary>The state of an entity that is not selected.</summary>
+    public static HelperRenderState Unselected => default;
+
+    /// <summary>
+    /// Gets the camera the shapes are drawn for, which shapes that keep their size on the screen are sized by, or
+    /// <see langword="null"/> when they are drawn once for every view.
+    /// </summary>
+    public Camera? Camera { get; init; }
 }

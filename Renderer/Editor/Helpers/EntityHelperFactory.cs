@@ -52,6 +52,8 @@ public static class EntityHelperFactory
     private static readonly Vector3 DefaultBoxMins = new(-8f);
     private static readonly Vector3 DefaultBoxMaxs = new(8f);
 
+    private const int MaxRememberedUnknownNames = 256;
+
     private static readonly Dictionary<string, Registration> Registrations = CreateRegistrations();
     private static readonly HashSet<string> UnknownNames = new(StringComparer.OrdinalIgnoreCase);
 
@@ -75,17 +77,9 @@ public static class EntityHelperFactory
 
         if (!Registrations.TryGetValue(declaration.Name, out var registration))
         {
-            bool isFirst;
-
-            lock (UnknownNames)
+            if (level == HelperLevel.All && RememberUnknownName(declaration.Name))
             {
-                isFirst = UnknownNames.Add(declaration.Name);
-            }
-
-            // Each name is only said once
-            if (level == HelperLevel.All && isFirst)
-            {
-                owner.Scene.RendererContext.Logger.LogWarning("Can't find helper '{Helper}' of class '{Classname}'", declaration.Name, owner.Classname);
+                owner.Scene.RendererContext.Logger.LogWarning("Can't find helper '{Helper}' - fgd error?", declaration.Name);
             }
 
             return null;
@@ -103,7 +97,8 @@ public static class EntityHelperFactory
 
     /// <summary>
     /// Creates everything an entity is drawn with: the box of a class that declares a size, the helpers its
-    /// class declares, one for each of its variables that is drawn, and a box where none of those is seen.
+    /// class declares, one for each of its variables that is drawn, and a box where none of those is seen,
+    /// unless it is made of map geometry, a path, or a node of one.
     /// </summary>
     /// <param name="owner">The entity.</param>
     /// <param name="level">How much the map creates.</param>
@@ -147,8 +142,8 @@ public static class EntityHelperFactory
             }
         }
 
-        // An entity made of map geometry is seen by that
-        if (gameClass is { Type: FgdClassType.SolidClass })
+        // An entity made of map geometry is seen by that, and a node of a path by the path it is on
+        if (gameClass is { Type: FgdClassType.SolidClass or FgdClassType.PathNodeClass })
         {
             return helpers;
         }
@@ -159,12 +154,32 @@ public static class EntityHelperFactory
             isSeen = true;
         }
 
-        if (!isSeen && level == HelperLevel.All)
+        // A path or a cable is seen by its nodes
+        if (!isSeen && level == HelperLevel.All && gameClass is not { Type: FgdClassType.PathClass or FgdClassType.CableClass })
         {
             helpers.Add(new AlignedBoxHelper(owner, DefaultBoxMins, DefaultBoxMaxs));
         }
 
         return helpers;
+    }
+
+    // Each unknown name is only said once, as long as there are few enough of them to remember
+    private static bool RememberUnknownName(string name)
+    {
+        lock (UnknownNames)
+        {
+            if (UnknownNames.Contains(name))
+            {
+                return false;
+            }
+
+            if (UnknownNames.Count < MaxRememberedUnknownNames)
+            {
+                UnknownNames.Add(name);
+            }
+
+            return true;
+        }
     }
 
     // A variable of one of these types is drawn by a helper of its own, which is given its name
@@ -209,31 +224,21 @@ public static class EntityHelperFactory
         }
 
         Add(Importance.Essential,
-            "bakeambientocclusion", "bakeresource", "bakeskylight", "global_map", "model", "skybox",
-            "volumetric_fog_controller", "wind_controller");
+            "bakeambientocclusion", "bakeresource", "bakeskylight", "model", "skybox", "volumetric_fog_controller");
 
         Add(Importance.Game,
-            "barnlight", "dotaskybox", "editor_model_preview", "editormodel", "externalHelper", "fog", "global",
-            "light", "navlink_anim_preview", "omnilight", "overlay", "particle", "rectlight", "studio",
-            "studioprop", "tonemap");
+            "barnlight", "dotaskybox", "editormodel", "externalHelper", "fog", "global", "light", "omnilight",
+            "overlay", "particle", "rectlight", "studio", "studioprop", "tonemap");
 
         Add(Importance.Editor,
-            "accompany", "arc_range", "area_footprint", "axis", "axis_range", "axisrotator", "box_oriented",
-            "box_world_aligned", "camera_path", "camera_path_node", "capsule", "centered_box_oriented",
-            "centered_box_world_aligned", "conveyor", "cubemap", "cubemap_fog", "door_handle", "door_helper",
-            "dotaGlobalLightHelper", "dotaLightInfoHelper", "dota_obstruction", "drawangles",
-            "drawangles_local", "error_indicator", "frustum", "gameItemModel", "gameUnitModel", "gradientfog",
-            "helper_env_sun", "helper_particle_glow", "hlxcoverpreview", "hyperbolic_helper", "iconsprite",
-            "lavastream", "leansphere", "lightcone", "lightortho", "line", "localaxis", "lodhint", "merged_model",
-            "mover_helper", "nodelink", "occluder", "orientedwidthheight", "orientedwidthheightfixed",
-            "particle_rope", "pathTangents", "path_position", "path_vehicle_helper", "point", "point_deformer",
-            "postprocessing", "projectilebarrage", "projectileemitter", "proxySelectionHelper",
-            "pulse_visualize", "ranger_trap_cables", "rectangle", "reference_map", "renderPipelineObject",
-            "savedcamera_frustum", "selected_line", "sequenceList", "size_box_oriented",
-            "size_box_world_aligned", "skybox_map", "smartPropConfigurationHelper", "sphere",
-            "sweptplayerhull", "text", "text_local", "tileHeight", "tileShape", "tileToggle", "vdata_model",
-            "vdata_sphere", "vecline", "vecline_local", "viewer", "waterfall", "waterplane", "wirebox",
-            "wirebox_local", "wirefrustum", "wobbler_helper");
+            "accompany", "arc_range", "axis", "box_oriented", "box_world_aligned", "camera_path",
+            "camera_path_node", "capsule", "centered_box_oriented", "cubemap", "cubemap_fog", "door_helper",
+            "dotaGlobalLightHelper", "dotaLightInfoHelper", "dota_obstruction", "drawangles", "drawangles_local",
+            "error_indicator", "frustum", "gameItemModel", "gameUnitModel", "gradientfog", "helper_particle_glow",
+            "iconsprite", "leansphere", "lightcone", "lightortho", "line", "localaxis", "occluder",
+            "orientedwidthheight", "particle_rope", "postprocessing", "selected_line", "sequenceList", "skybox_map",
+            "sphere", "sweptplayerhull", "text_local", "vecline", "vecline_local", "viewer", "wirebox",
+            "wirebox_local");
 
         void Creates(Creator creator, params string[] names)
         {
@@ -244,7 +249,7 @@ public static class EntityHelperFactory
         }
 
         Creates(static (owner, declaration) => new IconHelper(owner, declaration), "iconsprite");
-        Creates(static (owner, declaration) => new ModelHelper(owner, declaration), "editormodel", "model", "studio", "studioprop");
+        Creates(ModelHelper.Create, "editormodel", "model", "studio", "studioprop");
         Creates(static (owner, declaration) => new LightHelper(owner, declaration), "light");
         Creates(static (owner, declaration) => new BarnLightHelper(owner, declaration), "barnlight");
         Creates(static (owner, declaration) => new RectLightHelper(owner, declaration), "rectlight");
@@ -257,16 +262,43 @@ public static class EntityHelperFactory
         Creates(static (owner, declaration) => new ToneMappingHelper(owner, declaration), "tonemap");
         Creates(static (owner, declaration) => new PostProcessingVolumeHelper(owner, declaration), "postprocessing");
         Creates(static (owner, declaration) => new ParticleHelper(owner, declaration), "particle");
-        Creates(static (owner, declaration) => new ParticleGlowHelper(owner, declaration), "helper_particle_glow", "helper_env_sun");
+        Creates(static (owner, declaration) => new ParticleGlowHelper(owner, declaration), "helper_particle_glow");
         Creates(static (owner, declaration) => new ParticleRopeHelper(owner, declaration), "particle_rope");
-        Creates(LineHelper.Create, "line", "selected_line", "nodelink");
+        Creates(LineHelper.Create, "line", "selected_line");
         Creates(static (owner, declaration) => new SphereHelper(owner, declaration), "sphere", "leansphere");
-        Creates(BoxHelper.Create, "box_oriented", "box_world_aligned", "centered_box_oriented", "centered_box_world_aligned", "size_box_oriented", "size_box_world_aligned");
+        Creates(BoxHelper.Create, "box_oriented", "box_world_aligned", "centered_box_oriented");
         Creates(WireBoxHelper.Create, "wirebox", "wirebox_local");
         Creates(static (owner, declaration) => new AnglesHelper(owner, declaration), "drawangles", "drawangles_local");
-        Creates(static (owner, declaration) => new VecLineHelper(owner, declaration), "vecline", "vecline_local", "point");
+        Creates(static (owner, declaration) => new VecLineHelper(owner, declaration), "vecline", "vecline_local");
         Creates(static (owner, declaration) => new LightConeHelper(owner, declaration), "lightcone");
         Creates(static (owner, declaration) => new VolumetricFogControllerHelper(owner, declaration), "volumetric_fog_controller");
+        Creates(static (owner, declaration) => new ArcRangeHelper(owner, declaration), "arc_range");
+        Creates(static (owner, declaration) => new AxisHelper(owner, declaration), "axis", "localaxis");
+        Creates(OrientedWidthHeightHelper.Create, "orientedwidthheight");
+        Creates(static (owner, declaration) => new LightOrthoHelper(owner, declaration), "lightortho");
+        Creates(static (owner, declaration) => new TextHelper(owner, declaration), "text_local");
+        Creates(static (owner, declaration) => new OverlayHelper(owner, declaration), "overlay");
+        Creates(static (owner, declaration) => new ErrorIndicatorHelper(owner, declaration), "error_indicator");
+        Creates(DotaObstructionHelper.Create, "dota_obstruction");
+        Creates(GameUnitModelHelper.Create, "gameUnitModel", "gameItemModel");
+        Creates(static (owner, declaration) => new FrustumHelper(owner, declaration), "frustum");
+        Creates(static (owner, declaration) => new CapsuleHelper(owner, declaration), "capsule");
+        Creates(static (owner, declaration) => new RadiusSphereHelper(owner, declaration), "occluder", "viewer");
+        Creates(static (owner, declaration) => new SweptPlayerHullHelper(owner, declaration), "sweptplayerhull");
+        Creates(static (owner, declaration) => new DoorHelper(owner, declaration), "door_helper");
+        Creates(static (owner, declaration) => new AccompanyHelper(owner, declaration), "accompany");
+        Creates(static (owner, declaration) => new CameraPathHelper(owner, declaration), "camera_path");
+        Creates(static (owner, declaration) => new CameraPathNodeHelper(owner, declaration), "camera_path_node");
+        Creates(static (owner, declaration) => new GlobalHelper(owner, declaration), "global");
+        Creates(static (owner, declaration) => new FogHelper(owner, declaration), "fog");
+        Creates(static (owner, declaration) => new ExternalHelper(owner, declaration), "externalHelper");
+        Creates(static (owner, declaration) => new ExternalMapHelper(owner, declaration), "skybox_map");
+        Creates(static (owner, declaration) => new BakeAmbientOcclusionHelper(owner, declaration), "bakeambientocclusion");
+        Creates(static (owner, declaration) => new BakeSkyLightHelper(owner, declaration), "bakeskylight");
+        Creates(static (owner, declaration) => new SequenceListHelper(owner, declaration), "sequenceList");
+        Creates(static (owner, declaration) => new DotaSkyboxHelper(owner, declaration), "dotaskybox");
+        Creates(static (owner, declaration) => new DotaGlobalLightHelper(owner, declaration), "dotaGlobalLightHelper");
+        Creates(static (owner, declaration) => new DotaLightInfoHelper(owner, declaration), "dotaLightInfoHelper");
 
         return registrations;
     }

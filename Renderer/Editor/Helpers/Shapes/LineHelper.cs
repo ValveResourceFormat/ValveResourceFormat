@@ -1,7 +1,5 @@
-using System.Linq;
 using ValveResourceFormat.IO.Fgd;
-using ValveResourceFormat.Renderer.Editor.Entities;
-using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
@@ -9,23 +7,31 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
 /// Lines from the entities one key of an entity names to the entity, or to the entities another key names.
-/// They are drawn in the color of its class, and in the selection color while it is selected. The color the
-/// declaration gives is only for views from above, which are not drawn.
+/// They are drawn in the draw color of the entity, and in the selection color while it is selected, leaving out
+/// the entities that are hidden. The color the declaration gives is only for views from above, which are not
+/// drawn.
 /// </summary>
 public sealed class LineHelper : EntityHelper
 {
+    /// <inheritdoc/>
+    public override bool IsVisual => false;
+
+    /// <inheritdoc/>
+    public override bool NeedsShowHelpers => true;
+
+    /// <inheritdoc/>
+    public override bool HiddenInGameObjectsOnly => true;
+
+    /// <inheritdoc/>
+    public override bool RequiresSelection => IsSelectedOnly;
+
     private const string NameKey = "targetname";
-
-    private static readonly Color32 SelectedColor = new(255, 255, 0);
-
-    // Lines from more than one entity are told apart from a single one while selected
-    private static readonly Color32 SelectedManyColor = new(255, 183, 45);
 
     private readonly string startKey;
     private readonly string startValueKey;
     private readonly string? endKey;
     private readonly string? endValueKey;
-    private readonly List<(Vector3 Start, Vector3 End)> segments = [];
+    private readonly List<(IHelperOwner Start, IHelperOwner End)> segments = [];
     private int startCount;
 
     /// <summary>Gets whether the lines are only drawn while the entity is selected.</summary>
@@ -62,36 +68,55 @@ public sealed class LineHelper : EntityHelper
         segments.Clear();
 
         var starts = Find(startKey, startValueKey);
-        var ends = endKey != null && endValueKey != null
-            ? Find(endKey, endValueKey).Select(static end => end.Transform.Translation).ToList()
-            : [Owner.Transform.Translation];
+        var ends = endKey != null && endValueKey != null ? Find(endKey, endValueKey) : [Owner];
 
         startCount = starts.Count;
 
-        foreach (var start in starts)
+        foreach (var end in ends)
         {
-            foreach (var end in ends)
+            foreach (var start in starts)
             {
-                segments.Add((start.Transform.Translation, end));
-
-                if (!IsSelectedOnly)
-                {
-                    AddLine(start.Transform.Translation, end);
-                }
+                segments.Add((start, end));
             }
+        }
+
+        if (!IsSelectedOnly)
+        {
+            AddShapes();
         }
     }
 
-    internal override void AddSelectionShapes(in SelectionShapes shapes)
+    internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
-        var lines = shapes.World(HelperPasses.Visible);
-        var color = startCount > 1 ? SelectedManyColor : SelectedColor;
+        if (IsSelectedOnly && !state.IsSelected)
+        {
+            return;
+        }
+
+        // Lines from more than one entity are told apart from a single one while selected
+        var color = !state.IsSelected ? GetDrawColor(state) : startCount > 1 ? SelectionOverlayColor : SelectionColor;
+
+        context.PushRenderMode(ToolRenderMode.Wireframe);
+        context.LineWidth = 2f;
 
         foreach (var (start, end) in segments)
         {
-            lines.AddLine(start, end, color);
+            // Whether an entity is hidden is only known as the selection is drawn, each frame; the lines drawn
+            // while the entity is not selected are drawn once
+            if (state.IsSelected && (!IsShown(start) || !IsShown(end)))
+            {
+                continue;
+            }
+
+            context.DrawLine(start.Transform.Translation, end.Transform.Translation, color);
         }
+
+        context.LineWidth = 0f;
+        context.PopRenderMode();
     }
+
+    // An entity is hidden with its layer, and one in no layer is never hidden
+    private static bool IsShown(IHelperOwner entity) => entity.LayerName.Length == 0 || entity.Scene.IsLayerEnabled(entity.LayerName);
 
     // Entities are found by name, or by any other key, where the first that has the value is taken
     private IReadOnlyList<IHelperOwner> Find(string key, string valueKey)
@@ -107,17 +132,5 @@ public sealed class LineHelper : EntityHelper
         }
 
         return Owner.FindByKey(key, value) is { } found ? [found] : [];
-    }
-
-    private void AddLine(Vector3 start, Vector3 end)
-    {
-        var origin = (start + end) / 2f;
-        var color = ClassColor;
-
-        Owner.AddNode(new LineSceneNode(Owner.Scene, start - origin, end - origin, color, color)
-        {
-            LayerName = HammerEntityVisuals.MarkerLayerName,
-            Transform = Matrix4x4.CreateTranslation(origin),
-        });
     }
 }

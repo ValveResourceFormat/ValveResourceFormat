@@ -1,5 +1,7 @@
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
+using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -14,9 +16,6 @@ public enum BoxHelperSize
 
     /// <summary>A size centered on the origin of the entity.</summary>
     Centered,
-
-    /// <summary>A size from the origin of the entity.</summary>
-    FromOrigin,
 }
 
 /// <summary>
@@ -26,6 +25,15 @@ public enum BoxHelperSize
 /// </summary>
 public sealed class BoxHelper : EntityHelper
 {
+    /// <inheritdoc/>
+    public override bool IsVisual => false;
+
+    /// <inheritdoc/>
+    public override bool HiddenInGameObjectsOnly => true;
+
+    /// <inheritdoc/>
+    public override bool RequiresHighlight => OnlyVisibleHighlightEnabled;
+
     // The faces fade in steps of at most this many units
     private const float FadeStep = 24f;
 
@@ -53,6 +61,21 @@ public sealed class BoxHelper : EntityHelper
     /// <summary>Gets whether the edges are drawn while the entity is not selected.</summary>
     public bool DrawUnselected { get; }
 
+    /// <summary>Gets whether the box is only drawn while its entity is selected with the selection tool.</summary>
+    public bool OnlyVisibleHighlightEnabled { get; }
+
+    /// <summary>
+    /// Gets whether the box is a light probe volume, whose faces are not tinted while the sample grids of the
+    /// volumes are shown, so the samples can be seen.
+    /// </summary>
+    public bool IsLightProbeVolume { get; }
+
+    /// <summary>
+    /// Gets whether the influence of the volume fades out past its sides, rather than inside them, which the
+    /// game decides for all of its volumes.
+    /// </summary>
+    public bool FadesPastSides { get; }
+
     private BoxHelper(IHelperOwner owner, FgdHelper declaration, BoxHelperSize size, bool isOriented) : base(owner, declaration)
     {
         Size = size;
@@ -71,6 +94,9 @@ public sealed class BoxHelper : EntityHelper
         EdgeFadesKey = GetMetadata("edge_fades")?.ToLowerInvariant();
         EdgeFadeKey = GetMetadata("single_edge_fade")?.ToLowerInvariant();
         DrawUnselected = GetMetadataFlag("draw_unselected_box", true);
+        OnlyVisibleHighlightEnabled = GetMetadataFlag("only_visible_highlight_enabled", false);
+        IsLightProbeVolume = GetMetadataFlag("is_light_probe_volume", false);
+        FadesPastSides = owner.Scene.RendererContext.FileLoader.GetGameInfoBool("WorldRenderer/LPVEdgeBlending", true);
     }
 
     /// <summary>Creates the box a class declares.</summary>
@@ -82,13 +108,7 @@ public sealed class BoxHelper : EntityHelper
         ArgumentNullException.ThrowIfNull(declaration);
 
         var name = declaration.Name.ToLowerInvariant();
-        var size = name switch
-        {
-            "box_world_aligned" or "box_oriented" => BoxHelperSize.MinsMaxs,
-            "centered_box_world_aligned" or "centered_box_oriented" => BoxHelperSize.Centered,
-            _ => BoxHelperSize.FromOrigin,
-        };
-
+        var size = name.StartsWith("centered_", StringComparison.Ordinal) ? BoxHelperSize.Centered : BoxHelperSize.MinsMaxs;
         var box = new BoxHelper(owner, declaration, size, name.EndsWith("_oriented", StringComparison.Ordinal));
 
         return box.SizeKey != null || (box.MinsKey != null && box.MaxsKey != null) ? box : null;
@@ -97,46 +117,81 @@ public sealed class BoxHelper : EntityHelper
     /// <inheritdoc/>
     public override void AddToScene()
     {
-        if (!DrawUnselected)
+        if (DrawUnselected)
+        {
+            AddShapes(layerName: HammerEntityVisuals.HelpersLayerName);
+        }
+    }
+
+    internal override void Render(ToolRenderContext context, in HelperRenderState state)
+    {
+        if (!state.IsSelected && !DrawUnselected)
         {
             return;
         }
 
         var bounds = GetBounds();
-        var color = ClassColor;
+        var color = GetDrawColor(state) with { A = 255 };
 
-        AddLines(GetPlacement(), lines => lines.AddBox(bounds, color), HammerEntityVisuals.HelpersLayerName);
-    }
+        context.PushTransform(GetPlacement());
 
-    internal override void AddSelectionShapes(in SelectionShapes shapes)
-    {
-        var bounds = GetBounds();
-        var lines = shapes.World(HelperPasses.Visible).Transformed(GetPlacement());
-        var color = EntityHelperLines.SelectionColor;
+        if (!state.IsSelected)
+        {
+            context.PushRenderMode(ToolRenderMode.Wireframe);
+            context.DrawColor = color;
+            context.DrawWireBox(bounds.Min, bounds.Max);
+            context.PopRenderMode();
+            context.PopTransform();
+            return;
+        }
 
         // Some volumes only tint their faces while the selection overlay of the editor is on, which it is
-        // until it is turned off
-        var edgeFade = GetEdgeFade();
-
-        if (edgeFade == Vector3.Zero)
+        // until it is turned off. A light probe volume leaves them out while the samples of the volumes show.
+        if (!IsLightProbeVolume || Owner.Scene.LightingDebug.LightProbeGrid == LightProbeDebugGridMode.Off)
         {
-            lines.AddBoxFaces(bounds, color);
-        }
-        else
-        {
-            AddFadingFaces(lines.With(HelperPasses.Translucent), bounds, edgeFade, color);
+            DrawFaces(context, bounds, color);
         }
 
-        lines.AddBox(bounds, color);
-        lines.With(HelperPasses.Overlay).AddBox(bounds, color with { A = 64 });
+        context.PushRenderMode(ToolRenderMode.WireframeDepthBias);
+        context.LineWidth = 2f;
+        context.DrawColor = color;
+        context.DrawWireBox(bounds.Min, bounds.Max);
+        context.LineWidth = 0f;
+        context.PopRenderMode();
+
+        context.PushRenderMode(ToolRenderMode.WireframeTranslucentNoZ);
+        context.DrawColor = color with { A = 64 };
+        context.DrawWireBox(bounds.Min, bounds.Max);
+        context.PopRenderMode();
+
+        context.PopTransform();
     }
 
-    private AABB GetBounds() => Size switch
+    // Tinted faces, which fade with the influence of the volume where it fades out past its sides
+    private void DrawFaces(ToolRenderContext context, in AABB bounds, Color32 color)
     {
-        BoxHelperSize.MinsMaxs => new AABB(GetVector3Key(MinsKey!), GetVector3Key(MaxsKey!)),
-        BoxHelperSize.Centered => AABB.FromCenteredSize(GetVector3Key(SizeKey!)),
-        _ => new AABB(Vector3.Zero, GetVector3Key(SizeKey!)),
-    };
+        var edgeFade = GetEdgeFade();
+
+        if (edgeFade != Vector3.Zero)
+        {
+            DrawFadingFaces(context, bounds, edgeFade, FadesPastSides, color);
+            return;
+        }
+
+        context.PushRenderMode(ToolRenderMode.TranslucentFlatNoZ);
+        context.DrawColor = color with { A = 8 };
+        context.DrawSolidBox(bounds.Min, bounds.Max, doubleSided: true);
+        context.PopRenderMode();
+
+        context.PushRenderMode(ToolRenderMode.TranslucentFlatDepthBias);
+        context.DrawColor = color with { A = 32 };
+        context.DrawSolidBox(bounds.Min, bounds.Max, doubleSided: true);
+        context.PopRenderMode();
+    }
+
+    private AABB GetBounds() => Size == BoxHelperSize.MinsMaxs
+        ? new AABB(GetVector3Key(MinsKey!), GetVector3Key(MaxsKey!))
+        : AABB.FromCenteredSize(GetVector3Key(SizeKey!));
 
     private Matrix4x4 GetPlacement()
         => IsOriented ? Owner.RigidTransform : Matrix4x4.CreateTranslation(Owner.RigidTransform.Translation);
@@ -155,16 +210,20 @@ public sealed class BoxHelper : EntityHelper
     }
 
     /// <summary>
-    /// Faces that fade out past the sides of the box: on each side of the box grown by the fade, the part over
-    /// the side itself is tinted, and the band around it fades out in steps towards the edge, with the outline
-    /// of the side drawn on it.
+    /// Faces that show where the influence of the volume fades: on each side, the part where it is whole is
+    /// tinted, and the band around it fades out in steps towards the edge, with the outline of the whole part
+    /// drawn on it. The fade runs out from the sides of the box when it is past them, and in from them otherwise.
     /// </summary>
-    private static void AddFadingFaces(EntityHelperLines lines, in AABB bounds, Vector3 edgeFade, Color32 color)
+    private static void DrawFadingFaces(ToolRenderContext context, in AABB bounds, Vector3 edgeFade, bool fadesPastSides, Color32 color)
     {
         var center = bounds.Center;
-        var inner = bounds.Size / 2f;
-        var outer = inner + edgeFade;
+        var half = bounds.Size / 2f;
+        var (inner, outer) = fadesPastSides ? (half, half + edgeFade) : (half - Vector3.Min(half, edgeFade), half);
         var steps = (int)MathF.Ceiling(MathF.Max(MathF.Abs(edgeFade.X), MathF.Max(MathF.Abs(edgeFade.Y), MathF.Abs(edgeFade.Z))) / FadeStep);
+
+        var outlines = new List<(Vector3 Start, Vector3 End)>();
+
+        context.PushRenderMode(ToolRenderMode.TranslucentFlatDepthBias);
 
         for (var axis = 0; axis < 3; axis++)
         {
@@ -184,14 +243,14 @@ public sealed class BoxHelper : EntityHelper
                     return point;
                 }
 
-                AddRing(lines, GetPoint, inner[u], inner[v], 0f, 0f, color with { A = 32 }, color with { A = 32 });
+                AddRing(context, GetPoint, inner[u], inner[v], 0f, 0f, color with { A = 32 }, color with { A = 32 });
 
                 for (var step = 0; step < steps; step++)
                 {
                     var from = step / (float)steps;
                     var to = (step + 1) / (float)steps;
 
-                    AddRing(lines, GetPoint,
+                    AddRing(context, GetPoint,
                         float.Lerp(inner[u], outer[u], to), float.Lerp(inner[v], outer[v], to),
                         float.Lerp(inner[u], outer[u], from), float.Lerp(inner[v], outer[v], from),
                         color with { A = (byte)(int)(32f - 28f * to) }, color with { A = (byte)(int)(32f - 28f * from) });
@@ -201,10 +260,22 @@ public sealed class BoxHelper : EntityHelper
 
                 for (var i = 0; i < corners.Length; i++)
                 {
-                    lines.AddLine(corners[i], corners[(i + 1) % corners.Length], color with { A = 48 });
+                    outlines.Add((corners[i], corners[(i + 1) % corners.Length]));
                 }
             }
         }
+
+        context.PopRenderMode();
+
+        // The outline of each side, on the faded faces
+        context.PushRenderMode(ToolRenderMode.WireframeTranslucentDepthBias);
+
+        foreach (var (start, end) in outlines)
+        {
+            context.DrawLine(start, end, color with { A = 48 });
+        }
+
+        context.PopRenderMode();
     }
 
     /// <summary>
@@ -212,21 +283,21 @@ public sealed class BoxHelper : EntityHelper
     /// no size: a strip along each side, fading from the inner color to the outer one, and a square at each
     /// corner that fades out from the corner of the inner rectangle alone.
     /// </summary>
-    private static void AddRing(EntityHelperLines lines, Func<float, float, Vector3> getPoint, float outerU, float outerV, float innerU, float innerV, Color32 outerColor, Color32 innerColor)
+    private static void AddRing(ToolRenderContext context, Func<float, float, Vector3> getPoint, float outerU, float outerV, float innerU, float innerV, Color32 outerColor, Color32 innerColor)
     {
         foreach (var side in (ReadOnlySpan<float>)[-1f, 1f])
         {
-            AddQuad(lines,
+            AddQuad(context,
                 getPoint(side * innerU, -innerV), getPoint(side * outerU, -innerV), getPoint(side * outerU, innerV), getPoint(side * innerU, innerV),
                 innerColor, outerColor, outerColor, innerColor);
 
-            AddQuad(lines,
+            AddQuad(context,
                 getPoint(-innerU, side * innerV), getPoint(innerU, side * innerV), getPoint(innerU, side * outerV), getPoint(-innerU, side * outerV),
                 innerColor, innerColor, outerColor, outerColor);
 
             foreach (var otherSide in (ReadOnlySpan<float>)[-1f, 1f])
             {
-                AddQuad(lines,
+                AddQuad(context,
                     getPoint(side * innerU, otherSide * innerV), getPoint(side * outerU, otherSide * innerV),
                     getPoint(side * outerU, otherSide * outerV), getPoint(side * innerU, otherSide * outerV),
                     innerColor, outerColor, outerColor, outerColor);
@@ -234,9 +305,12 @@ public sealed class BoxHelper : EntityHelper
         }
     }
 
-    private static void AddQuad(EntityHelperLines lines, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color32 colorA, Color32 colorB, Color32 colorC, Color32 colorD)
+    // Seen from both sides
+    private static void AddQuad(ToolRenderContext context, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color32 colorA, Color32 colorB, Color32 colorC, Color32 colorD)
     {
-        lines.AddFace(a, b, c, colorA, colorB, colorC);
-        lines.AddFace(a, c, d, colorA, colorC, colorD);
+        context.DrawTriangle(a, b, c, colorA, colorB, colorC);
+        context.DrawTriangle(a, c, d, colorA, colorC, colorD);
+        context.DrawTriangle(c, b, a, colorC, colorB, colorA);
+        context.DrawTriangle(d, c, a, colorD, colorC, colorA);
     }
 }

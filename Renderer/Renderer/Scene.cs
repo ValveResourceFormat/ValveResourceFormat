@@ -113,6 +113,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the world group this scene belongs to, such as <c>skyboxWorldGroup0</c>, or <see langword="null"/> for the main world.</summary>
         public string? WorldGroup { get; init; }
 
+        /// <summary>Gets whether this scene is a 3D sky placed into a map, rather than a map itself.</summary>
+        public bool IsSkybox { get; init; }
+
         /// <summary>
         /// How large an editor marker is drawn here next to the entity it marks. A 3D sky is magnified by
         /// the camera it is drawn through, so its markers shrink to come back out at their normal size.
@@ -683,6 +686,9 @@ namespace ValveResourceFormat.Renderer
             }
 
             pendingRemovals.Clear();
+
+            // Once for every light whose style changed it this frame
+            LightingInfo.StoreChangedLights();
 
             foreach (var node in dynamicNodes)
             {
@@ -1756,6 +1762,19 @@ namespace ValveResourceFormat.Renderer
             {
                 ApplyLayerVisibility(renderer);
             }
+        }
+
+        /// <summary>
+        /// Gets whether the nodes of a layer are shown by the layers last given to <see cref="SetEnabledLayers"/>,
+        /// which shows every layer until it is first called.
+        /// </summary>
+        /// <param name="layerName">The name of the layer.</param>
+        /// <returns>Whether the layer is shown.</returns>
+        public bool IsLayerEnabled(string layerName)
+        {
+            ArgumentNullException.ThrowIfNull(layerName);
+
+            return enabledLayers == null || layerName.StartsWith("Internal -", StringComparison.Ordinal) || enabledLayers.Contains(layerName);
         }
 
         private void ApplyLayerVisibility(SceneNode node)

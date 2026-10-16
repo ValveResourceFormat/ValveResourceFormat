@@ -69,9 +69,12 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
+            // Showing helpers also decides what a selected entity shows, so it can be chosen even while
+            // nothing unselected needs it
             var mapLayers = Scene.AllNodes
                 .Select(static r => r.LayerName)
                 .OfType<string>()
+                .Append(HammerEntityVisuals.HelpersLayerName)
                 .Distinct()
                 .ToList();
 

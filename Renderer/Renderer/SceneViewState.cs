@@ -77,6 +77,13 @@ public sealed class SceneViewState : IDisposable
     /// <summary>Translucent draws that go to the water effects map instead of the scene.</summary>
     private readonly List<MeshBatchRenderer.Request> waterEffectsRenderList = [];
     private readonly List<MeshBatchRenderer.Request> effectsBloomRenderList = [];
+    private readonly List<MeshBatchRenderer.Request> toolsRenderList = [];
+
+    /// <summary>
+    /// Gets the nodes the last culling found that draw in the tools pass, which the editor draws
+    /// over the final image.
+    /// </summary>
+    public IReadOnlyList<MeshBatchRenderer.Request> ToolsRenderList => toolsRenderList;
 
     /// <summary>Visible nodes that draw themselves, listed once each however many passes they draw in.</summary>
     private readonly List<SceneNode> customBufferNodes = [];
@@ -289,6 +296,7 @@ public sealed class SceneViewState : IDisposable
 
         waterEffectsRenderList.Clear();
         effectsBloomRenderList.Clear();
+        toolsRenderList.Clear();
         customBufferNodes.Clear();
         alphaTestAggregateDraws.Clear();
         alphaTestOpaqueDraws.Clear();
@@ -464,6 +472,11 @@ public sealed class SceneViewState : IDisposable
                 if ((customPasses & CustomRenderPasses.EffectsBloom) != 0)
                 {
                     effectsBloomRenderList.Add(customRender);
+                }
+
+                if ((customPasses & CustomRenderPasses.Tools) != 0)
+                {
+                    toolsRenderList.Add(customRender);
                 }
 
                 if (node.IsSelected)

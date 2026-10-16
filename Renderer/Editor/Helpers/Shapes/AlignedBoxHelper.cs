@@ -1,17 +1,17 @@
 using ValveResourceFormat.IO.Fgd;
-using ValveResourceFormat.Renderer.Editor.Entities;
-using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
 /// The box an entity is drawn as: the size its class declares, or a small one where nothing else of the
-/// entity is seen. It sits at the entity in the color of its class and does not turn with it.
+/// entity is seen. It sits at the entity as lit solid faces in the draw color of the entity, and does not turn
+/// with it.
 /// </summary>
 public sealed class AlignedBoxHelper : EntityHelper
 {
     /// <inheritdoc/>
-    public override bool IsVisual => true;
+    public override bool HiddenInGameObjectsOnly => true;
 
     /// <summary>Gets the smallest corner of the box, from the origin of the entity.</summary>
     public Vector3 Mins { get; }
@@ -31,16 +31,31 @@ public sealed class AlignedBoxHelper : EntityHelper
     }
 
     /// <inheritdoc/>
-    public override void AddToScene()
-    {
-        var color = Owner.FgdClass?.Color ?? FgdClass.DefaultColor;
-        var center = Owner.Transform.Translation + ((Mins + Maxs) / 2f);
+    public override AABB? ObjectBounds => new(Owner.Transform.Translation + Mins, Owner.Transform.Translation + Maxs);
 
-        Owner.AddNode(new SimpleBoxSceneNode(Owner.Scene, color, Maxs - Mins)
+    /// <inheritdoc/>
+    public override void AddToScene() => AddShapes(Matrix4x4.CreateTranslation(Owner.Transform.Translation));
+
+    internal override void Render(ToolRenderContext context, in HelperRenderState state)
+    {
+        var origin = Owner.Transform.Translation;
+        var (mins, maxs) = (origin + Mins, origin + Maxs);
+
+        // Lit faces in the draw color, or tinted while selected and outlined then too
+        var color = state.IsSelected ? SelectionOverlayColor : GetDrawColor(state);
+
+        context.PushRenderMode(ToolRenderMode.Flat);
+        context.DrawBoxFaces(mins, maxs, color);
+        context.PopRenderMode();
+
+        if (!state.IsSelected)
         {
-            Transform = Matrix4x4.CreateTranslation(center),
-            LayerName = HammerEntityVisuals.MarkerLayerName,
-            KeepsMarkerSize = true,
-        });
+            return;
+        }
+
+        context.PushRenderMode(ToolRenderMode.Wireframe);
+        context.DrawColor = color;
+        context.DrawBoxFaceOutlines(mins, maxs);
+        context.PopRenderMode();
     }
 }

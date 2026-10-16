@@ -1,5 +1,6 @@
 using System.Globalization;
 using ValveResourceFormat.IO.Fgd;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
@@ -11,6 +12,12 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// </summary>
 public sealed class LightConeHelper : EntityHelper
 {
+    /// <inheritdoc/>
+    public override bool IsVisual => false;
+
+    /// <inheritdoc/>
+    public override bool NeedsShowHelpers => true;
+
     private const float StepDegrees = 24f;
     private const float RingDegrees = 6f;
     private const byte Alpha = 180;
@@ -38,8 +45,13 @@ public sealed class LightConeHelper : EntityHelper
         PitchScale = GetArgument(3) is { } scale ? ParseFloat(scale) : 1f;
     }
 
-    internal override void AddSelectionShapes(in SelectionShapes shapes)
+    internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
+        if (!state.IsSelected)
+        {
+            return;
+        }
+
         // A light that does not fade with distance draws nothing
         var constant = GetFloatKey("attenuation0");
         var linear = GetFloatKey("attenuation1");
@@ -69,21 +81,24 @@ public sealed class LightConeHelper : EntityHelper
         var angles = GetVector3Key("angles");
         angles.X *= PitchScale;
 
-        var lines = shapes.World(HelperPasses.Visible)
-            .Transformed(EntityTransformHelper.ToRigidTransformationMatrix(angles, shapes.Placement.Translation));
+        context.PushTransform(EntityTransformHelper.ToRigidTransformationMatrix(angles, Owner.RigidTransform.Translation));
+        context.PushRenderMode(ToolRenderMode.Wireframe);
 
         if (outerAngle < 90f)
         {
-            AddCone(lines, range, outerAngle, ToColor(color, 1f));
+            DrawCone(context, range, outerAngle, ToColor(color, 1f));
         }
 
         if (outerAngle <= 90f)
         {
-            AddDome(lines, range, innerAngle, outerAngle, falloff, color);
+            DrawDome(context, range, innerAngle, outerAngle, falloff, color);
         }
+
+        context.PopRenderMode();
+        context.PopTransform();
     }
 
-    private static void AddCone(EntityHelperLines lines, float range, float outerAngle, Color32 color)
+    private static void DrawCone(ToolRenderContext context, float range, float outerAngle, Color32 color)
     {
         var baseRadius = MathF.Tan(float.DegreesToRadians(outerAngle)) * range;
         var previous = new Vector3(range, 0f, baseRadius);
@@ -93,15 +108,15 @@ public sealed class LightConeHelper : EntityHelper
             var (sin, cos) = MathF.SinCos(float.DegreesToRadians(angle));
             var point = new Vector3(range, sin * baseRadius, cos * baseRadius);
 
-            lines.AddLine(point, previous, color);
-            lines.AddLine(previous, Vector3.Zero, color);
-            lines.AddLine(Vector3.Zero, point, color);
+            context.DrawLine(point, previous, color);
+            context.DrawLine(previous, Vector3.Zero, color);
+            context.DrawLine(Vector3.Zero, point, color);
             previous = point;
         }
     }
 
     // Rings every six degrees out to the outer angle, at the distance the light reaches at that angle
-    private static void AddDome(EntityHelperLines lines, float range, float innerAngle, float outerAngle, float falloff, Vector3 color)
+    private static void DrawDome(ToolRenderContext context, float range, float innerAngle, float outerAngle, float falloff, Vector3 color)
     {
         var cosInner = MathF.Cos(float.DegreesToRadians(innerAngle));
         var cosOuter = MathF.Cos(float.DegreesToRadians(outerAngle));
@@ -147,7 +162,7 @@ public sealed class LightConeHelper : EntityHelper
 
                 for (var i = 0; i < corners.Length; i++)
                 {
-                    lines.AddLine(corners[i], corners[(i + 1) % corners.Length], ringColor);
+                    context.DrawLine(corners[i], corners[(i + 1) % corners.Length], ringColor);
                 }
 
                 (previousSin, previousCos) = (sin, cos);

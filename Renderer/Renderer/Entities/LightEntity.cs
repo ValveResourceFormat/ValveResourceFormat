@@ -7,9 +7,9 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// The light entities. Owns the <see cref="SceneLight"/>. Real-time lights (barn, rect, omni2) are
-/// re-binned every frame; slot-stored lights (omni, spot, ortho, environment) re-store the lighting
-/// uniforms on change. Light styles and volumetric fog are not simulated.
+/// The light entities. Owns the <see cref="SceneLight"/>. Lights rendered as barn faces are re-binned
+/// every frame; the sun, and the older lights of maps whose lightmaps keep them in slots, re-store the
+/// lighting uniforms on change. Volumetric fog is not simulated.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CLightEntity">CLightEntity</seealso>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/server/CBarnLight">CBarnLight</seealso>
@@ -50,7 +50,8 @@ public sealed class LightEntity : BaseEntity
 
         IsEnabled = light.Enabled;
         brightnessScale = light.BrightnessScale;
-        slotStored = !SceneLight.IsRealTimeLight(light);
+        // An older light is kept in the lighting constants where lights are not rendered in real time
+        slotStored = !light.IsLight2 || !SceneLight.IsRealTimeLight(light);
 
         // Off is a brightness scale of zero rather than Enabled = false, which would drop a stationary
         // light from the store and leave its old slot data lit
@@ -62,7 +63,7 @@ public sealed class LightEntity : BaseEntity
         AddNode(light);
 
         // Rect and omni2 lights can draw their luminaire as geometry
-        if (light.UsesOmni2Faces && KeyValues.GetBooleanProperty("showlight"))
+        if (light.HasLuminaire && KeyValues.GetBooleanProperty("showlight"))
         {
             AddNode(new LuminaireSceneNode(Scene, light));
         }
