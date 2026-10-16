@@ -112,6 +112,7 @@ namespace Tests.IO
                 // Two units ahead of the group becomes two units to the left of the turned instance
                 await Assert.That(placedNodes[1].IsInstanced).IsTrue();
                 await Assert.That(Vector3.Distance(placedNodes[1].Transform.Translation, new Vector3(100, 52, 5))).IsLessThan(0.001f);
+                await Assert.That(Vector3.Distance(placedNodes[1].CreateEntity()!.GetVector3Property("angles"), new Vector3(0, 90, 0))).IsLessThan(0.001f);
                 await Assert.That(placedNodes[1].Tint).IsEqualTo(new Vector4(1, 0, 0, 1));
 
                 await Assert.That(Vector3.Distance(placedNodes[2].Transform.Translation, new Vector3(100, 52, 105))).IsLessThan(0.001f);
