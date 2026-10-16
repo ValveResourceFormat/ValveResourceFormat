@@ -60,7 +60,11 @@ public sealed class SelectionOutline : IDisposable
             depthTest: false, depthWrite: false, blend: false))
         {
             maskBuffer.BindAndClear();
-            renderer.RenderNodes(maskBuffer, maskShader, outlinedNodes);
+
+            if (!renderer.RenderNodes(maskBuffer, maskShader, outlinedNodes))
+            {
+                return;
+            }
         }
 
         using (new GLDebugGroup("Selection Outline Edge"))
