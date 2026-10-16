@@ -61,6 +61,7 @@ public abstract class BaseModelEntity : BaseEntity
     private Body moverBody;
     private bool hasMoverBody;
     private bool moverBodyEnabled;
+    private bool moverBodyIsAnchorOnly;
 
     /// <summary>Initializes a model entity from its keyvalues.</summary>
     protected BaseModelEntity(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
@@ -205,6 +206,27 @@ public abstract class BaseModelEntity : BaseEntity
 
     private const float MoverSnapDistance = 256f;
 
+    /// <summary>
+    /// Finds the rigid body a physics constraint anchored at <paramref name="anchor"/> holds this entity
+    /// by: its kinematic mirror, so a constraint can hang things off a moving brush. A brush with no
+    /// mirror - its collision is a triangle mesh, which a moving body cannot carry - gets a shapeless
+    /// one on demand, which only follows the entity for the joint's sake.
+    /// </summary>
+    internal virtual bool TryGetConstraintBody(Vector3 anchor, out Body body)
+    {
+        if (!hasMoverBody && UsesMoverBody && IsRigidBodySimulated)
+        {
+            moverBody = EntitySystem.Physics.World.CreateKinematicBody(WorldOrigin, EntityTransformHelper.EulerAnglesToQuaternion(WorldAngles));
+            hasMoverBody = true;
+            moverBodyEnabled = true;
+            moverBodyIsAnchorOnly = true;
+            EntitySystem.Physics.Register(moverBody, this);
+        }
+
+        body = moverBody;
+        return hasMoverBody;
+    }
+
     /// <inheritdoc/>
     protected override void UpdateColliderTransform()
     {
@@ -215,8 +237,9 @@ public abstract class BaseModelEntity : BaseEntity
             return;
         }
 
-        // Solidity the map toggles takes the body along, so a door made passable stops pushing
-        var shouldCollide = IsSolid && !IsTrigger && !IsRemoved;
+        // Solidity the map toggles takes the body along, so a door made passable stops pushing. A
+        // shapeless anchor pushes nothing and always follows, since disabling it would drop its joints.
+        var shouldCollide = moverBodyIsAnchorOnly || (IsSolid && !IsTrigger && !IsRemoved);
 
         if (shouldCollide != moverBodyEnabled)
         {
