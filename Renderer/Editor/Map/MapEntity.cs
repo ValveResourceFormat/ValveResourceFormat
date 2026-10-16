@@ -33,11 +33,20 @@ public sealed class MapEntity : IHelperOwner
     /// <inheritdoc/>
     public FgdClass? FgdClass { get; }
 
-    /// <inheritdoc/>
-    public Matrix4x4 Transform { get; }
+    /// <summary>Gets where the entity is placed in the world.</summary>
+    public Vector3 Origin { get; }
+
+    /// <summary>Gets how the entity is turned: pitch, yaw and roll in degrees.</summary>
+    public Vector3 Angles { get; }
+
+    /// <summary>Gets how the entity is scaled along its own axes.</summary>
+    public Vector3 Scales { get; }
 
     /// <inheritdoc/>
-    public Matrix4x4 RigidTransform { get; }
+    public Matrix4x4 Transform => Matrix4x4.CreateScale(Scales) * RigidTransform;
+
+    /// <inheritdoc/>
+    public Matrix4x4 RigidTransform => EntityTransformHelper.ToRigidTransformationMatrix(Angles, Origin);
 
     /// <inheritdoc/>
     public string LayerName { get; }
@@ -60,8 +69,9 @@ public sealed class MapEntity : IHelperOwner
         Classname = keyValues.GetStringProperty("classname") ?? string.Empty;
         FgdClass = fgd.FindClass(Classname);
 
-        RigidTransform = EntityTransformHelper.ToRigidTransformationMatrix(keyValues.GetVector3Property("angles"), keyValues.GetVector3Property("origin"));
-        Transform = Matrix4x4.CreateScale(keyValues.GetVector3Property("scales", Vector3.One)) * RigidTransform;
+        Origin = keyValues.GetVector3Property("origin");
+        Angles = keyValues.GetVector3Property("angles");
+        Scales = keyValues.GetVector3Property("scales", Vector3.One);
     }
 
     /// <summary>Creates the helpers of the entity.</summary>

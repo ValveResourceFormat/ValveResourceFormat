@@ -21,8 +21,17 @@ public sealed class PlacedMapNode
     /// <summary>Gets the node.</summary>
     public required DMElement Node { get; init; }
 
-    /// <summary>Gets the transform from the node's own space to the world.</summary>
-    public required Matrix4x4 Transform { get; init; }
+    /// <summary>
+    /// Gets the move the instances and prefabs above the node add to where it is stored, without scale.
+    /// Identity for a node the map places itself.
+    /// </summary>
+    public Matrix4x4 InstanceTransform { get; init; } = Matrix4x4.Identity;
+
+    /// <summary>Gets the transform from the node's own space to the world, with its scale.</summary>
+    public Matrix4x4 Transform => MapDocument.GetNodeTransform(Node) * InstanceTransform;
+
+    /// <summary>Gets the transform from the node's own space to the world, without its scale.</summary>
+    public Matrix4x4 RigidTransform => MapDocument.GetNodeRigidTransform(Node) * InstanceTransform;
 
     /// <summary>Gets the tint of the instances the node was placed through, multiplied together.</summary>
     public Vector4 Tint { get; init; } = Vector4.One;
@@ -58,24 +67,15 @@ public sealed class PlacedMapNode
             }
         }
 
-        Vector3 origin;
-        Vector3 angles;
-        Vector3 scales;
+        // Instances and prefabs only move and turn what they place, so the scales stay the node's own
+        var rigidTransform = RigidTransform;
+        var angles = IsInstanced
+            ? EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(rigidTransform))
+            : new Vector3(mapEntity.Angles.Pitch, mapEntity.Angles.Yaw, mapEntity.Angles.Roll);
 
-        if (IsInstanced && Matrix4x4.Decompose(Transform, out scales, out var rotation, out origin))
-        {
-            angles = EntityTransformHelper.ToEulerAngles(rotation);
-        }
-        else
-        {
-            origin = Transform.Translation;
-            angles = new Vector3(mapEntity.Angles.Pitch, mapEntity.Angles.Yaw, mapEntity.Angles.Roll);
-            scales = mapEntity.Scales;
-        }
-
-        entity["origin"] = FormatVector(origin);
+        entity["origin"] = FormatVector(rigidTransform.Translation);
         entity["angles"] = FormatVector(angles);
-        entity["scales"] = FormatVector(scales);
+        entity["scales"] = FormatVector(mapEntity.Scales);
 
         if (mapEntity is CMapPath path)
         {
@@ -216,7 +216,7 @@ public sealed class PlacedMapNode
 /// </summary>
 public sealed class MapNodeWalker
 {
-    private readonly record struct WalkState(Matrix4x4 Delta, Vector4 Tint, PlacedMapNode? Parent, string? WorldLayer, bool IsInstanced, int PrefabDepth);
+    private readonly record struct WalkState(Matrix4x4 InstanceTransform, Vector4 Tint, PlacedMapNode? Parent, string? WorldLayer, bool IsInstanced, int PrefabDepth);
 
     private readonly Func<MapDocument, string, MapDocument?>? prefabLoader;
     private readonly HashSet<DMElement> activeTargets = [];
@@ -282,7 +282,7 @@ public sealed class MapNodeWalker
         {
             Document = document,
             Node = node,
-            Transform = MapDocument.GetNodeTransform(node) * state.Delta,
+            InstanceTransform = state.InstanceTransform,
             Tint = state.Tint,
             Parent = state.Parent,
             WorldLayer = state.WorldLayer,
@@ -324,7 +324,7 @@ public sealed class MapNodeWalker
 
             var inner = state with
             {
-                Delta = targetToLocal * MapDocument.GetNodeRigidTransform(instance) * state.Delta,
+                InstanceTransform = targetToLocal * MapDocument.GetNodeRigidTransform(instance) * state.InstanceTransform,
                 Tint = state.Tint * GetTint(instance),
                 IsInstanced = true,
             };
@@ -359,7 +359,7 @@ public sealed class MapNodeWalker
         {
             var inner = state with
             {
-                Delta = MapDocument.GetNodeRigidTransform(prefab) * state.Delta,
+                InstanceTransform = MapDocument.GetNodeRigidTransform(prefab) * state.InstanceTransform,
                 Tint = state.Tint * GetTint(prefab),
                 IsInstanced = true,
                 PrefabDepth = state.PrefabDepth + 1,
