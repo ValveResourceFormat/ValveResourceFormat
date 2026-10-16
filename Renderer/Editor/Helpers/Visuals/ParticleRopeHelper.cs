@@ -23,8 +23,10 @@ public sealed class ParticleRopeHelper : EntityHelper
     {
         if (CableSceneNode.TryCreate(Owner.Scene, Owner.KeyValues, out var cable))
         {
+            // The path nodes are in the space of the entity, which control point 0 follows
             cable.LayerName = Scene.ParticlesLayerName;
-            Owner.AddNode(cable);
+            cable.Transform = Owner.Transform;
+            Owner.AddNode(cable, followsEntity: true);
         }
     }
 }
