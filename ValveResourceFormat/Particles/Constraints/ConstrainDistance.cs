@@ -9,6 +9,10 @@ namespace ValveResourceFormat.Particles.Constraints
     /// negative minimum is pushed out to the maximum instead. With an inner shell, a particle sitting exactly
     /// on the center is pushed out along a tiny random offset.
     ///
+    /// <para>Particles are handled in blocks of four. In a block that pushes a particle off the center,
+    /// every other particle's offset from the center becomes its X offset on all three axes before it
+    /// is constrained, which also moves particles inside the band.</para>
+    ///
     /// <para>Only <see cref="Particle.Position"/> is written; <see cref="Particle.PositionPrevious"/> is
     /// left where it was, so the correction shows up as velocity on the next movement step.</para>
     /// </summary>
@@ -52,32 +56,68 @@ namespace ValveResourceFormat.Particles.Constraints
             var maxSquared = max * max;
 
             var moved = false;
+            var current = particles.Current;
+            Span<Vector3> deltas = stackalloc Vector3[4];
 
-            foreach (ref var particle in particles.Current)
+            for (var blockStart = 0; blockStart < current.Length; blockStart += 4)
             {
-                var delta = particle.Position - center;
-                var distanceSquared = delta.LengthSquared();
+                var block = current.Slice(blockStart, Math.Min(4, current.Length - blockStart));
+                var anyOutside = false;
+                var anyAtCenter = false;
 
-                if (distanceSquared >= minSquared && distanceSquared <= maxSquared)
+                for (var lane = 0; lane < block.Length; lane++)
+                {
+                    deltas[lane] = block[lane].Position - center;
+                    var distanceSquared = deltas[lane].LengthSquared();
+
+                    anyOutside |= distanceSquared < minSquared || distanceSquared > maxSquared;
+                    anyAtCenter |= distanceSquared <= 0f;
+                }
+
+                if (!anyOutside)
                 {
                     continue;
                 }
 
-                var target = hasMin && distanceSquared < minSquared ? min : max;
+                var reseedCenter = hasMin && anyAtCenter;
 
-                if (distanceSquared <= 0f)
+                for (var lane = 0; lane < block.Length; lane++)
                 {
-                    if (!hasMin)
+                    ref var particle = ref block[lane];
+                    var delta = deltas[lane];
+                    var distanceSquared = delta.LengthSquared();
+                    var outside = distanceSquared < minSquared || distanceSquared > maxSquared;
+                    var target = hasMin && distanceSquared < minSquared ? min : max;
+
+                    if (!outside && !reseedCenter)
                     {
                         continue;
                     }
 
-                    delta = particleSystemState.Random.NextBetweenPerComponent(new Vector3(-CenterJitter), new Vector3(CenterJitter));
-                    distanceSquared = delta.LengthSquared();
-                }
+                    if (reseedCenter)
+                    {
+                        delta = distanceSquared <= 0f
+                            ? particleSystemState.Random.NextBetweenPerComponent(new Vector3(-CenterJitter), new Vector3(CenterJitter))
+                            : new Vector3(delta.X);
+                    }
 
-                particle.Position = center + (delta * (target / MathF.Sqrt(distanceSquared)));
-                moved = true;
+                    var newDistanceSquared = delta.LengthSquared();
+
+                    if (newDistanceSquared <= 0f)
+                    {
+                        continue;
+                    }
+
+                    var position = outside
+                        ? center + (delta * (target / MathF.Sqrt(newDistanceSquared)))
+                        : center + delta;
+
+                    if (position != particle.Position)
+                    {
+                        particle.Position = position;
+                        moved = true;
+                    }
+                }
             }
 
             return moved;

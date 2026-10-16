@@ -61,7 +61,11 @@ namespace ValveResourceFormat.Particles.Initializers
             position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-distance), new Vector3(distance));
 
             particle.Position = position;
-            particle.PositionPrevious = position;
+
+            if (IsUnwritten(particleSystemState, ParticleField.PositionPrevious))
+            {
+                particle.PositionPrevious = position;
+            }
 
             if (saveOffset)
             {

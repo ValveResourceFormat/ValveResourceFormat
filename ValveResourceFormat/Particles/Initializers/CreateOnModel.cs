@@ -92,9 +92,23 @@ namespace ValveResourceFormat.Particles.Initializers
             var (position, fraction, index) = cache.RandomPoint(particleSystemState, transform.Translation, sampling, ref haltonIndex);
 
             particle.Position = position;
-            particle.HitboxIndex = index;
+
+            if (IsUnwritten(particleSystemState, ParticleField.HitboxIndex))
+            {
+                particle.HitboxIndex = index;
+            }
+
+            if (IsUnwritten(particleSystemState, ParticleField.HitboxOffsetPosition))
+            {
+                particle.HitboxOffsetPosition = fraction;
+            }
+
+            if (!IsUnwritten(particleSystemState, ParticleField.PositionPrevious))
+            {
+                return particle;
+            }
+
             particle.PositionPrevious = position;
-            particle.HitboxOffsetPosition = fraction;
 
             if (boneVelocity != 0f && cache.BoxVelocity(index) is { } velocity)
             {

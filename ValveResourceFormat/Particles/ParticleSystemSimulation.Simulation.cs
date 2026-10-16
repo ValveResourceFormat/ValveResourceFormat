@@ -57,14 +57,21 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         /// <remarks>
         /// The system enters the endcap phase either way, except an endcap child stopped without an
-        /// endcap. Without an endcap its start age keeps whatever it held before.
+        /// endcap. Without an endcap its start age keeps whatever it held before. A frozen system
+        /// thaws, and instead of playing an endcap it drops every live particle in the tree.
         /// </remarks>
         internal void StopEmission(bool removeAllParticles, bool playEndCap)
         {
-            systemState.EmissionStopped = true;
-            systemState.Frozen = false;
+            if (systemState.Frozen)
+            {
+                systemState.Frozen = false;
+                removeAllParticles = true;
+                playEndCap = false;
+            }
 
-            if (firstFramePending && systemState.Age >= 0f)
+            systemState.EmissionStopped = true;
+
+            if (firstFramePending && !removeAllParticles && systemState.Age >= 0f)
             {
                 SimulateFirstFrame();
             }
@@ -91,19 +98,16 @@ namespace ValveResourceFormat.Particles
 
             foreach (var childSimulation in childSimulations)
             {
-                if (!childSimulation.IsEndCapChild)
+                if (!childSimulation.IsEndCapChild || !playEndCap)
                 {
                     childSimulation.StopEmission(removeAllParticles, playEndCap);
                     continue;
                 }
 
-                if (playEndCap)
-                {
-                    childSimulation.systemState.Age = 0f;
-                    childSimulation.systemState.EndCapStartAge = 0f;
-                    childSimulation.EnterEndCap();
-                    childSimulation.Start();
-                }
+                childSimulation.systemState.Age = 0f;
+                childSimulation.systemState.EndCapStartAge = 0f;
+                childSimulation.EnterEndCap();
+                childSimulation.Start();
             }
         }
 
@@ -737,7 +741,6 @@ namespace ValveResourceFormat.Particles
 
             particleCollection.Current[index].UniqueParticleId = particlesEmitted++;
             particleCollection.Current[index].Index = index;
-            particleCollection.Current[index].Position = MainControlPoint.Position;
             particleCollection.Current[index].CreationTime = creationTime;
             particleCollection.Current[index].Age = systemState.Age - creationTime;
         }

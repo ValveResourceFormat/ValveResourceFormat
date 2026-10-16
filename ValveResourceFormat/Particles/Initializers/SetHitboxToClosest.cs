@@ -52,8 +52,15 @@ namespace ValveResourceFormat.Particles.Initializers
             var ratio = hybridRatio.NextNumber(ref particle, particleSystemState);
             var (fraction, index) = cache.Closest(particleSystemState, particle.Position, desiredHitbox, scale, useClosestPointOnHitbox, testType, ratio);
 
-            particle.HitboxOffsetPosition = fraction;
-            particle.HitboxIndex = index;
+            if (IsUnwritten(particleSystemState, ParticleField.HitboxOffsetPosition))
+            {
+                particle.HitboxOffsetPosition = fraction;
+            }
+
+            if (IsUnwritten(particleSystemState, ParticleField.HitboxIndex))
+            {
+                particle.HitboxIndex = index;
+            }
 
             if (updatePosition && (uint)index < (uint)cache.Count)
             {
