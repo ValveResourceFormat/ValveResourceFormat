@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Hashing;
 using System.Linq;
@@ -43,6 +44,7 @@ public sealed class ContentExportQueue(ContentExporter exporter)
     private readonly ContentExporter Exporter = exporter ?? throw new ArgumentNullException(nameof(exporter));
     private readonly List<ContentExportItem> Items = [];
     private readonly List<(ResourceHeader Header, ContentExportSource Source, IFileLoader FileLoader)> DependencyRoots = [];
+    private readonly ConcurrentDictionary<string, Lazy<ResourceHeader?>> SourceHeaders = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Gets how many files are exported at once. Defaults to <see cref="Environment.ProcessorCount"/>.</summary>
     public int MaxDegreeOfParallelism { get; init; } = Environment.ProcessorCount;
@@ -116,7 +118,7 @@ public sealed class ContentExportQueue(ContentExporter exporter)
             queuedItem.Rank = rank++;
         }
 
-        LinkReferrers(queued);
+        LinkReferrers(queued, parallelOptions);
         ExportAll(queued, cancellationToken);
     }
 
@@ -218,9 +220,10 @@ public sealed class ContentExportQueue(ContentExporter exporter)
     }
 
     /// <summary>
-    /// Makes every item wait for the earlier items that reference it, generated it, or are the map whose folder it is in.
+    /// Makes every item wait for the earlier items that reference it, directly or through other resources in the queue
+    /// or in their source, generated it, or are the map whose folder it is in.
     /// </summary>
-    private static void LinkReferrers(List<QueuedItem> queued)
+    private void LinkReferrers(List<QueuedItem> queued, ParallelOptions parallelOptions)
     {
         var byKey = new Dictionary<string, List<QueuedItem>>(StringComparer.OrdinalIgnoreCase);
 
@@ -240,19 +243,30 @@ public sealed class ContentExportQueue(ContentExporter exporter)
             sameKey.Add(queuedItem);
         }
 
-        foreach (var referrer in queued)
+        var reachedItems = new HashSet<QueuedItem>?[queued.Count];
+
+        Parallel.For(0, queued.Count, parallelOptions, i =>
         {
+            var referrer = queued[i];
+
+            if (referrer.Item.Decompile && referrer.Header != null)
+            {
+                reachedItems[i] = FindReferenced(referrer, byKey);
+            }
+        });
+
+        for (var i = 0; i < queued.Count; i++)
+        {
+            var referrer = queued[i];
+
+            foreach (var referenced in reachedItems[i] ?? [])
+            {
+                Link(referrer, referenced);
+            }
+
             if (!referrer.Item.Decompile || referrer.Header is not { } header)
             {
                 continue;
-            }
-
-            foreach (var name in header.References)
-            {
-                if (byKey.TryGetValue(name, out var referenced))
-                {
-                    referenced.ForEach(queuedItem => Link(referrer, queuedItem));
-                }
             }
 
             if (header.LumpFolder != null)
@@ -278,6 +292,66 @@ public sealed class ContentExportQueue(ContentExporter exporter)
                 generators.ForEach(generator => Link(generator, generated));
             }
         }
+    }
+
+    /// <summary>
+    /// Finds the items an item references, following references through every resource it reaches, whether it is in the
+    /// queue or only in the item's source.
+    /// </summary>
+    private HashSet<QueuedItem> FindReferenced(QueuedItem referrer, Dictionary<string, List<QueuedItem>> byKey)
+    {
+        var reached = new HashSet<QueuedItem>();
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { referrer.Key };
+        var pending = new Stack<string>(referrer.Header!.References);
+
+        while (pending.TryPop(out var name))
+        {
+            if (!visited.Add(name))
+            {
+                continue;
+            }
+
+            ResourceHeader? header = null;
+
+            if (byKey.TryGetValue(name, out var referenced))
+            {
+                reached.UnionWith(referenced);
+                header = referenced.Find(static queuedItem => queuedItem.Header != null)?.Header;
+            }
+
+            if (header == null && referrer.Item.Source is { } source)
+            {
+                header = GetSourceHeader(source, name);
+            }
+
+            foreach (var reference in header?.References ?? [])
+            {
+                pending.Push(reference);
+            }
+        }
+
+        return reached;
+    }
+
+    private ResourceHeader? GetSourceHeader(ContentExportSource source, string key)
+    {
+        var header = SourceHeaders.GetOrAdd(GetDependencyKey(source, key), _ => new Lazy<ResourceHeader?>(() =>
+        {
+            Stream? stream;
+
+            try
+            {
+                stream = source.OpenStream(key + GameFileLoader.CompiledFileSuffix);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+
+            return stream == null ? null : ReadHeader(() => stream, key + GameFileLoader.CompiledFileSuffix);
+        }));
+
+        return header.Value;
     }
 
     /// <summary>
