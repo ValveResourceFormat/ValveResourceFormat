@@ -2309,7 +2309,7 @@ public class Renderer : ISceneHost
         Camera.RecalculateMatrices();
 
         // Entities simulate on their own fixed tick, then the scene nodes of every view pick the result up
-        EntitySystem.Update(updateContext.Timestep);
+        EntitySystem.Update(updateContext.Timestep, updateContext.Camera);
 
         var views = CollectViews(updateContext.Camera);
 
