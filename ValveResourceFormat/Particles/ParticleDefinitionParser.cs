@@ -389,6 +389,7 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                 case "PT_TYPE_NAMED_VALUE":
                     return new NamedValueTransformProvider(parse);
                 case "PT_TYPE_INVALID":
+                    return new IdentityTransformProvider();
                 default:
                     Logger.LogWarning("Transform type {Type} not supported, using identity transform", type);
                     return new IdentityTransformProvider();

@@ -92,12 +92,14 @@ namespace ValveResourceFormat.Particles.Utils
 
         /// <summary>
         /// Takes the seed a child system gets from its parent's <paramref name="parentSeed"/> and its
-        /// position <paramref name="slot"/> in the parent's child list. A zero parent seed gives zero.
+        /// position <paramref name="slot"/> in the parent's <c>m_Children</c>. A zero parent seed leaves
+        /// the child to draw its own. The counter starts <paramref name="counterStart"/> draws in, so
+        /// siblings read different parts of the table.
         /// </summary>
-        public void DeriveSeed(int parentSeed, int slot)
+        public void DeriveSeed(int parentSeed, int slot, int counterStart)
         {
-            Seed = parentSeed == 0 ? 0 : parentSeed + (129 * (slot + 1));
-            queryCount = 0;
+            Seed = parentSeed == 0 ? System.Random.Shared.Next() & 0xFFF : parentSeed + (129 * (slot + 1));
+            queryCount = counterStart;
         }
 
         /// <summary>Takes the next value from the table, in [0, 1).</summary>
@@ -105,6 +107,20 @@ namespace ValveResourceFormat.Particles.Utils
 
         /// <summary>Takes the next value from the slot the seed displaces twice instead of once.</summary>
         public float NextSeededTwice() => At(queryCount++ + Seed + Seed);
+
+        /// <summary>
+        /// Takes <paramref name="count"/> consecutive draws at once and returns the counter of the first,
+        /// for a caller that reads them out of order through <see cref="Drawn"/>.
+        /// </summary>
+        public int Reserve(int count)
+        {
+            var first = queryCount;
+            queryCount += count;
+            return first;
+        }
+
+        /// <summary>The value of the draw taken at <paramref name="counter"/>.</summary>
+        public float Drawn(int counter) => At(counter + Seed);
 
         /// <summary>
         /// Takes the next value, remapped clear of both ends of the interval. Direction initializers
@@ -168,6 +184,16 @@ namespace ValveResourceFormat.Particles.Utils
         /// <summary>Takes three consecutive values, one per component.</summary>
         public Vector3 NextBetweenPerComponent(Vector3 min, Vector3 max)
             => new(NextBetween(min.X, max.X), NextBetween(min.Y, max.Y), NextBetween(min.Z, max.Z));
+
+        /// <summary>
+        /// Takes three consecutive values from slots the seed displaces twice, one per component, as
+        /// the range-filling initializers draw a point in a box.
+        /// </summary>
+        public Vector3 NextBetweenPerComponentSeededTwice(Vector3 min, Vector3 max)
+            => new(
+                Between(NextSeededTwice(), min.X, max.X),
+                Between(NextSeededTwice(), min.Y, max.Y),
+                Between(NextSeededTwice(), min.Z, max.Z));
 
         /// <summary>
         /// Reads the slot fixed by the particle, so the value is the same on every frame.
