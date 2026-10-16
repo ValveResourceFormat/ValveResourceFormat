@@ -76,7 +76,7 @@ The exit code is `0` on success, `2` when any file failed to process, and `1` fo
 - VPKs inside other VPKs (such as 3D skybox prefabs inside map VPKs, or map VPKs inside workshop items) are only processed by `--block` and `--all`, by `--test` with `--recursive_vpk`, and by the shader options when `--vpk_extensions` includes `vpk`. Otherwise they are treated as regular files, so extract them first with `--vpk_extensions vpk --output <folder>` and run the CLI on the extracted files.
 - Compiled shaders are split into multiple files (`<name>_<platform>_<model>_features.vcs`, `_vs.vcs`, `_ps.vcs`, ...). Decompiling to `.vfx` only works from the shader VPK, which writes one `.vfx` per shader from the highest shader model among the matched files. A loose `.vcs` file only prints a summary.
 - All `--gltf_*` options require `--gltf_export_format`.
-- `--output` and `--test` process files on every processor core. Set the `DOTNET_PROCESSOR_COUNT` environment variable to use fewer.
+- `--output` and `--test` process files on every processor core.
 
 ### Output paths
 
