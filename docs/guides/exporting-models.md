@@ -43,6 +43,8 @@ If the model has animations, they appear in a dropdown in the toolbar. Select an
 
 The output type is chosen in the output types dialog. For 3D use, choose glTF or GLB. You can also export to the decompiled `.vmdl` source format, see below. glTF exports are saved to the location you choose, with textures next to the `.gltf`.
 
+Textures are named after their source texture plus a hash, such as `rock_color_1a2b3c4d.png`, so models exported into one folder share identical textures. If a texture or the `_physics` file already exists next to a new `.gltf`, you are asked once whether to overwrite the existing files or keep them. Choosing to replace the `.gltf` in the save dialog overwrites them as well.
+
 The glTF export includes geometry, materials, textures, and the skeleton (if present).
 
 ### glTF vs GLB

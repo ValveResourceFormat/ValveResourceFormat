@@ -32,17 +32,13 @@ namespace GUI.Types.Exporter
         private readonly ExportData exportData;
         private readonly Dictionary<string, FileTypeToExtract> fileTypesToExtract = [];
         private readonly List<PackageEntry> filesToExtract = [];
-        private readonly HashSet<string> gltfExportedFiles = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Lock gltfExportLock = new();
         private string? path;
-        private string? lastCreatedDirectory;
         private int processed;
         private int filesFailedToExport;
         private Exception? firstFailure;
         private string? firstFailedFile;
         private bool includeDependencies;
         private GenericProgressForm? progress;
-        private GltfModelExporter? gltfExporter;
 
         private string OutputPath => path ?? throw new InvalidOperationException("Path must be set before extracting files");
 
@@ -161,7 +157,11 @@ namespace GUI.Types.Exporter
                     return Task.CompletedTask;
                 }
 
-                RunInDialog(cancellationToken => TryExport(contentPath, () => ExportGltf(resource, gltfPath, null, cancellationToken)), $"Exporting {contentPath} to \"{Path.GetFileName(gltfPath)}\"", out workCompletion);
+                RunInDialog(cancellationToken =>
+                {
+                    var exporter = CreateContentExporter(Path.GetDirectoryName(gltfPath)!, confirmedFile: gltfPath);
+                    ExportGltf(CreateGltfExporter(exporter, exportData.VrfGuiContext), resource, gltfPath, cancellationToken);
+                }, $"Exporting {contentPath} to \"{Path.GetFileName(gltfPath)}\"", out workCompletion);
                 return workCompletion;
             }
 
@@ -230,15 +230,6 @@ namespace GUI.Types.Exporter
             if (initialText != null)
             {
                 dialog.SetProgress(initialText);
-            }
-
-            if (decompile)
-            {
-                // We need to know what files were handled by the glTF exporter
-                gltfExporter = new GltfModelExporter(new TrackingFileLoader(exportData.VrfGuiContext))
-                {
-                    ProgressReporter = dialog,
-                };
             }
 
             dialog.OnProcess = async cancellationToken =>
@@ -487,6 +478,7 @@ namespace GUI.Types.Exporter
             var exporter = CreateContentExporter(ContentPaths.ResolveOutputRoot(outputPath, contentFolder));
             var source = ContentExportSource.FromPackage(currentPackage);
             var fileLoader = exportData.VrfGuiContext.FileLoaderNoCache;
+            var gltfExporter = CreateGltfExporter(exporter, fileLoader);
             var dialog = progress;
 
             exportData.VrfGuiContext.EnsureStringTokenGameKeys();
@@ -514,6 +506,18 @@ namespace GUI.Types.Exporter
                 }
 
                 var fileFullName = packageFile.GetFullPath();
+                Func<Resource, CancellationToken, bool>? exportResource = null;
+
+                if (outputFormat is "gltf" or "glb")
+                {
+                    var gltfPath = Path.ChangeExtension(exporter.GetOutputPath(fileFullName), outputFormat);
+
+                    exportResource = (resource, token) =>
+                    {
+                        gltfExporter.Export(resource, gltfPath, token);
+                        return true;
+                    };
+                }
 
                 queue.Add(new ContentExportItem
                 {
@@ -521,9 +525,7 @@ namespace GUI.Types.Exporter
                     Open = () => GameFileLoader.GetPackageEntryStream(currentPackage, packageFile),
                     Source = source,
                     FileLoader = fileLoader,
-                    ExportResource = outputFormat is "gltf" or "glb"
-                        ? (resource, token) => ExportGltf(resource, Path.ChangeExtension(exporter.GetOutputPath(fileFullName), outputFormat), exporter, token)
-                        : null,
+                    ExportResource = exportResource,
                 });
             }
 
@@ -563,40 +565,31 @@ namespace GUI.Types.Exporter
             Log.Error(nameof(PackageExporter), $"Failed to extract '{fileName}': {exception}");
         }
 
-        private bool ExportGltf(Resource resource, string outFilePath, ContentExporter? exporter, CancellationToken cancellationToken)
+        private GltfModelExporter CreateGltfExporter(ContentExporter exporter, IFileLoader fileLoader)
         {
-            Debug.Assert(gltfExporter != null);
-
-            lock (gltfExportLock)
+            return new GltfModelExporter(fileLoader)
             {
-                if (resource.FileName != null && gltfExportedFiles.Contains(resource.FileName))
-                {
-                    return true;
-                }
-
-                if (exporter != null && !exporter.CanWrite(outFilePath))
-                {
-                    LogSkipped(outFilePath);
-                    return true;
-                }
-
-                EnsureDirectoryExists(outFilePath);
-                gltfExporter.Export(resource, outFilePath, cancellationToken);
-
-                if (gltfExporter.FileLoader is TrackingFileLoader trackingFileLoader)
-                {
-                    lock (trackingFileLoader.LoadedFilePaths)
-                    {
-                        gltfExportedFiles.UnionWith(trackingFileLoader.LoadedFilePaths);
-                        trackingFileLoader.LoadedFilePaths.Clear();
-                    }
-                }
-            }
-
-            return true;
+                ProgressReporter = progress,
+                Exporter = exporter,
+                HandledResourceFilter = path => fileTypesToExtract.TryGetValue(Path.GetExtension(path).TrimStart('.'), out var fileType)
+                    && fileType.OutputFormat is "gltf" or "glb",
+            };
         }
 
-        private ContentExporter CreateContentExporter(string outputRoot)
+        private void ExportGltf(GltfModelExporter gltfExporter, Resource resource, string outFilePath, CancellationToken cancellationToken)
+        {
+            TryExport(resource.FileName ?? outFilePath, () => gltfExporter.Export(resource, outFilePath, cancellationToken));
+        }
+
+        /// <summary>
+        /// Creates the exporter that writes the files of one export.
+        /// </summary>
+        /// <param name="outputRoot">The folder content paths are relative to.</param>
+        /// <param name="confirmedFile">
+        /// A file the user already chose to overwrite. When it is the first file of the export that already exists, every
+        /// existing file is overwritten without asking.
+        /// </param>
+        private ContentExporter CreateContentExporter(string outputRoot, string? confirmedFile = null)
         {
             Log.Info(nameof(PackageExporter), $"Writing files to \"{outputRoot}\"");
 
@@ -604,7 +597,7 @@ namespace GUI.Types.Exporter
             {
                 IncludeDependencies = includeDependencies,
                 Progress = progress,
-                ConfirmExistingFiles = ConfirmExistingFiles,
+                ConfirmExistingFiles = path => path.Equals(confirmedFile, StringComparison.OrdinalIgnoreCase) ? ExistingFileAction.Overwrite : ConfirmExistingFiles(path),
                 FileWritten = path => progress?.SetProgress($"+ {ContentPaths.GetRelativePath(outputRoot, path)}"),
                 FileSkipped = LogSkipped,
                 Warning = message => Log.Warn(nameof(PackageExporter), message),
@@ -642,20 +635,6 @@ namespace GUI.Types.Exporter
             {
                 return ExistingFileAction.Cancel;
             }
-        }
-
-        private void EnsureDirectoryExists(string outFilePath)
-        {
-            var directory = Path.GetDirectoryName(outFilePath);
-
-            // Consecutive files usually share a folder, so avoid hitting the filesystem for each one
-            if (directory == null || directory == lastCreatedDirectory)
-            {
-                return;
-            }
-
-            Directory.CreateDirectory(directory);
-            lastCreatedDirectory = directory;
         }
     }
 }

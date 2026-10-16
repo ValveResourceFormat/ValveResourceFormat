@@ -351,17 +351,18 @@ public partial class Decompiler
         }
 
         var targetExtension = warnTargetExtension ? Path.GetExtension(TargetFile) : null;
+        var gltfExporter = GltfExportFormat != null ? CreateGltfExporter(fileLoader) : null;
 
-        if (GltfExportFormat == null && targetExtension == null)
+        if (gltfExporter == null && targetExtension == null)
         {
             return null;
         }
 
         return (resource, _) =>
         {
-            if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
+            if (gltfExporter != null && GltfModelExporter.CanExport(resource))
             {
-                ExportGltf(fileLoader, resource);
+                ExportGltf(gltfExporter, resource);
                 return true;
             }
 
@@ -415,15 +416,7 @@ public partial class Decompiler
         var navMeshFile = new NavMeshFile();
         navMeshFile.Read(stream);
 
-        if (PrepareGltfOutputPath(contentPath) is not { } outFilePath)
-        {
-            return;
-        }
-
-        lock (GltfExportLock)
-        {
-            CreateGltfExporter(new NullFileLoader()).Export(navMeshFile, path, outFilePath);
-        }
+        CreateGltfExporter(new NullFileLoader()).Export(navMeshFile, path, GetGltfOutputPath(contentPath));
     }
 
     private VpkCache LoadVpkCache(string packagePath)

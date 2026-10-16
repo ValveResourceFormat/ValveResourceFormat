@@ -36,10 +36,20 @@ namespace ValveResourceFormat.IO
         public IProgress<string>? ProgressReporter { get; set; }
 
         /// <summary>
-        /// Gets or sets a callback receiving the full path of every file written: the glTF itself, its buffers, its
-        /// textures and the separate physics file. It may be called from the tasks that export textures.
+        /// Gets or sets the exporter that writes every file: the glTF itself, its buffers, its textures and the separate
+        /// physics file. Target paths should be under its <see cref="ContentExporter.OutputRoot"/>, and are claimed with
+        /// <see cref="ContentExporter.ReservePath"/> before anything is exported. It also marks the exported resource and
+        /// the resources the glTF includes as handled, see <see cref="ContentExporter.IsHandled"/>. When not set, files
+        /// are written directly.
         /// </summary>
-        public Action<string>? FileWritten { get; set; }
+        public ContentExporter? Exporter { get; set; }
+
+        /// <summary>
+        /// Gets or sets which of the resources a glTF includes, such as the meshes of a model, <see cref="Exporter"/>
+        /// marks as handled, by content path. Only resources of a type that can be exported to glTF are considered.
+        /// When not set, all of them are marked.
+        /// </summary>
+        public Func<string, bool>? HandledResourceFilter { get; set; }
 
         /// <summary>
         /// Gets the file loader for loading referenced resources.
@@ -95,12 +105,11 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public HashSet<string> MeshFilter { get; } = [];
 
-        private string DstDir = string.Empty;
-        private CancellationToken CancellationToken;
+        private string? DstDir;
+        private readonly CancellationToken CancellationToken;
         private Vector2 LightmapUvScale = Vector2.One;
         private readonly Dictionary<string, Mesh> ExportedMeshes = [];
         private readonly List<(PhysAggregateData Phys, string? Classname, Matrix4x4 Transform)> PhysicsToExport = [];
-        private bool IsExporting;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GltfModelExporter"/> class.
@@ -110,12 +119,38 @@ namespace ValveResourceFormat.IO
             ArgumentNullException.ThrowIfNull(fileLoader, nameof(fileLoader));
             FileLoader = fileLoader;
             shaderDataProvider = new ShaderDataProvider(fileLoader);
+            TextureReadLock = new();
+        }
+
+        /// <summary>
+        /// Creates the instance that runs one export with the settings of another, so that every export has its own state
+        /// and one exporter can run several exports at once.
+        /// </summary>
+        private GltfModelExporter(GltfModelExporter settings, CancellationToken cancellationToken)
+        {
+            FileLoader = settings.Exporter != null ? new TrackingFileLoader(settings.FileLoader) : settings.FileLoader;
+            shaderDataProvider = settings.shaderDataProvider;
+            TextureReadLock = settings.TextureReadLock;
+            ProgressReporter = settings.ProgressReporter;
+            Exporter = settings.Exporter;
+            HandledResourceFilter = settings.HandledResourceFilter;
+            ExportAnimations = settings.ExportAnimations;
+            ExportMaterials = settings.ExportMaterials;
+            AdaptTextures = settings.AdaptTextures;
+            SatelliteImages = settings.SatelliteImages;
+            ExportExtras = settings.ExportExtras;
+            ComposeAdditiveAnimations = settings.ComposeAdditiveAnimations;
+            AnimationFilter = settings.AnimationFilter;
+            MeshFilter = settings.MeshFilter;
+            CancellationToken = cancellationToken;
         }
 
         /// <summary>
         /// Determines whether the specified resource can be exported to glTF.
         /// </summary>
-        public static bool CanExport(Resource resource) => resource.ResourceType
+        public static bool CanExport(Resource resource) => CanExport(resource.ResourceType);
+
+        private static bool CanExport(ResourceType resourceType) => resourceType
             is ResourceType.Mesh
             or ResourceType.Model
             or ResourceType.NmClip
@@ -148,46 +183,73 @@ namespace ValveResourceFormat.IO
         }
 #endif
 
-        private void RunExport(Action exportAction, string? targetPath, CancellationToken cancellationToken)
+        private void RunExport(Action<GltfModelExporter, string?> exportAction, string? targetPath, CancellationToken cancellationToken)
         {
-            if (IsExporting)
-            {
-                throw new InvalidOperationException($"{nameof(GltfModelExporter)} does not support multi threaded exporting, do not call Export while another export is in progress.");
-            }
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var session = new GltfModelExporter(this, cancellation.Token);
 
-            IsExporting = true;
-            CancellationToken = cancellationToken;
+            if (!session.TryReserveFile(targetPath, out targetPath))
+            {
+                return;
+            }
 
             if (targetPath != null)
             {
-                var targetDir = Path.GetDirectoryName(targetPath);
-                ArgumentNullException.ThrowIfNull(targetDir);
-                DstDir = targetDir;
+                session.DstDir = Path.GetDirectoryName(Path.GetFullPath(targetPath));
             }
 
             try
             {
-                exportAction();
-                ReportUnmatchedAnimationFilter();
+                exportAction(session, targetPath);
+                session.ReportUnmatchedAnimationFilter();
+                session.MarkIncludedResourcesHandled();
             }
             finally
             {
-                matchedAnimationFilter.Clear();
-                ExportedMeshes.Clear();
-                LightmapUvScale = Vector2.One;
-                MaterialInputSignatures.Clear();
-                ScaledLightmapUvAccessors.Clear();
-                OverlayOffsetPositionAccessors.Clear();
-                PhysicsToExport.Clear();
-                TextureExportingTasks.Clear();
-                ExportedTextures.Clear();
-                ExportedMaterials.Clear();
-                TextureSampler = null;
-                TexturesExportedSoFar = 0;
-                DstDir = string.Empty;
-                IsExporting = false;
+                cancellation.Cancel();
+                session.ObserveTextureTasks();
             }
         }
+
+        /// <summary>
+        /// Claims a file of this export through <see cref="Exporter"/>, see <see cref="ContentExporter.ReservePath"/>.
+        /// </summary>
+        /// <returns>False when the file that already exists is kept.</returns>
+        private bool TryReserveFile(string? path, out string? reservedPath)
+        {
+            reservedPath = path;
+
+            if (path == null || Exporter == null)
+            {
+                return true;
+            }
+
+            reservedPath = Exporter.ReservePath(ContentPaths.GetRelativePath(Exporter.OutputRoot, Path.GetFullPath(path)), path);
+            return reservedPath != null;
+        }
+
+        private void MarkIncludedResourcesHandled()
+        {
+            if (Exporter == null || FileLoader is not TrackingFileLoader trackingFileLoader)
+            {
+                return;
+            }
+
+            lock (trackingFileLoader.LoadedFilePaths)
+            {
+                foreach (var path in trackingFileLoader.LoadedFilePaths)
+                {
+                    if (CanExport(ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(path.AsSpan())))
+                        && (HandledResourceFilter == null || HandledResourceFilter(path)))
+                    {
+                        Exporter.MarkHandled(path);
+                    }
+                }
+            }
+        }
+
+        private static string? GetPhysicsFileName(string? fileName)
+            => fileName == null ? null : Path.Join(Path.GetDirectoryName(fileName), $"{Path.GetFileNameWithoutExtension(fileName)}_physics{Path.GetExtension(fileName)}");
 
         // Whether an animation passes AnimationFilter, matching on its full name or, for path-named graph
         // clips, its leaf name. Records which filter entry matched so misses can be reported afterwards.
@@ -238,41 +300,43 @@ namespace ValveResourceFormat.IO
         {
             Debug.Assert(resource.FileName != null);
 
-            RunExport(() =>
+            Exporter?.MarkHandled(resource.FileName);
+
+            RunExport((session, fileName) =>
             {
                 switch (resource.ResourceType)
                 {
                     case ResourceType.Mesh:
-                        ExportToFile(resource.FileName, targetPath, (VMesh)resource.DataBlock!);
+                        session.ExportToFile(resource.FileName, fileName, (VMesh)resource.DataBlock!);
                         break;
                     case ResourceType.Model:
-                        ExportToFile(resource.FileName, targetPath, (VModel)resource.DataBlock!);
+                        session.ExportToFile(resource.FileName, fileName, (VModel)resource.DataBlock!);
                         break;
                     case ResourceType.WorldNode:
-                        ExportToFile(resource.FileName, targetPath, (VWorldNode)resource.DataBlock!);
+                        session.ExportToFile(resource.FileName, fileName, (VWorldNode)resource.DataBlock!);
                         break;
                     case ResourceType.World:
-                        ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock!);
+                        session.ExportToFile(resource.FileName, fileName, (VWorld)resource.DataBlock!);
                         break;
                     case ResourceType.Map:
                     {
                         var lumpFolder = MapExtract.GetLumpFolderFromVmapRERL(resource.ExternalReferences);
                         var worldFile = $"{lumpFolder}/world.vwrld";
-                        using var mapResource = FileLoader.LoadFileCompiled(worldFile) ?? throw new FileNotFoundException($"Failed to load \"{worldFile}\"");
-                        ExportToFile(resource.FileName, targetPath, (VWorld)mapResource.DataBlock!);
+                        using var mapResource = session.FileLoader.LoadFileCompiled(worldFile) ?? throw new FileNotFoundException($"Failed to load \"{worldFile}\"");
+                        session.ExportToFile(resource.FileName, fileName, (VWorld)mapResource.DataBlock!);
                         break;
                     }
                     case ResourceType.EntityLump:
-                        ExportToFile(resource.FileName, targetPath, (VEntityLump)resource.DataBlock!);
+                        session.ExportToFile(resource.FileName, fileName, (VEntityLump)resource.DataBlock!);
                         break;
                     case ResourceType.PhysicsCollisionMesh:
-                        ExportToFile(resource.FileName, targetPath, (PhysAggregateData)resource.DataBlock!);
+                        session.ExportToFile(resource.FileName, fileName, (PhysAggregateData)resource.DataBlock!);
                         break;
                     case ResourceType.NmClip:
-                        ExportToFile(resource.FileName, targetPath, (VAnimationClip)resource.DataBlock!);
+                        session.ExportToFile(resource.FileName, fileName, (VAnimationClip)resource.DataBlock!);
                         break;
                     case ResourceType.NmSkeleton:
-                        ExportSkeletonToFile(resource.FileName, targetPath, Skeleton.FromSkeletonData(((BinaryKV3)resource.DataBlock!).Data));
+                        session.ExportSkeletonToFile(resource.FileName, fileName, Skeleton.FromSkeletonData(((BinaryKV3)resource.DataBlock!).Data));
                         break;
                     default:
                         throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
@@ -289,10 +353,10 @@ namespace ValveResourceFormat.IO
         /// <param name="cancellationToken">Optional task cancellation token.</param>
         public void Export(NavMeshFile navMesh, string resourceName, string? targetPath, CancellationToken cancellationToken = default)
         {
-            RunExport(() =>
+            RunExport((session, fileName) =>
             {
-                var exportedModel = BuildNavMeshModel(resourceName, navMesh);
-                WriteModelFile(exportedModel, targetPath);
+                var exportedModel = session.BuildNavMeshModel(resourceName, navMesh);
+                session.WriteModelFile(exportedModel, fileName);
             }, targetPath, cancellationToken);
         }
 
@@ -305,16 +369,16 @@ namespace ValveResourceFormat.IO
         /// <param name="cancellationToken">Optional task cancellation token.</param>
         public void Export(NavMeshFile navMesh, string resourceName, Stream stream, CancellationToken cancellationToken = default)
         {
-            RunExport(() =>
+            RunExport((session, _) =>
             {
-                var exportedModel = BuildNavMeshModel(resourceName, navMesh);
-                WriteModelFile(exportedModel, null, stream);
+                var exportedModel = session.BuildNavMeshModel(resourceName, navMesh);
+                session.WriteModelFile(exportedModel, null, stream);
             }, null, cancellationToken);
         }
 
         private void ExportPhysicsIfAny(string resourceName, string? fileName)
         {
-            if (PhysicsToExport.Count == 0)
+            if (PhysicsToExport.Count == 0 || !TryReserveFile(GetPhysicsFileName(fileName), out var physFileName))
             {
                 return;
             }
@@ -328,15 +392,6 @@ namespace ValveResourceFormat.IO
             foreach (var (phys, className, transform) in PhysicsToExport)
             {
                 LoadPhysicsMeshes(exportedPhysics, scenePhysics, phys, transform, className);
-            }
-
-            string? physFileName = null;
-
-            if (fileName != null)
-            {
-                var lastDot = fileName.LastIndexOf('.');
-                Debug.Assert(lastDot >= 0);
-                physFileName = $"{fileName.AsSpan(0, lastDot)}_physics{fileName.AsSpan(lastDot)}";
             }
 
             WriteModelFile(exportedPhysics, physFileName);
@@ -358,17 +413,8 @@ namespace ValveResourceFormat.IO
             WriteModelFile(exportedModel, fileName);
 
             var phys = GetModelPhysics(model);
-            if (phys != null)
+            if (phys != null && TryReserveFile(GetPhysicsFileName(fileName), out var physFileName))
             {
-                string? physFileName = null;
-
-                if (fileName != null)
-                {
-                    var lastDot = fileName.LastIndexOf('.');
-                    Debug.Assert(lastDot >= 0);
-                    physFileName = $"{fileName.AsSpan(0, lastDot)}_physics{fileName.AsSpan(lastDot)}";
-                }
-
                 ExportToFile(resourceName, physFileName, phys);
             }
         }
@@ -696,10 +742,7 @@ namespace ValveResourceFormat.IO
 
         private void WriteModelFile(ModelRoot exportedModel, string? filePath, Stream? stream = null)
         {
-            if (!SatelliteImages)
-            {
-                WaitForTexturesToExport();
-            }
+            WaitForTexturesToExport();
 
             ProgressReporter?.Report($"Writing model to file '{Path.GetFileName(filePath)}'...");
 
@@ -755,8 +798,15 @@ namespace ValveResourceFormat.IO
             var context = WriteContext.Create((assetName, data) =>
             {
                 var path = Path.Join(directory, assetName);
-                File.WriteAllBytes(path, data.AsSpan());
-                FileWritten?.Invoke(path);
+
+                if (Exporter != null)
+                {
+                    Exporter.WriteReservedFile(path, data.AsSpan());
+                }
+                else
+                {
+                    File.WriteAllBytes(path, data.AsSpan());
+                }
             }).WithSettingsFrom(settings);
 
             var name = Path.GetFileName(filePath);
@@ -768,11 +818,6 @@ namespace ValveResourceFormat.IO
             else
             {
                 context.WriteTextSchema2(name, exportedModel);
-            }
-
-            if (SatelliteImages)
-            {
-                WaitForTexturesToExport();
             }
         }
 

@@ -86,7 +86,11 @@ Decompiled files are written to `<root>/<content path>`, where the content path 
 - Paths that would leave the root, such as `..` or absolute paths, are placed under the root instead, with a warning.
 - Existing files are overwritten unless `--skip_existing` is given.
 - Decompiling a map writes `maps/<map>_d.vmap` next to the `maps/<map>/` folder, so recompiling it does not replace the original map. Pieces that exist only because the map was compiled (the world, world nodes, resource manifest, visibility, world physics, entity lumps `.vents`, and the baked lightmaps, cubemaps and light probes) are not written.
-- glTF export does not use content paths for its references. With a folder `--output` the `.gltf` or `.glb` is written at the resource's content path below the root with its extension changed; with a file `--output` it is written to that file. Its buffers and textures go next to it, and `--skip_existing` keeps an existing `.gltf` or `.glb`.
+- glTF export does not use content paths for its references. With a folder `--output` the `.gltf` or `.glb` is written at the resource's content path below the root with its extension changed; with a file `--output` it is written to that file. Its buffers, textures and `_physics` file go next to it.
+- A glTF path that another file of the same run was written to gets a numbered name next to it.
+- glTF textures are named after their source texture plus a hash of its path and the channels written, such as `rock_color_1a2b3c4d.png`. Models exported into one folder share identical textures.
+- `--skip_existing` keeps an existing `.gltf`, `.glb`, `_physics` file or texture. The buffers of a glTF that is written are always written with it.
+- Meshes, physics, animation clips and other resources that a glTF includes are not exported again as their own glTF.
 
 ### Cached VPK Manifest
 

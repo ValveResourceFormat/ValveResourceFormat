@@ -522,6 +522,6 @@ public partial class GltfModelExporter
         using var bitmap = MapAutoPhysTextureGenerator.GenerateTexture(surfaceProperty);
         var pngBytes = TextureExtract.ToPngImage(bitmap);
 
-        await LinkAndSaveImage(image, pngBytes).ConfigureAwait(false);
+        LinkAndSaveImage(image, pngBytes);
     }
 }

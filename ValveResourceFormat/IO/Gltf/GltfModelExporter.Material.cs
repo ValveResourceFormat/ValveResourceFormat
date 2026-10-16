@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.IO;
 using System.IO.Hashing;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using SharpGLTF.Memory;
@@ -48,7 +50,7 @@ public partial class GltfModelExporter
 
     private int TexturesExportedSoFar;
     private TextureSampler? TextureSampler;
-    private readonly Lock TextureReadLock = new();
+    private readonly Lock TextureReadLock;
     private readonly List<Task> TextureExportingTasks = [];
     private readonly Dictionary<string, Texture> ExportedTextures = [];
 
@@ -137,21 +139,23 @@ public partial class GltfModelExporter
         if (!AdaptTextures)
         {
             var textures = new Dictionary<string, string>(renderMaterial.TextureParams.Count);
+            var channel = GetImageChannel(RemapInstruction.Default);
 
             foreach (var (textureKey, texturePath) in renderMaterial.TextureParams)
             {
-                var textureName = Path.GetFileName(texturePath);
-                textures[textureKey] = textureName;
+                textures[textureKey] = Path.GetFileName(texturePath);
 
-                if (!ExportedTextures.TryGetValue(textureName, out var texture))
+                var recipe = GetTextureRecipe(texturePath, channel);
+
+                if (!ExportedTextures.TryGetValue(recipe, out var texture))
                 {
-                    var newImage = CreateNewGLTFImage(model, textureName);
+                    var newImage = CreateNewGLTFImage(model, GetImageName(Path.GetFileNameWithoutExtension(texturePath), recipe));
                     texture = model.UseTexture(newImage, TextureSampler);
                     texture.Name = newImage.Name;
 
-                    ExportedTextures[textureName] = texture;
+                    ExportedTextures[recipe] = texture;
 
-                    var texTask = AddTexture(newImage, texturePath, RemapInstruction.Default);
+                    var texTask = AddTexture(newImage, texturePath, channel);
                     TextureExportingTasks.Add(texTask);
                 }
 
@@ -227,24 +231,25 @@ public partial class GltfModelExporter
                 continue;
             }
 
-            var textureName = Path.GetFileName(texturePath);
-
 #if DEBUG
             if (instructions.Count != 1)
             {
-                ProgressReporter?.Report($"Texture {textureName} has {instructions.Count} instructions");
+                ProgressReporter?.Report($"Texture {texturePath} has {instructions.Count} instructions");
             }
 #endif
 
-            if (!ExportedTextures.TryGetValue(textureName, out var texture))
+            var channel = GetImageChannel(mainInstruction);
+            var recipe = GetTextureRecipe(texturePath, channel);
+
+            if (!ExportedTextures.TryGetValue(recipe, out var texture))
             {
-                var newImage = CreateNewGLTFImage(model, textureName);
+                var newImage = CreateNewGLTFImage(model, GetImageName(Path.GetFileNameWithoutExtension(texturePath), recipe));
                 texture = model.UseTexture(newImage, TextureSampler);
                 texture.Name = newImage.Name;
 
-                ExportedTextures[textureName] = texture;
+                ExportedTextures[recipe] = texture;
 
-                var texTask = AddTexture(newImage, texturePath, mainInstruction);
+                var texTask = AddTexture(newImage, texturePath, channel);
                 TextureExportingTasks.Add(texTask);
             }
 
@@ -254,19 +259,30 @@ public partial class GltfModelExporter
         // Now create ORM if there is one
         if (ormTextureInstructions.Count > 0)
         {
-            // Generate consistent file name for the ORM
-            var ormTexturePaths = ormTextureInstructions.Keys.ToArray();
-            Array.Sort(ormTexturePaths);
-            var ormHash = XxHash32.HashToUInt32(MemoryMarshal.AsBytes(string.Join("|", ormTexturePaths).AsSpan()));
-            var ormFileName = Path.GetFileNameWithoutExtension(ormTexturePaths[0]) + $"_orm_{ormHash}.png";
+            var ormRecipe = new StringBuilder();
 
-            if (!ExportedTextures.TryGetValue(ormFileName, out var texture))
+            foreach (var (texturePath, instructions) in ormTextureInstructions)
             {
-                var newImage = CreateNewGLTFImage(model, ormFileName);
+                ormRecipe.Append(texturePath);
+
+                foreach (var instruction in instructions)
+                {
+                    ormRecipe.Append(CultureInfo.InvariantCulture, $"|{instruction.ValveChannel.PackedValue:X8}>{instruction.GltfChannel.PackedValue:X8}");
+                }
+
+                ormRecipe.Append('\n');
+            }
+
+            var recipe = ormRecipe.ToString();
+
+            if (!ExportedTextures.TryGetValue(recipe, out var texture))
+            {
+                var firstTexturePath = ormTextureInstructions.Keys.Min(StringComparer.Ordinal)!;
+                var newImage = CreateNewGLTFImage(model, GetImageName($"{Path.GetFileNameWithoutExtension(firstTexturePath)}_orm", recipe));
                 texture = model.UseTexture(newImage, TextureSampler);
                 texture.Name = newImage.Name;
 
-                ExportedTextures[ormFileName] = texture;
+                ExportedTextures[recipe] = texture;
 
                 var texTask = AddTextureORM(newImage);
                 TextureExportingTasks.Add(texTask);
@@ -328,23 +344,14 @@ public partial class GltfModelExporter
             return bitmap;
         }
 
-        async Task AddTexture(Image image, string texturePath, RemapInstruction mainInstruction)
+        async Task AddTexture(Image image, string texturePath, ChannelMapping channel)
         {
             await Task.Yield();
-
-            // Maybe GltfChannel should be preferred instead.
-            var channel = mainInstruction.ValveChannel;
-
-            if (mainInstruction.ValveChannel == ChannelMapping.RGBA && mainInstruction.GltfChannel == ChannelMapping.RGB)
-            {
-                // Some apps such as Blender do not like the excess alpha channel.
-                channel = ChannelMapping.RGB;
-            }
 
             var bitmap = GetBitmap(texturePath);
             var pngBytes = TextureExtract.ToPngImageChannels(bitmap, channel);
 
-            await LinkAndSaveImage(image, pngBytes).ConfigureAwait(false);
+            LinkAndSaveImage(image, pngBytes);
         }
 
         async Task AddTextureORM(Image image)
@@ -376,7 +383,7 @@ public partial class GltfModelExporter
 
             var pngBytes = TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap);
 
-            await LinkAndSaveImage(image, pngBytes).ConfigureAwait(false);
+            LinkAndSaveImage(image, pngBytes);
         }
 
         void TieTextureToMaterial(Texture tex, string gltfPackedName, bool ormRedChannelForOcclusion)
@@ -487,6 +494,31 @@ public partial class GltfModelExporter
         }
     }
 
+    private static ChannelMapping GetImageChannel(RemapInstruction mainInstruction)
+    {
+        // Some apps such as Blender do not like the excess alpha channel.
+        if (mainInstruction.ValveChannel == ChannelMapping.RGBA && mainInstruction.GltfChannel == ChannelMapping.RGB)
+        {
+            return ChannelMapping.RGB;
+        }
+
+        // Maybe GltfChannel should be preferred instead.
+        return mainInstruction.ValveChannel;
+    }
+
+    private static string GetTextureRecipe(string texturePath, ChannelMapping channel)
+        => string.Create(CultureInfo.InvariantCulture, $"{texturePath}|{channel.PackedValue:X8}");
+
+    /// <summary>
+    /// Gets the name of an image from a hash of everything its contents are made from, so images with different contents
+    /// never share a name and the same image exported by several glTF files into one folder is written once.
+    /// </summary>
+    private static string GetImageName(string baseName, string recipe)
+    {
+        var hash = XxHash32.HashToUInt32(MemoryMarshal.AsBytes(recipe.AsSpan()));
+        return string.Create(CultureInfo.InvariantCulture, $"{baseName}_{hash:x8}.png");
+    }
+
     private Image CreateNewGLTFImage(ModelRoot model, string textureName)
     {
         var newImage = model.CreateImage(textureName);
@@ -502,26 +534,29 @@ public partial class GltfModelExporter
 
     /// <summary>
     /// In embedded mode links the PNG bytes into the glTF <see cref="Image"/>; in satellite mode
-    /// (<see cref="SatelliteImages"/> true) instead writes the PNG to a separate file on disk and leaves the <see cref="Image"/> object untouched.
+    /// (<see cref="SatelliteImages"/> true) instead writes the PNG to a separate file next to the glTF, which is
+    /// serialized once every image is written.
     /// </summary>
-    private async Task LinkAndSaveImage(Image image, byte[] pngBytes)
+    private void LinkAndSaveImage(Image image, byte[] pngBytes)
     {
         CancellationToken.ThrowIfCancellationRequested();
 
-        if (!SatelliteImages)
+        if (!SatelliteImages || DstDir == null)
         {
             image.Content = pngBytes;
             return;
         }
 
-        // Do not modify Image object here because the gltf will have been saved by now
+        var path = Path.Join(DstDir, image.AlternateWriteFileName);
 
-        var fileName = Path.ChangeExtension(image.Name, "png");
-
-        var exportedTexturePath = Path.Join(DstDir, fileName);
-        using var fs = File.Open(exportedTexturePath, FileMode.Create);
-        await fs.WriteAsync(pngBytes, CancellationToken).ConfigureAwait(false);
-        FileWritten?.Invoke(exportedTexturePath);
+        if (Exporter != null)
+        {
+            Exporter.WriteFile(ContentPaths.GetRelativePath(Exporter.OutputRoot, path), pngBytes, path);
+        }
+        else
+        {
+            File.WriteAllBytes(path, pngBytes);
+        }
 
         var count = Interlocked.Increment(ref TexturesExportedSoFar);
         ProgressReporter?.Report($"[{count}/{ExportedTextures.Count}] Exported texture: {image.Name}");
@@ -532,10 +567,27 @@ public partial class GltfModelExporter
         if (TextureExportingTasks.Any(static t => !t.IsCompleted))
         {
             ProgressReporter?.Report("Waiting for textures to finish exporting...");
-            Task.WaitAll(TextureExportingTasks, CancellationToken);
+            Task.WhenAll(TextureExportingTasks).WaitAsync(CancellationToken).GetAwaiter().GetResult();
         }
 
         TexturesExportedSoFar = 0;
+        TextureExportingTasks.Clear();
+    }
+
+    /// <summary>
+    /// Waits for the textures of a failed export, so none of them is written once the export has returned. Their
+    /// failures are not reported, the export already failed.
+    /// </summary>
+    private void ObserveTextureTasks()
+    {
+        try
+        {
+            Task.WaitAll(TextureExportingTasks);
+        }
+        catch (AggregateException)
+        {
+        }
+
         TextureExportingTasks.Clear();
     }
 
