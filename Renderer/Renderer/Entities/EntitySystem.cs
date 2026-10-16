@@ -111,7 +111,7 @@ public sealed class EntitySystem
 
     /// <summary>
     /// Gets the rigid body world if anything has created one, without creating it: the player's
-    /// pushing body has nothing to push in a scene with no simulated physics.
+    /// pickup logic has nothing to do in a scene with no simulated physics.
     /// </summary>
     public PhysicsSimulation? PhysicsOrNull => physics;
 
@@ -527,9 +527,19 @@ public sealed class EntitySystem
         TickCount = 0;
     }
 
+    /// <summary>
+    /// Gets the camera the current frame is drawn with, or <see langword="null"/> outside a frame.
+    /// The input camera and this can differ - view smoothing and view punch sit between them - so
+    /// anything drawn relative to the view must read this one, not the controller's.
+    /// </summary>
+    public Camera? RenderCamera { get; private set; }
+
     /// <summary>Advances the world by a frame's worth of time, running whole ticks.</summary>
-    public void Update(float frameTime)
+    /// <param name="frameTime">Elapsed time in seconds since the last frame.</param>
+    /// <param name="renderCamera">The camera the frame is drawn with, for <see cref="RenderCamera"/>.</param>
+    public void Update(float frameTime, Camera? renderCamera = null)
     {
+        RenderCamera = renderCamera;
         TempEntities.Update();
 
         if (entities.Count <= 1)
@@ -567,8 +577,8 @@ public sealed class EntitySystem
         {
             // The rigid body world steps with the rendered frame, like the player movement does:
             // physics that only ever saw the camera at the tick rate reads back quantized however
-            // it is drawn. Steering runs first and drawing happens after, so what a body is steered
-            // to this frame is on screen this frame. The entity tick above stays the cadence of
+            // it is drawn. Steering runs first and drawing happens after, so what the carry asks
+            // for this frame is on screen this frame. The entity tick above stays the cadence of
             // game logic; this is only the integrator.
             var physicsStep = MathF.Min(frameTime, MaxPhysicsFrameStep);
 

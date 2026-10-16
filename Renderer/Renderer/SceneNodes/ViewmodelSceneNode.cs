@@ -697,7 +697,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <summary>
     /// Drops the held item as a physics prop, CS2's G: the weapon model spawns tossed ahead of
     /// the view in its dropped ground state, and the hands draw the item anew. Being an ordinary
-    /// physics prop, the dropped weapon can be shot and shoved around.
+    /// physics prop, the dropped weapon can be picked up with +USE, shot and shoved around.
     /// </summary>
     private void DropHeldItem(UserInput input)
     {

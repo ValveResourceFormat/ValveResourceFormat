@@ -721,8 +721,9 @@ public abstract class BaseEntity
 
     /// <summary>
     /// Runs once per rendered frame while the world is simulating, before the rigid body world
-    /// steps by that frame. For steering that must see every frame - a mover's body following the
-    /// drawn pose - while game logic stays on the tick in <see cref="PhysicsSimulate"/>.
+    /// steps by that frame. For steering that must see every frame - the +USE carry following the
+    /// camera, a mover's body following the drawn pose - while game logic stays on the tick in
+    /// <see cref="PhysicsSimulate"/>.
     /// </summary>
     /// <param name="frameTime">The step the rigid body world is about to take, in seconds.</param>
     internal virtual void FrameSimulate(float frameTime)
