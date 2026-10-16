@@ -292,12 +292,6 @@ public static class EntityHelperFactory
         Creates(static (owner, declaration) => new GlobalHelper(owner, declaration), "global");
         Creates(static (owner, declaration) => new FogHelper(owner, declaration), "fog");
         Creates(static (owner, declaration) => new ExternalHelper(owner, declaration), "externalHelper");
-        Creates(static (owner, declaration) => new ExternalMapHelper(owner, declaration), "skybox_map");
-        Creates(static (owner, declaration) => new BakeAmbientOcclusionHelper(owner, declaration), "bakeambientocclusion");
-        Creates(static (owner, declaration) => new BakeSkyLightHelper(owner, declaration), "bakeskylight");
-        Creates(static (owner, declaration) => new SequenceListHelper(owner, declaration), "sequenceList");
-        Creates(static (owner, declaration) => new DotaSkyboxHelper(owner, declaration), "dotaskybox");
-        Creates(static (owner, declaration) => new DotaGlobalLightHelper(owner, declaration), "dotaGlobalLightHelper");
         Creates(static (owner, declaration) => new DotaLightInfoHelper(owner, declaration), "dotaLightInfoHelper");
 
         return registrations;
