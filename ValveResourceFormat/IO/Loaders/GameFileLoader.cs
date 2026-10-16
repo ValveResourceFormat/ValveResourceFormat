@@ -958,33 +958,34 @@ namespace ValveResourceFormat.IO
 
         private KVObject? ReadAddonInfo()
         {
-            byte[] addonInfo;
+            Stream stream;
 
-            var entry = CurrentPackage?.FindEntry(AddonInfoTxt);
-
-            if (entry != null)
+            if (CurrentPackage?.FindEntry(AddonInfoTxt) is { } entry)
             {
-                lock (CurrentPackage!)
-                {
-                    CurrentPackage.ReadEntry(entry, out addonInfo);
-                }
+                stream = GetPackageEntryStream(CurrentPackage, entry);
             }
             else if (PreferredAddonFolderOnDisk != null && FindFileInFolder(PreferredAddonFolderOnDisk, AddonInfoTxt) is { } addonInfoPath)
             {
-                addonInfo = File.ReadAllBytes(addonInfoPath);
+                stream = File.OpenRead(addonInfoPath);
             }
             else
             {
                 return null;
             }
 
-            // Older games write addoninfo.txt as KV1, newer ones as KV3
-            var format = addonInfo.AsSpan().StartsWith("<!-- kv3"u8)
-                ? KVSerializationFormat.KeyValues3Text
-                : KVSerializationFormat.KeyValues1Text;
+            using (stream)
+            {
+                Span<byte> start = stackalloc byte[8];
+                var read = stream.ReadAtLeast(start, start.Length, throwOnEndOfStream: false);
+                stream.Seek(-read, SeekOrigin.Current);
 
-            using var stream = new MemoryStream(addonInfo);
-            return KVSerializer.Create(format).Deserialize(stream);
+                // Older games write addoninfo.txt as KV1, newer ones as KV3
+                var format = start[..read].SequenceEqual("<!-- kv3"u8)
+                    ? KVSerializationFormat.KeyValues3Text
+                    : KVSerializationFormat.KeyValues1Text;
+
+                return KVSerializer.Create(format).Deserialize(stream);
+            }
         }
 
         private void FindAndLoadVpksInFolders(HashSet<string> folders)

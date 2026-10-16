@@ -81,6 +81,19 @@ public static class ContentPaths
     }
 
     /// <summary>
+    /// Resolves the folder that content paths are written under, from a folder picked as the output and the content
+    /// paths of the files exported there, see <see cref="ResolveOutputRoot(string, string?)"/>.
+    /// </summary>
+    /// <param name="folder">The picked output folder.</param>
+    /// <param name="contentPaths">The content paths of the exported files.</param>
+    public static string ResolveOutputRoot(string folder, IEnumerable<string> contentPaths)
+    {
+        ArgumentNullException.ThrowIfNull(contentPaths);
+
+        return ResolveOutputRoot(folder, GetCommonDirectory(contentPaths));
+    }
+
+    /// <summary>
     /// Whether a folder is the root of an addon (<c>game/&lt;game&gt;_addons/&lt;addon&gt;</c> or <c>content/&lt;game&gt;_addons/&lt;addon&gt;</c>)
     /// or of a mod (<c>game/&lt;mod&gt;</c> with a gameinfo.gi, or the <c>content/&lt;mod&gt;</c> next to one).
     /// </summary>

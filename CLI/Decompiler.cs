@@ -39,7 +39,6 @@ namespace CLI
         private int CurrentFile;
         private int TotalFiles;
         private int FailedFiles;
-        private int WrittenFiles;
         private bool LoggedExceptions;
         private bool AnyFileMatched;
 
@@ -92,7 +91,6 @@ namespace CLI
         private string[]? ExtFilterList;
         private bool IsInputFolder;
         private Progress<string>? ProgressReporter;
-        private ContentExporter? Exporter;
 
         /// <summary>
         /// The file the main output is written to when --output names a file.
@@ -102,12 +100,9 @@ namespace CLI
         /// <summary>
         /// What decompiled files are exported as, which is glTF with --gltf_export_format.
         /// </summary>
-        private ContentExportOutput DecompileOutput => GltfExportFormat switch
-        {
-            "gltf" => ContentExportOutput.Gltf,
-            "glb" => ContentExportOutput.Glb,
-            _ => ContentExportOutput.Decompile,
-        };
+        private ContentExportOutput DecompileOutput => GltfExportFormat != null
+            ? Enum.Parse<ContentExportOutput>(GltfExportFormat, ignoreCase: true)
+            : ContentExportOutput.Decompile;
 
         public static void Main(string[] args)
         {
@@ -291,7 +286,7 @@ namespace CLI
             Decompile = decompile;
             DecompileDependencies = decompile_dependencies;
             SkipExisting = skip_existing;
-            ExtractOptions = new FileExtractOptions { ReconstructSoftbody = !skip_softbody_reconstruction };
+            ExtractOptions = new FileExtractOptions { ReconstructSoftbody = !skip_softbody_reconstruction, ToolsAssetInfoPathsOnly = tools_asset_info_short };
             RecursiveSearch = recursive;
             RecursiveSearchArchives = recursive_vpk;
             PrintAllBlocks = all;
@@ -690,9 +685,11 @@ namespace CLI
                 Console.SetOut(Console.Error);
             }
 
+            int? writtenFiles = null;
+
             if (OutputFile != null)
             {
-                ExportPaths(paths);
+                writtenFiles = ExportPaths(paths);
             }
             else if (MaxParallelismThreads > 1)
             {
@@ -741,9 +738,9 @@ namespace CLI
                 }
             }
 
-            if (Exporter != null && !OutputToConsole)
+            if (writtenFiles != null && !OutputToConsole)
             {
-                Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"--- Wrote {WrittenFiles} files"));
+                Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"--- Wrote {writtenFiles} files"));
             }
 
             if (!AnyFileMatched && !CollectStats && (HasPathFilter || ExtFilterList != null))
@@ -802,89 +799,6 @@ namespace CLI
             }
 
             return 0;
-        }
-
-        private ContentExporter CreateExporter(string? contentFolder)
-        {
-            Debug.Assert(OutputFile != null);
-
-            var outputFolder = OutputIsDirectory ? OutputFile : Path.GetDirectoryName(OutputFile)!;
-            var outputRoot = OutputToConsole ? outputFolder : ContentPaths.ResolveOutputRoot(outputFolder, contentFolder);
-
-            if (!OutputToConsole)
-            {
-                Console.WriteLine($"--- Writing files to \"{outputRoot}\"");
-            }
-
-            return new ContentExporter(outputRoot)
-            {
-                IncludeDependencies = DecompileDependencies,
-                ExistingFileAction = SkipExisting ? ExistingFileAction.Skip : ExistingFileAction.Overwrite,
-                ExtractOptions = ExtractOptions,
-                Progress = ProgressReporter,
-                FileWritten = OnFileWritten,
-                FileSkipped = OnFileSkipped,
-                Warning = Warn,
-                FileFailed = (fileName, exception) => LogException(exception, fileName),
-                GltfExporterFactory = GltfExportFormat != null ? CreateGltfExporter : null,
-                ContentFileHandler = OutputToConsole ? PrintContentFile : null,
-                MaxDegreeOfParallelism = OutputToConsole ? 1 : Environment.ProcessorCount,
-                ItemStarted = item =>
-                {
-                    if (item.Origin != null)
-                    {
-                        PrintFileHeader(item.Origin, null);
-                    }
-                },
-                ItemCompleted = item =>
-                {
-                    if (item.Result == ContentExportResult.Handled && !item.IsDependency)
-                    {
-                        PrintLine($"--- Skipped \"{item.ContentPath}\", it is part of a file that was exported");
-                    }
-                },
-            };
-        }
-
-        /// <summary>
-        /// Gets the content folder that every input file is in, or null when it is not known.
-        /// </summary>
-        private string? GetContentFolder(List<string> paths)
-        {
-            if (LinkedFilePath != null)
-            {
-                return ContentPaths.GetDirectoryName(LinkedFilePath);
-            }
-
-            if (paths.Exists(static path => path.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase)))
-            {
-                return null;
-            }
-
-            var contentPaths = paths.Select(ContentPaths.GetContentPathFromDisk).ToList();
-
-            return contentPaths.Contains(null) ? null : ContentPaths.GetCommonDirectory(contentPaths!);
-        }
-
-        /// <summary>
-        /// Gets the content folder that every file of a package the filters match is in.
-        /// </summary>
-        private string GetMatchedEntriesFolder(Package package)
-        {
-            Debug.Assert(package.Entries != null);
-
-            return ContentPaths.GetCommonDirectory(package.Entries
-                .Where(group => MatchesExtensionFilter(group.Key))
-                .SelectMany(group => FilteredEntries(group.Value))
-                .Select(static entry => entry.FilePath));
-        }
-
-        /// <summary>
-        /// Gets the content path of an input file, which for a file on disk is found from where it is.
-        /// </summary>
-        private string GetContentPath(string path, string? originalPath)
-        {
-            return originalPath != null ? path : ContentPaths.GetContentPathFromDiskOrFileName(path, Warn);
         }
 
         private List<string>? FindPathsToProcessInFolder(string path)
@@ -1298,24 +1212,6 @@ namespace CLI
             }
         }
 
-        private void WriteFile(string contentPath, ReadOnlySpan<byte> data)
-        {
-            Debug.Assert(Exporter != null);
-
-            Exporter.WriteFile(contentPath, data, TargetFile);
-        }
-
-        private void OnFileWritten(string path)
-        {
-            Interlocked.Increment(ref WrittenFiles);
-            PrintLine($"--- Dump written to \"{path}\"");
-        }
-
-        private void OnFileSkipped(string path)
-        {
-            PrintLine($"--- Skipped \"{path}\", it already exists");
-        }
-
         private void PrintLine(string text)
         {
             lock (ConsoleWriterLock)
@@ -1545,25 +1441,8 @@ namespace CLI
             package.SetFileName(path);
             package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
 
-            try
+            if (!TryReadPackage(path, () => package.Read(stream)))
             {
-                package.Read(stream);
-            }
-            catch (NotSupportedException e)
-            {
-                lock (ConsoleWriterLock)
-                {
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.Error.WriteLine($"Failed to open vpk '{path}' - {e.Message}");
-                    Console.ResetColor();
-                }
-
-                return;
-            }
-            catch (Exception e)
-            {
-                LogException(e, path);
-
                 return;
             }
 
@@ -1784,59 +1663,6 @@ namespace CLI
             return gltfModelExporter;
         }
 
-        /// <summary>
-        /// Prints the main file of a decompiled resource, the files it would write alongside are skipped.
-        /// </summary>
-        private void PrintContentFile(ContentFile contentFile)
-        {
-            var skippedFiles = contentFile.AdditionalFiles.Count + contentFile.SubFiles.Count;
-            var contentPath = ContentPaths.Normalize(contentFile.FileName);
-
-            if (contentFile.Data == null && contentFile.SubFiles.Count == 1)
-            {
-                skippedFiles--;
-                contentPath = ContentPaths.Normalize(contentFile.SubFiles[0].FileName);
-            }
-
-            var data = GetMainFileData(contentFile);
-
-            if (data != null)
-            {
-                PrintFile(contentPath, data);
-            }
-
-            if (skippedFiles > 0)
-            {
-                Console.Error.WriteLine($"--- Not printing {skippedFiles} additional files of \"{contentPath}\", use --output <folder> to write them");
-            }
-        }
-
-        /// <summary>
-        /// Gets the data of the file a resource decompiles to, which is a sub file for some types such as textures.
-        /// </summary>
-        private static byte[]? GetMainFileData(ContentFile contentFile)
-        {
-            if (contentFile.Data == null && contentFile.SubFiles.Count == 1)
-            {
-                return contentFile.SubFiles[0].Extract?.Invoke();
-            }
-
-            return contentFile.Data;
-        }
-
-        private void PrintFile(string contentPath, ReadOnlySpan<byte> data)
-        {
-            lock (ConsoleWriterLock)
-            {
-                Stdout.WriteLine($"--- {contentPath}");
-                Stdout.Flush();
-
-                using var stdout = Console.OpenStandardOutput();
-                stdout.Write(data);
-                stdout.Write("\n"u8);
-            }
-        }
-
         private void Warn(string message)
         {
             lock (ConsoleWriterLock)
@@ -1891,35 +1717,6 @@ namespace CLI
         }
 
         private bool MatchesExtensionFilter(string type) => ExtFilterList == null || ExtFilterList.Contains(type);
-
-        /// <summary>
-        /// Whether more than one file would be written from the package, shaders are written once from all of their files.
-        /// </summary>
-        private bool MatchesMultipleFiles(Package package)
-        {
-            Debug.Assert(package.Entries != null);
-
-            var count = 0;
-
-            foreach (var (type, entries) in package.Entries)
-            {
-                if (!MatchesExtensionFilter(type))
-                {
-                    continue;
-                }
-
-                count += Decompile && type == "vcs"
-                    ? ContentExporter.SelectShaderFiles(FilteredEntries(entries).Select(static entry => entry.FilePath)).Count()
-                    : FilteredEntries(entries).Take(2).Count();
-
-                if (count > 1)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
 
         /// <summary>
         /// This method tries to run through all the code paths for a particular resource,

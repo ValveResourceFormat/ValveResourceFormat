@@ -548,15 +548,7 @@ public partial class GltfModelExporter
         }
 
         var path = Path.Join(DstDir, image.AlternateWriteFileName);
-
-        if (Exporter != null)
-        {
-            Exporter.WriteFile(ContentPaths.GetRelativePath(Exporter.OutputRoot, path), pngBytes, path);
-        }
-        else
-        {
-            File.WriteAllBytes(path, pngBytes);
-        }
+        Exporter!.WriteFile(ContentPaths.GetRelativePath(Exporter.OutputRoot, path), pngBytes, path);
 
         var count = Interlocked.Increment(ref TexturesExportedSoFar);
         ProgressReporter?.Report($"[{count}/{ExportedTextures.Count}] Exported texture: {image.Name}");

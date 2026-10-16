@@ -45,3 +45,21 @@ var gltfExporter = new GltfModelExporter(fileLoader)
 
 gltfExporter.Export(resource, exporter.GetOutputPath("models/props/crate.gltf"));
 ```
+
+Without `Exporter`, the glTF export writes its files through an exporter of its own rooted at the folder of the `.gltf`.
+
+To export many files at once, such as the files of a package, pass them as items. They are exported in parallel and in an order where a model claims its meshes before they come up on their own, and the files of a compiled shader are decompiled together into one `.vfx`:
+
+```csharp
+using var package = new Package();
+package.Read("pak01_dir.vpk");
+
+using var packageLoader = new GameFileLoader(package, package.FileName);
+var exporter = new ContentExporter("dump");
+
+exporter.Export(package.Entries!.Values.SelectMany(entries => entries).Select(entry => new ContentExportItem(package, entry)
+{
+    FileLoader = packageLoader,
+    Output = ContentExportOutput.Decompile, // or Gltf, Glb, Raw
+}));
+```

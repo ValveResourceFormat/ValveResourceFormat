@@ -27,50 +27,41 @@ namespace GUI.Types.Exporter
             // The context is either the package, or a tab opened from it which already names the file
             var errorContext = vrfGuiContext.FileName == fileName ? vrfGuiContext.DisplayPath : $"{fileName} ← {vrfGuiContext.DisplayPath}";
 
-            await ExtractFile(fileName, () => GameFileLoader.GetPackageEntryStream(currentPackage, file), file.CRC32 > 0 ? file.CRC32 : null,
-                ContentExportSource.FromPackage(currentPackage), vrfGuiContext, decompile, errorContext).ConfigureAwait(true);
+            await ExtractFile(new ContentExportItem(currentPackage, file), vrfGuiContext, decompile, errorContext).ConfigureAwait(true);
         }
 
         public static async Task ExtractFileFromDisk(string path, VrfGuiContext vrfGuiContext, bool decompile)
         {
-            var contentPath = ContentPaths.GetContentPathFromDiskOrFileName(path, decompile ? message => Log.Warn(nameof(ExportFile), message) : null);
+            var item = new ContentExportItem(path, decompile ? message => Log.Warn(nameof(ExportFile), message) : null);
 
-            await ExtractFile(contentPath, () => File.OpenRead(path), null, ContentExportSource.FromDiskFile(path), vrfGuiContext, decompile, vrfGuiContext.DisplayPath).ConfigureAwait(true);
+            await ExtractFile(item, vrfGuiContext, decompile, vrfGuiContext.DisplayPath).ConfigureAwait(true);
         }
 
         /// <summary>
-        /// Decompiles or saves a single file.
+        /// Decompiles a single file, or saves it as is when it is not decompiled or there is nothing to decompile.
         /// </summary>
-        /// <param name="fileName">Content path of the file.</param>
-        /// <param name="open">Opens the file's contents.</param>
-        /// <param name="crc32">The CRC32 the file's contents must have, when it is known.</param>
-        /// <param name="source">Where the file came from, the dependencies it is decompiled with come from there.</param>
+        /// <param name="item">The file.</param>
         /// <param name="vrfGuiContext">The context the file was opened in.</param>
         /// <param name="decompile">Whether to decompile the file instead of saving it as is.</param>
         /// <param name="errorContext">Which file this is, shown when extracting it fails.</param>
-        private static async Task ExtractFile(string fileName, Func<Stream> open, uint? crc32, ContentExportSource? source, VrfGuiContext vrfGuiContext, bool decompile, string errorContext)
+        private static async Task ExtractFile(ContentExportItem item, VrfGuiContext vrfGuiContext, bool decompile, string errorContext)
         {
             try
             {
-                if (decompile && !await PreExportDisclaimer(Path.GetExtension(fileName)).ConfigureAwait(true))
+                if (decompile && !await PreExportDisclaimer(Path.GetExtension(item.ContentPath)).ConfigureAwait(true))
                 {
                     return;
                 }
 
-                if (decompile && ContentPaths.HasCompiledSuffix(fileName))
+                if (decompile && item.CanDecompile())
                 {
-                    using var fileContext = new VrfGuiContext(fileName, vrfGuiContext);
-                    var exporter = new PackageExporter(new ExportData { VrfGuiContext = fileContext }, decompile: true);
-                    await exporter.ExecuteSingleFileExtractAsync(fileName, open, source).ConfigureAwait(true);
-                }
-                else if (decompile && CanExtractNonResource(fileName, open))
-                {
-                    var exporter = new PackageExporter(new ExportData { VrfGuiContext = vrfGuiContext }, decompile: true);
-                    await exporter.ExecuteSingleNonResourceExtractAsync(fileName, open).ConfigureAwait(true);
+                    using var fileContext = new VrfGuiContext(item.ContentPath, vrfGuiContext);
+                    var exporter = new PackageExporter(fileContext, decompile: true);
+                    await exporter.ExecuteSingleFileExtractAsync(item).ConfigureAwait(true);
                 }
                 else
                 {
-                    await SaveFile(fileName, open, crc32).ConfigureAwait(true);
+                    await SaveFile(item).ConfigureAwait(true);
                 }
             }
             catch (Exception e) when (e is not OperationCanceledException)
@@ -79,17 +70,9 @@ namespace GUI.Types.Exporter
             }
         }
 
-        private static bool CanExtractNonResource(string fileName, Func<Stream> open)
+        private static async Task SaveFile(ContentExportItem item)
         {
-            using var stream = open();
-            using var content = FileExtract.ExtractNonResource(stream, fileName);
-
-            return content != null;
-        }
-
-        private static async Task SaveFile(string fileName, Func<Stream> open, uint? crc32)
-        {
-            var saveFileName = AppFileDialogs.SaveFile("Choose where to save the file", Path.GetFileName(fileName), null, "All files (*.*)|*.*");
+            var saveFileName = AppFileDialogs.SaveFile("Choose where to save the file", Path.GetFileName(item.ContentPath), null, "All files (*.*)|*.*");
 
             if (saveFileName == null)
             {
@@ -103,16 +86,13 @@ namespace GUI.Types.Exporter
                 FileFailed = (_, exception) => failure = exception,
             };
 
-            var item = new ContentExportItem
+            var rawItem = new ContentExportItem(item)
             {
-                ContentPath = fileName,
-                Open = open,
-                Crc32 = crc32,
                 Output = ContentExportOutput.Raw,
                 TargetFile = saveFileName,
             };
 
-            await Task.Run(() => exporter.Export([item])).ConfigureAwait(true);
+            await Task.Run(() => exporter.Export([rawItem])).ConfigureAwait(true);
 
             if (failure != null)
             {
@@ -132,34 +112,22 @@ namespace GUI.Types.Exporter
             }
             else
             {
-                var exportData = new ExportData
-                {
-                    VrfGuiContext = vrfGuiContext,
-                };
-
-                var exporter = new PackageExporter(exportData, decompile);
+                var exporter = new PackageExporter(vrfGuiContext, decompile);
                 exporter.QueueFiles(selectedNode);
-                exporter.ExecuteMultipleFileExtract();
+                await exporter.ExecuteMultipleFileExtractAsync().ConfigureAwait(true);
             }
         }
 
-        public static void ExtractFilesFromListViewNodes(List<ListViewItem> items, VrfGuiContext vrfGuiContext, bool decompile)
+        public static async Task ExtractFilesFromListViewNodes(List<ListViewItem> items, VrfGuiContext vrfGuiContext, bool decompile)
         {
-            var exportData = new ExportData
-            {
-                VrfGuiContext = vrfGuiContext,
-            };
+            var exporter = new PackageExporter(vrfGuiContext, decompile);
 
-            var exporter = new PackageExporter(exportData, decompile);
-
-            // When queuing files this way, it'll preserve the original tree
-            // which is probably unwanted behaviour? It works tho /shrug
             foreach (var item in items.Cast<IBetterBaseItem>())
             {
                 exporter.QueueFiles(item);
             }
 
-            exporter.ExecuteMultipleFileExtract();
+            await exporter.ExecuteMultipleFileExtractAsync().ConfigureAwait(true);
         }
 
         public static async Task<bool> PreExportDisclaimer(string fileExtension)

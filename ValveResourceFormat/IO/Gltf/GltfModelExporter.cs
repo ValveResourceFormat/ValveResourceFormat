@@ -37,19 +37,12 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Gets or sets the exporter that writes every file: the glTF itself, its buffers, its textures and the separate
-        /// physics file. Target paths should be under its <see cref="ContentExporter.OutputRoot"/>, and are claimed with
-        /// <see cref="ContentExporter.ReservePath"/> before anything is exported. It also marks the exported resource and
-        /// the resources the glTF includes as handled, see <see cref="ContentExporter.IsHandled"/>. When not set, files
-        /// are written directly.
+        /// physics file. Target paths should be under its <see cref="ContentExporter.OutputRoot"/>, and are claimed before
+        /// anything is exported. It also marks the exported resource and the resources the glTF includes as handled, so
+        /// an export of many files through it skips them. When not set, each export writes its files through an exporter
+        /// of its own rooted at the folder of its target path.
         /// </summary>
         public ContentExporter? Exporter { get; set; }
-
-        /// <summary>
-        /// Gets or sets which of the resources a glTF includes, such as the meshes of a model, <see cref="Exporter"/>
-        /// marks as handled, by content path. Only resources of a type that can be exported to glTF are considered.
-        /// When not set, all of them are marked.
-        /// </summary>
-        public Func<string, bool>? HandledResourceFilter { get; set; }
 
         /// <summary>
         /// Gets the file loader for loading referenced resources.
@@ -133,7 +126,6 @@ namespace ValveResourceFormat.IO
             TextureReadLock = settings.TextureReadLock;
             ProgressReporter = settings.ProgressReporter;
             Exporter = settings.Exporter;
-            HandledResourceFilter = settings.HandledResourceFilter;
             ExportAnimations = settings.ExportAnimations;
             ExportMaterials = settings.ExportMaterials;
             AdaptTextures = settings.AdaptTextures;
@@ -150,7 +142,10 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public static bool CanExport(Resource resource) => CanExport(resource.ResourceType);
 
-        private static bool CanExport(ResourceType resourceType) => resourceType
+        /// <summary>
+        /// Determines whether resources of the specified type can be exported to glTF.
+        /// </summary>
+        public static bool CanExport(ResourceType resourceType) => resourceType
             is ResourceType.Mesh
             or ResourceType.Model
             or ResourceType.NmClip
@@ -188,6 +183,11 @@ namespace ValveResourceFormat.IO
             using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var session = new GltfModelExporter(this, cancellation.Token);
 
+            if (targetPath != null)
+            {
+                session.Exporter ??= new ContentExporter(Path.GetDirectoryName(Path.GetFullPath(targetPath))!);
+            }
+
             if (!session.TryReserveFile(targetPath, out targetPath))
             {
                 return;
@@ -219,12 +219,12 @@ namespace ValveResourceFormat.IO
         {
             reservedPath = path;
 
-            if (path == null || Exporter == null)
+            if (path == null)
             {
                 return true;
             }
 
-            reservedPath = Exporter.ReservePath(ContentPaths.GetRelativePath(Exporter.OutputRoot, Path.GetFullPath(path)), path);
+            reservedPath = Exporter!.ReservePath(path);
             return reservedPath != null;
         }
 
@@ -239,10 +239,9 @@ namespace ValveResourceFormat.IO
             {
                 foreach (var path in trackingFileLoader.LoadedFilePaths)
                 {
-                    if (CanExport(ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(path.AsSpan())))
-                        && (HandledResourceFilter == null || HandledResourceFilter(path)))
+                    if (CanExport(ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(path.AsSpan()))))
                     {
-                        Exporter.MarkHandled(path);
+                        Exporter.MarkIncludedInGltf(path);
                     }
                 }
             }
@@ -795,19 +794,8 @@ namespace ValveResourceFormat.IO
 #endif
 
             var directory = Path.GetDirectoryName(Path.GetFullPath(filePath))!;
-            var context = WriteContext.Create((assetName, data) =>
-            {
-                var path = Path.Join(directory, assetName);
-
-                if (Exporter != null)
-                {
-                    Exporter.WriteReservedFile(path, data.AsSpan());
-                }
-                else
-                {
-                    File.WriteAllBytes(path, data.AsSpan());
-                }
-            }).WithSettingsFrom(settings);
+            var context = WriteContext.Create((assetName, data) => Exporter!.WriteReservedFile(Path.Join(directory, assetName), data.AsSpan()))
+                .WithSettingsFrom(settings);
 
             var name = Path.GetFileName(filePath);
 

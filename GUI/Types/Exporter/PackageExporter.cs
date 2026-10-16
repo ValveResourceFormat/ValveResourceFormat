@@ -29,22 +29,21 @@ namespace GUI.Types.Exporter
         private const string DoNotExport = "* Do not export *";
 
         private readonly bool decompile;
-        private readonly ExportData exportData;
+        private readonly VrfGuiContext guiContext;
         private readonly Dictionary<string, FileTypeToExtract> fileTypesToExtract = [];
         private readonly List<PackageEntry> filesToExtract = [];
-        private string? path;
+        private readonly Lock failureLock = new();
         private int processed;
-        private int filesFailedToExport;
-        private Exception? firstFailure;
-        private string? firstFailedFile;
+        private ContentExporter? exporter;
+        private (string FileName, Exception Exception)? firstFailure;
         private bool includeDependencies;
         private GenericProgressForm? progress;
 
-        private string OutputPath => path ?? throw new InvalidOperationException("Path must be set before extracting files");
+        private int FailedFileCount => exporter?.FailedFileCount ?? 0;
 
-        public PackageExporter(ExportData exportData, bool decompile)
+        public PackageExporter(VrfGuiContext guiContext, bool decompile)
         {
-            this.exportData = exportData;
+            this.guiContext = guiContext;
             this.decompile = decompile;
         }
 
@@ -93,7 +92,7 @@ namespace GUI.Types.Exporter
         /// <summary>
         /// Asks for output types and a destination folder, then extracts all queued files behind a modal progress dialog.
         /// </summary>
-        public void ExecuteMultipleFileExtract()
+        public async Task ExecuteMultipleFileExtractAsync()
         {
             if (filesToExtract.Count == 0)
             {
@@ -106,6 +105,12 @@ namespace GUI.Types.Exporter
                 return;
             }
 
+            if (decompile && fileTypesToExtract.TryGetValue("vmap_c", out var mapType) && mapType.OutputFormat != null
+                && !await ExportFile.PreExportDisclaimer(".vmap_c").ConfigureAwait(true))
+            {
+                return;
+            }
+
             var remember = decompile ? AppFileDialogs.RememberIn.DecompileDirectory : AppFileDialogs.RememberIn.SaveDirectory;
             var selectedPath = AppFileDialogs.PickFolder("Choose which folder to extract files to", remember);
 
@@ -114,32 +119,30 @@ namespace GUI.Types.Exporter
                 return;
             }
 
-            path = selectedPath;
-
             // Nothing outside the export owns the files it reads, so there is nothing to wait for here
-            RunInDialog(ExportQueuedFiles, null, out _);
+            RunInDialog(cancellationToken => ExportQueuedFiles(selectedPath, cancellationToken), null, out _);
         }
 
         /// <summary>
-        /// Asks for the output type of a compiled resource and where to write it, then exports it behind a modal progress
-        /// dialog. glTF goes to a picked file, everything else under a picked root folder at its content path.
+        /// Asks for the output type of a file, when it has a choice, and where to write it, then exports it behind a
+        /// modal progress dialog. glTF goes to a picked file, everything else under a picked root folder at its content
+        /// path.
         /// </summary>
-        /// <param name="contentPath">Content path of the resource.</param>
-        /// <param name="open">Opens the resource's contents.</param>
-        /// <param name="source">Where the resource came from, the dependencies it is exported with come from there.</param>
-        public Task ExecuteSingleFileExtractAsync(string contentPath, Func<Stream> open, ContentExportSource? source)
+        /// <param name="item">The file, its output and loader are chosen here.</param>
+        public Task ExecuteSingleFileExtractAsync(ContentExportItem item)
         {
+            var contentPath = item.ContentPath;
             var typeName = Path.GetExtension(contentPath).TrimStart('.');
             fileTypesToExtract[typeName] = new FileTypeToExtract();
 
-            if (ShowTypesDialog(canSkip: false) != DialogResult.Continue)
+            if ((ContentPaths.HasCompiledSuffix(contentPath) || ContentExporter.CanExportGltf(contentPath))
+                && ShowTypesDialog(canSkip: false) != DialogResult.Continue)
             {
                 return Task.CompletedTask;
             }
 
             var outputFormat = fileTypesToExtract[typeName].OutputFormat;
             var output = GetOutput(outputFormat);
-            var guiContext = exportData.VrfGuiContext;
             string outputRoot;
             string? gltfPath = null;
 
@@ -153,7 +156,7 @@ namespace GUI.Types.Exporter
                     return Task.CompletedTask;
                 }
 
-                outputRoot = Path.GetDirectoryName(gltfPath)!;
+                outputRoot = ContentPaths.ResolveOutputRoot(Path.GetDirectoryName(gltfPath)!, [contentPath]);
             }
             else
             {
@@ -164,20 +167,12 @@ namespace GUI.Types.Exporter
                     return Task.CompletedTask;
                 }
 
-                outputRoot = ContentPaths.ResolveOutputRoot(folder, ContentPaths.GetDirectoryName(contentPath));
-
-                if (includeDependencies && source == null)
-                {
-                    Log.Warn(nameof(PackageExporter), $"Dependencies of \"{contentPath}\" are not decompiled, it is not in an addon or mod folder.");
-                }
+                outputRoot = ContentPaths.ResolveOutputRoot(folder, [contentPath]);
             }
 
-            var item = new ContentExportItem
+            var exportItem = new ContentExportItem(item)
             {
-                ContentPath = contentPath,
-                Open = open,
-                Source = gltfPath == null ? source : null,
-                FileLoader = gltfPath == null ? guiContext.FileLoaderNoCache : guiContext,
+                FileLoader = guiContext.FileLoaderNoCache,
                 Output = output,
                 TargetFile = gltfPath,
             };
@@ -188,53 +183,13 @@ namespace GUI.Types.Exporter
             {
                 var exporter = CreateContentExporter(outputRoot, confirmedFile: gltfPath);
                 guiContext.EnsureStringTokenGameKeys();
-                exporter.Export([item], cancellationToken);
+                exporter.Export([exportItem], cancellationToken);
             }, initialText, out var workCompletion);
 
             return workCompletion;
         }
 
-        /// <summary>
-        /// Asks for a root folder, then extracts a file that is not a compiled resource under it at its content path,
-        /// behind a modal progress dialog.
-        /// </summary>
-        /// <param name="contentPath">Content path of the file.</param>
-        /// <param name="open">Opens the file's contents.</param>
-        public Task ExecuteSingleNonResourceExtractAsync(string contentPath, Func<Stream> open)
-        {
-            var folder = AppFileDialogs.PickFolder("Choose which folder to extract files to", AppFileDialogs.RememberIn.DecompileDirectory);
-
-            if (folder == null)
-            {
-                return Task.CompletedTask;
-            }
-
-            var outputRoot = ContentPaths.ResolveOutputRoot(folder, ContentPaths.GetDirectoryName(contentPath));
-            var item = new ContentExportItem
-            {
-                ContentPath = contentPath,
-                Open = open,
-            };
-
-            RunInDialog(cancellationToken =>
-            {
-                var exporter = CreateContentExporter(outputRoot);
-                exporter.Export([item], cancellationToken);
-            }, $"Decompiling {contentPath}", out var workCompletion);
-
-            return workCompletion;
-        }
-
         private void RunInDialog(Action<CancellationToken> work, string? initialText, out Task workCompletion)
-        {
-            RunInDialog(cancellationToken =>
-            {
-                work(cancellationToken);
-                return Task.CompletedTask;
-            }, initialText, out workCompletion);
-        }
-
-        private void RunInDialog(Func<CancellationToken, Task> work, string? initialText, out Task workCompletion)
         {
             using var dialog = new GenericProgressForm { StayOpenOnCompletion = true };
             progress = dialog;
@@ -244,20 +199,22 @@ namespace GUI.Types.Exporter
                 dialog.SetProgress(initialText);
             }
 
-            dialog.OnProcess = async cancellationToken =>
+            dialog.OnProcess = cancellationToken =>
             {
-                await work(cancellationToken).ConfigureAwait(false);
+                work(cancellationToken);
 
                 var completedText = $"Export completed in {GenericProgressForm.FormatTime(dialog.Elapsed)}";
 
-                if (filesFailedToExport > 0)
+                if (FailedFileCount > 0)
                 {
-                    var noun = filesFailedToExport == 1 ? "file" : "files";
-                    completedText += string.Create(CultureInfo.InvariantCulture, $", {filesFailedToExport} {noun} failed");
+                    var noun = FailedFileCount == 1 ? "file" : "files";
+                    completedText += string.Create(CultureInfo.InvariantCulture, $", {FailedFileCount} {noun} failed");
                 }
 
                 Log.Info(nameof(PackageExporter), completedText);
                 dialog.SetProgress(completedText);
+
+                return Task.CompletedTask;
             };
 
             dialog.ShowDialog();
@@ -271,7 +228,7 @@ namespace GUI.Types.Exporter
         {
             await workCompletion.ConfigureAwait(true);
 
-            if (filesFailedToExport == 0)
+            if (FailedFileCount == 0)
             {
                 return;
             }
@@ -288,27 +245,28 @@ namespace GUI.Types.Exporter
 
         private void ShowFailureSummary()
         {
-            Debug.Assert(firstFailure != null && firstFailedFile != null);
+            Debug.Assert(firstFailure != null);
 
-            var noun = filesFailedToExport == 1 ? "file" : "files";
+            var (firstFailedFile, firstException) = firstFailure.Value;
+            var failedFileCount = FailedFileCount;
+            var noun = failedFileCount == 1 ? "file" : "files";
             var text = new StringBuilder();
-            text.AppendLine(CultureInfo.InvariantCulture, $"{filesFailedToExport} {noun} failed to export, the first one was:");
+            text.AppendLine(CultureInfo.InvariantCulture, $"{failedFileCount} {noun} failed to export, the first one was:");
             text.AppendLine(firstFailedFile);
-            text.AppendLine(firstFailure.Message);
+            text.AppendLine(firstException.Message);
 
-            if (filesFailedToExport > 1)
+            if (failedFileCount > 1)
             {
-                var others = filesFailedToExport == 2 ? "failure is" : "failures are";
+                var others = failedFileCount == 2 ? "failure is" : "failures are";
                 text.AppendLine();
                 text.AppendLine(CultureInfo.InvariantCulture, $"The other {others} listed in the console.");
             }
 
             // The context is either the package, or a file opened from it which already names the file
-            var guiContext = exportData.VrfGuiContext;
             var context = firstFailedFile == guiContext.FileName ? guiContext.DisplayPath : $"{firstFailedFile} ← {guiContext.DisplayPath}";
 
             var report = new StringBuilder();
-            ErrorReport.AppendExceptionWithVersion(report, firstFailure, context);
+            ErrorReport.AppendExceptionWithVersion(report, firstException, context);
 
             ErrorReport.ShowDialog("Some files failed to export", text.ToString().TrimEnd(), report.ToString());
         }
@@ -328,28 +286,16 @@ namespace GUI.Types.Exporter
 
             foreach (var type in fileTypesToExtract.OrderByDescending(x => x.Value.Count))
             {
-                var resourceType = ResourceTypeExtensions.DetermineByFileExtension("." + type.Key);
-                var firstType = resourceType != ResourceType.Unknown
-                    ? FileExtract.GetExtension(resourceType)
-                    : type.Key == "vcs" ? "vfx" : ContentPaths.TrimCompiledSuffix(type.Key);
-
-                var outputTypes = new List<string>()
+                var fileName = "." + type.Key;
+                var outputTypes = new List<string>
                 {
-                    firstType,
+                    ContentExporter.GetDecompiledExtension(fileName),
                 };
 
-                if (firstType is "vmdl" or "vmesh" or "vmap" or "vwrld" or "vwnod" or "vnmclip" or "vnmskel")
+                if (ContentExporter.CanExportGltf(fileName))
                 {
                     outputTypes.Add("gltf");
                     outputTypes.Add("glb");
-                }
-                else if (firstType == "vtex")
-                {
-                    outputTypes.Insert(0, "image");
-                }
-                else if (firstType == "vsnd")
-                {
-                    outputTypes.Insert(0, "sound");
                 }
 
                 if (canSkip)
@@ -412,42 +358,18 @@ namespace GUI.Types.Exporter
             fileTypesToExtract[type].OutputFormat = outputFormat == DoNotExport ? null : outputFormat;
         }
 
-        /// <summary>
-        /// Resets the progress for a folder export and gets the package its files are read from.
-        /// </summary>
-        /// <returns>The package, or null when there is none to read from.</returns>
-        private Package? StartFolderExport()
+        private void ExportQueuedFiles(string folder, CancellationToken cancellationToken)
         {
             Debug.Assert(progress != null);
 
-            Log.Info(nameof(PackageExporter), $"Folder export started to \"{path}\"");
+            var currentPackage = guiContext.CurrentPackage ?? throw new InvalidOperationException("The package is not available, cannot extract files");
+
+            Log.Info(nameof(PackageExporter), $"Folder export started to \"{folder}\"");
 
             processed = 0;
             progress.SetBarMax(filesToExtract.Count);
 
-            var currentPackage = exportData.VrfGuiContext.CurrentPackage;
-
-            if (currentPackage == null)
-            {
-                ReportFailure(exportData.VrfGuiContext.FileName, new InvalidOperationException("The package is not available, cannot extract files"));
-            }
-
-            return currentPackage;
-        }
-
-        private void ExportQueuedFiles(CancellationToken cancellationToken)
-        {
-            Debug.Assert(progress != null);
-
-            if (StartFolderExport() is not { } currentPackage)
-            {
-                return;
-            }
-
-            var contentFolder = ContentPaths.GetCommonDirectory(filesToExtract.Select(static file => file.GetFullPath()));
-            var exporter = CreateContentExporter(ContentPaths.ResolveOutputRoot(OutputPath, contentFolder));
-            var source = ContentExportSource.FromPackage(currentPackage);
-            var fileLoader = exportData.VrfGuiContext.FileLoaderNoCache;
+            var fileLoader = guiContext.FileLoaderNoCache;
             var items = new List<ContentExportItem>(filesToExtract.Count);
 
             foreach (var packageFile in filesToExtract)
@@ -468,20 +390,18 @@ namespace GUI.Types.Exporter
                     continue;
                 }
 
-                items.Add(new ContentExportItem
+                items.Add(new ContentExportItem(currentPackage, packageFile)
                 {
-                    ContentPath = packageFile.GetFullPath(),
-                    Open = () => GameFileLoader.GetPackageEntryStream(currentPackage, packageFile),
-                    Crc32 = packageFile.CRC32 > 0 ? packageFile.CRC32 : null,
-                    Source = source,
                     FileLoader = fileLoader,
                     Output = output,
                 });
             }
 
+            var exporter = CreateContentExporter(ContentPaths.ResolveOutputRoot(folder, items.Select(static item => item.ContentPath)));
+
             if (decompile)
             {
-                exportData.VrfGuiContext.EnsureStringTokenGameKeys();
+                guiContext.EnsureStringTokenGameKeys();
             }
 
             progress.SetBarValue(processed);
@@ -502,10 +422,9 @@ namespace GUI.Types.Exporter
 
         private void ReportFailure(string fileName, Exception exception)
         {
-            if (Interlocked.Increment(ref filesFailedToExport) == 1)
+            lock (failureLock)
             {
-                firstFailure = exception;
-                firstFailedFile = fileName;
+                firstFailure ??= (fileName, exception);
             }
 
             Log.Error(nameof(PackageExporter), $"Failed to extract '{fileName}': {exception}");
@@ -527,7 +446,7 @@ namespace GUI.Types.Exporter
 
             var dialog = progress;
 
-            return new ContentExporter(outputRoot)
+            return exporter = new ContentExporter(outputRoot)
             {
                 IncludeDependencies = includeDependencies,
                 Progress = dialog,
@@ -536,12 +455,6 @@ namespace GUI.Types.Exporter
                 FileSkipped = LogSkipped,
                 Warning = message => Log.Warn(nameof(PackageExporter), message),
                 FileFailed = ReportFailure,
-                GltfExporterFactory = fileLoader => new GltfModelExporter(fileLoader)
-                {
-                    ProgressReporter = dialog,
-                    HandledResourceFilter = path => fileTypesToExtract.TryGetValue(Path.GetExtension(path).TrimStart('.'), out var fileType)
-                        && fileType.OutputFormat is "gltf" or "glb",
-                },
                 ItemStarted = item => dialog.SetProgress(item.ContentPath),
                 ItemCompleted = item =>
                 {

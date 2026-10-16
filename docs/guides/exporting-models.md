@@ -45,7 +45,9 @@ The output type is chosen in the output types dialog. For 3D use, choose glTF or
 
 Textures are named after their source texture plus a hash, such as `rock_color_1a2b3c4d.png`, so models exported into one folder share identical textures. If a texture or the `_physics` file already exists next to a new `.gltf`, you are asked once whether to overwrite the existing files or keep them. Choosing to replace the `.gltf` in the save dialog overwrites them as well.
 
-The glTF export includes geometry, materials, textures, and the skeleton (if present).
+The glTF export includes geometry, materials, textures, and the skeleton (if present). Models, meshes, maps, worlds, world nodes, entity lumps (`.vents`), physics (`.vphys`), animation clips, skeletons and navigation meshes (`.nav`) can be exported to glTF.
+
+The GUI always exports materials, textures and animations. The command line only exports them with `--gltf_export_materials` and `--gltf_export_animations`.
 
 ### glTF vs GLB
 
@@ -64,7 +66,7 @@ Choosing the decompiled `.vmdl` source format asks for an output folder instead 
 
 The mesh, physics and animation DMX files are written exactly where the `.vmdl` references them, which can be a different folder than the model. Animation clip and skeleton files are written at the path they were authored at. A clip used by several models is written once, and files whose paths clash with different content get a numbered name.
 
-Check **Include dependencies** in the output types dialog to also decompile the materials, textures, animation clips, skeletons and graphs the model references. Only files from the same package as the model are included, base-game files stay referenced. If files already exist at the output, you are asked once whether to overwrite all of them or skip the existing ones.
+Check **Include dependencies** in the output types dialog to also decompile the materials, textures, animation clips, skeletons and graphs the model references. Only files from the same package as the model are included, base-game files stay referenced. With glTF output, dependencies that can be exported to glTF are exported as glTF and the others are decompiled. If files already exist at the output, you are asked once whether to overwrite all of them or skip the existing ones.
 
 ## Importing into Blender
 

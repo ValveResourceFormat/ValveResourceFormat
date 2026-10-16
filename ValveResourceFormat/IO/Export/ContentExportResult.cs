@@ -1,7 +1,10 @@
+using System.Threading;
+
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// What happened to a <see cref="ContentExportItem"/> in a <see cref="ContentExportQueue"/>.
+/// What happened to a <see cref="ContentExportItem"/> in
+/// <see cref="ContentExporter.Export(IEnumerable{ContentExportItem}, CancellationToken)"/>.
 /// </summary>
 public enum ContentExportResult
 {
@@ -16,4 +19,10 @@ public enum ContentExportResult
 
     /// <summary>The file, or a file extracted from it, failed to export.</summary>
     Failed,
+
+    /// <summary>
+    /// The file was skipped, because it did not change since the export recorded in the manifest, see
+    /// <see cref="ContentExporter.ManifestOptions"/>.
+    /// </summary>
+    Unchanged,
 }

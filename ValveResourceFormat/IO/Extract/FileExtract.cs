@@ -37,9 +37,16 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Other resources extracted along with this one, such as the vtex files of a vmat. An entry without
-        /// <see cref="Data"/> or sub files only marks its resource as handled, see <see cref="ContentExporter.IsHandled"/>.
+        /// <see cref="Data"/> or sub files only marks its resource as handled, so an export skips it.
         /// </summary>
         public List<ContentFile> AdditionalFiles { get; init; } = [];
+
+        /// <summary>
+        /// Gets the sub file that stands for this content file when it has no <see cref="Data"/> of its own and one sub
+        /// file, such as the image of a texture. It is written to the target file of an export, and printed in place of
+        /// this content file.
+        /// </summary>
+        public SubFile? MainSubFile => Data == null && SubFiles.Count == 1 ? SubFiles[0] : null;
 
         /// <summary>
         /// Gets a value indicating whether this instance has been disposed.
@@ -165,6 +172,11 @@ namespace ValveResourceFormat.IO
         /// Gets the flags textures are decoded with. Defaults to <see cref="TextureCodec.Auto"/>.
         /// </summary>
         public TextureCodec TextureDecodeFlags { get; init; } = TextureCodec.Auto;
+
+        /// <summary>
+        /// Gets whether tools asset info files list only the paths of their assets, without their dependencies.
+        /// </summary>
+        public bool ToolsAssetInfoPathsOnly { get; init; }
     }
 
     /// <summary>
@@ -354,7 +366,19 @@ namespace ValveResourceFormat.IO
         /// <param name="stream">Stream to be extracted or decompiled.</param>
         /// <param name="fileName">The file name for context.</param>
         public static ContentFile? ExtractNonResource(Stream stream, string fileName)
+            => ExtractNonResource(stream, fileName, new FileExtractOptions());
+
+        /// <summary>
+        /// Extract content file from a non-resource stream.
+        /// </summary>
+        /// <param name="stream">Stream to be extracted or decompiled.</param>
+        /// <param name="fileName">The file name for context.</param>
+        /// <param name="options">Options that control how files are extracted.</param>
+        /// <returns>The content file, or null when the file is not of a format that is extracted.</returns>
+        public static ContentFile? ExtractNonResource(Stream stream, string fileName, FileExtractOptions options)
         {
+            ArgumentNullException.ThrowIfNull(options);
+
             // Fonts have no magic at the start of the file
             var extension = Path.GetExtension(fileName);
 
@@ -372,24 +396,56 @@ namespace ValveResourceFormat.IO
                 return ExtractUIFont(stream, fileName);
             }
 
-            Span<byte> buffer = stackalloc byte[4];
-            var read = stream.Read(buffer);
-            stream.Seek(-read, SeekOrigin.Current);
-            if (read != 4)
-            {
-                return null;
-            }
-
-            var magic = BitConverter.ToUInt32(buffer);
-
-            return magic switch
+            return PeekMagic(stream) switch
             {
                 FlexSceneFile.FlexSceneFile.MAGIC => ExtractFlexScene(stream, fileName),
                 ClosedCaptions.ClosedCaptions.MAGIC => new ClosedCaptionsExtract(stream, fileName).ToContentFile(),
                 NavMesh.NavMeshFile.MAGIC => ExtractNavMesh(stream, fileName),
+                NavMesh.NavSpaceFile.MAGIC => ExtractNavSpace(stream, fileName),
                 MapFormats.GridNavFile.MAGIC => ExtractGridNav(stream, fileName),
+                ToolsAssetInfo.ToolsAssetInfo.MAGIC or ToolsAssetInfo.ToolsAssetInfo.MAGIC2 => ExtractToolsAssetInfo(stream, fileName, options),
                 _ => null,
             };
+        }
+
+        /// <summary>
+        /// Whether <see cref="ExtractNonResource(Stream, string, FileExtractOptions)"/> extracts a file, from its name and
+        /// the start of its contents, without extracting it.
+        /// </summary>
+        /// <param name="stream">The file's contents, its position is kept.</param>
+        /// <param name="fileName">The file name.</param>
+        public static bool CanExtractNonResource(Stream stream, string fileName)
+        {
+            ArgumentNullException.ThrowIfNull(stream);
+            ArgumentNullException.ThrowIfNull(fileName);
+
+            var extension = Path.GetExtension(fileName);
+
+            if (extension.Equals(".vfont", StringComparison.OrdinalIgnoreCase) || extension.Equals(".uifont", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return PeekMagic(stream) is FlexSceneFile.FlexSceneFile.MAGIC
+                or ClosedCaptions.ClosedCaptions.MAGIC
+                or NavMesh.NavMeshFile.MAGIC
+                or NavMesh.NavSpaceFile.MAGIC
+                or MapFormats.GridNavFile.MAGIC
+                or ToolsAssetInfo.ToolsAssetInfo.MAGIC
+                or ToolsAssetInfo.ToolsAssetInfo.MAGIC2;
+        }
+
+        /// <summary>
+        /// Reads the first four bytes of a stream as a little-endian magic, keeping its position.
+        /// </summary>
+        /// <returns>The magic, or 0 when the stream is shorter.</returns>
+        internal static uint PeekMagic(Stream stream)
+        {
+            Span<byte> magic = stackalloc byte[4];
+            var read = stream.Read(magic);
+            stream.Seek(-read, SeekOrigin.Current);
+
+            return read == magic.Length ? BitConverter.ToUInt32(magic) : 0;
         }
 
         private static ContentFile ExtractFlexScene(Stream stream, string fileName)
@@ -397,6 +453,30 @@ namespace ValveResourceFormat.IO
             var contentFile = new FlexSceneExtract(stream).ToContentFile();
             contentFile.FileName = ContentPaths.ChangeExtension(fileName, ".txt");
             return contentFile;
+        }
+
+        private static ContentFile ExtractNavSpace(Stream stream, string fileName)
+        {
+            var navSpace = new NavMesh.NavSpaceFile();
+            navSpace.Read(stream);
+
+            return new ContentFile
+            {
+                Data = Encoding.UTF8.GetBytes(navSpace.ToString()),
+                FileName = ContentPaths.ChangeExtension(fileName, ".txt"),
+            };
+        }
+
+        private static ContentFile ExtractToolsAssetInfo(Stream stream, string fileName, FileExtractOptions options)
+        {
+            var toolsAssetInfo = new ToolsAssetInfo.ToolsAssetInfo();
+            toolsAssetInfo.Read(stream);
+
+            return new ContentFile
+            {
+                Data = Encoding.UTF8.GetBytes(toolsAssetInfo.ToDependencyText(options.ToolsAssetInfoPathsOnly)),
+                FileName = ContentPaths.ChangeExtension(fileName, ".txt"),
+            };
         }
 
         private static ContentFile ExtractGridNav(Stream stream, string fileName)
