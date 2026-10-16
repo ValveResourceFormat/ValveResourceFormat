@@ -11,7 +11,7 @@ permissions:
 jobs:
   check-bug:
     runs-on: ubuntu-latest
-    if: contains(github.event.issue.labels.*.name, 'Bug')
+    if: contains(github.event.issue.labels.*.name, 'Bug') || !contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"]'), github.event.issue.author_association)
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
@@ -51,7 +51,7 @@ jobs:
           fi
 
       - name: Check reported version
-        if: github.event.issue.author_association != 'MEMBER' && github.event.issue.author_association != 'COLLABORATOR'
+        if: ${{ !contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"]'), github.event.issue.author_association) }}
         run: |
           BODY_TEXT=$(printf '%s\n' "$ISSUE_BODY" | tr -d '\r')
           VERSION_TEXT=$(printf '%s\n' "$BODY_TEXT" | grep -A 3 '### What version of S2V are you using' | tail -n +2 | grep -m 1 . || true)
