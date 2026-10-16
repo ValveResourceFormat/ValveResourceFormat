@@ -223,27 +223,29 @@ namespace GUI.Types.GLViewers
         {
             base.PreSceneLoad();
 
+            // A world node seen alone has no lights of its own, so it is lit by a made up sun
             if (worldNode != null)
             {
+                base.LoadDefaultLighting();
+                Scene.LightingInfo.CubemapType = CubemapType.None; // default envmap actually looks bad
+
                 LoadUnbakedLighting();
+
+                var post = new ScenePostProcessVolume(Scene)
+                {
+                    HasBloom = true,
+                    IsMaster = true,
+                };
+
+                Scene.PostProcessInfo.AddPostProcessVolume(post);
             }
         }
 
+        /// <summary>Sets up the lighting of a world whose lighting is not built.</summary>
         protected void LoadUnbakedLighting()
         {
-            base.LoadDefaultLighting();
-
-            Scene.LightingInfo.CubemapType = CubemapType.None; // default envmap actually looks bad
             Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
             Scene.LightingInfo.SunLightShadowCoverageScale = 2f;
-
-            var post = new ScenePostProcessVolume(Scene)
-            {
-                HasBloom = true,
-                IsMaster = true,
-            };
-
-            Scene.PostProcessInfo.AddPostProcessVolume(post);
         }
 
         protected override void LoadScene()

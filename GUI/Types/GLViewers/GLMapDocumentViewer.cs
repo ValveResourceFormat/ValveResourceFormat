@@ -1,10 +1,13 @@
+using System.Diagnostics;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Map;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.GLViewers
@@ -14,7 +17,18 @@ namespace GUI.Types.GLViewers
     /// </summary>
     class GLMapDocumentViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, MapDocument mapDocument) : GLWorldViewer(vrfGuiContext, rendererContext)
     {
+        // How the exposure is chosen, as Hammer's tonemapping scale: kept at one, taken from the map's post
+        // processing volumes, or set by hand
+        private enum TonemapMode
+        {
+            None,
+            Auto,
+            Override,
+        }
+
         private MapDocumentLoader? loadedMapDocument;
+        private TonemapMode tonemapMode = TonemapMode.None;
+        private float tonemapScaleOverride = 1f;
 
         public override void Dispose()
         {
@@ -27,7 +41,10 @@ namespace GUI.Types.GLViewers
         {
             base.PreSceneLoad();
 
+            // Lit as Hammer shows a map before its lighting is built: only directly, by its own lights
             LoadUnbakedLighting();
+            Scene.LightingInfo.CubemapType = CubemapType.None;
+            Scene.LightingInfo.LightingData.UnbakedIndirect = Vector4.Zero;
         }
 
         protected override void LoadScene()
@@ -42,13 +59,12 @@ namespace GUI.Types.GLViewers
 
             loadedMapDocument.Load();
 
-            // Hammer shows tools materials until they are hidden, and only lights the map with its own lights
+            // Hammer shows tools materials until they are hidden
             Scene.ShowToolsMaterials = true;
 
-            if (!Scene.LightingInfo.HasOwnSun)
-            {
-                Scene.LightingInfo.LightingData.SunColor = Vector4.Zero;
-            }
+            // No exposure is added on top of what the tonemapping scale gives
+            Renderer.Postprocess.ExposureCompensation = 0f;
+            ApplyTonemapMode();
 
             // Opens where the map was last looked at in Hammer
             var camera = mapDocument.Root.DefaultCamera;
@@ -100,6 +116,40 @@ namespace GUI.Types.GLViewers
             {
                 SelectRenderMode("FullBright");
             }
+
+            AddTonemapControls();
+        }
+
+        private void AddTonemapControls()
+        {
+            Debug.Assert(UiControl != null);
+
+            using var _ = UiControl.BeginGroup("Tonemapping Scale");
+
+            var modeComboBox = UiControl.AddSelection("Mode", (_, index) =>
+            {
+                tonemapMode = (TonemapMode)index;
+                ApplyTonemapMode();
+            });
+
+            modeComboBox.Items.AddRange(Enum.GetNames<TonemapMode>());
+            modeComboBox.SelectedIndex = (int)tonemapMode;
+
+            UiControl.AddControl(RendererControl.CreateFloatInput("Override Scale", value =>
+            {
+                tonemapScaleOverride = value;
+                ApplyTonemapMode();
+            }, tonemapScaleOverride, minValue: 0.01f, maxValue: 100f));
+        }
+
+        private void ApplyTonemapMode()
+        {
+            Renderer.Postprocess.CustomExposure = tonemapMode switch
+            {
+                TonemapMode.Auto => -1f,
+                TonemapMode.Override => tonemapScaleOverride,
+                _ => 1f,
+            };
         }
 
         protected override List<EntityLump.Entity> GetLinkableEntities()
