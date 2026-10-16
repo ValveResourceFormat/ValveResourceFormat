@@ -1,4 +1,5 @@
 global using static ValveResourceFormat.Renderer.RHI.S2vDevice;
+using System.IO;
 using System.Runtime.InteropServices;
 using Vortice.Vulkan;
 //using static SDL.SDL3;
@@ -226,7 +227,16 @@ namespace ValveResourceFormat.Renderer.RHI
 
         unsafe public Device()
         {
-            vkInitialize();
+            // Vortice loads the loader by bare name with NativeLibrary.TryLoad, which fails once the DLL search has been
+            // restricted via SetDefaultDllDirectories, so pass the full path. A failure here leaves every entry point null.
+            var initResult = OperatingSystem.IsWindows()
+                ? vkInitialize(Path.Combine(Environment.SystemDirectory, "vulkan-1.dll"))
+                : vkInitialize();
+
+            if (initResult != VkResult.Success)
+            {
+                throw new InvalidOperationException($"Failed to load the Vulkan loader: {initResult}");
+            }
 
             VkUtf8String appName = "S2v"u8;
             VkUtf8String engineName = "S2vEngine"u8;
