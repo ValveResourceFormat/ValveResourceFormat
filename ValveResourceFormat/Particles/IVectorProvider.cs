@@ -205,9 +205,15 @@ namespace ValveResourceFormat.Particles
             => ControlPointTransformProvider.TransformDirection(renderState, cp, relativeDirection);
     }
 
+    /// <summary>
+    /// PVEC_TYPE_RANDOM_UNIFORM. Each block of four particles in a function call takes twelve draws,
+    /// four per axis, and a particle reads the draw of its lane in each axis. A collection read takes
+    /// one such block per call and reads its first lane.
+    /// </summary>
     class RandomUniformVectorProvider : IVectorProvider
     {
         private const float MinimumRangeSquared = 1.1920929e-7f;
+        private const int BlockDraws = 12;
 
         private readonly Vector3 min;
         private readonly Vector3 max;
@@ -218,8 +224,8 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         private readonly bool isDegenerate;
 
-        private ParticleRandom.EvaluationKey? collectionKey;
-        private Vector3 collectionValue;
+        private ParticleRandom.EvaluationKey? blockKey;
+        private int blockCounter;
 
         public RandomUniformVectorProvider(ParticleDefinitionParser parse)
         {
@@ -228,24 +234,33 @@ namespace ValveResourceFormat.Particles
             isDegenerate = Vector3.DistanceSquared(min, max) <= MinimumRangeSquared;
         }
 
-        public virtual Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => Draw(renderState.Random);
+        public virtual Vector3 NextVector(ref Particle particle, ParticleSystemState renderState) => Draw(renderState.Random, particle.Index);
 
-        /// <summary>Draws once per function call; every read of the collection value in that call shares it.</summary>
-        public virtual Vector3 NextVector(ParticleSystemState renderState)
+        public virtual Vector3 NextVector(ParticleSystemState renderState) => Draw(renderState.Random, -1);
+
+        private Vector3 Draw(ParticleRandom random, int particleIndex)
         {
-            var key = renderState.Random.Evaluation(-1);
-
-            if (collectionKey != key)
+            if (isDegenerate)
             {
-                collectionKey = key;
-                collectionValue = Draw(renderState.Random);
+                return min;
             }
 
-            return collectionValue;
-        }
+            var key = random.Evaluation(particleIndex);
 
-        private Vector3 Draw(ParticleRandom random)
-            => isDegenerate ? min : random.NextBetweenPerComponent(min, max);
+            if (blockKey != key)
+            {
+                blockKey = key;
+                blockCounter = random.Reserve(BlockDraws);
+            }
+
+            var lane = blockCounter + (particleIndex < 0 ? 0 : particleIndex & 3);
+            var range = max - min;
+
+            return new Vector3(
+                (range.X * random.Drawn(lane)) + min.X,
+                (range.Y * random.Drawn(lane + 4)) + min.Y,
+                (range.Z * random.Drawn(lane + 8)) + min.Z);
+        }
     }
 
     class RandomUniformOffsetVectorProvider : RandomUniformVectorProvider

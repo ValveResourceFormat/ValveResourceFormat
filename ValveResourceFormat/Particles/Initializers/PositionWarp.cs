@@ -65,7 +65,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (warpTime == 0f)
             {
-                warp = particleSystemState.Random.NextBetweenPerComponent(rampStart, rampEnd);
+                warp = particleSystemState.Random.NextBetweenPerComponentSeededTwice(rampStart, rampEnd);
             }
             else
             {

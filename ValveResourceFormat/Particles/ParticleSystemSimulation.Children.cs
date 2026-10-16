@@ -173,9 +173,10 @@ namespace ValveResourceFormat.Particles
         /// <summary>Gives every system below this one the seed its place in the tree derives from this one's.</summary>
         private void DeriveChildSeeds()
         {
-            foreach (var child in childSimulations)
+            for (var i = 0; i < childSimulations.Count; i++)
             {
-                child.systemState.Random.DeriveSeed(systemState.Random.Seed, child.childSlot);
+                var child = childSimulations[i];
+                child.systemState.Random.DeriveSeed(systemState.Random.Seed, child.childSlot, (i + 1) * child.maxParticles);
                 child.DeriveChildSeeds();
             }
         }

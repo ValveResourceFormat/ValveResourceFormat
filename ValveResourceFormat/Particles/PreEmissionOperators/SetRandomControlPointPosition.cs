@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
         public override void Initialize(ParticleSystemState particleSystemState)
         {
             lastDrawTime = float.MinValue;
-            currentPosition = particleSystemState.Random.NextBetweenPerComponent(minPos, maxPos);
+            currentPosition = particleSystemState.Random.NextBetweenPerComponentSeededTwice(minPos, maxPos);
 
             if (useWorldLocation)
             {
@@ -72,7 +72,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             if (particleSystemState.Age >= lastDrawTime + rate)
             {
-                currentPosition = particleSystemState.Random.NextBetweenPerComponent(minPos, maxPos);
+                currentPosition = particleSystemState.Random.NextBetweenPerComponentSeededTwice(minPos, maxPos);
                 lastDrawTime = rate < 0f ? float.MaxValue : particleSystemState.Age;
             }
 

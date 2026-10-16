@@ -90,7 +90,7 @@ namespace ValveResourceFormat.Particles
                 ParticleField.CreationTime => particle.CreationTime,
                 ParticleField.LifeDuration => particle.Lifetime,
                 ParticleField.Yaw => particle.Rotation.X,
-                ParticleField.ParticleId => particle.ParticleId,
+                ParticleField.ParticleId => particle.ParticleId & 0xFFF,
                 ParticleField.HitboxIndex => particle.HitboxIndex,
                 ParticleField.Pitch => particle.Rotation.Y,
                 ParticleField.Roll => particle.Rotation.Z,
