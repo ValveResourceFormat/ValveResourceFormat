@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using ValveKeyValue;
+using ValveResourceFormat.Particles.Operators;
+using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -123,6 +125,8 @@ namespace ValveResourceFormat.Particles
 
         private void SetupChildParticles(IReadOnlyList<KVObject> children)
         {
+            var placesControlPointsOnModels = operators.Exists(static op => op is SetControlPointsToModelParticles);
+
             for (var slot = 0; slot < children.Count; slot++)
             {
                 var childInfo = children[slot];
@@ -150,9 +154,11 @@ namespace ValveResourceFormat.Particles
                 var childSystemDefinition = (ParticleSystem?)childResource.DataBlock;
                 Debug.Assert(childSystemDefinition != null);
 
+                var delay = parse.Float("m_flDelay", 0f);
+
                 var childSystem = new ParticleSystemSimulation(childSystemDefinition, fileLoader, logger, null, systemState)
                 {
-                    startDelay = parse.Float("m_flDelay", 0f),
+                    startDelay = delay == 0f && placesControlPointsOnModels ? ParticleMath.FloatEpsilon : delay,
                     IsEndCapChild = parse.Boolean("m_bEndCap", false),
                     detailLevel = parse.Enum("m_nDetailLevel", ParticleDetailLevel.PARTICLEDETAIL_LOW)
                 };

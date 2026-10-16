@@ -22,11 +22,37 @@ namespace ValveResourceFormat.Particles.Initializers
 
         /// <summary>
         /// Runs the initializer over the particles one emission created, which sit at the end of
-        /// <paramref name="particles"/>. Initializes them one by one unless overridden.
+        /// <paramref name="particles"/>. Unless overridden, initializes them one by one in the calls
+        /// <see cref="SplitIntoCalls"/> gives, with inputs evaluated afresh for each call.
         /// </summary>
         public virtual void Initialize(Span<Particle> batch, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
-            foreach (ref var particle in batch)
+            var (head, blocks, tail) = SplitIntoCalls(batch);
+            var firstCall = true;
+
+            foreach (var call in (ReadOnlySpan<Range>)[head, blocks, tail])
+            {
+                var run = batch[call];
+
+                if (run.IsEmpty)
+                {
+                    continue;
+                }
+
+                if (!firstCall)
+                {
+                    particleSystemState.Random.BeginFunctionCall();
+                }
+
+                firstCall = false;
+                InitializeEach(run, particles, particleSystemState);
+            }
+        }
+
+        /// <summary>Initializes the particles of <paramref name="run"/> one by one, as a single call.</summary>
+        protected void InitializeEach(Span<Particle> run, ParticleCollection particles, ParticleSystemState particleSystemState)
+        {
+            foreach (ref var particle in run)
             {
                 Initialize(ref particle, particles, particleSystemState);
             }

@@ -40,13 +40,13 @@ namespace ValveResourceFormat.Particles.Operators
             clampLowerRange = parse.Boolean("m_bClampLowerRange", clampLowerRange);
             clampUpperRange = parse.Boolean("m_bClampUpperRange", clampUpperRange);
 
-            // Source 2 bug: with m_bUseNormal and m_bUseHLambert the lights read a color slot that stays black.
+            // With m_bUseNormal and m_bUseHLambert every light is black.
             var blackColorSlot = useNormal && halfLambert;
             var authored = new List<Light>(LightCount);
 
             for (var i = 1; i <= LightCount; i++)
             {
-                // Source 2 bug: spot lights have no direction and a zero cone, so they add nothing.
+                // Spot lights have no direction and a zero cone, so they add nothing.
                 if (parse.Boolean($"m_bLightType{i}", false))
                 {
                     continue;
@@ -59,7 +59,7 @@ namespace ValveResourceFormat.Particles.Operators
                     !blackColorSlot && parse.Boolean($"m_bLightDynamic{i}", false),
                     Falloff.Solve(parse.Float($"m_LightFiftyDist{i}", 100f), parse.Float($"m_LightZeroDist{i}", 200f)));
 
-                // Source 2 bug: a 50% distance of 0 gives a NaN falloff, which blacks out the particle even from a black light.
+                // A 50% distance of 0 gives a NaN falloff, which blacks out the particle even from a black light.
                 if (light.Color == Vector3.Zero && !light.Dynamic && light.Falloff.IsFinite)
                 {
                     continue;
@@ -107,7 +107,7 @@ namespace ValveResourceFormat.Particles.Operators
                     lit += colors[i] * intensity;
                 }
 
-                // Source 2 bug: a NaN sum takes the lower bound, so the particle turns black or keeps its color under m_bClampLowerRange.
+                // A NaN sum takes the lower bound, so the particle turns black or keeps its color under m_bClampLowerRange.
                 lit = MaxOrSecond(lit, clampLowerRange ? color : Vector3.Zero);
                 particle.Color = Vector3.Min(lit, clampUpperRange ? color : Vector3.One);
             }

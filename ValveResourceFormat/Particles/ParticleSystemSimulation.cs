@@ -250,6 +250,9 @@ namespace ValveResourceFormat.Particles
 
         private readonly ParticleCollection particleCollection;
         private int particlesEmitted;
+
+        /// <summary>Where the next particle id is drawn from, before the seed displaces it.</summary>
+        private int particleIdCounter;
         private ParticleSystemState systemState;
 
         /// <summary>Builds a runnable system from its definition.</summary>
@@ -445,7 +448,7 @@ namespace ValveResourceFormat.Particles
 
             // Spawning moves emission-order state that real spawns rely on for determinism, so
             // EndPrewarm puts it back and these leave no trace once the real simulation starts.
-            var scope = new PrewarmScope(particlesEmitted, systemState.ParticleCount);
+            var scope = new PrewarmScope(particlesEmitted, particleIdCounter, systemState.ParticleCount);
 
             for (var i = 0; i < count; i++)
             {
@@ -463,13 +466,15 @@ namespace ValveResourceFormat.Particles
         {
             particleCollection.Clear();
             particlesEmitted = scope.ParticlesEmitted;
+            particleIdCounter = scope.ParticleIdCounter;
             systemState.ParticleCount = scope.ParticleCount;
         }
 
         /// <summary>The emission state a prewarm disturbed, handed back to <see cref="EndPrewarm"/>.</summary>
         /// <param name="ParticlesEmitted">Emission counter before the prewarm.</param>
+        /// <param name="ParticleIdCounter">Particle id counter before the prewarm.</param>
         /// <param name="ParticleCount">Particle count before the prewarm.</param>
-        public readonly record struct PrewarmScope(int ParticlesEmitted, long ParticleCount);
+        public readonly record struct PrewarmScope(int ParticlesEmitted, int ParticleIdCounter, long ParticleCount);
 
         /// <summary>
         /// Gets how far to blend from <see cref="ParticleCollection.PreviousStep"/> toward

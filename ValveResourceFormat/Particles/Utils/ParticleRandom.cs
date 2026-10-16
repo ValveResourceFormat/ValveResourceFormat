@@ -175,7 +175,13 @@ namespace ValveResourceFormat.Particles.Utils
         /// of the same particle.
         /// </summary>
         public float ForParticle(int particleId, int fieldOffset = 0)
-            => At(Seed + OperatorOffset + fieldOffset + particleId);
+        {
+            ParticleIdRead = true;
+            return At(Seed + OperatorOffset + fieldOffset + particleId);
+        }
+
+        /// <summary>Set by every draw keyed by a particle id, so the system can tell whether a function read the ids.</summary>
+        public bool ParticleIdRead { get; set; }
 
         /// <inheritdoc cref="ForParticle(int, int)"/>
         public float ForParticleBetween(int particleId, int fieldOffset, float min, float max)

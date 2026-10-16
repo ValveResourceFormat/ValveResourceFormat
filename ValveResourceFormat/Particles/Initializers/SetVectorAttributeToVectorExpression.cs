@@ -42,11 +42,11 @@ namespace ValveResourceFormat.Particles.Initializers
         {
             var (head, blocks, tail) = SplitIntoCalls(batch);
 
-            base.Initialize(batch[head], particles, particleSystemState);
+            InitializeEach(batch[head], particles, particleSystemState);
             clampLerp = true;
-            base.Initialize(batch[blocks], particles, particleSystemState);
+            InitializeEach(batch[blocks], particles, particleSystemState);
             clampLerp = false;
-            base.Initialize(batch[tail], particles, particleSystemState);
+            InitializeEach(batch[tail], particles, particleSystemState);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)

@@ -38,14 +38,14 @@ namespace ValveResourceFormat.Particles.Initializers
         {
             var (head, blocks, tail) = SplitIntoCalls(batch);
 
-            base.Initialize(batch[head], particles, particleSystemState);
+            InitializeEach(batch[head], particles, particleSystemState);
 
             if (!batch[blocks].IsEmpty)
             {
-                base.Initialize(particles.Current, particles, particleSystemState);
+                InitializeEach(particles.Current, particles, particleSystemState);
             }
 
-            base.Initialize(batch[tail], particles, particleSystemState);
+            InitializeEach(batch[tail], particles, particleSystemState);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)

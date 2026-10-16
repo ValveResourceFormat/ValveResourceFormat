@@ -217,6 +217,7 @@ namespace ValveResourceFormat.Particles
             }
 
             particlesEmitted = 0;
+            particleIdCounter = 0;
             preSimFrames = 0;
             firstFramePending = true;
             finishedBeforeStartAllowed = false;
@@ -439,11 +440,6 @@ namespace ValveResourceFormat.Particles
             foreach (var childSimulation in childSimulations)
             {
                 if (childSimulation.detailLevel > systemState.DetailLevel)
-                {
-                    continue;
-                }
-
-                if (!childSimulation.IsWithinDrawDistance(systemState.CameraPosition))
                 {
                     continue;
                 }
@@ -739,9 +735,7 @@ namespace ValveResourceFormat.Particles
             // TODO: Make particle positions and control points local space
             particleCollection.Current[index] = particleCollection.Initial[index];
 
-            // Both ids must be set before initializing, since initializers read them
             particleCollection.Current[index].UniqueParticleId = particlesEmitted++;
-            particleCollection.Current[index].ParticleId = particleCollection.Current[index].UniqueParticleId + systemState.Random.Seed;
             particleCollection.Current[index].Index = index;
             particleCollection.Current[index].Position = MainControlPoint.Position;
             particleCollection.Current[index].CreationTime = creationTime;
@@ -795,12 +789,22 @@ namespace ValveResourceFormat.Particles
                 systemState.Random.BeginFunctionCall();
                 systemState.InitializedFields = written;
 
+                var idCounter = particleIdCounter;
+                FillParticleIds(first, count);
+                systemState.Random.ParticleIdRead = false;
+
                 initializer.Initialize(batch, particleCollection, systemState);
+
+                if (!systemState.Random.ParticleIdRead)
+                {
+                    particleIdCounter = idCounter;
+                }
 
                 written |= fields;
             }
 
             systemState.InitializingParticles = false;
+            FillParticleIds(first, count);
 
             for (var index = first; index < first + count; index++)
             {
@@ -818,6 +822,23 @@ namespace ValveResourceFormat.Particles
                 Observer?.OnParticlesInitialized(particleCollection, systemState, first, count);
                 DispatchSpawnEvents(first, count);
             }
+        }
+
+        /// <summary>
+        /// Gives the <paramref name="count"/> particles from <paramref name="first"/> the next particle ids.
+        /// Ids are filled in whole blocks of four, so the counter also passes the ids of the unused
+        /// slots up to the end of the last block.
+        /// </summary>
+        private void FillParticleIds(int first, int count)
+        {
+            var seed = systemState.Random.Seed;
+
+            for (var i = 0; i < count; i++)
+            {
+                particleCollection.Current[first + i].ParticleId = (particleIdCounter + i + seed) & 0xFFF;
+            }
+
+            particleIdCounter += MathUtils.AlignUp(first + count, 4) - first;
         }
 
         private void DispatchSpawnEvents(int first, int count)

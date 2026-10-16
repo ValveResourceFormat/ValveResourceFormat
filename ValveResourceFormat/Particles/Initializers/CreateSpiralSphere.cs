@@ -60,7 +60,7 @@ namespace ValveResourceFormat.Particles.Initializers
         private void InitializeCall(Span<Particle> call, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             densityScale = useParticleCount ? call.Length : 1f;
-            base.Initialize(call, particles, particleSystemState);
+            InitializeEach(call, particles, particleSystemState);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
