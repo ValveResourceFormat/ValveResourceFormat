@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -72,6 +73,7 @@ public sealed class ContentExporter
     private readonly Lock StateLock = new();
     private readonly Lock ExistingFilesLock = new();
     private readonly HashSet<string> WrittenPaths = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> ReservedPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> HandledFiles = new(StringComparer.OrdinalIgnoreCase);
     private ExistingFileAction? ConfirmedExistingFileAction;
     private volatile bool Cancelled;
@@ -288,11 +290,89 @@ public sealed class ContentExporter
     }
 
     /// <summary>
-    /// Whether a file outside the content paths, such as a glTF export, may be written, following
-    /// <see cref="ExistingFileAction"/> and <see cref="ConfirmExistingFiles"/>.
+    /// Claims the path of a file whose contents depend on its own name, such as a glTF file that names its buffers after
+    /// itself, before the file is created. A path that another file of this export was already written or reserved at is
+    /// replaced by a unique name next to it. A file that already exists is handled following
+    /// <see cref="ExistingFileAction"/> and <see cref="ConfirmExistingFiles"/>. The folder is created.
     /// </summary>
+    /// <param name="contentPath">Content path of the file.</param>
+    /// <param name="targetFile">A full path to write the file to instead of its content path.</param>
+    /// <returns>
+    /// The full path to write the file to with <see cref="WriteReservedFile"/>, or null when the file that already exists
+    /// there is kept.
+    /// </returns>
     /// <exception cref="OperationCanceledException">The existing file action is <see cref="ExistingFileAction.Cancel"/>.</exception>
-    public bool CanWrite(string path) => GetExistingFileAction(Path.GetFullPath(path)) != ExistingFileAction.Skip;
+    public string? ReservePath(string contentPath, string? targetFile = null)
+    {
+        ArgumentNullException.ThrowIfNull(contentPath);
+
+        ThrowIfCancelled(CancellationToken.None);
+
+        var normalizedPath = NormalizeContentPath(contentPath);
+        var outputPath = Path.GetFullPath(targetFile ?? Path.Join(OutputRoot, normalizedPath));
+        var directory = Path.GetDirectoryName(outputPath)!;
+        var path = outputPath;
+
+        lock (StateLock)
+        {
+            for (var suffix = 1; !WrittenPaths.Add(path); suffix++)
+            {
+                path = Path.Join(directory, string.Create(CultureInfo.InvariantCulture, $"{Path.GetFileNameWithoutExtension(outputPath)}_{suffix}{Path.GetExtension(outputPath)}"));
+            }
+
+            ReservedPaths.Add(path);
+        }
+
+        if (path != outputPath)
+        {
+            Warning?.Invoke($"\"{normalizedPath}\" is already written by another file of this export, it is written as \"{ContentPaths.GetRelativePath(OutputRoot, path)}\".");
+        }
+
+        if (GetExistingFileAction(path) == ExistingFileAction.Skip)
+        {
+            lock (StateLock)
+            {
+                ReservedPaths.Remove(path);
+            }
+
+            FileSkipped?.Invoke(path);
+            return null;
+        }
+
+        Directory.CreateDirectory(directory);
+
+        return path;
+    }
+
+    /// <summary>
+    /// Writes a file at a path from <see cref="ReservePath"/>, or a file next to it that is named after it, such as a
+    /// buffer of a glTF file. Such a file is part of the reserved one, so it is written whether or not it already exists.
+    /// A file next to it that another file of this export already wrote is kept.
+    /// </summary>
+    /// <param name="path">The full path of the file.</param>
+    /// <param name="data">The file contents.</param>
+    public void WriteReservedFile(string path, ReadOnlySpan<byte> data)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        ThrowIfCancelled(CancellationToken.None);
+
+        path = Path.GetFullPath(path);
+
+        lock (StateLock)
+        {
+            if (!ReservedPaths.Remove(path) && !WrittenPaths.Add(path))
+            {
+                return;
+            }
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllBytes(path, data);
+
+        Interlocked.Increment(ref FilesWritten);
+        FileWritten?.Invoke(path);
+    }
 
     /// <returns>Whether every file of it was written.</returns>
     private bool ExportContentFile(ContentFile contentFile, string? targetFile, CancellationToken cancellationToken)
@@ -499,8 +579,15 @@ public sealed class ContentExporter
         FileFailed?.Invoke(fileName, exception);
     }
 
-    private void MarkHandled(string contentPath)
+    /// <summary>
+    /// Marks a resource as handled, see <see cref="IsHandled"/>, for exports that consume resources outside of this
+    /// exporter, such as a glTF export of a model that includes its meshes.
+    /// </summary>
+    /// <param name="contentPath">Content path of the resource, compiled or not.</param>
+    public void MarkHandled(string contentPath)
     {
+        ArgumentNullException.ThrowIfNull(contentPath);
+
         var key = GetHandledKey(contentPath);
 
         lock (StateLock)

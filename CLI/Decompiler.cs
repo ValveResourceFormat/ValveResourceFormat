@@ -94,7 +94,6 @@ namespace CLI
         private bool IsInputFolder;
         private Progress<string>? ProgressReporter;
         private ContentExporter? Exporter;
-        private readonly Lock GltfExportLock = new();
 
         /// <summary>
         /// The file the main output is written to when --output names a file.
@@ -1338,17 +1337,9 @@ namespace CLI
         /// <summary>
         /// Exports to glTF next to where the decompiled resource would go, or to --output when it names a file.
         /// </summary>
-        private void ExportGltf(IFileLoader fileLoader, Resource resource)
+        private void ExportGltf(GltfModelExporter gltfExporter, Resource resource)
         {
-            if (PrepareGltfOutputPath(resource.FileName!) is not { } outFilePath)
-            {
-                return;
-            }
-
-            lock (GltfExportLock)
-            {
-                CreateGltfExporter(fileLoader).Export(resource, outFilePath);
-            }
+            gltfExporter.Export(resource, GetGltfOutputPath(resource.FileName!));
         }
 
         private void OnFileWritten(string path)
@@ -1371,24 +1362,13 @@ namespace CLI
         }
 
         /// <summary>
-        /// Gets the path a glTF export is written to and creates its folder, or null when the file that is already there
-        /// is kept.
+        /// Gets the path a glTF export is written to.
         /// </summary>
-        private string? PrepareGltfOutputPath(string contentPath)
+        private string GetGltfOutputPath(string contentPath)
         {
             Debug.Assert(Exporter != null);
 
-            var outFilePath = Path.GetFullPath(Path.ChangeExtension(TargetFile ?? Exporter.GetOutputPath(contentPath), GltfExportFormat));
-
-            if (!Exporter.CanWrite(outFilePath))
-            {
-                OnFileSkipped(outFilePath);
-                return null;
-            }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(outFilePath)!);
-
-            return outFilePath;
+            return Path.GetFullPath(Path.ChangeExtension(TargetFile ?? Exporter.GetOutputPath(contentPath), GltfExportFormat));
         }
 
         private void ParseVCS(string path, Stream stream, string? originalPath, Package? package = null)
@@ -1854,6 +1834,7 @@ namespace CLI
                 ComposeAdditiveAnimations = GltfComposeAdditive,
                 ReduceAnimationKeyframes = !GltfKeepAllKeyframes,
                 ProgressReporter = ProgressReporter,
+                Exporter = Exporter,
             };
 
             gltfModelExporter.AnimationFilter.UnionWith(GltfAnimationFilter);

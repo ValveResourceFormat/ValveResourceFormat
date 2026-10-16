@@ -64,6 +64,8 @@ The **Animation** list at the top of the sidebar holds all animations of the mod
 
 The export holds the most detailed meshes, the materials with their textures as PNG files, the skeleton, every animation and any morph targets. The collision shapes go into a second file, `roshan_physics.gltf`. Keep the files together.
 
+Textures are named after their source texture plus a hash, such as `roshan_color_1a2b3c4d.png`. Models exported into one folder share identical textures. If a texture or the `_physics` file already exists, you are asked once whether to replace the existing files or skip them. Choosing to replace the `.gltf` in the save dialog replaces them too.
+
 ## Decompiling to .vmdl
 
 Choosing **vmdl** in the output types dialog asks for a folder instead of a file. The model is written at its path in the game below that folder, such as `models/creeps/roshan/roshan.vmdl`. A folder inside an addon or mod, either on the `content` or the `game` side, uses the root of that addon or mod. A folder such as `models/creeps` that already ends in the start of the model's path is not repeated.
