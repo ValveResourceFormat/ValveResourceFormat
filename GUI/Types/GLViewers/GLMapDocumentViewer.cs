@@ -42,6 +42,14 @@ namespace GUI.Types.GLViewers
 
             loadedMapDocument.Load();
 
+            // Hammer shows tools materials until they are hidden, and only lights the map with its own lights
+            Scene.ShowToolsMaterials = true;
+
+            if (!Scene.LightingInfo.HasOwnSun)
+            {
+                Scene.LightingInfo.LightingData.SunColor = Vector4.Zero;
+            }
+
             // Opens where the map was last looked at in Hammer
             var camera = mapDocument.Root.DefaultCamera;
 
@@ -84,6 +92,11 @@ namespace GUI.Types.GLViewers
             worldLayersComboBox.EndUpdate();
 
             SetEnabledLayers(loadedMapDocument.DefaultEnabledLayers);
+
+            if (!loadedMapDocument.HasLights)
+            {
+                SelectRenderMode("FullBright");
+            }
         }
 
         protected override List<EntityLump.Entity> GetLinkableEntities()
