@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
@@ -103,7 +105,18 @@ namespace ValveResourceFormat.Utils
         /// <summary>
         /// Gets the inverted table for hash to string lookups.
         /// </summary>
+        /// <remarks>
+        /// Starts with <see cref="BuiltInTable"/> and also learns every string passed to <see cref="Store"/>, including
+        /// names read from parsed files, so a lookup depends on what was loaded before. Output that must be reproducible
+        /// resolves hashes with <see cref="GetBuiltInString"/> instead.
+        /// </remarks>
         public static ConcurrentDictionary<uint, string> InvertedTable => KnownKeysTable.Table;
+
+        /// <summary>
+        /// Gets the hash to string table of the names that ship with the library, such as <see cref="EntityLumpKnownKeys"/>.
+        /// It never changes.
+        /// </summary>
+        public static FrozenDictionary<uint, string> BuiltInTable => KnownKeysTable.BuiltIn;
 
         /// <summary>
         /// Computes the hash token for the given string, case insensitive.
@@ -198,15 +211,31 @@ namespace ValveResourceFormat.Utils
         /// </summary>
         /// <param name="hash">The hash to look up.</param>
         /// <returns>The known string or a placeholder.</returns>
+        /// <remarks>
+        /// Looks in <see cref="InvertedTable"/>, so the result depends on what was loaded before.
+        /// </remarks>
         public static string GetKnownString(uint hash)
+            => InvertedTable.TryGetValue(hash, out var knownString) ? knownString : GetUnknownKey(hash);
+
+        /// <summary>
+        /// Gets the string for the given <paramref name="hash"/> from <paramref name="localStrings"/>, then from
+        /// <see cref="BuiltInTable"/>, or returns an unknown key placeholder. Strings learned by <see cref="Store"/> are
+        /// never used, so the result does not depend on what else was loaded.
+        /// </summary>
+        /// <param name="hash">The hash to look up.</param>
+        /// <param name="localStrings">Strings by hash from the file being read, such as its own names, checked first.</param>
+        /// <returns>The string or a placeholder.</returns>
+        public static string GetBuiltInString(uint hash, IReadOnlyDictionary<uint, string>? localStrings = null)
         {
-            if (InvertedTable.TryGetValue(hash, out var knownString))
+            if (localStrings != null && localStrings.TryGetValue(hash, out var localString))
             {
-                return knownString;
+                return localString;
             }
 
-            return $"vrf_unknown_key_{hash}";
+            return BuiltInTable.TryGetValue(hash, out var builtInString) ? builtInString : GetUnknownKey(hash);
         }
+
+        private static string GetUnknownKey(uint hash) => string.Create(CultureInfo.InvariantCulture, $"vrf_unknown_key_{hash}");
 
         /// <summary>
         /// Store a string to the table of known string hashes, so it can later be retrieved using <see cref="GetKnownString"/>.
@@ -225,22 +254,13 @@ namespace ValveResourceFormat.Utils
             return token;
         }
 
-        internal static Dictionary<uint, string> InitializeInverseLookup()
-        {
-            var inverseLookup = new Dictionary<uint, string>(EntityLumpKnownKeys.KnownKeys.Length);
-
-            foreach (var key in EntityLumpKnownKeys.KnownKeys)
-            {
-                var token = Get(key);
-                inverseLookup.Add(token, key);
-            }
-
-            return inverseLookup;
-        }
+        private static FrozenDictionary<uint, string> InitializeInverseLookup()
+            => EntityLumpKnownKeys.KnownKeys.ToFrozenDictionary(key => Get(key));
 
         private static class KnownKeysTable
         {
-            public static readonly ConcurrentDictionary<uint, string> Table = new(InitializeInverseLookup());
+            public static readonly FrozenDictionary<uint, string> BuiltIn = InitializeInverseLookup();
+            public static readonly ConcurrentDictionary<uint, string> Table = new(BuiltIn);
         }
 
         // MurmurHash2 step for four little-endian bytes. Blocks are mixed strictly in order,

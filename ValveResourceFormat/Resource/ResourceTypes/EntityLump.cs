@@ -316,7 +316,7 @@ namespace ValveResourceFormat.ResourceTypes
                 // ignore CEntityKeyValues attributes
                 if (keyName == null)
                 {
-                    keyName = ToPropertyKey(StringToken.GetKnownString(keyHash));
+                    keyName = ToPropertyKey(StringToken.GetBuiltInString(keyHash));
                     entity.Add(keyName, entityProperty);
                 }
                 else

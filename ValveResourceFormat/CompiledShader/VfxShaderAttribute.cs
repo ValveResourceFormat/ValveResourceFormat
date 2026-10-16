@@ -103,11 +103,15 @@ public class VfxShaderAttribute
     /// <remarks>
     /// Formats the name, hash, type, variable binding, and dynamic expression or constant value.
     /// </remarks>
-    public override string ToString()
+    public override string ToString() => ToString([]);
+
+    /// <inheritdoc cref="ToString()"/>
+    /// <param name="knownNames">Names the dynamic expression's attributes and parameters may have, such as the other attributes of its combo.</param>
+    public string ToString(IEnumerable<string> knownNames)
     {
         if (DynExpression != null)
         {
-            return $"{Name,-40} 0x{Murmur32:x08}  {VfxType,-15} {VariableBinding,-3}  {ParseDynamicExpression(DynExpression)}";
+            return $"{Name,-40} 0x{Murmur32:x08}  {VfxType,-15} {VariableBinding,-3}  {ParseDynamicExpression(DynExpression, knownNames)}";
         }
         else
         {
