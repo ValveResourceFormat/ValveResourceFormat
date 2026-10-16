@@ -18,7 +18,42 @@ internal static class GraphModelLayout
         var positions = new Vector2[component.Count];
 
         var routes = GraphLayout.Layout(positions, sizes, edges, options, budgetMs);
+        Apply(component, componentWires, geometry, positions, routes);
+    }
 
+    /// <summary>
+    /// Runs <see cref="GraphLayout.Refine(Vector2[], Vector2[], GraphLayoutEdge[], Vector2[][], int)"/>
+    /// on an island where it stands, starting from the routes its wires have now.
+    /// </summary>
+    public static void Refine(
+        List<GraphNode> component,
+        List<GraphWire> componentWires,
+        GraphGeometry geometry,
+        int budgetMs)
+    {
+        var (sizes, edges) = Describe(component, componentWires, geometry);
+        var positions = new Vector2[component.Count];
+        var routes = new Vector2[]?[componentWires.Count];
+
+        for (var i = 0; i < component.Count; i++)
+        {
+            positions[i] = component[i].Position;
+        }
+
+        for (var i = 0; i < componentWires.Count; i++)
+        {
+            if (geometry.TryRouteOf(componentWires[i]) is { IsRouted: true } route)
+            {
+                routes[i] = [.. route.Waypoints];
+            }
+        }
+
+        GraphLayout.Refine(positions, sizes, edges, routes, budgetMs);
+        Apply(component, componentWires, geometry, positions, routes);
+    }
+
+    private static void Apply(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, Vector2[] positions, Vector2[]?[] routes)
+    {
         for (var i = 0; i < component.Count; i++)
         {
             component[i].Position = positions[i];
@@ -26,45 +61,20 @@ internal static class GraphModelLayout
 
         for (var i = 0; i < componentWires.Count; i++)
         {
-            if (routes[i] is { } waypoints)
-            {
-                geometry.RouteOf(componentWires[i]).SetRoute(waypoints);
-            }
-        }
+            var wire = componentWires[i];
 
-        foreach (var wire in componentWires)
-        {
             if (wire.From.Owner == wire.To.Owner)
             {
                 SynthesizeSelfLoop(wire, geometry);
             }
-        }
-    }
-
-    /// <summary>
-    /// Moves placed cards to remove wire crossings and to clear wires that run across them,
-    /// judged on the straight run between the real socket pivots.
-    /// </summary>
-    public static void RepairCrossings(
-        List<GraphNode> component,
-        List<GraphWire> componentWires,
-        GraphGeometry geometry,
-        GraphLayoutOptions options,
-        int budgetMs)
-    {
-        var (sizes, edges) = Describe(component, componentWires, geometry);
-        var positions = new Vector2[component.Count];
-
-        for (var i = 0; i < component.Count; i++)
-        {
-            positions[i] = component[i].Position;
-        }
-
-        GraphLayout.RepairCrossings(positions, sizes, edges, options, budgetMs);
-
-        for (var i = 0; i < component.Count; i++)
-        {
-            component[i].Position = positions[i];
+            else if (routes[i] is { } waypoints)
+            {
+                geometry.RouteOf(wire).SetRoute(waypoints);
+            }
+            else
+            {
+                geometry.TryRouteOf(wire)?.ClearRoute();
+            }
         }
     }
 

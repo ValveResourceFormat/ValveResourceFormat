@@ -105,24 +105,38 @@ internal static class GraphMetrics
         var layoutRows = nodeGeometry.LayoutRows;
 
         var width = MarginX * 2f + TitleFont.MeasureText(node.Title);
+        nodeGeometry.SubtitleWidth = 0f;
 
         if (!string.IsNullOrEmpty(node.Subtitle))
         {
-            width += 14f + SubtitleFont.MeasureText(node.Subtitle);
+            nodeGeometry.SubtitleWidth = SubtitleFont.MeasureText(node.Subtitle);
+            width += 14f + nodeGeometry.SubtitleWidth;
         }
 
         width = Math.Max(MinWidth, width);
+        nodeGeometry.OutputNameWidths = new float[layoutRows.Count];
 
-        foreach (var row in layoutRows)
+        for (var i = 0; i < layoutRows.Count; i++)
         {
+            var row = layoutRows[i];
+            var output = row switch
+            {
+                SocketRow { Socket.IsInput: false } socket => socket.Socket,
+                PairedSocketRow paired => paired.Output,
+                _ => null,
+            };
+            var outputWidth = output is { Name.Length: > 0 } ? RowFont.MeasureText(output.Name) : 0f;
+            nodeGeometry.OutputNameWidths[i] = outputWidth;
+
             // Both names of a paired row share the line, so it must fit them side by side.
             var rowWidth = row switch
             {
                 TextRow text => MarginX * 2f + (text.IsMessage ? 19f : 0f) + (text.Text.Length == 0 ? 0f : RowFont.MeasureText(text.Text)),
+                SocketRow { Socket.IsInput: false } => MarginX * 2f + outputWidth,
                 SocketRow socket => MarginX * 2f + (socket.Socket.Name.Length == 0 ? 0f : RowFont.MeasureText(socket.Socket.Name)),
                 PairedSocketRow paired => MarginX * 2f + PairGap
                     + (paired.Input is { Name.Length: > 0 } input ? RowFont.MeasureText(input.Name) : 0f)
-                    + (paired.Output is { Name.Length: > 0 } output ? RowFont.MeasureText(output.Name) : 0f),
+                    + outputWidth,
                 ResourceRow resource => MarginX * 2f + 19f + RowFont.MeasureText(resource.Text),
                 AnnotationRow annotation => MarginX * 2f + 14f + RowFont.MeasureText(annotation.Text),
                 _ => 0f,

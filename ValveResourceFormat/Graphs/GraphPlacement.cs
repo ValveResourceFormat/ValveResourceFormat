@@ -12,9 +12,6 @@ internal static class GraphPlacement
     /// <summary>Card size every node is laid out at.</summary>
     public static readonly Vector2 NodeSize = new(200f, 80f);
 
-    /// <summary>Gap left around each island when the laid-out islands are packed together.</summary>
-    private const float IslandPadding = 150f;
-
     /// <summary>
     /// One wire between two cards. It leaves the right edge of its source and enters the left edge
     /// of its target, both at mid height, which is where an editor draws a connection on a card of
@@ -34,28 +31,22 @@ internal static class GraphPlacement
     /// </summary>
     public static Vector2[] Layout(int nodeCount, GraphLayoutEdge[] edges)
     {
-        var options = new GraphLayoutOptions { LongWireDummies = true, TightenMinSpan = 1 };
+        var options = new GraphLayoutOptions { LongWireDummies = true };
         var positions = new Vector2[nodeCount];
         var islands = GraphLayout.ConnectedComponents(nodeCount, edges);
-        var slices = GraphLayout.SplitBudget([.. islands.Select(static island => island.Count)], options.LayoutBudgetMs);
+        var mins = new Vector2[islands.Count];
+        var maxs = new Vector2[islands.Count];
 
-        var islandSizes = new Vector2[islands.Count];
-        var islandMins = new Vector2[islands.Count];
+        GraphLayout.LayoutIslands([.. islands.Select(island => island.Count)], options.LayoutBudgetMs,
+            (i, sliceMs) => LayoutIsland(islands[i], edges, positions, options, sliceMs, out mins[i], out maxs[i]));
 
-        for (var i = 0; i < islands.Count; i++)
-        {
-            LayoutIsland(islands[i], edges, positions, options, slices[i], out islandMins[i], out islandSizes[i]);
-        }
-
-        var origins = GraphLayout.PackComponents(islandSizes, IslandPadding);
+        var offsets = GraphLayout.PackIslands(mins, maxs);
 
         for (var i = 0; i < islands.Count; i++)
         {
-            var offset = origins[i] - islandMins[i];
-
             foreach (var node in islands[i])
             {
-                positions[node] += offset;
+                positions[node] += offsets[i];
             }
         }
 
@@ -73,7 +64,7 @@ internal static class GraphPlacement
         GraphLayoutOptions options,
         int sliceMs,
         out Vector2 min,
-        out Vector2 size)
+        out Vector2 max)
     {
         var local = new Dictionary<int, int>(island.Count);
 
@@ -84,13 +75,7 @@ internal static class GraphPlacement
 
         var islandEdges = edges
             .Where(edge => local.ContainsKey(edge.From) && local.ContainsKey(edge.To))
-            .Select(edge => edge with
-            {
-                From = local[edge.From],
-                To = local[edge.To],
-                FromSocket = local[edge.From] * 2,
-                ToSocket = (local[edge.To] * 2) + 1,
-            })
+            .Select(edge => MakeEdge(local[edge.From], local[edge.To]))
             .ToArray();
 
         var sizes = new Vector2[island.Count];
@@ -101,7 +86,7 @@ internal static class GraphPlacement
         GraphLayout.Layout(islandPositions, sizes, islandEdges, options, sliceMs);
 
         min = new Vector2(float.MaxValue);
-        var max = new Vector2(float.MinValue);
+        max = new Vector2(float.MinValue);
 
         for (var i = 0; i < island.Count; i++)
         {
@@ -109,7 +94,5 @@ internal static class GraphPlacement
             min = Vector2.Min(min, islandPositions[i]);
             max = Vector2.Max(max, islandPositions[i] + NodeSize);
         }
-
-        size = max - min;
     }
 }

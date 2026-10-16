@@ -265,7 +265,6 @@ internal sealed class AnimGraph1Builder : IDisposable
         }
 
         document.LayoutOptions.LongWireDummies = true;
-        document.LayoutOptions.TightenMinSpan = 1;
         document.LayoutNodesPacked();
     }
 

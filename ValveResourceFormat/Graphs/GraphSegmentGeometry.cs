@@ -8,11 +8,23 @@ namespace ValveResourceFormat.Graphs;
 /// </summary>
 internal static class GraphSegmentGeometry
 {
+    /// <summary>Inset on every card edge in <see cref="CrossesCard"/>, so a wire grazing a corner does not count.</summary>
+    public const float GrazeInset = 2f;
+
     /// <summary>
-    /// Whether two axis-aligned boxes overlap, taken as separate min/max floats so the callers
-    /// that keep wire bounds in parallel arrays do not have to build a struct per test. This runs
-    /// tens of millions of times inside the crossing repair.
+    /// Whether a segment is drawn across a card at <paramref name="position"/>, with the card's box
+    /// taken <see cref="GrazeInset"/> in from every edge.
     /// </summary>
+    public static bool CrossesCard(Vector2 a, Vector2 b, Vector2 position, Vector2 size)
+    {
+        var min = position + new Vector2(GrazeInset);
+        var max = position + size - new Vector2(GrazeInset);
+
+        return BoxesOverlap(Math.Min(a.X, b.X), Math.Max(a.X, b.X), Math.Min(a.Y, b.Y), Math.Max(a.Y, b.Y), min.X, max.X, min.Y, max.Y)
+            && SegmentCrossesBox(a, b, min, max);
+    }
+
+    /// <summary>Whether two axis-aligned boxes, given as their min/max floats, overlap.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool BoxesOverlap(
         float minXA, float maxXA, float minYA, float maxYA,

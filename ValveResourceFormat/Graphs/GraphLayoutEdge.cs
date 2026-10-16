@@ -19,9 +19,8 @@ namespace ValveResourceFormat.Graphs;
 /// </param>
 /// <param name="ToSocket">Identity of the target endpoint, used the same way.</param>
 /// <param name="Dashed">
-/// Whether this is a secondary binding rather than primary flow. Dashed wires pull with
-/// <see cref="GraphLayoutOptions.DashedWireWeight"/> during alignment instead of
-/// <see cref="GraphLayoutOptions.SolidWireWeight"/>.
+/// Whether this is a secondary binding rather than primary flow, which pulls more weakly during
+/// alignment.
 /// </param>
 internal readonly record struct GraphLayoutEdge(
     int From,
@@ -30,4 +29,14 @@ internal readonly record struct GraphLayoutEdge(
     Vector2 ToPivot,
     int FromSocket,
     int ToSocket,
-    bool Dashed = false);
+    bool Dashed = false)
+{
+    /// <summary>Whether two wires leave through the same socket or enter through the same socket, and so meet at that end.</summary>
+    public bool SharesSocketWith(GraphLayoutEdge other) => FromSocket == other.FromSocket || ToSocket == other.ToSocket;
+
+    /// <summary>Where the wire leaves its source node placed at <paramref name="positions"/>.</summary>
+    public Vector2 SourcePoint(Vector2[] positions) => positions[From] + FromPivot;
+
+    /// <summary>Where the wire enters its target node placed at <paramref name="positions"/>.</summary>
+    public Vector2 TargetPoint(Vector2[] positions) => positions[To] + ToPivot;
+}

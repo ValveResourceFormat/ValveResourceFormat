@@ -10,7 +10,7 @@ namespace GUI.Types.Graphs.Core;
 /// </summary>
 partial class GraphView : IDisposable
 {
-    public GraphPalette Palette { get; }
+    public GraphPalette Palette { get; } = GraphPalette.ForCurrentTheme();
 
     /// <summary>The graph being presented. Every model and layout operation lives there.</summary>
     public GraphDocument Document { get; } = new();
@@ -22,10 +22,6 @@ partial class GraphView : IDisposable
 
     private GraphNode? hoveredNode;
     private GraphWire? hoveredWire;
-
-    private IReadOnlyList<GraphNode> nodes => Document.Nodes;
-    private IReadOnlyList<GraphWire> wires => Document.Wires;
-    private string? searchHighlight => Document.SearchHighlight;
 
     /// <summary>Current selection; render tiers and the host's focus actions derive from it.</summary>
     public GraphSelection Selection => Document.Selection;
@@ -72,9 +68,6 @@ partial class GraphView : IDisposable
         GraphChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>Which layout improvements the placement engine applies.</summary>
-    internal GraphLayoutOptions LayoutOptions => Document.LayoutOptions;
-
     private bool straightWires;
 
     /// <summary>
@@ -101,44 +94,17 @@ partial class GraphView : IDisposable
     /// <summary>Legend rows describing this graph's color semantics, declared by the frontend.</summary>
     public List<GraphLegendEntry> Legend => Document.Legend;
 
-    public GraphView(GraphPalette? palette = null)
+    private void MoveNode(GraphNode node, Vector2 delta)
     {
-        Palette = palette ?? GraphPalette.ForCurrentTheme();
-    }
+        node.Position += delta;
+        Document.ReanchorWireWaypoints(node);
 
-    public T AddNode<T>(T node) where T : GraphNode
-    {
-        using var _ = stateLock.EnterScope();
-        return Document.AddNode(node);
-    }
-
-    public GraphWire Connect(GraphSocket from, GraphSocket to, bool dashed = false, string? label = null)
-    {
-        using var _ = stateLock.EnterScope();
-        return Document.Connect(from, to, dashed, label);
-    }
-
-    /// <summary>Removes a wire from both sockets and the wire list.</summary>
-    public void Disconnect(GraphWire wire)
-    {
-        using var _ = stateLock.EnterScope();
-        RemoveWire(wire);
-    }
-
-    /// <summary>Removes a socket from <paramref name="node"/> and drops its geometry.</summary>
-    public void RemoveSocket(GraphNode node, GraphSocket socket)
-    {
-        using var _ = stateLock.EnterScope();
-        Document.RemoveSocket(node, socket);
-    }
-
-    private void RemoveWire(GraphWire wire)
-    {
-        Document.Disconnect(wire);
-
-        if (wirePaths.Remove(wire, out var entry))
+        foreach (var wire in GraphDocument.WiresOf(node))
         {
-            entry.Dispose();
+            if (wirePaths.Remove(wire, out var entry))
+            {
+                entry.Dispose();
+            }
         }
     }
 
@@ -156,7 +122,7 @@ partial class GraphView : IDisposable
     {
         using var _ = stateLock.EnterScope();
 
-        if (nodes.Count == 0)
+        if (Nodes.Count == 0)
         {
             return new SKRect(-1000, -1000, 1000, 1000);
         }
@@ -169,7 +135,7 @@ partial class GraphView : IDisposable
         var maxY = float.MinValue;
         var anyVisible = false;
 
-        foreach (var node in nodes)
+        foreach (var node in Nodes)
         {
             if (node.Hidden)
             {
@@ -264,17 +230,14 @@ partial class GraphView : IDisposable
             {
                 foreach (var node in Selection.Connected)
                 {
-                    node.Position += delta;
-                    Document.ReanchorWireWaypoints(node);
+                    MoveNode(node, delta);
                 }
             }
             else if (Selection.PrimaryNode != null)
             {
-                Selection.PrimaryNode.Position += delta;
-                Document.ReanchorWireWaypoints(Selection.PrimaryNode);
+                MoveNode(Selection.PrimaryNode, delta);
             }
 
-            ClearWirePaths();
             lastLocation = graphPoint;
             OnGraphChanged();
             return;
@@ -343,9 +306,9 @@ partial class GraphView : IDisposable
         // A hit test can land between a rebuild and the next paint, when nothing has measured yet.
         EnsureAllGeometry();
 
-        for (var i = nodes.Count - 1; i >= 0; i--)
+        for (var i = Nodes.Count - 1; i >= 0; i--)
         {
-            var node = nodes[i];
+            var node = Nodes[i];
 
             if (node.Hidden)
             {
@@ -387,11 +350,11 @@ partial class GraphView : IDisposable
             }
         }
 
-        for (var i = wires.Count - 1; i >= 0; i--)
+        for (var i = Wires.Count - 1; i >= 0; i--)
         {
-            var wire = wires[i];
+            var wire = Wires[i];
 
-            if (wire.From.Owner.Hidden || wire.To.Owner.Hidden)
+            if (wire.From.Owner.Hidden || wire.To.Owner.Hidden || !WireReach(wire).Contains(point.X, point.Y))
             {
                 continue;
             }
@@ -461,14 +424,13 @@ partial class GraphView : IDisposable
     {
         using (stateLock.EnterScope())
         {
-            var normalized = string.IsNullOrWhiteSpace(query) ? null : query;
+            var previous = Document.SearchHighlight;
+            Document.SearchHighlight = query;
 
-            if (normalized == Document.SearchHighlight)
+            if (Document.SearchHighlight == previous)
             {
                 return;
             }
-
-            Document.SearchHighlight = normalized;
         }
 
         OnGraphChanged();
@@ -534,7 +496,7 @@ partial class GraphView : IDisposable
     /// screen-like aspect. Suited for graphs made of many disjoint islands, like entity I/O.
     /// Hidden nodes keep their positions and do not participate in layout or packing.
     /// </summary>
-    public void LayoutNodesPacked(float padding = 150f)
+    public void LayoutNodesPacked()
     {
         if (Document.NodeCount == 0)
         {
@@ -544,7 +506,7 @@ partial class GraphView : IDisposable
         // The render thread enumerates nodes/wires under this lock.
         using (stateLock.EnterScope())
         {
-            Document.LayoutNodesPacked(padding);
+            Document.LayoutNodesPacked();
             ClearWirePaths();
         }
 
@@ -552,8 +514,8 @@ partial class GraphView : IDisposable
     }
 
     /// <summary>
-    /// Re-runs the crossing repair with no time limit, so a graph the budgeted pass gave up on
-    /// gets the full treatment when the user explicitly asks for it.
+    /// Re-runs the passes that follow placement with no time limit, so a graph the budgeted pass
+    /// gave up on gets the full treatment when the user explicitly asks for it.
     /// </summary>
     public void ReduceVisualComplexity()
     {

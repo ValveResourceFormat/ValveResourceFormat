@@ -17,19 +17,25 @@ internal sealed class NodeGeometry
 
     /// <summary>Row baselines as offsets from the node top, parallel to <see cref="LayoutRows"/>.</summary>
     public float[] RowCenters { get; set; } = [];
+
+    /// <summary>Measured width of the subtitle, or zero without one.</summary>
+    public float SubtitleWidth { get; set; }
+
+    /// <summary>Measured width of each row's output socket name, zero where there is none, parallel to <see cref="LayoutRows"/>.</summary>
+    public float[] OutputNameWidths { get; set; } = [];
 }
 
 /// <summary>Routed geometry of one wire; empty for a plain socket-to-socket curve.</summary>
 internal sealed class WireRoute
 {
-    /// <summary>Corner points of the orthogonal route computed by the layout.</summary>
+    /// <summary>Points the layout routed the wire through, in drawing order.</summary>
     public List<Vector2> Waypoints { get; } = [];
 
     /// <summary>Whether the layout routed this wire rather than leaving it a plain curve.</summary>
     public bool IsRouted => Waypoints.Count > 0;
 
-    /// <summary>Replaces the route with the given corner points.</summary>
-    /// <param name="waypoints">The corners to draw the wire through.</param>
+    /// <summary>Replaces the route with the given points.</summary>
+    /// <param name="waypoints">The points to draw the wire through.</param>
     public void SetRoute(IEnumerable<Vector2> waypoints)
     {
         Waypoints.Clear();

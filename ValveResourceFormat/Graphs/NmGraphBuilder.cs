@@ -1086,7 +1086,6 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
         }
 
         document.LayoutOptions.LongWireDummies = true;
-        document.LayoutOptions.TightenMinSpan = 1;
         document.LayoutNodesPacked();
 
         document.Legend.AddRange(AnimGraphHues.Legend());

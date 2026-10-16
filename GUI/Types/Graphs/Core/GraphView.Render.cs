@@ -11,17 +11,6 @@ partial class GraphView
 
     private const string MessageIconResource = "GUI.Icons.About.svg";
 
-    static GraphView()
-    {
-        SKFont[] fonts = [GraphMetrics.TitleFont, GraphMetrics.SubtitleFont, GraphMetrics.RowFont, GraphMetrics.MessageFont, GraphMetrics.WireLabelFont];
-        foreach (var font in fonts)
-        {
-            font.Hinting = SKFontHinting.Normal;
-            font.Subpixel = true;
-            font.Edging = SKFontEdging.SubpixelAntialias;
-        }
-    }
-
     private static readonly Dictionary<string, SKSvg?> IconCache = [];
 
     private static SKSvg? GetIcon(string resourcePath)
@@ -158,7 +147,7 @@ partial class GraphView
         canvas.Clear(Palette.Canvas);
         DrawGrid(canvas, visibleRect, zoom);
 
-        if (nodes.Count == 0)
+        if (Nodes.Count == 0)
         {
             return;
         }
@@ -171,12 +160,12 @@ partial class GraphView
         // With a selection or an active search, dim everything drawn so far, render the
         // transitive chain faintly above the dim, then the focused set (selection + direct
         // neighbors, wire + endpoints, or search matches) at full strength.
-        if (!Selection.IsEmpty || searchHighlight != null)
+        if (!Selection.IsEmpty || Document.SearchHighlight != null)
         {
             fillPaint.Color = Palette.Canvas.WithAlpha(165);
             canvas.DrawRect(visibleRect, fillPaint);
 
-            if (searchHighlight == null && Selection.PrimaryNode != null && Selection.Connected.Count > 1)
+            if (Document.SearchHighlight == null && Selection.PrimaryNode != null && Selection.Connected.Count > 1)
             {
                 canvas.SaveLayer(chainLayerPaint);
                 DrawWiresPass(canvas, visibleRect, zoom, RenderTier.Chain);
@@ -198,7 +187,7 @@ partial class GraphView
 
     private RenderTier WireTier(GraphWire wire)
     {
-        if (searchHighlight != null)
+        if (Document.SearchHighlight != null)
         {
             return MatchesSearchHighlight(wire.From.Owner) && MatchesSearchHighlight(wire.To.Owner)
                 ? RenderTier.Focus
@@ -221,7 +210,7 @@ partial class GraphView
 
     private RenderTier NodeTier(GraphNode node)
     {
-        if (searchHighlight != null)
+        if (Document.SearchHighlight != null)
         {
             return MatchesSearchHighlight(node) ? RenderTier.Focus : RenderTier.Background;
         }
@@ -243,34 +232,14 @@ partial class GraphView
 
     private void DrawWiresPass(SKCanvas canvas, SKRect visibleRect, float zoom, RenderTier tier)
     {
-        foreach (var wire in wires)
+        foreach (var wire in Wires)
         {
             if (wire.From.Owner.Hidden || wire.To.Owner.Hidden || WireTier(wire) != tier)
             {
                 continue;
             }
 
-            var from = Geometry.PivotOf(wire.From);
-            var to = Geometry.PivotOf(wire.To);
-
-            var wireBounds = new SKRect(
-                Math.Min(from.X, to.X) - 260f,
-                Math.Min(from.Y, to.Y) - 10f,
-                Math.Max(from.X, to.X) + 260f,
-                Math.Max(from.Y, to.Y) + 10f);
-
-            if (Geometry.TryRouteOf(wire) is { IsRouted: true } routedRoute)
-            {
-                foreach (var waypoint in routedRoute.Waypoints)
-                {
-                    wireBounds.Left = Math.Min(wireBounds.Left, waypoint.X - 40f);
-                    wireBounds.Top = Math.Min(wireBounds.Top, waypoint.Y - 40f);
-                    wireBounds.Right = Math.Max(wireBounds.Right, waypoint.X + 40f);
-                    wireBounds.Bottom = Math.Max(wireBounds.Bottom, waypoint.Y + 40f);
-                }
-            }
-
-            if (!visibleRect.IntersectsWith(wireBounds))
+            if (!visibleRect.IntersectsWith(WireReach(wire)))
             {
                 continue;
             }
@@ -279,13 +248,38 @@ partial class GraphView
         }
     }
 
+    /// <summary>A box the drawn wire and its hit area stay inside, from its pivots and route without building its path.</summary>
+    private SKRect WireReach(GraphWire wire)
+    {
+        var from = Geometry.PivotOf(wire.From);
+        var to = Geometry.PivotOf(wire.To);
+
+        var reach = new SKRect(
+            Math.Min(from.X, to.X) - 260f,
+            Math.Min(from.Y, to.Y) - 10f,
+            Math.Max(from.X, to.X) + 260f,
+            Math.Max(from.Y, to.Y) + 10f);
+
+        if (Geometry.TryRouteOf(wire) is { IsRouted: true } route)
+        {
+            foreach (var waypoint in route.Waypoints)
+            {
+                reach.Left = Math.Min(reach.Left, waypoint.X - 40f);
+                reach.Top = Math.Min(reach.Top, waypoint.Y - 40f);
+                reach.Right = Math.Max(reach.Right, waypoint.X + 40f);
+                reach.Bottom = Math.Max(reach.Bottom, waypoint.Y + 40f);
+            }
+        }
+
+        return reach;
+    }
+
     private void DrawNodesPass(SKCanvas canvas, SKRect visibleRect, float zoom, RenderTier tier)
     {
-        // A search owns the emphasis while it runs: matches read as the focused set on their own,
-        // without the selection colouring a second, competing set of cards on top of them.
-        var searching = searchHighlight != null;
+        // A running search replaces the selection colouring.
+        var searching = Document.SearchHighlight != null;
 
-        foreach (var node in nodes)
+        foreach (var node in Nodes)
         {
             if (node.Hidden || NodeTier(node) != tier)
             {
@@ -389,58 +383,26 @@ partial class GraphView
         }
     }
 
-    // Bezier with horizontal handles; handle length grows with horizontal distance and is damped
-    // when the endpoints are nearly level so straight runs stay straight.
-    private static void BuildWirePath(SKPathBuilder path, SKPoint from, SKPoint to)
+    private static void BuildCurvedPath(SKPathBuilder path, SKPoint from, IReadOnlyList<Vector2>? waypoints, SKPoint to)
     {
-        var offset = GraphWireGeometry.HandleOffset(new Vector2(from.X, from.Y), new Vector2(to.X, to.Y));
-
-        path.MoveTo(from);
-        path.CubicTo(new SKPoint(from.X + offset, from.Y), new SKPoint(to.X - offset, to.Y), to);
-    }
-
-    /// <summary>How much of the neighbouring span each spline tangent reaches across.</summary>
-    private const float RouteTension = 1f / 5f;
-
-    private readonly List<Vector2> smoothRoutePoints = [];
-
-    // A routed wire draws as one continuous curve through its waypoints rather than as straight
-    // runs joined by fillets, so a wire detouring around a card still reads as the same kind of
-    // line as every other wire. Catmull-Rom tangents converted to cubic segments, with the end
-    // points duplicated so the curve starts and finishes exactly on the sockets.
-    private void BuildSmoothRoute(SKPathBuilder path, SKPoint from, List<Vector2> waypoints, SKPoint to)
-    {
-        var points = smoothRoutePoints;
-        points.Clear();
-        points.Add(new Vector2(from.X, from.Y));
-        points.AddRange(waypoints);
-        points.Add(new Vector2(to.X, to.Y));
-
         path.MoveTo(from);
 
-        for (var i = 0; i + 1 < points.Count; i++)
+        foreach (var (_, control0, control1, end) in GraphWireCurve.Spans(new Vector2(from.X, from.Y), waypoints, new Vector2(to.X, to.Y)))
         {
-            var p0 = points[Math.Max(i - 1, 0)];
-            var p1 = points[i];
-            var p2 = points[i + 1];
-            var p3 = points[Math.Min(i + 2, points.Count - 1)];
-
-            var c1 = p1 + (p2 - p0) * RouteTension;
-            var c2 = p2 - (p3 - p1) * RouteTension;
-
-            path.CubicTo(new SKPoint(c1.X, c1.Y), new SKPoint(c2.X, c2.Y), new SKPoint(p2.X, p2.Y));
+            path.CubicTo(new SKPoint(control0.X, control0.Y), new SKPoint(control1.X, control1.Y), new SKPoint(end.X, end.Y));
         }
     }
+
+    /// <summary>Horizontal run a straight wire leaves its socket on before angling away.</summary>
+    private const float StraightStub = 14f;
 
     // Straight mode: a short horizontal stub at each end so the wire visibly belongs to its
     // socket, and one plain segment between them.
     private static void BuildStraightWirePath(SKPathBuilder path, SKPoint from, SKPoint to)
     {
-        const float stub = GraphWireGeometry.StraightStub;
-
         path.MoveTo(from);
-        path.LineTo(new SKPoint(from.X + stub, from.Y));
-        path.LineTo(new SKPoint(to.X - stub, to.Y));
+        path.LineTo(new SKPoint(from.X + StraightStub, from.Y));
+        path.LineTo(new SKPoint(to.X - StraightStub, to.Y));
         path.LineTo(to);
     }
 
@@ -454,14 +416,13 @@ partial class GraphView
             }
             else
             {
-                BuildWirePath(path, from, to);
+                BuildCurvedPath(path, from, null, to);
             }
 
             return;
         }
 
-        // Straight mode squares off everything; otherwise only a self-loop keeps its right
-        // angles, because the boxy orbit is what identifies it as looping back into its own card.
+        // Straight mode squares off everything; otherwise only a self-loop keeps its right angles.
         if (StraightWires || wire.From.Owner == wire.To.Owner)
         {
             path.MoveTo(from);
@@ -475,7 +436,7 @@ partial class GraphView
             return;
         }
 
-        BuildSmoothRoute(path, from, route.Waypoints, to);
+        BuildCurvedPath(path, from, route.Waypoints, to);
     }
 
     private void DrawWire(SKCanvas canvas, GraphWire wire, float zoom)
@@ -490,8 +451,7 @@ partial class GraphView
             return;
         }
 
-        // A self-wire without a route would draw straight through its own card; give it
-        // the deterministic synthetic loop instead.
+        // A self-wire without a route gets its synthetic loop.
         if (wire.From.Owner == wire.To.Owner && Geometry.TryRouteOf(wire) is not { IsRouted: true })
         {
             Document.ReanchorWireWaypoints(wire.From.Owner);
@@ -652,9 +612,8 @@ partial class GraphView
 
         if (!string.IsNullOrEmpty(node.Subtitle))
         {
-            var subtitleWidth = GraphMetrics.SubtitleFont.MeasureText(node.Subtitle);
             textPaint.Color = Palette.HeaderTextDim;
-            canvas.DrawText(node.Subtitle, rect.Right - GraphMetrics.MarginX - subtitleWidth, titleBaseline, SKTextAlign.Left, GraphMetrics.SubtitleFont, textPaint);
+            canvas.DrawText(node.Subtitle, rect.Right - GraphMetrics.MarginX - Geometry.NodeOf(node).SubtitleWidth, titleBaseline, SKTextAlign.Left, GraphMetrics.SubtitleFont, textPaint);
         }
 
         if (zoom < DetailZoomCutoff)
@@ -676,18 +635,18 @@ partial class GraphView
                     break;
 
                 case SocketRow socketRow:
-                    DrawSocketRow(canvas, socketRow.Socket, rect, rowCenterY);
+                    DrawSocketRow(canvas, socketRow.Socket, rect, rowCenterY, geometry.OutputNameWidths[rowIndex]);
                     break;
 
                 case PairedSocketRow pairedRow:
                     if (pairedRow.Input != null)
                     {
-                        DrawSocketRow(canvas, pairedRow.Input, rect, rowCenterY);
+                        DrawSocketRow(canvas, pairedRow.Input, rect, rowCenterY, 0f);
                     }
 
                     if (pairedRow.Output != null)
                     {
-                        DrawSocketRow(canvas, pairedRow.Output, rect, rowCenterY);
+                        DrawSocketRow(canvas, pairedRow.Output, rect, rowCenterY, geometry.OutputNameWidths[rowIndex]);
                     }
 
                     break;
@@ -763,7 +722,7 @@ partial class GraphView
         canvas.DrawText(row.Text, textX, baseline, SKTextAlign.Left, font, textPaint);
     }
 
-    private void DrawSocketRow(SKCanvas canvas, GraphSocket socket, SKRect nodeRect, float rowCenterY)
+    private void DrawSocketRow(SKCanvas canvas, GraphSocket socket, SKRect nodeRect, float rowCenterY, float outputNameWidth)
     {
         var pivotX = socket.IsInput ? nodeRect.Left : nodeRect.Right;
         var color = Palette.Signal(socket.Hue);
@@ -775,11 +734,8 @@ partial class GraphView
         {
             var capsuleRect = new SKRect(pivotX - 4.5f, rowCenterY - 8f, pivotX + 4.5f, rowCenterY + 8f);
 
-            if (socket.IsConnected)
-            {
-                fillPaint.Color = color;
-                canvas.DrawRoundRect(capsuleRect, 4.5f, 4.5f, fillPaint);
-            }
+            fillPaint.Color = color;
+            canvas.DrawRoundRect(capsuleRect, 4.5f, 4.5f, fillPaint);
 
             strokePaint.Color = Palette.SocketOutline;
             strokePaint.StrokeWidth = 1f;
@@ -817,8 +773,7 @@ partial class GraphView
         }
         else
         {
-            var textWidth = GraphMetrics.RowFont.MeasureText(socket.Name);
-            canvas.DrawText(socket.Name, nodeRect.Right - GraphMetrics.MarginX - textWidth, baseline, SKTextAlign.Left, GraphMetrics.RowFont, textPaint);
+            canvas.DrawText(socket.Name, nodeRect.Right - GraphMetrics.MarginX - outputNameWidth, baseline, SKTextAlign.Left, GraphMetrics.RowFont, textPaint);
         }
     }
 }
