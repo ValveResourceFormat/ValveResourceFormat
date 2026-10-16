@@ -306,7 +306,24 @@ public abstract class BaseEntity
     /// Gets or sets whether the entity collides with the player. <see langword="false"/> keeps the shape
     /// but takes the entity out of traces.
     /// </summary>
-    public bool IsSolid { get; set; } = true;
+    public bool IsSolid
+    {
+        get;
+        set
+        {
+            if (field == value)
+            {
+                return;
+            }
+
+            field = value;
+
+            // The collider update also carries solidity into the rigid body world. Without it,
+            // a blocker the map makes non-solid keeps its mover body pushing props until the
+            // entity next moves - which a static blocker never does.
+            UpdateColliderTransform();
+        }
+    } = true;
 
     /// <summary>
     /// Gets or sets whether the entity is a trigger volume, which reports touches instead of blocking.
@@ -686,6 +703,16 @@ public abstract class BaseEntity
     private bool MovedThisTick()
         => previousOrigin != origin || previousAngles != angles
         || (parentFrameKind == ParentFrameKind.Entity && MoveParent!.MovedThisTick());
+
+    /// <summary>
+    /// Runs once per rendered frame while the world is simulating, before the rigid body world
+    /// steps by that frame. For steering that must see every frame - a mover's body following the
+    /// drawn pose - while game logic stays on the tick in <see cref="PhysicsSimulate"/>.
+    /// </summary>
+    /// <param name="frameTime">The step the rigid body world is about to take, in seconds.</param>
+    internal virtual void FrameSimulate(float frameTime)
+    {
+    }
 
     // Runs one tick: think, move, then move-done
     internal void Simulate(float tickInterval)
@@ -1290,7 +1317,7 @@ public abstract class BaseEntity
         // the tick it last started rather than where it stands, re-dirtying the transform every frame
         var isMoving = EntitySystem.Enabled && (MovedThisTick() || parentFrameKind == ParentFrameKind.Attachment);
 
-        if (isMoving || isInterpolating)
+        if (isMoving || isInterpolating || UpdatesRenderTransformEveryFrame)
         {
             // Once it stops moving, one last frame at the far end lands on the tick state exactly
             UpdateRenderTransform(isMoving ? EntitySystem.InterpolationFraction : 1f);
@@ -1393,13 +1420,16 @@ public abstract class BaseEntity
         UpdateColliderTransform();
     }
 
-    /// <summary>Moves the collision shape onto the entity's current tick state.</summary>
+    /// <summary>
+    /// Moves the collision shape onto the entity's current tick state. Virtual so a model entity
+    /// can carry its kinematic mirror in the rigid body world along with it.
+    /// </summary>
     /// <remarks>
     /// Collision uses the tick state, not the interpolated one drawn this frame. The transform is rigid,
     /// without <see cref="EntityScale"/>, because the shape's sweeps assume distances do not change in its
     /// local space.
     /// </remarks>
-    protected void UpdateColliderTransform()
+    protected virtual void UpdateColliderTransform()
     {
         Collider?.Transform = RigidTransform;
 
@@ -1414,6 +1444,13 @@ public abstract class BaseEntity
     }
 
     /// <summary>
+    /// Whether <see cref="UpdateRenderTransform"/> runs every rendered frame even while the tick
+    /// state stands still. For an entity drawn somewhere its tick state does not say - a prop drawn at
+    /// its live rigid body pose - the tick state going quiet does not mean the drawing may.
+    /// </summary>
+    protected virtual bool UpdatesRenderTransformEveryFrame => false;
+
+    /// <summary>
     /// Rebuilds <see cref="Transform"/> for drawing, somewhere between the last two ticks.
     /// </summary>
     /// <remarks>
@@ -1423,14 +1460,52 @@ public abstract class BaseEntity
     /// </remarks>
     protected virtual void UpdateRenderTransform(float fraction)
     {
+        var (drawnOrigin, rotation) = InterpolateTickPose(fraction);
+
+        // A child interpolates in its parent frame, which the parent has interpolated already
+        SetRenderTransform(drawnOrigin, rotation);
+    }
+
+    /// <summary>
+    /// The pose between the last two tick states that plain interpolation draws at, for an
+    /// <see cref="UpdateRenderTransform"/> override that builds on it rather than replacing it.
+    /// </summary>
+    protected (Vector3 Origin, Quaternion Rotation) InterpolateTickPose(float fraction)
+    {
         var drawnOrigin = Vector3.Lerp(previousOrigin, origin, fraction);
         var rotation = Quaternion.Slerp(
             EntityTransformHelper.EulerAnglesToQuaternion(previousAngles),
             EntityTransformHelper.EulerAnglesToQuaternion(angles),
             fraction);
 
-        // A child interpolates in its parent frame, which the parent has interpolated already
-        renderFrame = Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(drawnOrigin) * GetParentRenderFrame();
+        return (drawnOrigin, rotation);
+    }
+
+    // The rigid world frame between the last two tick states, parents included: where plain
+    // interpolation draws this entity, worked out before the frame's drawing has run
+    private protected Matrix4x4 GetInterpolatedWorldFrame(float fraction)
+    {
+        var (drawnOrigin, rotation) = InterpolateTickPose(fraction);
+        var parentFrame = parentFrameKind switch
+        {
+            ParentFrameKind.Entity => MoveParent!.GetInterpolatedWorldFrame(fraction),
+            ParentFrameKind.Attachment => GetParentFrame(),
+            _ => Matrix4x4.Identity,
+        };
+
+        return Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(drawnOrigin) * parentFrame;
+    }
+
+    /// <summary>
+    /// Puts the drawn <see cref="Transform"/> at a pose directly, for an
+    /// <see cref="UpdateRenderTransform"/> override drawing somewhere other than between the ticks.
+    /// The tick state is untouched; this is only where the entity is drawn this frame.
+    /// </summary>
+    /// <param name="origin">The drawn position, in the move parent's frame.</param>
+    /// <param name="rotation">The drawn rotation, in the move parent's frame.</param>
+    protected void SetRenderTransform(Vector3 origin, Quaternion rotation)
+    {
+        renderFrame = Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(origin) * GetParentRenderFrame();
         Transform = Matrix4x4.CreateScale(EntityScale) * renderFrame;
 
         transformDirty = true;

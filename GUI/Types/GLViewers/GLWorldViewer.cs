@@ -401,6 +401,11 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
+                // Classnames the renderer spawns at runtime (dropped held items), listed up front so
+                // their collision debug can be toggled before the first one exists; the toggle
+                // re-scans the scene's nodes, so later spawns join in
+                uniquePhysicsGroups.Add("prop_physics_override");
+
                 if (uniqueWorldLayers.Count > 0 && LoadedWorld != null)
                 {
                     Debug.Assert(worldLayersComboBox != null);
@@ -1234,6 +1239,11 @@ namespace GUI.Types.GLViewers
 
             var physicsGroups = chosenPhysicsGroups;
             var renderTranslucent = !physicsGroups.Contains(PhysicsRenderAsOpaque);
+
+            // Remembered on the scene, so a phys node spawned later - a dropped item - starts in the
+            // state its checkbox already shows
+            Scene.EnabledPhysicsGroups.Clear();
+            Scene.EnabledPhysicsGroups.UnionWith(physicsGroups);
 
             foreach (var physNode in Scene.AllNodes.OfType<PhysSceneNode>())
             {
