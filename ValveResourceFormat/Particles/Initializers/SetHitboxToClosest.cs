@@ -4,8 +4,8 @@ namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
     /// Gives each new particle the hitbox, or bone, of the model a control point carries that is
-    /// closest to it, and its place in that box, optionally moving the particle there. The box is
-    /// measured as a box whatever closest point test is authored.
+    /// closest to it, and a place in that box, optionally moving the particle there. Without the
+    /// closest point option the box is the one whose origin is nearest and the place is random.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_SetHitboxToClosest">C_INIT_SetHitboxToClosest</seealso>
     class SetHitboxToClosest : ParticleFunctionInitializer
@@ -16,6 +16,8 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly string hitboxSetName = "default";
         private readonly bool useBones;
         private readonly bool useClosestPointOnHitbox;
+        private readonly ClosestPointTestType testType = ClosestPointTestType.PARTICLE_CLOSEST_TYPE_BOX;
+        private readonly INumberProvider hybridRatio = new LiteralNumberProvider(0.5f);
         private readonly bool updatePosition;
 
         public SetHitboxToClosest(ParticleDefinitionParser parse) : base(parse)
@@ -26,6 +28,8 @@ namespace ValveResourceFormat.Particles.Initializers
             hitboxSetName = parse.String("m_HitboxSetName", hitboxSetName);
             useBones = parse.Boolean("m_bUseBones", useBones);
             useClosestPointOnHitbox = parse.Boolean("m_bUseClosestPointOnHitbox", useClosestPointOnHitbox);
+            testType = parse.Enum("m_nTestType", testType);
+            hybridRatio = parse.CollectionNumberProvider("m_flHybridRatio", hybridRatio);
             updatePosition = parse.Boolean("m_bUpdatePosition", updatePosition);
         }
 
@@ -45,7 +49,8 @@ namespace ValveResourceFormat.Particles.Initializers
             }
 
             var scale = hitBoxScale.NextVector(ref particle, particleSystemState);
-            var (fraction, index) = cache.Closest(particle.Position, desiredHitbox, scale, useClosestPointOnHitbox);
+            var ratio = hybridRatio.NextNumber(ref particle, particleSystemState);
+            var (fraction, index) = cache.Closest(particleSystemState, particle.Position, desiredHitbox, scale, useClosestPointOnHitbox, testType, ratio);
 
             particle.HitboxOffsetPosition = fraction;
             particle.HitboxIndex = index;

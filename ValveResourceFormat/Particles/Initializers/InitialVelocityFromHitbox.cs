@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var extent = box.Maxs - box.Mins;
             var offset = (particle.HitboxOffsetPosition * extent) - (extent * 0.5f);
             var speed = particleSystemState.Random.NextBetween(velocityMin, velocityMax);
-            var direction = offset / MathF.Sqrt(offset.LengthSquared() + float.Epsilon);
+            var direction = offset / MathF.Sqrt(offset.LengthSquared() + 1.1920929e-7f);
 
             particle.PositionPrevious += direction * speed * particles.PreviousFrameTime;
             return particle;

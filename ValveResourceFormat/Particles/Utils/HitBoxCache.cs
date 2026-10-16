@@ -466,12 +466,19 @@ namespace ValveResourceFormat.Particles.Utils
 
         /// <summary>
         /// The box nearest to <paramref name="point"/>, or only <paramref name="desiredHitbox"/> when it
-        /// is not negative, and where in it the point lies as a fraction of the box's extent per axis.
-        /// With <paramref name="closestPoint"/> the fraction is held to the part of the box
-        /// <paramref name="scale"/> covers, which puts it on the closest point of that part. Without
-        /// boxes the answer is box 0 at fraction 0.
+        /// is not negative, and a place in it as a fraction of the box's extent per axis.
         /// </summary>
-        public (Vector3 Fraction, int Index) Closest(Vector3 point, int desiredHitbox, Vector3 scale, bool closestPoint)
+        /// <remarks>
+        /// Without <paramref name="closestPoint"/> the nearest box is the one whose origin is nearest,
+        /// and every box that comes nearer than the ones before draws a random place in the part of
+        /// it <paramref name="scale"/> covers. With it, the point is carried into each box's space
+        /// and measured against the closest point of the box shaped as <paramref name="testType"/>
+        /// says, and that closest point, scaled about the box centre by <paramref name="scale"/>, is
+        /// the place. A box with no extent is passed over. Without boxes the answer is box 0 at
+        /// fraction 0.
+        /// </remarks>
+        public (Vector3 Fraction, int Index) Closest(ParticleSystemState systemState, Vector3 point, int desiredHitbox, Vector3 scale,
+            bool closestPoint, ClosestPointTestType testType, float hybridRatio)
         {
             if (Count == 0)
             {
@@ -482,30 +489,80 @@ namespace ValveResourceFormat.Particles.Utils
             var last = desiredHitbox >= 0 ? first : Count - 1;
             var high = (scale * 0.5f) + new Vector3(0.5f);
             var low = Vector3.One - high;
+            var random = systemState.Random;
 
             var bestDistance = float.MaxValue;
-            var result = (Fraction: Vector3.Zero, Index: first);
+            var result = (Fraction: Vector3.Zero, Index: 0);
 
             for (var i = first; i <= last; i++)
             {
                 var box = current[i];
-                var local = box.InverseTransformPoint(point);
-                var size = box.Maxs - box.Mins;
-                var fraction = new Vector3(
-                    size.X != 0f ? (local.X - box.Mins.X) / size.X : 0.5f,
-                    size.Y != 0f ? (local.Y - box.Mins.Y) / size.Y : 0.5f,
-                    size.Z != 0f ? (local.Z - box.Mins.Z) / size.Z : 0.5f);
-                var clamped = Vector3.Clamp(fraction, low, high);
-                var distance = Vector3.DistanceSquared(box.PointAt(clamped), point);
 
-                if (distance < bestDistance)
+                if (!closestPoint)
                 {
+                    var distance = Vector3.DistanceSquared(point, box.Position);
+
+                    if (distance >= bestDistance)
+                    {
+                        continue;
+                    }
+
                     bestDistance = distance;
-                    result = (closestPoint ? clamped : fraction, i);
+                    var x = low.X + ((high.X - low.X) * random.Next());
+                    var y = low.Y + ((high.Y - low.Y) * random.Next());
+                    var z = low.Z + ((high.Z - low.Z) * random.Next());
+                    result = (new Vector3(x, y, z), i);
+                    continue;
                 }
+
+                var local = box.InverseTransformPoint(point);
+                var nearest = testType switch
+                {
+                    ClosestPointTestType.PARTICLE_CLOSEST_TYPE_BOX => Vector3.Clamp(local, box.Mins, box.Maxs),
+                    ClosestPointTestType.PARTICLE_CLOSEST_TYPE_CAPSULE => ClosestPointOnCapsule(box.Mins, box.Maxs, local),
+                    _ => Vector3.Lerp(ClosestPointOnCapsule(box.Mins, box.Maxs, local), Vector3.Clamp(local, box.Mins, box.Maxs), hybridRatio),
+                };
+                var nearestDistance = Vector3.DistanceSquared(local, nearest);
+                var size = box.Maxs - box.Mins;
+
+                if (nearestDistance >= bestDistance || size == Vector3.Zero)
+                {
+                    continue;
+                }
+
+                var fraction = new Vector3(
+                    size.X != 0f ? (nearest.X - box.Mins.X) / size.X : 0.5f,
+                    size.Y != 0f ? (nearest.Y - box.Mins.Y) / size.Y : 0.5f,
+                    size.Z != 0f ? (nearest.Z - box.Mins.Z) / size.Z : 0.5f);
+
+                bestDistance = nearestDistance;
+                result = (((fraction - new Vector3(0.5f)) * scale) + new Vector3(0.5f), i);
             }
 
             return result;
+        }
+
+        private static Vector3 ClosestPointOnCapsule(Vector3 mins, Vector3 maxs, Vector3 point)
+        {
+            var size = maxs - mins;
+            var radius = (size.X + size.Y + size.Z) * 0.25f;
+            var axis = size.X >= size.Y && size.X >= size.Z ? 0 : size.Y >= size.X && size.Y >= size.Z ? 1 : 2;
+            var offset = SetComponent(Vector3.Zero, axis, (size.GetComponent(axis) * 0.5f) - radius);
+            var center = (mins + maxs) * 0.5f;
+            var start = center + offset;
+            var segment = center - offset - start;
+
+            var along = Vector3.Dot(point - start, segment);
+            var lengthSquared = segment.LengthSquared();
+            var onSegment = along <= 0f ? start
+                : along <= lengthSquared ? start + (segment * (along / lengthSquared))
+                : start + segment;
+
+            var distance = Vector3.Distance(point, onSegment);
+
+            return radius + 1.1920929e-7f < distance
+                ? onSegment + ((point - onSegment) * (radius / distance))
+                : point;
         }
 
         /// <summary>
