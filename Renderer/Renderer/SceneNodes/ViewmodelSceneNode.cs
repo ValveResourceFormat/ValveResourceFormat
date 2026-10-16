@@ -98,6 +98,9 @@ public class ViewmodelSceneNode : ModelSceneNode
     // Animations stay paused until the player leaves noclip, otherwise clips fire sound events while nothing is visible.
     private bool active;
 
+    // Leaving walk mode for noclip drops a test ragdoll
+    private bool wasWalking;
+
     /// <summary>
     /// Selects the previously selected item (used for quick weapon switching).
     /// </summary>
@@ -761,6 +764,35 @@ public class ViewmodelSceneNode : ModelSceneNode
         SetState(AnimationState.Draw);
     }
 
+    // How far ahead the test ragdoll spawns, and its send-off along the view
+    private const float RagdollSpawnDistance = 96f;
+    private const float RagdollTossSpeed = 200f;
+
+    /// <summary>
+    /// Spawns an agent ragdoll ahead of the view as the player leaves walk mode for noclip, the
+    /// showcase for the authored joint physics. The agent model is the same one the arms already
+    /// come from, so it is warm in the loader.
+    /// </summary>
+    private void SpawnRagdoll(UserInput input)
+    {
+        var entities = entitySystem;
+        var camera = input.Camera;
+        var origin = camera.Location + camera.Forward with { Z = 0f } * RagdollSpawnDistance - new Vector3(0f, 0f, 40f);
+
+        var data = new EntityLump.Entity { ParentLump = new EntityLump { Resource = new Resource() } };
+        data.Add("classname", "prop_ragdoll");
+        data.Add("model", ViewmodelResources[0]);
+        data.Add("origin", FormattableString.Invariant($"{origin.X} {origin.Y} {origin.Z}"));
+        data.Add("angles", FormattableString.Invariant($"0 {float.RadiansToDegrees(camera.Yaw) + 180f} 0"));
+
+        var ragdoll = new RagdollProp(entities, new EntitySpawnInfo(data, Matrix4x4.Identity, "Entities", Scene, EntityNameFixup.None));
+        ragdoll.Spawn();
+        entities.AddEntity(ragdoll);
+
+        // Sent off with the view's motion, so it crumples mid-flight rather than materializing still
+        ragdoll.SetVelocity(camera.Forward * RagdollTossSpeed);
+    }
+
     /// <summary>
     /// Try to load the CS2 viewmodel, returning null if the necessary resources are not found.
     /// </summary>
@@ -844,6 +876,12 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <param name="uptime"></param>
     public void ProcessInput(UserInput input, float uptime)
     {
+        if (input.NoClip && wasWalking)
+        {
+            SpawnRagdoll(input);
+        }
+
+        wasWalking = input.WalkMode;
         active = input.WalkMode;
 
         var distanceFromFirstPersonEyes = Vector3.Distance(input.Camera.Location, input.PlayerMovement.EyePosition);

@@ -40,17 +40,17 @@ public sealed class PhysicsSimulation : IDisposable
     public const ulong MoverCategory = 8;
 
     /// <summary>
-    /// Collision category of debris, the pieces of something broken. They collide with everything
-    /// but the player's pushing hull: a fast overlap with that kinematic box resolves out its
-    /// nearest face, which for a piece lying on the floor is the bottom, pushing it through the
-    /// one-sided mesh world. The player shoves debris with a horizontal velocity instead.
+    /// Collision category of ragdoll parts. They collide with everything but the player's pushing
+    /// hull: a fast overlap with that kinematic box resolves out its nearest face, which for a
+    /// part lying on the floor is the bottom, pushing it through the one-sided mesh world. The
+    /// player shoves debris with a horizontal velocity instead.
     /// </summary>
     public const ulong DebrisCategory = 16;
 
     /// <summary>
     /// The world steps once per rendered frame, so the sub-step count scales with the frame:
     /// at high framerates the steps are already small and two sub-steps keep stacks stable, but
-    /// a vsynced 60 fps frame needs more - measured on jointed heaps, a heap stepped in 1/64 slices
+    /// a vsynced 60 fps frame needs more - measured on ragdolls, a heap stepped in 1/64 slices
     /// with two sub-steps jitters at 8 u/s forever, while the same heap in finer effective
     /// slices comes to rest and sleeps. The target is roughly 240 solver slices per second.
     /// </summary>
@@ -472,11 +472,206 @@ public sealed class PhysicsSimulation : IDisposable
         return body;
     }
 
+    /// <summary>
+    /// Creates one rigid body of a ragdoll: the given part's shapes in the part's own local
+    /// space, placed at a world pose, with the part's authored mass. Ragdoll parts are authored
+    /// per bone with real kilogram masses, so after attaching the shapes the densities are
+    /// scaled until the body weighs exactly what the artist said.
+    /// </summary>
+    /// <param name="phys">The ragdoll model's physics aggregate.</param>
+    /// <param name="partIndex">Which part to build.</param>
+    /// <param name="position">The part's bone position in the world.</param>
+    /// <param name="rotation">The part's bone orientation in the world.</param>
+    /// <param name="owner">The entity the body reports as, from <see cref="GetOwner"/>.</param>
+    /// <returns>The created body, or <see langword="null"/> when the part offers no shapes.</returns>
+    public Body? CreateRagdollBody(PhysAggregateData phys, int partIndex, Vector3 position, Quaternion rotation, BaseEntity owner)
+    {
+        var part = phys.Parts[partIndex];
+
+        // The authored per-part damping is the ragdoll's energy loss. Without it a held ragdoll
+        // spins forever about the grip: rigid whole-body rotation moves no joint, so joint
+        // friction never sees it. Some characters author zero everywhere, which falls back to
+        // a typical limb value.
+        var angularDamping = part.AngularDamping > 0f ? part.AngularDamping : FallbackAngularDamping;
+
+        var body = World.CreateBody(BodyDefinition.Dynamic(position, rotation) with
+        {
+            LinearDamping = part.LinearDamping,
+            AngularDamping = angularDamping,
+        });
+
+        var shape = part.Shape;
+
+        foreach (var sphere in shape.GetAllSpheres())
+        {
+            body.AddSphere(new Sphere(sphere.Shape.Center, sphere.Shape.Radius),
+                MakeShapeDefinition(GetSurfaceHash(phys, sphere.SurfacePropertyIndex), DebrisCategory));
+        }
+
+        foreach (var capsule in shape.GetAllCapsules())
+        {
+            var center = capsule.Shape.Center;
+            body.AddCapsule(new Capsule(center[0], center[1], capsule.Shape.Radius),
+                MakeShapeDefinition(GetSurfaceHash(phys, capsule.SurfacePropertyIndex), DebrisCategory));
+        }
+
+        foreach (var hullDesc in shape.GetAllHulls())
+        {
+            if (BuildHull(hullDesc.Shape.GetVertexPositions(), Matrix4x4.Identity) is { } hull)
+            {
+                using (hull)
+                {
+                    body.AddHull(hull,
+                        MakeShapeDefinition(GetSurfaceHash(phys, hullDesc.SurfacePropertyIndex), DebrisCategory));
+                }
+            }
+        }
+
+        if (body.ShapeCount == 0)
+        {
+            body.Destroy();
+            return null;
+        }
+
+        var authoredMass = phys.Parts[partIndex].Mass;
+
+        if (authoredMass > 0f && body.Mass > 0f)
+        {
+            var massScale = authoredMass / body.Mass;
+            Span<Shape> shapes = stackalloc Shape[body.ShapeCount];
+            var count = body.GetShapes(shapes);
+
+            for (var i = 0; i < count; i++)
+            {
+                shapes[i].SetDensity(shapes[i].Density * massScale, updateBodyMass: true);
+            }
+        }
+
+        Register(body, owner);
+        return body;
+    }
+
     // Damping for a prop authored without any, standing in for drag: a swing or a spin loses most of
     // itself over a few seconds, while a throw or a fall barely notices. A hinged body swings with its
     // mass center more than it spins, so the swing needs the linear half too.
     private const float FallbackPropLinearDamping = 0.1f;
     private const float FallbackPropAngularDamping = 0.5f;
+
+    // Typical authored limb values, for ragdolls authored without any
+    private const float FallbackAngularDamping = 2f;
+    private const float FallbackJointFriction = 0.3f;
+
+    // How far in front of the crossed surface a caught body is placed
+    private const float TunnelRescueMargin = 0.25f;
+
+    /// <summary>
+    /// Catches a body whose center crossed a static surface since the last look and puts it back
+    /// on the near side, killing the velocity into the surface. Contact push-out moves positions
+    /// directly, so a small shape squeezed hard - a ragdoll hand under a shove - can be ejected
+    /// straight through the one-sided mesh world with no sweep test ever running; this is the
+    /// sweep, at tick rate. One-sided on purpose: a body climbing back out of geometry crosses
+    /// backfaces, which the ray does not hit, so recovery is never fought.
+    /// </summary>
+    /// <param name="body">The body to check.</param>
+    /// <param name="previousPosition">The body's center as of the last check.</param>
+    public void CatchTunneledBody(Body body, Vector3 previousPosition)
+    {
+        var delta = body.Position - previousPosition;
+
+        if (delta.LengthSquared() < 0.01f)
+        {
+            return;
+        }
+
+        var hit = World.RaycastClosest(previousPosition, delta,
+            new QueryFilter(DebrisCategory, StaticCategory));
+
+        if (!hit.Hit || Vector3.Dot(hit.Normal, delta) >= 0f)
+        {
+            return;
+        }
+
+        body.SetTransform(hit.Point + hit.Normal * TunnelRescueMargin, null);
+
+        var velocity = body.LinearVelocity;
+        var into = Vector3.Dot(velocity, hit.Normal);
+
+        if (into < 0f)
+        {
+            body.LinearVelocity = velocity - hit.Normal * into;
+        }
+    }
+
+    /// <summary>
+    /// Creates the constraint a ragdoll joint describes between two of its bodies: the authored
+    /// swing cone and twist range, self-collision setting, and joint friction as a zero-velocity
+    /// motor resisting motion with the authored torque.
+    /// </summary>
+    /// <returns>The created joint, or <see langword="null"/> for a joint type nothing maps to.</returns>
+    public Joint? CreateRagdollJoint(in ResourceTypes.RubikonPhysics.Joint joint, Body body1, Body body2)
+    {
+        // The authored frames and limits pass to the solver as they are; both engines measure
+        // hinge and twist about the same frame axis. The solver's own constraint stiffness is
+        // kept: softening it lets limbs stretch under load.
+        var baseDefinition = JointDefinition.Connect(body1, body2,
+            new JointFrame(joint.Frame1.Position, joint.Frame1.Rotation),
+            new JointFrame(joint.Frame2.Position, joint.Frame2.Rotation))
+            with
+        { CollideConnected = joint.EnableCollision };
+
+        // Some characters author no joint friction at all, and a frictionless doll swings for
+        // many seconds
+        var frictionAmount = joint.HasFriction && joint.Friction > 0f ? joint.Friction : FallbackJointFriction;
+
+        switch (joint.Type)
+        {
+            case ResourceTypes.RubikonPhysics.JointType.Revolute:
+            {
+                var definition = RevoluteJointDefinition.Default with
+                {
+                    Base = baseDefinition,
+                    LimitsEnabled = joint.EnableTwistLimit,
+                    LowerAngle = joint.TwistLimit.Min,
+                    UpperAngle = joint.TwistLimit.Max,
+                    MotorEnabled = true,
+                    MotorSpeed = 0f,
+                    MaxMotorTorque = frictionAmount * RagdollFrictionTorque,
+                };
+
+                return World.CreateRevoluteJoint(definition).AsJoint;
+            }
+
+            case ResourceTypes.RubikonPhysics.JointType.Spherical:
+            case ResourceTypes.RubikonPhysics.JointType.Conical:
+            {
+                var definition = SphericalJointDefinition.Default with
+                {
+                    Base = baseDefinition,
+                    ConeLimitEnabled = joint.EnableSwingLimit,
+                    ConeAngle = joint.SwingLimit.Max,
+                    TwistLimitEnabled = joint.EnableTwistLimit,
+                    LowerTwistAngle = joint.TwistLimit.Min,
+                    UpperTwistAngle = joint.TwistLimit.Max,
+                    MotorEnabled = true,
+                    MotorVelocity = Vector3.Zero,
+                    MaxMotorTorque = frictionAmount * RagdollFrictionTorque,
+                };
+
+                return World.CreateSphericalJoint(definition).AsJoint;
+            }
+
+            case ResourceTypes.RubikonPhysics.JointType.Weld:
+                return World.CreateWeldJoint(WeldJointDefinition.Default with { Base = baseDefinition }).AsJoint;
+
+            default:
+                return null;
+        }
+    }
+
+    // The authored joint friction is a small unitless number (0.15 to 0.7); this turns it into
+    // the resisting torque of the zero-velocity motor, sized against limb masses in kilograms
+    // so a ragdoll settles rather than swinging like pendulums
+    private const float RagdollFrictionTorque = 100f;
 
     /// <summary>
     /// Creates the kinematic body mirroring a solid entity's collision - a door, or one of the

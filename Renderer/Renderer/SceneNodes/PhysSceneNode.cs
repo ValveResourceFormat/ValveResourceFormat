@@ -145,6 +145,29 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return physSceneNodes;
         }
 
+        /// <summary>
+        /// Creates a node visualizing one part's shapes in the part's own local space, for a
+        /// ragdoll that moves the node with the part's rigid body every frame.
+        /// </summary>
+        public static PhysSceneNode CreatePartPhysSceneNode(Scene scene, PhysAggregateData phys, int partIndex, string? fileName, string physGroupName)
+        {
+            var verts = new List<SimpleVertexNormal>(128);
+            var inds = new List<int>(128);
+            var boundingBox = new AABB();
+            var boundingBoxInitted = false;
+
+            AddPartShapes(verts, inds, phys.Parts[partIndex].Shape, Matrix4x4.Identity, collisionAttributeIndex: -1,
+                ref boundingBox, ref boundingBoxInitted);
+
+            return new PhysSceneNode(scene, verts, inds)
+            {
+                PhysGroupName = physGroupName,
+                Name = fileName,
+                LocalBoundingBox = boundingBox,
+                Enabled = scene.EnabledPhysicsGroups.Contains(physGroupName),
+            };
+        }
+
         // The debug geometry of one part's shapes, transformed by a pose, filtered to one
         // collision attribute group; -1 takes them all. The bounds grow around what was added.
         private static void AddPartShapes(List<SimpleVertexNormal> verts, List<int> inds, in RnShape shape,
