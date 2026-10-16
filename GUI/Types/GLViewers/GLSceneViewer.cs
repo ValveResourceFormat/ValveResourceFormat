@@ -1096,6 +1096,17 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        /// <summary>Selects a render mode in the dropdown, when the scene supports it.</summary>
+        protected void SelectRenderMode(string name)
+        {
+            var index = renderModes.FindIndex(mode => mode.Name == name);
+
+            if (renderModeComboBox != null && index >= 0)
+            {
+                renderModeComboBox.SelectedIndex = index;
+            }
+        }
+
         private void SetAvailableRenderModes(bool keepCurrentSelection = false)
         {
             if (renderModeComboBox != null && Picker != null)

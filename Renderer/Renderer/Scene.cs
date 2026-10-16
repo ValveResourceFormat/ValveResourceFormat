@@ -1632,7 +1632,7 @@ namespace ValveResourceFormat.Renderer
                             continue;
                         }
 
-                        if (opaqueCall.Material.DoNotCastShadows)
+                        if (!CastsShadows(opaqueCall.Material, node))
                         {
                             continue;
                         }
@@ -1654,6 +1654,17 @@ namespace ValveResourceFormat.Renderer
             casterDepthMin = depthMin;
             casterDepthMax = depthMax;
         }
+
+        /// <summary>
+        /// Gets whether a draw of a node is hidden for using a tools material while those are hidden. A selected node
+        /// still shows its own.
+        /// </summary>
+        internal bool IsHiddenToolsMaterial(RenderMaterial material, SceneNode node)
+            => !ShowToolsMaterials && material.IsToolsMaterial && !node.IsSelected;
+
+        // Geometry that blocks light casts shadows even while hidden, and whatever its material says
+        private bool CastsShadows(RenderMaterial material, SceneNode node)
+            => material.BlocksLight || (!material.DoNotCastShadows && !IsHiddenToolsMaterial(material, node));
 
         // The skinning variant is picked per draw, so the bucket only says which shader draws it
         internal static DepthOnlyBucket GetDepthOnlyBucket(DrawCall opaqueCall)

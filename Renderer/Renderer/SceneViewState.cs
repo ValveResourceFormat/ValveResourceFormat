@@ -180,7 +180,7 @@ public sealed class SceneViewState : IDisposable
     {
         Debug.Assert(request.Call is not null);
 
-        if (!Scene.ShowToolsMaterials && request.Call.Material.IsToolsMaterial)
+        if (Scene.IsHiddenToolsMaterial(request.Call.Material, request.Node))
         {
             return;
         }

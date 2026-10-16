@@ -51,6 +51,12 @@ public sealed class MapDocumentLoader : IDisposable
     /// <summary>Gets every entity of the map where it was placed, with what it is drawn with.</summary>
     public IReadOnlyList<MapEntity> MapEntities => mapEntities;
 
+    /// <summary>
+    /// Gets whether the map has a light that is on, once it is loaded. Hammer shows a map without one fullbright,
+    /// as it has no light of its own to add.
+    /// </summary>
+    public bool HasLights { get; private set; }
+
     /// <summary>Gets or sets how much of what entities are drawn with is created.</summary>
     public HelperLevel HelperLevel { get; set; } = HelperLevel.All;
 
@@ -150,7 +156,11 @@ public sealed class MapDocumentLoader : IDisposable
         LinkEntities();
         ApplyEnvironment();
 
-        scene.LightingInfo.StoreLights([.. scene.AllNodes.OfType<SceneLight>()]);
+        var lights = scene.AllNodes.OfType<SceneLight>().ToList();
+        scene.LightingInfo.StoreLights(lights);
+
+        // Lights that are off stay in the scene without brightness
+        HasLights = lights.Exists(static light => light.Brightness * light.BrightnessScale > 0f);
     }
 
     // Every entity exists by now, so the ones that name others can find them
@@ -328,9 +338,21 @@ public sealed class MapDocumentLoader : IDisposable
                 EntityData = owner?.KeyValues,
             };
 
+            if (IsShadowless(material))
+            {
+                node.Flags |= ObjectTypeFlags.NoShadows;
+            }
+
             scene.Add(node, dynamic: false);
         }
     }
+
+    // Faces that are not drawn in the compiled map, such as the sky box around it, and occluders cast no
+    // shadows, unless they are there to block light
+    private static bool IsShadowless(RenderMaterial material)
+        => !material.BlocksLight
+            && (material.Material.IntAttributes.GetValueOrDefault("mapbuilder.nodraw") != 0
+                || material.Material.IntAttributes.GetValueOrDefault("mapbuilder.occluder") != 0);
 
     /// <summary>Releases the prefab maps the loader opened.</summary>
     public void Dispose()

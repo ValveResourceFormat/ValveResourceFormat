@@ -222,10 +222,12 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
                     continue;
                 }
 
-                var line = CreateConnectionLine(entity.Scene, start, target.Transform.Translation);
+                string? name = null;
 #if DEBUG
-                line.Name = $"Line from {entity.Data.GetStringProperty("hammeruniqueid")} to {target.Data?.GetStringProperty("hammeruniqueid")}";
+                name = $"Line from {entity.Data.GetStringProperty("hammeruniqueid")} to {target.Data?.GetStringProperty("hammeruniqueid")}";
 #endif
+
+                var line = CreateConnectionLine(entity.Scene, start, target.Transform.Translation, name);
 
                 // Owned by the entity the line starts at, so it leaves the scene with it
                 entity.AddNode(line, followsEntity: false);
@@ -239,12 +241,13 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     }
 
     /// <summary>Creates the line along an entity I/O connection, green at the caller and red at the target.</summary>
-    internal static LineSceneNode CreateConnectionLine(Scene scene, Vector3 start, Vector3 end)
+    internal static LineSceneNode CreateConnectionLine(Scene scene, Vector3 start, Vector3 end, string? name = null)
     {
         var origin = (start + end) / 2f;
 
         return new LineSceneNode(scene, start - origin, end - origin, ConnectionStartColor, ConnectionEndColor)
         {
+            Name = name,
             LayerName = ConnectionsLayerName,
             Transform = Matrix4x4.CreateTranslation(origin),
         };

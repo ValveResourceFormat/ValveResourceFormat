@@ -139,6 +139,12 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets a value indicating whether this is a tools-only material that should not appear in normal rendering.</summary>
         public bool IsToolsMaterial { get; private set; }
 
+        /// <summary>
+        /// Gets a value indicating whether geometry using this material blocks light: it casts shadows even when it
+        /// is not drawn, such as a tools material that is hidden.
+        /// </summary>
+        public bool BlocksLight { get; private set; }
+
         /// <summary>Gets a value indicating whether this material uses the CS2 water rendering path.</summary>
         public bool IsCs2Water { get; private set; }
 
@@ -317,6 +323,7 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             var material = Material;
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
+            BlocksLight = material.IntAttributes.GetValueOrDefault("mapbuilder.blocklight") != 0;
             DoNotCastShadows = material.IntAttributes.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 1;
             isRenderBackfaces = IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
             disableDepthTest = IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
