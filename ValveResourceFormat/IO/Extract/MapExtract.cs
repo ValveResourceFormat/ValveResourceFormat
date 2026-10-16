@@ -442,7 +442,7 @@ public sealed partial class MapExtract
             $"{LumpFolder}/world_visibility.vvis",
         ]);
 
-        CompiledMapPieces.AddRange(world.GetWorldLightingInfo()?.GetArray<string>("m_lightMaps") ?? []);
+        CompiledMapPieces.AddRange((world.GetWorldLightingInfo()?.GetArray<string>("m_lightMaps") ?? []).OfType<string>());
 
         EntityLumpNames = world.GetEntityLumpNames();
         WorldNodeNames = world.GetWorldNodeNames();
