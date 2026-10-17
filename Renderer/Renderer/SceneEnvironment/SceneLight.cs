@@ -125,6 +125,19 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         Direction = MathUtils.SafeNormalize(transform.GetRow(0).AsVector3());
     }
 
+    /// <summary>
+    /// Moves the light after it was stored with the lighting, such as when an editor drags it. Its precomputed
+    /// bounds were for where it was, so they are dropped, and its faces and the stored lights are updated.
+    /// </summary>
+    /// <param name="transform">The light's new world transform; its first row is the direction it faces.</param>
+    public void MoveTo(in Matrix4x4 transform)
+    {
+        PlaceAt(transform);
+        PrecomputedFieldsValid = false;
+        IsDirty = true;
+        Scene.LightingInfo.MarkStoredLightsChanged();
+    }
+
     /// <summary>Gets or sets the sRGB color of the light.</summary>
     public Vector3 Color { get; set; } = Vector3.One;
 
