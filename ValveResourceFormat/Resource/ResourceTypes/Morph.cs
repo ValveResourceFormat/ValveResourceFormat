@@ -182,6 +182,10 @@ namespace ValveResourceFormat.ResourceTypes
                         var ranges = new Vector4(bundleData.GetFloatArray("m_ranges"));
                         var offsets = new Vector4(bundleData.GetFloatArray("m_offsets"));
 
+                        // Offsets put zero on a quantization level, but decoding that level leaves float
+                        // rounding of up to about 1e-7. Only that level decodes within half a step of zero.
+                        var zeroThreshold = Vector4.Abs(ranges) / 510f;
+
                         for (var row = rectV; row < rectV + placement.Height; row++)
                         {
                             for (var col = rectU; col < rectU + placement.Width; col++)
@@ -206,7 +210,11 @@ namespace ValveResourceFormat.ResourceTypes
                                 vec *= ranges;
                                 vec += offsets;
 
-                                rectData[(dstI * width) + dstJ] = vec;
+                                rectData[(dstI * width) + dstJ] = new Vector4(
+                                    SnapToZero(vec.X, zeroThreshold.X),
+                                    SnapToZero(vec.Y, zeroThreshold.Y),
+                                    SnapToZero(vec.Z, zeroThreshold.Z),
+                                    SnapToZero(vec.W, zeroThreshold.W));
                             }
                         }
                     }
@@ -217,6 +225,8 @@ namespace ValveResourceFormat.ResourceTypes
 
             return flexData;
         }
+
+        private static float SnapToZero(float value, float threshold) => MathF.Abs(value) < threshold ? 0f : value;
 
         /// <summary>
         /// Gets the names of the flexes <see cref="GetFlexVertexData()"/> returns deltas for, without
