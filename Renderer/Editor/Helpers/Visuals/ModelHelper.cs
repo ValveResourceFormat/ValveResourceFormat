@@ -76,7 +76,7 @@ public class ModelHelper : EntityHelper
     public override AABB? ObjectBounds => BoundsMode != ModelBoundsMode.None ? ModelNode?.BoundingBox : null;
 
     /// <summary>Gets the model as it is drawn, once it is in the scene.</summary>
-    protected ModelSceneNode? ModelNode { get; private set; }
+    public ModelSceneNode? ModelNode { get; private set; }
 
     /// <summary>Gets whether the model moves along with the entity, which it does where it is placed at it.</summary>
     protected virtual bool FollowsEntity => true;

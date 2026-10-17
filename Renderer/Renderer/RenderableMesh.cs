@@ -225,6 +225,26 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Lights a draw call with baked lighting from a vertex stream rather than from light probes.</summary>
+        /// <param name="drawCall">One of <see cref="DrawCalls"/>.</param>
+        /// <param name="lighting">The vertex buffer holding the lighting of each vertex of the draw call.</param>
+        public void SetBakedVertexLighting(DrawCall drawCall, VertexDrawBuffer lighting)
+        {
+            ArgumentNullException.ThrowIfNull(drawCall);
+
+            var material = drawCall.Material;
+
+            // Recycle non-material-derived shader arguments
+            var staticParams = material.Material.GetShaderArguments();
+            var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
+
+            dynamicParams.Remove("D_BAKED_LIGHTING_FROM_PROBE");
+            dynamicParams["D_BAKED_LIGHTING_FROM_VERTEX_STREAM"] = 1;
+
+            drawCall.AddVertexBuffer(lighting);
+            drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(material.Material.Name, dynamicParams));
+        }
+
         /// <summary>Replaces all draw call materials with a single material resource for use in the material viewer.</summary>
         /// <param name="resourceMaterial">The material resource to apply to all draw calls.</param>
         public void SetMaterialForMaterialViewer(Resource resourceMaterial)

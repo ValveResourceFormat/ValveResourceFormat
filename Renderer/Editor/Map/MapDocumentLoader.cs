@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
@@ -149,6 +150,7 @@ public sealed class MapDocumentLoader : IDisposable
             CancellationToken.ThrowIfCancellationRequested();
 
             AddToScene(mapEntity, bakeResources: false);
+            AddModelVertexLighting(mapEntity);
         }
 
         LoadingProgress?.Report("Loading map geometry…");
@@ -467,15 +469,72 @@ public sealed class MapDocumentLoader : IDisposable
 
     // The lighting the editor baked for the vertices of a mesh where it is put, as streams that replace the ones of the mesh
     private PolygonMeshStream[]? GetVertexLighting(PlacedMapNode placedNode, CMapMesh mesh)
+        => mesh is not CMapStaticOverlay && FindInstanceData(placedNode) is { } data ? data.CreateVertexLightingStreams(mesh.Mesh) : null;
+
+    private CDmeNodeInstanceData? FindInstanceData(PlacedMapNode placedNode)
+        => nodeInstanceData.GetValueOrDefault(string.Join('.', placedNode.NodeIdPath.Select(static id => id.ToString(CultureInfo.InvariantCulture))));
+
+    // The lighting the editor baked for the vertices of the model of a static prop where it is put. It runs through the
+    // draw calls of every mesh of the model in order, and is not used once the model no longer has as many vertices.
+    private void AddModelVertexLighting(MapEntity mapEntity)
     {
-        if (mesh is CMapStaticOverlay)
+        if (mapEntity.Classname != "prop_static"
+            || FindInstanceData(mapEntity.PlacedNode) is not { VertexLightingData: { Count: > 0 } colors }
+            || mapEntity.Helpers.OfType<ModelHelper>().FirstOrDefault()?.ModelNode is not { } modelNode)
         {
-            return null;
+            return;
         }
 
-        var path = string.Join('.', placedNode.NodeIdPath.Select(static id => id.ToString(CultureInfo.InvariantCulture)));
+        var drawCalls = modelNode.AllRenderableMeshes
+            .OrderBy(static mesh => mesh.MeshIndex)
+            .SelectMany(static mesh => mesh.DrawCalls.OrderBy(static drawCall => drawCall.Index).Select(drawCall => (Mesh: mesh, DrawCall: drawCall)))
+            .ToList();
 
-        return nodeInstanceData.TryGetValue(path, out var data) ? data.CreateVertexLightingStreams(mesh.Mesh) : null;
+        if (drawCalls.Sum(static item => item.DrawCall.VertexCount) != colors.Count)
+        {
+            return;
+        }
+
+        VBIB.RenderInputLayoutField[] layout = [new() { SemanticName = "COLOR", SemanticIndex = 1, Format = DXGI_FORMAT.R8G8B8A8_UNORM }];
+        var vbib = new VBIB { Resource = null! };
+        var next = 0;
+
+        // Each draw call has a buffer of its own, which its vertices are read from where they start
+        foreach (var (_, drawCall) in drawCalls)
+        {
+            var vertexCount = drawCall.BaseVertex + (int)drawCall.VertexCount;
+            var data = new byte[vertexCount * 4];
+
+            for (var i = drawCall.BaseVertex; i < vertexCount; i++)
+            {
+                var color = colors[next++];
+
+                data[i * 4] = color.R;
+                data[(i * 4) + 1] = color.G;
+                data[(i * 4) + 2] = color.B;
+                data[(i * 4) + 3] = color.A;
+            }
+
+            vbib.VertexBuffers.Add(new VBIB.OnDiskBufferData
+            {
+                ElementCount = (uint)vertexCount,
+                ElementSizeInBytes = 4,
+                Data = data,
+                InputLayoutFields = layout,
+            });
+        }
+
+        var buffers = rendererContext.MeshBufferCache.CreateVertexIndexBuffers(
+            string.Create(CultureInfo.InvariantCulture, $"{modelNode.Name} vertex lighting {string.Join('.', mapEntity.PlacedNode.NodeIdPath)}"), vbib);
+
+        for (var i = 0; i < drawCalls.Count; i++)
+        {
+            var (mesh, drawCall) = drawCalls[i];
+
+            mesh.SetBakedVertexLighting(drawCall, new VertexDrawBuffer { Handle = buffers.VertexBuffers[i], BufferIndex = i, ElementSizeInBytes = 4, InputLayoutFields = layout });
+        }
+
+        hasVertexLighting = true;
     }
 
     // Faces that are not drawn in the compiled map, such as the sky box around it, and occluders cast no
