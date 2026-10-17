@@ -83,24 +83,8 @@ internal sealed class DotaObstructionHelper : ModelHelper
         }
 
         var center = GetSnappedOrigin();
-        var (mins, maxs) = (center - new Vector3(BoxHalfSize), center + new Vector3(BoxHalfSize));
 
-        // Lit faces, tinted while selected and outlined then too
-        var color = state.IsSelected ? SelectionOverlayColor : BoxColor;
-
-        context.PushRenderMode(ToolRenderMode.Flat);
-        context.DrawBoxFaces(mins, maxs, color);
-        context.PopRenderMode();
-
-        if (!state.IsSelected)
-        {
-            return;
-        }
-
-        context.PushRenderMode(ToolRenderMode.Wireframe);
-        context.DrawColor = color;
-        context.DrawBoxFaceOutlines(mins, maxs);
-        context.PopRenderMode();
+        DrawLitBox(context, center - new Vector3(BoxHalfSize), center + new Vector3(BoxHalfSize), BoxColor, state);
     }
 
     // Across the grid the entity moves to the nearest line in each direction, keeping its height

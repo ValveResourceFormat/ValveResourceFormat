@@ -29,8 +29,8 @@ internal sealed class WireBoxHelper : EntityHelper
 
     private WireBoxHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
     {
-        MinsKey = ToKey(declaration.Arguments[0]);
-        MaxsKey = ToKey(declaration.Arguments[1]);
+        MinsKey = ToTruncatedKey(declaration.Arguments[0]);
+        MaxsKey = ToTruncatedKey(declaration.Arguments[1]);
         IsWorld = declaration.Name.Equals("wirebox", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -42,9 +42,6 @@ internal sealed class WireBoxHelper : EntityHelper
 
         return declaration.Arguments.Count >= 2 ? new WireBoxHelper(owner, declaration) : null;
     }
-
-    // The editor keeps no more than 31 characters of each key
-    private static string ToKey(string argument) => argument[..Math.Min(argument.Length, 31)].ToLowerInvariant();
 
     /// <inheritdoc/>
     public override void AddToScene() => AddShapes();

@@ -7,68 +7,22 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// A label written at a point one key of an entity holds, in the space of the entity. It is written while the
 /// entity is selected, and while it is not where the class asks for that.
 /// </summary>
-internal sealed class TextHelper : EntityHelper
+internal sealed class TextHelper : PointKeyHelper
 {
-    /// <inheritdoc/>
-    public override bool IsToolShape => true;
-
-    /// <inheritdoc/>
-    public override bool IsVisual => false;
-
-    /// <inheritdoc/>
-    public override bool NeedsShowHelpers => true;
-
-    private const string DefaultPointKey = "origin";
-
-    private bool? modelIsBreakable;
-
-    /// <summary>Gets the key of the entity that holds the point.</summary>
-    private string PointKey { get; }
-
     /// <summary>Gets the label.</summary>
     private string Text { get; }
 
-    /// <summary>Gets whether the label is written while the entity is not selected too.</summary>
-    private bool DrawUnselected { get; }
-
-    /// <summary>Gets whether no label is written while the point is the origin of the entity.</summary>
-    private bool HideIfZero { get; }
-
-    /// <summary>Gets whether the label is only written while the model of the entity can break into pieces.</summary>
-    private bool RequiresBreakableModel { get; }
-
-    public TextHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    public TextHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration, isLocal: true)
     {
         // A color can follow the label, but the label is always written in white
-        PointKey = GetArgument(0)?.ToLowerInvariant() ?? DefaultPointKey;
         Text = GetArgument(1) ?? string.Empty;
-        DrawUnselected = HasArgument("draw_unselected");
-        HideIfZero = HasArgument("hideifzero");
-        RequiresBreakableModel = HasArgument("requires_breakable_model");
-    }
-
-    /// <inheritdoc/>
-    public override void AddToScene()
-    {
-        if (DrawUnselected)
-        {
-            AddShapes();
-        }
     }
 
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
-        if (!state.IsSelected && !DrawUnselected)
+        if (GetPoint(state) is { } point)
         {
-            return;
+            context.DrawText(Text, point, Color32.White);
         }
-
-        if (VecLineHelper.GetPoint(Owner, GetStringKey(PointKey), isLocal: true, HideIfZero) is not { } point
-            || (RequiresBreakableModel && !(modelIsBreakable ??= VecLineHelper.HasBreakableModel(Owner))))
-        {
-            return;
-        }
-
-        context.DrawText(Text, point, Color32.White);
     }
 }

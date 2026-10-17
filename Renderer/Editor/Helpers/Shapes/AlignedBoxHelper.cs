@@ -38,23 +38,7 @@ internal sealed class AlignedBoxHelper : EntityHelper
     internal override void Render(ToolRenderContext context, in HelperRenderState state)
     {
         var origin = Owner.Transform.Translation;
-        var (mins, maxs) = (origin + Mins, origin + Maxs);
 
-        // Lit faces in the draw color, or tinted while selected and outlined then too
-        var color = state.IsSelected ? SelectionOverlayColor : GetDrawColor(state);
-
-        context.PushRenderMode(ToolRenderMode.Flat);
-        context.DrawBoxFaces(mins, maxs, color);
-        context.PopRenderMode();
-
-        if (!state.IsSelected)
-        {
-            return;
-        }
-
-        context.PushRenderMode(ToolRenderMode.Wireframe);
-        context.DrawColor = color;
-        context.DrawBoxFaceOutlines(mins, maxs);
-        context.PopRenderMode();
+        DrawLitBox(context, origin + Mins, origin + Maxs, UnselectedEntityColor, state);
     }
 }
