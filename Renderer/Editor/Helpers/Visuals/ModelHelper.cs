@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
 using ValveResourceFormat.IO.Fgd;
@@ -530,24 +529,8 @@ public class ModelHelper : EntityHelper
 
     // A key that holds a block of keys writes it without the header of a file
     private static KVObject? ParseBlock(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return null;
-        }
-
-        try
-        {
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
-            var block = KVSerializer.Create(KVSerializationFormat.KeyValues3Text).Deserialize(stream, new KVSerializerOptions { SkipHeader = true }).Root;
-
-            return block.ValueType == KVValueType.Collection ? block : null;
-        }
-        catch (Exception e) when (e is InvalidDataException or KeyValueException or FormatException)
-        {
-            return null;
-        }
-    }
+        => !string.IsNullOrWhiteSpace(text) && KVDocumentExtensions.TryParseKV3WithoutHeader(text, out var block, out _)
+            && block.ValueType == KVValueType.Collection ? block : null;
 
     private void PlayAnimation(ModelSceneNode node)
     {

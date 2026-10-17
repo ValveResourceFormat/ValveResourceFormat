@@ -1,5 +1,6 @@
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
@@ -19,7 +20,7 @@ public sealed class FogHelper : EntityHelper, ILinearFogSource
     /// <inheritdoc/>
     public bool TryGetFog(ref LinearFog fog)
     {
-        var isEnabled = EnvironmentKeys.ParseLeadingInteger(GetStringKey("fogenable")) != 0;
+        var isEnabled = LeadingNumber.ParseInteger(GetStringKey("fogenable")) != 0;
         var color = EnvironmentKeys.ParseColor(GetStringKey("fogcolor")).ToLinearColor().AsVector3();
 
         // A fog that is off covers nothing, though it keeps its color

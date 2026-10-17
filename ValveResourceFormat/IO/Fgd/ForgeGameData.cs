@@ -605,7 +605,7 @@ public sealed partial class ForgeGameData
             return false;
         }
 
-        GridNav = (ParseInteger(values[0].Span), ParseInteger(values[1].Span), ParseInteger(values[2].Span), ParseInteger(values[3].Span));
+        GridNav = (LeadingNumber.ParseInteger(values[0].Span), LeadingNumber.ParseInteger(values[1].Span), LeadingNumber.ParseInteger(values[2].Span), LeadingNumber.ParseInteger(values[3].Span));
         return true;
     }
 
@@ -618,7 +618,7 @@ public sealed partial class ForgeGameData
             return false;
         }
 
-        MapSize = (ParseInteger(low.Span), ParseInteger(high.Span));
+        MapSize = (LeadingNumber.ParseInteger(low.Span), LeadingNumber.ParseInteger(high.Span));
         return true;
     }
 
@@ -671,7 +671,7 @@ public sealed partial class ForgeGameData
                 return false;
             }
 
-            if (!TryParseKeys(text, out var keys, out var problem))
+            if (!KVDocumentExtensions.TryParseKV3WithoutHeader(text, out var keys, out var problem))
             {
                 Error(tokens, $"KV3 syntax error: {problem} while parsing @entitygroup {groupName}");
                 return false;
@@ -696,7 +696,7 @@ public sealed partial class ForgeGameData
             return false;
         }
 
-        if (!TryParseKeys(text, out keys, out var problem))
+        if (!KVDocumentExtensions.TryParseKV3WithoutHeader(text, out keys, out var problem))
         {
             Error(tokens, $"KV3 syntax error: {problem}");
             return false;
@@ -705,74 +705,6 @@ public sealed partial class ForgeGameData
         return true;
     }
 
-    private static bool TryParseKeys(string text, out KVObject keys, out string problem)
-    {
-        try
-        {
-            // The blocks have no header
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
-            keys = KVSerializer.Create(KVSerializationFormat.KeyValues3Text).Deserialize(stream, new KVSerializerOptions { SkipHeader = true }).Root;
-            problem = string.Empty;
-            return true;
-        }
-        catch (Exception e) when (e is InvalidDataException or KeyValueException or FormatException)
-        {
-            keys = new KVObject();
-            problem = e.Message;
-            return false;
-        }
-    }
-
-    // What atoi makes of text: an optional sign and the digits after it, zero when there are none
-    private static int ParseInteger(ReadOnlySpan<char> text)
-    {
-        text = text.TrimStart();
-
-        var length = 0;
-
-        if (length < text.Length && text[length] is '+' or '-')
-        {
-            length++;
-        }
-
-        while (length < text.Length && char.IsAsciiDigit(text[length]))
-        {
-            length++;
-        }
-
-        return int.TryParse(text[..length], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value) ? value : 0;
-    }
-
-    // What atof makes of text: the number it starts with, zero when there is none
-    private static float ParseFloat(ReadOnlySpan<char> text)
-    {
-        text = text.TrimStart();
-
-        var length = 0;
-
-        if (length < text.Length && text[length] is '+' or '-')
-        {
-            length++;
-        }
-
-        while (length < text.Length && char.IsAsciiDigit(text[length]))
-        {
-            length++;
-        }
-
-        if (length < text.Length && text[length] == '.')
-        {
-            length++;
-
-            while (length < text.Length && char.IsAsciiDigit(text[length]))
-            {
-                length++;
-            }
-        }
-
-        return float.TryParse(text[..length], NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : 0f;
-    }
-
     private static Color32 ParseColor(Token red, Token green, Token blue)
-        => new((byte)ParseInteger(red.Span), (byte)ParseInteger(green.Span), (byte)ParseInteger(blue.Span));
+        => new((byte)LeadingNumber.ParseInteger(red.Span), (byte)LeadingNumber.ParseInteger(green.Span), (byte)LeadingNumber.ParseInteger(blue.Span));
 }
