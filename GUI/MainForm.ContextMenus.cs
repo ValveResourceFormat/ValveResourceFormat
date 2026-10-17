@@ -66,6 +66,11 @@ namespace GUI
             mainTabs.CloseTab(FetchToolstripTabContext(sender));
         }
 
+        private void CloseOtherTabsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            CloseOtherTabs(FetchToolstripTabContext(sender));
+        }
+
         private void CloseToolStripMenuItemsToLeft_Click(object sender, EventArgs e)
         {
             CloseTabsToLeft(FetchToolstripTabContext(sender));

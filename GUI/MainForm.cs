@@ -522,6 +522,17 @@ namespace GUI
             }
         }
 
+        private void CloseOtherTabs(TabPage basePage)
+        {
+            for (var i = mainTabs.TabPages.Count - 1; i > 0; i--)
+            {
+                if (mainTabs.TabPages[i] != basePage)
+                {
+                    mainTabs.CloseTab(mainTabs.TabPages[i]);
+                }
+            }
+        }
+
         private void CloseTabsToLeft(TabPage basePage)
         {
             //Close all tabs to the left of the base (excluding console)
@@ -587,6 +598,7 @@ namespace GUI
 
                 //For UX purposes, hide the option to close the console also (this is disabled later in code too)
                 closeToolStripMenuItem.Visible = tabIndex != 0;
+                closeOtherTabsToolStripMenuItem.Visible = tabIndex != 0 && mainTabs.TabPages.Count > 2;
 
                 //Only tabs that got a sound player (world and model viewers) have anything to mute
                 var sceneViewer = GLBaseControl.FindHostedIn(thisTab) as GLSceneViewer;
