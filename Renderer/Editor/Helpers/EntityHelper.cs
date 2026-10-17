@@ -212,8 +212,7 @@ public abstract class EntityHelper
     /// <param name="key">Name of the key.</param>
     /// <param name="defaultValue">The value where the block has no such key.</param>
     /// <returns>The flag.</returns>
-    protected bool GetMetadataFlag(string key, bool defaultValue)
-        => Declaration.Metadata is { } block && block.ContainsKey(key) ? block.GetBooleanProperty(key) : defaultValue;
+    protected bool GetMetadataFlag(string key, bool defaultValue) => GetBlockFlag(Declaration.Metadata, key, defaultValue);
 
     /// <summary>Gets whether any argument of the declaration is a flag, without regard to case.</summary>
     /// <param name="flag">The flag.</param>
@@ -247,8 +246,14 @@ public abstract class EntityHelper
     /// <summary>Gets a key of the entity as text, or the default its class gives the key where the entity has none.</summary>
     /// <param name="key">Name of the key.</param>
     /// <returns>The value, empty when neither has it.</returns>
-    protected string GetStringKey(string key)
-        => Owner.KeyValues.ContainsKey(key) ? Owner.KeyValues.GetStringProperty(key) ?? string.Empty : GetDefault(key) ?? string.Empty;
+    protected string GetStringKey(string key) => GetStringKey(Owner, key);
+
+    /// <summary>Gets a key of an entity as text, or the default its class gives the key where the entity has none.</summary>
+    /// <param name="owner">The entity.</param>
+    /// <param name="key">Name of the key.</param>
+    /// <returns>The value, empty when neither has it.</returns>
+    private protected static string GetStringKey(IHelperOwner owner, string key)
+        => owner.KeyValues.ContainsKey(key) ? owner.KeyValues.GetStringProperty(key) ?? string.Empty : GetDefault(owner, key) ?? string.Empty;
 
     /// <summary>Gets a key of the entity as a number, or the default its class gives the key where the entity has none.</summary>
     /// <param name="key">Name of the key.</param>
@@ -261,7 +266,7 @@ public abstract class EntityHelper
             return Owner.KeyValues.GetFloatProperty(key);
         }
 
-        return GetDefault(key) is { } value ? ParseComponents(value).X : defaultValue;
+        return GetDefault(Owner, key) is { } value ? ParseComponents(value).X : defaultValue;
     }
 
     /// <summary>Gets a key of the entity as a flag, or the default its class gives the key where the entity has none.</summary>
@@ -270,7 +275,7 @@ public abstract class EntityHelper
     /// <returns>Whether the value is a number other than zero, or true.</returns>
     protected bool GetBooleanKey(string key, bool defaultValue)
     {
-        if (!Owner.KeyValues.ContainsKey(key) && GetDefault(key) == null)
+        if (!Owner.KeyValues.ContainsKey(key) && GetDefault(Owner, key) == null)
         {
             return defaultValue;
         }
@@ -310,10 +315,10 @@ public abstract class EntityHelper
         => Owner.KeyValues.ContainsKey(key) ? Owner.KeyValues.GetVector3Property(key) : GetDefaultComponents(key).AsVector3();
 
     // An entity has every key of its class, set to the default of the class until it is changed
-    private string? GetDefault(string key)
-        => Owner.FgdClass?.FindVariable(key) is { HasDefault: true } variable ? variable.DefaultString : null;
+    private static string? GetDefault(IHelperOwner owner, string key)
+        => owner.FgdClass?.FindVariable(key) is { HasDefault: true } variable ? variable.DefaultString : null;
 
-    private Vector4 GetDefaultComponents(string key) => ParseComponents(GetDefault(key) ?? string.Empty);
+    private Vector4 GetDefaultComponents(string key) => ParseComponents(GetDefault(Owner, key) ?? string.Empty);
 
     private static Vector4 ParseComponents(string value)
     {
@@ -339,6 +344,28 @@ public abstract class EntityHelper
     /// <returns>The value, or <see langword="null"/> when the helper has no such key.</returns>
     protected string? GetMetadata(string key)
         => Declaration.Metadata is { } block && block.ContainsKey(key) ? block.GetStringProperty(key) : null;
+
+    /// <summary>Gets a block of keys a block holds under a key.</summary>
+    /// <param name="block">The block to look in, or <see langword="null"/> for none.</param>
+    /// <param name="key">Name of the key.</param>
+    /// <returns>The block, or <see langword="null"/> when there is no block under the key.</returns>
+    private protected static KVObject? GetBlock(KVObject? block, string key)
+        => block != null && block.ContainsKey(key) && block[key] is { ValueType: KVValueType.Collection } value ? value : null;
+
+    /// <summary>Gets a key of a block as text.</summary>
+    /// <param name="block">The block to look in, or <see langword="null"/> for none.</param>
+    /// <param name="key">Name of the key.</param>
+    /// <returns>The value, or <see langword="null"/> when the block has no such key or it is empty.</returns>
+    private protected static string? GetBlockString(KVObject? block, string key)
+        => block != null && block.ContainsKey(key) && block.GetStringProperty(key) is { Length: > 0 } value ? value : null;
+
+    /// <summary>Gets a flag of a block.</summary>
+    /// <param name="block">The block to look in, or <see langword="null"/> for none.</param>
+    /// <param name="key">Name of the key.</param>
+    /// <param name="defaultValue">The value where the block has no such key.</param>
+    /// <returns>The flag.</returns>
+    private protected static bool GetBlockFlag(KVObject? block, string key, bool defaultValue = false)
+        => block != null && block.ContainsKey(key) ? block.GetBooleanProperty(key) : defaultValue;
 
     /// <summary>Gets an argument of the declaration, or <see langword="null"/> when it has fewer.</summary>
     /// <param name="index">Zero based index of the argument.</param>

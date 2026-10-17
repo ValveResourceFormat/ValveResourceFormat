@@ -37,7 +37,7 @@ public sealed class DotaObstructionHelper : ModelHelper
         ArgumentNullException.ThrowIfNull(declaration);
 
         var declared = declaration.Arguments.Count > 0 ? declaration.Arguments[0] : null;
-        var name = declared ?? GetKey(owner, "model");
+        var name = declared ?? GetStringKey(owner, "model");
 
         var settings = new Settings
         {
