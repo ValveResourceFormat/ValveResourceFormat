@@ -1,4 +1,3 @@
-using System.Globalization;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
@@ -112,7 +111,7 @@ public sealed class FrustumHelper : EntityHelper
             fov = float.RadiansToDegrees(MathF.Atan(MathF.Tan(float.DegreesToRadians(fov * 0.5f)) * aspectRatio)) * 2f;
         }
 
-        var color = GetStringKey(ColorKey) is { Length: > 0 } colorText ? ParseColor(colorText) : DefaultColor;
+        var color = GetStringKey(ColorKey) is { Length: > 0 } colorText ? CameraFrustum.ParseColor(colorText) : DefaultColor;
 
         return (fov, GetFloatKey(NearPlaneKey, DefaultNearPlane), GetFloatKey(FarPlaneKey, DefaultFarPlane), aspectRatio, color);
     }
@@ -145,27 +144,5 @@ public sealed class FrustumHelper : EntityHelper
         corners[1] = new Vector3(distance, -halfWidth, halfHeight);
         corners[2] = new Vector3(distance, halfWidth, halfHeight);
         corners[3] = new Vector3(distance, halfWidth, -halfHeight);
-    }
-
-    // Three or four channels, opaque when there are three, and black where the text is not a color
-    private static Color32 ParseColor(string text)
-    {
-        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        Span<byte> channels = [0, 0, 0, byte.MaxValue];
-
-        if (parts.Length < 3)
-        {
-            return default;
-        }
-
-        for (var i = 0; i < Math.Min(parts.Length, channels.Length); i++)
-        {
-            if (!byte.TryParse(parts[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out channels[i]))
-            {
-                return default;
-            }
-        }
-
-        return new Color32(channels[0], channels[1], channels[2], channels[3]);
     }
 }
