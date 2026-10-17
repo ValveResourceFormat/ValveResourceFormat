@@ -10,6 +10,7 @@ using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Helpers;
+using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
@@ -50,6 +51,32 @@ public sealed class MapDocumentLoader : IDisposable
 
     // What static overlays are projected onto, with the node each was placed as. Only kept while the map is loaded.
     private readonly List<(PlacedMapNode Placement, OverlayReceiver Receiver)> overlayReceivers = [];
+
+    // The faces things collide with, grouped by the collision tags they have. Only kept while the map is loaded.
+    private readonly Dictionary<string, CollisionGroup> collisionGroups = new(StringComparer.Ordinal);
+
+    private sealed record CollisionGroup(string[] InteractAs, string[] InteractExclude)
+    {
+        public List<Vector3> Positions { get; } = [];
+        public List<uint> SurfaceProperties { get; } = [];
+    }
+
+    // The collision tag the map builder gives faces whose material has an attribute set. Translucent materials are
+    // also tagged as windows.
+    private static readonly (string Attribute, string Tag)[] CollisionTagAttributes =
+    [
+        ("mapbuilder.ladder", "ladder"),
+        ("mapbuilder.blocklos", "blocklos"),
+        ("mapbuilder.blocksound", "blocksound"),
+        ("mapbuilder.passbullets", "passbullets"),
+        ("mapbuilder.npcclip", "npcclip"),
+        ("mapbuilder.playerclip", "playerclip"),
+        ("mapbuilder.sky", "sky"),
+        ("mapbuilder.water", "water"),
+        ("mapbuilder.teleportclip", "teleportclip"),
+        ("mapbuilder.navclip", "navclip"),
+        ("translucent", "window"),
+    ];
 
     private CancellationToken CancellationToken => rendererContext.CancellationToken;
 
@@ -194,9 +221,13 @@ public sealed class MapDocumentLoader : IDisposable
             }
         }
 
+        AddWorldCollision();
+        AddModelCollision();
+
         // The render data is only shared between the placements of a mesh while they are being made
         renderData.Clear();
         overlayReceivers.Clear();
+        collisionGroups.Clear();
 
         LinkEntities();
         ApplyEnvironment();
@@ -469,6 +500,8 @@ public sealed class MapDocumentLoader : IDisposable
             var (node, material) = AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), group, shaderArguments, placedNode, mesh, owner, placedNode.Transform);
             var attributes = material.Material.IntAttributes;
 
+            AddCollision(mesh, owner, group, material.Material, placedNode.Transform);
+
             // Overlays do not land on tool faces, or on faces nothing collides with
             if (attributes.GetValueOrDefault("tools.toolsmaterial") == 0 && attributes.GetValueOrDefault("mapbuilder.nonsolid") == 0)
             {
@@ -628,6 +661,124 @@ public sealed class MapDocumentLoader : IDisposable
         }
 
         return parts;
+    }
+
+    // Faces collide unless their material or the entity they belong to is not solid, with the collision tags of their
+    // material, their mesh and their entity
+    private void AddCollision(CMapMesh mesh, MapEntity? owner, PolygonMesh.BakedSubmesh group, Material material, Matrix4x4 transform)
+    {
+        var attributes = material.IntAttributes;
+
+        if (!IsSolidAtStart(owner)
+            || mesh.PhysicsType.Equals("none", StringComparison.OrdinalIgnoreCase)
+            || attributes.GetValueOrDefault("mapbuilder.nonsolid") != 0
+            || attributes.GetValueOrDefault("nocollision") != 0)
+        {
+            return;
+        }
+
+        string[] interactAs = [.. CollisionTagAttributes
+            .Where(entry => attributes.GetValueOrDefault(entry.Attribute) != 0)
+            .Select(static entry => entry.Tag)
+            .Concat(SplitCollisionTags(material.StringAttributes.GetValueOrDefault("mapbuilder.collisionproperties")))
+            .Concat(SplitCollisionTags(mesh.PhysicsInteractsAs))
+            .Concat(SplitCollisionTags(owner?.KeyValues.GetStringProperty("interactas")))
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)];
+        string[] interactExclude = [.. SplitCollisionTags(mesh.PhysicsInteractsExclude).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
+
+        var key = string.Join(',', interactAs) + "|" + string.Join(',', interactExclude);
+
+        if (!collisionGroups.TryGetValue(key, out var collision))
+        {
+            collisionGroups[key] = collision = new CollisionGroup(interactAs, interactExclude);
+        }
+
+        var surfaceProperty = material.StringAttributes.GetValueOrDefault("PhysicsSurfaceProperties") is { Length: > 0 } surface ? StringToken.Store(surface) : 0u;
+
+        foreach (var index in group.Indices)
+        {
+            collision.Positions.Add(Vector3.Transform(group.Positions[index], transform));
+        }
+
+        collision.SurfaceProperties.AddRange(Enumerable.Repeat(surfaceProperty, group.Indices.Length / 3));
+    }
+
+    // A brush entity that starts disabled is not solid until it is enabled. A func_brush is never solid unless its
+    // solidity says otherwise: always (2), or while it is enabled (0).
+    private static bool IsSolidAtStart(MapEntity? owner)
+    {
+        if (owner == null)
+        {
+            return true;
+        }
+
+        var startsEnabled = GetIntegerKey("startdisabled", 0) == 0;
+
+        return owner.Classname == "func_brush"
+            ? GetIntegerKey("solidity", 1) switch
+            {
+                0 => startsEnabled,
+                2 => true,
+                _ => false,
+            }
+            : startsEnabled;
+
+        int GetIntegerKey(string key, int defaultValue)
+            => EnvironmentKeys.ParseInteger(owner.KeyValues.GetStringProperty(key) ?? string.Empty, defaultValue);
+    }
+
+    private static IEnumerable<string> SplitCollisionTags(string? tags)
+        => (tags ?? string.Empty).Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(static tag => tag.ToLowerInvariant());
+
+    private void AddWorldCollision()
+    {
+        if (scene.PhysicsWorld is not { } physics || collisionGroups.Count == 0)
+        {
+            return;
+        }
+
+        var meshes = collisionGroups.Values.Select(static group => Rubikon.CreateMeshFromTriangles(group.InteractAs, group.InteractExclude, group.Positions, group.SurfaceProperties));
+
+        physics.Add(scene, new Rubikon(meshes), Matrix4x4.Identity);
+    }
+
+    // Props collide with the physics of their models where they are placed, unless they are set not to be solid
+    private void AddModelCollision()
+    {
+        if (scene.PhysicsWorld is not { } physics)
+        {
+            return;
+        }
+
+        var shapes = new Dictionary<Model, Rubikon?>();
+
+        foreach (var mapEntity in mapEntities)
+        {
+            if (!mapEntity.Classname.StartsWith("prop_", StringComparison.Ordinal)
+                || EnvironmentKeys.ParseInteger(mapEntity.KeyValues.GetStringProperty("solid") ?? string.Empty, 6) == 0)
+            {
+                continue;
+            }
+
+            foreach (var helper in mapEntity.Helpers.OfType<ModelHelper>())
+            {
+                if (helper.IsEditorModel || helper.Model is not { } model || helper.ModelNode is not { } modelNode)
+                {
+                    continue;
+                }
+
+                if (!shapes.TryGetValue(model, out var shape))
+                {
+                    shapes[model] = shape = EntityCollider.LoadPhysics(model, rendererContext.FileLoader) is { } data ? new Rubikon(data) : null;
+                }
+
+                if (shape != null)
+                {
+                    physics.Add(scene, shape, modelNode.Transform);
+                }
+            }
+        }
     }
 
     // Triangles moved into the world, with their normals turned along but not rescaled

@@ -96,6 +96,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             public readonly int Z;
 
             /// <summary>
+            /// Initializes a new instance of the <see cref="Triangle"/> struct from the indices of its vertices.
+            /// </summary>
+            public Triangle(int x, int y, int z)
+            {
+                X = x;
+                Y = y;
+                Z = z;
+            }
+
+            /// <summary>
             /// Initializes a new instance of the <see cref="Triangle"/> struct.
             /// </summary>
             public Triangle(KVObject data)
