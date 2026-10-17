@@ -6,41 +6,11 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
 /// <summary>
-/// How much of what entities are drawn with a map creates. Each helper is registered with how much it
-/// matters, and a map leaves out the ones below its level.
-/// </summary>
-public enum HelperLevel
-{
-    /// <summary>No helpers.</summary>
-    None,
-
-    /// <summary>Only the helpers a map cannot be built without.</summary>
-    Essential,
-
-    /// <summary>Those, and the helpers that show what the game draws.</summary>
-    Game,
-
-    /// <summary>Every helper.</summary>
-    All,
-}
-
-/// <summary>
 /// Creates the helpers an entity is drawn with, by the names its class declares them under.
 /// </summary>
 public static class EntityHelperFactory
 {
     private delegate EntityHelper? Creator(IHelperOwner owner, FgdHelper declaration);
-
-    // How much a helper matters to a map, which decides the levels it is created at
-    private enum Importance
-    {
-        Editor,
-        Game,
-        Essential,
-    }
-
-    // A helper without a creator is one the editor has that draws nothing here
-    private sealed record Registration(Importance Importance, Creator? Create);
 
     private const string RequiredParentClassKey = "required_parent_class";
 
@@ -52,30 +22,24 @@ public static class EntityHelperFactory
 
     private const int MaxRememberedUnknownNames = 256;
 
-    private static readonly Dictionary<string, Registration> Registrations = CreateRegistrations();
+    // A helper without a creator is one the editor has that draws nothing here
+    private static readonly Dictionary<string, Creator?> Creators = CreateCreators();
     private static readonly HashSet<string> UnknownNames = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Creates the helper a declaration names.</summary>
     /// <param name="owner">The entity the helper is for.</param>
     /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    /// <param name="level">How much the map creates.</param>
     /// <returns>
-    /// The helper, or <see langword="null"/> when the level leaves it out, nothing creates helpers of that name,
-    /// or no helper goes by it.
+    /// The helper, or <see langword="null"/> when nothing creates helpers of that name, or no helper goes by it.
     /// </returns>
-    public static EntityHelper? Create(IHelperOwner owner, FgdHelper declaration, HelperLevel level)
+    public static EntityHelper? Create(IHelperOwner owner, FgdHelper declaration)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(declaration);
 
-        if (level == HelperLevel.None)
+        if (!Creators.TryGetValue(declaration.Name, out var create))
         {
-            return null;
-        }
-
-        if (!Registrations.TryGetValue(declaration.Name, out var registration))
-        {
-            if (level == HelperLevel.All && RememberUnknownName(declaration.Name))
+            if (RememberUnknownName(declaration.Name))
             {
                 owner.Scene.RendererContext.Logger.LogWarning("Can't find helper '{Helper}' - fgd error?", declaration.Name);
             }
@@ -83,14 +47,7 @@ public static class EntityHelperFactory
             return null;
         }
 
-        var leftOut = level switch
-        {
-            HelperLevel.Game => registration.Importance == Importance.Editor,
-            HelperLevel.Essential => registration.Importance != Importance.Essential,
-            _ => false,
-        };
-
-        return leftOut ? null : registration.Create?.Invoke(owner, declaration);
+        return create?.Invoke(owner, declaration);
     }
 
     /// <summary>
@@ -99,19 +56,12 @@ public static class EntityHelperFactory
     /// unless it is made of map geometry, a path, or a node of one.
     /// </summary>
     /// <param name="owner">The entity.</param>
-    /// <param name="level">How much the map creates.</param>
     /// <returns>The helpers, in the order they were created.</returns>
-    public static List<EntityHelper> CreateHelpers(IHelperOwner owner, HelperLevel level)
+    public static List<EntityHelper> CreateHelpers(IHelperOwner owner)
     {
         ArgumentNullException.ThrowIfNull(owner);
 
         var helpers = new List<EntityHelper>();
-
-        if (level == HelperLevel.None)
-        {
-            return helpers;
-        }
-
         var gameClass = owner.FgdClass;
         var isSeen = false;
 
@@ -125,7 +75,7 @@ public static class EntityHelperFactory
         {
             foreach (var declaration in gameClass.Helpers.Concat(GetVariableHelpers(gameClass)))
             {
-                if (Create(owner, declaration, level) is { } helper)
+                if (Create(owner, declaration) is { } helper)
                 {
                     helpers.Add(helper);
                     isSeen |= helper.IsVisual;
@@ -134,7 +84,7 @@ public static class EntityHelperFactory
 
             // Never what the entity is seen by, so it does not keep the box away
             if (gameClass.Metadata.ContainsKey(RequiredParentClassKey) && gameClass.Metadata.GetStringProperty(RequiredParentClassKey) is { Length: > 0 }
-                && Create(owner, new FgdHelper { Name = "error_indicator" }, level) is { } errorIndicator)
+                && Create(owner, new FgdHelper { Name = "error_indicator" }) is { } errorIndicator)
             {
                 helpers.Add(errorIndicator);
             }
@@ -146,14 +96,14 @@ public static class EntityHelperFactory
             return helpers;
         }
 
-        if (gameClass == null && Create(owner, CreateDeclaration("iconsprite", ObsoleteIcon), level) is { } obsolete)
+        if (gameClass == null && Create(owner, CreateDeclaration("iconsprite", ObsoleteIcon)) is { } obsolete)
         {
             helpers.Add(obsolete);
             isSeen = true;
         }
 
         // A path or a cable is seen by its nodes
-        if (!isSeen && level == HelperLevel.All && gameClass is not { Type: FgdClassType.PathClass or FgdClassType.CableClass })
+        if (!isSeen && gameClass is not { Type: FgdClassType.PathClass or FgdClassType.CableClass })
         {
             helpers.Add(new AlignedBoxHelper(owner, DefaultBoxMins, DefaultBoxMaxs));
         }
@@ -209,69 +159,69 @@ public static class EntityHelperFactory
         return declaration;
     }
 
-    private static Dictionary<string, Registration> CreateRegistrations()
+    private static Dictionary<string, Creator?> CreateCreators()
     {
-        var registrations = new Dictionary<string, Registration>(StringComparer.OrdinalIgnoreCase);
+        var creators = new Dictionary<string, Creator?>(StringComparer.OrdinalIgnoreCase);
 
-        void Add(Importance importance, Creator? create, params string[] names)
+        void Add(Creator? create, params string[] names)
         {
             foreach (var name in names)
             {
-                registrations.Add(name, new Registration(importance, create));
+                creators.Add(name, create);
             }
         }
 
-        Add(Importance.Essential, null, "bakeambientocclusion", "bakeskylight");
-        Add(Importance.Essential, static (owner, declaration) => new BakeResourceHelper(owner, declaration), "bakeresource");
-        Add(Importance.Essential, ModelHelper.Create, "model");
-        Add(Importance.Essential, static (owner, declaration) => new SkyboxHelper(owner, declaration), "skybox");
-        Add(Importance.Essential, static (owner, declaration) => new VolumetricFogControllerHelper(owner, declaration), "volumetric_fog_controller");
+        Add(null, "bakeambientocclusion", "bakeskylight");
+        Add(static (owner, declaration) => new BakeResourceHelper(owner, declaration), "bakeresource");
+        Add(ModelHelper.Create, "model");
+        Add(static (owner, declaration) => new SkyboxHelper(owner, declaration), "skybox");
+        Add(static (owner, declaration) => new VolumetricFogControllerHelper(owner, declaration), "volumetric_fog_controller");
 
-        Add(Importance.Game, null, "dotaskybox");
-        Add(Importance.Game, ModelHelper.Create, "editormodel", "studio", "studioprop");
-        Add(Importance.Game, static (owner, declaration) => new LightHelper(owner, declaration), "light");
-        Add(Importance.Game, static (owner, declaration) => new BarnLightHelper(owner, declaration), "barnlight");
-        Add(Importance.Game, static (owner, declaration) => new RectLightHelper(owner, declaration), "rectlight");
-        Add(Importance.Game, static (owner, declaration) => new OmniLightHelper(owner, declaration), "omnilight");
-        Add(Importance.Game, static (owner, declaration) => new ToneMappingHelper(owner, declaration), "tonemap");
-        Add(Importance.Game, static (owner, declaration) => new ParticleHelper(owner, declaration), "particle");
-        Add(Importance.Game, static (owner, declaration) => new OverlayHelper(owner, declaration), "overlay");
-        Add(Importance.Game, static (owner, declaration) => new GlobalHelper(owner, declaration), "global");
-        Add(Importance.Game, static (owner, declaration) => new FogHelper(owner, declaration), "fog");
-        Add(Importance.Game, static (owner, declaration) => new ExternalHelper(owner, declaration), "externalHelper");
+        Add(null, "dotaskybox");
+        Add(ModelHelper.Create, "editormodel", "studio", "studioprop");
+        Add(static (owner, declaration) => new LightHelper(owner, declaration), "light");
+        Add(static (owner, declaration) => new BarnLightHelper(owner, declaration), "barnlight");
+        Add(static (owner, declaration) => new RectLightHelper(owner, declaration), "rectlight");
+        Add(static (owner, declaration) => new OmniLightHelper(owner, declaration), "omnilight");
+        Add(static (owner, declaration) => new ToneMappingHelper(owner, declaration), "tonemap");
+        Add(static (owner, declaration) => new ParticleHelper(owner, declaration), "particle");
+        Add(static (owner, declaration) => new OverlayHelper(owner, declaration), "overlay");
+        Add(static (owner, declaration) => new GlobalHelper(owner, declaration), "global");
+        Add(static (owner, declaration) => new FogHelper(owner, declaration), "fog");
+        Add(static (owner, declaration) => new ExternalHelper(owner, declaration), "externalHelper");
 
-        Add(Importance.Editor, null, "cubemap", "dotaGlobalLightHelper", "sequenceList", "skybox_map");
-        Add(Importance.Editor, static (owner, declaration) => new IconHelper(owner, declaration), "iconsprite");
-        Add(Importance.Editor, static (owner, declaration) => new GradientFogHelper(owner, declaration), "gradientfog");
-        Add(Importance.Editor, static (owner, declaration) => new CubemapFogHelper(owner, declaration), "cubemap_fog");
-        Add(Importance.Editor, static (owner, declaration) => new PostProcessingVolumeHelper(owner, declaration), "postprocessing");
-        Add(Importance.Editor, static (owner, declaration) => new ParticleGlowHelper(owner, declaration), "helper_particle_glow");
-        Add(Importance.Editor, static (owner, declaration) => new ParticleRopeHelper(owner, declaration), "particle_rope");
-        Add(Importance.Editor, LineHelper.Create, "line", "selected_line");
-        Add(Importance.Editor, static (owner, declaration) => new SphereHelper(owner, declaration), "sphere", "leansphere");
-        Add(Importance.Editor, BoxHelper.Create, "box_oriented", "box_world_aligned", "centered_box_oriented");
-        Add(Importance.Editor, WireBoxHelper.Create, "wirebox", "wirebox_local");
-        Add(Importance.Editor, static (owner, declaration) => new AnglesHelper(owner, declaration), "drawangles", "drawangles_local");
-        Add(Importance.Editor, static (owner, declaration) => new VecLineHelper(owner, declaration), "vecline", "vecline_local");
-        Add(Importance.Editor, static (owner, declaration) => new LightConeHelper(owner, declaration), "lightcone");
-        Add(Importance.Editor, static (owner, declaration) => new ArcRangeHelper(owner, declaration), "arc_range");
-        Add(Importance.Editor, static (owner, declaration) => new AxisHelper(owner, declaration), "axis", "localaxis");
-        Add(Importance.Editor, OrientedWidthHeightHelper.Create, "orientedwidthheight");
-        Add(Importance.Editor, static (owner, declaration) => new LightOrthoHelper(owner, declaration), "lightortho");
-        Add(Importance.Editor, static (owner, declaration) => new TextHelper(owner, declaration), "text_local");
-        Add(Importance.Editor, static (owner, declaration) => new ErrorIndicatorHelper(owner, declaration), "error_indicator");
-        Add(Importance.Editor, DotaObstructionHelper.Create, "dota_obstruction");
-        Add(Importance.Editor, GameUnitModelHelper.Create, "gameUnitModel", "gameItemModel");
-        Add(Importance.Editor, static (owner, declaration) => new FrustumHelper(owner, declaration), "frustum");
-        Add(Importance.Editor, static (owner, declaration) => new CapsuleHelper(owner, declaration), "capsule");
-        Add(Importance.Editor, static (owner, declaration) => new RadiusSphereHelper(owner, declaration), "occluder", "viewer");
-        Add(Importance.Editor, static (owner, declaration) => new SweptPlayerHullHelper(owner, declaration), "sweptplayerhull");
-        Add(Importance.Editor, static (owner, declaration) => new DoorHelper(owner, declaration), "door_helper");
-        Add(Importance.Editor, static (owner, declaration) => new AccompanyHelper(owner, declaration), "accompany");
-        Add(Importance.Editor, static (owner, declaration) => new CameraPathHelper(owner, declaration), "camera_path");
-        Add(Importance.Editor, static (owner, declaration) => new CameraPathNodeHelper(owner, declaration), "camera_path_node");
-        Add(Importance.Editor, static (owner, declaration) => new DotaLightInfoHelper(owner, declaration), "dotaLightInfoHelper");
+        Add(null, "cubemap", "dotaGlobalLightHelper", "sequenceList", "skybox_map");
+        Add(static (owner, declaration) => new IconHelper(owner, declaration), "iconsprite");
+        Add(static (owner, declaration) => new GradientFogHelper(owner, declaration), "gradientfog");
+        Add(static (owner, declaration) => new CubemapFogHelper(owner, declaration), "cubemap_fog");
+        Add(static (owner, declaration) => new PostProcessingVolumeHelper(owner, declaration), "postprocessing");
+        Add(static (owner, declaration) => new ParticleGlowHelper(owner, declaration), "helper_particle_glow");
+        Add(static (owner, declaration) => new ParticleRopeHelper(owner, declaration), "particle_rope");
+        Add(LineHelper.Create, "line", "selected_line");
+        Add(static (owner, declaration) => new SphereHelper(owner, declaration), "sphere", "leansphere");
+        Add(BoxHelper.Create, "box_oriented", "box_world_aligned", "centered_box_oriented");
+        Add(WireBoxHelper.Create, "wirebox", "wirebox_local");
+        Add(static (owner, declaration) => new AnglesHelper(owner, declaration), "drawangles", "drawangles_local");
+        Add(static (owner, declaration) => new VecLineHelper(owner, declaration), "vecline", "vecline_local");
+        Add(static (owner, declaration) => new LightConeHelper(owner, declaration), "lightcone");
+        Add(static (owner, declaration) => new ArcRangeHelper(owner, declaration), "arc_range");
+        Add(static (owner, declaration) => new AxisHelper(owner, declaration), "axis", "localaxis");
+        Add(OrientedWidthHeightHelper.Create, "orientedwidthheight");
+        Add(static (owner, declaration) => new LightOrthoHelper(owner, declaration), "lightortho");
+        Add(static (owner, declaration) => new TextHelper(owner, declaration), "text_local");
+        Add(static (owner, declaration) => new ErrorIndicatorHelper(owner, declaration), "error_indicator");
+        Add(DotaObstructionHelper.Create, "dota_obstruction");
+        Add(GameUnitModelHelper.Create, "gameUnitModel", "gameItemModel");
+        Add(static (owner, declaration) => new FrustumHelper(owner, declaration), "frustum");
+        Add(static (owner, declaration) => new CapsuleHelper(owner, declaration), "capsule");
+        Add(static (owner, declaration) => new RadiusSphereHelper(owner, declaration), "occluder", "viewer");
+        Add(static (owner, declaration) => new SweptPlayerHullHelper(owner, declaration), "sweptplayerhull");
+        Add(static (owner, declaration) => new DoorHelper(owner, declaration), "door_helper");
+        Add(static (owner, declaration) => new AccompanyHelper(owner, declaration), "accompany");
+        Add(static (owner, declaration) => new CameraPathHelper(owner, declaration), "camera_path");
+        Add(static (owner, declaration) => new CameraPathNodeHelper(owner, declaration), "camera_path_node");
+        Add(static (owner, declaration) => new DotaLightInfoHelper(owner, declaration), "dotaLightInfoHelper");
 
-        return registrations;
+        return creators;
     }
 }

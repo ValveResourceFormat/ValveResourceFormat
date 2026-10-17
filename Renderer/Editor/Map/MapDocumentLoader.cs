@@ -101,9 +101,6 @@ public sealed class MapDocumentLoader : IDisposable
     /// </summary>
     public bool HasBakedLighting => scene.LightingInfo.LightmapVersionNumber != 0 || hasVertexLighting;
 
-    /// <summary>Gets or sets how much of what entities are drawn with is created.</summary>
-    public HelperLevel HelperLevel { get; set; } = HelperLevel.All;
-
     /// <summary>Gets the layers shown until others are chosen.</summary>
     public HashSet<string> DefaultEnabledLayers { get; } = [WorldLayerName, EntitiesLayerName, Scene.ParticlesLayerName];
 
@@ -411,7 +408,7 @@ public sealed class MapDocumentLoader : IDisposable
 
         var mapEntity = new MapEntity(scene, placedNode, data, placedNode.WorldLayer ?? EntitiesLayerName, entityVisuals.Fgd, mapEntities, entitiesByName, path);
 
-        mapEntity.CreateHelpers(HelperLevel);
+        mapEntity.CreateHelpers();
         mapEntities.Add(mapEntity);
         entityVisuals.AddMapEntity(mapEntity);
 
