@@ -234,6 +234,9 @@ namespace ValveResourceFormat.Renderer.World
 
         private RenderTexture? unshadowedProbeTexture;
 
+        // Textures made for the lighting of the scene rather than loaded with its resources
+        private readonly List<RenderTexture> ownedTextures = [];
+
         // Stands in for the direct light shadows of a volume baked without them, which then shadow nothing
         private RenderTexture GetUnshadowedProbeTexture()
         {
@@ -241,10 +244,15 @@ namespace ValveResourceFormat.Renderer.World
             {
                 unshadowedProbeTexture = RenderTexture.Create3D(TextureTarget.Texture3D, 1, 1, 1, ImageFormat.RGBA8888, 1, "UnshadowedLightProbe");
                 GL.ClearTexImage(unshadowedProbeTexture.Handle, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
+                AddOwnedTexture(unshadowedProbeTexture);
             }
 
             return unshadowedProbeTexture;
         }
+
+        /// <summary>Hands a texture made for the lighting of the scene to it, which deletes it in <see cref="DeleteOwnedTextures"/>.</summary>
+        /// <param name="texture">The texture.</param>
+        internal void AddOwnedTexture(RenderTexture texture) => ownedTextures.Add(texture);
 
         /// <summary>Binds a light probe volume texture to the unit its sampler reads.</summary>
         private static void BindProbeTexture(string samplerName, RenderTexture? texture)
@@ -1011,10 +1019,15 @@ namespace ValveResourceFormat.Renderer.World
         public ReadOnlySpan<BarnLightFaceSlot> BinnedBarnLightFaces
             => BinnedBarnLightFaceSlots.AsSpan(0, (int)LightingData.NumBarnLights);
 
-        /// <summary>Deletes the texture that stands in for the direct light shadows of volumes baked without them.</summary>
-        public void DeleteUnshadowedProbeTexture()
+        /// <summary>Deletes the textures made for the lighting of the scene rather than loaded with its resources.</summary>
+        public void DeleteOwnedTextures()
         {
-            unshadowedProbeTexture?.Delete();
+            foreach (var texture in ownedTextures)
+            {
+                texture.Delete();
+            }
+
+            ownedTextures.Clear();
             unshadowedProbeTexture = null;
         }
 

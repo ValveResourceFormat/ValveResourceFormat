@@ -240,7 +240,7 @@ public sealed class MapDocumentLoader : IDisposable
     }
 
     // The editor shows every fragment with the cubemaps and light probe volumes it is in, sampling each one's own
-    // textures. They are copied into a cube array and an atlas to the same effect.
+    // textures. They are copied into a cube array and an atlas to the same effect, which the scene then owns.
     private void PackBakedLighting()
     {
         var lighting = scene.LightingInfo;
@@ -248,14 +248,22 @@ public sealed class MapDocumentLoader : IDisposable
 
         if (EnvironmentMapCache.Create(lighting.EnvMaps, logger) is { } cubemaps)
         {
+            lighting.AddOwnedTexture(cubemaps.Texture);
             lighting.CubemapType = CubemapType.CubemapArray;
             lighting.Lightmaps["g_tEnvironmentMap"] = cubemaps.Texture;
         }
 
         var volumes = lighting.LightProbes.FindAll(static probe => probe.Irradiance != null);
 
-        if (volumes.Count > 0 && LightProbeAtlas.Create(volumes, logger) != null)
+        if (volumes.Count > 0 && LightProbeAtlas.Create(volumes, logger) is { } atlas)
         {
+            lighting.AddOwnedTexture(atlas.Irradiance);
+
+            if (atlas.DirectLightShadows is { } shadows)
+            {
+                lighting.AddOwnedTexture(shadows);
+            }
+
             lighting.LightProbeType = LightProbeType.ProbeAtlas;
         }
     }

@@ -2455,7 +2455,7 @@ namespace ValveResourceFormat.Renderer
                 envMapBuffer?.Dispose();
                 simulationDispatch.Dispose();
                 LightingInfo.DisposeBarnLights();
-                LightingInfo.DeleteUnshadowedProbeTexture();
+                LightingInfo.DeleteOwnedTextures();
 
                 DeleteIndirectDrawBuffers();
                 ClutterCuller?.Delete();
