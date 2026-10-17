@@ -702,8 +702,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// </summary>
     public LightCost Cost => GetCost(DirectLight, StationaryLightIndex);
 
-    /// <inheritdoc cref="Cost"/>
-    public static LightCost GetCost(DirectLightType directLight, int stationaryLightIndex)
+    private static LightCost GetCost(DirectLightType directLight, int stationaryLightIndex)
     {
         if (directLight is DirectLightType.Stationary)
         {
@@ -725,15 +724,6 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         }
 
         return directLight is DirectLightType.Static ? LightCost.Static : LightCost.Dynamic;
-    }
-
-    /// <inheritdoc cref="Cost"/>
-    /// <param name="entity">Light entity to read the direct lighting key values from.</param>
-    public static LightCost GetCost(Entity entity)
-    {
-        return GetCost(
-            (DirectLightType)entity.GetInt32Property("directlight", (int)DirectLightType.Dynamic),
-            entity.GetInt32Property("bakedshadowindex", entity.GetInt32Property("bakelightindex", -1)));
     }
 
     internal static bool IsRealTimeLight(SceneLight light)
