@@ -654,7 +654,7 @@ public sealed partial class ForgeGameData
                 break;
 
             case FgdStorage.Integer:
-                variable.DefaultInteger = LeadingNumber.ParseInteger(text);
+                SetDefaultInteger(variable, LeadingNumber.ParseInteger(text));
                 variable.HasDefault = true;
                 break;
         }
@@ -960,11 +960,18 @@ public sealed partial class ForgeGameData
 
         if (storage == FgdStorage.Integer)
         {
-            variable.DefaultInteger = LeadingNumber.ParseInteger(named.ValueText);
+            SetDefaultInteger(variable, LeadingNumber.ParseInteger(named.ValueText));
         }
         else if (storage == FgdStorage.String)
         {
             variable.DefaultString = named.ValueText;
         }
+    }
+
+    // The text of the default is the number that is kept, so it reads the same as the default of a text variable
+    private static void SetDefaultInteger(FgdVariable variable, int value)
+    {
+        variable.DefaultInteger = value;
+        variable.DefaultString = value.ToString(CultureInfo.InvariantCulture);
     }
 }

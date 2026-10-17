@@ -172,7 +172,7 @@ public sealed class FgdVariable
     /// <summary>Gets whether the variable is declared with a default.</summary>
     public bool HasDefault { get; internal set; }
 
-    /// <summary>Gets the default of a variable whose values are text.</summary>
+    /// <summary>Gets the default as text. For a variable whose values are whole numbers, it is <see cref="DefaultInteger"/>.</summary>
     public string DefaultString { get; internal set; } = string.Empty;
 
     /// <summary>Gets the default of a variable whose values are whole numbers.</summary>
