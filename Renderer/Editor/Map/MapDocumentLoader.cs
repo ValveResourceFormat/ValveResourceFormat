@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
@@ -41,6 +42,10 @@ public sealed class MapDocumentLoader : IDisposable
     private readonly HammerEntityVisuals entityVisuals;
     private readonly string? contentRoot;
 
+    // What the editor baked for each node at each place it is put, by the IDs of the nodes it was placed through
+    private readonly Dictionary<string, CDmeNodeInstanceData> nodeInstanceData = new(StringComparer.Ordinal);
+    private bool hasVertexLighting;
+
     private CancellationToken CancellationToken => rendererContext.CancellationToken;
 
     /// <summary>Gets the map being loaded.</summary>
@@ -62,7 +67,7 @@ public sealed class MapDocumentLoader : IDisposable
     /// Gets whether the map is lit with lighting the editor baked for it, once it is loaded. It is not when nothing
     /// was baked, or the game does not say which version of baked lighting it reads.
     /// </summary>
-    public bool HasBakedLighting => scene.LightingInfo.LightmapVersionNumber != 0;
+    public bool HasBakedLighting => scene.LightingInfo.LightmapVersionNumber != 0 || hasVertexLighting;
 
     /// <summary>Gets or sets how much of what entities are drawn with is created.</summary>
     public HelperLevel HelperLevel { get; set; } = HelperLevel.All;
@@ -92,6 +97,11 @@ public sealed class MapDocumentLoader : IDisposable
         rendererContext = scene.RendererContext;
         contentRoot = document.FindContentRoot();
         documentIds[document] = 0;
+
+        foreach (var data in document.Root.NodeInstanceData.OfType<CDmeNodeInstanceData>())
+        {
+            nodeInstanceData.TryAdd(data.Name, data);
+        }
     }
 
     /// <summary>Loads everything the map places into the scene.</summary>
@@ -408,7 +418,16 @@ public sealed class MapDocumentLoader : IDisposable
 
     private void AddMesh(PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner)
     {
-        if (!renderData.TryGetValue(mesh, out var meshRenderData))
+        PolygonMeshRenderData? meshRenderData;
+        var vertexLighting = GetVertexLighting(placedNode, mesh);
+
+        // Lighting is baked for each place a mesh is put, so a lit mesh is drawn from data of its own
+        if (vertexLighting != null)
+        {
+            meshRenderData = new PolygonMeshRenderData(mesh.Mesh, vertexLighting);
+            hasVertexLighting = true;
+        }
+        else if (!renderData.TryGetValue(mesh, out meshRenderData))
         {
             meshRenderData = new PolygonMeshRenderData(mesh.Mesh);
             renderData[mesh] = meshRenderData;
@@ -416,7 +435,7 @@ public sealed class MapDocumentLoader : IDisposable
 
         var name = string.Create(CultureInfo.InvariantCulture, $"vmap_mesh_{documentIds[placedNode.Document]}_{mesh.NodeID}");
 
-        var shaderArguments = scene.LightingInfo.CreateShaderArguments();
+        var shaderArguments = scene.LightingInfo.CreateShaderArguments(hasVertexLighting: vertexLighting != null);
 
         // The faces of each material are a mesh of their own, with the vertex streams that material reads
         for (var i = 0; i < meshRenderData.MaterialGroups.Length; i++)
@@ -444,6 +463,19 @@ public sealed class MapDocumentLoader : IDisposable
             scene.Add(node, dynamic: false);
             owner?.AddMeshNode(node);
         }
+    }
+
+    // The lighting the editor baked for the vertices of a mesh where it is put, as streams that replace the ones of the mesh
+    private PolygonMeshStream[]? GetVertexLighting(PlacedMapNode placedNode, CMapMesh mesh)
+    {
+        if (mesh is CMapStaticOverlay)
+        {
+            return null;
+        }
+
+        var path = string.Join('.', placedNode.NodeIdPath.Select(static id => id.ToString(CultureInfo.InvariantCulture)));
+
+        return nodeInstanceData.TryGetValue(path, out var data) ? data.CreateVertexLightingStreams(mesh.Mesh) : null;
     }
 
     // Faces that are not drawn in the compiled map, such as the sky box around it, and occluders cast no

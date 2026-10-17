@@ -55,10 +55,16 @@ public sealed class PlacedMapNode
     public int PrefabDepth { get; init; }
 
     /// <summary>
-    /// Gets the node IDs of the instances and prefabs the node was placed through, outermost first. Empty
-    /// for a node the map places itself.
+    /// Gets the node IDs of the instances and prefabs the node was placed through, outermost first, each prefab
+    /// followed by the world of its map. Empty for a node the map places itself.
     /// </summary>
     public IReadOnlyList<int> InstancePath { get; init; } = [];
+
+    /// <summary>
+    /// Gets <see cref="InstancePath"/> followed by the ID of the node itself, which the editor names what it bakes for
+    /// this placement of the node by.
+    /// </summary>
+    public IReadOnlyList<int> NodeIdPath => Node is MapNode node ? [.. InstancePath, node.NodeID] : InstancePath;
 
     /// <summary>
     /// Builds the keyvalues the entity spawns with where it was placed, the way a compiled map stores them:
@@ -388,7 +394,7 @@ public sealed class MapNodeWalker
                 Tint = state.Tint * GetTint(prefab),
                 IsInstanced = true,
                 PrefabDepth = state.PrefabDepth + 1,
-                InstancePath = [.. state.InstancePath, prefab.NodeID],
+                InstancePath = [.. state.InstancePath, prefab.NodeID, prefabDocument.World.NodeID],
             };
 
             foreach (var placedNode in WalkChildren(prefabDocument, prefabDocument.World, inner))

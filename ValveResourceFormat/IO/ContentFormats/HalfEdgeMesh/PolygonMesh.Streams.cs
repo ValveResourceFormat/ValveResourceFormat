@@ -144,6 +144,98 @@ public sealed partial class PolygonMesh
     }
 
     /// <summary>
+    /// Creates a face corner stream from values stored the way the editor stores what it bakes for a mesh: one for
+    /// every face corner in the order of their data, a subdivided face corner having the whole patch of its points.
+    /// The points are kept in a subdivision stream of the same name, which <see cref="Triangulate"/> draws them from.
+    /// </summary>
+    /// <param name="semanticName">The semantic of the stream.</param>
+    /// <param name="values">The values.</param>
+    /// <returns>The face corner and subdivision streams, or null when the values do not fit the face corners of the mesh.</returns>
+    public PolygonMeshStream[]? CreateFaceVertexStreams(string semanticName, IReadOnlyList<Vector4> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+
+        var halfEdgeCount = Topology.HalfEdgeCount;
+        var dataOrder = new int[halfEdgeCount];
+        var patchValueCount = 0;
+
+        Array.Fill(dataOrder, -1);
+
+        foreach (var hFaceVertex in Topology.HalfEdgeHandles)
+        {
+            var dataIndex = FaceVertexDataIndices[hFaceVertex];
+
+            if ((uint)dataIndex >= (uint)halfEdgeCount || dataOrder[dataIndex] >= 0)
+            {
+                return null;
+            }
+
+            var size = GetPatchSize(SubdivisionLevels[hFaceVertex]);
+
+            dataOrder[dataIndex] = hFaceVertex.Index;
+            patchValueCount += size * size;
+        }
+
+        var faceVertexValues = new Vector4[halfEdgeCount];
+        var patchValues = new Vector4[patchValueCount];
+        var next = 0;
+
+        foreach (var faceVertex in dataOrder)
+        {
+            if (faceVertex < 0)
+            {
+                continue;
+            }
+
+            var size = GetPatchSize(SubdivisionLevels[faceVertex]);
+            var patchStart = SubdivisionPatchStarts[faceVertex];
+            var count = Math.Max(1, size * size);
+
+            if (next + count > values.Count || patchStart + (size * size) > patchValueCount)
+            {
+                return null;
+            }
+
+            faceVertexValues[faceVertex] = values[next];
+
+            for (var i = 0; i < size * size; i++)
+            {
+                patchValues[patchStart + i] = values[next + i];
+            }
+
+            next += count;
+        }
+
+        if (next != values.Count)
+        {
+            return null;
+        }
+
+        var name = $"{semanticName}:0";
+
+        return
+        [
+            new PolygonMeshStream
+            {
+                Component = MeshComponentType.FaceVertex,
+                Name = name,
+                StandardAttributeName = semanticName,
+                SemanticName = semanticName,
+                VertexBufferLocation = PaintStreams.Contains(semanticName, StringComparer.OrdinalIgnoreCase) ? 1 : 0,
+                Values = faceVertexValues,
+            },
+            new PolygonMeshStream
+            {
+                Component = MeshComponentType.Subdivision,
+                Name = name,
+                StandardAttributeName = semanticName,
+                SemanticName = semanticName,
+                Values = patchValues,
+            },
+        ];
+    }
+
+    /// <summary>
     /// Gets whether the mesh was read with a stream.
     /// </summary>
     /// <param name="component">What the stream holds a value for.</param>

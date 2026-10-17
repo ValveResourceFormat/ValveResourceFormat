@@ -22,9 +22,10 @@ public sealed class PolygonMeshRenderData
 
     /// <summary>Initializes a new instance of the <see cref="PolygonMeshRenderData"/> class.</summary>
     /// <param name="mesh">The mesh to draw.</param>
-    public PolygonMeshRenderData(PolygonMesh mesh)
+    /// <param name="replacementStreams">Streams drawn in place of the streams of the mesh, see <see cref="PolygonMesh.Triangulate"/>.</param>
+    public PolygonMeshRenderData(PolygonMesh mesh, IReadOnlyList<PolygonMeshStream>? replacementStreams = null)
     {
-        MaterialGroups = mesh.Triangulate();
+        MaterialGroups = mesh.Triangulate(replacementStreams);
     }
 
     /// <summary>
