@@ -47,6 +47,17 @@ namespace ValveResourceFormat.IO
             ".sbproj",
         ];
 
+        // Search paths a game mounts only in some modes, such as for a language other than English
+        private static readonly HashSet<string> ConditionalGameSearchPathKeys = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Game_LowViolence",
+            "Game_UILanguage",
+            "Game_AudioLanguage",
+        };
+
+        // The engine mounts Game_LowViolence search paths only for low violence clients
+        private static bool MountLowViolence => false;
+
         private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
         private readonly Lock CachedShadersLock = new();
         private readonly HashSet<string> CurrentGameSearchPaths = [];
@@ -446,26 +457,51 @@ namespace ValveResourceFormat.IO
             return resourceToReturn;
         }
 
-        private void HandleGameInfo(HashSet<string> folders, string gameRoot, string gameinfoPath)
+        private KVObject? ReadGameInfo(string gameinfoPath)
         {
-            KVObject gameInfo;
-            using (var stream = File.OpenRead(gameinfoPath))
+            try
             {
-                try
-                {
-                    gameInfo = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
-                }
-                catch (Exception e)
-                {
-                    Logger.LogError(e, "Failed to read \"{GameInfo}\"", gameinfoPath);
-                    return;
-                }
+                using var stream = File.OpenRead(gameinfoPath);
+                return KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
+            }
+            catch (Exception e)
+            {
+                Logger.LogError(e, "Failed to read \"{GameInfo}\"", gameinfoPath);
+                return null;
+            }
+        }
+
+        private static IEnumerable<(string Key, string Value)> EnumerateSearchPaths(KVObject gameInfo)
+        {
+            if (!gameInfo.TryGetValue("FileSystem", out var fileSystem) || !fileSystem.TryGetValue("SearchPaths", out var searchPaths))
+            {
+                yield break;
             }
 
+            foreach (var (key, value) in searchPaths)
+            {
+                yield return (key, value.ToString()!);
+            }
+        }
+
+        private void LoadGameInfo(HashSet<string> folders, string gameRoot, string gameinfoPath)
+        {
+            if (ReadGameInfo(gameinfoPath) is { } gameInfo)
+            {
+                HandleGameInfo(folders, gameRoot, gameinfoPath, gameInfo);
+            }
+        }
+
+        private void HandleGameInfo(HashSet<string> folders, string gameRoot, string gameinfoPath, KVObject gameInfo)
+        {
             var gameName = gameInfo.TryGetValue("game", out var game) ? game.ToString() : null;
             Logger.LogInformation("Found \"{GameName}\" from \"{GameInfo}\"", gameName, gameinfoPath);
 
-            var fileSystem = gameInfo["FileSystem"];
+            if (!gameInfo.TryGetValue("FileSystem", out var fileSystem))
+            {
+                Logger.LogWarning("\"{GameInfo}\" has no FileSystem block", gameinfoPath);
+                return;
+            }
 
             if (SteamAppId == 0 && fileSystem.TryGetValue("SteamAppId", out var appIdValue))
             {
@@ -486,20 +522,31 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            foreach (var (key, searchPath) in fileSystem["SearchPaths"])
+            foreach (var (key, searchPath) in EnumerateSearchPaths(gameInfo))
             {
-                if (key == "Game")
+                var path = Path.Combine(gameRoot, searchPath);
+
+                if (key.Equals("Game", StringComparison.OrdinalIgnoreCase)
+                    || (MountLowViolence && key.Equals("Game_LowViolence", StringComparison.OrdinalIgnoreCase)))
                 {
-                    folders.Add(Path.Combine(gameRoot, searchPath.ToString()!));
+                    folders.Add(path);
                 }
-                else if (key == "OfficialAddonRoot")
+                else if (key.Equals("OfficialAddonRoot", StringComparison.OrdinalIgnoreCase))
                 {
-                    CurrentGameOfficialAddonsPaths.Add(Path.Combine(gameRoot, searchPath.ToString()!));
+                    CurrentGameOfficialAddonsPaths.Add(path);
                 }
-                else if (key == "AddonRoot")
+                else if (key.Equals("AddonRoot", StringComparison.OrdinalIgnoreCase))
                 {
-                    CurrentGameAddonsPaths.Add(Path.Combine(gameRoot, searchPath.ToString()!));
+                    CurrentGameAddonsPaths.Add(path);
                 }
+            }
+
+            // The engine searches core after the gameinfo search paths, whether the gameinfo lists it or not
+            var core = Path.Combine(gameRoot, "core");
+
+            if (Directory.Exists(core))
+            {
+                folders.Add(core);
             }
         }
 
@@ -658,11 +705,11 @@ namespace ValveResourceFormat.IO
         {
             modIdentifierPath ??= GetModIdentifierFile() ?? FindGameInfoMountingCurrentFolder();
 
-            HashSet<string> folders;
+            var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             if (modIdentifierPath == "<VRF_WORKSHOP>")
             {
-                folders = FindGameFoldersForWorkshopFile();
+                FindGameFoldersForWorkshopFile(folders);
             }
             else
             {
@@ -676,13 +723,11 @@ namespace ValveResourceFormat.IO
 
                 if (Path.GetFileName(modIdentifierPath) == GameinfoGi)
                 {
-                    folders = [];
-
-                    HandleGameInfo(folders, assumedGameRoot, modIdentifierPath);
+                    LoadGameInfo(folders, assumedGameRoot, modIdentifierPath);
                 }
                 else
                 {
-                    folders = FindGameFoldersForWorkshopFile();
+                    FindGameFoldersForWorkshopFile(folders);
 
                     if (assumedGameRoot.EndsWith(AddonsSuffix, StringComparison.InvariantCultureIgnoreCase))
                     {
@@ -691,7 +736,7 @@ namespace ValveResourceFormat.IO
 
                         if (File.Exists(mainGameInfo))
                         {
-                            HandleGameInfo(folders, Path.GetDirectoryName(mainGameDir)!, mainGameInfo);
+                            LoadGameInfo(folders, Path.GetDirectoryName(mainGameDir)!, mainGameInfo);
                         }
                         else if (Directory.Exists(mainGameDir))
                         {
@@ -835,28 +880,30 @@ namespace ValveResourceFormat.IO
             return null;
         }
 
-        private static bool GameInfoMountsFolder(string gameinfoPath, string folderName)
+        private bool GameInfoMountsFolder(string gameinfoPath, string folderName)
         {
-            KVObject gameInfo;
-
-            try
-            {
-                using var stream = File.OpenRead(gameinfoPath);
-                gameInfo = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException or KeyValueException)
+            if (ReadGameInfo(gameinfoPath) is not { } gameInfo)
             {
                 return false;
             }
 
-            if (!gameInfo.TryGetValue("FileSystem", out var fileSystem) || !fileSystem.TryGetValue("SearchPaths", out var searchPaths))
+            foreach (var (_, searchPath) in EnumerateSearchPaths(gameInfo))
             {
-                return false;
+                if (string.Equals(searchPath, folderName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
             }
 
-            foreach (var (_, searchPath) in searchPaths)
+            return false;
+        }
+
+        private static bool IsGameSearchPath(KVObject gameInfo, string gameRoot, string folder)
+        {
+            foreach (var (key, searchPath) in EnumerateSearchPaths(gameInfo))
             {
-                if (string.Equals(searchPath.ToString(), folderName, StringComparison.OrdinalIgnoreCase))
+                if (key.Equals("Game", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(Path.Combine(gameRoot, searchPath), folder, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -1051,7 +1098,7 @@ namespace ValveResourceFormat.IO
                 && string.Equals(Path.GetFullPath(string.Concat(packageName, "_dir.vpk")), Path.GetFullPath(vpk), StringComparison.Ordinal);
         }
 
-        private HashSet<string> FindGameFoldersForWorkshopFile()
+        private void FindGameFoldersForWorkshopFile(HashSet<string> folders)
         {
             // If we're loading a file from steamapps/workshop folder, attempt to discover gameinfos and load vpks for the game
             const string STEAMAPPS_WORKSHOP_CONTENT = "steamapps/workshop/content";
@@ -1060,7 +1107,7 @@ namespace ValveResourceFormat.IO
 
             if (contentIndex == -1)
             {
-                return [];
+                return;
             }
 
             // Extract the appid from path
@@ -1069,14 +1116,14 @@ namespace ValveResourceFormat.IO
 
             if (slashAfterAppId == -1)
             {
-                return [];
+                return;
             }
 
             var appIdString = filePath[contentIndexEnd..slashAfterAppId];
 
             if (!int.TryParse(appIdString, NumberStyles.None, CultureInfo.InvariantCulture, out var appId))
             {
-                return [];
+                return;
             }
 
 #if DEBUG_FILE_LOAD
@@ -1090,7 +1137,7 @@ namespace ValveResourceFormat.IO
             // The app is usually installed in the same library as its workshop content, but it can be moved to another one
             if ((GameFolderLocator.FindSteamGameInLibrary(steamPath, appId) ?? GameFolderLocator.FindSteamGameByAppId(appId)) is not { GamePath: var gamePath })
             {
-                return [];
+                return;
             }
 
             // Find all the gameinfo.gi files, open them to get game paths
@@ -1106,25 +1153,52 @@ namespace ValveResourceFormat.IO
                 ShouldIncludePredicate = static (ref entry) => !entry.IsDirectory && entry.FileName.Equals(GameinfoGi, StringComparison.Ordinal)
             };
 
-            var folders = new HashSet<string>();
+            List<(string GameRoot, string ModFolder, string GameInfoPath, KVObject GameInfo)> mods = [];
+            List<(string GameRoot, string FolderName)> conditionalFolders = [];
 
-            foreach (var gameInfo in gameInfos)
+            foreach (var gameInfoPath in gameInfos)
             {
-                var directory = Path.GetDirectoryName(gameInfo);
-                var modName = Path.GetFileName(directory);
-                var assumedGameRoot = Path.GetDirectoryName(directory)!;
+                var modFolder = Path.GetDirectoryName(gameInfoPath)!;
+                var assumedGameRoot = Path.GetDirectoryName(modFolder)!;
 
-                if (modName == "core")
+                if (Path.GetFileName(modFolder) == "core")
                 {
                     // Skip loading core gameinfo directly, let it be discovered by any of the other mod folders
                     // This is needed to prevent core being found first and having highest priority
                     continue;
                 }
 
-                HandleGameInfo(folders, assumedGameRoot, gameInfo);
+                if (ReadGameInfo(gameInfoPath) is not { } gameInfo)
+                {
+                    continue;
+                }
+
+                foreach (var (key, searchPath) in EnumerateSearchPaths(gameInfo))
+                {
+                    if (ConditionalGameSearchPathKeys.Contains(key))
+                    {
+                        conditionalFolders.Add((assumedGameRoot, searchPath.Replace("*LANGUAGE*", "*", StringComparison.OrdinalIgnoreCase)));
+                    }
+                }
+
+                // A gameinfo that does not list its own folder, such as coreH or csgoH, is not a mod of its own
+                if (IsGameSearchPath(gameInfo, assumedGameRoot, modFolder))
+                {
+                    mods.Add((assumedGameRoot, modFolder, gameInfoPath, gameInfo));
+                }
             }
 
-            return folders;
+            foreach (var (gameRoot, modFolder, gameInfoPath, gameInfo) in mods)
+            {
+                // Low violence and language folders have a gameinfo of their own, but are only mounted through the main game's
+                var modName = Path.GetFileName(modFolder);
+
+                if (!conditionalFolders.Exists(folder => string.Equals(folder.GameRoot, gameRoot, StringComparison.OrdinalIgnoreCase)
+                    && FileSystemName.MatchesSimpleExpression(folder.FolderName, modName)))
+                {
+                    HandleGameInfo(folders, gameRoot, gameInfoPath, gameInfo);
+                }
+            }
         }
 
         private string? FindFileOnDisk(string file)
