@@ -8,6 +8,7 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.Renderer.Editor.Entities;
+using ValveResourceFormat.Renderer.Editor.Gizmos;
 using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -41,6 +42,7 @@ public sealed class MapDocumentLoader : IDisposable
     private readonly Dictionary<DMElement, PolygonMeshRenderData> renderData = [];
     private readonly Dictionary<string, List<IHelperOwner>> entitiesByName = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<MapEntity> mapEntities = [];
+    private readonly Dictionary<SceneNode, MapMesh> meshesByNode = [];
     private readonly HammerEntityVisuals entityVisuals;
     private readonly string? contentRoot;
 
@@ -87,6 +89,24 @@ public sealed class MapDocumentLoader : IDisposable
 
     /// <summary>Gets every entity of the map where it was placed, with what it is drawn with.</summary>
     public IReadOnlyList<MapEntity> MapEntities => mapEntities;
+
+    /// <summary>
+    /// Finds what a gizmo moves for a selected node: the entity the node draws or belongs to, or the mesh the node is
+    /// a part of.
+    /// </summary>
+    /// <param name="node">The node.</param>
+    /// <returns>What is moved, or <see langword="null"/> when the node is not part of the map.</returns>
+    public IGizmoTransformable? FindTransformable(SceneNode node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        if (meshesByNode.TryGetValue(node, out var mesh))
+        {
+            return mesh.Owner ?? (IGizmoTransformable)mesh;
+        }
+
+        return node.EntityData != null ? entityVisuals.FindEntity(node) as MapEntity : null;
+    }
 
     /// <summary>
     /// Gets whether the map has a light that is on, once it is loaded. Hammer shows a map without one fullbright,
@@ -468,6 +488,7 @@ public sealed class MapDocumentLoader : IDisposable
         var name = string.Create(CultureInfo.InvariantCulture, $"vmap_mesh_{documentIds[placedNode.Document]}_{key}");
 
         var shaderArguments = scene.LightingInfo.CreateShaderArguments(hasVertexLighting: vertexLighting != null);
+        var mapMesh = AddMapMesh(placedNode, mesh, owner);
         var receiverGroups = new List<PolygonMesh.BakedSubmesh>();
         var receiverBounds = default(AABB?);
 
@@ -478,6 +499,7 @@ public sealed class MapDocumentLoader : IDisposable
             var material = GetMaterial(group, owner, shaderArguments);
             var (vbib, vertexBounds) = meshRenderData.GetBuffers(i, material.Material.InputSignature);
             var node = AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), material, vbib, vertexBounds, placedNode, mesh, owner, placedNode.Transform);
+            AddNodeToMesh(mapMesh, node);
             var attributes = material.Material.IntAttributes;
 
             AddCollision(mesh, owner, group, material.Material, placedNode.Transform);
@@ -521,9 +543,22 @@ public sealed class MapDocumentLoader : IDisposable
         }
 
         scene.Add(node, dynamic: false);
-        owner?.AddMeshNode(node);
 
         return node;
+    }
+
+    private MapMesh AddMapMesh(PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner)
+    {
+        var mapMesh = new MapMesh(scene, placedNode, mesh, owner);
+        owner?.AddMesh(mapMesh);
+
+        return mapMesh;
+    }
+
+    private void AddNodeToMesh(MapMesh mapMesh, SceneNode node)
+    {
+        mapMesh.AddNode(node);
+        meshesByNode[node] = mapMesh;
     }
 
     // An overlay is drawn where it lands, as triangles in the world, lit by what the editor baked at their corners.
@@ -532,6 +567,7 @@ public sealed class MapDocumentLoader : IDisposable
     {
         var groups = StaticOverlayProjector.Project(overlay, placedNode.RigidTransform, GetOverlayReceivers(placedNode, overlay), FindInstanceData(placedNode));
         var name = string.Create(CultureInfo.InvariantCulture, $"vmap_overlay_{documentIds[placedNode.Document]}_{GetPlacementKey(placedNode)}");
+        var mapMesh = AddMapMesh(placedNode, overlay, owner);
 
         for (var i = 0; i < groups.Length; i++)
         {
@@ -542,7 +578,7 @@ public sealed class MapDocumentLoader : IDisposable
 
             hasVertexLighting |= lit;
 
-            AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), material, vbib, bounds, placedNode, overlay, owner, Matrix4x4.Identity);
+            AddNodeToMesh(mapMesh, AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), material, vbib, bounds, placedNode, overlay, owner, Matrix4x4.Identity));
         }
     }
 

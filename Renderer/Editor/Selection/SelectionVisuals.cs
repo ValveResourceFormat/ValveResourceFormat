@@ -200,8 +200,8 @@ public sealed class SelectionVisuals
         return selectionBounds;
     }
 
-    // What the helpers of the entity cover and what it is made of besides, or its origin where that is nothing
-    private static AABB GetObjectBounds(IHelperOwner entity)
+    /// <summary>What the helpers of an entity cover and what it is made of besides, or its origin where that is nothing.</summary>
+    internal static AABB GetObjectBounds(IHelperOwner entity)
     {
         var bounds = entity.ContentBounds;
 

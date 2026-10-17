@@ -1,11 +1,17 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
+using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Editor.Entities;
+using ValveResourceFormat.Renderer.Editor.Gizmos;
 using ValveResourceFormat.Renderer.Editor.Map;
+using ValveResourceFormat.Renderer.Editor.ToolRender;
+using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 
@@ -25,9 +31,19 @@ namespace GUI.Types.GLViewers
             Override,
         }
 
+        private static readonly Color32 GizmoLabelColor = new(220, 220, 220);
+
         private MapDocumentLoader? loadedMapDocument;
         private TonemapMode tonemapMode = TonemapMode.None;
         private float tonemapScaleOverride = 1f;
+
+        // The gizmo of the selection lives on the render thread, where the UI thread queues what the mouse and keys do
+        private GizmoTool? gizmoTool;
+        private readonly ConcurrentQueue<Action<GizmoTool>> gizmoCommands = new();
+        private long gizmoMouse;
+
+        // Whether the gizmo took the press of the left button, so the release is its too
+        private bool gizmoHoldsButton;
 
         public override void Dispose()
         {
@@ -57,6 +73,8 @@ namespace GUI.Types.GLViewers
             };
 
             loadedMapDocument.Load();
+
+            gizmoTool = new GizmoTool(Selection, loadedMapDocument.FindTransformable);
 
             // Hammer shows tools materials until they are hidden
             Scene.ShowToolsMaterials = true;
@@ -124,6 +142,133 @@ namespace GUI.Types.GLViewers
                 TonemapMode.Override => tonemapScaleOverride,
                 _ => 1f,
             };
+        }
+
+        protected override ToolGeometry? GizmoShapes => gizmoTool?.Shapes;
+
+        protected override (string Text, Color32 Color)? ModeLabel
+            => base.ModeLabel ?? (gizmoTool is { Shapes.IsEmpty: false } tool ? (tool.StatusText, GizmoLabelColor) : null);
+
+        protected override void UpdateSelectionTools(Camera camera)
+        {
+            if (gizmoTool == null)
+            {
+                return;
+            }
+
+            while (gizmoCommands.TryDequeue(out var command))
+            {
+                command(gizmoTool);
+            }
+
+            gizmoTool.ToggleSnapping = (Control.ModifierKeys & Keys.Control) != 0;
+
+            var cameraMoving = (CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) != 0;
+            var mouse = Interlocked.Read(ref gizmoMouse);
+
+            gizmoTool.Update(camera, new Vector2((int)(mouse >> 32), (int)(mouse & 0xFFFFFFFF)), canHover: MouseOverRenderArea && !cameraMoving && !Input.WalkMode);
+        }
+
+        protected override void OnMouseMove(int x, int y)
+        {
+            Interlocked.Exchange(ref gizmoMouse, ((long)x << 32) | (uint)y);
+            base.OnMouseMove(x, y);
+        }
+
+        // A press on a part of the gizmo drags it, rather than turning the camera or selecting what is under it
+        protected override void OnMouseDown(object? sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left && gizmoTool?.IsHovered == true && !Input.WalkMode)
+            {
+                var position = new Vector2(e.X, e.Y);
+
+                gizmoCommands.Enqueue(tool => tool.Press(position));
+                gizmoHoldsButton = true;
+                GLControl?.Focus();
+                return;
+            }
+
+            base.OnMouseDown(sender, e);
+        }
+
+        protected override void OnMouseUp(object? sender, MouseEventArgs e)
+        {
+            if (gizmoHoldsButton && e.Button == MouseButtons.Left)
+            {
+                gizmoHoldsButton = false;
+                gizmoCommands.Enqueue(static tool => tool.Release());
+                return;
+            }
+
+            base.OnMouseUp(sender, e);
+        }
+
+        // Hammer's keys for the gizmo: Q, T, R and E pick it, Tab turns it with the first selected object or the world,
+        // [ and ] change the grid, and Ctrl with them the rotation snap. K and J are held to scale a box about its center
+        // or without snapping. Tab only does so while a gizmo is shown, and cycles the performance display otherwise.
+        protected override void OnKeyDown(Keys keyData)
+        {
+            if (gizmoTool != null && HandleGizmoKey(gizmoTool, keyData))
+            {
+                return;
+            }
+
+            base.OnKeyDown(keyData);
+        }
+
+        private bool HandleGizmoKey(GizmoTool tool, Keys keyData)
+        {
+            if (tool.IsDragging)
+            {
+                if (keyData == Keys.Escape)
+                {
+                    gizmoCommands.Enqueue(static tool => tool.Abort());
+                    return true;
+                }
+            }
+            else if ((CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) != 0)
+            {
+                // Flying with the camera, where Q and E move it
+                return false;
+            }
+
+            Action<GizmoTool>? command = keyData switch
+            {
+                Keys.Q when !tool.IsDragging => static tool => tool.Mode = ManipulationMode.Select,
+                Keys.T when !tool.IsDragging => static tool => tool.Mode = ManipulationMode.Translate,
+                Keys.R when !tool.IsDragging => static tool => tool.Mode = ManipulationMode.Rotate,
+                Keys.E when !tool.IsDragging => static tool => tool.Mode = ManipulationMode.Scale,
+                Keys.Tab when !tool.IsDragging && tool.IsShown => static tool => tool.ToggleSpace(),
+                Keys.OemOpenBrackets => static tool => tool.DecreaseGridSize(),
+                Keys.OemCloseBrackets => static tool => tool.IncreaseGridSize(),
+                Keys.Control | Keys.OemOpenBrackets => static tool => tool.DecreaseRotationSnapAngle(),
+                Keys.Control | Keys.OemCloseBrackets => static tool => tool.IncreaseRotationSnapAngle(),
+                Keys.K => static tool => tool.BoxScalesAboutCenter = true,
+                Keys.J => static tool => tool.BoxScalesUniformly = true,
+                _ => null,
+            };
+
+            if (command == null)
+            {
+                return false;
+            }
+
+            gizmoCommands.Enqueue(command);
+            return true;
+        }
+
+        protected override void OnKeyUp(Keys keyCode)
+        {
+            if (keyCode == Keys.K)
+            {
+                gizmoCommands.Enqueue(static tool => tool.BoxScalesAboutCenter = false);
+            }
+            else if (keyCode == Keys.J)
+            {
+                gizmoCommands.Enqueue(static tool => tool.BoxScalesUniformly = false);
+            }
+
+            base.OnKeyUp(keyCode);
         }
 
         // The entities of a map being edited are only drawn, never spawned

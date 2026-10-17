@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Renderer.Editor.Entities;
+using ValveResourceFormat.Renderer.Editor.Gizmos;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
@@ -75,6 +76,16 @@ public abstract class EntityHelper
     /// does not make the entity any larger. An entity none of whose helpers adds any is boxed at its origin.
     /// </summary>
     public virtual AABB? ObjectBounds => null;
+
+    /// <summary>Gets <see cref="ObjectBounds"/> boxed in another space, where the helper knows them more tightly.</summary>
+    /// <param name="worldToSpace">The transform from the world into the space.</param>
+    public virtual AABB? GetObjectBounds(in Matrix4x4 worldToSpace) => ObjectBounds?.Transform(worldToSpace);
+
+    /// <summary>
+    /// Gets which ways a gizmo may move the entity, which every helper of the entity has to allow. The helpers
+    /// Hammer does not let scale only allow moving and turning.
+    /// </summary>
+    public virtual GizmoTransformModes SupportedTransformModes => GizmoTransformModes.All;
 
     /// <summary>
     /// Gets whether the helper is drawn for its entity at all. Of the entities of a 3D sky placed into the map,

@@ -93,6 +93,9 @@ namespace GUI.Types.GLViewers
         /// <summary>Gets the mode shown at the top of the viewport and its colour, or <see langword="null"/> to show none.</summary>
         protected virtual (string Text, Color32 Color)? ModeLabel => null;
 
+        /// <summary>Shapes in world space drawn over everything else, such as the gizmo of the selection.</summary>
+        protected virtual ToolGeometry? GizmoShapes => null;
+
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
         private ComboBox? renderModeComboBox;
@@ -772,6 +775,11 @@ namespace GUI.Types.GLViewers
             });
         }
 
+        /// <summary>Lets the tools of the selection follow the cursor and move what is selected, on the render thread.</summary>
+        protected virtual void UpdateSelectionTools(Camera camera)
+        {
+        }
+
         /// <summary>Draws viewer specific lines over the scene, after the frame's camera is final.</summary>
         protected virtual void RenderOverlayLines(Scene.RenderContext renderContext)
         {
@@ -797,7 +805,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(toolsPass != null && selectionVisuals != null);
 
             // The tools are drawn over the final image, so they keep their colors whatever the exposure
-            toolsPass.Render(Renderer, GLDefaultFramebuffer, selectionVisuals, TextRenderer);
+            toolsPass.Render(Renderer, GLDefaultFramebuffer, selectionVisuals, TextRenderer, GizmoShapes);
         }
 
         protected override void OnBufferSwapped(double blockedMs, double framePeriodMs)
@@ -842,6 +850,11 @@ namespace GUI.Types.GLViewers
                     Timestep = timestep,
                     Camera = Renderer.Camera,
                 };
+
+                // Before the scene updates, so what the tools move is drawn where they moved it this frame. The camera
+                // has already moved for this frame, but its matrices are only rebuilt by the update, so they are here.
+                Renderer.Camera.RecalculateMatrices();
+                UpdateSelectionTools(Renderer.Camera);
 
                 Renderer.Update(updateContext);
 

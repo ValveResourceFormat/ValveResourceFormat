@@ -1,4 +1,5 @@
 using System.IO;
+using ValveResourceFormat.Renderer.Editor.Gizmos;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 
@@ -10,6 +11,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// </summary>
 internal sealed class ExternalHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
+    /// <inheritdoc/>
+    public override GizmoTransformModes SupportedTransformModes => GizmoTransformModes.Translate | GizmoTransformModes.Rotate;
+
     /// <inheritdoc/>
     public override bool IsVisual => false;
 

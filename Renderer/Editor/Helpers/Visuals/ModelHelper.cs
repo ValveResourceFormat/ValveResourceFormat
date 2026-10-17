@@ -79,6 +79,10 @@ public class ModelHelper : EntityHelper
     /// <inheritdoc/>
     public override AABB? ObjectBounds => BoundsMode != ModelBoundsMode.None ? ModelNode?.BoundingBox : null;
 
+    /// <inheritdoc/>
+    public override AABB? GetObjectBounds(in Matrix4x4 worldToSpace)
+        => BoundsMode != ModelBoundsMode.None && ModelNode is { } node ? node.LocalBoundingBox.Transform(node.Transform * worldToSpace) : null;
+
     /// <summary>Gets the model as it is drawn, once it is in the scene.</summary>
     public ModelSceneNode? ModelNode { get; private set; }
 

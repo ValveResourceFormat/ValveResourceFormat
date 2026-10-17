@@ -43,7 +43,10 @@ public sealed class ToolsPass : IDisposable
     /// <param name="target">Where the final image goes.</param>
     /// <param name="selection">What is selected, with its shapes in world space.</param>
     /// <param name="textRenderer">What the text among the shapes of the main scene is written with.</param>
-    public void Render(Renderer renderer, Framebuffer target, SelectionVisuals selection, TextRenderer textRenderer)
+    /// <param name="gizmo">
+    /// Shapes in world space drawn after everything else, hidden only by each other, such as the gizmo of the selection.
+    /// </param>
+    public void Render(Renderer renderer, Framebuffer target, SelectionVisuals selection, TextRenderer textRenderer, ToolGeometry? gizmo = null)
     {
         ArgumentNullException.ThrowIfNull(renderer);
         ArgumentNullException.ThrowIfNull(target);
@@ -75,9 +78,13 @@ public sealed class ToolsPass : IDisposable
                     CollectNodes(view);
 
                     // The shapes of the selection are in the space of the main scene
-                    var selectionShapes = view == renderer.MainViewState && !selection.Shapes.IsEmpty ? selection.Shapes : null;
+                    var isMainView = view == renderer.MainViewState;
+                    var selectionShapes = isMainView && !selection.Shapes.IsEmpty ? selection.Shapes : null;
+                    var gizmoShapes = isMainView && gizmo is { IsEmpty: false } ? gizmo : null;
 
+                    AddLabels(textRenderer, renderer.Camera);
                     AddLabels(textRenderer, renderer.Camera, selectionShapes);
+                    AddLabels(textRenderer, renderer.Camera, gizmoShapes);
 
                     foreach (var layer in Layers)
                     {
@@ -87,6 +94,20 @@ public sealed class ToolsPass : IDisposable
                         }
 
                         selectionShapes?.DrawLayer(layer, shaders, objectId: 0);
+                    }
+
+                    // The gizmo shows through the scene and the other shapes, as it does in Hammer
+                    if (gizmoShapes != null)
+                    {
+                        using (GraphicsContext.RenderState.Scope(depthWrite: true))
+                        {
+                            GL.Clear(ClearBufferMask.DepthBufferBit);
+                        }
+
+                        foreach (var layer in Layers)
+                        {
+                            gizmoShapes.DrawLayer(layer, shaders, objectId: 0);
+                        }
                     }
                 });
             }
@@ -101,7 +122,7 @@ public sealed class ToolsPass : IDisposable
         target.Bind(FramebufferTarget.Framebuffer);
     }
 
-    private void AddLabels(TextRenderer textRenderer, Camera camera, ToolGeometry? selectionShapes)
+    private void AddLabels(TextRenderer textRenderer, Camera camera)
     {
         foreach (var (node, _) in nodes)
         {
@@ -113,13 +134,16 @@ public sealed class ToolsPass : IDisposable
                 AddLabel(textRenderer, camera, label, toViewerWorld);
             }
         }
+    }
 
-        if (selectionShapes == null)
+    private static void AddLabels(TextRenderer textRenderer, Camera camera, ToolGeometry? worldShapes)
+    {
+        if (worldShapes == null)
         {
             return;
         }
 
-        foreach (var label in selectionShapes.Labels)
+        foreach (var label in worldShapes.Labels)
         {
             AddLabel(textRenderer, camera, label, Matrix4x4.Identity);
         }

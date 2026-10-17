@@ -1,3 +1,4 @@
+using ValveResourceFormat.Renderer.Editor.Gizmos;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
@@ -10,6 +11,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// </summary>
 internal sealed class LightHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
+    /// <inheritdoc/>
+    public override GizmoTransformModes SupportedTransformModes => GizmoTransformModes.Translate | GizmoTransformModes.Rotate;
+
     /// <inheritdoc/>
     public override void AddToScene()
     {

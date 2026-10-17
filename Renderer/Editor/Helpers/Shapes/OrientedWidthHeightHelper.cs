@@ -1,3 +1,4 @@
+using ValveResourceFormat.Renderer.Editor.Gizmos;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -10,6 +11,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// </summary>
 internal sealed class OrientedWidthHeightHelper : EntityHelper
 {
+    /// <inheritdoc/>
+    public override GizmoTransformModes SupportedTransformModes => GizmoTransformModes.Translate | GizmoTransformModes.Rotate;
+
     /// <inheritdoc/>
     public override bool IsToolShape => true;
 

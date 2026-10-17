@@ -1,3 +1,4 @@
+using ValveResourceFormat.Renderer.Editor.Gizmos;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Utils;
@@ -10,6 +11,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// </summary>
 internal abstract class LightHelperBase : EntityHelper
 {
+    /// <inheritdoc/>
+    public override GizmoTransformModes SupportedTransformModes => GizmoTransformModes.Translate | GizmoTransformModes.Rotate;
+
     /// <summary>Gets the light, once it is in the scene.</summary>
     private SceneLight? Light { get; set; }
 

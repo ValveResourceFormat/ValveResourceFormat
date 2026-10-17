@@ -88,20 +88,7 @@ public sealed class PlacedMapNode
             }
         }
 
-        // Instances and prefabs only move and turn what they place, so the scales stay the node's own
-        var rigidTransform = RigidTransform;
-        var angles = IsInstanced
-            ? EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(rigidTransform))
-            : new Vector3(mapEntity.Angles.Pitch, mapEntity.Angles.Yaw, mapEntity.Angles.Roll);
-
-        entity["origin"] = FormatVector(rigidTransform.Translation);
-        entity["angles"] = FormatVector(angles);
-        entity["scales"] = FormatVector(mapEntity.Scales);
-
-        if (mapEntity is CMapPath path)
-        {
-            AddPathKeys(entity, path);
-        }
+        WritePlacementKeys(entity);
 
         var connections = new List<EntityLump.Connection>(mapEntity.Connections.Count);
 
@@ -126,6 +113,36 @@ public sealed class PlacedMapNode
         }
 
         return entity;
+    }
+
+    /// <summary>
+    /// Writes where the entity is placed into keyvalues it spawns with: "origin", "angles" and "scales", and for a
+    /// path the keys its nodes are flattened into.
+    /// </summary>
+    /// <param name="entity">The keyvalues.</param>
+    public void WritePlacementKeys(EntityLump.Entity entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+
+        if (Node is not BaseEntity mapEntity)
+        {
+            return;
+        }
+
+        // Instances and prefabs only move and turn what they place, so the scales stay the node's own
+        var rigidTransform = RigidTransform;
+        var angles = IsInstanced
+            ? EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(rigidTransform))
+            : new Vector3(mapEntity.Angles.Pitch, mapEntity.Angles.Yaw, mapEntity.Angles.Roll);
+
+        entity["origin"] = FormatVector(rigidTransform.Translation);
+        entity["angles"] = FormatVector(angles);
+        entity["scales"] = FormatVector(mapEntity.Scales);
+
+        if (mapEntity is CMapPath path)
+        {
+            AddPathKeys(entity, path);
+        }
     }
 
     // The map compiler flattens the nodes of a path into keys of the path itself, in the space of the
