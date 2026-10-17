@@ -69,15 +69,21 @@ KVObject? ParseGame(GameFolderLocator.SteamLibraryGameInfo game)
 {
     Console.WriteLine($"Searching {game.AppID} {game.AppName} ({game.GamePath})");
 
-    foreach (var file in Directory.EnumerateFiles(game.GamePath, "*.fgd", SearchOption.AllDirectories))
+    // The folder is walked once for both, as most of the time goes to walking it
+    var files = Directory.EnumerateFiles(game.GamePath, "*", SearchOption.AllDirectories)
+        .Where(static path => path.EndsWith(".fgd", StringComparison.OrdinalIgnoreCase) || Path.GetFileName(path).Equals("gameinfo.gi", StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    foreach (var file in files.Where(static path => path.EndsWith(".fgd", StringComparison.OrdinalIgnoreCase)))
     {
         ParseFile(file);
     }
 
     // The classes every game shares are read as part of each game, with what the game changes of them, and an
     // addon is made with the classes of its game
-    var gameInfos = Directory.EnumerateFiles(game.GamePath, "gameinfo.gi", SearchOption.AllDirectories)
-        .Where(static path => Path.GetFileName(Path.GetDirectoryName(path)) != "core"
+    var gameInfos = files
+        .Where(static path => path.EndsWith("gameinfo.gi", StringComparison.OrdinalIgnoreCase)
+            && Path.GetFileName(Path.GetDirectoryName(path)) != "core"
             && !Path.GetDirectoryName(Path.GetDirectoryName(path))!.EndsWith("_addons", StringComparison.OrdinalIgnoreCase))
         .Order(StringComparer.Ordinal);
 
