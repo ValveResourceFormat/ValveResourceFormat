@@ -76,6 +76,19 @@ namespace ValveResourceFormat.Renderer
             return gpuVbib;
         }
 
+        /// <summary>Get or create GPU buffers for the mesh.</summary>
+        public GPUMeshBuffers CreateVertexIndexBuffers(Mesh mesh)
+        {
+            if (!gpuBuffers.TryGetValue(mesh.Name, out var gpuVbib))
+            {
+                gpuVbib = new GPUMeshBuffers(mesh.VBIB, mesh.Name);
+                gpuBuffers.Add(mesh.Name, gpuVbib);
+                mesh.ReleaseVBIB();
+            }
+
+            return gpuVbib;
+        }
+
         /// <summary>Uploads the mesh buffers (if not yet present) and returns a VAO for the first
         /// vertex/index buffer pair, without exposing the GPU buffer handles to the caller.</summary>
         /// <param name="meshName">Unique name identifying the mesh.</param>

@@ -15,17 +15,22 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the OpenGL handles for each uploaded index buffer.</summary>
         public int[] IndexBuffers { get; private set; }
 
+        /// <summary>Gets the VBIB of the uploaded buffers.</summary>
+        public VBIB Layout { get; }
+
         /// <summary>Uploads all vertex and index buffers from the provided <see cref="VBIB"/> to the GPU.</summary>
         /// <param name="vbib">Source vertex and index buffer data.</param>
         /// <param name="name">Mesh name used to label the buffers.</param>
         public GPUMeshBuffers(VBIB vbib, string name)
         {
+            Layout = new VBIB { Resource = vbib.Resource };
             VertexBuffers = new int[vbib.VertexBuffers.Count];
 
             for (var i = 0; i < vbib.VertexBuffers.Count; i++)
             {
                 var buffer = vbib.VertexBuffers[i];
                 VertexBuffers[i] = GraphicsDevice.CreateBuffer($"{name} VB {i}", buffer.Data.AsSpan(0, (int)buffer.TotalSizeInBytes), BufferUsage.Static);
+                Layout.VertexBuffers.Add(buffer with { Data = [] });
             }
 
             IndexBuffers = new int[vbib.IndexBuffers.Count];
@@ -34,6 +39,7 @@ namespace ValveResourceFormat.Renderer
             {
                 var buffer = vbib.IndexBuffers[i];
                 IndexBuffers[i] = GraphicsDevice.CreateBuffer($"{name} IB {i}", buffer.Data.AsSpan(0, (int)buffer.TotalSizeInBytes), BufferUsage.Static);
+                Layout.IndexBuffers.Add(buffer with { Data = [] });
             }
         }
 

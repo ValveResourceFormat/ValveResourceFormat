@@ -24,6 +24,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 //new format has VBIB block, for old format we can get it from NTRO DATA block
                 cachedVBIB ??= (VBIB?)Resource.GetBlockByType(BlockType.VBIB) ?? new VBIB(Resource, Data) { Resource = Resource };
+                cachedVBIB.EnsureRead();
                 return cachedVBIB;
             }
             set
@@ -87,6 +88,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         private VBIB? cachedVBIB { get; set; }
+
+        /// <summary>Drops the decoded vertex and index buffer data.</summary>
+        public void ReleaseVBIB() => cachedVBIB?.Release();
 
         /// <summary>
         /// Gets the attachments associated with this mesh.
