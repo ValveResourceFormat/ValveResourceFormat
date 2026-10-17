@@ -141,7 +141,7 @@ public sealed class MapDocumentLoader : IDisposable
     {
         LoadingProgress?.Report("Reading map nodes…");
 
-        var walker = new MapNodeWalker(LoadPrefab);
+        var walker = new MapNodeWalker((_, targetMapPath) => LoadPrefab(targetMapPath));
         var placedNodes = walker.Walk(Document).ToList();
 
         foreach (var placedNode in placedNodes)
@@ -376,7 +376,8 @@ public sealed class MapDocumentLoader : IDisposable
         }
     }
 
-    private MapDocument? LoadPrefab(MapDocument owner, string targetMapPath)
+    // Prefabs name their maps relative to the content root, wherever the prefab placing them is
+    private MapDocument? LoadPrefab(string targetMapPath)
     {
         if (contentRoot == null)
         {
