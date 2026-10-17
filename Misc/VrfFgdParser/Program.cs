@@ -333,6 +333,11 @@ static void AddDrawnData(FgdClass gameClass, KVObject data)
     {
         data.Add("required_parent_class", requiredParentClass);
     }
+
+    if (GetText(gameClass.Metadata, "auto_apply_material") is { Length: > 0 } autoApplyMaterial)
+    {
+        data.Add("auto_apply_material", autoApplyMaterial);
+    }
 }
 
 // A key without a name is never read
