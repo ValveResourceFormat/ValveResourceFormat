@@ -197,7 +197,11 @@ namespace ValveResourceFormat.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float AngleBetween(Quaternion a, Quaternion b)
         {
-            return 2f * SafeAcos(MathF.Abs(Quaternion.Dot(a, b)));
+            // An arc cosine of the dot product cannot resolve angles below about 0.03 degrees in single
+            // precision, as their cosine rounds to one; the sine of the difference rotation can.
+            var difference = Quaternion.Conjugate(a) * b;
+            var sine = new Vector3(difference.X, difference.Y, difference.Z).Length();
+            return 2f * MathF.Atan2(sine, MathF.Abs(difference.W));
         }
 
         /// <summary>
