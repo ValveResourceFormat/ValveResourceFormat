@@ -22,7 +22,7 @@ namespace GUI.Types.GLViewers
 {
     partial class GLModelViewer : GLSingleNodeViewer
     {
-        protected Model? model { get; init; }
+        protected internal Model? model { get; init; }
         private readonly bool ModelViewerWithAnimGraphSupport;
         private PhysAggregateData? phys;
 
@@ -206,7 +206,7 @@ namespace GUI.Types.GLViewers
                     animationController.IsPaused = !isChecked;
                 }
             });
-            animationTrackBar = UiControl.AddTrackBar(frame =>
+            animationTrackBar = UiControl.AddTrackBar("Animation Frame", frame =>
             {
                 if (animationController?.ActiveAnimation is { CycleFrames: > 0 } animation)
                 {
@@ -214,7 +214,7 @@ namespace GUI.Types.GLViewers
                 }
             });
 
-            slowmodeTrackBar = UiControl.AddTrackBar(value =>
+            slowmodeTrackBar = UiControl.AddTrackBar("Animation Speed", value =>
             {
                 animationController.FrametimeMultiplier = value;
             }, animationController.FrametimeMultiplier);

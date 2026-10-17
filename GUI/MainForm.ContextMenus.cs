@@ -217,7 +217,7 @@ namespace GUI
         /// Builds the <c>vpk:</c> link to the package, and the packages it is nested in.
         /// The outermost package is relative to its Steam app when that resolves back to it, so the link works on other computers.
         /// </summary>
-        private static string GetVpkLinkPackagePath(VrfGuiContext context)
+        internal static string GetVpkLinkPackagePath(VrfGuiContext context)
         {
             var packageChain = new List<string>();
 

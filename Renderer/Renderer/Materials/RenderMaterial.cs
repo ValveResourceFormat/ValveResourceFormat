@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.VfxEval;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Materials
 {
@@ -260,9 +261,11 @@ namespace ValveResourceFormat.Renderer.Materials
             SortId = GetSortId();
         }
 
-        /// <summary>Sort ID range per shader program: groups draws by shader, random order within a group.</summary>
+        /// <summary>Sort ID range per shader program: groups draws by shader, in an arbitrary but stable order within a group.</summary>
         public const int PerShaderSortIdRange = 10_000;
-        private int GetSortId() => Shader.Program * PerShaderSortIdRange + Random.Shared.Next(1, 9999);
+
+        // Arbitrary within a shader but the same on every load, so that coplanar and blended draws resolve the same way each time
+        private int GetSortId() => Shader.Program * PerShaderSortIdRange + 1 + (int)(StringToken.Get(Material.Name) % (PerShaderSortIdRange - 2));
 
         static readonly string[] TranslucentShaders =
         [

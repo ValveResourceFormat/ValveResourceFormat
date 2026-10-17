@@ -14,6 +14,15 @@ internal sealed class PropertyRow : Panel
     private readonly Control[] editors;
     private readonly Control[] trailing;
 
+    /// <summary>The name in the left half, or null for a row without one.</summary>
+    public string? RowName => nameLabel?.Text;
+
+    /// <summary>The controls in the editor column, left to right.</summary>
+    public IReadOnlyList<Control> Editors => editors;
+
+    /// <summary>The controls at the right end of the row, left to right.</summary>
+    public IReadOnlyList<Control> Trailing => trailing;
+
     /// <summary>Where the name sits within its half of the row.</summary>
     public System.Drawing.ContentAlignment NameAlign
     {

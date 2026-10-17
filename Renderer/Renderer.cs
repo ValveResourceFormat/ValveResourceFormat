@@ -110,6 +110,20 @@ public class Renderer : ISpawnGroupHost
         return null;
     }
 
+    /// <summary>Finds the node drawn at a pixel of the picking buffer.</summary>
+    /// <param name="pixel">The pixel read back from the picking buffer.</param>
+    /// <returns>The node, or <see langword="null"/> when the pixel shows none.</returns>
+    public SceneNode? FindPickedNode(PickingTexture.PixelInfo pixel)
+    {
+        // A set fourth channel is empty space too, which translucent effects can leave behind
+        if (pixel.ObjectId == 0 || pixel.Unused2 != 0 || pixel.SceneIndex >= scenes.Count)
+        {
+            return null;
+        }
+
+        return scenes[(int)pixel.SceneIndex].Find(pixel.ObjectId);
+    }
+
     /// <summary>Finds a node by its entity's <c>targetname</c>, in whichever scene it went into.</summary>
     /// <param name="pattern">The target name to match.</param>
     /// <returns>The first matching node, or <see langword="null"/> when there is none.</returns>

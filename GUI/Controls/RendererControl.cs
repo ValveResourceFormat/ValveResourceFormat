@@ -393,6 +393,7 @@ partial class RendererControl : UserControl
             AutoSize = true,
             ForeColor = Themer.CurrentThemeColors.ContrastSoft,
             Margin = Padding.Empty,
+            AccessibleRole = AccessibleRole.Grouping,
         };
 
         // Derived from the sidebar font once parented, since an unparented label only knows the system default
@@ -468,9 +469,10 @@ partial class RendererControl : UserControl
         return selectionControl;
     }
 
-    public GLViewerSliderControl AddTrackBar(Action<float> changeCallback, float defaultValue = 0f)
+    public GLViewerSliderControl AddTrackBar(string name, Action<float> changeCallback, float defaultValue = 0f)
     {
         var trackBar = new GLViewerSliderControl();
+        trackBar.Slider.AccessibleName = name;
         trackBar.Slider.Value = defaultValue;
         trackBar.Slider.ValueChanged = changeCallback;
 

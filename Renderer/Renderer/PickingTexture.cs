@@ -28,7 +28,7 @@ public class PickingTexture : Framebuffer
         /// <summary>Index into <see cref="Renderer.Scenes"/> of the scene holding the picked object.</summary>
         public uint SceneIndex;
 
-        /// <summary>Reserved padding field.</summary>
+        /// <summary>Fourth channel, which the picking pass leaves at zero, so a value here means no node was picked.</summary>
         public uint Unused2;
 #pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
     }
@@ -84,6 +84,25 @@ public class PickingTexture : Framebuffer
         GL.NamedFramebufferReadBuffer(FboHandle, ReadBufferMode.None);
 
         return pixelInfo;
+    }
+
+    /// <summary>
+    /// Reads back the depth the picking pass left at a cursor position. Call after <see cref="ReadPixel"/>,
+    /// which waits for rendering into the framebuffer to finish.
+    /// </summary>
+    /// <param name="x">Cursor X position in window coordinates.</param>
+    /// <param name="y">Cursor Y position in window coordinates, from the top.</param>
+    /// <returns>The window depth at that pixel, which is 0 where nothing was drawn.</returns>
+    public float ReadDepth(int x, int y)
+    {
+        var depth = 0f;
+
+        GL.GetInteger(GetPName.ReadFramebufferBinding, out int previousReadFramebuffer);
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, FboHandle);
+        GL.ReadPixels(x, Height - 1 - y, 1, 1, PixelFormat.DepthComponent, PixelType.Float, ref depth);
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, previousReadFramebuffer);
+
+        return depth;
     }
 
     /// <summary>Updates <see cref="IsDebugActive"/> based on whether the current render mode matches the picking shader's supported modes.</summary>
