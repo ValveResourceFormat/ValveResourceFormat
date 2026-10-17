@@ -22,6 +22,8 @@ public sealed class ToolRenderContext
     private readonly Matrix4x4[] transformStack = new Matrix4x4[StackDepth];
     private int modeDepth;
     private int transformDepth;
+    private ToolPickTargets? pickTargets;
+    private int pickId;
 
     /// <summary>Gets what is drawn.</summary>
     public ToolGeometry Output { get; }
@@ -42,6 +44,9 @@ public sealed class ToolRenderContext
 
     /// <summary>Gets or sets whether triangles get the normal of their face, which the shaded modes light them by.</summary>
     public bool ComputeFaceNormals { get; set; }
+
+    /// <summary>Gets or sets the camera the shapes that face the camera are turned towards.</summary>
+    public Camera? Camera { get; set; }
 
     /// <summary>Gets the current render mode.</summary>
     public ToolRenderMode RenderMode => modeStack[modeDepth];
@@ -130,6 +135,29 @@ public sealed class ToolRenderContext
         }
     }
 
+    /// <summary>
+    /// Makes the faces and handles drawn until <see cref="EndPickObject"/> pickable as one object, as well as
+    /// drawn unless the mode is <see cref="ToolRenderMode.PickProxy"/>.
+    /// </summary>
+    /// <param name="targets">Where what can be picked goes.</param>
+    /// <param name="id">What the object is picked as.</param>
+    public void BeginPickObject(ToolPickTargets targets, int id)
+    {
+        ArgumentNullException.ThrowIfNull(targets);
+
+        pickTargets = targets;
+        pickId = id;
+    }
+
+    /// <summary>Stops making what is drawn pickable.</summary>
+    public void EndPickObject()
+    {
+        pickTargets = null;
+    }
+
+    // Shapes drawn in this mode are only picked
+    private bool IsPickOnly => RenderMode == ToolRenderMode.PickProxy;
+
     private Vector3 ToWorld(Vector3 point) => Vector3.Transform(point, Transform);
 
     private Vector3 NormalToWorld(Vector3 normal) => Vector3.TransformNormal(normal, Transform);
@@ -143,6 +171,11 @@ public sealed class ToolRenderContext
     /// <summary>Draws a line fading from one color to another.</summary>
     public void DrawLine(Vector3 start, Vector3 end, Color32 startColor, Color32 endColor)
     {
+        if (IsPickOnly)
+        {
+            return;
+        }
+
         Output.AddLine(State, ToWorld(start), ToWorld(end), startColor, endColor, NormalToWorld(DefaultNormal));
     }
 
@@ -152,7 +185,7 @@ public sealed class ToolRenderContext
     /// <param name="normal">The normal the lines carry.</param>
     public void DrawPolyLine(ReadOnlySpan<Vector3> points, bool closed, Vector3? normal = null)
     {
-        if (points.Length < 2)
+        if (points.Length < 2 || IsPickOnly)
         {
             return;
         }
@@ -615,7 +648,13 @@ public sealed class ToolRenderContext
             return;
         }
 
-        Output.AddHandle(new ToolHandleState(type, noZ, border, translucent, LayerOverride), ToWorld(position), size, color);
+        var worldPosition = ToWorld(position);
+        pickTargets?.AddHandle(worldPosition, size, pickId);
+
+        if (!IsPickOnly)
+        {
+            Output.AddHandle(new ToolHandleState(type, noZ, border, translucent, LayerOverride), worldPosition, size, color);
+        }
     }
 
     /// <summary>
@@ -729,6 +768,203 @@ public sealed class ToolRenderContext
         }
     }
 
+    /// <summary>
+    /// Draws a line as a quad of some width in one color, turned around the line to face the <see cref="Camera"/>.
+    /// </summary>
+    /// <param name="start">Where the line starts.</param>
+    /// <param name="end">Where the line ends.</param>
+    /// <param name="width">The width of the quad.</param>
+    /// <param name="color">The color.</param>
+    /// <param name="doubleSided">Whether the quad is drawn from both sides.</param>
+    public void DrawScreenAlignedLine(Vector3 start, Vector3 end, float width, Color32 color, bool doubleSided = false)
+    {
+        var direction = MathUtils.SafeNormalize(end - start);
+        var toMiddle = (start + end) * 0.5f - GetCameraPosition();
+        var side = MathUtils.SafeNormalize(Vector3.Cross(toMiddle, direction)) * (width * 0.5f);
+
+        DrawQuad(start + side, end + side, end - side, start - side, color, doubleSided);
+    }
+
+    /// <summary>
+    /// Draws a square of some size in one color around a point, in the plane of the screen of the <see cref="Camera"/>.
+    /// </summary>
+    /// <param name="center">The center of the square.</param>
+    /// <param name="width">How wide the square is.</param>
+    /// <param name="height">How high the square is.</param>
+    /// <param name="color">The color.</param>
+    public void DrawScreenAlignedRect(Vector3 center, float width, float height, Color32 color)
+    {
+        var camera = Camera ?? throw new InvalidOperationException("Shapes that face the camera need a camera.");
+        var up = MathUtils.SafeNormalize(Vector3.TransformNormal(camera.Up, GetWorldToLocal())) * (height * 0.5f);
+        var left = MathUtils.SafeNormalize(Vector3.TransformNormal(-camera.Right, GetWorldToLocal())) * (width * 0.5f);
+
+        DrawQuad(center + left + up, center + left - up, center - left - up, center - left + up, color, doubleSided: true);
+    }
+
+    /// <summary>
+    /// Draws a rectangle in the plane of two axes, spanning from one distance to another along each, filled from
+    /// both sides or as its outline.
+    /// </summary>
+    /// <param name="origin">Where the distances are measured from.</param>
+    /// <param name="axisA">The first axis.</param>
+    /// <param name="axisB">The second axis.</param>
+    /// <param name="minA">Where the rectangle starts along the first axis.</param>
+    /// <param name="maxA">Where the rectangle ends along the first axis.</param>
+    /// <param name="minB">Where the rectangle starts along the second axis.</param>
+    /// <param name="maxB">Where the rectangle ends along the second axis.</param>
+    /// <param name="color">The color.</param>
+    /// <param name="outline">Whether only the edges are drawn.</param>
+    public void DrawOrientedRect(Vector3 origin, Vector3 axisA, Vector3 axisB, float minA, float maxA, float minB, float maxB, Color32 color, bool outline)
+    {
+        var a = origin + axisA * minA + axisB * minB;
+        var b = origin + axisA * minA + axisB * maxB;
+        var c = origin + axisA * maxA + axisB * maxB;
+        var d = origin + axisA * maxA + axisB * minB;
+
+        if (outline)
+        {
+            DrawQuadOutline(a, b, c, d, color);
+            return;
+        }
+
+        DrawQuad(d, c, b, a, color, doubleSided: true);
+    }
+
+    /// <summary>
+    /// Draws a ring as a band of some width in one color, between two angles of a circle in the plane of two axes.
+    /// The band is turned around the circle to face the <see cref="Camera"/>, so it keeps its width on the screen.
+    /// </summary>
+    /// <param name="center">The center of the circle.</param>
+    /// <param name="axisX">The axis at zero degrees.</param>
+    /// <param name="axisY">The axis at ninety degrees.</param>
+    /// <param name="radius">The radius of the circle.</param>
+    /// <param name="width">The width of the band.</param>
+    /// <param name="segments">How many quads the band is drawn with, at least three.</param>
+    /// <param name="startDegrees">The angle the band starts at.</param>
+    /// <param name="endDegrees">The angle the band ends at, the whole circle when a turn or more from the start.</param>
+    /// <param name="color">The color.</param>
+    public void DrawSolidRingArc(Vector3 center, Vector3 axisX, Vector3 axisY, float radius, float width, int segments, float startDegrees, float endDegrees, Color32 color)
+    {
+        if (segments < 3)
+        {
+            return;
+        }
+
+        if (MathF.Abs(startDegrees - endDegrees) >= 360f)
+        {
+            (startDegrees, endDegrees) = (0f, 360f);
+        }
+
+        Vector3 GetPoint(float degrees)
+        {
+            var (sin, cos) = MathF.SinCos(float.DegreesToRadians(degrees));
+            return center + (axisX * cos + axisY * sin) * radius;
+        }
+
+        var step = (endDegrees - startDegrees) / segments;
+        var toCenter = center - GetCameraPosition();
+        var previous = GetPoint(startDegrees);
+        var previousInner = previous;
+        var previousOuter = previous;
+
+        // Each point is widened across the segment that ends at it, so the first one, which has no segment, is not
+        for (var i = 0; i <= segments; i++)
+        {
+            var point = GetPoint(startDegrees + step * i);
+            var offset = MathUtils.SafeNormalize(Vector3.Cross(toCenter, point - previous)) * (width * 0.5f);
+            var (inner, outer) = (point - offset, point + offset);
+
+            if (i > 0)
+            {
+                AddFaces(previousInner, previousOuter, outer, color, color, color, ToolFaceSides.Both);
+                AddFaces(previousInner, outer, inner, color, color, color, ToolFaceSides.Both);
+            }
+
+            (previous, previousInner, previousOuter) = (point, inner, outer);
+        }
+    }
+
+    /// <summary>Draws a whole ring around a normal, as <see cref="DrawSolidRingArc"/> does.</summary>
+    /// <param name="center">The center of the circle.</param>
+    /// <param name="normal">The normal of the plane of the circle.</param>
+    /// <param name="radius">The radius of the circle.</param>
+    /// <param name="width">The width of the band.</param>
+    /// <param name="segments">How many quads the band is drawn with, at least three.</param>
+    /// <param name="color">The color.</param>
+    public void DrawSolidRing(Vector3 center, Vector3 normal, float radius, float width, int segments, Color32 color)
+    {
+        var (right, up) = GetVectorVectors(MathUtils.SafeNormalize(normal));
+
+        DrawSolidRingArc(center, right, up, radius, width, segments, 0f, 360f, color);
+    }
+
+    /// <summary>
+    /// Draws a filled slice of a circle around a center, from the direction of one point to the direction of another,
+    /// as far out as the first point.
+    /// </summary>
+    /// <param name="center">The center.</param>
+    /// <param name="start">The point the slice starts towards.</param>
+    /// <param name="end">The point the slice ends towards.</param>
+    /// <param name="segments">How many faces the slice is drawn with.</param>
+    /// <param name="color">The color.</param>
+    /// <param name="sides">Which sides of the faces are drawn.</param>
+    public void DrawAngleArc(Vector3 center, Vector3 start, Vector3 end, int segments, Color32 color, ToolFaceSides sides)
+    {
+        var radius = Vector3.Distance(start, center);
+        var from = MathUtils.SafeNormalize(start - center);
+        var to = MathUtils.SafeNormalize(end - center);
+        var degrees = float.RadiansToDegrees(MathUtils.SafeAcos(Vector3.Dot(from, to)));
+        var normal = MathUtils.SafeNormalize(Vector3.Cross(to, from));
+
+        // From the end around towards the start
+        DrawArcEx(center, to, MathUtils.SafeNormalize(Vector3.Cross(normal, to)), radius, segments, 0f, degrees, color, wireframe: false, sides);
+    }
+
+    /// <summary>Draws a sphere as faces in one color, as a grid of rows from its +Z pole to its -Z pole.</summary>
+    /// <param name="center">The center.</param>
+    /// <param name="radius">The radius.</param>
+    /// <param name="slices">How many points each row has around, the last one closing it.</param>
+    /// <param name="stacks">How many rows there are, the first and last at the poles.</param>
+    /// <param name="color">The color.</param>
+    public void DrawSolidSphere(Vector3 center, float radius, int slices, int stacks, Color32 color)
+    {
+        if (slices < 2 || stacks < 2)
+        {
+            return;
+        }
+
+        Vector3 GetPoint(int stack, int slice)
+        {
+            var (sinTheta, cosTheta) = MathF.SinCos(stack / (float)(stacks - 1) * MathF.PI);
+            var (sinPhi, cosPhi) = MathF.SinCos(slice / (float)(slices - 1) * MathF.Tau);
+
+            return center + new Vector3(cosPhi * sinTheta, sinPhi * sinTheta, cosTheta) * radius;
+        }
+
+        for (var stack = 0; stack < stacks - 1; stack++)
+        {
+            for (var slice = 0; slice < slices - 1; slice++)
+            {
+                var a = GetPoint(stack, slice);
+                var b = GetPoint(stack + 1, slice);
+                var c = GetPoint(stack + 1, slice + 1);
+                var d = GetPoint(stack, slice + 1);
+
+                AddFaces(a, b, c, color, color, color, ToolFaceSides.Front);
+                AddFaces(a, c, d, color, color, color, ToolFaceSides.Front);
+            }
+        }
+    }
+
+    // The camera, in the space the shapes are drawn in
+    private Vector3 GetCameraPosition()
+    {
+        var camera = Camera ?? throw new InvalidOperationException("Shapes that face the camera need a camera.");
+        return Vector3.Transform(camera.Location, GetWorldToLocal());
+    }
+
+    private Matrix4x4 GetWorldToLocal() => Matrix4x4.Invert(Transform, out var inverse) ? inverse : Matrix4x4.Identity;
+
     // Two axes across a normalized direction, both normalized: the first across it and the X axis, or the Y
     // axis when the direction is along X, and the second across that and the direction
     private static (Vector3 Right, Vector3 Up) GetVectorVectors(Vector3 forward)
@@ -758,14 +994,18 @@ public sealed class ToolRenderContext
 
     private void AddTriangle(Vector3 a, Vector3 b, Vector3 c, Color32 colorA, Color32 colorB, Color32 colorC, Vector3 normalA, Vector3 normalB, Vector3 normalC)
     {
-        Output.AddTriangle(State, ToWorld(a), ToWorld(b), ToWorld(c), colorA, colorB, colorC, NormalToWorld(normalA), NormalToWorld(normalB), NormalToWorld(normalC));
+        var (worldA, worldB, worldC) = (ToWorld(a), ToWorld(b), ToWorld(c));
+        pickTargets?.AddTriangle(worldA, worldB, worldC, pickId);
+
+        if (!IsPickOnly)
+        {
+            Output.AddTriangle(State, worldA, worldB, worldC, colorA, colorB, colorC, NormalToWorld(normalA), NormalToWorld(normalB), NormalToWorld(normalC));
+        }
     }
 
     private void AddTriangle(Vector3 a, Vector3 b, Vector3 c, Color32 colorA, Color32 colorB, Color32 colorC, Vector3 normal)
     {
-        var worldNormal = NormalToWorld(normal);
-
-        Output.AddTriangle(State, ToWorld(a), ToWorld(b), ToWorld(c), colorA, colorB, colorC, worldNormal, worldNormal, worldNormal);
+        AddTriangle(a, b, c, colorA, colorB, colorC, normal, normal, normal);
     }
 
     /// <summary>A color lit by the CPU the way the flat modes light faces, its alpha kept.</summary>

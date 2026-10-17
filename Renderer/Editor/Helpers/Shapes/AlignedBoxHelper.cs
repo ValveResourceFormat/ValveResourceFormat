@@ -1,3 +1,4 @@
+using ValveResourceFormat.Renderer.Editor.Gizmos;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -9,6 +10,9 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// </summary>
 internal sealed class AlignedBoxHelper : EntityHelper
 {
+    /// <inheritdoc/>
+    public override GizmoTransformModes SupportedTransformModes => GizmoTransformModes.Translate | GizmoTransformModes.Rotate;
+
     /// <inheritdoc/>
     public override bool IsStandIn => true;
 

@@ -101,7 +101,7 @@ namespace GUI.Types.GLViewers
             // A ring seen edge on has no usable plane, so the horizontal mouse travel turns it instead
             var angle = (mouse.X - dragStart.Mouse.X) * 0.01f;
 
-            if (point is { } ringHit && MathF.Abs(Vector3.Dot(axis, ScreenToRay(camera, mouse))) >= 0.1f)
+            if (point is { } ringHit && MathF.Abs(Vector3.Dot(axis, camera.ScreenPointToDirection(mouse))) >= 0.1f)
             {
                 var from = dragStart.Hit - dragStart.Position;
                 var to = ringHit - dragStart.Position;
@@ -190,7 +190,7 @@ namespace GUI.Types.GLViewers
         private Vector3? DragPoint(Camera camera, Vector2 mouse)
         {
             var origin = camera.Location;
-            var direction = ScreenToRay(camera, mouse);
+            var direction = camera.ScreenPointToDirection(mouse);
             var start = dragStart.Position;
 
             if (activeHandle < MoveScreen)
@@ -214,29 +214,14 @@ namespace GUI.Types.GLViewers
             return distance < 0f ? null : origin + (direction * distance);
         }
 
-        private static Vector3 ScreenToRay(Camera camera, Vector2 mouse)
-        {
-            var ndcX = (2f * mouse.X / camera.WindowSize.X) - 1f;
-            var ndcY = 1f - (2f * mouse.Y / camera.WindowSize.Y);
-
-            return Vector3.Normalize(camera.Forward
-                + (camera.Right * (ndcX / camera.ProjectionMatrix.M11))
-                + (camera.Up * (ndcY / camera.ProjectionMatrix.M22)));
-        }
-
         private static float DistanceToLine(Camera camera, Vector2 mouse, Vector3 from, Vector3 to)
         {
-            var a = Vector4.Transform(new Vector4(from, 1f), camera.ViewProjectionMatrix);
-            var b = Vector4.Transform(new Vector4(to, 1f), camera.ViewProjectionMatrix);
-
-            if (a.W <= 0f || b.W <= 0f)
+            if (camera.WorldToScreenPoint(from) is not { } start || camera.WorldToScreenPoint(to) is not { } end)
             {
                 return float.MaxValue;
             }
 
-            var scale = camera.WindowSize * new Vector2(0.5f, -0.5f);
-            var start = (new Vector2(a.X, a.Y) / a.W * scale) + (camera.WindowSize * 0.5f);
-            var along = (new Vector2(b.X, b.Y) / b.W * scale) + (camera.WindowSize * 0.5f) - start;
+            var along = end - start;
             var lengthSquared = along.LengthSquared();
             var t = lengthSquared > 0f ? Math.Clamp(Vector2.Dot(mouse - start, along) / lengthSquared, 0f, 1f) : 0f;
             return Vector2.Distance(mouse, start + (along * t));
