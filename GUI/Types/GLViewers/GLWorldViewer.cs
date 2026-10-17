@@ -415,28 +415,7 @@ namespace GUI.Types.GLViewers
 
                 if (uniqueWorldLayers.Count > 0 && LoadedWorld != null)
                 {
-                    Debug.Assert(worldLayersComboBox != null);
-
-                    worldLayersComboBox.BeginUpdate();
-
-                    // Showing helpers also decides what a selected entity shows, so it can be chosen even
-                    // while nothing unselected needs it
-                    uniqueWorldLayers.Add(HammerEntityVisuals.HelpersLayerName);
-                    SetAvailableLayers(uniqueWorldLayers);
-
-                    foreach (var worldLayer in LoadedWorld.DefaultEnabledLayers)
-                    {
-                        var checkboxIndex = worldLayersComboBox.FindStringExact(worldLayer);
-
-                        if (checkboxIndex > -1)
-                        {
-                            worldLayersComboBox.SetItemCheckState(checkboxIndex, CheckState.Checked);
-                        }
-                    }
-
-                    worldLayersComboBox.EndUpdate();
-
-                    SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
+                    SetAvailableLayers(uniqueWorldLayers, LoadedWorld.DefaultEnabledLayers);
                 }
 
                 if (uniquePhysicsGroups.Count > 0)
@@ -1181,7 +1160,35 @@ namespace GUI.Types.GLViewers
             });
         }
 
-        protected void SetAvailableLayers(IEnumerable<string> worldLayers)
+        /// <summary>
+        /// Lists the layers along with the helpers layer, and checks and shows the ones enabled by default.
+        /// </summary>
+        protected void SetAvailableLayers(IEnumerable<string> worldLayers, HashSet<string> defaultEnabledLayers)
+        {
+            Debug.Assert(worldLayersComboBox != null);
+
+            worldLayersComboBox.BeginUpdate();
+
+            // Showing helpers also decides what a selected entity shows, so it can be chosen even while nothing
+            // unselected needs it
+            SetAvailableLayers(worldLayers.Append(HammerEntityVisuals.HelpersLayerName).Distinct());
+
+            foreach (var layer in defaultEnabledLayers)
+            {
+                var checkboxIndex = worldLayersComboBox.FindStringExact(layer);
+
+                if (checkboxIndex > -1)
+                {
+                    worldLayersComboBox.SetItemCheckState(checkboxIndex, CheckState.Checked);
+                }
+            }
+
+            worldLayersComboBox.EndUpdate();
+
+            SetEnabledLayers(defaultEnabledLayers);
+        }
+
+        private void SetAvailableLayers(IEnumerable<string> worldLayers)
         {
             Debug.Assert(worldLayersComboBox != null);
 

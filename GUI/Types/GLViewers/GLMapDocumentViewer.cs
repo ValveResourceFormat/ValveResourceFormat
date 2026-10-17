@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Linq;
-using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.IO;
@@ -85,32 +84,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            // Showing helpers also decides what a selected entity shows, so it can be chosen even while
-            // nothing unselected needs it
-            var mapLayers = Scene.AllNodes
-                .Select(static r => r.LayerName)
-                .OfType<string>()
-                .Append(HammerEntityVisuals.HelpersLayerName)
-                .Distinct()
-                .ToList();
-
-            worldLayersComboBox.BeginUpdate();
-
-            SetAvailableLayers(mapLayers);
-
-            foreach (var mapLayer in loadedMapDocument.DefaultEnabledLayers)
-            {
-                var checkboxIndex = worldLayersComboBox.FindStringExact(mapLayer);
-
-                if (checkboxIndex > -1)
-                {
-                    worldLayersComboBox.SetItemCheckState(checkboxIndex, CheckState.Checked);
-                }
-            }
-
-            worldLayersComboBox.EndUpdate();
-
-            SetEnabledLayers(loadedMapDocument.DefaultEnabledLayers);
+            SetAvailableLayers(Scene.AllNodes.Select(static r => r.LayerName).OfType<string>(), loadedMapDocument.DefaultEnabledLayers);
 
             if (!loadedMapDocument.HasLights || !loadedMapDocument.HasBakedLighting)
             {
