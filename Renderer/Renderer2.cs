@@ -137,34 +137,9 @@ public class Renderer2
             return;
 
         viewContext.Camera.RecalculateMatrices();
-        Matrix4x4? viewMatrix = viewContext.Camera.CameraViewMatrix; // * Matrix4x4.Identity; // Renderer?.Camera?.CameraViewMatrix;
 
-        var aspectRatio = (float)WindowSwapchain.Extent.width / WindowSwapchain.Extent.height;
-        var projectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(MathF.PI / 4f, aspectRatio, 0.1f, 1000f);
-        projectionMatrix.M22 *= -1;
-
-        var view = viewMatrix ?? Matrix4x4.Identity;
         var viewConstants = Frame.viewConstantsCPU;
-        viewConstants.ViewToProjection = projectionMatrix;
-        viewConstants.WorldToView = view;
-        viewConstants.WorldToProjection = view * projectionMatrix;
-
-        // Despite the name, this only inverts the projection, matching what shaders expect
-        if (!Matrix4x4.Invert(projectionMatrix, out viewConstants.ProjectionToWorld))
-        {
-            throw new InvalidOperationException("Matrix invert failed");
-        }
-
-        viewConstants.InvProjRow3 = new Vector4(
-            viewConstants.ProjectionToWorld.M14,
-            viewConstants.ProjectionToWorld.M24,
-            viewConstants.ProjectionToWorld.M34,
-            viewConstants.ProjectionToWorld.M44
-        );
-
-        viewConstants.CameraPosition = viewContext.Camera.Location;
-        viewConstants.CameraDirWs = viewContext.Camera.Forward;
-        viewConstants.CameraUpDirWs = viewContext.Camera.Up;
+        viewContext.Camera.SetViewConstants(viewConstants);
         viewConstants.ViewportSize = new Vector2(WindowSwapchain.Extent.width, WindowSwapchain.Extent.height);
         viewConstants.InvViewportSize = Vector2.One / viewConstants.ViewportSize;
         viewConstants.Time = Uptime;
@@ -185,14 +160,24 @@ public class Renderer2
             RendererContext.MaterialLoader.PatchTextureHandles(cmd);
         }
 
-        cmd.ClearRenderTarget(HdrRenderTarget, new VkClearColorValue(0.1f, 0.1f, 0.2f, 1.0f), 1);
+        // Reverse Z, so the far plane is at 0
+        cmd.ClearRenderTarget(HdrRenderTarget, new VkClearColorValue(0.1f, 0.1f, 0.2f, 1.0f), 0);
 
         cmd.ClearSwapchainImage(WindowSwapchain.Images[currIndex], new VkClearColorValue(0.15f, 0.1f, 0.13f, 1.0f));
 
         cmd.BeginDebugLabel("Opaque Pass");
         cmd.BeginRendering(new RenderingInfo(HdrRenderTarget));
 
-        VkViewport viewport = new() { x = 0, y = 0, width = WindowSwapchain.Extent.width, height = WindowSwapchain.Extent.height, minDepth = 0.0f, maxDepth = 1.0f };
+        // Negative height flips y to match the projection matrices, which are shared with the CPU side as is
+        VkViewport viewport = new()
+        {
+            x = 0,
+            y = WindowSwapchain.Extent.height,
+            width = WindowSwapchain.Extent.width,
+            height = -(float)WindowSwapchain.Extent.height,
+            minDepth = DepthRange.Scene.Near,
+            maxDepth = DepthRange.Scene.Far,
+        };
         VkRect2D scissor = new() { extent = WindowSwapchain.Extent, offset = new() };
 
         cmd.SetViewport(viewport);

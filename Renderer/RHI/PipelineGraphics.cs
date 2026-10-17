@@ -225,7 +225,7 @@ namespace ValveResourceFormat.Renderer.RHI
                     {
                         depthTestEnable = true,
                         depthWriteEnable = depthWriteEnable,
-                        depthCompareOp = VkCompareOp.LessOrEqual,
+                        depthCompareOp = VkCompareOp.GreaterOrEqual, // Reverse Z
                         depthBoundsTestEnable = false,
                         stencilTestEnable = false,
                     };

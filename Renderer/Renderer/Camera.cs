@@ -182,11 +182,9 @@ namespace ValveResourceFormat.Renderer
             viewConstants.CameraDirWs = Forward;
             viewConstants.CameraUpDirWs = Up;
 
-#if VKTODO
             // todo: these change per scene, move to the other buffer
-            viewConstants.ViewportMinZ = Renderer.DepthRange.Scene.Near;
-            viewConstants.ViewportMaxZ = Renderer.DepthRange.Scene.Far;
-#endif
+            viewConstants.ViewportMinZ = Renderer2.DepthRange.Scene.Near;
+            viewConstants.ViewportMaxZ = Renderer2.DepthRange.Scene.Far;
         }
 
         /// <summary>

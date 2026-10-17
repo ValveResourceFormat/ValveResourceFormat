@@ -1,11 +1,10 @@
 import common.Core;
 import common.PushData;
 
-// Counter clockwise in Vulkan's y down framebuffer, so back face culling keeps it
 static const float2 trianglePositions[3] = {
     float2(-1.0f, -1.0f),
-    float2(-1.0f,  3.0f),
-    float2( 3.0f, -1.0f)
+    float2( 3.0f, -1.0f),
+    float2(-1.0f,  3.0f)
 };
 
 struct VS_OUT {
@@ -33,9 +32,10 @@ void vertMain(
     float2 vertexPos = trianglePositions[pos];
     out_.clipPos = float4(vertexPos, 0.0f, 1.0f);
 
-    // Unproject near and far points to world space for ray intersection
-    out_.nearPoint = UnprojectToWorld(viewConstants, float4(vertexPos, 0.0f, 1.0f));
-    out_.farPoint = UnprojectToWorld(viewConstants, float4(vertexPos, 1.0f, 1.0f));
+    // Unproject two points along the view ray for the plane intersection. Reverse Z puts the near plane
+    // at 1 and the infinite far plane at 0, which does not unproject, so the second point stays short of it
+    out_.nearPoint = UnprojectToWorld(viewConstants, float4(vertexPos, 1.0f, 1.0f));
+    out_.farPoint = UnprojectToWorld(viewConstants, float4(vertexPos, 0.01f, 1.0f));
 }
 
 [shader("fragment")]
@@ -51,7 +51,7 @@ void fragMain(
     if (t < 0.0f) {
         // No intersection with grid plane, fully transparent
         color = float4(0.0f, 0.0f, 0.0f, 0.0f);
-        outDepth = 1.0f; // Write far depth so this fragment doesn't block anything
+        outDepth = 0.0f; // Write far depth so this fragment doesn't block anything
         return;
     }
 
@@ -60,10 +60,11 @@ void fragMain(
 
     float4 clip_space_pos = mul(viewConstants.g_matWorldToProjection, float4(fragPos3D, 1.0f));
     float depth = clip_space_pos.z / clip_space_pos.w;
-    outDepth = depth;
 
-    // Tuned for reverse Z, so flip the standard depth until the renderer switches over
-    float fading = 0.05f + pow(saturate(1.0f - depth), 0.1f);
+    // Written depth skips the viewport transform, so apply its depth range here
+    outDepth = lerp(viewConstants.g_flViewportMinZ, viewConstants.g_flViewportMaxZ, depth);
+
+    float fading = 0.05f + pow(saturate(depth), 0.1f);
 
     bool bIsNearOrigin = fragPosAbs.x <= 120.0f && fragPosAbs.y <= 120.0f;
     float scale = bIsNearOrigin ? 15.0f : 60.0f;

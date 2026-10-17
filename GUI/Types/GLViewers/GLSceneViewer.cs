@@ -317,8 +317,7 @@ namespace GUI.Types.GLViewers
             base.OnResize(w, h);
             Renderer.ResizeTargets((uint)w, (uint)h);
 
-            //VKTODO
-            //Renderer.Camera.SetViewportSize(w, h);
+            camera.SetViewportSize(w, h);
 
             // The input camera frames objects against its own aspect ratio, so it needs the size too
             Input.Camera.SetViewportSize(w, h);
