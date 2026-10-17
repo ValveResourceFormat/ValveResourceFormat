@@ -143,7 +143,7 @@ namespace GUI
                 return;
             }
 
-            var packageLink = wantsFullPath ? GetVpkLinkPackagePath(context) : null;
+            var packageLink = wantsFullPath ? context.GetVpkLink() : null;
             var sb = new StringBuilder();
 
             foreach (var selectedNode in selectedNodes)
@@ -211,26 +211,6 @@ namespace GUI
             {
                 AppClipboard.SetText(sb.ToString());
             }
-        }
-
-        /// <summary>
-        /// Builds the <c>vpk:</c> link to the package, and the packages it is nested in.
-        /// The outermost package is relative to its Steam app when that resolves back to it, so the link works on other computers.
-        /// </summary>
-        private static string GetVpkLinkPackagePath(VrfGuiContext context)
-        {
-            var packageChain = new List<string>();
-
-            for (var chainContext = context; chainContext != null; chainContext = chainContext.ParentGuiContext)
-            {
-                packageChain.Add(chainContext.FileName);
-            }
-
-            packageChain.Reverse();
-
-            packageChain[0] = VrfGuiContext.GetSteamAppPath(packageChain[0]) ?? packageChain[0];
-
-            return string.Concat(VpkLink.Prefix, string.Join(':', packageChain.Select(static path => VpkLink.EscapePath(path.Replace('\\', '/')))));
         }
 
         private void OpenWithoutViewerToolStripMenuItem_Click(object sender, EventArgs e)

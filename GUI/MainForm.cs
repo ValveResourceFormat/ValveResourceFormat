@@ -722,7 +722,7 @@ namespace GUI
 
             try
             {
-                tab.ToolTipText = vrfGuiContext.DisplayPath;
+                tab.ToolTipText = vrfGuiContext.OpenedFromPath;
 
                 var extension = Path.GetExtension(vrfGuiContext.FileName.AsSpan());
 

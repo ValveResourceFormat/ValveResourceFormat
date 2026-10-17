@@ -230,9 +230,7 @@ namespace GUI.Types.Exporter
                 text.AppendLine(CultureInfo.InvariantCulture, $"The other {others} listed in the console.");
             }
 
-            // The context is either the package, or a file opened from it which already names the file
-            var guiContext = exportData.VrfGuiContext;
-            var context = firstFailedFile == guiContext.FileName ? guiContext.DisplayPath : $"{firstFailedFile} ← {guiContext.DisplayPath}";
+            var context = exportData.VrfGuiContext.GetEntryDisplayPath(firstFailedFile);
 
             var report = new StringBuilder();
             ErrorReport.AppendExceptionWithVersion(report, firstFailure, context);

@@ -24,8 +24,7 @@ namespace GUI.Types.Exporter
 
             var fileName = file.GetFullPath();
 
-            // The context is either the package, or a tab opened from it which already names the file
-            var errorContext = vrfGuiContext.FileName == fileName ? vrfGuiContext.DisplayPath : $"{fileName} ← {vrfGuiContext.DisplayPath}";
+            var errorContext = vrfGuiContext.GetEntryDisplayPath(fileName);
 
             Stream stream;
 
@@ -127,9 +126,11 @@ namespace GUI.Types.Exporter
             }
 
             var directory = Path.GetDirectoryName(filaNameToSave);
+            // A tab of the file itself already has a context for it
+            var ownsContext = vrfGuiContext.IsPackage;
             var exportData = new ExportData
             {
-                VrfGuiContext = new VrfGuiContext(fileName, vrfGuiContext),
+                VrfGuiContext = ownsContext ? new VrfGuiContext(fileName, vrfGuiContext) : vrfGuiContext,
             };
 
             try
@@ -143,7 +144,11 @@ namespace GUI.Types.Exporter
             finally
             {
                 resource.Dispose();
-                exportData.VrfGuiContext.Dispose();
+
+                if (ownsContext)
+                {
+                    exportData.VrfGuiContext.Dispose();
+                }
             }
         }
 

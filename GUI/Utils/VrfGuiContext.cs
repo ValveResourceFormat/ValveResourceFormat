@@ -38,10 +38,28 @@ namespace GUI.Utils
         public ToolsAssetInfo? ToolsAssetInfo { get; private set; }
 
         /// <summary>
+        /// Whether this context is for a package, rather than for a file opened from one.
+        /// </summary>
+        public bool IsPackage => base.CurrentPackage != null;
+
+        /// <summary>
+        /// Path of the file, as a <c>vpk:</c> link when it is inside of a package.
+        /// </summary>
+        public string DisplayPath
+        {
+            get
+            {
+                var chain = GetPackageChain();
+
+                return chain.Count > 1 ? VpkLink.Create(chain) : chain[0];
+            }
+        }
+
+        /// <summary>
         /// File name followed by the chain of parent files it was opened from,
         /// with paths on disk made relative to their Steam app when they are inside of one.
         /// </summary>
-        public string DisplayPath
+        public string OpenedFromPath
         {
             get
             {
@@ -57,15 +75,57 @@ namespace GUI.Utils
         }
 
         /// <summary>
-        /// Converts a path on disk to a path relative to its Steam app when it is inside of one.
+        /// Same as <see cref="DisplayPath"/> for a file inside of the package of this context,
+        /// or for the file of this context itself when it is not a package.
         /// </summary>
-        public static string GetDisplayPath(string path) => Path.IsPathRooted(path) ? GetSteamAppPath(path) ?? path : path;
+        public string GetEntryDisplayPath(string entryPath)
+        {
+            if (!IsPackage)
+            {
+                return DisplayPath;
+            }
+
+            var chain = GetPackageChain();
+            chain.Add(entryPath);
+
+            return VpkLink.Create(chain);
+        }
 
         /// <summary>
-        /// Converts a full path inside of an installed Steam app to a portable <c>steam:&lt;appid&gt;/&lt;path&gt;</c> path.
+        /// Builds the <c>vpk:</c> link to the package of this context, and the packages it is nested in.
         /// </summary>
-        /// <returns>The portable path, or <c>null</c> if the path is not inside of an installed app.</returns>
-        public static string? GetSteamAppPath(string fullPath) => GameFolderLocator.GetSteamAppPath(fullPath, InstalledSteamGames.Games);
+        public string GetVpkLink() => VpkLink.Create(GetPackageChain());
+
+        /// <summary>
+        /// File names from the file on disk down to this file, where each one is inside of the package before it.
+        /// Contexts above the file on disk only opened it, so they are not part of its path.
+        /// The file on disk is relative to its Steam app when it is inside of one, so links work on other computers.
+        /// </summary>
+        private List<string> GetPackageChain()
+        {
+            var chain = new List<string>();
+
+            for (var context = this; context != null; context = context.ParentGuiContext)
+            {
+                if (Path.IsPathRooted(context.FileName))
+                {
+                    chain.Add(GetDisplayPath(context.FileName));
+                    break;
+                }
+
+                chain.Add(context.FileName);
+            }
+
+            chain.Reverse();
+
+            return chain;
+        }
+
+        /// <summary>
+        /// Converts a path on disk to a portable <c>steam:&lt;appid&gt;/&lt;path&gt;</c> path when it is inside of an installed Steam app.
+        /// </summary>
+        public static string GetDisplayPath(string path)
+            => Path.IsPathRooted(path) ? GameFolderLocator.GetSteamAppPath(path, InstalledSteamGames.Games) ?? path : path;
 
         private bool ToolsAssetInfoLoaded;
 
@@ -292,10 +352,16 @@ namespace GUI.Utils
             {
                 Debug.Assert(foundFile.Package.FileName is not null);
 
-                var parentContext = new VrfGuiContext(foundFile.Package.FileName, foundFile.Context ?? this)
+                var parentContext = foundFile.Context ?? this;
+
+                // A package from the search paths gets a context of its own, the package of the context is already one
+                if (parentContext.CurrentPackage != foundFile.Package)
                 {
-                    CurrentPackage = foundFile.Package
-                };
+                    parentContext = new VrfGuiContext(foundFile.Package.FileName, parentContext)
+                    {
+                        CurrentPackage = foundFile.Package
+                    };
+                }
 
                 newContext = new VrfGuiContext(foundFile.PackageEntry!.GetFullPath(), parentContext);
             }

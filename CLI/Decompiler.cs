@@ -871,7 +871,7 @@ namespace CLI
                     if (originalPath != null && originalPath != InputFile)
                     {
                         Console.Write(GetDisplayPath(originalPath));
-                        Console.Write(" -> ");
+                        Console.Write(':');
                     }
 
                     Console.WriteLine(path);
@@ -983,7 +983,7 @@ namespace CLI
             // Packages count and print themselves, because they may expand into the files inside of them
             if (magic == Package.MAGIC)
             {
-                ParseVPK(path, stream, fileLoader);
+                ParseVPK(path, stream, originalPath, fileLoader);
                 return;
             }
 
@@ -1346,14 +1346,7 @@ namespace CLI
                     return;
                 }
 
-                var id = $"NavSpace version {navSpaceFile.Version}";
-
-                if (originalPath != null)
-                {
-                    path = $"{originalPath} -> {path}";
-                }
-
-                AddStat(id, id, path);
+                AddNonResourceStat($"NavSpace version {navSpaceFile.Version}", path, originalPath);
             }
             catch (Exception e)
             {
@@ -1386,14 +1379,14 @@ namespace CLI
             }
         }
 
-        private static string GetStatPath(string path, string? originalPath)
+        private static string GetPathInPackage(string path, string? originalPath)
         {
-            return originalPath != null ? $"{originalPath} -> {path}" : path;
+            return originalPath != null ? $"{originalPath}:{path}" : path;
         }
 
         private void AddNonResourceStat(string id, string path, string? originalPath)
         {
-            AddStat(id, id, GetStatPath(path, originalPath));
+            AddStat(id, id, GetPathInPackage(path, originalPath));
         }
 
         /// <summary>
@@ -1477,15 +1470,17 @@ namespace CLI
             }
         }
 
-        private void ParseVPK(string path, Stream stream, IFileLoader? parentFileLoader = null)
+        private void ParseVPK(string path, Stream stream, string? originalPath, IFileLoader? parentFileLoader = null)
         {
             // When processing the files inside of the package, they are counted and print their own header instead
             var processVpkFiles = OutputFile == null && !VerifyVPKChecksums && !ListResources && (CollectStats || ShouldPrintBlockContents || HasShaderOptions);
 
             if (!processVpkFiles && !ListResources)
             {
-                PrintFileHeader(path, null);
+                PrintFileHeader(path, originalPath);
             }
+
+            var packagePath = GetPathInPackage(path, originalPath);
 
             using var package = new Package();
             package.SetFileName(path);
@@ -1500,7 +1495,7 @@ namespace CLI
                 lock (ConsoleWriterLock)
                 {
                     Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.Error.WriteLine($"Failed to open vpk '{path}' - {e.Message}");
+                    Console.Error.WriteLine($"Failed to open vpk '{packagePath}' - {e.Message}");
                     Console.ResetColor();
                 }
 
@@ -1508,7 +1503,7 @@ namespace CLI
             }
             catch (Exception e)
             {
-                LogException(e, path);
+                LogException(e, path, originalPath);
 
                 return;
             }
@@ -1521,7 +1516,7 @@ namespace CLI
                 }
                 catch (Exception e)
                 {
-                    LogException(e, path);
+                    LogException(e, path, originalPath);
                 }
 
                 return;
@@ -1557,7 +1552,7 @@ namespace CLI
                     listEntries.Sort((a, b) => string.CompareOrdinal(a.GetFullPath(), b.GetFullPath()));
 
                     // When listing multiple packages, prefix each entry with the package it came from
-                    var packagePrefix = IsInputFolder ? $"{GetDisplayPath(path)} -> " : string.Empty;
+                    var packagePrefix = IsInputFolder ? $"{GetDisplayPath(packagePath)}:" : string.Empty;
 
                     foreach (var (entry, _) in FilteredEntries(listEntries))
                     {
@@ -1606,13 +1601,13 @@ namespace CLI
                         }
                         catch (Exception e)
                         {
-                            LogException(e, file.GetFullPath(), path);
+                            LogException(e, file.GetFullPath(), packagePath);
                             return;
                         }
 
                         using (entryStream)
                         {
-                            ProcessFile(file.GetFullPath(), entryStream, path, fileLoader, package);
+                            ProcessFile(file.GetFullPath(), entryStream, packagePath, fileLoader, package);
                         }
                     }
 
@@ -2236,7 +2231,7 @@ namespace CLI
         /// </summary>
         private void TestAndCollectStats(Resource resource, string path, string? originalPath, IFileLoader? fileLoader, Package? package)
         {
-            var statPath = GetStatPath(path, originalPath);
+            var statPath = GetPathInPackage(path, originalPath);
 
             // The rest of this code gathers various statistics
             var id = $"{resource.ResourceType}_{resource.Version}";
@@ -2405,6 +2400,7 @@ namespace CLI
         private void LogException(Exception e, string path, string? parentPath = null)
         {
             var exceptionsFileName = CollectStats ? $"exceptions{Path.GetExtension(path)}.txt" : "exceptions.txt";
+            var fullPath = GetPathInPackage(path, parentPath);
 
             lock (ConsoleWriterLock)
             {
@@ -2412,21 +2408,10 @@ namespace CLI
                 LoggedExceptions = true;
 
                 Console.ForegroundColor = ConsoleColor.Cyan;
-
-                if (parentPath == null)
-                {
-                    Console.Error.WriteLine($"File: {path}\n{e}");
-
-                    File.AppendAllText(exceptionsFileName, $"---------------\nFile: {path}\nException: {e}\n\n");
-                }
-                else
-                {
-                    Console.Error.WriteLine($"File: {path} (parent: {parentPath})\n{e}");
-
-                    File.AppendAllText(exceptionsFileName, $"---------------\nParent file: {parentPath}\nFile: {path}\nException: {e}\n\n");
-                }
-
+                Console.Error.WriteLine($"File: {fullPath}\n{e}");
                 Console.ResetColor();
+
+                File.AppendAllText(exceptionsFileName, $"---------------\nFile: {fullPath}\nException: {e}\n\n");
             }
         }
 
