@@ -53,6 +53,8 @@ namespace ValveResourceFormat.IO
         private readonly HashSet<string> CurrentGameOfficialAddonsPaths = [];
         private readonly HashSet<string> CurrentGameAddonsPaths = [];
         private ImmutableArray<Package> CurrentGamePackages = [];
+        private readonly List<Package> UnmountedPackages = [];
+        private readonly Lock UnmountedPackagesLock = new();
 
         // Addons are mounted in front of the game's own files, so they override them
         private readonly List<Package> CurrentAddonPackages = [];
@@ -138,8 +140,14 @@ namespace ValveResourceFormat.IO
                     package.Dispose();
                 }
 
+                foreach (var package in UnmountedPackages)
+                {
+                    package.Dispose();
+                }
+
                 CurrentAddonPackages.Clear();
                 CurrentGamePackages = [];
+                UnmountedPackages.Clear();
 
                 lock (CachedShadersLock)
                 {
@@ -591,6 +599,22 @@ namespace ValveResourceFormat.IO
                 var packages = CurrentGamePackages;
                 CurrentGamePackages = packages.Remove(package);
                 return CurrentGamePackages.Length != packages.Length;
+            }
+        }
+
+        /// <summary>
+        /// Removes a package from the search paths, but keeps it open until this loader is disposed, because resources
+        /// loaded from it keep reading from its entry streams.
+        /// </summary>
+        public void UnmountPackage(Package package)
+        {
+            ArgumentNullException.ThrowIfNull(package);
+
+            RemovePackageFromSearch(package);
+
+            lock (UnmountedPackagesLock)
+            {
+                UnmountedPackages.Add(package);
             }
         }
 

@@ -385,8 +385,7 @@ public class Renderer : ISpawnGroupHost
 
         if (group.MountedPackage is { } package)
         {
-            RendererContext.FileLoader.RemovePackageFromSearch(package);
-            package.Dispose();
+            RendererContext.FileLoader.UnmountPackage(package);
         }
     }
 

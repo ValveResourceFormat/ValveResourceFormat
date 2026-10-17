@@ -888,8 +888,7 @@ namespace ValveResourceFormat.Renderer.World
 
             if (package != null)
             {
-                RendererContext.FileLoader.RemovePackageFromSearch(package);
-                package.Dispose();
+                RendererContext.FileLoader.UnmountPackage(package);
             }
 
             if (prefabLoader != null)
@@ -952,8 +951,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (package != null)
                 {
-                    rendererContext.FileLoader.RemovePackageFromSearch(package);
-                    package.Dispose();
+                    rendererContext.FileLoader.UnmountPackage(package);
                 }
             }
         }

@@ -104,18 +104,19 @@ namespace CLI
                 package.WriteChunkSize = VpkCreateChunkSize * 1024 * 1024;
             }
 
-            foreach (var (entryPath, path) in files)
-            {
-                if (!Quiet)
-                {
-                    Console.WriteLine(entryPath);
-                }
-
-                package.AddFile(entryPath, File.ReadAllBytes(path), multiChunk);
-            }
-
             try
             {
+                foreach (var (entryPath, path) in files)
+                {
+                    if (!Quiet)
+                    {
+                        Console.WriteLine(entryPath);
+                    }
+
+                    using var stream = File.OpenRead(path);
+                    package.AddFile(entryPath, stream, multiChunk);
+                }
+
                 package.Write(outputPath);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
