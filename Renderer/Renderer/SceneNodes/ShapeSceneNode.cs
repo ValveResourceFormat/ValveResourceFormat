@@ -39,6 +39,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets whether this shape uses normal-based shading.</summary>
         protected virtual bool Shaded { get; } = true;
 
+        /// <summary>Gets whether this shape draws its back faces when translucent.</summary>
+        protected virtual bool IsDoubleSided { get; } = true;
+
         /// <summary>Gets or sets an optional tool texture overlay rendered on top of the shape.</summary>
         protected RenderTexture? ToolTexture { get; set; }
 
@@ -355,7 +358,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var state = renderState.CurrentPass;
             state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
 
-            if (isTranslucent)
+            if (isTranslucent && IsDoubleSided)
             {
                 state.Rasterizer.CullMode = RsCullMode.None;
             }

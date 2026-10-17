@@ -18,6 +18,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override bool LayerEnabled => Enabled && base.LayerEnabled;
 
+        /// <inheritdoc/>
+        protected override bool IsDoubleSided => false;
+
         /// <summary>Gets or sets whether this physics node is individually enabled for rendering.</summary>
         public bool Enabled
         {
