@@ -126,6 +126,9 @@ namespace GUI.Types.GLViewers
             };
         }
 
+        // The entities of a map being edited are only drawn, never spawned
+        protected override bool CanFireConnections => false;
+
         protected override List<EntityLump.Entity> GetLinkableEntities()
             => loadedMapDocument?.Entities ?? [];
     }

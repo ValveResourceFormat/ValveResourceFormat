@@ -908,7 +908,7 @@ namespace GUI.Types.GLViewers
                 entityInfoForm = new EntityInfoForm();
                 entityInfoForm.EntityInfoControl.LinkedResourceActivated += OnLinkedResourceActivated;
                 entityInfoForm.EntityInfoControl.ConnectionFireRequested += OnConnectionFireRequested;
-                entityInfoForm.EntityInfoControl.CanFireConnections = true;
+                entityInfoForm.EntityInfoControl.CanFireConnections = CanFireConnections;
 
                 if (ShowEntityInGraph != null)
                 {
@@ -930,6 +930,9 @@ namespace GUI.Types.GLViewers
 
             return entityInfoForm;
         }
+
+        /// <summary>Gets whether the entities run in a live entity world, so their connections can be fired.</summary>
+        protected virtual bool CanFireConnections => true;
 
         protected virtual List<EntityLump.Entity> GetLinkableEntities()
         {
