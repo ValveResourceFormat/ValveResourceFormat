@@ -57,6 +57,9 @@ public class ModelHelper : EntityHelper
     /// <summary>Gets whether the model only stands in for the entity in the editor.</summary>
     public bool IsEditorModel => settings.IsEditorModel;
 
+    /// <summary>Gets the model, or <see langword="null"/> when the entity names none that loads.</summary>
+    public Model? Model => model;
+
     /// <summary>Gets the model, or <see langword="null"/> when neither the class nor the entity names one.</summary>
     public string? ModelName => settings.ModelName;
 

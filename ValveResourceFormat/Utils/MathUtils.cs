@@ -150,6 +150,61 @@ namespace ValveResourceFormat.Utils
             0f, 0f, 0f, 1f);
 
         /// <summary>
+        /// Gets whether a triangle and an axis aligned box overlap, testing the axes that could separate them: the axes
+        /// of the box, the normal of the triangle, and the cross products of its edges with the axes of the box.
+        /// </summary>
+        /// <param name="a">The first corner of the triangle.</param>
+        /// <param name="b">The second corner of the triangle.</param>
+        /// <param name="c">The third corner of the triangle.</param>
+        /// <param name="boxCenter">The centre of the box.</param>
+        /// <param name="boxHalfExtents">Half the size of the box along each axis.</param>
+        public static bool TriangleIntersectsBox(Vector3 a, Vector3 b, Vector3 c, Vector3 boxCenter, Vector3 boxHalfExtents)
+        {
+            var v0 = a - boxCenter;
+            var v1 = b - boxCenter;
+            var v2 = c - boxCenter;
+            var h = boxHalfExtents;
+
+            if (Min(v0.X, v1.X, v2.X) > h.X || Max(v0.X, v1.X, v2.X) < -h.X
+                || Min(v0.Y, v1.Y, v2.Y) > h.Y || Max(v0.Y, v1.Y, v2.Y) < -h.Y
+                || Min(v0.Z, v1.Z, v2.Z) > h.Z || Max(v0.Z, v1.Z, v2.Z) < -h.Z)
+            {
+                return false;
+            }
+
+            var e0 = v1 - v0;
+            var e1 = v2 - v1;
+            var e2 = v0 - v2;
+
+            if (!OverlapsOnAxis(Vector3.Cross(e0, e1)))
+            {
+                return false;
+            }
+
+            foreach (var edge in (ReadOnlySpan<Vector3>)[e0, e1, e2])
+            {
+                if (!OverlapsOnAxis(Vector3.Cross(Vector3.UnitX, edge))
+                    || !OverlapsOnAxis(Vector3.Cross(Vector3.UnitY, edge))
+                    || !OverlapsOnAxis(Vector3.Cross(Vector3.UnitZ, edge)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+
+            bool OverlapsOnAxis(Vector3 axis)
+            {
+                var p0 = Vector3.Dot(v0, axis);
+                var p1 = Vector3.Dot(v1, axis);
+                var p2 = Vector3.Dot(v2, axis);
+                var radius = Vector3.Dot(h, Vector3.Abs(axis));
+
+                return Min(p0, p1, p2) <= radius && Max(p0, p1, p2) >= -radius;
+            }
+        }
+
+        /// <summary>
         /// The largest of the given values, compared with <see cref="MathF.Max(float, float)"/>.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

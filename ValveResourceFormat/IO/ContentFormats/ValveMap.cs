@@ -202,6 +202,118 @@ public class CDmeNodeInstanceData : DMElement
 
         return mesh.CreateFaceVertexStreams("PerVertexLighting", [.. VertexLightingData.Select(static color => new Vector4(color.R, color.G, color.B, color.A) / 255f)]);
     }
+
+    /// <summary>
+    /// Lights points from the vertices of <see cref="VertexLightingPositions"/> around them, the way the editor lights
+    /// the projected triangles of a static overlay. A point takes the average lighting of up to 64 vertices in the
+    /// smallest box around it that holds any, growing from a 32nd of a unit wide up to 32 units, and none beyond that.
+    /// </summary>
+    /// <param name="positions">The points, in world space.</param>
+    /// <returns>The lighting of each point, or <see langword="null"/> when no positions were kept.</returns>
+    public Vector4[]? SampleVertexLighting(IReadOnlyList<Vector3> positions)
+    {
+        ArgumentNullException.ThrowIfNull(positions);
+
+        const float CellSize = 4f;
+        const int MaxFound = 64;
+
+        var count = Math.Min(VertexLightingPositions.Count, VertexLightingData.Count);
+
+        if (count == 0)
+        {
+            return null;
+        }
+
+        var cells = new Dictionary<(int, int, int), List<int>>();
+
+        for (var i = 0; i < count; i++)
+        {
+            var cell = GetCell(VertexLightingPositions[i]);
+
+            if (!cells.TryGetValue(cell, out var vertices))
+            {
+                cells[cell] = vertices = [];
+            }
+
+            vertices.Add(i);
+        }
+
+        var lighting = new Vector4[positions.Count];
+        var found = new List<int>(MaxFound);
+
+        for (var p = 0; p < positions.Count; p++)
+        {
+            var point = positions[p];
+
+            for (var size = 0.03125f; size <= 32f && found.Count == 0; size *= 2f)
+            {
+                FindInBox(point - new Vector3(size * 0.5f), point + new Vector3(size * 0.5f));
+            }
+
+            if (found.Count == 0)
+            {
+                continue;
+            }
+
+            // Averaged as light, which the stored colour is the square root of, scaled down by six and by its alpha
+            var sum = Vector3.Zero;
+
+            foreach (var vertex in found)
+            {
+                var color = VertexLightingData[vertex];
+                var encoded = new Vector3(color.R, color.G, color.B) / 255f * 6f * (color.A / 255f);
+
+                sum += encoded * encoded;
+            }
+
+            var linear = sum / found.Count;
+            var alpha = Math.Clamp(MathF.Ceiling(MathF.Max(MathF.Max(linear.X, MathF.Max(linear.Y, linear.Z)), 1f / 6f) * 255f) / 255f, 0f, 1f);
+            var rgb = Vector3.Clamp(Vector3.Clamp(Vector3.SquareRoot(linear) / 6f, Vector3.Zero, Vector3.One) / alpha, Vector3.Zero, Vector3.One);
+
+            lighting[p] = new Vector4(rgb, alpha);
+            found.Clear();
+        }
+
+        return lighting;
+
+        void FindInBox(Vector3 min, Vector3 max)
+        {
+            var (minX, minY, minZ) = GetCell(min);
+            var (maxX, maxY, maxZ) = GetCell(max);
+
+            for (var x = minX; x <= maxX; x++)
+            {
+                for (var y = minY; y <= maxY; y++)
+                {
+                    for (var z = minZ; z <= maxZ; z++)
+                    {
+                        if (!cells.TryGetValue((x, y, z), out var vertices))
+                        {
+                            continue;
+                        }
+
+                        foreach (var vertex in vertices)
+                        {
+                            var position = VertexLightingPositions[vertex];
+
+                            if (Vector3.Clamp(position, min, max) == position)
+                            {
+                                found.Add(vertex);
+
+                                if (found.Count == MaxFound)
+                                {
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        static (int, int, int) GetCell(Vector3 position)
+            => ((int)MathF.Floor(position.X / CellSize), (int)MathF.Floor(position.Y / CellSize), (int)MathF.Floor(position.Z / CellSize));
+    }
 }
 
 /// <summary>
