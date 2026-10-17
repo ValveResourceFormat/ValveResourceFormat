@@ -54,8 +54,8 @@ The glTF export includes geometry, materials, textures, and the skeleton (if pre
 
 | Format | Description                                             | Best for                          |
 | ------ | ------------------------------------------------------- | --------------------------------- |
-| glTF   | Folder with separate `.gltf`, `.bin`, and texture files | Recommended for most use cases    |
-| GLB    | Single binary file containing everything                | Has a 2 GB size limit in the spec |
+| glTF   | Separate `.gltf`, `.bin`, and PNG texture files         | Recommended for most use cases    |
+| GLB    | Single binary file, with PNG texture files next to it   | Has a 2 GB size limit in the spec |
 
 ::: warning
 GLB files are limited to 2 GB by the glTF spec. Use **glTF** instead, especially for large models or map exports.
@@ -70,9 +70,27 @@ GLB files are limited to 2 GB by the glTF spec. Use **glTF** instead, especially
 
 The imported model includes the full mesh, UV maps, material assignments, and textures. If the model has a skeleton, it's imported as an Armature.
 
+Textures that are self-illuminated in the game export as emissive textures, so they glow in glTF viewers and Blender.
+
+### Bones look like big spheres in Blender
+
+If the armature is covered in large blobs, change these options in the import dialog under **Bones & Skin**:
+
+- Enable **Disable Bone Shape**, or
+- Lower **Bone Shape Scale**; the right value depends on the model, roughly 0.2 to 0.75, or
+- Set **Bone Dir** to **Temperance**, which points bones at their children and draws no spheres. Animations still play correctly.
+
+Blender remembers the last used import settings, and they can be saved as an operator preset. After import, the armature's **Viewport Display** can also be set to Stick or Wire.
+
+glTF joints have no length or direction, so Blender guesses them. The default **Bone Dir** points each bone along its local +Y axis, while Source 2 bones run along local X, and draws every bone as a sphere sized at 5% of the armature's smallest dimension. IK target, root motion, cloth and helper bones get long guessed tails that stretch the armature, which makes all the spheres large. A glTF file cannot choose import options, so this has to be changed in Blender.
+
 ## Exporting Animations
 
 Models with animations export them automatically when using the GUI.
+
+Additive animations are exported as delta tracks by default. Use `--gltf_compose_additive` on the command line to compose them over the bind pose instead.
+
+Animation keys that linear interpolation reproduces within a small tolerance are dropped. Use `--gltf_keep_all_keyframes` on the command line to write a key for every frame.
 
 For batch animation export via the command line:
 
