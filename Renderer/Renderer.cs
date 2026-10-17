@@ -383,9 +383,9 @@ public class Renderer : ISpawnGroupHost
         group.Scene.DeleteNodes();
         group.Scene.Dispose();
 
-        if (group.MountedPackage is { } package)
+        if (group.MountedMapPackage is { } mapPackage)
         {
-            RendererContext.FileLoader.UnmountPackage(package);
+            RendererContext.FileLoader.UnmountMapPackage(mapPackage);
         }
     }
 
