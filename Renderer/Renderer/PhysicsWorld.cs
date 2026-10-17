@@ -9,8 +9,17 @@ namespace ValveResourceFormat.Renderer;
 /// </remarks>
 public sealed class PhysicsWorld
 {
-    private readonly record struct Body(Scene Owner, Rubikon Shape, Matrix4x4 Transform, Matrix4x4 InverseTransform, bool IsIdentity)
+    private readonly record struct Body(Scene Owner, Rubikon Shape, Matrix4x4 Transform, Matrix4x4 InverseTransform, bool IsIdentity, AABB WorldBounds)
     {
+        // Whether a box swept from one point to another can reach the body
+        public bool CanReach(Vector3 from, Vector3 to, Vector3 halfExtents)
+        {
+            // A body that is not axis aligned is swept with its own axes, so the box is allowed its full diagonal
+            var reach = IsIdentity ? halfExtents : new Vector3(halfExtents.Length());
+
+            return WorldBounds.Intersects(new AABB(Vector3.Min(from, to) - reach, Vector3.Max(from, to) + reach));
+        }
+
         public Vector3 ToLocal(Vector3 point) => IsIdentity ? point : Vector3.Transform(point, InverseTransform);
 
         // Distance survives the round trip because the transform is rigid
@@ -56,7 +65,10 @@ public sealed class PhysicsWorld
             transform = Matrix4x4.Identity;
         }
 
-        bodies.Add(new Body(owner, shape, transform, inverse, transform.IsIdentity));
+        // A unit of room covers the distance traces keep from surfaces
+        var bounds = shape.Bounds is { } local ? local.Transform(transform) : new AABB(Vector3.Zero, Vector3.Zero);
+
+        bodies.Add(new Body(owner, shape, transform, inverse, transform.IsIdentity, new AABB(bounds.Min - Vector3.One, bounds.Max + Vector3.One)));
     }
 
     /// <summary>Removes every shape added for <paramref name="owner"/>.</summary>
@@ -77,7 +89,10 @@ public sealed class PhysicsWorld
 
         foreach (var body in bodies)
         {
-            closest.MinimizeWith(body.ToWorld(body.Shape.TraceRay(body.ToLocal(from), body.ToLocal(to), collisionName)));
+            if (body.CanReach(from, to, Vector3.Zero))
+            {
+                closest.MinimizeWith(body.ToWorld(body.Shape.TraceRay(body.ToLocal(from), body.ToLocal(to), collisionName)));
+            }
         }
 
         // A ray from under the plane passes through, as it does through the back of a triangle
@@ -127,6 +142,11 @@ public sealed class PhysicsWorld
 
         foreach (var body in bodies)
         {
+            if (!body.CanReach(from, to, halfExtents))
+            {
+                continue;
+            }
+
             var result = body.Shape.TraceAABB(body.ToLocal(from), body.ToLocal(to), halfExtents, collisionName, detectStartSolid, computeContactPoint);
 
             // A start-solid overlap outranks a touch at the same distance, as it does within one shape
@@ -157,7 +177,7 @@ public sealed class PhysicsWorld
     {
         foreach (var body in bodies)
         {
-            if (body.Shape.IntersectsAABB(body.ToLocal(center), halfExtents, collisionName))
+            if (body.CanReach(center, center, halfExtents) && body.Shape.IntersectsAABB(body.ToLocal(center), halfExtents, collisionName))
             {
                 return true;
             }
