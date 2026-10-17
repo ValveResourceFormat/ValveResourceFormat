@@ -13,7 +13,8 @@ namespace ValveResourceFormat.Renderer.Editor.Entities;
 /// <summary>
 /// Gives the entity classes a map is shown with, from the tables built into the renderer. Each game whose
 /// classes are known has a table of its own, found by the Steam app it is installed as. Any other game is
-/// shown with the classes of every known game, and the ones kept by hand for entities none of them declares.
+/// shown with the classes of every known game, each the version most of them declare, and the ones kept by
+/// hand for entities none of them declares.
 /// </summary>
 public static class EntityClassCatalog
 {
@@ -83,7 +84,7 @@ public static class EntityClassCatalog
         var gameClasses = new List<EntityClass>();
         (int, int, int, int)? mergedGridNav = null;
 
-        foreach (var game in generated.GetArray("games") ?? [])
+        foreach (var game in (generated.GetArray("games") ?? []).OrderBy(static game => game.GetInt32Property("app_id")))
         {
             var classes = (game.GetArray("classes") ?? []).Select(id => reader.Read((string)id)).ToList();
             var gridNav = ReadGridNav(game);
@@ -93,9 +94,14 @@ public static class EntityClassCatalog
             mergedGridNav ??= gridNav;
         }
 
+        // Of versions as many games declare, it is the one of the game with the lowest app id
+        var mergedClasses = gameClasses
+            .GroupBy(static entityClass => entityClass.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(static versions => versions.MaxBy(version => versions.Count(other => other == version))!);
+
         var extraClasses = (extra.GetArray("classes") ?? []).Select(reader.ReadClass);
 
-        return (games, new EntityClassTable(gameClasses.Concat(extraClasses), mergedGridNav));
+        return (games, new EntityClassTable(mergedClasses.Concat(extraClasses), mergedGridNav));
     }
 
     private static KVObject ReadResource(string fileName)
