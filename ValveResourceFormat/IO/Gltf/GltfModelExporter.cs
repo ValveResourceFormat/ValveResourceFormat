@@ -74,6 +74,12 @@ namespace ValveResourceFormat.IO
         public bool ComposeAdditiveAnimations { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether animation keys that linear interpolation of the
+        /// kept keys reproduces within a small tolerance are dropped. When false, every frame is written.
+        /// </summary>
+        public bool ReduceAnimationKeyframes { get; set; } = true;
+
+        /// <summary>
         /// Gets the set of animation names to filter during export. An entry matches an animation by its
         /// full name or, for animation graph clips named by resource path, by its leaf name (e.g. "idle_knife"
         /// matches "animation/anims/.../idle_knife"). Empty means export every animation.
@@ -429,7 +435,7 @@ namespace ValveResourceFormat.IO
                 //if (ExportAnimations)
                 {
                     var animation = new ResourceTypes.ModelAnimation.ClipAnimation(clip);
-                    var animationWriter = new AnimationWriter(skeletonData, []) { ComposeAdditive = ComposeAdditiveAnimations };
+                    var animationWriter = new AnimationWriter(skeletonData, []) { ComposeAdditive = ComposeAdditiveAnimations, ReduceKeyframes = ReduceAnimationKeyframes };
                     animationWriter.WriteAnimation(exportedModel, joints, animation, ClipAnimationName(clip.Name));
                 }
             }
@@ -511,7 +517,7 @@ namespace ValveResourceFormat.IO
                 Debug.Assert(joints != null);
 
                 var animations = model.GetAllAnimations(FileLoader);
-                var animationWriter = new AnimationWriter(model.Skeleton, model.FlexControllers) { ComposeAdditive = ComposeAdditiveAnimations };
+                var animationWriter = new AnimationWriter(model.Skeleton, model.FlexControllers) { ComposeAdditive = ComposeAdditiveAnimations, ReduceKeyframes = ReduceAnimationKeyframes };
 
                 foreach (var animation in animations)
                 {
@@ -701,6 +707,8 @@ namespace ValveResourceFormat.IO
 
         private void WriteModelFile(ModelRoot exportedModel, string? filePath, Stream? stream = null)
         {
+            AddMissingScaleChannels(exportedModel);
+
             if (!SatelliteImages)
             {
                 WaitForTexturesToExport();

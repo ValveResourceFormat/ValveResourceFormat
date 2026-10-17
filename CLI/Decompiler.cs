@@ -77,6 +77,7 @@ namespace CLI
         private bool GltfExportAdaptTextures;
         private bool GltfExportExtras;
         private bool GltfComposeAdditive;
+        private bool GltfKeepAllKeyframes;
         private bool ToolsAssetInfoShort;
 
         // The options below are for collecting stats and testing exporting, this is mostly intended for VRF developers, not end users.
@@ -136,6 +137,7 @@ namespace CLI
         /// <param name="gltf_textures_adapt">Perform glTF spec adaptations on exported textures (e.g. split metallic map). Implies --gltf_export_materials.</param>
         /// <param name="gltf_export_extras">Export additional mesh properties into glTF extras.</param>
         /// <param name="gltf_compose_additive">Compose additive animations over the bind pose instead of exporting their delta tracks.</param>
+        /// <param name="gltf_keep_all_keyframes">Write an animation key for every frame instead of dropping keys that linear interpolation reproduces within a small tolerance.</param>
         /// <param name="shader_list_combos">List every compiled variant of a shader with its combo values and bytecode hash. For a material, only the variants of its shader that the material selects.</param>
         /// <param name="shader_combo">Decompile the shader variant matching these combo values, example: "S_ALPHA_TEST=1,D_BLEND_WEIGHT_COUNT=4". A bare name means "=1", omitted combos stay at their minimum. For a material, the static combos it selects are used.</param>
         /// <param name="tools_asset_info_short">Print only file paths for tools_asset_info files.</param>
@@ -180,6 +182,7 @@ namespace CLI
             bool gltf_textures_adapt = false,
             bool gltf_export_extras = false,
             bool gltf_compose_additive = false,
+            bool gltf_keep_all_keyframes = false,
             bool shader_list_combos = false,
             [HideDefaultValue] string? shader_combo = default,
             bool tools_asset_info_short = false,
@@ -299,6 +302,7 @@ namespace CLI
             GltfExportAdaptTextures = gltf_textures_adapt;
             GltfExportExtras = gltf_export_extras;
             GltfComposeAdditive = gltf_compose_additive;
+            GltfKeepAllKeyframes = gltf_keep_all_keyframes;
             ToolsAssetInfoShort = tools_asset_info_short;
             ShaderListCombos = shader_list_combos;
             ShaderCombo = shader_combo;
@@ -507,7 +511,7 @@ namespace CLI
             }
 
             // Type specific
-            if (GltfExportFormat == null && (GltfExportAnimations || GltfExportMaterials || GltfExportAdaptTextures || GltfExportExtras || GltfComposeAdditive || GltfMeshFilter.Length > 0))
+            if (GltfExportFormat == null && (GltfExportAnimations || GltfExportMaterials || GltfExportAdaptTextures || GltfExportExtras || GltfComposeAdditive || GltfKeepAllKeyframes || GltfMeshFilter.Length > 0))
             {
                 Console.Error.WriteLine("The --gltf_* options require --gltf_export_format.");
                 return 1;
@@ -1976,6 +1980,7 @@ namespace CLI
                 AdaptTextures = GltfExportAdaptTextures,
                 ExportExtras = GltfExportExtras,
                 ComposeAdditiveAnimations = GltfComposeAdditive,
+                ReduceAnimationKeyframes = !GltfKeepAllKeyframes,
                 ProgressReporter = ProgressReporter,
             };
 

@@ -37,6 +37,12 @@ public partial class GltfModelExporter
         public bool ComposeAdditive { get; init; }
 
         /// <summary>
+        /// Gets whether keys that linear interpolation of the kept keys reproduces within tolerance are
+        /// dropped. When false, every frame is written except the inner keys of runs of repeated values.
+        /// </summary>
+        public bool ReduceKeyframes { get; init; } = true;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="AnimationWriter"/> class.
         /// </summary>
         public AnimationWriter(Skeleton skeleton, FlexController[] flexControllers)
@@ -45,9 +51,9 @@ public partial class GltfModelExporter
             Frame = new(skeleton, flexControllers);
             FlexControllers = flexControllers;
 
-            RotationWriter = AnimationChannelWriter<Quaternion>.Create(BoneCount);
-            PositionWriter = AnimationChannelWriter<Vector3>.Create(BoneCount);
-            ScaleWriter = AnimationChannelWriter<Vector3>.Create(BoneCount);
+            RotationWriter = AnimationChannelWriter<Quaternion>.Create(BoneCount, RotationTolerance, RotationError);
+            PositionWriter = AnimationChannelWriter<Vector3>.Create(BoneCount, TranslationTolerance, VectorError);
+            ScaleWriter = AnimationChannelWriter<Vector3>.Create(BoneCount, ScaleTolerance, VectorError);
 
             localPositions = new Vector3[BoneCount];
             localRotations = new Quaternion[BoneCount];
@@ -166,7 +172,6 @@ public partial class GltfModelExporter
                 }
 
                 var time = f / fps;
-                var prevFrameTime = (f - 1) / fps;
 
                 var rootMotion = Matrix4x4.Identity;
                 if (applyRootMotion)
@@ -248,11 +253,14 @@ public partial class GltfModelExporter
                         ? BakeAdditiveDeltaConversion(position, rotation, bone.Parent == null)
                         : BakeConversion(position, rotation, bone.Parent == null);
 
-                    RotationWriter.SubmitKeyframe(boneID, time, prevFrameTime, rotation);
-                    PositionWriter.SubmitKeyframe(boneID, time, prevFrameTime, position);
-                    ScaleWriter.SubmitKeyframe(boneID, time, prevFrameTime, scale);
+                    RotationWriter.SubmitKeyframe(boneID, time, rotation);
+                    PositionWriter.SubmitKeyframe(boneID, time, position);
+                    ScaleWriter.SubmitKeyframe(boneID, time, scale);
                 }
             }
+
+            var lastFrameTime = (animation.FrameCount - 1) / fps;
+            var isFirstJoint = true;
 
             for (var boneID = 0; boneID < BoneCount; boneID++)
             {
@@ -262,9 +270,9 @@ public partial class GltfModelExporter
                     var (restPosition, restRotation) = writeDeltas
                         ? (Vector3.Zero, Quaternion.Identity)
                         : BakeConversion(bone.Position, bone.Angle, bone.Parent == null);
-                    RotationWriter.Channels[boneID].Add(0f, restRotation);
-                    PositionWriter.Channels[boneID].Add(0f, restPosition);
-                    ScaleWriter.Channels[boneID].Add(0f, Vector3.One);
+                    RotationWriter.SubmitKeyframe(boneID, 0f, restRotation);
+                    PositionWriter.SubmitKeyframe(boneID, 0f, restPosition);
+                    ScaleWriter.SubmitKeyframe(boneID, 0f, Vector3.One);
                 }
 
                 var jointNode = joints[boneID];
@@ -273,10 +281,46 @@ public partial class GltfModelExporter
                     continue;
                 }
 
-                outputAnimation.CreateRotationChannel(jointNode, RotationWriter.Channels[boneID], true);
-                outputAnimation.CreateTranslationChannel(jointNode, PositionWriter.Channels[boneID], true);
-                outputAnimation.CreateScaleChannel(jointNode, ScaleWriter.Channels[boneID], true);
+                var sampledRotations = RotationWriter.Values[boneID];
+                AlignQuaternionHemispheres(sampledRotations);
+
+                var rotations = RotationWriter.GetKeyframes(boneID, ReduceKeyframes);
+
+                // glTF and Blender take a clip's length from its keys, and a channel reduced to a single
+                // key no longer spans the clip, so the first joint's rotation always keeps the last frame.
+                if (isFirstJoint && rotations.Count == 1 && animation.FrameCount > 1)
+                {
+                    rotations.Add(lastFrameTime, sampledRotations[^1]);
+                }
+
+                isFirstJoint = false;
+
+                outputAnimation.CreateRotationChannel(jointNode, rotations, true);
+                outputAnimation.CreateTranslationChannel(jointNode, PositionWriter.GetKeyframes(boneID, ReduceKeyframes), true);
+
+                // Bones have no rest scale, so a missing channel already means a scale of one.
+                if (!IsConstantOne(ScaleWriter.Values[boneID]))
+                {
+                    outputAnimation.CreateScaleChannel(jointNode, ScaleWriter.GetKeyframes(boneID, ReduceKeyframes), true);
+                }
             }
+        }
+
+        // Scale recovered from matrix products (retargeting, root motion, pinned cloth) carries
+        // float rounding of around 1e-6 on bones that do not scale at all.
+        private const float ScaleOneTolerance = 1e-5f;
+
+        private static bool IsConstantOne(List<Vector3> values)
+        {
+            foreach (var value in values)
+            {
+                if (Vector3.Distance(value, Vector3.One) > ScaleOneTolerance)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -379,7 +423,7 @@ public partial class GltfModelExporter
                 if (skeletonNode != null && secondaryJoints != null)
                 {
                     CreateSkeletonVisualizationMesh(exportedModel, scene, skeleton, secondaryJoints, skeletonNodeName);
-                    var writer = new AnimationWriter(skeleton, []) { ComposeAdditive = ComposeAdditiveAnimations };
+                    var writer = new AnimationWriter(skeleton, []) { ComposeAdditive = ComposeAdditiveAnimations, ReduceKeyframes = ReduceAnimationKeyframes };
                     created = (writer, secondaryJoints);
                 }
             }
@@ -392,7 +436,7 @@ public partial class GltfModelExporter
         // animation (embedded, or an earlier clip) would merge its channels onto it. Keep the first, skip the rest.
         var writtenNames = exportedModel.LogicalAnimations.Select(a => a.Name).ToHashSet();
 
-        var retargetWriter = new AnimationWriter(model.Skeleton, model.FlexControllers) { ComposeAdditive = ComposeAdditiveAnimations };
+        var retargetWriter = new AnimationWriter(model.Skeleton, model.FlexControllers) { ComposeAdditive = ComposeAdditiveAnimations, ReduceKeyframes = ReduceAnimationKeyframes };
 
         foreach (var animation in model.GetAllAnimations(FileLoader))
         {
@@ -437,6 +481,61 @@ public partial class GltfModelExporter
                 }
 
                 writtenNames.Add(animationName);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Scale channels are only written for bones that scale, but importers keep the last value of a
+    /// channel an animation does not key. Every animation therefore gets a constant scale of one for
+    /// each joint that has a scale channel in any other animation.
+    /// </summary>
+    private static void AddMissingScaleChannels(ModelRoot exportedModel)
+    {
+        var scaledNodes = new HashSet<Node>();
+
+        foreach (var animation in exportedModel.LogicalAnimations)
+        {
+            foreach (var channel in animation.Channels)
+            {
+                if (channel.TargetNodePath == PropertyPath.scale)
+                {
+                    scaledNodes.Add(channel.TargetNode);
+                }
+            }
+        }
+
+        if (scaledNodes.Count == 0)
+        {
+            return;
+        }
+
+        var identityScale = new Dictionary<float, Vector3> { [0f] = Vector3.One };
+
+        foreach (var animation in exportedModel.LogicalAnimations)
+        {
+            var animatedNodes = new HashSet<Node>();
+            var animationScaledNodes = new HashSet<Node>();
+
+            foreach (var channel in animation.Channels)
+            {
+                animatedNodes.Add(channel.TargetNode);
+
+                if (channel.TargetNodePath == PropertyPath.scale)
+                {
+                    animationScaledNodes.Add(channel.TargetNode);
+                }
+            }
+
+            foreach (var node in scaledNodes)
+            {
+                // Animations of other models in the same export never touch this node.
+                if (!animatedNodes.Contains(node) || animationScaledNodes.Contains(node))
+                {
+                    continue;
+                }
+
+                animation.CreateScaleChannel(node, identityScale, true);
             }
         }
     }
@@ -522,17 +621,19 @@ public partial class GltfModelExporter
             frame.Clear(model.Skeleton);
 
             var fps = animation.Fps <= 0f ? 1f : animation.Fps;
-            var keyframes = new Dictionary<float, float[]>[meshTargets.Count];
+            var times = new List<float>(animation.FrameCount);
+            var sampledWeights = new List<float[]>[meshTargets.Count];
             var anyWeight = new bool[meshTargets.Count];
             for (var t = 0; t < meshTargets.Count; t++)
             {
-                keyframes[t] = [];
+                sampledWeights[t] = new List<float[]>(animation.FrameCount);
             }
 
             for (var f = 0; f < animation.FrameCount; f++)
             {
                 frame.FrameIndex = f;
                 animation.DecodeFrame(frame);
+                times.Add(f / fps);
 
                 for (var t = 0; t < meshTargets.Count; t++)
                 {
@@ -550,59 +651,245 @@ public partial class GltfModelExporter
                         }
                     }
 
-                    keyframes[t][f / fps] = weights;
+                    sampledWeights[t].Add(weights);
                 }
             }
 
             for (var t = 0; t < meshTargets.Count; t++)
             {
-                if (anyWeight[t])
+                if (!anyWeight[t])
                 {
-                    exportedModel.UseAnimation(animation.Name).CreateMorphChannel(meshTargets[t].Node, keyframes[t], meshTargets[t].MorphFlexIds.Count);
+                    continue;
                 }
+
+                var keyframes = new Dictionary<float, float[]>();
+                if (ReduceAnimationKeyframes)
+                {
+                    foreach (var index in ReduceKeyframes(times, sampledWeights[t], MorphWeightTolerance, WeightsError))
+                    {
+                        keyframes.Add(times[index], sampledWeights[t][index]);
+                    }
+                }
+                else
+                {
+                    for (var f = 0; f < times.Count; f++)
+                    {
+                        keyframes.Add(times[f], sampledWeights[t][f]);
+                    }
+                }
+
+                exportedModel.UseAnimation(animation.Name).CreateMorphChannel(meshTargets[t].Node, keyframes, meshTargets[t].MorphFlexIds.Count);
             }
         }
     }
 
-    record struct AnimationChannelWriter<T>(Dictionary<float, T>[] Channels, T?[] LastValue, bool[] ValueOmmited) where T : struct
+    // The angle between the interpolated and the sampled rotation.
+    internal static readonly float RotationTolerance = float.DegreesToRadians(0.01f);
+
+    // 0.01 mm, as translations are written in glTF meters.
+    internal const float TranslationTolerance = 1e-5f;
+
+    internal const float ScaleTolerance = 1e-5f;
+
+    internal const float MorphWeightTolerance = 1e-4f;
+
+    /// <summary>
+    /// How far <paramref name="actual"/> is from interpolating <paramref name="from"/> to
+    /// <paramref name="to"/> by <paramref name="amount"/>.
+    /// </summary>
+    internal delegate float KeyframeInterpolationError<T>(T from, T to, float amount, T actual);
+
+    // Blender interpolates quaternion keys per component and normalizes the result, which strays
+    // from the slerp the glTF spec asks for when kept keys are far apart, so both must be in tolerance.
+    internal static float RotationError(Quaternion from, Quaternion to, float amount, Quaternion actual)
     {
-        public static AnimationChannelWriter<T> Create(int boneCount) => new()
+        var slerpError = MathUtils.AngleBetween(Quaternion.Slerp(from, to, amount), actual);
+        var nlerpError = MathUtils.AngleBetween(Quaternion.Lerp(from, to, amount), actual);
+        return MathF.Max(slerpError, nlerpError);
+    }
+
+    internal static float VectorError(Vector3 from, Vector3 to, float amount, Vector3 actual)
+        => Vector3.Distance(Vector3.Lerp(from, to, amount), actual);
+
+    internal static float WeightsError(float[] from, float[] to, float amount, float[] actual)
+    {
+        var error = 0f;
+
+        for (var i = 0; i < actual.Length; i++)
         {
-            Channels = [.. Enumerable.Range(0, boneCount).Select(_ => new Dictionary<float, T>())],
-            LastValue = new T?[boneCount],
-            ValueOmmited = new bool[boneCount],
+            var interpolated = float.Lerp(from[i], to[i], amount);
+            error = MathF.Max(error, MathF.Abs(interpolated - actual[i]));
+        }
+
+        return error;
+    }
+
+    /// <summary>
+    /// Flips each rotation onto the hemisphere of the one before it. Importers interpolate between
+    /// consecutive keys, and some do so per component, which takes the long way round between
+    /// quaternions of opposite sign.
+    /// </summary>
+    internal static void AlignQuaternionHemispheres(List<Quaternion> rotations)
+    {
+        for (var i = 1; i < rotations.Count; i++)
+        {
+            if (Quaternion.Dot(rotations[i - 1], rotations[i]) < 0f)
+            {
+                rotations[i] = Quaternion.Negate(rotations[i]);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Selects the keys that linear interpolation between the kept keys cannot reproduce within
+    /// <paramref name="tolerance"/>. The first and last keys are kept, unless every key is within
+    /// tolerance of the first, which then stands alone and is held for the whole clip.
+    /// </summary>
+    /// <returns>The indices of the kept keys, in order.</returns>
+    internal static List<int> ReduceKeyframes<T>(List<float> times, List<T> values, float tolerance, KeyframeInterpolationError<T> interpolationError)
+    {
+        var count = values.Count;
+        if (count == 0)
+        {
+            return [];
+        }
+
+        // Holding the first value is interpolating from it to itself.
+        var first = values[0];
+        var isConstant = true;
+        for (var i = 1; i < count; i++)
+        {
+            if (interpolationError(first, first, 0f, values[i]) > tolerance)
+            {
+                isConstant = false;
+                break;
+            }
+        }
+
+        if (isConstant)
+        {
+            return [0];
+        }
+
+        var keep = new bool[count];
+        keep[0] = true;
+        keep[count - 1] = true;
+
+        // Ramer-Douglas-Peucker: keep the key that interpolating between the ends of a segment
+        // reproduces worst, and split the segment there, until every dropped key is within tolerance.
+        var segments = new Stack<(int Start, int End)>();
+        segments.Push((0, count - 1));
+
+        while (segments.Count > 0)
+        {
+            var (start, end) = segments.Pop();
+            var duration = times[end] - times[start];
+            var worstIndex = -1;
+            var worstError = tolerance;
+
+            for (var i = start + 1; i < end; i++)
+            {
+                var amount = (times[i] - times[start]) / duration;
+                var error = interpolationError(values[start], values[end], amount, values[i]);
+
+                if (error > worstError)
+                {
+                    worstError = error;
+                    worstIndex = i;
+                }
+            }
+
+            if (worstIndex < 0)
+            {
+                continue;
+            }
+
+            keep[worstIndex] = true;
+            segments.Push((start, worstIndex));
+            segments.Push((worstIndex, end));
+        }
+
+        var kept = new List<int>();
+        for (var i = 0; i < count; i++)
+        {
+            if (keep[i])
+            {
+                kept.Add(i);
+            }
+        }
+
+        return kept;
+    }
+
+    /// <summary>
+    /// Selects the first and last keys, and every key that differs from the key before or after it,
+    /// so a run of repeated values keeps only its ends.
+    /// </summary>
+    /// <returns>The indices of the kept keys, in order.</returns>
+    internal static List<int> CollapseRepeatedKeyframes<T>(List<T> values)
+    {
+        var comparer = EqualityComparer<T>.Default;
+        var kept = new List<int>();
+
+        for (var i = 0; i < values.Count; i++)
+        {
+            var isEnd = i == 0 || i == values.Count - 1;
+
+            if (isEnd || !comparer.Equals(values[i], values[i - 1]) || !comparer.Equals(values[i], values[i + 1]))
+            {
+                kept.Add(i);
+            }
+        }
+
+        return kept;
+    }
+
+    /// <summary>
+    /// Buffers every sampled frame of each bone's channel, so its keys are selected once the whole
+    /// clip is known.
+    /// </summary>
+    record struct AnimationChannelWriter<T>(List<float>[] Times, List<T>[] Values, float Tolerance, KeyframeInterpolationError<T> InterpolationError) where T : struct
+    {
+        public static AnimationChannelWriter<T> Create(int boneCount, float tolerance, KeyframeInterpolationError<T> interpolationError) => new()
+        {
+            Times = [.. Enumerable.Range(0, boneCount).Select(_ => new List<float>())],
+            Values = [.. Enumerable.Range(0, boneCount).Select(_ => new List<T>())],
+            Tolerance = tolerance,
+            InterpolationError = interpolationError,
         };
 
-        public readonly void SubmitKeyframe(int boneID, float time, float prevTime, T value)
+        public readonly void SubmitKeyframe(int boneID, float time, T value)
         {
-            var lastValue = LastValue[boneID];
+            Times[boneID].Add(time);
+            Values[boneID].Add(value);
+        }
 
-            if (lastValue != null && lastValue.Value.Equals(value))
+        /// <summary>
+        /// Gets the channel's keyframes, reduced within tolerance or with runs of repeated values collapsed.
+        /// </summary>
+        public readonly Dictionary<float, T> GetKeyframes(int boneID, bool reduce)
+        {
+            var times = Times[boneID];
+            var values = Values[boneID];
+            var kept = reduce
+                ? ReduceKeyframes(times, values, Tolerance, InterpolationError)
+                : CollapseRepeatedKeyframes(values);
+
+            var keyframes = new Dictionary<float, T>(kept.Count);
+            foreach (var index in kept)
             {
-                ValueOmmited[boneID] = true;
-                return;
+                keyframes.Add(times[index], values[index]);
             }
 
-            if (lastValue != null && ValueOmmited[boneID])
-            {
-                ValueOmmited[boneID] = false;
-
-                // Restore keyframe before current frame, as otherwise interpolation will
-                // begin from the first instance of identical frame, and not from previous frame
-                Channels[boneID].Add(prevTime, lastValue.Value);
-            }
-
-            Channels[boneID].Add(time, value);
-            LastValue[boneID] = value;
+            return keyframes;
         }
 
         public readonly void Clear()
         {
-            for (var i = 0; i < Channels.Length; i++)
+            for (var i = 0; i < Times.Length; i++)
             {
-                Channels[i].Clear();
-                LastValue[i] = default; // null
-                ValueOmmited[i] = false;
+                Times[i].Clear();
+                Values[i].Clear();
             }
         }
     }
