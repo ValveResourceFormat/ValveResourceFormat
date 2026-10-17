@@ -487,7 +487,9 @@ public sealed class MapDocumentLoader : IDisposable
             renderData[mesh] = meshRenderData;
         }
 
-        var name = string.Create(CultureInfo.InvariantCulture, $"vmap_mesh_{documentIds[placedNode.Document]}_{mesh.NodeID}");
+        // A placement lit by lighting of its own is drawn from buffers of its own, any other shares them
+        var key = vertexLighting != null ? GetPlacementKey(placedNode) : mesh.NodeID.ToString(CultureInfo.InvariantCulture);
+        var name = string.Create(CultureInfo.InvariantCulture, $"vmap_mesh_{documentIds[placedNode.Document]}_{key}");
 
         var shaderArguments = scene.LightingInfo.CreateShaderArguments(hasVertexLighting: vertexLighting != null);
         var receiverGroups = new List<PolygonMesh.BakedSubmesh>();
@@ -497,7 +499,9 @@ public sealed class MapDocumentLoader : IDisposable
         for (var i = 0; i < meshRenderData.MaterialGroups.Length; i++)
         {
             var group = meshRenderData.MaterialGroups[i];
-            var (node, material) = AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), group, shaderArguments, placedNode, mesh, owner, placedNode.Transform);
+            var material = GetMaterial(group, shaderArguments);
+            var (vbib, vertexBounds) = meshRenderData.GetBuffers(i, material.Material.InputSignature);
+            var node = AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), material, vbib, vertexBounds, placedNode, mesh, owner, placedNode.Transform);
             var attributes = material.Material.IntAttributes;
 
             AddCollision(mesh, owner, group, material.Material, placedNode.Transform);
@@ -519,11 +523,11 @@ public sealed class MapDocumentLoader : IDisposable
         }
     }
 
-    private (MeshSceneNode Node, RenderMaterial Material) AddMeshNode(string name, PolygonMesh.BakedSubmesh group, Dictionary<string, byte> shaderArguments, PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner, Matrix4x4 transform)
-    {
-        var material = rendererContext.MaterialLoader.GetMaterial(group.Material.Length > 0 ? group.Material : null, shaderArguments);
-        var (vbib, bounds) = PolygonMeshRenderData.BuildVertexAndIndexBuffers(group, material.Material.InputSignature, Matrix4x4.Identity);
+    private RenderMaterial GetMaterial(PolygonMesh.BakedSubmesh group, Dictionary<string, byte> shaderArguments)
+        => rendererContext.MaterialLoader.GetMaterial(group.Material.Length > 0 ? group.Material : null, shaderArguments);
 
+    private MeshSceneNode AddMeshNode(string name, RenderMaterial material, VBIB vbib, AABB bounds, PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner, Matrix4x4 transform)
+    {
         var node = new MeshSceneNode(scene, RenderableMesh.CreateMesh(name, material, vbib, bounds, rendererContext, sortByMaterial: true))
         {
             Name = name,
@@ -542,24 +546,26 @@ public sealed class MapDocumentLoader : IDisposable
         scene.Add(node, dynamic: false);
         owner?.AddMeshNode(node);
 
-        return (node, material);
+        return node;
     }
 
-    // An overlay is drawn where it lands, as triangles in the world, lit by what the editor baked at their corners
+    // An overlay is drawn where it lands, as triangles in the world, lit by what the editor baked at their corners.
+    // Each placement lands somewhere else, so it is drawn from buffers of its own.
     private void AddOverlay(PlacedMapNode placedNode, CMapStaticOverlay overlay, MapEntity? owner)
     {
         var groups = StaticOverlayProjector.Project(overlay, placedNode.RigidTransform, GetOverlayReceivers(placedNode, overlay), FindInstanceData(placedNode));
-        var name = string.Create(CultureInfo.InvariantCulture, $"vmap_overlay_{documentIds[placedNode.Document]}_{overlay.NodeID}");
+        var name = string.Create(CultureInfo.InvariantCulture, $"vmap_overlay_{documentIds[placedNode.Document]}_{GetPlacementKey(placedNode)}");
 
         for (var i = 0; i < groups.Length; i++)
         {
             var group = groups[i];
             var lit = group.Streams.Any(static stream => stream.Stream.SemanticName == "PerVertexLighting");
+            var material = GetMaterial(group, scene.LightingInfo.CreateShaderArguments(hasVertexLighting: lit));
+            var (vbib, bounds) = PolygonMeshRenderData.BuildVertexAndIndexBuffers(group, material.Material.InputSignature);
 
             hasVertexLighting |= lit;
 
-            AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), group, scene.LightingInfo.CreateShaderArguments(hasVertexLighting: lit),
-                placedNode, overlay, owner, Matrix4x4.Identity);
+            AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), material, vbib, bounds, placedNode, overlay, owner, Matrix4x4.Identity);
         }
     }
 
@@ -803,8 +809,11 @@ public sealed class MapDocumentLoader : IDisposable
     private PolygonMeshStream[]? GetVertexLighting(PlacedMapNode placedNode, CMapMesh mesh)
         => mesh is not CMapStaticOverlay && FindInstanceData(placedNode) is { } data ? data.CreateVertexLightingStreams(mesh.Mesh) : null;
 
-    private CDmeNodeInstanceData? FindInstanceData(PlacedMapNode placedNode)
-        => nodeInstanceData.GetValueOrDefault(string.Join('.', placedNode.NodeIdPath.Select(static id => id.ToString(CultureInfo.InvariantCulture))));
+    private CDmeNodeInstanceData? FindInstanceData(PlacedMapNode placedNode) => nodeInstanceData.GetValueOrDefault(GetPlacementKey(placedNode));
+
+    // Names one placement of a node, the way the editor names what it bakes for it
+    private static string GetPlacementKey(PlacedMapNode placedNode)
+        => string.Join('.', placedNode.NodeIdPath.Select(static id => id.ToString(CultureInfo.InvariantCulture)));
 
     // The lighting the editor baked for the vertices of the model of a static prop where it is put. It runs through the
     // draw calls of every mesh of the model in order, and is not used once the model no longer has as many vertices.
@@ -857,7 +866,7 @@ public sealed class MapDocumentLoader : IDisposable
         }
 
         var buffers = rendererContext.MeshBufferCache.CreateVertexIndexBuffers(
-            string.Create(CultureInfo.InvariantCulture, $"{modelNode.Name} vertex lighting {string.Join('.', mapEntity.PlacedNode.NodeIdPath)}"), vbib);
+            string.Create(CultureInfo.InvariantCulture, $"{modelNode.Name} vertex lighting {GetPlacementKey(mapEntity.PlacedNode)}"), vbib);
 
         for (var i = 0; i < drawCalls.Count; i++)
         {

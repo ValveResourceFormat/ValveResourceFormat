@@ -8,7 +8,8 @@ namespace ValveResourceFormat.Renderer.Editor.Map;
 
 /// <summary>
 /// What a map mesh is drawn from: the triangles of its <see cref="PolygonMesh"/>, grouped by material, and the
-/// vertex and index buffers made of each group. One mesh has one of these however many times instances place it.
+/// vertex and index buffers made of each group. The placements of a mesh share one of these, except a placement
+/// with lighting baked for it alone.
 /// </summary>
 public sealed class PolygonMeshRenderData
 {
@@ -16,6 +17,9 @@ public sealed class PolygonMeshRenderData
     private const int VertexBufferCount = 2;
 
     private readonly record struct Field(string SemanticName, int SemanticIndex, int ComponentCount, float[] Values);
+
+    // The buffers of each group, built the first time a placement of the mesh draws it
+    private readonly (VBIB Buffers, AABB Bounds)?[] buffers;
 
     /// <summary>Gets the triangles of the mesh by material, in its own space.</summary>
     public PolygonMesh.BakedSubmesh[] MaterialGroups { get; }
@@ -26,7 +30,18 @@ public sealed class PolygonMeshRenderData
     public PolygonMeshRenderData(PolygonMesh mesh, IReadOnlyList<PolygonMeshStream>? replacementStreams = null)
     {
         MaterialGroups = mesh.Triangulate(replacementStreams);
+        buffers = new (VBIB, AABB)?[MaterialGroups.Length];
     }
+
+    /// <summary>
+    /// Gets the vertex and index buffers of the faces of one material, see <see cref="BuildVertexAndIndexBuffers"/>.
+    /// They are built once and shared by every placement of the mesh, which all draw the group with one material.
+    /// </summary>
+    /// <param name="group">Index of the group in <see cref="MaterialGroups"/>.</param>
+    /// <param name="inputSignature">The vertex inputs of the material of the group.</param>
+    /// <returns>The buffers, and the bounds of the vertices.</returns>
+    public (VBIB Buffers, AABB Bounds) GetBuffers(int group, Material.VsInputSignature inputSignature)
+        => buffers[group] ??= BuildVertexAndIndexBuffers(MaterialGroups[group], inputSignature);
 
     /// <summary>
     /// Builds the vertex and index buffers of the faces of one material. The streams of the mesh the material has an
@@ -34,46 +49,26 @@ public sealed class PolygonMeshRenderData
     /// </summary>
     /// <param name="group">The faces of the material.</param>
     /// <param name="inputSignature">The vertex inputs of the material.</param>
-    /// <param name="transform">Moves the vertices out of the space of the mesh, for a mesh that is drawn in the space of something else.</param>
-    /// <returns>The buffers, and the bounds of the moved vertices.</returns>
-    public static (VBIB Buffers, AABB Bounds) BuildVertexAndIndexBuffers(PolygonMesh.BakedSubmesh group, Material.VsInputSignature inputSignature, Matrix4x4 transform)
+    /// <returns>The buffers, and the bounds of the vertices.</returns>
+    public static (VBIB Buffers, AABB Bounds) BuildVertexAndIndexBuffers(PolygonMesh.BakedSubmesh group, Material.VsInputSignature inputSignature)
     {
+        ArgumentNullException.ThrowIfNull(group);
+
         var vertexCount = group.Positions.Length;
-        var positions = group.Positions;
-        var normals = group.Normals;
-        var tangents = group.Tangents;
         var bounds = default(AABB);
-
-        if (!transform.IsIdentity)
-        {
-            positions = new Vector3[vertexCount];
-            normals = new Vector3[vertexCount];
-            tangents = new Vector4[vertexCount];
-
-            var normalTransform = Matrix4x4.Invert(transform, out var inverse) ? Matrix4x4.Transpose(inverse) : Matrix4x4.Identity;
-
-            for (var i = 0; i < vertexCount; i++)
-            {
-                var tangent = group.Tangents[i];
-
-                positions[i] = Vector3.Transform(group.Positions[i], transform);
-                normals[i] = MathUtils.SafeNormalize(Vector3.TransformNormal(group.Normals[i], normalTransform), group.Normals[i]);
-                tangents[i] = new Vector4(MathUtils.SafeNormalize(Vector3.TransformNormal(tangent.AsVector3(), transform), tangent.AsVector3()), tangent.W);
-            }
-        }
 
         for (var i = 0; i < vertexCount; i++)
         {
-            bounds = i == 0 ? new AABB(positions[i], positions[i]) : bounds.Encapsulate(positions[i]);
+            bounds = i == 0 ? new AABB(group.Positions[i], group.Positions[i]) : bounds.Encapsulate(group.Positions[i]);
         }
 
         var fields = new List<Field>[VertexBufferCount];
 
         fields[0] =
         [
-            new Field("POSITION", 0, 3, MemoryMarshal.Cast<Vector3, float>(positions).ToArray()),
-            new Field("NORMAL", 0, 3, MemoryMarshal.Cast<Vector3, float>(normals).ToArray()),
-            new Field("TANGENT", 0, 4, MemoryMarshal.Cast<Vector4, float>(tangents).ToArray()),
+            new Field("POSITION", 0, 3, MemoryMarshal.Cast<Vector3, float>(group.Positions).ToArray()),
+            new Field("NORMAL", 0, 3, MemoryMarshal.Cast<Vector3, float>(group.Normals).ToArray()),
+            new Field("TANGENT", 0, 4, MemoryMarshal.Cast<Vector4, float>(group.Tangents).ToArray()),
         ];
         fields[1] = [];
 
