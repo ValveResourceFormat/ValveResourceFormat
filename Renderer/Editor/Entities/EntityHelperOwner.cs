@@ -67,7 +67,7 @@ internal sealed class EntityHelperOwner : IHelperOwner
     /// <summary>Creates the helpers of the entity, every one its class declares.</summary>
     public void CreateHelpers()
     {
-        Helpers = EntityHelperFactory.CreateHelpers(this, HelperLevel.All);
+        Helpers = EntityHelperFactory.CreateHelpers(this);
     }
 
     public void AddNode(SceneNode node, bool followsEntity = false)

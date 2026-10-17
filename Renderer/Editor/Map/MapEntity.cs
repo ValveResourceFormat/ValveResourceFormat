@@ -111,10 +111,9 @@ public sealed class MapEntity : IHelperOwner
     }
 
     /// <summary>Creates the helpers of the entity.</summary>
-    /// <param name="level">How much the map creates.</param>
-    public void CreateHelpers(HelperLevel level)
+    public void CreateHelpers()
     {
-        Helpers = EntityHelperFactory.CreateHelpers(this, level);
+        Helpers = EntityHelperFactory.CreateHelpers(this);
     }
 
     /// <inheritdoc/>
