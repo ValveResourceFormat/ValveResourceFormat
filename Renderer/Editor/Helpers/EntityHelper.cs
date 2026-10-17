@@ -338,7 +338,6 @@ public abstract class EntityHelper
         return new Vector4(components);
     }
 
-    // A vdata choice names its files joined by '&', each maybe followed by '!' and what to narrow it down to
     /// <summary>Gets a key of the block the helper is declared with as text.</summary>
     /// <param name="key">Name of the key.</param>
     /// <returns>The value, or <see langword="null"/> when the helper has no such key.</returns>

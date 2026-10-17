@@ -119,9 +119,6 @@ public class ModelHelper : EntityHelper
 
         // The choice the first body group of the model is drawn with, whatever the entity says
         public int? ForcedFirstBodyGroup { get; init; }
-
-        // The size of the model, which then does not take the scale of the entity
-        public float? Scale { get; init; }
     }
 
     /// <summary>What a model plays where nothing names an animation that it has.</summary>
@@ -320,8 +317,7 @@ public class ModelHelper : EntityHelper
 
     /// <summary>Gets where the model is placed, which is where the entity is.</summary>
     /// <returns>The transform of the model.</returns>
-    protected virtual Matrix4x4 GetModelTransform()
-        => settings.Scale is { } scale ? Matrix4x4.CreateScale(scale) * Owner.RigidTransform : Owner.Transform;
+    protected virtual Matrix4x4 GetModelTransform() => Owner.Transform;
 
     /// <inheritdoc/>
     public override void AddToScene()
