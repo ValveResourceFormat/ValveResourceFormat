@@ -420,7 +420,7 @@ public partial class GltfModelExporter
         {
             var material = exportedModel.CreateMaterial($"{meshName}_material");
 
-            // Try to load and use tool material first
+            // Try to load and use tool material first. Physics meshes have no tangents or detail worth shading, so only its base color is bound
             var tags = PhysAggregateData.GetInteractAsTags(collisionAttributes);
             var toolTextureName = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags]);
             var usedToolMaterial = false;
@@ -433,7 +433,7 @@ public partial class GltfModelExporter
                     var materialResource = FileLoader.LoadFileCompiled(toolMaterialPath);
                     if (materialResource?.DataBlock is VMaterial toolMaterial)
                     {
-                        GenerateGLTFMaterialFromRenderMaterial(material, toolMaterial, exportedModel, Vector4.One);
+                        GenerateGLTFMaterialFromRenderMaterial(material, toolMaterial, exportedModel, Vector4.One, baseColorOnly: true);
                         usedToolMaterial = true;
                     }
                 }
@@ -445,7 +445,7 @@ public partial class GltfModelExporter
                 var materialResource = FileLoader.LoadFileCompiled(toolMaterialPath);
                 if (materialResource?.DataBlock is VMaterial toolMaterial)
                 {
-                    GenerateGLTFMaterialFromRenderMaterial(material, toolMaterial, exportedModel, Vector4.One);
+                    GenerateGLTFMaterialFromRenderMaterial(material, toolMaterial, exportedModel, Vector4.One, baseColorOnly: true);
                     usedToolMaterial = true;
                 }
             }
