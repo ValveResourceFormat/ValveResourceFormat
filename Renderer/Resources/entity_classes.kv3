@@ -27538,6 +27538,7 @@
 			kind = "solid"
 			description = "Sets the minimap image for any player within this volume."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -31959,6 +31960,7 @@
 			kind = "solid"
 			description = "An entity used to define a place on a CSGO map."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/tools_cs_place.vmat"
 			bases = 
 			[
 				"Targetname:570",
@@ -45456,6 +45458,7 @@
 			kind = "point"
 			description = "Dota-specific Filter."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"trigger_multiple:570",
@@ -48683,6 +48686,7 @@ When the bomb is planted and explodes inside this area, the BombExplode outputs 
 			name = "func_hlvr_nav_markup"
 			kind = "solid"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolsnavattribute.vmat"
 			bases = 
 			[
 				"func_nav_markup:546560",
@@ -48703,6 +48707,7 @@ When the bomb is planted and explodes inside this area, the BombExplode outputs 
 			kind = "solid"
 			description = "Hostage Rescue Zone. When a hostage is led into this zone, it is marked as rescued."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -49753,6 +49758,7 @@ When the bomb is planted and explodes inside this area, the BombExplode outputs 
 			kind = "solid"
 			description = "A brush entity that can block nav areas touching its AABB."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolsnavattribute.vmat"
 			bases = 
 			[
 				"Targetname:250820",
@@ -49786,6 +49792,7 @@ When the bomb is planted and explodes inside this area, the BombExplode outputs 
 			kind = "solid"
 			description = "A brush entity that can block nav areas touching its AABB."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolsnavattribute.vmat"
 			bases = 
 			[
 				"Targetname:570",
@@ -49829,6 +49836,7 @@ When the bomb is planted and explodes inside this area, the BombExplode outputs 
 					]
 				},
 			]
+			auto_apply_material = "materials/tools/toolsnavattribute.vmat"
 			bases = 
 			[
 				"func_nav_markup:730",
@@ -49856,6 +49864,7 @@ When the bomb is planted and explodes inside this area, the BombExplode outputs 
 			kind = "solid"
 			description = "Tagged NAV markup volume entity, used during export and can be queried in-game by tag/name/type/location"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolsnavattribute.vmat"
 			bases = 
 			[
 				"markup_volume_tagged:546560",
@@ -49911,6 +49920,7 @@ When the bomb is planted and explodes inside this area, the BombExplode outputs 
 			kind = "solid"
 			description = "Tagged NAV markup volume entity, used during export and can be queried in-game by tag/name/type/location"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolsnavattribute.vmat"
 			bases = 
 			[
 				"markup_volume_with_ref:730",
@@ -51825,6 +51835,7 @@ When the bomb is planted and explodes inside this area, the BombExplode outputs 
 			kind = "solid"
 			description = "A brush entity that creates precipitation inside its volume."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolsprecipitation.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -56570,6 +56581,7 @@ When the bomb is planted and explodes inside this area, the BombExplode outputs 
 			kind = "solid"
 			description = "Entity that designates a volume within which NPC/Explosion existence should be mapped into the interactive foliage texture."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -78987,6 +78999,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Markup group entity; add the group's targetname to the 'Markup Groups' field of a markup entity to add that entity to this group"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolsmarkupvolumeai.vmat"
 			bases = 
 			[
 				"markup_volume_tagged:730",
@@ -79029,6 +79042,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Generic markup volume entity, can be queried in-game by name/type/location"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolsmarkupvolumeai.vmat"
 			bases = 
 			[
 				"Targetname:570",
@@ -79070,6 +79084,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Tagged generic markup volume entity, can be queried in-game by tag/name/type/location"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolsmarkupvolumeai.vmat"
 			bases = 
 			[
 				"markup_volume:730",
@@ -79166,6 +79181,7 @@ This value is ignored if the path is constant speed.
 					]
 				},
 			]
+			auto_apply_material = "materials/tools/toolsmarkupvolumeai.vmat"
 			bases = 
 			[
 				"markup_volume_tagged:730",
@@ -105310,6 +105326,7 @@ This value is ignored if the path is constant speed.
 					]
 				},
 			]
+			auto_apply_material = "materials/tools_postprocess_volume.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -105394,6 +105411,7 @@ This value is ignored if the path is constant speed.
 					]
 				},
 			]
+			auto_apply_material = "materials/tools_postprocess_volume.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -117072,6 +117090,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that autosaves when the player touches it."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Targetname:250820",
@@ -117113,6 +117132,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that autosaves when the player touches it."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Targetname:570",
@@ -117162,6 +117182,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Blind Zombie Crash Trigger"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -117180,6 +117201,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Blind Zombie Sound Area"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -117219,6 +117241,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Trigger Blind Zombie Wander"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -117239,6 +117262,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that resets the bomb by teleporting it back into the playable area."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -117249,6 +117273,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Boss (Roshan) is attackable from here."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -117259,6 +117284,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "An entity that triggers a level change.<br><br>Place an info_landmark in both maps in the PVS of the transition region that marks the 'same' location in each map.<br><br><b>TIPS & TRICKS:</b><br>To fire events in the next level, use the OnLevelChange output to turn on an env_global in the current level.  Create a logic_auto in the next level that checks for the state set by the env_global.<br><br>To control which entities go through the level transition, create one or more trigger_transitions and give them the same name as the landmark. Any entities within the trigger_transition(s) will go to the next map."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"EnableDisable",
@@ -117319,6 +117345,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Crafting Station Object Placement Trigger"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -117329,6 +117356,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Detect Bullet Fire Trigger"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -117367,6 +117395,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Detect Explosion Trigger"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -117465,6 +117494,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Floor plate that is held down while something stands on it."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Targetname:570",
@@ -117529,6 +117559,7 @@ This value is ignored if the path is constant speed.
 			name = "trigger_foliage_interaction"
 			kind = "solid"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -117539,6 +117570,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that changes the gravity on any entity that touches it."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -117559,6 +117591,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that changes the gravity on any entity that touches it."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -117579,6 +117612,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger that's fired when a hero touches it."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -117625,6 +117659,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that resets the hostage by teleporting it back into the playable area."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -117635,6 +117670,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that damages entities that touch it."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -117832,6 +117868,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that damages entities that touch it."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -118125,6 +118162,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Object Lerp Trigger"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -118192,6 +118230,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "An entity used to trigger something when the player looks at something. It fires 'OnTrigger' when the player looks at a target entity for the given amount of time, while within the trigger volume. If the player leaves the trigger or looks away from the target entity the clock resets. If the 'Use Velocity instead of facing' spawnflag is checked, the trigger uses the player's velocity instead of the player's view, so it determines whenever the player is moving toward the target entity. Useful for triggering when players are driving a vehicle at something.NOTE: Only designed for single-player game. "
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -118337,6 +118376,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "An entity used to trigger something when the player looks at something. It fires 'OnTrigger' when the player looks at a target entity for the given amount of time, while within the trigger volume. If the player leaves the trigger or looks away from the target entity the clock resets. If the 'Use Velocity instead of facing' spawnflag is checked, the trigger uses the player's velocity instead of the player's view, so it determines whenever the player is moving toward the target entity. Useful for triggering when players are driving a vehicle at something.NOTE: Only designed for single-player game. "
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -118489,6 +118529,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that can be triggered multiple times."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -118536,6 +118577,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that can be triggered multiple times."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -118588,6 +118630,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Wards disallowed here."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/tools_no_wards.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -118598,6 +118641,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that removes itself after it is triggered once."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"TriggerOnce:250820",
@@ -118617,6 +118661,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that removes itself after it is triggered once."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"TriggerOnce:570",
@@ -118660,6 +118705,7 @@ This value is ignored if the path is constant speed.
 					]
 				},
 			]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -118820,6 +118866,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Player Out of Ammo Trigger"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -118877,6 +118924,7 @@ This value is ignored if the path is constant speed.
 					]
 				},
 			]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -118897,6 +118945,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "An entity that can be used to disable player's automatic ducking/unducking when jumping."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -118972,6 +119021,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Measures the distance of the player within the trigger volume from a given point (and within a given radius). The NearestPlayerDistance output will be 0 when the player is at the center point, and 1 when the player is at the radius."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -119007,6 +119057,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Measures the distance of the player within the trigger volume from a given point (and within a given radius). The NearestPlayerDistance output will be 0 when the player is at the center point, and 1 when the player is at the radius."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -119053,6 +119104,7 @@ This value is ignored if the path is constant speed.
 					]
 				},
 			]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -119191,6 +119243,7 @@ This value is ignored if the path is constant speed.
 					}
 				},
 			]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -119305,6 +119358,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that removes any entities that touch it. Be careful, removing some entities can cause instability. This is not the same as killing entities. i.e. NPCs removed in this manner will not fire their OnKilled outputs."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -119325,6 +119379,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that removes any entities that touch it. Be careful, removing some entities can cause instability. This is not the same as killing entities. i.e. NPCs removed in this manner will not fire their OnKilled outputs."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -119345,6 +119400,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Resource Analyzer Player Trigger"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -119386,6 +119442,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Region that defines the shop radius."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -119432,6 +119489,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that sets the value of an snd_sos opvar."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -119502,6 +119560,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that sets the value of an snd_sos opvar."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -119572,6 +119631,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Soundscape trigger. It is not necessary to create outputs for this trigger. It automatically will trigger the soundscape referred to by its 'Soundscape' property."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -119591,6 +119651,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Soundscape trigger. It is not necessary to create outputs for this trigger. It automatically will trigger the soundscape referred to by its 'Soundscape' property."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -119620,6 +119681,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that teleports entities that touch it. Entities are teleported to the Remote Destination, and have their angles set to that of the Remote Destination's. If a Local Destination Landmark is specified, teleported entities are offset from the target by their initial offset from the landmark, and their angles are left alone."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -119660,6 +119722,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that teleports entities that touch it. Entities are teleported to the Remote Destination, and have their angles set to that of the Remote Destination's. If a Local Destination Landmark is specified, teleported entities are offset from the target by their initial offset from the landmark, and their angles are left alone."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -119767,6 +119830,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A volume that's used to control which entities go through the level transition. Create one or more trigger_transitions and give them the same name as the changelevel landmark. Any entities within the trigger_transition(s) will go to the next map.See trigger_changelevel for more info."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Targetname:570",
@@ -119787,6 +119851,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger that will keep players from ending there teleport inside or on top of this trigger, but will allow them to move past it."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -119872,6 +119937,7 @@ This value is ignored if the path is constant speed.
 					]
 				},
 			]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -119993,6 +120059,7 @@ This value is ignored if the path is constant speed.
 					]
 				},
 			]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -120018,6 +120085,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger that will clip the teleport trace. You must texture this entity with the toolsteleportclip material to enable functionality."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -120027,6 +120095,7 @@ This value is ignored if the path is constant speed.
 			name = "trigger_traversal_tp_interrupt"
 			kind = "solid"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -120125,6 +120194,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Turret Battery Placement Trigger"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"trigger_multiple:250820",
@@ -120135,6 +120205,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that pushes physics objects that touch it."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -120192,6 +120263,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "A trigger volume that pushes physics objects that touch it."
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:570",
@@ -120248,6 +120320,7 @@ This value is ignored if the path is constant speed.
 			name = "trigger_xen_foliage_interaction"
 			kind = "solid"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -120258,6 +120331,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Trigger Xen Membrane Door"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",
@@ -120317,6 +120391,7 @@ This value is ignored if the path is constant speed.
 			kind = "solid"
 			description = "Zap Module Trigger"
 			color = [ 220, 30, 220 ]
+			auto_apply_material = "materials/tools/toolstrigger.vmat"
 			bases = 
 			[
 				"Trigger:250820",

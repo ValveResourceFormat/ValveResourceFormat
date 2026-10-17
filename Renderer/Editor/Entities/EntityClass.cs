@@ -73,6 +73,12 @@ public sealed class EntityClass
     /// </summary>
     public string? RequiredParentClass { get; init; }
 
+    /// <summary>
+    /// Gets the material the meshes of an entity of the class are drawn with in place of the ones of their faces, or
+    /// <see langword="null"/> where they are drawn with their own.
+    /// </summary>
+    public string? AutoApplyMaterial { get; init; }
+
     /// <summary>Finds a key of the class by its name, without regard to case.</summary>
     /// <param name="name">Name of the key.</param>
     /// <returns>The key, or <see langword="null"/> when the class declares nothing of it.</returns>

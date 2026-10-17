@@ -475,7 +475,7 @@ public sealed class MapDocumentLoader : IDisposable
         for (var i = 0; i < meshRenderData.MaterialGroups.Length; i++)
         {
             var group = meshRenderData.MaterialGroups[i];
-            var material = GetMaterial(group, shaderArguments);
+            var material = GetMaterial(group, owner, shaderArguments);
             var (vbib, vertexBounds) = meshRenderData.GetBuffers(i, material.Material.InputSignature);
             var node = AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), material, vbib, vertexBounds, placedNode, mesh, owner, placedNode.Transform);
             var attributes = material.Material.IntAttributes;
@@ -499,8 +499,9 @@ public sealed class MapDocumentLoader : IDisposable
         }
     }
 
-    private RenderMaterial GetMaterial(PolygonMesh.BakedSubmesh group, Dictionary<string, byte> shaderArguments)
-        => rendererContext.MaterialLoader.GetMaterial(group.Material.Length > 0 ? group.Material : null, shaderArguments);
+    // The class of the entity a mesh is tied to can draw all of it with one material, leaving its faces as they are
+    private RenderMaterial GetMaterial(PolygonMesh.BakedSubmesh group, MapEntity? owner, Dictionary<string, byte> shaderArguments)
+        => rendererContext.MaterialLoader.GetMaterial(owner?.EntityClass?.AutoApplyMaterial ?? (group.Material.Length > 0 ? group.Material : null), shaderArguments);
 
     private MeshSceneNode AddMeshNode(string name, RenderMaterial material, VBIB vbib, AABB bounds, PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner, Matrix4x4 transform)
     {
@@ -536,7 +537,7 @@ public sealed class MapDocumentLoader : IDisposable
         {
             var group = groups[i];
             var lit = group.Streams.Any(static stream => stream.Stream.SemanticName == "PerVertexLighting");
-            var material = GetMaterial(group, scene.LightingInfo.CreateShaderArguments(hasVertexLighting: lit));
+            var material = GetMaterial(group, owner, scene.LightingInfo.CreateShaderArguments(hasVertexLighting: lit));
             var (vbib, bounds) = PolygonMeshRenderData.BuildVertexAndIndexBuffers(group, material.Material.InputSignature);
 
             hasVertexLighting |= lit;

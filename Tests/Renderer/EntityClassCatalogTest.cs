@@ -27,6 +27,16 @@ namespace Tests.Renderer
         }
 
         [Test]
+        public async Task ReadsTheMaterialAClassDrawsItsMeshesWith()
+        {
+            var classes = EntityClassCatalog.GetTable(CounterStrike2);
+
+            await Assert.That(classes.FindClass("post_processing_volume")?.AutoApplyMaterial).IsEqualTo("materials/tools_postprocess_volume.vmat");
+            await Assert.That(classes.FindClass("trigger_multiple")?.AutoApplyMaterial).IsEqualTo("materials/tools/toolstrigger.vmat");
+            await Assert.That(classes.FindClass("func_brush")?.AutoApplyMaterial).IsNull();
+        }
+
+        [Test]
         public async Task DropsTheKeysAClassRemovesOfItsBases()
         {
             var ragdoll = EntityClassCatalog.GetTable(HalfLifeAlyx).FindClass("prop_ragdoll")!;

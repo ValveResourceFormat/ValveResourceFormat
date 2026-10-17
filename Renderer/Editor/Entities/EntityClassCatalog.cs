@@ -185,6 +185,7 @@ public static class EntityClassCatalog
                 Keys = keys,
                 BaseClasses = baseClasses,
                 RequiredParentClass = data.GetStringProperty("required_parent_class"),
+                AutoApplyMaterial = data.GetStringProperty("auto_apply_material"),
             };
         }
 
