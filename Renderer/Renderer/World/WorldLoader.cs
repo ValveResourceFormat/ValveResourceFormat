@@ -229,9 +229,19 @@ namespace ValveResourceFormat.Renderer.World
                     return resource;
                 }
 
+                var mapFolder = string.Concat(MapName, "/");
+
+                bool IsExternalModel(string name)
+                {
+                    var isModel = name.EndsWith(".vmdl", StringComparison.OrdinalIgnoreCase);
+                    var isInMapFolder = name.StartsWith(mapFolder, StringComparison.OrdinalIgnoreCase);
+                    return isModel && !isInMapFolder;
+                }
+
                 var resourceNames = mapResourceReferences.ResourceRefInfoList
                     .Select(x => x.Name)
-                    .Where(r => !r.StartsWith("_bakeresourcecache", StringComparison.Ordinal));
+                    .Where(r => !r.StartsWith("_bakeresourcecache", StringComparison.Ordinal))
+                    .Where(r => !IsExternalModel(r));
 
                 var parallelOptions = new ParallelOptions { CancellationToken = CancellationToken };
 
@@ -252,19 +262,24 @@ namespace ValveResourceFormat.Renderer.World
                         });
                     }
 
-                    if (resource is { ResourceType: ResourceType.EntityLump, DataBlock: EntityLump entityLump } && entitySystem.ToolVisuals is { } toolVisuals)
+                    if (resource is { ResourceType: ResourceType.EntityLump, DataBlock: EntityLump entityLump })
                     {
-                        HashSet<string> toolResources = [];
+                        HashSet<string> entityResources = [];
                         foreach (var entity in entityLump.GetEntities())
                         {
-                            var className = entity.GetStringProperty("classname");
-                            if (className != null)
+                            if (entity.GetStringProperty("model") is { Length: > 0 } modelName)
                             {
-                                toolResources.UnionWith(toolVisuals.GetResourcesToPreload(className));
+                                entityResources.Add(modelName);
+                            }
+
+                            var className = entity.GetStringProperty("classname");
+                            if (className != null && entitySystem.ToolVisuals is { } toolVisuals)
+                            {
+                                entityResources.UnionWith(toolVisuals.GetResourcesToPreload(className));
                             }
                         }
 
-                        Parallel.ForEach(toolResources, parallelOptions, file =>
+                        Parallel.ForEach(entityResources, parallelOptions, file =>
                         {
                             PreloadResource(file);
                         });
