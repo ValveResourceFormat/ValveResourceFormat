@@ -192,27 +192,6 @@ namespace GUI.Utils
             return ToolsAssetInfo;
         }
 
-        public void ClearCache() => ClearCache(disposeStreamingResources: false);
-
-        /// <param name="disposeStreamingResources">Only safe once all renderer contexts on this loader are disposed, since disposal
-        /// waits for streaming reads still holding these resources.</param>
-        private void ClearCache(bool disposeStreamingResources)
-        {
-            foreach (var (path, resource) in CachedResources)
-            {
-                // Texture mips and sounds are still read on background threads after the scene has loaded
-                if (!disposeStreamingResources && resource is { ResourceType: ResourceType.Texture or ResourceType.Sound })
-                {
-                    continue;
-                }
-
-                resource.Dispose();
-                CachedResources.TryRemove(path, out _);
-            }
-
-            //ShaderLoader.ClearCache();
-        }
-
         [SuppressMessage("Usage", "CA2215:Dispose methods should call base class dispose", Justification = "Deferred to StopLoadingAndDispose, which waits for the loaders first")]
         protected override void Dispose(bool disposing)
         {
@@ -278,7 +257,12 @@ namespace GUI.Utils
                     base.CurrentPackage = null;
                 }
 
-                ClearCache(disposeStreamingResources: true);
+                foreach (var resource in CachedResources.Values)
+                {
+                    resource.Dispose();
+                }
+
+                CachedResources.Clear();
 
                 base.Dispose(disposing);
             });

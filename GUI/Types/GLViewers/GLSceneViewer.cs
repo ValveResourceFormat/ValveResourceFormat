@@ -488,7 +488,6 @@ namespace GUI.Types.GLViewers
 
             PostSceneLoad();
 
-            GuiContext.ClearCache();
             GuiContext.GLPostLoadAction?.Invoke(this);
             GuiContext.GLPostLoadAction = null;
 
