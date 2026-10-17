@@ -1,10 +1,11 @@
 import common.Core;
 import common.compression;
 import common.PushData;
-
+import common.utils;
 struct Parameters : IParameters
 {
     [SrgbRead] DescriptorHandle<Sampler2D> g_tColor;
+    DescriptorHandle<Sampler2D> g_tNormal;
     float g_flDetailBlendFactor;
     [SrgbRead] float4 g_vTexCoordCenter;
 };
@@ -21,9 +22,11 @@ public struct VInput
 
 struct VS_OUT {
     float4 clipPos : SV_Position;
-    float3 normal : TEXCOORD0;
-    float2 uv : TEXCOORD1;
-    float linearDepth : TEXCOORD2;
+    float3 normal;
+    float3 tangent;
+    float3 bitangent;
+    float2 uv;
+    float linearDepth;
 };
 
 [shader("vertex")]
@@ -35,26 +38,25 @@ void vertMain(VInput VInput,
 
     out_.linearDepth = out_.clipPos.z / out_.clipPos.w;
     out_.normal = VInput.normalData.normal;
+    out_.tangent = VInput.normalData.tangent;
+    out_.bitangent = VInput.normalData.bitangent;
     out_.uv = VInput.uv;
 }
 
 [shader("fragment")]
 void fragMain(
     VS_OUT in_,
-    out float4 color: SV_Target,
-    out float outDepth: SV_Depth
+    out float4 color: SV_Target
 ) {
+    float3 decodedNormalMap = DecodeHemiOctahedronNormal(pc.Parameters.g_tNormal.Sample(in_.uv).xy);
+    float3 normal = decodedNormalMap.x * in_.tangent + decodedNormalMap.y * in_.bitangent + decodedNormalMap.z * in_.normal;
+    float3 normColor = normal * 0.5f + 0.5f;
 
-    // Visualize normals: convert from [-1,1] to [0,1] range
-    float3 normColor = in_.normal * 0.5f + 0.5f;
-    color = float4(pc.Parameters.g_vTexCoordCenter); //float4(normColor, 1.0f);
-    
     float4 albedo = pc.Parameters.g_tColor.Sample(in_.uv);
 
     var lighting = pc.Lighting;
-    float NdotL = saturate(dot(normalize(in_.normal), lighting.g_vSunDirection.xyz));
+    float NdotL = saturate(dot(normalize(normal), lighting.g_vSunDirection.xyz));
 
     color = float4(albedo.rgb * lighting.g_vSunColor.rgb * NdotL, albedo.a);
 
-    outDepth = in_.linearDepth;
 }
