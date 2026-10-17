@@ -68,41 +68,6 @@ public sealed partial class PolygonMesh
         public required int[] Indices { get; init; }
     }
 
-    // A stream that is carried onto the vertices as it is, and where its numbers go among those of a vertex
-    private sealed class StreamSource
-    {
-        public required PolygonMeshStream Stream { get; init; }
-
-        public required int ComponentCount { get; init; }
-
-        public required int Offset { get; init; }
-
-        // Whether the stream holds a value per vertex rather than per face corner
-        public required bool IsPerVertex { get; init; }
-
-        public required Func<int, Vector4> Read { get; init; }
-
-        // The value at a point of the subdivision stream the stream is bound to, when it is bound to one
-        public Func<int, Vector4>? ReadPatch { get; init; }
-
-        // Whether a subdivided face spreads the values of its corners over its patches, for want of a bound stream
-        public bool IsSpread { get; init; }
-    }
-
-    private struct BakedVertex
-    {
-        public Vector3 Position;
-        public Vector3 Normal;
-        public Vector4 Tangent;
-
-        // Where the values of the other streams start in the numbers gathered while triangulating
-        public int Extras;
-    }
-
-    private StreamSource[] streamSources = [];
-    private int extrasStride;
-    private List<float> bakedExtras = [];
-
     /// <summary>
     /// Triangulates the mesh into standalone geometry, the way it is drawn: every face that is not hidden
     /// has its corners turned into vertices carrying every stream of the mesh, and the faces of each material
@@ -115,210 +80,13 @@ public sealed partial class PolygonMesh
     /// stream among them is drawn on subdivided faces from the subdivision stream among them of the same name.
     /// </param>
     public BakedSubmesh[] Triangulate(IReadOnlyList<PolygonMeshStream>? replacementStreams = null)
+        => new Triangulator(this, replacementStreams ?? []).Triangulate();
+
+    private int GetFaceMaterialIndex(FaceHandle hFace)
     {
-        var vertices = new List<BakedVertex>();
-        var indices = new List<int>();
-        var submeshes = new List<BakedSubmesh>();
+        var material = MaterialIndex[hFace];
 
-        // The faces of a material stay in the order the mesh holds them
-        var faces = Topology.FaceHandles
-            .Where(hFace => !IsFaceHidden(hFace))
-            .OrderBy(hFace => GetFaceMaterialIndex(hFace))
-            .ThenBy(static hFace => hFace.Index)
-            .ToList();
-
-        var faceNormals = new Vector3[Topology.FaceCount];
-        var facePatchSizes = new int[Topology.FaceCount];
-
-        foreach (var hFace in Topology.FaceHandles)
-        {
-            PlaneEquation(hFace, out faceNormals[hFace.Index], out _);
-            facePatchSizes[hFace.Index] = GetFacePatchSize(hFace);
-        }
-
-        faceNormalCache = faceNormals;
-        facePatchSizeCache = facePatchSizes;
-        subdivisionDisplacements = FindSubdivisionValues<Vector3>("displacement");
-        streamSources = FindStreamSources(replacementStreams ?? []);
-        extrasStride = streamSources.Sum(static source => source.ComponentCount);
-        bakedExtras = [];
-
-        try
-        {
-            var corners = new List<BakedVertex>();
-            var outline = new List<Vector3>();
-
-            for (var i = 0; i < faces.Count; i++)
-            {
-                var hFace = faces[i];
-                var patchSize = facePatchSizes[hFace.Index];
-
-                if (patchSize > 0)
-                {
-                    TriangulateSubdividedFaceInto(hFace, patchSize, vertices, indices);
-                }
-                else
-                {
-                    TriangulateFaceInto(hFace, vertices, indices, corners, outline);
-                }
-
-                var materialIndex = GetFaceMaterialIndex(hFace);
-
-                if (i + 1 == faces.Count || GetFaceMaterialIndex(faces[i + 1]) != materialIndex)
-                {
-                    if (indices.Count > 0)
-                    {
-                        submeshes.Add(CreateSubmesh(materialIndex >= 0 ? materials[materialIndex] : string.Empty, vertices, indices));
-                    }
-
-                    vertices.Clear();
-                    indices.Clear();
-                    bakedExtras.Clear();
-                }
-            }
-        }
-        finally
-        {
-            faceNormalCache = null;
-            facePatchSizeCache = null;
-            subdivisionPatches = null;
-            subdivisionDisplacements = null;
-            streamSources = [];
-            bakedExtras = [];
-        }
-
-        return [.. submeshes];
-    }
-
-    private BakedSubmesh CreateSubmesh(string material, List<BakedVertex> vertices, List<int> indices)
-    {
-        var submesh = new BakedSubmesh
-        {
-            Material = material,
-            Positions = new Vector3[vertices.Count],
-            Normals = new Vector3[vertices.Count],
-            Tangents = new Vector4[vertices.Count],
-            Streams = new BakedStream[streamSources.Length],
-            Indices = [.. indices],
-        };
-
-        for (var i = 0; i < streamSources.Length; i++)
-        {
-            submesh.Streams[i] = new BakedStream
-            {
-                Stream = streamSources[i].Stream,
-                ComponentCount = streamSources[i].ComponentCount,
-                Values = new float[vertices.Count * streamSources[i].ComponentCount],
-            };
-        }
-
-        var extras = CollectionsMarshal.AsSpan(bakedExtras);
-
-        for (var i = 0; i < vertices.Count; i++)
-        {
-            var vertex = vertices[i];
-
-            submesh.Positions[i] = vertex.Position;
-            submesh.Normals[i] = vertex.Normal;
-            submesh.Tangents[i] = vertex.Tangent;
-
-            for (var s = 0; s < streamSources.Length; s++)
-            {
-                var source = streamSources[s];
-
-                extras.Slice(vertex.Extras + source.Offset, source.ComponentCount)
-                    .CopyTo(submesh.Streams[s].Values.AsSpan(i * source.ComponentCount, source.ComponentCount));
-            }
-        }
-
-        return submesh;
-    }
-
-    // The streams of the vertices and face corners, other than the position, normal and tangent that are worked out
-    // for each vertex
-    private StreamSource[] FindStreamSources(IReadOnlyList<PolygonMeshStream> replacementStreams)
-    {
-        var sources = new List<StreamSource>();
-        var offset = 0;
-
-        static bool IsSameStream(PolygonMeshStream a, PolygonMeshStream b)
-            => a.Component == b.Component && a.Name.Equals(b.Name, StringComparison.OrdinalIgnoreCase);
-
-        var ownStreams = StoredStreams.Count > 0 ? StoredStreams : (IReadOnlyList<PolygonMeshStream>)BuiltMeshStreams;
-        var streams = ownStreams
-            .Select(stream => replacementStreams.FirstOrDefault(replacement => IsSameStream(replacement, stream)) ?? stream)
-            .Concat(replacementStreams.Where(replacement => !ownStreams.Any(stream => IsSameStream(replacement, stream))));
-
-        foreach (var stream in streams)
-        {
-            if (stream.Component is not (MeshComponentType.Vertex or MeshComponentType.FaceVertex) || IsComputedStream(stream))
-            {
-                continue;
-            }
-
-            var componentCount = GetStreamReader(stream, out var read);
-
-            if (componentCount == 0 || read == null)
-            {
-                continue;
-            }
-
-            Func<int, Vector4>? readPatch = null;
-
-            if (replacementStreams.Contains(stream))
-            {
-                var patches = replacementStreams.FirstOrDefault(replacement => replacement.Component == MeshComponentType.Subdivision
-                    && replacement.Name.Equals(stream.Name, StringComparison.OrdinalIgnoreCase));
-
-                GetArrayReader(patches?.Values, out readPatch);
-            }
-            else if (stream.SubdivisionBinding is (var targetDataType, var targetStreamIndex, SubdivisionStreamSource.Stream))
-            {
-                GetSubdivisionStreamReader(targetDataType, targetStreamIndex, out readPatch);
-            }
-
-            sources.Add(new StreamSource
-            {
-                Stream = stream,
-                ComponentCount = componentCount,
-                Offset = offset,
-                IsPerVertex = stream.Component == MeshComponentType.Vertex,
-                Read = read,
-                ReadPatch = readPatch,
-                IsSpread = readPatch == null && stream.Component == MeshComponentType.FaceVertex && stream.SemanticIndex == 0
-                    && (stream.SemanticName.Equals("texcoord", StringComparison.OrdinalIgnoreCase) || PaintStreams.Contains(stream.SemanticName, StringComparer.OrdinalIgnoreCase)),
-            });
-
-            offset += componentCount;
-        }
-
-        return [.. sources];
-    }
-
-    private static bool IsComputedStream(PolygonMeshStream stream)
-        => stream.SemanticIndex == 0 && (stream.Component, stream.SemanticName.ToLowerInvariant()) is
-            (MeshComponentType.Vertex, "position") or (MeshComponentType.FaceVertex, "normal") or (MeshComponentType.FaceVertex, "tangent");
-
-    // How to read a stream by the index of a vertex or half edge, and how many numbers its values have
-    private int GetStreamReader(PolygonMeshStream stream, out Func<int, Vector4>? read)
-    {
-        switch (stream.Component, stream.SemanticName.ToLowerInvariant(), stream.SemanticIndex)
-        {
-            case (MeshComponentType.FaceVertex, "texcoord", 0):
-                read = index => TextureCoords[index].AsVector4();
-                return 2;
-            case (MeshComponentType.FaceVertex, "texcoord", 1):
-                read = index => TextureCoords1[index].AsVector4();
-                return 2;
-            case (MeshComponentType.FaceVertex, "vertexpaintblendparams", 0):
-                read = index => VertexPaintBlendParams[index];
-                return 4;
-            case (MeshComponentType.FaceVertex, "vertexpainttintcolor", 0):
-                read = index => VertexPaintTintColor[index];
-                return 4;
-            default:
-                return GetArrayReader(stream.Values, out read);
-        }
+        return (uint)material < (uint)materials.Count ? material : -1;
     }
 
     private static int GetArrayReader(Array? values, out Func<int, Vector4>? read)
@@ -343,131 +111,367 @@ public sealed partial class PolygonMesh
         }
     }
 
-    // A subdivision stream is known by the type of its values and where it comes among the streams of that type
-    private void GetSubdivisionStreamReader(PolygonMeshDataType dataType, int streamIndex, out Func<int, Vector4>? read)
+    // One triangulation of a mesh, with what it works out once for the whole mesh and the vertices it has made
+    private sealed partial class Triangulator
     {
-        read = null;
-
-        foreach (var stream in StoredStreams)
+        // A stream that is carried onto the vertices as it is, and where its numbers go among those of a vertex
+        private sealed class StreamSource
         {
-            if (stream.Component != MeshComponentType.Subdivision)
+            public required PolygonMeshStream Stream { get; init; }
+
+            public required int ComponentCount { get; init; }
+
+            public required int Offset { get; init; }
+
+            // Whether the stream holds a value per vertex rather than per face corner
+            public required bool IsPerVertex { get; init; }
+
+            public required Func<int, Vector4> Read { get; init; }
+
+            // The value at a point of the subdivision stream the stream is bound to, when it is bound to one
+            public Func<int, Vector4>? ReadPatch { get; init; }
+
+            // Whether a subdivided face spreads the values of its corners over its patches, for want of a bound stream
+            public bool IsSpread { get; init; }
+        }
+
+        private struct BakedVertex
+        {
+            public Vector3 Position;
+            public Vector3 Normal;
+            public Vector4 Tangent;
+
+            // Where the values of the other streams start in the numbers gathered while triangulating
+            public int Extras;
+        }
+
+        private readonly PolygonMesh mesh;
+        private readonly Vector3[] faceNormals;
+        private readonly StreamSource[] streamSources;
+        private readonly int extrasStride;
+
+        // The numbers of the other streams of the vertices of the submesh being made, see BakedVertex.Extras
+        private readonly List<float> extras = [];
+
+        public Triangulator(PolygonMesh mesh, IReadOnlyList<PolygonMeshStream> replacementStreams)
+        {
+            this.mesh = mesh;
+
+            var faceCount = mesh.Topology.FaceCount;
+
+            faceNormals = new Vector3[faceCount];
+            facePatchSizes = new int[faceCount];
+
+            foreach (var hFace in mesh.Topology.FaceHandles)
             {
-                continue;
+                mesh.PlaneEquation(hFace, out faceNormals[hFace.Index], out _);
+                facePatchSizes[hFace.Index] = GetPatchSize(mesh.SubdivisionLevels[hFace.Edge]);
             }
 
-            if (stream.DataType == dataType && streamIndex-- == 0)
+            displacements = mesh.FindSubdivisionValues<Vector3>("displacement");
+            streamSources = FindStreamSources(replacementStreams);
+            extrasStride = streamSources.Sum(static source => source.ComponentCount);
+        }
+
+        public BakedSubmesh[] Triangulate()
+        {
+            var vertices = new List<BakedVertex>();
+            var indices = new List<int>();
+            var submeshes = new List<BakedSubmesh>();
+
+            // The faces of a material stay in the order the mesh holds them
+            var faces = mesh.Topology.FaceHandles
+                .Where(hFace => !mesh.IsFaceHidden(hFace))
+                .OrderBy(mesh.GetFaceMaterialIndex)
+                .ThenBy(static hFace => hFace.Index)
+                .ToList();
+
+            var corners = new List<BakedVertex>();
+            var outline = new List<Vector3>();
+
+            for (var i = 0; i < faces.Count; i++)
             {
-                GetArrayReader(stream.Values, out read);
-                return;
-            }
-        }
-    }
+                var hFace = faces[i];
+                var patchSize = facePatchSizes[hFace.Index];
 
-    // Gathers the values of the other streams at a face corner, and returns where they start
-    private int AddExtras(HalfEdgeHandle hFaceVertex)
-    {
-        var start = bakedExtras.Count;
+                if (patchSize > 0)
+                {
+                    TriangulateSubdividedFaceInto(hFace, patchSize, vertices, indices);
+                }
+                else
+                {
+                    TriangulateFaceInto(hFace, vertices, indices, corners, outline);
+                }
 
-        foreach (var source in streamSources)
-        {
-            AddExtra(source, source.Read(source.IsPerVertex ? hFaceVertex.Vertex.Index : hFaceVertex.Index));
-        }
+                var materialIndex = mesh.GetFaceMaterialIndex(hFace);
 
-        return start;
-    }
+                if (i + 1 == faces.Count || mesh.GetFaceMaterialIndex(faces[i + 1]) != materialIndex)
+                {
+                    if (indices.Count > 0)
+                    {
+                        submeshes.Add(CreateSubmesh(materialIndex >= 0 ? mesh.materials[materialIndex] : string.Empty, vertices, indices));
+                    }
 
-    private void AddExtra(StreamSource source, Vector4 value)
-    {
-        for (var i = 0; i < source.ComponentCount; i++)
-        {
-            bakedExtras.Add(value[i]);
-        }
-    }
-
-    // The vertex part of the way from one to another
-    private BakedVertex LerpVertex(in BakedVertex from, in BakedVertex to, float amount)
-    {
-        var start = bakedExtras.Count;
-
-        for (var i = 0; i < extrasStride; i++)
-        {
-            bakedExtras.Add(float.Lerp(bakedExtras[from.Extras + i], bakedExtras[to.Extras + i], amount));
-        }
-
-        return new BakedVertex
-        {
-            Position = Vector3.Lerp(from.Position, to.Position, amount),
-            Normal = MathUtils.SafeNormalize(Vector3.Lerp(from.Normal, to.Normal, amount), from.Normal),
-            Tangent = new Vector4(MathUtils.SafeNormalize(Vector3.Lerp(from.Tangent.AsVector3(), to.Tangent.AsVector3(), amount), from.Tangent.AsVector3()), from.Tangent.W),
-            Extras = start,
-        };
-    }
-
-    private int GetFaceMaterialIndex(FaceHandle hFace)
-    {
-        var material = MaterialIndex[hFace];
-
-        return (uint)material < (uint)materials.Count ? material : -1;
-    }
-
-    // The normal a face corner stores, or failing that the one its faces give it
-    private Vector3 GetFaceVertexNormal(HalfEdgeHandle hFaceVertex)
-    {
-        var normal = Normals[hFaceVertex];
-
-        return normal.LengthSquared() < MissingLengthSquared ? ComputeFaceVertexNormal(hFaceVertex) : normal;
-    }
-
-    private void TriangulateFaceInto(FaceHandle hFace, List<BakedVertex> vertices, List<int> indices, List<BakedVertex> corners, List<Vector3> outline)
-    {
-        corners.Clear();
-        outline.Clear();
-
-        var hFaceVertex = hFace.Edge;
-
-        do
-        {
-            var normal = GetFaceVertexNormal(hFaceVertex);
-            var tangent = Tangents[hFaceVertex];
-
-            if (tangent.AsVector3().LengthSquared() < MissingLengthSquared)
-            {
-                ComputeFaceVertexTangent(hFaceVertex, normal, out tangent);
+                    vertices.Clear();
+                    indices.Clear();
+                    extras.Clear();
+                }
             }
 
-            corners.Add(new BakedVertex
-            {
-                Position = Positions[hFaceVertex.Vertex],
-                Normal = normal,
-                Tangent = tangent,
-                Extras = AddExtras(hFaceVertex),
-            });
-
-            hFaceVertex = hFaceVertex.NextEdge;
+            return [.. submeshes];
         }
-        while (hFaceVertex != hFace.Edge);
 
-        var firstVertex = vertices.Count;
+        private Vector3 GetFaceNormal(FaceHandle hFace) => hFace.IsValid ? faceNormals[hFace.Index] : Vector3.Zero;
 
-        for (var i = 0; i < corners.Count; i++)
+        private BakedSubmesh CreateSubmesh(string material, List<BakedVertex> vertices, List<int> indices)
         {
-            var corner = corners[i];
-            var nextCorner = corners[(i + 1) % corners.Count];
-
-            // An edge shared with a subdivided face gets a point for each one that face has along it
-            hFaceVertex = hFaceVertex.NextEdge;
-            var pieces = GetEdgeSplit(hFaceVertex, 1);
-
-            for (var piece = 0; piece < pieces; piece++)
+            var submesh = new BakedSubmesh
             {
-                var vertex = piece == 0 ? corner : LerpVertex(corner, nextCorner, piece / (float)pieces);
+                Material = material,
+                Positions = new Vector3[vertices.Count],
+                Normals = new Vector3[vertices.Count],
+                Tangents = new Vector4[vertices.Count],
+                Streams = new BakedStream[streamSources.Length],
+                Indices = [.. indices],
+            };
 
-                vertices.Add(vertex);
-                outline.Add(vertex.Position);
+            for (var i = 0; i < streamSources.Length; i++)
+            {
+                submesh.Streams[i] = new BakedStream
+                {
+                    Stream = streamSources[i].Stream,
+                    ComponentCount = streamSources[i].ComponentCount,
+                    Values = new float[vertices.Count * streamSources[i].ComponentCount],
+                };
+            }
+
+            var extraValues = CollectionsMarshal.AsSpan(extras);
+
+            for (var i = 0; i < vertices.Count; i++)
+            {
+                var vertex = vertices[i];
+
+                submesh.Positions[i] = vertex.Position;
+                submesh.Normals[i] = vertex.Normal;
+                submesh.Tangents[i] = vertex.Tangent;
+
+                for (var s = 0; s < streamSources.Length; s++)
+                {
+                    var source = streamSources[s];
+
+                    extraValues.Slice(vertex.Extras + source.Offset, source.ComponentCount)
+                        .CopyTo(submesh.Streams[s].Values.AsSpan(i * source.ComponentCount, source.ComponentCount));
+                }
+            }
+
+            return submesh;
+        }
+
+        // The streams of the vertices and face corners, other than the position, normal and tangent that are worked
+        // out for each vertex
+        private StreamSource[] FindStreamSources(IReadOnlyList<PolygonMeshStream> replacementStreams)
+        {
+            var sources = new List<StreamSource>();
+            var offset = 0;
+
+            static bool IsSameStream(PolygonMeshStream a, PolygonMeshStream b)
+                => a.Component == b.Component && a.Name.Equals(b.Name, StringComparison.OrdinalIgnoreCase);
+
+            var ownStreams = mesh.StoredStreams.Count > 0 ? mesh.StoredStreams : (IReadOnlyList<PolygonMeshStream>)BuiltMeshStreams;
+            var streams = ownStreams
+                .Select(stream => replacementStreams.FirstOrDefault(replacement => IsSameStream(replacement, stream)) ?? stream)
+                .Concat(replacementStreams.Where(replacement => !ownStreams.Any(stream => IsSameStream(replacement, stream))));
+
+            foreach (var stream in streams)
+            {
+                if (stream.Component is not (MeshComponentType.Vertex or MeshComponentType.FaceVertex) || IsComputedStream(stream))
+                {
+                    continue;
+                }
+
+                var componentCount = GetStreamReader(stream, out var read);
+
+                if (componentCount == 0 || read == null)
+                {
+                    continue;
+                }
+
+                Func<int, Vector4>? readPatch = null;
+
+                if (replacementStreams.Contains(stream))
+                {
+                    var patches = replacementStreams.FirstOrDefault(replacement => replacement.Component == MeshComponentType.Subdivision
+                        && replacement.Name.Equals(stream.Name, StringComparison.OrdinalIgnoreCase));
+
+                    GetArrayReader(patches?.Values, out readPatch);
+                }
+                else if (stream.SubdivisionBinding is (var targetDataType, var targetStreamIndex, SubdivisionStreamSource.Stream))
+                {
+                    GetSubdivisionStreamReader(targetDataType, targetStreamIndex, out readPatch);
+                }
+
+                sources.Add(new StreamSource
+                {
+                    Stream = stream,
+                    ComponentCount = componentCount,
+                    Offset = offset,
+                    IsPerVertex = stream.Component == MeshComponentType.Vertex,
+                    Read = read,
+                    ReadPatch = readPatch,
+                    IsSpread = readPatch == null && stream.Component == MeshComponentType.FaceVertex && stream.SemanticIndex == 0
+                        && (stream.SemanticName.Equals("texcoord", StringComparison.OrdinalIgnoreCase) || PaintStreams.Contains(stream.SemanticName, StringComparer.OrdinalIgnoreCase)),
+                });
+
+                offset += componentCount;
+            }
+
+            return [.. sources];
+        }
+
+        private static bool IsComputedStream(PolygonMeshStream stream)
+            => stream.SemanticIndex == 0 && (stream.Component, stream.SemanticName.ToLowerInvariant()) is
+                (MeshComponentType.Vertex, "position") or (MeshComponentType.FaceVertex, "normal") or (MeshComponentType.FaceVertex, "tangent");
+
+        // How to read a stream by the index of a vertex or half edge, and how many numbers its values have
+        private int GetStreamReader(PolygonMeshStream stream, out Func<int, Vector4>? read)
+        {
+            switch (stream.Component, stream.SemanticName.ToLowerInvariant(), stream.SemanticIndex)
+            {
+                case (MeshComponentType.FaceVertex, "texcoord", 0):
+                    read = index => mesh.TextureCoords[index].AsVector4();
+                    return 2;
+                case (MeshComponentType.FaceVertex, "texcoord", 1):
+                    read = index => mesh.TextureCoords1[index].AsVector4();
+                    return 2;
+                case (MeshComponentType.FaceVertex, "vertexpaintblendparams", 0):
+                    read = index => mesh.VertexPaintBlendParams[index];
+                    return 4;
+                case (MeshComponentType.FaceVertex, "vertexpainttintcolor", 0):
+                    read = index => mesh.VertexPaintTintColor[index];
+                    return 4;
+                default:
+                    return GetArrayReader(stream.Values, out read);
             }
         }
 
-        ComputeFaceNormal(hFace, out var faceNormal);
-        MeshUtils.TriangulatePolygon(CollectionsMarshal.AsSpan(outline), faceNormal, firstVertex, indices);
+        // A subdivision stream is known by the type of its values and where it comes among the streams of that type
+        private void GetSubdivisionStreamReader(PolygonMeshDataType dataType, int streamIndex, out Func<int, Vector4>? read)
+        {
+            read = null;
+
+            foreach (var stream in mesh.StoredStreams)
+            {
+                if (stream.Component != MeshComponentType.Subdivision)
+                {
+                    continue;
+                }
+
+                if (stream.DataType == dataType && streamIndex-- == 0)
+                {
+                    GetArrayReader(stream.Values, out read);
+                    return;
+                }
+            }
+        }
+
+        // Gathers the values of the other streams at a face corner, and returns where they start
+        private int AddExtras(HalfEdgeHandle hFaceVertex)
+        {
+            var start = extras.Count;
+
+            foreach (var source in streamSources)
+            {
+                AddExtra(source, source.Read(source.IsPerVertex ? hFaceVertex.Vertex.Index : hFaceVertex.Index));
+            }
+
+            return start;
+        }
+
+        private void AddExtra(StreamSource source, Vector4 value)
+        {
+            for (var i = 0; i < source.ComponentCount; i++)
+            {
+                extras.Add(value[i]);
+            }
+        }
+
+        // The vertex part of the way from one to another
+        private BakedVertex LerpVertex(in BakedVertex from, in BakedVertex to, float amount)
+        {
+            var start = extras.Count;
+
+            for (var i = 0; i < extrasStride; i++)
+            {
+                extras.Add(float.Lerp(extras[from.Extras + i], extras[to.Extras + i], amount));
+            }
+
+            return new BakedVertex
+            {
+                Position = Vector3.Lerp(from.Position, to.Position, amount),
+                Normal = MathUtils.SafeNormalize(Vector3.Lerp(from.Normal, to.Normal, amount), from.Normal),
+                Tangent = new Vector4(MathUtils.SafeNormalize(Vector3.Lerp(from.Tangent.AsVector3(), to.Tangent.AsVector3(), amount), from.Tangent.AsVector3()), from.Tangent.W),
+                Extras = start,
+            };
+        }
+
+        // The normal a face corner stores, or failing that the one its faces give it
+        private Vector3 GetFaceVertexNormal(HalfEdgeHandle hFaceVertex)
+        {
+            var normal = mesh.Normals[hFaceVertex];
+
+            return normal.LengthSquared() < MissingLengthSquared ? mesh.ComputeFaceVertexNormal(hFaceVertex, GetFaceNormal) : normal;
+        }
+
+        private void TriangulateFaceInto(FaceHandle hFace, List<BakedVertex> vertices, List<int> indices, List<BakedVertex> corners, List<Vector3> outline)
+        {
+            corners.Clear();
+            outline.Clear();
+
+            var hFaceVertex = hFace.Edge;
+
+            do
+            {
+                var normal = GetFaceVertexNormal(hFaceVertex);
+                var tangent = mesh.Tangents[hFaceVertex];
+
+                if (tangent.AsVector3().LengthSquared() < MissingLengthSquared)
+                {
+                    mesh.ComputeFaceVertexTangent(hFaceVertex, normal, out tangent);
+                }
+
+                corners.Add(new BakedVertex
+                {
+                    Position = mesh.Positions[hFaceVertex.Vertex],
+                    Normal = normal,
+                    Tangent = tangent,
+                    Extras = AddExtras(hFaceVertex),
+                });
+
+                hFaceVertex = hFaceVertex.NextEdge;
+            }
+            while (hFaceVertex != hFace.Edge);
+
+            var firstVertex = vertices.Count;
+
+            for (var i = 0; i < corners.Count; i++)
+            {
+                var corner = corners[i];
+                var nextCorner = corners[(i + 1) % corners.Count];
+
+                // An edge shared with a subdivided face gets a point for each one that face has along it
+                hFaceVertex = hFaceVertex.NextEdge;
+                var pieces = GetEdgeSplit(hFaceVertex, 1);
+
+                for (var piece = 0; piece < pieces; piece++)
+                {
+                    var vertex = piece == 0 ? corner : LerpVertex(corner, nextCorner, piece / (float)pieces);
+
+                    vertices.Add(vertex);
+                    outline.Add(vertex.Position);
+                }
+            }
+
+            MeshUtils.TriangulatePolygon(CollectionsMarshal.AsSpan(outline), GetFaceNormal(hFace), firstVertex, indices);
+        }
     }
 }
