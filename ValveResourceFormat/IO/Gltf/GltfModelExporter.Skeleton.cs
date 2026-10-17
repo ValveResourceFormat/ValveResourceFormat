@@ -1,6 +1,4 @@
 using System.Linq;
-using System.Runtime.InteropServices;
-using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
@@ -43,7 +41,7 @@ public partial class GltfModelExporter
         }
     }
 
-    private static Node CreateSkeletonVisualizationMesh(ModelRoot exportedModel, Scene scene, Skeleton skeleton, Node[] joints)
+    private static void CreateSkeletonVisualizationMesh(ModelRoot exportedModel, Scene scene, Skeleton skeleton, Node[] joints, string skeletonName)
     {
         var positions = new List<Vector3>();
         var normals = new List<Vector3>();
@@ -73,25 +71,15 @@ public partial class GltfModelExporter
 
         var positionAccessor = CreateAccessor(exportedModel, [.. positions]);
         var normalAccessor = CreateAccessor(exportedModel, [.. normals]);
-        var weightsAccessor = CreateAccessor(exportedModel, [.. boneWeights]);
-
-        // Create JOINTS accessor with UInt16 format
-        var jointsBufferView = exportedModel.CreateBufferView(2 * boneIndicesShort.Count, 8, BufferMode.ARRAY_BUFFER);
-        var bufferViewShorts = MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)jointsBufferView.Content).Span);
-        for (var i = 0; i < boneIndicesShort.Count; i++)
-        {
-            bufferViewShorts[i] = boneIndicesShort[i];
-        }
-
-        var jointsAccessor = exportedModel.CreateAccessor();
-        jointsAccessor.SetVertexData(jointsBufferView, 0, positions.Count, new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_SHORT));
+        var weightsAccessor = CreateUnorm8Accessor(exportedModel, [.. boneWeights]);
+        var jointsAccessor = CreateJointsAccessor(exportedModel, [.. boneIndicesShort]);
 
         primitive.SetVertexAccessor("POSITION", positionAccessor);
         primitive.SetVertexAccessor("NORMAL", normalAccessor);
         primitive.SetVertexAccessor("JOINTS_0", jointsAccessor);
         primitive.SetVertexAccessor("WEIGHTS_0", weightsAccessor);
 
-        primitive.WithIndicesAccessor(PrimitiveType.POINTS, indices);
+        SetIndices(primitive, PrimitiveType.POINTS, indices);
 
         // Reuse skeleton material if it already exists
         var material = exportedModel.LogicalMaterials.FirstOrDefault(m => m.Name == "skeleton_material");
@@ -104,6 +92,6 @@ public partial class GltfModelExporter
 
         primitive.WithMaterial(material);
 
-        return scene.CreateNode().WithSkinnedMesh(mesh, Matrix4x4.Identity, joints);
+        scene.CreateNode($"{skeletonName}.empty_mesh_reference").WithSkinnedMesh(mesh, Matrix4x4.Identity, joints);
     }
 }

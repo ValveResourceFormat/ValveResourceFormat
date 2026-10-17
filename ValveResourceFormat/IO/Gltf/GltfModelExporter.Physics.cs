@@ -413,7 +413,7 @@ public partial class GltfModelExporter
         primitive.SetVertexAccessor("TEXCOORD_0", uvAccessor);
 
         // Create index buffer
-        primitive.WithIndicesAccessor(PrimitiveType.TRIANGLES, [.. indices]);
+        SetIndices(primitive, PrimitiveType.TRIANGLES, [.. indices]);
 
         // Create material and texture for physics geometry visualization
         if (ExportMaterials)

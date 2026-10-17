@@ -374,11 +374,11 @@ public partial class GltfModelExporter
             (AnimationWriter Writer, Node[] Joints)? created = null;
             if (Skeleton.FromSkeletonResource(FileLoader, skeletonName) is { } skeleton)
             {
-                var (skeletonNode, secondaryJoints) = CreateGltfSkeleton(scene, skeleton, skeletonName);
+                var skeletonNodeName = Path.GetFileNameWithoutExtension(skeletonName);
+                var (skeletonNode, secondaryJoints) = CreateGltfSkeleton(scene, skeleton, skeletonNodeName);
                 if (skeletonNode != null && secondaryJoints != null)
                 {
-                    var meshNode = CreateSkeletonVisualizationMesh(exportedModel, scene, skeleton, secondaryJoints);
-                    meshNode.Name = $"{skeletonName}.empty_mesh_reference";
+                    CreateSkeletonVisualizationMesh(exportedModel, scene, skeleton, secondaryJoints, skeletonNodeName);
                     var writer = new AnimationWriter(skeleton, []) { ComposeAdditive = ComposeAdditiveAnimations };
                     created = (writer, secondaryJoints);
                 }
