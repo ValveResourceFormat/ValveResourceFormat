@@ -87,6 +87,9 @@ namespace ValveResourceFormat.IO
         private readonly record struct AddonSearchPath(Package? Package, string? Folder);
 
         private readonly string? CurrentFileName;
+
+        // Where the gameinfo of the current file is looked for from, which for a source file is the compiled side
+        private readonly string? GameSearchFileName;
         private readonly ILogger Logger;
         private string? PreferredAddonFolderOnDisk;
         private string? WorkshopContentFolder;
@@ -138,7 +141,8 @@ namespace ValveResourceFormat.IO
         public GameFileLoader(Package? currentPackage, string? currentFileName, ILogger? logger = null)
         {
             CurrentPackage = currentPackage;
-            CurrentFileName = GetGamePathForContentFile(currentFileName);
+            CurrentFileName = currentFileName;
+            GameSearchFileName = GetGamePathForContentFile(currentFileName);
             Logger = logger ?? NullLogger.Instance;
 
             // Find gameinfo.gi by walking up from the current file, preload vpks and add folders to search paths
@@ -1110,7 +1114,7 @@ namespace ValveResourceFormat.IO
 
         private string? GetModIdentifierFile()
         {
-            var directory = CurrentFileName!;
+            var directory = GameSearchFileName!;
             string? childDirectory = null;
             var i = 10;
             var isLastWorkshop = false;
@@ -1191,7 +1195,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         private string? FindGameInfoMountingCurrentFolder()
         {
-            var childDirectory = CurrentFileName!;
+            var childDirectory = GameSearchFileName!;
 
             if (!Path.IsPathFullyQualified(childDirectory) && !childDirectory.StartsWith('/'))
             {
