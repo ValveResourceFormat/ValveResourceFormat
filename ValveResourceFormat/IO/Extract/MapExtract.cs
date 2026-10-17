@@ -1569,7 +1569,7 @@ public sealed partial class MapExtract
             if (targets.Count > 0)
             {
                 overlay.ProjectionTargets.AddRange(targets);
-                overlay.ProjectionMode = 3;
+                overlay.ProjectionMode = (int)MapOverlayProjectionMode.Targets;
             }
         }
 
