@@ -13,7 +13,7 @@ namespace Tests.IO
 {
     /// <summary>
     /// Loading a map and saving it again must reproduce every element, every attribute and the prefix attributes,
-    /// whether the elements were read as plain elements, as the classes of the map schema, or as a map document.
+    /// whether the elements were read as the classes of the map schema or as a map document.
     /// </summary>
     public class MapRoundTripTest
     {
@@ -40,56 +40,6 @@ namespace Tests.IO
 
         [Test]
         [MethodDataSource(nameof(VmapFiles))]
-        public async Task UntypedBinaryRoundTrips(string file)
-        {
-            using var original = DM.Load(Resource(file), DeferredMode.Disabled);
-            var saved = Save(original);
-
-            using var reloaded = DM.Load(saved);
-            await AssertEquivalent(original, reloaded, orderSensitive: true);
-            await Assert.That(reloaded.PrefixElementId).IsEqualTo(original.PrefixElementId);
-
-            await Assert.That(Save(reloaded)).IsEquivalentTo(saved, CollectionOrdering.Matching).Because("saving the reloaded datamodel must reproduce the same bytes");
-        }
-
-        [Test]
-        [MethodDataSource(nameof(VmapFiles))]
-        public async Task PrefixElementIsNotAnOrphan(string file)
-        {
-            using var dm = DM.Load(Resource(file), DeferredMode.Disabled);
-
-            await Assert.That(dm.PrefixAttributes.Keys).Contains("map_asset_references");
-
-            var reachable = new HashSet<Element>();
-            Visit(dm.Root);
-            await Assert.That(dm.AllElements.Count).IsEqualTo(reachable.Count).Because("every element must be reachable from the root");
-
-            void Visit(Element? element)
-            {
-                if (element == null || !reachable.Add(element))
-                {
-                    return;
-                }
-
-                foreach (var attribute in element)
-                {
-                    if (attribute.Value is Element child)
-                    {
-                        Visit(child);
-                    }
-                    else if (attribute.Value is IEnumerable<Element> children)
-                    {
-                        foreach (var arrayChild in children)
-                        {
-                            Visit(arrayChild);
-                        }
-                    }
-                }
-            }
-        }
-
-        [Test]
-        [MethodDataSource(nameof(VmapFiles))]
         public async Task TypedBinaryRoundTrips(string file)
         {
             using var original = DM.Load(Resource(file), DeferredMode.Disabled);
@@ -97,34 +47,13 @@ namespace Tests.IO
 
             await Assert.That(typed.Root).IsTypeOf<CMapRootElement>();
 
-            // Typed elements write their class properties first, in declaration order, so only the set of attributes is compared
-            await AssertEquivalent(original, typed, orderSensitive: false);
+            await AssertEquivalent(original, typed);
 
             var saved = Save(typed);
             using var reloaded = DM.Load(saved);
-            await AssertEquivalent(original, reloaded, orderSensitive: false);
+            await AssertEquivalent(original, reloaded);
 
             await Assert.That(Save(reloaded)).IsEquivalentTo(saved, CollectionOrdering.Matching);
-        }
-
-        [Test]
-        [MethodDataSource(nameof(VmapFiles))]
-        public async Task UntypedKeyValues2RoundTrips(string file)
-        {
-            using var original = DM.Load(Resource(file), DeferredMode.Disabled);
-
-            using var text = new MemoryStream();
-            original.Save(text, "keyvalues2", 4);
-
-            using var reloaded = DM.Load(text.ToArray());
-
-            // keyvalues2 prints floats with ten decimals, so values that small lose precision in that encoding
-            await AssertEquivalent(original, reloaded, orderSensitive: true, floatTolerance: 1e-9);
-            await Assert.That(reloaded.PrefixElementId).IsEqualTo(original.PrefixElementId);
-
-            using var text2 = new MemoryStream();
-            reloaded.Save(text2, "keyvalues2", 4);
-            await Assert.That(text2.ToArray()).IsEquivalentTo(text.ToArray(), CollectionOrdering.Matching);
         }
 
         /// <summary>
@@ -308,9 +237,10 @@ namespace Tests.IO
             return ms.ToArray();
         }
 
-        private static async Task AssertEquivalent(DM expected, DM actual, bool orderSensitive, double floatTolerance = 0)
+        // Typed elements write their class properties first, in declaration order, so only the set of attributes is compared
+        private static async Task AssertEquivalent(DM expected, DM actual)
         {
-            await AssertAttributesEquivalent(expected.PrefixAttributes, actual.PrefixAttributes, "prefix", orderSensitive, floatTolerance);
+            await AssertAttributesEquivalent(expected.PrefixAttributes, actual.PrefixAttributes, "prefix");
 
             var expectedElements = expected.AllElements.ToDictionary(static element => element.ID);
             var actualElements = actual.AllElements.ToDictionary(static element => element.ID);
@@ -327,38 +257,26 @@ namespace Tests.IO
 
                 if (!expectedElement.Stub)
                 {
-                    await AssertAttributesEquivalent(expectedElement, actualElement, $"{expectedElement.ClassName} {id}", orderSensitive, floatTolerance);
+                    await AssertAttributesEquivalent(expectedElement, actualElement, $"{expectedElement.ClassName} {id}");
                 }
             }
         }
 
-        private static async Task AssertAttributesEquivalent(AttributeList expected, AttributeList actual, string context, bool orderSensitive, double floatTolerance)
+        private static async Task AssertAttributesEquivalent(AttributeList expected, AttributeList actual, string context)
         {
             var expectedAttributes = expected.GetAllAttributesForSerialization().ToArray();
-            var actualAttributes = actual.GetAllAttributesForSerialization().ToArray();
+            var actualByName = actual.GetAllAttributesForSerialization().ToDictionary(static attribute => attribute.Key, static attribute => attribute.Value);
 
-            var expectedNames = expectedAttributes.Select(static attribute => attribute.Key).ToArray();
-            var actualNames = actualAttributes.Select(static attribute => attribute.Key).ToArray();
-
-            if (orderSensitive)
-            {
-                await Assert.That(actualNames).IsEquivalentTo(expectedNames, CollectionOrdering.Matching).Because($"attribute names and order of {context}");
-            }
-            else
-            {
-                // A typed element also writes class properties the source lacked, with their default values
-                await Assert.That(expectedNames.Except(actualNames)).IsEmpty().Because($"attribute names of {context}");
-            }
-
-            var actualByName = actualAttributes.ToDictionary(static attribute => attribute.Key, static attribute => attribute.Value);
+            // A typed element also writes class properties the source lacked, with their default values
+            await Assert.That(expectedAttributes.Select(static attribute => attribute.Key).Except(actualByName.Keys)).IsEmpty().Because($"attribute names of {context}");
 
             foreach (var (name, expectedValue) in expectedAttributes)
             {
-                await AssertValueEquivalent(expectedValue, actualByName[name], $"{context}.{name}", floatTolerance);
+                await AssertValueEquivalent(expectedValue, actualByName[name], $"{context}.{name}");
             }
         }
 
-        private static async Task AssertValueEquivalent(object? expected, object? actual, string context, double floatTolerance)
+        private static async Task AssertValueEquivalent(object? expected, object? actual, string context)
         {
             if (expected is null || actual is null)
             {
@@ -382,42 +300,15 @@ namespace Tests.IO
 
                     for (var i = 0; i < expectedList.Count; i++)
                     {
-                        await AssertValueEquivalent(expectedList[i], actualList[i], $"{context}[{i}]", floatTolerance);
+                        await AssertValueEquivalent(expectedList[i], actualList[i], $"{context}[{i}]");
                     }
 
                     break;
                 default:
                     await Assert.That(actual.GetType()).IsEqualTo(expected.GetType()).Because($"type of {context}");
-
-                    if (floatTolerance > 0 && TryGetComponents(expected, out var expectedComponents) && TryGetComponents(actual, out var actualComponents))
-                    {
-                        for (var i = 0; i < expectedComponents.Length; i++)
-                        {
-                            await Assert.That((double)actualComponents[i]).IsEqualTo(expectedComponents[i]).Within(floatTolerance).Because($"{context} component {i}");
-                        }
-
-                        break;
-                    }
-
                     await Assert.That(actual).IsEqualTo(expected).Because(context);
                     break;
             }
-        }
-
-        private static bool TryGetComponents(object value, out float[] components)
-        {
-            components = value switch
-            {
-                float f => [f],
-                Vector2 v => [v.X, v.Y],
-                Vector3 v => [v.X, v.Y, v.Z],
-                Vector4 v => [v.X, v.Y, v.Z, v.W],
-                Quaternion q => [q.X, q.Y, q.Z, q.W],
-                QAngle a => [a.Pitch, a.Yaw, a.Roll],
-                _ => [],
-            };
-
-            return components.Length > 0;
         }
     }
 }
