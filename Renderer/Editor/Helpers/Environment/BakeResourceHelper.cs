@@ -1,12 +1,12 @@
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Map;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using MapNode = ValveResourceFormat.IO.ContentFormats.ValveMap.MapNode;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
@@ -175,16 +175,6 @@ public sealed class BakeResourceHelper : EntityHelper
         return $"_bakeresourcecache/{mapPath}_baked";
     }
 
-    // The node IDs of the instances and prefabs the entity was placed through, then of the entity itself
     private static string GetPlacementName(PlacedMapNode placedNode)
-    {
-        var nodeIds = new List<int>(placedNode.InstancePath);
-
-        if (placedNode.Node is MapNode node)
-        {
-            nodeIds.Add(node.NodeID);
-        }
-
-        return string.Join('_', nodeIds.ConvertAll(static id => id.ToString(CultureInfo.InvariantCulture)));
-    }
+        => string.Join('_', placedNode.NodeIdPath.Select(static id => id.ToString(CultureInfo.InvariantCulture)));
 }

@@ -122,7 +122,7 @@ public class CMapRootElement : DMElement
     public bool CordonsVisible { get; set; }
 
     /// <summary>
-    /// Per node instance data.
+    /// Array of <see cref="CDmeNodeInstanceData"/>, what the editor baked for nodes at each place they are put.
     /// </summary>
     [DMProperty(name: "nodeInstanceData")]
     public Datamodel.ElementArray NodeInstanceData { get; init; } = [];
@@ -166,6 +166,41 @@ public class CMapRootElement : DMElement
     {
         World.PostSaveToFile();
         Visibility.PostSaveToFile();
+    }
+}
+
+/// <summary>
+/// What the editor baked for a node at one place it is put. The element is named after the IDs of the instances and
+/// prefabs the node was placed through, then of the node itself, joined by dots.
+/// </summary>
+[CamelCaseProperties]
+public class CDmeNodeInstanceData : DMElement
+{
+    /// <summary>
+    /// The baked lighting of each vertex. For a mesh, one per face corner in the order of their data, or the grid
+    /// of the patch of a subdivided face corner.
+    /// </summary>
+    public Datamodel.ColorArray VertexLightingData { get; init; } = [];
+
+    /// <summary>Where each vertex was lit, in world space, empty when not kept.</summary>
+    public Datamodel.Vector3Array VertexLightingPositions { get; init; } = [];
+
+    /// <summary>The normal of each vertex when it was lit, empty when not kept.</summary>
+    public Datamodel.Vector3Array VertexLightingNormals { get; init; } = [];
+
+    /// <summary>Creates the streams that draw the mesh of the node lit by <see cref="VertexLightingData"/>.</summary>
+    /// <param name="mesh">The mesh of the node.</param>
+    /// <returns>The streams, see <see cref="PolygonMesh.Triangulate"/>, or null when the lighting does not fit the mesh.</returns>
+    public PolygonMeshStream[]? CreateVertexLightingStreams(PolygonMesh mesh)
+    {
+        ArgumentNullException.ThrowIfNull(mesh);
+
+        if (VertexLightingData.Count == 0)
+        {
+            return null;
+        }
+
+        return mesh.CreateFaceVertexStreams("PerVertexLighting", [.. VertexLightingData.Select(static color => new Vector4(color.R, color.G, color.B, color.A) / 255f)]);
     }
 }
 

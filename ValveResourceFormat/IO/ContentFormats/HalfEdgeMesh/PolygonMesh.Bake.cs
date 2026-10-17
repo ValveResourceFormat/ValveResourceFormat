@@ -109,7 +109,12 @@ public sealed partial class PolygonMesh
     /// get vertices and triangles of their own. A subdivided face is drawn as the displaced grids of points it
     /// stores around its corners.
     /// </summary>
-    public BakedSubmesh[] Triangulate()
+    /// <param name="replacementStreams">
+    /// Streams drawn in place of the stream of the mesh with the same component and name, or in addition to the
+    /// streams of the mesh where it has none, such as the lighting baked for one place the mesh is put. A face corner
+    /// stream among them is drawn on subdivided faces from the subdivision stream among them of the same name.
+    /// </param>
+    public BakedSubmesh[] Triangulate(IReadOnlyList<PolygonMeshStream>? replacementStreams = null)
     {
         var vertices = new List<BakedVertex>();
         var indices = new List<int>();
@@ -134,7 +139,7 @@ public sealed partial class PolygonMesh
         faceNormalCache = faceNormals;
         facePatchSizeCache = facePatchSizes;
         subdivisionDisplacements = FindSubdivisionValues<Vector3>("displacement");
-        streamSources = FindStreamSources();
+        streamSources = FindStreamSources(replacementStreams ?? []);
         extrasStride = streamSources.Sum(static source => source.ComponentCount);
         bakedExtras = [];
 
@@ -231,12 +236,20 @@ public sealed partial class PolygonMesh
 
     // The streams of the vertices and face corners, other than the position, normal and tangent that are worked out
     // for each vertex
-    private StreamSource[] FindStreamSources()
+    private StreamSource[] FindStreamSources(IReadOnlyList<PolygonMeshStream> replacementStreams)
     {
         var sources = new List<StreamSource>();
         var offset = 0;
 
-        foreach (var stream in StoredStreams.Count > 0 ? StoredStreams : (IReadOnlyList<PolygonMeshStream>)BuiltMeshStreams)
+        static bool IsSameStream(PolygonMeshStream a, PolygonMeshStream b)
+            => a.Component == b.Component && a.Name.Equals(b.Name, StringComparison.OrdinalIgnoreCase);
+
+        var ownStreams = StoredStreams.Count > 0 ? StoredStreams : (IReadOnlyList<PolygonMeshStream>)BuiltMeshStreams;
+        var streams = ownStreams
+            .Select(stream => replacementStreams.FirstOrDefault(replacement => IsSameStream(replacement, stream)) ?? stream)
+            .Concat(replacementStreams.Where(replacement => !ownStreams.Any(stream => IsSameStream(replacement, stream))));
+
+        foreach (var stream in streams)
         {
             if (stream.Component is not (MeshComponentType.Vertex or MeshComponentType.FaceVertex) || IsComputedStream(stream))
             {
@@ -252,7 +265,14 @@ public sealed partial class PolygonMesh
 
             Func<int, Vector4>? readPatch = null;
 
-            if (stream.SubdivisionBinding is (var targetDataType, var targetStreamIndex, SubdivisionStreamSource.Stream))
+            if (replacementStreams.Contains(stream))
+            {
+                var patches = replacementStreams.FirstOrDefault(replacement => replacement.Component == MeshComponentType.Subdivision
+                    && replacement.Name.Equals(stream.Name, StringComparison.OrdinalIgnoreCase));
+
+                GetArrayReader(patches?.Values, out readPatch);
+            }
+            else if (stream.SubdivisionBinding is (var targetDataType, var targetStreamIndex, SubdivisionStreamSource.Stream))
             {
                 GetSubdivisionStreamReader(targetDataType, targetStreamIndex, out readPatch);
             }
