@@ -105,9 +105,12 @@ public sealed class ToolsPass : IDisposable
     {
         foreach (var (node, _) in nodes)
         {
+            // Written with the main camera, so the labels of a 3D sky go where the sky appears in the world
+            var toViewerWorld = node.Transform * node.Scene.ToViewerWorld;
+
             foreach (var label in node.Geometry.Labels)
             {
-                AddLabel(textRenderer, camera, label, node.Transform);
+                AddLabel(textRenderer, camera, label, toViewerWorld);
             }
         }
 
