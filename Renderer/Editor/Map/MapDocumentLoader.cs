@@ -13,6 +13,7 @@ using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 using DMElement = Datamodel.Element;
@@ -46,6 +47,9 @@ public sealed class MapDocumentLoader : IDisposable
     // What the editor baked for each node at each place it is put, by the IDs of the nodes it was placed through
     private readonly Dictionary<string, CDmeNodeInstanceData> nodeInstanceData = new(StringComparer.Ordinal);
     private bool hasVertexLighting;
+
+    // What static overlays are projected onto, with the node each was placed as. Only kept while the map is loaded.
+    private readonly List<(PlacedMapNode Placement, OverlayReceiver Receiver)> overlayReceivers = [];
 
     private CancellationToken CancellationToken => rendererContext.CancellationToken;
 
@@ -155,27 +159,44 @@ public sealed class MapDocumentLoader : IDisposable
 
         LoadingProgress?.Report("Loading map geometry…");
 
+        var overlays = new List<(PlacedMapNode Placement, CMapStaticOverlay Overlay, MapEntity? Owner)>();
+
         foreach (var placedNode in placedNodes)
         {
             CancellationToken.ThrowIfCancellationRequested();
 
-            if (placedNode.Node is not CMapMesh mesh)
+            MapEntity? owner = null;
+
+            if (placedNode.Node is not CMapMesh mesh || (placedNode.Parent != null && !created.TryGetValue(placedNode.Parent, out owner)))
             {
                 continue;
             }
 
-            if (placedNode.Parent == null)
+            // Overlays land on everything else, so they go last
+            if (mesh is CMapStaticOverlay overlay)
             {
-                AddMesh(placedNode, mesh, owner: null);
+                overlays.Add((placedNode, overlay, owner));
+                continue;
             }
-            else if (created.TryGetValue(placedNode.Parent, out var owner))
+
+            AddMesh(placedNode, mesh, owner);
+        }
+
+        if (overlays.Count > 0)
+        {
+            AddModelOverlayReceivers();
+
+            foreach (var (placedNode, overlay, owner) in overlays)
             {
-                AddMesh(placedNode, mesh, owner);
+                CancellationToken.ThrowIfCancellationRequested();
+
+                AddOverlay(placedNode, overlay, owner);
             }
         }
 
         // The render data is only shared between the placements of a mesh while they are being made
         renderData.Clear();
+        overlayReceivers.Clear();
 
         LinkEntities();
         ApplyEnvironment();
@@ -438,33 +459,193 @@ public sealed class MapDocumentLoader : IDisposable
         var name = string.Create(CultureInfo.InvariantCulture, $"vmap_mesh_{documentIds[placedNode.Document]}_{mesh.NodeID}");
 
         var shaderArguments = scene.LightingInfo.CreateShaderArguments(hasVertexLighting: vertexLighting != null);
+        var receiverGroups = new List<PolygonMesh.BakedSubmesh>();
+        var receiverBounds = default(AABB?);
 
         // The faces of each material are a mesh of their own, with the vertex streams that material reads
         for (var i = 0; i < meshRenderData.MaterialGroups.Length; i++)
         {
             var group = meshRenderData.MaterialGroups[i];
-            var groupName = string.Create(CultureInfo.InvariantCulture, $"{name}_{i}");
-            var material = rendererContext.MaterialLoader.GetMaterial(group.Material.Length > 0 ? group.Material : null, shaderArguments);
-            var (vbib, bounds) = PolygonMeshRenderData.BuildVertexAndIndexBuffers(group, material.Material.InputSignature, Matrix4x4.Identity);
+            var (node, material) = AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), group, shaderArguments, placedNode, mesh, owner, placedNode.Transform);
+            var attributes = material.Material.IntAttributes;
 
-            var node = new MeshSceneNode(scene, RenderableMesh.CreateMesh(groupName, material, vbib, bounds, rendererContext, sortByMaterial: true))
+            // Overlays do not land on tool faces, or on faces nothing collides with
+            if (attributes.GetValueOrDefault("tools.toolsmaterial") == 0 && attributes.GetValueOrDefault("mapbuilder.nonsolid") == 0)
             {
-                Name = groupName,
-                LayerName = placedNode.WorldLayer ?? (owner == null ? WorldLayerName : EntitiesLayerName),
-                TintAlpha = placedNode.Tint * new Vector4(mesh.TintColor.R, mesh.TintColor.G, mesh.TintColor.B, mesh.RenderAmount) / 255f,
-                OverlayRenderOrder = mesh is CMapStaticOverlay overlay ? overlay.RenderOrder : 0,
-                Transform = placedNode.Transform,
-                EntityData = owner?.KeyValues,
-            };
-
-            if (IsShadowless(material))
-            {
-                node.Flags |= ObjectTypeFlags.NoShadows;
+                receiverGroups.Add(group);
+                receiverBounds = receiverBounds?.Union(node.BoundingBox) ?? node.BoundingBox;
             }
-
-            scene.Add(node, dynamic: false);
-            owner?.AddMeshNode(node);
         }
+
+        if (receiverBounds is { } bounds)
+        {
+            var transform = placedNode.Transform;
+
+            overlayReceivers.Add((placedNode, new OverlayReceiver(OverlayReceiverKind.Mesh, bounds,
+                () => TransformTriangles(receiverGroups.Select(static group => (group.Positions, group.Normals, group.Indices)), transform))));
+        }
+    }
+
+    private (MeshSceneNode Node, RenderMaterial Material) AddMeshNode(string name, PolygonMesh.BakedSubmesh group, Dictionary<string, byte> shaderArguments, PlacedMapNode placedNode, CMapMesh mesh, MapEntity? owner, Matrix4x4 transform)
+    {
+        var material = rendererContext.MaterialLoader.GetMaterial(group.Material.Length > 0 ? group.Material : null, shaderArguments);
+        var (vbib, bounds) = PolygonMeshRenderData.BuildVertexAndIndexBuffers(group, material.Material.InputSignature, Matrix4x4.Identity);
+
+        var node = new MeshSceneNode(scene, RenderableMesh.CreateMesh(name, material, vbib, bounds, rendererContext, sortByMaterial: true))
+        {
+            Name = name,
+            LayerName = placedNode.WorldLayer ?? (owner == null ? WorldLayerName : EntitiesLayerName),
+            TintAlpha = placedNode.Tint * new Vector4(mesh.TintColor.R, mesh.TintColor.G, mesh.TintColor.B, mesh.RenderAmount) / 255f,
+            OverlayRenderOrder = mesh is CMapStaticOverlay overlay ? overlay.RenderOrder : 0,
+            Transform = transform,
+            EntityData = owner?.KeyValues,
+        };
+
+        if (IsShadowless(material))
+        {
+            node.Flags |= ObjectTypeFlags.NoShadows;
+        }
+
+        scene.Add(node, dynamic: false);
+        owner?.AddMeshNode(node);
+
+        return (node, material);
+    }
+
+    // An overlay is drawn where it lands, as triangles in the world, lit by what the editor baked at their corners
+    private void AddOverlay(PlacedMapNode placedNode, CMapStaticOverlay overlay, MapEntity? owner)
+    {
+        var groups = StaticOverlayProjector.Project(overlay, placedNode.RigidTransform, GetOverlayReceivers(placedNode, overlay), FindInstanceData(placedNode));
+        var name = string.Create(CultureInfo.InvariantCulture, $"vmap_overlay_{documentIds[placedNode.Document]}_{overlay.NodeID}");
+
+        for (var i = 0; i < groups.Length; i++)
+        {
+            var group = groups[i];
+            var lit = group.Streams.Any(static stream => stream.Stream.SemanticName == "PerVertexLighting");
+
+            hasVertexLighting |= lit;
+
+            AddMeshNode(string.Create(CultureInfo.InvariantCulture, $"{name}_{i}"), group, scene.LightingInfo.CreateShaderArguments(hasVertexLighting: lit),
+                placedNode, overlay, owner, Matrix4x4.Identity);
+        }
+    }
+
+    // Everything, or only the targets of the overlay and what is under them as it was placed along with the overlay,
+    // which for a target that is an instance or a prefab is everything it places
+    private IEnumerable<OverlayReceiver> GetOverlayReceivers(PlacedMapNode placedNode, CMapStaticOverlay overlay)
+    {
+        if (overlay.ProjectionMode != 3)
+        {
+            return overlayReceivers.Select(static receiver => receiver.Receiver);
+        }
+
+        var targets = new HashSet<int>();
+
+        foreach (var node in EnumerateNodes(placedNode.Document.World))
+        {
+            if (overlay.ProjectionTargets.Contains(node.NodeID))
+            {
+                targets.UnionWith(EnumerateNodes(node).Select(static target => target.NodeID));
+            }
+        }
+
+        var path = placedNode.InstancePath;
+
+        return overlayReceivers
+            .Where(receiver => receiver.Placement.InstancePath is var receiverPath
+                && receiverPath.Take(path.Count).SequenceEqual(path)
+                && (receiverPath.Count > path.Count
+                    ? targets.Contains(receiverPath[path.Count])
+                    : receiver.Placement.Document == placedNode.Document && receiver.Placement.Node is MapNode { NodeID: var id } && targets.Contains(id)))
+            .Select(static receiver => receiver.Receiver);
+
+        static IEnumerable<MapNode> EnumerateNodes(MapNode node)
+            => node.Children.OfType<MapNode>().SelectMany(EnumerateNodes).Prepend(node);
+    }
+
+    // Overlays land on the most detailed render meshes of the models of entities, unless the models can animate
+    private void AddModelOverlayReceivers()
+    {
+        var triangles = new Dictionary<Model, List<(Vector3[] Positions, Vector3[] Normals, int[] Indices)>>();
+
+        foreach (var mapEntity in mapEntities)
+        {
+            foreach (var helper in mapEntity.Helpers.OfType<ModelHelper>())
+            {
+                if (helper.IsEditorModel || helper.Model is not { } model || helper.ModelNode is not { Animations.Count: 0 } modelNode)
+                {
+                    continue;
+                }
+
+                var transform = modelNode.Transform;
+
+                overlayReceivers.Add((mapEntity.PlacedNode, new OverlayReceiver(OverlayReceiverKind.Model, modelNode.BoundingBox, () =>
+                {
+                    if (!triangles.TryGetValue(model, out var parts))
+                    {
+                        triangles[model] = parts = GetModelTriangles(model);
+                    }
+
+                    return TransformTriangles(parts, transform);
+                })));
+            }
+        }
+    }
+
+    private List<(Vector3[] Positions, Vector3[] Normals, int[] Indices)> GetModelTriangles(Model model)
+    {
+        var meshes = model.GetEmbeddedMeshes().Where(static mesh => (mesh.LodMask & 1) != 0).Select(static mesh => mesh.Mesh)
+            .Concat(model.GetReferenceMeshNamesAndLoD()
+                .Where(static mesh => (mesh.LodMask & 1) != 0)
+                .Select(mesh => rendererContext.FileLoader.LoadFileCompiled(mesh.MeshName)?.DataBlock as Mesh)
+                .OfType<Mesh>());
+
+        var parts = new List<(Vector3[], Vector3[], int[])>();
+
+        foreach (var mesh in meshes)
+        {
+            var vbib = mesh.VBIB;
+
+            foreach (var sceneObject in mesh.Data.GetArray("m_sceneObjects"))
+            {
+                foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
+                {
+                    var vertexBuffer = vbib.VertexBuffers[drawCall.GetArray("m_vertexBuffers")[0].GetInt32Property("m_hBuffer")];
+                    var position = vertexBuffer.InputLayoutFields.FirstOrDefault(static field => field.SemanticName == "POSITION");
+                    var normal = vertexBuffer.InputLayoutFields.FirstOrDefault(static field => field.SemanticName == "NORMAL");
+
+                    if (position.SemanticName == null || normal.SemanticName == null)
+                    {
+                        continue;
+                    }
+
+                    var indexBuffer = vbib.IndexBuffers[drawCall.GetSubCollection("m_indexBuffer").GetInt32Property("m_hBuffer")];
+                    var indices = GltfModelExporter.ReadIndices(indexBuffer, drawCall.GetInt32Property("m_nStartIndex"), drawCall.GetInt32Property("m_nIndexCount"), drawCall.GetInt32Property("m_nBaseVertex"));
+
+                    parts.Add((VBIB.GetVector3AttributeArray(vertexBuffer, position), VBIB.GetNormalTangentArray(vertexBuffer, normal).Normals, indices));
+                }
+            }
+        }
+
+        return parts;
+    }
+
+    // Triangles moved into the world, with their normals turned along but not rescaled
+    private static (Vector3[] Positions, Vector3[] Normals) TransformTriangles(IEnumerable<(Vector3[] Positions, Vector3[] Normals, int[] Indices)> parts, Matrix4x4 transform)
+    {
+        var positions = new List<Vector3>();
+        var normals = new List<Vector3>();
+
+        foreach (var (partPositions, partNormals, indices) in parts)
+        {
+            foreach (var index in indices)
+            {
+                positions.Add(Vector3.Transform(partPositions[index], transform));
+                normals.Add(Vector3.TransformNormal(partNormals[index], transform));
+            }
+        }
+
+        return ([.. positions], [.. normals]);
     }
 
     // The lighting the editor baked for the vertices of a mesh where it is put, as streams that replace the ones of the mesh
