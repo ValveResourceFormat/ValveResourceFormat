@@ -564,9 +564,9 @@ namespace CLI
             }
             else if (File.Exists(InputFile))
             {
-                if (VpkArchiveIndexRegex().IsMatch(InputFile))
+                if (PackageFileNames.IsArchiveChunk(InputFile))
                 {
-                    var fixedPackage = $"{InputFile.AsSpan()[..^8]}_dir.vpk";
+                    var fixedPackage = PackageFileNames.GetDirectoryFile(InputFile);
 
                     if (File.Exists(fixedPackage))
                     {
@@ -787,10 +787,9 @@ namespace CLI
 
         private List<string>? FindPathsToProcessInFolder(string path)
         {
-            var vpkRegex = VpkArchiveIndexRegex();
             var vpks = Directory
                 .EnumerateFiles(path, "*.vpk", RecursiveSearch ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
-                .Where(s => !vpkRegex.IsMatch(s));
+                .Where(s => !PackageFileNames.IsArchiveChunk(s));
 
             if (VerifyVPKChecksums)
             {
@@ -2473,8 +2472,5 @@ namespace CLI
             @"^(?:subtitles|closecaption)_.*\.dat$"
         )]
         private static partial Regex SupportedFileNamesRegex();
-
-        [GeneratedRegex(@"_[0-9]{3}\.vpk$")]
-        private static partial Regex VpkArchiveIndexRegex();
     }
 }

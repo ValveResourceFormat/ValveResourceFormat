@@ -210,14 +210,13 @@ namespace GUI.Controls
                     return false;
                 }
 
-                if (!Regexes.VpkNumberArchive().IsMatch(entry.FileName))
+                if (!PackageFileNames.IsArchiveChunk(entry.FileName))
                 {
                     return true;
                 }
 
                 // If we matched dota_683.vpk, make sure dota_dir.vpk exists before excluding it from results
-                var fixedPackage = $"{entry.ToFullPath()[..^8]}_dir.vpk";
-                return !File.Exists(fixedPackage);
+                return !File.Exists(PackageFileNames.GetDirectoryFile(entry.ToFullPath()));
             }
 
             var gamesToScan = steamGames
@@ -287,16 +286,10 @@ namespace GUI.Controls
                         {
                             var addonPath = Path.Join(steamPath, "workshop", "content", appID.ToString(CultureInfo.InvariantCulture), item.Key);
                             var publishDataPath = Path.Join(addonPath, "publish_data.txt");
-                            var vpk = Path.Join(addonPath, $"{item.Key}.vpk");
 
-                            if (!File.Exists(vpk))
+                            if (PackageFileNames.FindAddonPackage(addonPath, item.Key) is not { } vpk)
                             {
-                                vpk = Path.Join(addonPath, $"{item.Key}_dir.vpk");
-
-                                if (!File.Exists(vpk))
-                                {
-                                    continue;
-                                }
+                                continue;
                             }
 
                             var displayTitle = $"[Workshop {item.Key}]";

@@ -931,29 +931,12 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                if (FindAddonVpk(addonFolder, fileName) is { } vpk)
+                if (PackageFileNames.FindAddonPackage(addonFolder, fileName) is { } vpk)
                 {
                     AddAddonPackageToSearch(vpk);
                     break;
                 }
             }
-        }
-
-        /// <summary>
-        /// Finds an addon packed as folder/name.vpk, or split into chunks with folder/name_dir.vpk.
-        /// </summary>
-        private static string? FindAddonVpk(string folder, string name)
-        {
-            var vpk = Path.Join(folder, $"{name}.vpk");
-
-            if (File.Exists(vpk))
-            {
-                return vpk;
-            }
-
-            vpk = Path.Join(folder, $"{name}_dir.vpk");
-
-            return File.Exists(vpk) ? vpk : null;
         }
 
         private void LoadAddonDependencies()
@@ -992,7 +975,7 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    if (FindAddonVpk(Path.Join(WorkshopContentFolder, dependencyName), dependencyName) is { } vpk)
+                    if (PackageFileNames.FindAddonPackage(Path.Join(WorkshopContentFolder, dependencyName), dependencyName) is { } vpk)
                     {
                         AddAddonPackageToSearch(vpk);
                     }
@@ -1061,16 +1044,8 @@ namespace ValveResourceFormat.IO
 
         private IEnumerable<string> EnumeratePakVpks(string folder)
         {
-            // Scan for vpks in folder, same logic as in source engine
-            for (var i = 1; i < 99; i++)
+            foreach (var vpk in PackageFileNames.EnumeratePakDirectoryFiles(folder))
             {
-                var vpk = Path.Combine(folder, $"pak{i:D2}_dir.vpk");
-
-                if (!File.Exists(vpk))
-                {
-                    yield break;
-                }
-
                 if (IsOpenedPackage(vpk))
                 {
 #if DEBUG_FILE_LOAD

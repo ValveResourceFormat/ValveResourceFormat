@@ -537,7 +537,7 @@ namespace GUI.Types.PackageViewer
                 if (archiveIndex != short.MaxValue)
                 {
                     var archiveFileSize = nextOffset;
-                    var archiveFileName = $"{package.FileName}_{archiveIndex:D3}.vpk";
+                    var archiveFileName = PackageFileNames.GetArchiveChunkFile(package.FileName!, archiveIndex);
 
                     try
                     {

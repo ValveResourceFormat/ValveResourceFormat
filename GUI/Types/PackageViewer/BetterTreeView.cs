@@ -10,6 +10,7 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using ValvePak;
+using ValveResourceFormat.IO;
 
 namespace GUI.Types.PackageViewer
 {
@@ -212,7 +213,7 @@ namespace GUI.Types.PackageViewer
                                 return;
                             }
 
-                            var fileName = $"{VrfGuiContext.CurrentPackage.FileName}_{archiveIndex:D3}.vpk";
+                            var fileName = PackageFileNames.GetArchiveChunkFile(VrfGuiContext.CurrentPackage.FileName!, archiveIndex);
 
                             var archiveMatches = SearchForContentsInFile(fileName, pattern, archiveEntries);
 

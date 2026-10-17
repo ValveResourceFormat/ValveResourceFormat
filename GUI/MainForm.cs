@@ -179,7 +179,7 @@ namespace GUI
                 {
                     if (!File.Exists(file))
                     {
-                        var dirFile = string.Concat(file.AsSpan(0, file.Length - 4), "_dir.vpk");
+                        var dirFile = PackageFileNames.GetDirectoryFile(file);
 
                         if (!File.Exists(dirFile))
                         {
@@ -661,9 +661,9 @@ namespace GUI
 
         public void OpenFile(string fileName)
         {
-            if (Regexes.VpkNumberArchive().IsMatch(fileName))
+            if (PackageFileNames.IsArchiveChunk(fileName))
             {
-                var fixedPackage = $"{fileName[..^8]}_dir.vpk";
+                var fixedPackage = PackageFileNames.GetDirectoryFile(fileName);
 
                 if (File.Exists(fixedPackage))
                 {
