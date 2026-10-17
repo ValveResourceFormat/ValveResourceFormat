@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Utils;
 
@@ -8,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The distance and height fog of an <c>env_gradient_fog</c>, which the map has while the entity is the
 /// <c>gradient_fog</c> global.
 /// </summary>
-internal sealed class GradientFogHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class GradientFogHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <summary>
     /// Gets whether the fog is only there while the entity names a gradient fog texture, as the block the

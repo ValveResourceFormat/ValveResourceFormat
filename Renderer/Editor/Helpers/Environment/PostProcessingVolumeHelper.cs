@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
 
@@ -8,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The post processing of a <c>post_processing_volume</c>: its exposure and the post processing resource it
 /// names, under the keys its declaration gives.
 /// </summary>
-internal sealed class PostProcessingVolumeHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class PostProcessingVolumeHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <summary>Gets the key of the post processing resource the declaration gives.</summary>
     private string ResourceKey => GetArgument(0) is { Length: > 0 } key ? key : "postprocessing";

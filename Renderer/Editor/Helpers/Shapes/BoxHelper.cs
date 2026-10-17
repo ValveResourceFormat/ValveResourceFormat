@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -81,7 +80,7 @@ internal sealed class BoxHelper : EntityHelper
     /// </summary>
     private bool FadesPastSides { get; }
 
-    private BoxHelper(IHelperOwner owner, FgdHelper declaration, BoxHelperSize size, bool isOriented) : base(owner, declaration)
+    private BoxHelper(IHelperOwner owner, HelperDeclaration declaration, BoxHelperSize size, bool isOriented) : base(owner, declaration)
     {
         Size = size;
         IsOriented = isOriented;
@@ -106,7 +105,7 @@ internal sealed class BoxHelper : EntityHelper
 
     /// <summary>Creates the box a class declares.</summary>
     /// <returns>The box, or <see langword="null"/> when the declaration does not name the keys it is given by.</returns>
-    public static BoxHelper? Create(IHelperOwner owner, FgdHelper declaration)
+    public static BoxHelper? Create(IHelperOwner owner, HelperDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(declaration);
 

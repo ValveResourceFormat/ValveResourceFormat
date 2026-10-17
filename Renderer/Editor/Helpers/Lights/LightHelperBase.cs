@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Utils;
@@ -38,7 +37,7 @@ internal abstract class LightHelperBase : EntityHelper
     protected bool HasCookie { get; }
 
     /// <summary>Initializes the light of an entity, reading the keys every one of these lights has.</summary>
-    protected LightHelperBase(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    protected LightHelperBase(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         Range = MathF.Max(GetFloatKey("range"), 1f);
         ShapeExponent = SceneLight.GetShapeExponent(GetFloatKey("shape"));

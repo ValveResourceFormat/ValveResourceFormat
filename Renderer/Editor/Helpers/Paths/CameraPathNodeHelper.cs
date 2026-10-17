@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -10,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// A node with no field of view of its own has the one of the view, and the nodes of a path with
 /// <c>relative_fov</c> set add theirs to it.
 /// </summary>
-internal sealed class CameraPathNodeHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class CameraPathNodeHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;

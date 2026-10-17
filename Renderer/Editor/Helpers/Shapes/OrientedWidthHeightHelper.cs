@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -29,7 +28,7 @@ internal sealed class OrientedWidthHeightHelper : EntityHelper
     /// <summary>Gets the key of the entity that holds the height.</summary>
     private string HeightKey { get; }
 
-    private OrientedWidthHeightHelper(IHelperOwner owner, FgdHelper declaration, string widthKey, string heightKey)
+    private OrientedWidthHeightHelper(IHelperOwner owner, HelperDeclaration declaration, string widthKey, string heightKey)
         : base(owner, declaration)
     {
         WidthKey = widthKey;
@@ -38,7 +37,7 @@ internal sealed class OrientedWidthHeightHelper : EntityHelper
 
     /// <summary>Creates the box a class declares.</summary>
     /// <returns>The box, or <see langword="null"/> when the declaration does not give both keys.</returns>
-    public static OrientedWidthHeightHelper? Create(IHelperOwner owner, FgdHelper declaration)
+    public static OrientedWidthHeightHelper? Create(IHelperOwner owner, HelperDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(declaration);
 

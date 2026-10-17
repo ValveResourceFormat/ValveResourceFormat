@@ -89,6 +89,15 @@ namespace ValveResourceFormat.IO
         /// <summary>Gets whether the game found is Counter-Strike 2.</summary>
         public bool IsCounterStrike2 => SteamAppId == CounterStrike2SteamAppId;
 
+        private int? installedSteamAppId;
+
+        /// <summary>
+        /// Gets the installed Steam app whose folder the first game found is in, such as 570 for Dota 2, or zero
+        /// when no game was found or it is not in the folder of an installed app. Where several apps share the
+        /// folder, it is the one with the lowest app id.
+        /// </summary>
+        public virtual int InstalledSteamAppId => installedSteamAppId ??= FindInstalledSteamAppId();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="GameFileLoader"/> class.
         /// </summary>
@@ -668,6 +677,18 @@ namespace ValveResourceFormat.IO
             }
 
             return null;
+        }
+
+        private int FindInstalledSteamAppId()
+        {
+            if (CurrentGameInfos.Count == 0)
+            {
+                return 0;
+            }
+
+            var gameInfoPath = Path.GetFullPath(CurrentGameInfos[0].Path);
+
+            return GameFolderLocator.FindSteamGameContainingPath(gameInfoPath, GameFolderLocator.FindAllSteamGames()) is { } game ? game.AppID : 0;
         }
 
         /// <summary>

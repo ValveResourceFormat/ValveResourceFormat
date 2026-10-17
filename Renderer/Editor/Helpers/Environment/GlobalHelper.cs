@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
 
@@ -7,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// <c>gradient_fog</c>. Of the entities that can be a global, one is: the first that is on, at the fewest
 /// prefabs deep.
 /// </summary>
-internal sealed class GlobalHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class GlobalHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;

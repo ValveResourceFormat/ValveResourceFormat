@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -14,7 +13,7 @@ internal sealed class VecLineHelper : PointKeyHelper
     /// <summary>Gets the color of the line.</summary>
     private Color32 Color { get; }
 
-    public VecLineHelper(IHelperOwner owner, FgdHelper declaration)
+    public VecLineHelper(IHelperOwner owner, HelperDeclaration declaration)
         : base(owner, declaration, isLocal: declaration.Name.Equals("vecline_local", StringComparison.OrdinalIgnoreCase))
     {
         Color = declaration.Arguments.Count >= 4 ? GetColorArguments(1) : Color32.White;

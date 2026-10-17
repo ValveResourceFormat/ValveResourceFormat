@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -38,7 +37,7 @@ internal sealed class FrustumHelper : EntityHelper
     /// <summary>Gets whether the field of view is the vertical one, rather than the horizontal one.</summary>
     private bool IsVerticalFov { get; }
 
-    public FrustumHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    public FrustumHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         // The fifth argument is not read
         if (GetArgument(0) is { } fovKey)

@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -12,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// between the directions it is reached from and left in, upright to the path but rolled as far about that
 /// direction as the node itself is.
 /// </summary>
-internal sealed class AccompanyHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class AccompanyHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;

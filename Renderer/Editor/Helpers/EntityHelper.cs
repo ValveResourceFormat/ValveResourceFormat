@@ -1,6 +1,6 @@
 using System.Globalization;
+using System.Linq;
 using ValveKeyValue;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -18,7 +18,7 @@ public abstract class EntityHelper
     public IHelperOwner Owner { get; }
 
     /// <summary>Gets the helper as the class of the entity declares it.</summary>
-    public FgdHelper Declaration { get; }
+    public HelperDeclaration Declaration { get; }
 
     /// <summary>
     /// Gets whether the entity is seen by this helper, which most are. An entity none of whose helpers is, is
@@ -95,7 +95,7 @@ public abstract class EntityHelper
     /// <summary>Initializes a helper of an entity.</summary>
     /// <param name="owner">The entity the helper belongs to.</param>
     /// <param name="declaration">The helper as the class of the entity declares it.</param>
-    protected EntityHelper(IHelperOwner owner, FgdHelper declaration)
+    protected EntityHelper(IHelperOwner owner, HelperDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(declaration);
@@ -312,7 +312,7 @@ public abstract class EntityHelper
     /// <param name="flag">The flag.</param>
     /// <returns>Whether the declaration has it.</returns>
     protected bool HasArgument(string flag)
-        => Declaration.Arguments.Exists(argument => argument.Equals(flag, StringComparison.OrdinalIgnoreCase));
+        => Declaration.Arguments.Contains(flag, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the color three arguments of the declaration give, each channel on its own: full where its
@@ -410,7 +410,7 @@ public abstract class EntityHelper
 
     // An entity has every key of its class, set to the default of the class until it is changed
     private static string? GetDefault(IHelperOwner owner, string key)
-        => owner.FgdClass?.FindVariable(key) is { HasDefault: true } variable ? variable.DefaultString : null;
+        => owner.EntityClass?.FindKey(key)?.Default;
 
     private Vector4 GetDefaultComponents(string key) => ParseComponents(GetDefault(Owner, key) ?? string.Empty);
 

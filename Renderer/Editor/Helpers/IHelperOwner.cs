@@ -1,4 +1,4 @@
-using ValveResourceFormat.IO.Fgd;
+using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -19,7 +19,7 @@ public interface IHelperOwner
     string Classname { get; }
 
     /// <summary>Gets the class of the entity, or <see langword="null"/> when its game declares none of that name.</summary>
-    FgdClass? FgdClass { get; }
+    EntityClass? EntityClass { get; }
 
     /// <summary>Gets where the entity was placed, with its scale.</summary>
     Matrix4x4 Transform { get; }

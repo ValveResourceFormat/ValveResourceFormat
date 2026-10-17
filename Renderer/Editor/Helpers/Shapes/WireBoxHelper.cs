@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -27,7 +26,7 @@ internal sealed class WireBoxHelper : EntityHelper
     /// <summary>Gets whether the corners are in world coordinates, rather than from the origin of the entity.</summary>
     private bool IsWorld { get; }
 
-    private WireBoxHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    private WireBoxHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         MinsKey = ToTruncatedKey(declaration.Arguments[0]);
         MaxsKey = ToTruncatedKey(declaration.Arguments[1]);
@@ -36,7 +35,7 @@ internal sealed class WireBoxHelper : EntityHelper
 
     /// <summary>Creates the box a class declares.</summary>
     /// <returns>The box, or <see langword="null"/> when the declaration does not name both keys.</returns>
-    public static WireBoxHelper? Create(IHelperOwner owner, FgdHelper declaration)
+    public static WireBoxHelper? Create(IHelperOwner owner, HelperDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(declaration);
 

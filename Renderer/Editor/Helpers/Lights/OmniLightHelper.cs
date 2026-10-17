@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -42,7 +41,7 @@ internal sealed class OmniLightHelper : LightHelperBase
     /// <summary>Gets the angle of the outer cone from the forward axis, in degrees.</summary>
     private float OuterAngle { get; }
 
-    public OmniLightHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    public OmniLightHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         Shape = GetIntegerKey("shape");
         InnerAngle = GetFloatKey("inner_angle");

@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.Map;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -12,9 +11,8 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 internal sealed class ErrorIndicatorHelper : IconHelper
 {
     private const string ErrorMaterialName = "materials/editor/error_indicator.vmat";
-    private const string RequiredParentClassKey = "required_parent_class";
 
-    public ErrorIndicatorHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration, ErrorMaterialName)
+    public ErrorIndicatorHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration, ErrorMaterialName)
     {
     }
 
@@ -30,28 +28,22 @@ internal sealed class ErrorIndicatorHelper : IconHelper
     // Only a map being edited places entities under others, so the entities of a compiled map are never marked
     private bool IsMisplaced()
     {
-        if (Owner is not MapEntity mapEntity || Owner.FgdClass?.Metadata is not { } metadata || !metadata.ContainsKey(RequiredParentClassKey)
-            || metadata.GetStringProperty(RequiredParentClassKey) is not { Length: > 0 } requiredName)
+        if (Owner is not MapEntity mapEntity || Owner.EntityClass?.RequiredParentClass is not { Length: > 0 } requiredName)
         {
             return false;
         }
 
         var rendererContext = Owner.Scene.RendererContext;
-        var gameData = EditorFgd.Load(rendererContext.FileLoader, rendererContext.Logger);
+        var classes = EntityClassCatalog.Get(rendererContext.FileLoader, rendererContext.Logger);
 
         // A class the game does not declare cannot be required
-        if (gameData.FindClass(requiredName) is not { } requiredClass)
+        if (!classes.Declares(requiredName))
         {
             return false;
         }
 
         return mapEntity.PlacedNode.Parent?.CreateEntity()?.GetStringProperty("classname") is not { Length: > 0 } parentClassname
-            || gameData.FindClass(parentClassname) is not { } parentClass
-            || !DerivesFrom(parentClass, requiredClass);
+            || classes.FindClass(parentClassname) is not { } parentClass
+            || !parentClass.DerivesFrom(requiredName);
     }
-
-    private static bool DerivesFrom(FgdClass gameClass, FgdClass baseClass)
-        => gameClass == baseClass
-            || gameClass.Name.Equals(baseClass.Name, StringComparison.OrdinalIgnoreCase)
-            || gameClass.BaseClasses.Exists(parent => DerivesFrom(parent, baseClass));
 }

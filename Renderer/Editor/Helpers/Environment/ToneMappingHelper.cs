@@ -1,5 +1,4 @@
 using System.Globalization;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Map;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveMapEntity = ValveResourceFormat.IO.ContentFormats.ValveMap.BaseEntity;
@@ -10,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The exposure limits of an <c>env_tonemap_controller</c>, which the map is exposed within while the entity
 /// is the <c>tonemap</c> global.
 /// </summary>
-internal sealed class ToneMappingHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class ToneMappingHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;

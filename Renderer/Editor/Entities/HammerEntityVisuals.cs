@@ -2,7 +2,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Helpers;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Renderer.Entities;
@@ -14,7 +13,7 @@ using ValveResourceFormat.Utils;
 namespace ValveResourceFormat.Renderer.Editor.Entities;
 
 /// <summary>
-/// Draws entities the way Hammer shows them, with the helpers their classes declare in the FGD files of the
+/// Draws entities the way Hammer shows them, with the helpers their classes declare for the editor of the
 /// game: the model, icon or box an entity is placed as, the lines its class draws to the entities it names,
 /// and a line along each of its entity I/O connections. None of it is what the game shows. It holds the
 /// helpers of every entity of a view, of a compiled map or of a source map, so the shapes a selected entity
@@ -41,22 +40,22 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     private static readonly Color32 ConnectionStartColor = new(0, 255, 0);
     private static readonly Color32 ConnectionEndColor = new(255, 0, 0);
 
-    private readonly Lazy<ForgeGameData> fgd;
+    private readonly Lazy<EntityClassTable> classes;
     private readonly ConditionalWeakTable<BaseEntity, EntityHelperOwner> gameEntities = [];
     private readonly ConditionalWeakTable<EntityLump.Entity, IHelperOwner> mapEntities = [];
 
     /// <summary>Gets the entity classes the entities are drawn by, loaded when they are first needed.</summary>
-    public ForgeGameData Fgd => fgd.Value;
+    public EntityClassTable Classes => classes.Value;
 
     /// <summary>Initializes the visuals for the entities of a game.</summary>
-    /// <param name="fileLoader">The file loader of what is shown, which finds the FGD files of its game.</param>
+    /// <param name="fileLoader">The file loader of what is shown, which finds its game.</param>
     /// <param name="logger">Where it is said which classes are used.</param>
     public HammerEntityVisuals(IFileLoader fileLoader, ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(fileLoader);
         ArgumentNullException.ThrowIfNull(logger);
 
-        fgd = new Lazy<ForgeGameData>(() => EditorFgd.Load(fileLoader, logger));
+        classes = new Lazy<EntityClassTable>(() => EntityClassCatalog.Get(fileLoader, logger));
     }
 
     /// <summary>Adds an entity of a source map, so the nodes it is drawn with are found to belong to it.</summary>
@@ -97,12 +96,12 @@ public sealed class HammerEntityVisuals : IEntityToolVisuals
     /// <inheritdoc/>
     public IEnumerable<string> GetResourcesToPreload(string classname)
     {
-        if (Fgd.FindClass(classname) is not { } gameClass)
+        if (Classes.FindClass(classname) is not { } entityClass)
         {
             yield break;
         }
 
-        foreach (var declaration in gameClass.Helpers)
+        foreach (var declaration in entityClass.Helpers)
         {
             if (declaration.Name.Equals("iconsprite", StringComparison.OrdinalIgnoreCase))
             {

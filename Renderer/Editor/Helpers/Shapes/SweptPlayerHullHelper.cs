@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -9,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// which is in the space of the entity, with a line between the two and a handle at the end while the entity
 /// is selected.
 /// </summary>
-internal sealed class SweptPlayerHullHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class SweptPlayerHullHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsToolShape => true;

@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
@@ -9,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The light an entity casts, as its keys describe it, such as the light of the sun. It draws nothing while
 /// its entity is selected.
 /// </summary>
-internal sealed class LightHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class LightHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override void AddToScene()

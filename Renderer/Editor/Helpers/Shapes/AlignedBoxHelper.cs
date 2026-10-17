@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -23,7 +22,7 @@ internal sealed class AlignedBoxHelper : EntityHelper
     private Vector3 Maxs { get; }
 
     public AlignedBoxHelper(IHelperOwner owner, Vector3 mins, Vector3 maxs)
-        : base(owner, new FgdHelper { Name = "wirebox" })
+        : base(owner, new HelperDeclaration { Name = "wirebox" })
     {
         Mins = mins;
         Maxs = maxs;

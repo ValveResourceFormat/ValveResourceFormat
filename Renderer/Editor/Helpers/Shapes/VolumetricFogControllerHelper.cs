@@ -1,5 +1,4 @@
 using System.Linq;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -9,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The volume a selected fog controller covers, dashed over the scene, with the volume of every fog volume of
 /// its map: the box around all of them, or the box of the controller itself while the map has none.
 /// </summary>
-internal sealed class VolumetricFogControllerHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class VolumetricFogControllerHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override bool IsVisual => false;

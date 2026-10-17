@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -17,7 +16,7 @@ internal class ParticleHelper : EntityHelper
     /// <summary>Gets the effect, once it is in the scene and it loaded.</summary>
     private ParticleSceneNode? Effect { get; set; }
 
-    public ParticleHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    public ParticleHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         EffectKey = GetArgument(0) ?? "effect_name";
     }

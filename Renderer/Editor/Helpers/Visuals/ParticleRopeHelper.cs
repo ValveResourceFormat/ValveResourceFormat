@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.SceneNodes;
 
 namespace ValveResourceFormat.Renderer.Editor.Helpers;
@@ -7,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Editor.Helpers;
 /// The rope of a <c>path_particle_rope</c>, hung between the nodes of its path, which stops moving once it
 /// has simulated for as long as the entity says.
 /// </summary>
-internal sealed class ParticleRopeHelper(IHelperOwner owner, FgdHelper declaration) : EntityHelper(owner, declaration)
+internal sealed class ParticleRopeHelper(IHelperOwner owner, HelperDeclaration declaration) : EntityHelper(owner, declaration)
 {
     /// <inheritdoc/>
     public override void AddToScene()

@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 using ValveResourceFormat.Utils;
 
@@ -26,7 +25,7 @@ internal sealed class AxisHelper : EntityHelper
     /// <summary>Gets whether the points are in the space of the entity, rather than in world space.</summary>
     private bool IsLocal { get; }
 
-    public AxisHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    public AxisHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         AxisKey = (GetArgument(0) ?? DefaultAxisKey).ToLowerInvariant();
         IsLocal = declaration.Name.Equals("localaxis", StringComparison.OrdinalIgnoreCase);

@@ -2,7 +2,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Map;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
@@ -36,7 +35,7 @@ public sealed class BakeResourceHelper : EntityHelper
     /// <summary>Gets what is baked, such as <c>ToolObjects/LightProbeVolume</c>.</summary>
     private string? ToolObject => GetArgument(3);
 
-    internal BakeResourceHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    internal BakeResourceHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         static string[] Split(string? list) => list?.Split(',', StringSplitOptions.TrimEntries) ?? [];
 

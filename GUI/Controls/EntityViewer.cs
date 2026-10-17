@@ -586,12 +586,12 @@ namespace GUI.Types.Viewers
         {
             EntityIconLoadAttempted.Add(classname);
 
-            if (EditorFgd.Load(GuiContext, VrfGuiContext.Logger).FindClass(classname) is not { } gameClass)
+            if (EntityClassCatalog.Get(GuiContext, VrfGuiContext.Logger).FindClass(classname) is not { } entityClass)
             {
                 return -1;
             }
 
-            foreach (var helper in gameClass.Helpers)
+            foreach (var helper in entityClass.Helpers)
             {
                 if (!helper.Name.Equals("iconsprite", StringComparison.OrdinalIgnoreCase) || IconHelper.GetDeclaredMaterialName(helper) is not { } iconPath)
                 {

@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.Editor.ToolRender;
 
@@ -21,7 +20,7 @@ internal sealed class DotaObstructionHelper : ModelHelper
     /// <inheritdoc/>
     private protected override bool FollowsEntity => false;
 
-    private DotaObstructionHelper(IHelperOwner owner, FgdHelper declaration, Settings settings, float? gridCellSize)
+    private DotaObstructionHelper(IHelperOwner owner, HelperDeclaration declaration, Settings settings, float? gridCellSize)
         : base(owner, declaration, settings, LoadModel(owner, settings.ModelName))
     {
         this.gridCellSize = gridCellSize;
@@ -29,7 +28,7 @@ internal sealed class DotaObstructionHelper : ModelHelper
 
     /// <summary>Creates the obstruction of an entity.</summary>
     /// <returns>The obstruction, which is drawn as a box where there is no model.</returns>
-    public static new DotaObstructionHelper Create(IHelperOwner owner, FgdHelper declaration)
+    public static new DotaObstructionHelper Create(IHelperOwner owner, HelperDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(declaration);
@@ -48,7 +47,7 @@ internal sealed class DotaObstructionHelper : ModelHelper
         };
 
         var rendererContext = owner.Scene.RendererContext;
-        var gridNav = EditorFgd.Load(rendererContext.FileLoader, rendererContext.Logger).GridNav;
+        var gridNav = EntityClassCatalog.Get(rendererContext.FileLoader, rendererContext.Logger).GridNav;
 
         return new DotaObstructionHelper(owner, declaration, settings, gridNav is { EdgeSize: > 0 } grid ? grid.EdgeSize : null);
     }

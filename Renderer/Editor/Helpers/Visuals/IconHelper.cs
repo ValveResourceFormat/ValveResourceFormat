@@ -1,7 +1,6 @@
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
-using ValveResourceFormat.IO.Fgd;
 using ValveResourceFormat.Renderer.Editor.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -43,14 +42,14 @@ public class IconHelper : EntityHelper
     /// <remarks>Only where the icon is placed counts, not the size it is drawn at.</remarks>
     public override AABB? ObjectBounds => new(Owner.Transform.Translation, Owner.Transform.Translation);
 
-    internal IconHelper(IHelperOwner owner, FgdHelper declaration) : base(owner, declaration)
+    internal IconHelper(IHelperOwner owner, HelperDeclaration declaration) : base(owner, declaration)
     {
         MaterialName = GetDeclaredMaterialName(declaration) ?? GetMaterialName(string.Empty);
         TintKey = GetMetadata("tintKey");
     }
 
     /// <summary>Initializes an icon drawn over everything else, which no key tints.</summary>
-    private protected IconHelper(IHelperOwner owner, FgdHelper declaration, string materialName) : base(owner, declaration)
+    private protected IconHelper(IHelperOwner owner, HelperDeclaration declaration, string materialName) : base(owner, declaration)
     {
         MaterialName = materialName;
         isDrawnOverScene = true;
@@ -59,13 +58,13 @@ public class IconHelper : EntityHelper
     /// <summary>Gets the material a class names in the declaration of an icon.</summary>
     /// <param name="declaration">The helper as a class declares it.</param>
     /// <returns>The name of the material, or <see langword="null"/> when the declaration names none.</returns>
-    public static string? GetDeclaredMaterialName(FgdHelper declaration)
+    public static string? GetDeclaredMaterialName(HelperDeclaration declaration)
     {
         ArgumentNullException.ThrowIfNull(declaration);
 
         var image = declaration.Metadata is { } keys && keys.ContainsKey("image")
             ? keys.GetStringProperty("image")
-            : declaration.Arguments.FirstOrDefault();
+            : declaration.Arguments is [var first, ..] ? first : null;
 
         return string.IsNullOrEmpty(image) ? null : GetMaterialName(image);
     }
@@ -139,7 +138,7 @@ public class IconHelper : EntityHelper
     private Vector3 GetTint()
     {
         if (string.IsNullOrEmpty(TintKey)
-            || !Owner.KeyValues.ContainsKey(TintKey) && Owner.FgdClass?.FindVariable(TintKey) is not { HasDefault: true })
+            || !Owner.KeyValues.ContainsKey(TintKey) && Owner.EntityClass?.FindKey(TintKey) is not { Default: not null })
         {
             return Vector3.One;
         }
